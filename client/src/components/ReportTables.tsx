@@ -229,9 +229,10 @@ export function TradeProfitLeaderboardTable({
   data: ReportData['tradeProfitLeaderboard'];
 }) {
   return (
-    <Card className="bg-slate-900 border-slate-800 overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
+    <div className="flex justify-center">
+      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
           <TableHeader className="bg-slate-800/50">
             <TableRow className="border-slate-700 hover:bg-slate-800/50">
               <TableHead className="text-slate-300">Rank</TableHead>
@@ -257,9 +258,10 @@ export function TradeProfitLeaderboardTable({
               </TableRow>
             ))}
           </TableBody>
-        </Table>
-      </div>
-    </Card>
+          </Table>
+        </div>
+      </Card>
+    </div>
   );
 }
 
