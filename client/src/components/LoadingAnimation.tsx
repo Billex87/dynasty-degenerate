@@ -38,17 +38,17 @@ export function LoadingAnimation() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-between min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-8">
+    <div className="flex flex-col items-center justify-between min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 pt-2 pb-8">
       {/* Logo Section - Top */}
-      <div className="flex flex-col items-center gap-1">
-        <div className="flex justify-center h-80 w-full max-w-2xl">
+      <div className="flex flex-col items-center gap-0">
+        <div className="flex justify-center h-72 w-full max-w-2xl">
           <img 
             src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
             alt="Dynasty Degenerates Logo" 
             className="w-auto h-full object-contain"
           />
         </div>
-        <p className="text-slate-400 text-2xl font-semibold">Analyzing your league...</p>
+        <p className="text-slate-400 text-2xl font-semibold -mt-2">Analyzing your league...</p>
       </div>
 
       {/* Loading Steps - Center */}
