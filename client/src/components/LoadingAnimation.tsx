@@ -38,7 +38,7 @@ export function LoadingAnimation() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-between min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 pt-2 pb-8">
+    <div className="flex flex-col items-center justify-start h-auto bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 pt-2 pb-8">
       {/* Logo Section - Top */}
       <div className="flex flex-col items-center gap-0">
         <div className="flex justify-center h-72 w-full max-w-2xl">
