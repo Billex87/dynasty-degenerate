@@ -98,17 +98,17 @@ export function LoadingAnimation() {
         <p className="text-slate-500 text-xs mt-1 text-center">
           {steps.filter(s => s.status === 'complete').length} of {steps.length} steps complete
         </p>
-      </div>
-
-      {/* Progress Bar - Bottom */}
-      <div className="w-full max-w-2xl">
-        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 rounded-full transition-all duration-500"
-            style={{
-              width: `${(steps.filter(s => s.status === 'complete').length / steps.length) * 100}%`
-            }}
-          />
+        
+        {/* Progress Bar - Right Under Counter */}
+        <div className="w-full mt-1">
+          <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 rounded-full transition-all duration-500"
+              style={{
+                width: `${(steps.filter(s => s.status === 'complete').length / steps.length) * 100}%`
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
