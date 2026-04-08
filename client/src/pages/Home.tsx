@@ -354,8 +354,8 @@ export default function Home() {
 
       {/* Premium Footer */}
       {!reportData && (
-      <div className="border-t border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur mt-8 sm:mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="border-t border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur mt-auto flex flex-col">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8 mb-6 sm:mb-8">
             <div className="text-center">
               <h4 className="font-bold text-orange-400 mb-3">What We Do</h4>
@@ -385,18 +385,18 @@ export default function Home() {
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-700 py-2 text-center flex flex-col justify-between min-h-32 sm:min-h-40">
-            <div className="flex justify-center h-24 sm:h-32">
-              <img 
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
-                alt="Dynasty Degenerates Logo" 
-                className="w-auto object-contain"
-              />
-            </div>
-            <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-xs sm:text-sm pb-2">
-              JUST SOME DEGENS WITH SCRAPING TOOLS AND A.I.
-            </p>
+        </div>
+        <div className="border-t border-slate-700 text-center flex flex-col justify-between py-4 sm:py-6 px-4 sm:px-6">
+          <div className="flex justify-center h-24 sm:h-32 mb-2">
+            <img 
+              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
+              alt="Dynasty Degenerates Logo" 
+              className="w-auto object-contain"
+            />
           </div>
+          <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-xs sm:text-sm">
+            JUST SOME DEGENS WITH SCRAPING TOOLS AND A.I.
+          </p>
         </div>
       </div>
       )}
