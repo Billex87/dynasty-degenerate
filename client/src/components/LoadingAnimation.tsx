@@ -40,17 +40,15 @@ export function LoadingAnimation() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4">
       {/* Logo */}
-      <div className="mb-8 text-center">
-        <div className="flex justify-center">
-          <div className="w-48 h-48 flex items-center justify-center">
-            <img 
-              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
-              alt="Dynasty Degenerates Logo" 
-              className="w-full h-full object-contain"
-            />
-          </div>
+      <div className="mb-8 text-center flex-1 flex flex-col items-center justify-center w-full">
+        <div className="flex justify-center flex-1 w-full max-w-2xl px-4">
+          <img 
+            src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
+            alt="Dynasty Degenerates Logo" 
+            className="w-full h-auto object-contain"
+          />
         </div>
-        <p className="text-slate-400 text-lg mt-8">Analyzing your league...</p>
+        <p className="text-slate-400 text-lg mt-4">Analyzing your league...</p>
       </div>
 
       {/* Loading Steps */}
