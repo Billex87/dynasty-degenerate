@@ -1,0 +1,2002 @@
+{
+  "joshallen": {
+    "name": "Josh Allen",
+    "ktc_value": 9999
+  },
+  "bijanrobinson": {
+    "name": "Bijan Robinson",
+    "ktc_value": 9994
+  },
+  "jamarrchase": {
+    "name": "Ja'Marr Chase",
+    "ktc_value": 9928
+  },
+  "jaxonsmithnjigba": {
+    "name": "Jaxon Smith-Njigba",
+    "ktc_value": 9834
+  },
+  "jahmyrgibbs": {
+    "name": "Jahmyr Gibbs",
+    "ktc_value": 9607
+  },
+  "drakemaye": {
+    "name": "Drake Maye",
+    "ktc_value": 9418
+  },
+  "pukanacua": {
+    "name": "Puka Nacua",
+    "ktc_value": 9064
+  },
+  "maliknabers": {
+    "name": "Malik Nabers",
+    "ktc_value": 7753
+  },
+  "jaydendaniels": {
+    "name": "Jayden Daniels",
+    "ktc_value": 7751
+  },
+  "brockbowers": {
+    "name": "Brock Bowers",
+    "ktc_value": 7741
+  },
+  "calebwilliams": {
+    "name": "Caleb Williams",
+    "ktc_value": 7739
+  },
+  "amonrastbrown": {
+    "name": "Amon-Ra St. Brown",
+    "ktc_value": 7722
+  },
+  "lamarjackson": {
+    "name": "Lamar Jackson",
+    "ktc_value": 7674
+  },
+  "justinjefferson": {
+    "name": "Justin Jefferson",
+    "ktc_value": 7663
+  },
+  "treymcbride": {
+    "name": "Trey McBride",
+    "ktc_value": 7631
+  },
+  "ashtonjeanty": {
+    "name": "Ashton Jeanty",
+    "ktc_value": 7466
+  },
+  "jeremiyahlove": {
+    "name": "Jeremiyah Love",
+    "ktc_value": 7451
+  },
+  "joeburrow": {
+    "name": "Joe Burrow",
+    "ktc_value": 7399
+  },
+  "ceedeelamb": {
+    "name": "CeeDee Lamb",
+    "ktc_value": 7369
+  },
+  "justinherbert": {
+    "name": "Justin Herbert",
+    "ktc_value": 6920
+  },
+  "drakelondon": {
+    "name": "Drake London",
+    "ktc_value": 6904
+  },
+  "2027early1st": {
+    "name": "2027 Early 1st",
+    "ktc_value": 6867
+  },
+  "devonachane": {
+    "name": "De'Von Achane",
+    "ktc_value": 6826
+  },
+  "omarionhampton": {
+    "name": "Omarion Hampton",
+    "ktc_value": 6797
+  },
+  "patrickmahomes": {
+    "name": "Patrick Mahomes",
+    "ktc_value": 6796
+  },
+  "jaxsondart": {
+    "name": "Jaxson Dart",
+    "ktc_value": 6698
+  },
+  "tetairoamcmillan": {
+    "name": "Tetairoa McMillan",
+    "ktc_value": 6618
+  },
+  "jalenhurts": {
+    "name": "Jalen Hurts",
+    "ktc_value": 6316
+  },
+  "trevorlawrence": {
+    "name": "Trevor Lawrence",
+    "ktc_value": 6257
+  },
+  "bonix": {
+    "name": "Bo Nix",
+    "ktc_value": 6249
+  },
+  "emekaegbuka": {
+    "name": "Emeka Egbuka",
+    "ktc_value": 6023
+  },
+  "georgepickens": {
+    "name": "George Pickens",
+    "ktc_value": 6013
+  },
+  "colstonloveland": {
+    "name": "Colston Loveland",
+    "ktc_value": 6013
+  },
+  "jamescook": {
+    "name": "James Cook",
+    "ktc_value": 5982
+  },
+  "brockpurdy": {
+    "name": "Brock Purdy",
+    "ktc_value": 5970
+  },
+  "jonathantaylor": {
+    "name": "Jonathan Taylor",
+    "ktc_value": 5967
+  },
+  "2026early1st": {
+    "name": "2026 Early 1st",
+    "ktc_value": 5802
+  },
+  "garrettwilson": {
+    "name": "Garrett Wilson",
+    "ktc_value": 5777
+  },
+  "tylerwarren": {
+    "name": "Tyler Warren",
+    "ktc_value": 5754
+  },
+  "nicocollins": {
+    "name": "Nico Collins",
+    "ktc_value": 5753
+  },
+  "kennethwalkeriii": {
+    "name": "Kenneth Walker III",
+    "ktc_value": 5725
+  },
+  "chrisolave": {
+    "name": "Chris Olave",
+    "ktc_value": 5721
+  },
+  "jordanlove": {
+    "name": "Jordan Love",
+    "ktc_value": 5688
+  },
+  "fernandomendoza": {
+    "name": "Fernando Mendoza",
+    "ktc_value": 5630
+  },
+  "2027mid1st": {
+    "name": "2027 Mid 1st",
+    "ktc_value": 5618
+  },
+  "romeodunze": {
+    "name": "Rome Odunze",
+    "ktc_value": 5584
+  },
+  "treveyonhenderson": {
+    "name": "TreVeyon Henderson",
+    "ktc_value": 5471
+  },
+  "laddmcconkey": {
+    "name": "Ladd McConkey",
+    "ktc_value": 5424
+  },
+  "quinshonjudkins": {
+    "name": "Quinshon Judkins",
+    "ktc_value": 5400
+  },
+  "lutherburden": {
+    "name": "Luther Burden",
+    "ktc_value": 5394
+  },
+  "breecehall": {
+    "name": "Breece Hall",
+    "ktc_value": 5375
+  },
+  "carnelltate": {
+    "name": "Carnell Tate",
+    "ktc_value": 5171
+  },
+  "camward": {
+    "name": "Cam Ward",
+    "ktc_value": 5127
+  },
+  "christianmccaffrey": {
+    "name": "Christian McCaffrey",
+    "ktc_value": 5114
+  },
+  "makailemon": {
+    "name": "Makai Lemon",
+    "ktc_value": 5082
+  },
+  "buckyirving": {
+    "name": "Bucky Irving",
+    "ktc_value": 5067
+  },
+  "2028early1st": {
+    "name": "2028 Early 1st",
+    "ktc_value": 5063
+  },
+  "dakprescott": {
+    "name": "Dak Prescott",
+    "ktc_value": 5052
+  },
+  "marvinharrisonjr": {
+    "name": "Marvin Harrison Jr.",
+    "ktc_value": 5040
+  },
+  "chasebrown": {
+    "name": "Chase Brown",
+    "ktc_value": 4969
+  },
+  "haroldfannin": {
+    "name": "Harold Fannin",
+    "ktc_value": 4945
+  },
+  "teehiggins": {
+    "name": "Tee Higgins",
+    "ktc_value": 4943
+  },
+  "saquonbarkley": {
+    "name": "Saquon Barkley",
+    "ktc_value": 4942
+  },
+  "devontasmith": {
+    "name": "DeVonta Smith",
+    "ktc_value": 4918
+  },
+  "brianthomasjr": {
+    "name": "Brian Thomas Jr.",
+    "ktc_value": 4916
+  },
+  "jaylenwaddle": {
+    "name": "Jaylen Waddle",
+    "ktc_value": 4875
+  },
+  "rasheerice": {
+    "name": "Rashee Rice",
+    "ktc_value": 4854
+  },
+  "kyrenwilliams": {
+    "name": "Kyren Williams",
+    "ktc_value": 4836
+  },
+  "cjstroud": {
+    "name": "C.J. Stroud",
+    "ktc_value": 4822
+  },
+  "2027late1st": {
+    "name": "2027 Late 1st",
+    "ktc_value": 4806
+  },
+  "tuckerkraft": {
+    "name": "Tucker Kraft",
+    "ktc_value": 4804
+  },
+  "jordyntyson": {
+    "name": "Jordyn Tyson",
+    "ktc_value": 4774
+  },
+  "bakermayfield": {
+    "name": "Baker Mayfield",
+    "ktc_value": 4760
+  },
+  "ajbrown": {
+    "name": "A.J. Brown",
+    "ktc_value": 4756
+  },
+  "jamesonwilliams": {
+    "name": "Jameson Williams",
+    "ktc_value": 4751
+  },
+  "zayflowers": {
+    "name": "Zay Flowers",
+    "ktc_value": 4737
+  },
+  "samdarnold": {
+    "name": "Sam Darnold",
+    "ktc_value": 4708
+  },
+  "jaredgoff": {
+    "name": "Jared Goff",
+    "ktc_value": 4705
+  },
+  "2026mid1st": {
+    "name": "2026 Mid 1st",
+    "ktc_value": 4679
+  },
+  "travisetienne": {
+    "name": "Travis Etienne",
+    "ktc_value": 4667
+  },
+  "tylershough": {
+    "name": "Tyler Shough",
+    "ktc_value": 4621
+  },
+  "joshjacobs": {
+    "name": "Josh Jacobs",
+    "ktc_value": 4613
+  },
+  "javontewilliams": {
+    "name": "Javonte Williams",
+    "ktc_value": 4568
+  },
+  "samlaporta": {
+    "name": "Sam LaPorta",
+    "ktc_value": 4558
+  },
+  "bryceyoung": {
+    "name": "Bryce Young",
+    "ktc_value": 4553
+  },
+  "2028mid1st": {
+    "name": "2028 Mid 1st",
+    "ktc_value": 4518
+  },
+  "camskattebo": {
+    "name": "Cam Skattebo",
+    "ktc_value": 4485
+  },
+  "kylepitts": {
+    "name": "Kyle Pitts",
+    "ktc_value": 4482
+  },
+  "kylermurray": {
+    "name": "Kyler Murray",
+    "ktc_value": 4454
+  },
+  "kenyonsadiq": {
+    "name": "Kenyon Sadiq",
+    "ktc_value": 4369
+  },
+  "alecpierce": {
+    "name": "Alec Pierce",
+    "ktc_value": 4340
+  },
+  "danieljones": {
+    "name": "Daniel Jones",
+    "ktc_value": 4289
+  },
+  "malikwillis": {
+    "name": "Malik Willis",
+    "ktc_value": 4124
+  },
+  "jordanaddison": {
+    "name": "Jordan Addison",
+    "ktc_value": 3946
+  },
+  "bhayshultuten": {
+    "name": "Bhayshul Tuten",
+    "ktc_value": 3933
+  },
+  "2026late1st": {
+    "name": "2026 Late 1st",
+    "ktc_value": 3928
+  },
+  "djmoore": {
+    "name": "D.J. Moore",
+    "ktc_value": 3916
+  },
+  "2028late1st": {
+    "name": "2028 Late 1st",
+    "ktc_value": 3895
+  },
+  "orondegadsden": {
+    "name": "Oronde Gadsden",
+    "ktc_value": 3852
+  },
+  "kcconcepcion": {
+    "name": "KC Concepcion",
+    "ktc_value": 3789
+  },
+  "2027early2nd": {
+    "name": "2027 Early 2nd",
+    "ktc_value": 3776
+  },
+  "derrickhenry": {
+    "name": "Derrick Henry",
+    "ktc_value": 3773
+  },
+  "matthewstafford": {
+    "name": "Matthew Stafford",
+    "ktc_value": 3763
+  },
+  "rjharvey": {
+    "name": "RJ Harvey",
+    "ktc_value": 3761
+  },
+  "wandalerobinson": {
+    "name": "Wan'Dale Robinson",
+    "ktc_value": 3717
+  },
+  "michaelwilson": {
+    "name": "Michael Wilson",
+    "ktc_value": 3717
+  },
+  "travishunter": {
+    "name": "Travis Hunter",
+    "ktc_value": 3709
+  },
+  "zachcharbonnet": {
+    "name": "Zach Charbonnet",
+    "ktc_value": 3678
+  },
+  "christianwatson": {
+    "name": "Christian Watson",
+    "ktc_value": 3632
+  },
+  "romeodoubs": {
+    "name": "Romeo Doubs",
+    "ktc_value": 3628
+  },
+  "parkerwashington": {
+    "name": "Parker Washington",
+    "ktc_value": 3607
+  },
+  "dkmetcalf": {
+    "name": "DK Metcalf",
+    "ktc_value": 3602
+  },
+  "rickypearsall": {
+    "name": "Ricky Pearsall",
+    "ktc_value": 3586
+  },
+  "dandreswift": {
+    "name": "D'Andre Swift",
+    "ktc_value": 3575
+  },
+  "kylemonangai": {
+    "name": "Kyle Monangai",
+    "ktc_value": 3575
+  },
+  "jaydenhiggins": {
+    "name": "Jayden Higgins",
+    "ktc_value": 3572
+  },
+  "matthewgolden": {
+    "name": "Matthew Golden",
+    "ktc_value": 3555
+  },
+  "michaelpittman": {
+    "name": "Michael Pittman",
+    "ktc_value": 3535
+  },
+  "tylerallgeier": {
+    "name": "Tyler Allgeier",
+    "ktc_value": 3528
+  },
+  "davanteadams": {
+    "name": "Davante Adams",
+    "ktc_value": 3520
+  },
+  "isaiahlikely": {
+    "name": "Isaiah Likely",
+    "ktc_value": 3484
+  },
+  "omarcooperjr": {
+    "name": "Omar Cooper Jr.",
+    "ktc_value": 3461
+  },
+  "davidmontgomery": {
+    "name": "David Montgomery",
+    "ktc_value": 3449
+  },
+  "terrymclaurin": {
+    "name": "Terry McLaurin",
+    "ktc_value": 3438
+  },
+  "2027mid2nd": {
+    "name": "2027 Mid 2nd",
+    "ktc_value": 3418
+  },
+  "chubahubbard": {
+    "name": "Chuba Hubbard",
+    "ktc_value": 3396
+  },
+  "denzelboston": {
+    "name": "Denzel Boston",
+    "ktc_value": 3379
+  },
+  "xavierworthy": {
+    "name": "Xavier Worthy",
+    "ktc_value": 3373
+  },
+  "quentinjohnston": {
+    "name": "Quentin Johnston",
+    "ktc_value": 3372
+  },
+  "joshdowns": {
+    "name": "Josh Downs",
+    "ktc_value": 3365
+  },
+  "mikeevans": {
+    "name": "Mike Evans",
+    "ktc_value": 3359
+  },
+  "daltonkincaid": {
+    "name": "Dalton Kincaid",
+    "ktc_value": 3353
+  },
+  "jakobimeyers": {
+    "name": "Jakobi Meyers",
+    "ktc_value": 3346
+  },
+  "ricodowdle": {
+    "name": "Rico Dowdle",
+    "ktc_value": 3337
+  },
+  "jakeferguson": {
+    "name": "Jake Ferguson",
+    "ktc_value": 3319
+  },
+  "2026early2nd": {
+    "name": "2026 Early 2nd",
+    "ktc_value": 3317
+  },
+  "jaydenreed": {
+    "name": "Jayden Reed",
+    "ktc_value": 3314
+  },
+  "georgekittle": {
+    "name": "George Kittle",
+    "ktc_value": 3283
+  },
+  "blakecorum": {
+    "name": "Blake Corum",
+    "ktc_value": 3266
+  },
+  "jaylenwarren": {
+    "name": "Jaylen Warren",
+    "ktc_value": 3182
+  },
+  "jalenmcmillan": {
+    "name": "Jalen McMillan",
+    "ktc_value": 3147
+  },
+  "courtlandsutton": {
+    "name": "Courtland Sutton",
+    "ktc_value": 3146
+  },
+  "2028early2nd": {
+    "name": "2028 Early 2nd",
+    "ktc_value": 3127
+  },
+  "michaelpenixjr": {
+    "name": "Michael Penix Jr.",
+    "ktc_value": 3123
+  },
+  "jalencoker": {
+    "name": "Jalen Coker",
+    "ktc_value": 3077
+  },
+  "brentonstrange": {
+    "name": "Brenton Strange",
+    "ktc_value": 3071
+  },
+  "2027late2nd": {
+    "name": "2027 Late 2nd",
+    "ktc_value": 3065
+  },
+  "tysimpson": {
+    "name": "Ty Simpson",
+    "ktc_value": 3053
+  },
+  "rashidshaheed": {
+    "name": "Rashid Shaheed",
+    "ktc_value": 3037
+  },
+  "jkdobbins": {
+    "name": "J.K. Dobbins",
+    "ktc_value": 3035
+  },
+  "2026mid2nd": {
+    "name": "2026 Mid 2nd",
+    "ktc_value": 3017
+  },
+  "jadarianprice": {
+    "name": "Jadarian Price",
+    "ktc_value": 3008
+  },
+  "rhamondrestevenson": {
+    "name": "Rhamondre Stevenson",
+    "ktc_value": 2995
+  },
+  "khalilshakir": {
+    "name": "Khalil Shakir",
+    "ktc_value": 2989
+  },
+  "masontaylor": {
+    "name": "Mason Taylor",
+    "ktc_value": 2960
+  },
+  "jonathonbrooks": {
+    "name": "Jonathon Brooks",
+    "ktc_value": 2949
+  },
+  "2028mid2nd": {
+    "name": "2028 Mid 2nd",
+    "ktc_value": 2917
+  },
+  "macjones": {
+    "name": "Mac Jones",
+    "ktc_value": 2902
+  },
+  "kayshonboutte": {
+    "name": "Kayshon Boutte",
+    "ktc_value": 2900
+  },
+  "jjmccarthy": {
+    "name": "J.J. McCarthy",
+    "ktc_value": 2898
+  },
+  "treharris": {
+    "name": "Tre Harris",
+    "ktc_value": 2895
+  },
+  "chrisgodwin": {
+    "name": "Chris Godwin",
+    "ktc_value": 2892
+  },
+  "isaacteslaa": {
+    "name": "Isaac TeSlaa",
+    "ktc_value": 2885
+  },
+  "ajbarner": {
+    "name": "AJ Barner",
+    "ktc_value": 2877
+  },
+  "2026late2nd": {
+    "name": "2026 Late 2nd",
+    "ktc_value": 2865
+  },
+  "kennethgainwell": {
+    "name": "Kenneth Gainwell",
+    "ktc_value": 2863
+  },
+  "shedeursanders": {
+    "name": "Shedeur Sanders",
+    "ktc_value": 2862
+  },
+  "jacorycroskeymerritt": {
+    "name": "Jacory Croskey-Merritt",
+    "ktc_value": 2842
+  },
+  "troyfranklin": {
+    "name": "Troy Franklin",
+    "ktc_value": 2829
+  },
+  "woodymarks": {
+    "name": "Woody Marks",
+    "ktc_value": 2822
+  },
+  "chigoziemokonkwo": {
+    "name": "Chigoziem Okonkwo",
+    "ktc_value": 2819
+  },
+  "terranceferguson": {
+    "name": "Terrance Ferguson",
+    "ktc_value": 2815
+  },
+  "elicayomanor": {
+    "name": "Elic Ayomanor",
+    "ktc_value": 2812
+  },
+  "jaylinnoel": {
+    "name": "Jaylin Noel",
+    "ktc_value": 2812
+  },
+  "jauanjennings": {
+    "name": "Jauan Jennings",
+    "ktc_value": 2794
+  },
+  "markandrews": {
+    "name": "Mark Andrews",
+    "ktc_value": 2775
+  },
+  "patbryant": {
+    "name": "Pat Bryant",
+    "ktc_value": 2773
+  },
+  "jacobybrissett": {
+    "name": "Jacoby Brissett",
+    "ktc_value": 2772
+  },
+  "tjhockenson": {
+    "name": "T.J. Hockenson",
+    "ktc_value": 2766
+  },
+  "tuatagovailoa": {
+    "name": "Tua Tagovailoa",
+    "ktc_value": 2757
+  },
+  "braelonallen": {
+    "name": "Braelon Allen",
+    "ktc_value": 2756
+  },
+  "jonahcoleman": {
+    "name": "Jonah Coleman",
+    "ktc_value": 2749
+  },
+  "adonaimitchell": {
+    "name": "Adonai Mitchell",
+    "ktc_value": 2747
+  },
+  "2028late2nd": {
+    "name": "2028 Late 2nd",
+    "ktc_value": 2741
+  },
+  "dylansampson": {
+    "name": "Dylan Sampson",
+    "ktc_value": 2737
+  },
+  "jerryjeudy": {
+    "name": "Jerry Jeudy",
+    "ktc_value": 2736
+  },
+  "toryhorton": {
+    "name": "Tory Horton",
+    "ktc_value": 2722
+  },
+  "treybenson": {
+    "name": "Trey Benson",
+    "ktc_value": 2713
+  },
+  "chimeredike": {
+    "name": "Chimere Dike",
+    "ktc_value": 2701
+  },
+  "jordanmason": {
+    "name": "Jordan Mason",
+    "ktc_value": 2697
+  },
+  "rachaadwhite": {
+    "name": "Rachaad White",
+    "ktc_value": 2686
+  },
+  "tonypollard": {
+    "name": "Tony Pollard",
+    "ktc_value": 2685
+  },
+  "davidnjoku": {
+    "name": "David Njoku",
+    "ktc_value": 2672
+  },
+  "tyjaespears": {
+    "name": "Tyjae Spears",
+    "ktc_value": 2671
+  },
+  "kylewilliams": {
+    "name": "Kyle Williams",
+    "ktc_value": 2654
+  },
+  "elistowers": {
+    "name": "Eli Stowers",
+    "ktc_value": 2639
+  },
+  "tyronetracy": {
+    "name": "Tyrone Tracy",
+    "ktc_value": 2602
+  },
+  "dallasgoedert": {
+    "name": "Dallas Goedert",
+    "ktc_value": 2599
+  },
+  "anthonyrichardson": {
+    "name": "Anthony Richardson",
+    "ktc_value": 2571
+  },
+  "gunnarhelm": {
+    "name": "Gunnar Helm",
+    "ktc_value": 2553
+  },
+  "2027early3rd": {
+    "name": "2027 Early 3rd",
+    "ktc_value": 2546
+  },
+  "brandonaiyuk": {
+    "name": "Brandon Aiyuk",
+    "ktc_value": 2545
+  },
+  "keoncoleman": {
+    "name": "Keon Coleman",
+    "ktc_value": 2539
+  },
+  "kimanividal": {
+    "name": "Kimani Vidal",
+    "ktc_value": 2531
+  },
+  "keatonmitchell": {
+    "name": "Keaton Mitchell",
+    "ktc_value": 2528
+  },
+  "elijaharroyo": {
+    "name": "Elijah Arroyo",
+    "ktc_value": 2519
+  },
+  "tankbigsby": {
+    "name": "Tank Bigsby",
+    "ktc_value": 2517
+  },
+  "olliegordon": {
+    "name": "Ollie Gordon",
+    "ktc_value": 2513
+  },
+  "traviskelce": {
+    "name": "Travis Kelce",
+    "ktc_value": 2496
+  },
+  "tankdell": {
+    "name": "Tank Dell",
+    "ktc_value": 2491
+  },
+  "malikwashington": {
+    "name": "Malik Washington",
+    "ktc_value": 2489
+  },
+  "cadeotton": {
+    "name": "Cade Otton",
+    "ktc_value": 2481
+  },
+  "seantucker": {
+    "name": "Sean Tucker",
+    "ktc_value": 2474
+  },
+  "deebosamuel": {
+    "name": "Deebo Samuel",
+    "ktc_value": 2469
+  },
+  "jalenmilroe": {
+    "name": "Jalen Milroe",
+    "ktc_value": 2469
+  },
+  "theojohnson": {
+    "name": "Theo Johnson",
+    "ktc_value": 2467
+  },
+  "nicholassingleton": {
+    "name": "Nicholas Singleton",
+    "ktc_value": 2455
+  },
+  "tretucker": {
+    "name": "Tre Tucker",
+    "ktc_value": 2451
+  },
+  "juwanjohnson": {
+    "name": "Juwan Johnson",
+    "ktc_value": 2441
+  },
+  "elijahsarratt": {
+    "name": "Elijah Sarratt",
+    "ktc_value": 2429
+  },
+  "jackbech": {
+    "name": "Jack Bech",
+    "ktc_value": 2418
+  },
+  "jaketonges": {
+    "name": "Jake Tonges",
+    "ktc_value": 2389
+  },
+  "kalebjohnson": {
+    "name": "Kaleb Johnson",
+    "ktc_value": 2388
+  },
+  "2027mid3rd": {
+    "name": "2027 Mid 3rd",
+    "ktc_value": 2378
+  },
+  "marvinmims": {
+    "name": "Marvin Mims",
+    "ktc_value": 2377
+  },
+  "dontayvionwicks": {
+    "name": "Dontayvion Wicks",
+    "ktc_value": 2372
+  },
+  "2026early3rd": {
+    "name": "2026 Early 3rd",
+    "ktc_value": 2368
+  },
+  "isiahpacheco": {
+    "name": "Isiah Pacheco",
+    "ktc_value": 2363
+  },
+  "jaylenwright": {
+    "name": "Jaylen Wright",
+    "ktc_value": 2360
+  },
+  "jalennailor": {
+    "name": "Jalen Nailor",
+    "ktc_value": 2358
+  },
+  "chrisrodriguez": {
+    "name": "Chris Rodriguez",
+    "ktc_value": 2326
+  },
+  "hunterhenry": {
+    "name": "Hunter Henry",
+    "ktc_value": 2321
+  },
+  "justinfields": {
+    "name": "Justin Fields",
+    "ktc_value": 2315
+  },
+  "michaelmayer": {
+    "name": "Michael Mayer",
+    "ktc_value": 2311
+  },
+  "brianrobinson": {
+    "name": "Brian Robinson",
+    "ktc_value": 2304
+  },
+  "daltonschultz": {
+    "name": "Dalton Schultz",
+    "ktc_value": 2301
+  },
+  "devinneal": {
+    "name": "Devin Neal",
+    "ktc_value": 2300
+  },
+  "isaiahbond": {
+    "name": "Isaiah Bond",
+    "ktc_value": 2292
+  },
+  "mikewashingtonjr": {
+    "name": "Mike Washington Jr.",
+    "ktc_value": 2292
+  },
+  "tezjohnson": {
+    "name": "Tez Johnson",
+    "ktc_value": 2278
+  },
+  "2026mid3rd": {
+    "name": "2026 Mid 3rd",
+    "ktc_value": 2250
+  },
+  "2027late3rd": {
+    "name": "2027 Late 3rd",
+    "ktc_value": 2236
+  },
+  "tyreekhill": {
+    "name": "Tyreek Hill",
+    "ktc_value": 2233
+  },
+  "emanuelwilson": {
+    "name": "Emanuel Wilson",
+    "ktc_value": 2210
+  },
+  "patfreiermuth": {
+    "name": "Pat Freiermuth",
+    "ktc_value": 2209
+  },
+  "stefondiggs": {
+    "name": "Stefon Diggs",
+    "ktc_value": 2205
+  },
+  "dontethornton": {
+    "name": "Dont'e Thornton",
+    "ktc_value": 2178
+  },
+  "2028early3rd": {
+    "name": "2028 Early 3rd",
+    "ktc_value": 2172
+  },
+  "chrisbrazzellii": {
+    "name": "Chris Brazzell II",
+    "ktc_value": 2166
+  },
+  "emmettjohnson": {
+    "name": "Emmett Johnson",
+    "ktc_value": 2155
+  },
+  "genosmith": {
+    "name": "Geno Smith",
+    "ktc_value": 2154
+  },
+  "colbyparkinson": {
+    "name": "Colby Parkinson",
+    "ktc_value": 2149
+  },
+  "brashardsmith": {
+    "name": "Brashard Smith",
+    "ktc_value": 2147
+  },
+  "lequintallen": {
+    "name": "LeQuint Allen",
+    "ktc_value": 2145
+  },
+  "trevoretienne": {
+    "name": "Trevor Etienne",
+    "ktc_value": 2139
+  },
+  "jamesconner": {
+    "name": "James Conner",
+    "ktc_value": 2138
+  },
+  "demariodouglas": {
+    "name": "Demario Douglas",
+    "ktc_value": 2135
+  },
+  "djgiddens": {
+    "name": "DJ Giddens",
+    "ktc_value": 2134
+  },
+  "xavierlegette": {
+    "name": "Xavier Legette",
+    "ktc_value": 2131
+  },
+  "darnellmooney": {
+    "name": "Darnell Mooney",
+    "ktc_value": 2130
+  },
+  "cedrictillman": {
+    "name": "Cedric Tillman",
+    "ktc_value": 2124
+  },
+  "2026late3rd": {
+    "name": "2026 Late 3rd",
+    "ktc_value": 2117
+  },
+  "rashodbateman": {
+    "name": "Rashod Bateman",
+    "ktc_value": 2116
+  },
+  "jatavionsanders": {
+    "name": "Ja'Tavion Sanders",
+    "ktc_value": 2114
+  },
+  "aaronjones": {
+    "name": "Aaron Jones",
+    "ktc_value": 2113
+  },
+  "alvinkamara": {
+    "name": "Alvin Kamara",
+    "ktc_value": 2110
+  },
+  "2028mid3rd": {
+    "name": "2028 Mid 3rd",
+    "ktc_value": 2109
+  },
+  "willhoward": {
+    "name": "Will Howard",
+    "ktc_value": 2099
+  },
+  "zachariahbranch": {
+    "name": "Zachariah Branch",
+    "ktc_value": 2088
+  },
+  "christiankirk": {
+    "name": "Christian Kirk",
+    "ktc_value": 2081
+  },
+  "garrettnussmeier": {
+    "name": "Garrett Nussmeier",
+    "ktc_value": 2068
+  },
+  "colekmet": {
+    "name": "Cole Kmet",
+    "ktc_value": 2035
+  },
+  "trinidadchambliss": {
+    "name": "Trinidad Chambliss",
+    "ktc_value": 2032
+  },
+  "jaydonblue": {
+    "name": "Jaydon Blue",
+    "ktc_value": 2030
+  },
+  "raydavis": {
+    "name": "Ray Davis",
+    "ktc_value": 1984
+  },
+  "chrisbell": {
+    "name": "Chris Bell",
+    "ktc_value": 1983
+  },
+  "jordanjames": {
+    "name": "Jordan James",
+    "ktc_value": 1981
+  },
+  "kendremiller": {
+    "name": "Kendre Miller",
+    "ktc_value": 1971
+  },
+  "2028late3rd": {
+    "name": "2028 Late 3rd",
+    "ktc_value": 1961
+  },
+  "quinnewers": {
+    "name": "Quinn Ewers",
+    "ktc_value": 1935
+  },
+  "isaiahdavis": {
+    "name": "Isaiah Davis",
+    "ktc_value": 1922
+  },
+  "darnellwashington": {
+    "name": "Darnell Washington",
+    "ktc_value": 1915
+  },
+  "marquisebrown": {
+    "name": "Marquise Brown",
+    "ktc_value": 1913
+  },
+  "ryanflournoy": {
+    "name": "Ryan Flournoy",
+    "ktc_value": 1895
+  },
+  "bensinnott": {
+    "name": "Ben Sinnott",
+    "ktc_value": 1888
+  },
+  "lukemusgrave": {
+    "name": "Luke Musgrave",
+    "ktc_value": 1881
+  },
+  "aaronrodgers": {
+    "name": "Aaron Rodgers",
+    "ktc_value": 1877
+  },
+  "malachifields": {
+    "name": "Malachi Fields",
+    "ktc_value": 1876
+  },
+  "calvinridley": {
+    "name": "Calvin Ridley",
+    "ktc_value": 1870
+  },
+  "jalenroyals": {
+    "name": "Jalen Royals",
+    "ktc_value": 1870
+  },
+  "tyquanthornton": {
+    "name": "Tyquan Thornton",
+    "ktc_value": 1869
+  },
+  "jaylinlane": {
+    "name": "Jaylin Lane",
+    "ktc_value": 1866
+  },
+  "kaytronallen": {
+    "name": "Kaytron Allen",
+    "ktc_value": 1866
+  },
+  "cooperkupp": {
+    "name": "Cooper Kupp",
+    "ktc_value": 1862
+  },
+  "najeeharris": {
+    "name": "Najee Harris",
+    "ktc_value": 1858
+  },
+  "2027early4th": {
+    "name": "2027 Early 4th",
+    "ktc_value": 1854
+  },
+  "rileyleonard": {
+    "name": "Riley Leonard",
+    "ktc_value": 1830
+  },
+  "jahandotson": {
+    "name": "Jahan Dotson",
+    "ktc_value": 1829
+  },
+  "joemilton": {
+    "name": "Joe Milton",
+    "ktc_value": 1814
+  },
+  "xavierhutchinson": {
+    "name": "Xavier Hutchinson",
+    "ktc_value": 1813
+  },
+  "evanengram": {
+    "name": "Evan Engram",
+    "ktc_value": 1810
+  },
+  "marshawnlloyd": {
+    "name": "MarShawn Lloyd",
+    "ktc_value": 1799
+  },
+  "kirkcousins": {
+    "name": "Kirk Cousins",
+    "ktc_value": 1796
+  },
+  "spencerrattler": {
+    "name": "Spencer Rattler",
+    "ktc_value": 1787
+  },
+  "lukemccaffrey": {
+    "name": "Luke McCaffrey",
+    "ktc_value": 1787
+  },
+  "2026early4th": {
+    "name": "2026 Early 4th",
+    "ktc_value": 1783
+  },
+  "2027mid4th": {
+    "name": "2027 Mid 4th",
+    "ktc_value": 1775
+  },
+  "jakobilane": {
+    "name": "Ja'Kobi Lane",
+    "ktc_value": 1758
+  },
+  "johnmetchie": {
+    "name": "John Metchie",
+    "ktc_value": 1751
+  },
+  "isaacguerendo": {
+    "name": "Isaac Guerendo",
+    "ktc_value": 1746
+  },
+  "germiebernard": {
+    "name": "Germie Bernard",
+    "ktc_value": 1745
+  },
+  "dawsonknox": {
+    "name": "Dawson Knox",
+    "ktc_value": 1743
+  },
+  "jarquezhunter": {
+    "name": "Jarquez Hunter",
+    "ktc_value": 1742
+  },
+  "devaughnvele": {
+    "name": "Devaughn Vele",
+    "ktc_value": 1734
+  },
+  "keenanallen": {
+    "name": "Keenan Allen",
+    "ktc_value": 1732
+  },
+  "tahjbrooks": {
+    "name": "Tahj Brooks",
+    "ktc_value": 1731
+  },
+  "noahgray": {
+    "name": "Noah Gray",
+    "ktc_value": 1717
+  },
+  "jalentolbert": {
+    "name": "Jalen Tolbert",
+    "ktc_value": 1711
+  },
+  "romanwilson": {
+    "name": "Roman Wilson",
+    "ktc_value": 1711
+  },
+  "andreiiosivas": {
+    "name": "Andrei Iosivas",
+    "ktc_value": 1707
+  },
+  "willshipley": {
+    "name": "Will Shipley",
+    "ktc_value": 1679
+  },
+  "2027late4th": {
+    "name": "2027 Late 4th",
+    "ktc_value": 1670
+  },
+  "jimmyhorn": {
+    "name": "Jimmy Horn",
+    "ktc_value": 1664
+  },
+  "2026mid4th": {
+    "name": "2026 Mid 4th",
+    "ktc_value": 1661
+  },
+  "calvinaustiniii": {
+    "name": "Calvin Austin III",
+    "ktc_value": 1655
+  },
+  "keandrelambertsmith": {
+    "name": "KeAndre Lambert-Smith",
+    "ktc_value": 1643
+  },
+  "audricestime": {
+    "name": "Audric Estime",
+    "ktc_value": 1640
+  },
+  "tutuatwell": {
+    "name": "Tutu Atwell",
+    "ktc_value": 1630
+  },
+  "2028early4th": {
+    "name": "2028 Early 4th",
+    "ktc_value": 1626
+  },
+  "jalynnpolk": {
+    "name": "Ja'Lynn Polk",
+    "ktc_value": 1613
+  },
+  "davismills": {
+    "name": "Davis Mills",
+    "ktc_value": 1610
+  },
+  "savionwilliams": {
+    "name": "Savion Williams",
+    "ktc_value": 1600
+  },
+  "gregdulcich": {
+    "name": "Greg Dulcich",
+    "ktc_value": 1598
+  },
+  "jeromeford": {
+    "name": "Jerome Ford",
+    "ktc_value": 1597
+  },
+  "dillongabriel": {
+    "name": "Dillon Gabriel",
+    "ktc_value": 1597
+  },
+  "jordanwhittington": {
+    "name": "Jordan Whittington",
+    "ktc_value": 1594
+  },
+  "treylonburks": {
+    "name": "Treylon Burks",
+    "ktc_value": 1587
+  },
+  "danielbellinger": {
+    "name": "Daniel Bellinger",
+    "ktc_value": 1578
+  },
+  "joshuapalmer": {
+    "name": "Joshua Palmer",
+    "ktc_value": 1568
+  },
+  "dariusslayton": {
+    "name": "Darius Slayton",
+    "ktc_value": 1564
+  },
+  "konatamumpfield": {
+    "name": "Konata Mumpfield",
+    "ktc_value": 1551
+  },
+  "jameiswinston": {
+    "name": "Jameis Winston",
+    "ktc_value": 1548
+  },
+  "marcusmariota": {
+    "name": "Marcus Mariota",
+    "ktc_value": 1547
+  },
+  "tysonbagent": {
+    "name": "Tyson Bagent",
+    "ktc_value": 1542
+  },
+  "2028mid4th": {
+    "name": "2028 Mid 4th",
+    "ktc_value": 1531
+  },
+  "2026late4th": {
+    "name": "2026 Late 4th",
+    "ktc_value": 1525
+  },
+  "kendrickbourne": {
+    "name": "Kendrick Bourne",
+    "ktc_value": 1522
+  },
+  "roschonjohnson": {
+    "name": "Roschon Johnson",
+    "ktc_value": 1513
+  },
+  "xavierrestrepo": {
+    "name": "Xavier Restrepo",
+    "ktc_value": 1502
+  },
+  "noahfant": {
+    "name": "Noah Fant",
+    "ktc_value": 1498
+  },
+  "cadestover": {
+    "name": "Cade Stover",
+    "ktc_value": 1484
+  },
+  "eftonchism": {
+    "name": "Efton Chism",
+    "ktc_value": 1477
+  },
+  "jaleelmclaughlin": {
+    "name": "Jaleel McLaughlin",
+    "ktc_value": 1475
+  },
+  "tommytremble": {
+    "name": "Tommy Tremble",
+    "ktc_value": 1472
+  },
+  "raheimsanders": {
+    "name": "Raheim Sanders",
+    "ktc_value": 1456
+  },
+  "devinsingletary": {
+    "name": "Devin Singletary",
+    "ktc_value": 1454
+  },
+  "devontezwalker": {
+    "name": "Devontez Walker",
+    "ktc_value": 1450
+  },
+  "skylerbell": {
+    "name": "Skyler Bell",
+    "ktc_value": 1446
+  },
+  "mikegesicki": {
+    "name": "Mike Gesicki",
+    "ktc_value": 1437
+  },
+  "olamidezaccheaus": {
+    "name": "Olamide Zaccheaus",
+    "ktc_value": 1436
+  },
+  "dyamibrown": {
+    "name": "Dyami Brown",
+    "ktc_value": 1431
+  },
+  "willlevis": {
+    "name": "Will Levis",
+    "ktc_value": 1428
+  },
+  "bamknight": {
+    "name": "Bam Knight",
+    "ktc_value": 1425
+  },
+  "malikdavis": {
+    "name": "Malik Davis",
+    "ktc_value": 1412
+  },
+  "michaelcarter": {
+    "name": "Michael Carter",
+    "ktc_value": 1382
+  },
+  "jonnusmith": {
+    "name": "Jonnu Smith",
+    "ktc_value": 1381
+  },
+  "tylerhigbee": {
+    "name": "Tyler Higbee",
+    "ktc_value": 1381
+  },
+  "deshaunwatson": {
+    "name": "Deshaun Watson",
+    "ktc_value": 1375
+  },
+  "maxklare": {
+    "name": "Max Klare",
+    "ktc_value": 1360
+  },
+  "tahjwashington": {
+    "name": "Tahj Washington",
+    "ktc_value": 1351
+  },
+  "taifelton": {
+    "name": "Tai Felton",
+    "ktc_value": 1347
+  },
+  "tannermckee": {
+    "name": "Tanner McKee",
+    "ktc_value": 1322
+  },
+  "georgeholani": {
+    "name": "George Holani",
+    "ktc_value": 1321
+  },
+  "justicehill": {
+    "name": "Justice Hill",
+    "ktc_value": 1315
+  },
+  "joemixon": {
+    "name": "Joe Mixon",
+    "ktc_value": 1302
+  },
+  "2028late4th": {
+    "name": "2028 Late 4th",
+    "ktc_value": 1301
+  },
+  "antoniowilliams": {
+    "name": "Antonio Williams",
+    "ktc_value": 1301
+  },
+  "tylerhuntley": {
+    "name": "Tyler Huntley",
+    "ktc_value": 1288
+  },
+  "philmafah": {
+    "name": "Phil Mafah",
+    "ktc_value": 1280
+  },
+  "jalinhyatt": {
+    "name": "Jalin Hyatt",
+    "ktc_value": 1279
+  },
+  "kavontaeturpin": {
+    "name": "KaVontae Turpin",
+    "ktc_value": 1265
+  },
+  "tyjohnson": {
+    "name": "Ty Johnson",
+    "ktc_value": 1261
+  },
+  "treylance": {
+    "name": "Trey Lance",
+    "ktc_value": 1255
+  },
+  "gardnerminshew": {
+    "name": "Gardner Minshew",
+    "ktc_value": 1250
+  },
+  "lukeschoonmaker": {
+    "name": "Luke Schoonmaker",
+    "ktc_value": 1239
+  },
+  "treypalmer": {
+    "name": "Trey Palmer",
+    "ktc_value": 1235
+  },
+  "rasheenali": {
+    "name": "Rasheen Ali",
+    "ktc_value": 1233
+  },
+  "erickall": {
+    "name": "Erick All",
+    "ktc_value": 1232
+  },
+  "malachicorley": {
+    "name": "Malachi Corley",
+    "ktc_value": 1230
+  },
+  "emaridemercado": {
+    "name": "Emari Demercado",
+    "ktc_value": 1225
+  },
+  "michaeltrigg": {
+    "name": "Michael Trigg",
+    "ktc_value": 1221
+  },
+  "mackhollins": {
+    "name": "Mack Hollins",
+    "ktc_value": 1220
+  },
+  "elijahhiggins": {
+    "name": "Elijah Higgins",
+    "ktc_value": 1220
+  },
+  "elijahmoore": {
+    "name": "Elijah Moore",
+    "ktc_value": 1208
+  },
+  "damienmartinez": {
+    "name": "Damien Martinez",
+    "ktc_value": 1207
+  },
+  "gregdortch": {
+    "name": "Greg Dortch",
+    "ktc_value": 1206
+  },
+  "kevincoleman": {
+    "name": "Kevin Coleman",
+    "ktc_value": 1201
+  },
+  "gabrieldavis": {
+    "name": "Gabriel Davis",
+    "ktc_value": 1192
+  },
+  "jakebobo": {
+    "name": "Jake Bobo",
+    "ktc_value": 1188
+  },
+  "kennypickett": {
+    "name": "Kenny Pickett",
+    "ktc_value": 1187
+  },
+  "tylergoodson": {
+    "name": "Tyler Goodson",
+    "ktc_value": 1186
+  },
+  "kameronjohnson": {
+    "name": "Kameron Johnson",
+    "ktc_value": 1174
+  },
+  "zachwilson": {
+    "name": "Zach Wilson",
+    "ktc_value": 1172
+  },
+  "darrenwaller": {
+    "name": "Darren Waller",
+    "ktc_value": 1162
+  },
+  "tyrellshavers": {
+    "name": "Tyrell Shavers",
+    "ktc_value": 1161
+  },
+  "kalelmullings": {
+    "name": "Kalel Mullings",
+    "ktc_value": 1151
+  },
+  "jonathanmingo": {
+    "name": "Jonathan Mingo",
+    "ktc_value": 1146
+  },
+  "samhowell": {
+    "name": "Sam Howell",
+    "ktc_value": 1138
+  },
+  "demondclaiborne": {
+    "name": "Demond Claiborne",
+    "ktc_value": 1133
+  },
+  "kareemhunt": {
+    "name": "Kareem Hunt",
+    "ktc_value": 1123
+  },
+  "dameonpierce": {
+    "name": "Dameon Pierce",
+    "ktc_value": 1122
+  },
+  "javonbaker": {
+    "name": "Javon Baker",
+    "ktc_value": 1112
+  },
+  "bomelton": {
+    "name": "Bo Melton",
+    "ktc_value": 1111
+  },
+  "joeflacco": {
+    "name": "Joe Flacco",
+    "ktc_value": 1109
+  },
+  "chrisbrooks": {
+    "name": "Chris Brooks",
+    "ktc_value": 1108
+  },
+  "jordanwatkins": {
+    "name": "Jordan Watkins",
+    "ktc_value": 1103
+  },
+  "jacobcowing": {
+    "name": "Jacob Cowing",
+    "ktc_value": 1102
+  },
+  "mitchellevans": {
+    "name": "Mitchell Evans",
+    "ktc_value": 1098
+  },
+  "donovanedwards": {
+    "name": "Donovan Edwards",
+    "ktc_value": 1080
+  },
+  "liljordanhumphrey": {
+    "name": "Lil'Jordan Humphrey",
+    "ktc_value": 1078
+  },
+  "sionevaki": {
+    "name": "Sione Vaki",
+    "ktc_value": 1072
+  },
+  "davisallen": {
+    "name": "Davis Allen",
+    "ktc_value": 1065
+  },
+  "ariansmith": {
+    "name": "Arian Smith",
+    "ktc_value": 1063
+  },
+  "jaredwiley": {
+    "name": "Jared Wiley",
+    "ktc_value": 1049
+  },
+  "tedhurst": {
+    "name": "Ted Hurst",
+    "ktc_value": 1047
+  },
+  "brevinjordan": {
+    "name": "Brevin Jordan",
+    "ktc_value": 1043
+  },
+  "charliekolar": {
+    "name": "Charlie Kolar",
+    "ktc_value": 1043
+  },
+  "tylerbadie": {
+    "name": "Tyler Badie",
+    "ktc_value": 1041
+  },
+  "skyymoore": {
+    "name": "Skyy Moore",
+    "ktc_value": 1038
+  },
+  "leveonmoss": {
+    "name": "Le'Veon Moss",
+    "ktc_value": 1038
+  },
+  "zachertz": {
+    "name": "Zach Ertz",
+    "ktc_value": 1029
+  },
+  "drewlock": {
+    "name": "Drew Lock",
+    "ktc_value": 1026
+  },
+  "cadeklubnik": {
+    "name": "Cade Klubnik",
+    "ktc_value": 1020
+  },
+  "hassanhaskins": {
+    "name": "Hassan Haskins",
+    "ktc_value": 1017
+  },
+  "isaiahhodgins": {
+    "name": "Isaiah Hodgins",
+    "ktc_value": 1013
+  },
+  "masontipton": {
+    "name": "Mason Tipton",
+    "ktc_value": 1006
+  },
+  "jammiller": {
+    "name": "Jam Miller",
+    "ktc_value": 1002
+  },
+  "jmaritaylor": {
+    "name": "J'Mari Taylor",
+    "ktc_value": 999
+  },
+  "brockwright": {
+    "name": "Brock Wright",
+    "ktc_value": 995
+  },
+  "aidanoconnell": {
+    "name": "Aidan O'Connell",
+    "ktc_value": 981
+  },
+  "jawharjordan": {
+    "name": "Jawhar Jordan",
+    "ktc_value": 970
+  },
+  "elijahmitchell": {
+    "name": "Elijah Mitchell",
+    "ktc_value": 966
+  },
+  "israelabanikanda": {
+    "name": "Israel Abanikanda",
+    "ktc_value": 965
+  },
+  "masonrudolph": {
+    "name": "Mason Rudolph",
+    "ktc_value": 962
+  },
+  "deucevaughn": {
+    "name": "Deuce Vaughn",
+    "ktc_value": 958
+  },
+  "sethmcgowan": {
+    "name": "Seth McGowan",
+    "ktc_value": 956
+  },
+  "camakers": {
+    "name": "Cam Akers",
+    "ktc_value": 955
+  },
+  "nickwestbrookikhine": {
+    "name": "Nick Westbrook-Ikhine",
+    "ktc_value": 949
+  },
+  "tylerjohnson": {
+    "name": "Tyler Johnson",
+    "ktc_value": 947
+  },
+  "jamarithrash": {
+    "name": "Jamari Thrash",
+    "ktc_value": 945
+  },
+  "xaviergipson": {
+    "name": "Xavier Gipson",
+    "ktc_value": 943
+  },
+  "frankgorejr": {
+    "name": "Frank Gore Jr.",
+    "ktc_value": 936
+  },
+  "tylerscott": {
+    "name": "Tyler Scott",
+    "ktc_value": 935
+  },
+  "deionburks": {
+    "name": "Deion Burks",
+    "ktc_value": 934
+  },
+  "tychandler": {
+    "name": "Ty Chandler",
+    "ktc_value": 933
+  },
+  "nickchubb": {
+    "name": "Nick Chubb",
+    "ktc_value": 932
+  },
+  "bubmeans": {
+    "name": "Bub Means",
+    "ktc_value": 922
+  },
+  "demarcusrobinson": {
+    "name": "Demarcus Robinson",
+    "ktc_value": 917
+  },
+  "cjdaniels": {
+    "name": "CJ Daniels",
+    "ktc_value": 913
+  },
+  "samajeperine": {
+    "name": "Samaje Perine",
+    "ktc_value": 911
+  },
+  "jeremyruckert": {
+    "name": "Jeremy Ruckert",
+    "ktc_value": 904
+  },
+  "terrelljennings": {
+    "name": "Terrell Jennings",
+    "ktc_value": 892
+  },
+  "grantcalcaterra": {
+    "name": "Grant Calcaterra",
+    "ktc_value": 891
+  },
+  "jackendries": {
+    "name": "Jack Endries",
+    "ktc_value": 888
+  },
+  "milessanders": {
+    "name": "Miles Sanders",
+    "ktc_value": 874
+  },
+  "kendallmilton": {
+    "name": "Kendall Milton",
+    "ktc_value": 874
+  },
+  "jeremymcnichols": {
+    "name": "Jeremy McNichols",
+    "ktc_value": 871
+  },
+  "kennymcintosh": {
+    "name": "Kenny McIntosh",
+    "ktc_value": 862
+  },
+  "zavierscott": {
+    "name": "Zavier Scott",
+    "ktc_value": 860
+  },
+  "deandrehopkins": {
+    "name": "DeAndre Hopkins",
+    "ktc_value": 852
+  },
+  "brendenrice": {
+    "name": "Brenden Rice",
+    "ktc_value": 845
+  },
+  "ainiassmith": {
+    "name": "Ainias Smith",
+    "ktc_value": 844
+  },
+  "khalilherbert": {
+    "name": "Khalil Herbert",
+    "ktc_value": 835
+  },
+  "jakebrowning": {
+    "name": "Jake Browning",
+    "ktc_value": 830
+  },
+  "jujusmithschuster": {
+    "name": "JuJu Smith-Schuster",
+    "ktc_value": 818
+  },
+  "johnnywilson": {
+    "name": "Johnny Wilson",
+    "ktc_value": 814
+  },
+  "alexandermattison": {
+    "name": "Alexander Mattison",
+    "ktc_value": 807
+  },
+  "ajdillon": {
+    "name": "AJ Dillon",
+    "ktc_value": 800
+  },
+  "antoniogibson": {
+    "name": "Antonio Gibson",
+    "ktc_value": 779
+  },
+  "kylemccord": {
+    "name": "Kyle McCord",
+    "ktc_value": 772
+  },
+  "zayjones": {
+    "name": "Zay Jones",
+    "ktc_value": 759
+  },
+  "tylanwallace": {
+    "name": "Tylan Wallace",
+    "ktc_value": 757
+  },
+  "carsonwentz": {
+    "name": "Carson Wentz",
+    "ktc_value": 755
+  },
+  "vanjefferson": {
+    "name": "Van Jefferson",
+    "ktc_value": 752
+  },
+  "juliuschestnut": {
+    "name": "Julius Chestnut",
+    "ktc_value": 751
+  },
+  "mecolehardman": {
+    "name": "Mecole Hardman",
+    "ktc_value": 745
+  },
+  "curtissamuel": {
+    "name": "Curtis Samuel",
+    "ktc_value": 740
+  },
+  "noahbrown": {
+    "name": "Noah Brown",
+    "ktc_value": 740
+  },
+  "josholiver": {
+    "name": "Josh Oliver",
+    "ktc_value": 735
+  },
+  "tylerconklin": {
+    "name": "Tyler Conklin",
+    "ktc_value": 730
+  },
+  "malikheath": {
+    "name": "Malik Heath",
+    "ktc_value": 724
+  },
+  "lajohntaywester": {
+    "name": "LaJohntay Wester",
+    "ktc_value": 723
+  },
+  "tyrodtaylor": {
+    "name": "Tyrod Taylor",
+    "ktc_value": 703
+  },
+  "zamirwhite": {
+    "name": "Zamir White",
+    "ktc_value": 701
+  },
+  "adamtrautman": {
+    "name": "Adam Trautman",
+    "ktc_value": 698
+  },
+  "barionbrown": {
+    "name": "Barion Brown",
+    "ktc_value": 695
+  },
+  "deriusdavis": {
+    "name": "Derius Davis",
+    "ktc_value": 690
+  },
+  "sterlingshepard": {
+    "name": "Sterling Shepard",
+    "ktc_value": 687
+  },
+  "hunterlong": {
+    "name": "Hunter Long",
+    "ktc_value": 684
+  },
+  "jermaineburton": {
+    "name": "Jermaine Burton",
+    "ktc_value": 683
+  }
+}
