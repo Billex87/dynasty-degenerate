@@ -40,8 +40,8 @@ export function LoadingAnimation() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4">
       {/* Logo */}
-      <div className="flex flex-col items-center gap-2 mb-4">
-        <div className="flex justify-center h-80 w-full max-w-2xl">
+      <div className="flex flex-col items-center gap-1 mb-2">
+        <div className="flex justify-center h-96 w-full max-w-2xl">
           <img 
             src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
             alt="Dynasty Degenerates Logo" 
