@@ -390,10 +390,9 @@ export default function Home() {
               <img 
                 src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
                 alt="Dynasty Degenerates Logo" 
-                className="h-32 sm:h-40 w-auto"
+                className="h-48 sm:h-56 w-auto"
               />
             </div>
-            <p className="text-slate-400 text-xs sm:text-sm">Dynasty Degenerates © 2026</p>
             <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-xs sm:text-sm">
               JUST SOME DEGENS WITH SCRAPING TOOLS AND A.I.
             </p>

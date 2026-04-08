@@ -39,10 +39,10 @@ export function LoadingAnimation() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4">
-      {/* Logo and Title */}
+      {/* Logo */}
       <div className="mb-8 text-center">
-        <div className="flex justify-center mb-6">
-          <div className="w-24 h-24 flex items-center justify-center">
+        <div className="flex justify-center">
+          <div className="w-48 h-48 flex items-center justify-center">
             <img 
               src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
               alt="Dynasty Degenerates Logo" 
@@ -50,8 +50,7 @@ export function LoadingAnimation() {
             />
           </div>
         </div>
-        <h1 className="athletic-headline text-5xl font-bold bg-gradient-to-r from-orange-400 to-orange-300 bg-clip-text text-transparent mb-4">Dynasty Degenerates</h1>
-        <p className="text-slate-400 text-lg mb-0">Analyzing your league...</p>
+        <p className="text-slate-400 text-lg mt-8">Analyzing your league...</p>
       </div>
 
       {/* Loading Steps */}
