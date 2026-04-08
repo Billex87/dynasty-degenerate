@@ -326,7 +326,7 @@ export function TradeHistoryTable({
                     <TableCell className="text-center text-slate-300">
                       {row.point_gap.toLocaleString()}
                     </TableCell>
-                    <TableCell className={`text-center font-bold text-sm px-3 py-2 rounded ${isTeamAWinner ? 'bg-purple-500/15 text-purple-300' : isTeamBWinner ? 'bg-amber-500/15 text-amber-300' : 'text-slate-400'}`}>
+                    <TableCell className={`text-center font-bold text-sm px-3 py-2 rounded ${isTeamAWinner ? 'bg-blue-500/15 text-blue-400' : isTeamBWinner ? 'bg-orange-500/15 text-orange-400' : 'text-slate-400'}`}>
                       {row.winner}
                     </TableCell>
                   </TableRow>
