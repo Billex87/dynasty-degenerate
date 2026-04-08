@@ -353,7 +353,7 @@ export default function Home() {
       </div>
 
       {/* Premium Footer */}
-      {!reportData && (
+      {!reportData && !isLoading && (
       <div className="border-t border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur mt-auto flex flex-col">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8 mb-6 sm:mb-8">
