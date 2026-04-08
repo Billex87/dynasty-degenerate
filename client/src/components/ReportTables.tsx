@@ -23,9 +23,10 @@ export function ManagerRosterValueGrowthTable({
   data: ReportData['managerRosterValueGrowth'];
 }) {
   return (
-    <Card className="bg-slate-900 border-slate-800 overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
+    <div className="flex justify-center">
+      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
           <TableHeader className="bg-slate-800/50">
             <TableRow className="border-slate-700 hover:bg-slate-800/50">
               <TableHead className="text-slate-300">Manager</TableHead>
@@ -57,9 +58,10 @@ export function ManagerRosterValueGrowthTable({
               </TableRow>
             ))}
           </TableBody>
-        </Table>
-      </div>
-    </Card>
+          </Table>
+        </div>
+      </Card>
+    </div>
   );
 }
 
@@ -392,8 +394,9 @@ export function PositionAnalysisTable({
           <h3 className="text-xl font-bold text-red-400">Position Shortages (Less than 4)</h3>
         </div>
         {shortages.length > 0 ? (
-          <Card className="bg-slate-900 border-slate-800 overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="flex justify-center">
+            <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-slate-800/50">
                   <TableRow className="border-slate-700 hover:bg-slate-800/50">
@@ -412,8 +415,9 @@ export function PositionAnalysisTable({
                   ))}
                 </TableBody>
               </Table>
-            </div>
-          </Card>
+              </div>
+            </Card>
+          </div>
         ) : (
           <div className="text-slate-400 text-center py-8">No position shortages detected</div>
         )}
@@ -426,8 +430,9 @@ export function PositionAnalysisTable({
           <h3 className="text-xl font-bold text-emerald-400">Position Excess (More than 10)</h3>
         </div>
         {excesses.length > 0 ? (
-          <Card className="bg-slate-900 border-slate-800 overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="flex justify-center">
+            <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-slate-800/50">
                   <TableRow className="border-slate-700 hover:bg-slate-800/50">
@@ -446,8 +451,9 @@ export function PositionAnalysisTable({
                   ))}
                 </TableBody>
               </Table>
-            </div>
-          </Card>
+              </div>
+            </Card>
+          </div>
         ) : (
           <div className="text-slate-400 text-center py-8">No position excess detected</div>
         )}
