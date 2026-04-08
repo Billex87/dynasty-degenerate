@@ -385,15 +385,15 @@ export default function Home() {
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-700 py-2 text-center">
-            <div className="flex justify-center h-20 sm:h-24">
+          <div className="border-t border-slate-700 py-2 text-center flex flex-col justify-between min-h-32 sm:min-h-40">
+            <div className="flex justify-center h-24 sm:h-32">
               <img 
                 src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
                 alt="Dynasty Degenerates Logo" 
                 className="w-auto object-contain"
               />
             </div>
-            <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-xs sm:text-sm -mt-2">
+            <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-xs sm:text-sm pb-2">
               JUST SOME DEGENS WITH SCRAPING TOOLS AND A.I.
             </p>
           </div>
