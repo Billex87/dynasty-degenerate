@@ -385,7 +385,14 @@ export default function Home() {
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-700 pt-4 sm:pt-6 text-center space-y-2 sm:space-y-3">
+          <div className="border-t border-slate-700 pt-4 sm:pt-6 text-center space-y-4 sm:space-y-3">
+            <div className="flex justify-center">
+              <img 
+                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_3-removebg-preview_571fc0d4.png" 
+                alt="Dynasty Degenerates Logo" 
+                className="h-16 sm:h-20 w-auto"
+              />
+            </div>
             <p className="text-slate-400 text-xs sm:text-sm">Dynasty Degenerates © 2026</p>
             <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-xs sm:text-sm">
               JUST SOME DEGENS WITH SCRAPING TOOLS AND A.I.
