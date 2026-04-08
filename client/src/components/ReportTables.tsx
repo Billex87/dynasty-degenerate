@@ -313,8 +313,8 @@ export function TradeHistoryTable({
                       />
                     </TableCell>
                     <TableCell className="text-slate-300 text-sm">{row.date}</TableCell>
-                    <TableCell className="text-purple-400 font-bold text-lg">{row.team_a}</TableCell>
-                    <TableCell className="text-amber-400 font-bold text-lg">{row.team_b}</TableCell>
+                    <TableCell className="text-blue-400 font-semibold text-sm">{row.team_a}</TableCell>
+                    <TableCell className="text-orange-400 font-semibold text-sm">{row.team_b}</TableCell>
                     <TableCell className={`text-right font-semibold ${isTeamAWinner ? 'text-purple-300' : 'text-purple-400'}`}>
                       {row.team_a_total.toLocaleString()}
                     </TableCell>
@@ -335,12 +335,12 @@ export function TradeHistoryTable({
                         <div className="grid grid-cols-2 gap-8">
                           {/* Team A Details */}
                           <div className="space-y-3">
-                            <h4 className="text-purple-400 font-bold text-lg">{row.team_a}</h4>
+                            <h4 className="text-blue-400 font-semibold text-sm">{row.team_a}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <p className="text-slate-300 text-sm whitespace-pre-wrap">
                                 {row.team_a_items}
                               </p>
-                              <p className="text-purple-400 font-semibold text-sm border-t border-slate-700 pt-2">
+                                <p className="text-blue-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_a_total.toLocaleString()}
                               </p>
                             </div>
@@ -348,12 +348,12 @@ export function TradeHistoryTable({
 
                           {/* Team B Details */}
                           <div className="space-y-3">
-                            <h4 className="text-amber-400 font-bold text-lg">{row.team_b}</h4>
+                            <h4 className="text-orange-400 font-semibold text-sm">{row.team_b}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <p className="text-slate-300 text-sm whitespace-pre-wrap">
                                 {row.team_b_items}
                               </p>
-                              <p className="text-amber-400 font-semibold text-sm border-t border-slate-700 pt-2">
+                                <p className="text-orange-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_b_total.toLocaleString()}
                               </p>
                             </div>
