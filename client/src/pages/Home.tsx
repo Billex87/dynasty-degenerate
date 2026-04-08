@@ -201,11 +201,11 @@ export default function Home() {
             <TabsContent value="momentum" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-bold mb-4 text-emerald-400">Top 15 Weekly Risers</h3>
+                  <h3 className="text-xl font-bold mb-4 text-emerald-400 text-center">Top 15 Weekly Risers</h3>
                   <SearchableWeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold mb-4 text-red-400">Top 15 Weekly Fallers</h3>
+                  <h3 className="text-xl font-bold mb-4 text-red-400 text-center">Top 15 Weekly Fallers</h3>
                   <SearchableWeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" />
                 </div>
               </div>
@@ -218,15 +218,15 @@ export default function Home() {
               <div className="space-y-8">
                 <div>
                   <div className="space-y-2 mb-4">
-                    <h3 className="text-xl font-bold text-emerald-400">Top 25 Risers</h3>
-                    <p className="text-sm text-slate-400">Players about to make your league mates look stupid next year.</p>
+                    <h3 className="text-xl font-bold text-emerald-400 text-center">Top 25 Risers</h3>
+                    <p className="text-sm text-slate-400 text-center">Players about to make your league mates look stupid next year.</p>
                   </div>
                   <SearchableProjectedMoversTable data={reportData.projectedRisers} title="Projected Risers" />
                 </div>
                 <div>
                   <div className="space-y-2 mb-4">
-                    <h3 className="text-xl font-bold text-red-400">Top 25 Fallers</h3>
-                    <p className="text-sm text-slate-400">Players about to tank your roster value.</p>
+                    <h3 className="text-xl font-bold text-red-400 text-center">Top 25 Fallers</h3>
+                    <p className="text-sm text-slate-400 text-center">Players about to tank your roster value.</p>
                   </div>
                   <SearchableProjectedMoversTable data={reportData.projectedFallers} title="Projected Fallers" />
                 </div>
@@ -236,11 +236,11 @@ export default function Home() {
             <TabsContent value="trades" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-bold mb-4">All-Time Trade Profit Leaderboard</h3>
+                  <h3 className="text-xl font-bold mb-4 text-center">All-Time Trade Profit Leaderboard</h3>
                   <TradeProfitLeaderboardTable data={reportData.tradeProfitLeaderboard} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold mb-4">Full Trade Ledger</h3>
+                  <h3 className="text-xl font-bold mb-4 text-center">Full Trade Ledger</h3>
                   <TradeHistoryTable data={reportData.tradeHistory} />
                 </div>
               </div>
