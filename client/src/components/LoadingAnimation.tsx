@@ -38,9 +38,9 @@ export function LoadingAnimation() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4">
+    <div className="flex flex-col items-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 pt-8">
       {/* Logo */}
-      <div className="flex flex-col items-center gap-1 mb-2">
+      <div className="flex flex-col items-center gap-2 mb-4">
         <div className="flex justify-center h-96 w-full max-w-2xl">
           <img 
             src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
@@ -48,11 +48,12 @@ export function LoadingAnimation() {
             className="w-auto h-full object-contain"
           />
         </div>
-        <p className="text-slate-400 text-sm">Analyzing your league...</p>
+        <p className="text-slate-400 text-2xl font-semibold">Analyzing your league...</p>
       </div>
+      <div className="flex-1 flex items-center justify-center">
 
       {/* Loading Steps */}
-      <div className="w-full max-w-2xl space-y-4">
+      <div className="w-full max-w-2xl space-y-4 pb-8">
         {steps.map((step, index) => (
           <div key={step.id} className="flex items-center gap-4">
             {/* Step Indicator */}
@@ -108,6 +109,7 @@ export function LoadingAnimation() {
         <p className="text-slate-500 text-xs mt-3 text-center">
           {steps.filter(s => s.status === 'complete').length} of {steps.length} steps complete
         </p>
+      </div>
       </div>
     </div>
   );
