@@ -52,7 +52,7 @@ export function LoadingAnimation() {
       </div>
 
       {/* Loading Steps - Center */}
-      <div className="w-full max-w-2xl space-y-4 flex-1 flex flex-col justify-center mt-2">
+      <div className="w-full max-w-2xl space-y-1 flex-1 flex flex-col justify-start mt-0">
         {steps.map((step, index) => (
           <div key={step.id} className="flex items-center gap-4">
             {/* Step Indicator */}
