@@ -134,6 +134,20 @@
 }
 
 @layer components {
+  /* Powerful Athletic Typography */
+  .athletic-title {
+    @apply font-['Oswald'] font-bold tracking-tight;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    font-size: 1.1em;
+  }
+
+  .athletic-headline {
+    @apply font-['Oswald'] font-bold tracking-wide;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
   /**
    * Custom container utility that centers content and adds responsive padding.
    *
@@ -173,5 +187,10 @@
       padding-right: 2rem;
       max-width: 1280px; /* Standard content width */
     }
+  }
+
+  /* Hide footer watermark */
+  .footer-watermark-root {
+    display: none !important;
   }
 }
