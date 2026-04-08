@@ -390,7 +390,7 @@ export default function Home() {
               <img 
                 src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_3-removebg-preview_571fc0d4.png" 
                 alt="Dynasty Degenerates Logo" 
-                className="h-16 sm:h-20 w-auto"
+                className="h-32 sm:h-40 w-auto"
               />
             </div>
             <p className="text-slate-400 text-xs sm:text-sm">Dynasty Degenerates © 2026</p>

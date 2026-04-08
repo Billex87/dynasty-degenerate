@@ -42,10 +42,12 @@ export function LoadingAnimation() {
       {/* Logo and Title */}
       <div className="mb-8 text-center">
         <div className="flex justify-center mb-6">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 p-1 shadow-2xl">
-            <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center">
-              <Zap className="w-12 h-12 text-amber-500" />
-            </div>
+          <div className="w-24 h-24 flex items-center justify-center">
+            <img 
+              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_3-removebg-preview_571fc0d4.png" 
+              alt="Dynasty Degenerates Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
         </div>
         <h1 className="athletic-headline text-5xl font-bold bg-gradient-to-r from-orange-400 to-orange-300 bg-clip-text text-transparent mb-4">Dynasty Degenerates</h1>
