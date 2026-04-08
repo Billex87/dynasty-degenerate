@@ -44,7 +44,7 @@ export function LoadingAnimation() {
         <div className="flex justify-center mb-6">
           <div className="w-24 h-24 flex items-center justify-center">
             <img 
-              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_3-removebg-preview_571fc0d4.png" 
+              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange_cb77b224.png" 
               alt="Dynasty Degenerates Logo" 
               className="w-full h-full object-contain"
             />
