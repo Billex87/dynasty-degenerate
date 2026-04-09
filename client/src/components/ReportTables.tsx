@@ -27,13 +27,13 @@ export function ManagerRosterValueGrowthTable({
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-          <TableHeader className="bg-slate-800/50">
-            <TableRow className="border-slate-700 hover:bg-slate-800/50">
-              <TableHead className="text-slate-300">Manager</TableHead>
-              <TableHead className="text-right text-slate-300">2025 Value</TableHead>
-              <TableHead className="text-right text-slate-300">2026 Value</TableHead>
-              <TableHead className="text-right text-slate-300">Growth %</TableHead>
-              <TableHead className="text-right text-slate-300">Projected Rank</TableHead>
+          <TableHeader className="border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700">
+              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="text-right text-white font-semibold">2025 Value</TableHead>
+              <TableHead className="text-right text-white font-semibold">2026 Value</TableHead>
+              <TableHead className="text-right text-white font-semibold">Growth %</TableHead>
+              <TableHead className="text-right text-white font-semibold">Projected Rank</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -77,16 +77,16 @@ export function WeeklyMomentumTable({
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-slate-800/50">
-            <TableRow className="border-slate-700 hover:bg-slate-800/50">
-              <TableHead className="text-slate-300">Rank</TableHead>
-              <TableHead className="text-slate-300">Player</TableHead>
-              <TableHead className="text-slate-300">Position</TableHead>
-              <TableHead className="text-slate-300">Manager</TableHead>
-              <TableHead className="text-right text-slate-300">Last Week</TableHead>
-              <TableHead className="text-right text-slate-300">This Week</TableHead>
-              <TableHead className="text-right text-slate-300">Change</TableHead>
-              <TableHead className="text-right text-slate-300">% Change</TableHead>
+          <TableHeader className="border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700">
+              <TableHead className="text-white font-semibold">Rank</TableHead>
+              <TableHead className="text-white font-semibold">Player</TableHead>
+              <TableHead className="text-white font-semibold">Position</TableHead>
+              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="text-right text-white font-semibold">Last Week</TableHead>
+              <TableHead className="text-right text-white font-semibold">This Week</TableHead>
+              <TableHead className="text-right text-white font-semibold">Change</TableHead>
+              <TableHead className="text-right text-white font-semibold">% Change</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -138,16 +138,16 @@ export function LeagueOverviewTable({
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-slate-800/50">
-            <TableRow className="border-slate-700 hover:bg-slate-800/50">
-              <TableHead className="text-slate-300">Manager</TableHead>
-              <TableHead className="text-right text-slate-300">Total Value</TableHead>
-              <TableHead className="text-center text-slate-300">QB Rank</TableHead>
-              <TableHead className="text-center text-slate-300">RB Rank</TableHead>
-              <TableHead className="text-center text-slate-300">WR Rank</TableHead>
-              <TableHead className="text-center text-slate-300">TE Rank</TableHead>
-              <TableHead className="text-center text-slate-300">Value Rank</TableHead>
-              <TableHead className="text-center text-slate-300">2027 Rank</TableHead>
+          <TableHeader className="border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700">
+              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="text-right text-white font-semibold">Total Value</TableHead>
+              <TableHead className="text-center text-white font-semibold">QB Rank</TableHead>
+              <TableHead className="text-center text-white font-semibold">RB Rank</TableHead>
+              <TableHead className="text-center text-white font-semibold">WR Rank</TableHead>
+              <TableHead className="text-center text-white font-semibold">TE Rank</TableHead>
+              <TableHead className="text-center text-white font-semibold">Value Rank</TableHead>
+              <TableHead className="text-center text-white font-semibold">2027 Rank</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -185,16 +185,16 @@ export function ProjectedMoversTable({
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-slate-800/50">
-            <TableRow className="border-slate-700 hover:bg-slate-800/50">
-              <TableHead className="text-slate-300">Rank</TableHead>
-              <TableHead className="text-slate-300">Player</TableHead>
-              <TableHead className="text-slate-300">Position</TableHead>
-              <TableHead className="text-slate-300">Manager</TableHead>
-              <TableHead className="text-right text-slate-300">Age</TableHead>
-              <TableHead className="text-right text-slate-300">2026 Value</TableHead>
-              <TableHead className="text-right text-slate-300">2027 Projection</TableHead>
-              <TableHead className="text-right text-slate-300">Change</TableHead>
+          <TableHeader className="border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700">
+              <TableHead className="text-white font-semibold">Rank</TableHead>
+              <TableHead className="text-white font-semibold">Player</TableHead>
+              <TableHead className="text-white font-semibold">Position</TableHead>
+              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="text-right text-white font-semibold">Age</TableHead>
+              <TableHead className="text-right text-white font-semibold">2026 Value</TableHead>
+              <TableHead className="text-right text-white font-semibold">2027 Projection</TableHead>
+              <TableHead className="text-right text-white font-semibold">Change</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -406,11 +406,11 @@ export function PositionAnalysisTable({
             <Card className="bg-slate-900 border-slate-800 overflow-hidden">
               <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-slate-800/50">
-                  <TableRow className="border-slate-700 hover:bg-slate-800/50">
-                    <TableHead className="text-slate-300">Team</TableHead>
-                    <TableHead className="text-slate-300">Position</TableHead>
-                    <TableHead className="text-right text-slate-300">Count</TableHead>
+                <TableHeader className="border-b-2 border-orange-500/30">
+                  <TableRow className="border-slate-700">
+                    <TableHead className="text-white font-semibold">Team</TableHead>
+                    <TableHead className="text-white font-semibold">Position</TableHead>
+                    <TableHead className="text-right text-white font-semibold">Count</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -442,11 +442,11 @@ export function PositionAnalysisTable({
             <Card className="bg-slate-900 border-slate-800 overflow-hidden">
               <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-slate-800/50">
-                  <TableRow className="border-slate-700 hover:bg-slate-800/50">
-                    <TableHead className="text-slate-300">Team</TableHead>
-                    <TableHead className="text-slate-300">Position</TableHead>
-                    <TableHead className="text-right text-slate-300">Count</TableHead>
+                <TableHeader className="border-b-2 border-orange-500/30">
+                  <TableRow className="border-slate-700">
+                    <TableHead className="text-white font-semibold">Team</TableHead>
+                    <TableHead className="text-white font-semibold">Position</TableHead>
+                    <TableHead className="text-right text-white font-semibold">Count</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
