@@ -16,7 +16,7 @@ interface ADPData {
 }
 
 /**
- * Fetch draft data from Sleeper API
+ * Fetch draft data from Sleeper API (all seasons)
  */
 export async function fetchDraftData(leagueId: string): Promise<SleeperDraftPick[]> {
   try {
@@ -29,15 +29,25 @@ export async function fetchDraftData(leagueId: string): Promise<SleeperDraftPick
       return [];
     }
 
-    // Get the most recent draft
-    const draft = response[0];
-    const draftId = draft.draft_id;
+    // Fetch picks from all drafts (current + previous seasons)
+    const allPicks: SleeperDraftPick[] = [];
+    
+    for (const draft of response) {
+      try {
+        const picks = await fetch(
+          `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
+        ).then((r) => r.json());
+        
+        if (picks && Array.isArray(picks)) {
+          allPicks.push(...picks);
+        }
+      } catch (e) {
+        console.warn(`[Draft Analysis] Failed to fetch draft ${draft.draft_id}:`, e);
+      }
+    }
 
-    const picks = await fetch(
-      `https://api.sleeper.app/v1/draft/${draftId}/picks`
-    ).then((r) => r.json());
-
-    return picks || [];
+    console.log(`[Draft Analysis] Fetched ${allPicks.length} total draft picks from ${response.length} draft(s)`);
+    return allPicks;
   } catch (error) {
     console.error('[Draft Analysis] Error fetching draft data:', error);
     return [];
