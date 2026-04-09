@@ -48,7 +48,7 @@ export function LoadingAnimation() {
             className="w-auto h-full object-contain scale-120"
           />
         </div>
-        <p className="text-slate-400 text-2xl font-semibold -mt-2">Analyzing your league...</p>
+        <p className="text-slate-400 text-2xl font-semibold -mt-2 pb-4">Analyzing your league...</p>
       </div>
 
       {/* Loading Steps - Center */}

@@ -296,7 +296,7 @@ export default function Home() {
 
             {/* Input Section */}
             <div className="space-y-4 sm:space-y-6 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-orange-500/20 rounded-lg sm:rounded-xl p-4 sm:p-8 backdrop-blur shadow-xl">
-              <div>
+              <div className="text-center">
                 <label className="block text-sm font-semibold text-slate-200 mb-3">
                   Enter Your Sleeper League ID
                 </label>
@@ -305,7 +305,7 @@ export default function Home() {
                   placeholder="Find in your Sleeper app settings or URL"
                   value={leagueId}
                   onChange={(e) => setLeagueId(e.target.value)}
-                  className="bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400"
+                  className="bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
                   onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
                 />
                 <p className="text-xs text-slate-400 mt-2">
