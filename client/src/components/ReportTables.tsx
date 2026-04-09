@@ -241,12 +241,12 @@ export function TradeProfitLeaderboardTable({
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-          <TableHeader className="bg-slate-800/50">
-            <TableRow className="border-slate-700 hover:bg-slate-800/50">
-              <TableHead className="text-slate-300">Rank</TableHead>
-              <TableHead className="text-slate-300">Manager</TableHead>
-              <TableHead className="text-right text-slate-300">Total Profit</TableHead>
-              <TableHead className="text-right text-slate-300">Trades</TableHead>
+          <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700 hover:bg-orange-500/5">
+              <TableHead className="text-orange-400 font-semibold">Rank</TableHead>
+              <TableHead className="text-orange-400 font-semibold">Manager</TableHead>
+              <TableHead className="text-right text-orange-400 font-semibold">Total Profit</TableHead>
+              <TableHead className="text-right text-orange-400 font-semibold">Trades</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -285,16 +285,16 @@ export function TradeHistoryTable({
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-slate-800/50">
-            <TableRow className="border-slate-700 hover:bg-slate-800/50">
-              <TableHead className="w-8 text-slate-300"></TableHead>
-              <TableHead className="text-slate-300">Date</TableHead>
-              <TableHead className="text-slate-300">Team A</TableHead>
-              <TableHead className="text-slate-300">Team B</TableHead>
-              <TableHead className="text-right text-slate-300">A Total</TableHead>
-              <TableHead className="text-right text-slate-300">B Total</TableHead>
-              <TableHead className="text-center text-slate-300">Gap</TableHead>
-              <TableHead className="text-center text-slate-300">Winner</TableHead>
+          <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700 hover:bg-orange-500/5">
+              <TableHead className="w-8 text-orange-400 font-semibold"></TableHead>
+              <TableHead className="text-orange-400 font-semibold">Date</TableHead>
+              <TableHead className="text-orange-400 font-semibold">Team A</TableHead>
+              <TableHead className="text-orange-400 font-semibold">Team B</TableHead>
+              <TableHead className="text-right text-orange-400 font-semibold">A Total</TableHead>
+              <TableHead className="text-right text-orange-400 font-semibold">B Total</TableHead>
+              <TableHead className="text-center text-orange-400 font-semibold">Gap</TableHead>
+              <TableHead className="text-center text-orange-400 font-semibold">Winner</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

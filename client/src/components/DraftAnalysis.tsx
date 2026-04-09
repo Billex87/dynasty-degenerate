@@ -35,13 +35,13 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
           <Card className="bg-slate-900 border-slate-800 overflow-hidden w-full max-w-6xl">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-slate-800/50">
-                  <TableRow className="border-slate-700 hover:bg-slate-800/50">
-                    <TableHead className="text-slate-300">Manager</TableHead>
-                    <TableHead className="text-right text-slate-300">Picks</TableHead>
-                    <TableHead className="text-right text-slate-300">Hits</TableHead>
-                    <TableHead className="text-right text-slate-300">Misses</TableHead>
-                    <TableHead className="text-right text-slate-300">Avg KTC Gain</TableHead>
+                <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
+                  <TableRow className="border-slate-700 hover:bg-orange-500/5">
+                    <TableHead className="text-orange-400 font-semibold">Manager</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Picks</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Hits</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Misses</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Avg KTC Gain</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -90,18 +90,18 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
           <Card className="bg-slate-900 border-slate-800 overflow-hidden w-full max-w-6xl">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-slate-800/50">
-                  <TableRow className="border-slate-700 hover:bg-slate-800/50">
-                    <TableHead className="text-slate-300">Round</TableHead>
-                    <TableHead className="text-slate-300">Pick</TableHead>
-                    <TableHead className="text-slate-300">Player</TableHead>
-                    <TableHead className="text-center text-slate-300">Pos</TableHead>
-                    <TableHead className="text-slate-300">Manager</TableHead>
-                    <TableHead className="text-right text-slate-300">Drafted Rank</TableHead>
-                    <TableHead className="text-right text-slate-300">Current Rank</TableHead>
-                    <TableHead className="text-right text-slate-300">Position Change</TableHead>
-                    <TableHead className="text-right text-slate-300">Current KTC Value</TableHead>
-                    <TableHead className="text-right text-slate-300">Value Change</TableHead>
+                <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
+                  <TableRow className="border-slate-700 hover:bg-orange-500/5">
+                    <TableHead className="text-orange-400 font-semibold">Round</TableHead>
+                    <TableHead className="text-orange-400 font-semibold">Pick</TableHead>
+                    <TableHead className="text-orange-400 font-semibold">Player</TableHead>
+                    <TableHead className="text-center text-orange-400 font-semibold">Pos</TableHead>
+                    <TableHead className="text-orange-400 font-semibold">Manager</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Drafted Rank</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Current Rank</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Position Change</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Current KTC Value</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Value Change</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
