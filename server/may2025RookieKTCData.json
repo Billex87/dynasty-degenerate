@@ -1,243 +1,303 @@
 {
   "ashton-jeanty-1742": {
     "name": "Ashton Jeanty",
-    "ktc_value": 7830
+    "ktc_value": 7830,
+    "position_rank_may2025": "RB3"
   },
   "omarion-hampton-1744": {
     "name": "Omarion Hampton",
-    "ktc_value": 6241
+    "ktc_value": 6241,
+    "position_rank_may2025": "RB5"
   },
   "travis-hunter-1774": {
     "name": "Travis Hunter",
-    "ktc_value": 5930
+    "ktc_value": 5930,
+    "position_rank_may2025": "WR15"
   },
   "tetairoa-mcmillan-1771": {
     "name": "Tetairoa McMillan",
-    "ktc_value": 5581
+    "ktc_value": 5581,
+    "position_rank_may2025": "WR16"
   },
   "treveyon-henderson-1743": {
     "name": "TreVeyon Henderson",
-    "ktc_value": 5482
+    "ktc_value": 5482,
+    "position_rank_may2025": "RB8"
   },
   "cam-ward-1730": {
     "name": "Cam Ward",
-    "ktc_value": 5408
+    "ktc_value": 5408,
+    "position_rank_may2025": "QB17"
   },
   "quinshon-judkins-1751": {
     "name": "Quinshon Judkins",
-    "ktc_value": 5296
+    "ktc_value": 5296,
+    "position_rank_may2025": "RB11"
   },
   "emeka-egbuka-1781": {
     "name": "Emeka Egbuka",
-    "ktc_value": 4881
+    "ktc_value": 4881,
+    "position_rank_may2025": "WR21"
   },
   "kaleb-johnson-1748": {
     "name": "Kaleb Johnson",
-    "ktc_value": 4708
+    "ktc_value": 4708,
+    "position_rank_may2025": "RB17"
   },
   "rj-harvey-1768": {
     "name": "RJ Harvey",
-    "ktc_value": 4654
+    "ktc_value": 4654,
+    "position_rank_may2025": "RB19"
   },
   "tyler-warren-1802": {
     "name": "Tyler Warren",
-    "ktc_value": 5204
+    "ktc_value": 5204,
+    "position_rank_may2025": "TE4"
   },
   "colston-loveland-1804": {
     "name": "Colston Loveland",
-    "ktc_value": 5186
+    "ktc_value": 5186,
+    "position_rank_may2025": "TE5"
   },
   "jaxson-dart-1732": {
     "name": "Jaxson Dart",
-    "ktc_value": 4425
+    "ktc_value": 4425,
+    "position_rank_may2025": "QB23"
   },
   "matthew-golden-1775": {
     "name": "Matthew Golden",
-    "ktc_value": 4321
+    "ktc_value": 4321,
+    "position_rank_may2025": "WR31"
   },
   "luther-burden-1770": {
     "name": "Luther Burden",
-    "ktc_value": 4164
+    "ktc_value": 4164,
+    "position_rank_may2025": "WR35"
   },
   "jayden-higgins-1783": {
     "name": "Jayden Higgins",
-    "ktc_value": 3796
+    "ktc_value": 3796,
+    "position_rank_may2025": "WR38"
   },
   "cam-skattebo-1745": {
     "name": "Cam Skattebo",
-    "ktc_value": 3653
+    "ktc_value": 3653,
+    "position_rank_may2025": "RB23"
   },
   "tre-harris-1772": {
     "name": "Tre Harris",
-    "ktc_value": 3613
+    "ktc_value": 3613,
+    "position_rank_may2025": "WR44"
   },
   "jack-bech-1778": {
     "name": "Jack Bech",
-    "ktc_value": 3356
+    "ktc_value": 3356,
+    "position_rank_may2025": "WR48"
   },
   "jalen-milroe-1733": {
     "name": "Jalen Milroe",
-    "ktc_value": 3229
+    "ktc_value": 3229,
+    "position_rank_may2025": "QB29"
   },
   "kyle-williams-1812": {
     "name": "Kyle Williams",
-    "ktc_value": 3132
+    "ktc_value": 3132,
+    "position_rank_may2025": "WR50"
   },
   "bhayshul-tuten-1752": {
     "name": "Bhayshul Tuten",
-    "ktc_value": 3050
+    "ktc_value": 3050,
+    "position_rank_may2025": "RB33"
   },
   "jaylin-noel-1780": {
     "name": "Jaylin Noel",
-    "ktc_value": 2993
+    "ktc_value": 2993,
+    "position_rank_may2025": "WR53"
   },
   "tyler-shough-1739": {
     "name": "Tyler Shough",
-    "ktc_value": 2904
+    "ktc_value": 2904,
+    "position_rank_may2025": "QB31"
   },
   "jaydon-blue-1769": {
     "name": "Jaydon Blue",
-    "ktc_value": 2896
+    "ktc_value": 2896,
+    "position_rank_may2025": "RB37"
   },
   "mason-taylor-1806": {
     "name": "Mason Taylor",
-    "ktc_value": 3313
+    "ktc_value": 3313,
+    "position_rank_may2025": "TE14"
   },
   "terrance-ferguson-1807": {
     "name": "Terrance Ferguson",
-    "ktc_value": 3241
+    "ktc_value": 3241,
+    "position_rank_may2025": "TE16"
   },
   "shedeur-sanders-1731": {
     "name": "Shedeur Sanders",
-    "ktc_value": 2761
+    "ktc_value": 2761,
+    "position_rank_may2025": "QB32"
   },
   "dylan-sampson-1747": {
     "name": "Dylan Sampson",
-    "ktc_value": 2754
+    "ktc_value": 2754,
+    "position_rank_may2025": "RB44"
   },
   "jalen-royals-1786": {
     "name": "Jalen Royals",
-    "ktc_value": 2658
+    "ktc_value": 2658,
+    "position_rank_may2025": "WR63"
   },
   "elijah-arroyo-1808": {
     "name": "Elijah Arroyo",
-    "ktc_value": 3035
+    "ktc_value": 3035,
+    "position_rank_may2025": "TE22"
   },
   "devin-neal-1746": {
     "name": "Devin Neal",
-    "ktc_value": 2597
+    "ktc_value": 2597,
+    "position_rank_may2025": "RB51"
   },
   "harold-fannin-1803": {
     "name": "Harold Fannin",
-    "ktc_value": 2932
+    "ktc_value": 2932,
+    "position_rank_may2025": "TE25"
   },
   "elic-ayomanor-1773": {
     "name": "Elic Ayomanor",
-    "ktc_value": 2462
+    "ktc_value": 2462,
+    "position_rank_may2025": "WR70"
   },
   "trevor-etienne-1756": {
     "name": "Trevor Etienne",
-    "ktc_value": 2449
+    "ktc_value": 2449,
+    "position_rank_may2025": "RB53"
   },
   "dj-giddens-1760": {
     "name": "DJ Giddens",
-    "ktc_value": 2339
+    "ktc_value": 2339,
+    "position_rank_may2025": "RB56"
   },
   "pat-bryant-1782": {
     "name": "Pat Bryant",
-    "ktc_value": 2324
+    "ktc_value": 2324,
+    "position_rank_may2025": "WR74"
   },
   "jordan-james-1755": {
     "name": "Jordan James",
-    "ktc_value": 2268
+    "ktc_value": 2268,
+    "position_rank_may2025": "RB57"
   },
   "will-howard-1736": {
     "name": "Will Howard",
-    "ktc_value": 2241
+    "ktc_value": 2241,
+    "position_rank_may2025": "QB33"
   },
   "ollie-gordon-1759": {
     "name": "Ollie Gordon",
-    "ktc_value": 2222
+    "ktc_value": 2222,
+    "position_rank_may2025": "RB59"
   },
   "jarquez-hunter-1764": {
     "name": "Jarquez Hunter",
-    "ktc_value": 2158
+    "ktc_value": 2158,
+    "position_rank_may2025": "RB61"
   },
   "isaac-teslaa-1813": {
     "name": "Isaac TeSlaa",
-    "ktc_value": 2084
+    "ktc_value": 2084,
+    "position_rank_may2025": "WR82"
   },
   "dillon-gabriel-1737": {
     "name": "Dillon Gabriel",
-    "ktc_value": 2048
+    "ktc_value": 2048,
+    "position_rank_may2025": "QB36"
   },
   "woody-marks-1753": {
     "name": "Woody Marks",
-    "ktc_value": 2013
+    "ktc_value": 2013,
+    "position_rank_may2025": "RB66"
   },
   "tahj-brooks-1758": {
     "name": "Tahj Brooks",
-    "ktc_value": 2013
+    "ktc_value": 2013,
+    "position_rank_may2025": "RB67"
   },
   "tory-horton-1798": {
     "name": "Tory Horton",
-    "ktc_value": 1930
+    "ktc_value": 1930,
+    "position_rank_may2025": "WR85"
   },
   "kyle-monangai-1766": {
     "name": "Kyle Monangai",
-    "ktc_value": 1915
+    "ktc_value": 1915,
+    "position_rank_may2025": "RB69"
   },
   "damien-martinez-1754": {
     "name": "Damien Martinez",
-    "ktc_value": 1909
+    "ktc_value": 1909,
+    "position_rank_may2025": "RB70"
   },
   "quinn-ewers-1734": {
     "name": "Quinn Ewers",
-    "ktc_value": 1868
+    "ktc_value": 1868,
+    "position_rank_may2025": "QB38"
   },
   "xavier-restrepo-1777": {
     "name": "Xavier Restrepo",
-    "ktc_value": 1860
+    "ktc_value": 1860,
+    "position_rank_may2025": "WR88"
   },
   "tai-felton-1797": {
     "name": "Tai Felton",
-    "ktc_value": 1843
+    "ktc_value": 1843,
+    "position_rank_may2025": "WR90"
   },
   "savion-williams-1796": {
     "name": "Savion Williams",
-    "ktc_value": 1836
+    "ktc_value": 1836,
+    "position_rank_may2025": "WR91"
   },
   "brashard-smith-1749": {
     "name": "Brashard Smith",
-    "ktc_value": 1785
+    "ktc_value": 1785,
+    "position_rank_may2025": "RB74"
   },
   "gunnar-helm-1805": {
     "name": "Gunnar Helm",
-    "ktc_value": 2127
+    "ktc_value": 2127,
+    "position_rank_may2025": "TE37"
   },
   "chimere-dike-1814": {
     "name": "Chimere Dike",
-    "ktc_value": 1655
+    "ktc_value": 1655,
+    "position_rank_may2025": "WR100"
   },
   "oronde-gadsden-1799": {
     "name": "Oronde Gadsden",
-    "ktc_value": 2004
+    "ktc_value": 2004,
+    "position_rank_may2025": "TE39"
   },
   "jaylin-lane-1816": {
     "name": "Jaylin Lane",
-    "ktc_value": 1618
+    "ktc_value": 1618,
+    "position_rank_may2025": "WR105"
   },
   "tez-johnson-1779": {
     "name": "Tez Johnson",
-    "ktc_value": 1592
+    "ktc_value": 1592,
+    "position_rank_may2025": "WR109"
   },
   "jacory-croskey-merritt-1832": {
     "name": "Jacory Croskey-Merritt",
-    "ktc_value": 1393
+    "ktc_value": 1393,
+    "position_rank_may2025": "RB83"
   },
   "riley-leonard-1735": {
     "name": "Riley Leonard",
-    "ktc_value": 1120
+    "ktc_value": 1120,
+    "position_rank_may2025": "QB51"
   },
   "kyle-mccord-1738": {
     "name": "Kyle McCord",

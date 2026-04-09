@@ -30,6 +30,10 @@
 - [x] Value Change column now shows accurate draft-day value comparisons
 - [x] Flexible slug matching implemented to handle both simple and hyphenated player slugs
 - [x] Browser tested: Value changes correctly calculated (e.g., Ashton Jeanty -364, Omarion Hampton +556)
+- [x] Position rank data extracted from May 2025 snapshot (60+ players with RB/WR/QB/TE rankings)
+- [x] Position Rank (May 2025) column added to Draft Board table
+- [x] DraftPick interface updated with position rank fields
+- [x] Browser tested: Position ranks displayed correctly (e.g., Ashton Jeanty RB3, Omarion Hampton RB5)
 - [x] All 22 unit tests passing
 
 ### Database & Scheduled Jobs

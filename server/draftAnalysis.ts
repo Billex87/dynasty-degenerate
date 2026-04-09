@@ -31,6 +31,11 @@ interface DraftPickWithMetadata extends SleeperDraftPick {
   roster_map?: Record<string, string>;
 }
 
+interface PositionRankData {
+  position_rank_may2025?: string;
+  [key: string]: any;
+}
+
 export function calculateADPFromPicks(
   allPicks: SleeperDraftPick[]
 ): ADPData {
@@ -65,7 +70,7 @@ export function analyzeDraftPicks(
   ktcValues: Record<string, { name: string; ktc_value: number }>,
   adpData: ADPData,
   ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>,
-  ktcValuesMay2025?: Record<string, { name: string; ktc_value: number }>
+  ktcValuesMay2025?: Record<string, { name: string; ktc_value: number; position_rank_may2025?: string }>
 ): { draftPicks: any[]; draftStats: any[] } {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
@@ -159,6 +164,32 @@ export function analyzeDraftPicks(
       valueGain = currentKtcValue - baselineValue;
     }
 
+    // Extract position rank from May 2025 data
+    let positionRankMay2025: string | null = null;
+    if (ktcValuesMay2025) {
+      const may2025Data = findMay2025Data(playerName, ktcValuesMay2025);
+      positionRankMay2025 = may2025Data?.position_rank_may2025 || null;
+    }
+    
+    // Calculate current position rank from player position and KTC value
+    // This would require additional data from KTC API, for now we'll leave it as null
+    let currentPositionRank: string | null = null;
+    
+    // Calculate position rank change
+    let positionRankChange: string | null = null;
+    if (positionRankMay2025 && currentPositionRank) {
+      // Extract position and number from rank strings (e.g., "RB3" -> {pos: "RB", num: 3})
+      const may2025Match = (positionRankMay2025 as string).match(/(QB|RB|WR|TE)(\d+)/);
+      const currentMatch = (currentPositionRank as string).match(/(QB|RB|WR|TE)(\d+)/);
+      
+      if (may2025Match && currentMatch && may2025Match[1] === currentMatch[1]) {
+        const may2025Num = parseInt(may2025Match[2]);
+        const currentNum = parseInt(currentMatch[2]);
+        const change = currentNum - may2025Num;
+        positionRankChange = change === 0 ? null : `${change > 0 ? '+' : ''}${change}`;
+      }
+    }
+
     const draftPick: any = {
       round: pick.round,
       pick: pick.pick_no,
@@ -168,6 +199,9 @@ export function analyzeDraftPicks(
       adp,
       currentKtcValue,
       valueGain,
+      positionRankMay2025,
+      currentPositionRank,
+      positionRankChange,
     };
 
     processedPicks.push(draftPick);

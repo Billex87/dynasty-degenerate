@@ -56,6 +56,9 @@ export interface DraftPick {
   ktcValue: number | null;
   currentKtcValue: number | null;
   valueGain: number | null;
+  positionRankMay2025?: string | null;
+  currentPositionRank?: string | null;
+  positionRankChange?: string | null;
 }
 
 export interface ManagerDraftStats {

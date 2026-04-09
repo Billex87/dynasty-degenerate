@@ -106,6 +106,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                     <TableHead className="text-center text-slate-300">Pos</TableHead>
                     <TableHead className="text-slate-300">Manager</TableHead>
                     <TableHead className="text-right text-slate-300">Draft Pick Position</TableHead>
+                    <TableHead className="text-right text-slate-300">Position Rank (May 2025)</TableHead>
                     <TableHead className="text-right text-slate-300">Current KTC Value</TableHead>
                     <TableHead className="text-right text-slate-300">Value Change</TableHead>
                   </TableRow>
@@ -129,6 +130,15 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                         <TableCell className="text-slate-400">{pick.manager}</TableCell>
                         <TableCell className="text-right font-semibold text-slate-300">
                           {pick.pick}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {pick.positionRankMay2025 ? (
+                            <span className="font-semibold text-slate-300">
+                              {pick.positionRankMay2025}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">N/A</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           {pick.currentKtcValue ? (
