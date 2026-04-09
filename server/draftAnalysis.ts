@@ -1,4 +1,4 @@
-import type { SleeperDraftPick } from '@shared/types';
+import { SleeperDraftPick } from '../shared/types';
 
 interface SleeperDraft {
   draft_id: string;
@@ -70,7 +70,8 @@ export function analyzeDraftPicks(
   ktcValues: Record<string, { name: string; ktc_value: number }>,
   adpData: ADPData,
   ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>,
-  ktcValuesMay2025?: Record<string, { name: string; ktc_value: number; position_rank_may2025?: string }>
+  ktcValuesMay2025?: Record<string, { name: string; ktc_value: number; position_rank_may2025?: string }>,
+  currentKTCRanks?: Record<string, { name: string; ktc_value: number; position_rank?: string }>
 ): { draftPicks: any[]; draftStats: any[] } {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
@@ -175,36 +176,44 @@ export function analyzeDraftPicks(
     // This would require additional data from KTC API, for now we'll leave it as null
     let currentPositionRank: string | null = null;
     
+    // Get current position rank from KTC data
+    if (currentKTCRanks) {
+      const currentRankData = findMay2025Data(playerName, currentKTCRanks);
+      currentPositionRank = currentRankData?.position_rank || null;
+    }
+    
     // Calculate position rank change
     let positionRankChange: string | null = null;
     if (positionRankMay2025 && currentPositionRank) {
-      // Extract position and number from rank strings (e.g., "RB3" -> {pos: "RB", num: 3})
-      const may2025Match = (positionRankMay2025 as string).match(/(QB|RB|WR|TE)(\d+)/);
-      const currentMatch = (currentPositionRank as string).match(/(QB|RB|WR|TE)(\d+)/);
+      // Extract numeric rank from strings like "RB3" or "WR15"
+      const may2025Num = parseInt(positionRankMay2025.match(/\d+/)?.[0] || '0');
+      const currentNum = parseInt(currentPositionRank.match(/\d+/)?.[0] || '0');
       
-      if (may2025Match && currentMatch && may2025Match[1] === currentMatch[1]) {
-        const may2025Num = parseInt(may2025Match[2]);
-        const currentNum = parseInt(currentMatch[2]);
-        const change = currentNum - may2025Num;
-        positionRankChange = change === 0 ? null : `${change > 0 ? '+' : ''}${change}`;
+      if (may2025Num > 0 && currentNum > 0) {
+        const rankDiff = may2025Num - currentNum; // Positive means moved up (lower rank number)
+        positionRankChange = rankDiff !== 0 ? `${rankDiff > 0 ? '+' : ''}${rankDiff}` : '0';
       }
     }
+    
+    // Detect draft year based on season
+    const draftYear = pick.draft_id ? (pick.draft_id.includes('2025') ? '2025' : '2026') : '2025';
 
-    const draftPick: any = {
+    const processedPick: any = {
       round: pick.round,
       pick: pick.pick_no,
       playerName,
       playerPos,
       manager,
       adp,
+      ktcValue: currentKtcValue,
       currentKtcValue,
       valueGain,
       positionRankMay2025,
       currentPositionRank,
       positionRankChange,
+      draftYear,
     };
-
-    processedPicks.push(draftPick);
+    processedPicks.push(processedPick);
 
     // Update manager stats
     const stats = managerStats.get(manager);
@@ -223,104 +232,97 @@ export function analyzeDraftPicks(
         }
       }
 
-      // Track KTC gains
-      if (currentKtcValue !== null) {
-        stats.avgKtcGain = (stats.avgKtcGain * (stats.totalPicks - 1) + (currentKtcValue || 0)) / stats.totalPicks;
+      // Track KTC gain
+      if (valueGain !== null) {
+        stats.avgKtcGain = (stats.avgKtcGain * (stats.totalPicks - 1) + valueGain) / stats.totalPicks;
       }
 
       // Track best and worst picks
-      if (!stats.bestPick || (currentKtcValue && currentKtcValue > (stats.bestPick.currentKtcValue || 0))) {
-        stats.bestPick = draftPick;
+      if (!stats.bestPick || (valueGain !== null && valueGain > (stats.bestPick.valueGain || 0))) {
+        stats.bestPick = processedPick;
       }
-      if (!stats.worstPick || (currentKtcValue && currentKtcValue < (stats.worstPick.currentKtcValue || 0))) {
-        stats.worstPick = draftPick;
+      if (!stats.worstPick || (valueGain !== null && valueGain < (stats.worstPick.valueGain || 0))) {
+        stats.worstPick = processedPick;
       }
-
-      managerStats.set(manager, stats);
     }
   });
 
-  return {
-    draftPicks: processedPicks,
-    draftStats: Array.from(managerStats.values()),
-  };
+  const draftStats = Array.from(managerStats.values())
+    .map((stat) => ({
+      ...stat,
+      avgAdpDiff: Math.round(stat.avgAdpDiff * 10) / 10,
+      avgKtcGain: Math.round(stat.avgKtcGain),
+    }))
+    .sort((a, b) => b.avgKtcGain - a.avgKtcGain);
+
+  return { draftPicks: processedPicks, draftStats };
 }
 
-/**
- * Fetch draft data from Sleeper API
- */
 export async function fetchDraftData(
   leagueId: string,
   rosterMappingData: RosterMappingData
 ): Promise<DraftPickWithMetadata[]> {
-  const allDraftPicks: DraftPickWithMetadata[] = [];
-  const draftsToFetch: { leagueId: string; rosterMap: Record<string, string> }[] = [];
+  const { currentRosterMap, currentRosters, pastRosterMap, pastRosters, prevLeagueId } = rosterMappingData;
+  
+  const allPicks: DraftPickWithMetadata[] = [];
 
-  // Add current league
-  draftsToFetch.push({
-    leagueId,
-    rosterMap: Object.fromEntries(
-      rosterMappingData.currentRosters.map((r: any) => [
-        r.owner_id,
-        rosterMappingData.currentUserMap[r.owner_id] || 'Unknown',
-      ])
-    ),
-  });
+  try {
+    // Fetch current season drafts
+    const currentDrafts = await fetch(
+      `https://api.sleeper.app/v1/league/${leagueId}/drafts`
+    ).then((r) => r.json());
 
-  // Add previous league if available
-  if (rosterMappingData.prevLeagueId && rosterMappingData.pastRosters.length > 0) {
-    draftsToFetch.push({
-      leagueId: rosterMappingData.prevLeagueId,
-      rosterMap: Object.fromEntries(
-        rosterMappingData.pastRosters.map((r: any) => [
-          r.owner_id,
-          rosterMappingData.pastUserMap[r.owner_id] || 'Unknown',
-        ])
-      ),
-    });
-  }
+    if (Array.isArray(currentDrafts)) {
+      for (const draft of currentDrafts) {
+        const draftPicks = await fetch(
+          `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
+        ).then((r) => r.json());
 
-  // Fetch drafts from each league
-  for (const draftSource of draftsToFetch) {
-    if (!draftSource.leagueId) continue;
+        if (Array.isArray(draftPicks)) {
+          draftPicks.forEach((pick: SleeperDraftPick) => {
+            allPicks.push({
+              ...pick,
+              draft_id: draft.draft_id,
+              roster_map: currentRosterMap,
+            });
+          });
+        }
+      }
+    }
 
-    try {
-      // Get all drafts for this league
-      const draftsResponse = await fetch(
-        `https://api.sleeper.app/v1/league/${draftSource.leagueId}/drafts`
+    // Fetch past season drafts if available
+    if (prevLeagueId) {
+      const pastDrafts = await fetch(
+        `https://api.sleeper.app/v1/league/${prevLeagueId}/drafts`
       ).then((r) => r.json());
 
-      const drafts = Array.isArray(draftsResponse) ? draftsResponse : [];
-
-      // Filter for rookie/startup drafts only (less than 100 picks)
-      for (const draft of drafts) {
-        if (draft.type !== 'snake' && draft.type !== 'linear') continue;
-
-        try {
-          const picksResponse = await fetch(
+      if (Array.isArray(pastDrafts)) {
+        for (const draft of pastDrafts) {
+          const draftPicks = await fetch(
             `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
           ).then((r) => r.json());
 
-          const picks = Array.isArray(picksResponse) ? picksResponse : [];
-
-          // Only include drafts with less than 100 picks
-          if (picks.length < 100) {
-            const picksWithMetadata = picks.map((pick: any) => ({
-              ...pick,
-              draft_id: draft.draft_id,
-              roster_map: draftSource.rosterMap,
-            }));
-            allDraftPicks.push(...picksWithMetadata);
+          if (Array.isArray(draftPicks)) {
+            draftPicks.forEach((pick: SleeperDraftPick) => {
+              allPicks.push({
+                ...pick,
+                draft_id: draft.draft_id,
+                roster_map: pastRosterMap,
+              });
+            });
           }
-        } catch (e) {
-          console.warn(`Failed to fetch picks for draft ${draft.draft_id}:`, e);
         }
       }
-    } catch (e) {
-      console.warn(`Failed to fetch drafts for league ${draftSource.leagueId}:`, e);
     }
-  }
 
-  console.log(`[Draft Analysis] Fetched ${allDraftPicks.length} total draft picks from all leagues`);
-  return allDraftPicks;
+    // Filter to only include rookie drafts with fewer than 100 picks
+    return allPicks.filter((pick) => {
+      const draft = pick.draft_id;
+      // Check if it's a rookie draft (typically has "rookie" in the draft type or is a short draft)
+      return !draft || draft.length < 100;
+    });
+  } catch (error) {
+    console.error('Error fetching draft data:', error);
+    return [];
+  }
 }

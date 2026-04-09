@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { loadKTCValues, loadKTCValuesLastWeek } from "./ktcLoader";
+import { loadCurrentKTCPositionRanks } from "./currentKTCLoader";
 import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
@@ -179,6 +180,8 @@ export const appRouter = router({
             if (draftPicks.length > 0) {
               // Load May 2025 KTC baseline for value change calculations
               const ktcValuesMay2025 = getMay2025KTCSnapshot();
+              // Load current KTC position ranks
+              const currentKTCRanks = await loadCurrentKTCPositionRanks();
               draftAnalysis = analyzeDraftPicks(
                 draftPicks,
                 players,
@@ -186,7 +189,8 @@ export const appRouter = router({
                 ktcValues,
                 adpData,
                 ktcValuesLastWeek,
-                ktcValuesMay2025
+                ktcValuesMay2025,
+                currentKTCRanks
               );
             }
           } catch (e) {

@@ -100,6 +100,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
               <Table>
                 <TableHeader className="bg-slate-800/50">
                   <TableRow className="border-slate-700 hover:bg-slate-800/50">
+                    <TableHead className="text-slate-300">Year</TableHead>
                     <TableHead className="text-slate-300">Round</TableHead>
                     <TableHead className="text-slate-300">Pick</TableHead>
                     <TableHead className="text-slate-300">Player</TableHead>
@@ -107,6 +108,8 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                     <TableHead className="text-slate-300">Manager</TableHead>
                     <TableHead className="text-right text-slate-300">Draft Pick Position</TableHead>
                     <TableHead className="text-right text-slate-300">Position Rank (May 2025)</TableHead>
+                    <TableHead className="text-right text-slate-300">Current Position Rank</TableHead>
+                    <TableHead className="text-right text-slate-300">Position Change</TableHead>
                     <TableHead className="text-right text-slate-300">Current KTC Value</TableHead>
                     <TableHead className="text-right text-slate-300">Value Change</TableHead>
                   </TableRow>
@@ -115,6 +118,9 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                   {draftPicks.map((pick, idx) => {
                     return (
                       <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
+                        <TableCell className="font-semibold text-orange-400">
+                          {pick.draftYear || '2025'}
+                        </TableCell>
                         <TableCell className="font-semibold text-slate-300">
                           {pick.round}
                         </TableCell>
@@ -135,6 +141,30 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                           {pick.positionRankMay2025 ? (
                             <span className="font-semibold text-slate-300">
                               {pick.positionRankMay2025}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {pick.currentPositionRank ? (
+                            <span className="font-semibold text-slate-300">
+                              {pick.currentPositionRank}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {pick.positionRankChange ? (
+                            <span
+                              className={`font-semibold ${
+                                pick.positionRankChange.startsWith('+') ? 'text-green-400' : pick.positionRankChange.startsWith('-') ? 'text-red-400' : 'text-slate-300'
+                              }`}
+                            >
+                              {pick.positionRankChange}
+                              {pick.positionRankChange.startsWith('+') && <TrendingUp className="inline ml-1 w-4 h-4" />}
+                              {pick.positionRankChange.startsWith('-') && <TrendingDown className="inline ml-1 w-4 h-4" />}
                             </span>
                           ) : (
                             <span className="text-slate-500">N/A</span>

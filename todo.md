@@ -41,8 +41,19 @@
 - [x] ktcSnapshots database table confirmed to exist and be properly configured
 - [x] KTC Tuesday 11 PM snapshot job confirmed in place (ktcSnapshotJob.ts + scheduledJobs.ts)
 
+### Draft Year & Position Rank Tracking
+- [x] Add draft year labels (2025 vs 2026) to Full Draft Board
+- [x] Add Current Position Rank column to Draft Board
+- [x] Add Position Change column (green/red with spot movement)
+- [x] Fetch current KTC position ranks for all players
+- [x] Calculate position rank changes (current - May 2025)
+- [x] Created currentKTCLoader.ts to load current position ranks
+- [x] Updated draftAnalysis.ts to handle position rank calculations
+- [x] Updated DraftAnalysis.tsx to display all new columns
+- [x] Browser tested: Position changes displaying correctly (e.g., Ashton Jeanty +1, Travis Hunter +3)
+- [x] All 22 unit tests passing
+
 ## Future Features (Optional)
-- [ ] Add draft year labels (2025 vs 2026) to Full Draft Board
 - [ ] Waiver wire activity tracker tab
 - [ ] Bench vs Start analysis
 - [ ] Historical KTC tracking for non-rookie drafts

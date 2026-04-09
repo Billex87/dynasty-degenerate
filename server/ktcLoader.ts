@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 interface KTCValues {
-  [key: string]: { name: string; ktc_value: number };
+  [key: string]: { name: string; ktc_value: number; position_rank?: string };
 }
 
 let ktcValuesCache: KTCValues | null = null;

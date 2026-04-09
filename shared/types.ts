@@ -59,6 +59,7 @@ export interface DraftPick {
   positionRankMay2025?: string | null;
   currentPositionRank?: string | null;
   positionRankChange?: string | null;
+  draftYear?: string;
 }
 
 export interface ManagerDraftStats {
