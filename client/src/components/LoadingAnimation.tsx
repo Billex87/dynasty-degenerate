@@ -43,7 +43,7 @@ export function LoadingAnimation() {
       <div className="flex flex-col items-center gap-0">
         <div className="flex justify-center h-72 w-full max-w-2xl">
           <img 
-            src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_updated_f13b634b.png" 
+            src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_final_90a9eceb.png" 
             alt="Dynasty Degenerates Logo" 
             className="w-auto h-full object-contain scale-120"
           />
