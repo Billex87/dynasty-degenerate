@@ -73,7 +73,8 @@ export function WeeklyMomentumTable({
   title: string;
 }) {
   return (
-    <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+    <div className="flex justify-center">
+      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-slate-800/50">
@@ -123,6 +124,7 @@ export function WeeklyMomentumTable({
         </Table>
       </div>
     </Card>
+    </div>
   );
 }
 
@@ -132,7 +134,8 @@ export function LeagueOverviewTable({
   data: ReportData['leagueOverview'];
 }) {
   return (
-    <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+    <div className="flex justify-center">
+      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-slate-800/50">
@@ -166,6 +169,7 @@ export function LeagueOverviewTable({
         </Table>
       </div>
     </Card>
+    </div>
   );
 }
 
@@ -177,7 +181,8 @@ export function ProjectedMoversTable({
   title: string;
 }) {
   return (
-    <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+    <div className="flex justify-center">
+      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-slate-800/50">
@@ -222,6 +227,7 @@ export function ProjectedMoversTable({
         </Table>
       </div>
     </Card>
+    </div>
   );
 }
 
@@ -275,7 +281,8 @@ export function TradeHistoryTable({
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   return (
-    <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+    <div className="flex justify-center">
+      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-slate-800/50">
@@ -373,6 +380,7 @@ export function TradeHistoryTable({
         </Table>
       </div>
     </Card>
+    </div>
   );
 }
 
