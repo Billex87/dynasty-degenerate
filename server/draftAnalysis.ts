@@ -63,7 +63,8 @@ export function analyzeDraftPicks(
   players: Record<string, any>,
   rosterMap: Record<string, string>,
   ktcValues: Record<string, { name: string; ktc_value: number }>,
-  adpData: ADPData
+  adpData: ADPData,
+  ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>
 ): { draftPicks: any[]; draftStats: any[] } {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
@@ -104,7 +105,14 @@ export function analyzeDraftPicks(
     const playerSlug = createSlug(playerName);
     const ktcData = ktcValues[playerSlug];
     const currentKtcValue = ktcData?.ktc_value || null;
-    const valueGain = null; // We'll calculate this if we have historical data
+    
+    // Calculate value gain using last week's KTC as baseline (approximation of draft value)
+    let valueGain: number | null = null;
+    if (ktcValuesLastWeek && currentKtcValue !== null) {
+      const lastWeekKtcData = ktcValuesLastWeek[playerSlug];
+      const lastWeekValue = lastWeekKtcData?.ktc_value || currentKtcValue;
+      valueGain = currentKtcValue - lastWeekValue;
+    }
 
     const draftPick: any = {
       round: pick.round,

@@ -181,7 +181,8 @@ export const appRouter = router({
                 players,
                 rosterUserMap,
                 ktcValues,
-                adpData
+                adpData,
+                ktcValuesLastWeek
               );
             }
           } catch (e) {
