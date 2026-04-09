@@ -41,7 +41,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                     <TableHead className="text-right text-orange-400 font-semibold">Picks</TableHead>
                     <TableHead className="text-right text-orange-400 font-semibold">Hits</TableHead>
                     <TableHead className="text-right text-orange-400 font-semibold">Misses</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Avg KTC Gain</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold">Value</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -95,13 +95,12 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                     <TableHead className="text-orange-400 font-semibold">Round</TableHead>
                     <TableHead className="text-orange-400 font-semibold">Pick</TableHead>
                     <TableHead className="text-orange-400 font-semibold">Player</TableHead>
-                    <TableHead className="text-center text-orange-400 font-semibold">Pos</TableHead>
                     <TableHead className="text-orange-400 font-semibold">Manager</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Drafted Rank</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Current Rank</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Position Change</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Current KTC Value</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Value Change</TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold"><div>Drafted</div><div>Rank</div></TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold"><div>Current</div><div>Rank</div></TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold"><div>Position</div><div>Change</div></TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold"><div>Current</div><div>Value</div></TableHead>
+                    <TableHead className="text-right text-orange-400 font-semibold"><div>Value</div><div>Change</div></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -117,9 +116,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                         <TableCell className="font-semibold text-slate-100">
                           {pick.playerName}
                         </TableCell>
-                        <TableCell className="text-center text-slate-400">
-                          {pick.playerPos}
-                        </TableCell>
+
                         <TableCell className="text-slate-400">{pick.manager}</TableCell>
                         <TableCell className="text-right">
                           {pick.positionRankMay2025 ? (

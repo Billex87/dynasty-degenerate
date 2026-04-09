@@ -298,7 +298,7 @@ export function TradeHistoryTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((row, idx) => {
+            {[...data].reverse().map((row, idx) => {
               const isExpanded = expandedIdx === idx;
               const winnerColor =
                 row.winner === row.team_a
