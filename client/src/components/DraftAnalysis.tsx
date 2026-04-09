@@ -32,7 +32,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
           Draft Capital Efficiency
         </h3>
         <div className="flex justify-center">
-          <Card className="bg-slate-900 border-slate-800 overflow-hidden w-full max-w-6xl">
+          <Card className="bg-slate-900 border-slate-800 overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
@@ -87,7 +87,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
           </h3>
         )}
         <div className="flex justify-center">
-          <Card className="bg-slate-900 border-slate-800 overflow-hidden w-full max-w-6xl">
+          <Card className="bg-slate-900 border-slate-800 overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
