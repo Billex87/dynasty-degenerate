@@ -241,8 +241,8 @@ export function TradeProfitLeaderboardTable({
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-          <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700 hover:bg-orange-500/5">
+          <TableHeader className="border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700">
               <TableHead className="text-white font-semibold">Rank</TableHead>
               <TableHead className="text-white font-semibold">Manager</TableHead>
               <TableHead className="text-right text-white font-semibold">Total Profit</TableHead>
@@ -285,8 +285,8 @@ export function TradeHistoryTable({
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700 hover:bg-orange-500/5">
+          <TableHeader className="border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700">
               <TableHead className="w-8 text-white font-semibold"></TableHead>
               <TableHead className="text-white font-semibold">Date</TableHead>
               <TableHead className="text-white font-semibold">Team A</TableHead>

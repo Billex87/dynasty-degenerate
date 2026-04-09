@@ -35,13 +35,13 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
           <Card className="bg-slate-900 border-slate-800 overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
-                  <TableRow className="border-slate-700 hover:bg-orange-500/5">
-                    <TableHead className="text-orange-400 font-semibold">Manager</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Picks</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Hits</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Misses</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold">Value</TableHead>
+                <TableHeader className="border-b-2 border-orange-500/30">
+                  <TableRow className="border-slate-700">
+                    <TableHead className="text-white font-semibold">Manager</TableHead>
+                    <TableHead className="text-right text-white font-semibold">Picks</TableHead>
+                    <TableHead className="text-right text-white font-semibold">Hits</TableHead>
+                    <TableHead className="text-right text-white font-semibold">Misses</TableHead>
+                    <TableHead className="text-right text-white font-semibold">Value</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -90,17 +90,17 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
           <Card className="bg-slate-900 border-slate-800 overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
-                  <TableRow className="border-slate-700 hover:bg-orange-500/5">
-                    <TableHead className="text-orange-400 font-semibold">Round</TableHead>
-                    <TableHead className="text-orange-400 font-semibold">Pick</TableHead>
-                    <TableHead className="text-orange-400 font-semibold">Player</TableHead>
-                    <TableHead className="text-orange-400 font-semibold">Manager</TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold"><div>Drafted</div><div>Rank</div></TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold"><div>Current</div><div>Rank</div></TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold"><div>Position</div><div>Change</div></TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold"><div>Current</div><div>Value</div></TableHead>
-                    <TableHead className="text-right text-orange-400 font-semibold"><div>Value</div><div>Change</div></TableHead>
+                <TableHeader className="border-b-2 border-orange-500/30">
+                  <TableRow className="border-slate-700">
+                    <TableHead className="text-white font-semibold">Round</TableHead>
+                    <TableHead className="text-white font-semibold">Pick</TableHead>
+                    <TableHead className="text-white font-semibold">Player</TableHead>
+                    <TableHead className="text-white font-semibold">Manager</TableHead>
+                    <TableHead className="text-right text-white font-semibold"><div>Drafted</div><div>Rank</div></TableHead>
+                    <TableHead className="text-right text-white font-semibold"><div>Current</div><div>Rank</div></TableHead>
+                    <TableHead className="text-right text-white font-semibold"><div>Position</div><div>Change</div></TableHead>
+                    <TableHead className="text-right text-white font-semibold"><div>Current</div><div>Value</div></TableHead>
+                    <TableHead className="text-right text-white font-semibold"><div>Value</div><div>Change</div></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

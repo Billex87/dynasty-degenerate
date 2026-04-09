@@ -161,7 +161,7 @@ export default function Home() {
                 Projections
               </TabsTrigger>
               <TabsTrigger value="trades" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
-                Trade Analysis
+                Trade History
               </TabsTrigger>
 
               <TabsTrigger value="draft" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
@@ -354,7 +354,7 @@ export default function Home() {
                 <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-blue-400" />
                 </div>
-                <h3 className="font-semibold text-white">Trade Analysis</h3>
+                <h3 className="font-semibold text-white">Trade History</h3>
                 <p className="text-sm text-slate-400">
                   Track how your trades are valued today compared to when you made them. See who's winning and who's getting fleeced.
                 </p>
