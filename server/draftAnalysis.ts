@@ -23,6 +23,7 @@ interface RosterMappingData {
   pastRosterMap: Record<string, string>;
   pastRosters: any[];
   pastUserMap: Record<string, string>;
+  prevLeagueId?: string;
 }
 
 interface DraftPickWithMetadata extends SleeperDraftPick {
@@ -180,9 +181,9 @@ export async function fetchDraftData(
   });
 
   // Add previous league if available
-  if (rosterMappingData.pastRosters.length > 0) {
+  if (rosterMappingData.prevLeagueId && rosterMappingData.pastRosters.length > 0) {
     draftsToFetch.push({
-      leagueId: rosterMappingData.pastRosterMap['league_id'] || '',
+      leagueId: rosterMappingData.prevLeagueId,
       rosterMap: Object.fromEntries(
         rosterMappingData.pastRosters.map((r: any) => [
           r.owner_id,
