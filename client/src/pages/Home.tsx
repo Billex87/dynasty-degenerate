@@ -15,8 +15,7 @@ import {
   TradeProfitLeaderboardTable,
   TradeHistoryTable,
   PositionAnalysisTable,
-  SearchableWeeklyMomentumTable,
-  SearchableProjectedMoversTable,
+
 } from '@/components/ReportTables';
 import { DraftAnalysis } from '@/components/DraftAnalysis';
 import type { ReportData } from '@shared/types';
@@ -158,7 +157,7 @@ export default function Home() {
               <TabsTrigger value="momentum" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Weekly Momentum
               </TabsTrigger>
-              <TabsTrigger value="projections" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+              <TabsTrigger value="projections" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0 hidden">
                 Projections
               </TabsTrigger>
               <TabsTrigger value="trades" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
@@ -189,18 +188,20 @@ export default function Home() {
               <div className="space-y-8">
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 15 Weekly Risers</h3>
-                  <SearchableWeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" />
+                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" />
                 </div>
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 15 Weekly Fallers</h3>
-                  <SearchableWeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" />
+                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" />
                 </div>
               </div>
             </TabsContent>
 
             <TabsContent value="projections" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
-              <div className="space-y-2 mb-8 p-4 bg-slate-800/30 rounded border border-slate-700">
-                <p className="text-sm text-slate-300"><span className="text-amber-400 font-semibold">One-Year Projection:</span> These values predict where players will be valued one year from now based on age and position trends.</p>
+              <div className="flex justify-center mb-8">
+                <div className="max-w-2xl p-4 bg-slate-800/30 rounded border border-slate-700 text-center">
+                  <p className="text-sm text-slate-300"><span className="text-amber-400 font-semibold">One-Year Projection:</span> These values predict where players will be valued one year from now based on age and position trends.</p>
+                </div>
               </div>
               <div className="space-y-8">
                 <div>
@@ -208,14 +209,14 @@ export default function Home() {
                     <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 25 Risers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to make your league mates look stupid next year.</p>
                   </div>
-                  <SearchableProjectedMoversTable data={reportData.projectedRisers} title="Projected Risers" />
+                   <ProjectedMoversTable data={reportData.projectedRisers} title="Projected Risers" />
                 </div>
                 <div>
                   <div className="space-y-2 mb-4">
                     <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 25 Fallers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to tank your roster value.</p>
                   </div>
-                  <SearchableProjectedMoversTable data={reportData.projectedFallers} title="Projected Fallers" />
+                   <ProjectedMoversTable data={reportData.projectedFallers} title="Projected Fallers" />
                 </div>
               </div>
             </TabsContent>

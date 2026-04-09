@@ -82,7 +82,7 @@ export function WeeklyMomentumTable({
               <TableHead className="text-slate-300">Rank</TableHead>
               <TableHead className="text-slate-300">Player</TableHead>
               <TableHead className="text-slate-300">Position</TableHead>
-              <TableHead className="text-slate-300">Owner</TableHead>
+              <TableHead className="text-slate-300">Manager</TableHead>
               <TableHead className="text-right text-slate-300">Last Week</TableHead>
               <TableHead className="text-right text-slate-300">This Week</TableHead>
               <TableHead className="text-right text-slate-300">Change</TableHead>
@@ -190,7 +190,7 @@ export function ProjectedMoversTable({
               <TableHead className="text-slate-300">Rank</TableHead>
               <TableHead className="text-slate-300">Player</TableHead>
               <TableHead className="text-slate-300">Position</TableHead>
-              <TableHead className="text-slate-300">Owner</TableHead>
+              <TableHead className="text-slate-300">Manager</TableHead>
               <TableHead className="text-right text-slate-300">Age</TableHead>
               <TableHead className="text-right text-slate-300">2026 Value</TableHead>
               <TableHead className="text-right text-slate-300">2027 Projection</TableHead>
@@ -243,10 +243,10 @@ export function TradeProfitLeaderboardTable({
           <Table>
           <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700 hover:bg-orange-500/5">
-              <TableHead className="text-orange-400 font-semibold">Rank</TableHead>
-              <TableHead className="text-orange-400 font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-orange-400 font-semibold">Total Profit</TableHead>
-              <TableHead className="text-right text-orange-400 font-semibold">Trades</TableHead>
+              <TableHead className="text-white font-semibold">Rank</TableHead>
+              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="text-right text-white font-semibold">Total Profit</TableHead>
+              <TableHead className="text-right text-white font-semibold">Trades</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -287,14 +287,14 @@ export function TradeHistoryTable({
         <Table>
           <TableHeader className="bg-orange-500/10 border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700 hover:bg-orange-500/5">
-              <TableHead className="w-8 text-orange-400 font-semibold"></TableHead>
-              <TableHead className="text-orange-400 font-semibold">Date</TableHead>
-              <TableHead className="text-orange-400 font-semibold">Team A</TableHead>
-              <TableHead className="text-orange-400 font-semibold">Team B</TableHead>
-              <TableHead className="text-right text-orange-400 font-semibold">A Total</TableHead>
-              <TableHead className="text-right text-orange-400 font-semibold">B Total</TableHead>
-              <TableHead className="text-center text-orange-400 font-semibold">Gap</TableHead>
-              <TableHead className="text-center text-orange-400 font-semibold">Winner</TableHead>
+              <TableHead className="w-8 text-white font-semibold"></TableHead>
+              <TableHead className="text-white font-semibold">Date</TableHead>
+              <TableHead className="text-white font-semibold">Team A</TableHead>
+              <TableHead className="text-white font-semibold">Team B</TableHead>
+              <TableHead className="text-right text-white font-semibold">A Total</TableHead>
+              <TableHead className="text-right text-white font-semibold">B Total</TableHead>
+              <TableHead className="text-center text-white font-semibold">Gap</TableHead>
+              <TableHead className="text-center text-white font-semibold">Winner</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
