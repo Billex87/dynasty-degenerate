@@ -61,7 +61,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                           }`}
                         >
                           {stat.avgAdpDiff > 0 ? '+' : ''}
-                          {Math.round(stat.avgAdpDiff)}
+                          {stat.avgAdpDiff.toFixed(1)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right text-orange-400 font-semibold">
@@ -77,7 +77,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                           }`}
                         >
                           {stat.avgKtcGain >= 0 ? '+' : ''}
-                          {Math.round(stat.avgKtcGain).toLocaleString()}
+                          {stat.avgKtcGain.toLocaleString()}
                         </span>
                       </TableCell>
                     </TableRow>
