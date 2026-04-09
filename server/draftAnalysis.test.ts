@@ -29,8 +29,8 @@ describe('Draft Analysis', () => {
     };
 
     const mockKtcValues = {
-      'Player One': { name: 'Player One', ktc_value: 1000 },
-      'Player Two': { name: 'Player Two', ktc_value: 800 },
+      playerone: { name: 'Player One', ktc_value: 1000 },
+      playertwo: { name: 'Player Two', ktc_value: 800 },
     };
 
     const mockAdpData = {
@@ -57,7 +57,7 @@ describe('Draft Analysis', () => {
       playerPos: 'QB',
       manager: 'Manager A',
       adp: 5,
-      ktcValue: 1000,
+      currentKtcValue: 1000,
     });
 
     // Check manager stats
@@ -137,6 +137,6 @@ describe('Draft Analysis', () => {
     expect(result.draftPicks).toHaveLength(1);
     expect(result.draftPicks[0].playerName).toBe('Unknown');
     expect(result.draftPicks[0].playerPos).toBe('N/A');
-    expect(result.draftPicks[0].ktcValue).toBeNull();
+    expect(result.draftPicks[0].currentKtcValue).toBeNull();
   });
 });

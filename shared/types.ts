@@ -102,3 +102,31 @@ export interface ReportData {
   draftPicks?: DraftPick[];
   draftStats?: ManagerDraftStats[];
 }
+
+export interface SleeperDraftPick {
+  draft_id?: string;
+  draft_slot: number;
+  is_keeper: boolean | null;
+  metadata: {
+    first_name: string;
+    injury_status: string;
+    last_name: string;
+    news_updated: string;
+    number: string;
+    player_id: string;
+    position: string;
+    sport: string;
+    status: string;
+    team: string;
+    team_abbr: string;
+    team_changed_at: string;
+    years_exp: string;
+  };
+  pick_no: number;
+  picked_by: string;
+  player_id: string;
+  reactions: any;
+  roster_id: number;
+  round: number;
+  roster_map?: Record<string, string>;
+}

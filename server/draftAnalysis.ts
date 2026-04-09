@@ -1,17 +1,11 @@
-import type { DraftPick, ManagerDraftStats } from '../shared/types';
+import type { SleeperDraftPick } from '@shared/types';
 
-interface SleeperDraftPick {
-  round: number;
-  pick_no: number;
-  player_id: string;
-  picked_by: string;
-}
-
-interface DraftInfo {
+interface SleeperDraft {
   draft_id: string;
+  league_id: string;
+  season: number;
   type: string;
-  season: string;
-  season_type: string;
+  status: string;
   draft_order: Record<string, number>;
 }
 
@@ -25,98 +19,17 @@ interface ADPData {
 interface RosterMappingData {
   currentRosterMap: Record<string, string>;
   currentRosters: any[];
-  currentUserMap?: Record<string, string>; // user_id to manager name
-  pastRosterMap?: Record<string, string>;
-  pastRosters?: any[];
-  pastUserMap?: Record<string, string>; // user_id to manager name
+  currentUserMap: Record<string, string>;
+  pastRosterMap: Record<string, string>;
+  pastRosters: any[];
+  pastUserMap: Record<string, string>;
 }
 
-/**
- * Fetch draft data from Sleeper API (rookie/startup drafts only from all seasons including previous league)
- */
-export async function fetchDraftData(
-  leagueId: string,
-  rosterMappingData?: RosterMappingData
-): Promise<DraftPickWithMetadata[]> {
-  try {
-    const allPicks: SleeperDraftPick[] = [];
-    const leagueIds = [leagueId];
-
-    // Get the current league info to find previous league
-    try {
-      const leagueInfo = await fetch(
-        `https://api.sleeper.app/v1/league/${leagueId}`
-      ).then((r) => r.json());
-
-      if (leagueInfo.previous_league_id) {
-        leagueIds.push(leagueInfo.previous_league_id);
-        console.log(`[Draft Analysis] Found previous league: ${leagueInfo.previous_league_id}`);
-      }
-    } catch (e) {
-      console.warn('[Draft Analysis] Could not fetch league info:', e);
-    }
-
-    // Fetch drafts from all league IDs (current + previous)
-    for (const id of leagueIds) {
-      try {
-        const response = await fetch(
-          `https://api.sleeper.app/v1/league/${id}/drafts`
-        ).then((r) => r.json());
-
-        if (!Array.isArray(response) || response.length === 0) {
-          console.warn(`[Draft Analysis] No drafts found for league ${id}`);
-          continue;
-        }
-
-        // Fetch picks from rookie/startup drafts only (type: snake or linear)
-        for (const draft of response as DraftInfo[]) {
-          // Only include rookie/startup drafts
-          if (draft.type !== 'snake' && draft.type !== 'linear') {
-            console.log(`[Draft Analysis] Skipping non-rookie draft type: ${draft.type}`);
-            continue;
-          }
-
-          try {
-            const picks = await fetch(
-              `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
-            ).then((r) => r.json());
-            
-            if (picks && Array.isArray(picks)) {
-              // Only include drafts with less than 100 picks (rookie drafts)
-              if (picks.length < 100) {
-                allPicks.push(...picks);
-                console.log(`[Draft Analysis] Fetched ${picks.length} picks from rookie draft ${draft.draft_id} (season ${draft.season}, type: ${draft.type})`);
-              } else {
-                console.log(`[Draft Analysis] Skipping draft ${draft.draft_id} with ${picks.length} picks (exceeds 100 pick limit)`);
-              }
-            }
-          } catch (e) {
-            console.warn(`[Draft Analysis] Failed to fetch draft ${draft.draft_id}:`, e);
-          }
-        }
-      } catch (e) {
-        console.warn(`[Draft Analysis] Failed to fetch drafts for league ${id}:`, e);
-      }
-    }
-
-    // Attach user maps to picks (use user_id mapping since picked_by is a user_id)
-    const picksWithMetadata: DraftPickWithMetadata[] = allPicks.map((pick) => ({
-      ...pick,
-      roster_map: rosterMappingData?.currentUserMap || {},
-    }));
-
-    console.log(`[Draft Analysis] Fetched ${picksWithMetadata.length} total draft picks from all leagues`);
-    return picksWithMetadata;
-  } catch (error) {
-    console.error('[Draft Analysis] Error fetching draft data:', error);
-    return [];
-  }
+interface DraftPickWithMetadata extends SleeperDraftPick {
+  draft_id?: string;
+  roster_map?: Record<string, string>;
 }
 
-/**
- * Fetch ADP (Average Draft Position) data
- * This is a simplified version - in production you'd want to use a real ADP API
- */
 export function calculateADPFromPicks(
   allPicks: SleeperDraftPick[]
 ): ADPData {
@@ -144,20 +57,23 @@ export function calculateADPFromPicks(
 /**
  * Analyze draft picks and calculate statistics
  */
-interface DraftPickWithMetadata extends SleeperDraftPick {
-  draft_id?: string;
-  roster_map?: Record<string, string>;
-}
-
 export function analyzeDraftPicks(
   draftPicks: DraftPickWithMetadata[],
   players: Record<string, any>,
   rosterMap: Record<string, string>,
   ktcValues: Record<string, { name: string; ktc_value: number }>,
   adpData: ADPData
-): { draftPicks: DraftPick[]; draftStats: ManagerDraftStats[] } {
-  const processedPicks: DraftPick[] = [];
-  const managerStats: Map<string, ManagerDraftStats> = new Map();
+): { draftPicks: any[]; draftStats: any[] } {
+  const processedPicks: any[] = [];
+  const managerStats: Map<string, any> = new Map();
+
+  // Helper function to create slug from player name
+  const createSlug = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .trim();
+  };
 
   // Initialize manager stats
   Object.values(rosterMap).forEach((manager) => {
@@ -182,19 +98,20 @@ export function analyzeDraftPicks(
     const playerPos = player?.position || 'N/A';
 
     const adp = adpData[pick.player_id]?.adp || null;
-    const ktcData = ktcValues[playerName];
-    const ktcValue = ktcData?.ktc_value || null;
+    
+    // Create slug to match KTC data
+    const playerSlug = createSlug(playerName);
+    const ktcData = ktcValues[playerSlug];
     const currentKtcValue = ktcData?.ktc_value || null;
-    const valueGain = ktcValue && currentKtcValue ? currentKtcValue - ktcValue : null;
+    const valueGain = null; // We'll calculate this if we have historical data
 
-    const draftPick: DraftPick = {
+    const draftPick: any = {
       round: pick.round,
       pick: pick.pick_no,
       playerName,
       playerPos,
       manager,
       adp,
-      ktcValue,
       currentKtcValue,
       valueGain,
     };
@@ -219,15 +136,15 @@ export function analyzeDraftPicks(
       }
 
       // Track KTC gains
-      if (valueGain !== null) {
-        stats.avgKtcGain = (stats.avgKtcGain * (stats.totalPicks - 1) + valueGain) / stats.totalPicks;
+      if (currentKtcValue !== null) {
+        stats.avgKtcGain = (stats.avgKtcGain * (stats.totalPicks - 1) + (currentKtcValue || 0)) / stats.totalPicks;
       }
 
       // Track best and worst picks
-      if (!stats.bestPick || (valueGain && valueGain > (stats.bestPick.valueGain || 0))) {
+      if (!stats.bestPick || (currentKtcValue && currentKtcValue > (stats.bestPick.currentKtcValue || 0))) {
         stats.bestPick = draftPick;
       }
-      if (!stats.worstPick || (valueGain && valueGain < (stats.worstPick.valueGain || 0))) {
+      if (!stats.worstPick || (currentKtcValue && currentKtcValue < (stats.worstPick.currentKtcValue || 0))) {
         stats.worstPick = draftPick;
       }
 
@@ -239,4 +156,83 @@ export function analyzeDraftPicks(
     draftPicks: processedPicks,
     draftStats: Array.from(managerStats.values()),
   };
+}
+
+/**
+ * Fetch draft data from Sleeper API
+ */
+export async function fetchDraftData(
+  leagueId: string,
+  rosterMappingData: RosterMappingData
+): Promise<DraftPickWithMetadata[]> {
+  const allDraftPicks: DraftPickWithMetadata[] = [];
+  const draftsToFetch: { leagueId: string; rosterMap: Record<string, string> }[] = [];
+
+  // Add current league
+  draftsToFetch.push({
+    leagueId,
+    rosterMap: Object.fromEntries(
+      rosterMappingData.currentRosters.map((r: any) => [
+        r.owner_id,
+        rosterMappingData.currentUserMap[r.owner_id] || 'Unknown',
+      ])
+    ),
+  });
+
+  // Add previous league if available
+  if (rosterMappingData.pastRosters.length > 0) {
+    draftsToFetch.push({
+      leagueId: rosterMappingData.pastRosterMap['league_id'] || '',
+      rosterMap: Object.fromEntries(
+        rosterMappingData.pastRosters.map((r: any) => [
+          r.owner_id,
+          rosterMappingData.pastUserMap[r.owner_id] || 'Unknown',
+        ])
+      ),
+    });
+  }
+
+  // Fetch drafts from each league
+  for (const draftSource of draftsToFetch) {
+    if (!draftSource.leagueId) continue;
+
+    try {
+      // Get all drafts for this league
+      const draftsResponse = await fetch(
+        `https://api.sleeper.app/v1/league/${draftSource.leagueId}/drafts`
+      ).then((r) => r.json());
+
+      const drafts = Array.isArray(draftsResponse) ? draftsResponse : [];
+
+      // Filter for rookie/startup drafts only (less than 100 picks)
+      for (const draft of drafts) {
+        if (draft.type !== 'snake' && draft.type !== 'linear') continue;
+
+        try {
+          const picksResponse = await fetch(
+            `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
+          ).then((r) => r.json());
+
+          const picks = Array.isArray(picksResponse) ? picksResponse : [];
+
+          // Only include drafts with less than 100 picks
+          if (picks.length < 100) {
+            const picksWithMetadata = picks.map((pick: any) => ({
+              ...pick,
+              draft_id: draft.draft_id,
+              roster_map: draftSource.rosterMap,
+            }));
+            allDraftPicks.push(...picksWithMetadata);
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch picks for draft ${draft.draft_id}:`, e);
+        }
+      }
+    } catch (e) {
+      console.warn(`Failed to fetch drafts for league ${draftSource.leagueId}:`, e);
+    }
+  }
+
+  console.log(`[Draft Analysis] Fetched ${allDraftPicks.length} total draft picks from all leagues`);
+  return allDraftPicks;
 }
