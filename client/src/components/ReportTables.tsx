@@ -33,7 +33,7 @@ export function ManagerRosterValueGrowthTable({
               <TableHead className="text-right text-white font-semibold">2025 Value</TableHead>
               <TableHead className="text-right text-white font-semibold">2026 Value</TableHead>
               <TableHead className="text-right text-white font-semibold">Growth %</TableHead>
-              <TableHead className="text-right text-white font-semibold">Projected Rank</TableHead>
+              <TableHead className="text-right text-white font-semibold"><div>Projected</div><div>Rank</div></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -83,8 +83,8 @@ export function WeeklyMomentumTable({
               <TableHead className="text-white font-semibold">Player</TableHead>
               <TableHead className="text-white font-semibold">Position</TableHead>
               <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold">Last Week</TableHead>
-              <TableHead className="text-right text-white font-semibold">This Week</TableHead>
+              <TableHead className="text-right text-white font-semibold"><div>Last</div><div>Week</div></TableHead>
+              <TableHead className="text-right text-white font-semibold"><div>This</div><div>Week</div></TableHead>
               <TableHead className="text-right text-white font-semibold">Change</TableHead>
               <TableHead className="text-right text-white font-semibold">% Change</TableHead>
             </TableRow>
@@ -141,12 +141,12 @@ export function LeagueOverviewTable({
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
               <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold">Total Value</TableHead>
+              <TableHead className="text-right text-white font-semibold"><div>Total</div><div>Value</div></TableHead>
               <TableHead className="text-center text-white font-semibold">QB Rank</TableHead>
               <TableHead className="text-center text-white font-semibold">RB Rank</TableHead>
               <TableHead className="text-center text-white font-semibold">WR Rank</TableHead>
               <TableHead className="text-center text-white font-semibold">TE Rank</TableHead>
-              <TableHead className="text-center text-white font-semibold">Value Rank</TableHead>
+              <TableHead className="text-center text-white font-semibold"><div>Value</div><div>Rank</div></TableHead>
               <TableHead className="text-center text-white font-semibold">2027 Rank</TableHead>
             </TableRow>
           </TableHeader>
@@ -245,7 +245,7 @@ export function TradeProfitLeaderboardTable({
             <TableRow className="border-slate-700">
               <TableHead className="text-white font-semibold">Rank</TableHead>
               <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold">Total Profit</TableHead>
+              <TableHead className="text-right text-white font-semibold"><div>Total</div><div>Profit</div></TableHead>
               <TableHead className="text-right text-white font-semibold">Trades</TableHead>
             </TableRow>
           </TableHeader>
@@ -294,7 +294,7 @@ export function TradeHistoryTable({
               <TableHead className="text-right text-white font-semibold">A Total</TableHead>
               <TableHead className="text-right text-white font-semibold">B Total</TableHead>
               <TableHead className="text-center text-white font-semibold">Gap</TableHead>
-              <TableHead className="text-center text-white font-semibold">Winner</TableHead>
+              <TableHead className="text-center text-white font-semibold flex items-center justify-center gap-1"><span>👑</span> Winner</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
