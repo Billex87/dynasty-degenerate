@@ -411,7 +411,7 @@ export default function Home() {
         <div className="border-t border-slate-700 text-center flex flex-col justify-end py-1 sm:py-2 px-4 sm:px-6 min-h-40 sm:min-h-48">
           <div className="flex justify-center h-40 sm:h-48 mb-0">
             <img 
-              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_blue_orange-removebg-preview_7bd1d2a6.png" 
+              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_updated_f13b634b.png" 
               alt="Dynasty Degenerates Logo" 
               className="w-auto object-contain"
             />
