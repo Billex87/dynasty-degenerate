@@ -145,7 +145,7 @@ export default function Home() {
                 <img 
                   src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_final_90a9eceb.png" 
                   alt="Dynasty Degenerates Logo" 
-                  className="h-12 w-auto object-contain"
+                  className="h-16 w-auto object-contain"
                 />
               </div>
               
@@ -158,22 +158,22 @@ export default function Home() {
         {/* Content */}
         <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="flex flex-wrap justify-start sm:justify-center gap-2 bg-transparent border-0 p-0 mb-10 sm:mb-6 md:mb-4 lg:mb-3 relative z-10">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+            <TabsList className="flex flex-wrap justify-start sm:justify-center gap-2 md:gap-4 lg:gap-6 bg-transparent border-0 p-0 mb-10 sm:mb-6 md:mb-4 lg:mb-3 relative z-10">
+              <TabsTrigger value="overview" className="text-sm md:text-base lg:text-lg px-3 md:px-4 lg:px-6 py-2 md:py-3 data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Overview
               </TabsTrigger>
 
-              <TabsTrigger value="momentum" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+              <TabsTrigger value="momentum" className="text-sm md:text-base lg:text-lg px-3 md:px-4 lg:px-6 py-2 md:py-3 data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Weekly Momentum
               </TabsTrigger>
-              <TabsTrigger value="projections" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0 hidden">
+              <TabsTrigger value="projections" className="text-sm md:text-base lg:text-lg px-3 md:px-4 lg:px-6 py-2 md:py-3 data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0 hidden">
                 Projections
               </TabsTrigger>
-              <TabsTrigger value="trades" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+              <TabsTrigger value="trades" className="text-sm md:text-base lg:text-lg px-3 md:px-4 lg:px-6 py-2 md:py-3 data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Trade History
               </TabsTrigger>
 
-              <TabsTrigger value="draft" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+              <TabsTrigger value="draft" className="text-sm md:text-base lg:text-lg px-3 md:px-4 lg:px-6 py-2 md:py-3 data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Draft History
               </TabsTrigger>
             </TabsList>
