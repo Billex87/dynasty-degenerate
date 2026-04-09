@@ -28,6 +28,8 @@
 - [x] draftAnalysis.ts updated to use May 2025 KTC values for value change calculations
 - [x] routers.ts updated to pass May 2025 KTC data to analyzeDraftPicks
 - [x] Value Change column now shows accurate draft-day value comparisons
+- [x] Flexible slug matching implemented to handle both simple and hyphenated player slugs
+- [x] Browser tested: Value changes correctly calculated (e.g., Ashton Jeanty -364, Omarion Hampton +556)
 - [x] All 22 unit tests passing
 
 ### Database & Scheduled Jobs

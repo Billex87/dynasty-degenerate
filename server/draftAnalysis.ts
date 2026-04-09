@@ -77,6 +77,35 @@ export function analyzeDraftPicks(
       .replace(/[^a-z0-9]/g, '')
       .trim();
   };
+  
+  // Helper function to find May 2025 data by flexible slug matching
+  const findMay2025Data = (playerName: string, ktcData: Record<string, any>): any => {
+    if (!ktcData) return null;
+    
+    const simpleSlug = createSlug(playerName);
+    
+    // Try exact match with simple slug first
+    if (ktcData[simpleSlug]) {
+      return ktcData[simpleSlug];
+    }
+    
+    // Try to find by matching the simple slug as a prefix (handles "ashtonjeanty" matching "ashton-jeanty-1742")
+    for (const key in ktcData) {
+      const keySlug = createSlug(key);
+      if (keySlug.startsWith(simpleSlug) || simpleSlug.startsWith(keySlug.split('-')[0])) {
+        // Additional check: make sure the name parts match
+        const nameParts = playerName.toLowerCase().split(/\s+/);
+        const keyParts = key.toLowerCase().split('-').filter(p => isNaN(Number(p))); // Remove numeric IDs
+        
+        // Check if all name parts are in the key
+        if (nameParts.every(part => keyParts.some(kp => kp.includes(part)))) {
+          return ktcData[key];
+        }
+      }
+    }
+    
+    return null;
+  };
 
   // Initialize manager stats
   Object.values(rosterMap).forEach((manager) => {
@@ -107,6 +136,7 @@ export function analyzeDraftPicks(
     const ktcData = ktcValues[playerSlug];
     const currentKtcValue = ktcData?.ktc_value || null;
     
+    
     // Calculate value gain using May 2025 baseline if available, otherwise use last week's KTC
     let valueGain: number | null = null;
     if (currentKtcValue !== null) {
@@ -114,7 +144,7 @@ export function analyzeDraftPicks(
       
       // Prefer May 2025 baseline for accurate draft-day comparison
       if (ktcValuesMay2025) {
-        const may2025Data = ktcValuesMay2025[playerSlug];
+        const may2025Data = findMay2025Data(playerName, ktcValuesMay2025);
         if (may2025Data?.ktc_value) {
           baselineValue = may2025Data.ktc_value;
         }
