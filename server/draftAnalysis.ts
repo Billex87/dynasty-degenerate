@@ -141,9 +141,6 @@ export function analyzeDraftPicks(
     });
   });
 
-  // Debug: Check if May 2025 data is available
-  console.log(`[DEBUG] ktcValuesMay2025 available: ${ktcValuesMay2025 ? 'YES, ' + Object.keys(ktcValuesMay2025).length + ' players' : 'NO'}`);
-
   // Process each draft pick
   draftPicks.forEach((pick, index) => {
     const player = players[pick.player_id];
@@ -197,10 +194,7 @@ export function analyzeDraftPicks(
       const may2025Data = findMay2025Data(playerName, ktcValuesMay2025);
       positionRankMay2025 = may2025Data?.position_rank_may2025 || null;
       
-      // Debug logging for players with special characters
-      if (playerName.includes('Harris') || playerName.includes('Croskey') || playerName.includes('Thornton')) {
-        console.log(`[DEBUG] ${playerName}: may2025Data=${JSON.stringify(may2025Data)}, positionRankMay2025=${positionRankMay2025}`);
-      }
+
     }
     
     // Calculate current position rank from player position and KTC value
