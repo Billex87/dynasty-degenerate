@@ -163,9 +163,7 @@ export default function Home() {
               <TabsTrigger value="trades" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Trade Analysis
               </TabsTrigger>
-              <TabsTrigger value="positions" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
-                Position Analysis
-              </TabsTrigger>
+
               <TabsTrigger value="draft" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Draft History
               </TabsTrigger>
@@ -180,6 +178,10 @@ export default function Home() {
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Manager Roster Value Growth</h3>
                   <ManagerRosterValueGrowthTable data={reportData.managerRosterValueGrowth} />
+                </div>
+                <div>
+                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Position Depth Analysis</h3>
+                  <PositionAnalysisTable data={reportData.positionDepth} />
                 </div>
               </div>
             </TabsContent>
@@ -234,9 +236,7 @@ export default function Home() {
               </div>
             </TabsContent>
 
-            <TabsContent value="positions" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
-              <PositionAnalysisTable data={reportData.positionDepth} />
-            </TabsContent>
+
 
             <TabsContent value="draft" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
               <DraftAnalysis
