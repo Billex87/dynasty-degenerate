@@ -301,43 +301,53 @@
   },
   "kyle-mccord-1738": {
     "name": "Kyle McCord",
-    "ktc_value": 1044
+    "ktc_value": 1044,
+    "position_rank_may2025": "QB54"
   },
   "dont-e-thornton-1787": {
     "name": "Dont'e Thornton",
-    "ktc_value": 1035
+    "ktc_value": 1035,
+    "position_rank_may2025": "WR139"
   },
   "lequint-allen-1761": {
     "name": "LeQuint Allen",
-    "ktc_value": 1005
+    "ktc_value": 1005,
+    "position_rank_may2025": "RB102"
   },
   "donovan-edwards-1757": {
     "name": "Donovan Edwards",
-    "ktc_value": 986
+    "ktc_value": 986,
+    "position_rank_may2025": "RB104"
   },
   "raheim-sanders-1762": {
     "name": "Raheim Sanders",
-    "ktc_value": 976
+    "ktc_value": 976,
+    "position_rank_may2025": "RB105"
   },
   "phil-mafah-1763": {
     "name": "Phil Mafah",
-    "ktc_value": 965
+    "ktc_value": 965,
+    "position_rank_may2025": "RB106"
   },
   "isaiah-bond-1776": {
     "name": "Isaiah Bond",
-    "ktc_value": 945
+    "ktc_value": 945,
+    "position_rank_may2025": "WR145"
   },
   "keandre-lambert-smith-1818": {
     "name": "KeAndre Lambert-Smith",
-    "ktc_value": 815
+    "ktc_value": 815,
+    "position_rank_may2025": "WR165"
   },
   "arian-smith-1815": {
     "name": "Arian Smith",
-    "ktc_value": 788
+    "ktc_value": 788,
+    "position_rank_may2025": "WR169"
   },
   "luke-lachey-1811": {
     "name": "Luke Lachey",
-    "ktc_value": 1070
+    "ktc_value": 1070,
+    "position_rank_may2025": "TE67"
   },
   "tj-hockenson-247": {
     "name": "T.J. Hockenson",
@@ -369,7 +379,8 @@
   },
   "jalen-mcmillan-1599": {
     "name": "Jalen McMillan",
-    "ktc_value": 2875
+    "ktc_value": 2875,
+    "position_rank_may2025": "WR92"
   },
   "christian-kirk-221": {
     "name": "Christian Kirk",
