@@ -30,9 +30,9 @@ export function ManagerRosterValueGrowthTable({
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
               <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold">2025 Value</TableHead>
-              <TableHead className="text-right text-white font-semibold">2026 Value</TableHead>
-              <TableHead className="text-right text-white font-semibold">Growth %</TableHead>
+              <TableHead className="text-right text-white font-semibold"><div>2025</div><div>Value</div></TableHead>
+              <TableHead className="text-right text-white font-semibold"><div>2026</div><div>Value</div></TableHead>
+              <TableHead className="text-right text-white font-semibold"><div>Growth</div><div>%</div></TableHead>
               <TableHead className="text-right text-white font-semibold"><div>Projected</div><div>Rank</div></TableHead>
             </TableRow>
           </TableHeader>
@@ -142,12 +142,12 @@ export function LeagueOverviewTable({
             <TableRow className="border-slate-700">
               <TableHead className="text-white font-semibold">Manager</TableHead>
               <TableHead className="text-right text-white font-semibold"><div>Total</div><div>Value</div></TableHead>
-              <TableHead className="text-center text-white font-semibold">QB Rank</TableHead>
-              <TableHead className="text-center text-white font-semibold">RB Rank</TableHead>
-              <TableHead className="text-center text-white font-semibold">WR Rank</TableHead>
-              <TableHead className="text-center text-white font-semibold">TE Rank</TableHead>
+              <TableHead className="text-center text-white font-semibold"><div>QB</div><div>Rank</div></TableHead>
+              <TableHead className="text-center text-white font-semibold"><div>RB</div><div>Rank</div></TableHead>
+              <TableHead className="text-center text-white font-semibold"><div>WR</div><div>Rank</div></TableHead>
+              <TableHead className="text-center text-white font-semibold"><div>TE</div><div>Rank</div></TableHead>
               <TableHead className="text-center text-white font-semibold"><div>Value</div><div>Rank</div></TableHead>
-              <TableHead className="text-center text-white font-semibold">2027 Rank</TableHead>
+              <TableHead className="text-center text-white font-semibold"><div>2027</div><div>Rank</div></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
