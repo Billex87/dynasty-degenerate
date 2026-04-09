@@ -69,8 +69,8 @@ export interface ManagerDraftStats {
   avgKtcGain: number;
   bestPick: DraftPick | null;
   worstPick: DraftPick | null;
-  reachCount: number;
-  fallCount: number;
+  hits: number;
+  misses: number;
 }
 
 export interface ReportData {

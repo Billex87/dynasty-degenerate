@@ -39,9 +39,8 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                   <TableRow className="border-slate-700 hover:bg-slate-800/50">
                     <TableHead className="text-slate-300">Manager</TableHead>
                     <TableHead className="text-right text-slate-300">Picks</TableHead>
-                    <TableHead className="text-right text-slate-300">Avg ADP Diff</TableHead>
-                    <TableHead className="text-right text-slate-300">Reaches</TableHead>
-                    <TableHead className="text-right text-slate-300">Falls</TableHead>
+                    <TableHead className="text-right text-slate-300">Hits</TableHead>
+                    <TableHead className="text-right text-slate-300">Misses</TableHead>
                     <TableHead className="text-right text-slate-300">Avg KTC Gain</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -54,21 +53,11 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                       <TableCell className="text-right text-slate-300">
                         {stat.totalPicks}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <span
-                          className={`font-semibold ${
-                            stat.avgAdpDiff > 0 ? 'text-orange-400' : 'text-green-400'
-                          }`}
-                        >
-                          {stat.avgAdpDiff > 0 ? '+' : ''}
-                          {stat.avgAdpDiff.toFixed(1)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right text-orange-400 font-semibold">
-                        {stat.reachCount}
-                      </TableCell>
                       <TableCell className="text-right text-green-400 font-semibold">
-                        {stat.fallCount}
+                        {stat.hits}
+                      </TableCell>
+                      <TableCell className="text-right text-red-400 font-semibold">
+                        {stat.misses}
                       </TableCell>
                       <TableCell className="text-right">
                         <span

@@ -126,8 +126,8 @@ export function analyzeDraftPicks(
       avgKtcGain: 0,
       bestPick: null,
       worstPick: null,
-      reachCount: 0,
-      fallCount: 0,
+      hits: 0,
+      misses: 0,
     });
   });
 
@@ -240,16 +240,30 @@ export function analyzeDraftPicks(
         const adpDiff = pick.pick_no - adp;
         stats.avgAdpDiff = (stats.avgAdpDiff * (stats.totalPicks - 1) + adpDiff) / stats.totalPicks;
 
-        if (adpDiff > 0) {
-          stats.reachCount += 1;
-        } else if (adpDiff < 0) {
-          stats.fallCount += 1;
-        }
+  
       }
 
       // Track KTC gain
       if (valueGain !== null) {
         stats.avgKtcGain = (stats.avgKtcGain * (stats.totalPicks - 1) + valueGain) / stats.totalPicks;
+      }
+
+      // Track hits and misses based on position rank change or value gain
+      // A hit is: improved by 5+ position ranks OR gained 500+ value points
+      // A miss is: declined by 5+ position ranks OR lost 500+ value points
+      if (positionRankChange && positionRankChange !== '0') {
+        const rankChange = parseInt(positionRankChange);
+        if (rankChange >= 5) {
+          stats.hits += 1;
+        } else if (rankChange <= -5) {
+          stats.misses += 1;
+        }
+      } else if (valueGain !== null) {
+        if (valueGain >= 500) {
+          stats.hits += 1;
+        } else if (valueGain <= -500) {
+          stats.misses += 1;
+        }
       }
 
       // Track best and worst picks
