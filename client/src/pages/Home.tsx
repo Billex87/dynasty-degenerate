@@ -149,7 +149,7 @@ export default function Home() {
         {/* Content */}
         <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="flex flex-wrap justify-center gap-2 bg-transparent border-0 p-0 mb-10 sm:mb-6 md:mb-4 lg:mb-3 relative z-10">
+            <TabsList className="flex flex-wrap justify-start sm:justify-center gap-2 bg-transparent border-0 p-0 mb-10 sm:mb-6 md:mb-4 lg:mb-3 relative z-10">
               <TabsTrigger value="overview" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Overview
               </TabsTrigger>
