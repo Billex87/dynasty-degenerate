@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { getCurrentKTCRankings } from './liveKTCScraper';
 
 interface CurrentKTCData {
   [key: string]: {
@@ -9,31 +8,30 @@ interface CurrentKTCData {
   };
 }
 
-let currentKTCCache: CurrentKTCData | null = null;
-
 /**
- * Load current KTC position ranks
- * This loads from a JSON file that should be updated regularly with current KTC data
+ * Load current KTC position ranks from live scraper
  */
 export async function loadCurrentKTCPositionRanks(): Promise<CurrentKTCData> {
-  if (currentKTCCache) return currentKTCCache;
-
   try {
-    // Try to load from current KTC file
-    const filePath = path.join(process.cwd(), 'client', 'public', 'ktc_current_ranks.json');
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, 'utf-8');
-      currentKTCCache = JSON.parse(data);
-      return currentKTCCache || {};
+    const rankings = await getCurrentKTCRankings();
+    
+    // Convert scraper format to currentKTCData format
+    const result: CurrentKTCData = {};
+    for (const [key, player] of Object.entries(rankings)) {
+      result[key] = {
+        name: player.name,
+        ktc_value: player.ktc_value,
+        position_rank: player.position_rank
+      };
     }
+    
+    return result;
   } catch (error) {
     console.warn('Failed to load current KTC position ranks:', error);
+    return {};
   }
-
-  // Return empty object if file doesn't exist or fails to load
-  return {};
 }
 
 export function clearCurrentKTCCache() {
-  currentKTCCache = null;
+  // Cache is managed by liveKTCScraper
 }

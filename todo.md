@@ -53,6 +53,18 @@
 - [x] Browser tested: Position changes displaying correctly (e.g., Ashton Jeanty +1, Travis Hunter +3)
 - [x] All 22 unit tests passing
 
+### Live KTC Scraper Integration (Superflex)
+- [x] Create liveKTCScraper.ts to fetch current KTC rankings from keeptradecut.com
+- [x] Parse playersArray JSON from KTC page (500+ players)
+- [x] Extract position ranks (RB1, RB2, WR1, etc.) and KTC values from Superflex data
+- [x] Use pre-calculated superflex.value and superflex.positionalRank fields
+- [x] Update currentKTCLoader.ts to use live scraper instead of static file
+- [x] Ensure position rank changes calculate correctly with live Superflex data
+- [x] Browser tested: Live Superflex KTC data displaying correctly (Josh Allen 9998, Bijan Robinson 9993, etc.)
+- [x] All 22 unit tests passing
+- [ ] Set up weekly scheduled job to run live KTC scraper (e.g., Tuesday 11 PM)
+- [ ] Store weekly KTC snapshots in database for historical tracking
+
 ## Future Features (Optional)
 - [ ] Waiver wire activity tracker tab
 - [ ] Bench vs Start analysis
