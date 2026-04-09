@@ -141,6 +141,9 @@ export function analyzeDraftPicks(
     });
   });
 
+  // Debug: Check if May 2025 data is available
+  console.log(`[DEBUG] ktcValuesMay2025 available: ${ktcValuesMay2025 ? 'YES, ' + Object.keys(ktcValuesMay2025).length + ' players' : 'NO'}`);
+
   // Process each draft pick
   draftPicks.forEach((pick, index) => {
     const player = players[pick.player_id];
