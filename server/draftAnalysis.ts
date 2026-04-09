@@ -83,8 +83,13 @@ export async function fetchDraftData(
             ).then((r) => r.json());
             
             if (picks && Array.isArray(picks)) {
-              allPicks.push(...picks);
-              console.log(`[Draft Analysis] Fetched ${picks.length} picks from rookie draft ${draft.draft_id} (season ${draft.season}, type: ${draft.type})`);
+              // Only include drafts with less than 100 picks (rookie drafts)
+              if (picks.length < 100) {
+                allPicks.push(...picks);
+                console.log(`[Draft Analysis] Fetched ${picks.length} picks from rookie draft ${draft.draft_id} (season ${draft.season}, type: ${draft.type})`);
+              } else {
+                console.log(`[Draft Analysis] Skipping draft ${draft.draft_id} with ${picks.length} picks (exceeds 100 pick limit)`);
+              }
             }
           } catch (e) {
             console.warn(`[Draft Analysis] Failed to fetch draft ${draft.draft_id}:`, e);
