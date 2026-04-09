@@ -317,11 +317,11 @@ export async function generateReport(
 
   const projectedRisers = allPlayerMoves
     .sort((a, b) => b.diff - a.diff)
-    .slice(0, 25);
+    .slice(0, 20);
 
   const projectedFallers = allPlayerMoves
     .sort((a, b) => a.diff - b.diff)
-    .slice(0, 25);
+    .slice(0, 20);
 
   const tradeProfitLeaderboard = Object.entries(managerProfits)
     .sort((a, b) => b[1] - a[1])

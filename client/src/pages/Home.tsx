@@ -208,17 +208,17 @@ export default function Home() {
               <div className="space-y-8">
                 <div>
                   <div className="space-y-2 mb-4">
-                    <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 25 Risers</h3>
+                    <h3 className="text-center text-2xl font-bold text-emerald-400 mb-6">Top Weekly Risers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to make your league mates look stupid next year.</p>
                   </div>
-                   <ProjectedMoversTable data={reportData.projectedRisers} title="Projected Risers" />
+                   <ProjectedMoversTable data={reportData.projectedRisers} title="Top Weekly Risers" />
                 </div>
                 <div>
                   <div className="space-y-2 mb-4">
-                    <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 25 Fallers</h3>
+                    <h3 className="text-center text-2xl font-bold text-red-400 mb-6">Top Weekly Fallers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to tank your roster value.</p>
                   </div>
-                   <ProjectedMoversTable data={reportData.projectedFallers} title="Projected Fallers" />
+                   <ProjectedMoversTable data={reportData.projectedFallers} title="Top Weekly Fallers" />
                 </div>
               </div>
             </TabsContent>
