@@ -19,6 +19,7 @@
 - [x] Draft Capital Efficiency numbers rounded to whole numbers (no decimals)
 - [x] Color-coded value change indicators (green/red with trending arrows) implemented
 - [x] Draft picks display with proper KTC value matching using slug-based lookup
+- [x] Table widths made consistent: Draft Capital Efficiency (max-w-6xl) and Full Draft Board (max-w-7xl)
 
 ### KTC Historical Data Integration
 - [x] Wayback Machine scraper infrastructure created
