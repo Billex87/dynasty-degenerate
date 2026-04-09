@@ -145,7 +145,8 @@ export default function Home() {
                 <img 
                   src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_final_90a9eceb.png" 
                   alt="Dynasty Degenerates Logo" 
-                  className="h-16 w-auto object-contain"
+                  className="object-contain"
+                  style={{ width: '130px', height: 'auto' }}
                 />
               </div>
               
