@@ -6,7 +6,7 @@ import { z } from "zod";
 import { loadKTCValues, loadKTCValuesLastWeek } from "./ktcLoader";
 import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
-import { fetchDraftData, fetchADPData, analyzeDraftPicks } from "./draftAnalysis";
+import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 
 export const appRouter = router({
   system: systemRouter,
@@ -172,7 +172,8 @@ export const appRouter = router({
               pastRosters: pastSeasonData?.rosters || [],
               pastUserMap,
             });
-            const adpData = await fetchADPData();
+            // Calculate ADP from the draft picks themselves
+            const adpData = calculateADPFromPicks(draftPicks);
             if (draftPicks.length > 0) {
               draftAnalysis = analyzeDraftPicks(
                 draftPicks,

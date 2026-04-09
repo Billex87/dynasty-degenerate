@@ -18,7 +18,6 @@ interface DraftInfo {
 interface ADPData {
   [playerId: string]: {
     name: string;
-    pos: string;
     adp: number;
   };
 }
@@ -118,23 +117,28 @@ export async function fetchDraftData(
  * Fetch ADP (Average Draft Position) data
  * This is a simplified version - in production you'd want to use a real ADP API
  */
-export async function fetchADPData(): Promise<ADPData> {
-  try {
-    // Fetch from Sleeper's ADP endpoint
-    const response = await fetch(
-      'https://api.sleeper.app/v1/players/nfl/stats'
-    ).then((r) => r.json());
+export function calculateADPFromPicks(
+  allPicks: SleeperDraftPick[]
+): ADPData {
+  const playerPickPositions: Record<string, number[]> = {};
 
-    // Parse ADP data - this is a simplified approach
-    const adpData: ADPData = {};
-    
-    // In a real implementation, you'd have a proper ADP data source
-    // For now, we'll return an empty object and note this in the UI
-    return adpData;
-  } catch (error) {
-    console.error('[Draft Analysis] Error fetching ADP data:', error);
-    return {};
-  }
+  allPicks.forEach((pick) => {
+    if (!playerPickPositions[pick.player_id]) {
+      playerPickPositions[pick.player_id] = [];
+    }
+    playerPickPositions[pick.player_id].push(pick.pick_no);
+  });
+
+  const adpData: ADPData = {};
+  Object.entries(playerPickPositions).forEach(([playerId, positions]) => {
+    const avgPosition = positions.reduce((a, b) => a + b, 0) / positions.length;
+    adpData[playerId] = {
+      name: playerId,
+      adp: Math.round(avgPosition * 10) / 10,
+    };
+  });
+
+  return adpData;
 }
 
 /**
