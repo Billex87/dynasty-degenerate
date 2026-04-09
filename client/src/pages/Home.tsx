@@ -425,7 +425,7 @@ export default function Home() {
               className="w-auto object-contain"
             />
           </div>
-          <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-xs sm:text-sm pb-1 sm:pb-1.5">
+          <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-[10px] sm:text-xs md:text-sm pb-1 sm:pb-1.5 whitespace-nowrap">
             JUST SOME DEGENS WITH SCRAPING TOOLS AND A.I.
           </p>
         </div>
