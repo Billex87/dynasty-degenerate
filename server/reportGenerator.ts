@@ -132,10 +132,10 @@ export async function generateReport(
       const p2027 = projectValue(val, pos, age, 1);
       v2027 += p2027;
 
-      // Weekly momentum tracking
+      // Weekly momentum tracking - include all players with last week values
       const lastWeekVal = getPlayerValue(pid, allPlayers, ktcValuesLastWeek);
-      if (lastWeekVal > 0 && (val > 200 || lastWeekVal > 200)) {
-        const pct_change = (val - lastWeekVal) / lastWeekVal * 100;
+      if (lastWeekVal > 0) {
+        const pct_change = lastWeekVal > 0 ? (val - lastWeekVal) / lastWeekVal * 100 : 0;
         weeklyMomentum.push({
           name: getPlayerName(pid, allPlayers),
           owner: name,
