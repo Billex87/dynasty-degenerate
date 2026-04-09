@@ -326,7 +326,7 @@ export function TradeHistoryTable({
                     <TableCell className="text-slate-300 text-sm">{row.date}</TableCell>
                     <TableCell className="text-blue-400 font-semibold text-sm">{row.team_a}</TableCell>
                     <TableCell className="text-orange-400 font-semibold text-sm">{row.team_b}</TableCell>
-                    <TableCell className={`text-right font-semibold ${isTeamAWinner ? 'text-purple-300' : 'text-purple-400'}`}>
+                    <TableCell className="text-right font-semibold text-blue-400">
                       {row.team_a_total.toLocaleString()}
                     </TableCell>
                     <TableCell className={`text-right font-semibold ${isTeamBWinner ? 'text-amber-300' : 'text-amber-400'}`}>
