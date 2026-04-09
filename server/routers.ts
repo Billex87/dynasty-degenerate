@@ -147,14 +147,30 @@ export const appRouter = router({
             ktcValuesLastWeek
           );
 
+          // Create user_id to manager name mapping for draft analysis
+          const currentUserMap = Object.fromEntries(
+            users.map((u: any) => [u.user_id, u.display_name || 'Unknown'])
+          );
+          let pastUserMap: Record<string, string> = {};
+          if (pastSeasonData) {
+            const pastUsers = await fetch(
+              `https://api.sleeper.app/v1/league/${prevLeagueId}/users`
+            ).then((r) => r.json());
+            pastUserMap = Object.fromEntries(
+              pastUsers.map((u: any) => [u.user_id, u.display_name || 'Unknown'])
+            );
+          }
+
           // Fetch and analyze draft data
           let draftAnalysis: { draftPicks: any[]; draftStats: any[] } = { draftPicks: [], draftStats: [] };
           try {
             const draftPicks = await fetchDraftData(input.leagueId, {
               currentRosterMap: rosterUserMap,
               currentRosters: rosters,
+              currentUserMap,
               pastRosterMap: pastSeasonData?.rosterMap || {},
               pastRosters: pastSeasonData?.rosters || [],
+              pastUserMap,
             });
             const adpData = await fetchADPData();
             if (draftPicks.length > 0) {

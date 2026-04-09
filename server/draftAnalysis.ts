@@ -26,8 +26,10 @@ interface ADPData {
 interface RosterMappingData {
   currentRosterMap: Record<string, string>;
   currentRosters: any[];
+  currentUserMap?: Record<string, string>; // user_id to manager name
   pastRosterMap?: Record<string, string>;
   pastRosters?: any[];
+  pastUserMap?: Record<string, string>; // user_id to manager name
 }
 
 /**
@@ -93,10 +95,10 @@ export async function fetchDraftData(
       }
     }
 
-    // Attach roster maps to picks based on which league they came from
+    // Attach user maps to picks (use user_id mapping since picked_by is a user_id)
     const picksWithMetadata: DraftPickWithMetadata[] = allPicks.map((pick) => ({
       ...pick,
-      roster_map: rosterMappingData?.currentRosterMap || {},
+      roster_map: rosterMappingData?.currentUserMap || {},
     }));
 
     console.log(`[Draft Analysis] Fetched ${picksWithMetadata.length} total draft picks from all leagues`);
