@@ -154,9 +154,7 @@ export default function Home() {
               <TabsTrigger value="overview" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="growth" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
-                Roster Growth
-              </TabsTrigger>
+
               <TabsTrigger value="momentum" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Weekly Momentum
               </TabsTrigger>
@@ -175,11 +173,16 @@ export default function Home() {
             </TabsList>
 
             <TabsContent value="overview" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
-              <LeagueOverviewTable data={reportData.leagueOverview} />
-            </TabsContent>
-
-            <TabsContent value="growth" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
-              <ManagerRosterValueGrowthTable data={reportData.managerRosterValueGrowth} />
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">League Overview</h3>
+                  <LeagueOverviewTable data={reportData.leagueOverview} />
+                </div>
+                <div>
+                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Manager Roster Value Growth</h3>
+                  <ManagerRosterValueGrowthTable data={reportData.managerRosterValueGrowth} />
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="momentum" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
