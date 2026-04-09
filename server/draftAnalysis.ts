@@ -20,15 +20,19 @@ interface RosterMappingData {
   currentRosterMap: Record<string, string>;
   currentRosters: any[];
   currentUserMap: Record<string, string>;
+  currentUserIdToManagerMap?: Record<string, string>;
   pastRosterMap: Record<string, string>;
   pastRosters: any[];
   pastUserMap: Record<string, string>;
+  pastUserIdToManagerMap?: Record<string, string>;
   prevLeagueId?: string;
 }
 
 interface DraftPickWithMetadata extends SleeperDraftPick {
   draft_id?: string;
   roster_map?: Record<string, string>;
+  user_id_to_manager_map?: Record<string, string>;
+  season?: number;
 }
 
 interface PositionRankData {
@@ -128,10 +132,19 @@ export function analyzeDraftPicks(
   });
 
   // Process each draft pick
-  draftPicks.forEach((pick) => {
+  draftPicks.forEach((pick, index) => {
     const player = players[pick.player_id];
     const pickRosterMap = pick.roster_map || rosterMap;
-    const manager = pickRosterMap[pick.picked_by] || 'Unknown';
+    const userIdToManagerMap = pick.user_id_to_manager_map || {};
+    
+
+    
+    // Try to resolve manager using user_id_to_manager_map first, then fall back to roster map
+    let manager = userIdToManagerMap[pick.picked_by];
+    if (!manager) {
+      manager = pickRosterMap[pick.picked_by] || 'Unknown';
+    }
+    
     const playerName = player?.full_name || 'Unknown';
     const playerPos = player?.position || 'N/A';
 
@@ -195,8 +208,10 @@ export function analyzeDraftPicks(
       }
     }
     
-    // Detect draft year based on season
-    const draftYear = pick.draft_id ? (pick.draft_id.includes('2025') ? '2025' : '2026') : '2025';
+    // Detect draft year based on season field from draft metadata
+    // The season field contains the year (e.g., 2025, 2026)
+    // If not available, default to 2025
+    const draftYear = pick.season ? String(pick.season) : '2025';
 
     const processedPick: any = {
       round: pick.round,
@@ -262,7 +277,7 @@ export async function fetchDraftData(
   leagueId: string,
   rosterMappingData: RosterMappingData
 ): Promise<DraftPickWithMetadata[]> {
-  const { currentRosterMap, currentRosters, pastRosterMap, pastRosters, prevLeagueId } = rosterMappingData;
+  const { currentRosterMap, currentRosters, currentUserIdToManagerMap, pastRosterMap, pastRosters, pastUserIdToManagerMap, prevLeagueId } = rosterMappingData;
   
   const allPicks: DraftPickWithMetadata[] = [];
 
@@ -284,6 +299,8 @@ export async function fetchDraftData(
               ...pick,
               draft_id: draft.draft_id,
               roster_map: currentRosterMap,
+              user_id_to_manager_map: currentUserIdToManagerMap,
+              season: draft.season,
             });
           });
         }
@@ -308,6 +325,8 @@ export async function fetchDraftData(
                 ...pick,
                 draft_id: draft.draft_id,
                 roster_map: pastRosterMap,
+                user_id_to_manager_map: pastUserIdToManagerMap,
+                season: draft.season,
               });
             });
           }
@@ -316,10 +335,19 @@ export async function fetchDraftData(
     }
 
     // Filter to only include rookie drafts with fewer than 100 picks
+    // Count picks per draft_id
+    const pickCountByDraft: Record<string, number> = {};
+    allPicks.forEach((pick) => {
+      if (pick.draft_id) {
+        pickCountByDraft[pick.draft_id] = (pickCountByDraft[pick.draft_id] || 0) + 1;
+      }
+    });
+    
+    // Filter to only include drafts with fewer than 100 picks (rookie drafts)
     return allPicks.filter((pick) => {
-      const draft = pick.draft_id;
-      // Check if it's a rookie draft (typically has "rookie" in the draft type or is a short draft)
-      return !draft || draft.length < 100;
+      if (!pick.draft_id) return true; // Include picks without draft_id
+      const pickCount = pickCountByDraft[pick.draft_id] || 0;
+      return pickCount < 100; // Only include picks from drafts with fewer than 100 picks
     });
   } catch (error) {
     console.error('Error fetching draft data:', error);

@@ -91,24 +91,25 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
 
       {/* Full Draft Board */}
       <div>
-        <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">
-          Full Draft Board
-        </h3>
+        {/* Get the draft year from the first pick */}
+        {draftPicks.length > 0 && (
+          <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">
+            {draftPicks[0].draftYear || '2025'} Rookie Draft
+          </h3>
+        )}
         <div className="flex justify-center">
-          <Card className="bg-slate-900 border-slate-800 overflow-hidden w-full max-w-7xl">
+          <Card className="bg-slate-900 border-slate-800 overflow-hidden w-full max-w-6xl">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-slate-800/50">
                   <TableRow className="border-slate-700 hover:bg-slate-800/50">
-                    <TableHead className="text-slate-300">Year</TableHead>
                     <TableHead className="text-slate-300">Round</TableHead>
                     <TableHead className="text-slate-300">Pick</TableHead>
                     <TableHead className="text-slate-300">Player</TableHead>
                     <TableHead className="text-center text-slate-300">Pos</TableHead>
                     <TableHead className="text-slate-300">Manager</TableHead>
-                    <TableHead className="text-right text-slate-300">Draft Pick Position</TableHead>
-                    <TableHead className="text-right text-slate-300">Position Rank (May 2025)</TableHead>
-                    <TableHead className="text-right text-slate-300">Current Position Rank</TableHead>
+                    <TableHead className="text-right text-slate-300">Drafted Rank</TableHead>
+                    <TableHead className="text-right text-slate-300">Current Rank</TableHead>
                     <TableHead className="text-right text-slate-300">Position Change</TableHead>
                     <TableHead className="text-right text-slate-300">Current KTC Value</TableHead>
                     <TableHead className="text-right text-slate-300">Value Change</TableHead>
@@ -118,9 +119,6 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                   {draftPicks.map((pick, idx) => {
                     return (
                       <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                        <TableCell className="font-semibold text-orange-400">
-                          {pick.draftYear || '2025'}
-                        </TableCell>
                         <TableCell className="font-semibold text-slate-300">
                           {pick.round}
                         </TableCell>
@@ -134,9 +132,6 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                           {pick.playerPos}
                         </TableCell>
                         <TableCell className="text-slate-400">{pick.manager}</TableCell>
-                        <TableCell className="text-right font-semibold text-slate-300">
-                          {pick.pick}
-                        </TableCell>
                         <TableCell className="text-right">
                           {pick.positionRankMay2025 ? (
                             <span className="font-semibold text-slate-300">

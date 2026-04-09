@@ -70,3 +70,13 @@
 - [ ] Bench vs Start analysis
 - [ ] Historical KTC tracking for non-rookie drafts
 - [ ] Draft class comparison tools
+
+## Current Issues to Fix
+- [ ] Draft year showing 2026 instead of 2025 for all picks
+- [ ] Manager names showing "Unknown" instead of resolved names
+- [ ] Remove Year column from Full Draft Board table
+- [ ] Remove Draft Pick Position column from Full Draft Board table
+- [ ] Rename "Position Rank (May 2025)" to "Drafted Rank"
+- [ ] Rename "Current Position Rank" to "Current Rank"
+- [ ] Fix table width to prevent column cutoff
+- [ ] Add header "2025 Rookie Draft" (or appropriate year) above Full Draft Board table

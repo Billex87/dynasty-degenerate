@@ -134,6 +134,11 @@ export const appRouter = router({
             }
           }
 
+          // Create user_id to manager name map for draft analysis
+          const userIdToManagerMap = Object.fromEntries(
+            users.map((u: any) => [u.user_id, u.display_name || 'Unknown'])
+          );
+
           const currentSeasonData = {
             label: '2026',
             trades,
@@ -149,10 +154,8 @@ export const appRouter = router({
             ktcValuesLastWeek
           );
 
-          // Create user_id to manager name mapping for draft analysis
-          const currentUserMap = Object.fromEntries(
-            users.map((u: any) => [u.user_id, u.display_name || 'Unknown'])
-          );
+          // currentUserMap is the same as userIdToManagerMap, so we can reuse it
+          const currentUserMap = userIdToManagerMap;
           let pastUserMap: Record<string, string> = {};
           if (pastSeasonData) {
             const pastUsers = await fetch(
@@ -170,9 +173,11 @@ export const appRouter = router({
               currentRosterMap: rosterUserMap,
               currentRosters: rosters,
               currentUserMap,
+              currentUserIdToManagerMap: userIdToManagerMap,
               pastRosterMap: pastSeasonData?.rosterMap || {},
               pastRosters: pastSeasonData?.rosters || [],
               pastUserMap,
+              pastUserIdToManagerMap: pastUserMap,
               prevLeagueId,
             });
             // Calculate ADP from the draft picks themselves
