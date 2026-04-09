@@ -7,6 +7,14 @@ interface SleeperDraftPick {
   picked_by: string;
 }
 
+interface DraftInfo {
+  draft_id: string;
+  type: string;
+  season: string;
+  season_type: string;
+  draft_order: Record<string, number>;
+}
+
 interface ADPData {
   [playerId: string]: {
     name: string;
@@ -15,10 +23,20 @@ interface ADPData {
   };
 }
 
+interface RosterMappingData {
+  currentRosterMap: Record<string, string>;
+  currentRosters: any[];
+  pastRosterMap?: Record<string, string>;
+  pastRosters?: any[];
+}
+
 /**
- * Fetch draft data from Sleeper API (all seasons including previous league)
+ * Fetch draft data from Sleeper API (rookie/startup drafts only from all seasons including previous league)
  */
-export async function fetchDraftData(leagueId: string): Promise<SleeperDraftPick[]> {
+export async function fetchDraftData(
+  leagueId: string,
+  rosterMappingData?: RosterMappingData
+): Promise<DraftPickWithMetadata[]> {
   try {
     const allPicks: SleeperDraftPick[] = [];
     const leagueIds = [leagueId];
@@ -49,8 +67,14 @@ export async function fetchDraftData(leagueId: string): Promise<SleeperDraftPick
           continue;
         }
 
-        // Fetch picks from all drafts in this league
-        for (const draft of response) {
+        // Fetch picks from rookie/startup drafts only (type: snake or linear)
+        for (const draft of response as DraftInfo[]) {
+          // Only include rookie/startup drafts
+          if (draft.type !== 'snake' && draft.type !== 'linear') {
+            console.log(`[Draft Analysis] Skipping non-rookie draft type: ${draft.type}`);
+            continue;
+          }
+
           try {
             const picks = await fetch(
               `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
@@ -58,7 +82,7 @@ export async function fetchDraftData(leagueId: string): Promise<SleeperDraftPick
             
             if (picks && Array.isArray(picks)) {
               allPicks.push(...picks);
-              console.log(`[Draft Analysis] Fetched ${picks.length} picks from draft ${draft.draft_id} (season ${draft.season})`);
+              console.log(`[Draft Analysis] Fetched ${picks.length} picks from rookie draft ${draft.draft_id} (season ${draft.season}, type: ${draft.type})`);
             }
           } catch (e) {
             console.warn(`[Draft Analysis] Failed to fetch draft ${draft.draft_id}:`, e);
@@ -69,8 +93,14 @@ export async function fetchDraftData(leagueId: string): Promise<SleeperDraftPick
       }
     }
 
-    console.log(`[Draft Analysis] Fetched ${allPicks.length} total draft picks from all leagues`);
-    return allPicks;
+    // Attach roster maps to picks based on which league they came from
+    const picksWithMetadata: DraftPickWithMetadata[] = allPicks.map((pick) => ({
+      ...pick,
+      roster_map: rosterMappingData?.currentRosterMap || {},
+    }));
+
+    console.log(`[Draft Analysis] Fetched ${picksWithMetadata.length} total draft picks from all leagues`);
+    return picksWithMetadata;
   } catch (error) {
     console.error('[Draft Analysis] Error fetching draft data:', error);
     return [];
@@ -103,8 +133,13 @@ export async function fetchADPData(): Promise<ADPData> {
 /**
  * Analyze draft picks and calculate statistics
  */
+interface DraftPickWithMetadata extends SleeperDraftPick {
+  draft_id?: string;
+  roster_map?: Record<string, string>;
+}
+
 export function analyzeDraftPicks(
-  draftPicks: SleeperDraftPick[],
+  draftPicks: DraftPickWithMetadata[],
   players: Record<string, any>,
   rosterMap: Record<string, string>,
   ktcValues: Record<string, { name: string; ktc_value: number }>,
@@ -130,7 +165,8 @@ export function analyzeDraftPicks(
   // Process each draft pick
   draftPicks.forEach((pick) => {
     const player = players[pick.player_id];
-    const manager = rosterMap[pick.picked_by] || 'Unknown';
+    const pickRosterMap = pick.roster_map || rosterMap;
+    const manager = pickRosterMap[pick.picked_by] || 'Unknown';
     const playerName = player?.full_name || 'Unknown';
     const playerPos = player?.position || 'N/A';
 

@@ -150,7 +150,12 @@ export const appRouter = router({
           // Fetch and analyze draft data
           let draftAnalysis: { draftPicks: any[]; draftStats: any[] } = { draftPicks: [], draftStats: [] };
           try {
-            const draftPicks = await fetchDraftData(input.leagueId);
+            const draftPicks = await fetchDraftData(input.leagueId, {
+              currentRosterMap: rosterUserMap,
+              currentRosters: rosters,
+              pastRosterMap: pastSeasonData?.rosterMap || {},
+              pastRosters: pastSeasonData?.rosters || [],
+            });
             const adpData = await fetchADPData();
             if (draftPicks.length > 0) {
               draftAnalysis = analyzeDraftPicks(
