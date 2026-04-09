@@ -16,37 +16,60 @@ interface ADPData {
 }
 
 /**
- * Fetch draft data from Sleeper API (all seasons)
+ * Fetch draft data from Sleeper API (all seasons including previous league)
  */
 export async function fetchDraftData(leagueId: string): Promise<SleeperDraftPick[]> {
   try {
-    const response = await fetch(
-      `https://api.sleeper.app/v1/league/${leagueId}/drafts`
-    ).then((r) => r.json());
+    const allPicks: SleeperDraftPick[] = [];
+    const leagueIds = [leagueId];
 
-    if (!Array.isArray(response) || response.length === 0) {
-      console.warn('[Draft Analysis] No drafts found for league');
-      return [];
+    // Get the current league info to find previous league
+    try {
+      const leagueInfo = await fetch(
+        `https://api.sleeper.app/v1/league/${leagueId}`
+      ).then((r) => r.json());
+
+      if (leagueInfo.previous_league_id) {
+        leagueIds.push(leagueInfo.previous_league_id);
+        console.log(`[Draft Analysis] Found previous league: ${leagueInfo.previous_league_id}`);
+      }
+    } catch (e) {
+      console.warn('[Draft Analysis] Could not fetch league info:', e);
     }
 
-    // Fetch picks from all drafts (current + previous seasons)
-    const allPicks: SleeperDraftPick[] = [];
-    
-    for (const draft of response) {
+    // Fetch drafts from all league IDs (current + previous)
+    for (const id of leagueIds) {
       try {
-        const picks = await fetch(
-          `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
+        const response = await fetch(
+          `https://api.sleeper.app/v1/league/${id}/drafts`
         ).then((r) => r.json());
-        
-        if (picks && Array.isArray(picks)) {
-          allPicks.push(...picks);
+
+        if (!Array.isArray(response) || response.length === 0) {
+          console.warn(`[Draft Analysis] No drafts found for league ${id}`);
+          continue;
+        }
+
+        // Fetch picks from all drafts in this league
+        for (const draft of response) {
+          try {
+            const picks = await fetch(
+              `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
+            ).then((r) => r.json());
+            
+            if (picks && Array.isArray(picks)) {
+              allPicks.push(...picks);
+              console.log(`[Draft Analysis] Fetched ${picks.length} picks from draft ${draft.draft_id} (season ${draft.season})`);
+            }
+          } catch (e) {
+            console.warn(`[Draft Analysis] Failed to fetch draft ${draft.draft_id}:`, e);
+          }
         }
       } catch (e) {
-        console.warn(`[Draft Analysis] Failed to fetch draft ${draft.draft_id}:`, e);
+        console.warn(`[Draft Analysis] Failed to fetch drafts for league ${id}:`, e);
       }
     }
 
-    console.log(`[Draft Analysis] Fetched ${allPicks.length} total draft picks from ${response.length} draft(s)`);
+    console.log(`[Draft Analysis] Fetched ${allPicks.length} total draft picks from all leagues`);
     return allPicks;
   } catch (error) {
     console.error('[Draft Analysis] Error fetching draft data:', error);
