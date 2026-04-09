@@ -105,16 +105,13 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                     <TableHead className="text-slate-300">Player</TableHead>
                     <TableHead className="text-center text-slate-300">Pos</TableHead>
                     <TableHead className="text-slate-300">Manager</TableHead>
-                    <TableHead className="text-right text-slate-300">ADP</TableHead>
-                    <TableHead className="text-right text-slate-300">KTC Value</TableHead>
+                    <TableHead className="text-right text-slate-300">Draft Pick Position</TableHead>
+                    <TableHead className="text-right text-slate-300">Current KTC Value</TableHead>
+                    <TableHead className="text-right text-slate-300">Value Change</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {draftPicks.map((pick, idx) => {
-                    const adpDiff = pick.adp ? pick.pick - pick.adp : null;
-                    const isReach = adpDiff && adpDiff > 0;
-                    const isFall = adpDiff && adpDiff < 0;
-
                     return (
                       <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
                         <TableCell className="font-semibold text-slate-300">
@@ -130,25 +127,29 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                           {pick.playerPos}
                         </TableCell>
                         <TableCell className="text-slate-400">{pick.manager}</TableCell>
+                        <TableCell className="text-right font-semibold text-slate-300">
+                          {pick.pick}
+                        </TableCell>
                         <TableCell className="text-right">
-                          {pick.adp ? (
-                            <span
-                              className={`font-semibold ${
-                                isReach ? 'text-orange-400' : isFall ? 'text-green-400' : 'text-slate-300'
-                              }`}
-                            >
-                              {pick.adp.toFixed(0)}
-                              {isReach && <TrendingUp className="inline ml-1 w-4 h-4" />}
-                              {isFall && <TrendingDown className="inline ml-1 w-4 h-4" />}
+                          {pick.currentKtcValue ? (
+                            <span className="font-semibold text-slate-300">
+                              {pick.currentKtcValue.toLocaleString()}
                             </span>
                           ) : (
                             <span className="text-slate-500">N/A</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {pick.currentKtcValue ? (
-                            <span className="font-semibold text-slate-300">
-                              {pick.currentKtcValue.toLocaleString()}
+                          {pick.valueGain !== null && pick.valueGain !== undefined ? (
+                            <span
+                              className={`font-semibold ${
+                                pick.valueGain > 0 ? 'text-green-400' : pick.valueGain < 0 ? 'text-red-400' : 'text-slate-300'
+                              }`}
+                            >
+                              {pick.valueGain > 0 ? '+' : ''}
+                              {pick.valueGain.toLocaleString()}
+                              {pick.valueGain > 0 && <TrendingUp className="inline ml-1 w-4 h-4" />}
+                              {pick.valueGain < 0 && <TrendingDown className="inline ml-1 w-4 h-4" />}
                             </span>
                           ) : (
                             <span className="text-slate-500">N/A</span>
@@ -161,18 +162,6 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
               </Table>
             </div>
           </Card>
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex justify-center gap-8 text-sm">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-orange-400" />
-          <span className="text-slate-400">Reach (picked before ADP)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <TrendingDown className="w-4 h-4 text-green-400" />
-          <span className="text-slate-400">Fall (picked after ADP)</span>
         </div>
       </div>
     </div>
