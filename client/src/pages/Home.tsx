@@ -129,11 +129,8 @@ export default function Home() {
         {/* Premium Header */}
         <div className="border-b border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-            <div className="flex items-center justify-center gap-4">
-              {/* Left: League Name */}
-              <p className="text-xs sm:text-sm text-orange-400/70 truncate flex-1 text-left">{leagueName}</p>
-              
-              {/* Center: Dynasty Degenerates */}
+            <div className="flex items-center justify-between gap-4">
+              {/* Left: Dynasty Degenerates */}
               <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                 {leagueLogo && (
                   <img src={leagueLogo} alt="League logo" className="w-10 sm:w-12 h-10 sm:h-12 rounded flex-shrink-0" />
@@ -143,8 +140,8 @@ export default function Home() {
                 </h2>
               </div>
               
-              {/* Right: Spacer */}
-              <div className="flex-1 hidden sm:block"></div>
+              {/* Right: League Name */}
+              <p className="text-sm sm:text-lg md:text-xl text-orange-400/70 truncate flex-1 text-right font-semibold">{leagueName}</p>
             </div>
           </div>
         </div>
