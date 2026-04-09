@@ -18,6 +18,7 @@ import {
   SearchableWeeklyMomentumTable,
   SearchableProjectedMoversTable,
 } from '@/components/ReportTables';
+import { DraftAnalysis } from '@/components/DraftAnalysis';
 import type { ReportData } from '@shared/types';
 
 export default function Home() {
@@ -168,6 +169,9 @@ export default function Home() {
               <TabsTrigger value="positions" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
                 Position Analysis
               </TabsTrigger>
+              <TabsTrigger value="draft" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+                Draft History
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
@@ -228,6 +232,13 @@ export default function Home() {
 
             <TabsContent value="positions" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
               <PositionAnalysisTable data={reportData.positionDepth} />
+            </TabsContent>
+
+            <TabsContent value="draft" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
+              <DraftAnalysis
+                draftPicks={reportData.draftPicks || []}
+                draftStats={reportData.draftStats || []}
+              />
             </TabsContent>
           </Tabs>
         </div>

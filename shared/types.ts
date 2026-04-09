@@ -46,6 +46,29 @@ export interface PositionDepth {
   status: 'shortage' | 'excess';
 }
 
+export interface DraftPick {
+  round: number;
+  pick: number;
+  playerName: string;
+  playerPos: string;
+  manager: string;
+  adp: number | null;
+  ktcValue: number | null;
+  currentKtcValue: number | null;
+  valueGain: number | null;
+}
+
+export interface ManagerDraftStats {
+  manager: string;
+  totalPicks: number;
+  avgAdpDiff: number;
+  avgKtcGain: number;
+  bestPick: DraftPick | null;
+  worstPick: DraftPick | null;
+  reachCount: number;
+  fallCount: number;
+}
+
 export interface ReportData {
   managerRosterValueGrowth: Array<{
     manager: string;
@@ -76,4 +99,6 @@ export interface ReportData {
   }>;
   tradeHistory: TradeData[];
   positionDepth: PositionDepth[];
+  draftPicks?: DraftPick[];
+  draftStats?: ManagerDraftStats[];
 }

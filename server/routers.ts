@@ -6,6 +6,7 @@ import { z } from "zod";
 import { loadKTCValues, loadKTCValuesLastWeek } from "./ktcLoader";
 import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
+import { fetchDraftData, fetchADPData, analyzeDraftPicks } from "./draftAnalysis";
 
 export const appRouter = router({
   system: systemRouter,
@@ -146,12 +147,34 @@ export const appRouter = router({
             ktcValuesLastWeek
           );
 
+          // Fetch and analyze draft data
+          let draftAnalysis: { draftPicks: any[]; draftStats: any[] } = { draftPicks: [], draftStats: [] };
+          try {
+            const draftPicks = await fetchDraftData(input.leagueId);
+            const adpData = await fetchADPData();
+            if (draftPicks.length > 0) {
+              draftAnalysis = analyzeDraftPicks(
+                draftPicks,
+                players,
+                rosterUserMap,
+                ktcValues,
+                adpData
+              );
+            }
+          } catch (e) {
+            console.warn('Failed to fetch draft data:', e);
+          }
+
           return {
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
             leagueLogo: leagueInfo.logo || null,
-            reportData,
-          };
+            reportData: {
+              ...reportData,
+              draftPicks: draftAnalysis.draftPicks,
+              draftStats: draftAnalysis.draftStats,
+            },
+          }
         } catch (error) {
           console.error('League analysis error:', error);
           throw new Error('Failed to fetch league data');
