@@ -7,6 +7,7 @@ import { loadKTCValues, loadKTCValuesLastWeek } from "./ktcLoader";
 import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
+import { getMay2025KTCSnapshot } from "./waybackMachineScraper";
 
 export const appRouter = router({
   system: systemRouter,
@@ -176,13 +177,16 @@ export const appRouter = router({
             // Calculate ADP from the draft picks themselves
             const adpData = calculateADPFromPicks(draftPicks);
             if (draftPicks.length > 0) {
+              // Load May 2025 KTC baseline for value change calculations
+              const ktcValuesMay2025 = getMay2025KTCSnapshot();
               draftAnalysis = analyzeDraftPicks(
                 draftPicks,
                 players,
                 rosterUserMap,
                 ktcValues,
                 adpData,
-                ktcValuesLastWeek
+                ktcValuesLastWeek,
+                ktcValuesMay2025
               );
             }
           } catch (e) {

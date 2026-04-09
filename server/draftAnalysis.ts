@@ -64,7 +64,8 @@ export function analyzeDraftPicks(
   rosterMap: Record<string, string>,
   ktcValues: Record<string, { name: string; ktc_value: number }>,
   adpData: ADPData,
-  ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>
+  ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>,
+  ktcValuesMay2025?: Record<string, { name: string; ktc_value: number }>
 ): { draftPicks: any[]; draftStats: any[] } {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
@@ -106,12 +107,26 @@ export function analyzeDraftPicks(
     const ktcData = ktcValues[playerSlug];
     const currentKtcValue = ktcData?.ktc_value || null;
     
-    // Calculate value gain using last week's KTC as baseline (approximation of draft value)
+    // Calculate value gain using May 2025 baseline if available, otherwise use last week's KTC
     let valueGain: number | null = null;
-    if (ktcValuesLastWeek && currentKtcValue !== null) {
-      const lastWeekKtcData = ktcValuesLastWeek[playerSlug];
-      const lastWeekValue = lastWeekKtcData?.ktc_value || currentKtcValue;
-      valueGain = currentKtcValue - lastWeekValue;
+    if (currentKtcValue !== null) {
+      let baselineValue = currentKtcValue; // default to current if no baseline
+      
+      // Prefer May 2025 baseline for accurate draft-day comparison
+      if (ktcValuesMay2025) {
+        const may2025Data = ktcValuesMay2025[playerSlug];
+        if (may2025Data?.ktc_value) {
+          baselineValue = may2025Data.ktc_value;
+        }
+      } else if (ktcValuesLastWeek) {
+        // Fall back to last week's KTC as approximation
+        const lastWeekKtcData = ktcValuesLastWeek[playerSlug];
+        if (lastWeekKtcData?.ktc_value) {
+          baselineValue = lastWeekKtcData.ktc_value;
+        }
+      }
+      
+      valueGain = currentKtcValue - baselineValue;
     }
 
     const draftPick: any = {
