@@ -99,18 +99,28 @@ export function analyzeDraftPicks(
       return ktcData[simpleSlug];
     }
     
-    // Try to find by matching the simple slug as a prefix (handles "ashtonjeanty" matching "ashton-jeanty-1742")
+    // Try to find by matching name parts more flexibly
     for (const key in ktcData) {
       const keySlug = createSlug(key);
-      if (keySlug.startsWith(simpleSlug) || simpleSlug.startsWith(keySlug.split('-')[0])) {
-        // Additional check: make sure the name parts match
-        const nameParts = playerName.toLowerCase().split(/\s+/);
-        const keyParts = key.toLowerCase().split('-').filter(p => isNaN(Number(p))); // Remove numeric IDs
-        
-        // Check if all name parts are in the key
-        if (nameParts.every(part => keyParts.some(kp => kp.includes(part)))) {
-          return ktcData[key];
-        }
+      
+      // Exact slug match
+      if (keySlug === simpleSlug) {
+        return ktcData[key];
+      }
+      
+      // Split by hyphens, spaces, and numbers to get name parts from key
+      const keyNameParts = key.toLowerCase().split(/[-\s0-9]+/).filter(p => p.length > 0);
+      const playerNameParts = playerName.toLowerCase().split(/\s+/).filter(p => p.length > 0);
+      
+      // Check if all player name parts are found in key name parts
+      // This handles cases like "Tre' Harris" matching "tre-harris-1772"
+      // and "Dont'e Thornton" matching "dont-e-thornton-1787"
+      const allPartsMatch = playerNameParts.every(part => 
+        keyNameParts.some(kp => kp.includes(part) || part.includes(kp))
+      );
+      
+      if (allPartsMatch && keyNameParts.length > 0) {
+        return ktcData[key];
       }
     }
     
