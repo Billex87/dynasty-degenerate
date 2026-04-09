@@ -399,7 +399,7 @@ export function PositionAnalysisTable({
       <div>
         <div className="flex items-center justify-center gap-2 mb-4">
           <TrendingDown className="w-5 h-5 text-red-400" />
-          <h3 className="text-xl font-bold text-red-400 text-center">Position Shortages (Less than 4)</h3>
+          <h3 className="text-xl font-bold text-red-400 text-center">Position Shortages</h3>
         </div>
         {shortages.length > 0 ? (
           <div className="flex justify-center">
@@ -435,7 +435,7 @@ export function PositionAnalysisTable({
       <div>
         <div className="flex items-center justify-center gap-2 mb-4">
           <TrendingUp className="w-5 h-5 text-emerald-400" />
-          <h3 className="text-xl font-bold text-emerald-400 text-center">Position Excess (More than 10)</h3>
+          <h3 className="text-xl font-bold text-emerald-400 text-center">Position Excess</h3>
         </div>
         {excesses.length > 0 ? (
           <div className="flex justify-center">
