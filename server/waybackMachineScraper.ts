@@ -20,3 +20,14 @@ export function getMay2025KTCValue(playerSlug: string): number | null {
   const data = may2025RookieData[playerSlug as keyof typeof may2025RookieData];
   return data?.ktc_value || null;
 }
+
+import jan15KTCData from './jan15KTCData.json' assert { type: 'json' };
+
+/**
+ * Get KTC data from the Jan 15, 2026 Wayback Machine snapshot
+ * Used for Weekly Momentum calculations
+ */
+export function getJan15KTCSnapshot(): Record<string, { name: string; ktc_value: number }> {
+  console.log(`[Wayback Machine] Loaded ${Object.keys(jan15KTCData).length} players from Jan 15 snapshot`);
+  return jan15KTCData;
+}

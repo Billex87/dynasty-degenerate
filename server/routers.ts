@@ -8,7 +8,7 @@ import { loadCurrentKTCPositionRanks } from "./currentKTCLoader";
 import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
-import { getMay2025KTCSnapshot } from "./waybackMachineScraper";
+import { getMay2025KTCSnapshot, getJan15KTCSnapshot } from "./waybackMachineScraper";
 
 export const appRouter = router({
   system: systemRouter,
@@ -73,19 +73,23 @@ export const appRouter = router({
           ).then((r) => r.json());
 
           const ktcValues = await loadKTCValues();
-          // Try to get 7-day snapshot from database, fall back to static file
-          let ktcValuesLastWeekRaw = await getKtcSnapshotFromSevenDaysAgo();
-          let ktcValuesLastWeek: any;
-          if (ktcValuesLastWeekRaw) {
-            // Convert from Record<string, number> to KTCValues format
-            ktcValuesLastWeek = Object.fromEntries(
-              Object.entries(ktcValuesLastWeekRaw).map(([key, value]) => [
-                key,
-                { name: key, ktc_value: value }
-              ])
-            );
-          } else {
-            ktcValuesLastWeek = await loadKTCValuesLastWeek();
+          // Get Jan 15 Wayback Machine snapshot for Weekly Momentum calculations
+          let ktcValuesLastWeek = await getJan15KTCSnapshot();
+          
+          // If that fails, fall back to database snapshot or static file
+          if (Object.keys(ktcValuesLastWeek).length === 0) {
+            let ktcValuesLastWeekRaw = await getKtcSnapshotFromSevenDaysAgo();
+            if (ktcValuesLastWeekRaw) {
+              // Convert from Record<string, number> to KTCValues format
+              ktcValuesLastWeek = Object.fromEntries(
+                Object.entries(ktcValuesLastWeekRaw).map(([key, value]) => [
+                  key,
+                  { name: key, ktc_value: value }
+                ])
+              );
+            } else {
+              ktcValuesLastWeek = await loadKTCValuesLastWeek();
+            }
           }
 
           const prevLeagueId = leagueInfo.previous_league_id;
