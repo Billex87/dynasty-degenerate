@@ -91,3 +91,8 @@
 - [x] Updated live KTC scraper to fetch 500 players across 10 pages instead of just first page
 - [x] Fixed data incongruences for Trevor Etienne and Jarquez Hunter by expanding scraper reach
 - [x] Verified all 22 tests passing after scraper update
+
+### Data Quality Fixes
+- [x] Fixed Jarquez Hunter and Trevor Etienne showing WR90 instead of N/A when not in current KTC data
+- [x] Updated draftAnalysis.ts to return null instead of fallback values
+- [x] All 22 tests passing after fix

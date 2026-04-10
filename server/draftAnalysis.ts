@@ -80,7 +80,7 @@ export function analyzeDraftPicks(
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
 
-  // Helper function to create slug from player name
+  // Helper function to create slug from player name (removes all non-alphanumeric)
   const createSlug = (name: string): string => {
     return name
       .toLowerCase()
@@ -88,8 +88,8 @@ export function analyzeDraftPicks(
       .trim();
   };
   
-  // Helper function to find May 2025 data by flexible slug matching
-  const findMay2025Data = (playerName: string, ktcData: Record<string, any>): any => {
+  // Helper function to find data by flexible slug matching
+  const findPlayerData = (playerName: string, ktcData: Record<string, any>): any => {
     if (!ktcData) return null;
     
     const simpleSlug = createSlug(playerName);
@@ -124,6 +124,7 @@ export function analyzeDraftPicks(
       }
     }
     
+    // No match found - return null (don't use fallback values like WR90)
     return null;
   };
 
@@ -173,7 +174,7 @@ export function analyzeDraftPicks(
       
       // Prefer May 2025 baseline for accurate draft-day comparison
       if (ktcValuesMay2025) {
-        const may2025Data = findMay2025Data(playerName, ktcValuesMay2025);
+        const may2025Data = findPlayerData(playerName, ktcValuesMay2025);
         if (may2025Data?.ktc_value) {
           baselineValue = may2025Data.ktc_value;
         }
@@ -191,7 +192,7 @@ export function analyzeDraftPicks(
     // Extract position rank from May 2025 data
     let positionRankMay2025: string | null = null;
     if (ktcValuesMay2025) {
-      const may2025Data = findMay2025Data(playerName, ktcValuesMay2025);
+      const may2025Data = findPlayerData(playerName, ktcValuesMay2025);
       positionRankMay2025 = may2025Data?.position_rank_may2025 || null;
       
 
@@ -203,7 +204,7 @@ export function analyzeDraftPicks(
     
     // Get current position rank from KTC data
     if (currentKTCRanks) {
-      const currentRankData = findMay2025Data(playerName, currentKTCRanks);
+      const currentRankData = findPlayerData(playerName, currentKTCRanks);
       currentPositionRank = currentRankData?.position_rank || null;
     }
     
