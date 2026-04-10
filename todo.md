@@ -96,3 +96,7 @@
 - [x] Fixed Jarquez Hunter and Trevor Etienne showing WR90 instead of N/A when not in current KTC data
 - [x] Updated draftAnalysis.ts to return null instead of fallback values
 - [x] All 22 tests passing after fix
+
+### Hit/Miss Threshold Update
+- [x] Updated hit/miss calculation thresholds from 5 position ranks/500 value to 10 position ranks/750 value
+- [x] All 22 tests passing after threshold update
