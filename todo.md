@@ -80,3 +80,9 @@
 - [ ] Rename "Current Position Rank" to "Current Rank"
 - [ ] Fix table width to prevent column cutoff
 - [ ] Add header "2025 Rookie Draft" (or appropriate year) above Full Draft Board table
+
+### Draft Capital Efficiency Interactive Feature
+- [x] Make manager names clickable in Draft Capital Efficiency table
+- [x] Create modal component to display manager's draft picks
+- [x] Modal shows: Player Name, Position, Position Change, Value Change
+- [x] Test modal functionality and ensure all tests pass

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -9,6 +10,7 @@ import {
 import { Card } from '@/components/ui/card';
 import type { DraftPick, ManagerDraftStats } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -16,6 +18,8 @@ interface DraftAnalysisProps {
 }
 
 export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
+  const [selectedManager, setSelectedManager] = useState<string | null>(null);
+
   if (!draftPicks || draftPicks.length === 0) {
     return (
       <div className="text-center py-12">
@@ -47,7 +51,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                 <TableBody>
                   {draftStats.map((stat, idx) => (
                     <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                      <TableCell className="font-semibold text-slate-100">
+                      <TableCell className="font-semibold text-slate-100 cursor-pointer hover:text-orange-400 transition-colors" onClick={() => setSelectedManager(stat.manager)}>
                         {stat.manager}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
@@ -185,6 +189,14 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
           </Card>
         </div>
       </div>
+
+      {/* Manager Draft Picks Modal */}
+      <ManagerDraftPicksModal
+        isOpen={selectedManager !== null}
+        onClose={() => setSelectedManager(null)}
+        managerName={selectedManager || ''}
+        draftPicks={draftPicks}
+      />
     </div>
   );
 }
