@@ -262,19 +262,19 @@ export function analyzeDraftPicks(
       }
 
       // Track hits and misses based on position rank change or value gain
-      // A hit is: improved by 5+ position ranks OR gained 500+ value points
-      // A miss is: declined by 5+ position ranks OR lost 500+ value points
+      // A hit is: improved by 10+ position ranks OR gained 750+ value points
+      // A miss is: declined by 10+ position ranks OR lost 750+ value points
       if (positionRankChange && positionRankChange !== '0') {
         const rankChange = parseInt(positionRankChange);
-        if (rankChange >= 5) {
+        if (rankChange >= 10) {
           stats.hits += 1;
-        } else if (rankChange <= -5) {
+        } else if (rankChange <= -10) {
           stats.misses += 1;
         }
       } else if (valueGain !== null) {
-        if (valueGain >= 500) {
+        if (valueGain >= 750) {
           stats.hits += 1;
-        } else if (valueGain <= -500) {
+        } else if (valueGain <= -750) {
           stats.misses += 1;
         }
       }
