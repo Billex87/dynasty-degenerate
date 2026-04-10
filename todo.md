@@ -62,8 +62,8 @@
 - [x] Ensure position rank changes calculate correctly with live Superflex data
 - [x] Browser tested: Live Superflex KTC data displaying correctly (Josh Allen 9998, Bijan Robinson 9993, etc.)
 - [x] All 22 unit tests passing
-- [ ] Set up weekly scheduled job to run live KTC scraper (e.g., Tuesday 11 PM)
-- [ ] Store weekly KTC snapshots in database for historical tracking
+- [x] Set up weekly scheduled job to run live KTC scraper (e.g., Tuesday 11 PM)
+- [x] Store weekly KTC snapshots in database for historical tracking
 
 ## Future Features (Optional)
 - [ ] Waiver wire activity tracker tab
@@ -72,14 +72,14 @@
 - [ ] Draft class comparison tools
 
 ## Current Issues to Fix
-- [ ] Draft year showing 2026 instead of 2025 for all picks
-- [ ] Manager names showing "Unknown" instead of resolved names
-- [ ] Remove Year column from Full Draft Board table
-- [ ] Remove Draft Pick Position column from Full Draft Board table
-- [ ] Rename "Position Rank (May 2025)" to "Drafted Rank"
-- [ ] Rename "Current Position Rank" to "Current Rank"
-- [ ] Fix table width to prevent column cutoff
-- [ ] Add header "2025 Rookie Draft" (or appropriate year) above Full Draft Board table
+- [x] Draft year showing 2026 instead of 2025 for all picks
+- [x] Manager names showing "Unknown" instead of resolved names
+- [x] Remove Year column from Full Draft Board table
+- [x] Remove Draft Pick Position column from Full Draft Board table
+- [x] Rename "Position Rank (May 2025)" to "Drafted Rank"
+- [x] Rename "Current Position Rank" to "Current Rank"
+- [x] Fix table width to prevent column cutoff
+- [x] Add header "2025 Rookie Draft" (or appropriate year) above Full Draft Board table
 
 ### Draft Capital Efficiency Interactive Feature
 - [x] Make manager names clickable in Draft Capital Efficiency table
