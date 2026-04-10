@@ -86,3 +86,8 @@
 - [x] Create modal component to display manager's draft picks
 - [x] Modal shows: Player Name, Position, Position Change, Value Change
 - [x] Test modal functionality and ensure all tests pass
+
+### KTC Data Expansion
+- [x] Updated live KTC scraper to fetch 500 players across 10 pages instead of just first page
+- [x] Fixed data incongruences for Trevor Etienne and Jarquez Hunter by expanding scraper reach
+- [x] Verified all 22 tests passing after scraper update
