@@ -23,16 +23,16 @@ type SortDirection = 'asc' | 'desc';
 export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
       // Toggle direction if clicking same column
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // New column, start with ascending
+      // New column, start with descending (highest to lowest)
       setSortColumn(column);
-      setSortDirection('asc');
+      setSortDirection('desc');
     }
   };
 
@@ -149,9 +149,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                           <div>Current</div>
                           <div>Value</div>
                         </div>
-                        {sortColumn === 'currentValue' && (
-                          <ArrowUpDown className="w-4 h-4" />
-                        )}
+                        <ArrowUpDown className="w-4 h-4" />
                       </div>
                     </TableHead>
                     <TableHead 
@@ -163,9 +161,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                           <div>Value</div>
                           <div>Change</div>
                         </div>
-                        {sortColumn === 'valueChange' && (
-                          <ArrowUpDown className="w-4 h-4" />
-                        )}
+                        <ArrowUpDown className="w-4 h-4" />
                       </div>
                     </TableHead>
                   </TableRow>

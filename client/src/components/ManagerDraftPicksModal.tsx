@@ -45,7 +45,6 @@ export function ManagerDraftPicksModal({
             <TableHeader className="border-b-2 border-orange-500/30">
               <TableRow className="border-slate-700">
                 <TableHead className="text-white font-semibold">Player</TableHead>
-                <TableHead className="text-white font-semibold">Position</TableHead>
                 <TableHead className="text-right text-white font-semibold">
                   <div>Drafted</div>
                   <div>Rank</div>
@@ -73,9 +72,6 @@ export function ManagerDraftPicksModal({
                 <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
                   <TableCell className="font-semibold text-slate-100">
                     {pick.playerName}
-                  </TableCell>
-                  <TableCell className="text-slate-300">
-                    {pick.playerPos}
                   </TableCell>
                   <TableCell className="text-right">
                     {pick.positionRankMay2025 ? (
