@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
 import type { DraftPick, ManagerDraftStats } from '@shared/types';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react';
 import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
 
 interface DraftAnalysisProps {
@@ -17,8 +17,45 @@ interface DraftAnalysisProps {
   draftStats: ManagerDraftStats[];
 }
 
+type SortColumn = 'currentValue' | 'valueChange' | null;
+type SortDirection = 'asc' | 'desc';
+
 export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<SortColumn>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, start with ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedDraftPicks = useMemo(() => {
+    if (!sortColumn) return draftPicks;
+
+    const sorted = [...draftPicks].sort((a, b) => {
+      let aVal: number = 0;
+      let bVal: number = 0;
+
+      if (sortColumn === 'currentValue') {
+        aVal = a.currentKtcValue || 0;
+        bVal = b.currentKtcValue || 0;
+      } else if (sortColumn === 'valueChange') {
+        aVal = a.valueGain ?? 0;
+        bVal = b.valueGain ?? 0;
+      }
+
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+
+    return sorted;
+  }, [draftPicks, sortColumn, sortDirection]);
 
   if (!draftPicks || draftPicks.length === 0) {
     return (
@@ -103,12 +140,38 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                     <TableHead className="text-right text-white font-semibold"><div>Drafted</div><div>Rank</div></TableHead>
                     <TableHead className="text-right text-white font-semibold"><div>Current</div><div>Rank</div></TableHead>
                     <TableHead className="text-right text-white font-semibold"><div>Position</div><div>Change</div></TableHead>
-                    <TableHead className="text-right text-white font-semibold"><div>Current</div><div>Value</div></TableHead>
-                    <TableHead className="text-right text-white font-semibold"><div>Value</div><div>Change</div></TableHead>
+                    <TableHead 
+                      className="text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
+                      onClick={() => handleSort('currentValue')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <div>
+                          <div>Current</div>
+                          <div>Value</div>
+                        </div>
+                        {sortColumn === 'currentValue' && (
+                          <ArrowUpDown className="w-4 h-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
+                      onClick={() => handleSort('valueChange')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <div>
+                          <div>Value</div>
+                          <div>Change</div>
+                        </div>
+                        {sortColumn === 'valueChange' && (
+                          <ArrowUpDown className="w-4 h-4" />
+                        )}
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {draftPicks.map((pick, idx) => {
+                  {sortedDraftPicks.map((pick, idx) => {
                     return (
                       <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
                         <TableCell className="font-semibold text-slate-300">

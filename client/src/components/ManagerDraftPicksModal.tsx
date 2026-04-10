@@ -33,7 +33,7 @@ export function ManagerDraftPicksModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] bg-slate-900 border-slate-800 overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[80vh] bg-slate-900 border-slate-800 overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-orange-400">
             {managerName}'s Draft Picks
@@ -47,8 +47,20 @@ export function ManagerDraftPicksModal({
                 <TableHead className="text-white font-semibold">Player</TableHead>
                 <TableHead className="text-white font-semibold">Position</TableHead>
                 <TableHead className="text-right text-white font-semibold">
+                  <div>Drafted</div>
+                  <div>Rank</div>
+                </TableHead>
+                <TableHead className="text-right text-white font-semibold">
+                  <div>Current</div>
+                  <div>Rank</div>
+                </TableHead>
+                <TableHead className="text-right text-white font-semibold">
                   <div>Position</div>
                   <div>Change</div>
+                </TableHead>
+                <TableHead className="text-right text-white font-semibold">
+                  <div>Current</div>
+                  <div>Value</div>
                 </TableHead>
                 <TableHead className="text-right text-white font-semibold">
                   <div>Value</div>
@@ -64,6 +76,24 @@ export function ManagerDraftPicksModal({
                   </TableCell>
                   <TableCell className="text-slate-300">
                     {pick.playerPos}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {pick.positionRankMay2025 ? (
+                      <span className="font-semibold text-slate-300">
+                        {pick.positionRankMay2025}
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">N/A</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {pick.currentPositionRank ? (
+                      <span className="font-semibold text-slate-300">
+                        {pick.currentPositionRank}
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">N/A</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     {pick.positionRankChange ? (
@@ -83,6 +113,15 @@ export function ManagerDraftPicksModal({
                         {pick.positionRankChange.startsWith('-') && (
                           <TrendingDown className="inline ml-1 w-4 h-4" />
                         )}
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">N/A</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {pick.currentKtcValue ? (
+                      <span className="font-semibold text-slate-300">
+                        {pick.currentKtcValue.toLocaleString()}
                       </span>
                     ) : (
                       <span className="text-slate-500">N/A</span>

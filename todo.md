@@ -100,3 +100,10 @@
 ### Hit/Miss Threshold Update
 - [x] Updated hit/miss calculation thresholds from 5 position ranks/500 value to 10 position ranks/750 value
 - [x] All 22 tests passing after threshold update
+
+### Modal & Sorting Enhancements
+- [x] Added Current Rank and Current Value columns to manager draft picks modal
+- [x] Made Current Value column sortable in Full Draft Board table (ascending/descending)
+- [x] Made Value Change column sortable in Full Draft Board table (ascending/descending)
+- [x] Added visual indicator (arrow icon) to show which column is sorted
+- [x] All 22 tests passing after enhancements
