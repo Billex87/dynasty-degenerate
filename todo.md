@@ -107,3 +107,15 @@
 - [x] Made Value Change column sortable in Full Draft Board table (ascending/descending)
 - [x] Added visual indicator (arrow icon) to show which column is sorted
 - [x] All 22 tests passing after enhancements
+
+### Position Depth & Manager Position Counts
+- [x] Update Position Depth Analysis thresholds (QB: 4/5, RB: 8/12, WR: 8/12, TE: 4/6)
+- [x] Add Manager Position Counts table to Overview page
+- [x] Display QB, RB, WR, TE counts per manager
+- [x] All 22 tests passing after changes
+
+### Dynamic Position Depth Thresholds
+- [x] Updated Position Depth Analysis to calculate thresholds dynamically
+- [x] Thresholds now based on min/max of actual manager position counts
+- [x] Shortage = below league minimum, Excess = above league maximum
+- [x] All 22 tests passing after dynamic threshold implementation

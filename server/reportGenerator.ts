@@ -347,6 +347,10 @@ export async function generateReport(
     status: 'shortage' | 'excess';
   }> = [];
 
+  // First pass: collect all position counts to calculate dynamic thresholds
+  const allPosCounts: Record<string, number[]> = { QB: [], RB: [], WR: [], TE: [] };
+  const managerPosCounts: Array<{ manager: string; posCounts: Record<string, number> }> = [];
+
   for (const r of currentSeasonData.rosters) {
     const name = currentSeasonData.rosterMap[r.roster_id];
     const pids = r.players || [];
@@ -360,29 +364,50 @@ export async function generateReport(
       }
     }
 
-    // Define thresholds for shortages and excesses
-    const shortageThresholds: Record<string, number> = { QB: 4, RB: 8, WR: 8, TE: 4 };
-    const excessThresholds: Record<string, number> = { QB: 5, RB: 12, WR: 12, TE: 6 };
+    managerPosCounts.push({ manager: name, posCounts });
 
-    // Find shortages and excesses based on position-specific thresholds
+    // Collect counts for threshold calculation
     for (const [pos, count] of Object.entries(posCounts)) {
-      const shortageThreshold = shortageThresholds[pos] || 4;
-      const excessThreshold = excessThresholds[pos] || 10;
+      if (pos in allPosCounts) {
+        allPosCounts[pos].push(count);
+      }
+    }
+  }
 
-      if (count < shortageThreshold) {
-        positionDepth.push({
-          manager: name,
-          position: pos,
-          count,
-          status: 'shortage',
-        });
-      } else if (count > excessThreshold) {
-        positionDepth.push({
-          manager: name,
-          position: pos,
-          count,
-          status: 'excess',
-        });
+  // Calculate dynamic thresholds based on min/max of actual data
+  const dynamicThresholds: Record<string, { shortage: number; excess: number }> = {};
+  for (const [pos, counts] of Object.entries(allPosCounts)) {
+    if (counts.length > 0) {
+      const min = Math.min(...counts);
+      const max = Math.max(...counts);
+      dynamicThresholds[pos] = {
+        shortage: min,
+        excess: max,
+      };
+    }
+  }
+
+  // Second pass: identify shortages and excesses using dynamic thresholds
+  for (const { manager, posCounts } of managerPosCounts) {
+    for (const [pos, count] of Object.entries(posCounts)) {
+      if (pos in dynamicThresholds) {
+        const { shortage, excess } = dynamicThresholds[pos];
+
+        if (count < shortage) {
+          positionDepth.push({
+            manager,
+            position: pos,
+            count,
+            status: 'shortage',
+          });
+        } else if (count > excess) {
+          positionDepth.push({
+            manager,
+            position: pos,
+            count,
+            status: 'excess',
+          });
+        }
       }
     }
   }
