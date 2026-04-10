@@ -65,11 +65,11 @@ export async function scrapeCurrentKTCRankings(): Promise<KTCScraperResult> {
               const positionRank = superflex.positionalRank || 0;
               
               if (ktcValue > 0 && positionRank > 0) {
-                const slug = player.slug || player.playerName
+                // Create slug using same format as draftAnalysis.ts for consistent matching
+                const slug = player.playerName
                   .toLowerCase()
-                  .replace(/[^a-z0-9]/g, '-')
-                  .replace(/-+/g, '-')
-                  .replace(/^-|-$/g, '');
+                  .replace(/[^a-z0-9]/g, '')
+                  .trim();
                 
                 players[slug] = {
                   name: player.playerName,
