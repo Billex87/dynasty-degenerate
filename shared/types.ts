@@ -103,6 +103,13 @@ export interface ReportData {
   }>;
   tradeHistory: TradeData[];
   positionDepth: PositionDepth[];
+  managerPositionCounts: Array<{
+    manager: string;
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+  }>;
   draftPicks?: DraftPick[];
   draftStats?: ManagerDraftStats[];
 }

@@ -15,7 +15,7 @@ import {
   TradeProfitLeaderboardTable,
   TradeHistoryTable,
   PositionAnalysisTable,
-
+  ManagerPositionCountsTable,
 } from '@/components/ReportTables';
 import { DraftAnalysis } from '@/components/DraftAnalysis';
 import type { ReportData } from '@shared/types';
@@ -191,6 +191,10 @@ export default function Home() {
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Position Depth Analysis</h3>
                   <PositionAnalysisTable data={reportData.positionDepth} />
+                </div>
+                <div>
+                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Manager Position Counts</h3>
+                  <ManagerPositionCountsTable data={reportData.managerPositionCounts} />
                 </div>
               </div>
             </TabsContent>

@@ -521,3 +521,41 @@ export function SearchableProjectedMoversTable({
     </div>
   );
 }
+
+
+export function ManagerPositionCountsTable({
+  data,
+}: {
+  data: ReportData['managerPositionCounts'];
+}) {
+  return (
+    <div className="flex justify-center">
+      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="border-b-2 border-orange-500/30">
+              <TableRow className="border-slate-700">
+                <TableHead className="text-white font-semibold">Manager</TableHead>
+                <TableHead className="text-center text-white font-semibold">QB</TableHead>
+                <TableHead className="text-center text-white font-semibold">RB</TableHead>
+                <TableHead className="text-center text-white font-semibold">WR</TableHead>
+                <TableHead className="text-center text-white font-semibold">TE</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row, idx) => (
+                <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
+                  <TableCell className="font-semibold text-slate-100">{row.manager}</TableCell>
+                  <TableCell className="text-center text-slate-300">{row.QB}</TableCell>
+                  <TableCell className="text-center text-slate-300">{row.RB}</TableCell>
+                  <TableCell className="text-center text-slate-300">{row.WR}</TableCell>
+                  <TableCell className="text-center text-slate-300">{row.TE}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+    </div>
+  );
+}

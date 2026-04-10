@@ -360,16 +360,23 @@ export async function generateReport(
       }
     }
 
-    // Find shortages (< 4) and excesses (> 10)
+    // Define thresholds for shortages and excesses
+    const shortageThresholds: Record<string, number> = { QB: 4, RB: 8, WR: 8, TE: 4 };
+    const excessThresholds: Record<string, number> = { QB: 5, RB: 12, WR: 12, TE: 6 };
+
+    // Find shortages and excesses based on position-specific thresholds
     for (const [pos, count] of Object.entries(posCounts)) {
-      if (count < 4) {
+      const shortageThreshold = shortageThresholds[pos] || 4;
+      const excessThreshold = excessThresholds[pos] || 10;
+
+      if (count < shortageThreshold) {
         positionDepth.push({
           manager: name,
           position: pos,
           count,
           status: 'shortage',
         });
-      } else if (count > 10) {
+      } else if (count > excessThreshold) {
         positionDepth.push({
           manager: name,
           position: pos,
@@ -378,6 +385,37 @@ export async function generateReport(
         });
       }
     }
+  }
+
+  // Create manager position counts table
+  const managerPositionCounts: Array<{
+    manager: string;
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+  }> = [];
+
+  for (const r of currentSeasonData.rosters) {
+    const name = currentSeasonData.rosterMap[r.roster_id];
+    const pids = r.players || [];
+    const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
+
+    for (const pid of pids) {
+      const p = allPlayers[pid];
+      const pos = p?.position || 'UNK';
+      if (pos in posCounts) {
+        posCounts[pos]++;
+      }
+    }
+
+    managerPositionCounts.push({
+      manager: name,
+      QB: posCounts.QB,
+      RB: posCounts.RB,
+      WR: posCounts.WR,
+      TE: posCounts.TE,
+    });
   }
 
   return {
@@ -390,5 +428,6 @@ export async function generateReport(
     tradeProfitLeaderboard,
     tradeHistory: sortedTradeHistory,
     positionDepth,
+    managerPositionCounts,
   };
 }
