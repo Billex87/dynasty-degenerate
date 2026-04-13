@@ -53,14 +53,6 @@ export function PlayerDetailModal({
             <span className="font-semibold text-slate-100">{pick.manager}</span>
           </div>
 
-          {/* ADP */}
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">ADP</span>
-            <span className="font-semibold text-slate-100">
-              {pick.adp ? pick.adp.toLocaleString() : 'N/A'}
-            </span>
-          </div>
-
           {/* Drafted Rank */}
           <div className="flex justify-between items-center border-b border-slate-700 pb-3">
             <span className="text-slate-400">Drafted Rank</span>
@@ -107,7 +99,9 @@ export function PlayerDetailModal({
           <div className="flex justify-between items-center border-b border-slate-700 pb-3">
             <span className="text-slate-400">Draft Value</span>
             <span className="font-semibold text-slate-100">
-              {pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}
+              {pick.currentKtcValue && pick.valueGain !== null && pick.valueGain !== undefined
+                ? (pick.currentKtcValue - pick.valueGain).toLocaleString()
+                : 'N/A'}
             </span>
           </div>
 

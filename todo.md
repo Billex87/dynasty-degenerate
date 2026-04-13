@@ -135,4 +135,5 @@
 - [x] Optimize modal layout for mobile (no horizontal scrolling)
 - [x] Update Full Draft Board table columns to show: Pick, Player, Position Change, Current Value, Value Change
 - [x] Remove other columns from main table (Drafted Rank, Current Rank, ADP, Manager, Round, etc.)
+- [x] Restore sorting for Current Value and Value Change columns
 - [x] All 22 tests passing after changes
