@@ -1,5 +1,5 @@
 import { SleeperDraftPick } from '../shared/types';
-import { fetchNFLHeadshot } from './nflHeadshotFetcher';
+
 
 interface SleeperDraft {
   draft_id: string;
@@ -227,13 +227,8 @@ export async function analyzeDraftPicks(
     // If not available, default to 2025
     const draftYear = pick.season ? String(pick.season) : '2025';
 
-    // Get headshot URL from NFL.com
-    // Don't await this - let it fetch in the background to avoid blocking league data load
-    let headshot_url: string | null = null;
-    // Fire-and-forget: fetch headshot but don't wait for it
-    fetchNFLHeadshot(playerName).catch(() => {
-      // Silently fail if headshot fetch times out or errors
-    });
+    // Headshot URLs removed - was causing TLS connection errors
+    // Can be re-enabled with a more reliable image source in the future
 
     const processedPick: any = {
       round: pick.round,
