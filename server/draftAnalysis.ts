@@ -244,6 +244,7 @@ export function analyzeDraftPicks(
       positionRankChange,
       draftYear,
       headshot_url,
+      player_id: pick.player_id,
     };
     processedPicks.push(processedPick);
 
