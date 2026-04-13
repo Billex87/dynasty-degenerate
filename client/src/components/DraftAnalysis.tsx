@@ -9,53 +9,18 @@ import {
 } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
 import type { DraftPick, ManagerDraftStats } from '@shared/types';
-import { TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
+import { PlayerDetailModal } from './PlayerDetailModal';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
   draftStats: ManagerDraftStats[];
 }
 
-type SortColumn = 'currentValue' | 'valueChange' | null;
-type SortDirection = 'asc' | 'desc';
-
 export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
-  const [sortColumn, setSortColumn] = useState<SortColumn>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-
-  const handleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      // Toggle direction if clicking same column
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // New column, start with descending (highest to lowest)
-      setSortColumn(column);
-      setSortDirection('desc');
-    }
-  };
-
-  const sortedDraftPicks = useMemo(() => {
-    if (!sortColumn) return draftPicks;
-
-    const sorted = [...draftPicks].sort((a, b) => {
-      let aVal: number = 0;
-      let bVal: number = 0;
-
-      if (sortColumn === 'currentValue') {
-        aVal = a.currentKtcValue || 0;
-        bVal = b.currentKtcValue || 0;
-      } else if (sortColumn === 'valueChange') {
-        aVal = a.valueGain ?? 0;
-        bVal = b.valueGain ?? 0;
-      }
-
-      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-    });
-
-    return sorted;
-  }, [draftPicks, sortColumn, sortDirection]);
+  const [selectedPlayer, setSelectedPlayer] = useState<DraftPick | null>(null);
 
   if (!draftPicks || draftPicks.length === 0) {
     return (
@@ -133,51 +98,25 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
               <Table>
                 <TableHeader className="border-b-2 border-orange-500/30">
                   <TableRow className="border-slate-700">
-                    <TableHead className="text-white font-semibold">Round</TableHead>
                     <TableHead className="text-white font-semibold">Pick</TableHead>
                     <TableHead className="text-white font-semibold">Player</TableHead>
-                    <TableHead className="text-white font-semibold">Manager</TableHead>
-                    <TableHead className="text-right text-white font-semibold"><div>Drafted</div><div>Rank</div></TableHead>
-                    <TableHead className="text-right text-white font-semibold"><div>Current</div><div>Rank</div></TableHead>
                     <TableHead className="text-right text-white font-semibold"><div>Position</div><div>Change</div></TableHead>
-                    <TableHead 
-                      className="text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
-                      onClick={() => handleSort('currentValue')}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        <div>
-                          <div>Current</div>
-                          <div>Value</div>
-                        </div>
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
-                      onClick={() => handleSort('valueChange')}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        <div>
-                          <div>Value</div>
-                          <div>Change</div>
-                        </div>
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </TableHead>
+                    <TableHead className="text-right text-white font-semibold"><div>Current</div><div>Value</div></TableHead>
+                    <TableHead className="text-right text-white font-semibold"><div>Value</div><div>Change</div></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedDraftPicks.map((pick, idx) => {
+                  {draftPicks.map((pick, idx) => {
                     return (
-                      <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                        <TableCell className="font-semibold text-slate-300">
-                          {pick.round}
-                        </TableCell>
+                      <TableRow 
+                        key={idx} 
+                        className="border-slate-700 hover:bg-slate-800/30"
+                      >
                         <TableCell className="font-semibold text-slate-300">
                           {pick.pick}
                         </TableCell>
                         <TableCell className="font-semibold text-slate-100">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 cursor-pointer hover:text-orange-400 transition-colors" onClick={() => setSelectedPlayer(pick)}>
                             {pick.headshot_url && (
                               <img
                                 src={pick.headshot_url}
@@ -190,26 +129,6 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                             )}
                             <span>{pick.playerName}</span>
                           </div>
-                        </TableCell>
-
-                        <TableCell className="text-slate-400">{pick.manager}</TableCell>
-                        <TableCell className="text-right">
-                          {pick.positionRankMay2025 ? (
-                            <span className="font-semibold text-slate-300">
-                              {pick.positionRankMay2025}
-                            </span>
-                          ) : (
-                            <span className="text-slate-500">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {pick.currentPositionRank ? (
-                            <span className="font-semibold text-slate-300">
-                              {pick.currentPositionRank}
-                            </span>
-                          ) : (
-                            <span className="text-slate-500">N/A</span>
-                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           {pick.positionRankChange ? (
@@ -267,6 +186,13 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
         onClose={() => setSelectedManager(null)}
         managerName={selectedManager || ''}
         draftPicks={draftPicks}
+      />
+
+      {/* Player Detail Modal */}
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
       />
     </div>
   );

@@ -70,6 +70,7 @@
 - [ ] Bench vs Start analysis
 - [ ] Historical KTC tracking for non-rookie drafts
 - [ ] Draft class comparison tools
+- [ ] Player headshots with reliable image source
 
 ## Current Issues to Fix
 - [x] Draft year showing 2026 instead of 2025 for all picks
@@ -120,17 +121,18 @@
 - [x] Shortage = below league minimum, Excess = above league maximum
 - [x] All 22 tests passing after dynamic threshold implementation
 
-### Player Headshots from Sleeper API
-- [x] Update DraftPick type to include headshot_url field
-- [x] Fetch player headshots from Sleeper API during draft analysis
-- [x] Add player headshots to Draft Board table next to player names
-- [x] Add player headshots to manager draft picks modal
-- [x] Include player_id in processedPick so headshot URLs generate correctly
-- [x] All 22 tests passing after implementation
+### Player Headshots Feature
+- [x] Attempted Sleeper API headshots (403 Forbidden - blocked)
+- [x] Attempted NFL.com headshots (TLS connection errors blocking league data load)
+- [x] Removed headshot fetching to restore app stability
+- [x] App now loads league data without errors
+- [ ] Future: Re-implement headshots with a more reliable image source (optional)
 
-### Player Headshots from NFL.com
-- [x] Create NFL.com headshot fetcher utility
-- [x] Integrate headshot fetching into draftAnalysis
-- [x] Display headshots in Draft Board table
-- [x] Display headshots in manager draft picks modal
-- [x] Mock NFL fetcher in tests to avoid HTTP requests
+### Player Detail Modal for Draft Board
+- [x] Create PlayerDetailModal component showing all player data in multi-row format
+- [x] Make player names clickable in Full Draft Board table
+- [x] Modal shows: Drafted Rank, Current Rank, Position Change, Current Value, Value Change, ADP, Manager, Round, Pick #
+- [x] Optimize modal layout for mobile (no horizontal scrolling)
+- [x] Update Full Draft Board table columns to show: Pick, Player, Position Change, Current Value, Value Change
+- [x] Remove other columns from main table (Drafted Rank, Current Rank, ADP, Manager, Round, etc.)
+- [x] All 22 tests passing after changes
