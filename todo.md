@@ -127,3 +127,10 @@
 - [x] Add player headshots to manager draft picks modal
 - [x] Include player_id in processedPick so headshot URLs generate correctly
 - [x] All 22 tests passing after implementation
+
+### Player Headshots from NFL.com
+- [x] Create NFL.com headshot fetcher utility
+- [x] Integrate headshot fetching into draftAnalysis
+- [x] Display headshots in Draft Board table
+- [x] Display headshots in manager draft picks modal
+- [x] Mock NFL fetcher in tests to avoid HTTP requests

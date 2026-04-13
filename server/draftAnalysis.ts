@@ -228,13 +228,12 @@ export async function analyzeDraftPicks(
     const draftYear = pick.season ? String(pick.season) : '2025';
 
     // Get headshot URL from NFL.com
-    // This is done asynchronously, so we'll set it to null for now and fetch it later
+    // Don't await this - let it fetch in the background to avoid blocking league data load
     let headshot_url: string | null = null;
-    try {
-      headshot_url = await fetchNFLHeadshot(playerName);
-    } catch (error) {
-      console.error(`[Draft Analysis] Error fetching headshot for ${playerName}:`, error);
-    }
+    // Fire-and-forget: fetch headshot but don't wait for it
+    fetchNFLHeadshot(playerName).catch(() => {
+      // Silently fail if headshot fetch times out or errors
+    });
 
     const processedPick: any = {
       round: pick.round,
@@ -250,7 +249,7 @@ export async function analyzeDraftPicks(
       currentPositionRank,
       positionRankChange,
       draftYear,
-      headshot_url,
+      headshot_url: null, // Will be populated from cache on subsequent loads
       player_id: pick.player_id,
     };
     processedPicks.push(processedPick);
@@ -264,8 +263,6 @@ export async function analyzeDraftPicks(
       if (adp) {
         const adpDiff = pick.pick_no - adp;
         stats.avgAdpDiff = (stats.avgAdpDiff * (stats.totalPicks - 1) + adpDiff) / stats.totalPicks;
-
-  
       }
 
       // Track KTC gain

@@ -13,6 +13,23 @@ function playerNameToNFLUrl(playerName: string): string {
 }
 
 /**
+ * Fetch with timeout
+ */
+async function fetchWithTimeout(url: string, timeoutMs: number = 3000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
  * Fetch player headshot from NFL.com
  * Returns the headshot URL or null if not found
  */
@@ -26,7 +43,7 @@ export async function fetchNFLHeadshot(playerName: string): Promise<string | nul
     const nflUrlName = playerNameToNFLUrl(playerName);
     const playerPageUrl = `https://www.nfl.com/players/${nflUrlName}/`;
 
-    const response = await fetch(playerPageUrl);
+    const response = await fetchWithTimeout(playerPageUrl, 3000);
     if (!response.ok) {
       headshotCache.set(playerName, null);
       return null;
@@ -46,7 +63,7 @@ export async function fetchNFLHeadshot(playerName: string): Promise<string | nul
     headshotCache.set(playerName, null);
     return null;
   } catch (error) {
-    console.error(`[NFL Headshot Fetcher] Error fetching headshot for ${playerName}:`, error);
+    console.warn(`[NFL Headshot Fetcher] Timeout or error fetching headshot for ${playerName}, continuing without headshot`);
     headshotCache.set(playerName, null);
     return null;
   }
