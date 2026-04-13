@@ -1,8 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { analyzeDraftPicks } from './draftAnalysis';
+import * as nflHeadshotFetcher from './nflHeadshotFetcher';
+
+// Mock the NFL headshot fetcher to avoid actual HTTP requests
+vi.mock('./nflHeadshotFetcher', () => ({
+  fetchNFLHeadshot: vi.fn().mockResolvedValue('https://example.com/headshot.jpg'),
+}));
 
 describe('Draft Analysis', () => {
-  it('should analyze draft picks correctly', () => {
+  it('should analyze draft picks correctly', async () => {
     const mockDraftPicks = [
       {
         round: 1,
@@ -40,7 +46,7 @@ describe('Draft Analysis', () => {
       player2: { name: 'Player Two', pos: 'RB', adp: 1 },
     };
 
-    const result = analyzeDraftPicks(
+    const result = await analyzeDraftPicks(
       mockDraftPicks,
       mockPlayers,
       mockRosterMap,
@@ -71,7 +77,7 @@ describe('Draft Analysis', () => {
     expect(managerAStats?.misses).toBeDefined();
   });
 
-  it('should calculate ADP differences correctly', () => {
+  it('should calculate ADP differences correctly', async () => {
     const mockDraftPicks = [
       {
         round: 1,
@@ -98,7 +104,7 @@ describe('Draft Analysis', () => {
       player1: { name: 'Player One', pos: 'WR', adp: 5 },
     };
 
-    const result = analyzeDraftPicks(
+    const result = await analyzeDraftPicks(
       mockDraftPicks,
       mockPlayers,
       mockRosterMap,
@@ -113,7 +119,7 @@ describe('Draft Analysis', () => {
     expect(managerStats.misses).toBeDefined();
   });
 
-  it('should handle missing player data gracefully', () => {
+  it('should handle missing player data gracefully', async () => {
     const mockDraftPicks = [
       {
         round: 1,
@@ -134,7 +140,7 @@ describe('Draft Analysis', () => {
 
     const mockAdpData = {};
 
-    const result = analyzeDraftPicks(
+    const result = await analyzeDraftPicks(
       mockDraftPicks,
       mockPlayers,
       mockRosterMap,

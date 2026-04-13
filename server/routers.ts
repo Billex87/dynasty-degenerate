@@ -191,7 +191,7 @@ export const appRouter = router({
               const ktcValuesMay2025 = getMay2025KTCSnapshot();
               // Load current KTC position ranks
               const currentKTCRanks = await loadCurrentKTCPositionRanks();
-              draftAnalysis = analyzeDraftPicks(
+              draftAnalysis = await analyzeDraftPicks(
                 draftPicks,
                 players,
                 rosterUserMap,

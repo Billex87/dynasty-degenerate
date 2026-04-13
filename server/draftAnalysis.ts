@@ -1,4 +1,5 @@
 import { SleeperDraftPick } from '../shared/types';
+import { fetchNFLHeadshot } from './nflHeadshotFetcher';
 
 interface SleeperDraft {
   draft_id: string;
@@ -67,7 +68,7 @@ export function calculateADPFromPicks(
 /**
  * Analyze draft picks and calculate statistics
  */
-export function analyzeDraftPicks(
+export async function analyzeDraftPicks(
   draftPicks: DraftPickWithMetadata[],
   players: Record<string, any>,
   rosterMap: Record<string, string>,
@@ -76,7 +77,7 @@ export function analyzeDraftPicks(
   ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>,
   ktcValuesMay2025?: Record<string, { name: string; ktc_value: number; position_rank_may2025?: string }>,
   currentKTCRanks?: Record<string, { name: string; ktc_value: number; position_rank?: string }>
-): { draftPicks: any[]; draftStats: any[] } {
+): Promise<{ draftPicks: any[]; draftStats: any[] }> {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
 
@@ -143,7 +144,7 @@ export function analyzeDraftPicks(
   });
 
   // Process each draft pick
-  draftPicks.forEach((pick, index) => {
+  for (const pick of draftPicks) {
     const player = players[pick.player_id];
     const pickRosterMap = pick.roster_map || rosterMap;
     const userIdToManagerMap = pick.user_id_to_manager_map || {};
@@ -226,8 +227,14 @@ export function analyzeDraftPicks(
     // If not available, default to 2025
     const draftYear = pick.season ? String(pick.season) : '2025';
 
-    // Get headshot URL from Sleeper player data
-    const headshot_url = pick.player_id ? `https://sleepercdn.com/content/nfl_headshots/${pick.player_id}.jpg` : null;
+    // Get headshot URL from NFL.com
+    // This is done asynchronously, so we'll set it to null for now and fetch it later
+    let headshot_url: string | null = null;
+    try {
+      headshot_url = await fetchNFLHeadshot(playerName);
+    } catch (error) {
+      console.error(`[Draft Analysis] Error fetching headshot for ${playerName}:`, error);
+    }
 
     const processedPick: any = {
       round: pick.round,
@@ -292,7 +299,7 @@ export function analyzeDraftPicks(
         stats.worstPick = processedPick;
       }
     }
-  });
+  }
 
   const draftStats = Array.from(managerStats.values())
     .map((stat) => ({
