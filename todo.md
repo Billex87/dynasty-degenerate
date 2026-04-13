@@ -119,3 +119,11 @@
 - [x] Thresholds now based on min/max of actual manager position counts
 - [x] Shortage = below league minimum, Excess = above league maximum
 - [x] All 22 tests passing after dynamic threshold implementation
+
+### Player Headshots from Sleeper API
+- [x] Update DraftPick type to include headshot_url field
+- [x] Fetch player headshots from Sleeper API during draft analysis
+- [x] Add player headshots to Draft Board table next to player names
+- [x] Add player headshots to manager draft picks modal
+- [x] Position Depth Analysis shows manager counts, not individual players (N/A)
+- [x] All 22 tests passing after implementation

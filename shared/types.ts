@@ -60,6 +60,7 @@ export interface DraftPick {
   currentPositionRank?: string | null;
   positionRankChange?: string | null;
   draftYear?: string;
+  headshot_url?: string | null;
 }
 
 export interface ManagerDraftStats {

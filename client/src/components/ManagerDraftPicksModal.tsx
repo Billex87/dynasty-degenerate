@@ -71,7 +71,19 @@ export function ManagerDraftPicksModal({
               {managerPicks.map((pick, idx) => (
                 <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
                   <TableCell className="font-semibold text-slate-100">
-                    {pick.playerName}
+                    <div className="flex items-center gap-3">
+                      {pick.headshot_url && (
+                        <img
+                          src={pick.headshot_url}
+                          alt={pick.playerName}
+                          className="w-8 h-8 rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <span>{pick.playerName}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     {pick.positionRankMay2025 ? (

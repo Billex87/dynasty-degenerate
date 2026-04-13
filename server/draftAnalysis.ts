@@ -226,6 +226,9 @@ export function analyzeDraftPicks(
     // If not available, default to 2025
     const draftYear = pick.season ? String(pick.season) : '2025';
 
+    // Get headshot URL from Sleeper player data
+    const headshot_url = pick.player_id ? `https://sleepercdn.com/content/nfl_headshots/${pick.player_id}.jpg` : null;
+
     const processedPick: any = {
       round: pick.round,
       pick: pick.pick_no,
@@ -240,6 +243,7 @@ export function analyzeDraftPicks(
       currentPositionRank,
       positionRankChange,
       draftYear,
+      headshot_url,
     };
     processedPicks.push(processedPick);
 
