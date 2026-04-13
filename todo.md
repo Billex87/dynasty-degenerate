@@ -125,5 +125,5 @@
 - [x] Fetch player headshots from Sleeper API during draft analysis
 - [x] Add player headshots to Draft Board table next to player names
 - [x] Add player headshots to manager draft picks modal
-- [x] Position Depth Analysis shows manager counts, not individual players (N/A)
+- [x] Include player_id in processedPick so headshot URLs generate correctly
 - [x] All 22 tests passing after implementation
