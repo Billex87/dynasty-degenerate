@@ -1,4 +1,5 @@
 import { SleeperDraftPick } from '../shared/types';
+import { generateHeadshotUrl } from './playerHeadshotFetcher';
 
 
 interface SleeperDraft {
@@ -244,7 +245,7 @@ export async function analyzeDraftPicks(
       currentPositionRank,
       positionRankChange,
       draftYear,
-      headshot_url: null, // Will be populated from cache on subsequent loads
+      headshot_url: generateHeadshotUrl(playerName, playerPos),
       player_id: pick.player_id,
     };
     processedPicks.push(processedPick);

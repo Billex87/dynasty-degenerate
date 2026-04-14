@@ -150,7 +150,7 @@
 - [x] All 22 tests passing after changes
 
 ### Draft Capital Efficiency & Manager Picks Integration
-- [ ] Make entire rows in Draft Capital Efficiency table clickable to open manager picks modal
-- [ ] Update ManagerDraftPicksModal to support player detail modal on player row clicks
-- [ ] Player rows in manager picks modal open the same player detail modal as Draft Board
-- [ ] All 22 tests passing after changes
+- [x] Make entire rows in Draft Capital Efficiency table clickable to open manager picks modal
+- [x] Update ManagerDraftPicksModal to support player detail modal on player row clicks
+- [x] Player rows in manager picks modal open the same player detail modal as Draft Board
+- [x] All 22 tests passing after changes
