@@ -287,14 +287,10 @@ export function TradeHistoryTable({
         <Table>
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
-              <TableHead className="w-8 text-white font-semibold"></TableHead>
               <TableHead className="text-white font-semibold">Date</TableHead>
-              <TableHead className="text-white font-semibold">Team A</TableHead>
-              <TableHead className="text-white font-semibold">Team B</TableHead>
-              <TableHead className="text-right text-white font-semibold">A Total</TableHead>
-              <TableHead className="text-right text-white font-semibold">B Total</TableHead>
+              <TableHead className="text-white font-semibold">Winner</TableHead>
+              <TableHead className="text-white font-semibold">Loser</TableHead>
               <TableHead className="text-center text-white font-semibold">Gap</TableHead>
-              <TableHead className="text-center text-white font-semibold flex items-center justify-center gap-1"><span>👑</span> Winner</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -317,32 +313,21 @@ export function TradeHistoryTable({
                     className="border-slate-700 hover:bg-slate-800/30 cursor-pointer"
                     onClick={() => setExpandedIdx(isExpanded ? null : idx)}
                   >
-                    <TableCell className="text-slate-300">
-                      <ChevronDown
-                        size={18}
-                        className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                      />
-                    </TableCell>
                     <TableCell className="text-slate-300 text-sm">{row.date}</TableCell>
-                    <TableCell className="text-blue-400 font-semibold text-sm">{row.team_a}</TableCell>
-                    <TableCell className="text-orange-400 font-semibold text-sm">{row.team_b}</TableCell>
-                    <TableCell className="text-right font-semibold text-blue-400">
-                      {row.team_a_total.toLocaleString()}
+                    <TableCell className={`font-semibold text-sm ${row.winner === row.team_a ? 'text-blue-400' : 'text-orange-400'}`}>
+                      {row.winner}
                     </TableCell>
-                    <TableCell className={`text-right font-semibold ${isTeamBWinner ? 'text-amber-300' : 'text-amber-400'}`}>
-                      {row.team_b_total.toLocaleString()}
+                    <TableCell className={`font-semibold text-sm ${row.winner === row.team_a ? 'text-orange-400' : 'text-blue-400'}`}>
+                      {row.winner === row.team_a ? row.team_b : row.team_a}
                     </TableCell>
                     <TableCell className="text-center text-slate-300">
                       {row.point_gap.toLocaleString()}
-                    </TableCell>
-                    <TableCell className={`text-center font-bold text-sm px-3 py-2 rounded ${isTeamAWinner ? 'bg-blue-500/15 text-blue-400' : isTeamBWinner ? 'bg-orange-500/15 text-orange-400' : 'text-slate-400'}`}>
-                      {row.winner}
                     </TableCell>
                   </TableRow>
 
                   {isExpanded && (
                     <TableRow key={`${tradeKey}-details`} className="border-slate-700 bg-slate-800/20">
-                      <TableCell colSpan={8} className="p-6">
+                      <TableCell colSpan={4} className="p-6">
                         <div className="grid grid-cols-2 gap-8">
                           {/* Team A Details */}
                           <div className="space-y-3">

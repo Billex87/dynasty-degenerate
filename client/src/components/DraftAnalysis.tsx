@@ -169,13 +169,14 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                     return (
                       <TableRow 
                         key={idx} 
-                        className="border-slate-700 hover:bg-slate-800/30"
+                        className="border-slate-700 hover:bg-slate-800/30 cursor-pointer"
+                        onClick={() => setSelectedPlayer(pick)}
                       >
                         <TableCell className="font-semibold text-slate-300">
                           {pick.pick}
                         </TableCell>
                         <TableCell className="font-semibold text-slate-100">
-                          <div className="flex items-center gap-3 cursor-pointer hover:text-orange-400 transition-colors" onClick={() => setSelectedPlayer(pick)}>
+                          <div className="flex items-center gap-3">
                             {pick.headshot_url && (
                               <img
                                 src={pick.headshot_url}
