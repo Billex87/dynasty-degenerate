@@ -89,8 +89,12 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                 </TableHeader>
                 <TableBody>
                   {draftStats.map((stat, idx) => (
-                    <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                      <TableCell className="font-semibold text-slate-100 cursor-pointer hover:text-orange-400 transition-colors" onClick={() => setSelectedManager(stat.manager)}>
+                    <TableRow 
+                      key={idx} 
+                      className="border-slate-700 hover:bg-slate-800/30 cursor-pointer"
+                      onClick={() => setSelectedManager(stat.manager)}
+                    >
+                      <TableCell className="font-semibold text-slate-100">
                         {stat.manager}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">

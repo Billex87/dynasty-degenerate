@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/table';
 import type { DraftPick } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { PlayerDetailModal } from './PlayerDetailModal';
 
 interface ManagerDraftPicksModalProps {
   isOpen: boolean;
@@ -28,149 +30,164 @@ export function ManagerDraftPicksModal({
   managerName,
   draftPicks,
 }: ManagerDraftPicksModalProps) {
+  const [selectedPlayer, setSelectedPlayer] = useState<DraftPick | null>(null);
+
   // Filter picks for this manager
   const managerPicks = draftPicks.filter(pick => pick.manager === managerName);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[80vh] bg-slate-900 border-slate-800 overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-orange-400">
-            {managerName}'s Draft Picks
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-6xl max-h-[80vh] bg-slate-900 border-slate-800 overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-orange-400">
+              {managerName}'s Draft Picks
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="border-b-2 border-orange-500/30">
-              <TableRow className="border-slate-700">
-                <TableHead className="text-white font-semibold">Player</TableHead>
-                <TableHead className="text-right text-white font-semibold">
-                  <div>Drafted</div>
-                  <div>Rank</div>
-                </TableHead>
-                <TableHead className="text-right text-white font-semibold">
-                  <div>Current</div>
-                  <div>Rank</div>
-                </TableHead>
-                <TableHead className="text-right text-white font-semibold">
-                  <div>Position</div>
-                  <div>Change</div>
-                </TableHead>
-                <TableHead className="text-right text-white font-semibold">
-                  <div>Current</div>
-                  <div>Value</div>
-                </TableHead>
-                <TableHead className="text-right text-white font-semibold">
-                  <div>Value</div>
-                  <div>Change</div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {managerPicks.map((pick, idx) => (
-                <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                  <TableCell className="font-semibold text-slate-100">
-                    <div className="flex items-center gap-3">
-                      {pick.headshot_url && (
-                        <img
-                          src={pick.headshot_url}
-                          alt={pick.playerName}
-                          className="w-8 h-8 rounded-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      )}
-                      <span>{pick.playerName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {pick.positionRankMay2025 ? (
-                      <span className="font-semibold text-slate-300">
-                        {pick.positionRankMay2025}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {pick.currentPositionRank ? (
-                      <span className="font-semibold text-slate-300">
-                        {pick.currentPositionRank}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {pick.positionRankChange ? (
-                      <span
-                        className={`font-semibold ${
-                          pick.positionRankChange.startsWith('+')
-                            ? 'text-green-400'
-                            : pick.positionRankChange.startsWith('-')
-                              ? 'text-red-400'
-                              : 'text-slate-300'
-                        }`}
-                      >
-                        {pick.positionRankChange}
-                        {pick.positionRankChange.startsWith('+') && (
-                          <TrendingUp className="inline ml-1 w-4 h-4" />
-                        )}
-                        {pick.positionRankChange.startsWith('-') && (
-                          <TrendingDown className="inline ml-1 w-4 h-4" />
-                        )}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {pick.currentKtcValue ? (
-                      <span className="font-semibold text-slate-300">
-                        {pick.currentKtcValue.toLocaleString()}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {pick.valueGain !== null && pick.valueGain !== undefined ? (
-                      <span
-                        className={`font-semibold ${
-                          pick.valueGain > 0
-                            ? 'text-green-400'
-                            : pick.valueGain < 0
-                              ? 'text-red-400'
-                              : 'text-slate-300'
-                        }`}
-                      >
-                        {pick.valueGain > 0 ? '+' : ''}
-                        {pick.valueGain.toLocaleString()}
-                        {pick.valueGain > 0 && (
-                          <TrendingUp className="inline ml-1 w-4 h-4" />
-                        )}
-                        {pick.valueGain < 0 && (
-                          <TrendingDown className="inline ml-1 w-4 h-4" />
-                        )}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">N/A</span>
-                    )}
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="border-b-2 border-orange-500/30">
+                <TableRow className="border-slate-700">
+                  <TableHead className="text-white font-semibold">Player</TableHead>
+                  <TableHead className="text-right text-white font-semibold">
+                    <div>Drafted</div>
+                    <div>Rank</div>
+                  </TableHead>
+                  <TableHead className="text-right text-white font-semibold">
+                    <div>Current</div>
+                    <div>Rank</div>
+                  </TableHead>
+                  <TableHead className="text-right text-white font-semibold">
+                    <div>Position</div>
+                    <div>Change</div>
+                  </TableHead>
+                  <TableHead className="text-right text-white font-semibold">
+                    <div>Current</div>
+                    <div>Value</div>
+                  </TableHead>
+                  <TableHead className="text-right text-white font-semibold">
+                    <div>Value</div>
+                    <div>Change</div>
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        {managerPicks.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-slate-400">No draft picks found for {managerName}</p>
+              </TableHeader>
+              <TableBody>
+                {managerPicks.map((pick, idx) => (
+                  <TableRow 
+                    key={idx} 
+                    className="border-slate-700 hover:bg-slate-800/30 cursor-pointer"
+                    onClick={() => setSelectedPlayer(pick)}
+                  >
+                    <TableCell className="font-semibold text-slate-100">
+                      <div className="flex items-center gap-3">
+                        {pick.headshot_url && (
+                          <img
+                            src={pick.headshot_url}
+                            alt={pick.playerName}
+                            className="w-8 h-8 rounded-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <span>{pick.playerName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {pick.positionRankMay2025 ? (
+                        <span className="font-semibold text-slate-300">
+                          {pick.positionRankMay2025}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {pick.currentPositionRank ? (
+                        <span className="font-semibold text-slate-300">
+                          {pick.currentPositionRank}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {pick.positionRankChange ? (
+                        <span
+                          className={`font-semibold ${
+                            pick.positionRankChange.startsWith('+')
+                              ? 'text-green-400'
+                              : pick.positionRankChange.startsWith('-')
+                                ? 'text-red-400'
+                                : 'text-slate-300'
+                          }`}
+                        >
+                          {pick.positionRankChange}
+                          {pick.positionRankChange.startsWith('+') && (
+                            <TrendingUp className="inline ml-1 w-4 h-4" />
+                          )}
+                          {pick.positionRankChange.startsWith('-') && (
+                            <TrendingDown className="inline ml-1 w-4 h-4" />
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {pick.currentKtcValue ? (
+                        <span className="font-semibold text-slate-300">
+                          {pick.currentKtcValue.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {pick.valueGain !== null && pick.valueGain !== undefined ? (
+                        <span
+                          className={`font-semibold ${
+                            pick.valueGain > 0
+                              ? 'text-green-400'
+                              : pick.valueGain < 0
+                                ? 'text-red-400'
+                                : 'text-slate-300'
+                          }`}
+                        >
+                          {pick.valueGain > 0 ? '+' : ''}
+                          {pick.valueGain.toLocaleString()}
+                          {pick.valueGain > 0 && (
+                            <TrendingUp className="inline ml-1 w-4 h-4" />
+                          )}
+                          {pick.valueGain < 0 && (
+                            <TrendingDown className="inline ml-1 w-4 h-4" />
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">N/A</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+
+          {managerPicks.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-slate-400">No draft picks found for {managerName}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Player Detail Modal */}
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+      />
+    </>
   );
 }

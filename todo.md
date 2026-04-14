@@ -144,7 +144,13 @@
 - [x] All 22 tests passing after refinements
 
 ### GitHub Push & Table Updates
-- [ ] Push current state to GitHub
-- [ ] Simplify Trade Ledger table to show: Date, Winner, Loser, Gap (keep modal data as is)
-- [ ] Make entire rows clickable to open modals (Draft Board and Trade Ledger)
+- [x] Push current state to GitHub
+- [x] Simplify Trade Ledger table to show: Date, Winner, Loser, Gap (keep modal data as is)
+- [x] Make entire rows clickable to open modals (Draft Board and Trade Ledger)
+- [x] All 22 tests passing after changes
+
+### Draft Capital Efficiency & Manager Picks Integration
+- [ ] Make entire rows in Draft Capital Efficiency table clickable to open manager picks modal
+- [ ] Update ManagerDraftPicksModal to support player detail modal on player row clicks
+- [ ] Player rows in manager picks modal open the same player detail modal as Draft Board
 - [ ] All 22 tests passing after changes
