@@ -137,3 +137,14 @@
 - [x] Remove other columns from main table (Drafted Rank, Current Rank, ADP, Manager, Round, etc.)
 - [x] Restore sorting for Current Value and Value Change columns
 - [x] All 22 tests passing after changes
+
+### Modal Refinements
+- [x] Remove ADP field from player detail modal
+- [x] Fix Draft Value to show original draft-time value (Current Value - Value Change)
+- [x] All 22 tests passing after refinements
+
+### GitHub Push & Table Updates
+- [ ] Push current state to GitHub
+- [ ] Simplify Trade Ledger table to show: Date, Winner, Loser, Gap (keep modal data as is)
+- [ ] Make entire rows clickable to open modals (Draft Board and Trade Ledger)
+- [ ] All 22 tests passing after changes
