@@ -123,11 +123,10 @@
 ### Player Headshots Feature
 - [x] Attempted Sleeper API headshots (403 Forbidden - blocked)
 - [x] Attempted NFL.com headshots (TLS connection errors blocking league data load)
-- [x] Removed headshot fetching to restore app stability
-- [x] App now loads league data without errors
-- [x] Re-implemented headshots using Pro Football Reference CDN
-- [x] Integrated headshot fetcher into draftAnalysis
-- [x] Display headshots in PlayerDetailModal with fallback
+- [x] Attempted Pro Football Reference headshots (403 Forbidden - blocked)
+- [x] Attempted ESPN headshots (500 errors - blocked)
+- [x] Removed headshot feature - all CDNs blocking direct image access
+- [x] App fully functional without headshots
 - [x] All 22 tests passing
 
 ### Player Detail Modal for Draft Board

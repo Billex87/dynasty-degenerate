@@ -9,6 +9,7 @@ import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 import { getMay2025KTCSnapshot, getJan15KTCSnapshot } from "./waybackMachineScraper";
+import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 
 export const appRouter = router({
   system: systemRouter,
@@ -220,6 +221,36 @@ export const appRouter = router({
           console.error('League analysis error:', error);
           throw new Error('Failed to fetch league data');
         }
+      }),
+  }),
+
+  images: router({
+    playerHeadshot: publicProcedure
+      .input(z.object({ playerId: z.string() }))
+      .query(async ({ input }) => {
+        // Try to get from cache first
+        const cached = getCachedImage(input.playerId);
+        if (cached) {
+          return {
+            success: true,
+            cached: true,
+            data: cached.data.toString('base64'),
+            contentType: cached.contentType,
+          };
+        }
+
+        // Fetch and cache
+        const imageBuffer = await fetchPlayerHeadshot(input.playerId);
+        if (!imageBuffer) {
+          return { success: false, cached: false };
+        }
+
+        return {
+          success: true,
+          cached: false,
+          data: imageBuffer.toString('base64'),
+          contentType: 'image/jpeg',
+        };
       }),
   }),
 });

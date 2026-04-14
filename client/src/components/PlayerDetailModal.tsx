@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,6 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import type { DraftPick } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { trpc } from '@/lib/trpc';
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
@@ -18,6 +20,18 @@ export function PlayerDetailModal({
   onClose,
   pick,
 }: PlayerDetailModalProps) {
+  const [headshot, setHeadshot] = useState<string | null>(null);
+  const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
+    { playerId: pick?.player_id || '' },
+    { enabled: !!pick?.player_id && isOpen }
+  );
+
+  useEffect(() => {
+    if (headshotData?.success && headshotData?.data) {
+      setHeadshot(`data:${headshotData.contentType};base64,${headshotData.data}`);
+    }
+  }, [headshotData]);
+
   if (!pick) return null;
 
   return (
@@ -30,6 +44,20 @@ export function PlayerDetailModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Headshot */}
+          {headshot && (
+            <div className="flex justify-center mb-4">
+              <img
+                src={headshot}
+                alt={pick.playerName}
+                className="w-24 h-24 rounded-lg object-cover border-2 border-orange-400/30"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
+          )}
+
           {/* Position */}
           <div className="flex justify-between items-center border-b border-slate-700 pb-3">
             <span className="text-slate-400">Position</span>
@@ -56,17 +84,13 @@ export function PlayerDetailModal({
           {/* Drafted Rank */}
           <div className="flex justify-between items-center border-b border-slate-700 pb-3">
             <span className="text-slate-400">Drafted Rank</span>
-            <span className="font-semibold text-slate-100">
-              {pick.positionRankMay2025 ? pick.positionRankMay2025 : 'N/A'}
-            </span>
+            <span className="font-semibold text-slate-100">{pick.positionRankMay2025}</span>
           </div>
 
           {/* Current Rank */}
           <div className="flex justify-between items-center border-b border-slate-700 pb-3">
             <span className="text-slate-400">Current Rank</span>
-            <span className="font-semibold text-slate-100">
-              {pick.currentPositionRank ? pick.currentPositionRank : 'N/A'}
-            </span>
+            <span className="font-semibold text-slate-100">{pick.currentPositionRank}</span>
           </div>
 
           {/* Position Change */}
@@ -91,7 +115,7 @@ export function PlayerDetailModal({
                 )}
               </span>
             ) : (
-              <span className="text-slate-500">N/A</span>
+              <span className="text-slate-400">-</span>
             )}
           </div>
 
@@ -99,9 +123,7 @@ export function PlayerDetailModal({
           <div className="flex justify-between items-center border-b border-slate-700 pb-3">
             <span className="text-slate-400">Draft Value</span>
             <span className="font-semibold text-slate-100">
-              {pick.currentKtcValue && pick.valueGain !== null && pick.valueGain !== undefined
-                ? (pick.currentKtcValue - pick.valueGain).toLocaleString()
-                : 'N/A'}
+              {pick.ktcValue ? pick.ktcValue.toLocaleString() : '-'}
             </span>
           </div>
 
@@ -109,14 +131,14 @@ export function PlayerDetailModal({
           <div className="flex justify-between items-center border-b border-slate-700 pb-3">
             <span className="text-slate-400">Current Value</span>
             <span className="font-semibold text-slate-100">
-              {pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}
+              {pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : '-'}
             </span>
           </div>
 
           {/* Value Change */}
           <div className="flex justify-between items-center">
             <span className="text-slate-400">Value Change</span>
-            {pick.valueGain !== null && pick.valueGain !== undefined ? (
+            {pick.valueGain ? (
               <span
                 className={`font-semibold ${
                   pick.valueGain > 0
@@ -128,15 +150,11 @@ export function PlayerDetailModal({
               >
                 {pick.valueGain > 0 ? '+' : ''}
                 {pick.valueGain.toLocaleString()}
-                {pick.valueGain > 0 && (
-                  <TrendingUp className="inline ml-1 w-4 h-4" />
-                )}
-                {pick.valueGain < 0 && (
-                  <TrendingDown className="inline ml-1 w-4 h-4" />
-                )}
+                {pick.valueGain > 0 && <TrendingUp className="inline ml-1 w-4 h-4" />}
+                {pick.valueGain < 0 && <TrendingDown className="inline ml-1 w-4 h-4" />}
               </span>
             ) : (
-              <span className="text-slate-500">N/A</span>
+              <span className="text-slate-400">-</span>
             )}
           </div>
         </div>
