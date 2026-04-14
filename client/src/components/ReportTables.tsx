@@ -11,6 +11,7 @@ import {
 import React, { useState } from 'react';
 import { ChevronDown, TrendingDown, TrendingUp } from 'lucide-react';
 import type { ReportData } from '@shared/types';
+import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 
 function getRankingColor(rank: number): string {
   // All rankings are white
@@ -93,7 +94,9 @@ export function WeeklyMomentumTable({
             {data.map((row, idx) => (
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
                 <TableCell className="font-semibold text-slate-300">#{idx + 1}</TableCell>
-                <TableCell className="font-semibold text-slate-100">{row.name}</TableCell>
+                <TableCell className="font-semibold text-slate-100">
+                  <PlayerNameWithHeadshot playerName={row.name} />
+                </TableCell>
                 <TableCell className="text-slate-400">{row.pos}</TableCell>
                 <TableCell className="text-slate-400">{row.owner}</TableCell>
                 <TableCell className="text-right text-slate-300">
@@ -201,7 +204,9 @@ export function ProjectedMoversTable({
             {data.map((row, idx) => (
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
                 <TableCell className="font-semibold text-slate-300">#{idx + 1}</TableCell>
-                <TableCell className="font-semibold text-slate-100">{row.name}</TableCell>
+                <TableCell className="font-semibold text-slate-100">
+                  <PlayerNameWithHeadshot playerName={row.name} />
+                </TableCell>
                 <TableCell className="text-slate-400">{row.pos}</TableCell>
                 <TableCell className="text-slate-400">{row.owner}</TableCell>
                 <TableCell className="text-right text-slate-300">

@@ -167,8 +167,13 @@
 
 
 ### Headshots Next to Player Names
-- [ ] Add small circular headshots next to player names in Draft Board table
-- [ ] Add small circular headshots next to player names in manager draft picks modal
-- [ ] Optimize headshot size for mobile readability (6-8px on mobile, 8-10px on desktop)
-- [ ] Use flexbox layout to keep text readable on mobile
+- [x] Add small circular headshots next to player names in Draft Board table
+- [x] Add small circular headshots next to player names in manager draft picks modal
+- [x] Optimize headshot size for mobile readability (6px on mobile, 7px on desktop)
+- [x] Use flexbox layout to keep text readable on mobile
+- [x] All 22 tests passing after changes
+
+### Headshots in Weekly Risers and Fallers
+- [ ] Add headshots next to player names in Weekly Risers table
+- [ ] Add headshots next to player names in Weekly Fallers table
 - [ ] All 22 tests passing after changes
