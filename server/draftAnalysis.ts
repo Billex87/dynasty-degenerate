@@ -141,6 +141,7 @@ export async function analyzeDraftPicks(
       worstPick: null,
       hits: 0,
       misses: 0,
+      starters: 0,
     });
   });
 
@@ -264,6 +265,11 @@ export async function analyzeDraftPicks(
       // Track KTC gain
       if (valueGain !== null) {
         stats.avgKtcGain = (stats.avgKtcGain * (stats.totalPicks - 1) + valueGain) / stats.totalPicks;
+      }
+
+      // Track starters (players with value > 4000)
+      if (currentKtcValue !== null && currentKtcValue > 4000) {
+        stats.starters += 1;
       }
 
       // Track hits and misses based on position rank change or value gain

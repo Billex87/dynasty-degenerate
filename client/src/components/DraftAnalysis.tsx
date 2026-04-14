@@ -84,6 +84,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                     <TableHead className="text-right text-white font-semibold">Picks</TableHead>
                     <TableHead className="text-right text-white font-semibold">Hits</TableHead>
                     <TableHead className="text-right text-white font-semibold">Misses</TableHead>
+                    <TableHead className="text-right text-white font-semibold">Starters</TableHead>
                     <TableHead className="text-right text-white font-semibold">Value</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -105,6 +106,9 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                       </TableCell>
                       <TableCell className="text-right text-red-400 font-semibold">
                         {stat.misses}
+                      </TableCell>
+                      <TableCell className="text-right text-blue-400 font-semibold">
+                        {stat.starters}
                       </TableCell>
                       <TableCell className="text-right">
                         <span

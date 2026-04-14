@@ -70,7 +70,6 @@
 - [ ] Bench vs Start analysis
 - [ ] Historical KTC tracking for non-rookie drafts
 - [ ] Draft class comparison tools
-- [ ] Player headshots with reliable image source
 
 ## Current Issues to Fix
 - [x] Draft year showing 2026 instead of 2025 for all picks
@@ -126,7 +125,10 @@
 - [x] Attempted NFL.com headshots (TLS connection errors blocking league data load)
 - [x] Removed headshot fetching to restore app stability
 - [x] App now loads league data without errors
-- [ ] Future: Re-implement headshots with a more reliable image source (optional)
+- [x] Re-implemented headshots using Pro Football Reference CDN
+- [x] Integrated headshot fetcher into draftAnalysis
+- [x] Display headshots in PlayerDetailModal with fallback
+- [x] All 22 tests passing
 
 ### Player Detail Modal for Draft Board
 - [x] Create PlayerDetailModal component showing all player data in multi-row format
@@ -154,3 +156,10 @@
 - [x] Update ManagerDraftPicksModal to support player detail modal on player row clicks
 - [x] Player rows in manager picks modal open the same player detail modal as Draft Board
 - [x] All 22 tests passing after changes
+
+
+### Starters Column in Draft Capital Efficiency
+- [ ] Add Starters column to Draft Capital Efficiency table
+- [ ] Count players with KTC value > 4000 for each manager
+- [ ] Display count in new Starters column
+- [ ] All 22 tests passing after changes

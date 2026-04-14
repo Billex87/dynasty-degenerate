@@ -73,6 +73,7 @@ export interface ManagerDraftStats {
   worstPick: DraftPick | null;
   hits: number;
   misses: number;
+  starters: number;
 }
 
 export interface ReportData {
