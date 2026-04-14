@@ -184,19 +184,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                           {pick.pick}
                         </TableCell>
                         <TableCell className="font-semibold text-slate-100">
-                          <div className="flex items-center gap-3">
-                            {pick.headshot_url && (
-                              <img
-                                src={pick.headshot_url}
-                                alt={pick.playerName}
-                                className="w-8 h-8 rounded-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                            )}
-                            <span>{pick.playerName}</span>
-                          </div>
+                          {pick.playerName}
                         </TableCell>
                         <TableCell className="text-right">
                           {pick.positionRankChange ? (

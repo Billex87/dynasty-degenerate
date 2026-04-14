@@ -159,7 +159,7 @@
 
 
 ### Starters Column in Draft Capital Efficiency
-- [ ] Add Starters column to Draft Capital Efficiency table
-- [ ] Count players with KTC value > 4000 for each manager
-- [ ] Display count in new Starters column
-- [ ] All 22 tests passing after changes
+- [x] Add Starters column to Draft Capital Efficiency table
+- [x] Count players with KTC value > 4000 for each manager
+- [x] Display count in new Starters column
+- [x] All 22 tests passing after changes

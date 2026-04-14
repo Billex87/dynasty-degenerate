@@ -30,20 +30,6 @@ export function PlayerDetailModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Headshot */}
-          {pick.headshot_url && (
-            <div className="flex justify-center mb-4">
-              <img
-                src={pick.headshot_url}
-                alt={pick.playerName}
-                className="w-24 h-24 rounded-lg object-cover border-2 border-orange-400/30"
-                onError={(e) => {
-                  // Hide image if it fails to load
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            </div>
-          )}
           {/* Position */}
           <div className="flex justify-between items-center border-b border-slate-700 pb-3">
             <span className="text-slate-400">Position</span>
