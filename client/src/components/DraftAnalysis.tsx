@@ -12,6 +12,7 @@ import type { DraftPick, ManagerDraftStats } from '@shared/types';
 import { TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react';
 import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
 import { PlayerDetailModal } from './PlayerDetailModal';
+import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -184,7 +185,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                           {pick.pick}
                         </TableCell>
                         <TableCell className="font-semibold text-slate-100">
-                          {pick.playerName}
+                          <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
                         </TableCell>
                         <TableCell className="text-right">
                           {pick.positionRankChange ? (

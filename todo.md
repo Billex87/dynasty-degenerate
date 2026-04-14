@@ -125,8 +125,10 @@
 - [x] Attempted NFL.com headshots (TLS connection errors blocking league data load)
 - [x] Attempted Pro Football Reference headshots (403 Forbidden - blocked)
 - [x] Attempted ESPN headshots (500 errors - blocked)
-- [x] Removed headshot feature - all CDNs blocking direct image access
-- [x] App fully functional without headshots
+- [x] Implemented image proxy service with browser headers to bypass CDN restrictions
+- [x] Created imageProxy.ts with caching service (7-day TTL)
+- [x] Added images.playerHeadshot tRPC endpoint
+- [x] Updated PlayerDetailModal to display headshots
 - [x] All 22 tests passing
 
 ### Player Detail Modal for Draft Board
@@ -162,3 +164,11 @@
 - [x] Count players with KTC value > 4000 for each manager
 - [x] Display count in new Starters column
 - [x] All 22 tests passing after changes
+
+
+### Headshots Next to Player Names
+- [ ] Add small circular headshots next to player names in Draft Board table
+- [ ] Add small circular headshots next to player names in manager draft picks modal
+- [ ] Optimize headshot size for mobile readability (6-8px on mobile, 8-10px on desktop)
+- [ ] Use flexbox layout to keep text readable on mobile
+- [ ] All 22 tests passing after changes

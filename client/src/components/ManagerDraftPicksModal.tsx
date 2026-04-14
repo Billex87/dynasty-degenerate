@@ -16,6 +16,7 @@ import {
 import type { DraftPick } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { PlayerDetailModal } from './PlayerDetailModal';
+import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 
 interface ManagerDraftPicksModalProps {
   isOpen: boolean;
@@ -80,7 +81,7 @@ export function ManagerDraftPicksModal({
                     onClick={() => setSelectedPlayer(pick)}
                   >
                     <TableCell className="font-semibold text-slate-100">
-                      {pick.playerName}
+                      <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
                     </TableCell>
                     <TableCell className="text-right">
                       {pick.positionRankMay2025 ? (
