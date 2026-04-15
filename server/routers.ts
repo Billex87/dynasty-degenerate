@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { loadKTCValues, loadKTCValuesLastWeek } from "./ktcLoader";
+import type { KTCValues } from "./reportGenerator";
 import { loadCurrentKTCPositionRanks } from "./currentKTCLoader";
 import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
@@ -74,21 +75,22 @@ export const appRouter = router({
           ).then((r) => r.json());
 
           const ktcValues = await loadKTCValues();
-          // Get Jan 15 Wayback Machine snapshot for Weekly Momentum calculations
-          let ktcValuesLastWeek = await getJan15KTCSnapshot();
+          // Get previous week's KTC snapshot for Weekly Momentum calculations (7 days ago)
+          let ktcValuesLastWeekRaw = await getKtcSnapshotFromSevenDaysAgo();
+          let ktcValuesLastWeek: KTCValues = {};
           
-          // If that fails, fall back to database snapshot or static file
-          if (Object.keys(ktcValuesLastWeek).length === 0) {
-            let ktcValuesLastWeekRaw = await getKtcSnapshotFromSevenDaysAgo();
-            if (ktcValuesLastWeekRaw) {
-              // Convert from Record<string, number> to KTCValues format
-              ktcValuesLastWeek = Object.fromEntries(
-                Object.entries(ktcValuesLastWeekRaw).map(([key, value]) => [
-                  key,
-                  { name: key, ktc_value: value }
-                ])
-              );
-            } else {
+          if (ktcValuesLastWeekRaw && Object.keys(ktcValuesLastWeekRaw).length > 0) {
+            // Convert from Record<string, number> to KTCValues format
+            ktcValuesLastWeek = Object.fromEntries(
+              Object.entries(ktcValuesLastWeekRaw).map(([key, value]) => [
+                key,
+                { name: key, ktc_value: value }
+              ])
+            );
+          } else {
+            // Fallback to Jan 15 snapshot if no database snapshot available
+            ktcValuesLastWeek = await getJan15KTCSnapshot();
+            if (Object.keys(ktcValuesLastWeek).length === 0) {
               ktcValuesLastWeek = await loadKTCValuesLastWeek();
             }
           }

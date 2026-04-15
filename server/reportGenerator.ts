@@ -8,7 +8,7 @@ import {
 } from './leagueAnalysis';
 import type { ReportData } from '../shared/types';
 
-interface KTCValues {
+export interface KTCValues {
   [key: string]: { name: string; ktc_value: number };
 }
 

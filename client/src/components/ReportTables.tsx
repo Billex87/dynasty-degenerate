@@ -339,11 +339,17 @@ export function TradeHistoryTable({
                             <h4 className="text-blue-400 font-semibold text-sm">{row.team_a}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
-                                {row.team_a_items.split('\n').map((item, i) => (
-                                  <div key={i} className="flex items-center gap-2">
-                                    <PlayerNameWithHeadshot playerName={item.trim()} />
-                                  </div>
-                                ))}
+                                {row.team_a_items.split(',').map((item, i) => {
+                                  const trimmed = item.trim();
+                                  if (trimmed && !trimmed.includes('Pick') && !trimmed.includes('+')) {
+                                    return (
+                                      <div key={i} className="flex items-center gap-2">
+                                        <PlayerNameWithHeadshot playerName={trimmed} />
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })}
                               </div>
                                 <p className="text-blue-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_a_total.toLocaleString()}
@@ -356,11 +362,17 @@ export function TradeHistoryTable({
                             <h4 className="text-orange-400 font-semibold text-sm">{row.team_b}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
-                                {row.team_b_items.split('\n').map((item, i) => (
-                                  <div key={i} className="flex items-center gap-2">
-                                    <PlayerNameWithHeadshot playerName={item.trim()} />
-                                  </div>
-                                ))}
+                                {row.team_b_items.split(',').map((item, i) => {
+                                  const trimmed = item.trim();
+                                  if (trimmed && !trimmed.includes('Pick') && !trimmed.includes('+')) {
+                                    return (
+                                      <div key={i} className="flex items-center gap-2">
+                                        <PlayerNameWithHeadshot playerName={trimmed} />
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })}
                               </div>
                                 <p className="text-orange-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_b_total.toLocaleString()}

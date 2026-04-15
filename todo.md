@@ -190,16 +190,38 @@
 
 
 ### Trade Ledger Headshots
-- [ ] Add player headshots next to player names in Full Trade Ledger expanded rows
-- [ ] Display headshots for both team A and team B players
-- [ ] All 22 tests passing after changes
+- [x] Add player headshots next to player names in Full Trade Ledger expanded rows
+- [x] Display headshots for both team A and team B players
+- [x] All 22 tests passing after changes
 
 ### KTC Scraper Trigger
-- [ ] Manually trigger KTC scraper to run now (should have run Tuesday 11 PM)
-- [ ] Verify fresh data is fetched and cached
+- [x] Manually trigger KTC scraper to run now (should have run Tuesday 11 PM)
+- [x] Verify fresh data is fetched and cached
 
 
 ### KTC Scraper Schedule Update
 - [x] Change KTC scraper to run at 5 PM (17:00) Tuesday instead of 11 PM (23:00)
 - [x] Update scheduledJobs.ts to reflect new time
 - [x] Verify scraper still runs correctly at new time
+
+
+## Current Debugging Tasks
+
+### Trade Ledger Headshots Issue
+- [ ] Debug why headshots not displaying in Full Trade Ledger expanded rows
+- [ ] Verify PlayerNameWithHeadshot component receives correct player names
+- [ ] Check if trade item parsing is stripping player names correctly
+- [ ] Test headshot display with sample trade data
+
+### KTC Data Freshness Issues
+- [ ] Verify latest scrape (464 players) was actually cached and is being used
+- [ ] Check if weekly momentum is comparing correct data (latest vs previous week)
+- [ ] Check if rookie draft comparisons are using May 2025 vs latest scrape
+- [ ] Verify value changes are calculating with fresh data
+- [ ] Update weekly momentum calculation to use latest scrape vs previous week snapshot
+- [ ] Update rookie draft to compare May 2025 vs latest scrape
+
+### Data Comparison Logic
+- [ ] Weekly Momentum: Should compare latest scrape to previous Tuesday snapshot
+- [ ] Rookie Draft: Should compare May 2025 snapshot to latest scrape
+- [ ] Verify both comparisons are using correct data sources
