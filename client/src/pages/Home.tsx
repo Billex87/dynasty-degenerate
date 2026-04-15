@@ -137,15 +137,7 @@ export default function Home() {
                 </h2>
               </div>
               
-              {/* Center: Logo (hidden on mobile if league name is long) */}
-              <div className="hidden md:flex items-center justify-center flex-1">
-                <img 
-                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_final_90a9eceb.png" 
-                  alt="Dynasty Degenerates Logo" 
-                  className="h-12 w-auto object-contain"
-                />
-              </div>
-              
+
               {/* Right: League Name */}
               <p className="text-sm sm:text-lg md:text-xl text-orange-400/70 truncate flex-1 text-right font-semibold">{leagueName}</p>
             </div>

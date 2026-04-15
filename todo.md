@@ -244,3 +244,11 @@
 - [x] Performance acceptable for current usage patterns
 - [x] Added 3 new unit tests for trade processing
 - [x] All 25 tests passing
+
+
+## Additional Changes
+
+### Logo Removal
+- [x] Removed logo from center of header
+- [x] Header now shows only Dynasty Degenerates on left and league name on right
+- [x] All 25 tests still passing
