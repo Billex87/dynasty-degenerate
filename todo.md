@@ -180,10 +180,20 @@
 
 
 ### Manager Position Counts - Starters Sub-Columns
-- [ ] Add Starters sub-column next to QB count (QB S)
-- [ ] Add Starters sub-column next to RB count (RB S)
-- [ ] Add Starters sub-column next to WR count (WR S)
-- [ ] Add Starters sub-column next to TE count (TE S)
-- [ ] Count players with value > 4000 for each position
-- [ ] Update ManagerDraftStats type to include starter counts per position
+- [x] Add Starters sub-column next to QB count (QB S)
+- [x] Add Starters sub-column next to RB count (RB S)
+- [x] Add Starters sub-column next to WR count (WR S)
+- [x] Add Starters sub-column next to TE count (TE S)
+- [x] Count players with value > 4000 for each position
+- [x] Update ManagerDraftStats type to include starter counts per position
+- [x] All 22 tests passing after changes
+
+
+### Trade Ledger Headshots
+- [ ] Add player headshots next to player names in Full Trade Ledger expanded rows
+- [ ] Display headshots for both team A and team B players
 - [ ] All 22 tests passing after changes
+
+### KTC Scraper Trigger
+- [ ] Manually trigger KTC scraper to run now (should have run Tuesday 11 PM)
+- [ ] Verify fresh data is fetched and cached

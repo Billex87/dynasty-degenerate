@@ -338,9 +338,13 @@ export function TradeHistoryTable({
                           <div className="space-y-3">
                             <h4 className="text-blue-400 font-semibold text-sm">{row.team_a}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
-                              <p className="text-slate-300 text-sm whitespace-pre-wrap">
-                                {row.team_a_items}
-                              </p>
+                              <div className="text-slate-300 text-sm space-y-1">
+                                {row.team_a_items.split('\n').map((item, i) => (
+                                  <div key={i} className="flex items-center gap-2">
+                                    <PlayerNameWithHeadshot playerName={item.trim()} />
+                                  </div>
+                                ))}
+                              </div>
                                 <p className="text-blue-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_a_total.toLocaleString()}
                               </p>
@@ -351,9 +355,13 @@ export function TradeHistoryTable({
                           <div className="space-y-3">
                             <h4 className="text-orange-400 font-semibold text-sm">{row.team_b}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
-                              <p className="text-slate-300 text-sm whitespace-pre-wrap">
-                                {row.team_b_items}
-                              </p>
+                              <div className="text-slate-300 text-sm space-y-1">
+                                {row.team_b_items.split('\n').map((item, i) => (
+                                  <div key={i} className="flex items-center gap-2">
+                                    <PlayerNameWithHeadshot playerName={item.trim()} />
+                                  </div>
+                                ))}
+                              </div>
                                 <p className="text-orange-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_b_total.toLocaleString()}
                               </p>
