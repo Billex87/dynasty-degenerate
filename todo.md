@@ -197,3 +197,9 @@
 ### KTC Scraper Trigger
 - [ ] Manually trigger KTC scraper to run now (should have run Tuesday 11 PM)
 - [ ] Verify fresh data is fetched and cached
+
+
+### KTC Scraper Schedule Update
+- [x] Change KTC scraper to run at 5 PM (17:00) Tuesday instead of 11 PM (23:00)
+- [x] Update scheduledJobs.ts to reflect new time
+- [x] Verify scraper still runs correctly at new time
