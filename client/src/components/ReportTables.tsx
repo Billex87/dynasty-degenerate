@@ -341,7 +341,7 @@ export function TradeHistoryTable({
                               <div className="text-slate-300 text-sm space-y-1">
                                 {row.team_a_items.split(',').map((item, i) => {
                                   const trimmed = item.trim();
-                                  if (trimmed && !trimmed.includes('Pick') && !trimmed.includes('+')) {
+                                  if (trimmed && !trimmed.startsWith('PICK:') && !trimmed.includes('+')) {
                                     return (
                                       <div key={i} className="flex items-center gap-2">
                                         <PlayerNameWithHeadshot playerName={trimmed} />
@@ -364,7 +364,7 @@ export function TradeHistoryTable({
                               <div className="text-slate-300 text-sm space-y-1">
                                 {row.team_b_items.split(',').map((item, i) => {
                                   const trimmed = item.trim();
-                                  if (trimmed && !trimmed.includes('Pick') && !trimmed.includes('+')) {
+                                  if (trimmed && !trimmed.startsWith('PICK:') && !trimmed.includes('+')) {
                                     return (
                                       <div key={i} className="flex items-center gap-2">
                                         <PlayerNameWithHeadshot playerName={trimmed} />

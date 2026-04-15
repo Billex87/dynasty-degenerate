@@ -158,13 +158,11 @@
 - [x] Player rows in manager picks modal open the same player detail modal as Draft Board
 - [x] All 22 tests passing after changes
 
-
 ### Starters Column in Draft Capital Efficiency
 - [x] Add Starters column to Draft Capital Efficiency table
 - [x] Count players with KTC value > 4000 for each manager
 - [x] Display count in new Starters column
 - [x] All 22 tests passing after changes
-
 
 ### Headshots Next to Player Names
 - [x] Add small circular headshots next to player names in Draft Board table
@@ -178,7 +176,6 @@
 - [x] Add headshots next to player names in Weekly Fallers table
 - [x] All 22 tests passing after changes
 
-
 ### Manager Position Counts - Starters Sub-Columns
 - [x] Add Starters sub-column next to QB count (QB S)
 - [x] Add Starters sub-column next to RB count (RB S)
@@ -187,7 +184,6 @@
 - [x] Count players with value > 4000 for each position
 - [x] Update ManagerDraftStats type to include starter counts per position
 - [x] All 22 tests passing after changes
-
 
 ### Trade Ledger Headshots
 - [x] Add player headshots next to player names in Full Trade Ledger expanded rows
@@ -198,30 +194,28 @@
 - [x] Manually trigger KTC scraper to run now (should have run Tuesday 11 PM)
 - [x] Verify fresh data is fetched and cached
 
-
 ### KTC Scraper Schedule Update
 - [x] Change KTC scraper to run at 5 PM (17:00) Tuesday instead of 11 PM (23:00)
 - [x] Update scheduledJobs.ts to reflect new time
 - [x] Verify scraper still runs correctly at new time
 
-
-## Current Debugging Tasks
+## Current Debugging Tasks - COMPLETED
 
 ### Trade Ledger Headshots Issue
-- [ ] Debug why headshots not displaying in Full Trade Ledger expanded rows
-- [ ] Verify PlayerNameWithHeadshot component receives correct player names
-- [ ] Check if trade item parsing is stripping player names correctly
-- [ ] Test headshot display with sample trade data
+- [x] Debug why headshots not displaying in Full Trade Ledger expanded rows (was splitting by newline instead of comma)
+- [x] Verify PlayerNameWithHeadshot component receives correct player names
+- [x] Check if trade item parsing is stripping player names correctly (added filtering for picks/adjustments)
+- [x] Test headshot display with sample trade data
 
 ### KTC Data Freshness Issues
-- [ ] Verify latest scrape (464 players) was actually cached and is being used
-- [ ] Check if weekly momentum is comparing correct data (latest vs previous week)
-- [ ] Check if rookie draft comparisons are using May 2025 vs latest scrape
-- [ ] Verify value changes are calculating with fresh data
-- [ ] Update weekly momentum calculation to use latest scrape vs previous week snapshot
-- [ ] Update rookie draft to compare May 2025 vs latest scrape
+- [x] Verify latest scrape (464 players) was actually cached and is being used
+- [x] Check if weekly momentum is comparing correct data (fixed to use previous week snapshot)
+- [x] Check if rookie draft comparisons are using May 2025 vs latest scrape (confirmed correct)
+- [x] Verify value changes are calculating with fresh data
+- [x] Update weekly momentum calculation to use latest scrape vs previous week snapshot
+- [x] Update rookie draft to compare May 2025 vs latest scrape (already correct)
 
 ### Data Comparison Logic
-- [ ] Weekly Momentum: Should compare latest scrape to previous Tuesday snapshot
-- [ ] Rookie Draft: Should compare May 2025 snapshot to latest scrape
-- [ ] Verify both comparisons are using correct data sources
+- [x] Weekly Momentum: Now compares latest scrape to previous Tuesday snapshot (7 days ago)
+- [x] Rookie Draft: Confirmed compares May 2025 snapshot to latest scrape
+- [x] Verify both comparisons are using correct data sources

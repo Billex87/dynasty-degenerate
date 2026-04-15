@@ -129,12 +129,9 @@ export default function Home() {
         {/* Premium Header */}
         <div className="border-b border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-            <div className="flex items-center justify-between gap-4">
+             <div className="flex items-center justify-between gap-4">
               {/* Left: Dynasty Degenerates */}
               <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                {leagueLogo && (
-                  <img src={leagueLogo} alt="League logo" className="w-10 sm:w-12 h-10 sm:h-12 rounded flex-shrink-0" />
-                )}
                 <h2 className="athletic-headline text-lg sm:text-xl bg-gradient-to-r from-orange-400 to-orange-300 bg-clip-text text-transparent whitespace-nowrap">
                   Dynasty Degenerates
                 </h2>

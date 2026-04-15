@@ -223,9 +223,8 @@ export async function generateReport(
       for (const [pid, rid] of Object.entries(adds)) {
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
         const val = getPlayerValue(pid, allPlayers, ktcValues);
-        sideData[rid].items.push(
-          `${getPlayerName(pid, allPlayers)} (${val})`
-        );
+        // Store only player name, not the value
+        sideData[rid].items.push(getPlayerName(pid, allPlayers));
         sideData[rid].vals.push(val);
       }
 
@@ -234,7 +233,8 @@ export async function generateReport(
         const rid = pick.owner_id;
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
         const val = getPickValue(pick.season, pick.round, ktcValues);
-        sideData[rid].items.push(`${pick.season} R${pick.round} (${val})`);
+        // Store pick as separate item (not a player name, so it will be filtered out in UI)
+        sideData[rid].items.push(`PICK:${pick.season} R${pick.round}`);
         sideData[rid].vals.push(val);
       }
 
