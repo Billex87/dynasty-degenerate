@@ -526,20 +526,32 @@ export function ManagerPositionCountsTable({
             <TableHeader className="border-b-2 border-orange-500/30">
               <TableRow className="border-slate-700">
                 <TableHead className="text-white font-semibold">Manager</TableHead>
-                <TableHead className="text-center text-white font-semibold">QB</TableHead>
-                <TableHead className="text-center text-white font-semibold">RB</TableHead>
-                <TableHead className="text-center text-white font-semibold">WR</TableHead>
-                <TableHead className="text-center text-white font-semibold">TE</TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs"><div>QB</div><div>S</div></TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs"><div>RB</div><div>S</div></TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs"><div>WR</div><div>S</div></TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs"><div>TE</div><div>S</div></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((row, idx) => (
                 <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
                   <TableCell className="font-semibold text-slate-100">{row.manager}</TableCell>
-                  <TableCell className="text-center text-slate-300">{row.QB}</TableCell>
-                  <TableCell className="text-center text-slate-300">{row.RB}</TableCell>
-                  <TableCell className="text-center text-slate-300">{row.WR}</TableCell>
-                  <TableCell className="text-center text-slate-300">{row.TE}</TableCell>
+                  <TableCell className="text-center text-slate-300 text-sm">
+                    <div>{row.QB}</div>
+                    <div className="text-blue-400 text-xs">{row.QB_starters}</div>
+                  </TableCell>
+                  <TableCell className="text-center text-slate-300 text-sm">
+                    <div>{row.RB}</div>
+                    <div className="text-blue-400 text-xs">{row.RB_starters}</div>
+                  </TableCell>
+                  <TableCell className="text-center text-slate-300 text-sm">
+                    <div>{row.WR}</div>
+                    <div className="text-blue-400 text-xs">{row.WR_starters}</div>
+                  </TableCell>
+                  <TableCell className="text-center text-slate-300 text-sm">
+                    <div>{row.TE}</div>
+                    <div className="text-blue-400 text-xs">{row.TE_starters}</div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

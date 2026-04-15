@@ -108,9 +108,13 @@ export interface ReportData {
   managerPositionCounts: Array<{
     manager: string;
     QB: number;
+    QB_starters: number;
     RB: number;
+    RB_starters: number;
     WR: number;
+    WR_starters: number;
     TE: number;
+    TE_starters: number;
   }>;
   draftPicks?: DraftPick[];
   draftStats?: ManagerDraftStats[];

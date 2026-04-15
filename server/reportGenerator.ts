@@ -416,30 +416,44 @@ export async function generateReport(
   const managerPositionCounts: Array<{
     manager: string;
     QB: number;
+    QB_starters: number;
     RB: number;
+    RB_starters: number;
     WR: number;
+    WR_starters: number;
     TE: number;
+    TE_starters: number;
   }> = [];
 
   for (const r of currentSeasonData.rosters) {
     const name = currentSeasonData.rosterMap[r.roster_id];
     const pids = r.players || [];
     const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
+    const posStarterCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
 
     for (const pid of pids) {
       const p = allPlayers[pid];
       const pos = p?.position || 'UNK';
       if (pos in posCounts) {
         posCounts[pos]++;
+        // Check if player value > 4000 (starter threshold)
+        const playerValue = ktcValues[pid]?.ktc_value || 0;
+        if (playerValue > 4000) {
+          posStarterCounts[pos]++;
+        }
       }
     }
 
     managerPositionCounts.push({
       manager: name,
       QB: posCounts.QB,
+      QB_starters: posStarterCounts.QB,
       RB: posCounts.RB,
+      RB_starters: posStarterCounts.RB,
       WR: posCounts.WR,
+      WR_starters: posStarterCounts.WR,
       TE: posCounts.TE,
+      TE_starters: posStarterCounts.TE,
     });
   }
 

@@ -174,6 +174,16 @@
 - [x] All 22 tests passing after changes
 
 ### Headshots in Weekly Risers and Fallers
-- [ ] Add headshots next to player names in Weekly Risers table
-- [ ] Add headshots next to player names in Weekly Fallers table
+- [x] Add headshots next to player names in Weekly Risers table
+- [x] Add headshots next to player names in Weekly Fallers table
+- [x] All 22 tests passing after changes
+
+
+### Manager Position Counts - Starters Sub-Columns
+- [ ] Add Starters sub-column next to QB count (QB S)
+- [ ] Add Starters sub-column next to RB count (RB S)
+- [ ] Add Starters sub-column next to WR count (WR S)
+- [ ] Add Starters sub-column next to TE count (TE S)
+- [ ] Count players with value > 4000 for each position
+- [ ] Update ManagerDraftStats type to include starter counts per position
 - [ ] All 22 tests passing after changes
