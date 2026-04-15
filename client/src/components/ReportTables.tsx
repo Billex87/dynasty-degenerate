@@ -342,12 +342,9 @@ export function TradeHistoryTable({
                                 {row.team_a_items.split(',').map((item, i) => {
                                   const trimmed = item.trim();
                                   if (trimmed && !trimmed.startsWith('PICK:') && !trimmed.includes('+')) {
-                                    // Extract player name from 'Name (value)' format
-                                    const playerName = trimmed.includes('(') ? trimmed.substring(0, trimmed.lastIndexOf('(')).trim() : trimmed;
                                     return (
                                       <div key={i} className="flex items-center gap-2">
-                                        <PlayerNameWithHeadshot playerName={playerName} />
-                                        <span className="text-slate-400 text-xs ml-1">({trimmed.includes('(') ? trimmed.substring(trimmed.lastIndexOf('(') + 1, trimmed.lastIndexOf(')')) : ''})</span>
+                                        <PlayerNameWithHeadshot playerName={trimmed} />
                                       </div>
                                     );
                                   }
@@ -368,12 +365,9 @@ export function TradeHistoryTable({
                                 {row.team_b_items.split(',').map((item, i) => {
                                   const trimmed = item.trim();
                                   if (trimmed && !trimmed.startsWith('PICK:') && !trimmed.includes('+')) {
-                                    // Extract player name from 'Name (value)' format
-                                    const playerName = trimmed.includes('(') ? trimmed.substring(0, trimmed.lastIndexOf('(')).trim() : trimmed;
                                     return (
                                       <div key={i} className="flex items-center gap-2">
-                                        <PlayerNameWithHeadshot playerName={playerName} />
-                                        <span className="text-slate-400 text-xs ml-1">({trimmed.includes('(') ? trimmed.substring(trimmed.lastIndexOf('(') + 1, trimmed.lastIndexOf(')')) : ''})</span>
+                                        <PlayerNameWithHeadshot playerName={trimmed} />
                                       </div>
                                     );
                                   }
