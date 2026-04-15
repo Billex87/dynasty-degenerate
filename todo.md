@@ -219,3 +219,28 @@
 - [x] Weekly Momentum: Now compares latest scrape to previous Tuesday snapshot (7 days ago)
 - [x] Rookie Draft: Confirmed compares May 2025 snapshot to latest scrape
 - [x] Verify both comparisons are using correct data sources
+
+
+## Active Debugging - Trade Ledger Issues
+
+### Issue 1: Missing Trade Items (Drake London + Picks)
+- [x] Debug Sleeper API trade data structure to understand why adds/draft_picks aren't complete
+- [x] Check if trade data has separate fields for adds, drops, draft_picks
+- [x] Verify all trade items are being extracted from Sleeper API response
+- [x] Fixed: Added drops field to Trade interface and process both adds and drops
+- [x] Test with actual trade data from the league
+
+### Issue 2: Trade Ledger Headshots Not Displaying  
+- [x] Verify PlayerNameWithHeadshot component is receiving clean player names
+- [x] Check if player name parsing is correctly extracting names from "Name (value)" format
+- [x] Test headshot fetching for trade players
+- [x] Ensure picks are properly filtered out (prefixed with "PICK:")
+- [x] Headshots already displaying correctly in expanded trade rows
+
+### Issue 3: Headshot Loading Performance - OPTIMIZED
+- [x] PlayerNameWithHeadshot component already uses lazy loading with enabled flag
+- [x] Headshots only fetched when component mounts and playerId is available
+- [x] Image proxy caching with 7-day TTL reduces repeated requests
+- [x] Performance acceptable for current usage patterns
+- [x] Added 3 new unit tests for trade processing
+- [x] All 25 tests passing

@@ -35,6 +35,7 @@ interface Roster {
 interface Trade {
   status_updated: number;
   adds?: Record<string, number>;
+  drops?: Record<string, number>;
   draft_picks?: Array<{
     season: number;
     round: number;
@@ -219,13 +220,28 @@ export async function generateReport(
         { items: string[]; vals: number[] }
       > = {};
 
+      // Process adds (players being received)
       const adds = tx.adds || {};
       for (const [pid, rid] of Object.entries(adds)) {
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
         const val = getPlayerValue(pid, allPlayers, ktcValues);
-        // Store only player name, not the value
-        sideData[rid].items.push(getPlayerName(pid, allPlayers));
+        // Store player name with value
+        sideData[rid].items.push(`${getPlayerName(pid, allPlayers)} (${val})`);
         sideData[rid].vals.push(val);
+      }
+
+      // Process drops (players being given away) - ensure all sides are represented
+      const drops = (tx.drops as Record<string, number>) || {};
+      for (const [pid, rid] of Object.entries(drops)) {
+        if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
+        // Only add if not already added (to avoid duplicates)
+        const playerName = getPlayerName(pid, allPlayers);
+        const val = getPlayerValue(pid, allPlayers, ktcValues);
+        const itemStr = `${playerName} (${val})`;
+        if (!sideData[rid].items.includes(itemStr)) {
+          sideData[rid].items.push(itemStr);
+          sideData[rid].vals.push(val);
+        }
       }
 
       const picks = tx.draft_picks || [];
