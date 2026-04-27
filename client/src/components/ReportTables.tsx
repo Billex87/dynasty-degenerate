@@ -10,20 +10,100 @@ import {
 } from '@/components/ui/table';
 import React, { useState } from 'react';
 import { ChevronDown, TrendingDown, TrendingUp } from 'lucide-react';
-import type { ReportData } from '@shared/types';
+import type { DraftPick, ReportData } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 
-function renderTradeItem(item: string, key: number) {
+function parseTradePlayerItem(trimmed: string) {
+  if (!trimmed.startsWith('PLAYER:')) return null;
+  const payload = trimmed.replace('PLAYER:', '');
+  const separatorIndex = payload.indexOf('|');
+  if (separatorIndex === -1) return null;
+  return {
+    playerId: payload.slice(0, separatorIndex),
+    playerName: payload.slice(separatorIndex + 1),
+  };
+}
+
+function parseTradePickItem(trimmed: string) {
+  if (!trimmed.startsWith('PICK:')) return null;
+  const payload = trimmed.replace('PICK:', '');
+  const [label, value] = payload.split('|');
+  const match = label.match(/^(\d{4}) (.+) (\d+)(?:st|nd|rd|th)(?: \((\d+\.\d+)\))?$/);
+
+  return {
+    label,
+    value: value ? Number(value) : null,
+    draftYear: match?.[1] ?? null,
+    originalOwner: match?.[2] ?? null,
+    round: match?.[3] ? Number(match[3]) : null,
+    pickNumber: match?.[4] ?? null,
+  };
+}
+
+function findLandedPick(
+  parsedPick: ReturnType<typeof parseTradePickItem>,
+  draftPicks: DraftPick[]
+) {
+  if (!parsedPick?.draftYear || !parsedPick.originalOwner || !parsedPick.round) {
+    return null;
+  }
+
+  return draftPicks.find(
+    pick =>
+      pick.draftYear === parsedPick.draftYear &&
+      pick.round === parsedPick.round &&
+      pick.originalOwner === parsedPick.originalOwner
+  ) || null;
+}
+
+function renderTradeItem(item: string, key: number, draftPicks: DraftPick[] = []) {
   const trimmed = item.trim();
   if (!trimmed || trimmed.startsWith('VALUE_ADJUSTMENT:')) return null;
 
-  if (trimmed.startsWith('PICK:')) {
+  const playerItem = parseTradePlayerItem(trimmed);
+  if (playerItem) {
     return (
       <div key={key} className="flex items-center gap-2">
-        <span className="inline-flex h-6 min-w-6 items-center justify-center rounded bg-orange-500/15 px-2 text-xs font-semibold text-orange-300">
-          PICK
-        </span>
-        <span>{trimmed.replace('PICK:', '')}</span>
+        <PlayerNameWithHeadshot
+          playerId={playerItem.playerId}
+          playerName={playerItem.playerName}
+        />
+      </div>
+    );
+  }
+
+  const pickItem = parseTradePickItem(trimmed);
+  if (pickItem) {
+    const landedPick = findLandedPick(pickItem, draftPicks);
+    const landedValue = landedPick?.currentKtcValue ?? landedPick?.ktcValue ?? null;
+
+    return (
+      <div key={key} className="space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded bg-orange-500/15 px-2 text-xs font-semibold text-orange-300">
+            PICK
+          </span>
+          <span>{pickItem.label}</span>
+          {pickItem.value !== null && (
+            <span className="text-xs text-slate-500">
+              ({pickItem.value.toLocaleString()})
+            </span>
+          )}
+        </div>
+        {landedPick && (
+          <div className="ml-12 flex items-center gap-2 text-xs text-slate-400">
+            <span>Landed:</span>
+            <PlayerNameWithHeadshot
+              playerId={landedPick.player_id}
+              playerName={landedPick.playerName}
+            />
+            {landedValue !== null && (
+              <span className="text-slate-500">
+                {landedValue.toLocaleString()}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -117,7 +197,7 @@ export function WeeklyMomentumTable({
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
                 <TableCell className="font-semibold text-slate-300">#{idx + 1}</TableCell>
                 <TableCell className="font-semibold text-slate-100">
-                  <PlayerNameWithHeadshot playerName={row.name} />
+                  <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                 </TableCell>
                 <TableCell className="text-slate-400">{row.pos}</TableCell>
                 <TableCell className="text-slate-400">{row.owner}</TableCell>
@@ -227,7 +307,7 @@ export function ProjectedMoversTable({
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
                 <TableCell className="font-semibold text-slate-300">#{idx + 1}</TableCell>
                 <TableCell className="font-semibold text-slate-100">
-                  <PlayerNameWithHeadshot playerName={row.name} />
+                  <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                 </TableCell>
                 <TableCell className="text-slate-400">{row.pos}</TableCell>
                 <TableCell className="text-slate-400">{row.owner}</TableCell>
@@ -302,8 +382,10 @@ export function TradeProfitLeaderboardTable({
 
 export function TradeHistoryTable({
   data,
+  draftPicks = [],
 }: {
   data: ReportData['tradeHistory'];
+  draftPicks?: DraftPick[];
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
@@ -361,7 +443,9 @@ export function TradeHistoryTable({
                             <h4 className="text-blue-400 font-semibold text-sm">{row.team_a}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
-                                {row.team_a_items.split(',').map(renderTradeItem)}
+                                {row.team_a_items
+                                  .split(',')
+                                  .map((item, i) => renderTradeItem(item, i, draftPicks))}
                               </div>
                                 <p className="text-blue-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_a_total.toLocaleString()}
@@ -374,7 +458,9 @@ export function TradeHistoryTable({
                             <h4 className="text-orange-400 font-semibold text-sm">{row.team_b}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
-                                {row.team_b_items.split(',').map(renderTradeItem)}
+                                {row.team_b_items
+                                  .split(',')
+                                  .map((item, i) => renderTradeItem(item, i, draftPicks))}
                               </div>
                                 <p className="text-orange-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_b_total.toLocaleString()}

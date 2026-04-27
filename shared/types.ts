@@ -1,5 +1,6 @@
 export interface PlayerInfo {
   name: string;
+  player_id?: string;
   owner: string;
   pos: string;
   age: number | null;
@@ -10,6 +11,7 @@ export interface PlayerInfo {
 
 export interface WeeklyMomentum {
   name: string;
+  player_id?: string;
   owner: string;
   pos: string;
   val_last: number;
@@ -49,9 +51,12 @@ export interface PositionDepth {
 export interface DraftPick {
   round: number;
   pick: number;
+  draftSlot?: number;
   playerName: string;
   playerPos: string;
   manager: string;
+  originalOwner?: string | null;
+  originalRosterId?: number | null;
   adp: number | null;
   ktcValue: number | null;
   currentKtcValue: number | null;

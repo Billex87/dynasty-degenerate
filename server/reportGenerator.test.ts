@@ -167,6 +167,12 @@ describe('generateReport trade ledger', () => {
       { roster_id: 9, owner_id: 'u9', players: ['downs'] },
       { roster_id: 10, owner_id: 'u10', players: [] },
     ],
+    draftSlotsBySeason: {
+      '2026': {
+        1: 8,
+        10: 10,
+      },
+    },
   };
 
   it('shows draft picks in the side that received them', async () => {
@@ -197,9 +203,9 @@ describe('generateReport trade ledger', () => {
 
     const trade = report.tradeHistory[0];
     expect(trade.team_a).toBe('AwwQQ');
-    expect(trade.team_a_items).toContain('Josh Downs');
+    expect(trade.team_a_items).toContain('PLAYER:downs|Josh Downs');
     expect(trade.team_b).toBe('Beaston1989');
-    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 3rd');
+    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 3rd (3.08)|600');
   });
 
   it('keeps player names visible when value adjustment is applied', async () => {
@@ -241,10 +247,10 @@ describe('generateReport trade ledger', () => {
 
     const trade = report.tradeHistory[0];
     expect(trade.team_a).toBe('AwwQQ');
-    expect(trade.team_a_items.split(',').map(item => item.trim())).toContain('Drake London');
+    expect(trade.team_a_items.split(',').map(item => item.trim())).toContain('PLAYER:london|Drake London');
     expect(trade.team_b).toBe('mynameisbillex');
-    expect(trade.team_b_items).toContain('DeVonta Smith');
-    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 1st');
-    expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd');
+    expect(trade.team_b_items).toContain('PLAYER:smith|DeVonta Smith');
+    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 1st (1.08)|4500');
+    expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|1800');
   });
 });

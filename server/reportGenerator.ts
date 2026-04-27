@@ -49,6 +49,7 @@ interface SeasonData {
   trades: Trade[];
   rosterMap: Record<number, string>;
   rosters: Roster[];
+  draftSlotsBySeason?: Record<string, Record<number, number>>;
 }
 
 function ordinalRound(round: number): string {
@@ -60,11 +61,26 @@ function ordinalRound(round: number): string {
 
 function formatDraftPickLabel(
   pick: NonNullable<Trade['draft_picks']>[number],
-  rosterMap: Record<number, string>
+  rosterMap: Record<number, string>,
+  draftSlotsBySeason?: Record<string, Record<number, number>>
 ): string {
   const originalOwner = pick.roster_id ? rosterMap[pick.roster_id] : undefined;
   const ownerPrefix = originalOwner ? `${originalOwner} ` : '';
-  return `${pick.season} ${ownerPrefix}${ordinalRound(pick.round)}`;
+  const draftSlot = pick.roster_id
+    ? draftSlotsBySeason?.[String(pick.season)]?.[pick.roster_id]
+    : undefined;
+  const pickNumber = draftSlot
+    ? ` (${pick.round}.${String(draftSlot).padStart(2, '0')})`
+    : '';
+  return `${pick.season} ${ownerPrefix}${ordinalRound(pick.round)}${pickNumber}`;
+}
+
+function encodePlayerItem(pid: string, name: string): string {
+  return `PLAYER:${pid}|${name}`;
+}
+
+function encodePickItem(label: string, value: number): string {
+  return `PICK:${label}|${value}`;
 }
 
 export async function generateReport(
@@ -87,6 +103,7 @@ export async function generateReport(
 
   const allPlayerMoves: Array<{
     name: string;
+    player_id: string;
     owner: string;
     pos: string;
     age: number | null;
@@ -97,6 +114,7 @@ export async function generateReport(
 
   const weeklyMomentum: Array<{
     name: string;
+    player_id: string;
     owner: string;
     pos: string;
     val_last: number;
@@ -156,6 +174,7 @@ export async function generateReport(
         const pct_change = lastWeekVal > 0 ? (val - lastWeekVal) / lastWeekVal * 100 : 0;
         weeklyMomentum.push({
           name: getPlayerName(pid, allPlayers),
+          player_id: pid,
           owner: name,
           pos,
           val_last: lastWeekVal,
@@ -168,6 +187,7 @@ export async function generateReport(
       if (val > 300) {
         allPlayerMoves.push({
           name: getPlayerName(pid, allPlayers),
+          player_id: pid,
           owner: name,
           pos,
           age,
@@ -241,8 +261,7 @@ export async function generateReport(
       for (const [pid, rid] of Object.entries(adds)) {
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
         const val = getPlayerValue(pid, allPlayers, ktcValues);
-        // Store only player name, not the value
-        sideData[rid].items.push(getPlayerName(pid, allPlayers));
+        sideData[rid].items.push(encodePlayerItem(pid, getPlayerName(pid, allPlayers)));
         sideData[rid].vals.push(val);
       }
 
@@ -251,7 +270,9 @@ export async function generateReport(
         const rid = pick.owner_id;
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
         const val = getPickValue(Number(pick.season), pick.round, ktcValues);
-        sideData[rid].items.push(`PICK:${formatDraftPickLabel(pick, season.rosterMap)}`);
+        sideData[rid].items.push(
+          encodePickItem(formatDraftPickLabel(pick, season.rosterMap, season.draftSlotsBySeason), val)
+        );
         sideData[rid].vals.push(val);
       }
 

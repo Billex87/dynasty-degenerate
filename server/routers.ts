@@ -12,6 +12,38 @@ import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draf
 import { getMay2025KTCSnapshot, getJan15KTCSnapshot } from "./waybackMachineScraper";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 
+async function fetchDraftSlotsBySeason(
+  leagueId: string,
+  rosters: Array<{ roster_id: number; owner_id: string }>
+): Promise<Record<string, Record<number, number>>> {
+  const drafts = await fetch(
+    `https://api.sleeper.app/v1/league/${leagueId}/drafts`
+  ).then((r) => r.json());
+
+  if (!Array.isArray(drafts)) return {};
+
+  const rosterByOwnerId = Object.fromEntries(
+    rosters.map((roster) => [roster.owner_id, roster.roster_id])
+  );
+  const slotsBySeason: Record<string, Record<number, number>> = {};
+
+  for (const draft of drafts) {
+    if (!draft?.season || !draft?.draft_order) continue;
+
+    const season = String(draft.season);
+    if (!slotsBySeason[season]) slotsBySeason[season] = {};
+
+    for (const [ownerId, draftSlot] of Object.entries(draft.draft_order)) {
+      const rosterId = rosterByOwnerId[ownerId];
+      if (rosterId && typeof draftSlot === 'number') {
+        slotsBySeason[season][rosterId] = draftSlot;
+      }
+    }
+  }
+
+  return slotsBySeason;
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -97,6 +129,7 @@ export const appRouter = router({
 
           const prevLeagueId = leagueInfo.previous_league_id;
           let pastSeasonData = null;
+          let draftSlotsBySeason = await fetchDraftSlotsBySeason(input.leagueId, rosters);
 
           if (prevLeagueId) {
             try {
@@ -130,11 +163,18 @@ export const appRouter = router({
                 }
               }
 
+              const pastDraftSlotsBySeason = await fetchDraftSlotsBySeason(prevLeagueId, pastRosters);
+              draftSlotsBySeason = {
+                ...pastDraftSlotsBySeason,
+                ...draftSlotsBySeason,
+              };
+
               pastSeasonData = {
                 label: '2025',
                 trades: pastTrades,
                 rosterMap: pastRosterUserMap,
                 rosters: pastRosters,
+                draftSlotsBySeason,
               };
             } catch (e) {
               console.warn('Failed to fetch past season data:', e);
@@ -151,6 +191,7 @@ export const appRouter = router({
             trades,
             rosterMap: rosterUserMap,
             rosters,
+            draftSlotsBySeason,
           };
 
           const reportData = await generateReport(

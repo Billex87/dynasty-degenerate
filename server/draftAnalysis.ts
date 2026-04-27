@@ -158,6 +158,8 @@ export async function analyzeDraftPicks(
     if (!manager) {
       manager = pickRosterMap[pick.picked_by] || 'Unknown';
     }
+    const originalRosterId = typeof pick.roster_id === 'number' ? pick.roster_id : null;
+    const originalOwner = originalRosterId !== null ? pickRosterMap[String(originalRosterId)] || null : null;
     
     const playerName = player?.full_name || 'Unknown';
     const playerPos = player?.position || 'N/A';
@@ -235,9 +237,12 @@ export async function analyzeDraftPicks(
     const processedPick: any = {
       round: pick.round,
       pick: pick.pick_no,
+      draftSlot: pick.draft_slot,
       playerName,
       playerPos,
       manager,
+      originalOwner,
+      originalRosterId,
       adp,
       ktcValue: currentKtcValue,
       currentKtcValue,

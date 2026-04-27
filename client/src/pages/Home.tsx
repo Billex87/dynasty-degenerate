@@ -241,7 +241,10 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Full Trade Ledger</h3>
-                  <TradeHistoryTable data={reportData.tradeHistory} />
+                  <TradeHistoryTable
+                    data={reportData.tradeHistory}
+                    draftPicks={reportData.draftPicks || []}
+                  />
                 </div>
               </div>
             </TabsContent>
