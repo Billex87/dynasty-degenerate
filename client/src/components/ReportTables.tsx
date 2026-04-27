@@ -13,6 +13,28 @@ import { ChevronDown, TrendingDown, TrendingUp } from 'lucide-react';
 import type { ReportData } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 
+function renderTradeItem(item: string, key: number) {
+  const trimmed = item.trim();
+  if (!trimmed || trimmed.startsWith('VALUE_ADJUSTMENT:')) return null;
+
+  if (trimmed.startsWith('PICK:')) {
+    return (
+      <div key={key} className="flex items-center gap-2">
+        <span className="inline-flex h-6 min-w-6 items-center justify-center rounded bg-orange-500/15 px-2 text-xs font-semibold text-orange-300">
+          PICK
+        </span>
+        <span>{trimmed.replace('PICK:', '')}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div key={key} className="flex items-center gap-2">
+      <PlayerNameWithHeadshot playerName={trimmed} />
+    </div>
+  );
+}
+
 function getRankingColor(rank: number): string {
   // All rankings are white
   return 'text-white font-semibold';
@@ -339,17 +361,7 @@ export function TradeHistoryTable({
                             <h4 className="text-blue-400 font-semibold text-sm">{row.team_a}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
-                                {row.team_a_items.split(',').map((item, i) => {
-                                  const trimmed = item.trim();
-                                  if (trimmed && !trimmed.startsWith('PICK:') && !trimmed.includes('+')) {
-                                    return (
-                                      <div key={i} className="flex items-center gap-2">
-                                        <PlayerNameWithHeadshot playerName={trimmed} />
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                })}
+                                {row.team_a_items.split(',').map(renderTradeItem)}
                               </div>
                                 <p className="text-blue-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_a_total.toLocaleString()}
@@ -362,17 +374,7 @@ export function TradeHistoryTable({
                             <h4 className="text-orange-400 font-semibold text-sm">{row.team_b}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
-                                {row.team_b_items.split(',').map((item, i) => {
-                                  const trimmed = item.trim();
-                                  if (trimmed && !trimmed.startsWith('PICK:') && !trimmed.includes('+')) {
-                                    return (
-                                      <div key={i} className="flex items-center gap-2">
-                                        <PlayerNameWithHeadshot playerName={trimmed} />
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                })}
+                                {row.team_b_items.split(',').map(renderTradeItem)}
                               </div>
                                 <p className="text-orange-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {row.team_b_total.toLocaleString()}

@@ -6,6 +6,7 @@ import {
   projectValue,
   calculateValueAdjustment,
 } from './leagueAnalysis';
+import { generateReport } from './reportGenerator';
 
 describe('League Analysis Helpers', () => {
   describe('cleanName', () => {
@@ -136,5 +137,114 @@ describe('League Analysis Helpers', () => {
       expect(calculateValueAdjustment([], [1000])).toBe(0);
       expect(calculateValueAdjustment([1000], [])).toBe(0);
     });
+  });
+});
+
+describe('generateReport trade ledger', () => {
+  const players = {
+    downs: { first_name: 'Josh', last_name: 'Downs', position: 'WR', age: 24 },
+    london: { first_name: 'Drake', last_name: 'London', position: 'WR', age: 24 },
+    smith: { first_name: 'DeVonta', last_name: 'Smith', position: 'WR', age: 27 },
+  };
+
+  const ktcValues = {
+    joshdowns: { name: 'Josh Downs', ktc_value: 3200 },
+    drakelondon: { name: 'Drake London', ktc_value: 8500 },
+    devontasmith: { name: 'DeVonta Smith', ktc_value: 6000 },
+  };
+
+  const baseSeason = {
+    label: '2026',
+    rosterMap: {
+      1: 'AwwQQ',
+      3: 'mynameisbillex',
+      9: 'Beaston1989',
+      10: 'S1monB1rch',
+    },
+    rosters: [
+      { roster_id: 1, owner_id: 'u1', players: ['london'] },
+      { roster_id: 3, owner_id: 'u3', players: ['smith'] },
+      { roster_id: 9, owner_id: 'u9', players: ['downs'] },
+      { roster_id: 10, owner_id: 'u10', players: [] },
+    ],
+  };
+
+  it('shows draft picks in the side that received them', async () => {
+    const report = await generateReport(
+      {
+        ...baseSeason,
+        trades: [
+          {
+            status_updated: Date.parse('2026-04-15T12:00:00Z'),
+            adds: { downs: 1 },
+            draft_picks: [
+              {
+                round: 3,
+                season: '2026',
+                roster_id: 1,
+                owner_id: 9,
+                previous_owner_id: 1,
+              },
+            ],
+          },
+        ],
+      },
+      null,
+      players,
+      ktcValues,
+      {}
+    );
+
+    const trade = report.tradeHistory[0];
+    expect(trade.team_a).toBe('AwwQQ');
+    expect(trade.team_a_items).toContain('Josh Downs');
+    expect(trade.team_b).toBe('Beaston1989');
+    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 3rd');
+  });
+
+  it('keeps player names visible when value adjustment is applied', async () => {
+    const report = await generateReport(
+      { ...baseSeason, trades: [] },
+      {
+        ...baseSeason,
+        label: '2025',
+        trades: [
+          {
+            status_updated: Date.parse('2025-08-13T12:00:00Z'),
+            adds: {
+              london: 1,
+              smith: 3,
+            },
+            draft_picks: [
+              {
+                round: 1,
+                season: '2026',
+                roster_id: 1,
+                owner_id: 3,
+                previous_owner_id: 1,
+              },
+              {
+                round: 2,
+                season: '2026',
+                roster_id: 10,
+                owner_id: 3,
+                previous_owner_id: 1,
+              },
+            ],
+          },
+        ],
+      },
+      players,
+      ktcValues,
+      {}
+    );
+
+    const trade = report.tradeHistory[0];
+    expect(trade.team_a).toBe('AwwQQ');
+    expect(trade.team_a_items.split(',').map(item => item.trim())).toContain('Drake London');
+    expect(trade.team_b).toBe('mynameisbillex');
+    expect(trade.team_b_items).toContain('DeVonta Smith');
+    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 1st');
+    expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd');
   });
 });

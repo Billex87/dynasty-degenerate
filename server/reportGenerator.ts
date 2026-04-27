@@ -36,9 +36,11 @@ interface Trade {
   status_updated: number;
   adds?: Record<string, number>;
   draft_picks?: Array<{
-    season: number;
+    season: number | string;
     round: number;
+    roster_id?: number;
     owner_id: number;
+    previous_owner_id?: number;
   }>;
 }
 
@@ -47,6 +49,22 @@ interface SeasonData {
   trades: Trade[];
   rosterMap: Record<number, string>;
   rosters: Roster[];
+}
+
+function ordinalRound(round: number): string {
+  if (round === 1) return '1st';
+  if (round === 2) return '2nd';
+  if (round === 3) return '3rd';
+  return `${round}th`;
+}
+
+function formatDraftPickLabel(
+  pick: NonNullable<Trade['draft_picks']>[number],
+  rosterMap: Record<number, string>
+): string {
+  const originalOwner = pick.roster_id ? rosterMap[pick.roster_id] : undefined;
+  const ownerPrefix = originalOwner ? `${originalOwner} ` : '';
+  return `${pick.season} ${ownerPrefix}${ordinalRound(pick.round)}`;
 }
 
 export async function generateReport(
@@ -232,9 +250,8 @@ export async function generateReport(
       for (const pick of picks) {
         const rid = pick.owner_id;
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
-        const val = getPickValue(pick.season, pick.round, ktcValues);
-        // Store pick as separate item (not a player name, so it will be filtered out in UI)
-        sideData[rid].items.push(`PICK:${pick.season} R${pick.round}`);
+        const val = getPickValue(Number(pick.season), pick.round, ktcValues);
+        sideData[rid].items.push(`PICK:${formatDraftPickLabel(pick, season.rosterMap)}`);
         sideData[rid].vals.push(val);
       }
 
@@ -262,8 +279,14 @@ export async function generateReport(
         managerActivity[m1] = (managerActivity[m1] || 0) + 1;
         managerActivity[m2] = (managerActivity[m2] || 0) + 1;
 
-        const s1Text = sideData[r1].items.join(', ') + (adj1 > 0 ? ` + (+${adj1})` : '');
-        const s2Text = sideData[r2].items.join(', ') + (adj2 > 0 ? ` + (+${adj2})` : '');
+        const s1Text = [
+          ...sideData[r1].items,
+          ...(adj1 > 0 ? [`VALUE_ADJUSTMENT:+${adj1}`] : []),
+        ].join(', ');
+        const s2Text = [
+          ...sideData[r2].items,
+          ...(adj2 > 0 ? [`VALUE_ADJUSTMENT:+${adj2}`] : []),
+        ].join(', ');
         const pointGap = Math.abs(finalV1 - finalV2);
         const winner = finalV1 > finalV2 ? m1 : finalV2 > finalV1 ? m2 : 'Even';
 
