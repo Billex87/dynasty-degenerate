@@ -128,26 +128,26 @@ export default function Home() {
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col">
         {/* Premium Header */}
         <div className="border-b border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-             <div className="flex items-center justify-between gap-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-2">
+             <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 md:gap-6">
               {/* Left: Dynasty Degenerates */}
-              <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <h2 className="athletic-headline text-lg sm:text-xl bg-gradient-to-r from-orange-400 to-orange-300 bg-clip-text text-transparent whitespace-nowrap">
                   Dynasty Degenerates
                 </h2>
               </div>
               
-              {/* Center: Logo (hidden on mobile if league name is long) */}
-              <div className="hidden md:flex items-center justify-center flex-1">
+              {/* Center: Logo */}
+              <div className="hidden md:flex items-center justify-center">
                 <img 
-                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_final_90a9eceb.png" 
+                  src="/assets/dynasty-logo-cropped.png" 
                   alt="Dynasty Degenerates Logo" 
-                  className="h-12 w-auto object-contain"
+                  className="h-28 lg:h-32 w-auto max-w-[16rem] lg:max-w-[18rem] object-contain"
                 />
               </div>
               
               {/* Right: League Name */}
-              <p className="text-sm sm:text-lg md:text-xl text-orange-400/70 truncate flex-1 text-right font-semibold">{leagueName}</p>
+              <p className="text-sm sm:text-lg md:text-xl text-orange-400/70 truncate text-right font-semibold min-w-0">{leagueName}</p>
             </div>
           </div>
         </div>
