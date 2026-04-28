@@ -353,7 +353,7 @@ function buildRosterIntelligenceSummary({
       ? `There is some injury cover, but only ${benchFlexCandidates} bench flex piece${benchFlexCandidates === 1 ? '' : 's'} grades inside the starter-depth window`
       : 'One injury could hurt fast because there are no bench flex pieces inside the starter-depth window';
   const stashSummary = bestBenchStash
-    ? `Best bench chip is ${bestBenchStash.name} (${getRankLabel(bestBenchStash)}, ${bestBenchStash.value.toLocaleString()})`
+    ? `Best bench chip is ${bestBenchStash.name} (${getRankLabel(bestBenchStash)})`
     : 'There is no obvious bench stash with real KTC value';
   const weakSummary = weakestStarter
     ? `Softest starter is ${weakestStarter.name} (${getRankLabel(weakestStarter)})`
