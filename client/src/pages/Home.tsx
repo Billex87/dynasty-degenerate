@@ -149,6 +149,8 @@ export default function Home() {
                   <LeagueCommandCenter
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Team Identity & Timeline" kicker="Manager intelligence">

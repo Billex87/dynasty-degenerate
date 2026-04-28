@@ -1000,10 +1000,22 @@
     overflow: hidden;
   }
 
+  .manager-command-modal-inner {
+    overflow: hidden;
+    border-radius: inherit;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.16), transparent 34%),
+      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.15), transparent 34%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.9));
+  }
+
   .manager-command-hero {
+    position: relative;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 1rem;
+    overflow: hidden;
     border-bottom: 1px solid rgba(34, 211, 238, 0.18);
     background:
       radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.18), transparent 36%),
@@ -1012,8 +1024,19 @@
     padding: 1.15rem;
   }
 
-  .manager-command-hero img,
-  .manager-command-hero > span {
+  .manager-command-title-lockup {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    max-width: min(100%, 26rem);
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .manager-command-avatar {
     height: 4rem;
     width: 4rem;
     flex: 0 0 auto;
@@ -1023,7 +1046,7 @@
     box-shadow: 0 16px 28px rgba(0, 0, 0, 0.3);
   }
 
-  .manager-command-hero > span {
+  span.manager-command-avatar {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1054,7 +1077,7 @@
     text-transform: uppercase;
   }
 
-  .manager-command-hero span:not(:first-child) {
+  .manager-command-hero .manager-command-title-lockup span:not(.manager-command-avatar) {
     display: inline-flex;
     margin-top: 0.4rem;
     border: 1px solid rgba(251, 146, 60, 0.3);
@@ -1113,8 +1136,18 @@
     line-height: 1.42;
   }
 
+  .manager-command-note {
+    margin-top: 0.5rem;
+    margin-bottom: 0.65rem;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+
   .manager-command-player {
     display: flex;
+    width: 100%;
     min-width: 0;
     align-items: center;
     justify-content: space-between;
@@ -1123,6 +1156,14 @@
     border-radius: 0.75rem;
     background: rgba(15, 23, 42, 0.52);
     padding: 0.55rem;
+    text-align: left;
+    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+  }
+
+  .manager-command-player:hover {
+    border-color: rgba(34, 211, 238, 0.34);
+    background: rgba(8, 47, 73, 0.42);
+    transform: translateY(-1px);
   }
 
   .manager-command-player .player-chip {
@@ -1146,6 +1187,19 @@
     color: #67e8f9;
     font-size: 0.72rem;
     font-weight: 950;
+  }
+
+  .manager-command-untouchable {
+    border-color: rgba(251, 191, 36, 0.22);
+    background:
+      radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.08), transparent 34%),
+      rgba(2, 6, 23, 0.44);
+  }
+
+  .manager-command-untouchable .manager-command-player > span {
+    border-color: rgba(251, 191, 36, 0.3);
+    background: rgba(113, 63, 18, 0.45);
+    color: #fde68a;
   }
 
   @media (min-width: 680px) {

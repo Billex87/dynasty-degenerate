@@ -570,6 +570,7 @@ function titleCasePill(value: string): string {
   const acronyms = new Set(['QB', 'RB', 'WR', 'TE', 'SF', 'PPR', 'FA']);
   return value.replace(/\w\S*/g, (word) => {
     const upper = word.toUpperCase();
+    if (/^(QB|RB|WR|TE)\d+$/i.test(word)) return upper;
     if (acronyms.has(upper)) return upper;
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   });
@@ -741,11 +742,16 @@ function FeatureCard({
 export function LeagueCommandCenter({
   data,
   managerAvatars,
+  leagueId,
+  leagueLogo,
 }: {
   data: ReportData;
   managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
 }) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const intel = data.managerRosterIntelligence || [];
   const power = data.powerRankings || [];
   const timelines = data.dynastyTimelines || [];
@@ -926,17 +932,26 @@ export function LeagueCommandCenter({
           <DialogDescription>Manager-level calculation details and data points.</DialogDescription>
         </DialogHeader>
         {selectedManager && (
-          <div>
+          <div className="manager-command-modal-inner">
             <div className="manager-command-hero">
+              {managerAvatars?.[selectedManager] && (
+                <>
+                  <img src={managerAvatars[selectedManager] || ''} alt="" className="manager-hero-wash" />
+                  <img src={managerAvatars[selectedManager] || ''} alt="" className="manager-hero-watermark" />
+                </>
+              )}
+              <div className="manager-hero-scrim" />
+              <div className="manager-command-title-lockup">
               {managerAvatars?.[selectedManager] ? (
-                <img src={managerAvatars[selectedManager] || ''} alt={selectedManager} />
+                <img src={managerAvatars[selectedManager] || ''} alt={selectedManager} className="manager-command-avatar" />
               ) : (
-                <span>{selectedManager[0]?.toUpperCase() || '?'}</span>
+                <span className="manager-command-avatar">{selectedManager[0]?.toUpperCase() || '?'}</span>
               )}
               <div className="min-w-0">
                 <p>Owner Data Room</p>
                 <h3>{selectedManager}</h3>
                 <span>{selectedIntel?.identity || selectedTimeline?.label || 'League manager'}</span>
+              </div>
               </div>
             </div>
             <div className="manager-command-body">
@@ -958,7 +973,7 @@ export function LeagueCommandCenter({
                 <div>
                   <h4>Rank Snapshot</h4>
                   <p>QB {selectedIntel?.holes.bestQbRank || '-'} | RB2 {selectedIntel?.holes.rb2Rank || '-'} | WR3 {selectedIntel?.holes.wr3Rank || '-'} | TE1 {selectedIntel?.holes.te1Rank || '-'}</p>
-                  <p>{selectedIntel?.holes.summary || 'No roster hole data available.'}</p>
+                  <p>{selectedIntel?.holes.summary ? titleCasePill(selectedIntel.holes.summary) : 'No roster hole data available.'}</p>
                 </div>
                 <div>
                   <h4>Trade / Picks</h4>
@@ -971,10 +986,52 @@ export function LeagueCommandCenter({
                   <h4>Most Droppable By Positional Rank</h4>
                   <div className="manager-command-player-grid">
                     {selectedIntel.droppablePlayers.map((player) => (
-                      <div key={player.player_id} className="manager-command-player">
+                      <button
+                        key={player.player_id}
+                        type="button"
+                        className="manager-command-player"
+                        onClick={() => setSelectedPlayer(buildPlayerModalData({
+                          playerId: player.player_id,
+                          playerName: player.name,
+                          playerPos: player.pos,
+                          value: player.value,
+                          playerDetails: player.playerDetails,
+                          manager: selectedManager,
+                          managerAvatarUrl: managerAvatars?.[selectedManager],
+                          currentPositionRank: player.currentPositionRank,
+                        }))}
+                      >
                         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
                         <span>{player.currentPositionRank || player.pos}</span>
-                      </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {selectedIntel?.untouchablePlayers?.length ? (
+                <div className="manager-command-section manager-command-untouchable">
+                  <h4>Should Be Untouchable</h4>
+                  <p className="manager-command-note">Top-three positional assets, plus young players already close enough to become that tier.</p>
+                  <div className="manager-command-player-grid">
+                    {selectedIntel.untouchablePlayers.map((player) => (
+                      <button
+                        key={player.player_id}
+                        type="button"
+                        className="manager-command-player"
+                        onClick={() => setSelectedPlayer(buildPlayerModalData({
+                          playerId: player.player_id,
+                          playerName: player.name,
+                          playerPos: player.pos,
+                          value: player.value,
+                          playerDetails: player.playerDetails,
+                          manager: selectedManager,
+                          managerAvatarUrl: managerAvatars?.[selectedManager],
+                          currentPositionRank: player.currentPositionRank,
+                        }))}
+                      >
+                        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+                        <span>{player.currentPositionRank || player.pos}</span>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -984,6 +1041,14 @@ export function LeagueCommandCenter({
         )}
       </DialogContent>
     </Dialog>
+    <PlayerDetailModal
+      isOpen={selectedPlayer !== null}
+      onClose={() => setSelectedPlayer(null)}
+      pick={selectedPlayer}
+      leagueId={leagueId}
+      leagueLogo={leagueLogo}
+      managerAvatars={managerAvatars}
+    />
     </>
   );
 }

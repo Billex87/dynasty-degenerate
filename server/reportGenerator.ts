@@ -1006,6 +1006,24 @@ export async function generateReport(
         return rankDelta || a.value - b.value;
       })
       .slice(0, 3);
+    const untouchablePlayers = [...rosterPlayers]
+      .filter((player) => {
+        const rank = getRankNumber(player.currentPositionRank) || 999;
+        const age = player.playerDetails?.age ?? 99;
+        const pos = player.pos;
+        const isAlreadyElite = rank <= 3;
+        const isYoungElitePath =
+          (pos === 'QB' && age <= 26 && rank <= 8) ||
+          (pos === 'RB' && age <= 24 && rank <= 10) ||
+          (pos === 'WR' && age <= 25 && rank <= 12) ||
+          (pos === 'TE' && age <= 25 && rank <= 6);
+        return isAlreadyElite || isYoungElitePath;
+      })
+      .sort((a, b) => {
+        const rankDelta = (getRankNumber(a.currentPositionRank) || 999) - (getRankNumber(b.currentPositionRank) || 999);
+        return rankDelta || b.value - a.value;
+      })
+      .slice(0, 4);
     const summary = buildRosterIntelligenceSummary({
       identity,
       qbs,
@@ -1035,6 +1053,7 @@ export async function generateReport(
       breakoutCandidate,
       lastSeasonStud,
       droppablePlayers,
+      untouchablePlayers,
       avgAge,
       avgAgeByPosition,
       ageFlags,
