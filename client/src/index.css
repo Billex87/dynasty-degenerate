@@ -4287,3 +4287,122 @@
     width: 100% !important;
   }
 }
+
+/* Final report table header normalization: every tab gets the same compact header spacing. */
+.report-shell .report-card-polished,
+.report-shell .trade-tendencies-card,
+.report-shell .trade-ledger-card,
+.report-shell .trade-profit-card {
+  gap: 0 !important;
+}
+
+.report-shell .trade-tendencies-card,
+.report-shell .trade-ledger-card,
+.report-shell .trade-profit-card {
+  padding: 0.62rem !important;
+}
+
+.report-shell .report-table-polished,
+.report-shell .trending-players-table,
+.report-shell .trade-tendencies-table,
+.report-shell .trade-ledger-table,
+.report-shell .trade-profit-table {
+  border-spacing: 0 0.24rem !important;
+  margin-block: -0.24rem !important;
+}
+
+.report-shell .report-table-polished [data-slot="table-header"],
+.report-shell .trending-players-table [data-slot="table-header"],
+.report-shell .trade-tendencies-table [data-slot="table-header"],
+.report-shell .trade-ledger-table [data-slot="table-header"],
+.report-shell .trade-profit-table [data-slot="table-header"] {
+  border: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-row"],
+.report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-row"],
+.report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-row"],
+.report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"],
+.report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-row"] {
+  border: 0 !important;
+  margin: 0 !important;
+}
+
+.report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
+  height: auto !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0.18rem 0.38rem 0.24rem !important;
+  color: rgba(103, 232, 249, 0.9) !important;
+  font-size: 0.56rem !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase !important;
+  vertical-align: middle !important;
+  white-space: normal !important;
+}
+
+.report-shell .trade-ledger-table [data-slot="table-body"],
+.report-shell .trade-profit-table [data-slot="table-body"] {
+  margin-top: 0 !important;
+}
+
+.report-shell .trade-year-row {
+  margin-top: 0 !important;
+}
+
+.report-shell .trade-year-cell {
+  padding-top: 0.05rem !important;
+}
+
+@media (min-width: 640px) {
+  .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"],
+  .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-row"] {
+    padding: 0.14rem 0.38rem 0.2rem !important;
+  }
+
+  .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
+    padding: 0 !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell .trade-tendencies-card,
+  .report-shell .trade-ledger-card,
+  .report-shell .trade-profit-card {
+    padding: 0.5rem !important;
+  }
+
+  .report-shell .report-table-polished,
+  .report-shell .trending-players-table,
+  .report-shell .trade-tendencies-table,
+  .report-shell .trade-ledger-table,
+  .report-shell .trade-profit-table {
+    border-spacing: 0 0.22rem !important;
+    margin-block: -0.22rem !important;
+  }
+
+  .report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
+    padding: 0.14rem 0.24rem 0.2rem !important;
+    font-size: 0.5rem !important;
+    letter-spacing: 0.13em !important;
+  }
+
+  .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"],
+  .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-row"] {
+    padding: 0.1rem 0.18rem 0.16rem !important;
+  }
+}
