@@ -88,6 +88,7 @@ export interface ManagerRosterIntelligence {
   youngCorePlayer: ManagerIntelPlayer | null;
   breakoutCandidate: ManagerIntelPlayer | null;
   lastSeasonStud: ManagerIntelPlayer | null;
+  droppablePlayers: ManagerIntelPlayer[];
   avgAge: number | null;
   avgAgeByPosition: Record<'QB' | 'RB' | 'WR' | 'TE', number | null>;
   ageFlags: string[];

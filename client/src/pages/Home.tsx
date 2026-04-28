@@ -17,6 +17,7 @@ import {
   PositionAnalysisTable,
   ManagerPositionCountsTable,
   ManagerIntelligenceCards,
+  LeagueCommandCenter,
   PickPortfolioTable,
   PowerRankingsTable,
   TradeMarketRadar,
@@ -144,6 +145,12 @@ export default function Home() {
 
             <TabsContent value="overview" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
+                <CollapsibleReportSection title="League Command Center" kicker="10 idea preview">
+                  <LeagueCommandCenter
+                    data={reportData}
+                    managerAvatars={reportData.managerAvatars}
+                  />
+                </CollapsibleReportSection>
                 <CollapsibleReportSection title="Team Identity & Timeline" kicker="Manager intelligence">
                   <ManagerIntelligenceCards
                     data={reportData.managerRosterIntelligence}

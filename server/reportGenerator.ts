@@ -999,6 +999,13 @@ export async function generateReport(
         }),
       usedInsightPlayerIds
     );
+    const droppablePlayers = [...rosterPlayers]
+      .filter((player) => !player.isStarter)
+      .sort((a, b) => {
+        const rankDelta = (getRankNumber(b.currentPositionRank) || 999) - (getRankNumber(a.currentPositionRank) || 999);
+        return rankDelta || a.value - b.value;
+      })
+      .slice(0, 3);
     const summary = buildRosterIntelligenceSummary({
       identity,
       qbs,
@@ -1027,6 +1034,7 @@ export async function generateReport(
       youngCorePlayer,
       breakoutCandidate,
       lastSeasonStud,
+      droppablePlayers,
       avgAge,
       avgAgeByPosition,
       ageFlags,

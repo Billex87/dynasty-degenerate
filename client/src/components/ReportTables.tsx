@@ -655,6 +655,339 @@ function IntelligenceMetric({ label, value, tone = 'neutral' }: { label: string;
   );
 }
 
+function ManagerMiniLine({
+  manager,
+  managerAvatars,
+  meta,
+  onClick,
+}: {
+  manager: string;
+  managerAvatars?: ManagerAvatars;
+  meta?: React.ReactNode;
+  onClick?: () => void;
+}) {
+  const content = (
+    <>
+      {renderManagerName(manager, managerAvatars)}
+      {meta && <span className="command-mini-meta">{meta}</span>}
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" className="command-mini-line command-mini-button" onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="command-mini-line">
+      {content}
+    </div>
+  );
+}
+
+function PlayerMiniLine({
+  playerId,
+  name,
+  meta,
+}: {
+  playerId?: string;
+  name: string;
+  meta?: React.ReactNode;
+}) {
+  return (
+    <div className="command-mini-line">
+      <PlayerNameWithHeadshot playerId={playerId} playerName={name} />
+      {meta && <span className="command-mini-meta">{meta}</span>}
+    </div>
+  );
+}
+
+function FeatureCard({
+  number,
+  title,
+  kicker,
+  note,
+  children,
+}: {
+  number: number;
+  title: string;
+  kicker: string;
+  note: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className="command-feature-card">
+      <div className="command-feature-top">
+        <span className="command-feature-number">{String(number).padStart(2, '0')}</span>
+        <div className="min-w-0">
+          <p>{kicker}</p>
+          <h3>{title}</h3>
+        </div>
+      </div>
+      <div className="command-feature-body">
+        {children}
+      </div>
+      <details className="command-feature-note">
+        <summary>What this is based on</summary>
+        <p>{note}</p>
+      </details>
+    </Card>
+  );
+}
+
+export function LeagueCommandCenter({
+  data,
+  managerAvatars,
+}: {
+  data: ReportData;
+  managerAvatars?: ManagerAvatars;
+}) {
+  const [selectedManager, setSelectedManager] = useState<string | null>(null);
+  const intel = data.managerRosterIntelligence || [];
+  const power = data.powerRankings || [];
+  const timelines = data.dynastyTimelines || [];
+  const trades = data.tradeTendencies || [];
+  const picks = data.pickPortfolios || [];
+  const waiver = data.waiverIntelligence;
+  const risers = data.weeklyRisers || [];
+  const fallers = data.weeklyFallers || [];
+  const topIdentity = [...intel].sort((a, b) => b.starterValue - a.starterValue).slice(0, 3);
+  const starterDepth = (data.managerPositionCounts || [])
+    .map((row) => ({
+      manager: row.manager,
+      starterCount: row.QB_starters + row.RB_starters + row.WR_starters + row.TE_starters,
+      totalPlayers: row.QB + row.RB + row.WR + row.TE,
+      droppablePlayers: intel.find((item) => item.manager === row.manager)?.droppablePlayers || [],
+    }))
+    .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers);
+  const oldest = [...intel].filter((row) => row.avgAge !== null).sort((a, b) => (b.avgAge || 0) - (a.avgAge || 0))[0];
+  const youngest = [...intel].filter((row) => row.avgAge !== null).sort((a, b) => (a.avgAge || 99) - (b.avgAge || 99))[0];
+  const holes = intel.filter((row) => row.holes.summary !== 'No major roster hole flagged').slice(0, 4);
+  const sellHigh = risers.filter((player) => player.val_now >= 2500).slice(0, 3);
+  const buyLow = fallers.filter((player) => player.val_now >= 1800).slice(0, 3);
+  const activeTrader = trades[0];
+  const bestTrader = [...trades].sort((a, b) => b.profit - a.profit)[0];
+  const worstTrader = [...trades].sort((a, b) => a.profit - b.profit)[0];
+  const topPicks = picks.slice(0, 3);
+  const available = [
+    waiver?.highestKtcAvailable,
+    ...(waiver ? Object.values(waiver.bestAvailableByPosition) : []),
+  ].filter(Boolean).slice(0, 5) as TrendingPlayer[];
+  const contenders = timelines.filter((row) => row.contenderScore >= 70).sort((a, b) => b.contenderScore - a.contenderScore).slice(0, 3);
+  const rebuilds = timelines.filter((row) => row.rebuildScore >= 55).sort((a, b) => b.rebuildScore - a.rebuildScore).slice(0, 3);
+  const selectedIntel = selectedManager ? intel.find((row) => row.manager === selectedManager) : null;
+  const selectedCounts = selectedManager ? data.managerPositionCounts.find((row) => row.manager === selectedManager) : null;
+  const selectedTrade = selectedManager ? trades.find((row) => row.manager === selectedManager) : null;
+  const selectedPick = selectedManager ? picks.find((row) => row.manager === selectedManager) : null;
+  const selectedPower = selectedManager ? power.find((row) => row.manager === selectedManager) : null;
+  const selectedTimeline = selectedManager ? timelines.find((row) => row.manager === selectedManager) : null;
+  const openManager = (manager: string) => setSelectedManager(manager);
+
+  return (
+    <>
+    <div className="command-center-grid">
+      <FeatureCard
+        number={1}
+        title="Roster Identity"
+        kicker="Team archetypes"
+        note="Uses starter value share, average age, bench depth, current roster-value rank, and 2027 value rank to label each manager as win-now, balanced, rebuild, youth-heavy, or depth-heavy."
+      >
+        {topIdentity.map((row) => (
+          <ManagerMiniLine key={row.manager} manager={row.manager} managerAvatars={managerAvatars} meta={titleCasePill(row.identity)} onClick={() => openManager(row.manager)} />
+        ))}
+      </FeatureCard>
+
+      <FeatureCard
+        number={2}
+        title="Starter vs Bench"
+        kicker="Positional-rank depth"
+        note="This uses positional rank thresholds, not raw KTC value. QB/RB/WR/TE starters are counted dynamically from league size, so it changes for 10-team, 12-team, and other formats."
+      >
+        {starterDepth.slice(0, 3).map((row) => (
+          <ManagerMiniLine
+            key={row.manager}
+            manager={row.manager}
+            managerAvatars={managerAvatars}
+            meta={`${row.starterCount} ranked starters`}
+            onClick={() => openManager(row.manager)}
+          />
+        ))}
+      </FeatureCard>
+
+      <FeatureCard
+        number={3}
+        title="Age Curve"
+        kicker="Roster timeline"
+        note="Average age is calculated from ranked QB/RB/WR/TE roster pieces. Flags call out older RB rooms, young WR/TE cores, and overall age risk."
+      >
+        {youngest && <ManagerMiniLine manager={youngest.manager} managerAvatars={managerAvatars} meta={`Youngest avg ${youngest.avgAge}`} onClick={() => openManager(youngest.manager)} />}
+        {oldest && <ManagerMiniLine manager={oldest.manager} managerAvatars={managerAvatars} meta={`Oldest avg ${oldest.avgAge}`} onClick={() => openManager(oldest.manager)} />}
+        {intel.flatMap((row) => row.ageFlags.map((flag) => ({ manager: row.manager, flag }))).slice(0, 2).map((item) => (
+          <ManagerMiniLine key={`${item.manager}-${item.flag}`} manager={item.manager} managerAvatars={managerAvatars} meta={titleCasePill(item.flag)} onClick={() => openManager(item.manager)} />
+        ))}
+      </FeatureCard>
+
+      <FeatureCard
+        number={4}
+        title="Roster Holes"
+        kicker="Attack points"
+        note="Compares each manager's best QB, RB2, WR2/WR3, TE1, and bench flex depth against league-size positional thresholds."
+      >
+        {(holes.length ? holes : intel.slice(0, 3)).map((row) => (
+          <ManagerMiniLine key={row.manager} manager={row.manager} managerAvatars={managerAvatars} meta={titleCasePill(row.holes.summary)} onClick={() => openManager(row.manager)} />
+        ))}
+      </FeatureCard>
+
+      <FeatureCard
+        number={5}
+        title="Trade Market"
+        kicker="Buy/sell signals"
+        note="Sell highs are rostered weekly risers with meaningful KTC value. Buy lows are rostered weekly fallers that still carry enough market value to matter."
+      >
+        {sellHigh.slice(0, 2).map((player) => (
+          <PlayerMiniLine key={`sell-${player.player_id || player.name}`} playerId={player.player_id} name={player.name} meta={`Sell high ${player.diff > 0 ? '+' : ''}${player.diff}`} />
+        ))}
+        {buyLow.slice(0, 2).map((player) => (
+          <PlayerMiniLine key={`buy-${player.player_id || player.name}`} playerId={player.player_id} name={player.name} meta={`Buy low ${player.diff}`} />
+        ))}
+      </FeatureCard>
+
+      <FeatureCard
+        number={6}
+        title="Trade Tendencies"
+        kicker="Manager habits"
+        note="Uses completed Sleeper trades, current KTC values, value gaps, manager wins, favorite partners, pick/veteran net, and average gap."
+      >
+        {activeTrader && <ManagerMiniLine manager={activeTrader.manager} managerAvatars={managerAvatars} meta={`${activeTrader.tradeCount} trades`} onClick={() => openManager(activeTrader.manager)} />}
+        {bestTrader && <ManagerMiniLine manager={bestTrader.manager} managerAvatars={managerAvatars} meta={`Best profit ${bestTrader.profit > 0 ? '+' : ''}${bestTrader.profit.toLocaleString()}`} onClick={() => openManager(bestTrader.manager)} />}
+        {worstTrader && <ManagerMiniLine manager={worstTrader.manager} managerAvatars={managerAvatars} meta={`Worst profit ${worstTrader.profit.toLocaleString()}`} onClick={() => openManager(worstTrader.manager)} />}
+      </FeatureCard>
+
+      <FeatureCard
+        number={7}
+        title="Pick Portfolio"
+        kicker="Draft capital"
+        note="Combines completed rookie picks from drafts with Sleeper traded_picks inventory for future seasons, then values those picks with our KTC pick-value model."
+      >
+        {topPicks.map((row) => (
+          <ManagerMiniLine
+            key={row.manager}
+            manager={row.manager}
+            managerAvatars={managerAvatars}
+            meta={`${row.count2026} 2026 / ${row.count2027} 2027 picks`}
+            onClick={() => openManager(row.manager)}
+          />
+        ))}
+      </FeatureCard>
+
+      <FeatureCard
+        number={8}
+        title="Waiver Intelligence"
+        kicker="Available value"
+        note="Uses Sleeper trending adds/drops plus current league rosters to separate rostered players from available players, then ranks available players by KTC and position rank."
+      >
+        {available.map((player) => (
+          <PlayerMiniLine key={player.player_id} playerId={player.player_id} name={player.name} meta={`${player.currentPositionRank || player.pos} ${formatCompactValue(player.ktcValue)}`} />
+        ))}
+      </FeatureCard>
+
+      <FeatureCard
+        number={9}
+        title="Power Rankings"
+        kicker="Composite score"
+        note="Weighted score using starter strength, total roster value, positional balance, draft capital, youth score, and trade efficiency."
+      >
+        {power.slice(0, 3).map((row) => (
+          <ManagerMiniLine key={row.manager} manager={row.manager} managerAvatars={managerAvatars} meta={`#${row.rank} ${row.tier} ${row.score}`} onClick={() => openManager(row.manager)} />
+        ))}
+      </FeatureCard>
+
+      <FeatureCard
+        number={10}
+        title="Dynasty Timeline"
+        kicker="Contend or rebuild"
+        note="Combines current starter strength, total roster value, 2027 outlook, average roster age, and rebuild score to frame each team's timeline."
+      >
+        {contenders.map((row) => (
+          <ManagerMiniLine key={`contender-${row.manager}`} manager={row.manager} managerAvatars={managerAvatars} meta={`Contender ${row.contenderScore}`} onClick={() => openManager(row.manager)} />
+        ))}
+        {rebuilds.map((row) => (
+          <ManagerMiniLine key={`rebuild-${row.manager}`} manager={row.manager} managerAvatars={managerAvatars} meta={`Rebuild ${row.rebuildScore}`} onClick={() => openManager(row.manager)} />
+        ))}
+      </FeatureCard>
+    </div>
+    <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
+      <DialogContent className="manager-command-dialog max-w-3xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
+        <DialogHeader className="sr-only">
+          <DialogTitle>{selectedManager || 'Manager'} Command Center</DialogTitle>
+          <DialogDescription>Manager-level calculation details and data points.</DialogDescription>
+        </DialogHeader>
+        {selectedManager && (
+          <div>
+            <div className="manager-command-hero">
+              {managerAvatars?.[selectedManager] ? (
+                <img src={managerAvatars[selectedManager] || ''} alt={selectedManager} />
+              ) : (
+                <span>{selectedManager[0]?.toUpperCase() || '?'}</span>
+              )}
+              <div className="min-w-0">
+                <p>Owner Data Room</p>
+                <h3>{selectedManager}</h3>
+                <span>{selectedIntel?.identity || selectedTimeline?.label || 'League manager'}</span>
+              </div>
+            </div>
+            <div className="manager-command-body">
+              <div className="manager-command-metrics">
+                <IntelligenceMetric label="Ranked Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters : '-'} />
+                <IntelligenceMetric label="Roster Age" value={selectedIntel?.avgAge ?? '-'} />
+                <IntelligenceMetric label="Power Score" value={selectedPower?.score ?? '-'} />
+              </div>
+              <div className="manager-command-section">
+                <h4>What The Calculations Use</h4>
+                <ul>
+                  <li>Starter depth: positional ranks by league-size thresholds, not raw player value.</li>
+                  <li>Roster holes: QB1, RB2, WR2/WR3, TE1, and bench flex coverage.</li>
+                  <li>Timeline: starter strength, 2027 outlook, roster age, and rebuild score.</li>
+                  <li>Trade profile: completed Sleeper trades, KTC gaps, wins, profit, partners, picks, and veterans.</li>
+                </ul>
+              </div>
+              <div className="manager-command-grid">
+                <div>
+                  <h4>Rank Snapshot</h4>
+                  <p>QB {selectedIntel?.holes.bestQbRank || '-'} | RB2 {selectedIntel?.holes.rb2Rank || '-'} | WR3 {selectedIntel?.holes.wr3Rank || '-'} | TE1 {selectedIntel?.holes.te1Rank || '-'}</p>
+                  <p>{selectedIntel?.holes.summary || 'No roster hole data available.'}</p>
+                </div>
+                <div>
+                  <h4>Trade / Picks</h4>
+                  <p>{selectedTrade ? `${selectedTrade.tradeCount} trades, ${selectedTrade.winPct}% win rate, ${selectedTrade.profit > 0 ? '+' : ''}${selectedTrade.profit.toLocaleString()} profit` : 'No completed trade profile yet.'}</p>
+                  <p>{selectedPick ? `${selectedPick.count2026} picks in 2026, ${selectedPick.count2027} picks in 2027, ${formatCompactValue(selectedPick.totalValue)} total draft capital` : 'No pick portfolio data available.'}</p>
+                </div>
+              </div>
+              {selectedIntel?.droppablePlayers?.length ? (
+                <div className="manager-command-section">
+                  <h4>Most Droppable By Positional Rank</h4>
+                  <div className="manager-command-player-grid">
+                    {selectedIntel.droppablePlayers.map((player) => (
+                      <div key={player.player_id} className="manager-command-player">
+                        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+                        <span>{player.currentPositionRank || player.pos}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
+  );
+}
+
 export function ManagerIntelligenceCards({
   data,
   managerAvatars,
@@ -1773,7 +2106,11 @@ export function PickPortfolioTable({
   return (
     <div className="flex justify-center">
       <Card className="report-card-polished overflow-hidden border-slate-800 bg-slate-900">
-        <Table className="report-table-polished pick-portfolio-table">
+        <Table
+          className="report-table-polished pick-portfolio-table"
+          containerClassName="overflow-x-hidden"
+          style={{ tableLayout: 'fixed' }}
+        >
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
               <TableHead className="text-white font-semibold">Manager</TableHead>
