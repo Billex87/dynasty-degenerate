@@ -1027,8 +1027,10 @@
   .manager-command-title-lockup {
     position: relative;
     z-index: 2;
-    display: inline-flex;
-    max-width: min(100%, 26rem);
+    display: grid;
+    grid-template-columns: auto minmax(0, max-content);
+    width: min(calc(100% - 2.75rem), 40rem);
+    max-width: min(calc(100% - 2.75rem), 40rem);
     align-items: center;
     justify-content: center;
     gap: 1rem;
@@ -1069,12 +1071,16 @@
 
   .manager-command-hero h3 {
     margin-top: 0.28rem;
+    max-width: min(100%, 28rem);
+    overflow: hidden;
     color: #fb923c;
     font-family: var(--font-athletic);
-    font-size: clamp(2rem, 8vw, 3rem);
+    font-size: clamp(1.85rem, 4.2vw, 2.25rem);
     font-weight: 950;
     line-height: 0.94;
+    text-overflow: ellipsis;
     text-transform: uppercase;
+    white-space: nowrap;
   }
 
   .manager-command-hero .manager-command-title-lockup span:not(.manager-command-avatar) {
@@ -1351,6 +1357,7 @@
       grid-template-columns: 3.4rem minmax(0, 1fr);
       gap: 0.75rem;
       width: 100%;
+      max-width: calc(100% - 2.5rem);
       text-align: left;
     }
 
@@ -1361,7 +1368,7 @@
     }
 
     .manager-command-hero h3 {
-      font-size: clamp(1.85rem, 9vw, 2.75rem);
+      font-size: clamp(1.55rem, 7vw, 2rem);
       line-height: 0.95;
       max-width: 100%;
       overflow: hidden;

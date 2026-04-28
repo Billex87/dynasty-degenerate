@@ -841,15 +841,46 @@ export function LeagueCommandCenter({
     const rbAge = selectedIntel.avgAgeByPosition.RB;
     const wrAge = selectedIntel.avgAgeByPosition.WR;
     const teAge = selectedIntel.avgAgeByPosition.TE;
-    if (rbAge !== null && rbAge >= 27) notes.push('RB room is getting older, so the next move should be adding younger insulation before value falls off.');
-    if (wrAge !== null && wrAge >= 28) notes.push('WR room is aging, so a younger wideout needs to be on the shopping list soon.');
-    if (teAge !== null && teAge >= 29) notes.push('TE is veteran-heavy, which is fine for now but risky if the starter loses role or health.');
-    if (selectedIntel.holes.flexDepth <= 1) notes.push('Flex depth is thin enough that one injury could force a replacement-level starter into the lineup.');
-    if (selectedIntel.holes.rb2Rank && Number(selectedIntel.holes.rb2Rank.replace(/\D/g, '')) > 24) notes.push('RB2 is below the starter line, so this roster can be attacked at running back.');
-    if (selectedIntel.holes.wr3Rank && Number(selectedIntel.holes.wr3Rank.replace(/\D/g, '')) > 36) notes.push('WR3 trails the lineup need, which makes the weekly floor fragile.');
-    if (selectedIntel.bestBenchStash) notes.push(`${selectedIntel.bestBenchStash.name} is the best bench chip if this manager wants to patch a hole.`);
-    if (!notes.length) notes.push('This roster is fairly clean: no obvious age cliff or depth emergency from the current positional ranks.');
-    return notes.slice(0, 3).join(' ');
+    const missingLineupGroups = lineupGroups.filter((group) => group.players.length < (group.label === 'TE' ? 1 : 2));
+    const rb2Rank = selectedIntel.holes.rb2Rank ? Number(selectedIntel.holes.rb2Rank.replace(/\D/g, '')) : null;
+    const wr3Rank = selectedIntel.holes.wr3Rank ? Number(selectedIntel.holes.wr3Rank.replace(/\D/g, '')) : null;
+    const teRank = selectedIntel.holes.te1Rank ? Number(selectedIntel.holes.te1Rank.replace(/\D/g, '')) : null;
+
+    if (selectedTimeline) {
+      notes.push(`${selectedTimeline.label}. Contender score ${selectedTimeline.contenderScore}, rebuild score ${selectedTimeline.rebuildScore}, so this team should ${selectedTimeline.contenderScore >= 70 ? 'protect weekly starters and buy injury insurance' : 'keep leaning into picks and young upside'}.`);
+    }
+    if (wrAge !== null && wrAge >= 27) {
+      notes.push(`WR room is aging at ${wrAge.toFixed(1)} on average, so a younger wideout should be a priority before that room loses trade value.`);
+    } else if (wr3Rank !== null && wr3Rank > 36) {
+      notes.push(`WR depth is the soft spot: WR3 is ${selectedIntel.holes.wr3Rank}, so one injury can push a shaky receiver into the weekly lineup.`);
+    }
+    if (rbAge !== null && rbAge >= 26.5) {
+      notes.push(`RB room is older at ${rbAge.toFixed(1)} on average; that is fine for a contender, but this is the position most likely to need a refresh soon.`);
+    } else if (rb2Rank !== null && rb2Rank > 24) {
+      notes.push(`RB2 is ${selectedIntel.holes.rb2Rank}, which is below the comfort line for this league size and gives other managers an obvious attack point.`);
+    }
+    if (teAge !== null && teAge >= 29) {
+      notes.push(`TE is veteran-heavy at ${teAge.toFixed(1)} on average, so the backup plan matters if the starter loses role or health.`);
+    } else if (teRank !== null && teRank > 12) {
+      notes.push(`TE1 is ${selectedIntel.holes.te1Rank}, so this roster may be giving up weekly points at a single-start position.`);
+    }
+    if (selectedIntel.holes.flexDepth <= 1) {
+      notes.push('Flex depth is thin enough that one injury could force a replacement-level player into the lineup.');
+    }
+    if (missingLineupGroups.length) {
+      notes.push(`Lineup warning: ${missingLineupGroups.map((group) => group.label).join(', ')} does not fully fill from ranked players.`);
+    }
+    if (selectedIntel.weakestStarter) {
+      notes.push(`Softest starter is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.pos}), so that is the cleanest upgrade spot.`);
+    }
+    if (selectedIntel.bestBenchStash) {
+      notes.push(`${selectedIntel.bestBenchStash.name} (${selectedIntel.bestBenchStash.currentPositionRank || selectedIntel.bestBenchStash.pos}) is the best bench chip if this manager wants to patch a hole without touching the core.`);
+    }
+    if (selectedPick && selectedPick.count2026 + selectedPick.count2027 >= 15) {
+      notes.push(`Draft capital is strong with ${selectedPick.count2026} 2026 picks and ${selectedPick.count2027} 2027 picks, so this team has room to buy help.`);
+    }
+    if (!notes.length) notes.push('This roster is fairly clean: no obvious age cliff, weak starter, or depth emergency from the current positional ranks.');
+    return notes.slice(0, 5).join(' ');
   })();
 
   return (
