@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronDown, Download, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3, Repeat2, ClipboardList } from 'lucide-react';
+import { ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3, Repeat2, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import {
@@ -52,78 +52,6 @@ export default function Home() {
     }
     setIsLoading(true);
     analyzeMutation.mutate({ leagueId });
-  };
-
-  const handleDownloadCSV = () => {
-    if (!reportData) {
-      toast.error('No report data available');
-      return;
-    }
-
-    const csv = generateCSV(reportData, leagueName);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `dynasty-degenerates-${leagueName}-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const generateCSV = (data: ReportData, leagueName: string): string => {
-    let csv = `Dynasty Degenerates Report - ${leagueName}\nGenerated: ${new Date().toLocaleString()}\n\n`;
-
-    csv += 'LEAGUE OVERVIEW\n';
-    csv += 'Manager,Total Value,QB Rank,RB Rank,WR Rank,TE Rank,Value Rank,2027 Rank\n';
-    data.leagueOverview.forEach((row) => {
-      csv += `${row.manager},${row.total_val},${row.rank_qb},${row.rank_rb},${row.rank_wr},${row.rank_te},${row.rank_value},${row.rank_2027}\n`;
-    });
-
-    csv += '\nMANAGER ROSTER VALUE GROWTH\n';
-    csv += 'Manager,2025 Value,2026 Value,Growth %,Rank\n';
-    data.managerRosterValueGrowth.forEach((row) => {
-      csv += `${row.manager},${row.past_val},${row.total_val},${row.growth.toFixed(1)}%,${row.rank}\n`;
-    });
-
-    csv += '\nWEEKLY RISERS\n';
-    csv += 'Rank,Player,Position,Owner,Last Week,This Week,Change\n';
-    data.weeklyRisers.forEach((row, idx) => {
-      csv += `${idx + 1},${row.name},${row.pos},${row.owner},${row.val_last},${row.val_now},${row.diff}\n`;
-    });
-
-    csv += '\nWEEKLY FALLERS\n';
-    csv += 'Rank,Player,Position,Owner,Last Week,This Week,Change\n';
-    data.weeklyFallers.forEach((row, idx) => {
-      csv += `${idx + 1},${row.name},${row.pos},${row.owner},${row.val_last},${row.val_now},${row.diff}\n`;
-    });
-
-    csv += '\nPROJECTED RISERS\n';
-    csv += 'Rank,Player,Position,Owner,Age,2026 Value,2027 Projection,Change\n';
-    data.projectedRisers.forEach((row, idx) => {
-      csv += `${idx + 1},${row.name},${row.pos},${row.owner},${row.age},${row.val_2026},${row.val_2027},${row.diff}\n`;
-    });
-
-    csv += '\nPROJECTED FALLERS\n';
-    csv += 'Rank,Player,Position,Owner,Age,2026 Value,2027 Projection,Change\n';
-    data.projectedFallers.forEach((row, idx) => {
-      csv += `${idx + 1},${row.name},${row.pos},${row.owner},${row.age},${row.val_2026},${row.val_2027},${row.diff}\n`;
-    });
-
-    csv += '\nALL-TIME TRADE PROFIT LEADERBOARD\n';
-    csv += 'Manager,Profit,Wins,Trade Count\n';
-    data.tradeProfitLeaderboard.forEach((row) => {
-      csv += `${row.manager},${row.profit},${row.wins},${row.trade_count}\n`;
-    });
-
-    csv += '\nFULL TRADE LEDGER\n';
-    csv += 'Date,Season,Team A,Team B,Team A Items,Team B Items,Team A Total,Team B Total,Gap,Winner\n';
-    data.tradeHistory.forEach((row) => {
-      csv += `${row.date},${row.season},"${row.team_a}","${row.team_b}","${row.team_a_items}","${row.team_b_items}",${row.team_a_total},${row.team_b_total},${row.point_gap},${row.winner}\n`;
-    });
-
-    return csv;
   };
 
   if (reportData) {
@@ -327,13 +255,6 @@ export default function Home() {
               >
                 Analyze Another League
               </Button>
-              <Button
-                onClick={handleDownloadCSV}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white gap-2 shadow-lg"
-              >
-                <Download size={18} />
-                Export CSV
-              </Button>
             </div>
           </div>
         </div>
@@ -405,30 +326,36 @@ export default function Home() {
             {/* Features Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
               <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
-                <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-emerald-400" />
+                <div className="home-feature-heading">
+                  <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="font-semibold text-white">League Overview</h3>
                 </div>
-                <h3 className="font-semibold text-white">League Overview</h3>
                 <p className="text-sm text-slate-400">
                   See every manager's total KTC value with positional rankings and 2027 projections. No bullshit, just the numbers.
                 </p>
               </div>
 
               <div className="home-feature-card home-feature-blue p-4 sm:p-6 space-y-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-blue-400" />
+                <div className="home-feature-heading">
+                  <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <h3 className="font-semibold text-white">Trade History</h3>
                 </div>
-                <h3 className="font-semibold text-white">Trade History</h3>
                 <p className="text-sm text-slate-400">
                   Track how your trades are valued today compared to when you made them. See who's winning and who's getting fleeced.
                 </p>
               </div>
 
               <div className="home-feature-card home-feature-purple p-4 sm:p-6 space-y-3">
-                <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                  <ZapIcon className="w-6 h-6 text-purple-400" />
+                <div className="home-feature-heading">
+                  <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                    <ZapIcon className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <h3 className="font-semibold text-white">Player Projections</h3>
                 </div>
-                <h3 className="font-semibold text-white">Player Projections</h3>
                 <p className="text-sm text-slate-400">
                   AI-powered age and position-based value projections for 2027. Get ahead of the market before everyone else does.
                 </p>
@@ -466,7 +393,7 @@ export default function Home() {
               <ul className="space-y-2 text-sm text-slate-400">
                 <li>Real-time updates</li>
                 <li>Historical tracking</li>
-                <li>CSV exports</li>
+                <li>Trade ledger breakdowns</li>
                 <li>Multi-league support</li>
               </ul>
             </div>

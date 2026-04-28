@@ -289,6 +289,12 @@
     transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
   }
 
+  .home-feature-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
   .home-feature-card:hover {
     transform: translateY(-2px);
     border-color: rgba(34, 211, 238, 0.3);
@@ -652,11 +658,15 @@
     letter-spacing: 0.12em;
   }
 
-  .rookie-draft-row [data-slot="table-cell"] {
+  .rookie-draft-row {
     background:
       radial-gradient(circle at 6% 0%, rgba(249, 115, 22, 0.1), transparent 32%),
       radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.1), transparent 32%),
       linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.76));
+  }
+
+  .rookie-draft-row [data-slot="table-cell"] {
+    background: transparent !important;
   }
 
   .rookie-draft-row [data-slot="table-cell"]:first-child {
@@ -674,8 +684,8 @@
   }
 
   .rookie-draft-row [data-slot="table-cell"] {
-    border-bottom: 1px solid rgba(34, 211, 238, 0.1);
-    border-top: 1px solid rgba(34, 211, 238, 0.1);
+    border-bottom: 1px solid rgba(34, 211, 238, 0.08);
+    border-top: 1px solid rgba(34, 211, 238, 0.08);
   }
 
   .rookie-draft-manager-cell .manager-chip {
@@ -1876,6 +1886,17 @@
 
     .home-feature-card {
       border-radius: 0.95rem;
+      text-align: center;
+    }
+
+    .home-feature-heading {
+      justify-content: center;
+      gap: 0.65rem;
+    }
+
+    .home-feature-card p {
+      max-width: 23rem;
+      margin-inline: auto;
     }
 
     .loading-panel {
@@ -1948,6 +1969,11 @@
     .rookie-draft-table [data-slot="table-head"],
     .rookie-draft-table [data-slot="table-cell"] {
       padding-inline: 0.38rem;
+    }
+
+    .rookie-draft-row [data-slot="table-cell"] {
+      background: transparent !important;
+      box-shadow: none !important;
     }
 
     .rookie-draft-table .player-chip {
