@@ -84,8 +84,8 @@ function getDraftSlot(
     : undefined;
 }
 
-function encodePlayerItem(pid: string, name: string): string {
-  return `PLAYER:${pid}|${name}`;
+function encodePlayerItem(pid: string, name: string, value: number): string {
+  return `PLAYER:${pid}|${name}|${value}`;
 }
 
 function encodePickItem(label: string, value: number): string {
@@ -284,7 +284,7 @@ export async function generateReport(
       for (const [pid, rid] of Object.entries(adds)) {
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
         const val = getPlayerValue(pid, allPlayers, ktcValues);
-        sideData[rid].items.push(encodePlayerItem(pid, getPlayerName(pid, allPlayers)));
+        sideData[rid].items.push(encodePlayerItem(pid, getPlayerName(pid, allPlayers), val));
         sideData[rid].vals.push(val);
       }
 

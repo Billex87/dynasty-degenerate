@@ -30,10 +30,22 @@ function parseTradePlayerItem(trimmed: string) {
   const payload = trimmed.replace('PLAYER:', '');
   const separatorIndex = payload.indexOf('|');
   if (separatorIndex === -1) return null;
+  const rest = payload.slice(separatorIndex + 1);
+  const lastSeparatorIndex = rest.lastIndexOf('|');
+  const rawValue = lastSeparatorIndex === -1 ? null : rest.slice(lastSeparatorIndex + 1);
+  const value = rawValue !== null && rawValue !== '' ? Number(rawValue) : null;
+
   return {
     playerId: payload.slice(0, separatorIndex),
-    playerName: payload.slice(separatorIndex + 1),
+    playerName: lastSeparatorIndex === -1 ? rest : rest.slice(0, lastSeparatorIndex),
+    value: Number.isFinite(value) ? value : null,
   };
+}
+
+function parseValueAdjustmentItem(trimmed: string) {
+  if (!trimmed.startsWith('VALUE_ADJUSTMENT:')) return null;
+  const value = Number(trimmed.replace('VALUE_ADJUSTMENT:', '').replace('+', ''));
+  return Number.isFinite(value) ? value : null;
 }
 
 function parseTradePickItem(trimmed: string) {
@@ -70,7 +82,19 @@ function findLandedPick(
 
 function renderTradeItem(item: string, key: number, draftPicks: DraftPick[] = []) {
   const trimmed = item.trim();
-  if (!trimmed || trimmed.startsWith('VALUE_ADJUSTMENT:')) return null;
+  if (!trimmed) return null;
+
+  const valueAdjustment = parseValueAdjustmentItem(trimmed);
+  if (valueAdjustment !== null) {
+    return (
+      <div key={key} className="flex items-center gap-2 text-xs text-blue-300">
+        <span className="inline-flex h-6 items-center justify-center rounded bg-blue-500/15 px-2 font-semibold">
+          STUD BOOST
+        </span>
+        <span>(+{valueAdjustment.toLocaleString()})</span>
+      </div>
+    );
+  }
 
   const playerItem = parseTradePlayerItem(trimmed);
   if (playerItem) {
@@ -80,6 +104,11 @@ function renderTradeItem(item: string, key: number, draftPicks: DraftPick[] = []
           playerId={playerItem.playerId}
           playerName={playerItem.playerName}
         />
+        {playerItem.value !== null && (
+          <span className="text-xs text-slate-500">
+            ({playerItem.value.toLocaleString()})
+          </span>
+        )}
       </div>
     );
   }

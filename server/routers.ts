@@ -3,13 +3,13 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { loadKTCValues, loadKTCValuesLastWeek } from "./ktcLoader";
+import { loadKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshot } from "./ktcLoader";
 import type { KTCValues } from "./reportGenerator";
 import { loadCurrentKTCPositionRanks } from "./currentKTCLoader";
 import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
-import { getMay2025KTCSnapshot, getJan15KTCSnapshot } from "./waybackMachineScraper";
+import { getMay2025KTCSnapshot } from "./waybackMachineScraper";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 
 function normalizeManagerName(name: string | undefined): string {
@@ -132,8 +132,7 @@ export const appRouter = router({
           if (ktcValuesLastWeekRaw && Object.keys(ktcValuesLastWeekRaw).length > 0) {
             ktcValuesLastWeek = ktcValuesLastWeekRaw;
           } else {
-            // Fallback to Jan 15 snapshot if no database snapshot available
-            ktcValuesLastWeek = await getJan15KTCSnapshot();
+            ktcValuesLastWeek = loadLatestLocalKtcSnapshot();
             if (Object.keys(ktcValuesLastWeek).length === 0) {
               ktcValuesLastWeek = await loadKTCValuesLastWeek();
             }

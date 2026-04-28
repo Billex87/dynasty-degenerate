@@ -9,6 +9,8 @@ interface KTCValues {
 let ktcValuesCache: KTCValues | null = null;
 let ktcValuesLastWeekCache: KTCValues | null = null;
 
+export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshots');
+
 export async function loadKTCValues(): Promise<KTCValues> {
   if (ktcValuesCache) return ktcValuesCache;
 
@@ -61,6 +63,42 @@ export async function loadKTCValuesLastWeek(): Promise<KTCValues> {
 
   ktcValuesLastWeekCache = loadStaticKTCValues('ktc_values_last_week.json');
   return ktcValuesLastWeekCache;
+}
+
+export function loadLatestLocalKtcSnapshot(): KTCValues {
+  try {
+    if (!fs.existsSync(KTC_SNAPSHOT_DIR)) return {};
+
+    const snapshotFiles = fs
+      .readdirSync(KTC_SNAPSHOT_DIR)
+      .filter(file => /^ktc-snapshot-\d{4}-\d{2}-\d{2}\.json$/.test(file))
+      .sort();
+
+    const latest = snapshotFiles.at(-1);
+    if (!latest) return {};
+
+    const data = fs.readFileSync(path.join(KTC_SNAPSHOT_DIR, latest), 'utf-8');
+    return JSON.parse(data) || {};
+  } catch (error) {
+    console.error('Failed to load local KTC snapshot:', error);
+    return {};
+  }
+}
+
+export function saveLocalKtcSnapshot(date: Date, ktcData: KTCValues): string | null {
+  try {
+    if (!fs.existsSync(KTC_SNAPSHOT_DIR)) {
+      fs.mkdirSync(KTC_SNAPSHOT_DIR, { recursive: true });
+    }
+
+    const dateKey = date.toISOString().split('T')[0];
+    const filePath = path.join(KTC_SNAPSHOT_DIR, `ktc-snapshot-${dateKey}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(ktcData, null, 2));
+    return filePath;
+  } catch (error) {
+    console.error('Failed to save local KTC snapshot:', error);
+    return null;
+  }
 }
 
 export function clearKTCCache() {

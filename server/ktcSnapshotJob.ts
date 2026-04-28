@@ -1,6 +1,6 @@
 import { getDb } from './db';
 import { ktcSnapshots } from '../drizzle/schema';
-import { loadKTCValues, loadLiveKTCValues } from './ktcLoader';
+import { loadKTCValues, loadLiveKTCValues, saveLocalKtcSnapshot } from './ktcLoader';
 import { and, gte, lt } from 'drizzle-orm';
 
 type KTCValueMap = Record<string, { name: string; ktc_value: number; position_rank?: string }>;
@@ -61,6 +61,7 @@ export async function storeKtcSnapshot() {
 
     // Store the snapshot with today's date
     const snapshotDate = new Date();
+    const localFilePath = saveLocalKtcSnapshot(snapshotDate, ktcData);
     
     await db.insert(ktcSnapshots).values({
       snapshotDate,
@@ -68,6 +69,9 @@ export async function storeKtcSnapshot() {
     });
 
     console.log(`[KTC Snapshot] Successfully stored snapshot for ${snapshotDate.toISOString()}`);
+    if (localFilePath) {
+      console.log(`[KTC Snapshot] Also saved local snapshot to ${localFilePath}`);
+    }
   } catch (error) {
     console.error('[KTC Snapshot] Error storing snapshot:', error);
   }
