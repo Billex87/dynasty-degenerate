@@ -739,6 +739,8 @@ function FeatureCard({
   );
 }
 
+type CommandPlayer = ManagerIntelPlayer | NonNullable<ReportData['managerPositionCounts'][number]['starterPlayers']>[number];
+
 export function LeagueCommandCenter({
   data,
   managerAvatars,
@@ -791,6 +793,63 @@ export function LeagueCommandCenter({
   const selectedPower = selectedManager ? power.find((row) => row.manager === selectedManager) : null;
   const selectedTimeline = selectedManager ? timelines.find((row) => row.manager === selectedManager) : null;
   const openManager = (manager: string) => setSelectedManager(manager);
+  const openCommandPlayer = (player: CommandPlayer) => {
+    if (!selectedManager) return;
+    setSelectedPlayer(buildPlayerModalData({
+      playerId: player.player_id,
+      playerName: player.name,
+      playerPos: player.pos,
+      value: player.value,
+      playerDetails: player.playerDetails,
+      manager: selectedManager,
+      managerAvatarUrl: managerAvatars?.[selectedManager],
+      currentPositionRank: player.currentPositionRank,
+    }));
+  };
+  const selectedStarters = selectedCounts?.starterPlayers || [];
+  const pickLineupPlayers = (players: typeof selectedStarters) => {
+    const used = new Set<string>();
+    const take = (position: string, count: number) => {
+      const picked = players
+        .filter((player) => player.pos === position && !used.has(player.player_id))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, count);
+      picked.forEach((player) => used.add(player.player_id));
+      return picked;
+    };
+    const qbs = take('QB', 2);
+    const rbs = take('RB', 2);
+    const wrs = take('WR', 2);
+    const tes = take('TE', 1);
+    const flex = players
+      .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos) && !used.has(player.player_id))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 2);
+    return [
+      { label: 'QB / SF', players: qbs },
+      { label: 'RB', players: rbs },
+      { label: 'WR', players: wrs },
+      { label: 'TE', players: tes },
+      { label: 'Flex', players: flex },
+    ];
+  };
+  const lineupGroups = pickLineupPlayers(selectedStarters);
+  const rosterRead = (() => {
+    if (!selectedIntel) return 'No roster read available yet.';
+    const notes: string[] = [];
+    const rbAge = selectedIntel.avgAgeByPosition.RB;
+    const wrAge = selectedIntel.avgAgeByPosition.WR;
+    const teAge = selectedIntel.avgAgeByPosition.TE;
+    if (rbAge !== null && rbAge >= 27) notes.push('RB room is getting older, so the next move should be adding younger insulation before value falls off.');
+    if (wrAge !== null && wrAge >= 28) notes.push('WR room is aging, so a younger wideout needs to be on the shopping list soon.');
+    if (teAge !== null && teAge >= 29) notes.push('TE is veteran-heavy, which is fine for now but risky if the starter loses role or health.');
+    if (selectedIntel.holes.flexDepth <= 1) notes.push('Flex depth is thin enough that one injury could force a replacement-level starter into the lineup.');
+    if (selectedIntel.holes.rb2Rank && Number(selectedIntel.holes.rb2Rank.replace(/\D/g, '')) > 24) notes.push('RB2 is below the starter line, so this roster can be attacked at running back.');
+    if (selectedIntel.holes.wr3Rank && Number(selectedIntel.holes.wr3Rank.replace(/\D/g, '')) > 36) notes.push('WR3 trails the lineup need, which makes the weekly floor fragile.');
+    if (selectedIntel.bestBenchStash) notes.push(`${selectedIntel.bestBenchStash.name} is the best bench chip if this manager wants to patch a hole.`);
+    if (!notes.length) notes.push('This roster is fairly clean: no obvious age cliff or depth emergency from the current positional ranks.');
+    return notes.slice(0, 3).join(' ');
+  })();
 
   return (
     <>
@@ -960,20 +1019,30 @@ export function LeagueCommandCenter({
                 <IntelligenceMetric label="Roster Age" value={selectedIntel?.avgAge ?? '-'} />
                 <IntelligenceMetric label="Power Score" value={selectedPower?.score ?? '-'} />
               </div>
-              <div className="manager-command-section">
-                <h4>What The Calculations Use</h4>
-                <ul>
-                  <li>Starter depth: positional ranks by league-size thresholds, not raw player value.</li>
-                  <li>Roster holes: QB1, RB2, WR2/WR3, TE1, and bench flex coverage.</li>
-                  <li>Timeline: starter strength, 2027 outlook, roster age, and rebuild score.</li>
-                  <li>Trade profile: completed Sleeper trades, KTC gaps, wins, profit, partners, picks, and veterans.</li>
-                </ul>
-              </div>
               <div className="manager-command-grid">
                 <div>
-                  <h4>Rank Snapshot</h4>
-                  <p>QB {selectedIntel?.holes.bestQbRank || '-'} | RB2 {selectedIntel?.holes.rb2Rank || '-'} | WR3 {selectedIntel?.holes.wr3Rank || '-'} | TE1 {selectedIntel?.holes.te1Rank || '-'}</p>
-                  <p>{selectedIntel?.holes.summary ? titleCasePill(selectedIntel.holes.summary) : 'No roster hole data available.'}</p>
+                  <h4>Projected Starters</h4>
+                  <div className="manager-command-lineup">
+                    {lineupGroups.map((group) => (
+                      <div key={group.label} className="manager-command-lineup-row">
+                        <span>{group.label}</span>
+                        <div>
+                          {group.players.length ? group.players.map((player) => (
+                            <button
+                              key={player.player_id}
+                              type="button"
+                              className="manager-command-rank-pill"
+                              onClick={() => openCommandPlayer(player)}
+                            >
+                              {player.name} <strong>{player.currentPositionRank || player.pos}</strong>
+                            </button>
+                          )) : (
+                            <span className="manager-command-empty-pill">Needs Help</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <h4>Trade / Picks</h4>
@@ -981,6 +1050,28 @@ export function LeagueCommandCenter({
                   <p>{selectedPick ? `${selectedPick.count2026} picks in 2026, ${selectedPick.count2027} picks in 2027, ${formatCompactValue(selectedPick.totalValue)} total draft capital` : 'No pick portfolio data available.'}</p>
                 </div>
               </div>
+              <div className="manager-command-section manager-command-read">
+                <h4>Roster Read</h4>
+                <p>{rosterRead}</p>
+              </div>
+              {selectedIntel?.untouchablePlayers?.length ? (
+                <div className="manager-command-section manager-command-untouchable">
+                  <h4>Should Be Untouchable</h4>
+                  <div className="manager-command-player-grid">
+                    {selectedIntel.untouchablePlayers.map((player) => (
+                      <button
+                        key={player.player_id}
+                        type="button"
+                        className="manager-command-player"
+                        onClick={() => openCommandPlayer(player)}
+                      >
+                        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+                        <span>{player.currentPositionRank || player.pos}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {selectedIntel?.droppablePlayers?.length ? (
                 <div className="manager-command-section">
                   <h4>Most Droppable By Positional Rank</h4>
@@ -990,44 +1081,7 @@ export function LeagueCommandCenter({
                         key={player.player_id}
                         type="button"
                         className="manager-command-player"
-                        onClick={() => setSelectedPlayer(buildPlayerModalData({
-                          playerId: player.player_id,
-                          playerName: player.name,
-                          playerPos: player.pos,
-                          value: player.value,
-                          playerDetails: player.playerDetails,
-                          manager: selectedManager,
-                          managerAvatarUrl: managerAvatars?.[selectedManager],
-                          currentPositionRank: player.currentPositionRank,
-                        }))}
-                      >
-                        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-                        <span>{player.currentPositionRank || player.pos}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {selectedIntel?.untouchablePlayers?.length ? (
-                <div className="manager-command-section manager-command-untouchable">
-                  <h4>Should Be Untouchable</h4>
-                  <p className="manager-command-note">Top-three positional assets, plus young players already close enough to become that tier.</p>
-                  <div className="manager-command-player-grid">
-                    {selectedIntel.untouchablePlayers.map((player) => (
-                      <button
-                        key={player.player_id}
-                        type="button"
-                        className="manager-command-player"
-                        onClick={() => setSelectedPlayer(buildPlayerModalData({
-                          playerId: player.player_id,
-                          playerName: player.name,
-                          playerPos: player.pos,
-                          value: player.value,
-                          playerDetails: player.playerDetails,
-                          manager: selectedManager,
-                          managerAvatarUrl: managerAvatars?.[selectedManager],
-                          currentPositionRank: player.currentPositionRank,
-                        }))}
+                        onClick={() => openCommandPlayer(player)}
                       >
                         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
                         <span>{player.currentPositionRank || player.pos}</span>
