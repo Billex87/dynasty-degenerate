@@ -366,6 +366,49 @@
     object-fit: contain;
   }
 
+  .report-header-mobile-logo {
+    display: block;
+    height: clamp(2.35rem, 12vw, 3.35rem);
+    width: auto;
+    max-width: clamp(4.25rem, 24vw, 6.6rem);
+    object-fit: contain;
+    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.18));
+  }
+
+  .report-header-wordmark {
+    color: #fb923c;
+    letter-spacing: 0;
+    line-height: 1;
+  }
+
+  .report-header-wordmark span:first-child {
+    color: #67e8f9;
+  }
+
+  .report-header-wordmark span:last-child {
+    color: #fb923c;
+  }
+
+  .report-league-lockup {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: clamp(0.45rem, 1.7vw, 0.8rem);
+  }
+
+  .report-league-icon {
+    height: clamp(2rem, 9vw, 3rem);
+    width: clamp(2rem, 9vw, 3rem);
+    flex: 0 0 auto;
+    border-radius: 999px;
+    border: 1px solid rgba(34, 211, 238, 0.32);
+    background: rgba(2, 6, 23, 0.58);
+    object-fit: cover;
+    padding: 0.12rem;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
+  }
+
   .report-tabs {
     position: relative;
     z-index: 10;
@@ -554,6 +597,17 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .overview-manager-heading,
+  .overview-manager-cell {
+    min-width: 0;
+  }
+
+  .overview-manager-cell .manager-chip {
+    justify-content: flex-start;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .weekly-momentum-table [data-slot="table-head"]:nth-child(1),
@@ -1118,6 +1172,29 @@
 
   .trade-profit-table {
     margin-block: -0.25rem;
+  }
+
+  .trade-profit-heading {
+    color: rgba(103, 232, 249, 0.84) !important;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .trade-profit-table [data-slot="table-header"] [data-slot="table-head"],
+  .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"] {
+    border: 0 !important;
+    background: transparent !important;
+    color: rgba(103, 232, 249, 0.84) !important;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
   }
 
   @media (min-width: 640px) {
@@ -2117,7 +2194,12 @@
     }
 
     .starter-modal-hero {
-      padding: 1rem;
+      min-height: 6.8rem;
+      padding: 1.15rem 3.1rem 1.2rem 1rem;
+    }
+
+    .starter-modal-hero h3 {
+      line-height: 0.95;
     }
 
     .starter-grid {
@@ -2437,6 +2519,79 @@
       flex-shrink: 0;
     }
 
+    .overview-manager-heading,
+    .overview-manager-cell {
+      padding-inline: 0.34rem !important;
+      text-align: left;
+    }
+
+    .overview-manager-heading {
+      color: #f8fafc !important;
+      font-size: clamp(0.5rem, 1.8vw, 0.64rem) !important;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .overview-manager-cell .manager-chip {
+      justify-content: flex-start;
+      gap: clamp(0.25rem, 1vw, 0.42rem);
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .overview-manager-cell .manager-chip > span:last-child {
+      position: static;
+      width: auto;
+      height: auto;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      clip: auto;
+      color: #f8fafc;
+      font-size: clamp(0.53rem, 2.25vw, 0.78rem);
+      font-weight: 900;
+      line-height: 1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .overview-manager-cell .manager-chip img,
+    .overview-manager-cell .manager-chip > span[aria-hidden="true"] {
+      height: clamp(1.25rem, 4.55vw, 1.65rem);
+      width: clamp(1.25rem, 4.55vw, 1.65rem);
+      flex-shrink: 0;
+    }
+
+    .league-overview-table [data-slot="table-head"]:nth-child(1),
+    .league-overview-table [data-slot="table-cell"]:nth-child(1) {
+      width: 29%;
+    }
+
+    .league-overview-table [data-slot="table-head"]:nth-child(2),
+    .league-overview-table [data-slot="table-cell"]:nth-child(2) {
+      width: 15%;
+    }
+
+    .league-overview-table [data-slot="table-head"]:nth-child(n+3),
+    .league-overview-table [data-slot="table-cell"]:nth-child(n+3) {
+      width: 7%;
+    }
+
+    .roster-growth-table [data-slot="table-head"]:nth-child(1),
+    .roster-growth-table [data-slot="table-cell"]:nth-child(1) {
+      width: 33%;
+    }
+
+    .roster-growth-table [data-slot="table-head"]:nth-child(n+2),
+    .roster-growth-table [data-slot="table-cell"]:nth-child(n+2) {
+      width: 16.75%;
+    }
+
+    .position-analysis-table [data-slot="table-head"]:nth-child(1),
+    .position-analysis-table [data-slot="table-cell"]:nth-child(1) {
+      width: 58%;
+    }
+
     .trade-ledger-manager-heading {
       width: 2.8rem;
       min-width: 2.8rem;
@@ -2485,14 +2640,15 @@
       width: 100%;
       border-collapse: separate;
       border-spacing: 0 0.34rem;
-      margin-block: -0.28rem;
+      margin-block: 0;
     }
 
     .trade-profit-table [data-slot="table-header"] {
       display: block;
       width: 100%;
       border-bottom: 0 !important;
-      margin-bottom: -0.34rem;
+      margin-bottom: 0;
+      padding-inline: 0.62rem;
     }
 
     .trade-profit-table [data-slot="table-header"] [data-slot="table-row"] {
@@ -2501,20 +2657,13 @@
       align-items: end;
       gap: 0.38rem;
       border: 0 !important;
-      padding-inline: 0.15rem;
+      padding-inline: 0;
     }
 
     .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
       height: auto;
       border: 0 !important;
       padding: 0 !important;
-      color: rgba(103, 232, 249, 0.8) !important;
-      font-size: 0.54rem;
-      font-weight: 900;
-      letter-spacing: 0.14em;
-      line-height: 1;
-      text-transform: uppercase;
-      white-space: nowrap;
     }
 
     .trade-profit-table [data-slot="table-body"] {
@@ -2624,12 +2773,7 @@
       height: auto;
       border: 0 !important;
       padding: 0 !important;
-      color: rgba(103, 232, 249, 0.8) !important;
-      font-size: 0.58rem;
-      font-weight: 900;
-      letter-spacing: 0.2em;
-      line-height: 1;
-      text-transform: uppercase;
+      letter-spacing: 0.14em;
     }
 
     .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"]:first-child,

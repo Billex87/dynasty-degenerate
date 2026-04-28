@@ -547,7 +547,7 @@ export function ManagerRosterValueGrowthTable({
           <Table className="report-table-polished roster-growth-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
-              <TableHead className="weekly-manager-heading text-center text-white font-semibold">Manager</TableHead>
+              <TableHead className="overview-manager-heading text-white font-semibold">Manager</TableHead>
               <TableHead className="text-right text-white font-semibold"><div>2025</div><div>Value</div></TableHead>
               <TableHead className="text-right text-white font-semibold"><div>2026</div><div>Value</div></TableHead>
               <TableHead className="text-right text-white font-semibold"><div>Growth</div><div>%</div></TableHead>
@@ -557,7 +557,7 @@ export function ManagerRosterValueGrowthTable({
           <TableBody>
             {data.map((row, idx) => (
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="weekly-manager-cell font-semibold text-slate-100">
+                <TableCell className="overview-manager-cell font-semibold text-slate-100">
                   {renderManagerName(row.manager, managerAvatars)}
                 </TableCell>
                 <TableCell className="text-right text-slate-300">
@@ -684,7 +684,7 @@ export function LeagueOverviewTable({
         <Table className="report-table-polished league-overview-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
-              <TableHead className="mobile-icon-manager-heading text-white font-semibold">Manager</TableHead>
+              <TableHead className="overview-manager-heading text-white font-semibold">Manager</TableHead>
               <TableHead className="text-right text-white font-semibold"><div>Total</div><div>Value</div></TableHead>
               <TableHead className="text-center text-white font-semibold"><div>QB</div><div>Rank</div></TableHead>
               <TableHead className="text-center text-white font-semibold"><div>RB</div><div>Rank</div></TableHead>
@@ -697,7 +697,7 @@ export function LeagueOverviewTable({
           <TableBody>
             {data.map((row, idx) => (
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="mobile-icon-manager-cell font-semibold text-slate-100">
+                <TableCell className="overview-manager-cell font-semibold text-slate-100">
                   {renderManagerName(row.manager, managerAvatars)}
                 </TableCell>
                 <TableCell className="text-right text-slate-300">
@@ -931,11 +931,11 @@ export function TradeProfitLeaderboardTable({
           <Table className="trade-profit-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold">Wins</TableHead>
-              <TableHead className="text-right text-white font-semibold">Win %</TableHead>
-              <TableHead className="text-right text-white font-semibold">Trades</TableHead>
-              <TableHead className="text-right text-white font-semibold">Profit</TableHead>
+              <TableHead className="trade-profit-heading font-semibold">Manager</TableHead>
+              <TableHead className="trade-profit-heading text-right font-semibold">Wins</TableHead>
+              <TableHead className="trade-profit-heading text-right font-semibold">Win %</TableHead>
+              <TableHead className="trade-profit-heading text-right font-semibold">Trades</TableHead>
+              <TableHead className="trade-profit-heading text-right font-semibold">Profit</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1273,7 +1273,7 @@ export function PositionAnalysisTable({
               <Table className="report-table-polished position-analysis-table">
                 <TableHeader className="border-b-2 border-orange-500/30">
                   <TableRow className="border-slate-700">
-                    <TableHead className="text-white font-semibold">Team</TableHead>
+                    <TableHead className="overview-manager-heading text-white font-semibold">Team</TableHead>
                     <TableHead className="text-white font-semibold">Position</TableHead>
                     <TableHead className="text-right text-white font-semibold">Count</TableHead>
                   </TableRow>
@@ -1281,7 +1281,7 @@ export function PositionAnalysisTable({
                 <TableBody>
                   {shortages.map((row, idx) => (
                     <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                      <TableCell className="font-semibold text-slate-100">
+                      <TableCell className="overview-manager-cell font-semibold text-slate-100">
                         {renderManagerName(row.manager, managerAvatars)}
                       </TableCell>
                       <TableCell className="text-slate-400">{row.position}</TableCell>
@@ -1309,7 +1309,7 @@ export function PositionAnalysisTable({
               <Table className="report-table-polished position-analysis-table">
                 <TableHeader className="border-b-2 border-orange-500/30">
                   <TableRow className="border-slate-700">
-                    <TableHead className="text-white font-semibold">Team</TableHead>
+                    <TableHead className="overview-manager-heading text-white font-semibold">Team</TableHead>
                     <TableHead className="text-white font-semibold">Position</TableHead>
                     <TableHead className="text-right text-white font-semibold">Count</TableHead>
                   </TableRow>
@@ -1317,7 +1317,7 @@ export function PositionAnalysisTable({
                 <TableBody>
                   {excesses.map((row, idx) => (
                     <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                      <TableCell className="font-semibold text-slate-100">
+                      <TableCell className="overview-manager-cell font-semibold text-slate-100">
                         {renderManagerName(row.manager, managerAvatars)}
                       </TableCell>
                       <TableCell className="text-slate-400">{row.position}</TableCell>
@@ -1453,7 +1453,7 @@ export function ManagerPositionCountsTable({
         </div>
       </Card>
       <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
-        <DialogContent className="starter-modal max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-w-3xl">
+        <DialogContent className="starter-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl">
           <DialogHeader className="sr-only">
             <DialogTitle>{selectedManager?.manager} Starters</DialogTitle>
             <DialogDescription>
@@ -1461,8 +1461,8 @@ export function ManagerPositionCountsTable({
             </DialogDescription>
           </DialogHeader>
           {selectedManager && (
-            <div className="flex max-h-[86vh] flex-col">
-              <div className="starter-modal-hero relative overflow-hidden border-b border-cyan-300/20 px-5 py-5 sm:px-7">
+            <div className="flex max-h-[calc(100dvh-1rem)] min-h-0 flex-col sm:max-h-[86vh]">
+              <div className="starter-modal-hero relative flex-shrink-0 overflow-hidden border-b border-cyan-300/20 px-5 py-5 sm:px-7">
                 {selectedAvatar && (
                   <>
                     <img
@@ -1503,7 +1503,7 @@ export function ManagerPositionCountsTable({
                   </div>
                 </div>
               </div>
-              <div className="starter-modal-body overflow-y-auto p-4 sm:p-5">
+              <div className="starter-modal-body min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-5">
                 {selectedStarters.length > 0 ? (
                   <div className="starter-grid">
                     {selectedStarters.map((player) => (

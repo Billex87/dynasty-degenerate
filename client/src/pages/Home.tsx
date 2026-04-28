@@ -61,10 +61,15 @@ export default function Home() {
         <div className="report-header sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-2">
              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-6">
-              {/* Left: Dynasty Degenerates */}
+              {/* Left: Brand */}
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <h2 className="athletic-headline truncate text-base sm:text-xl bg-gradient-to-r from-orange-400 to-orange-300 bg-clip-text text-transparent">
-                  Dynasty Degenerates
+                <img
+                  src="/assets/dynasty-logo-cropped.png"
+                  alt="Dynasty Degenerates"
+                  className="report-header-mobile-logo md:hidden"
+                />
+                <h2 className="report-header-wordmark athletic-headline hidden truncate text-base sm:text-xl md:block">
+                  <span>Dynasty</span> <span>Degenerates</span>
                 </h2>
               </div>
               
@@ -78,7 +83,7 @@ export default function Home() {
               </div>
               
               {/* Right: League Name */}
-              <div className="md:col-start-3 flex min-w-0 items-center justify-end">
+              <div className="report-league-lockup md:col-start-3">
                 <div className="min-w-0 text-right">
                   <p className="truncate text-sm font-semibold text-orange-400/70 sm:text-lg md:text-xl">{leagueName}</p>
                   {leagueFormat && (
@@ -87,6 +92,13 @@ export default function Home() {
                     </p>
                   )}
                 </div>
+                {leagueLogo && (
+                  <img
+                    src={leagueLogo}
+                    alt={leagueName ? `${leagueName} league icon` : 'League icon'}
+                    className="report-league-icon"
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -239,9 +251,9 @@ export default function Home() {
         </div>
 
         {/* Bottom Action Buttons */}
-        <div className="border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="report-footer border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
+          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
+            <div className="flex justify-center">
               <Button
                 onClick={() => {
                   setReportData(null);

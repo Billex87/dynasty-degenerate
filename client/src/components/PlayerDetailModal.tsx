@@ -253,7 +253,7 @@ export function PlayerDetailModal({
               {currentValue !== undefined && (
                 <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} />
               )}
-              <MetricTile label="Position Ranking" value={currentRank} teamColors={teamColors} />
+              <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} teamColors={teamColors} />
               {valueGain !== undefined && (
                 <MetricTile
                   label="Value Change"
@@ -402,12 +402,14 @@ function getValueChangeNote(pick: PlayerModalData) {
 
 function MetricTile({
   label,
+  mobileLabel,
   value,
   tone = 'neutral',
   icon,
   teamColors,
 }: {
   label: string;
+  mobileLabel?: string;
   value: string;
   tone?: 'positive' | 'negative' | 'neutral';
   icon?: ReactNode;
@@ -429,8 +431,15 @@ function MetricTile({
           : undefined,
       }}
     >
-      <div className="text-[0.6rem] font-semibold uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.14em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
-      <div className={`mt-1 flex items-center gap-1 text-lg font-black sm:mt-2 sm:gap-2 sm:text-2xl ${toneClass}`}>
+      <div className="text-center text-[0.6rem] font-semibold uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.14em]" style={{ color: teamColors?.accent || undefined }}>
+        {mobileLabel ? (
+          <>
+            <span className="sm:hidden">{mobileLabel}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </>
+        ) : label}
+      </div>
+      <div className={`mt-1 flex items-center justify-center gap-1 text-center text-lg font-black sm:mt-2 sm:gap-2 sm:text-2xl ${toneClass}`}>
         {value}
         {icon}
       </div>
@@ -465,8 +474,8 @@ function InfoTile({
           : undefined,
       }}
     >
-      <div className="text-[0.6rem] font-semibold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
-      <div className={`mt-1 truncate text-sm font-bold sm:text-base ${toneClass}`}>{value}</div>
+      <div className="text-center text-[0.6rem] font-semibold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
+      <div className={`mt-1 truncate text-center text-sm font-bold sm:text-base ${toneClass}`}>{value}</div>
     </div>
   );
 }
