@@ -18,7 +18,6 @@ import {
   ManagerPositionCountsTable,
   ManagerIntelligenceCards,
   LeagueCommandCenter,
-  PickPortfolioTable,
   PowerRankingsTable,
   TradeMarketRadar,
   TradeTendenciesTable,
@@ -296,14 +295,6 @@ export default function Home() {
 
 
             <TabsContent value="draft" className="report-tab-content">
-              <div className="mb-6 sm:mb-8">
-                <CollapsibleReportSection title="Pick Portfolio" kicker="Draft capital">
-                  <PickPortfolioTable
-                    data={reportData.pickPortfolios}
-                    managerAvatars={reportData.managerAvatars}
-                  />
-                </CollapsibleReportSection>
-              </div>
               <DraftAnalysis
                 draftPicks={reportData.draftPicks || []}
                 draftStats={reportData.draftStats || []}

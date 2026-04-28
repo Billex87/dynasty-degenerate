@@ -888,17 +888,6 @@ export function LeagueCommandCenter({
     <div className="command-center-grid">
       <FeatureCard
         number={1}
-        title="Roster Identity"
-        kicker="Team archetypes"
-        note="Uses starter value share, average age, bench depth, current roster-value rank, and 2027 value rank to label each manager as win-now, balanced, rebuild, youth-heavy, or depth-heavy."
-      >
-        {topIdentity.map((row) => (
-          <ManagerMiniLine key={row.manager} manager={row.manager} managerAvatars={managerAvatars} meta={titleCasePill(row.identity)} onClick={() => openManager(row.manager)} />
-        ))}
-      </FeatureCard>
-
-      <FeatureCard
-        number={2}
         title="Starter vs Bench"
         kicker="Positional-rank depth"
         note="This uses positional rank thresholds, not raw KTC value. QB/RB/WR/TE starters are counted dynamically from league size, so it changes for 10-team, 12-team, and other formats."
@@ -915,7 +904,7 @@ export function LeagueCommandCenter({
       </FeatureCard>
 
       <FeatureCard
-        number={3}
+        number={2}
         title="Age Curve"
         kicker="Roster timeline"
         note="Average age is calculated from ranked QB/RB/WR/TE roster pieces. Flags call out older RB rooms, young WR/TE cores, and overall age risk."
@@ -928,18 +917,7 @@ export function LeagueCommandCenter({
       </FeatureCard>
 
       <FeatureCard
-        number={4}
-        title="Roster Holes"
-        kicker="Attack points"
-        note="Compares each manager's best QB, RB2, WR2/WR3, TE1, and bench flex depth against league-size positional thresholds."
-      >
-        {(holes.length ? holes : intel.slice(0, 3)).map((row) => (
-          <ManagerMiniLine key={row.manager} manager={row.manager} managerAvatars={managerAvatars} meta={titleCasePill(row.holes.summary)} onClick={() => openManager(row.manager)} />
-        ))}
-      </FeatureCard>
-
-      <FeatureCard
-        number={5}
+        number={3}
         title="Trade Market"
         kicker="Buy/sell signals"
         note="Sell highs are rostered weekly risers with meaningful KTC value. Buy lows are rostered weekly fallers that still carry enough market value to matter."
@@ -953,7 +931,7 @@ export function LeagueCommandCenter({
       </FeatureCard>
 
       <FeatureCard
-        number={6}
+        number={4}
         title="Trade Tendencies"
         kicker="Manager habits"
         note="Uses completed Sleeper trades, current KTC values, value gaps, manager wins, favorite partners, pick/veteran net, and average gap."
@@ -964,35 +942,7 @@ export function LeagueCommandCenter({
       </FeatureCard>
 
       <FeatureCard
-        number={7}
-        title="Pick Portfolio"
-        kicker="Draft capital"
-        note="Combines completed rookie picks from drafts with Sleeper traded_picks inventory for future seasons, then values those picks with our KTC pick-value model."
-      >
-        {topPicks.map((row) => (
-          <ManagerMiniLine
-            key={row.manager}
-            manager={row.manager}
-            managerAvatars={managerAvatars}
-            meta={`${row.count2026} 2026 / ${row.count2027} 2027 picks`}
-            onClick={() => openManager(row.manager)}
-          />
-        ))}
-      </FeatureCard>
-
-      <FeatureCard
-        number={8}
-        title="Waiver Intelligence"
-        kicker="Available value"
-        note="Uses Sleeper trending adds/drops plus current league rosters to separate rostered players from available players, then ranks available players by KTC and position rank."
-      >
-        {available.map((player) => (
-          <PlayerMiniLine key={player.player_id} playerId={player.player_id} name={player.name} meta={`${player.currentPositionRank || player.pos} ${formatCompactValue(player.ktcValue)}`} />
-        ))}
-      </FeatureCard>
-
-      <FeatureCard
-        number={9}
+        number={5}
         title="Power Rankings"
         kicker="Composite score"
         note="Weighted score using starter strength, total roster value, positional balance, draft capital, youth score, and trade efficiency."
@@ -1003,7 +953,7 @@ export function LeagueCommandCenter({
       </FeatureCard>
 
       <FeatureCard
-        number={10}
+        number={6}
         title="Dynasty Timeline"
         kicker="Contend or rebuild"
         note="Combines current starter strength, total roster value, 2027 outlook, average roster age, and rebuild score to frame each team's timeline."
