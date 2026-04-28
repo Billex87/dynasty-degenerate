@@ -66,12 +66,18 @@ export async function loadKTCValuesLastWeek(): Promise<KTCValues> {
 }
 
 export function loadLatestLocalKtcSnapshot(): KTCValues {
+  return loadLatestLocalKtcSnapshotBefore(new Date());
+}
+
+export function loadLatestLocalKtcSnapshotBefore(beforeDate: Date): KTCValues {
   try {
     if (!fs.existsSync(KTC_SNAPSHOT_DIR)) return {};
+    const beforeDateKey = beforeDate.toISOString().split('T')[0];
 
     const snapshotFiles = fs
       .readdirSync(KTC_SNAPSHOT_DIR)
       .filter(file => /^ktc-snapshot-\d{4}-\d{2}-\d{2}\.json$/.test(file))
+      .filter(file => file.replace('ktc-snapshot-', '').replace('.json', '') < beforeDateKey)
       .sort();
 
     const latest = snapshotFiles.at(-1);
