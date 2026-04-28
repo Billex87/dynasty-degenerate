@@ -558,8 +558,13 @@
     width: max-content;
     max-width: 100%;
     overscroll-behavior-x: contain;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(34, 211, 238, 0.38) rgba(15, 23, 42, 0.5);
+    scrollbar-width: none;
+  }
+
+  .report-shell [data-slot="table-container"]::-webkit-scrollbar {
+    display: none;
+    height: 0;
+    width: 0;
   }
 
   .report-shell [data-slot="table"] {
@@ -2917,12 +2922,22 @@
     }
 
     .report-section .overflow-x-auto,
+    .report-section .overflow-x-hidden,
     .report-shell [data-slot="table-container"] {
       width: 100% !important;
       max-width: 100% !important;
-      overflow-x: hidden !important;
+      max-height: none !important;
+      overflow: clip !important;
       overscroll-behavior: auto;
       touch-action: pan-y;
+    }
+
+    .report-section .overflow-x-auto::-webkit-scrollbar,
+    .report-section .overflow-x-hidden::-webkit-scrollbar,
+    .report-shell [data-slot="table-container"]::-webkit-scrollbar {
+      display: none;
+      height: 0;
+      width: 0;
     }
 
     .report-shell [data-slot="table-head"] {
@@ -4087,12 +4102,21 @@
   max-width: 100%;
 }
 
-.trade-ledger-card [data-slot="table-container"],
-.trade-profit-card [data-slot="table-container"],
-.report-card-polished [data-slot="table-container"] {
-  max-width: 100%;
-  overflow-x: clip;
-}
+  .trade-ledger-card [data-slot="table-container"],
+  .trade-profit-card [data-slot="table-container"],
+  .report-card-polished [data-slot="table-container"] {
+    max-width: 100%;
+    overflow: clip;
+    scrollbar-width: none;
+  }
+
+  .trade-ledger-card [data-slot="table-container"]::-webkit-scrollbar,
+  .trade-profit-card [data-slot="table-container"]::-webkit-scrollbar,
+  .report-card-polished [data-slot="table-container"]::-webkit-scrollbar {
+    display: none;
+    height: 0;
+    width: 0;
+  }
 
 .trade-ledger-table,
 .trade-profit-table,
@@ -4166,7 +4190,8 @@
   .report-card-polished [data-slot="table-container"] {
     width: 100% !important;
     max-width: 100% !important;
-    overflow-x: clip !important;
+    max-height: none !important;
+    overflow: clip !important;
     overscroll-behavior-x: auto;
     touch-action: pan-y;
   }
