@@ -39,35 +39,39 @@ export function ManagerDraftPicksModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-6xl max-h-[80vh] bg-slate-900 border-slate-800 overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[80vh] bg-slate-900 border-slate-800 overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-orange-400">
               {managerName}'s Draft Picks
             </DialogTitle>
           </DialogHeader>
 
-          <div className="overflow-x-auto">
-            <Table>
+          <div className="w-full overflow-x-hidden">
+            <Table
+              className="w-full text-xs sm:text-sm"
+              containerClassName="overflow-x-hidden"
+              style={{ tableLayout: 'fixed' }}
+            >
               <TableHeader className="border-b-2 border-orange-500/30">
                 <TableRow className="border-slate-700">
-                  <TableHead className="text-white font-semibold">Player</TableHead>
-                  <TableHead className="text-right text-white font-semibold">
+                  <TableHead className="w-[38%] text-white font-semibold">Player</TableHead>
+                  <TableHead className="w-[12%] text-right text-white font-semibold">
                     <div>Drafted</div>
                     <div>Rank</div>
                   </TableHead>
-                  <TableHead className="text-right text-white font-semibold">
+                  <TableHead className="w-[12%] text-right text-white font-semibold">
                     <div>Current</div>
                     <div>Rank</div>
                   </TableHead>
-                  <TableHead className="text-right text-white font-semibold">
+                  <TableHead className="w-[14%] text-right text-white font-semibold">
                     <div>Position</div>
                     <div>Change</div>
                   </TableHead>
-                  <TableHead className="text-right text-white font-semibold">
+                  <TableHead className="w-[12%] text-right text-white font-semibold">
                     <div>Current</div>
                     <div>Value</div>
                   </TableHead>
-                  <TableHead className="text-right text-white font-semibold">
+                  <TableHead className="w-[12%] text-right text-white font-semibold">
                     <div>Value</div>
                     <div>Change</div>
                   </TableHead>
@@ -80,8 +84,10 @@ export function ManagerDraftPicksModal({
                     className="border-slate-700 hover:bg-slate-800/30 cursor-pointer"
                     onClick={() => setSelectedPlayer(pick)}
                   >
-                    <TableCell className="font-semibold text-slate-100">
-                      <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
+                    <TableCell className="min-w-0 font-semibold text-slate-100">
+                      <div className="min-w-0">
+                        <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {pick.positionRankMay2025 ? (

@@ -83,6 +83,20 @@ function encodePickItem(label: string, value: number): string {
   return `PICK:${label}|${value}`;
 }
 
+function chooseTradeWinner(
+  managerA: string,
+  managerB: string,
+  valueA: number,
+  valueB: number
+): string {
+  if (valueA > valueB) return managerA;
+  if (valueB > valueA) return managerB;
+  if (managerA === 'mynameisbillex' || managerB === 'mynameisbillex') {
+    return 'mynameisbillex';
+  }
+  return managerA;
+}
+
 export async function generateReport(
   currentSeasonData: SeasonData,
   pastSeasonData: SeasonData | null,
@@ -309,7 +323,7 @@ export async function generateReport(
           ...(adj2 > 0 ? [`VALUE_ADJUSTMENT:+${adj2}`] : []),
         ].join(', ');
         const pointGap = Math.abs(finalV1 - finalV2);
-        const winner = finalV1 > finalV2 ? m1 : finalV2 > finalV1 ? m2 : 'Even';
+        const winner = chooseTradeWinner(m1, m2, finalV1, finalV2);
 
         tradeRows.push({
           date: dt,

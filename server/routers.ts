@@ -12,6 +12,11 @@ import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draf
 import { getMay2025KTCSnapshot, getJan15KTCSnapshot } from "./waybackMachineScraper";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 
+function normalizeManagerName(name: string | undefined): string {
+  const fallback = name || 'Unknown';
+  return fallback.replace(/\d+$/, '') || fallback;
+}
+
 async function fetchDraftSlotsBySeason(
   leagueId: string,
   rosters: Array<{ roster_id: number; owner_id: string }>
@@ -84,7 +89,7 @@ export const appRouter = router({
           const rosterUserMap = Object.fromEntries(
             rosters.map((r: any) => [
               r.roster_id,
-              userMap[r.owner_id]?.display_name || 'Unknown',
+              normalizeManagerName(userMap[r.owner_id]?.display_name),
             ])
           );
 
@@ -145,7 +150,7 @@ export const appRouter = router({
               const pastRosterUserMap = Object.fromEntries(
                 pastRosters.map((r: any) => [
                   r.roster_id,
-                  pastUserMap[r.owner_id]?.display_name || 'Unknown',
+                  normalizeManagerName(pastUserMap[r.owner_id]?.display_name),
                 ])
               );
               // Fetch trades from previous season
@@ -183,7 +188,7 @@ export const appRouter = router({
 
           // Create user_id to manager name map for draft analysis
           const userIdToManagerMap = Object.fromEntries(
-            users.map((u: any) => [u.user_id, u.display_name || 'Unknown'])
+            users.map((u: any) => [u.user_id, normalizeManagerName(u.display_name)])
           );
 
           const currentSeasonData = {
@@ -210,7 +215,7 @@ export const appRouter = router({
               `https://api.sleeper.app/v1/league/${prevLeagueId}/users`
             ).then((r) => r.json());
             pastUserMap = Object.fromEntries(
-              pastUsers.map((u: any) => [u.user_id, u.display_name || 'Unknown'])
+              pastUsers.map((u: any) => [u.user_id, normalizeManagerName(u.display_name)])
             );
           }
 

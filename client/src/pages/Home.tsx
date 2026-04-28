@@ -129,16 +129,16 @@ export default function Home() {
         {/* Premium Header */}
         <div className="border-b border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-2">
-             <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 md:gap-6">
+             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-6">
               {/* Left: Dynasty Degenerates */}
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <h2 className="athletic-headline text-lg sm:text-xl bg-gradient-to-r from-orange-400 to-orange-300 bg-clip-text text-transparent whitespace-nowrap">
+                <h2 className="athletic-headline truncate text-base sm:text-xl bg-gradient-to-r from-orange-400 to-orange-300 bg-clip-text text-transparent">
                   Dynasty Degenerates
                 </h2>
               </div>
               
               {/* Center: Logo */}
-              <div className="hidden md:flex items-center justify-center">
+              <div className="hidden md:col-start-2 md:flex items-center justify-center">
                 <img 
                   src="/assets/dynasty-logo-cropped.png" 
                   alt="Dynasty Degenerates Logo" 
@@ -147,7 +147,7 @@ export default function Home() {
               </div>
               
               {/* Right: League Name */}
-              <p className="text-sm sm:text-lg md:text-xl text-orange-400/70 truncate text-right font-semibold min-w-0">{leagueName}</p>
+              <p className="min-w-0 truncate text-right text-sm font-semibold text-orange-400/70 sm:text-lg md:col-start-3 md:text-xl">{leagueName}</p>
             </div>
           </div>
         </div>

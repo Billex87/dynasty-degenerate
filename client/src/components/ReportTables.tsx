@@ -405,14 +405,30 @@ export function TradeHistoryTable({
           <TableBody>
             {[...data].reverse().map((row, idx) => {
               const isExpanded = expandedIdx === idx;
-              const winnerColor =
-                row.winner === row.team_a
-                  ? 'text-purple-400'
-                  : row.winner === row.team_b
-                    ? 'text-amber-400'
-                    : 'text-slate-400';
-              const isTeamAWinner = row.winner === row.team_a;
-              const isTeamBWinner = row.winner === row.team_b;
+              const winnerSide = row.winner === row.team_b ? 'team_b' : 'team_a';
+              const loserName = winnerSide === 'team_a' ? row.team_b : row.team_a;
+              const leftSide = winnerSide === 'team_a'
+                ? {
+                    manager: row.team_a,
+                    items: row.team_a_items,
+                    total: row.team_a_total,
+                  }
+                : {
+                    manager: row.team_b,
+                    items: row.team_b_items,
+                    total: row.team_b_total,
+                  };
+              const rightSide = winnerSide === 'team_a'
+                ? {
+                    manager: row.team_b,
+                    items: row.team_b_items,
+                    total: row.team_b_total,
+                  }
+                : {
+                    manager: row.team_a,
+                    items: row.team_a_items,
+                    total: row.team_a_total,
+                  };
               const tradeKey = `${row.date}-${row.team_a}-${row.team_b}-${idx}`;
 
               return (
@@ -427,7 +443,7 @@ export function TradeHistoryTable({
                       {row.winner}
                     </TableCell>
                     <TableCell className={`font-semibold text-sm ${row.winner === row.team_a ? 'text-orange-400' : 'text-blue-400'}`}>
-                      {row.winner === row.team_a ? row.team_b : row.team_a}
+                      {loserName}
                     </TableCell>
                     <TableCell className="text-center text-slate-300">
                       {row.point_gap.toLocaleString()}
@@ -437,33 +453,33 @@ export function TradeHistoryTable({
                   {isExpanded && (
                     <TableRow key={`${tradeKey}-details`} className="border-slate-700 bg-slate-800/20">
                       <TableCell colSpan={4} className="p-6">
-                        <div className="grid grid-cols-2 gap-8">
-                          {/* Team A Details */}
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
+                          {/* Winner Details */}
                           <div className="space-y-3">
-                            <h4 className="text-blue-400 font-semibold text-sm">{row.team_a}</h4>
+                            <h4 className="text-blue-400 font-semibold text-sm">{leftSide.manager}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
-                                {row.team_a_items
+                                {leftSide.items
                                   .split(',')
                                   .map((item, i) => renderTradeItem(item, i, draftPicks))}
                               </div>
-                                <p className="text-blue-400 font-semibold text-sm border-t border-slate-700 pt-2">
-                                Total: {row.team_a_total.toLocaleString()}
+                              <p className="text-blue-400 font-semibold text-sm border-t border-slate-700 pt-2">
+                                Total: {leftSide.total.toLocaleString()}
                               </p>
                             </div>
                           </div>
 
-                          {/* Team B Details */}
+                          {/* Loser Details */}
                           <div className="space-y-3">
-                            <h4 className="text-orange-400 font-semibold text-sm">{row.team_b}</h4>
+                            <h4 className="text-orange-400 font-semibold text-sm">{rightSide.manager}</h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
-                                {row.team_b_items
+                                {rightSide.items
                                   .split(',')
                                   .map((item, i) => renderTradeItem(item, i, draftPicks))}
                               </div>
-                                <p className="text-orange-400 font-semibold text-sm border-t border-slate-700 pt-2">
-                                Total: {row.team_b_total.toLocaleString()}
+                              <p className="text-orange-400 font-semibold text-sm border-t border-slate-700 pt-2">
+                                Total: {rightSide.total.toLocaleString()}
                               </p>
                             </div>
                           </div>
