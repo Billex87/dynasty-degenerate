@@ -145,7 +145,7 @@ export default function Home() {
                 <img 
                   src="/assets/dynasty-logo-cropped.png" 
                   alt="Dynasty Degenerates Logo" 
-                  className="h-28 lg:h-32 w-auto max-w-[16rem] lg:max-w-[18rem] object-contain"
+                  className="report-header-logo"
                 />
               </div>
               
