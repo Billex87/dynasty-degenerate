@@ -21,7 +21,7 @@ const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; acce
   CLE: { primary: '#311D00', secondary: '#FF3C00', accent: '#FFFFFF' },
   DAL: { primary: '#003594', secondary: '#041E42', accent: '#869397' },
   DEN: { primary: '#FB4F14', secondary: '#002244', accent: '#FFFFFF' },
-  DET: { primary: '#0076B6', secondary: '#B0B7BC', accent: '#000000' },
+  DET: { primary: '#0076B6', secondary: '#B0B7BC', accent: '#7fd8ff' },
   GB: { primary: '#203731', secondary: '#FFB612', accent: '#FFFFFF' },
   HOU: { primary: '#03202F', secondary: '#A71930', accent: '#FFFFFF' },
   IND: { primary: '#002C5F', secondary: '#A2AAAD', accent: '#FFFFFF' },
@@ -98,6 +98,7 @@ export function PlayerDetailModal({
   const team = details?.team || 'FA';
   const jerseyNumber = details?.jerseyNumber;
   const teamColors = NFL_TEAM_COLORS[team] || null;
+  const tileAccent = getReadableTeamAccent(teamColors);
   const modalBackground = teamColors
     ? `radial-gradient(circle at 15% 6%, ${teamColors.primary}44, transparent 28%), radial-gradient(circle at 95% 0%, ${teamColors.secondary}66, transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, ${teamColors.primary}18 100%)`
     : undefined;
@@ -251,20 +252,19 @@ export function PlayerDetailModal({
           <div className="space-y-4 bg-slate-950/35 p-4 backdrop-blur-sm sm:space-y-5 sm:p-6">
             <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
               {currentValue !== undefined && (
-                <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} />
+                <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} tileAccent={tileAccent} />
               )}
-              <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} teamColors={teamColors} />
-              {valueGain !== undefined && (
-                <MetricTile
-                  label="Value Change"
-                  value={valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'}
-                  tone={valueGain !== null && valueGain > 0 ? 'positive' : valueGain !== null && valueGain < 0 ? 'negative' : 'neutral'}
-                  icon={
-                    valueGain !== null && valueGain > 0 ? <TrendingUp className="h-4 w-4" /> : valueGain !== null && valueGain < 0 ? <TrendingDown className="h-4 w-4" /> : null
-                  }
-                  teamColors={teamColors}
-                />
-              )}
+              <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} teamColors={teamColors} tileAccent={tileAccent} />
+              <MetricTile
+                label="Value Change"
+                value={valueGain !== undefined && valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'}
+                tone={valueGain !== undefined && valueGain !== null && valueGain > 0 ? 'positive' : valueGain !== undefined && valueGain !== null && valueGain < 0 ? 'negative' : 'neutral'}
+                icon={
+                  valueGain !== undefined && valueGain !== null && valueGain > 0 ? <TrendingUp className="h-4 w-4" /> : valueGain !== undefined && valueGain !== null && valueGain < 0 ? <TrendingDown className="h-4 w-4" /> : null
+                }
+                teamColors={teamColors}
+                tileAccent={tileAccent}
+              />
             </div>
 
             {valueGain !== undefined && (
@@ -283,6 +283,7 @@ export function PlayerDetailModal({
                           label="Round"
                           value={String(pick.round)}
                           teamColors={teamColors}
+                          tileAccent={tileAccent}
                         />
                       )}
                       {pick.pick !== undefined && (
@@ -290,6 +291,7 @@ export function PlayerDetailModal({
                           label="Pick #"
                           value={String(pick.pick)}
                           teamColors={teamColors}
+                          tileAccent={tileAccent}
                         />
                       )}
                     </div>
@@ -301,6 +303,7 @@ export function PlayerDetailModal({
                           label="Draft Value"
                           value={draftValue ? draftValue.toLocaleString() : '-'}
                           teamColors={teamColors}
+                          tileAccent={tileAccent}
                         />
                       )}
                       {pick.positionRankMay2025 && (
@@ -308,6 +311,7 @@ export function PlayerDetailModal({
                           label="Drafted Rank"
                           value={pick.positionRankMay2025}
                           teamColors={teamColors}
+                          tileAccent={tileAccent}
                         />
                       )}
                     </div>
@@ -317,26 +321,26 @@ export function PlayerDetailModal({
               {physicalRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {physicalRows.map(([label, value]) => (
-                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
+                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>
               )}
               {backgroundRows.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   {backgroundRows.map(([label, value]) => (
-                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
+                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>
               )}
               {experienceRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {experienceRows.map(([label, value]) => (
-                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
+                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>
               )}
               {healthRows.map(([label, value]) => (
-                <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
+                <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
               ))}
             </div>
 
@@ -400,6 +404,27 @@ function getValueChangeNote(pick: PlayerModalData) {
   return 'Change from last week to this week.';
 }
 
+function getReadableTeamAccent(teamColors?: { accent: string } | null) {
+  if (!teamColors) return undefined;
+  const rgb = parseHexColor(teamColors.accent);
+  if (!rgb) return teamColors.accent;
+  const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+
+  if (luminance < 0.36) return '#67e8f9';
+  if (luminance > 0.92) return '#e0f2fe';
+  return teamColors.accent;
+}
+
+function parseHexColor(hex: string) {
+  const normalized = hex.replace('#', '').trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
 function MetricTile({
   label,
   mobileLabel,
@@ -407,6 +432,7 @@ function MetricTile({
   tone = 'neutral',
   icon,
   teamColors,
+  tileAccent,
 }: {
   label: string;
   mobileLabel?: string;
@@ -414,6 +440,7 @@ function MetricTile({
   tone?: 'positive' | 'negative' | 'neutral';
   icon?: ReactNode;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
+  tileAccent?: string;
 }) {
   const toneClass = tone === 'positive'
     ? 'text-emerald-300'
@@ -425,13 +452,13 @@ function MetricTile({
     <div
       className="rounded-xl border p-2.5 shadow-inner shadow-white/[0.02] sm:p-4"
       style={{
-        borderColor: teamColors ? `${teamColors.accent}33` : undefined,
+        borderColor: teamColors ? `${tileAccent || teamColors.accent}33` : undefined,
         background: teamColors
-          ? `linear-gradient(135deg, ${teamColors.primary}2e, rgba(2,6,23,0.72) 58%, ${teamColors.secondary}33)`
+          ? `linear-gradient(135deg, ${teamColors.primary}3d, rgba(2,6,23,0.78) 58%, ${teamColors.secondary}18)`
           : undefined,
       }}
     >
-      <div className="text-center text-[0.6rem] font-semibold uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.14em]" style={{ color: teamColors?.accent || undefined }}>
+      <div className="text-center text-[0.6rem] font-semibold uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.14em]" style={{ color: tileAccent || teamColors?.accent || undefined }}>
         {mobileLabel ? (
           <>
             <span className="sm:hidden">{mobileLabel}</span>
@@ -452,11 +479,13 @@ function InfoTile({
   value,
   tone = 'neutral',
   teamColors,
+  tileAccent,
 }: {
   label: string;
   value: string | number;
   tone?: 'positive' | 'negative' | 'neutral';
   teamColors?: { primary: string; secondary: string; accent: string } | null;
+  tileAccent?: string;
 }) {
   const toneClass = tone === 'positive'
     ? 'text-emerald-300'
@@ -468,13 +497,13 @@ function InfoTile({
     <div
       className="rounded-lg border px-3 py-2.5 sm:px-4 sm:py-3"
       style={{
-        borderColor: teamColors ? `${teamColors.accent}24` : undefined,
+        borderColor: teamColors ? `${tileAccent || teamColors.accent}24` : undefined,
         background: teamColors
-          ? `linear-gradient(135deg, ${teamColors.secondary}33, rgba(2,6,23,0.6) 68%, ${teamColors.primary}22)`
+          ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.72) 68%, ${teamColors.primary}24)`
           : undefined,
       }}
     >
-      <div className="text-center text-[0.6rem] font-semibold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
+      <div className="text-center text-[0.6rem] font-semibold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]" style={{ color: tileAccent || teamColors?.accent || undefined }}>{label}</div>
       <div className={`mt-1 truncate text-center text-sm font-bold sm:text-base ${toneClass}`}>{value}</div>
     </div>
   );
@@ -484,22 +513,24 @@ function InlineInfoTile({
   label,
   value,
   teamColors,
+  tileAccent,
 }: {
   label: string;
   value: string | number;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
+  tileAccent?: string;
 }) {
   return (
     <div
       className="flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 sm:gap-2 sm:px-4 sm:py-3"
       style={{
-        borderColor: teamColors ? `${teamColors.accent}24` : undefined,
+        borderColor: teamColors ? `${tileAccent || teamColors.accent}24` : undefined,
         background: teamColors
-          ? `linear-gradient(135deg, ${teamColors.secondary}33, rgba(2,6,23,0.6) 68%, ${teamColors.primary}22)`
+          ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.72) 68%, ${teamColors.primary}24)`
           : undefined,
       }}
     >
-      <span className="text-sm font-black tracking-normal sm:text-base" style={{ color: teamColors?.accent || undefined }}>
+      <span className="text-sm font-black tracking-normal sm:text-base" style={{ color: tileAccent || teamColors?.accent || undefined }}>
         {label}:
       </span>
       <span className="text-sm font-black text-slate-100 sm:text-base">{value}</span>

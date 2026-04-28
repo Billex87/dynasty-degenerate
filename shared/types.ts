@@ -62,6 +62,101 @@ export interface ManagerStarterPlayer {
   playerDetails?: PlayerDetails;
 }
 
+export interface ManagerIntelPlayer {
+  player_id: string;
+  name: string;
+  pos: string;
+  value: number;
+  currentPositionRank?: string | null;
+  lastSeasonPositionRank?: string | null;
+  lastSeasonFantasyPoints?: number | null;
+  lastSeasonYear?: string | null;
+  playerDetails?: PlayerDetails;
+}
+
+export interface ManagerRosterIntelligence {
+  manager: string;
+  identity: string;
+  timeline: string;
+  summary: string;
+  starterValue: number;
+  benchValue: number;
+  starterValuePct: number;
+  bestBenchStash: ManagerIntelPlayer | null;
+  weakestStarter: ManagerIntelPlayer | null;
+  oldestPlayer: ManagerIntelPlayer | null;
+  youngCorePlayer: ManagerIntelPlayer | null;
+  breakoutCandidate: ManagerIntelPlayer | null;
+  lastSeasonStud: ManagerIntelPlayer | null;
+  avgAge: number | null;
+  avgAgeByPosition: Record<'QB' | 'RB' | 'WR' | 'TE', number | null>;
+  ageFlags: string[];
+  holes: {
+    bestQbRank: string | null;
+    rb2Rank: string | null;
+    wr3Rank: string | null;
+    te1Rank: string | null;
+    flexDepth: number;
+    summary: string;
+  };
+}
+
+export interface TradeTendency {
+  manager: string;
+  tradeCount: number;
+  wins: number;
+  winPct: number;
+  profit: number;
+  avgGap: number;
+  favoritePartner: string | null;
+  overpaysForPicks: boolean;
+  overpaysForVeterans: boolean;
+}
+
+export interface PowerRanking {
+  rank: number;
+  manager: string;
+  score: number;
+  tier: string;
+  starterStrength: number;
+  rosterValue: number;
+  positionalBalance: number;
+  draftCapital: number;
+  youthScore: number;
+  tradeEfficiency: number;
+}
+
+export interface DynastyTimeline {
+  manager: string;
+  contenderScore: number;
+  outlook2027: number;
+  agingRisk: number;
+  rebuildScore: number;
+  label: string;
+}
+
+export interface PickPortfolio {
+  manager: string;
+  value2026: number;
+  value2027: number;
+  count2025: number;
+  count2026: number;
+  count2027: number;
+  value2025: number;
+  totalValue: number;
+  ownPicks: number;
+  acquiredPicks: number;
+  projectedSlots: string[];
+}
+
+export interface WaiverIntelligence {
+  rosteredTrendingAdds: TrendingPlayer[];
+  availableTrendingAdds: TrendingPlayer[];
+  highestKtcAvailable: TrendingPlayer | null;
+  bestAvailableByPosition: Record<'QB' | 'RB' | 'WR' | 'TE', TrendingPlayer | null>;
+  recentlyDroppedValuable: TrendingPlayer[];
+}
+
 export interface DraftPick {
   round: number;
   pick: number;
@@ -179,6 +274,12 @@ export interface ReportData {
     TE_starters: number;
     starterPlayers?: ManagerStarterPlayer[];
   }>;
+  managerRosterIntelligence?: ManagerRosterIntelligence[];
+  tradeTendencies?: TradeTendency[];
+  powerRankings?: PowerRanking[];
+  dynastyTimelines?: DynastyTimeline[];
+  pickPortfolios?: PickPortfolio[];
+  waiverIntelligence?: WaiverIntelligence;
   draftPicks?: DraftPick[];
   draftStats?: ManagerDraftStats[];
 }

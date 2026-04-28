@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Check, Zap } from 'lucide-react';
 
+const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
+
 interface LoadingStep {
   id: string;
   label: string;
@@ -43,7 +45,7 @@ export function LoadingAnimation() {
       <div className="flex flex-col items-center gap-0">
         <div className="loading-logo-wrap flex justify-center h-48 sm:h-72 w-full max-w-2xl">
           <img 
-            src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_final_90a9eceb.png" 
+            src={DYNASTY_LOGO_SRC} 
             alt="Dynasty Degenerates Logo" 
             className="w-auto h-full object-contain scale-120"
           />

@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/table';
 import React, { useState } from 'react';
 import { ChevronDown, Crown, TrendingDown, TrendingUp } from 'lucide-react';
-import type { DraftPick, ReportData, TrendingPlayer } from '@shared/types';
+import type { DraftPick, ManagerIntelPlayer, ReportData, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
@@ -72,6 +72,22 @@ function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
       avatarUrl={managerAvatars?.[manager]}
       managerName={manager}
     />
+  );
+}
+
+function renderPartnerName(manager: string, managerAvatars?: ManagerAvatars) {
+  const avatarUrl = managerAvatars?.[manager];
+  const initial = manager.trim()[0]?.toUpperCase() || '?';
+
+  return (
+    <div className="partner-chip-reverse">
+      <span>{manager}</span>
+      {avatarUrl ? (
+        <img src={avatarUrl} alt={manager} />
+      ) : (
+        <span aria-hidden="true" className="partner-chip-fallback">{initial}</span>
+      )}
+    </div>
   );
 }
 
@@ -533,6 +549,254 @@ function getRankingColor(rank: number): string {
   return 'text-white font-semibold';
 }
 
+function formatCompactValue(value: number | null | undefined): string {
+  if (!value) return '-';
+  if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}K`;
+  return value.toLocaleString();
+}
+
+function PickYearCell({ count, value }: { count: number; value: number }) {
+  if (!count) return <span className="text-slate-500">-</span>;
+
+  return (
+    <div className="leading-tight">
+      <div className="font-black text-cyan-300">{count} pick{count === 1 ? '' : 's'}</div>
+      <div className="mt-0.5 text-[0.7rem] font-bold text-slate-400">{formatCompactValue(value)}</div>
+    </div>
+  );
+}
+
+function titleCasePill(value: string): string {
+  const acronyms = new Set(['QB', 'RB', 'WR', 'TE', 'SF', 'PPR', 'FA']);
+  return value.replace(/\w\S*/g, (word) => {
+    const upper = word.toUpperCase();
+    if (acronyms.has(upper)) return upper;
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
+function getPillToneClass(value: string): string {
+  const normalized = value.toLowerCase();
+  if (normalized.includes('old') || normalized.includes('risk') || normalized.includes('weak') || normalized.includes('behind') || normalized.includes('thin')) {
+    return 'manager-intel-pill-danger';
+  }
+  if (normalized.includes('young') || normalized.includes('contender') || normalized.includes('win') || normalized.includes('elite')) {
+    return 'manager-intel-pill-good';
+  }
+  if (normalized.includes('rebuild') || normalized.includes('future')) {
+    return 'manager-intel-pill-future';
+  }
+  return 'manager-intel-pill-neutral';
+}
+
+function PlayerInsightTile({
+  label,
+  player,
+  manager,
+  managerAvatarUrl,
+  onSelect,
+  tone = 'neutral',
+  extraPill,
+  crownedRank,
+}: {
+  label: string;
+  player: ManagerIntelPlayer | null | undefined;
+  manager: string;
+  managerAvatarUrl?: string | null;
+  onSelect: (player: PlayerModalData) => void;
+  tone?: 'neutral' | 'warn' | 'danger';
+  extraPill?: string | null;
+  crownedRank?: string | null;
+}) {
+  if (!player) return null;
+
+  return (
+    <button
+      type="button"
+      className={`manager-intel-player ${tone === 'warn' ? 'manager-intel-player-warn' : ''} ${tone === 'danger' ? 'manager-intel-player-danger' : ''}`}
+      onClick={() => onSelect(buildPlayerModalData({
+        playerId: player.player_id,
+        playerName: player.name,
+        playerPos: player.pos,
+        value: player.value,
+        playerDetails: player.playerDetails,
+        currentPositionRank: player.currentPositionRank,
+        manager,
+        managerAvatarUrl,
+      }))}
+    >
+      <div className="manager-intel-player-kicker">{label}</div>
+      <div className="manager-intel-player-main">
+        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+      </div>
+      <div className="manager-intel-player-pills">
+        <span>{player.currentPositionRank || player.pos}</span>
+        {extraPill && <span>{extraPill}</span>}
+        <span>{player.playerDetails?.team || 'FA'}</span>
+        <span>{formatCompactValue(player.value)}</span>
+      </div>
+      {crownedRank && (
+        <div className="manager-intel-crown-rank">
+          <Crown className="h-3.5 w-3.5" />
+          <span>{crownedRank}</span>
+        </div>
+      )}
+    </button>
+  );
+}
+
+function IntelligenceMetric({ label, value, tone = 'neutral' }: { label: string; value: React.ReactNode; tone?: 'neutral' | 'positive' | 'negative' }) {
+  const toneClass = tone === 'positive' ? 'text-emerald-300' : tone === 'negative' ? 'text-rose-300' : 'text-slate-100';
+  return (
+    <div className="rounded-xl border border-cyan-300/15 bg-slate-950/45 px-3 py-2">
+      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">{label}</div>
+      <div className={`mt-1 text-lg font-black ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+export function ManagerIntelligenceCards({
+  data,
+  managerAvatars,
+  leagueId,
+  leagueLogo,
+}: {
+  data?: ReportData['managerRosterIntelligence'];
+  managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
+}) {
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  if (!data?.length) return null;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {data.map((row) => (
+        <Card key={row.manager} className="report-card-polished overflow-hidden border-slate-800 bg-slate-900 p-4">
+          <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+            <div className="min-w-0">{renderManagerName(row.manager, managerAvatars)}</div>
+            <span className="rounded-full border border-orange-300/25 bg-orange-400/10 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-[0.12em] text-orange-300">
+              {row.identity}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <IntelligenceMetric label="Starters" value={formatCompactValue(row.starterValue)} />
+            <IntelligenceMetric label="Bench" value={formatCompactValue(row.benchValue)} />
+            <IntelligenceMetric label="Age" value={row.avgAge ?? '-'} />
+          </div>
+          <div className="manager-intel-player-grid mt-3">
+            <PlayerInsightTile
+              label="Bench Stash"
+              player={row.bestBenchStash}
+              manager={row.manager}
+              managerAvatarUrl={managerAvatars?.[row.manager]}
+              onSelect={setSelectedPlayer}
+            />
+            <PlayerInsightTile
+              label="Weak Link"
+              player={row.weakestStarter}
+              manager={row.manager}
+              managerAvatarUrl={managerAvatars?.[row.manager]}
+              onSelect={setSelectedPlayer}
+              tone="warn"
+            />
+            <PlayerInsightTile
+              label="Age Risk"
+              player={row.oldestPlayer}
+              manager={row.manager}
+              managerAvatarUrl={managerAvatars?.[row.manager]}
+              onSelect={setSelectedPlayer}
+              tone="danger"
+            />
+            <PlayerInsightTile
+              label="Young Core"
+              player={row.youngCorePlayer}
+              manager={row.manager}
+              managerAvatarUrl={managerAvatars?.[row.manager]}
+              onSelect={setSelectedPlayer}
+            />
+            <PlayerInsightTile
+              label="Upside Play"
+              player={row.breakoutCandidate}
+              manager={row.manager}
+              managerAvatarUrl={managerAvatars?.[row.manager]}
+              onSelect={setSelectedPlayer}
+            />
+            <PlayerInsightTile
+              label="Last Year Stud"
+              player={row.lastSeasonStud}
+              manager={row.manager}
+              managerAvatarUrl={managerAvatars?.[row.manager]}
+              onSelect={setSelectedPlayer}
+              crownedRank={row.lastSeasonStud?.lastSeasonPositionRank
+                ? `${row.lastSeasonStud.lastSeasonYear || '2025'} ${row.lastSeasonStud.lastSeasonPositionRank}`
+                : null}
+            />
+          </div>
+          <p className="mt-3 text-xs font-semibold leading-relaxed text-slate-400">{row.summary}</p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className={`manager-intel-pill ${getPillToneClass(row.timeline)}`}>
+              {titleCasePill(row.timeline)}
+            </span>
+            {row.ageFlags.slice(0, 2).map((flag) => (
+              <span key={flag} className={`manager-intel-pill ${getPillToneClass(flag)}`}>
+                {titleCasePill(flag)}
+              </span>
+            ))}
+          </div>
+        </Card>
+      ))}
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
+    </div>
+  );
+}
+
+export function PowerRankingsTable({
+  data,
+  managerAvatars,
+}: {
+  data?: ReportData['powerRankings'];
+  managerAvatars?: ManagerAvatars;
+}) {
+  if (!data?.length) return null;
+
+  return (
+    <div className="flex justify-center">
+      <Card className="report-card-polished overflow-hidden border-slate-800 bg-slate-900">
+        <Table className="report-table-polished power-rankings-table">
+          <TableHeader className="border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700">
+              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="text-center text-white font-semibold">Tier</TableHead>
+              <TableHead className="text-right text-white font-semibold">Score</TableHead>
+              <TableHead className="text-right text-white font-semibold">Starter</TableHead>
+              <TableHead className="text-right text-white font-semibold">Youth</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((row) => (
+              <TableRow key={row.manager} className="border-slate-700">
+                <TableCell className="font-semibold text-slate-100">{renderManagerName(row.manager, managerAvatars)}</TableCell>
+                <TableCell className="text-center text-cyan-300 font-black">{row.tier}</TableCell>
+                <TableCell className="text-right text-orange-300 font-black">{row.score}</TableCell>
+                <TableCell className="text-right text-slate-300">{row.starterStrength}</TableCell>
+                <TableCell className="text-right text-slate-300">{row.youthScore}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+}
+
 export function ManagerRosterValueGrowthTable({
   data,
   managerAvatars,
@@ -608,7 +872,7 @@ export function WeeklyMomentumTable({
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
               <TableHead className="text-white font-semibold">Player</TableHead>
-              <TableHead className="mobile-icon-manager-heading text-white font-semibold">Manager</TableHead>
+              <TableHead className="weekly-manager-heading text-white font-semibold">Manager</TableHead>
               <TableHead className="text-right text-white font-semibold"><div>Last</div><div>Week</div></TableHead>
               <TableHead className="text-right text-white font-semibold"><div>This</div><div>Week</div></TableHead>
               <TableHead className="text-right text-white font-semibold">Change</TableHead>
@@ -1335,6 +1599,344 @@ export function PositionAnalysisTable({
   );
 }
 
+export function StarterBenchSnapshot({
+  data,
+  managerAvatars,
+  leagueId,
+  leagueLogo,
+}: {
+  data?: ReportData['managerRosterIntelligence'];
+  managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
+}) {
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  if (!data?.length) return null;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {data.map((row) => (
+        <Card key={row.manager} className="report-card-polished border-slate-800 bg-slate-900 p-4">
+          <div className="mb-3 flex min-w-0 items-center justify-between gap-2">
+            <div className="min-w-0">{renderManagerName(row.manager, managerAvatars)}</div>
+            <span className="rounded-full bg-cyan-400/10 px-2 py-1 text-[0.65rem] font-black text-cyan-300">{row.starterValuePct}% starters</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <IntelligenceMetric label="Starter Value" value={formatCompactValue(row.starterValue)} />
+            <IntelligenceMetric label="Bench Value" value={formatCompactValue(row.benchValue)} />
+          </div>
+          <div className="mt-3 grid gap-2">
+            {row.bestBenchStash && (
+              <button
+                type="button"
+                className="rounded-xl border border-cyan-300/15 bg-slate-950/45 p-2 text-left"
+                onClick={() => setSelectedPlayer(buildPlayerModalData({
+                  playerId: row.bestBenchStash?.player_id,
+                  playerName: row.bestBenchStash?.name || '',
+                  playerPos: row.bestBenchStash?.pos,
+                  value: row.bestBenchStash?.value,
+                  playerDetails: row.bestBenchStash?.playerDetails,
+                  currentPositionRank: row.bestBenchStash?.currentPositionRank,
+                  manager: row.manager,
+                  managerAvatarUrl: managerAvatars?.[row.manager],
+                }))}
+              >
+                <div className="text-[0.62rem] font-black uppercase tracking-[0.14em] text-cyan-300/80">Best Bench Stash</div>
+                <div className="mt-1 flex items-center justify-between gap-2 text-sm font-black text-slate-100">
+                  <span className="truncate">{row.bestBenchStash.name}</span>
+                  <span className="text-emerald-300">{formatCompactValue(row.bestBenchStash.value)}</span>
+                </div>
+              </button>
+            )}
+            {row.weakestStarter && (
+              <button
+                type="button"
+                className="rounded-xl border border-orange-300/15 bg-slate-950/45 p-2 text-left"
+                onClick={() => setSelectedPlayer(buildPlayerModalData({
+                  playerId: row.weakestStarter?.player_id,
+                  playerName: row.weakestStarter?.name || '',
+                  playerPos: row.weakestStarter?.pos,
+                  value: row.weakestStarter?.value,
+                  playerDetails: row.weakestStarter?.playerDetails,
+                  currentPositionRank: row.weakestStarter?.currentPositionRank,
+                  manager: row.manager,
+                  managerAvatarUrl: managerAvatars?.[row.manager],
+                }))}
+              >
+                <div className="text-[0.62rem] font-black uppercase tracking-[0.14em] text-orange-300/80">Weakest Starter</div>
+                <div className="mt-1 flex items-center justify-between gap-2 text-sm font-black text-slate-100">
+                  <span className="truncate">{row.weakestStarter.name}</span>
+                  <span className="text-orange-300">{row.weakestStarter.currentPositionRank || formatCompactValue(row.weakestStarter.value)}</span>
+                </div>
+              </button>
+            )}
+          </div>
+        </Card>
+      ))}
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
+    </div>
+  );
+}
+
+export function TradeTendenciesTable({
+  data,
+  managerAvatars,
+}: {
+  data?: ReportData['tradeTendencies'];
+  managerAvatars?: ManagerAvatars;
+}) {
+  if (!data?.length) return null;
+
+  return (
+    <div className="flex justify-center">
+      <Card className="trade-tendencies-card overflow-hidden border-slate-800 bg-slate-900">
+        <Table className="report-table-polished trade-tendencies-table">
+          <TableHeader className="border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700">
+              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="text-right text-white font-semibold">
+                <span className="hidden sm:inline">Trades</span>
+                <span className="sm:hidden">Deals</span>
+              </TableHead>
+              <TableHead className="text-right text-white font-semibold">
+                <span className="hidden sm:inline">Avg Gap</span>
+                <span className="sm:hidden">Avg</span>
+              </TableHead>
+              <TableHead className="text-right text-white font-semibold">
+                <span className="hidden sm:inline">Trade Habit</span>
+                <span className="sm:hidden">Habit</span>
+              </TableHead>
+              <TableHead className="text-right text-white font-semibold">
+                <span className="hidden sm:inline">Likes Trading With</span>
+                <span className="sm:hidden">Partner</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((row) => (
+              <TableRow key={row.manager} className="border-slate-700">
+                <TableCell className="trade-tendencies-manager font-semibold text-slate-100">{renderManagerName(row.manager, managerAvatars)}</TableCell>
+                <TableCell className="trade-tendencies-count text-right text-orange-300 font-black">{row.tradeCount}</TableCell>
+                <TableCell className="trade-tendencies-gap text-right text-slate-300">{row.avgGap.toLocaleString()}</TableCell>
+                <TableCell className="trade-tendencies-habit text-right text-cyan-300 font-bold">
+                  <span className={`trade-habit-pill ${getTradeHabit(row).className}`}>
+                    {getTradeHabit(row).label}
+                  </span>
+                </TableCell>
+                <TableCell className="trade-tendencies-partner text-right text-slate-300">
+                  {row.favoritePartner ? renderPartnerName(row.favoritePartner, managerAvatars) : '-'}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+}
+
+function getTradeHabit(row: NonNullable<ReportData['tradeTendencies']>[number]) {
+  if (row.tradeCount === 0) return { label: 'Quiet So Far', className: 'trade-habit-neutral' };
+  if (row.tradeCount === 1) {
+    return row.profit >= 0
+      ? { label: 'One Deal, Won It', className: 'trade-habit-good' }
+      : { label: 'One Deal, Paid Up', className: 'trade-habit-warn' };
+  }
+  if (row.profit >= 2500 && row.winPct >= 60) return { label: 'Trade Shark', className: 'trade-habit-good' };
+  if (row.profit >= 1000) return { label: 'Value Hunter', className: 'trade-habit-good' };
+  if (row.profit <= -2500) return { label: 'League Donor', className: 'trade-habit-danger' };
+  if (row.profit <= -1000) return { label: 'Pays the Tax', className: 'trade-habit-warn' };
+  if (row.avgGap <= 300) return { label: 'Fair Dealer', className: 'trade-habit-neutral' };
+  if (row.overpaysForPicks) return { label: 'Pick Chaser', className: 'trade-habit-warn' };
+  if (row.overpaysForVeterans) return { label: 'Vet Shopper', className: 'trade-habit-warn' };
+  if (row.tradeCount >= 8) return { label: 'Volume Trader', className: 'trade-habit-info' };
+  if (row.winPct >= 67) return { label: 'Sharp Closer', className: 'trade-habit-good' };
+  return { label: 'Risk Taker', className: 'trade-habit-info' };
+}
+
+export function PickPortfolioTable({
+  data,
+  managerAvatars,
+}: {
+  data?: ReportData['pickPortfolios'];
+  managerAvatars?: ManagerAvatars;
+}) {
+  if (!data?.length) return null;
+
+  return (
+    <div className="flex justify-center">
+      <Card className="report-card-polished overflow-hidden border-slate-800 bg-slate-900">
+        <Table className="report-table-polished pick-portfolio-table">
+          <TableHeader className="border-b-2 border-orange-500/30">
+            <TableRow className="border-slate-700">
+              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="text-right text-white font-semibold">2025</TableHead>
+              <TableHead className="text-right text-white font-semibold">2026</TableHead>
+              <TableHead className="text-right text-white font-semibold">2027</TableHead>
+              <TableHead className="text-right text-white font-semibold">Owned</TableHead>
+              <TableHead className="text-right text-white font-semibold">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((row) => (
+              <TableRow key={row.manager} className="border-slate-700">
+                <TableCell className="font-semibold text-slate-100">{renderManagerName(row.manager, managerAvatars)}</TableCell>
+                <TableCell className="text-right text-slate-300"><PickYearCell count={row.count2025} value={row.value2025} /></TableCell>
+                <TableCell className="text-right text-slate-300"><PickYearCell count={row.count2026} value={row.value2026} /></TableCell>
+                <TableCell className="text-right text-slate-300"><PickYearCell count={row.count2027} value={row.value2027} /></TableCell>
+                <TableCell className="text-right text-cyan-300">{row.ownPicks}/{row.ownPicks + row.acquiredPicks}</TableCell>
+                <TableCell className="text-right text-orange-300 font-black">{formatCompactValue(row.totalValue)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+}
+
+export function WaiverIntelligencePanel({
+  data,
+  managerAvatars,
+  leagueId,
+  leagueLogo,
+}: {
+  data?: ReportData['waiverIntelligence'];
+  managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
+}) {
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  if (!data) return null;
+  const cards = [
+    { label: 'Highest Available', player: data.highestKtcAvailable },
+    ...Object.entries(data.bestAvailableByPosition).map(([pos, player]) => ({ label: `Best ${pos}`, player })),
+  ].filter((card) => card.player);
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {cards.map(({ label, player }) => (
+        <button
+          key={label}
+          type="button"
+          className="waiver-intel-card"
+          onClick={() => player && setSelectedPlayer(buildPlayerModalData({
+            playerId: player.player_id,
+            playerName: player.name,
+            playerPos: player.pos,
+            value: player.ktcValue,
+            playerDetails: player.playerDetails,
+            currentPositionRank: player.currentPositionRank,
+            manager: player.owner || null,
+            managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
+          }))}
+        >
+          <div className="waiver-intel-top">
+            <span className="waiver-intel-label">{label}</span>
+            <span className="available-manager-label">Available</span>
+          </div>
+          <div className="waiver-intel-main">
+            <PlayerNameWithHeadshot playerId={player?.player_id} playerName={player?.name || '-'} />
+          </div>
+          <div className="waiver-intel-pills">
+            <span>{player?.currentPositionRank || player?.pos || '-'}</span>
+            <span>{player?.playerDetails?.team || player?.team || 'FA'}</span>
+            <span>{formatCompactValue(player?.ktcValue)}</span>
+          </div>
+        </button>
+      ))}
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
+    </div>
+  );
+}
+
+export function TradeMarketRadar({
+  risers,
+  fallers,
+  managerAvatars,
+  leagueId,
+  leagueLogo,
+}: {
+  risers: ReportData['weeklyRisers'];
+  fallers: ReportData['weeklyFallers'];
+  managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
+}) {
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const sellHigh = risers.filter((player) => player.val_now >= 2500).slice(0, 5);
+  const buyLow = fallers.filter((player) => player.val_now >= 1800).slice(0, 5);
+  const rows = [
+    ...sellHigh.map((player) => ({ label: 'Sell High', tone: 'positive' as const, player })),
+    ...buyLow.map((player) => ({ label: 'Buy Low', tone: 'negative' as const, player })),
+  ].slice(0, 10);
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {rows.map(({ label, tone, player }) => (
+        <button
+          key={`${label}-${player.player_id || player.name}`}
+          type="button"
+          className={`trade-market-card ${tone === 'positive' ? 'trade-market-card-sell' : 'trade-market-card-buy'}`}
+          onClick={() => setSelectedPlayer(buildPlayerModalData({
+            playerId: player.player_id,
+            playerName: player.name,
+            playerPos: player.pos,
+            value: player.val_now,
+            valueGain: player.diff,
+            playerDetails: player.playerDetails,
+            currentPositionRank: player.currentPositionRank,
+            manager: player.owner,
+            managerAvatarUrl: managerAvatars?.[player.owner],
+            valueChangeNote: 'Change from last week to this week.',
+          }))}
+        >
+          <div className="trade-market-top">
+            <span className="trade-market-signal">{label}</span>
+            <span className={`trade-market-change ${tone === 'positive' ? 'text-emerald-300' : 'text-rose-300'}`}>
+              {player.diff > 0 ? '+' : ''}{player.diff.toLocaleString()}
+            </span>
+          </div>
+          <div className="trade-market-main">
+            <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+            <div className="trade-market-manager">
+              {renderManagerName(player.owner, managerAvatars)}
+            </div>
+          </div>
+          <div className="trade-market-pills">
+            <span>{player.currentPositionRank || player.pos}</span>
+            <span>{player.playerDetails?.team || 'FA'}</span>
+            <span>{formatCompactValue(player.val_now)}</span>
+          </div>
+        </button>
+      ))}
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
+    </div>
+  );
+}
+
 export function SearchableWeeklyMomentumTable({
   data,
   title,
@@ -1411,13 +2013,25 @@ export function ManagerPositionCountsTable({
           <Table className="report-table-polished position-counts-table">
             <TableHeader className="border-b-2 border-orange-500/30">
               <TableRow className="border-slate-700">
-                <TableHead className="mobile-icon-manager-heading text-white font-semibold">
+                <TableHead className="overview-manager-heading text-white font-semibold">
                   <div>Manager</div>
                 </TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs">QB</TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs">RB</TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs">WR</TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs">TE</TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs">
+                  <div>QB</div>
+                  <div className="position-starter-header">Starters</div>
+                </TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs">
+                  <div>RB</div>
+                  <div className="position-starter-header">Starters</div>
+                </TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs">
+                  <div>WR</div>
+                  <div className="position-starter-header">Starters</div>
+                </TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs">
+                  <div>TE</div>
+                  <div className="position-starter-header">Starters</div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1427,7 +2041,7 @@ export function ManagerPositionCountsTable({
                   className="cursor-pointer border-slate-700 hover:bg-slate-800/30"
                   onClick={() => setSelectedManager(row)}
                 >
-                  <TableCell className="mobile-icon-manager-cell font-semibold text-slate-100">
+                  <TableCell className="overview-manager-cell font-semibold text-slate-100">
                     {renderManagerName(row.manager, managerAvatars)}
                   </TableCell>
                   <TableCell className="text-center text-slate-300 text-sm">

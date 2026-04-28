@@ -207,12 +207,12 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, leagueId
               >
                 <TableHeader className="border-b-2 border-orange-500/30">
                   <TableRow className="border-slate-700">
-                    <TableHead className="w-[12%] text-white font-semibold">Pick</TableHead>
-                    <TableHead className="w-[30%] text-white font-semibold">Player</TableHead>
-                    <TableHead className="w-[16%] text-white font-semibold">Manager</TableHead>
+                    <TableHead className="w-[7%] text-white font-semibold">Pick</TableHead>
+                    <TableHead className="w-[32%] text-white font-semibold">Player</TableHead>
+                    <TableHead className="w-[17%] text-white font-semibold">Manager</TableHead>
                     <TableHead className="w-[14%] text-right text-white font-semibold"><div>Position</div><div>Change</div></TableHead>
                     <TableHead 
-                      className="w-[14%] text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
+                      className="w-[15%] text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
                       onClick={() => handleSort('currentValue')}
                     >
                       <div className="flex items-center justify-end gap-1">
@@ -224,7 +224,7 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, leagueId
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="w-[14%] text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
+                      className="w-[15%] text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
                       onClick={() => handleSort('valueChange')}
                     >
                       <div className="flex items-center justify-end gap-1">

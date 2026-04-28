@@ -16,10 +16,18 @@ import {
   TradeHistoryTable,
   PositionAnalysisTable,
   ManagerPositionCountsTable,
+  ManagerIntelligenceCards,
+  PickPortfolioTable,
+  PowerRankingsTable,
+  TradeMarketRadar,
+  TradeTendenciesTable,
   TrendingPlayersTable,
+  WaiverIntelligencePanel,
 } from '@/components/ReportTables';
 import { DraftAnalysis } from '@/components/DraftAnalysis';
 import type { ReportData } from '@shared/types';
+
+const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
 
 export default function Home() {
   const [leagueId, setLeagueId] = useState('1312139584427012096');
@@ -64,7 +72,7 @@ export default function Home() {
               {/* Left: Brand */}
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <img
-                  src="/assets/dynasty-logo-cropped.png"
+                  src={DYNASTY_LOGO_SRC}
                   alt="Dynasty Degenerates"
                   className="report-header-mobile-logo md:hidden"
                 />
@@ -76,7 +84,7 @@ export default function Home() {
               {/* Center: Logo */}
               <div className="hidden md:col-start-2 md:flex items-center justify-center">
                 <img 
-                  src="/assets/dynasty-logo-cropped.png" 
+                  src={DYNASTY_LOGO_SRC} 
                   alt="Dynasty Degenerates Logo" 
                   className="report-header-logo"
                 />
@@ -85,9 +93,9 @@ export default function Home() {
               {/* Right: League Name */}
               <div className="report-league-lockup md:col-start-3">
                 <div className="min-w-0 text-right">
-                  <p className="truncate text-sm font-semibold text-orange-400/70 sm:text-lg md:text-xl">{leagueName}</p>
+                  <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">{leagueName}</p>
                   {leagueFormat && (
-                    <p className="truncate text-[11px] font-medium text-slate-400 sm:text-xs">
+                    <p className="truncate text-[11px] font-medium text-cyan-200/70 sm:text-xs">
                       {leagueFormat}
                     </p>
                   )}
@@ -110,29 +118,46 @@ export default function Home() {
             <TabsList className="report-tabs">
               <TabsTrigger value="overview" className="report-tab">
                 <BarChart3 className="h-4 w-4" />
-                Overview
+                <span>Overview</span>
               </TabsTrigger>
 
               <TabsTrigger value="momentum" className="report-tab">
                 <TrendingUp className="h-4 w-4" />
-                Weekly Momentum
+                <span className="report-tab-label-full">Weekly Momentum</span>
+                <span className="report-tab-label-short">Momentum</span>
               </TabsTrigger>
               <TabsTrigger value="projections" className="report-tab hidden">
                 Projections
               </TabsTrigger>
               <TabsTrigger value="trades" className="report-tab">
                 <Repeat2 className="h-4 w-4" />
-                Trade History
+                <span className="report-tab-label-full">Trade History</span>
+                <span className="report-tab-label-short">Trades</span>
               </TabsTrigger>
 
               <TabsTrigger value="draft" className="report-tab">
                 <ClipboardList className="h-4 w-4" />
-                Draft History
+                <span className="report-tab-label-full">Draft History</span>
+                <span className="report-tab-label-short">Draft</span>
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
+                <CollapsibleReportSection title="Team Identity & Timeline" kicker="Manager intelligence">
+                  <ManagerIntelligenceCards
+                    data={reportData.managerRosterIntelligence}
+                    managerAvatars={reportData.managerAvatars}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Power Rankings" kicker="Composite edge">
+                  <PowerRankingsTable
+                    data={reportData.powerRankings}
+                    managerAvatars={reportData.managerAvatars}
+                  />
+                </CollapsibleReportSection>
                 <CollapsibleReportSection title="Manager Position Counts" kicker="Starter depth">
                   <ManagerPositionCountsTable
                     data={reportData.managerPositionCounts}
@@ -157,6 +182,23 @@ export default function Home() {
 
             <TabsContent value="momentum" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
+                <CollapsibleReportSection title="Trade Market Radar" kicker="Buy and sell signals">
+                  <TradeMarketRadar
+                    risers={reportData.weeklyRisers}
+                    fallers={reportData.weeklyFallers}
+                    managerAvatars={reportData.managerAvatars}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Waiver Intelligence" kicker="Available value">
+                  <WaiverIntelligencePanel
+                    data={reportData.waiverIntelligence}
+                    managerAvatars={reportData.managerAvatars}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </CollapsibleReportSection>
                 <CollapsibleReportSection title="Top 15 Weekly Risers" kicker="Market gainers">
                    <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </CollapsibleReportSection>
@@ -222,6 +264,12 @@ export default function Home() {
                     currentPositionRankById={reportData.currentPositionRankById}
                   />
                 </CollapsibleReportSection>
+                <CollapsibleReportSection title="Manager Trade Tendencies" kicker="Trading personality">
+                  <TradeTendenciesTable
+                    data={reportData.tradeTendencies}
+                    managerAvatars={reportData.managerAvatars}
+                  />
+                </CollapsibleReportSection>
                 <CollapsibleReportSection title="Full Trade Ledger" kicker="Every completed deal">
                   <TradeHistoryTable
                     data={reportData.tradeHistory}
@@ -239,6 +287,14 @@ export default function Home() {
 
 
             <TabsContent value="draft" className="report-tab-content">
+              <div className="mb-6 sm:mb-8">
+                <CollapsibleReportSection title="Pick Portfolio" kicker="Draft capital">
+                  <PickPortfolioTable
+                    data={reportData.pickPortfolios}
+                    managerAvatars={reportData.managerAvatars}
+                  />
+                </CollapsibleReportSection>
+              </div>
               <DraftAnalysis
                 draftPicks={reportData.draftPicks || []}
                 draftStats={reportData.draftStats || []}
@@ -280,9 +336,11 @@ export default function Home() {
       <div className="home-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-center">
           <div className="text-center">
-            <h1 className="athletic-headline text-lg sm:text-2xl bg-gradient-to-r from-orange-400 to-orange-300 bg-clip-text text-transparent">
-              Dynasty Degenerates
-            </h1>
+            <img
+              src={DYNASTY_LOGO_SRC}
+              alt="Dynasty Degenerates"
+              className="home-header-logo mx-auto"
+            />
             <p className="text-xs text-orange-400/70">For Degens, By Degens</p>
           </div>
         </div>
@@ -413,11 +471,11 @@ export default function Home() {
         </div>
         <div className="border-t border-slate-700 text-center flex flex-col justify-end py-1 sm:py-2 px-4 sm:px-6 min-h-40 sm:min-h-48">
           <div className="flex justify-center h-40 sm:h-48 mb-0">
-            <img 
-              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_final_90a9eceb.png" 
-              alt="Dynasty Degenerates Logo" 
-              className="w-auto object-contain"
-            />
+              <img 
+                src={DYNASTY_LOGO_SRC} 
+                alt="Dynasty Degenerates Logo" 
+                className="w-auto object-contain"
+              />
           </div>
           <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-[10px] sm:text-xs md:text-sm pb-1 sm:pb-1.5 whitespace-nowrap">
             JUST SOME DEGENS WITH SCRAPING TOOLS AND A.I.

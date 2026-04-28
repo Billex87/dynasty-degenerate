@@ -4,15 +4,15 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { loadKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshot, loadLocalKtcSnapshotForDate } from "./ktcLoader";
-import type { KTCValues } from "./reportGenerator";
+import type { KTCValues, LastSeasonPlayerRank } from "./reportGenerator";
 import { loadCurrentKTCPositionRanks } from "./currentKTCLoader";
 import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 import { getMay2025KTCSnapshot } from "./waybackMachineScraper";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
-import { cleanName, getPlayerName, getPlayerValue } from "./leagueAnalysis";
-import type { PlayerDetails, TrendingPlayer } from "../shared/types";
+import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
+import type { PickPortfolio, PlayerDetails, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -168,6 +168,243 @@ async function fetchTrendingPlayers(
       ktcValue: getPlayerValue(playerId, players, ktcValues) || null,
     };
   });
+}
+
+function buildPickPortfolios(
+  managers: string[],
+  draftPicks: Array<{
+    manager: string;
+    originalOwner?: string | null;
+    draftYear?: string;
+    currentKtcValue?: number | null;
+    ktcValue?: number | null;
+    draftSlot?: number;
+    pick?: number;
+  }>,
+  futurePicks: Array<{
+    manager: string;
+    originalOwner: string;
+    season: string;
+    round: number;
+    value: number;
+  }> = []
+): PickPortfolio[] {
+  return managers.map((manager) => {
+    const picks = draftPicks.filter((pick) => pick.manager === manager);
+    const future = futurePicks.filter((pick) => pick.manager === manager);
+    const picksForYear = (year: string) => picks.filter((pick) => String(pick.draftYear || '') === year);
+    const futureForYear = (year: string) => future.filter((pick) => String(pick.season || '') === year);
+    const valueForYear = (year: string) => picks
+      .filter((pick) => String(pick.draftYear || '') === year)
+      .reduce((sum, pick) => sum + (pick.currentKtcValue || pick.ktcValue || 0), 0);
+    const futureValueForYear = (year: string) => future
+      .filter((pick) => String(pick.season || '') === year)
+      .reduce((sum, pick) => sum + pick.value, 0);
+    const completedPickValue = picks.reduce((sum, pick) => sum + (pick.currentKtcValue || pick.ktcValue || 0), 0);
+    const futurePickValue = future.reduce((sum, pick) => sum + pick.value, 0);
+    const totalValue = completedPickValue + futurePickValue;
+    const ownPicks = future.filter((pick) => pick.originalOwner === manager).length;
+    const acquiredPicks = future.length - ownPicks;
+    const projectedSlots = picks
+      .filter((pick) => pick.draftYear && (pick.draftSlot || pick.pick))
+      .map((pick) => `${pick.draftYear} #${pick.pick || pick.draftSlot}`)
+      .slice(0, 6);
+
+    return {
+      manager,
+      value2025: valueForYear('2025'),
+      value2026: valueForYear('2026') + futureValueForYear('2026'),
+      value2027: valueForYear('2027') + futureValueForYear('2027'),
+      count2025: picksForYear('2025').length,
+      count2026: picksForYear('2026').length + futureForYear('2026').length,
+      count2027: picksForYear('2027').length + futureForYear('2027').length,
+      totalValue,
+      ownPicks,
+      acquiredPicks,
+      projectedSlots,
+    };
+  }).sort((a, b) => b.totalValue - a.totalValue);
+}
+
+function buildFuturePickInventory({
+  rosters,
+  rosterMap,
+  tradedPicks,
+  ktcValues,
+  draftRounds,
+  seasons,
+  draftSlotsBySeason,
+  totalTeams,
+}: {
+  rosters: Array<{ roster_id: number }>;
+  rosterMap: Record<number, string>;
+  tradedPicks: Array<{ season: string; round: number; roster_id: number; owner_id: number }>;
+  ktcValues: KTCValues;
+  draftRounds: number;
+  seasons: string[];
+  draftSlotsBySeason?: Record<string, Record<number, number>>;
+  totalTeams?: number;
+}) {
+  const pickOwners = new Map<string, { originalRosterId: number; ownerRosterId: number; season: string; round: number }>();
+
+  for (const season of seasons) {
+    for (const roster of rosters) {
+      for (let round = 1; round <= draftRounds; round += 1) {
+        const key = `${season}-${round}-${roster.roster_id}`;
+        pickOwners.set(key, {
+          originalRosterId: roster.roster_id,
+          ownerRosterId: roster.roster_id,
+          season,
+          round,
+        });
+      }
+    }
+  }
+
+  for (const pick of tradedPicks) {
+    const season = String(pick.season);
+    if (!seasons.includes(season) || pick.round > draftRounds) continue;
+    const key = `${season}-${pick.round}-${pick.roster_id}`;
+    pickOwners.set(key, {
+      originalRosterId: Number(pick.roster_id),
+      ownerRosterId: Number(pick.owner_id),
+      season,
+      round: Number(pick.round),
+    });
+  }
+
+  return Array.from(pickOwners.values())
+    .map((pick) => {
+      const manager = rosterMap[pick.ownerRosterId];
+      const originalOwner = rosterMap[pick.originalRosterId];
+      if (!manager || !originalOwner) return null;
+
+      return {
+        manager,
+        originalOwner,
+        season: pick.season,
+        round: pick.round,
+        value: getPickValue(
+          Number(pick.season),
+          pick.round,
+          ktcValues,
+          draftSlotsBySeason?.[pick.season]?.[pick.originalRosterId],
+          totalTeams
+        ),
+      };
+    })
+    .filter((pick): pick is { manager: string; originalOwner: string; season: string; round: number; value: number } => Boolean(pick));
+}
+
+function buildWaiverIntelligence(trendingAdds: TrendingPlayer[], trendingDrops: TrendingPlayer[]): WaiverIntelligence {
+  const availableAdds = trendingAdds.filter((player) => !player.owner);
+  const rosteredAdds = trendingAdds.filter((player) => player.owner);
+  const highestKtcAvailable = [...availableAdds].sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null;
+  const bestAvailableByPosition = {
+    QB: [...availableAdds].filter((player) => player.pos === 'QB').sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null,
+    RB: [...availableAdds].filter((player) => player.pos === 'RB').sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null,
+    WR: [...availableAdds].filter((player) => player.pos === 'WR').sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null,
+    TE: [...availableAdds].filter((player) => player.pos === 'TE').sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null,
+  };
+
+  return {
+    rosteredTrendingAdds: rosteredAdds,
+    availableTrendingAdds: availableAdds,
+    highestKtcAvailable,
+    bestAvailableByPosition,
+    recentlyDroppedValuable: [...trendingDrops]
+      .filter((player) => (player.ktcValue || 0) > 0)
+      .sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))
+      .slice(0, 8),
+  };
+}
+
+function getScoringFamily(scoringSettings: Record<string, any> | undefined): 'std' | 'half_ppr' | 'ppr' | 'custom' {
+  const rec = Number(scoringSettings?.rec ?? 0);
+  if (rec === 1) return 'ppr';
+  if (rec === 0.5) return 'half_ppr';
+  if (rec === 0) return 'std';
+  return 'custom';
+}
+
+function calculateFantasyPointsFromScoring(stats: Record<string, any>, scoringSettings: Record<string, any> | undefined): number {
+  return Object.entries(scoringSettings || {}).reduce((sum, [key, scoringValue]) => {
+    const statValue = Number(stats[key] ?? 0);
+    const multiplier = Number(scoringValue ?? 0);
+    if (!Number.isFinite(statValue) || !Number.isFinite(multiplier)) return sum;
+    return sum + statValue * multiplier;
+  }, 0);
+}
+
+async function fetchLastSeasonPositionRanks(
+  playerIds: string[],
+  players: Record<string, any>,
+  scoringSettings: Record<string, any> | undefined,
+  season: string
+): Promise<Record<string, LastSeasonPlayerRank>> {
+  const uniquePlayerIds = Array.from(new Set(playerIds))
+    .filter((playerId) => ['QB', 'RB', 'WR', 'TE'].includes(players[playerId]?.position));
+  const scoringFamily = getScoringFamily(scoringSettings);
+  const scoredPlayers: Array<{
+    playerId: string;
+    position: string;
+    points: number;
+    providedPositionRank?: number | null;
+  }> = [];
+
+  for (let index = 0; index < uniquePlayerIds.length; index += 25) {
+    const batch = uniquePlayerIds.slice(index, index + 25);
+    const results = await Promise.all(batch.map(async (playerId) => {
+      try {
+        const response = await fetch(
+          `https://api.sleeper.com/stats/nfl/player/${playerId}?season_type=regular&season=${season}&grouping=season`
+        );
+        if (!response.ok) return null;
+        const payload = await response.json();
+        const stats = payload?.stats || payload;
+        if (!stats || typeof stats !== 'object') return null;
+
+        const position = players[playerId]?.position;
+        const providedPositionRank = Number(stats[`pos_rank_${scoringFamily}`] ?? stats.pos_rank_half_ppr ?? stats.pos_rank_ppr ?? stats.pos_rank_std);
+        const providedPoints = Number(stats[`pts_${scoringFamily}`] ?? stats.pts_half_ppr ?? stats.pts_ppr ?? stats.pts_std);
+        const points = scoringFamily === 'custom'
+          ? calculateFantasyPointsFromScoring(stats, scoringSettings)
+          : providedPoints;
+
+        if (!position || !Number.isFinite(points) || points <= 0) return null;
+        return {
+          playerId,
+          position,
+          points,
+          providedPositionRank: Number.isFinite(providedPositionRank) ? providedPositionRank : null,
+        };
+      } catch (error) {
+        return null;
+      }
+    }));
+
+    scoredPlayers.push(...results.filter((result): result is NonNullable<typeof result> => Boolean(result)));
+  }
+
+  const ranks: Record<string, LastSeasonPlayerRank> = {};
+  for (const position of ['QB', 'RB', 'WR', 'TE']) {
+    const positionPlayers = scoredPlayers
+      .filter((player) => player.position === position)
+      .sort((a, b) => b.points - a.points);
+
+    positionPlayers.forEach((player, index) => {
+      const rank = scoringFamily === 'custom'
+        ? index + 1
+        : player.providedPositionRank || index + 1;
+      ranks[player.playerId] = {
+        positionRank: `${position}${rank}`,
+        fantasyPoints: Math.round(player.points * 10) / 10,
+        season,
+      };
+    });
+  }
+
+  return ranks;
 }
 
 async function fetchDraftSlotsBySeason(
@@ -345,13 +582,26 @@ export const appRouter = router({
             rosters,
             draftSlotsBySeason,
           };
+          const lastCompletedSeason = String(Number(currentSeasonData.label) - 1);
+          let lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {};
+          try {
+            lastSeasonPositionRanks = await fetchLastSeasonPositionRanks(
+              rosters.flatMap((roster: any) => roster.players || []),
+              players,
+              leagueInfo.scoring_settings,
+              lastCompletedSeason
+            );
+          } catch (error) {
+            console.warn('Failed to fetch last season player stats:', error);
+          }
 
           const reportData = await generateReport(
             currentSeasonData,
             pastSeasonData,
             players,
             ktcValues,
-            ktcValuesLastWeek
+            ktcValuesLastWeek,
+            lastSeasonPositionRanks
           );
 
           // currentUserMap is the same as userIdToManagerMap, so we can reuse it
@@ -370,6 +620,7 @@ export const appRouter = router({
           let draftAnalysis: { draftPicks: any[]; draftStats: any[] } = { draftPicks: [], draftStats: [] };
           let trendingAdds: TrendingPlayer[] = [];
           let trendingDrops: TrendingPlayer[] = [];
+          let tradedPicks: Array<{ season: string; round: number; roster_id: number; owner_id: number }> = [];
           try {
             const draftPicks = await fetchDraftData(input.leagueId, {
               currentRosterMap: rosterUserMap,
@@ -414,9 +665,50 @@ export const appRouter = router({
               fetchTrendingPlayers('add', players, ktcValues, ownerByPlayerId),
               fetchTrendingPlayers('drop', players, ktcValues, ownerByPlayerId),
             ]);
+            tradedPicks = await fetch(
+              `https://api.sleeper.app/v1/league/${input.leagueId}/traded_picks`
+            ).then((r) => r.json());
+            if (!Array.isArray(tradedPicks)) tradedPicks = [];
           } catch (e) {
             console.warn('Failed to fetch trending players:', e);
           }
+
+          const managers = Object.values(rosterUserMap).filter(Boolean) as string[];
+          const currentSeason = String(leagueInfo.season || new Date().getFullYear());
+          const futurePickInventory = buildFuturePickInventory({
+            rosters,
+            rosterMap: rosterUserMap,
+            tradedPicks,
+            ktcValues,
+            draftRounds: Number(leagueInfo.settings?.draft_rounds || 5),
+            seasons: [currentSeason, String(Number(currentSeason) + 1)],
+            draftSlotsBySeason,
+            totalTeams: Number(leagueInfo.total_rosters || rosters.length || 0),
+          });
+          const pickPortfolios = buildPickPortfolios(managers, draftAnalysis.draftPicks, futurePickInventory);
+          const maxPickPortfolioValue = Math.max(...pickPortfolios.map((portfolio) => portfolio.totalValue), 1);
+          const powerRankings = (reportData.powerRankings || [])
+            .map((ranking) => {
+              const portfolio = pickPortfolios.find((item) => item.manager === ranking.manager);
+              const draftCapital = Math.round(((portfolio?.totalValue || 0) / maxPickPortfolioValue) * 100);
+              const score = Math.round(
+                ranking.starterStrength * 0.28 +
+                ranking.rosterValue * 0.24 +
+                ranking.positionalBalance * 0.16 +
+                draftCapital * 0.08 +
+                ranking.youthScore * 0.14 +
+                ranking.tradeEfficiency * 0.10
+              );
+              return {
+                ...ranking,
+                draftCapital,
+                score,
+                tier: score >= 86 ? 'Juggernaut' : score >= 74 ? 'Contender' : score >= 60 ? 'Playoff Mix' : score >= 45 ? 'Reloading' : 'Rebuild Mode',
+              };
+            })
+            .sort((a, b) => b.score - a.score)
+            .map((ranking, index) => ({ ...ranking, rank: index + 1 }));
+          const waiverIntelligence = buildWaiverIntelligence(trendingAdds, trendingDrops);
 
           const reportPlayerIds = [
             ...rosters.flatMap((roster: any) => roster.players || []),
@@ -438,6 +730,9 @@ export const appRouter = router({
               currentPositionRankById: buildCurrentPositionRankMap(reportPlayerIds, players, ktcValues),
               trendingAdds,
               trendingDrops,
+              pickPortfolios,
+              powerRankings,
+              waiverIntelligence,
               draftPicks: draftAnalysis.draftPicks,
               draftStats: draftAnalysis.draftStats,
             },
