@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3 } from 'lucide-react';
+import { Download, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3, Repeat2, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import {
@@ -128,9 +128,9 @@ export default function Home() {
 
   if (reportData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col">
+      <div className="report-shell min-h-screen flex flex-col">
         {/* Premium Header */}
-        <div className="border-b border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div className="report-header sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-2">
              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-6">
               {/* Left: Dynasty Degenerates */}
@@ -150,14 +150,7 @@ export default function Home() {
               </div>
               
               {/* Right: League Name */}
-              <div className="md:col-start-3 flex min-w-0 items-center justify-end gap-2">
-                {leagueLogo && (
-                  <img
-                    src={leagueLogo}
-                    alt={leagueName}
-                    className="h-10 w-10 flex-shrink-0 rounded-full border border-orange-400/30 object-cover shadow-lg shadow-black/25 md:h-12 md:w-12"
-                  />
-                )}
+              <div className="md:col-start-3 flex min-w-0 items-center justify-end">
                 <div className="min-w-0 text-right">
                   <p className="truncate text-sm font-semibold text-orange-400/70 sm:text-lg md:text-xl">{leagueName}</p>
                   {leagueFormat && (
@@ -172,61 +165,65 @@ export default function Home() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full">
+        <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="flex flex-wrap justify-center gap-2 bg-transparent border-0 p-0 mb-10 sm:mb-6 md:mb-4 lg:mb-3 relative z-10" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', maxWidth: '500px', margin: '0 auto' }}>
-              <TabsTrigger value="overview" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+            <TabsList className="report-tabs">
+              <TabsTrigger value="overview" className="report-tab">
+                <BarChart3 className="h-4 w-4" />
                 Overview
               </TabsTrigger>
 
-              <TabsTrigger value="momentum" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+              <TabsTrigger value="momentum" className="report-tab">
+                <TrendingUp className="h-4 w-4" />
                 Weekly Momentum
               </TabsTrigger>
-              <TabsTrigger value="projections" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0 hidden">
+              <TabsTrigger value="projections" className="report-tab hidden">
                 Projections
               </TabsTrigger>
-              <TabsTrigger value="trades" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+              <TabsTrigger value="trades" className="report-tab">
+                <Repeat2 className="h-4 w-4" />
                 Trade History
               </TabsTrigger>
 
-              <TabsTrigger value="draft" className="data-[state=active]:bg-orange-600 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/50 outline-0 focus-visible:outline-0">
+              <TabsTrigger value="draft" className="report-tab">
+                <ClipboardList className="h-4 w-4" />
                 Draft History
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">League Overview</h3>
+            <TabsContent value="overview" className="report-tab-content">
+              <div className="space-y-6 sm:space-y-8">
+                <section className="report-section">
+                  <SectionTitle title="League Overview" kicker="Roster strength" />
                   <LeagueOverviewTable data={reportData.leagueOverview} managerAvatars={reportData.managerAvatars} />
-                </div>
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Manager Roster Value Growth</h3>
+                </section>
+                <section className="report-section">
+                  <SectionTitle title="Manager Roster Value Growth" kicker="Season movement" />
                   <ManagerRosterValueGrowthTable data={reportData.managerRosterValueGrowth} managerAvatars={reportData.managerAvatars} />
-                </div>
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Position Depth Analysis</h3>
+                </section>
+                <section className="report-section">
+                  <SectionTitle title="Position Depth Analysis" kicker="Shortage and excess" />
                   <PositionAnalysisTable data={reportData.positionDepth} managerAvatars={reportData.managerAvatars} />
-                </div>
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Manager Position Counts</h3>
+                </section>
+                <section className="report-section">
+                  <SectionTitle title="Manager Position Counts" kicker="Starter depth" />
                   <ManagerPositionCountsTable data={reportData.managerPositionCounts} managerAvatars={reportData.managerAvatars} />
-                </div>
+                </section>
               </div>
             </TabsContent>
 
-            <TabsContent value="momentum" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 15 Weekly Risers</h3>
+            <TabsContent value="momentum" className="report-tab-content">
+              <div className="space-y-6 sm:space-y-8">
+                <section className="report-section">
+                  <SectionTitle title="Top 15 Weekly Risers" kicker="Market gainers" />
                    <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
-                </div>
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 15 Weekly Fallers</h3>
+                </section>
+                <section className="report-section">
+                  <SectionTitle title="Top 15 Weekly Fallers" kicker="Market drops" />
                    <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
-                </div>
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Trending Adds</h3>
+                </section>
+                <section className="report-section">
+                  <SectionTitle title="Trending Adds" kicker="Sleeper activity" />
                   <TrendingPlayersTable
                     data={reportData.trendingAdds || []}
                     title="Trending Adds"
@@ -235,9 +232,9 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
-                </div>
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Trending Drops</h3>
+                </section>
+                <section className="report-section">
+                  <SectionTitle title="Trending Drops" kicker="Sleeper activity" />
                   <TrendingPlayersTable
                     data={reportData.trendingDrops || []}
                     title="Trending Drops"
@@ -246,11 +243,11 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
-                </div>
+                </section>
               </div>
             </TabsContent>
 
-            <TabsContent value="projections" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
+            <TabsContent value="projections" className="report-tab-content">
               <div className="flex justify-center mb-8">
                 <div className="max-w-2xl p-4 bg-slate-800/30 rounded border border-slate-700 text-center">
                   <p className="text-sm text-slate-300"><span className="text-amber-400 font-semibold">One-Year Projection:</span> These values predict where players will be valued one year from now based on age and position trends.</p>
@@ -274,14 +271,14 @@ export default function Home() {
               </div>
             </TabsContent>
 
-            <TabsContent value="trades" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">All-Time Trade Profit Leaderboard</h3>
+            <TabsContent value="trades" className="report-tab-content">
+              <div className="space-y-6 sm:space-y-8">
+                <section className="report-section">
+                  <SectionTitle title="All-Time Trade Profit Leaderboard" kicker="Net trade edge" />
                   <TradeProfitLeaderboardTable data={reportData.tradeProfitLeaderboard} managerAvatars={reportData.managerAvatars} />
-                </div>
-                <div>
-                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Full Trade Ledger</h3>
+                </section>
+                <section className="report-section">
+                  <SectionTitle title="Full Trade Ledger" kicker="Every completed deal" />
                   <TradeHistoryTable
                     data={reportData.tradeHistory}
                     draftPicks={reportData.draftPicks || []}
@@ -291,13 +288,13 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
-                </div>
+                </section>
               </div>
             </TabsContent>
 
 
 
-            <TabsContent value="draft" className="mt-0 pt-16 sm:pt-12 md:pt-8 lg:pt-4">
+            <TabsContent value="draft" className="report-tab-content">
               <DraftAnalysis
                 draftPicks={reportData.draftPicks || []}
                 draftStats={reportData.draftStats || []}
@@ -310,7 +307,7 @@ export default function Home() {
         </div>
 
         {/* Bottom Action Buttons */}
-        <div className="border-t border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur">
+        <div className="border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
@@ -485,6 +482,27 @@ export default function Home() {
         </div>
       </div>
       )}
+    </div>
+  );
+}
+
+function SectionTitle({
+  title,
+  kicker,
+}: {
+  title: string;
+  kicker?: string;
+}) {
+  return (
+    <div className="mb-4 text-center sm:mb-5">
+      {kicker && (
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">
+          {kicker}
+        </p>
+      )}
+      <h3 className="athletic-headline mt-1 text-xl font-black text-orange-400 sm:text-2xl">
+        {title}
+      </h3>
     </div>
   );
 }

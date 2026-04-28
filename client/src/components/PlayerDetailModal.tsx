@@ -132,12 +132,12 @@ export function PlayerDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-h-[88vh] max-w-2xl overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60"
+        className="max-h-[88vh] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-w-2xl"
         style={{ background: modalBackground }}
       >
         <div className="max-h-[88vh] overflow-y-auto">
           <div
-            className="relative overflow-hidden border-b border-cyan-400/20 px-6 pb-7 pt-6"
+            className="relative overflow-hidden border-b border-cyan-400/20 px-4 pb-5 pt-5 sm:px-6 sm:pb-7 sm:pt-6"
             style={{
               background: heroBackground,
             }}
@@ -157,13 +157,6 @@ export function PlayerDetailModal({
             />
 
             <DialogHeader className="relative pr-10">
-              {pick.manager && leagueLogo && (
-                <img
-                  src={leagueLogo}
-                  alt="League logo"
-                  className="absolute left-0 top-0 h-12 w-12 rounded-full border border-white/25 object-cover shadow-lg shadow-black/30"
-                />
-              )}
               <div className="mb-4 flex justify-center">
                 {pick.manager ? (
                   <div className="inline-flex w-fit items-center gap-4 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-xs font-bold text-cyan-200 shadow-lg shadow-black/20">
@@ -184,9 +177,9 @@ export function PlayerDetailModal({
               </DialogTitle>
             </DialogHeader>
 
-            <div className="relative mt-7 flex justify-center">
-              <div className="grid w-full max-w-xl grid-cols-1 items-center gap-5 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-7">
-                <div className="relative mx-auto h-28 w-28 overflow-hidden rounded-2xl border border-cyan-300/35 bg-slate-950 shadow-xl shadow-black/40 sm:mx-0">
+            <div className="relative mt-5 flex justify-center sm:mt-7">
+              <div className="grid w-full max-w-xl grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-4 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-7">
+                <div className="relative h-22 w-22 overflow-hidden rounded-2xl border border-cyan-300/35 bg-slate-950 shadow-xl shadow-black/40 sm:h-28 sm:w-28">
                   {headshot ? (
                     <img
                       src={headshot}
