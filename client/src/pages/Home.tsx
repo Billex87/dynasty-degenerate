@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3, Repeat2, ClipboardList } from 'lucide-react';
+import { ChevronDown, Download, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3, Repeat2, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import {
@@ -112,9 +112,9 @@ export default function Home() {
     });
 
     csv += '\nALL-TIME TRADE PROFIT LEADERBOARD\n';
-    csv += 'Rank,Manager,Total Profit,Trade Count\n';
+    csv += 'Manager,Profit,Wins,Trade Count\n';
     data.tradeProfitLeaderboard.forEach((row) => {
-      csv += `${row.rank},${row.manager},${row.profit},${row.trade_count}\n`;
+      csv += `${row.manager},${row.profit},${row.wins},${row.trade_count}\n`;
     });
 
     csv += '\nFULL TRADE LEDGER\n';
@@ -193,37 +193,37 @@ export default function Home() {
 
             <TabsContent value="overview" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <section className="report-section">
-                  <SectionTitle title="League Overview" kicker="Roster strength" />
+                <CollapsibleReportSection title="Manager Position Counts" kicker="Starter depth">
+                  <ManagerPositionCountsTable
+                    data={reportData.managerPositionCounts}
+                    managerAvatars={reportData.managerAvatars}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="League Overview" kicker="Roster strength">
                   <LeagueOverviewTable data={reportData.leagueOverview} managerAvatars={reportData.managerAvatars} />
-                </section>
-                <section className="report-section">
-                  <SectionTitle title="Manager Roster Value Growth" kicker="Season movement" />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Manager Roster Value Growth" kicker="Season movement">
                   <ManagerRosterValueGrowthTable data={reportData.managerRosterValueGrowth} managerAvatars={reportData.managerAvatars} />
-                </section>
-                <section className="report-section">
-                  <SectionTitle title="Position Depth Analysis" kicker="Shortage and excess" />
-                  <PositionAnalysisTable data={reportData.positionDepth} managerAvatars={reportData.managerAvatars} />
-                </section>
-                <section className="report-section">
-                  <SectionTitle title="Manager Position Counts" kicker="Starter depth" />
-                  <ManagerPositionCountsTable data={reportData.managerPositionCounts} managerAvatars={reportData.managerAvatars} />
-                </section>
+                </CollapsibleReportSection>
+                {reportData.positionDepth.length > 0 && (
+                  <CollapsibleReportSection title="Position Depth Analysis" kicker="Shortage and excess">
+                    <PositionAnalysisTable data={reportData.positionDepth} managerAvatars={reportData.managerAvatars} />
+                  </CollapsibleReportSection>
+                )}
               </div>
             </TabsContent>
 
             <TabsContent value="momentum" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <section className="report-section">
-                  <SectionTitle title="Top 15 Weekly Risers" kicker="Market gainers" />
+                <CollapsibleReportSection title="Top 15 Weekly Risers" kicker="Market gainers">
                    <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
-                </section>
-                <section className="report-section">
-                  <SectionTitle title="Top 15 Weekly Fallers" kicker="Market drops" />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Top 15 Weekly Fallers" kicker="Market drops">
                    <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
-                </section>
-                <section className="report-section">
-                  <SectionTitle title="Trending Adds" kicker="Sleeper activity" />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Trending Adds" kicker="Sleeper activity">
                   <TrendingPlayersTable
                     data={reportData.trendingAdds || []}
                     title="Trending Adds"
@@ -232,9 +232,8 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
-                </section>
-                <section className="report-section">
-                  <SectionTitle title="Trending Drops" kicker="Sleeper activity" />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Trending Drops" kicker="Sleeper activity">
                   <TrendingPlayersTable
                     data={reportData.trendingDrops || []}
                     title="Trending Drops"
@@ -243,7 +242,7 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
-                </section>
+                </CollapsibleReportSection>
               </div>
             </TabsContent>
 
@@ -272,13 +271,18 @@ export default function Home() {
             </TabsContent>
 
             <TabsContent value="trades" className="report-tab-content">
-              <div className="space-y-6 sm:space-y-8">
-                <section className="report-section">
-                  <SectionTitle title="All-Time Trade Profit Leaderboard" kicker="Net trade edge" />
-                  <TradeProfitLeaderboardTable data={reportData.tradeProfitLeaderboard} managerAvatars={reportData.managerAvatars} />
-                </section>
-                <section className="report-section">
-                  <SectionTitle title="Full Trade Ledger" kicker="Every completed deal" />
+              <div className="trade-sections space-y-6 sm:space-y-8">
+                <CollapsibleReportSection title="All-Time Trade Profit Leaderboard" kicker="Net trade edge">
+                  <TradeProfitLeaderboardTable
+                    data={reportData.tradeProfitLeaderboard}
+                    managerAvatars={reportData.managerAvatars}
+                    tradeHistory={reportData.tradeHistory}
+                    draftPicks={reportData.draftPicks || []}
+                    playerDetailsById={reportData.playerDetailsById}
+                    currentPositionRankById={reportData.currentPositionRankById}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Full Trade Ledger" kicker="Every completed deal">
                   <TradeHistoryTable
                     data={reportData.tradeHistory}
                     draftPicks={reportData.draftPicks || []}
@@ -288,7 +292,7 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
-                </section>
+                </CollapsibleReportSection>
               </div>
             </TabsContent>
 
@@ -338,9 +342,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex flex-col">
+    <div className="home-shell min-h-screen flex flex-col">
       {/* Premium Header */}
-      <div className="border-b border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur">
+      <div className="home-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-center">
           <div className="text-center">
             <h1 className="athletic-headline text-lg sm:text-2xl bg-gradient-to-r from-orange-400 to-orange-300 bg-clip-text text-transparent">
@@ -352,25 +356,25 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
+      <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
         {isLoading ? (
           <div className="w-full max-w-2xl">
             <LoadingAnimation />
           </div>
         ) : (
-          <div className="w-full max-w-3xl space-y-8 sm:space-y-12">
+          <div className="home-hero w-full max-w-3xl space-y-8 sm:space-y-12">
             {/* Main Title */}
             <div className="space-y-3 sm:space-y-4 text-center">
-              <h2 className="athletic-title text-4xl sm:text-6xl md:text-7xl bg-gradient-to-r from-orange-400 via-orange-300 to-yellow-300 bg-clip-text text-transparent">
+              <h2 className="athletic-title home-title text-4xl sm:text-6xl md:text-7xl bg-gradient-to-r from-orange-400 via-orange-300 to-yellow-300 bg-clip-text text-transparent">
                 Obliterate Your Competition
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
+              <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
                 Stop guessing. Start dominating. Dynasty Degenerates gives you the unfair advantage with deep KTC analysis, trade profit tracking, and AI-powered projections.
               </p>
             </div>
 
             {/* Input Section */}
-            <div className="space-y-4 sm:space-y-6 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-orange-500/20 rounded-lg sm:rounded-xl p-4 sm:p-8 backdrop-blur shadow-xl">
+            <div className="home-analyze-card space-y-4 sm:space-y-6 p-4 sm:p-8">
               <div className="text-center">
                 <label className="block text-sm font-semibold text-slate-200 mb-3">
                   Enter Your Sleeper League ID
@@ -391,7 +395,7 @@ export default function Home() {
               <Button
                 onClick={handleAnalyze}
                 disabled={isLoading}
-                className="w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
+                className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
               >
                 <Zap size={20} />
                 Illegally Scraping All Data
@@ -400,7 +404,7 @@ export default function Home() {
 
             {/* Features Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
-              <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-emerald-500/20 rounded-lg p-4 sm:p-6 space-y-3 hover:border-emerald-500/40 transition-all">
+              <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
                 <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
                   <BarChart3 className="w-6 h-6 text-emerald-400" />
                 </div>
@@ -410,7 +414,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-blue-500/20 rounded-lg p-4 sm:p-6 space-y-3 hover:border-blue-500/40 transition-all">
+              <div className="home-feature-card home-feature-blue p-4 sm:p-6 space-y-3">
                 <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-blue-400" />
                 </div>
@@ -420,7 +424,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-purple-500/20 rounded-lg p-4 sm:p-6 space-y-3 hover:border-purple-500/40 transition-all">
+              <div className="home-feature-card home-feature-purple p-4 sm:p-6 space-y-3">
                 <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
                   <ZapIcon className="w-6 h-6 text-purple-400" />
                 </div>
@@ -436,7 +440,7 @@ export default function Home() {
 
       {/* Premium Footer */}
       {!reportData && !isLoading && (
-      <div className="border-t border-orange-500/20 bg-gradient-to-r from-slate-900/80 to-slate-950/80 backdrop-blur mt-auto flex flex-col">
+      <div className="home-footer mt-auto flex flex-col">
         <div className="hidden sm:block max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex-1">
           <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8 mb-6 sm:mb-8">
             <div className="text-center">
@@ -504,5 +508,27 @@ function SectionTitle({
         {title}
       </h3>
     </div>
+  );
+}
+
+function CollapsibleReportSection({
+  title,
+  kicker,
+  children,
+}: {
+  title: string;
+  kicker?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="report-section report-disclosure" open>
+      <summary className="report-disclosure-summary">
+        <SectionTitle title={title} kicker={kicker} />
+        <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
+      </summary>
+      <div className="report-disclosure-body">
+        {children}
+      </div>
+    </details>
   );
 }

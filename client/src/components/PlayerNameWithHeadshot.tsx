@@ -42,12 +42,12 @@ export function PlayerNameWithHeadshot({
   const imageSrc = headshot || (!directImageFailed ? directHeadshot : null);
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="player-chip flex min-w-0 items-center gap-2">
       {imageSrc ? (
         <img
           src={imageSrc}
           alt={playerName}
-          className="w-6 h-6 md:w-7 md:h-7 rounded-full flex-shrink-0 object-cover border border-orange-400/30"
+          className="h-7 w-7 flex-shrink-0 rounded-full border border-orange-300/40 object-cover shadow-sm shadow-black/30"
           onError={() => {
             if (!directImageFailed && directHeadshot) {
               setDirectImageFailed(true);
@@ -59,7 +59,7 @@ export function PlayerNameWithHeadshot({
       ) : (
         <span
           aria-hidden="true"
-          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-orange-400/30 bg-gradient-to-br from-slate-800 to-orange-950 text-[10px] font-bold text-orange-300 md:h-7 md:w-7 md:text-[11px]"
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-orange-400/30 bg-gradient-to-br from-slate-800 to-orange-950 text-[11px] font-bold text-orange-300"
         >
           {initials || '?'}
         </span>

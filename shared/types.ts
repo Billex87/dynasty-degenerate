@@ -43,6 +43,7 @@ export interface TradeData {
   team_b_total: number;
   point_gap: number;
   winner: string;
+  winners?: string[];
 }
 
 export interface PositionDepth {
@@ -50,6 +51,15 @@ export interface PositionDepth {
   position: string;
   count: number;
   status: 'shortage' | 'excess';
+}
+
+export interface ManagerStarterPlayer {
+  player_id: string;
+  name: string;
+  pos: string;
+  value: number;
+  currentPositionRank?: string | null;
+  playerDetails?: PlayerDetails;
 }
 
 export interface DraftPick {
@@ -152,6 +162,7 @@ export interface ReportData {
     rank: number;
     manager: string;
     profit: number;
+    wins: number;
     trade_count: number;
   }>;
   tradeHistory: TradeData[];
@@ -166,6 +177,7 @@ export interface ReportData {
     WR_starters: number;
     TE: number;
     TE_starters: number;
+    starterPlayers?: ManagerStarterPlayer[];
   }>;
   draftPicks?: DraftPick[];
   draftStats?: ManagerDraftStats[];

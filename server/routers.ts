@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { loadKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshot } from "./ktcLoader";
+import { loadKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshot, loadLocalKtcSnapshotForDate } from "./ktcLoader";
 import type { KTCValues } from "./reportGenerator";
 import { loadCurrentKTCPositionRanks } from "./currentKTCLoader";
 import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
@@ -387,6 +387,10 @@ export const appRouter = router({
             if (draftPicks.length > 0) {
               // Load May 2025 KTC baseline for value change calculations
               const ktcValuesMay2025 = getMay2025KTCSnapshot();
+              // For 2026 rookie drafts, compare against the April 2026 snapshot instead of May 2025.
+              const ktcValuesByDraftYear = {
+                '2026': loadLocalKtcSnapshotForDate('2026-04-23'),
+              };
               // Load current KTC position ranks
               const currentKTCRanks = await loadCurrentKTCPositionRanks();
               draftAnalysis = await analyzeDraftPicks(
@@ -397,7 +401,8 @@ export const appRouter = router({
                 adpData,
                 ktcValuesLastWeek,
                 ktcValuesMay2025,
-                currentKTCRanks
+                currentKTCRanks,
+                ktcValuesByDraftYear
               );
             }
           } catch (e) {

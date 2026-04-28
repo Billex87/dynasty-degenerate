@@ -143,18 +143,17 @@ function encodePickItem(label: string, value: number): string {
   return `PICK:${label}|${value}`;
 }
 
-function chooseTradeWinner(
+const MUTUAL_TRADE_WIN_GAP = 250;
+
+function chooseTradeWinners(
   managerA: string,
   managerB: string,
   valueA: number,
   valueB: number
-): string {
-  if (valueA > valueB) return managerA;
-  if (valueB > valueA) return managerB;
-  if (managerA === 'mynameisbillex' || managerB === 'mynameisbillex') {
-    return 'mynameisbillex';
-  }
-  return managerA;
+): string[] {
+  const pointGap = Math.abs(valueA - valueB);
+  if (pointGap <= MUTUAL_TRADE_WIN_GAP) return [managerA, managerB];
+  return valueA > valueB ? [managerA] : [managerB];
 }
 
 function getPlayerDetails(pid: string, allPlayers: Player): PlayerDetails | undefined {
@@ -394,6 +393,7 @@ export async function generateReport(
   // Process trades
   const managerProfits: Record<string, number> = {};
   const managerActivity: Record<string, number> = {};
+  const managerWins: Record<string, number> = {};
   const tradeRows: Array<{
     date: string;
     season: string;
@@ -405,6 +405,7 @@ export async function generateReport(
     team_b_total: number;
     point_gap: number;
     winner: string;
+    winners: string[];
   }> = [];
 
   for (const season of [currentSeasonData, ...(pastSeasonData ? [pastSeasonData] : [])]) {
@@ -474,7 +475,10 @@ export async function generateReport(
           ...(adj2 > 0 ? [`VALUE_ADJUSTMENT:+${adj2}`] : []),
         ].join(', ');
         const pointGap = Math.abs(finalV1 - finalV2);
-        const winner = chooseTradeWinner(m1, m2, finalV1, finalV2);
+        const winners = chooseTradeWinners(m1, m2, finalV1, finalV2);
+        winners.forEach((winner) => {
+          managerWins[winner] = (managerWins[winner] || 0) + 1;
+        });
 
         tradeRows.push({
           date: dt,
@@ -486,7 +490,8 @@ export async function generateReport(
           team_a_total: finalV1,
           team_b_total: finalV2,
           point_gap: pointGap,
-          winner,
+          winner: winners[0],
+          winners,
         });
       }
     }
@@ -504,11 +509,11 @@ export async function generateReport(
     }));
 
   const weeklyRisers = weeklyMomentum
-    .sort((a, b) => b.diff - a.diff)
+    .sort((a, b) => b.pct_change - a.pct_change)
     .slice(0, 15);
 
   const weeklyFallers = weeklyMomentum
-    .sort((a, b) => a.diff - b.diff)
+    .sort((a, b) => a.pct_change - b.pct_change)
     .slice(0, 15);
 
   const leagueOverview = Object.entries(teamData)
@@ -538,6 +543,7 @@ export async function generateReport(
       rank: idx + 1,
       manager: name,
       profit,
+      wins: managerWins[name] || 0,
       trade_count: managerActivity[name] || 0,
     }));
 
@@ -632,6 +638,14 @@ export async function generateReport(
     WR_starters: number;
     TE: number;
     TE_starters: number;
+    starterPlayers: Array<{
+      player_id: string;
+      name: string;
+      pos: string;
+      value: number;
+      currentPositionRank?: string | null;
+      playerDetails?: PlayerDetails;
+    }>;
   }> = [];
 
   for (const r of currentSeasonData.rosters) {
@@ -639,6 +653,14 @@ export async function generateReport(
     const pids = r.players || [];
     const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
     const posStarterCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
+    const starterPlayers: Array<{
+      player_id: string;
+      name: string;
+      pos: string;
+      value: number;
+      currentPositionRank?: string | null;
+      playerDetails?: PlayerDetails;
+    }> = [];
 
     for (const pid of pids) {
       const p = allPlayers[pid];
@@ -648,6 +670,14 @@ export async function generateReport(
         const positionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
         if (isStarterRank(pos, positionRank, starterThresholds)) {
           posStarterCounts[pos]++;
+          starterPlayers.push({
+            player_id: pid,
+            name: getPlayerName(pid, allPlayers),
+            pos,
+            value: getPlayerValue(pid, allPlayers, ktcValues),
+            currentPositionRank: positionRank,
+            playerDetails: getPlayerDetails(pid, allPlayers),
+          });
         }
       }
     }
@@ -662,6 +692,7 @@ export async function generateReport(
       WR_starters: posStarterCounts.WR,
       TE: posCounts.TE,
       TE_starters: posStarterCounts.TE,
+      starterPlayers: starterPlayers.sort((a, b) => b.value - a.value),
     });
   }
 

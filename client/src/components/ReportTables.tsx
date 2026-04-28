@@ -1,4 +1,11 @@
 import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -9,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import React, { useState } from 'react';
-import { ChevronDown, TrendingDown, TrendingUp } from 'lucide-react';
+import { ChevronDown, Crown, TrendingDown, TrendingUp } from 'lucide-react';
 import type { DraftPick, ReportData, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
@@ -65,6 +72,251 @@ function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
       avatarUrl={managerAvatars?.[manager]}
       managerName={manager}
     />
+  );
+}
+
+function formatStarterStatus(status: string | number | null | undefined): string {
+  if (status === null || status === undefined || status === '') return 'Active';
+  return String(status).replace(/_/g, ' ');
+}
+
+function stableTradeSeed(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function renderTradeSummaryManager(
+  manager: string,
+  isWinner: boolean,
+  managerAvatars?: ManagerAvatars,
+) {
+  const avatarUrl = managerAvatars?.[manager];
+  const initial = manager.trim()[0]?.toUpperCase() || '?';
+
+  return (
+    <span className={`trade-mobile-manager ${isWinner ? 'trade-mobile-winner' : 'trade-mobile-loser'}`}>
+      <span className="manager-chip flex min-w-0 items-center gap-2">
+        <span className="trade-mobile-avatar-wrap">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={manager}
+              className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-800 text-[11px] font-bold text-orange-300"
+            >
+              {initial}
+            </span>
+          )}
+          {isWinner && <Crown className="trade-winner-crown" aria-hidden="true" />}
+        </span>
+        <span className="min-w-0 truncate">{manager}</span>
+      </span>
+    </span>
+  );
+}
+
+function renderTradeSideManager(
+  manager: string,
+  isWinner: boolean,
+  managerAvatars?: ManagerAvatars,
+) {
+  const avatarUrl = managerAvatars?.[manager];
+  const initial = manager.trim()[0]?.toUpperCase() || '?';
+
+  return (
+    <span className={`trade-side-manager ${isWinner ? 'trade-side-manager-winner' : 'trade-side-manager-other'}`}>
+      <span className="trade-mobile-avatar-wrap">
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={manager}
+            className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
+          />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-800 text-[11px] font-bold text-orange-300"
+          >
+            {initial}
+          </span>
+        )}
+        {isWinner && <Crown className="trade-winner-crown" aria-hidden="true" />}
+      </span>
+      <span className="min-w-0 truncate">{manager}</span>
+    </span>
+  );
+}
+
+function getTradeGapVerdict(gap: number) {
+  if (gap === 0) return { label: 'Even Steven', className: 'trade-gap-verdict-even' };
+  if (gap < 100) return { label: 'Coin Flip', className: 'trade-gap-verdict-even' };
+  if (gap < 200) return { label: 'Tiny Tax', className: 'trade-gap-verdict-soft' };
+  if (gap < 350) return { label: 'Tip Jar', className: 'trade-gap-verdict-soft' };
+  if (gap < 500) return { label: 'Pocket Change', className: 'trade-gap-verdict-soft' };
+  if (gap < 650) return { label: 'Lunch Money', className: 'trade-gap-verdict-medium' };
+  if (gap < 800) return { label: 'Got Finessed', className: 'trade-gap-verdict-medium' };
+  if (gap < 1000) return { label: 'Sneaky L', className: 'trade-gap-verdict-medium' };
+  if (gap < 1250) return { label: 'Ouch Tax', className: 'trade-gap-verdict-hot' };
+  if (gap < 1500) return { label: 'Got Robbed', className: 'trade-gap-verdict-hot' };
+  if (gap < 1750) return { label: 'Trade Mugging', className: 'trade-gap-verdict-hot' };
+  if (gap < 2000) return { label: 'Hide the Chat', className: 'trade-gap-verdict-hot' };
+  if (gap < 2250) return { label: 'Call 911', className: 'trade-gap-verdict-fire' };
+  if (gap < 2500) return { label: 'League Probe', className: 'trade-gap-verdict-fire' };
+  if (gap < 2750) return { label: 'Veto Bait', className: 'trade-gap-verdict-fire' };
+  if (gap < 3000) return { label: 'Receipts Needed', className: 'trade-gap-verdict-fire' };
+  if (gap < 3500) return { label: 'Crime Scene', className: 'trade-gap-verdict-nuclear' };
+  if (gap < 4000) return { label: 'Witness Needed', className: 'trade-gap-verdict-nuclear' };
+  if (gap < 5000) return { label: 'Delete the App', className: 'trade-gap-verdict-nuclear' };
+  return { label: 'Gen Fleece', className: 'trade-gap-verdict-nuclear' };
+}
+
+function getManagerTradeSwing(trade: ReportData['tradeHistory'][number], manager: string) {
+  if (trade.team_a === manager) return trade.team_a_total - trade.team_b_total;
+  if (trade.team_b === manager) return trade.team_b_total - trade.team_a_total;
+  return 0;
+}
+
+function getTradeOpponent(trade: ReportData['tradeHistory'][number], manager: string) {
+  return trade.team_a === manager ? trade.team_b : trade.team_a;
+}
+
+function getManagerTradeResult(trade: ReportData['tradeHistory'][number], manager: string) {
+  const winners = trade.winners?.length ? trade.winners : [trade.winner];
+  if (winners.length > 1 && winners.includes(manager)) return 'Even Win';
+  return winners.includes(manager) ? 'Win' : 'Loss';
+}
+
+function getTradeDisplaySides(row: ReportData['tradeHistory'][number]) {
+  const winners = row.winners?.length ? row.winners : [row.winner];
+  const isTeamAWinner = winners.includes(row.team_a);
+  const isTeamBWinner = winners.includes(row.team_b);
+  const isMutualWin = isTeamAWinner && isTeamBWinner;
+  const winnerSide = isTeamBWinner && !isTeamAWinner ? 'team_b' : 'team_a';
+  const loserName = isMutualWin
+    ? 'Both Win'
+    : winnerSide === 'team_a' ? row.team_b : row.team_a;
+  const leftSide = isMutualWin
+    ? {
+        manager: row.team_a,
+        items: row.team_a_items,
+        total: row.team_a_total,
+        isWinner: true,
+      }
+    : winnerSide === 'team_a'
+    ? {
+        manager: row.team_a,
+        items: row.team_a_items,
+        total: row.team_a_total,
+        isWinner: true,
+      }
+    : {
+        manager: row.team_b,
+        items: row.team_b_items,
+        total: row.team_b_total,
+        isWinner: true,
+      };
+  const rightSide = isMutualWin
+    ? {
+        manager: row.team_b,
+        items: row.team_b_items,
+        total: row.team_b_total,
+        isWinner: true,
+      }
+    : winnerSide === 'team_a'
+    ? {
+        manager: row.team_b,
+        items: row.team_b_items,
+        total: row.team_b_total,
+        isWinner: false,
+      }
+    : {
+        manager: row.team_a,
+        items: row.team_a_items,
+        total: row.team_a_total,
+        isWinner: false,
+      };
+
+  return { winners, loserName, leftSide, rightSide };
+}
+
+function TradeDetailPanel({
+  row,
+  draftPicks = [],
+  managerAvatars,
+  playerDetailsById,
+  currentPositionRankById,
+  onPlayerClick,
+}: {
+  row: ReportData['tradeHistory'][number];
+  draftPicks?: DraftPick[];
+  managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
+  currentPositionRankById?: CurrentPositionRankById;
+  onPlayerClick?: (player: PlayerModalData) => void;
+}) {
+  const { leftSide, rightSide } = getTradeDisplaySides(row);
+
+  return (
+    <div className="trade-detail-panel">
+      <div className="trade-detail-header">
+        <div>
+          <div className="trade-detail-title">Trade Ledger</div>
+        </div>
+        <div className="trade-detail-gap">
+          <span>Gap</span>
+          <strong>{row.point_gap.toLocaleString()}</strong>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+        {[leftSide, rightSide].map((side) => (
+          <div
+            key={side.manager}
+            className={`trade-side ${side.isWinner ? 'trade-side-winner' : 'trade-side-loser'}`}
+          >
+            {managerAvatars?.[side.manager] && (
+              <img
+                src={managerAvatars[side.manager] || ''}
+                alt=""
+                className="trade-side-watermark"
+              />
+            )}
+            <div className="relative flex items-center justify-between gap-3 border-b border-orange-300/15 pb-3">
+              <div className="min-w-0">
+                <span className={`trade-side-label ${side.isWinner ? 'trade-side-label-win' : 'trade-side-label-other'}`}>
+                  {side.isWinner ? 'Winner' : 'Other Side'}
+                </span>
+              </div>
+              {renderTradeSideManager(side.manager, side.isWinner, managerAvatars)}
+              <div className={`trade-side-total ${side.isWinner ? 'trade-side-total-win' : 'trade-side-total-other'}`}>
+                <span>Total</span>
+                <strong>{side.total.toLocaleString()}</strong>
+              </div>
+            </div>
+            <div className="relative space-y-2 pt-3">
+              <div className="space-y-2 text-sm text-slate-300">
+                {side.items
+                  .split(',')
+                  .map((item, i) => renderTradeItem(item, i, {
+                    draftPicks,
+                    playerDetailsById,
+                    currentPositionRankById,
+                    onPlayerClick,
+                    manager: side.manager,
+                    managerAvatarUrl: managerAvatars?.[side.manager],
+                  }))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -150,11 +402,11 @@ function renderTradeItem(
   const valueAdjustment = parseValueAdjustmentItem(trimmed);
   if (valueAdjustment !== null) {
     return (
-      <div key={key} className="flex items-center gap-2 text-xs text-blue-300">
-        <span className="inline-flex h-6 items-center justify-center rounded bg-blue-500/15 px-2 font-semibold">
+      <div key={key} className="trade-asset trade-asset-boost">
+        <span className="inline-flex h-6 items-center justify-center rounded-md bg-blue-500/15 px-2 font-black">
           STUD BOOST
         </span>
-        <span>(+{valueAdjustment.toLocaleString()})</span>
+        <span>+{valueAdjustment.toLocaleString()}</span>
       </div>
     );
   }
@@ -172,19 +424,19 @@ function renderTradeItem(
           playerName={playerItem.playerName}
         />
         {playerItem.value !== null && (
-          <span className="text-xs text-slate-500">
-            ({playerItem.value.toLocaleString()})
+          <span className="value-pill">
+            {playerItem.value.toLocaleString()}
           </span>
         )}
       </>
     );
 
     return (
-      <div key={key} className="flex items-center gap-2">
+      <div key={key} className="trade-asset">
         {onPlayerClick ? (
           <button
             type="button"
-            className="flex min-w-0 items-center gap-2 text-left hover:text-orange-300"
+            className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left hover:text-orange-300"
             onClick={(event) => {
               event.stopPropagation();
               onPlayerClick(buildPlayerModalData({
@@ -217,21 +469,21 @@ function renderTradeItem(
     const landedValue = landedPick?.currentKtcValue ?? landedPick?.ktcValue ?? null;
 
     return (
-      <div key={key} className="space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded bg-orange-500/15 px-2 text-xs font-semibold text-orange-300">
+      <div key={key} className="trade-asset-block">
+        <div className="trade-asset">
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-orange-500/15 px-2 text-xs font-black text-orange-300">
             PICK
           </span>
-          <span>{pickItem.label}</span>
+          <span className="min-w-0 flex-1 truncate">{pickItem.label}</span>
           {pickItem.value !== null && (
-            <span className="text-xs text-slate-500">
-              ({pickItem.value.toLocaleString()})
+            <span className="value-pill">
+              {pickItem.value.toLocaleString()}
             </span>
           )}
         </div>
         {landedPick && (
-          <div className="ml-12 flex items-center gap-2 text-xs text-slate-400">
-            <span>Landed:</span>
+          <div className="ml-2 mt-2 flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-950/45 px-3 py-2 text-xs text-slate-400 sm:ml-10">
+            <span className="font-bold uppercase tracking-[0.12em] text-cyan-300/80">Landed</span>
             {onPlayerClick ? (
               <button
                 type="button"
@@ -290,12 +542,12 @@ export function ManagerRosterValueGrowthTable({
 }) {
   return (
     <div className="flex justify-center">
-      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="report-table-polished roster-growth-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="weekly-manager-heading text-center text-white font-semibold">Manager</TableHead>
               <TableHead className="text-right text-white font-semibold"><div>2025</div><div>Value</div></TableHead>
               <TableHead className="text-right text-white font-semibold"><div>2026</div><div>Value</div></TableHead>
               <TableHead className="text-right text-white font-semibold"><div>Growth</div><div>%</div></TableHead>
@@ -305,7 +557,7 @@ export function ManagerRosterValueGrowthTable({
           <TableBody>
             {data.map((row, idx) => (
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="font-semibold text-slate-100">
+                <TableCell className="weekly-manager-cell font-semibold text-slate-100">
                   {renderManagerName(row.manager, managerAvatars)}
                 </TableCell>
                 <TableCell className="text-right text-slate-300">
@@ -350,18 +602,16 @@ export function WeeklyMomentumTable({
 
   return (
     <div className="flex justify-center">
-      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="report-table-polished weekly-momentum-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
               <TableHead className="text-white font-semibold">Player</TableHead>
-              <TableHead className="text-white font-semibold">Position</TableHead>
-              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="mobile-icon-manager-heading text-white font-semibold">Manager</TableHead>
               <TableHead className="text-right text-white font-semibold"><div>Last</div><div>Week</div></TableHead>
               <TableHead className="text-right text-white font-semibold"><div>This</div><div>Week</div></TableHead>
               <TableHead className="text-right text-white font-semibold">Change</TableHead>
-              <TableHead className="text-right text-white font-semibold">% Change</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -385,8 +635,7 @@ export function WeeklyMomentumTable({
                 <TableCell className="font-semibold text-slate-100">
                   <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                 </TableCell>
-                <TableCell className="text-slate-400">{row.pos}</TableCell>
-                <TableCell className="text-slate-400">
+                <TableCell className="weekly-manager-cell text-center text-slate-400">
                   {renderManagerName(row.owner, managerAvatars)}
                 </TableCell>
                 <TableCell className="text-right text-slate-300">
@@ -394,14 +643,6 @@ export function WeeklyMomentumTable({
                 </TableCell>
                 <TableCell className="text-right text-slate-300">
                   {row.val_now.toLocaleString()}
-                </TableCell>
-                <TableCell
-                  className={`text-right font-semibold ${
-                    row.diff >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}
-                >
-                  {row.diff >= 0 ? '+' : ''}
-                  {row.diff.toLocaleString()}
                 </TableCell>
                 <TableCell
                   className={`text-right font-semibold ${
@@ -438,12 +679,12 @@ export function LeagueOverviewTable({
 }) {
   return (
     <div className="flex justify-center">
-      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="report-table-polished league-overview-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Manager</TableHead>
+              <TableHead className="mobile-icon-manager-heading text-white font-semibold">Manager</TableHead>
               <TableHead className="text-right text-white font-semibold"><div>Total</div><div>Value</div></TableHead>
               <TableHead className="text-center text-white font-semibold"><div>QB</div><div>Rank</div></TableHead>
               <TableHead className="text-center text-white font-semibold"><div>RB</div><div>Rank</div></TableHead>
@@ -456,7 +697,7 @@ export function LeagueOverviewTable({
           <TableBody>
             {data.map((row, idx) => (
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="font-semibold text-slate-100">
+                <TableCell className="mobile-icon-manager-cell font-semibold text-slate-100">
                   {renderManagerName(row.manager, managerAvatars)}
                 </TableCell>
                 <TableCell className="text-right text-slate-300">
@@ -497,16 +738,19 @@ export function TrendingPlayersTable({
 
   return (
     <div className="flex justify-center">
-      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
+          <Table
+            className="trending-players-table momentum-trending-table w-full text-xs sm:text-sm"
+            style={{ tableLayout: 'fixed' }}
+          >
             <TableHeader className="border-b-2 border-orange-500/30">
               <TableRow className="border-slate-700">
-                <TableHead className="text-white font-semibold">Player</TableHead>
-                <TableHead className="text-white font-semibold">Position</TableHead>
-                <TableHead className="text-white font-semibold">Team</TableHead>
-                <TableHead className="text-white font-semibold">Manager</TableHead>
-                <TableHead className="text-right text-white font-semibold">{countLabel}</TableHead>
+                <TableHead className="trending-player-heading text-white font-semibold">Player</TableHead>
+                <TableHead className="trending-pos-heading text-center text-white font-semibold">Position</TableHead>
+                <TableHead className="trending-team-heading text-center text-white font-semibold">Team</TableHead>
+                <TableHead className="mobile-icon-manager-heading text-white font-semibold">Manager</TableHead>
+                <TableHead className="trending-count-heading text-right text-white font-semibold">{countLabel}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -525,15 +769,17 @@ export function TrendingPlayersTable({
                     managerAvatarUrl: row.owner ? managerAvatars?.[row.owner] : null,
                   }))}
                 >
-                  <TableCell className="font-semibold text-slate-100">
+                  <TableCell className="trending-player-cell min-w-0 font-semibold text-slate-100">
                     <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                   </TableCell>
-                  <TableCell className="text-slate-400">{row.pos}</TableCell>
-                  <TableCell className="text-slate-400">{row.team || 'FA'}</TableCell>
-                  <TableCell className="text-slate-400">
-                    {row.owner ? renderManagerName(row.owner, managerAvatars) : 'Available'}
+                  <TableCell className="trending-pos-cell text-center text-slate-400">{row.pos}</TableCell>
+                  <TableCell className="trending-team-cell text-center text-slate-400">{row.team || 'FA'}</TableCell>
+                  <TableCell className="mobile-icon-manager-cell text-slate-400">
+                    {row.owner ? renderManagerName(row.owner, managerAvatars) : (
+                      <span className="available-manager-label">Available</span>
+                    )}
                   </TableCell>
-                  <TableCell className="text-right font-semibold text-slate-300">{row.count.toLocaleString()}</TableCell>
+                  <TableCell className="trending-count-cell text-right font-semibold text-slate-300">{row.count.toLocaleString()}</TableCell>
                 </TableRow>
               ))}
               {data.length === 0 && (
@@ -576,9 +822,9 @@ export function ProjectedMoversTable({
 
   return (
     <div className="flex justify-center">
-      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="report-table-polished projected-movers-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
               <TableHead className="text-white font-semibold">Rank</TableHead>
@@ -655,45 +901,186 @@ export function ProjectedMoversTable({
 export function TradeProfitLeaderboardTable({
   data,
   managerAvatars,
+  tradeHistory = [],
+  draftPicks = [],
+  playerDetailsById,
+  currentPositionRankById,
 }: {
   data: ReportData['tradeProfitLeaderboard'];
   managerAvatars?: ManagerAvatars;
+  tradeHistory?: ReportData['tradeHistory'];
+  draftPicks?: DraftPick[];
+  playerDetailsById?: PlayerDetailsById;
+  currentPositionRankById?: CurrentPositionRankById;
 }) {
+  const [selectedManager, setSelectedManager] = useState<string | null>(null);
+  const [selectedManagerTradeKey, setSelectedManagerTradeKey] = useState<string | null>(null);
+  const selectedManagerTrades = selectedManager
+    ? [...tradeHistory]
+        .filter((trade) => trade.team_a === selectedManager || trade.team_b === selectedManager)
+        .reverse()
+    : [];
+  const selectedManagerSummary = selectedManager
+    ? data.find((row) => row.manager === selectedManager)
+    : undefined;
+
   return (
     <div className="flex justify-center">
-      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+      <Card className="trade-profit-card bg-slate-900 border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="trade-profit-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Rank</TableHead>
               <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold"><div>Total</div><div>Profit</div></TableHead>
+              <TableHead className="text-right text-white font-semibold">Wins</TableHead>
+              <TableHead className="text-right text-white font-semibold">Win %</TableHead>
               <TableHead className="text-right text-white font-semibold">Trades</TableHead>
+              <TableHead className="text-right text-white font-semibold">Profit</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((row) => (
-              <TableRow key={row.rank} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="font-semibold text-slate-300">#{row.rank}</TableCell>
+            {data.map((row) => {
+              const winPct = row.trade_count > 0 ? Math.round((row.wins / row.trade_count) * 100) : 0;
+
+              return (
+              <TableRow
+                key={row.rank}
+                className="trade-profit-row cursor-pointer border-slate-700 hover:bg-slate-800/30"
+                onClick={() => setSelectedManager(row.manager)}
+              >
                 <TableCell className="font-semibold text-slate-100">
                   {renderManagerName(row.manager, managerAvatars)}
                 </TableCell>
+                <TableCell className="trade-profit-wins text-right font-semibold text-orange-300">{row.wins}</TableCell>
+                <TableCell className="trade-profit-winpct text-right font-semibold text-cyan-300">{winPct}%</TableCell>
+                <TableCell className="trade-profit-trades text-right text-slate-300">{row.trade_count}</TableCell>
                 <TableCell
-                  className={`text-right font-semibold ${
+                  className={`trade-profit-value text-right font-semibold ${
                     row.profit >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}
                 >
                   {row.profit >= 0 ? '+' : ''}
                   {row.profit.toLocaleString()}
                 </TableCell>
-                <TableCell className="text-right text-slate-300">{row.trade_count}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
           </Table>
         </div>
       </Card>
+      <Dialog
+        open={selectedManager !== null}
+        onOpenChange={() => {
+          setSelectedManager(null);
+          setSelectedManagerTradeKey(null);
+        }}
+      >
+        <DialogContent className="trade-manager-modal max-h-[82vh] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-w-2xl">
+          {selectedManager && (
+            <div className="trade-manager-modal-inner">
+              <div className="trade-manager-modal-hero">
+                {managerAvatars?.[selectedManager] && (
+                  <>
+                    <img
+                      src={managerAvatars[selectedManager] || ''}
+                      alt=""
+                      className="manager-hero-wash"
+                    />
+                    <img
+                      src={managerAvatars[selectedManager] || ''}
+                      alt=""
+                      className="manager-hero-watermark"
+                    />
+                  </>
+                )}
+                <div className="manager-hero-scrim" />
+                <DialogHeader className="trade-manager-header relative pr-8">
+                  <div className="trade-manager-title-lockup">
+                    <div className="trade-manager-title-avatar">
+                      {managerAvatars?.[selectedManager] ? (
+                        <img src={managerAvatars[selectedManager] || ''} alt={selectedManager} />
+                      ) : (
+                        <span>{selectedManager.trim()[0]?.toUpperCase() || '?'}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 text-center">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/90">
+                        Trade Portfolio
+                      </p>
+                      <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400">
+                        {selectedManager}
+                      </DialogTitle>
+                    </div>
+                  </div>
+                </DialogHeader>
+              </div>
+              <div className="trade-manager-stats">
+                <div>
+                  <span>Trades</span>
+                  <strong>{selectedManagerSummary?.trade_count ?? selectedManagerTrades.length}</strong>
+                </div>
+                <div>
+                  <span>Wins</span>
+                  <strong>{selectedManagerSummary?.wins ?? 0}</strong>
+                </div>
+                <div>
+                  <span>Profit</span>
+                  <strong className={(selectedManagerSummary?.profit ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}>
+                    {(selectedManagerSummary?.profit ?? 0) >= 0 ? '+' : ''}
+                    {(selectedManagerSummary?.profit ?? 0).toLocaleString()}
+                  </strong>
+                </div>
+              </div>
+              <div className="trade-manager-list">
+                {selectedManagerTrades.map((trade) => {
+                  const swing = getManagerTradeSwing(trade, selectedManager);
+                  const result = getManagerTradeResult(trade, selectedManager);
+                  const opponent = getTradeOpponent(trade, selectedManager);
+                  const tradeKey = `${trade.date}-${trade.team_a}-${trade.team_b}`;
+                  const isTradeOpen = selectedManagerTradeKey === tradeKey;
+
+                  return (
+                    <div key={tradeKey} className="trade-manager-trade-wrap">
+                      <button
+                        type="button"
+                        className="trade-manager-trade"
+                        onClick={() => setSelectedManagerTradeKey(isTradeOpen ? null : tradeKey)}
+                        aria-expanded={isTradeOpen}
+                      >
+                        <div className="min-w-0">
+                          <div className="trade-manager-date">{trade.date}</div>
+                          <div className="trade-manager-opponent">
+                            vs {opponent}
+                          </div>
+                        </div>
+                        <span className={`trade-manager-result trade-manager-result-${result === 'Loss' ? 'loss' : result === 'Even Win' ? 'even' : 'win'}`}>
+                          {result}
+                        </span>
+                        <span className={`trade-manager-swing ${swing >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {swing >= 0 ? '+' : ''}
+                          {swing.toLocaleString()}
+                        </span>
+                      </button>
+                      {isTradeOpen && (
+                        <div className="trade-manager-detail">
+                          <TradeDetailPanel
+                            row={trade}
+                            draftPicks={draftPicks}
+                            managerAvatars={managerAvatars}
+                            playerDetailsById={playerDetailsById}
+                            currentPositionRankById={currentPositionRankById}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -716,124 +1103,127 @@ export function TradeHistoryTable({
   leagueLogo?: string | null;
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [collapsedTradeYears, setCollapsedTradeYears] = useState<Set<string>>(new Set());
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const orderedTrades = [...data].reverse();
+  const tradeYears = Array.from(new Set(orderedTrades.map((row) => row.date.slice(0, 4))));
+  const toggleTradeYear = (year: string) => {
+    setExpandedIdx(null);
+    setCollapsedTradeYears((current) => {
+      const next = new Set(current);
+      if (next.has(year)) {
+        next.delete(year);
+      } else {
+        next.add(year);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="flex justify-center">
-      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+      <Card className="trade-ledger-card bg-slate-900 border-slate-800 overflow-hidden">
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="trade-ledger-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Date</TableHead>
-              <TableHead className="text-white font-semibold">Winner</TableHead>
-              <TableHead className="text-white font-semibold">Loser</TableHead>
-              <TableHead className="text-center text-white font-semibold">Gap</TableHead>
+              <TableHead className="text-white font-semibold">Trade History</TableHead>
+              <TableHead className="trade-ledger-manager-heading text-white font-semibold">Winner</TableHead>
+              <TableHead className="trade-ledger-manager-heading text-white font-semibold">Loser</TableHead>
+              <TableHead className="text-center text-white font-semibold">Value Gap</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {[...data].reverse().map((row, idx) => {
+            {tradeYears.map((year) => {
+              const yearTrades = orderedTrades.filter((row) => row.date.startsWith(year));
+              const isYearCollapsed = collapsedTradeYears.has(year);
+
+              return (
+                <React.Fragment key={year}>
+                  <TableRow className="trade-year-row border-slate-700">
+                    <TableCell colSpan={4} className="trade-year-cell">
+                      <button
+                        type="button"
+                        className="trade-year-toggle"
+                        onClick={() => toggleTradeYear(year)}
+                        aria-expanded={!isYearCollapsed}
+                      >
+                        <span className="trade-year-label">
+                          <ChevronDown
+                            className={`h-4 w-4 text-orange-300 transition-transform ${isYearCollapsed ? '-rotate-90' : ''}`}
+                            aria-hidden="true"
+                          />
+                          <span>{year}</span>
+                        </span>
+                        <span className="trade-year-count">
+                          {yearTrades.length} {yearTrades.length === 1 ? 'trade' : 'trades'}
+                        </span>
+                      </button>
+                    </TableCell>
+                  </TableRow>
+
+                  {!isYearCollapsed && yearTrades.map((row) => {
+              const idx = orderedTrades.indexOf(row);
               const isExpanded = expandedIdx === idx;
-              const winnerSide = row.winner === row.team_b ? 'team_b' : 'team_a';
-              const loserName = winnerSide === 'team_a' ? row.team_b : row.team_a;
-              const leftSide = winnerSide === 'team_a'
-                ? {
-                    manager: row.team_a,
-                    items: row.team_a_items,
-                    total: row.team_a_total,
-                  }
-                : {
-                    manager: row.team_b,
-                    items: row.team_b_items,
-                    total: row.team_b_total,
-                  };
-              const rightSide = winnerSide === 'team_a'
-                ? {
-                    manager: row.team_b,
-                    items: row.team_b_items,
-                    total: row.team_b_total,
-                  }
-                : {
-                    manager: row.team_a,
-                    items: row.team_a_items,
-                    total: row.team_a_total,
-                  };
+              const { winners, loserName } = getTradeDisplaySides(row);
               const tradeKey = `${row.date}-${row.team_a}-${row.team_b}-${idx}`;
+              const shouldSwapSummary = stableTradeSeed(tradeKey) % 2 === 1;
+              const summaryManagers = shouldSwapSummary
+                ? [row.team_b, row.team_a]
+                : [row.team_a, row.team_b];
+              const gapVerdict = getTradeGapVerdict(row.point_gap);
 
               return (
                 <React.Fragment key={`${tradeKey}-fragment`}>
                   <TableRow
                     key={`${tradeKey}-main`}
-                    className="border-slate-700 hover:bg-slate-800/30 cursor-pointer"
-                    onClick={() => setExpandedIdx(isExpanded ? null : idx)}
-                  >
-                    <TableCell className="text-slate-300 text-sm">{row.date}</TableCell>
-                    <TableCell className={`font-semibold text-sm ${row.winner === row.team_a ? 'text-blue-400' : 'text-orange-400'}`}>
-                      {renderManagerName(row.winner, managerAvatars)}
+                    className="trade-ledger-row border-slate-700 hover:bg-slate-800/30 cursor-pointer"
+                      onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                    >
+                    <TableCell className="trade-date-cell text-slate-300 text-sm">
+                      <div className="trade-date-main flex items-center gap-2">
+                        <ChevronDown className={`h-4 w-4 text-orange-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        <span>{row.date}</span>
+                      </div>
+                      <div className="trade-mobile-summary">
+                        {renderTradeSummaryManager(summaryManagers[0], winners.includes(summaryManagers[0]), managerAvatars)}
+                        <span className="trade-mobile-vs">vs</span>
+                        {renderTradeSummaryManager(summaryManagers[1], winners.includes(summaryManagers[1]), managerAvatars)}
+                      </div>
                     </TableCell>
-                    <TableCell className={`font-semibold text-sm ${row.winner === row.team_a ? 'text-orange-400' : 'text-blue-400'}`}>
+                    <TableCell className="trade-ledger-manager-cell font-semibold text-sm text-orange-300">
+                      {winners.map((winner) => (
+                        <span key={winner}>{renderManagerName(winner, managerAvatars)}</span>
+                      ))}
+                    </TableCell>
+                    <TableCell className="trade-ledger-manager-cell font-semibold text-sm text-cyan-300">
                       {renderManagerName(loserName, managerAvatars)}
                     </TableCell>
-                    <TableCell className="text-center text-slate-300">
-                      {row.point_gap.toLocaleString()}
+                    <TableCell className="trade-gap-cell text-center text-slate-300">
+                      <span className={`trade-gap-verdict ${gapVerdict.className}`}>
+                        {gapVerdict.label}
+                      </span>
+                      <span className="value-pill">{row.point_gap.toLocaleString()}</span>
                     </TableCell>
                   </TableRow>
 
                   {isExpanded && (
-                    <TableRow key={`${tradeKey}-details`} className="border-slate-700 bg-slate-800/20">
-                      <TableCell colSpan={4} className="p-6">
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-                          {/* Winner Details */}
-                          <div className="space-y-3">
-                            <h4 className="text-blue-400 font-semibold text-sm">
-                              {renderManagerName(leftSide.manager, managerAvatars)}
-                            </h4>
-                            <div className="bg-slate-800/50 rounded p-4 space-y-2">
-                              <div className="text-slate-300 text-sm space-y-1">
-                                {leftSide.items
-                                  .split(',')
-                                  .map((item, i) => renderTradeItem(item, i, {
-                                    draftPicks,
-                                    playerDetailsById,
-                                    currentPositionRankById,
-                                    onPlayerClick: setSelectedPlayer,
-                                    manager: leftSide.manager,
-                                    managerAvatarUrl: managerAvatars?.[leftSide.manager],
-                                  }))}
-                              </div>
-                              <p className="text-blue-400 font-semibold text-sm border-t border-slate-700 pt-2">
-                                Total: {leftSide.total.toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Loser Details */}
-                          <div className="space-y-3">
-                            <h4 className="text-orange-400 font-semibold text-sm">
-                              {renderManagerName(rightSide.manager, managerAvatars)}
-                            </h4>
-                            <div className="bg-slate-800/50 rounded p-4 space-y-2">
-                              <div className="text-slate-300 text-sm space-y-1">
-                                {rightSide.items
-                                  .split(',')
-                                  .map((item, i) => renderTradeItem(item, i, {
-                                    draftPicks,
-                                    playerDetailsById,
-                                    currentPositionRankById,
-                                    onPlayerClick: setSelectedPlayer,
-                                    manager: rightSide.manager,
-                                    managerAvatarUrl: managerAvatars?.[rightSide.manager],
-                                  }))}
-                              </div>
-                              <p className="text-orange-400 font-semibold text-sm border-t border-slate-700 pt-2">
-                                Total: {rightSide.total.toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
+                    <TableRow key={`${tradeKey}-details`} className="border-slate-700 bg-slate-950/35">
+                      <TableCell colSpan={4} className="trade-detail-cell p-3 sm:p-6">
+                        <TradeDetailPanel
+                          row={row}
+                          draftPicks={draftPicks}
+                          managerAvatars={managerAvatars}
+                          playerDetailsById={playerDetailsById}
+                          currentPositionRankById={currentPositionRankById}
+                          onPlayerClick={setSelectedPlayer}
+                        />
                       </TableCell>
                     </TableRow>
                   )}
+                </React.Fragment>
+                  );
+                  })}
                 </React.Fragment>
               );
             })}
@@ -864,19 +1254,23 @@ export function PositionAnalysisTable({
   const shortages = data.filter(d => d.status === 'shortage');
   const excesses = data.filter(d => d.status === 'excess');
 
+  if (shortages.length === 0 && excesses.length === 0) {
+    return null;
+  }
+
   return (
     <div className="space-y-8">
       {/* Shortages */}
+      {shortages.length > 0 && (
       <div>
         <div className="flex items-center justify-center gap-2 mb-4">
           <TrendingDown className="w-5 h-5 text-red-400" />
           <h3 className="text-xl font-bold text-red-400 text-center">Position Shortages</h3>
         </div>
-        {shortages.length > 0 ? (
           <div className="flex justify-center">
-            <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+            <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
               <div className="overflow-x-auto">
-              <Table>
+              <Table className="report-table-polished position-analysis-table">
                 <TableHeader className="border-b-2 border-orange-500/30">
                   <TableRow className="border-slate-700">
                     <TableHead className="text-white font-semibold">Team</TableHead>
@@ -899,22 +1293,20 @@ export function PositionAnalysisTable({
               </div>
             </Card>
           </div>
-        ) : (
-          <div className="text-slate-400 text-center py-8">No position shortages detected</div>
-        )}
       </div>
+      )}
 
       {/* Excesses */}
+      {excesses.length > 0 && (
       <div>
         <div className="flex items-center justify-center gap-2 mb-4">
           <TrendingUp className="w-5 h-5 text-emerald-400" />
           <h3 className="text-xl font-bold text-emerald-400 text-center">Position Excess</h3>
         </div>
-        {excesses.length > 0 ? (
           <div className="flex justify-center">
-            <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+            <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
               <div className="overflow-x-auto">
-              <Table>
+              <Table className="report-table-polished position-analysis-table">
                 <TableHeader className="border-b-2 border-orange-500/30">
                   <TableRow className="border-slate-700">
                     <TableHead className="text-white font-semibold">Team</TableHead>
@@ -937,10 +1329,8 @@ export function PositionAnalysisTable({
               </div>
             </Card>
           </div>
-        ) : (
-          <div className="text-slate-400 text-center py-8">No position excess detected</div>
-        )}
       </div>
+      )}
     </div>
   );
 }
@@ -1001,20 +1391,28 @@ export function SearchableProjectedMoversTable({
 export function ManagerPositionCountsTable({
   data,
   managerAvatars,
+  leagueId,
+  leagueLogo,
 }: {
   data: ReportData['managerPositionCounts'];
   managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
 }) {
+  const [selectedManager, setSelectedManager] = useState<ReportData['managerPositionCounts'][number] | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const selectedAvatar = selectedManager ? managerAvatars?.[selectedManager.manager] : null;
+  const selectedStarters = selectedManager?.starterPlayers || [];
+
   return (
     <div className="flex justify-center">
-      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="report-table-polished position-counts-table">
             <TableHeader className="border-b-2 border-orange-500/30">
               <TableRow className="border-slate-700">
-                <TableHead className="text-white font-semibold">
+                <TableHead className="mobile-icon-manager-heading text-white font-semibold">
                   <div>Manager</div>
-                  <div className="text-xs font-semibold text-blue-400">Starters</div>
                 </TableHead>
                 <TableHead className="text-center text-white font-semibold text-xs">QB</TableHead>
                 <TableHead className="text-center text-white font-semibold text-xs">RB</TableHead>
@@ -1024,25 +1422,29 @@ export function ManagerPositionCountsTable({
             </TableHeader>
             <TableBody>
               {data.map((row, idx) => (
-                <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                  <TableCell className="font-semibold text-slate-100">
+                <TableRow
+                  key={idx}
+                  className="cursor-pointer border-slate-700 hover:bg-slate-800/30"
+                  onClick={() => setSelectedManager(row)}
+                >
+                  <TableCell className="mobile-icon-manager-cell font-semibold text-slate-100">
                     {renderManagerName(row.manager, managerAvatars)}
                   </TableCell>
                   <TableCell className="text-center text-slate-300 text-sm">
                     <div>{row.QB}</div>
-                    <div className="text-blue-400 text-xs">{row.QB_starters}</div>
+                    <div className="position-starter-count">{row.QB_starters}</div>
                   </TableCell>
                   <TableCell className="text-center text-slate-300 text-sm">
                     <div>{row.RB}</div>
-                    <div className="text-blue-400 text-xs">{row.RB_starters}</div>
+                    <div className="position-starter-count">{row.RB_starters}</div>
                   </TableCell>
                   <TableCell className="text-center text-slate-300 text-sm">
                     <div>{row.WR}</div>
-                    <div className="text-blue-400 text-xs">{row.WR_starters}</div>
+                    <div className="position-starter-count">{row.WR_starters}</div>
                   </TableCell>
                   <TableCell className="text-center text-slate-300 text-sm">
                     <div>{row.TE}</div>
-                    <div className="text-blue-400 text-xs">{row.TE_starters}</div>
+                    <div className="position-starter-count">{row.TE_starters}</div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1050,6 +1452,108 @@ export function ManagerPositionCountsTable({
           </Table>
         </div>
       </Card>
+      <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
+        <DialogContent className="starter-modal max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-w-3xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{selectedManager?.manager} Starters</DialogTitle>
+            <DialogDescription>
+              Starter players for this manager. Select a player to open the player detail modal.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedManager && (
+            <div className="flex max-h-[86vh] flex-col">
+              <div className="starter-modal-hero relative overflow-hidden border-b border-cyan-300/20 px-5 py-5 sm:px-7">
+                {selectedAvatar && (
+                  <>
+                    <img
+                      src={selectedAvatar}
+                      alt=""
+                      className="manager-hero-wash"
+                    />
+                    <img
+                      src={selectedAvatar}
+                      alt=""
+                      className="manager-hero-watermark"
+                    />
+                  </>
+                )}
+                <div className="manager-hero-scrim" />
+                <div className="relative flex items-center gap-4">
+                  {selectedAvatar ? (
+                    <img
+                      src={selectedAvatar}
+                      alt={selectedManager.manager}
+                      className="h-16 w-16 flex-shrink-0 rounded-2xl border border-cyan-300/30 object-cover shadow-lg shadow-black/40"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-cyan-300/30 bg-slate-900 text-2xl font-black text-orange-300">
+                      {selectedManager.manager[0]?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">
+                      Starter Room
+                    </p>
+                    <h3 className="athletic-headline truncate text-3xl font-black text-orange-400 sm:text-4xl">
+                      {selectedManager.manager}
+                    </h3>
+                    <p className="mt-1 text-sm font-bold text-slate-300">
+                      {selectedStarters.length} starter{selectedStarters.length === 1 ? '' : 's'} by positional rank
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="starter-modal-body overflow-y-auto p-4 sm:p-5">
+                {selectedStarters.length > 0 ? (
+                  <div className="starter-grid">
+                    {selectedStarters.map((player) => (
+                      <button
+                        key={player.player_id}
+                        type="button"
+                        className="starter-player-tile"
+                        onClick={() => {
+                          setSelectedPlayer(buildPlayerModalData({
+                            playerId: player.player_id,
+                            playerName: player.name,
+                            playerPos: player.pos,
+                            value: player.value,
+                            playerDetails: player.playerDetails,
+                            currentPositionRank: player.currentPositionRank,
+                            manager: selectedManager.manager,
+                            managerAvatarUrl: selectedAvatar,
+                          }));
+                        }}
+                      >
+                        <div className="starter-player-main">
+                          <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+                        </div>
+                        <div className="starter-player-meta">
+                          <span>{player.currentPositionRank || player.pos}</span>
+                          <span className="starter-player-team-pill">{player.playerDetails?.team || 'FA'}</span>
+                          <span className="starter-player-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
+                          <strong>{player.value.toLocaleString()}</strong>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-cyan-300/15 bg-slate-950/45 px-4 py-8 text-center text-sm font-bold text-slate-400">
+                    No ranked starters found for this manager.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
     </div>
   );
 }

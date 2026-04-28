@@ -38,25 +38,25 @@ export function LoadingAnimation() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-start h-auto bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 pt-1 pb-4 sm:pt-2 sm:pb-8">
+    <div className="loading-panel flex flex-col items-center justify-start h-auto px-4 pt-1 pb-4 sm:pt-2 sm:pb-8">
       {/* Logo Section - Top */}
       <div className="flex flex-col items-center gap-0">
-        <div className="flex justify-center h-48 sm:h-72 w-full max-w-2xl">
+        <div className="loading-logo-wrap flex justify-center h-48 sm:h-72 w-full max-w-2xl">
           <img 
             src="https://d2xsxph8kpxj0f.cloudfront.net/310519663529938437/NTiUsmvqK3XxXPP4p7F4CA/dynasty_degenerates_logo_final_90a9eceb.png" 
             alt="Dynasty Degenerates Logo" 
             className="w-auto h-full object-contain scale-120"
           />
         </div>
-        <p className="text-slate-400 text-lg sm:text-2xl font-semibold -mt-1 sm:-mt-2 pb-2 sm:pb-4">Analyzing your league...</p>
+        <p className="loading-title text-slate-400 text-lg sm:text-2xl font-semibold -mt-1 sm:-mt-2 pb-2 sm:pb-4">Analyzing your league...</p>
       </div>
 
       {/* Loading Steps - Center */}
       <div className="w-full max-w-2xl space-y-0.5 sm:space-y-1 flex-1 flex flex-col justify-start mt-0">
         {steps.map((step, index) => (
-          <div key={step.id} className="flex items-center gap-4">
+          <div key={step.id} className="loading-step flex items-center gap-4">
             {/* Step Indicator */}
-            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center relative">
+            <div className="loading-step-dot flex-shrink-0 w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center relative">
               {step.status === 'complete' ? (
                 <div className="w-full h-full rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center animate-pulse">
                   <Check className="w-6 h-6 text-white" />

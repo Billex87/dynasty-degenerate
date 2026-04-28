@@ -42,6 +42,16 @@ interface PositionRankData {
   [key: string]: any;
 }
 
+function isCompletedDraftPick(pick: SleeperDraftPick): boolean {
+  return Boolean(
+    pick?.player_id &&
+    String(pick.player_id).trim() &&
+    pick?.picked_by &&
+    String(pick.picked_by).trim() &&
+    typeof pick.pick_no === 'number'
+  );
+}
+
 function getPlayerDetails(playerId: string, player: Record<string, any> | undefined): PlayerDetails | undefined {
   if (!player) return undefined;
 
@@ -112,7 +122,8 @@ export async function analyzeDraftPicks(
   adpData: ADPData,
   ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>,
   ktcValuesMay2025?: Record<string, { name: string; ktc_value: number; position_rank_may2025?: string }>,
-  currentKTCRanks?: Record<string, { name: string; ktc_value: number; position_rank?: string }>
+  currentKTCRanks?: Record<string, { name: string; ktc_value: number; position_rank?: string }>,
+  ktcValuesByDraftYear?: Record<string, Record<string, { name: string; ktc_value: number; position_rank?: string }>>
 ): Promise<{ draftPicks: any[]; draftStats: any[] }> {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
@@ -205,19 +216,34 @@ export async function analyzeDraftPicks(
     const playerSlug = createSlug(playerName);
     const ktcData = ktcValues[playerSlug];
     const currentKtcValue = ktcData?.ktc_value || null;
+
+    // Detect draft year based on season field from draft metadata
+    // The season field contains the year (e.g., 2025, 2026)
+    // If not available, default to 2025
+    const draftYear = pick.season ? String(pick.season) : '2025';
     
     
-    // Calculate value gain using May 2025 baseline if available, otherwise use last week's KTC
+    // Calculate value gain using the correct draft-year baseline when available.
+    // Example: 2026 rookie drafts use the April 23 snapshot for now.
     let valueGain: number | null = null;
     let draftKtcValue: number | null = null;
+    let baselineRank: string | null = null;
     if (currentKtcValue !== null) {
       let baselineValue = currentKtcValue; // default to current if no baseline
+      const draftYearBaseline = ktcValuesByDraftYear?.[draftYear];
       
-      // Prefer May 2025 baseline for accurate draft-day comparison
-      if (ktcValuesMay2025) {
+      if (draftYearBaseline) {
+        const draftYearData = findPlayerData(playerName, draftYearBaseline);
+        if (draftYearData?.ktc_value) {
+          baselineValue = draftYearData.ktc_value;
+          baselineRank = draftYearData.position_rank || null;
+        }
+      } else if (ktcValuesMay2025) {
+        // Prefer May 2025 baseline for accurate 2025 draft-day comparison
         const may2025Data = findPlayerData(playerName, ktcValuesMay2025);
         if (may2025Data?.ktc_value) {
           baselineValue = may2025Data.ktc_value;
+          baselineRank = may2025Data.position_rank_may2025 || null;
         }
       } else if (ktcValuesLastWeek) {
         // Fall back to last week's KTC as approximation
@@ -232,7 +258,9 @@ export async function analyzeDraftPicks(
 
     // Extract position rank from May 2025 data
     let positionRankMay2025: string | null = null;
-    if (ktcValuesMay2025) {
+    if (baselineRank) {
+      positionRankMay2025 = baselineRank;
+    } else if (ktcValuesMay2025) {
       const may2025Data = findPlayerData(playerName, ktcValuesMay2025);
       positionRankMay2025 = may2025Data?.position_rank_may2025 || null;
       
@@ -262,11 +290,6 @@ export async function analyzeDraftPicks(
       }
     }
     
-    // Detect draft year based on season field from draft metadata
-    // The season field contains the year (e.g., 2025, 2026)
-    // If not available, default to 2025
-    const draftYear = pick.season ? String(pick.season) : '2025';
-
     // Headshot URLs removed - was causing TLS connection errors
     // Can be re-enabled with a more reliable image source in the future
 
@@ -413,17 +436,19 @@ export async function fetchDraftData(
       }
     }
 
-    // Filter to only include rookie drafts with fewer than 100 picks
+    const completedPicks = allPicks.filter(isCompletedDraftPick);
+
+    // Filter to only include rookie drafts with fewer than 100 picked players
     // Count picks per draft_id
     const pickCountByDraft: Record<string, number> = {};
-    allPicks.forEach((pick) => {
+    completedPicks.forEach((pick) => {
       if (pick.draft_id) {
         pickCountByDraft[pick.draft_id] = (pickCountByDraft[pick.draft_id] || 0) + 1;
       }
     });
     
     // Filter to only include drafts with fewer than 100 picks (rookie drafts)
-    return allPicks.filter((pick) => {
+    return completedPicks.filter((pick) => {
       if (!pick.draft_id) return true; // Include picks without draft_id
       const pickCount = pickCountByDraft[pick.draft_id] || 0;
       return pickCount < 100; // Only include picks from drafts with fewer than 100 picks

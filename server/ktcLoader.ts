@@ -69,6 +69,21 @@ export function loadLatestLocalKtcSnapshot(): KTCValues {
   return loadLatestLocalKtcSnapshotBefore(new Date());
 }
 
+export function loadLocalKtcSnapshotForDate(dateKey: string): KTCValues {
+  try {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return {};
+
+    const filePath = path.join(KTC_SNAPSHOT_DIR, `ktc-snapshot-${dateKey}.json`);
+    if (!fs.existsSync(filePath)) return {};
+
+    const data = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(data) || {};
+  } catch (error) {
+    console.error('Failed to load local KTC snapshot:', error);
+    return {};
+  }
+}
+
 export function loadLatestLocalKtcSnapshotBefore(beforeDate: Date): KTCValues {
   try {
     if (!fs.existsSync(KTC_SNAPSHOT_DIR)) return {};

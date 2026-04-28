@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { DraftPick, PlayerDetails } from '@shared/types';
-import { ExternalLink, TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 
@@ -89,11 +89,6 @@ export function PlayerDetailModal({
 
   if (!pick) return null;
   const details = pick.playerDetails;
-  const sleeperPlayerUrl = pick.player_id
-    ? leagueId
-      ? `https://sleeper.com/leagues/${leagueId}/players/${pick.player_id}`
-      : `https://sleeper.app/players/nfl/${pick.player_id}`
-    : null;
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
   const currentValue = pick.currentKtcValue;
   const draftValue = pick.ktcValue;
@@ -156,7 +151,17 @@ export function PlayerDetailModal({
               }}
             />
 
-            <DialogHeader className="relative pr-10">
+            {leagueLogo && (
+              <div className="absolute left-4 top-4 z-10 h-12 w-12 overflow-hidden rounded-full border border-cyan-300/30 bg-slate-950/65 p-1 shadow-lg shadow-black/35 sm:h-14 sm:w-14">
+                <img
+                  src={leagueLogo}
+                  alt=""
+                  className="h-full w-full rounded-full object-cover"
+                />
+              </div>
+            )}
+
+            <DialogHeader className="relative px-12 sm:pr-10">
               <div className="mb-4 flex justify-center">
                 {pick.manager ? (
                   <div className="inline-flex w-fit items-center gap-4 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-xs font-bold text-cyan-200 shadow-lg shadow-black/20">
@@ -177,8 +182,8 @@ export function PlayerDetailModal({
               </DialogTitle>
             </DialogHeader>
 
-            <div className="relative mt-5 flex justify-center sm:mt-7">
-              <div className="grid w-full max-w-xl grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-4 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-7">
+            <div className="relative mt-4 flex justify-center sm:mt-7">
+              <div className="flex w-full max-w-xl flex-col items-center gap-3 sm:grid sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-center sm:gap-7">
                 <div className="relative h-22 w-22 overflow-hidden rounded-2xl border border-cyan-300/35 bg-slate-950 shadow-xl shadow-black/40 sm:h-28 sm:w-28">
                   {headshot ? (
                     <img
@@ -195,11 +200,11 @@ export function PlayerDetailModal({
                     </div>
                   )}
                 </div>
-                <div className="min-w-0 space-y-3 text-center">
+                <div className="min-w-0 space-y-3 text-center sm:text-left">
                   <div className={`athletic-headline break-words font-black leading-none tracking-normal text-orange-400 ${playerNameSizeClass}`}>
                     {pick.playerName}
                   </div>
-                  <div className="flex flex-wrap justify-center gap-2">
+                  <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
                     {jerseyNumber !== null && jerseyNumber !== undefined && jerseyNumber !== '' && (
                       <span
                         className="rounded-full border px-3 py-1 text-xs font-bold"
@@ -243,8 +248,8 @@ export function PlayerDetailModal({
             </div>
           </div>
 
-          <div className="space-y-5 bg-slate-950/35 p-6 backdrop-blur-sm">
-            <div className="mx-auto grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="space-y-4 bg-slate-950/35 p-4 backdrop-blur-sm sm:space-y-5 sm:p-6">
+            <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
               {currentValue !== undefined && (
                 <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} />
               )}
@@ -272,7 +277,7 @@ export function PlayerDetailModal({
               {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025) && (
                 <div className="space-y-3">
                   {(pick.round !== undefined || pick.pick !== undefined) && (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       {pick.round !== undefined && (
                         <InlineInfoTile
                           label="Round"
@@ -290,7 +295,7 @@ export function PlayerDetailModal({
                     </div>
                   )}
                   {(draftValue !== undefined || pick.positionRankMay2025) && (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       {draftValue !== undefined && (
                         <InfoTile
                           label="Draft Value"
@@ -310,21 +315,21 @@ export function PlayerDetailModal({
                 </div>
               )}
               {physicalRows.length > 0 && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {physicalRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
                   ))}
                 </div>
               )}
               {experienceRows.length > 0 && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {experienceRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
                   ))}
                 </div>
               )}
               {backgroundRows.length > 0 && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   {backgroundRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
                   ))}
@@ -335,22 +340,6 @@ export function PlayerDetailModal({
               ))}
             </div>
 
-            {sleeperPlayerUrl && (
-              <a
-                href={sleeperPlayerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-bold transition"
-                style={{
-                  borderColor: teamColors ? `${teamColors.accent}88` : '#00ceb866',
-                  backgroundColor: teamColors ? `${teamColors.primary}55` : '#00ceb81a',
-                  color: teamColors?.accent || '#7fffee',
-                }}
-              >
-                Open in Sleeper
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            )}
           </div>
         </div>
       </DialogContent>
@@ -432,7 +421,7 @@ function MetricTile({
 
   return (
     <div
-      className="rounded-xl border p-4 shadow-inner shadow-white/[0.02]"
+      className="rounded-xl border p-2.5 shadow-inner shadow-white/[0.02] sm:p-4"
       style={{
         borderColor: teamColors ? `${teamColors.accent}33` : undefined,
         background: teamColors
@@ -440,8 +429,8 @@ function MetricTile({
           : undefined,
       }}
     >
-      <div className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
-      <div className={`mt-2 flex items-center gap-2 text-2xl font-black ${toneClass}`}>
+      <div className="text-[0.6rem] font-semibold uppercase tracking-[0.12em] sm:text-xs sm:tracking-[0.14em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
+      <div className={`mt-1 flex items-center gap-1 text-lg font-black sm:mt-2 sm:gap-2 sm:text-2xl ${toneClass}`}>
         {value}
         {icon}
       </div>
@@ -468,7 +457,7 @@ function InfoTile({
 
   return (
     <div
-      className="rounded-lg border px-4 py-3"
+      className="rounded-lg border px-3 py-2.5 sm:px-4 sm:py-3"
       style={{
         borderColor: teamColors ? `${teamColors.accent}24` : undefined,
         background: teamColors
@@ -476,8 +465,8 @@ function InfoTile({
           : undefined,
       }}
     >
-      <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
-      <div className={`mt-1 truncate text-base font-bold ${toneClass}`}>{value}</div>
+      <div className="text-[0.6rem] font-semibold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
+      <div className={`mt-1 truncate text-sm font-bold sm:text-base ${toneClass}`}>{value}</div>
     </div>
   );
 }
@@ -493,7 +482,7 @@ function InlineInfoTile({
 }) {
   return (
     <div
-      className="flex items-center justify-center gap-2 rounded-lg border px-4 py-3"
+      className="flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 sm:gap-2 sm:px-4 sm:py-3"
       style={{
         borderColor: teamColors ? `${teamColors.accent}24` : undefined,
         background: teamColors
@@ -501,10 +490,10 @@ function InlineInfoTile({
           : undefined,
       }}
     >
-      <span className="text-base font-black tracking-normal" style={{ color: teamColors?.accent || undefined }}>
+      <span className="text-sm font-black tracking-normal sm:text-base" style={{ color: teamColors?.accent || undefined }}>
         {label}:
       </span>
-      <span className="text-base font-black text-slate-100">{value}</span>
+      <span className="text-sm font-black text-slate-100 sm:text-base">{value}</span>
     </div>
   );
 }
