@@ -68,6 +68,7 @@ describe('League Analysis Helpers', () => {
     const mockKTCValues = {
       '2026mid1st': { name: '2026 Mid 1st', ktc_value: 4800 },
       '2026mid2nd': { name: '2026 Mid 2nd', ktc_value: 1900 },
+      '2026late1st': { name: '2026 Late 1st', ktc_value: 3900 },
     };
 
     it('should return base value for unknown pick', () => {
@@ -75,6 +76,11 @@ describe('League Analysis Helpers', () => {
       expect(getPickValue(2025, 2, {})).toBe(1800);
       expect(getPickValue(2025, 3, {})).toBe(600);
       expect(getPickValue(2025, 4, {})).toBe(250);
+    });
+
+    it('should use the draft slot to separate early, mid, and late picks', () => {
+      expect(getPickValue(2026, 1, mockKTCValues, 6, 10)).toBe(4800);
+      expect(getPickValue(2026, 1, mockKTCValues, 7, 10)).toBe(3900);
     });
   });
 
@@ -151,6 +157,9 @@ describe('generateReport trade ledger', () => {
     joshdowns: { name: 'Josh Downs', ktc_value: 3200 },
     drakelondon: { name: 'Drake London', ktc_value: 8500 },
     devontasmith: { name: 'DeVonta Smith', ktc_value: 6000 },
+    '2026late1st': { name: '2026 Late 1st', ktc_value: 3928 },
+    '2026late2nd': { name: '2026 Late 2nd', ktc_value: 2865 },
+    '2026late3rd': { name: '2026 Late 3rd', ktc_value: 2117 },
   };
 
   const baseSeason = {
@@ -205,7 +214,7 @@ describe('generateReport trade ledger', () => {
     expect(trade.team_a).toBe('AwwQQ');
     expect(trade.team_a_items).toContain('PLAYER:downs|Josh Downs');
     expect(trade.team_b).toBe('Beaston1989');
-    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 3rd (3.08)|600');
+    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 3rd (3.08)|2117');
   });
 
   it('keeps player names visible when value adjustment is applied', async () => {
@@ -250,7 +259,7 @@ describe('generateReport trade ledger', () => {
     expect(trade.team_a_items.split(',').map(item => item.trim())).toContain('PLAYER:london|Drake London');
     expect(trade.team_b).toBe('mynameisbillex');
     expect(trade.team_b_items).toContain('PLAYER:smith|DeVonta Smith');
-    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 1st (1.08)|4500');
-    expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|1800');
+    expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 1st (1.08)|3928');
+    expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|2865');
   });
 });

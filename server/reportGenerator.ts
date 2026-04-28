@@ -9,7 +9,7 @@ import {
 import type { ReportData } from '../shared/types';
 
 export interface KTCValues {
-  [key: string]: { name: string; ktc_value: number };
+  [key: string]: { name: string; ktc_value: number; position_rank?: string };
 }
 
 interface Player {
@@ -73,6 +73,15 @@ function formatDraftPickLabel(
     ? ` (${pick.round}.${String(draftSlot).padStart(2, '0')})`
     : '';
   return `${pick.season} ${ownerPrefix}${ordinalRound(pick.round)}${pickNumber}`;
+}
+
+function getDraftSlot(
+  pick: NonNullable<Trade['draft_picks']>[number],
+  draftSlotsBySeason?: Record<string, Record<number, number>>
+): number | undefined {
+  return pick.roster_id
+    ? draftSlotsBySeason?.[String(pick.season)]?.[pick.roster_id]
+    : undefined;
 }
 
 function encodePlayerItem(pid: string, name: string): string {
@@ -283,7 +292,13 @@ export async function generateReport(
       for (const pick of picks) {
         const rid = pick.owner_id;
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
-        const val = getPickValue(Number(pick.season), pick.round, ktcValues);
+        const val = getPickValue(
+          Number(pick.season),
+          pick.round,
+          ktcValues,
+          getDraftSlot(pick, season.draftSlotsBySeason),
+          season.rosters.length
+        );
         sideData[rid].items.push(
           encodePickItem(formatDraftPickLabel(pick, season.rosterMap, season.draftSlotsBySeason), val)
         );

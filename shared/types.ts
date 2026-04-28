@@ -81,6 +81,7 @@ export interface ManagerDraftStats {
 }
 
 export interface ReportData {
+  managerAvatars?: Record<string, string | null>;
   managerRosterValueGrowth: Array<{
     manager: string;
     past_val: number;

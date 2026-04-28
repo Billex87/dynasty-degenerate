@@ -17,12 +17,14 @@ import type { DraftPick } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { PlayerDetailModal } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
+import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 
 interface ManagerDraftPicksModalProps {
   isOpen: boolean;
   onClose: () => void;
   managerName: string;
   draftPicks: DraftPick[];
+  managerAvatarUrl?: string | null;
 }
 
 export function ManagerDraftPicksModal({
@@ -30,6 +32,7 @@ export function ManagerDraftPicksModal({
   onClose,
   managerName,
   draftPicks,
+  managerAvatarUrl,
 }: ManagerDraftPicksModalProps) {
   const [selectedPlayer, setSelectedPlayer] = useState<DraftPick | null>(null);
 
@@ -41,8 +44,11 @@ export function ManagerDraftPicksModal({
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-6xl max-h-[80vh] bg-slate-900 border-slate-800 overflow-y-auto overflow-x-hidden">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-orange-400">
-              {managerName}'s Draft Picks
+            <DialogTitle className="flex min-w-0 items-center gap-2 text-2xl font-bold text-orange-400">
+              <ManagerNameWithAvatar
+                avatarUrl={managerAvatarUrl}
+                managerName={`${managerName}'s Draft Picks`}
+              />
             </DialogTitle>
           </DialogHeader>
 

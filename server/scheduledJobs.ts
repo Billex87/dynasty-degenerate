@@ -5,6 +5,8 @@ import { storeKtcSnapshot } from './ktcSnapshotJob';
  * Currently runs KTC snapshot storage every Tuesday at 5 PM
  */
 export function initializeScheduledJobs() {
+  let lastSnapshotRunDate: string | null = null;
+
   // Schedule KTC snapshot every Tuesday at 5 PM (17:00)
   // Using a simple interval check since we don't have a full cron library
   // In production, consider using node-cron or similar
@@ -14,9 +16,11 @@ export function initializeScheduledJobs() {
     const dayOfWeek = now.getDay(); // 0 = Sunday, 2 = Tuesday
     const hours = now.getHours();
     const minutes = now.getMinutes();
+    const runDate = now.toISOString().split('T')[0];
 
     // Check if it's Tuesday (2) and between 17:00 and 17:59
-    if (dayOfWeek === 2 && hours === 17 && minutes >= 0 && minutes < 1) {
+    if (dayOfWeek === 2 && hours === 17 && minutes >= 0 && minutes < 1 && lastSnapshotRunDate !== runDate) {
+      lastSnapshotRunDate = runDate;
       console.log('[Scheduled Jobs] Running KTC snapshot at', now.toISOString());
       storeKtcSnapshot().catch((error) => {
         console.error('[Scheduled Jobs] Error running KTC snapshot:', error);

@@ -147,7 +147,16 @@ export default function Home() {
               </div>
               
               {/* Right: League Name */}
-              <p className="min-w-0 truncate text-right text-sm font-semibold text-orange-400/70 sm:text-lg md:col-start-3 md:text-xl">{leagueName}</p>
+              <div className="md:col-start-3 flex min-w-0 items-center justify-end gap-2">
+                {leagueLogo && (
+                  <img
+                    src={leagueLogo}
+                    alt={leagueName}
+                    className="h-7 w-7 flex-shrink-0 rounded-full border border-orange-400/30 object-cover md:h-8 md:w-8"
+                  />
+                )}
+                <p className="min-w-0 truncate text-right text-sm font-semibold text-orange-400/70 sm:text-lg md:text-xl">{leagueName}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -179,19 +188,19 @@ export default function Home() {
               <div className="space-y-8">
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">League Overview</h3>
-                  <LeagueOverviewTable data={reportData.leagueOverview} />
+                  <LeagueOverviewTable data={reportData.leagueOverview} managerAvatars={reportData.managerAvatars} />
                 </div>
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Manager Roster Value Growth</h3>
-                  <ManagerRosterValueGrowthTable data={reportData.managerRosterValueGrowth} />
+                  <ManagerRosterValueGrowthTable data={reportData.managerRosterValueGrowth} managerAvatars={reportData.managerAvatars} />
                 </div>
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Position Depth Analysis</h3>
-                  <PositionAnalysisTable data={reportData.positionDepth} />
+                  <PositionAnalysisTable data={reportData.positionDepth} managerAvatars={reportData.managerAvatars} />
                 </div>
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Manager Position Counts</h3>
-                  <ManagerPositionCountsTable data={reportData.managerPositionCounts} />
+                  <ManagerPositionCountsTable data={reportData.managerPositionCounts} managerAvatars={reportData.managerAvatars} />
                 </div>
               </div>
             </TabsContent>
@@ -200,11 +209,11 @@ export default function Home() {
               <div className="space-y-8">
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 15 Weekly Risers</h3>
-                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" />
+                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} />
                 </div>
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 15 Weekly Fallers</h3>
-                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" />
+                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} />
                 </div>
               </div>
             </TabsContent>
@@ -221,14 +230,14 @@ export default function Home() {
                     <h3 className="text-center text-2xl font-bold text-emerald-400 mb-6">Top Weekly Risers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to make your league mates look stupid next year.</p>
                   </div>
-                   <ProjectedMoversTable data={reportData.projectedRisers} title="Top Weekly Risers" />
+                   <ProjectedMoversTable data={reportData.projectedRisers} title="Top Weekly Risers" managerAvatars={reportData.managerAvatars} />
                 </div>
                 <div>
                   <div className="space-y-2 mb-4">
                     <h3 className="text-center text-2xl font-bold text-red-400 mb-6">Top Weekly Fallers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to tank your roster value.</p>
                   </div>
-                   <ProjectedMoversTable data={reportData.projectedFallers} title="Top Weekly Fallers" />
+                   <ProjectedMoversTable data={reportData.projectedFallers} title="Top Weekly Fallers" managerAvatars={reportData.managerAvatars} />
                 </div>
               </div>
             </TabsContent>
@@ -237,13 +246,14 @@ export default function Home() {
               <div className="space-y-8">
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">All-Time Trade Profit Leaderboard</h3>
-                  <TradeProfitLeaderboardTable data={reportData.tradeProfitLeaderboard} />
+                  <TradeProfitLeaderboardTable data={reportData.tradeProfitLeaderboard} managerAvatars={reportData.managerAvatars} />
                 </div>
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Full Trade Ledger</h3>
                   <TradeHistoryTable
                     data={reportData.tradeHistory}
                     draftPicks={reportData.draftPicks || []}
+                    managerAvatars={reportData.managerAvatars}
                   />
                 </div>
               </div>
@@ -255,6 +265,7 @@ export default function Home() {
               <DraftAnalysis
                 draftPicks={reportData.draftPicks || []}
                 draftStats={reportData.draftStats || []}
+                managerAvatars={reportData.managerAvatars}
               />
             </TabsContent>
           </Tabs>

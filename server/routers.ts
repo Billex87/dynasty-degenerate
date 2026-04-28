@@ -17,6 +17,19 @@ function normalizeManagerName(name: string | undefined): string {
   return fallback.replace(/\d+$/, '') || fallback;
 }
 
+function getSleeperAvatarUrl(avatarId: string | null | undefined): string | null {
+  return avatarId ? `https://sleepercdn.com/avatars/thumbs/${avatarId}` : null;
+}
+
+function buildManagerAvatarMap(users: any[]): Record<string, string | null> {
+  return Object.fromEntries(
+    users.map((user: any) => [
+      normalizeManagerName(user.display_name),
+      getSleeperAvatarUrl(user.avatar),
+    ])
+  );
+}
+
 async function fetchDraftSlotsBySeason(
   leagueId: string,
   rosters: Array<{ roster_id: number; owner_id: string }>
@@ -113,17 +126,11 @@ export const appRouter = router({
 
           const ktcValues = await loadKTCValues();
           // Get previous week's KTC snapshot for Weekly Momentum calculations (7 days ago)
-          let ktcValuesLastWeekRaw = await getKtcSnapshotFromSevenDaysAgo();
+          const ktcValuesLastWeekRaw = await getKtcSnapshotFromSevenDaysAgo();
           let ktcValuesLastWeek: KTCValues = {};
           
           if (ktcValuesLastWeekRaw && Object.keys(ktcValuesLastWeekRaw).length > 0) {
-            // Convert from Record<string, number> to KTCValues format
-            ktcValuesLastWeek = Object.fromEntries(
-              Object.entries(ktcValuesLastWeekRaw).map(([key, value]) => [
-                key,
-                { name: key, ktc_value: value }
-              ])
-            );
+            ktcValuesLastWeek = ktcValuesLastWeekRaw;
           } else {
             // Fallback to Jan 15 snapshot if no database snapshot available
             ktcValuesLastWeek = await getJan15KTCSnapshot();
@@ -258,9 +265,10 @@ export const appRouter = router({
           return {
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
-            leagueLogo: leagueInfo.logo || null,
+            leagueLogo: getSleeperAvatarUrl(leagueInfo.avatar),
             reportData: {
               ...reportData,
+              managerAvatars: buildManagerAvatarMap(users),
               draftPicks: draftAnalysis.draftPicks,
               draftStats: draftAnalysis.draftStats,
             },

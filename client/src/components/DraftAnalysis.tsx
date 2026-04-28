@@ -13,16 +13,18 @@ import { TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react';
 import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
 import { PlayerDetailModal } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
+import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
   draftStats: ManagerDraftStats[];
+  managerAvatars?: Record<string, string | null>;
 }
 
 type SortColumn = 'currentValue' | 'valueChange' | null;
 type SortDirection = 'asc' | 'desc';
 
-export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
+export function DraftAnalysis({ draftPicks, draftStats, managerAvatars }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<DraftPick | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
@@ -97,7 +99,10 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
                       onClick={() => setSelectedManager(stat.manager)}
                     >
                       <TableCell className="font-semibold text-slate-100">
-                        {stat.manager}
+                        <ManagerNameWithAvatar
+                          avatarUrl={managerAvatars?.[stat.manager]}
+                          managerName={stat.manager}
+                        />
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
                         {stat.totalPicks}
@@ -243,6 +248,7 @@ export function DraftAnalysis({ draftPicks, draftStats }: DraftAnalysisProps) {
         onClose={() => setSelectedManager(null)}
         managerName={selectedManager || ''}
         draftPicks={draftPicks}
+        managerAvatarUrl={selectedManager ? managerAvatars?.[selectedManager] : null}
       />
 
       {/* Player Detail Modal */}

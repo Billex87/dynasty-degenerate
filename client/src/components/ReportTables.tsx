@@ -12,6 +12,18 @@ import React, { useState } from 'react';
 import { ChevronDown, TrendingDown, TrendingUp } from 'lucide-react';
 import type { DraftPick, ReportData } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
+import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
+
+type ManagerAvatars = ReportData['managerAvatars'];
+
+function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
+  return (
+    <ManagerNameWithAvatar
+      avatarUrl={managerAvatars?.[manager]}
+      managerName={manager}
+    />
+  );
+}
 
 function parseTradePlayerItem(trimmed: string) {
   if (!trimmed.startsWith('PLAYER:')) return null;
@@ -122,8 +134,10 @@ function getRankingColor(rank: number): string {
 
 export function ManagerRosterValueGrowthTable({
   data,
+  managerAvatars,
 }: {
   data: ReportData['managerRosterValueGrowth'];
+  managerAvatars?: ManagerAvatars;
 }) {
   return (
     <div className="flex justify-center">
@@ -142,7 +156,9 @@ export function ManagerRosterValueGrowthTable({
           <TableBody>
             {data.map((row, idx) => (
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="font-semibold text-slate-100">{row.manager}</TableCell>
+                <TableCell className="font-semibold text-slate-100">
+                  {renderManagerName(row.manager, managerAvatars)}
+                </TableCell>
                 <TableCell className="text-right text-slate-300">
                   {row.past_val.toLocaleString()}
                 </TableCell>
@@ -171,9 +187,11 @@ export function ManagerRosterValueGrowthTable({
 export function WeeklyMomentumTable({
   data,
   title,
+  managerAvatars,
 }: {
   data: ReportData['weeklyRisers'];
   title: string;
+  managerAvatars?: ManagerAvatars;
 }) {
   return (
     <div className="flex justify-center">
@@ -200,7 +218,9 @@ export function WeeklyMomentumTable({
                   <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                 </TableCell>
                 <TableCell className="text-slate-400">{row.pos}</TableCell>
-                <TableCell className="text-slate-400">{row.owner}</TableCell>
+                <TableCell className="text-slate-400">
+                  {renderManagerName(row.owner, managerAvatars)}
+                </TableCell>
                 <TableCell className="text-right text-slate-300">
                   {row.val_last.toLocaleString()}
                 </TableCell>
@@ -235,8 +255,10 @@ export function WeeklyMomentumTable({
 
 export function LeagueOverviewTable({
   data,
+  managerAvatars,
 }: {
   data: ReportData['leagueOverview'];
+  managerAvatars?: ManagerAvatars;
 }) {
   return (
     <div className="flex justify-center">
@@ -258,7 +280,9 @@ export function LeagueOverviewTable({
           <TableBody>
             {data.map((row, idx) => (
               <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="font-semibold text-slate-100">{row.manager}</TableCell>
+                <TableCell className="font-semibold text-slate-100">
+                  {renderManagerName(row.manager, managerAvatars)}
+                </TableCell>
                 <TableCell className="text-right text-slate-300">
                   {row.total_val.toLocaleString()}
                 </TableCell>
@@ -281,9 +305,11 @@ export function LeagueOverviewTable({
 export function ProjectedMoversTable({
   data,
   title,
+  managerAvatars,
 }: {
   data: ReportData['projectedRisers'];
   title: string;
+  managerAvatars?: ManagerAvatars;
 }) {
   return (
     <div className="flex justify-center">
@@ -310,7 +336,9 @@ export function ProjectedMoversTable({
                   <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                 </TableCell>
                 <TableCell className="text-slate-400">{row.pos}</TableCell>
-                <TableCell className="text-slate-400">{row.owner}</TableCell>
+                <TableCell className="text-slate-400">
+                  {renderManagerName(row.owner, managerAvatars)}
+                </TableCell>
                 <TableCell className="text-right text-slate-300">
                   {row.age !== null ? row.age : 'N/A'}
                 </TableCell>
@@ -340,8 +368,10 @@ export function ProjectedMoversTable({
 
 export function TradeProfitLeaderboardTable({
   data,
+  managerAvatars,
 }: {
   data: ReportData['tradeProfitLeaderboard'];
+  managerAvatars?: ManagerAvatars;
 }) {
   return (
     <div className="flex justify-center">
@@ -360,7 +390,9 @@ export function TradeProfitLeaderboardTable({
             {data.map((row) => (
               <TableRow key={row.rank} className="border-slate-700 hover:bg-slate-800/30">
                 <TableCell className="font-semibold text-slate-300">#{row.rank}</TableCell>
-                <TableCell className="font-semibold text-slate-100">{row.manager}</TableCell>
+                <TableCell className="font-semibold text-slate-100">
+                  {renderManagerName(row.manager, managerAvatars)}
+                </TableCell>
                 <TableCell
                   className={`text-right font-semibold ${
                     row.profit >= 0 ? 'text-green-400' : 'text-red-400'
@@ -383,9 +415,11 @@ export function TradeProfitLeaderboardTable({
 export function TradeHistoryTable({
   data,
   draftPicks = [],
+  managerAvatars,
 }: {
   data: ReportData['tradeHistory'];
   draftPicks?: DraftPick[];
+  managerAvatars?: ManagerAvatars;
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
@@ -440,10 +474,10 @@ export function TradeHistoryTable({
                   >
                     <TableCell className="text-slate-300 text-sm">{row.date}</TableCell>
                     <TableCell className={`font-semibold text-sm ${row.winner === row.team_a ? 'text-blue-400' : 'text-orange-400'}`}>
-                      {row.winner}
+                      {renderManagerName(row.winner, managerAvatars)}
                     </TableCell>
                     <TableCell className={`font-semibold text-sm ${row.winner === row.team_a ? 'text-orange-400' : 'text-blue-400'}`}>
-                      {loserName}
+                      {renderManagerName(loserName, managerAvatars)}
                     </TableCell>
                     <TableCell className="text-center text-slate-300">
                       {row.point_gap.toLocaleString()}
@@ -456,7 +490,9 @@ export function TradeHistoryTable({
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
                           {/* Winner Details */}
                           <div className="space-y-3">
-                            <h4 className="text-blue-400 font-semibold text-sm">{leftSide.manager}</h4>
+                            <h4 className="text-blue-400 font-semibold text-sm">
+                              {renderManagerName(leftSide.manager, managerAvatars)}
+                            </h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
                                 {leftSide.items
@@ -471,7 +507,9 @@ export function TradeHistoryTable({
 
                           {/* Loser Details */}
                           <div className="space-y-3">
-                            <h4 className="text-orange-400 font-semibold text-sm">{rightSide.manager}</h4>
+                            <h4 className="text-orange-400 font-semibold text-sm">
+                              {renderManagerName(rightSide.manager, managerAvatars)}
+                            </h4>
                             <div className="bg-slate-800/50 rounded p-4 space-y-2">
                               <div className="text-slate-300 text-sm space-y-1">
                                 {rightSide.items
@@ -501,8 +539,10 @@ export function TradeHistoryTable({
 
 export function PositionAnalysisTable({
   data,
+  managerAvatars,
 }: {
   data: ReportData['positionDepth'];
+  managerAvatars?: ManagerAvatars;
 }) {
   const shortages = data.filter(d => d.status === 'shortage');
   const excesses = data.filter(d => d.status === 'excess');
@@ -530,7 +570,9 @@ export function PositionAnalysisTable({
                 <TableBody>
                   {shortages.map((row, idx) => (
                     <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                      <TableCell className="font-semibold text-slate-100">{row.manager}</TableCell>
+                      <TableCell className="font-semibold text-slate-100">
+                        {renderManagerName(row.manager, managerAvatars)}
+                      </TableCell>
                       <TableCell className="text-slate-400">{row.position}</TableCell>
                       <TableCell className="text-right text-red-400 font-semibold">{row.count}</TableCell>
                     </TableRow>
@@ -566,7 +608,9 @@ export function PositionAnalysisTable({
                 <TableBody>
                   {excesses.map((row, idx) => (
                     <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                      <TableCell className="font-semibold text-slate-100">{row.manager}</TableCell>
+                      <TableCell className="font-semibold text-slate-100">
+                        {renderManagerName(row.manager, managerAvatars)}
+                      </TableCell>
                       <TableCell className="text-slate-400">{row.position}</TableCell>
                       <TableCell className="text-right text-emerald-400 font-semibold">{row.count}</TableCell>
                     </TableRow>
@@ -639,8 +683,10 @@ export function SearchableProjectedMoversTable({
 
 export function ManagerPositionCountsTable({
   data,
+  managerAvatars,
 }: {
   data: ReportData['managerPositionCounts'];
+  managerAvatars?: ManagerAvatars;
 }) {
   return (
     <div className="flex justify-center">
@@ -659,7 +705,9 @@ export function ManagerPositionCountsTable({
             <TableBody>
               {data.map((row, idx) => (
                 <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                  <TableCell className="font-semibold text-slate-100">{row.manager}</TableCell>
+                  <TableCell className="font-semibold text-slate-100">
+                    {renderManagerName(row.manager, managerAvatars)}
+                  </TableCell>
                   <TableCell className="text-center text-slate-300 text-sm">
                     <div>{row.QB}</div>
                     <div className="text-blue-400 text-xs">{row.QB_starters}</div>

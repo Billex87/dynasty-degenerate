@@ -49,25 +49,55 @@ export function getPlayerValue(
 export function getPickValue(
   season: number,
   roundNum: number,
-  ktcValues: KTCValues
+  ktcValues: KTCValues,
+  draftSlot?: number,
+  totalTeams?: number
 ): number {
   const suffix =
     roundNum === 1 ? 'st' : roundNum === 2 ? 'nd' : roundNum === 3 ? 'rd' : 'th';
-  const key = cleanName(`${season}mid${roundNum}${suffix}`);
+  const bucket = getPickValueBucket(draftSlot, totalTeams);
+  const key = cleanName(`${season}${bucket}${roundNum}${suffix}`);
   let val = ktcValues[key]?.ktc_value || 0;
 
   if (val === 0) {
-    const baseVals: Record<number, number> = {
-      1: 4500,
-      2: 1800,
-      3: 600,
-      4: 250,
-      5: 100,
+    const baseVals: Record<string, Record<number, number>> = {
+      early: {
+        1: 5800,
+        2: 3300,
+        3: 2350,
+        4: 1800,
+        5: 100,
+      },
+      mid: {
+        1: 4500,
+        2: 1800,
+        3: 600,
+        4: 250,
+        5: 100,
+      },
+      late: {
+        1: 3900,
+        2: 1600,
+        3: 500,
+        4: 200,
+        5: 100,
+      },
     };
-    return baseVals[roundNum] || 50;
+    return baseVals[bucket]?.[roundNum] || baseVals.mid[roundNum] || 50;
   }
 
   return val;
+}
+
+function getPickValueBucket(draftSlot?: number, totalTeams?: number): 'early' | 'mid' | 'late' {
+  if (!draftSlot || !totalTeams || totalTeams < 3) return 'mid';
+
+  const earlyMax = Math.floor(totalTeams / 3);
+  const midMax = Math.floor((totalTeams * 2) / 3);
+
+  if (draftSlot <= earlyMax) return 'early';
+  if (draftSlot <= midMax) return 'mid';
+  return 'late';
 }
 
 export function projectValue(
