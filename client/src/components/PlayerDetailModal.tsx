@@ -8,6 +8,7 @@ import {
 import type { DraftPick, PlayerDetails } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { getPositionRankPillClass } from '@/lib/positionRank';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 
 const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
@@ -254,7 +255,7 @@ export function PlayerDetailModal({
               {currentValue !== undefined && (
                 <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} tileAccent={tileAccent} />
               )}
-              <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} teamColors={teamColors} tileAccent={tileAccent} />
+              <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} valueClassName={getPositionRankPillClass(currentRank)} teamColors={teamColors} tileAccent={tileAccent} />
               <MetricTile
                 label="Value Change"
                 value={valueGain !== undefined && valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'}
@@ -310,6 +311,7 @@ export function PlayerDetailModal({
                         <InfoTile
                           label="Drafted Rank"
                           value={pick.positionRankMay2025}
+                          valueClassName={getPositionRankPillClass(pick.positionRankMay2025)}
                           teamColors={teamColors}
                           tileAccent={tileAccent}
                         />
@@ -433,6 +435,7 @@ function MetricTile({
   icon,
   teamColors,
   tileAccent,
+  valueClassName,
 }: {
   label: string;
   mobileLabel?: string;
@@ -441,6 +444,7 @@ function MetricTile({
   icon?: ReactNode;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
+  valueClassName?: string;
 }) {
   const toneClass = tone === 'positive'
     ? 'text-emerald-300'
@@ -467,7 +471,7 @@ function MetricTile({
         ) : label}
       </div>
       <div className={`mt-1 flex items-center justify-center gap-1 text-center text-lg font-black sm:mt-2 sm:gap-2 sm:text-2xl ${toneClass}`}>
-        {value}
+        <span className={valueClassName}>{value}</span>
         {icon}
       </div>
     </div>
@@ -480,12 +484,14 @@ function InfoTile({
   tone = 'neutral',
   teamColors,
   tileAccent,
+  valueClassName,
 }: {
   label: string;
   value: string | number;
   tone?: 'positive' | 'negative' | 'neutral';
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
+  valueClassName?: string;
 }) {
   const toneClass = tone === 'positive'
     ? 'text-emerald-300'
@@ -504,7 +510,9 @@ function InfoTile({
       }}
     >
       <div className="text-center text-[0.6rem] font-semibold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]" style={{ color: tileAccent || teamColors?.accent || undefined }}>{label}</div>
-      <div className={`mt-1 truncate text-center text-sm font-bold sm:text-base ${toneClass}`}>{value}</div>
+      <div className={`mt-1 truncate text-center text-sm font-bold sm:text-base ${toneClass}`}>
+        <span className={valueClassName}>{value}</span>
+      </div>
     </div>
   );
 }

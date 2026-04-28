@@ -21,6 +21,7 @@ import type { DraftPick, ManagerIntelPlayer, ReportData, TrendingPlayer } from '
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
+import { getPositionRankPillClass } from '@/lib/positionRank';
 
 type ManagerAvatars = ReportData['managerAvatars'];
 type PlayerDetailsById = ReportData['playerDetailsById'];
@@ -631,7 +632,7 @@ function PlayerInsightTile({
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       </div>
       <div className="manager-intel-player-pills">
-        <span>{player.currentPositionRank || player.pos}</span>
+        <PositionRankPill rank={player.currentPositionRank || player.pos} />
         {extraPill && <span>{extraPill}</span>}
         <span>{player.playerDetails?.team || 'FA'}</span>
         <span>{formatCompactValue(player.value)}</span>
@@ -704,6 +705,11 @@ function PlayerMiniLine({
       {meta && <span className="command-mini-meta">{meta}</span>}
     </div>
   );
+}
+
+function PositionRankPill({ rank }: { rank?: string | null }) {
+  const displayRank = rank || '-';
+  return <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>;
 }
 
 function FeatureCard({
@@ -821,7 +827,7 @@ export function LeagueCommandCenter({
     const qbs = take('QB', 2);
     const rbs = take('RB', 2);
     const wrs = take('WR', 2);
-    const tes = take('TE', 1);
+    const tes = take('TE', 2);
     const flex = players
       .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos) && !used.has(player.player_id))
       .sort((a, b) => b.value - a.value)
@@ -835,6 +841,24 @@ export function LeagueCommandCenter({
     ];
   };
   const lineupGroups = pickLineupPlayers(selectedLineupPlayers);
+  const projectedLineupIds = new Set(lineupGroups.flatMap((group) => group.players.map((player) => player.player_id)));
+  const canStepInGroups = ['QB', 'RB', 'WR', 'TE']
+    .map((position) => ({
+      label: position,
+      players: selectedStarters
+        .filter((player) => player.pos === position && !projectedLineupIds.has(player.player_id))
+        .sort((a, b) => b.value - a.value),
+    }))
+    .filter((group) => group.players.length);
+  const selectedManagerTags = (() => {
+    const tags = [
+      selectedIntel?.identity,
+      selectedTimeline?.label,
+      ...(selectedIntel?.ageFlags || []),
+      selectedIntel?.holes.summary !== 'No major roster hole flagged' ? selectedIntel?.holes.summary : null,
+    ].filter((tag): tag is string => Boolean(tag));
+    return Array.from(new Set(tags.map(titleCasePill))).slice(0, 5);
+  })();
   const rosterRead = (() => {
     if (!selectedIntel) return 'No roster read available yet.';
     const notes: string[] = [];
@@ -991,7 +1015,6 @@ export function LeagueCommandCenter({
               <div className="min-w-0">
                 <p>Owner Data Room</p>
                 <h3>{selectedManager}</h3>
-                <span>{selectedIntel?.identity || selectedTimeline?.label || 'League manager'}</span>
               </div>
               </div>
               <div className="manager-command-hero-metrics">
@@ -1001,6 +1024,15 @@ export function LeagueCommandCenter({
               </div>
             </div>
             <div className="manager-command-body">
+              {selectedManagerTags.length ? (
+                <div className="manager-command-tag-row" aria-label="Manager profile tags">
+                  {selectedManagerTags.map((tag) => (
+                    <span key={tag} className={`manager-intel-pill ${getPillToneClass(tag)}`}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <div className="manager-command-grid">
                 <div>
                   <h4>Projected Starters</h4>
@@ -1016,7 +1048,8 @@ export function LeagueCommandCenter({
                               className="manager-command-rank-pill"
                               onClick={() => openCommandPlayer(player)}
                             >
-                              {player.name} <strong>{player.currentPositionRank || player.pos}</strong>
+                              <span>{player.name}</span>
+                              <strong className={getPositionRankPillClass(player.currentPositionRank || player.pos)}>{player.currentPositionRank || player.pos}</strong>
                             </button>
                           )) : (
                             <span className="manager-command-empty-pill">Needs Help</span>
@@ -1027,13 +1060,38 @@ export function LeagueCommandCenter({
                   </div>
                 </div>
                 <div>
-                  <h4>Trade / Picks</h4>
-                  <p>{selectedTrade ? `${selectedTrade.tradeCount} trades, ${selectedTrade.winPct}% win rate, ${selectedTrade.profit > 0 ? '+' : ''}${selectedTrade.profit.toLocaleString()} profit` : 'No completed trade profile yet.'}</p>
-                  <p>{selectedPick ? `${selectedPick.count2026} picks in 2026, ${selectedPick.count2027} picks in 2027, ${formatCompactValue(selectedPick.totalValue)} total draft capital` : 'No pick portfolio data available.'}</p>
-                  <div className="manager-command-inline-read">
-                    <h4>Roster Read</h4>
-                    <p>{rosterRead}</p>
+                  <h4>Can Step In</h4>
+                  <div className="manager-command-lineup manager-command-step-in">
+                    {canStepInGroups.length ? canStepInGroups.map((group) => (
+                      <div key={group.label} className="manager-command-lineup-row">
+                        <span>{group.label}</span>
+                        <div>
+                          {group.players.map((player) => (
+                            <button
+                              key={player.player_id}
+                              type="button"
+                              className="manager-command-rank-pill manager-command-step-pill"
+                              onClick={() => openCommandPlayer(player)}
+                            >
+                              <span>{player.name}</span>
+                              <strong className={getPositionRankPillClass(player.currentPositionRank || player.pos)}>{player.currentPositionRank || player.pos}</strong>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )) : (
+                      <span className="manager-command-empty-pill">No starter-grade depth</span>
+                    )}
                   </div>
+                </div>
+              </div>
+              <div className="manager-command-section manager-command-read">
+                <h4>Trade / Picks</h4>
+                <p>{selectedTrade ? `${selectedTrade.tradeCount} trades, ${selectedTrade.winPct}% win rate, ${selectedTrade.profit > 0 ? '+' : ''}${selectedTrade.profit.toLocaleString()} profit` : 'No completed trade profile yet.'}</p>
+                <p>{selectedPick ? `${selectedPick.count2026} picks in 2026, ${selectedPick.count2027} picks in 2027, ${formatCompactValue(selectedPick.totalValue)} total draft capital` : 'No pick portfolio data available.'}</p>
+                <div className="manager-command-inline-read">
+                  <h4>Roster Read</h4>
+                  <p>{rosterRead}</p>
                 </div>
               </div>
               {selectedIntel?.untouchablePlayers?.length ? (
@@ -1048,7 +1106,7 @@ export function LeagueCommandCenter({
                         onClick={() => openCommandPlayer(player)}
                       >
                         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-                        <span>{player.currentPositionRank || player.pos}</span>
+                        <PositionRankPill rank={player.currentPositionRank || player.pos} />
                       </button>
                     ))}
                   </div>
@@ -1066,7 +1124,7 @@ export function LeagueCommandCenter({
                         onClick={() => openCommandPlayer(player)}
                       >
                         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-                        <span>{player.currentPositionRank || player.pos}</span>
+                        <PositionRankPill rank={player.currentPositionRank || player.pos} />
                       </button>
                     ))}
                   </div>
@@ -2100,7 +2158,7 @@ export function StarterBenchSnapshot({
                 <div className="text-[0.62rem] font-black uppercase tracking-[0.14em] text-orange-300/80">Weakest Starter</div>
                 <div className="mt-1 flex items-center justify-between gap-2 text-sm font-black text-slate-100">
                   <span className="truncate">{row.weakestStarter.name}</span>
-                  <span className="text-orange-300">{row.weakestStarter.currentPositionRank || formatCompactValue(row.weakestStarter.value)}</span>
+                  <PositionRankPill rank={row.weakestStarter.currentPositionRank || row.weakestStarter.pos} />
                 </div>
               </button>
             )}
@@ -2284,7 +2342,7 @@ export function WaiverIntelligencePanel({
             <PlayerNameWithHeadshot playerId={player?.player_id} playerName={player?.name || '-'} />
           </div>
           <div className="waiver-intel-pills">
-            <span>{player?.currentPositionRank || player?.pos || '-'}</span>
+            <PositionRankPill rank={player?.currentPositionRank || player?.pos || '-'} />
             <span>{player?.playerDetails?.team || player?.team || 'FA'}</span>
             <span>{formatCompactValue(player?.ktcValue)}</span>
           </div>
@@ -2357,7 +2415,7 @@ export function TradeMarketRadar({
             </div>
           </div>
           <div className="trade-market-pills">
-            <span>{player.currentPositionRank || player.pos}</span>
+            <PositionRankPill rank={player.currentPositionRank || player.pos} />
             <span>{player.playerDetails?.team || 'FA'}</span>
             <span>{formatCompactValue(player.val_now)}</span>
           </div>
@@ -2580,7 +2638,7 @@ export function ManagerPositionCountsTable({
                           <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
                         </div>
                         <div className="starter-player-meta">
-                          <span>{player.currentPositionRank || player.pos}</span>
+                          <PositionRankPill rank={player.currentPositionRank || player.pos} />
                           <span className="starter-player-team-pill">{player.playerDetails?.team || 'FA'}</span>
                           <span className="starter-player-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
                           <strong>{player.value.toLocaleString()}</strong>
