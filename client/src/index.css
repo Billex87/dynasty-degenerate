@@ -2927,9 +2927,9 @@
       width: 100% !important;
       max-width: 100% !important;
       max-height: none !important;
-      overflow: clip !important;
+      overflow: visible !important;
       overscroll-behavior: auto;
-      touch-action: pan-y;
+      touch-action: auto;
     }
 
     .report-section .overflow-x-auto::-webkit-scrollbar,
@@ -4106,7 +4106,7 @@
   .trade-profit-card [data-slot="table-container"],
   .report-card-polished [data-slot="table-container"] {
     max-width: 100%;
-    overflow: clip;
+    overflow: visible;
     scrollbar-width: none;
   }
 
@@ -4191,9 +4191,9 @@
     width: 100% !important;
     max-width: 100% !important;
     max-height: none !important;
-    overflow: clip !important;
+    overflow: visible !important;
     overscroll-behavior-x: auto;
-    touch-action: pan-y;
+    touch-action: auto;
   }
 
   .pick-portfolio-table,

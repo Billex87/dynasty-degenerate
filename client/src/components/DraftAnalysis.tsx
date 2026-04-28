@@ -108,10 +108,10 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, leagueId
       <DraftCollapsibleSection title="Draft Capital Efficiency" kicker="Manager hit rate">
         <div className="flex justify-center">
           <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-            <div className="overflow-x-hidden">
+            <div className="overflow-visible">
               <Table
                 className="report-table-polished draft-efficiency-table"
-                containerClassName="overflow-x-hidden"
+                containerClassName="overflow-visible"
                 style={{ tableLayout: 'fixed' }}
               >
                 <TableHeader className="border-b-2 border-orange-500/30">
@@ -203,10 +203,10 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, leagueId
                 {isDraftBoardOpen && (
                   <div className="flex justify-center">
             <Card className="report-card-polished draft-board-card bg-slate-900 border-slate-800 overflow-hidden">
-            <div className="overflow-x-hidden">
+            <div className="overflow-visible">
               <Table
                 className="report-table-polished rookie-draft-table w-full text-xs sm:text-sm"
-                containerClassName="overflow-x-hidden"
+                containerClassName="overflow-visible"
                 style={{ tableLayout: 'fixed' }}
               >
                 <TableHeader className="border-b-2 border-orange-500/30">

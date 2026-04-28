@@ -143,7 +143,7 @@ export function ManagerDraftPicksModal({
             <div className="w-full overflow-x-hidden p-4 sm:p-6">
             <Table
               className="manager-draft-table w-full text-xs sm:text-sm"
-              containerClassName="overflow-x-hidden"
+              containerClassName="overflow-visible"
               style={{ tableLayout: 'fixed' }}
             >
               <TableHeader className="border-b-2 border-orange-500/30">

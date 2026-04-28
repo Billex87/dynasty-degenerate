@@ -1140,7 +1140,7 @@ export function ManagerRosterValueGrowthTable({
   return (
     <div className="flex justify-center">
       <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-visible">
           <Table className="report-table-polished roster-growth-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
@@ -1200,7 +1200,7 @@ export function WeeklyMomentumTable({
   return (
     <div className="flex justify-center">
       <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-visible">
         <Table className="report-table-polished weekly-momentum-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
@@ -1277,7 +1277,7 @@ export function LeagueOverviewTable({
   return (
     <div className="flex justify-center">
       <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-visible">
         <Table className="report-table-polished league-overview-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
@@ -1336,7 +1336,7 @@ export function TrendingPlayersTable({
   return (
     <div className="flex justify-center">
       <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-visible">
           <Table
             className="trending-players-table momentum-trending-table w-full text-xs sm:text-sm"
             style={{ tableLayout: 'fixed' }}
@@ -1420,7 +1420,7 @@ export function ProjectedMoversTable({
   return (
     <div className="flex justify-center">
       <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-visible">
         <Table className="report-table-polished projected-movers-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
@@ -1524,7 +1524,7 @@ export function TradeProfitLeaderboardTable({
   return (
     <div className="flex justify-center">
       <Card className="trade-profit-card bg-slate-900 border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-visible">
           <Table className="trade-profit-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
@@ -1720,7 +1720,7 @@ export function TradeHistoryTable({
   return (
     <div className="flex justify-center">
       <Card className="trade-ledger-card bg-slate-900 border-slate-800 overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-visible">
         <Table className="trade-ledger-table">
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
@@ -1866,7 +1866,7 @@ export function PositionAnalysisTable({
         </div>
           <div className="flex justify-center">
             <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-visible">
               <Table className="report-table-polished position-analysis-table">
                 <TableHeader className="border-b-2 border-orange-500/30">
                   <TableRow className="border-slate-700">
@@ -1902,7 +1902,7 @@ export function PositionAnalysisTable({
         </div>
           <div className="flex justify-center">
             <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-visible">
               <Table className="report-table-polished position-analysis-table">
                 <TableHeader className="border-b-2 border-orange-500/30">
                   <TableRow className="border-slate-700">
@@ -2108,7 +2108,7 @@ export function PickPortfolioTable({
       <Card className="report-card-polished overflow-hidden border-slate-800 bg-slate-900">
         <Table
           className="report-table-polished pick-portfolio-table"
-          containerClassName="overflow-x-hidden"
+          containerClassName="overflow-visible"
           style={{ tableLayout: 'fixed' }}
         >
           <TableHeader className="border-b-2 border-orange-500/30">
@@ -2346,7 +2346,7 @@ export function ManagerPositionCountsTable({
   return (
     <div className="flex justify-center">
       <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-visible">
           <Table className="report-table-polished position-counts-table">
             <TableHeader className="border-b-2 border-orange-500/30">
               <TableRow className="border-slate-700">
