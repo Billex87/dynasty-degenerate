@@ -1,4 +1,4 @@
-import { SleeperDraftPick } from '../shared/types';
+import { PlayerDetails, SleeperDraftPick } from '../shared/types';
 
 
 
@@ -40,6 +40,41 @@ interface DraftPickWithMetadata extends SleeperDraftPick {
 interface PositionRankData {
   position_rank_may2025?: string;
   [key: string]: any;
+}
+
+function getPlayerDetails(playerId: string, player: Record<string, any> | undefined): PlayerDetails | undefined {
+  if (!player) return undefined;
+
+  return {
+    playerId,
+    fullName: player.full_name || `${player.first_name || ''} ${player.last_name || ''}`.trim(),
+    position: player.position,
+    team: player.team ?? null,
+    jerseyNumber: player.number ?? null,
+    age: player.age ?? null,
+    birthDate: player.birth_date ?? null,
+    height: player.height ?? null,
+    weight: player.weight ?? null,
+    college: player.college ?? null,
+    rookieYear: player.metadata?.rookie_year ?? null,
+    nflDraftRound: player.metadata?.draft_round ?? player.draft_round ?? null,
+    nflDraftPick: player.metadata?.draft_pick ?? player.metadata?.draft_slot ?? player.draft_pick ?? null,
+    nflDraftTeam: player.metadata?.draft_team ?? player.draft_team ?? null,
+    highSchool: player.high_school ?? null,
+    injuryStatus: player.injury_status ?? null,
+    depthChartPosition: player.depth_chart_position ?? null,
+    depthChartOrder: player.depth_chart_order ?? null,
+    yearsExp: player.years_exp ?? null,
+    status: player.status ?? null,
+    externalIds: {
+      fantasyData: player.fantasy_data_id,
+      sportradar: player.sportradar_id,
+      yahoo: player.yahoo_id,
+      gsis: player.gsis_id,
+      espn: player.espn_id,
+      stats: player.stats_id,
+    },
+  };
 }
 
 export function calculateADPFromPicks(
@@ -174,6 +209,7 @@ export async function analyzeDraftPicks(
     
     // Calculate value gain using May 2025 baseline if available, otherwise use last week's KTC
     let valueGain: number | null = null;
+    let draftKtcValue: number | null = null;
     if (currentKtcValue !== null) {
       let baselineValue = currentKtcValue; // default to current if no baseline
       
@@ -190,7 +226,7 @@ export async function analyzeDraftPicks(
           baselineValue = lastWeekKtcData.ktc_value;
         }
       }
-      
+      draftKtcValue = baselineValue;
       valueGain = currentKtcValue - baselineValue;
     }
 
@@ -244,7 +280,7 @@ export async function analyzeDraftPicks(
       originalOwner,
       originalRosterId,
       adp,
-      ktcValue: currentKtcValue,
+      ktcValue: draftKtcValue,
       currentKtcValue,
       valueGain,
       positionRankMay2025,
@@ -252,6 +288,7 @@ export async function analyzeDraftPicks(
       positionRankChange,
       draftYear,
       player_id: pick.player_id,
+      playerDetails: getPlayerDetails(pick.player_id, player),
     };
     processedPicks.push(processedPick);
 

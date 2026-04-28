@@ -25,6 +25,8 @@ interface ManagerDraftPicksModalProps {
   managerName: string;
   draftPicks: DraftPick[];
   managerAvatarUrl?: string | null;
+  leagueId?: string;
+  leagueLogo?: string | null;
 }
 
 export function ManagerDraftPicksModal({
@@ -33,6 +35,8 @@ export function ManagerDraftPicksModal({
   managerName,
   draftPicks,
   managerAvatarUrl,
+  leagueId,
+  leagueLogo,
 }: ManagerDraftPicksModalProps) {
   const [selectedPlayer, setSelectedPlayer] = useState<DraftPick | null>(null);
 
@@ -188,6 +192,9 @@ export function ManagerDraftPicksModal({
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}
         pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerName ? { [managerName]: managerAvatarUrl || null } : undefined}
       />
     </>
   );

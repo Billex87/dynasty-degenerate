@@ -19,12 +19,14 @@ interface DraftAnalysisProps {
   draftPicks: DraftPick[];
   draftStats: ManagerDraftStats[];
   managerAvatars?: Record<string, string | null>;
+  leagueId?: string;
+  leagueLogo?: string | null;
 }
 
 type SortColumn = 'currentValue' | 'valueChange' | null;
 type SortDirection = 'asc' | 'desc';
 
-export function DraftAnalysis({ draftPicks, draftStats, managerAvatars }: DraftAnalysisProps) {
+export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, leagueId, leagueLogo }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<DraftPick | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
@@ -249,6 +251,8 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars }: DraftA
         managerName={selectedManager || ''}
         draftPicks={draftPicks}
         managerAvatarUrl={selectedManager ? managerAvatars?.[selectedManager] : null}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
       />
 
       {/* Player Detail Modal */}
@@ -256,6 +260,9 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars }: DraftA
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}
         pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
       />
     </div>
   );

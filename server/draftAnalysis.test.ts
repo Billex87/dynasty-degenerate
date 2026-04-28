@@ -119,6 +119,36 @@ describe('Draft Analysis', () => {
     expect(managerStats.misses).toBeDefined();
   });
 
+  it('should keep draft value separate from current value', async () => {
+    const mockDraftPicks = [
+      {
+        round: 1,
+        pick_no: 10,
+        player_id: 'player1',
+        picked_by: 'roster1',
+        user_id_to_manager_map: { roster1: 'Manager A' },
+      },
+    ] as any;
+
+    const mockPlayers = {
+      player1: { full_name: 'Emeka Egbuka', position: 'WR' },
+    };
+
+    const result = await analyzeDraftPicks(
+      mockDraftPicks,
+      mockPlayers,
+      { roster1: 'Manager A' },
+      { emekaegbuka: { name: 'Emeka Egbuka', ktc_value: 6117 } },
+      { player1: { name: 'Emeka Egbuka', pos: 'WR', adp: 10 } },
+      undefined,
+      { emekaegbuka: { name: 'Emeka Egbuka', ktc_value: 4881, position_rank_may2025: 'WR21' } }
+    );
+
+    expect(result.draftPicks[0].ktcValue).toBe(4881);
+    expect(result.draftPicks[0].currentKtcValue).toBe(6117);
+    expect(result.draftPicks[0].valueGain).toBe(1236);
+  });
+
   it('should handle missing player data gracefully', async () => {
     const mockDraftPicks = [
       {

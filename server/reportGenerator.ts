@@ -6,7 +6,8 @@ import {
   projectValue,
   calculateValueAdjustment,
 } from './leagueAnalysis';
-import type { ReportData } from '../shared/types';
+import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
+import type { PlayerDetails, ReportData } from '../shared/types';
 
 export interface KTCValues {
   [key: string]: { name: string; ktc_value: number; position_rank?: string };
@@ -14,10 +15,40 @@ export interface KTCValues {
 
 interface Player {
   [key: string]: {
+    player_id?: string;
     first_name?: string;
     last_name?: string;
+    full_name?: string;
     position?: string;
+    team?: string | null;
+    number?: string | number | null;
     age?: number;
+    birth_date?: string | null;
+    height?: string | null;
+    weight?: string | number | null;
+    college?: string | null;
+    high_school?: string | null;
+    injury_status?: string | null;
+    depth_chart_position?: string | null;
+    depth_chart_order?: number | null;
+    years_exp?: number | null;
+    status?: string | null;
+    fantasy_data_id?: string | number | null;
+    sportradar_id?: string | null;
+    yahoo_id?: string | number | null;
+    gsis_id?: string | null;
+    espn_id?: string | number | null;
+    stats_id?: string | number | null;
+    metadata?: {
+      rookie_year?: string | number | null;
+      draft_round?: string | number | null;
+      draft_pick?: string | number | null;
+      draft_slot?: string | number | null;
+      draft_team?: string | null;
+    };
+    draft_round?: string | number | null;
+    draft_pick?: string | number | null;
+    draft_team?: string | null;
   };
 }
 
@@ -52,6 +83,17 @@ interface SeasonData {
   draftSlotsBySeason?: Record<string, Record<number, number>>;
 }
 
+type StarterThresholds = Record<'QB' | 'RB' | 'WR' | 'TE', number>;
+
+function getStarterThresholds(teamCount: number): StarterThresholds {
+  return {
+    QB: Math.max(1, Math.round(teamCount * 2)),
+    RB: Math.max(1, Math.round(teamCount * 3)),
+    WR: Math.max(1, Math.round(teamCount * 4)),
+    TE: Math.max(1, Math.round(teamCount * 1.5)),
+  };
+}
+
 function ordinalRound(round: number): string {
   if (round === 1) return '1st';
   if (round === 2) return '2nd';
@@ -84,8 +126,17 @@ function getDraftSlot(
     : undefined;
 }
 
-function encodePlayerItem(pid: string, name: string, value: number): string {
-  return `PLAYER:${pid}|${name}|${value}`;
+function encodePlayerItem(
+  pid: string,
+  name: string,
+  value: number,
+  tradeDateValue?: number | null,
+  tradeDate?: string
+): string {
+  const historicalParts = tradeDateValue && tradeDateValue > 0 && tradeDate
+    ? `|${tradeDateValue}|${tradeDate}`
+    : '';
+  return `PLAYER:${pid}|${name}|${value}${historicalParts}`;
 }
 
 function encodePickItem(label: string, value: number): string {
@@ -106,6 +157,74 @@ function chooseTradeWinner(
   return managerA;
 }
 
+function getPlayerDetails(pid: string, allPlayers: Player): PlayerDetails | undefined {
+  const player = allPlayers[pid];
+  if (!player) return undefined;
+
+  return {
+    playerId: pid,
+    fullName: player.full_name || getPlayerName(pid, allPlayers),
+    position: player.position,
+    team: player.team ?? null,
+    jerseyNumber: player.number ?? null,
+    age: player.age ?? null,
+    birthDate: player.birth_date ?? null,
+    height: player.height ?? null,
+    weight: player.weight ?? null,
+    college: player.college ?? null,
+    rookieYear: player.metadata?.rookie_year ?? null,
+    nflDraftRound: player.metadata?.draft_round ?? player.draft_round ?? null,
+    nflDraftPick: player.metadata?.draft_pick ?? player.metadata?.draft_slot ?? player.draft_pick ?? null,
+    nflDraftTeam: player.metadata?.draft_team ?? player.draft_team ?? null,
+    highSchool: player.high_school ?? null,
+    injuryStatus: player.injury_status ?? null,
+    depthChartPosition: player.depth_chart_position ?? null,
+    depthChartOrder: player.depth_chart_order ?? null,
+    yearsExp: player.years_exp ?? null,
+    status: player.status ?? null,
+    externalIds: {
+      fantasyData: player.fantasy_data_id,
+      sportradar: player.sportradar_id,
+      yahoo: player.yahoo_id,
+      gsis: player.gsis_id,
+      espn: player.espn_id,
+      stats: player.stats_id,
+    },
+  };
+}
+
+function getPlayerKtcRank(pid: string, allPlayers: Player, ktcValues: KTCValues): string | null {
+  const p = allPlayers[pid];
+  if (!p) return null;
+
+  const fullName = `${p.first_name || ''}${p.last_name || ''}`;
+  const key = cleanName(fullName);
+  let rank = ktcValues[key]?.position_rank;
+
+  if (!rank) {
+    for (const k in ktcValues) {
+      if (key.includes(k) || k.includes(key)) {
+        rank = ktcValues[k].position_rank;
+        break;
+      }
+    }
+  }
+
+  return rank || null;
+}
+
+function isStarterRank(
+  position: string,
+  positionRank: string | null,
+  starterThresholds: StarterThresholds
+): boolean {
+  const rankPosition = positionRank?.match(/^[A-Z]+/)?.[0];
+  const rankNumber = Number(positionRank?.match(/\d+/)?.[0]);
+  if (!rankPosition || !Number.isFinite(rankNumber) || rankPosition !== position) return false;
+
+  return position in starterThresholds && rankNumber <= starterThresholds[position as keyof StarterThresholds];
+}
+
 export async function generateReport(
   currentSeasonData: SeasonData,
   pastSeasonData: SeasonData | null,
@@ -113,6 +232,14 @@ export async function generateReport(
   ktcValues: KTCValues,
   ktcValuesLastWeek: KTCValues
 ): Promise<ReportData> {
+  const starterThresholds = getStarterThresholds(currentSeasonData.rosters.length || 10);
+  const tradeSnapshotCache: Record<string, KTCValues> = {};
+  const getTradeSnapshot = (tradeDate: string): KTCValues => {
+    if (!tradeSnapshotCache[tradeDate]) {
+      tradeSnapshotCache[tradeDate] = loadLatestLocalKtcSnapshotBefore(new Date(tradeDate));
+    }
+    return tradeSnapshotCache[tradeDate];
+  };
   const teamData: Record<
     string,
     {
@@ -127,6 +254,8 @@ export async function generateReport(
   const allPlayerMoves: Array<{
     name: string;
     player_id: string;
+    playerDetails?: PlayerDetails;
+    currentPositionRank?: string | null;
     owner: string;
     pos: string;
     age: number | null;
@@ -138,6 +267,8 @@ export async function generateReport(
   const weeklyMomentum: Array<{
     name: string;
     player_id: string;
+    playerDetails?: PlayerDetails;
+    currentPositionRank?: string | null;
     owner: string;
     pos: string;
     val_last: number;
@@ -198,6 +329,8 @@ export async function generateReport(
         weeklyMomentum.push({
           name: getPlayerName(pid, allPlayers),
           player_id: pid,
+          playerDetails: getPlayerDetails(pid, allPlayers),
+          currentPositionRank: getPlayerKtcRank(pid, allPlayers, ktcValues),
           owner: name,
           pos,
           val_last: lastWeekVal,
@@ -211,6 +344,8 @@ export async function generateReport(
         allPlayerMoves.push({
           name: getPlayerName(pid, allPlayers),
           player_id: pid,
+          playerDetails: getPlayerDetails(pid, allPlayers),
+          currentPositionRank: getPlayerKtcRank(pid, allPlayers, ktcValues),
           owner: name,
           pos,
           age,
@@ -284,7 +419,8 @@ export async function generateReport(
       for (const [pid, rid] of Object.entries(adds)) {
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [] };
         const val = getPlayerValue(pid, allPlayers, ktcValues);
-        sideData[rid].items.push(encodePlayerItem(pid, getPlayerName(pid, allPlayers), val));
+        const tradeDateValue = getPlayerValue(pid, allPlayers, getTradeSnapshot(dt));
+        sideData[rid].items.push(encodePlayerItem(pid, getPlayerName(pid, allPlayers), val, tradeDateValue, dt));
         sideData[rid].vals.push(val);
       }
 
@@ -509,9 +645,8 @@ export async function generateReport(
       const pos = p?.position || 'UNK';
       if (pos in posCounts) {
         posCounts[pos]++;
-        // Check if player value > 4000 (starter threshold)
-        const playerValue = ktcValues[pid]?.ktc_value || 0;
-        if (playerValue > 4000) {
+        const positionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
+        if (isStarterRank(pos, positionRank, starterThresholds)) {
           posStarterCounts[pos]++;
         }
       }

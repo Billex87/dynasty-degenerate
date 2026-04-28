@@ -16,6 +16,7 @@ import {
   TradeHistoryTable,
   PositionAnalysisTable,
   ManagerPositionCountsTable,
+  TrendingPlayersTable,
 } from '@/components/ReportTables';
 import { DraftAnalysis } from '@/components/DraftAnalysis';
 import type { ReportData } from '@shared/types';
@@ -26,6 +27,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('overview');
   const [leagueName, setLeagueName] = useState('');
   const [leagueLogo, setLeagueLogo] = useState<string | null>(null);
+  const [leagueFormat, setLeagueFormat] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const analyzeMutation = trpc.league.analyze.useMutation({
@@ -33,6 +35,7 @@ export default function Home() {
       setReportData(data.reportData);
       setLeagueName(data.leagueName);
       setLeagueLogo(data.leagueLogo);
+      setLeagueFormat(data.leagueFormat);
       setIsLoading(false);
       toast.success('Report generated successfully!');
     },
@@ -152,10 +155,17 @@ export default function Home() {
                   <img
                     src={leagueLogo}
                     alt={leagueName}
-                    className="h-7 w-7 flex-shrink-0 rounded-full border border-orange-400/30 object-cover md:h-8 md:w-8"
+                    className="h-10 w-10 flex-shrink-0 rounded-full border border-orange-400/30 object-cover shadow-lg shadow-black/25 md:h-12 md:w-12"
                   />
                 )}
-                <p className="min-w-0 truncate text-right text-sm font-semibold text-orange-400/70 sm:text-lg md:text-xl">{leagueName}</p>
+                <div className="min-w-0 text-right">
+                  <p className="truncate text-sm font-semibold text-orange-400/70 sm:text-lg md:text-xl">{leagueName}</p>
+                  {leagueFormat && (
+                    <p className="truncate text-[11px] font-medium text-slate-400 sm:text-xs">
+                      {leagueFormat}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -209,11 +219,33 @@ export default function Home() {
               <div className="space-y-8">
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 15 Weekly Risers</h3>
-                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} />
+                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </div>
                 <div>
                   <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Top 15 Weekly Fallers</h3>
-                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} />
+                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
+                </div>
+                <div>
+                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Trending Adds</h3>
+                  <TrendingPlayersTable
+                    data={reportData.trendingAdds || []}
+                    title="Trending Adds"
+                    countLabel="Adds"
+                    managerAvatars={reportData.managerAvatars}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </div>
+                <div>
+                  <h3 className="text-center text-2xl font-bold text-orange-400 mb-6">Trending Drops</h3>
+                  <TrendingPlayersTable
+                    data={reportData.trendingDrops || []}
+                    title="Trending Drops"
+                    countLabel="Drops"
+                    managerAvatars={reportData.managerAvatars}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
                 </div>
               </div>
             </TabsContent>
@@ -230,14 +262,14 @@ export default function Home() {
                     <h3 className="text-center text-2xl font-bold text-emerald-400 mb-6">Top Weekly Risers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to make your league mates look stupid next year.</p>
                   </div>
-                   <ProjectedMoversTable data={reportData.projectedRisers} title="Top Weekly Risers" managerAvatars={reportData.managerAvatars} />
+                   <ProjectedMoversTable data={reportData.projectedRisers} title="Top Weekly Risers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </div>
                 <div>
                   <div className="space-y-2 mb-4">
                     <h3 className="text-center text-2xl font-bold text-red-400 mb-6">Top Weekly Fallers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to tank your roster value.</p>
                   </div>
-                   <ProjectedMoversTable data={reportData.projectedFallers} title="Top Weekly Fallers" managerAvatars={reportData.managerAvatars} />
+                   <ProjectedMoversTable data={reportData.projectedFallers} title="Top Weekly Fallers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </div>
               </div>
             </TabsContent>
@@ -254,6 +286,10 @@ export default function Home() {
                     data={reportData.tradeHistory}
                     draftPicks={reportData.draftPicks || []}
                     managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
+                    currentPositionRankById={reportData.currentPositionRankById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
                   />
                 </div>
               </div>
@@ -266,6 +302,8 @@ export default function Home() {
                 draftPicks={reportData.draftPicks || []}
                 draftStats={reportData.draftStats || []}
                 managerAvatars={reportData.managerAvatars}
+                leagueId={leagueId}
+                leagueLogo={leagueLogo}
               />
             </TabsContent>
           </Tabs>
@@ -280,6 +318,7 @@ export default function Home() {
                   setReportData(null);
                   setLeagueName('');
                   setLeagueLogo(null);
+                  setLeagueFormat('');
                   setActiveTab('overview');
                 }}
                 variant="outline"

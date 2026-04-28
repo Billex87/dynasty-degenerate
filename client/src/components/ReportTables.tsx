@@ -10,11 +10,54 @@ import {
 } from '@/components/ui/table';
 import React, { useState } from 'react';
 import { ChevronDown, TrendingDown, TrendingUp } from 'lucide-react';
-import type { DraftPick, ReportData } from '@shared/types';
+import type { DraftPick, ReportData, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
+import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 
 type ManagerAvatars = ReportData['managerAvatars'];
+type PlayerDetailsById = ReportData['playerDetailsById'];
+type CurrentPositionRankById = ReportData['currentPositionRankById'];
+
+function buildPlayerModalData({
+  playerId,
+  playerName,
+  playerPos,
+  value,
+  valueGain,
+  playerDetailsById,
+  playerDetails,
+  manager,
+  managerAvatarUrl,
+  valueChangeNote,
+  currentPositionRank,
+}: {
+  playerId?: string;
+  playerName: string;
+  playerPos?: string;
+  value?: number | null;
+  valueGain?: number | null;
+  playerDetailsById?: PlayerDetailsById;
+  playerDetails?: PlayerModalData['playerDetails'];
+  manager?: string | null;
+  managerAvatarUrl?: string | null;
+  valueChangeNote?: string;
+  currentPositionRank?: string | null;
+}): PlayerModalData {
+  const details = playerDetails || (playerId ? playerDetailsById?.[playerId] : undefined);
+  return {
+    player_id: playerId,
+    playerName,
+    playerPos: playerPos || details?.position,
+    manager: manager || undefined,
+    managerAvatarUrl,
+    currentPositionRank,
+    currentKtcValue: value ?? undefined,
+    valueGain: valueGain ?? undefined,
+    playerDetails: details,
+    valueChangeNote,
+  };
+}
 
 function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
   return (
@@ -28,17 +71,19 @@ function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
 function parseTradePlayerItem(trimmed: string) {
   if (!trimmed.startsWith('PLAYER:')) return null;
   const payload = trimmed.replace('PLAYER:', '');
-  const separatorIndex = payload.indexOf('|');
-  if (separatorIndex === -1) return null;
-  const rest = payload.slice(separatorIndex + 1);
-  const lastSeparatorIndex = rest.lastIndexOf('|');
-  const rawValue = lastSeparatorIndex === -1 ? null : rest.slice(lastSeparatorIndex + 1);
-  const value = rawValue !== null && rawValue !== '' ? Number(rawValue) : null;
+  const parts = payload.split('|');
+  const [playerId, playerName, rawValue, rawTradeDateValue, tradeDate] = parts;
+  const value = rawValue !== undefined && rawValue !== '' ? Number(rawValue) : null;
+  const tradeDateValue = rawTradeDateValue !== undefined && rawTradeDateValue !== ''
+    ? Number(rawTradeDateValue)
+    : null;
 
   return {
-    playerId: payload.slice(0, separatorIndex),
-    playerName: lastSeparatorIndex === -1 ? rest : rest.slice(0, lastSeparatorIndex),
+    playerId,
+    playerName,
     value: Number.isFinite(value) ? value : null,
+    tradeDateValue: Number.isFinite(tradeDateValue) ? tradeDateValue : null,
+    tradeDate: tradeDate || null,
   };
 }
 
@@ -80,7 +125,25 @@ function findLandedPick(
   ) || null;
 }
 
-function renderTradeItem(item: string, key: number, draftPicks: DraftPick[] = []) {
+function renderTradeItem(
+  item: string,
+  key: number,
+  {
+    draftPicks = [],
+    playerDetailsById,
+    currentPositionRankById,
+    onPlayerClick,
+    manager,
+    managerAvatarUrl,
+  }: {
+    draftPicks?: DraftPick[];
+    playerDetailsById?: PlayerDetailsById;
+    currentPositionRankById?: CurrentPositionRankById;
+    onPlayerClick?: (player: PlayerModalData) => void;
+    manager?: string;
+    managerAvatarUrl?: string | null;
+  } = {}
+) {
   const trimmed = item.trim();
   if (!trimmed) return null;
 
@@ -98,8 +161,12 @@ function renderTradeItem(item: string, key: number, draftPicks: DraftPick[] = []
 
   const playerItem = parseTradePlayerItem(trimmed);
   if (playerItem) {
-    return (
-      <div key={key} className="flex items-center gap-2">
+    const details = playerDetailsById?.[playerItem.playerId];
+    const valueGain = playerItem.value !== null && playerItem.tradeDateValue !== null
+      ? playerItem.value - playerItem.tradeDateValue
+      : undefined;
+    const content = (
+      <>
         <PlayerNameWithHeadshot
           playerId={playerItem.playerId}
           playerName={playerItem.playerName}
@@ -108,6 +175,37 @@ function renderTradeItem(item: string, key: number, draftPicks: DraftPick[] = []
           <span className="text-xs text-slate-500">
             ({playerItem.value.toLocaleString()})
           </span>
+        )}
+      </>
+    );
+
+    return (
+      <div key={key} className="flex items-center gap-2">
+        {onPlayerClick ? (
+          <button
+            type="button"
+            className="flex min-w-0 items-center gap-2 text-left hover:text-orange-300"
+            onClick={(event) => {
+              event.stopPropagation();
+              onPlayerClick(buildPlayerModalData({
+                playerId: playerItem.playerId,
+                playerName: playerItem.playerName,
+                value: playerItem.value,
+                valueGain,
+                valueChangeNote: playerItem.tradeDate
+                  ? `Change from this trade on ${playerItem.tradeDate} to today.`
+                  : undefined,
+                playerDetails: details,
+                manager,
+                managerAvatarUrl,
+                currentPositionRank: currentPositionRankById?.[playerItem.playerId],
+              }));
+            }}
+          >
+            {content}
+          </button>
+        ) : (
+          content
         )}
       </div>
     );
@@ -134,10 +232,32 @@ function renderTradeItem(item: string, key: number, draftPicks: DraftPick[] = []
         {landedPick && (
           <div className="ml-12 flex items-center gap-2 text-xs text-slate-400">
             <span>Landed:</span>
-            <PlayerNameWithHeadshot
-              playerId={landedPick.player_id}
-              playerName={landedPick.playerName}
-            />
+            {onPlayerClick ? (
+              <button
+                type="button"
+                className="min-w-0 hover:text-orange-300"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPlayerClick({
+                    ...landedPick,
+                    manager: landedPick.manager || manager,
+                    managerAvatarUrl,
+                    currentPositionRank: landedPick.currentPositionRank || (landedPick.player_id ? currentPositionRankById?.[landedPick.player_id] : null),
+                    playerDetails: landedPick.playerDetails || (landedPick.player_id ? playerDetailsById?.[landedPick.player_id] : undefined),
+                  });
+                }}
+              >
+                <PlayerNameWithHeadshot
+                  playerId={landedPick.player_id}
+                  playerName={landedPick.playerName}
+                />
+              </button>
+            ) : (
+              <PlayerNameWithHeadshot
+                playerId={landedPick.player_id}
+                playerName={landedPick.playerName}
+              />
+            )}
             {landedValue !== null && (
               <span className="text-slate-500">
                 {landedValue.toLocaleString()}
@@ -217,11 +337,17 @@ export function WeeklyMomentumTable({
   data,
   title,
   managerAvatars,
+  leagueId,
+  leagueLogo,
 }: {
   data: ReportData['weeklyRisers'];
   title: string;
   managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
 }) {
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+
   return (
     <div className="flex justify-center">
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
@@ -229,7 +355,6 @@ export function WeeklyMomentumTable({
         <Table>
           <TableHeader className="border-b-2 border-orange-500/30">
             <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Rank</TableHead>
               <TableHead className="text-white font-semibold">Player</TableHead>
               <TableHead className="text-white font-semibold">Position</TableHead>
               <TableHead className="text-white font-semibold">Manager</TableHead>
@@ -240,9 +365,23 @@ export function WeeklyMomentumTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((row, idx) => (
-              <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="font-semibold text-slate-300">#{idx + 1}</TableCell>
+            {data.map((row) => (
+              <TableRow
+                key={`${row.player_id || row.name}-${row.owner}`}
+                className="cursor-pointer border-slate-700 hover:bg-slate-800/30"
+                onClick={() => setSelectedPlayer(buildPlayerModalData({
+                  playerId: row.player_id,
+                  playerName: row.name,
+                  playerPos: row.pos,
+                  value: row.val_now,
+                  valueGain: row.diff,
+                  playerDetails: row.playerDetails,
+                  manager: row.owner,
+                  managerAvatarUrl: managerAvatars?.[row.owner],
+                  currentPositionRank: row.currentPositionRank,
+                  valueChangeNote: 'Change from last week to this week.',
+                }))}
+              >
                 <TableCell className="font-semibold text-slate-100">
                   <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                 </TableCell>
@@ -278,6 +417,14 @@ export function WeeklyMomentumTable({
         </Table>
       </div>
     </Card>
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
     </div>
   );
 }
@@ -331,15 +478,102 @@ export function LeagueOverviewTable({
   );
 }
 
+export function TrendingPlayersTable({
+  data,
+  title,
+  countLabel,
+  managerAvatars,
+  leagueId,
+  leagueLogo,
+}: {
+  data: TrendingPlayer[];
+  title: string;
+  countLabel: 'Adds' | 'Drops';
+  managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
+}) {
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+
+  return (
+    <div className="flex justify-center">
+      <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="border-b-2 border-orange-500/30">
+              <TableRow className="border-slate-700">
+                <TableHead className="text-white font-semibold">Player</TableHead>
+                <TableHead className="text-white font-semibold">Position</TableHead>
+                <TableHead className="text-white font-semibold">Team</TableHead>
+                <TableHead className="text-white font-semibold">Manager</TableHead>
+                <TableHead className="text-right text-white font-semibold">{countLabel}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row) => (
+                <TableRow
+                  key={row.player_id}
+                  className="cursor-pointer border-slate-700 hover:bg-slate-800/30"
+                  onClick={() => setSelectedPlayer(buildPlayerModalData({
+                    playerId: row.player_id,
+                    playerName: row.name,
+                    playerPos: row.pos,
+                    value: row.ktcValue,
+                    playerDetails: row.playerDetails,
+                    currentPositionRank: row.currentPositionRank,
+                    manager: row.owner || null,
+                    managerAvatarUrl: row.owner ? managerAvatars?.[row.owner] : null,
+                  }))}
+                >
+                  <TableCell className="font-semibold text-slate-100">
+                    <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
+                  </TableCell>
+                  <TableCell className="text-slate-400">{row.pos}</TableCell>
+                  <TableCell className="text-slate-400">{row.team || 'FA'}</TableCell>
+                  <TableCell className="text-slate-400">
+                    {row.owner ? renderManagerName(row.owner, managerAvatars) : 'Available'}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-slate-300">{row.count.toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+              {data.length === 0 && (
+                <TableRow className="border-slate-700">
+                  <TableCell colSpan={5} className="py-6 text-center text-slate-500">
+                    No {title.toLowerCase()} available
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
+    </div>
+  );
+}
+
 export function ProjectedMoversTable({
   data,
   title,
   managerAvatars,
+  leagueId,
+  leagueLogo,
 }: {
   data: ReportData['projectedRisers'];
   title: string;
   managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
 }) {
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+
   return (
     <div className="flex justify-center">
       <Card className="bg-slate-900 border-slate-800 overflow-hidden">
@@ -359,7 +593,22 @@ export function ProjectedMoversTable({
           </TableHeader>
           <TableBody>
             {data.map((row, idx) => (
-              <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
+              <TableRow
+                key={idx}
+                className="cursor-pointer border-slate-700 hover:bg-slate-800/30"
+                onClick={() => setSelectedPlayer(buildPlayerModalData({
+                  playerId: row.player_id,
+                  playerName: row.name,
+                  playerPos: row.pos,
+                  value: row.val_2026,
+                  valueGain: row.diff,
+                  playerDetails: row.playerDetails,
+                  manager: row.owner,
+                  managerAvatarUrl: managerAvatars?.[row.owner],
+                  currentPositionRank: row.currentPositionRank,
+                  valueChangeNote: 'Projected change from current value to next year’s value.',
+                }))}
+              >
                 <TableCell className="font-semibold text-slate-300">#{idx + 1}</TableCell>
                 <TableCell className="font-semibold text-slate-100">
                   <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
@@ -391,6 +640,14 @@ export function ProjectedMoversTable({
         </Table>
       </div>
     </Card>
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
     </div>
   );
 }
@@ -445,12 +702,21 @@ export function TradeHistoryTable({
   data,
   draftPicks = [],
   managerAvatars,
+  playerDetailsById,
+  currentPositionRankById,
+  leagueId,
+  leagueLogo,
 }: {
   data: ReportData['tradeHistory'];
   draftPicks?: DraftPick[];
   managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
+  currentPositionRankById?: CurrentPositionRankById;
+  leagueId?: string;
+  leagueLogo?: string | null;
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
 
   return (
     <div className="flex justify-center">
@@ -526,7 +792,14 @@ export function TradeHistoryTable({
                               <div className="text-slate-300 text-sm space-y-1">
                                 {leftSide.items
                                   .split(',')
-                                  .map((item, i) => renderTradeItem(item, i, draftPicks))}
+                                  .map((item, i) => renderTradeItem(item, i, {
+                                    draftPicks,
+                                    playerDetailsById,
+                                    currentPositionRankById,
+                                    onPlayerClick: setSelectedPlayer,
+                                    manager: leftSide.manager,
+                                    managerAvatarUrl: managerAvatars?.[leftSide.manager],
+                                  }))}
                               </div>
                               <p className="text-blue-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {leftSide.total.toLocaleString()}
@@ -543,7 +816,14 @@ export function TradeHistoryTable({
                               <div className="text-slate-300 text-sm space-y-1">
                                 {rightSide.items
                                   .split(',')
-                                  .map((item, i) => renderTradeItem(item, i, draftPicks))}
+                                  .map((item, i) => renderTradeItem(item, i, {
+                                    draftPicks,
+                                    playerDetailsById,
+                                    currentPositionRankById,
+                                    onPlayerClick: setSelectedPlayer,
+                                    manager: rightSide.manager,
+                                    managerAvatarUrl: managerAvatars?.[rightSide.manager],
+                                  }))}
                               </div>
                               <p className="text-orange-400 font-semibold text-sm border-t border-slate-700 pt-2">
                                 Total: {rightSide.total.toLocaleString()}
@@ -561,6 +841,14 @@ export function TradeHistoryTable({
         </Table>
       </div>
     </Card>
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
     </div>
   );
 }
@@ -724,11 +1012,14 @@ export function ManagerPositionCountsTable({
           <Table>
             <TableHeader className="border-b-2 border-orange-500/30">
               <TableRow className="border-slate-700">
-                <TableHead className="text-white font-semibold">Manager</TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs"><div>QB</div><div>S</div></TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs"><div>RB</div><div>S</div></TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs"><div>WR</div><div>S</div></TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs"><div>TE</div><div>S</div></TableHead>
+                <TableHead className="text-white font-semibold">
+                  <div>Manager</div>
+                  <div className="text-xs font-semibold text-blue-400">Starters</div>
+                </TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs">QB</TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs">RB</TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs">WR</TableHead>
+                <TableHead className="text-center text-white font-semibold text-xs">TE</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

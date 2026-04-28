@@ -262,4 +262,56 @@ describe('generateReport trade ledger', () => {
     expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 1st (1.08)|3928');
     expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|2865');
   });
+
+  it('scales starter counts by league size and KTC positional rank', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterMap: {
+          1: 'Manager A',
+          2: 'Manager B',
+        },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['qbTop', 'rbTop', 'wrTop', 'teTop'] },
+          { roster_id: 2, owner_id: 'u2', players: ['qbLow', 'rbLow', 'wrLow', 'teLow'] },
+        ],
+      },
+      null,
+      {
+        qbTop: { first_name: 'Top', last_name: 'QB', position: 'QB', age: 25 },
+        rbTop: { first_name: 'Top', last_name: 'RB', position: 'RB', age: 25 },
+        wrTop: { first_name: 'Top', last_name: 'WR', position: 'WR', age: 25 },
+        teTop: { first_name: 'Top', last_name: 'TE', position: 'TE', age: 25 },
+        qbLow: { first_name: 'Low', last_name: 'QB', position: 'QB', age: 25 },
+        rbLow: { first_name: 'Low', last_name: 'RB', position: 'RB', age: 25 },
+        wrLow: { first_name: 'Low', last_name: 'WR', position: 'WR', age: 25 },
+        teLow: { first_name: 'Low', last_name: 'TE', position: 'TE', age: 25 },
+      },
+      {
+        topqb: { name: 'Top QB', ktc_value: 5000, position_rank: 'QB4' },
+        toprb: { name: 'Top RB', ktc_value: 5000, position_rank: 'RB6' },
+        topwr: { name: 'Top WR', ktc_value: 5000, position_rank: 'WR8' },
+        topte: { name: 'Top TE', ktc_value: 5000, position_rank: 'TE3' },
+        lowqb: { name: 'Low QB', ktc_value: 5000, position_rank: 'QB5' },
+        lowrb: { name: 'Low RB', ktc_value: 5000, position_rank: 'RB7' },
+        lowwr: { name: 'Low WR', ktc_value: 5000, position_rank: 'WR9' },
+        lowte: { name: 'Low TE', ktc_value: 5000, position_rank: 'TE4' },
+      },
+      {}
+    );
+
+    expect(report.managerPositionCounts[0]).toMatchObject({
+      QB_starters: 1,
+      RB_starters: 1,
+      WR_starters: 1,
+      TE_starters: 1,
+    });
+    expect(report.managerPositionCounts[1]).toMatchObject({
+      QB_starters: 0,
+      RB_starters: 0,
+      WR_starters: 0,
+      TE_starters: 0,
+    });
+  });
 });

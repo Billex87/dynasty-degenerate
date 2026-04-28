@@ -1,24 +1,75 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { DraftPick } from '@shared/types';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import type { DraftPick, PlayerDetails } from '@shared/types';
+import { ExternalLink, TrendingUp, TrendingDown } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
+
+const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
+  ARI: { primary: '#97233F', secondary: '#000000', accent: '#FFB612' },
+  ATL: { primary: '#A71930', secondary: '#000000', accent: '#A5ACAF' },
+  BAL: { primary: '#241773', secondary: '#000000', accent: '#9E7C0C' },
+  BUF: { primary: '#00338D', secondary: '#C60C30', accent: '#FFFFFF' },
+  CAR: { primary: '#0085CA', secondary: '#101820', accent: '#BFC0BF' },
+  CHI: { primary: '#0B162A', secondary: '#C83803', accent: '#FFFFFF' },
+  CIN: { primary: '#FB4F14', secondary: '#000000', accent: '#FFFFFF' },
+  CLE: { primary: '#311D00', secondary: '#FF3C00', accent: '#FFFFFF' },
+  DAL: { primary: '#003594', secondary: '#041E42', accent: '#869397' },
+  DEN: { primary: '#FB4F14', secondary: '#002244', accent: '#FFFFFF' },
+  DET: { primary: '#0076B6', secondary: '#B0B7BC', accent: '#000000' },
+  GB: { primary: '#203731', secondary: '#FFB612', accent: '#FFFFFF' },
+  HOU: { primary: '#03202F', secondary: '#A71930', accent: '#FFFFFF' },
+  IND: { primary: '#002C5F', secondary: '#A2AAAD', accent: '#FFFFFF' },
+  JAX: { primary: '#006778', secondary: '#101820', accent: '#D7A22A' },
+  KC: { primary: '#E31837', secondary: '#FFB81C', accent: '#FFFFFF' },
+  LAC: { primary: '#0080C6', secondary: '#FFC20E', accent: '#FFFFFF' },
+  LAR: { primary: '#003594', secondary: '#FFA300', accent: '#FFFFFF' },
+  LV: { primary: '#000000', secondary: '#A5ACAF', accent: '#FFFFFF' },
+  MIA: { primary: '#008E97', secondary: '#FC4C02', accent: '#005778' },
+  MIN: { primary: '#4F2683', secondary: '#FFC62F', accent: '#FFFFFF' },
+  NE: { primary: '#002244', secondary: '#C60C30', accent: '#B0B7BC' },
+  NO: { primary: '#101820', secondary: '#D3BC8D', accent: '#FFFFFF' },
+  NYG: { primary: '#0B2265', secondary: '#A71930', accent: '#A5ACAF' },
+  NYJ: { primary: '#125740', secondary: '#000000', accent: '#FFFFFF' },
+  PHI: { primary: '#004C54', secondary: '#A5ACAF', accent: '#FFFFFF' },
+  PIT: { primary: '#FFB612', secondary: '#101820', accent: '#C60C30' },
+  SEA: { primary: '#002244', secondary: '#69BE28', accent: '#A5ACAF' },
+  SF: { primary: '#AA0000', secondary: '#B3995D', accent: '#FFFFFF' },
+  TB: { primary: '#D50A0A', secondary: '#34302B', accent: '#FF7900' },
+  TEN: { primary: '#0C2340', secondary: '#4B92DB', accent: '#C8102E' },
+  WAS: { primary: '#5A1414', secondary: '#FFB612', accent: '#FFFFFF' },
+};
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  pick: DraftPick | null;
+  pick: PlayerModalData | null;
+  leagueId?: string;
+  leagueLogo?: string | null;
+  managerAvatars?: Record<string, string | null>;
 }
+
+export type PlayerModalData = Partial<DraftPick> & {
+  playerName: string;
+  playerPos?: string;
+  player_id?: string;
+  playerDetails?: PlayerDetails;
+  valueChangeNote?: string;
+  managerAvatarUrl?: string | null;
+};
 
 export function PlayerDetailModal({
   isOpen,
   onClose,
   pick,
+  leagueId,
+  leagueLogo,
+  managerAvatars,
 }: PlayerDetailModalProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
@@ -27,138 +78,440 @@ export function PlayerDetailModal({
   );
 
   useEffect(() => {
+    setHeadshot(null);
+  }, [pick?.player_id]);
+
+  useEffect(() => {
     if (headshotData?.success && headshotData?.data) {
       setHeadshot(`data:${headshotData.contentType};base64,${headshotData.data}`);
     }
   }, [headshotData]);
 
   if (!pick) return null;
+  const details = pick.playerDetails;
+  const sleeperPlayerUrl = pick.player_id
+    ? leagueId
+      ? `https://sleeper.com/leagues/${leagueId}/players/${pick.player_id}`
+      : `https://sleeper.app/players/nfl/${pick.player_id}`
+    : null;
+  const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
+  const currentValue = pick.currentKtcValue;
+  const draftValue = pick.ktcValue;
+  const valueGain = pick.valueGain;
+  const currentRank = pick.currentPositionRank || '-';
+  const position = pick.playerPos || details?.position || '-';
+  const team = details?.team || 'FA';
+  const jerseyNumber = details?.jerseyNumber;
+  const teamColors = NFL_TEAM_COLORS[team] || null;
+  const modalBackground = teamColors
+    ? `radial-gradient(circle at 15% 6%, ${teamColors.primary}44, transparent 28%), radial-gradient(circle at 95% 0%, ${teamColors.secondary}66, transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, ${teamColors.primary}18 100%)`
+    : undefined;
+  const heroBackground = teamColors
+    ? `radial-gradient(circle at 18% 18%, ${teamColors.primary}88, transparent 34%), radial-gradient(circle at 88% 8%, ${teamColors.secondary}99, transparent 30%), linear-gradient(135deg, ${teamColors.primary} 0%, #070b13 48%, ${teamColors.secondary} 100%)`
+    : undefined;
+  const managerAvatarUrl = pick.managerAvatarUrl || (pick.manager ? managerAvatars?.[pick.manager] : null);
+  const playerNameSizeClass = getPlayerNameSizeClass(pick.playerName);
+  const physicalRows = [
+    ['Age', details?.age],
+    ['Height', formatHeight(details?.height)],
+    ['Weight', details?.weight],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const experienceRows = [
+    ['Rookie Year', details?.rookieYear],
+    ['Depth Chart', formatDepthChart(details?.depthChartPosition, details?.depthChartOrder)],
+    ['Years Exp', details?.yearsExp],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const backgroundRows = [
+    ['College', details?.college],
+    ['Birthday', formatBirthday(details?.birthDate)],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const healthRows = [
+    ['Injury Status', details?.injuryStatus],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-slate-900 border-slate-800">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-orange-400">
-            {pick.playerName}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent
+        className="max-h-[88vh] max-w-2xl overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60"
+        style={{ background: modalBackground }}
+      >
+        <div className="max-h-[88vh] overflow-y-auto">
+          <div
+            className="relative overflow-hidden border-b border-cyan-400/20 px-6 pb-7 pt-6"
+            style={{
+              background: heroBackground,
+            }}
+          >
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.2)_0%,rgba(0,0,0,0.62)_58%,rgba(0,0,0,0.35)_100%)]" />
+            <div
+              className="absolute right-8 top-8 h-24 w-24 rounded-full blur-2xl"
+              style={{ backgroundColor: teamColors ? `${teamColors.accent}33` : 'rgba(249,115,22,0.12)' }}
+            />
+            <div
+              className="absolute bottom-0 left-0 h-px w-full"
+              style={{
+                background: teamColors
+                  ? `linear-gradient(90deg, ${teamColors.accent}, ${teamColors.primary}, transparent)`
+                  : undefined,
+              }}
+            />
 
-        <div className="space-y-4">
-          {/* Headshot */}
-          {headshot && (
-            <div className="flex justify-center mb-4">
-              <img
-                src={headshot}
-                alt={pick.playerName}
-                className="w-24 h-24 rounded-lg object-cover border-2 border-orange-400/30"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
+            <DialogHeader className="relative pr-10">
+              {pick.manager && leagueLogo && (
+                <img
+                  src={leagueLogo}
+                  alt="League logo"
+                  className="absolute left-0 top-0 h-12 w-12 rounded-full border border-white/25 object-cover shadow-lg shadow-black/30"
+                />
+              )}
+              <div className="mb-4 flex justify-center">
+                {pick.manager ? (
+                  <div className="inline-flex w-fit items-center gap-4 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-xs font-bold text-cyan-200 shadow-lg shadow-black/20">
+                    <span className="whitespace-nowrap text-cyan-300">Rostered By:</span>
+                    <ManagerNameWithAvatar
+                      avatarUrl={managerAvatarUrl}
+                      managerName={pick.manager}
+                    />
+                  </div>
+                ) : (
+                  <div className="inline-flex w-fit items-center rounded-full border border-emerald-300/35 bg-emerald-400/15 px-4 py-2 text-xs font-black tracking-[0.12em] text-emerald-300 shadow-lg shadow-black/20">
+                    AVAILABLE
+                  </div>
+                )}
+              </div>
+              <DialogTitle className="sr-only">
+                {pick.playerName}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="relative mt-7 flex justify-center">
+              <div className="grid w-full max-w-xl grid-cols-1 items-center gap-5 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-7">
+                <div className="relative mx-auto h-28 w-28 overflow-hidden rounded-2xl border border-cyan-300/35 bg-slate-950 shadow-xl shadow-black/40 sm:mx-0">
+                  {headshot ? (
+                    <img
+                      src={headshot}
+                      alt={pick.playerName}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-3xl font-black text-slate-600">
+                      {pick.playerName.slice(0, 1)}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 space-y-3 text-center">
+                  <div className={`athletic-headline break-words font-black leading-none tracking-normal text-orange-400 ${playerNameSizeClass}`}>
+                    {pick.playerName}
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {jerseyNumber !== null && jerseyNumber !== undefined && jerseyNumber !== '' && (
+                      <span
+                        className="rounded-full border px-3 py-1 text-xs font-bold"
+                        style={{
+                          borderColor: teamColors ? `${teamColors.accent}66` : undefined,
+                          backgroundColor: teamColors ? `${teamColors.secondary}55` : undefined,
+                          color: '#fff',
+                        }}
+                      >
+                        #{jerseyNumber}
+                      </span>
+                    )}
+                    <span
+                      className="rounded-full border px-3 py-1 text-xs font-bold"
+                      style={{
+                        borderColor: teamColors ? `${teamColors.accent}66` : undefined,
+                        backgroundColor: teamColors ? `${teamColors.accent}20` : undefined,
+                        color: teamColors?.accent || undefined,
+                      }}
+                    >
+                      {position}
+                    </span>
+                    <span
+                      className="rounded-full border px-3 py-1 text-xs font-bold shadow-sm shadow-black/25"
+                      style={{
+                        borderColor: teamColors ? `${teamColors.accent}77` : 'rgba(251,146,60,0.4)',
+                        backgroundColor: teamColors ? `${teamColors.primary}66` : 'rgba(251,146,60,0.14)',
+                        color: '#fff',
+                      }}
+                    >
+                      {team}
+                    </span>
+                    {details?.status && (
+                      <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
+                        {details.status}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-
-          {/* Position */}
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">Position</span>
-            <span className="font-semibold text-slate-100">{pick.playerPos}</span>
           </div>
 
-          {/* Draft Info */}
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">Round</span>
-            <span className="font-semibold text-slate-100">{pick.round}</span>
-          </div>
+          <div className="space-y-5 bg-slate-950/35 p-6 backdrop-blur-sm">
+            <div className="mx-auto grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-3">
+              {currentValue !== undefined && (
+                <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} />
+              )}
+              <MetricTile label="Position Ranking" value={currentRank} teamColors={teamColors} />
+              {valueGain !== undefined && (
+                <MetricTile
+                  label="Value Change"
+                  value={valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'}
+                  tone={valueGain !== null && valueGain > 0 ? 'positive' : valueGain !== null && valueGain < 0 ? 'negative' : 'neutral'}
+                  icon={
+                    valueGain !== null && valueGain > 0 ? <TrendingUp className="h-4 w-4" /> : valueGain !== null && valueGain < 0 ? <TrendingDown className="h-4 w-4" /> : null
+                  }
+                  teamColors={teamColors}
+                />
+              )}
+            </div>
 
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">Pick #</span>
-            <span className="font-semibold text-slate-100">{pick.pick}</span>
-          </div>
-
-          {/* Manager */}
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">Manager</span>
-            <span className="font-semibold text-slate-100">{pick.manager}</span>
-          </div>
-
-          {/* Drafted Rank */}
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">Drafted Rank</span>
-            <span className="font-semibold text-slate-100">{pick.positionRankMay2025}</span>
-          </div>
-
-          {/* Current Rank */}
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">Current Rank</span>
-            <span className="font-semibold text-slate-100">{pick.currentPositionRank}</span>
-          </div>
-
-          {/* Position Change */}
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">Position Change</span>
-            {pick.positionRankChange ? (
-              <span
-                className={`font-semibold ${
-                  pick.positionRankChange.startsWith('+')
-                    ? 'text-green-400'
-                    : pick.positionRankChange.startsWith('-')
-                      ? 'text-red-400'
-                      : 'text-slate-300'
-                }`}
-              >
-                {pick.positionRankChange}
-                {pick.positionRankChange.startsWith('+') && (
-                  <TrendingUp className="inline ml-1 w-4 h-4" />
-                )}
-                {pick.positionRankChange.startsWith('-') && (
-                  <TrendingDown className="inline ml-1 w-4 h-4" />
-                )}
-              </span>
-            ) : (
-              <span className="text-slate-400">-</span>
+            {valueGain !== undefined && (
+              <p className="text-center text-xs leading-relaxed text-slate-500">
+                <span className="font-semibold text-cyan-300">Value Change:</span> {valueChangeNote}
+              </p>
             )}
-          </div>
 
-          {/* Draft Value */}
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">Draft Value</span>
-            <span className="font-semibold text-slate-100">
-              {pick.ktcValue ? pick.ktcValue.toLocaleString() : '-'}
-            </span>
-          </div>
+            <div className="mx-auto max-w-xl space-y-3">
+              {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025) && (
+                <div className="space-y-3">
+                  {(pick.round !== undefined || pick.pick !== undefined) && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {pick.round !== undefined && (
+                        <InlineInfoTile
+                          label="Round"
+                          value={String(pick.round)}
+                          teamColors={teamColors}
+                        />
+                      )}
+                      {pick.pick !== undefined && (
+                        <InlineInfoTile
+                          label="Pick #"
+                          value={String(pick.pick)}
+                          teamColors={teamColors}
+                        />
+                      )}
+                    </div>
+                  )}
+                  {(draftValue !== undefined || pick.positionRankMay2025) && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {draftValue !== undefined && (
+                        <InfoTile
+                          label="Draft Value"
+                          value={draftValue ? draftValue.toLocaleString() : '-'}
+                          teamColors={teamColors}
+                        />
+                      )}
+                      {pick.positionRankMay2025 && (
+                        <InfoTile
+                          label="Drafted Rank"
+                          value={pick.positionRankMay2025}
+                          teamColors={teamColors}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              {physicalRows.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {physicalRows.map(([label, value]) => (
+                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
+                  ))}
+                </div>
+              )}
+              {experienceRows.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {experienceRows.map(([label, value]) => (
+                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
+                  ))}
+                </div>
+              )}
+              {backgroundRows.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {backgroundRows.map(([label, value]) => (
+                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
+                  ))}
+                </div>
+              )}
+              {healthRows.map(([label, value]) => (
+                <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
+              ))}
+            </div>
 
-          {/* Current Value */}
-          <div className="flex justify-between items-center border-b border-slate-700 pb-3">
-            <span className="text-slate-400">Current Value</span>
-            <span className="font-semibold text-slate-100">
-              {pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : '-'}
-            </span>
-          </div>
-
-          {/* Value Change */}
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400">Value Change</span>
-            {pick.valueGain ? (
-              <span
-                className={`font-semibold ${
-                  pick.valueGain > 0
-                    ? 'text-green-400'
-                    : pick.valueGain < 0
-                      ? 'text-red-400'
-                      : 'text-slate-300'
-                }`}
+            {sleeperPlayerUrl && (
+              <a
+                href={sleeperPlayerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-bold transition"
+                style={{
+                  borderColor: teamColors ? `${teamColors.accent}88` : '#00ceb866',
+                  backgroundColor: teamColors ? `${teamColors.primary}55` : '#00ceb81a',
+                  color: teamColors?.accent || '#7fffee',
+                }}
               >
-                {pick.valueGain > 0 ? '+' : ''}
-                {pick.valueGain.toLocaleString()}
-                {pick.valueGain > 0 && <TrendingUp className="inline ml-1 w-4 h-4" />}
-                {pick.valueGain < 0 && <TrendingDown className="inline ml-1 w-4 h-4" />}
-              </span>
-            ) : (
-              <span className="text-slate-400">-</span>
+                Open in Sleeper
+                <ExternalLink className="h-4 w-4" />
+              </a>
             )}
           </div>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function formatHeight(height: PlayerDetails['height']) {
+  if (height === null || height === undefined || height === '') return height;
+
+  if (typeof height === 'number' || /^\d+$/.test(String(height))) {
+    const totalInches = Number(height);
+    if (Number.isFinite(totalInches) && totalInches > 0) {
+      const feet = Math.floor(totalInches / 12);
+      const inches = totalInches % 12;
+      return `${feet}'${inches}"`;
+    }
+  }
+
+  const raw = String(height);
+  const dashMatch = raw.match(/^(\d+)-(\d+)$/);
+  if (dashMatch) {
+    return `${dashMatch[1]}'${dashMatch[2]}"`;
+  }
+
+  return raw;
+}
+
+function getPlayerNameSizeClass(name: string) {
+  if (name.length > 24) return 'text-[1.25rem] sm:text-[1.65rem]';
+  if (name.length > 18) return 'text-[1.45rem] sm:text-[1.85rem]';
+  return 'text-[1.7rem] sm:text-[2.15rem]';
+}
+
+function formatBirthday(birthDate: PlayerDetails['birthDate']) {
+  if (!birthDate) return null;
+  const date = new Date(`${birthDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return birthDate;
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatDepthChart(position: string | null | undefined, order: number | null | undefined) {
+  if (!position) return null;
+  const normalizedPosition = ['SWR', 'LWR', 'RWR'].includes(position) ? 'WR' : position;
+  return [normalizedPosition, order ? `#${order}` : null].filter(Boolean).join(' ');
+}
+
+function getValueChangeNote(pick: PlayerModalData) {
+  if (pick.ktcValue !== undefined) {
+    return 'Change from draft value to current value.';
+  }
+
+  return 'Change from last week to this week.';
+}
+
+function MetricTile({
+  label,
+  value,
+  tone = 'neutral',
+  icon,
+  teamColors,
+}: {
+  label: string;
+  value: string;
+  tone?: 'positive' | 'negative' | 'neutral';
+  icon?: ReactNode;
+  teamColors?: { primary: string; secondary: string; accent: string } | null;
+}) {
+  const toneClass = tone === 'positive'
+    ? 'text-emerald-300'
+    : tone === 'negative'
+      ? 'text-rose-300'
+      : 'text-white';
+
+  return (
+    <div
+      className="rounded-xl border p-4 shadow-inner shadow-white/[0.02]"
+      style={{
+        borderColor: teamColors ? `${teamColors.accent}33` : undefined,
+        background: teamColors
+          ? `linear-gradient(135deg, ${teamColors.primary}2e, rgba(2,6,23,0.72) 58%, ${teamColors.secondary}33)`
+          : undefined,
+      }}
+    >
+      <div className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
+      <div className={`mt-2 flex items-center gap-2 text-2xl font-black ${toneClass}`}>
+        {value}
+        {icon}
+      </div>
+    </div>
+  );
+}
+
+function InfoTile({
+  label,
+  value,
+  tone = 'neutral',
+  teamColors,
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'positive' | 'negative' | 'neutral';
+  teamColors?: { primary: string; secondary: string; accent: string } | null;
+}) {
+  const toneClass = tone === 'positive'
+    ? 'text-emerald-300'
+    : tone === 'negative'
+      ? 'text-rose-300'
+      : 'text-slate-100';
+
+  return (
+    <div
+      className="rounded-lg border px-4 py-3"
+      style={{
+        borderColor: teamColors ? `${teamColors.accent}24` : undefined,
+        background: teamColors
+          ? `linear-gradient(135deg, ${teamColors.secondary}33, rgba(2,6,23,0.6) 68%, ${teamColors.primary}22)`
+          : undefined,
+      }}
+    >
+      <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: teamColors?.accent || undefined }}>{label}</div>
+      <div className={`mt-1 truncate text-base font-bold ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function InlineInfoTile({
+  label,
+  value,
+  teamColors,
+}: {
+  label: string;
+  value: string | number;
+  teamColors?: { primary: string; secondary: string; accent: string } | null;
+}) {
+  return (
+    <div
+      className="flex items-center justify-center gap-2 rounded-lg border px-4 py-3"
+      style={{
+        borderColor: teamColors ? `${teamColors.accent}24` : undefined,
+        background: teamColors
+          ? `linear-gradient(135deg, ${teamColors.secondary}33, rgba(2,6,23,0.6) 68%, ${teamColors.primary}22)`
+          : undefined,
+      }}
+    >
+      <span className="text-base font-black tracking-normal" style={{ color: teamColors?.accent || undefined }}>
+        {label}:
+      </span>
+      <span className="text-base font-black text-slate-100">{value}</span>
+    </div>
   );
 }

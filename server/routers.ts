@@ -11,6 +11,8 @@ import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 import { getMay2025KTCSnapshot } from "./waybackMachineScraper";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
+import { cleanName, getPlayerName, getPlayerValue } from "./leagueAnalysis";
+import type { PlayerDetails, TrendingPlayer } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -28,6 +30,144 @@ function buildManagerAvatarMap(users: any[]): Record<string, string | null> {
       getSleeperAvatarUrl(user.avatar),
     ])
   );
+}
+
+function buildPlayerOwnerMap(
+  rosters: Array<{ players?: string[]; roster_id: number }>,
+  rosterUserMap: Record<string, string>
+): Record<string, string> {
+  const ownerByPlayerId: Record<string, string> = {};
+
+  for (const roster of rosters) {
+    const manager = rosterUserMap[String(roster.roster_id)];
+    if (!manager) continue;
+
+    for (const playerId of roster.players || []) {
+      ownerByPlayerId[playerId] = manager;
+    }
+  }
+
+  return ownerByPlayerId;
+}
+
+function formatLeagueFormat(leagueInfo: any): string {
+  const totalTeams = leagueInfo.total_rosters ? `${leagueInfo.total_rosters}-Team` : null;
+  const type = 'Dynasty';
+  const positions = Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [];
+  const superflex = positions.includes('SUPER_FLEX') ? 'SF' : null;
+  const rec = Number(leagueInfo.scoring_settings?.rec ?? 0);
+  const ppr = rec === 1 ? 'PPR' : rec === 0.5 ? 'Half-PPR' : rec === 0 ? 'Standard' : `${rec} PPR`;
+
+  return [totalTeams, type, superflex, ppr].filter(Boolean).join(' ');
+}
+
+function getPlayerDetails(playerId: string, player: Record<string, any> | undefined): PlayerDetails | undefined {
+  if (!player) return undefined;
+
+  return {
+    playerId,
+    fullName: player.full_name || getPlayerName(playerId, { [playerId]: player }),
+    position: player.position,
+    team: player.team ?? null,
+    jerseyNumber: player.number ?? null,
+    age: player.age ?? null,
+    birthDate: player.birth_date ?? null,
+    height: player.height ?? null,
+    weight: player.weight ?? null,
+    college: player.college ?? null,
+    rookieYear: player.metadata?.rookie_year ?? null,
+    nflDraftRound: player.metadata?.draft_round ?? player.draft_round ?? null,
+    nflDraftPick: player.metadata?.draft_pick ?? player.metadata?.draft_slot ?? player.draft_pick ?? null,
+    nflDraftTeam: player.metadata?.draft_team ?? player.draft_team ?? null,
+    highSchool: player.high_school ?? null,
+    injuryStatus: player.injury_status ?? null,
+    depthChartPosition: player.depth_chart_position ?? null,
+    depthChartOrder: player.depth_chart_order ?? null,
+    yearsExp: player.years_exp ?? null,
+    status: player.status ?? null,
+    externalIds: {
+      fantasyData: player.fantasy_data_id,
+      sportradar: player.sportradar_id,
+      yahoo: player.yahoo_id,
+      gsis: player.gsis_id,
+      espn: player.espn_id,
+      stats: player.stats_id,
+    },
+  };
+}
+
+function buildPlayerDetailsMap(playerIds: Iterable<string>, players: Record<string, any>): Record<string, PlayerDetails> {
+  return Object.fromEntries(
+    Array.from(new Set(Array.from(playerIds).filter(Boolean)))
+      .map((playerId) => [playerId, getPlayerDetails(playerId, players[playerId])])
+      .filter((entry): entry is [string, PlayerDetails] => Boolean(entry[1]))
+  );
+}
+
+function getPlayerCurrentPositionRank(
+  playerId: string,
+  players: Record<string, any>,
+  ktcValues: KTCValues
+): string | null {
+  const player = players[playerId];
+  if (!player) return null;
+
+  const fullName = `${player.first_name || ''}${player.last_name || ''}`;
+  const key = cleanName(fullName);
+  let rank = ktcValues[key]?.position_rank;
+
+  if (!rank) {
+    for (const ktcKey in ktcValues) {
+      if (key.includes(ktcKey) || ktcKey.includes(key)) {
+        rank = ktcValues[ktcKey].position_rank;
+        break;
+      }
+    }
+  }
+
+  return rank || null;
+}
+
+function buildCurrentPositionRankMap(
+  playerIds: Iterable<string>,
+  players: Record<string, any>,
+  ktcValues: KTCValues
+): Record<string, string | null> {
+  return Object.fromEntries(
+    Array.from(new Set(Array.from(playerIds).filter(Boolean))).map((playerId) => [
+      playerId,
+      getPlayerCurrentPositionRank(playerId, players, ktcValues),
+    ])
+  );
+}
+
+async function fetchTrendingPlayers(
+  type: 'add' | 'drop',
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  ownerByPlayerId: Record<string, string>
+): Promise<TrendingPlayer[]> {
+  const trending = await fetch(
+    `https://api.sleeper.app/v1/players/nfl/trending/${type}?lookback_hours=168&limit=15`
+  ).then((r) => r.json());
+
+  if (!Array.isArray(trending)) return [];
+
+  return trending.map((item: any) => {
+    const playerId = String(item.player_id);
+    const player = players[playerId];
+    return {
+      player_id: playerId,
+      name: getPlayerName(playerId, players),
+      playerDetails: getPlayerDetails(playerId, player),
+      currentPositionRank: getPlayerCurrentPositionRank(playerId, players, ktcValues),
+      pos: player?.position || 'N/A',
+      team: player?.team || null,
+      owner: ownerByPlayerId[playerId] || null,
+      count: item.count || 0,
+      ktcValue: getPlayerValue(playerId, players, ktcValues) || null,
+    };
+  });
 }
 
 async function fetchDraftSlotsBySeason(
@@ -105,6 +245,7 @@ export const appRouter = router({
               normalizeManagerName(userMap[r.owner_id]?.display_name),
             ])
           );
+          const ownerByPlayerId = buildPlayerOwnerMap(rosters, rosterUserMap);
 
           const trades: any[] = [];
           for (let week = 1; week <= 18; week++) {
@@ -227,6 +368,8 @@ export const appRouter = router({
 
           // Fetch and analyze draft data
           let draftAnalysis: { draftPicks: any[]; draftStats: any[] } = { draftPicks: [], draftStats: [] };
+          let trendingAdds: TrendingPlayer[] = [];
+          let trendingDrops: TrendingPlayer[] = [];
           try {
             const draftPicks = await fetchDraftData(input.leagueId, {
               currentRosterMap: rosterUserMap,
@@ -261,13 +404,35 @@ export const appRouter = router({
             console.warn('Failed to fetch draft data:', e);
           }
 
+          try {
+            [trendingAdds, trendingDrops] = await Promise.all([
+              fetchTrendingPlayers('add', players, ktcValues, ownerByPlayerId),
+              fetchTrendingPlayers('drop', players, ktcValues, ownerByPlayerId),
+            ]);
+          } catch (e) {
+            console.warn('Failed to fetch trending players:', e);
+          }
+
+          const reportPlayerIds = [
+            ...rosters.flatMap((roster: any) => roster.players || []),
+            ...trades.flatMap((trade: any) => Object.keys(trade.adds || {})),
+            ...draftAnalysis.draftPicks.map((pick: any) => pick.player_id),
+            ...trendingAdds.map((player) => player.player_id),
+            ...trendingDrops.map((player) => player.player_id),
+          ];
+
           return {
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
             leagueLogo: getSleeperAvatarUrl(leagueInfo.avatar),
+            leagueFormat: formatLeagueFormat(leagueInfo),
             reportData: {
               ...reportData,
               managerAvatars: buildManagerAvatarMap(users),
+              playerDetailsById: buildPlayerDetailsMap(reportPlayerIds, players),
+              currentPositionRankById: buildCurrentPositionRankMap(reportPlayerIds, players, ktcValues),
+              trendingAdds,
+              trendingDrops,
               draftPicks: draftAnalysis.draftPicks,
               draftStats: draftAnalysis.draftStats,
             },

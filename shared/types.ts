@@ -1,6 +1,8 @@
 export interface PlayerInfo {
   name: string;
   player_id?: string;
+  playerDetails?: PlayerDetails;
+  currentPositionRank?: string | null;
   owner: string;
   pos: string;
   age: number | null;
@@ -12,6 +14,8 @@ export interface PlayerInfo {
 export interface WeeklyMomentum {
   name: string;
   player_id?: string;
+  playerDetails?: PlayerDetails;
+  currentPositionRank?: string | null;
   owner: string;
   pos: string;
   val_last: number;
@@ -66,6 +70,43 @@ export interface DraftPick {
   positionRankChange?: string | null;
   draftYear?: string;
   player_id?: string;
+  playerDetails?: PlayerDetails;
+}
+
+export interface PlayerDetails {
+  playerId?: string;
+  fullName?: string;
+  position?: string;
+  team?: string | null;
+  jerseyNumber?: string | number | null;
+  age?: number | null;
+  birthDate?: string | null;
+  height?: string | number | null;
+  weight?: string | number | null;
+  college?: string | null;
+  rookieYear?: string | number | null;
+  nflDraftRound?: string | number | null;
+  nflDraftPick?: string | number | null;
+  nflDraftTeam?: string | null;
+  highSchool?: string | null;
+  injuryStatus?: string | null;
+  depthChartPosition?: string | null;
+  depthChartOrder?: number | null;
+  yearsExp?: number | null;
+  status?: string | null;
+  externalIds?: Record<string, string | number | null | undefined>;
+}
+
+export interface TrendingPlayer {
+  player_id: string;
+  name: string;
+  playerDetails?: PlayerDetails;
+  currentPositionRank?: string | null;
+  pos: string;
+  team: string | null;
+  owner?: string | null;
+  count: number;
+  ktcValue: number | null;
 }
 
 export interface ManagerDraftStats {
@@ -82,6 +123,8 @@ export interface ManagerDraftStats {
 
 export interface ReportData {
   managerAvatars?: Record<string, string | null>;
+  playerDetailsById?: Record<string, PlayerDetails>;
+  currentPositionRankById?: Record<string, string | null>;
   managerRosterValueGrowth: Array<{
     manager: string;
     past_val: number;
@@ -91,6 +134,8 @@ export interface ReportData {
   }>;
   weeklyRisers: WeeklyMomentum[];
   weeklyFallers: WeeklyMomentum[];
+  trendingAdds?: TrendingPlayer[];
+  trendingDrops?: TrendingPlayer[];
   leagueOverview: Array<{
     manager: string;
     total_val: number;
