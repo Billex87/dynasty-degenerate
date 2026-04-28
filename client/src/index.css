@@ -767,6 +767,15 @@
       linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.82));
   }
 
+  .manager-draft-title-lockup {
+    display: inline-flex;
+    max-width: min(100%, 24rem);
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-inline: auto;
+  }
+
   .manager-hero-wash {
     position: absolute;
     inset: 0;
@@ -1845,6 +1854,63 @@
 
     .report-tab[data-state="active"] {
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+
+    .report-tab-content {
+      padding-top: 0.15rem;
+    }
+
+    .report-disclosure {
+      border-radius: 0.9rem;
+    }
+
+    .report-disclosure-summary {
+      max-width: 100%;
+      border-color: transparent;
+      padding: 0.2rem 2.35rem 0.05rem 0.65rem;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .report-disclosure-summary:hover {
+      background: transparent;
+      border-color: transparent;
+    }
+
+    .report-disclosure-summary .mb-4 {
+      margin-bottom: 0.65rem;
+    }
+
+    .report-disclosure-summary p {
+      font-size: 0.58rem;
+      letter-spacing: 0.22em;
+    }
+
+    .report-disclosure-summary h3 {
+      margin-top: 0.2rem;
+      font-size: clamp(1.65rem, 8.2vw, 2.2rem);
+      line-height: 1.06;
+      text-wrap: balance;
+    }
+
+    .report-disclosure-icon {
+      right: 0.75rem;
+      top: 48%;
+      height: 1.05rem;
+      width: 1.05rem;
+    }
+
+    .report-disclosure-body {
+      margin-top: 0;
+    }
+
+    .report-section .overflow-x-auto,
+    .report-shell [data-slot="table-container"] {
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow-x: hidden !important;
+      overscroll-behavior: auto;
+      touch-action: pan-y;
     }
 
     .report-shell [data-slot="table-head"] {

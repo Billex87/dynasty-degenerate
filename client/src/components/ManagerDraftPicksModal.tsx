@@ -103,8 +103,8 @@ export function ManagerDraftPicksModal({
               <div className="manager-hero-scrim" />
               <div className="absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-cyan-300 via-orange-400 to-transparent" />
 
-              <DialogHeader className="relative pr-10">
-                <div className="flex min-w-0 items-center gap-4">
+              <DialogHeader className="relative pr-10 text-center">
+                <div className="manager-draft-title-lockup">
                   <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl border border-cyan-300/35 bg-slate-950 shadow-xl shadow-black/40 sm:h-20 sm:w-20">
                     {managerAvatarUrl ? (
                       <img
@@ -118,7 +118,7 @@ export function ManagerDraftPicksModal({
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 text-center">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/90">
                       Draft Portfolio
                     </p>

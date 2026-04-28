@@ -127,10 +127,10 @@ export function PlayerDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-h-[88vh] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-w-2xl"
+        className="max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-h-[88vh] sm:max-w-2xl"
         style={{ background: modalBackground }}
       >
-        <div className="max-h-[88vh] overflow-y-auto">
+        <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto pb-[env(safe-area-inset-bottom)] sm:max-h-[88vh]">
           <div
             className="relative overflow-hidden border-b border-cyan-400/20 px-4 pb-5 pt-5 sm:px-6 sm:pb-7 sm:pt-6"
             style={{
@@ -321,16 +321,16 @@ export function PlayerDetailModal({
                   ))}
                 </div>
               )}
-              {experienceRows.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  {experienceRows.map(([label, value]) => (
+              {backgroundRows.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  {backgroundRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
                   ))}
                 </div>
               )}
-              {backgroundRows.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                  {backgroundRows.map(([label, value]) => (
+              {experienceRows.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {experienceRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} />
                   ))}
                 </div>
