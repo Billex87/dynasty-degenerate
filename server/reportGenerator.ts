@@ -338,7 +338,7 @@ function buildRosterIntelligenceSummary({
     ? `RB starts with ${rbs[0].name} (${getRankLabel(rbs[0])}) and ${rbs[1].name} (${getRankLabel(rbs[1])})`
     : rbs[0]
       ? `RB has ${rbs[0].name} (${getRankLabel(rbs[0])}) but no reliable RB2 by rank`
-      : 'RB room has no ranked starter';
+      : 'RB room has no starter';
   const wrSummary = wrs[2]
     ? `WR trio is ${wrs.slice(0, 3).map((player) => `${player.name} (${getRankLabel(player)})`).join(', ')}`
     : wrs.length > 0
@@ -815,6 +815,14 @@ export async function generateReport(
       currentPositionRank?: string | null;
       playerDetails?: PlayerDetails;
     }>;
+    lineupPlayers: Array<{
+      player_id: string;
+      name: string;
+      pos: string;
+      value: number;
+      currentPositionRank?: string | null;
+      playerDetails?: PlayerDetails;
+    }>;
   }> = [];
 
   for (const r of currentSeasonData.rosters) {
@@ -822,6 +830,14 @@ export async function generateReport(
     const pids = r.players || [];
     const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
     const posStarterCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
+    const lineupPlayers: Array<{
+      player_id: string;
+      name: string;
+      pos: string;
+      value: number;
+      currentPositionRank?: string | null;
+      playerDetails?: PlayerDetails;
+    }> = [];
     const starterPlayers: Array<{
       player_id: string;
       name: string;
@@ -837,15 +853,27 @@ export async function generateReport(
       if (pos in posCounts) {
         posCounts[pos]++;
         const positionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
+        const value = getPlayerValue(pid, allPlayers, ktcValues);
+        const playerDetails = getPlayerDetails(pid, allPlayers);
+        if (positionRank) {
+          lineupPlayers.push({
+            player_id: pid,
+            name: getPlayerName(pid, allPlayers),
+            pos,
+            value,
+            currentPositionRank: positionRank,
+            playerDetails,
+          });
+        }
         if (isStarterRank(pos, positionRank, starterThresholds)) {
           posStarterCounts[pos]++;
           starterPlayers.push({
             player_id: pid,
             name: getPlayerName(pid, allPlayers),
             pos,
-            value: getPlayerValue(pid, allPlayers, ktcValues),
+            value,
             currentPositionRank: positionRank,
-            playerDetails: getPlayerDetails(pid, allPlayers),
+            playerDetails,
           });
         }
       }
@@ -862,6 +890,7 @@ export async function generateReport(
       TE: posCounts.TE,
       TE_starters: posStarterCounts.TE,
       starterPlayers: starterPlayers.sort((a, b) => b.value - a.value),
+      lineupPlayers: lineupPlayers.sort((a, b) => b.value - a.value),
     });
   }
 

@@ -275,6 +275,7 @@ export interface ReportData {
     TE: number;
     TE_starters: number;
     starterPlayers?: ManagerStarterPlayer[];
+    lineupPlayers?: ManagerStarterPlayer[];
   }>;
   managerRosterIntelligence?: ManagerRosterIntelligence[];
   tradeTendencies?: TradeTendency[];

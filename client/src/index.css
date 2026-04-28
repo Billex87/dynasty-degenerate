@@ -1011,9 +1011,9 @@
 
   .manager-command-hero {
     position: relative;
-    display: flex;
+    display: grid;
     align-items: center;
-    justify-content: center;
+    justify-content: stretch;
     gap: 1rem;
     overflow: hidden;
     border-bottom: 1px solid rgba(34, 211, 238, 0.18);
@@ -1087,6 +1087,16 @@
     color: #fdba74;
     font-size: 0.72rem;
     font-weight: 900;
+  }
+
+  .manager-command-hero-metrics {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    width: min(100%, 38rem);
+    margin-inline: auto;
   }
 
   .manager-command-body {
@@ -1217,6 +1227,16 @@
     background:
       radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.08), transparent 34%),
       rgba(2, 6, 23, 0.44);
+  }
+
+  .manager-command-inline-read {
+    margin-top: 0.82rem;
+    border-top: 1px solid rgba(251, 146, 60, 0.16);
+    padding-top: 0.72rem;
+  }
+
+  .manager-command-inline-read p {
+    color: #dbeafe;
   }
 
   .manager-command-read p {

@@ -807,7 +807,8 @@ export function LeagueCommandCenter({
     }));
   };
   const selectedStarters = selectedCounts?.starterPlayers || [];
-  const pickLineupPlayers = (players: typeof selectedStarters) => {
+  const selectedLineupPlayers = selectedCounts?.lineupPlayers || selectedStarters;
+  const pickLineupPlayers = (players: typeof selectedLineupPlayers) => {
     const used = new Set<string>();
     const take = (position: string, count: number) => {
       const picked = players
@@ -833,7 +834,7 @@ export function LeagueCommandCenter({
       { label: 'Flex', players: flex },
     ];
   };
-  const lineupGroups = pickLineupPlayers(selectedStarters);
+  const lineupGroups = pickLineupPlayers(selectedLineupPlayers);
   const rosterRead = (() => {
     if (!selectedIntel) return 'No roster read available yet.';
     const notes: string[] = [];
@@ -876,7 +877,7 @@ export function LeagueCommandCenter({
             key={row.manager}
             manager={row.manager}
             managerAvatars={managerAvatars}
-            meta={`${row.starterCount} ranked starters`}
+            meta={`${row.starterCount} starters`}
             onClick={() => openManager(row.manager)}
           />
         ))}
@@ -1012,13 +1013,13 @@ export function LeagueCommandCenter({
                 <span>{selectedIntel?.identity || selectedTimeline?.label || 'League manager'}</span>
               </div>
               </div>
-            </div>
-            <div className="manager-command-body">
-              <div className="manager-command-metrics">
-                <IntelligenceMetric label="Ranked Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters : '-'} />
+              <div className="manager-command-hero-metrics">
+                <IntelligenceMetric label="Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters : '-'} />
                 <IntelligenceMetric label="Roster Age" value={selectedIntel?.avgAge ?? '-'} />
                 <IntelligenceMetric label="Power Score" value={selectedPower?.score ?? '-'} />
               </div>
+            </div>
+            <div className="manager-command-body">
               <div className="manager-command-grid">
                 <div>
                   <h4>Projected Starters</h4>
@@ -1048,11 +1049,11 @@ export function LeagueCommandCenter({
                   <h4>Trade / Picks</h4>
                   <p>{selectedTrade ? `${selectedTrade.tradeCount} trades, ${selectedTrade.winPct}% win rate, ${selectedTrade.profit > 0 ? '+' : ''}${selectedTrade.profit.toLocaleString()} profit` : 'No completed trade profile yet.'}</p>
                   <p>{selectedPick ? `${selectedPick.count2026} picks in 2026, ${selectedPick.count2027} picks in 2027, ${formatCompactValue(selectedPick.totalValue)} total draft capital` : 'No pick portfolio data available.'}</p>
+                  <div className="manager-command-inline-read">
+                    <h4>Roster Read</h4>
+                    <p>{rosterRead}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="manager-command-section manager-command-read">
-                <h4>Roster Read</h4>
-                <p>{rosterRead}</p>
               </div>
               {selectedIntel?.untouchablePlayers?.length ? (
                 <div className="manager-command-section manager-command-untouchable">
@@ -2608,7 +2609,7 @@ export function ManagerPositionCountsTable({
                   </div>
                 ) : (
                   <div className="rounded-xl border border-cyan-300/15 bg-slate-950/45 px-4 py-8 text-center text-sm font-bold text-slate-400">
-                    No ranked starters found for this manager.
+                    No starters found for this manager.
                   </div>
                 )}
               </div>
