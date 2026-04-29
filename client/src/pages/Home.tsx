@@ -8,14 +8,12 @@ import { ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3, Repea
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import {
-  LeagueOverviewTable,
   ManagerRosterValueGrowthTable,
   WeeklyMomentumTable,
   ProjectedMoversTable,
   TradeProfitLeaderboardTable,
   TradeHistoryTable,
   PositionAnalysisTable,
-  ManagerPositionCountsTable,
   ManagerIntelligenceCards,
   LeagueCommandCenter,
   PowerRankingsTable,
@@ -166,17 +164,6 @@ export default function Home() {
                     managerAvatars={reportData.managerAvatars}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Manager Position Counts" kicker="Starter depth">
-                  <ManagerPositionCountsTable
-                    data={reportData.managerPositionCounts}
-                    managerAvatars={reportData.managerAvatars}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="League Overview" kicker="Roster strength">
-                  <LeagueOverviewTable data={reportData.leagueOverview} managerAvatars={reportData.managerAvatars} />
-                </CollapsibleReportSection>
                 <CollapsibleReportSection title="Manager Roster Value Growth" kicker="Season movement">
                   <ManagerRosterValueGrowthTable data={reportData.managerRosterValueGrowth} managerAvatars={reportData.managerAvatars} />
                 </CollapsibleReportSection>
@@ -276,6 +263,7 @@ export default function Home() {
                   <TradeTendenciesTable
                     data={reportData.tradeTendencies}
                     managerAvatars={reportData.managerAvatars}
+                    tradeHistory={reportData.tradeHistory}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Full Trade Ledger" kicker="Every completed deal">

@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import React, { useState } from 'react';
+import React, { useState, type CSSProperties } from 'react';
 import { ChevronDown, Crown, TrendingDown, TrendingUp } from 'lucide-react';
 import type { DraftPick, ManagerIntelPlayer, ReportData, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
@@ -26,6 +26,41 @@ import { getPositionRankPillClass } from '@/lib/positionRank';
 type ManagerAvatars = ReportData['managerAvatars'];
 type PlayerDetailsById = ReportData['playerDetailsById'];
 type CurrentPositionRankById = ReportData['currentPositionRankById'];
+
+const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
+  ARI: { primary: '#97233F', secondary: '#000000', accent: '#FFB612' },
+  ATL: { primary: '#A71930', secondary: '#000000', accent: '#A5ACAF' },
+  BAL: { primary: '#241773', secondary: '#000000', accent: '#9E7C0C' },
+  BUF: { primary: '#00338D', secondary: '#C60C30', accent: '#FFFFFF' },
+  CAR: { primary: '#0085CA', secondary: '#101820', accent: '#BFC0BF' },
+  CHI: { primary: '#0B162A', secondary: '#C83803', accent: '#FFFFFF' },
+  CIN: { primary: '#FB4F14', secondary: '#000000', accent: '#FFFFFF' },
+  CLE: { primary: '#311D00', secondary: '#FF3C00', accent: '#FFFFFF' },
+  DAL: { primary: '#003594', secondary: '#041E42', accent: '#869397' },
+  DEN: { primary: '#FB4F14', secondary: '#002244', accent: '#FFFFFF' },
+  DET: { primary: '#0076B6', secondary: '#B0B7BC', accent: '#7fd8ff' },
+  GB: { primary: '#203731', secondary: '#FFB612', accent: '#FFFFFF' },
+  HOU: { primary: '#03202F', secondary: '#A71930', accent: '#FFFFFF' },
+  IND: { primary: '#002C5F', secondary: '#A2AAAD', accent: '#FFFFFF' },
+  JAX: { primary: '#006778', secondary: '#101820', accent: '#D7A22A' },
+  KC: { primary: '#E31837', secondary: '#FFB81C', accent: '#FFFFFF' },
+  LAC: { primary: '#0080C6', secondary: '#FFC20E', accent: '#FFFFFF' },
+  LAR: { primary: '#003594', secondary: '#FFA300', accent: '#FFFFFF' },
+  LV: { primary: '#000000', secondary: '#A5ACAF', accent: '#FFFFFF' },
+  MIA: { primary: '#008E97', secondary: '#FC4C02', accent: '#FFFFFF' },
+  MIN: { primary: '#4F2683', secondary: '#FFC62F', accent: '#FFFFFF' },
+  NE: { primary: '#002244', secondary: '#C60C30', accent: '#B0B7BC' },
+  NO: { primary: '#101820', secondary: '#D3BC8D', accent: '#FFFFFF' },
+  NYG: { primary: '#0B2265', secondary: '#A71930', accent: '#FFFFFF' },
+  NYJ: { primary: '#125740', secondary: '#000000', accent: '#FFFFFF' },
+  PHI: { primary: '#004C54', secondary: '#A5ACAF', accent: '#FFFFFF' },
+  PIT: { primary: '#101820', secondary: '#FFB612', accent: '#FFFFFF' },
+  SEA: { primary: '#002244', secondary: '#69BE28', accent: '#A5ACAF' },
+  SF: { primary: '#AA0000', secondary: '#B3995D', accent: '#FFFFFF' },
+  TB: { primary: '#D50A0A', secondary: '#34302B', accent: '#FF7900' },
+  TEN: { primary: '#0C2340', secondary: '#4B92DB', accent: '#C8102E' },
+  WAS: { primary: '#5A1414', secondary: '#FFB612', accent: '#FFFFFF' },
+};
 
 function buildPlayerModalData({
   playerId,
@@ -712,6 +747,44 @@ function PositionRankPill({ rank }: { rank?: string | null }) {
   return <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>;
 }
 
+function getCommandPlayerTileStyle(player: CommandPlayer): CSSProperties | undefined {
+  const teamColors = NFL_TEAM_COLORS[player.playerDetails?.team || ''];
+  if (!teamColors) return undefined;
+  return {
+    '--team-primary': teamColors.primary,
+    '--team-secondary': teamColors.secondary,
+    '--team-accent': teamColors.accent,
+  } as CSSProperties;
+}
+
+function CommandPlayerTile({
+  player,
+  onClick,
+  variant = 'default',
+}: {
+  player: CommandPlayer;
+  onClick: () => void;
+  variant?: 'default' | 'step';
+}) {
+  return (
+    <button
+      type="button"
+      className={`manager-command-player-tile ${variant === 'step' ? 'manager-command-player-tile-step' : ''}`}
+      style={getCommandPlayerTileStyle(player)}
+      onClick={onClick}
+    >
+      <div className="manager-command-player-tile-main">
+        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+      </div>
+      <div className="manager-command-player-tile-pills">
+        <PositionRankPill rank={player.currentPositionRank || player.pos} />
+        <span>{player.playerDetails?.team || 'FA'}</span>
+        <span className="manager-command-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
+      </div>
+    </button>
+  );
+}
+
 function FeatureCard({
   number,
   title,
@@ -765,10 +838,6 @@ export function LeagueCommandCenter({
   const timelines = data.dynastyTimelines || [];
   const trades = data.tradeTendencies || [];
   const picks = data.pickPortfolios || [];
-  const waiver = data.waiverIntelligence;
-  const risers = data.weeklyRisers || [];
-  const fallers = data.weeklyFallers || [];
-  const topIdentity = [...intel].sort((a, b) => b.starterValue - a.starterValue).slice(0, 3);
   const starterDepth = (data.managerPositionCounts || [])
     .map((row) => ({
       manager: row.manager,
@@ -777,27 +846,13 @@ export function LeagueCommandCenter({
       droppablePlayers: intel.find((item) => item.manager === row.manager)?.droppablePlayers || [],
     }))
     .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers);
-  const oldest = [...intel].filter((row) => row.avgAge !== null).sort((a, b) => (b.avgAge || 0) - (a.avgAge || 0))[0];
-  const youngest = [...intel].filter((row) => row.avgAge !== null).sort((a, b) => (a.avgAge || 99) - (b.avgAge || 99))[0];
-  const holes = intel.filter((row) => row.holes.summary !== 'No major roster hole flagged').slice(0, 4);
-  const sellHigh = risers.filter((player) => player.val_now >= 2500).slice(0, 3);
-  const buyLow = fallers.filter((player) => player.val_now >= 1800).slice(0, 3);
-  const activeTrader = trades[0];
-  const bestTrader = [...trades].sort((a, b) => b.profit - a.profit)[0];
-  const worstTrader = [...trades].sort((a, b) => a.profit - b.profit)[0];
-  const topPicks = picks.slice(0, 3);
-  const available = [
-    waiver?.highestKtcAvailable,
-    ...(waiver ? Object.values(waiver.bestAvailableByPosition) : []),
-  ].filter(Boolean).slice(0, 5) as TrendingPlayer[];
-  const contenders = timelines.filter((row) => row.contenderScore >= 70).sort((a, b) => b.contenderScore - a.contenderScore).slice(0, 3);
-  const rebuilds = timelines.filter((row) => row.rebuildScore >= 55).sort((a, b) => b.rebuildScore - a.rebuildScore).slice(0, 3);
   const selectedIntel = selectedManager ? intel.find((row) => row.manager === selectedManager) : null;
   const selectedCounts = selectedManager ? data.managerPositionCounts.find((row) => row.manager === selectedManager) : null;
   const selectedTrade = selectedManager ? trades.find((row) => row.manager === selectedManager) : null;
   const selectedPick = selectedManager ? picks.find((row) => row.manager === selectedManager) : null;
   const selectedPower = selectedManager ? power.find((row) => row.manager === selectedManager) : null;
   const selectedTimeline = selectedManager ? timelines.find((row) => row.manager === selectedManager) : null;
+  const selectedOverview = selectedManager ? data.leagueOverview.find((row) => row.manager === selectedManager) : null;
   const openManager = (manager: string) => setSelectedManager(manager);
   const openCommandPlayer = (player: CommandPlayer) => {
     if (!selectedManager) return;
@@ -842,18 +897,29 @@ export function LeagueCommandCenter({
   };
   const lineupGroups = pickLineupPlayers(selectedLineupPlayers);
   const projectedLineupIds = new Set(lineupGroups.flatMap((group) => group.players.map((player) => player.player_id)));
-  const canStepInGroups = ['QB', 'RB', 'WR', 'TE']
-    .map((position) => ({
-      label: position,
+  const canStepInGroups = [
+    {
+      label: 'QB',
       players: selectedStarters
-        .filter((player) => player.pos === position && !projectedLineupIds.has(player.player_id))
+        .filter((player) => player.pos === 'QB' && !projectedLineupIds.has(player.player_id))
         .sort((a, b) => b.value - a.value),
-    }))
-    .filter((group) => group.players.length);
+    },
+    {
+      label: 'Flex',
+      players: selectedStarters
+        .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos) && !projectedLineupIds.has(player.player_id))
+        .sort((a, b) => b.value - a.value),
+    },
+  ].filter((group) => group.players.length);
   const selectedManagerTags = (() => {
+    const timelineTag = selectedTimeline
+      ? selectedTimeline.rebuildScore > selectedTimeline.contenderScore && selectedTimeline.rebuildScore >= 55
+        ? 'Rebuild runway'
+        : selectedTimeline.label
+      : null;
     const tags = [
       selectedIntel?.identity,
-      selectedTimeline?.label,
+      timelineTag,
       ...(selectedIntel?.ageFlags || []),
       selectedIntel?.holes.summary !== 'No major roster hole flagged' ? selectedIntel?.holes.summary : null,
     ].filter((tag): tag is string => Boolean(tag));
@@ -916,7 +982,7 @@ export function LeagueCommandCenter({
         kicker="Positional-rank depth"
         note="This uses positional rank thresholds, not raw KTC value. QB/RB/WR/TE starters are counted dynamically from league size, so it changes for 10-team, 12-team, and other formats."
       >
-        {starterDepth.slice(0, 3).map((row) => (
+        {starterDepth.map((row) => (
           <ManagerMiniLine
             key={row.manager}
             manager={row.manager}
@@ -933,62 +999,20 @@ export function LeagueCommandCenter({
         kicker="Roster timeline"
         note="Average age is calculated from ranked QB/RB/WR/TE roster pieces. Flags call out older RB rooms, young WR/TE cores, and overall age risk."
       >
-        {youngest && <ManagerMiniLine manager={youngest.manager} managerAvatars={managerAvatars} meta={`Youngest avg ${youngest.avgAge}`} onClick={() => openManager(youngest.manager)} />}
-        {oldest && <ManagerMiniLine manager={oldest.manager} managerAvatars={managerAvatars} meta={`Oldest avg ${oldest.avgAge}`} onClick={() => openManager(oldest.manager)} />}
-        {intel.flatMap((row) => row.ageFlags.map((flag) => ({ manager: row.manager, flag }))).slice(0, 2).map((item) => (
-          <ManagerMiniLine key={`${item.manager}-${item.flag}`} manager={item.manager} managerAvatars={managerAvatars} meta={titleCasePill(item.flag)} onClick={() => openManager(item.manager)} />
+        {[...intel]
+          .filter((row) => row.avgAge !== null)
+          .sort((a, b) => (a.avgAge || 99) - (b.avgAge || 99))
+          .map((row) => (
+          <ManagerMiniLine
+            key={row.manager}
+            manager={row.manager}
+            managerAvatars={managerAvatars}
+            meta={`${row.avgAge} avg${row.ageFlags[0] ? ` · ${titleCasePill(row.ageFlags[0])}` : ''}`}
+            onClick={() => openManager(row.manager)}
+          />
         ))}
       </FeatureCard>
 
-      <FeatureCard
-        number={3}
-        title="Trade Market"
-        kicker="Buy/sell signals"
-        note="Sell highs are rostered weekly risers with meaningful KTC value. Buy lows are rostered weekly fallers that still carry enough market value to matter."
-      >
-        {sellHigh.slice(0, 2).map((player) => (
-          <PlayerMiniLine key={`sell-${player.player_id || player.name}`} playerId={player.player_id} name={player.name} meta={`Sell high ${player.diff > 0 ? '+' : ''}${player.diff}`} />
-        ))}
-        {buyLow.slice(0, 2).map((player) => (
-          <PlayerMiniLine key={`buy-${player.player_id || player.name}`} playerId={player.player_id} name={player.name} meta={`Buy low ${player.diff}`} />
-        ))}
-      </FeatureCard>
-
-      <FeatureCard
-        number={4}
-        title="Trade Tendencies"
-        kicker="Manager habits"
-        note="Uses completed Sleeper trades, current KTC values, value gaps, manager wins, favorite partners, pick/veteran net, and average gap."
-      >
-        {activeTrader && <ManagerMiniLine manager={activeTrader.manager} managerAvatars={managerAvatars} meta={`${activeTrader.tradeCount} trades`} onClick={() => openManager(activeTrader.manager)} />}
-        {bestTrader && <ManagerMiniLine manager={bestTrader.manager} managerAvatars={managerAvatars} meta={`Best profit ${bestTrader.profit > 0 ? '+' : ''}${bestTrader.profit.toLocaleString()}`} onClick={() => openManager(bestTrader.manager)} />}
-        {worstTrader && <ManagerMiniLine manager={worstTrader.manager} managerAvatars={managerAvatars} meta={`Worst profit ${worstTrader.profit.toLocaleString()}`} onClick={() => openManager(worstTrader.manager)} />}
-      </FeatureCard>
-
-      <FeatureCard
-        number={5}
-        title="Power Rankings"
-        kicker="Composite score"
-        note="Weighted score using starter strength, total roster value, positional balance, draft capital, youth score, and trade efficiency."
-      >
-        {power.slice(0, 3).map((row) => (
-          <ManagerMiniLine key={row.manager} manager={row.manager} managerAvatars={managerAvatars} meta={`#${row.rank} ${row.tier} ${row.score}`} onClick={() => openManager(row.manager)} />
-        ))}
-      </FeatureCard>
-
-      <FeatureCard
-        number={6}
-        title="Dynasty Timeline"
-        kicker="Contend or rebuild"
-        note="Combines current starter strength, total roster value, 2027 outlook, average roster age, and rebuild score to frame each team's timeline."
-      >
-        {contenders.map((row) => (
-          <ManagerMiniLine key={`contender-${row.manager}`} manager={row.manager} managerAvatars={managerAvatars} meta={`Contender ${row.contenderScore}`} onClick={() => openManager(row.manager)} />
-        ))}
-        {rebuilds.map((row) => (
-          <ManagerMiniLine key={`rebuild-${row.manager}`} manager={row.manager} managerAvatars={managerAvatars} meta={`Rebuild ${row.rebuildScore}`} onClick={() => openManager(row.manager)} />
-        ))}
-      </FeatureCard>
     </div>
     <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
       <DialogContent className="manager-command-dialog max-w-3xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
@@ -1033,26 +1057,78 @@ export function LeagueCommandCenter({
                   ))}
                 </div>
               ) : null}
+              {selectedOverview ? (
+                <div className="manager-command-rank-summary" aria-label="Manager league ranks">
+                  <div>
+                    <span>QB Rank</span>
+                    <strong>#{selectedOverview.rank_qb}</strong>
+                  </div>
+                  <div>
+                    <span>RB Rank</span>
+                    <strong>#{selectedOverview.rank_rb}</strong>
+                  </div>
+                  <div>
+                    <span>WR Rank</span>
+                    <strong>#{selectedOverview.rank_wr}</strong>
+                  </div>
+                  <div>
+                    <span>TE Rank</span>
+                    <strong>#{selectedOverview.rank_te}</strong>
+                  </div>
+                  <div>
+                    <span>Value</span>
+                    <strong>#{selectedOverview.rank_value}</strong>
+                  </div>
+                </div>
+              ) : null}
+              {(selectedPower || selectedTimeline) ? (
+                <div className="manager-command-score-summary" aria-label="Manager power and timeline scores">
+                  {selectedPower ? (
+                    <div>
+                      <span>Power Rank</span>
+                      <strong>#{selectedPower.rank} {selectedPower.tier}</strong>
+                      <p>{selectedPower.score}/100 composite score from starters, roster value, balance, picks, youth, and trades.</p>
+                    </div>
+                  ) : null}
+                  {selectedTimeline ? (
+                    <div>
+                      <span>Contender</span>
+                      <strong>{selectedTimeline.contenderScore}/100</strong>
+                      <p>Win-now score from starter strength and total roster value.</p>
+                    </div>
+                  ) : null}
+                  {selectedTimeline ? (
+                    <div>
+                      <span>Rebuild</span>
+                      <strong>{selectedTimeline.rebuildScore}/100</strong>
+                      <p>Future score from 2027 outlook, youth, and distance from contention.</p>
+                    </div>
+                  ) : null}
+                  {selectedTimeline ? (
+                    <div>
+                      <span>Aging Risk</span>
+                      <strong>{selectedTimeline.agingRisk}/100</strong>
+                      <p>Higher means the roster is older and needs age protection.</p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="manager-command-grid">
                 <div>
                   <h4>Projected Starters</h4>
-                  <div className="manager-command-lineup">
+                  <div className="manager-command-tile-lineup">
                     {lineupGroups.map((group) => (
-                      <div key={group.label} className="manager-command-lineup-row">
+                      <div key={group.label} className="manager-command-tile-group">
                         <span>{group.label}</span>
-                        <div>
+                        <div className="manager-command-tile-grid">
                           {group.players.length ? group.players.map((player) => (
-                            <button
+                            <CommandPlayerTile
                               key={player.player_id}
-                              type="button"
-                              className="manager-command-rank-pill"
+                              player={player}
                               onClick={() => openCommandPlayer(player)}
-                            >
-                              <span>{player.name}</span>
-                              <strong className={getPositionRankPillClass(player.currentPositionRank || player.pos)}>{player.currentPositionRank || player.pos}</strong>
-                            </button>
+                            />
                           )) : (
-                            <span className="manager-command-empty-pill">Needs Help</span>
+                            <span className="manager-command-empty-tile">Needs Help</span>
                           )}
                         </div>
                       </div>
@@ -1061,26 +1137,23 @@ export function LeagueCommandCenter({
                 </div>
                 <div>
                   <h4>Can Step In</h4>
-                  <div className="manager-command-lineup manager-command-step-in">
+                  <div className="manager-command-tile-lineup manager-command-step-in">
                     {canStepInGroups.length ? canStepInGroups.map((group) => (
-                      <div key={group.label} className="manager-command-lineup-row">
+                      <div key={group.label} className="manager-command-tile-group">
                         <span>{group.label}</span>
-                        <div>
+                        <div className="manager-command-tile-grid">
                           {group.players.map((player) => (
-                            <button
+                            <CommandPlayerTile
                               key={player.player_id}
-                              type="button"
-                              className="manager-command-rank-pill manager-command-step-pill"
+                              player={player}
+                              variant="step"
                               onClick={() => openCommandPlayer(player)}
-                            >
-                              <span>{player.name}</span>
-                              <strong className={getPositionRankPillClass(player.currentPositionRank || player.pos)}>{player.currentPositionRank || player.pos}</strong>
-                            </button>
+                            />
                           ))}
                         </div>
                       </div>
                     )) : (
-                      <span className="manager-command-empty-pill">No starter-grade depth</span>
+                      <span className="manager-command-empty-tile">No starter-grade depth</span>
                     )}
                   </div>
                 </div>
@@ -1097,35 +1170,27 @@ export function LeagueCommandCenter({
               {selectedIntel?.untouchablePlayers?.length ? (
                 <div className="manager-command-section manager-command-untouchable">
                   <h4>Should Be Untouchable</h4>
-                  <div className="manager-command-player-grid">
+                  <div className="manager-command-tile-grid">
                     {selectedIntel.untouchablePlayers.map((player) => (
-                      <button
+                      <CommandPlayerTile
                         key={player.player_id}
-                        type="button"
-                        className="manager-command-player"
+                        player={player}
                         onClick={() => openCommandPlayer(player)}
-                      >
-                        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-                        <PositionRankPill rank={player.currentPositionRank || player.pos} />
-                      </button>
+                      />
                     ))}
                   </div>
                 </div>
               ) : null}
               {selectedIntel?.droppablePlayers?.length ? (
                 <div className="manager-command-section">
-                  <h4>Most Droppable By Positional Rank</h4>
-                  <div className="manager-command-player-grid">
+                  <h4>Most Droppable</h4>
+                  <div className="manager-command-tile-grid">
                     {selectedIntel.droppablePlayers.map((player) => (
-                      <button
+                      <CommandPlayerTile
                         key={player.player_id}
-                        type="button"
-                        className="manager-command-player"
+                        player={player}
                         onClick={() => openCommandPlayer(player)}
-                      >
-                        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-                        <PositionRankPill rank={player.currentPositionRank || player.pos} />
-                      </button>
+                      />
                     ))}
                   </div>
                 </div>
@@ -2180,11 +2245,31 @@ export function StarterBenchSnapshot({
 export function TradeTendenciesTable({
   data,
   managerAvatars,
+  tradeHistory = [],
 }: {
   data?: ReportData['tradeTendencies'];
   managerAvatars?: ManagerAvatars;
+  tradeHistory?: ReportData['tradeHistory'];
 }) {
+  const [selectedManager, setSelectedManager] = useState<string | null>(null);
   if (!data?.length) return null;
+  const selectedRow = selectedManager ? data.find((row) => row.manager === selectedManager) : null;
+  const selectedHabit = selectedRow ? getTradeHabit(selectedRow) : null;
+  const selectedTrades = selectedManager
+    ? tradeHistory.filter((trade) => trade.team_a === selectedManager || trade.team_b === selectedManager)
+    : [];
+  const selectedSwings = selectedManager
+    ? selectedTrades
+        .map((trade) => ({
+          trade,
+          swing: getManagerTradeSwing(trade, selectedManager),
+          opponent: getTradeOpponent(trade, selectedManager),
+          result: getManagerTradeResult(trade, selectedManager),
+        }))
+        .sort((a, b) => b.swing - a.swing)
+    : [];
+  const biggestProfit = selectedSwings.find((item) => item.swing > 0) || null;
+  const biggestLoss = [...selectedSwings].reverse().find((item) => item.swing < 0) || null;
 
   return (
     <div className="flex justify-center">
@@ -2213,7 +2298,11 @@ export function TradeTendenciesTable({
           </TableHeader>
           <TableBody>
             {data.map((row) => (
-              <TableRow key={row.manager} className="border-slate-700">
+              <TableRow
+                key={row.manager}
+                className="cursor-pointer border-slate-700"
+                onClick={() => setSelectedManager(row.manager)}
+              >
                 <TableCell className="trade-tendencies-manager font-semibold text-slate-100">{renderManagerName(row.manager, managerAvatars)}</TableCell>
                 <TableCell className="trade-tendencies-count text-right text-orange-300 font-black">{row.tradeCount}</TableCell>
                 <TableCell className="trade-tendencies-gap text-right text-slate-300">{row.avgGap.toLocaleString()}</TableCell>
@@ -2230,6 +2319,113 @@ export function TradeTendenciesTable({
           </TableBody>
         </Table>
       </Card>
+      <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
+        <DialogContent className="max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-0 text-slate-100 sm:max-w-2xl">
+          {selectedManager && selectedRow && (
+            <div className="trade-manager-modal-inner">
+              <div className="trade-manager-modal-hero">
+                {managerAvatars?.[selectedManager] && (
+                  <>
+                    <img src={managerAvatars[selectedManager] || ''} alt="" className="trade-manager-hero-wash" />
+                    <img src={managerAvatars[selectedManager] || ''} alt="" className="trade-manager-hero-orb" />
+                  </>
+                )}
+                <div className="trade-manager-hero-scrim" />
+                <DialogHeader className="trade-manager-header relative pr-8">
+                  <div className="trade-manager-title-lockup">
+                    <div className="trade-manager-title-avatar">
+                      {managerAvatars?.[selectedManager] ? (
+                        <img src={managerAvatars[selectedManager] || ''} alt={selectedManager} />
+                      ) : (
+                        <span>{selectedManager.trim()[0]?.toUpperCase() || '?'}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 text-center">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/90">
+                        Trade Tendencies
+                      </p>
+                      <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400">
+                        {selectedManager}
+                      </DialogTitle>
+                    </div>
+                  </div>
+                </DialogHeader>
+              </div>
+              <div className="trade-tendency-modal-body">
+                <div className="trade-manager-stats">
+                  <div>
+                    <span>Trades</span>
+                    <strong>{selectedRow.tradeCount}</strong>
+                  </div>
+                  <div>
+                    <span>Win Rate</span>
+                    <strong>{selectedRow.winPct}%</strong>
+                  </div>
+                  <div>
+                    <span>Profit</span>
+                    <strong className={selectedRow.profit >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      {selectedRow.profit >= 0 ? '+' : ''}
+                      {selectedRow.profit.toLocaleString()}
+                    </strong>
+                  </div>
+                </div>
+                <div className="trade-tendency-detail-grid">
+                  <div>
+                    <span>Likes Trading With</span>
+                    <strong>{selectedRow.favoritePartner || '-'}</strong>
+                    <p>Most common trade partner by completed Sleeper deals.</p>
+                  </div>
+                  <div>
+                    <span>Average Gap</span>
+                    <strong>{selectedRow.avgGap.toLocaleString()}</strong>
+                    <p>Average value difference across this manager's trades.</p>
+                  </div>
+                  <div>
+                    <span>Trade Habit</span>
+                    <strong className={selectedHabit?.className || ''}>{selectedHabit?.label || '-'}</strong>
+                    <p>Based on volume, profit, win rate, average gap, and pick/veteran overpay signals.</p>
+                  </div>
+                  <div>
+                    <span>Pick / Vet Signal</span>
+                    <strong>
+                      {selectedRow.overpaysForPicks
+                        ? 'Pays For Picks'
+                        : selectedRow.overpaysForVeterans
+                          ? 'Vet Shopper'
+                          : 'Balanced'}
+                    </strong>
+                    <p>Looks at whether value is consistently leaving for picks or older players.</p>
+                  </div>
+                </div>
+                <div className="trade-tendency-swing-grid">
+                  <div>
+                    <span>Biggest Profit</span>
+                    {biggestProfit ? (
+                      <>
+                        <strong className="text-green-400">+{biggestProfit.swing.toLocaleString()}</strong>
+                        <p>{biggestProfit.trade.date} vs {biggestProfit.opponent}</p>
+                      </>
+                    ) : (
+                      <p>No profitable trade logged.</p>
+                    )}
+                  </div>
+                  <div>
+                    <span>Biggest Loss</span>
+                    {biggestLoss ? (
+                      <>
+                        <strong className="text-red-400">{biggestLoss.swing.toLocaleString()}</strong>
+                        <p>{biggestLoss.trade.date} vs {biggestLoss.opponent}</p>
+                      </>
+                    ) : (
+                      <p>No losing trade logged.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
