@@ -665,8 +665,8 @@ function PlayerInsightTile({
         value: player.value,
         playerDetails: player.playerDetails,
         currentPositionRank: player.currentPositionRank,
-        manager,
-        managerAvatarUrl,
+        manager: player.owner || manager,
+        managerAvatarUrl: player.owner ? undefined : managerAvatarUrl,
       }))}
     >
       <div className="manager-intel-player-kicker">{label}</div>
@@ -780,10 +780,12 @@ function CommandPlayerTile({
   player,
   onClick,
   variant = 'default',
+  label,
 }: {
   player: CommandPlayer;
   onClick: () => void;
   variant?: 'default' | 'step';
+  label?: string;
 }) {
   return (
     <button
@@ -792,6 +794,7 @@ function CommandPlayerTile({
       style={getCommandPlayerTileStyle(player)}
       onClick={onClick}
     >
+      {label && <div className="manager-intel-player-kicker">{label}</div>}
       <div className="manager-command-player-tile-main">
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       </div>
@@ -909,6 +912,7 @@ export function LeagueCommandCenter({
       totalPlayers: row.QB + row.RB + row.WR + row.TE,
       avgAge: intel.find((item) => item.manager === row.manager)?.avgAge ?? null,
       ageFlags: intel.find((item) => item.manager === row.manager)?.ageFlags || [],
+      starterAvailability: intel.find((item) => item.manager === row.manager)?.starterAvailability,
       droppablePlayers: intel.find((item) => item.manager === row.manager)?.droppablePlayers || [],
     }))
     .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers);
@@ -928,8 +932,8 @@ export function LeagueCommandCenter({
       playerPos: player.pos,
       value: player.value,
       playerDetails: player.playerDetails,
-      manager: selectedManager,
-      managerAvatarUrl: managerAvatars?.[selectedManager],
+      manager: player.owner || selectedManager,
+      managerAvatarUrl: managerAvatars?.[player.owner || selectedManager],
       currentPositionRank: player.currentPositionRank,
     }));
   };
@@ -1062,6 +1066,12 @@ export function LeagueCommandCenter({
                 label: titleCasePill(flag),
                 tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') ? 'danger' as const : 'future' as const,
               })),
+              ...(row.starterAvailability?.avgGamesMissed !== null && row.starterAvailability?.avgGamesMissed !== undefined
+                ? [{
+                    label: `${row.starterAvailability.avgGamesMissed} missed/gm`,
+                    tone: row.starterAvailability.riskLevel === 'high' ? 'danger' as const : row.starterAvailability.riskLevel === 'medium' ? 'warn' as const : 'good' as const,
+                  }]
+                : []),
               ]}
               onClick={() => openManager(row.manager)}
             />
@@ -1220,9 +1230,28 @@ export function LeagueCommandCenter({
                 <p>{selectedPick ? `${selectedPick.count2026} picks in 2026, ${selectedPick.count2027} picks in 2027, ${formatCompactValue(selectedPick.totalValue)} total draft capital` : 'No pick portfolio data available.'}</p>
                 <div className="manager-command-inline-read">
                   <h4>Roster Read</h4>
-                  <p>{rosterRead}</p>
+                  <p>{selectedIntel?.strategySummary || rosterRead}</p>
                 </div>
               </div>
+              {selectedIntel && [selectedIntel.buyTarget, selectedIntel.sellCandidate, selectedIntel.tradeChip, selectedIntel.injuryInsurance].some(Boolean) ? (
+                <div className="manager-command-section">
+                  <h4>Trade Ideas</h4>
+                  <div className="manager-command-tile-grid">
+                    {selectedIntel.buyTarget ? (
+                      <CommandPlayerTile label="Buy Target" player={selectedIntel.buyTarget} onClick={() => openCommandPlayer(selectedIntel.buyTarget!)} />
+                    ) : null}
+                    {selectedIntel.sellCandidate ? (
+                      <CommandPlayerTile label="Sell Candidate" player={selectedIntel.sellCandidate} onClick={() => openCommandPlayer(selectedIntel.sellCandidate!)} />
+                    ) : null}
+                    {selectedIntel.tradeChip ? (
+                      <CommandPlayerTile label="Trade Chip" player={selectedIntel.tradeChip} onClick={() => openCommandPlayer(selectedIntel.tradeChip!)} />
+                    ) : null}
+                    {selectedIntel.injuryInsurance ? (
+                      <CommandPlayerTile label="Insurance" player={selectedIntel.injuryInsurance} onClick={() => openCommandPlayer(selectedIntel.injuryInsurance!)} />
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               {selectedIntel?.untouchablePlayers?.length ? (
                 <div className="manager-command-section manager-command-untouchable">
                   <h4>Should Be Untouchable</h4>
@@ -1299,8 +1328,14 @@ export function ManagerIntelligenceCards({
               { label: titleCasePill(row.timeline), tone: getPillToneClass(row.timeline).includes('future') ? 'future' : getPillToneClass(row.timeline).includes('danger') ? 'danger' : 'good' },
               ...row.ageFlags.slice(0, 2).map((flag) => ({
                 label: titleCasePill(flag),
-                tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') ? 'danger' as const : 'future' as const,
+                tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') || flag.toLowerCase().includes('risk') ? 'danger' as const : 'future' as const,
               })),
+              ...(row.starterAvailability.avgGamesMissed !== null
+                ? [{
+                    label: `${row.starterAvailability.avgGamesMissed} missed/gm`,
+                    tone: row.starterAvailability.riskLevel === 'high' ? 'danger' as const : row.starterAvailability.riskLevel === 'medium' ? 'warn' as const : 'good' as const,
+                  }]
+                : []),
             ]}
             onClick={() => setSelectedManager(row.manager)}
           />
@@ -1370,6 +1405,10 @@ export function ManagerIntelligenceCards({
                       <PlayerInsightTile label="Age Risk" player={selectedRow.oldestPlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="danger" />
                       <PlayerInsightTile label="Young Core" player={selectedRow.youngCorePlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
                       <PlayerInsightTile label="Upside Play" player={selectedRow.breakoutCandidate} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Buy Target" player={selectedRow.buyTarget} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Sell Candidate" player={selectedRow.sellCandidate} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="warn" />
+                      <PlayerInsightTile label="Trade Chip" player={selectedRow.tradeChip} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Insurance" player={selectedRow.injuryInsurance} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
                       <PlayerInsightTile
                         label="Last Year Stud"
                         player={selectedRow.lastSeasonStud}
@@ -1385,14 +1424,27 @@ export function ManagerIntelligenceCards({
 
                   <div className="manager-command-section manager-command-read">
                     <h4>Roster Read</h4>
-                    <p>{selectedRow.summary}</p>
+                    <p>{selectedRow.strategySummary || selectedRow.summary}</p>
                     <div className="manager-command-inline-read">
                       <h4>Attack Points</h4>
                       <p>QB: {selectedRow.holes.bestQbRank || '-'} · RB2: {selectedRow.holes.rb2Rank || '-'} · WR3: {selectedRow.holes.wr3Rank || '-'} · TE1: {selectedRow.holes.te1Rank || '-'} · Flex depth: {selectedRow.holes.flexDepth}</p>
                     </div>
                     <div className="manager-command-inline-read">
-                      <h4>Quick Take</h4>
-                      <p>{selectedRow.bestBenchStash?.name || 'No bench chip'} is the best bench chip. {selectedRow.weakestStarter?.name || 'No weak starter'} is the cleanest lineup upgrade spot.</p>
+                      <h4>Availability</h4>
+                      <p>
+                        {selectedRow.starterAvailability.avgGamesMissed !== null
+                          ? `${selectedRow.starterAvailability.riskLevel.toUpperCase()} risk. Starters averaged ${selectedRow.starterAvailability.avgGamesMissed} missed games last season${selectedRow.starterAvailability.riskiestStarter ? `; ${selectedRow.starterAvailability.riskiestStarter.name} is the biggest availability flag` : ''}.`
+                          : 'Availability sample is not deep enough yet.'}
+                      </p>
+                    </div>
+                    <div className="manager-command-inline-read">
+                      <h4>Similar Value</h4>
+                      <p>
+                        {(['QB', 'RB', 'WR', 'TE'] as const)
+                          .map((pos) => selectedRow.similarValuePlayers[pos] ? `${pos}: ${selectedRow.similarValuePlayers[pos]?.name} (${selectedRow.similarValuePlayers[pos]?.currentPositionRank || pos})` : null)
+                          .filter(Boolean)
+                          .join(' · ') || 'No clean same-position value comps on this roster.'}
+                      </p>
                     </div>
                   </div>
                 </div>

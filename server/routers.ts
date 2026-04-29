@@ -216,6 +216,48 @@ function buildPlayerValueProfileMap(
   );
 }
 
+function buildSimilarTradeValueMap(
+  playerIds: Iterable<string>,
+  players: Record<string, any>,
+  ktcValues: KTCValues
+): Record<string, NonNullable<PlayerDetails['similarTradeValues']>> {
+  const candidates = Array.from(new Set(Array.from(playerIds).filter(Boolean)))
+    .map((playerId) => {
+      const player = players[playerId];
+      const position = player?.position;
+      const value = getPlayerValue(playerId, players, ktcValues);
+      if (!['QB', 'RB', 'WR', 'TE'].includes(position) || value <= 0) return null;
+      return {
+        playerId,
+        name: getPlayerName(playerId, players),
+        position,
+        team: player.team || null,
+        rank: getPlayerCurrentPositionRank(playerId, players, ktcValues),
+        value,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+  return Object.fromEntries(candidates.map((player) => {
+    const peers = (['QB', 'RB', 'WR', 'TE'] as const)
+      .map((position) => candidates
+        .filter((candidate) => candidate.playerId !== player.playerId && candidate.position === position)
+        .sort((a, b) => Math.abs(a.value - player.value) - Math.abs(b.value - player.value))[0])
+      .filter(Boolean)
+      .map((peer) => ({
+        playerId: peer.playerId,
+        name: peer.name,
+        position: peer.position,
+        team: peer.team,
+        rank: peer.rank,
+        value: peer.value,
+        difference: peer.value - player.value,
+      }));
+
+    return [player.playerId, peers];
+  }));
+}
+
 async function fetchTrendingPlayers(
   type: 'add' | 'drop',
   players: Record<string, any>,
@@ -844,6 +886,7 @@ export const appRouter = router({
             ...trendingDrops.map((player) => player.player_id),
           ];
           const valueProfilesById = buildPlayerValueProfileMap(reportPlayerIds, players, ktcValues);
+          const similarTradeValuesById = buildSimilarTradeValueMap(reportPlayerIds, players, ktcValues);
           const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players);
 
           return {
@@ -865,6 +908,7 @@ export const appRouter = router({
                     lastSeasonGames: lastSeasonPositionRanks[playerId]?.games ?? null,
                     lastSeasonPointsPerGame: lastSeasonPositionRanks[playerId]?.pointsPerGame ?? null,
                     lastSeasonYear: lastSeasonPositionRanks[playerId]?.season || null,
+                    similarTradeValues: similarTradeValuesById[playerId] || [],
                   },
                 ])
               ),

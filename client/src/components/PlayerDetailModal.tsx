@@ -317,6 +317,28 @@ export function PlayerDetailModal({
               </div>
             )}
 
+            {details?.similarTradeValues?.length ? (
+              <div className="mx-auto max-w-xl space-y-2">
+                <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
+                  Similar Trade Value
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {details.similarTradeValues.slice(0, 4).map((peer) => (
+                    <div key={peer.playerId} className="rounded-xl border border-cyan-300/15 bg-slate-950/45 p-2 text-center">
+                      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">{peer.position}</div>
+                      <div className="mt-1 truncate text-sm font-black text-slate-100">{peer.name}</div>
+                      <div className="mt-1 flex items-center justify-center gap-1 text-[0.68rem] font-black">
+                        <span className={getPositionRankPillClass(peer.rank || peer.position)}>{peer.rank || peer.position}</span>
+                        <span className={peer.difference > 0 ? 'text-emerald-300' : peer.difference < 0 ? 'text-rose-300' : 'text-slate-300'}>
+                          {peer.difference > 0 ? '+' : ''}{peer.difference.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div className="mx-auto max-w-xl space-y-3">
               {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025) && (
                 <div className="space-y-3">

@@ -57,6 +57,7 @@ export interface ManagerStarterPlayer {
   player_id: string;
   name: string;
   pos: string;
+  owner?: string | null;
   value: number;
   currentPositionRank?: string | null;
   playerDetails?: PlayerDetails;
@@ -66,6 +67,7 @@ export interface ManagerIntelPlayer {
   player_id: string;
   name: string;
   pos: string;
+  owner?: string | null;
   value: number;
   currentPositionRank?: string | null;
   lastSeasonPositionRank?: string | null;
@@ -81,6 +83,7 @@ export interface ManagerRosterIntelligence {
   identity: string;
   timeline: string;
   summary: string;
+  strategySummary?: string;
   starterValue: number;
   starterSeasonValue?: number;
   benchValue: number;
@@ -91,10 +94,20 @@ export interface ManagerRosterIntelligence {
   youngCorePlayer: ManagerIntelPlayer | null;
   breakoutCandidate: ManagerIntelPlayer | null;
   lastSeasonStud: ManagerIntelPlayer | null;
+  buyTarget: ManagerIntelPlayer | null;
+  sellCandidate: ManagerIntelPlayer | null;
+  tradeChip: ManagerIntelPlayer | null;
+  injuryInsurance: ManagerIntelPlayer | null;
   droppablePlayers: ManagerIntelPlayer[];
   untouchablePlayers: ManagerIntelPlayer[];
+  similarValuePlayers: Record<'QB' | 'RB' | 'WR' | 'TE', ManagerIntelPlayer | null>;
   avgAge: number | null;
   avgAgeByPosition: Record<'QB' | 'RB' | 'WR' | 'TE', number | null>;
+  starterAvailability: {
+    avgGamesMissed: number | null;
+    riskLevel: 'low' | 'medium' | 'high';
+    riskiestStarter: ManagerIntelPlayer | null;
+  };
   ageFlags: string[];
   holes: {
     bestQbRank: string | null;
@@ -225,6 +238,15 @@ export interface PlayerDetails {
   lastSeasonGames?: number | null;
   lastSeasonPointsPerGame?: number | null;
   lastSeasonYear?: string | null;
+  similarTradeValues?: Array<{
+    playerId: string;
+    name: string;
+    position: string;
+    team?: string | null;
+    rank?: string | null;
+    value: number;
+    difference: number;
+  }>;
   externalIds?: Record<string, string | number | null | undefined>;
 }
 

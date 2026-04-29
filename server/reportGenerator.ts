@@ -324,6 +324,35 @@ function getRankLabel(player?: ManagerIntelPlayer | null): string {
   return player?.currentPositionRank || player?.pos || 'unranked';
 }
 
+function getPlayerGamesMissed(player?: ManagerIntelPlayer | null): number | null {
+  if (!player || typeof player.lastSeasonGames !== 'number') return null;
+  return Math.max(0, 17 - player.lastSeasonGames);
+}
+
+function getAvailabilityRisk(avgGamesMissed: number | null): 'low' | 'medium' | 'high' {
+  if (avgGamesMissed === null) return 'medium';
+  if (avgGamesMissed >= 3) return 'high';
+  if (avgGamesMissed >= 1.5) return 'medium';
+  return 'low';
+}
+
+function describeAvailability(riskiestStarter: ManagerIntelPlayer | null, avgGamesMissed: number | null): string {
+  if (!riskiestStarter || avgGamesMissed === null) return 'Availability data is still light, so this roster should be judged mostly by current positional rank.';
+  const missed = getPlayerGamesMissed(riskiestStarter);
+  if (avgGamesMissed >= 3) {
+    return `Availability is a real concern: projected starters averaged ${avgGamesMissed.toFixed(1)} missed games last season, led by ${riskiestStarter.name}${missed !== null ? ` at ${missed} missed games` : ''}.`;
+  }
+  if (avgGamesMissed >= 1.5) {
+    return `Availability is manageable but not clean: starters averaged ${avgGamesMissed.toFixed(1)} missed games, so bench insurance matters.`;
+  }
+  return `Availability looks stable: projected starters averaged only ${avgGamesMissed.toFixed(1)} missed games last season.`;
+}
+
+function compactPlayerBlurb(player?: ManagerIntelPlayer | null): string | null {
+  if (!player) return null;
+  return `${player.name} (${getRankLabel(player)})`;
+}
+
 function buildRosterIntelligenceSummary({
   identity,
   qbs,
@@ -335,6 +364,11 @@ function buildRosterIntelligenceSummary({
   weakestStarter,
   youngCorePlayer,
   oldestPlayer,
+  buyTarget,
+  sellCandidate,
+  injuryInsurance,
+  avgGamesMissed,
+  riskiestStarter,
   holeParts,
 }: {
   identity: string;
@@ -347,6 +381,11 @@ function buildRosterIntelligenceSummary({
   weakestStarter: ManagerIntelPlayer | null;
   youngCorePlayer: ManagerIntelPlayer | null;
   oldestPlayer: ManagerIntelPlayer | null;
+  buyTarget: ManagerIntelPlayer | null;
+  sellCandidate: ManagerIntelPlayer | null;
+  injuryInsurance: ManagerIntelPlayer | null;
+  avgGamesMissed: number | null;
+  riskiestStarter: ManagerIntelPlayer | null;
   holeParts: string[];
 }): string {
   const qbSummary = qbs[0]
@@ -384,8 +423,14 @@ function buildRosterIntelligenceSummary({
   const holesSummary = holeParts.length > 0
     ? `Watch list: ${holeParts.join(', ')}`
     : 'No major positional hole is flagged by the rank thresholds';
+  const availabilitySummary = describeAvailability(riskiestStarter, avgGamesMissed);
+  const tradeSummary = [
+    buyTarget ? `Best buy idea is ${buyTarget.name} (${getRankLabel(buyTarget)}) because that player fits the roster's biggest pressure point` : null,
+    sellCandidate ? `Best sell idea is ${sellCandidate.name} (${getRankLabel(sellCandidate)}) before age or role risk clips the value` : null,
+    injuryInsurance ? `If buying depth, ${injuryInsurance.name} (${getRankLabel(injuryInsurance)}) is the most practical insurance target` : null,
+  ].filter(Boolean).join('. ');
 
-  return `${identity}. ${qbSummary}. ${rbSummary}. ${wrSummary}. ${teSummary}. ${depthSummary}. ${stashSummary}. ${weakSummary}. ${futureSummary}. ${holesSummary}.`;
+  return `${identity}. ${qbSummary}. ${rbSummary}. ${wrSummary}. ${teSummary}. ${depthSummary}. ${availabilitySummary} ${stashSummary}. ${weakSummary}. ${futureSummary}. ${holesSummary}.${tradeSummary ? ` ${tradeSummary}.` : ''}`;
 }
 
 export async function generateReport(
@@ -927,6 +972,7 @@ export async function generateReport(
           player_id: pid,
           name: getPlayerName(pid, allPlayers),
           pos,
+          owner: manager,
           value,
           currentPositionRank,
           lastSeasonPositionRank: lastSeasonRank?.positionRank || null,
@@ -939,6 +985,34 @@ export async function generateReport(
           isStarter: isStarterRank(pos, currentPositionRank, starterThresholds),
         };
       })
+      .filter((player): player is ManagerIntelPlayer & { age: number | null; isStarter: boolean } => Boolean(player));
+    const externalPlayers = currentSeasonData.rosters
+      .filter((otherRoster) => otherRoster.roster_id !== r.roster_id)
+      .flatMap((otherRoster) => (otherRoster.players || []).map((pid): (ManagerIntelPlayer & { age: number | null; isStarter: boolean }) | null => {
+        const player = allPlayers[pid];
+        const pos = player?.position || 'UNK';
+        const currentPositionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
+        const lastSeasonRank = lastSeasonPositionRanks[pid];
+        const value = getPlayerValue(pid, allPlayers, ktcValues);
+        if (!['QB', 'RB', 'WR', 'TE'].includes(pos) || value <= 0) return null;
+        const owner = currentSeasonData.rosterMap[otherRoster.roster_id];
+        return {
+          player_id: pid,
+          name: getPlayerName(pid, allPlayers),
+          pos,
+          owner,
+          value,
+          currentPositionRank,
+          lastSeasonPositionRank: lastSeasonRank?.positionRank || null,
+          lastSeasonFantasyPoints: lastSeasonRank?.fantasyPoints ?? null,
+          lastSeasonGames: lastSeasonRank?.games ?? null,
+          lastSeasonPointsPerGame: lastSeasonRank?.pointsPerGame ?? null,
+          lastSeasonYear: lastSeasonRank?.season || null,
+          playerDetails: getPlayerDetails(pid, allPlayers),
+          age: player?.age ?? null,
+          isStarter: isStarterRank(pos, currentPositionRank, starterThresholds),
+        };
+      }))
       .filter((player): player is ManagerIntelPlayer & { age: number | null; isStarter: boolean } => Boolean(player));
 
     const starters = rosterPlayers.filter((player) => player.isStarter).sort((a, b) => b.value - a.value);
@@ -984,6 +1058,13 @@ export async function generateReport(
       ...wrs.slice(2).filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.WR),
       ...tes.slice(1).filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.TE),
     ].length;
+    const starterGamesMissed = starters
+      .map(getPlayerGamesMissed)
+      .filter((value): value is number => value !== null);
+    const avgStarterGamesMissed = roundOne(average(starterGamesMissed));
+    const riskiestStarter = [...starters]
+      .filter((player) => getPlayerGamesMissed(player) !== null)
+      .sort((a, b) => (getPlayerGamesMissed(b) || 0) - (getPlayerGamesMissed(a) || 0))[0] || null;
     const flexDepth = [
       ...rbs.filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.RB),
       ...wrs.filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.WR),
@@ -998,11 +1079,13 @@ export async function generateReport(
       hasLightFlexDepth ? 'flex depth is light' : null,
     ].filter(Boolean) as string[];
     const ageFlags = [
-      avgAgeByPosition.RB !== null && avgAgeByPosition.RB >= 26.5 ? 'old RB room' : null,
-      avgAgeByPosition.WR !== null && avgAgeByPosition.WR <= 25 ? 'young WR core' : null,
-      avgAgeByPosition.TE !== null && avgAgeByPosition.TE <= 25 ? 'young TE room' : null,
-      avgAge !== null && avgAge >= 27 ? 'older roster' : null,
-      avgAge !== null && avgAge <= 25 ? 'young roster' : null,
+      avgAgeByPosition.RB !== null && avgAgeByPosition.RB >= 27.2 ? 'old RB room' : null,
+      avgAgeByPosition.WR !== null && avgAgeByPosition.WR <= 24.4 && (finalRanks[manager]?.current_WR || 99) <= Math.ceil(teamCount / 2) ? 'young WR core' : null,
+      avgAgeByPosition.TE !== null && avgAgeByPosition.TE <= 24.8 && (finalRanks[manager]?.current_TE || 99) <= Math.ceil(teamCount / 2) ? 'young TE room' : null,
+      avgAge !== null && avgAge >= 27.8 ? 'older roster' : null,
+      avgAge !== null && avgAge <= 24.7 ? 'young roster' : null,
+      avgStarterGamesMissed !== null && avgStarterGamesMissed >= 3 ? 'availability risk' : null,
+      avgStarterGamesMissed !== null && avgStarterGamesMissed <= 0.8 ? 'durable starters' : null,
     ].filter(Boolean) as string[];
     const identity = getRosterIdentity(
       starterValuePct,
@@ -1049,6 +1132,45 @@ export async function generateReport(
         }),
       usedInsightPlayerIds
     );
+    const primaryNeed = holeParts.find((part) => part.includes('WR')) ? 'WR'
+      : holeParts.find((part) => part.includes('RB')) ? 'RB'
+        : holeParts.find((part) => part.includes('TE')) ? 'TE'
+          : holeParts.find((part) => part.includes('QB')) ? 'QB'
+            : null;
+    const buyTarget = pickDistinctPlayer(
+      [...externalPlayers]
+        .filter((player) => (primaryNeed ? player.pos === primaryNeed : ['RB', 'WR', 'TE'].includes(player.pos)) && (player.age || 99) <= 29)
+        .sort((a, b) => getPlayerRedraftValue(b.player_id, allPlayers, ktcValues) - getPlayerRedraftValue(a.player_id, allPlayers, ktcValues)),
+      usedInsightPlayerIds
+    );
+    const sellCandidate = pickDistinctPlayer(
+      [...rosterPlayers]
+        .filter((player) => (player.age || 0) >= (player.pos === 'RB' ? 26 : player.pos === 'WR' ? 29 : player.pos === 'TE' ? 30 : 32) && player.value >= 1000)
+        .sort((a, b) => (b.age || 0) - (a.age || 0) || b.value - a.value),
+      usedInsightPlayerIds
+    );
+    const tradeChip = pickDistinctPlayer(
+      [...bench]
+        .filter((player) => player.value >= 1000)
+        .sort((a, b) => b.value - a.value),
+      usedInsightPlayerIds
+    );
+    const injuryInsurance = pickDistinctPlayer(
+      [...bench]
+        .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos))
+        .sort((a, b) => getPlayerRedraftValue(b.player_id, allPlayers, ktcValues) - getPlayerRedraftValue(a.player_id, allPlayers, ktcValues)),
+      usedInsightPlayerIds
+    );
+    const similarValuePlayers = Object.fromEntries(
+      (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
+        const anchor = starters.find((player) => player.pos === pos) || rosterPlayers.find((player) => player.pos === pos);
+        if (!anchor) return [pos, null];
+        const closest = rosterPlayers
+          .filter((player) => player.pos === pos && player.player_id !== anchor.player_id)
+          .sort((a, b) => Math.abs(a.value - anchor.value) - Math.abs(b.value - anchor.value))[0] || null;
+        return [pos, closest];
+      })
+    ) as Record<'QB' | 'RB' | 'WR' | 'TE', ManagerIntelPlayer | null>;
     const droppablePlayers = [...rosterPlayers]
       .filter((player) => !player.isStarter)
       .sort((a, b) => {
@@ -1085,14 +1207,31 @@ export async function generateReport(
       weakestStarter,
       youngCorePlayer,
       oldestPlayer,
+      buyTarget,
+      sellCandidate,
+      injuryInsurance,
+      avgGamesMissed: avgStarterGamesMissed,
+      riskiestStarter,
       holeParts,
     });
+    const strategySummary = [
+      contenderScore >= 72
+        ? 'Contender posture: use bench value or picks to buy weekly points now'
+        : rebuildScore >= 68
+          ? 'Rebuild posture: sell older production for players who can still gain value next offseason'
+          : 'Middle-build posture: avoid sideways deals and only trade when it fixes a clear lineup hole',
+      buyTarget ? `Buy target profile: ${compactPlayerBlurb(buyTarget)}` : null,
+      sellCandidate ? `Sell candidate: ${compactPlayerBlurb(sellCandidate)}` : null,
+      tradeChip ? `Trade chip: ${compactPlayerBlurb(tradeChip)} can be moved without cracking the projected lineup` : null,
+      describeAvailability(riskiestStarter, avgStarterGamesMissed),
+    ].filter(Boolean).join('. ');
 
     return {
       manager,
       identity,
       timeline,
       summary,
+      strategySummary,
       starterValue,
       starterSeasonValue,
       benchValue,
@@ -1103,10 +1242,20 @@ export async function generateReport(
       youngCorePlayer,
       breakoutCandidate,
       lastSeasonStud,
+      buyTarget,
+      sellCandidate,
+      tradeChip,
+      injuryInsurance,
       droppablePlayers,
       untouchablePlayers,
+      similarValuePlayers,
       avgAge,
       avgAgeByPosition,
+      starterAvailability: {
+        avgGamesMissed: avgStarterGamesMissed,
+        riskLevel: getAvailabilityRisk(avgStarterGamesMissed),
+        riskiestStarter,
+      },
       ageFlags,
       holes: {
         bestQbRank: qbs[0]?.currentPositionRank || null,
