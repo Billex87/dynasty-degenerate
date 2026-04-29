@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, longtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -40,7 +40,7 @@ export type InsertLeagueAnalysis = typeof leagueAnalysis.$inferInsert;
 export const ktcSnapshots = mysqlTable("ktcSnapshots", {
   id: int("id").autoincrement().primaryKey(),
   snapshotDate: timestamp("snapshotDate").notNull(),
-  ktcData: text("ktcData"), // JSON stringified KTC values
+  ktcData: longtext("ktcData"), // JSON stringified KTC values
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

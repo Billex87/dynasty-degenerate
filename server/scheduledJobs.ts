@@ -1,27 +1,44 @@
 import { storeKtcSnapshot } from './ktcSnapshotJob';
 
+const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
+const SNAPSHOT_HOUR = 18;
+
+function getPacificDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: SNAPSHOT_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const value = (type: string) => parts.find((part) => part.type === type)?.value || '00';
+
+  return {
+    dateKey: `${value('year')}-${value('month')}-${value('day')}`,
+    hour: Number(value('hour')),
+    minute: Number(value('minute')),
+  };
+}
+
 /**
  * Initialize scheduled jobs
- * Currently runs KTC snapshot storage every Tuesday at 5 PM
+ * Runs KTC snapshot storage every day at 6 PM Pacific.
  */
 export function initializeScheduledJobs() {
   let lastSnapshotRunDate: string | null = null;
 
-  // Schedule KTC snapshot every Tuesday at 5 PM (17:00)
   // Using a simple interval check since we don't have a full cron library
-  // In production, consider using node-cron or similar
   
   function checkAndRunKtcSnapshot() {
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0 = Sunday, 2 = Tuesday
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const runDate = now.toISOString().split('T')[0];
+    const { dateKey, hour, minute } = getPacificDateParts(now);
 
-    // Check if it's Tuesday (2) and between 17:00 and 17:59
-    if (dayOfWeek === 2 && hours === 17 && minutes >= 0 && minutes < 1 && lastSnapshotRunDate !== runDate) {
-      lastSnapshotRunDate = runDate;
-      console.log('[Scheduled Jobs] Running KTC snapshot at', now.toISOString());
+    if (hour === SNAPSHOT_HOUR && minute === 0 && lastSnapshotRunDate !== dateKey) {
+      lastSnapshotRunDate = dateKey;
+      console.log(`[Scheduled Jobs] Running daily KTC snapshot at ${now.toISOString()} (${dateKey} 18:00 ${SNAPSHOT_TIME_ZONE})`);
       storeKtcSnapshot().catch((error) => {
         console.error('[Scheduled Jobs] Error running KTC snapshot:', error);
       });
@@ -31,5 +48,5 @@ export function initializeScheduledJobs() {
   // Check every minute if we should run the snapshot
   setInterval(checkAndRunKtcSnapshot, 60000);
   
-  console.log('[Scheduled Jobs] Initialized - KTC snapshots will run every Tuesday at 5 PM');
+  console.log(`[Scheduled Jobs] Initialized - KTC snapshots will run daily at 6 PM ${SNAPSHOT_TIME_ZONE}`);
 }

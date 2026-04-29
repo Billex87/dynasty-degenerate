@@ -3,10 +3,10 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { loadKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshot, loadLocalKtcSnapshotForDate } from "./ktcLoader";
+import { loadKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshotDaysAgo, loadLocalKtcSnapshotForDate } from "./ktcLoader";
 import type { KTCValues, LastSeasonPlayerRank } from "./reportGenerator";
 import { loadCurrentKTCPositionRanks } from "./currentKTCLoader";
-import { getKtcSnapshotFromSevenDaysAgo } from "./ktcSnapshotJob";
+import { getKtcSnapshotFromDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 import { getMay2025KTCSnapshot } from "./waybackMachineScraper";
@@ -557,14 +557,14 @@ export const appRouter = router({
           ).then((r) => r.json());
 
           const ktcValues = await loadKTCValues();
-          // Get previous week's KTC snapshot for Weekly Momentum calculations (7 days ago)
-          const ktcValuesLastWeekRaw = await getKtcSnapshotFromSevenDaysAgo();
+          // Get the latest KTC snapshot from at least 14 days ago for value-change calculations.
+          const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(14);
           let ktcValuesLastWeek: KTCValues = {};
           
           if (ktcValuesLastWeekRaw && Object.keys(ktcValuesLastWeekRaw).length > 0) {
             ktcValuesLastWeek = ktcValuesLastWeekRaw;
           } else {
-            ktcValuesLastWeek = loadLatestLocalKtcSnapshot();
+            ktcValuesLastWeek = loadLatestLocalKtcSnapshotDaysAgo(14);
             if (Object.keys(ktcValuesLastWeek).length === 0) {
               ktcValuesLastWeek = await loadKTCValuesLastWeek();
             }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { storeKtcSnapshot, getKtcSnapshotFromSevenDaysAgo } from './ktcSnapshotJob';
+import { storeKtcSnapshot, getKtcSnapshotFromDaysAgo } from './ktcSnapshotJob';
 
 // Mock the database and KTC loader
 vi.mock('./db', () => ({
@@ -9,11 +9,13 @@ vi.mock('./db', () => ({
 vi.mock('./ktcLoader', () => ({
   loadKTCValues: vi.fn(() =>
     Promise.resolve({
-      'josh-allen': 1500,
-      'patrick-mahomes': 1400,
-      'travis-kelce': 1200,
+      'josh-allen': { name: 'Josh Allen', ktc_value: 1500 },
+      'patrick-mahomes': { name: 'Patrick Mahomes', ktc_value: 1400 },
+      'travis-kelce': { name: 'Travis Kelce', ktc_value: 1200 },
     })
   ),
+  loadLiveKTCValues: vi.fn(() => Promise.resolve({})),
+  saveLocalKtcSnapshot: vi.fn(() => '/tmp/ktc-snapshot-2026-04-29.json'),
 }));
 
 describe('KTC Snapshot Job', () => {
@@ -22,36 +24,34 @@ describe('KTC Snapshot Job', () => {
   });
 
   it('should handle missing database gracefully', async () => {
-    // When database is not available, the function should log an error but not throw
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     
     await storeKtcSnapshot();
     
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[KTC Snapshot] Database not available'
+      '[KTC Snapshot] Database not available; saved local snapshot only'
     );
     
     consoleSpy.mockRestore();
   });
 
-  it('should return null when no snapshot found from 7 days ago', async () => {
-    const result = await getKtcSnapshotFromSevenDaysAgo();
+  it('should return null when no snapshot found from 14 days ago', async () => {
+    const result = await getKtcSnapshotFromDaysAgo(14);
     
     // When database is not available, should return null
     expect(result).toBeNull();
   });
 
-  it('should log error when database is unavailable during snapshot storage', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('should log a warning when database is unavailable during snapshot storage', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     
     // This will fail gracefully due to no database, but we're testing the error message
     await storeKtcSnapshot();
     
-    // The function should log an error when DB is unavailable
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '[KTC Snapshot] Database not available'
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[KTC Snapshot] Database not available; saved local snapshot only'
     );
     
-    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
   });
 });

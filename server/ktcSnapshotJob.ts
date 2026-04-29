@@ -1,7 +1,7 @@
 import { getDb } from './db';
 import { ktcSnapshots } from '../drizzle/schema';
 import { loadKTCValues, loadLiveKTCValues, saveLocalKtcSnapshot } from './ktcLoader';
-import { and, gte, lt } from 'drizzle-orm';
+import { desc, lte } from 'drizzle-orm';
 
 type KTCValueMap = Record<string, { name: string; ktc_value: number; position_rank?: string }>;
 
@@ -36,17 +36,10 @@ function normalizeSnapshotData(data: unknown): KTCValueMap {
 }
 
 /**
- * Store a weekly KTC snapshot every Tuesday at 5 PM
- * This creates a historical record for 7-day momentum calculations
+ * Store a dated KTC snapshot for historical value-change calculations.
  */
 export async function storeKtcSnapshot() {
   try {
-    const db = await getDb();
-    if (!db) {
-      console.error('[KTC Snapshot] Database not available');
-      return;
-    }
-
     // Force a fresh scrape for scheduled snapshots, then fall back to local data.
     const staticAndCachedKtcData = await loadKTCValues();
     const liveKtcData = await loadLiveKTCValues(true);
@@ -62,7 +55,16 @@ export async function storeKtcSnapshot() {
     // Store the snapshot with today's date
     const snapshotDate = new Date();
     const localFilePath = saveLocalKtcSnapshot(snapshotDate, ktcData);
-    
+
+    const db = await getDb();
+    if (!db) {
+      console.warn('[KTC Snapshot] Database not available; saved local snapshot only');
+      if (localFilePath) {
+        console.log(`[KTC Snapshot] Saved local snapshot to ${localFilePath}`);
+      }
+      return;
+    }
+
     await db.insert(ktcSnapshots).values({
       snapshotDate,
       ktcData: JSON.stringify(ktcData),
@@ -78,10 +80,10 @@ export async function storeKtcSnapshot() {
 }
 
 /**
- * Get the KTC snapshot from exactly 7 days ago
- * Used for Weekly Momentum calculations
+ * Get the latest KTC snapshot at least N days old.
+ * Used for Weekly Momentum value-change calculations.
  */
-export async function getKtcSnapshotFromSevenDaysAgo() {
+export async function getKtcSnapshotFromDaysAgo(daysAgo: number = 14) {
   try {
     const db = await getDb();
     if (!db) {
@@ -89,28 +91,18 @@ export async function getKtcSnapshotFromSevenDaysAgo() {
       return null;
     }
 
-    // Calculate date from 7 days ago (with 1 day tolerance for flexibility)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    const sixDaysAgo = new Date();
-    sixDaysAgo.setDate(sixDaysAgo.getDate() - 6);
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() - daysAgo);
 
-    // Find the most recent snapshot between 6-8 days ago
     const snapshot = await db
       .select()
       .from(ktcSnapshots)
-      .where(
-        and(
-          gte(ktcSnapshots.snapshotDate, sevenDaysAgo),
-          lt(ktcSnapshots.snapshotDate, sixDaysAgo)
-        )
-      )
-      .orderBy(ktcSnapshots.snapshotDate)
+      .where(lte(ktcSnapshots.snapshotDate, targetDate))
+      .orderBy(desc(ktcSnapshots.snapshotDate))
       .limit(1);
 
     if (snapshot.length === 0) {
-      console.warn('[KTC Snapshot] No snapshot found from 7 days ago');
+      console.warn(`[KTC Snapshot] No snapshot found from at least ${daysAgo} days ago`);
       return null;
     }
 
@@ -122,4 +114,8 @@ export async function getKtcSnapshotFromSevenDaysAgo() {
     console.error('[KTC Snapshot] Error retrieving snapshot:', error);
     return null;
   }
+}
+
+export async function getKtcSnapshotFromSevenDaysAgo() {
+  return getKtcSnapshotFromDaysAgo(7);
 }

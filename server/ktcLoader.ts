@@ -106,6 +106,13 @@ export function loadLatestLocalKtcSnapshotBefore(beforeDate: Date): KTCValues {
   }
 }
 
+export function loadLatestLocalKtcSnapshotDaysAgo(daysAgo: number): KTCValues {
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() - daysAgo);
+  targetDate.setDate(targetDate.getDate() + 1);
+  return loadLatestLocalKtcSnapshotBefore(targetDate);
+}
+
 export function saveLocalKtcSnapshot(date: Date, ktcData: KTCValues): string | null {
   try {
     if (!fs.existsSync(KTC_SNAPSHOT_DIR)) {
