@@ -60,8 +60,15 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
-    // Initialize scheduled jobs (e.g., weekly KTC snapshots)
-    initializeScheduledJobs();
+    const shouldRunScheduledJobs =
+      process.env.DISABLE_SCHEDULED_JOBS !== "true" &&
+      (process.env.NODE_ENV !== "development" || process.env.ENABLE_SCHEDULED_JOBS === "true");
+
+    if (shouldRunScheduledJobs) {
+      initializeScheduledJobs();
+    } else {
+      console.log("Scheduled jobs disabled for this server process");
+    }
   });
 }
 
