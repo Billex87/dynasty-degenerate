@@ -123,6 +123,11 @@ export function PlayerDetailModal({
     ['College', details?.college],
     ['Birthday', formatBirthday(details?.birthDate)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const lastSeasonRows = [
+    ['Last Year Rank', details?.lastSeasonPositionRank ? `${details.lastSeasonYear || 'Last'} ${details.lastSeasonPositionRank}` : null],
+    ['Games Played', details?.lastSeasonGames],
+    ['PPG', details?.lastSeasonPointsPerGame],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const healthRows = [
     ['Injury Status', details?.injuryStatus],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
@@ -306,6 +311,7 @@ export function PlayerDetailModal({
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
                   <p className="text-center text-[0.68rem] font-bold uppercase tracking-[0.18em] text-cyan-200/70">
                     Blend: {valueProfile.sources.join(' + ')}
+                    {valueProfile.fantasyProsPositionRank ? ` | FantasyPros ${valueProfile.fantasyProsPositionRank}` : ''}
                   </p>
                 )}
               </div>
@@ -367,6 +373,13 @@ export function PlayerDetailModal({
               {backgroundRows.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   {backgroundRows.map(([label, value]) => (
+                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
+                  ))}
+                </div>
+              )}
+              {lastSeasonRows.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {lastSeasonRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>

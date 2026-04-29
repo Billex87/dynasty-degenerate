@@ -11,6 +11,7 @@ import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draf
 import { getMay2025KTCSnapshot } from "./waybackMachineScraper";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
+import { fetchFantasyProsPlayerPoints } from "./fantasyPros";
 import type { PickPortfolio, PlayerDetails, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
@@ -182,6 +183,10 @@ function getPlayerValueProfile(
     fantasyCalcDynasty: data.market_value_fantasycalc ?? null,
     fantasyCalcRedraft: data.redraft_value ?? null,
     dynastyProcess: data.expert_value_dynastyprocess ?? null,
+    fantasyProsRank: data.fantasypros_rank ?? null,
+    fantasyProsPositionRank: data.fantasypros_position_rank ?? null,
+    fantasyProsTier: data.fantasypros_tier ?? null,
+    fantasyProsSeasonValue: data.fantasypros_season_value ?? null,
     sources: data.value_sources || [],
   };
 }
@@ -415,10 +420,14 @@ async function fetchLastSeasonPositionRanks(
   const uniquePlayerIds = Array.from(new Set(playerIds))
     .filter((playerId) => ['QB', 'RB', 'WR', 'TE'].includes(players[playerId]?.position));
   const scoringFamily = getScoringFamily(scoringSettings);
+  const fantasyProsScoring = scoringFamily === 'ppr' ? 'PPR' : scoringFamily === 'std' ? 'STD' : 'HALF';
+  const fantasyProsPoints = await fetchFantasyProsPlayerPoints(season, fantasyProsScoring);
   const scoredPlayers: Array<{
     playerId: string;
     position: string;
     points: number;
+    games?: number | null;
+    pointsPerGame?: number | null;
     providedPositionRank?: number | null;
   }> = [];
 
@@ -435,6 +444,8 @@ async function fetchLastSeasonPositionRanks(
         if (!stats || typeof stats !== 'object') return null;
 
         const position = players[playerId]?.position;
+        const nameKey = cleanName(`${players[playerId]?.first_name || ''}${players[playerId]?.last_name || ''}`);
+        const fpPoints = fantasyProsPoints[nameKey];
         const providedPositionRank = Number(stats[`pos_rank_${scoringFamily}`] ?? stats.pos_rank_half_ppr ?? stats.pos_rank_ppr ?? stats.pos_rank_std);
         const providedPoints = Number(stats[`pts_${scoringFamily}`] ?? stats.pts_half_ppr ?? stats.pts_ppr ?? stats.pts_std);
         const points = scoringFamily === 'custom'
@@ -446,6 +457,8 @@ async function fetchLastSeasonPositionRanks(
           playerId,
           position,
           points,
+          games: fpPoints?.games ?? null,
+          pointsPerGame: fpPoints?.average ?? null,
           providedPositionRank: Number.isFinite(providedPositionRank) ? providedPositionRank : null,
         };
       } catch (error) {
@@ -469,6 +482,8 @@ async function fetchLastSeasonPositionRanks(
       ranks[player.playerId] = {
         positionRank: `${position}${rank}`,
         fantasyPoints: Math.round(player.points * 10) / 10,
+        games: player.games ?? null,
+        pointsPerGame: player.pointsPerGame ?? null,
         season,
       };
     });
@@ -842,7 +857,15 @@ export const appRouter = router({
               playerDetailsById: Object.fromEntries(
                 Object.entries(playerDetailsById).map(([playerId, details]) => [
                   playerId,
-                  { ...details, valueProfile: valueProfilesById[playerId] },
+                  {
+                    ...details,
+                    valueProfile: valueProfilesById[playerId],
+                    lastSeasonPositionRank: lastSeasonPositionRanks[playerId]?.positionRank || null,
+                    lastSeasonFantasyPoints: lastSeasonPositionRanks[playerId]?.fantasyPoints ?? null,
+                    lastSeasonGames: lastSeasonPositionRanks[playerId]?.games ?? null,
+                    lastSeasonPointsPerGame: lastSeasonPositionRanks[playerId]?.pointsPerGame ?? null,
+                    lastSeasonYear: lastSeasonPositionRanks[playerId]?.season || null,
+                  },
                 ])
               ),
               currentPositionRankById: buildCurrentPositionRankMap(reportPlayerIds, players, ktcValues),

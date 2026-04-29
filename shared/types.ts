@@ -70,6 +70,8 @@ export interface ManagerIntelPlayer {
   currentPositionRank?: string | null;
   lastSeasonPositionRank?: string | null;
   lastSeasonFantasyPoints?: number | null;
+  lastSeasonGames?: number | null;
+  lastSeasonPointsPerGame?: number | null;
   lastSeasonYear?: string | null;
   playerDetails?: PlayerDetails;
 }
@@ -212,8 +214,17 @@ export interface PlayerDetails {
     fantasyCalcDynasty?: number | null;
     fantasyCalcRedraft?: number | null;
     dynastyProcess?: number | null;
+    fantasyProsRank?: number | null;
+    fantasyProsPositionRank?: string | null;
+    fantasyProsTier?: number | null;
+    fantasyProsSeasonValue?: number | null;
     sources?: string[];
   };
+  lastSeasonPositionRank?: string | null;
+  lastSeasonFantasyPoints?: number | null;
+  lastSeasonGames?: number | null;
+  lastSeasonPointsPerGame?: number | null;
+  lastSeasonYear?: string | null;
   externalIds?: Record<string, string | number | null | undefined>;
 }
 

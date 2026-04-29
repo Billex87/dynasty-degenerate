@@ -1,4 +1,5 @@
 import { cleanName } from './leagueAnalysis';
+import { fetchFantasyProsDraftRankings } from './fantasyPros';
 
 export interface BlendedValue {
   name: string;
@@ -10,6 +11,10 @@ export interface BlendedValue {
   market_value_ktc?: number;
   market_value_fantasycalc?: number;
   expert_value_dynastyprocess?: number;
+  fantasypros_rank?: number;
+  fantasypros_position_rank?: string | null;
+  fantasypros_tier?: number | null;
+  fantasypros_season_value?: number;
   value_sources?: string[];
 }
 
@@ -30,6 +35,10 @@ interface ExternalValue {
   position?: string;
   dynastyValue?: number;
   redraftValue?: number;
+  rankOverall?: number;
+  rankPosition?: string | null;
+  tier?: number | null;
+  seasonValue?: number;
 }
 
 const FANTASYCALC_URL = 'https://api.fantasycalc.com/values/current?isDynasty=true&numQbs=2&numTeams=12&ppr=1';
@@ -178,15 +187,17 @@ function rankBlendedValues(values: ValueMap): ValueMap {
 }
 
 export async function loadBlendedPlayerValues(ktcValues: ValueMap): Promise<ValueMap> {
-  const [fantasyCalcValues, dynastyProcessValues] = await Promise.all([
+  const [fantasyCalcValues, dynastyProcessValues, fantasyProsRankings] = await Promise.all([
     fetchFantasyCalcValues(),
     fetchDynastyProcessValues(),
+    fetchFantasyProsDraftRankings(),
   ]);
 
   const keys = new Set([
     ...Object.keys(ktcValues),
     ...Object.keys(fantasyCalcValues),
     ...Object.keys(dynastyProcessValues),
+    ...Object.keys(fantasyProsRankings),
   ]);
 
   const blended: ValueMap = {};
@@ -195,8 +206,11 @@ export async function loadBlendedPlayerValues(ktcValues: ValueMap): Promise<Valu
     const ktc = ktcValues[key];
     const fantasyCalc = fantasyCalcValues[key];
     const dynastyProcess = dynastyProcessValues[key];
-    const name = ktc?.name || fantasyCalc?.name || dynastyProcess?.name || key;
-    const position = getPosition(ktc || { name, ktc_value: 0 }, fantasyCalc, dynastyProcess);
+    const fantasyPros = fantasyProsRankings[key];
+    const name = ktc?.name || fantasyCalc?.name || dynastyProcess?.name || fantasyPros?.name || key;
+    const position = getPosition(ktc || { name, ktc_value: 0, position_rank: fantasyPros?.positionRank || undefined }, fantasyCalc, dynastyProcess)
+      || fantasyPros?.position
+      || null;
     const ktcValue = ktc?.ktc_value;
     const fantasyCalcDynasty = fantasyCalc?.dynastyValue;
     const dynastyProcessValue = dynastyProcess?.dynastyValue;
@@ -208,7 +222,11 @@ export async function loadBlendedPlayerValues(ktcValues: ValueMap): Promise<Valu
 
     if (!dynastyValue) continue;
 
-    const redraftValue = fantasyCalc?.redraftValue;
+    const fantasyProsSeasonValue = fantasyPros?.seasonValue;
+    const redraftValue = weightedAverage([
+      { value: fantasyCalc?.redraftValue, weight: 0.55 },
+      { value: fantasyProsSeasonValue, weight: 0.45 },
+    ]) || undefined;
     const trueValue = redraftValue
       ? weightedAverage([
           { value: dynastyValue, weight: 0.70 },
@@ -223,14 +241,19 @@ export async function loadBlendedPlayerValues(ktcValues: ValueMap): Promise<Valu
       dynasty_value: Math.round(dynastyValue),
       true_value: Math.round(trueValue),
       redraft_value: redraftValue ? Math.round(redraftValue) : undefined,
-      position_rank: ktc?.position_rank,
+      position_rank: ktc?.position_rank || fantasyPros?.positionRank || undefined,
       market_value_ktc: ktcValue,
       market_value_fantasycalc: fantasyCalcDynasty,
       expert_value_dynastyprocess: dynastyProcessValue,
+      fantasypros_rank: fantasyPros?.overallRank,
+      fantasypros_position_rank: fantasyPros?.positionRank ?? undefined,
+      fantasypros_tier: fantasyPros?.tier ?? undefined,
+      fantasypros_season_value: fantasyProsSeasonValue,
       value_sources: [
         ktcValue ? 'KTC' : null,
         fantasyCalcDynasty ? 'FantasyCalc' : null,
         dynastyProcessValue ? 'DynastyProcess' : null,
+        fantasyProsSeasonValue ? 'FantasyPros' : null,
       ].filter(Boolean) as string[],
     };
 

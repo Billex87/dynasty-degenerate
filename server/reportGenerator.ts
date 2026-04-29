@@ -21,6 +21,10 @@ export interface KTCValues {
     market_value_ktc?: number;
     market_value_fantasycalc?: number;
     expert_value_dynastyprocess?: number;
+    fantasypros_rank?: number;
+    fantasypros_position_rank?: string | null;
+    fantasypros_tier?: number | null;
+    fantasypros_season_value?: number;
     value_sources?: string[];
   };
 }
@@ -72,6 +76,8 @@ interface User {
 export interface LastSeasonPlayerRank {
   positionRank: string;
   fantasyPoints: number;
+  games?: number | null;
+  pointsPerGame?: number | null;
   season?: string;
 }
 
@@ -925,6 +931,8 @@ export async function generateReport(
           currentPositionRank,
           lastSeasonPositionRank: lastSeasonRank?.positionRank || null,
           lastSeasonFantasyPoints: lastSeasonRank?.fantasyPoints ?? null,
+          lastSeasonGames: lastSeasonRank?.games ?? null,
+          lastSeasonPointsPerGame: lastSeasonRank?.pointsPerGame ?? null,
           lastSeasonYear: lastSeasonRank?.season || null,
           playerDetails: getPlayerDetails(pid, allPlayers),
           age: player?.age ?? null,
