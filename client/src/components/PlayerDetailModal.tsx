@@ -90,6 +90,7 @@ export function PlayerDetailModal({
 
   if (!pick) return null;
   const details = pick.playerDetails;
+  const valueProfile = details?.valueProfile;
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
   const currentValue = pick.currentKtcValue;
   const draftValue = pick.ktcValue;
@@ -274,6 +275,42 @@ export function PlayerDetailModal({
               </p>
             )}
 
+            {valueProfile && (
+              <div className="mx-auto max-w-xl space-y-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                  <InfoTile
+                    label="Dynasty"
+                    value={formatValueLens(valueProfile.dynastyValue)}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                  <InfoTile
+                    label="Season"
+                    value={formatValueLens(valueProfile.seasonValue)}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                  <InfoTile
+                    label="Contender"
+                    value={formatValueLens(valueProfile.contenderValue)}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                  <InfoTile
+                    label="Rebuilder"
+                    value={formatValueLens(valueProfile.rebuilderValue)}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                </div>
+                {valueProfile.sources && valueProfile.sources.length > 0 && (
+                  <p className="text-center text-[0.68rem] font-bold uppercase tracking-[0.18em] text-cyan-200/70">
+                    Blend: {valueProfile.sources.join(' + ')}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="mx-auto max-w-xl space-y-3">
               {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025) && (
                 <div className="space-y-3">
@@ -396,6 +433,12 @@ function formatDepthChart(position: string | null | undefined, order: number | n
   if (!position) return null;
   const normalizedPosition = ['SWR', 'LWR', 'RWR'].includes(position) ? 'WR' : position;
   return [normalizedPosition, order ? `#${order}` : null].filter(Boolean).join(' ');
+}
+
+function formatValueLens(value: number | null | undefined) {
+  if (!value) return '-';
+  if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}K`;
+  return value.toLocaleString();
 }
 
 function getValueChangeNote(pick: PlayerModalData) {

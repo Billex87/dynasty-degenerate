@@ -1,9 +1,21 @@
 import fs from 'fs';
 import path from 'path';
 import { getCurrentKTCRankings } from './liveKTCScraper';
+import { loadBlendedPlayerValues } from './valueBlend';
 
 interface KTCValues {
-  [key: string]: { name: string; ktc_value: number; position_rank?: string };
+  [key: string]: {
+    name: string;
+    ktc_value: number;
+    position_rank?: string;
+    dynasty_value?: number;
+    true_value?: number;
+    redraft_value?: number;
+    market_value_ktc?: number;
+    market_value_fantasycalc?: number;
+    expert_value_dynastyprocess?: number;
+    value_sources?: string[];
+  };
 }
 
 let ktcValuesCache: KTCValues | null = null;
@@ -26,6 +38,11 @@ export async function loadKTCValues(): Promise<KTCValues> {
 
   ktcValuesCache = staticValues;
   return ktcValuesCache;
+}
+
+export async function loadBlendedKTCValues(): Promise<KTCValues> {
+  const ktcValues = await loadKTCValues();
+  return loadBlendedPlayerValues(ktcValues);
 }
 
 function loadStaticKTCValues(fileName: string): KTCValues {

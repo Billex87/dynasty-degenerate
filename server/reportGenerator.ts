@@ -1,6 +1,7 @@
 import {
   cleanName,
   getPlayerName,
+  getPlayerRedraftValue,
   getPlayerValue,
   getPickValue,
   projectValue,
@@ -10,7 +11,18 @@ import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
 import type { ManagerIntelPlayer, PlayerDetails, ReportData } from '../shared/types';
 
 export interface KTCValues {
-  [key: string]: { name: string; ktc_value: number; position_rank?: string };
+  [key: string]: {
+    name: string;
+    ktc_value: number;
+    position_rank?: string;
+    dynasty_value?: number;
+    true_value?: number;
+    redraft_value?: number;
+    market_value_ktc?: number;
+    market_value_fantasycalc?: number;
+    expert_value_dynastyprocess?: number;
+    value_sources?: string[];
+  };
 }
 
 interface Player {
@@ -924,6 +936,7 @@ export async function generateReport(
     const starters = rosterPlayers.filter((player) => player.isStarter).sort((a, b) => b.value - a.value);
     const bench = rosterPlayers.filter((player) => !player.isStarter).sort((a, b) => b.value - a.value);
     const starterValue = starters.reduce((sum, player) => sum + player.value, 0);
+    const starterSeasonValue = starters.reduce((sum, player) => sum + getPlayerRedraftValue(player.player_id, allPlayers, ktcValues), 0);
     const benchValue = bench.reduce((sum, player) => sum + player.value, 0);
     const totalValue = starterValue + benchValue;
     const starterValuePct = totalValue > 0 ? Math.round((starterValue / totalValue) * 100) : 0;
@@ -991,7 +1004,7 @@ export async function generateReport(
       finalRanks[manager]?.current_VALUE || 99,
       finalRanks[manager]?.['2027_VALUE'] || 99
     );
-    const contenderScore = normalizeScore(starterValue, Math.max(...Object.values(teamData).map((data) => data.total_val)));
+    const contenderScore = normalizeScore(starterSeasonValue || starterValue, Math.max(...Object.values(teamData).map((data) => data.total_val)));
     const rebuildScore = Math.round(((100 - starterValuePct) * 0.35) + ((avgAge !== null ? Math.max(0, 28 - avgAge) * 8 : 35) * 0.65));
     const timeline = getTimelineLabel(contenderScore, rebuildScore, avgAge !== null ? Math.max(0, avgAge - 25) * 18 : 0);
     const usedInsightPlayerIds = new Set<string>();
@@ -1073,6 +1086,7 @@ export async function generateReport(
       timeline,
       summary,
       starterValue,
+      starterSeasonValue,
       benchValue,
       starterValuePct,
       bestBenchStash,
@@ -1124,7 +1138,7 @@ export async function generateReport(
 
   const dynastyTimelines = managerRosterIntelligence.map((intel) => {
     const data = teamData[intel.manager];
-    const contenderScore = Math.round((normalizeScore(intel.starterValue, maxStarterValue) * 0.72) + (normalizeScore(data.total_val, maxTotalValue) * 0.28));
+    const contenderScore = Math.round((normalizeScore(intel.starterSeasonValue || intel.starterValue, maxStarterValue) * 0.72) + (normalizeScore(data.total_val, maxTotalValue) * 0.28));
     const outlook2027 = Math.round(100 - ((finalRanks[intel.manager]?.['2027_VALUE'] || currentSeasonData.rosters.length) - 1) * (100 / Math.max(1, currentSeasonData.rosters.length - 1)));
     const agingRisk = Math.round(Math.max(0, ((intel.avgAge || 25) - 25) * 18));
     const rebuildScore = Math.round((outlook2027 * 0.42) + ((100 - contenderScore) * 0.28) + (Math.max(0, 28 - (intel.avgAge || 28)) * 8));

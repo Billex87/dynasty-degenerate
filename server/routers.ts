@@ -3,9 +3,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { loadKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshotDaysAgo, loadLocalKtcSnapshotForDate } from "./ktcLoader";
+import { loadBlendedKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshotDaysAgo, loadLocalKtcSnapshotForDate } from "./ktcLoader";
 import type { KTCValues, LastSeasonPlayerRank } from "./reportGenerator";
-import { loadCurrentKTCPositionRanks } from "./currentKTCLoader";
 import { getKtcSnapshotFromDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
@@ -139,6 +138,54 @@ function getPlayerCurrentPositionRank(
   return rank || null;
 }
 
+function getPlayerValueProfile(
+  playerId: string,
+  players: Record<string, any>,
+  ktcValues: KTCValues
+): PlayerDetails['valueProfile'] | undefined {
+  const player = players[playerId];
+  if (!player) return undefined;
+
+  const key = cleanName(`${player.first_name || ''}${player.last_name || ''}`);
+  let data = ktcValues[key];
+
+  if (!data) {
+    for (const ktcKey in ktcValues) {
+      if (key.includes(ktcKey) || ktcKey.includes(key)) {
+        data = ktcValues[ktcKey];
+        break;
+      }
+    }
+  }
+
+  if (!data) return undefined;
+
+  const dynastyValue = data.dynasty_value ?? data.ktc_value ?? null;
+  const seasonValue = data.redraft_value ?? data.true_value ?? data.ktc_value ?? null;
+  const contenderValue = dynastyValue && seasonValue
+    ? Math.round((seasonValue * 0.6) + (dynastyValue * 0.4))
+    : seasonValue ?? dynastyValue;
+  const rebuilderValue = dynastyValue && seasonValue
+    ? Math.round((dynastyValue * 0.8) + (seasonValue * 0.2))
+    : dynastyValue ?? seasonValue;
+  const balancedValue = dynastyValue && seasonValue
+    ? Math.round((dynastyValue * 0.55) + (seasonValue * 0.45))
+    : dynastyValue ?? seasonValue;
+
+  return {
+    dynastyValue,
+    seasonValue,
+    contenderValue,
+    rebuilderValue,
+    balancedValue,
+    marketKtc: data.market_value_ktc ?? null,
+    fantasyCalcDynasty: data.market_value_fantasycalc ?? null,
+    fantasyCalcRedraft: data.redraft_value ?? null,
+    dynastyProcess: data.expert_value_dynastyprocess ?? null,
+    sources: data.value_sources || [],
+  };
+}
+
 function buildCurrentPositionRankMap(
   playerIds: Iterable<string>,
   players: Record<string, any>,
@@ -149,6 +196,18 @@ function buildCurrentPositionRankMap(
       playerId,
       getPlayerCurrentPositionRank(playerId, players, ktcValues),
     ])
+  );
+}
+
+function buildPlayerValueProfileMap(
+  playerIds: Iterable<string>,
+  players: Record<string, any>,
+  ktcValues: KTCValues
+): Record<string, PlayerDetails['valueProfile']> {
+  return Object.fromEntries(
+    Array.from(new Set(Array.from(playerIds).filter(Boolean)))
+      .map((playerId) => [playerId, getPlayerValueProfile(playerId, players, ktcValues)])
+      .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
   );
 }
 
@@ -556,7 +615,7 @@ export const appRouter = router({
             'https://api.sleeper.app/v1/players/nfl'
           ).then((r) => r.json());
 
-          const ktcValues = await loadKTCValues();
+          const ktcValues = await loadBlendedKTCValues();
           // Get the latest KTC snapshot from at least 14 days ago for value-change calculations.
           const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(14);
           let ktcValuesLastWeek: KTCValues = {};
@@ -696,8 +755,6 @@ export const appRouter = router({
               const ktcValuesByDraftYear = {
                 '2026': loadLocalKtcSnapshotForDate('2026-04-23'),
               };
-              // Load current KTC position ranks
-              const currentKTCRanks = await loadCurrentKTCPositionRanks();
               draftAnalysis = await analyzeDraftPicks(
                 draftPicks,
                 players,
@@ -706,7 +763,7 @@ export const appRouter = router({
                 adpData,
                 ktcValuesLastWeek,
                 ktcValuesMay2025,
-                currentKTCRanks,
+                ktcValues,
                 ktcValuesByDraftYear
               );
             }
@@ -771,6 +828,8 @@ export const appRouter = router({
             ...trendingAdds.map((player) => player.player_id),
             ...trendingDrops.map((player) => player.player_id),
           ];
+          const valueProfilesById = buildPlayerValueProfileMap(reportPlayerIds, players, ktcValues);
+          const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players);
 
           return {
             leagueId: input.leagueId,
@@ -780,7 +839,12 @@ export const appRouter = router({
             reportData: {
               ...reportData,
               managerAvatars: buildManagerAvatarMap(users),
-              playerDetailsById: buildPlayerDetailsMap(reportPlayerIds, players),
+              playerDetailsById: Object.fromEntries(
+                Object.entries(playerDetailsById).map(([playerId, details]) => [
+                  playerId,
+                  { ...details, valueProfile: valueProfilesById[playerId] },
+                ])
+              ),
               currentPositionRankById: buildCurrentPositionRankMap(reportPlayerIds, players, ktcValues),
               trendingAdds,
               trendingDrops,

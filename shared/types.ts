@@ -80,6 +80,7 @@ export interface ManagerRosterIntelligence {
   timeline: string;
   summary: string;
   starterValue: number;
+  starterSeasonValue?: number;
   benchValue: number;
   starterValuePct: number;
   bestBenchStash: ManagerIntelPlayer | null;
@@ -201,6 +202,18 @@ export interface PlayerDetails {
   depthChartOrder?: number | null;
   yearsExp?: number | null;
   status?: string | null;
+  valueProfile?: {
+    dynastyValue?: number | null;
+    seasonValue?: number | null;
+    contenderValue?: number | null;
+    rebuilderValue?: number | null;
+    balancedValue?: number | null;
+    marketKtc?: number | null;
+    fantasyCalcDynasty?: number | null;
+    fantasyCalcRedraft?: number | null;
+    dynastyProcess?: number | null;
+    sources?: string[];
+  };
   externalIds?: Record<string, string | number | null | undefined>;
 }
 

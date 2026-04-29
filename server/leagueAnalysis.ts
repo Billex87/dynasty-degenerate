@@ -1,5 +1,5 @@
 interface KTCValues {
-  [key: string]: { name: string; ktc_value: number };
+  [key: string]: { name: string; ktc_value: number; redraft_value?: number; true_value?: number; dynasty_value?: number };
 }
 
 interface Player {
@@ -26,18 +26,43 @@ export function getPlayerValue(
   allPlayers: Player,
   ktcValues: KTCValues
 ): number {
+  return getPlayerValueField(pid, allPlayers, ktcValues, 'ktc_value');
+}
+
+export function getPlayerRedraftValue(
+  pid: string,
+  allPlayers: Player,
+  ktcValues: KTCValues
+): number {
+  return getPlayerValueField(pid, allPlayers, ktcValues, 'redraft_value') || getPlayerValue(pid, allPlayers, ktcValues);
+}
+
+export function getPlayerTrueValue(
+  pid: string,
+  allPlayers: Player,
+  ktcValues: KTCValues
+): number {
+  return getPlayerValueField(pid, allPlayers, ktcValues, 'true_value') || getPlayerValue(pid, allPlayers, ktcValues);
+}
+
+function getPlayerValueField(
+  pid: string,
+  allPlayers: Player,
+  ktcValues: KTCValues,
+  field: 'ktc_value' | 'redraft_value' | 'true_value' | 'dynasty_value'
+): number {
   const p = allPlayers[pid];
   if (!p) return 0;
 
   const fullName = `${p.first_name || ''}${p.last_name || ''}`;
   const key = cleanName(fullName);
-  let val = ktcValues[key]?.ktc_value || 0;
+  let val = ktcValues[key]?.[field] || 0;
 
   if (val === 0) {
     // Fuzzy match
     for (const k in ktcValues) {
       if (key.includes(k) || k.includes(key)) {
-        return ktcValues[k].ktc_value;
+        return ktcValues[k][field] || 0;
       }
     }
     return 0; // Return 0 if not found (will be filtered out in weekly momentum)

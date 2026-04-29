@@ -1,6 +1,7 @@
 import { getDb } from './db';
 import { ktcSnapshots } from '../drizzle/schema';
 import { loadKTCValues, loadLiveKTCValues, saveLocalKtcSnapshot } from './ktcLoader';
+import { loadBlendedPlayerValues } from './valueBlend';
 import { desc, lte } from 'drizzle-orm';
 
 type KTCValueMap = Record<string, { name: string; ktc_value: number; position_rank?: string }>;
@@ -43,9 +44,10 @@ export async function storeKtcSnapshot() {
     // Force a fresh scrape for scheduled snapshots, then fall back to local data.
     const staticAndCachedKtcData = await loadKTCValues();
     const liveKtcData = await loadLiveKTCValues(true);
-    const ktcData = Object.keys(liveKtcData).length > 0
+    const freshKtcData = Object.keys(liveKtcData).length > 0
       ? { ...staticAndCachedKtcData, ...liveKtcData }
       : staticAndCachedKtcData;
+    const ktcData = await loadBlendedPlayerValues(freshKtcData).catch(() => freshKtcData);
     
     if (!ktcData || Object.keys(ktcData).length === 0) {
       console.error('[KTC Snapshot] Failed to load KTC data');

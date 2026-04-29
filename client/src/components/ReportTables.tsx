@@ -87,7 +87,14 @@ function buildPlayerModalData({
   valueChangeNote?: string;
   currentPositionRank?: string | null;
 }): PlayerModalData {
-  const details = playerDetails || (playerId ? playerDetailsById?.[playerId] : undefined);
+  const mappedDetails = playerId ? playerDetailsById?.[playerId] : undefined;
+  const details = playerDetails
+    ? {
+        ...mappedDetails,
+        ...playerDetails,
+        valueProfile: playerDetails.valueProfile || mappedDetails?.valueProfile,
+      }
+    : mappedDetails;
   return {
     player_id: playerId,
     playerName,
