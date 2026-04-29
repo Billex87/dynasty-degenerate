@@ -2,6 +2,11 @@
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
   "outputDirectory": "dist/public",
+  "functions": {
+    "api/**/*.js": {
+      "includeFiles": "dist/vercelApp.js"
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/ktc-snapshot",
