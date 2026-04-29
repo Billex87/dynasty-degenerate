@@ -244,6 +244,7 @@ function buildSimilarTradeValueMap(
         .filter((candidate) => candidate.playerId !== player.playerId && candidate.position === position)
         .sort((a, b) => Math.abs(a.value - player.value) - Math.abs(b.value - player.value))[0])
       .filter(Boolean)
+      .sort((a, b) => Math.abs(a.value - player.value) - Math.abs(b.value - player.value))
       .map((peer) => ({
         playerId: peer.playerId,
         name: peer.name,
@@ -252,6 +253,7 @@ function buildSimilarTradeValueMap(
         rank: peer.rank,
         value: peer.value,
         difference: peer.value - player.value,
+        label: `${player.position} value near ${peer.position}`,
       }));
 
     return [player.playerId, peers];

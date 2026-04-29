@@ -320,12 +320,12 @@ export function PlayerDetailModal({
             {details?.similarTradeValues?.length ? (
               <div className="mx-auto max-w-xl space-y-2">
                 <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
-                  Similar Trade Value
+                  Cross-Position Trade Comps
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {details.similarTradeValues.slice(0, 4).map((peer) => (
                     <div key={peer.playerId} className="rounded-xl border border-cyan-300/15 bg-slate-950/45 p-2 text-center">
-                      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">{peer.position}</div>
+                      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">{peer.label || peer.position}</div>
                       <div className="mt-1 truncate text-sm font-black text-slate-100">{peer.name}</div>
                       <div className="mt-1 flex items-center justify-center gap-1 text-[0.68rem] font-black">
                         <span className={getPositionRankPillClass(peer.rank || peer.position)}>{peer.rank || peer.position}</span>

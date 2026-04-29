@@ -93,6 +93,7 @@ function buildPlayerModalData({
         ...mappedDetails,
         ...playerDetails,
         valueProfile: playerDetails.valueProfile || mappedDetails?.valueProfile,
+        similarTradeValues: playerDetails.similarTradeValues || mappedDetails?.similarTradeValues,
       }
     : mappedDetails;
   return {
@@ -1031,7 +1032,7 @@ export function LeagueCommandCenter({
       notes.push(`Lineup warning: ${missingLineupGroups.map((group) => group.label).join(', ')} does not fully fill from ranked players.`);
     }
     if (selectedIntel.weakestStarter) {
-      notes.push(`Softest starter is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.pos}), so that is the cleanest upgrade spot.`);
+      notes.push(`Lineup upgrade spot is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.pos}) after season value is considered.`);
     }
     if (selectedIntel.bestBenchStash) {
       notes.push(`${selectedIntel.bestBenchStash.name} (${selectedIntel.bestBenchStash.currentPositionRank || selectedIntel.bestBenchStash.pos}) is the best bench chip if this manager wants to patch a hole without touching the core.`);
@@ -1401,7 +1402,7 @@ export function ManagerIntelligenceCards({
                     <h4>Key Players</h4>
                     <div className="manager-intel-player-grid">
                       <PlayerInsightTile label="Bench Stash" player={selectedRow.bestBenchStash} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
-                      <PlayerInsightTile label="Weak Link" player={selectedRow.weakestStarter} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="warn" />
+                      <PlayerInsightTile label="Upgrade Spot" player={selectedRow.weakestStarter} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="warn" />
                       <PlayerInsightTile label="Age Risk" player={selectedRow.oldestPlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="danger" />
                       <PlayerInsightTile label="Young Core" player={selectedRow.youngCorePlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
                       <PlayerInsightTile label="Upside Play" player={selectedRow.breakoutCandidate} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
@@ -2371,7 +2372,7 @@ export function StarterBenchSnapshot({
                   managerAvatarUrl: managerAvatars?.[row.manager],
                 }))}
               >
-                <div className="text-[0.62rem] font-black uppercase tracking-[0.14em] text-orange-300/80">Weakest Starter</div>
+                <div className="text-[0.62rem] font-black uppercase tracking-[0.14em] text-orange-300/80">Upgrade Spot</div>
                 <div className="mt-1 flex items-center justify-between gap-2 text-sm font-black text-slate-100">
                   <span className="truncate">{row.weakestStarter.name}</span>
                   <PositionRankPill rank={row.weakestStarter.currentPositionRank || row.weakestStarter.pos} />

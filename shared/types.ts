@@ -246,6 +246,7 @@ export interface PlayerDetails {
     rank?: string | null;
     value: number;
     difference: number;
+    label?: string;
   }>;
   externalIds?: Record<string, string | number | null | undefined>;
 }

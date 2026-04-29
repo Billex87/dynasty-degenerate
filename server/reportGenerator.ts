@@ -353,6 +353,40 @@ function compactPlayerBlurb(player?: ManagerIntelPlayer | null): string | null {
   return `${player.name} (${getRankLabel(player)})`;
 }
 
+function getSeasonValue(player: ManagerIntelPlayer, allPlayers: Player, ktcValues: KTCValues): number {
+  return getPlayerRedraftValue(player.player_id, allPlayers, ktcValues) || player.value;
+}
+
+function getSeasonArbitrage(player: ManagerIntelPlayer, allPlayers: Player, ktcValues: KTCValues): number {
+  return getSeasonValue(player, allPlayers, ktcValues) - player.value;
+}
+
+function getNeedPosition({
+  qbs,
+  rbs,
+  wrs,
+  tes,
+  holeParts,
+}: {
+  qbs: ManagerIntelPlayer[];
+  rbs: ManagerIntelPlayer[];
+  wrs: ManagerIntelPlayer[];
+  tes: ManagerIntelPlayer[];
+  holeParts: string[];
+}): 'QB' | 'RB' | 'WR' | 'TE' | null {
+  if (holeParts.some((part) => part.includes('WR'))) return 'WR';
+  if (holeParts.some((part) => part.includes('RB'))) return 'RB';
+  if (holeParts.some((part) => part.includes('TE'))) return 'TE';
+  if (holeParts.some((part) => part.includes('QB'))) return 'QB';
+  const candidates: Array<{ pos: 'QB' | 'RB' | 'WR' | 'TE'; rank: number }> = [
+    { pos: 'QB', rank: getRankNumber(qbs[1]?.currentPositionRank) || getRankNumber(qbs[0]?.currentPositionRank) || 999 },
+    { pos: 'RB', rank: getRankNumber(rbs[1]?.currentPositionRank) || 999 },
+    { pos: 'WR', rank: getRankNumber(wrs[2]?.currentPositionRank) || getRankNumber(wrs[1]?.currentPositionRank) || 999 },
+    { pos: 'TE', rank: getRankNumber(tes[0]?.currentPositionRank) || 999 },
+  ];
+  return candidates.sort((a, b) => b.rank - a.rank)[0]?.pos || null;
+}
+
 function buildRosterIntelligenceSummary({
   identity,
   qbs,
@@ -413,8 +447,8 @@ function buildRosterIntelligenceSummary({
     ? `Best bench chip is ${bestBenchStash.name} (${getRankLabel(bestBenchStash)})`
     : 'There is no obvious bench stash with real KTC value';
   const weakSummary = weakestStarter
-    ? `Softest starter is ${weakestStarter.name} (${getRankLabel(weakestStarter)})`
-    : 'No starter weakness could be identified from ranked players';
+    ? `Best lineup upgrade spot is ${weakestStarter.name} (${getRankLabel(weakestStarter)})`
+    : 'No obvious starter upgrade spot showed up once season value was included';
   const futureSummary = youngCorePlayer
     ? `Future anchor is ${youngCorePlayer.name} (${getRankLabel(youngCorePlayer)})`
     : oldestPlayer
@@ -425,9 +459,9 @@ function buildRosterIntelligenceSummary({
     : 'No major positional hole is flagged by the rank thresholds';
   const availabilitySummary = describeAvailability(riskiestStarter, avgGamesMissed);
   const tradeSummary = [
-    buyTarget ? `Best buy idea is ${buyTarget.name} (${getRankLabel(buyTarget)}) because that player fits the roster's biggest pressure point` : null,
-    sellCandidate ? `Best sell idea is ${sellCandidate.name} (${getRankLabel(sellCandidate)}) before age or role risk clips the value` : null,
-    injuryInsurance ? `If buying depth, ${injuryInsurance.name} (${getRankLabel(injuryInsurance)}) is the most practical insurance target` : null,
+    buyTarget ? `Best cross-roster buy idea is ${buyTarget.name} (${getRankLabel(buyTarget)}) from ${buyTarget.owner || 'another roster'}` : null,
+    sellCandidate ? `Best sell idea is ${sellCandidate.name} (${getRankLabel(sellCandidate)}) because dynasty value is more useful than the current lineup role` : null,
+    injuryInsurance ? `Internal injury insurance is ${injuryInsurance.name} (${getRankLabel(injuryInsurance)})` : null,
   ].filter(Boolean).join('. ');
 
   return `${identity}. ${qbSummary}. ${rbSummary}. ${wrSummary}. ${teSummary}. ${depthSummary}. ${availabilitySummary} ${stashSummary}. ${weakSummary}. ${futureSummary}. ${holesSummary}.${tradeSummary ? ` ${tradeSummary}.` : ''}`;
@@ -1097,10 +1131,19 @@ export async function generateReport(
     );
     const contenderScore = normalizeScore(starterSeasonValue || starterValue, Math.max(...Object.values(teamData).map((data) => data.total_val)));
     const rebuildScore = Math.round(((100 - starterValuePct) * 0.35) + ((avgAge !== null ? Math.max(0, 28 - avgAge) * 8 : 35) * 0.65));
+    const isContenderBuild = contenderScore >= rebuildScore || contenderScore >= 65;
     const timeline = getTimelineLabel(contenderScore, rebuildScore, avgAge !== null ? Math.max(0, avgAge - 25) * 18 : 0);
     const usedInsightPlayerIds = new Set<string>();
     const bestBenchStash = pickDistinctPlayer(bench, usedInsightPlayerIds);
-    const weakestStarter = pickDistinctPlayer([...starters].sort((a, b) => a.value - b.value), usedInsightPlayerIds);
+    const starterUpgradeCandidates = [...starters]
+      .filter((player) => {
+        const rank = getRankNumber(player.currentPositionRank) || 999;
+        const seasonValue = getSeasonValue(player, allPlayers, ktcValues);
+        const rankLine = player.pos === 'QB' ? teamCount * 2 : player.pos === 'RB' ? teamCount * 3 : player.pos === 'WR' ? teamCount * 4 : Math.round(teamCount * 1.5);
+        return rank > rankLine || seasonValue < 3500;
+      })
+      .sort((a, b) => getSeasonValue(a, allPlayers, ktcValues) - getSeasonValue(b, allPlayers, ktcValues));
+    const weakestStarter = pickDistinctPlayer(starterUpgradeCandidates, usedInsightPlayerIds);
     const oldestPlayer = pickDistinctPlayer(
       [...rosterPlayers]
         .filter((player) => player.value >= 1000)
@@ -1132,21 +1175,44 @@ export async function generateReport(
         }),
       usedInsightPlayerIds
     );
-    const primaryNeed = holeParts.find((part) => part.includes('WR')) ? 'WR'
-      : holeParts.find((part) => part.includes('RB')) ? 'RB'
-        : holeParts.find((part) => part.includes('TE')) ? 'TE'
-          : holeParts.find((part) => part.includes('QB')) ? 'QB'
-            : null;
+    const primaryNeed = getNeedPosition({ qbs, rbs, wrs, tes, holeParts });
+    const maxAffordableTarget = Math.max(
+      2500,
+      (bestBenchStash?.value || 0) + (bench[1]?.value || 0),
+      (bench[0]?.value || 0) * 1.35,
+      starterValue * 0.18
+    );
     const buyTarget = pickDistinctPlayer(
       [...externalPlayers]
-        .filter((player) => (primaryNeed ? player.pos === primaryNeed : ['RB', 'WR', 'TE'].includes(player.pos)) && (player.age || 99) <= 29)
-        .sort((a, b) => getPlayerRedraftValue(b.player_id, allPlayers, ktcValues) - getPlayerRedraftValue(a.player_id, allPlayers, ktcValues)),
+        .filter((player) => {
+          if (primaryNeed && player.pos !== primaryNeed) return false;
+          if (!primaryNeed && !['RB', 'WR', 'TE'].includes(player.pos)) return false;
+          if (player.value > maxAffordableTarget) return false;
+          if (isContenderBuild) return getSeasonValue(player, allPlayers, ktcValues) >= player.value * 0.72 || isLastSeasonStud(player.lastSeasonPositionRank);
+          return (player.age || 99) <= 25 && player.value >= 1200;
+        })
+        .sort((a, b) => {
+          const contenderDelta = getSeasonValue(b, allPlayers, ktcValues) - getSeasonValue(a, allPlayers, ktcValues);
+          const rebuildDelta = ((a.age || 99) - (b.age || 99)) || b.value - a.value;
+          return isContenderBuild ? contenderDelta : rebuildDelta;
+        }),
       usedInsightPlayerIds
     );
     const sellCandidate = pickDistinctPlayer(
       [...rosterPlayers]
-        .filter((player) => (player.age || 0) >= (player.pos === 'RB' ? 26 : player.pos === 'WR' ? 29 : player.pos === 'TE' ? 30 : 32) && player.value >= 1000)
-        .sort((a, b) => (b.age || 0) - (a.age || 0) || b.value - a.value),
+        .filter((player) => {
+          if (player.value < 1000) return false;
+          const seasonValue = getSeasonValue(player, allPlayers, ktcValues);
+          const age = player.age || 0;
+          const oldLine = player.pos === 'RB' ? 26 : player.pos === 'WR' ? 30 : player.pos === 'TE' ? 31 : 33;
+          if (isContenderBuild && player.isStarter && seasonValue >= player.value * 0.78) return false;
+          return !player.isStarter || age >= oldLine || getSeasonArbitrage(player, allPlayers, ktcValues) < -1200;
+        })
+        .sort((a, b) => {
+          const aScore = (getSeasonArbitrage(a, allPlayers, ktcValues) * -1) + ((a.age || 0) * 80) + (a.isStarter ? -1500 : 800);
+          const bScore = (getSeasonArbitrage(b, allPlayers, ktcValues) * -1) + ((b.age || 0) * 80) + (b.isStarter ? -1500 : 800);
+          return bScore - aScore;
+        }),
       usedInsightPlayerIds
     );
     const tradeChip = pickDistinctPlayer(
@@ -1220,8 +1286,9 @@ export async function generateReport(
         : rebuildScore >= 68
           ? 'Rebuild posture: sell older production for players who can still gain value next offseason'
           : 'Middle-build posture: avoid sideways deals and only trade when it fixes a clear lineup hole',
-      buyTarget ? `Buy target profile: ${compactPlayerBlurb(buyTarget)}` : null,
-      sellCandidate ? `Sell candidate: ${compactPlayerBlurb(sellCandidate)}` : null,
+      primaryNeed ? `Biggest trade need: ${primaryNeed}` : null,
+      buyTarget ? `Buy target profile: ${compactPlayerBlurb(buyTarget)} from ${buyTarget.owner || 'another roster'}` : null,
+      sellCandidate ? `Sell candidate: ${compactPlayerBlurb(sellCandidate)} only if the return better fits the team direction` : null,
       tradeChip ? `Trade chip: ${compactPlayerBlurb(tradeChip)} can be moved without cracking the projected lineup` : null,
       describeAvailability(riskiestStarter, avgStarterGamesMissed),
     ].filter(Boolean).join('. ');
