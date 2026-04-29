@@ -1,16 +1,7 @@
 import express from 'express';
-import { createExpressMiddleware } from '@trpc/server/adapters/express';
-import { registerOAuthRoutes } from '../server/_core/oauth';
-import { appRouter } from '../server/routers';
-import { createContext } from '../server/_core/context';
-import { storeKtcSnapshot } from '../server/ktcSnapshotJob';
+import { storeKtcSnapshot } from '../../server/ktcSnapshotJob';
 
 const app = express();
-
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-registerOAuthRoutes(app);
 
 function getPacificHour(date: Date): number {
   const hour = new Intl.DateTimeFormat('en-US', {
@@ -49,13 +40,5 @@ app.get('/api/cron/ktc-snapshot', async (req, res) => {
     res.status(500).json({ ok: false, error: 'KTC snapshot failed' });
   }
 });
-
-app.use(
-  '/api/trpc',
-  createExpressMiddleware({
-    router: appRouter,
-    createContext,
-  })
-);
 
 export default app;
