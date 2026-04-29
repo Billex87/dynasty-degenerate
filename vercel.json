@@ -11,11 +11,5 @@
       "path": "/api/cron/ktc-snapshot",
       "schedule": "0 2 * * *"
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/:path*",
-      "destination": "/index.html"
-    }
   ]
 }
