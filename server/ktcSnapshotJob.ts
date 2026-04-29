@@ -1,8 +1,6 @@
-import { getDb } from './db';
-import { ktcSnapshots } from '../drizzle/schema';
+import { findKtcSnapshotOnOrBefore, getDb, insertKtcSnapshot } from './db';
 import { loadKTCValues, loadLiveKTCValues, saveLocalKtcSnapshot } from './ktcLoader';
 import { loadBlendedPlayerValues } from './valueBlend';
-import { desc, lte } from 'drizzle-orm';
 
 type KTCValueMap = Record<string, { name: string; ktc_value: number; position_rank?: string }>;
 
@@ -67,10 +65,7 @@ export async function storeKtcSnapshot() {
       return;
     }
 
-    await db.insert(ktcSnapshots).values({
-      snapshotDate,
-      ktcData: JSON.stringify(ktcData),
-    });
+    await insertKtcSnapshot(snapshotDate, JSON.stringify(ktcData));
 
     console.log(`[KTC Snapshot] Successfully stored snapshot for ${snapshotDate.toISOString()}`);
     if (localFilePath) {
@@ -96,20 +91,12 @@ export async function getKtcSnapshotFromDaysAgo(daysAgo: number = 14) {
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() - daysAgo);
 
-    const snapshot = await db
-      .select()
-      .from(ktcSnapshots)
-      .where(lte(ktcSnapshots.snapshotDate, targetDate))
-      .orderBy(desc(ktcSnapshots.snapshotDate))
-      .limit(1);
+    const data = await findKtcSnapshotOnOrBefore(targetDate);
 
-    if (snapshot.length === 0) {
+    if (!data) {
       console.warn(`[KTC Snapshot] No snapshot found from at least ${daysAgo} days ago`);
       return null;
     }
-
-    const data = snapshot[0]?.ktcData;
-    if (!data) return null;
 
     return normalizeSnapshotData(JSON.parse(data));
   } catch (error) {
