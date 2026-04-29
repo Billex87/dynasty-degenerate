@@ -217,6 +217,7 @@ export interface PlayerDetails {
   depthChartOrder?: number | null;
   yearsExp?: number | null;
   status?: string | null;
+  sleeperNewsUpdated?: number | string | null;
   valueProfile?: {
     dynastyValue?: number | null;
     seasonValue?: number | null;
@@ -238,6 +239,14 @@ export interface PlayerDetails {
   lastSeasonGames?: number | null;
   lastSeasonPointsPerGame?: number | null;
   lastSeasonYear?: string | null;
+  availabilityHistory?: Array<{
+    season: string;
+    games: number | null;
+    gamesMissed: number | null;
+    pointsPerGame: number | null;
+  }>;
+  avgGamesMissed?: number | null;
+  availabilitySeasons?: number | null;
   similarTradeValues?: Array<{
     playerId: string;
     name: string;

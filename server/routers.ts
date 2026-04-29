@@ -96,6 +96,7 @@ function getPlayerDetails(playerId: string, player: Record<string, any> | undefi
     depthChartOrder: player.depth_chart_order ?? null,
     yearsExp: player.years_exp ?? null,
     status: player.status ?? null,
+    sleeperNewsUpdated: player.news_updated ?? null,
     externalIds: {
       fantasyData: player.fantasy_data_id,
       sportradar: player.sportradar_id,
@@ -105,6 +106,57 @@ function getPlayerDetails(playerId: string, player: Record<string, any> | undefi
       stats: player.stats_id,
     },
   };
+}
+
+async function fetchPlayerAvailabilityHistory(
+  playerIds: Iterable<string>,
+  players: Record<string, any>,
+  scoringSettings: Record<string, any> | undefined,
+  lastCompletedSeason: string,
+  seasonCount = 3
+): Promise<Record<string, Pick<PlayerDetails, 'availabilityHistory' | 'avgGamesMissed' | 'availabilitySeasons'>>> {
+  const scoringFamily = getScoringFamily(scoringSettings);
+  const fantasyProsScoring = scoringFamily === 'ppr' ? 'PPR' : scoringFamily === 'std' ? 'STD' : 'HALF';
+  const seasons = Array.from({ length: seasonCount }, (_, index) => String(Number(lastCompletedSeason) - index))
+    .filter((season) => Number.isFinite(Number(season)));
+  const uniquePlayerIds = Array.from(new Set(Array.from(playerIds).filter(Boolean)))
+    .filter((playerId) => ['QB', 'RB', 'WR', 'TE'].includes(players[playerId]?.position));
+
+  const seasonPoints = await Promise.all(
+    seasons.map(async (season) => ({
+      season,
+      values: await fetchFantasyProsPlayerPoints(season, fantasyProsScoring),
+    }))
+  );
+
+  return Object.fromEntries(uniquePlayerIds.map((playerId) => {
+    const key = cleanName(`${players[playerId]?.first_name || ''}${players[playerId]?.last_name || ''}`);
+    const history = seasonPoints
+      .map(({ season, values }) => {
+        const points = values[key];
+        if (!points || typeof points.games !== 'number') return null;
+        const gamesMissed = Math.max(0, 17 - points.games);
+        return {
+          season,
+          games: points.games,
+          gamesMissed,
+          pointsPerGame: points.average ?? null,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    const avgGamesMissed = history.length
+      ? Math.round((history.reduce((sum, item) => sum + (item.gamesMissed || 0), 0) / history.length) * 10) / 10
+      : null;
+
+    return [
+      playerId,
+      {
+        availabilityHistory: history,
+        avgGamesMissed,
+        availabilitySeasons: history.length,
+      },
+    ];
+  }));
 }
 
 function buildPlayerDetailsMap(playerIds: Iterable<string>, players: Record<string, any>): Record<string, PlayerDetails> {
@@ -889,6 +941,13 @@ export const appRouter = router({
           ];
           const valueProfilesById = buildPlayerValueProfileMap(reportPlayerIds, players, ktcValues);
           const similarTradeValuesById = buildSimilarTradeValueMap(reportPlayerIds, players, ktcValues);
+          const availabilityHistoryById = await fetchPlayerAvailabilityHistory(
+            reportPlayerIds,
+            players,
+            leagueInfo.scoring_settings,
+            lastCompletedSeason,
+            3
+          );
           const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players);
 
           return {
@@ -910,6 +969,9 @@ export const appRouter = router({
                     lastSeasonGames: lastSeasonPositionRanks[playerId]?.games ?? null,
                     lastSeasonPointsPerGame: lastSeasonPositionRanks[playerId]?.pointsPerGame ?? null,
                     lastSeasonYear: lastSeasonPositionRanks[playerId]?.season || null,
+                    availabilityHistory: availabilityHistoryById[playerId]?.availabilityHistory || [],
+                    avgGamesMissed: availabilityHistoryById[playerId]?.avgGamesMissed ?? null,
+                    availabilitySeasons: availabilityHistoryById[playerId]?.availabilitySeasons ?? 0,
                     similarTradeValues: similarTradeValuesById[playerId] || [],
                   },
                 ])

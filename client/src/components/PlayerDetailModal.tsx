@@ -128,6 +128,11 @@ export function PlayerDetailModal({
     ['Games Played', details?.lastSeasonGames],
     ['PPG', details?.lastSeasonPointsPerGame],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const availabilityRows = [
+    ['Avg Missed', details?.avgGamesMissed !== null && details?.avgGamesMissed !== undefined && details?.availabilitySeasons ? `${details.avgGamesMissed} / yr` : null],
+    ['Sample', details?.availabilitySeasons ? `${details.availabilitySeasons} yr${details.availabilitySeasons === 1 ? '' : 's'}` : null],
+    ['Sleeper News', formatSleeperNewsUpdated(details?.sleeperNewsUpdated)],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const healthRows = [
     ['Injury Status', details?.injuryStatus],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
@@ -406,6 +411,18 @@ export function PlayerDetailModal({
                   ))}
                 </div>
               )}
+              {availabilityRows.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {availabilityRows.map(([label, value]) => (
+                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
+                  ))}
+                </div>
+              )}
+              {details?.availabilityHistory?.length ? (
+                <p className="text-center text-[0.68rem] font-bold leading-relaxed text-slate-400">
+                  Availability: {details.availabilityHistory.map((item) => `${item.season}: ${item.games ?? '-'} GP`).join(' · ')}
+                </p>
+              ) : null}
               {experienceRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {experienceRows.map(([label, value]) => (
@@ -456,6 +473,21 @@ function formatBirthday(birthDate: PlayerDetails['birthDate']) {
   if (!birthDate) return null;
   const date = new Date(`${birthDate}T00:00:00`);
   if (Number.isNaN(date.getTime())) return birthDate;
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatSleeperNewsUpdated(value: PlayerDetails['sleeperNewsUpdated']) {
+  if (!value) return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  const timestamp = numeric > 10_000_000_000 ? numeric : numeric * 1000;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
 
   return date.toLocaleDateString(undefined, {
     month: 'short',
