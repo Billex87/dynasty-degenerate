@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,9 +26,34 @@ import { DraftAnalysis } from '@/components/DraftAnalysis';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
+const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v1';
+const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
+
+type SleeperLeagueOption = {
+  leagueId: string;
+  name: string;
+  avatarUrl: string | null;
+  season: string;
+  format: string;
+  totalRosters: number;
+};
+
+type CachedReport = {
+  leagueId: string;
+  leagueName: string;
+  leagueLogo: string | null;
+  leagueFormat: string;
+  activeTab: string;
+  reportData: ReportData;
+  savedAt: number;
+};
+
+type LastLeague = Omit<CachedReport, 'reportData'>;
 
 export default function Home() {
-  const [leagueId, setLeagueId] = useState('1312139584427012096');
+  const [leagueId, setLeagueId] = useState('');
+  const [sleeperUsername, setSleeperUsername] = useState('');
+  const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [leagueName, setLeagueName] = useState('');
@@ -38,6 +63,7 @@ export default function Home() {
 
   const analyzeMutation = trpc.league.analyze.useMutation({
     onSuccess: (data) => {
+      setLeagueId(data.leagueId);
       setReportData(data.reportData);
       setLeagueName(data.leagueName);
       setLeagueLogo(data.leagueLogo);
@@ -51,13 +77,106 @@ export default function Home() {
     },
   });
 
-  const handleAnalyze = async () => {
-    if (!leagueId.trim()) {
+  const userLeaguesMutation = trpc.league.getUserLeagues.useMutation({
+    onSuccess: (data) => {
+      setUserLeagues(data.leagues);
+      if (data.leagues.length === 0) {
+        toast.error('No Sleeper leagues found for this username');
+        return;
+      }
+      toast.success(`Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? '' : 's'}`);
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
+    },
+  });
+
+  useEffect(() => {
+    try {
+      const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
+      if (cachedReport) {
+        const parsed = JSON.parse(cachedReport) as CachedReport;
+        setLeagueId(parsed.leagueId);
+        setLeagueName(parsed.leagueName);
+        setLeagueLogo(parsed.leagueLogo);
+        setLeagueFormat(parsed.leagueFormat);
+        setActiveTab(parsed.activeTab || 'overview');
+        setReportData(parsed.reportData);
+        return;
+      }
+
+      const lastLeague = localStorage.getItem(LAST_LEAGUE_KEY);
+      if (lastLeague) {
+        const parsed = JSON.parse(lastLeague) as LastLeague;
+        setLeagueId(parsed.leagueId);
+        setLeagueName(parsed.leagueName);
+        setLeagueLogo(parsed.leagueLogo);
+        setLeagueFormat(parsed.leagueFormat);
+        setActiveTab(parsed.activeTab || 'overview');
+        setIsLoading(true);
+        analyzeMutation.mutate({ leagueId: parsed.leagueId });
+      }
+    } catch {
+      localStorage.removeItem(REPORT_CACHE_KEY);
+      localStorage.removeItem(LAST_LEAGUE_KEY);
+    }
+    // Run once on boot so phone refreshes land back in the last league.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!reportData) return;
+
+    const lastLeague: LastLeague = {
+      leagueId,
+      leagueName,
+      leagueLogo,
+      leagueFormat,
+      activeTab,
+      savedAt: Date.now(),
+    };
+
+    try {
+      localStorage.setItem(LAST_LEAGUE_KEY, JSON.stringify(lastLeague));
+      localStorage.setItem(REPORT_CACHE_KEY, JSON.stringify({ ...lastLeague, reportData }));
+    } catch {
+      localStorage.removeItem(REPORT_CACHE_KEY);
+      try {
+        localStorage.setItem(LAST_LEAGUE_KEY, JSON.stringify(lastLeague));
+      } catch {
+        localStorage.removeItem(LAST_LEAGUE_KEY);
+      }
+    }
+  }, [activeTab, leagueFormat, leagueId, leagueLogo, leagueName, reportData]);
+
+  const handleAnalyze = async (targetLeagueId = leagueId) => {
+    const nextLeagueId = targetLeagueId.trim();
+    if (!nextLeagueId) {
       toast.error('Please enter a league ID');
       return;
     }
+    setLeagueId(nextLeagueId);
     setIsLoading(true);
-    analyzeMutation.mutate({ leagueId });
+    analyzeMutation.mutate({ leagueId: nextLeagueId });
+  };
+
+  const handleFindLeagues = async () => {
+    if (!sleeperUsername.trim()) {
+      toast.error('Please enter a Sleeper username');
+      return;
+    }
+    userLeaguesMutation.mutate({ username: sleeperUsername.trim() });
+  };
+
+  const handleResetLeague = () => {
+    localStorage.removeItem(REPORT_CACHE_KEY);
+    localStorage.removeItem(LAST_LEAGUE_KEY);
+    setReportData(null);
+    setLeagueName('');
+    setLeagueLogo(null);
+    setLeagueFormat('');
+    setUserLeagues([]);
+    setActiveTab('overview');
   };
 
   if (reportData) {
@@ -299,13 +418,7 @@ export default function Home() {
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
             <div className="flex justify-center">
               <Button
-                onClick={() => {
-                  setReportData(null);
-                  setLeagueName('');
-                  setLeagueLogo(null);
-                  setLeagueFormat('');
-                  setActiveTab('overview');
-                }}
+                onClick={handleResetLeague}
                 variant="outline"
                 className="border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
               >
@@ -356,6 +469,62 @@ export default function Home() {
             <div className="home-analyze-card space-y-4 sm:space-y-6 p-4 sm:p-8">
               <div className="text-center">
                 <label className="block text-sm font-semibold text-slate-200 mb-3">
+                  Enter Your Sleeper Username
+                </label>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Input
+                    type="text"
+                    placeholder="Sleeper username"
+                    value={sleeperUsername}
+                    onChange={(e) => setSleeperUsername(e.target.value)}
+                    className="bg-slate-900 border-cyan-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-cyan-300 text-center sm:text-left"
+                    onKeyDown={(e) => e.key === 'Enter' && handleFindLeagues()}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleFindLeagues}
+                    disabled={userLeaguesMutation.isPending}
+                    className="h-12 shrink-0 rounded-lg border border-cyan-300/25 bg-cyan-400/10 px-5 font-bold text-cyan-100 hover:bg-cyan-400/15"
+                  >
+                    {userLeaguesMutation.isPending ? 'Finding...' : 'Find Leagues'}
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
+                  Pick one of your Sleeper leagues and this will run the report automatically.
+                </p>
+              </div>
+
+              {userLeagues.length > 0 && (
+                <div className="home-league-picker">
+                  {userLeagues.map((league) => (
+                    <button
+                      key={league.leagueId}
+                      type="button"
+                      className="home-league-card"
+                      onClick={() => handleAnalyze(league.leagueId)}
+                    >
+                      {league.avatarUrl ? (
+                        <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
+                      ) : (
+                        <span className="home-league-card-icon home-league-card-fallback">
+                          {league.name.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="min-w-0 text-left">
+                        <span className="home-league-card-name">{league.name}</span>
+                        <span className="home-league-card-format">{league.format || `${league.totalRosters || '?'}-Team Dynasty`}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="home-id-divider">
+                <span>or use a league ID</span>
+              </div>
+
+              <div className="text-center">
+                <label className="block text-sm font-semibold text-slate-200 mb-3">
                   Enter Your Sleeper League ID
                 </label>
                 <Input
@@ -364,7 +533,7 @@ export default function Home() {
                   value={leagueId}
                   onChange={(e) => setLeagueId(e.target.value)}
                   className="bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
                 />
                 <p className="text-xs text-slate-400 mt-2">
                   In the Sleeper app, open your league → go to General Settings → scroll to the bottom to find your League ID.
@@ -372,7 +541,7 @@ export default function Home() {
               </div>
 
               <Button
-                onClick={handleAnalyze}
+                onClick={() => handleAnalyze()}
                 disabled={isLoading}
                 className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
               >

@@ -61,6 +61,17 @@ function formatLeagueFormat(leagueInfo: any): string {
   return [totalTeams, type, superflex, ppr].filter(Boolean).join(' ');
 }
 
+function toSleeperLeagueOption(leagueInfo: any, season: string) {
+  return {
+    leagueId: String(leagueInfo.league_id),
+    name: leagueInfo.name || 'Unnamed League',
+    avatarUrl: getSleeperAvatarUrl(leagueInfo.avatar),
+    season,
+    format: formatLeagueFormat(leagueInfo),
+    totalRosters: Number(leagueInfo.total_rosters || leagueInfo.settings?.num_teams || 0),
+  };
+}
+
 function getPlayerDetails(playerId: string, player: Record<string, any> | undefined): PlayerDetails | undefined {
   if (!player) return undefined;
 
@@ -453,6 +464,49 @@ export const appRouter = router({
   }),
 
   league: router({
+    getUserLeagues: publicProcedure
+      .input(z.object({ username: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const username = input.username.trim();
+        if (!username) throw new Error('Please enter a Sleeper username');
+
+        const userResponse = await fetch(
+          `https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`
+        );
+        if (!userResponse.ok) throw new Error('Sleeper user not found');
+
+        const user = await userResponse.json();
+        if (!user?.user_id) throw new Error('Sleeper user not found');
+
+        const currentSeason = String(new Date().getFullYear());
+        const seenLeagueIds = new Set<string>();
+        const leagues = [];
+
+        const leaguesResponse = await fetch(
+          `https://api.sleeper.app/v1/user/${user.user_id}/leagues/nfl/${currentSeason}`
+        );
+        const seasonLeagues = leaguesResponse.ok ? await leaguesResponse.json() : [];
+
+        if (Array.isArray(seasonLeagues)) {
+          for (const leagueInfo of seasonLeagues) {
+            const leagueId = String(leagueInfo?.league_id || '');
+            if (!leagueId || seenLeagueIds.has(leagueId)) continue;
+            seenLeagueIds.add(leagueId);
+            leagues.push(toSleeperLeagueOption(leagueInfo, currentSeason));
+          }
+        }
+
+        return {
+          user: {
+            userId: String(user.user_id),
+            username: user.username || username,
+            displayName: user.display_name || user.username || username,
+            avatarUrl: getSleeperAvatarUrl(user.avatar),
+          },
+          leagues: leagues.sort((a, b) => Number(b.season) - Number(a.season) || a.name.localeCompare(b.name)),
+        };
+      }),
+
     analyze: publicProcedure
       .input(z.object({ leagueId: z.string() }))
       .mutation(async ({ input }) => {
