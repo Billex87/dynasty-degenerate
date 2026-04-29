@@ -696,17 +696,29 @@ function ManagerMiniLine({
   manager,
   managerAvatars,
   meta,
+  badges,
   onClick,
 }: {
   manager: string;
   managerAvatars?: ManagerAvatars;
   meta?: React.ReactNode;
+  badges?: Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }>;
   onClick?: () => void;
 }) {
   const content = (
     <>
       {renderManagerName(manager, managerAvatars)}
-      {meta && <span className="command-mini-meta">{meta}</span>}
+      {badges?.length ? (
+        <span className="command-mini-badges">
+          {badges.map((badge) => (
+            <span key={badge.label} className={`command-mini-badge command-mini-badge-${badge.tone || 'neutral'}`}>
+              {badge.label}
+            </span>
+          ))}
+        </span>
+      ) : meta ? (
+        <span className="command-mini-meta">{meta}</span>
+      ) : null}
     </>
   );
 
@@ -791,17 +803,21 @@ function FeatureCard({
   kicker,
   note,
   children,
+  className = '',
+  hideNumber = false,
 }: {
   number: number;
   title: string;
   kicker: string;
-  note: string;
+  note?: string;
   children: React.ReactNode;
+  className?: string;
+  hideNumber?: boolean;
 }) {
   return (
-    <Card className="command-feature-card">
+    <Card className={`command-feature-card ${className}`}>
       <div className="command-feature-top">
-        <span className="command-feature-number">{String(number).padStart(2, '0')}</span>
+        {!hideNumber && <span className="command-feature-number">{String(number).padStart(2, '0')}</span>}
         <div className="min-w-0">
           <p>{kicker}</p>
           <h3>{title}</h3>
@@ -810,15 +826,56 @@ function FeatureCard({
       <div className="command-feature-body">
         {children}
       </div>
-      <details className="command-feature-note">
-        <summary>What this is based on</summary>
-        <p>{note}</p>
-      </details>
+      {note && (
+        <details className="command-feature-note">
+          <summary>What this is based on</summary>
+          <p>{note}</p>
+        </details>
+      )}
     </Card>
   );
 }
 
 type CommandPlayer = ManagerIntelPlayer | NonNullable<ReportData['managerPositionCounts'][number]['starterPlayers']>[number];
+
+function ManagerDepthTile({
+  manager,
+  avatarUrl,
+  badges,
+  onClick,
+}: {
+  manager: string;
+  avatarUrl?: string | null;
+  badges: Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }>;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="command-depth-tile" onClick={onClick}>
+      {avatarUrl && (
+        <>
+          <img src={avatarUrl} alt="" className="command-depth-tile-wash" />
+          <img src={avatarUrl} alt="" className="command-depth-tile-mark" />
+        </>
+      )}
+      <span className="command-depth-tile-scrim" />
+      <span className="command-depth-tile-main">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={manager} className="command-depth-avatar" />
+        ) : (
+          <span className="command-depth-avatar">{manager[0]?.toUpperCase() || '?'}</span>
+        )}
+        <span className="command-depth-name">{manager}</span>
+      </span>
+      <span className="command-depth-badges">
+        {badges.map((badge) => (
+          <span key={badge.label} className={`command-mini-badge command-mini-badge-${badge.tone || 'neutral'}`}>
+            {badge.label}
+          </span>
+        ))}
+      </span>
+    </button>
+  );
+}
 
 export function LeagueCommandCenter({
   data,
@@ -843,6 +900,8 @@ export function LeagueCommandCenter({
       manager: row.manager,
       starterCount: row.QB_starters + row.RB_starters + row.WR_starters + row.TE_starters,
       totalPlayers: row.QB + row.RB + row.WR + row.TE,
+      avgAge: intel.find((item) => item.manager === row.manager)?.avgAge ?? null,
+      ageFlags: intel.find((item) => item.manager === row.manager)?.ageFlags || [],
       droppablePlayers: intel.find((item) => item.manager === row.manager)?.droppablePlayers || [],
     }))
     .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers);
@@ -978,39 +1037,29 @@ export function LeagueCommandCenter({
     <div className="command-center-grid">
       <FeatureCard
         number={1}
-        title="Starter vs Bench"
-        kicker="Positional-rank depth"
-        note="This uses positional rank thresholds, not raw KTC value. QB/RB/WR/TE starters are counted dynamically from league size, so it changes for 10-team, 12-team, and other formats."
+        title="Roster Depth Board"
+        kicker="Starter-grade depth"
+        className="command-feature-card-wide"
+        hideNumber
       >
-        {starterDepth.map((row) => (
-          <ManagerMiniLine
-            key={row.manager}
-            manager={row.manager}
-            managerAvatars={managerAvatars}
-            meta={`${row.starterCount} starters`}
-            onClick={() => openManager(row.manager)}
-          />
-        ))}
-      </FeatureCard>
-
-      <FeatureCard
-        number={2}
-        title="Age Curve"
-        kicker="Roster timeline"
-        note="Average age is calculated from ranked QB/RB/WR/TE roster pieces. Flags call out older RB rooms, young WR/TE cores, and overall age risk."
-      >
-        {[...intel]
-          .filter((row) => row.avgAge !== null)
-          .sort((a, b) => (a.avgAge || 99) - (b.avgAge || 99))
-          .map((row) => (
-          <ManagerMiniLine
-            key={row.manager}
-            manager={row.manager}
-            managerAvatars={managerAvatars}
-            meta={`${row.avgAge} avg${row.ageFlags[0] ? ` · ${titleCasePill(row.ageFlags[0])}` : ''}`}
-            onClick={() => openManager(row.manager)}
-          />
-        ))}
+        <div className="command-depth-grid">
+          {starterDepth.map((row) => (
+            <ManagerDepthTile
+              key={row.manager}
+              manager={row.manager}
+              avatarUrl={managerAvatars?.[row.manager]}
+              badges={[
+              { label: `${row.starterCount} starters`, tone: 'neutral' },
+              ...(row.avgAge !== null ? [{ label: `${row.avgAge} avg age`, tone: row.avgAge >= 27.5 ? 'warn' as const : row.avgAge <= 25 ? 'future' as const : 'good' as const }] : []),
+              ...row.ageFlags.slice(0, 2).map((flag) => ({
+                label: titleCasePill(flag),
+                tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') ? 'danger' as const : 'future' as const,
+              })),
+              ]}
+              onClick={() => openManager(row.manager)}
+            />
+          ))}
+        </div>
       </FeatureCard>
 
     </div>
@@ -1224,85 +1273,128 @@ export function ManagerIntelligenceCards({
   leagueLogo?: string | null;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const [selectedManager, setSelectedManager] = useState<string | null>(null);
   if (!data?.length) return null;
+  const selectedRow = selectedManager ? data.find((row) => row.manager === selectedManager) : null;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {data.map((row) => (
-        <Card key={row.manager} className="report-card-polished overflow-hidden border-slate-800 bg-slate-900 p-4">
-          <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
-            <div className="min-w-0">{renderManagerName(row.manager, managerAvatars)}</div>
-            <span className="rounded-full border border-orange-300/25 bg-orange-400/10 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-[0.12em] text-orange-300">
-              {row.identity}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <IntelligenceMetric label="Starters" value={formatCompactValue(row.starterValue)} />
-            <IntelligenceMetric label="Bench" value={formatCompactValue(row.benchValue)} />
-            <IntelligenceMetric label="Age" value={row.avgAge ?? '-'} />
-          </div>
-          <div className="manager-intel-player-grid mt-3">
-            <PlayerInsightTile
-              label="Bench Stash"
-              player={row.bestBenchStash}
-              manager={row.manager}
-              managerAvatarUrl={managerAvatars?.[row.manager]}
-              onSelect={setSelectedPlayer}
-            />
-            <PlayerInsightTile
-              label="Weak Link"
-              player={row.weakestStarter}
-              manager={row.manager}
-              managerAvatarUrl={managerAvatars?.[row.manager]}
-              onSelect={setSelectedPlayer}
-              tone="warn"
-            />
-            <PlayerInsightTile
-              label="Age Risk"
-              player={row.oldestPlayer}
-              manager={row.manager}
-              managerAvatarUrl={managerAvatars?.[row.manager]}
-              onSelect={setSelectedPlayer}
-              tone="danger"
-            />
-            <PlayerInsightTile
-              label="Young Core"
-              player={row.youngCorePlayer}
-              manager={row.manager}
-              managerAvatarUrl={managerAvatars?.[row.manager]}
-              onSelect={setSelectedPlayer}
-            />
-            <PlayerInsightTile
-              label="Upside Play"
-              player={row.breakoutCandidate}
-              manager={row.manager}
-              managerAvatarUrl={managerAvatars?.[row.manager]}
-              onSelect={setSelectedPlayer}
-            />
-            <PlayerInsightTile
-              label="Last Year Stud"
-              player={row.lastSeasonStud}
-              manager={row.manager}
-              managerAvatarUrl={managerAvatars?.[row.manager]}
-              onSelect={setSelectedPlayer}
-              crownedRank={row.lastSeasonStud?.lastSeasonPositionRank
-                ? `${row.lastSeasonStud.lastSeasonYear || '2025'} ${row.lastSeasonStud.lastSeasonPositionRank}`
-                : null}
-            />
-          </div>
-          <p className="mt-3 text-xs font-semibold leading-relaxed text-slate-400">{row.summary}</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className={`manager-intel-pill ${getPillToneClass(row.timeline)}`}>
-              {titleCasePill(row.timeline)}
-            </span>
-            {row.ageFlags.slice(0, 2).map((flag) => (
-              <span key={flag} className={`manager-intel-pill ${getPillToneClass(flag)}`}>
-                {titleCasePill(flag)}
-              </span>
-            ))}
-          </div>
-        </Card>
-      ))}
+    <>
+      <div className="command-depth-grid">
+        {data.map((row) => (
+          <ManagerDepthTile
+            key={row.manager}
+            manager={row.manager}
+            avatarUrl={managerAvatars?.[row.manager]}
+            badges={[
+              { label: titleCasePill(row.identity), tone: getPillToneClass(row.identity).includes('good') ? 'good' : 'neutral' },
+              { label: `${Math.round(row.starterValuePct)}% starters`, tone: row.starterValuePct >= 58 ? 'good' : row.starterValuePct <= 45 ? 'warn' : 'neutral' },
+              ...(row.avgAge !== null ? [{ label: `${row.avgAge} avg age`, tone: row.avgAge >= 27.5 ? 'warn' as const : row.avgAge <= 25 ? 'future' as const : 'good' as const }] : []),
+              { label: titleCasePill(row.timeline), tone: getPillToneClass(row.timeline).includes('future') ? 'future' : getPillToneClass(row.timeline).includes('danger') ? 'danger' : 'good' },
+              ...row.ageFlags.slice(0, 2).map((flag) => ({
+                label: titleCasePill(flag),
+                tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') ? 'danger' as const : 'future' as const,
+              })),
+            ]}
+            onClick={() => setSelectedManager(row.manager)}
+          />
+        ))}
+      </div>
+
+      <Dialog open={selectedRow !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
+        <DialogContent className="manager-command-dialog max-w-4xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{selectedRow?.manager || 'Manager'} Identity Timeline</DialogTitle>
+            <DialogDescription>Roster identity, age curve, depth signals, and key players.</DialogDescription>
+          </DialogHeader>
+          {selectedRow && (
+            <div className="manager-command-modal-inner">
+              <div className="manager-command-hero">
+                {managerAvatars?.[selectedRow.manager] && (
+                  <>
+                    <img src={managerAvatars[selectedRow.manager] || ''} alt="" className="manager-hero-wash" />
+                    <img src={managerAvatars[selectedRow.manager] || ''} alt="" className="manager-hero-watermark" />
+                  </>
+                )}
+                <div className="manager-hero-scrim" />
+                <div className="manager-command-title-lockup">
+                  {managerAvatars?.[selectedRow.manager] ? (
+                    <img src={managerAvatars[selectedRow.manager] || ''} alt={selectedRow.manager} className="manager-command-avatar" />
+                  ) : (
+                    <span className="manager-command-avatar">{selectedRow.manager[0]?.toUpperCase() || '?'}</span>
+                  )}
+                  <div className="min-w-0">
+                    <p>Team Identity</p>
+                    <h3>{selectedRow.manager}</h3>
+                  </div>
+                </div>
+                <div className="manager-command-hero-metrics">
+                  <IntelligenceMetric label="Starters" value={formatCompactValue(selectedRow.starterValue)} />
+                  <IntelligenceMetric label="Bench" value={formatCompactValue(selectedRow.benchValue)} />
+                  <IntelligenceMetric label="Starter Share" value={`${Math.round(selectedRow.starterValuePct)}%`} />
+                </div>
+              </div>
+
+              <div className="manager-command-body">
+                <div className="manager-command-tag-row" aria-label="Manager identity tags">
+                  {[selectedRow.identity, selectedRow.timeline, ...selectedRow.ageFlags, selectedRow.holes.summary]
+                    .filter(Boolean)
+                    .slice(0, 6)
+                    .map((tag) => (
+                      <span key={tag} className={`manager-intel-pill ${getPillToneClass(tag)}`}>
+                        {titleCasePill(tag)}
+                      </span>
+                    ))}
+                </div>
+
+                <div className="manager-command-rank-summary">
+                  <div><span>Avg Age</span><strong>{selectedRow.avgAge ?? '-'}</strong></div>
+                  <div><span>QB Age</span><strong>{selectedRow.avgAgeByPosition.QB ?? '-'}</strong></div>
+                  <div><span>RB Age</span><strong>{selectedRow.avgAgeByPosition.RB ?? '-'}</strong></div>
+                  <div><span>WR Age</span><strong>{selectedRow.avgAgeByPosition.WR ?? '-'}</strong></div>
+                  <div><span>TE Age</span><strong>{selectedRow.avgAgeByPosition.TE ?? '-'}</strong></div>
+                </div>
+
+                <div className="manager-command-grid">
+                  <div className="manager-command-section">
+                    <h4>Key Players</h4>
+                    <div className="manager-intel-player-grid">
+                      <PlayerInsightTile label="Bench Stash" player={selectedRow.bestBenchStash} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Weak Link" player={selectedRow.weakestStarter} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="warn" />
+                      <PlayerInsightTile label="Age Risk" player={selectedRow.oldestPlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="danger" />
+                      <PlayerInsightTile label="Young Core" player={selectedRow.youngCorePlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Upside Play" player={selectedRow.breakoutCandidate} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile
+                        label="Last Year Stud"
+                        player={selectedRow.lastSeasonStud}
+                        manager={selectedRow.manager}
+                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
+                        onSelect={setSelectedPlayer}
+                        crownedRank={selectedRow.lastSeasonStud?.lastSeasonPositionRank
+                          ? `${selectedRow.lastSeasonStud.lastSeasonYear || '2025'} ${selectedRow.lastSeasonStud.lastSeasonPositionRank}`
+                          : null}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="manager-command-section manager-command-read">
+                    <h4>Roster Read</h4>
+                    <p>{selectedRow.summary}</p>
+                    <div className="manager-command-inline-read">
+                      <h4>Attack Points</h4>
+                      <p>QB: {selectedRow.holes.bestQbRank || '-'} · RB2: {selectedRow.holes.rb2Rank || '-'} · WR3: {selectedRow.holes.wr3Rank || '-'} · TE1: {selectedRow.holes.te1Rank || '-'} · Flex depth: {selectedRow.holes.flexDepth}</p>
+                    </div>
+                    <div className="manager-command-inline-read">
+                      <h4>Quick Take</h4>
+                      <p>{selectedRow.bestBenchStash?.name || 'No bench chip'} is the best bench chip. {selectedRow.weakestStarter?.name || 'No weak starter'} is the cleanest lineup upgrade spot.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}
@@ -1311,7 +1403,7 @@ export function ManagerIntelligenceCards({
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
       />
-    </div>
+    </>
   );
 }
 
