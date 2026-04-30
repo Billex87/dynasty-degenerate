@@ -136,10 +136,78 @@ export function PlayerDetailModal({
   const healthRows = [
     ['Injury Status', details?.injuryStatus],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const profileRows = [
+    ['Full Name', details?.fullName],
+    ['Sleeper ID', details?.playerId || pick.player_id],
+    ['Position', details?.position || position],
+    ['NFL Team', details?.team || team],
+    ['Status', details?.status],
+    ['Injury', details?.injuryStatus],
+    ['Jersey', jerseyNumber !== null && jerseyNumber !== undefined && jerseyNumber !== '' ? `#${jerseyNumber}` : null],
+    ['High School', details?.highSchool],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const nflDraftRows = [
+    ['NFL Draft Round', details?.nflDraftRound],
+    ['NFL Draft Pick', details?.nflDraftPick],
+    ['NFL Draft Team', details?.nflDraftTeam],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const draftContextRows = [
+    ['Rookie Draft Year', pick.draftYear],
+    ['Rookie Round', pick.round],
+    ['Rookie Pick', pick.pick],
+    ['Draft Slot', pick.draftSlot],
+    ['Original Owner', pick.originalOwner],
+    ['Draft Value', draftValue],
+    ['Drafted Rank', pick.positionRankMay2025],
+    ['Current Rank', currentRank !== '-' ? currentRank : null],
+    ['Rank Change', pick.positionRankChange],
+    ['Value Change', valueGain !== null && valueGain !== undefined ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : null],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '' && value !== '-');
+  const marketRankRows = valueProfile ? [
+    ['Dynasty Rank', valueProfile.dynastyPositionRank],
+    ['Season Rank', valueProfile.seasonPositionRank],
+    ['Balanced Rank', valueProfile.balancedPositionRank],
+    ['Contender Rank', valueProfile.contenderPositionRank],
+    ['Rebuilder Rank', valueProfile.rebuilderPositionRank],
+    ['FantasyPros Pos', valueProfile.fantasyProsPositionRank],
+    ['FantasyPros Overall', valueProfile.fantasyProsRank],
+    ['FantasyPros Tier', valueProfile.fantasyProsTier],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const sourceValueRows = valueProfile ? [
+    ['Dynasty Blend', valueProfile.dynastyValue],
+    ['Season Blend', valueProfile.seasonValue],
+    ['Balanced Blend', valueProfile.balancedValue],
+    ['Contender Blend', valueProfile.contenderValue],
+    ['Rebuilder Blend', valueProfile.rebuilderValue],
+    ['KTC Market', valueProfile.marketKtc],
+    ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
+    ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
+    ['DynastyProcess', valueProfile.dynastyProcess],
+    ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const externalIdRows = details?.externalIds
+    ? Object.entries(details.externalIds)
+      .filter(([, value]) => value !== null && value !== undefined && value !== '')
+      .map(([key, value]) => [formatExternalIdLabel(key), value] as [string, string | number])
+    : [];
+  const latestNewsRows = details?.latestNews ? [
+    ['Title', details.latestNews.title],
+    ['Date', details.latestNews.publishedAt ? formatNewsDate(details.latestNews.publishedAt) : null],
+    ['Source', details.latestNews.source],
+    ['Summary', details.latestNews.summary],
+    ['URL', details.latestNews.url],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const intelligenceNotes = buildPlayerIntelligenceNotes({
     details,
     currentRank,
     currentValue,
+    position,
+    valueProfile,
+  });
+  const decisionLabels = buildPlayerDecisionLabels({
+    details,
+    currentRank,
+    valueGain,
     position,
     valueProfile,
   });
@@ -273,7 +341,7 @@ export function PlayerDetailModal({
               {currentValue !== undefined && (
                 <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} tileAccent={tileAccent} />
               )}
-              <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} valueClassName={getPositionRankPillClass(currentRank)} teamColors={teamColors} tileAccent={tileAccent} />
+              <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} valueClassName={`${getPositionRankPillClass(currentRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
               <MetricTile
                 label="Value Change"
                 value={valueGain !== undefined && valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'}
@@ -292,6 +360,17 @@ export function PlayerDetailModal({
               </p>
             )}
 
+            {decisionLabels.length > 0 && (
+              <div className="player-decision-strip mx-auto max-w-xl">
+                {decisionLabels.map((label) => (
+                  <span key={label.label} className={`player-decision-pill player-decision-${label.tone}`}>
+                    <strong>{label.label}</strong>
+                    <em>{label.copy}</em>
+                  </span>
+                ))}
+              </div>
+            )}
+
             {intelligenceNotes.length > 0 && (
               <div className="mx-auto max-w-xl rounded-2xl border border-cyan-300/15 bg-slate-950/45 p-3 shadow-inner shadow-white/[0.02] sm:p-4">
                 <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/85">
@@ -301,7 +380,7 @@ export function PlayerDetailModal({
                   {intelligenceNotes.map((note) => (
                     <div
                       key={`${note.label}-${note.value}`}
-                      className="rounded-xl border bg-slate-950/55 p-3"
+                      className={`rounded-xl border bg-slate-950/55 p-3 ${note.fullWidth ? 'sm:col-span-2' : ''}`}
                       style={{
                         borderColor: note.tone === 'risk'
                           ? 'rgba(251, 113, 133, 0.28)'
@@ -344,33 +423,37 @@ export function PlayerDetailModal({
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                   <InfoTile
                     label="Dynasty"
-                    value={formatValueLens(valueProfile.dynastyValue)}
+                    value={valueProfile.dynastyPositionRank || valueProfile.balancedPositionRank || currentRank || '-'}
+                    valueClassName={getPositionRankPillClass(valueProfile.dynastyPositionRank || valueProfile.balancedPositionRank || currentRank)}
                     teamColors={teamColors}
                     tileAccent={tileAccent}
                   />
                   <InfoTile
                     label="Season"
-                    value={formatValueLens(valueProfile.seasonValue)}
+                    value={valueProfile.seasonPositionRank || valueProfile.fantasyProsPositionRank || '-'}
+                    valueClassName={getPositionRankPillClass(valueProfile.seasonPositionRank || valueProfile.fantasyProsPositionRank)}
                     teamColors={teamColors}
                     tileAccent={tileAccent}
                   />
                   <InfoTile
                     label="Contender"
-                    value={formatValueLens(valueProfile.contenderValue)}
+                    value={valueProfile.contenderPositionRank || valueProfile.seasonPositionRank || '-'}
+                    valueClassName={getPositionRankPillClass(valueProfile.contenderPositionRank || valueProfile.seasonPositionRank)}
                     teamColors={teamColors}
                     tileAccent={tileAccent}
                   />
                   <InfoTile
                     label="Rebuilder"
-                    value={formatValueLens(valueProfile.rebuilderValue)}
+                    value={valueProfile.rebuilderPositionRank || valueProfile.dynastyPositionRank || '-'}
+                    valueClassName={getPositionRankPillClass(valueProfile.rebuilderPositionRank || valueProfile.dynastyPositionRank)}
                     teamColors={teamColors}
                     tileAccent={tileAccent}
                   />
                 </div>
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
-                  <p className="text-center text-[0.68rem] font-bold uppercase tracking-[0.18em] text-cyan-200/70">
-                    Blend: {valueProfile.sources.join(' + ')}
-                    {valueProfile.fantasyProsPositionRank ? ` | FantasyPros ${valueProfile.fantasyProsPositionRank}` : ''}
+                  <p className="text-center text-[0.68rem] font-bold leading-relaxed uppercase tracking-[0.16em] text-cyan-200/70">
+                    Our rank blend weighs dynasty market, current-season outlook, expert baselines, and team-window fit.
+                    {valueProfile.fantasyProsPositionRank ? ` Expert season baseline: ${valueProfile.fantasyProsPositionRank}.` : ''}
                   </p>
                 )}
               </div>
@@ -382,7 +465,7 @@ export function PlayerDetailModal({
                   Cross-Position Trade Comps
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {details.similarTradeValues.slice(0, 4).map((peer) => (
+                  {details.similarTradeValues.map((peer) => (
                     <div key={peer.playerId} className="rounded-xl border border-cyan-300/15 bg-slate-950/45 p-2 text-center">
                       <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">{peer.label || peer.position}</div>
                       <div className="mt-1 truncate text-sm font-black text-slate-100">{peer.name}</div>
@@ -489,6 +572,44 @@ export function PlayerDetailModal({
               ))}
             </div>
 
+            <div className="player-complete-data mx-auto max-w-xl">
+              <p className="player-complete-title">Complete Player Data</p>
+              <div className="player-complete-grid">
+                <CompleteDataSection title="Profile" rows={profileRows} teamColors={teamColors} tileAccent={tileAccent} />
+                <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues />
+                <CompleteDataSection title="Source Values" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
+                <CompleteDataSection title="Draft Context" rows={draftContextRows} teamColors={teamColors} tileAccent={tileAccent} rankValues />
+                <CompleteDataSection title="NFL Draft" rows={nflDraftRows} teamColors={teamColors} tileAccent={tileAccent} />
+                <CompleteDataSection title="External IDs" rows={externalIdRows} teamColors={teamColors} tileAccent={tileAccent} />
+                <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
+                {details?.availabilityHistory?.length ? (
+                  <div className="player-complete-section player-complete-section-wide">
+                    <h4>Availability History</h4>
+                    <div className="player-availability-grid">
+                      {details.availabilityHistory.map((item) => (
+                        <div key={item.season} className="player-availability-card">
+                          <span>{item.season}</span>
+                          <strong>{item.games ?? '-'} GP</strong>
+                          <em>{item.gamesMissed ?? '-'} missed</em>
+                          {item.pointsPerGame !== null && item.pointsPerGame !== undefined && (
+                            <small>{item.pointsPerGame} PPG</small>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {valueProfile?.sources?.length ? (
+                  <div className="player-complete-section player-complete-section-wide">
+                    <h4>Rank Blend Sources</h4>
+                    <p className="player-complete-copy">
+                      {valueProfile.sources.map(formatSourceLabel).join(' + ')}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
           </div>
         </div>
       </DialogContent>
@@ -562,6 +683,43 @@ function formatValueLens(value: number | null | undefined) {
   return value.toLocaleString();
 }
 
+function formatSourceLabel(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized.includes('ktc') || normalized.includes('keeptradecut')) return 'KeepTradeCut';
+  if (normalized.includes('fantasycalc')) return 'FantasyCalc';
+  if (normalized.includes('dynastyprocess')) return 'DynastyProcess';
+  if (normalized.includes('fantasypros')) return 'FantasyPros';
+  return value
+    .replace(/[_-]/g, ' ')
+    .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+}
+
+function formatExternalIdLabel(value: string) {
+  const labelMap: Record<string, string> = {
+    sleeper: 'Sleeper',
+    fantasy_data: 'FantasyData',
+    sportradar: 'Sportradar',
+    stats_id: 'Stats ID',
+    gsis_id: 'GSIS',
+    rotowire: 'Rotowire',
+    espn: 'ESPN',
+    yahoo: 'Yahoo',
+  };
+  return labelMap[value] || value.replace(/_/g, ' ').replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+}
+
+function formatCompleteValue(value: unknown, compactNumbers?: boolean) {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'number') {
+    return compactNumbers ? formatValueLens(value) : value.toLocaleString();
+  }
+  return String(value);
+}
+
+function isPositionRankValue(value: unknown) {
+  return typeof value === 'string' && /^(QB|RB|WR|TE)\d+$/i.test(value);
+}
+
 function getValueChangeNote(pick: PlayerModalData) {
   if (pick.ktcValue !== undefined) {
     return 'Change from draft value to current value.';
@@ -591,6 +749,97 @@ function parseHexColor(hex: string) {
   };
 }
 
+function buildPlayerDecisionLabels({
+  details,
+  currentRank,
+  valueGain,
+  position,
+  valueProfile,
+}: {
+  details?: PlayerDetails;
+  currentRank?: string | null;
+  valueGain?: number | null;
+  position?: string | null;
+  valueProfile?: PlayerDetails['valueProfile'];
+}) {
+  const labels: Array<{ label: string; copy: string; tone: 'buy' | 'hold' | 'shop' | 'risk' | 'core' }> = [];
+  const rankNumber = parseRankNumber(currentRank);
+  const seasonRankNumber = parseRankNumber(valueProfile?.seasonPositionRank || valueProfile?.fantasyProsPositionRank);
+  const dynastyRankNumber = parseRankNumber(valueProfile?.dynastyPositionRank || valueProfile?.balancedPositionRank || currentRank);
+  const rebuilderRankNumber = parseRankNumber(valueProfile?.rebuilderPositionRank || valueProfile?.dynastyPositionRank);
+  const age = details?.age;
+  const avgMissed = details?.avgGamesMissed;
+  const lastRankNumber = parseRankNumber(details?.lastSeasonPositionRank);
+  const contenderEdge = seasonRankNumber && dynastyRankNumber ? dynastyRankNumber - seasonRankNumber : null;
+  const veteranAge = position === 'RB' ? 27 : position === 'WR' ? 29 : position === 'TE' ? 30 : position === 'QB' ? 33 : 30;
+  const youngAge = position === 'RB' ? 24 : position === 'WR' ? 25 : position === 'TE' ? 26 : position === 'QB' ? 27 : 25;
+  const eliteCutoff = position === 'TE' ? 5 : position === 'QB' ? 6 : 10;
+
+  if (rankNumber && rankNumber <= eliteCutoff) {
+    labels.push({
+      label: 'Core Lock',
+      copy: `${currentRank} is too strong to move without a real overpay.`,
+      tone: 'core',
+    });
+  }
+
+  if (age !== null && age !== undefined && age <= youngAge && (rebuilderRankNumber || rankNumber || 999) <= 24) {
+    labels.push({
+      label: 'Rebuilder Hold',
+      copy: `${age} with a strong position profile fits a longer roster window.`,
+      tone: 'hold',
+    });
+  }
+
+  if (contenderEdge !== null && contenderEdge >= 6) {
+    labels.push({
+      label: 'Contender Buy',
+      copy: `Season rank is ahead of dynasty rank by ${contenderEdge} spots.`,
+      tone: 'buy',
+    });
+  }
+
+  if (age !== null && age !== undefined && age >= veteranAge && (seasonRankNumber || rankNumber || 999) <= 30) {
+    labels.push({
+      label: 'Win-Now Rental',
+      copy: `Older, but still useful enough for teams trying to score now.`,
+      tone: 'buy',
+    });
+  }
+
+  if ((valueGain || 0) >= 350 && age !== null && age !== undefined && age >= veteranAge) {
+    labels.push({
+      label: 'Shop Window',
+      copy: `Market is up while the age curve is getting tighter.`,
+      tone: 'shop',
+    });
+  } else if (contenderEdge !== null && contenderEdge <= -8) {
+    labels.push({
+      label: 'Dynasty Premium',
+      copy: `Long-term price is stronger than current-season profile.`,
+      tone: 'shop',
+    });
+  }
+
+  if (avgMissed !== null && avgMissed !== undefined && avgMissed >= 4) {
+    labels.push({
+      label: 'Injury Tax',
+      copy: `${avgMissed} missed games per year should be priced into deals.`,
+      tone: 'risk',
+    });
+  }
+
+  if (lastRankNumber && lastRankNumber <= eliteCutoff && !labels.some((label) => label.label === 'Core Lock')) {
+    labels.push({
+      label: 'Proven Spike',
+      copy: `${details?.lastSeasonYear || 'Last year'} ${details?.lastSeasonPositionRank} says the ceiling is real.`,
+      tone: 'hold',
+    });
+  }
+
+  return labels.slice(0, 4);
+}
+
 function buildPlayerIntelligenceNotes({
   details,
   currentRank,
@@ -604,7 +853,7 @@ function buildPlayerIntelligenceNotes({
   position?: string | null;
   valueProfile?: PlayerDetails['valueProfile'];
 }) {
-  const notes: Array<{ label: string; value: string; copy?: string; tone?: 'risk' | 'upside' | 'market' | 'neutral' }> = [];
+  const notes: Array<{ label: string; value: string; copy?: string; tone?: 'risk' | 'upside' | 'market' | 'neutral'; fullWidth?: boolean }> = [];
   const avgMissed = details?.avgGamesMissed;
   const seasons = details?.availabilitySeasons || 0;
   const lastRank = details?.lastSeasonPositionRank;
@@ -681,16 +930,38 @@ function buildPlayerIntelligenceNotes({
     }
   }
 
-  if (newsDate) {
+  if (details?.latestNews?.title) {
+    notes.push({
+      label: 'Latest Sleeper Update',
+      value: details.latestNews.title,
+      copy: [
+        details.latestNews.publishedAt ? formatNewsDate(details.latestNews.publishedAt) : newsDate,
+        details.latestNews.summary,
+      ].filter(Boolean).join(' · '),
+      tone: details?.injuryStatus ? 'risk' : 'neutral',
+      fullWidth: true,
+    });
+  } else if (newsDate) {
     notes.push({
       label: 'Latest Sleeper Update',
       value: newsDate,
-      copy: 'Sleeper has a recent player-news timestamp. Public metadata exposes the update time, not the full article text.',
+      copy: 'Sleeper flagged a recent metadata update, but no public article matched this player yet.',
       tone: details?.injuryStatus ? 'risk' : 'neutral',
+      fullWidth: true,
     });
   }
 
   return notes.slice(0, 6);
+}
+
+function formatNewsDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function parseRankNumber(rank?: string | null) {
@@ -786,6 +1057,61 @@ function InfoTile({
       <div className="text-center text-[0.6rem] font-semibold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]" style={{ color: tileAccent || teamColors?.accent || undefined }}>{label}</div>
       <div className={`mt-1 truncate text-center text-sm font-bold sm:text-base ${toneClass}`}>
         <span className={valueClassName}>{value}</span>
+      </div>
+    </div>
+  );
+}
+
+function CompleteDataSection({
+  title,
+  rows,
+  teamColors,
+  tileAccent,
+  compactNumbers = false,
+  rankValues = false,
+  wide = false,
+}: {
+  title: string;
+  rows: unknown[][];
+  teamColors?: { primary: string; secondary: string; accent: string } | null;
+  tileAccent?: string;
+  compactNumbers?: boolean;
+  rankValues?: boolean;
+  wide?: boolean;
+}) {
+  if (!rows.length) return null;
+
+  return (
+    <div
+      className={`player-complete-section ${wide ? 'player-complete-section-wide' : ''}`}
+      style={{
+        borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
+        background: teamColors
+          ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
+          : undefined,
+      }}
+    >
+      <h4>{title}</h4>
+      <div className="player-complete-rows">
+        {rows.map(([rawLabel, rawValue]) => {
+          const label = String(rawLabel);
+          const displayValue = formatCompleteValue(rawValue, compactNumbers);
+          const isUrl = /^https?:\/\//i.test(displayValue);
+          return (
+            <div key={`${title}-${label}`} className="player-complete-row">
+              <span>{label}</span>
+              {isUrl ? (
+                <a href={displayValue} target="_blank" rel="noreferrer">
+                  Open Link
+                </a>
+              ) : rankValues && isPositionRankValue(displayValue) ? (
+                <strong className={getPositionRankPillClass(displayValue)}>{displayValue}</strong>
+              ) : (
+                <strong>{displayValue}</strong>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

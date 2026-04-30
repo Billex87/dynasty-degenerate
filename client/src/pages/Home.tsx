@@ -26,6 +26,7 @@ import {
   LeagueCommandCenter,
   PowerRankingsTable,
   TradeMarketRadar,
+  TradeTheftDetector,
   TradeTendenciesTable,
   TrendingPlayersTable,
   WaiverIntelligencePanel,
@@ -359,6 +360,7 @@ export default function Home() {
                     risers={reportData.weeklyRisers}
                     fallers={reportData.weeklyFallers}
                     managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
@@ -367,15 +369,16 @@ export default function Home() {
                   <WaiverIntelligencePanel
                     data={reportData.waiverIntelligence}
                     managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Top 15 Weekly Risers" kicker="Market gainers">
-                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
+                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Top 15 Weekly Fallers" kicker="Market drops">
-                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
+                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Trending Adds" kicker="Sleeper activity">
                   <TrendingPlayersTable
@@ -383,6 +386,7 @@ export default function Home() {
                     title="Trending Adds"
                     countLabel="Adds"
                     managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
@@ -393,6 +397,7 @@ export default function Home() {
                     title="Trending Drops"
                     countLabel="Drops"
                     managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
@@ -412,14 +417,14 @@ export default function Home() {
                     <h3 className="text-center text-2xl font-bold text-emerald-400 mb-6">Top Weekly Risers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to make your league mates look stupid next year.</p>
                   </div>
-                   <ProjectedMoversTable data={reportData.projectedRisers} title="Top Weekly Risers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
+                   <ProjectedMoversTable data={reportData.projectedRisers} title="Top Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </div>
                 <div>
                   <div className="space-y-2 mb-4">
                     <h3 className="text-center text-2xl font-bold text-red-400 mb-6">Top Weekly Fallers</h3>
                     <p className="text-sm text-slate-400 text-center">Players about to tank your roster value.</p>
                   </div>
-                   <ProjectedMoversTable data={reportData.projectedFallers} title="Top Weekly Fallers" managerAvatars={reportData.managerAvatars} leagueId={leagueId} leagueLogo={leagueLogo} />
+                   <ProjectedMoversTable data={reportData.projectedFallers} title="Top Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </div>
               </div>
             </TabsContent>
@@ -434,6 +439,8 @@ export default function Home() {
                     draftPicks={reportData.draftPicks || []}
                     playerDetailsById={reportData.playerDetailsById}
                     currentPositionRankById={reportData.currentPositionRankById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Manager Trade Tendencies" kicker="Trading personality">
@@ -441,6 +448,17 @@ export default function Home() {
                     data={reportData.tradeTendencies}
                     managerAvatars={reportData.managerAvatars}
                     tradeHistory={reportData.tradeHistory}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Trade Theft Detector" kicker="Who got cooked">
+                  <TradeTheftDetector
+                    data={reportData.tradeHistory}
+                    managerAvatars={reportData.managerAvatars}
+                    draftPicks={reportData.draftPicks || []}
+                    playerDetailsById={reportData.playerDetailsById}
+                    currentPositionRankById={reportData.currentPositionRankById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Full Trade Ledger" kicker="Every completed deal">

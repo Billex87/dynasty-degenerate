@@ -24,8 +24,17 @@ export interface FantasyProsPlayerPoints {
   weeks?: Record<string, number>;
 }
 
+export interface FantasyProsNewsItem {
+  title: string;
+  summary?: string | null;
+  source?: string | null;
+  url?: string | null;
+  publishedAt?: string | null;
+}
+
 let cachedDraftRankings: { loadedAt: number; season: string; values: Record<string, FantasyProsRanking> } | null = null;
 let cachedPlayerPoints: { loadedAt: number; season: string; scoring: string; values: Record<string, FantasyProsPlayerPoints> } | null = null;
+let cachedNews: { loadedAt: number; values: FantasyProsNewsItem[] } | null = null;
 
 function isFresh(cache: { loadedAt: number } | null): boolean {
   return Boolean(cache && Date.now() - cache.loadedAt < CACHE_TTL_MS);
@@ -66,6 +75,18 @@ async function fantasyProsFetch<T>(path: string): Promise<T | null> {
   });
   if (!response.ok) throw new Error(`FantasyPros ${response.status} ${path}`);
   return response.json() as Promise<T>;
+}
+
+function stripHtml(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim() || null;
 }
 
 export async function fetchFantasyProsDraftRankings(season = String(new Date().getFullYear())): Promise<Record<string, FantasyProsRanking>> {
@@ -149,5 +170,34 @@ export async function fetchFantasyProsPlayerPoints(
   } catch (error) {
     console.warn('[FantasyPros] Failed to load player points:', error);
     return cachedPlayerPoints?.values || {};
+  }
+}
+
+export async function fetchFantasyProsNews(): Promise<FantasyProsNewsItem[]> {
+  if (cachedNews && isFresh(cachedNews)) return cachedNews.values;
+
+  try {
+    const payload = await fantasyProsFetch<{
+      articles?: Array<Record<string, unknown>>;
+      news?: Array<Record<string, unknown>>;
+      items?: Array<Record<string, unknown>>;
+    }>('/nfl/news?limit=200');
+
+    const rows = payload?.articles || payload?.news || payload?.items || [];
+    const values = rows
+      .map((item) => ({
+        title: stripHtml(item.title || item.headline || item.news_title) || '',
+        summary: stripHtml(item.summary || item.description || item.news_content || item.article_body),
+        source: stripHtml(item.source || item.site || item.publisher),
+        url: stripHtml(item.url || item.link || item.article_url),
+        publishedAt: stripHtml(item.published || item.published_at || item.date || item.updated_at),
+      }))
+      .filter((item) => item.title);
+
+    cachedNews = { loadedAt: Date.now(), values };
+    return values;
+  } catch (error) {
+    console.warn('[FantasyPros] Failed to load player news:', error);
+    return cachedNews?.values || [];
   }
 }

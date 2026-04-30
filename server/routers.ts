@@ -11,7 +11,7 @@ import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draf
 import { getMay2025KTCSnapshot } from "./waybackMachineScraper";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
-import { fetchFantasyProsPlayerPoints } from "./fantasyPros";
+import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
 import type { PickPortfolio, PlayerDetails, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
@@ -194,18 +194,21 @@ function getPlayerCurrentPositionRank(
 function getPlayerValueProfile(
   playerId: string,
   players: Record<string, any>,
-  ktcValues: KTCValues
+  ktcValues: KTCValues,
+  rankLookups?: Record<string, Partial<Record<'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank', string>>>
 ): PlayerDetails['valueProfile'] | undefined {
   const player = players[playerId];
   if (!player) return undefined;
 
   const key = cleanName(`${player.first_name || ''}${player.last_name || ''}`);
   let data = ktcValues[key];
+  let dataKey = key;
 
   if (!data) {
     for (const ktcKey in ktcValues) {
       if (key.includes(ktcKey) || ktcKey.includes(key)) {
         data = ktcValues[ktcKey];
+        dataKey = ktcKey;
         break;
       }
     }
@@ -231,6 +234,11 @@ function getPlayerValueProfile(
     contenderValue,
     rebuilderValue,
     balancedValue,
+    dynastyPositionRank: rankLookups?.[dataKey]?.dynastyPositionRank || data.position_rank || null,
+    seasonPositionRank: rankLookups?.[dataKey]?.seasonPositionRank || data.fantasypros_position_rank || null,
+    contenderPositionRank: rankLookups?.[dataKey]?.contenderPositionRank || null,
+    rebuilderPositionRank: rankLookups?.[dataKey]?.rebuilderPositionRank || null,
+    balancedPositionRank: rankLookups?.[dataKey]?.balancedPositionRank || data.position_rank || null,
     marketKtc: data.market_value_ktc ?? null,
     fantasyCalcDynasty: data.market_value_fantasycalc ?? null,
     fantasyCalcRedraft: data.redraft_value ?? null,
@@ -241,6 +249,71 @@ function getPlayerValueProfile(
     fantasyProsSeasonValue: data.fantasypros_season_value ?? null,
     sources: data.value_sources || [],
   };
+}
+
+function getKtcPosition(data: KTCValues[string]): 'QB' | 'RB' | 'WR' | 'TE' | null {
+  const position = data?.position_rank?.match(/^[A-Z]+/)?.[0]
+    || data?.fantasypros_position_rank?.match(/^[A-Z]+/)?.[0]
+    || null;
+  return ['QB', 'RB', 'WR', 'TE'].includes(position || '') ? position as 'QB' | 'RB' | 'WR' | 'TE' : null;
+}
+
+function buildValueProfileRankLookups(
+  ktcValues: KTCValues
+): Record<string, Partial<Record<'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank', string>>> {
+  type LensKey = 'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank';
+  const lensValues: Record<LensKey, Array<{ key: string; position: 'QB' | 'RB' | 'WR' | 'TE'; value: number }>> = {
+    dynastyPositionRank: [],
+    seasonPositionRank: [],
+    contenderPositionRank: [],
+    rebuilderPositionRank: [],
+    balancedPositionRank: [],
+  };
+
+  for (const [key, data] of Object.entries(ktcValues)) {
+    const position = getKtcPosition(data);
+    if (!position) continue;
+    const dynastyValue = data.dynasty_value ?? data.ktc_value ?? null;
+    const seasonValue = data.redraft_value ?? data.true_value ?? data.ktc_value ?? null;
+    const contenderValue = dynastyValue && seasonValue
+      ? Math.round((seasonValue * 0.6) + (dynastyValue * 0.4))
+      : seasonValue ?? dynastyValue;
+    const rebuilderValue = dynastyValue && seasonValue
+      ? Math.round((dynastyValue * 0.8) + (seasonValue * 0.2))
+      : dynastyValue ?? seasonValue;
+    const balancedValue = dynastyValue && seasonValue
+      ? Math.round((dynastyValue * 0.55) + (seasonValue * 0.45))
+      : dynastyValue ?? seasonValue;
+    const values: Record<LensKey, number | null | undefined> = {
+      dynastyPositionRank: dynastyValue,
+      seasonPositionRank: seasonValue,
+      contenderPositionRank: contenderValue,
+      rebuilderPositionRank: rebuilderValue,
+      balancedPositionRank: balancedValue,
+    };
+
+    for (const lens of Object.keys(values) as LensKey[]) {
+      const value = values[lens];
+      if (value && value > 0) lensValues[lens].push({ key, position, value });
+    }
+  }
+
+  const ranks: Record<string, Partial<Record<LensKey, string>>> = {};
+  for (const [lens, rows] of Object.entries(lensValues) as Array<[LensKey, typeof lensValues[LensKey]]>) {
+    for (const position of ['QB', 'RB', 'WR', 'TE'] as const) {
+      rows
+        .filter((row) => row.position === position)
+        .sort((a, b) => b.value - a.value)
+        .forEach((row, index) => {
+          ranks[row.key] = {
+            ...ranks[row.key],
+            [lens]: `${position}${index + 1}`,
+          };
+        });
+    }
+  }
+
+  return ranks;
 }
 
 function buildCurrentPositionRankMap(
@@ -261,9 +334,10 @@ function buildPlayerValueProfileMap(
   players: Record<string, any>,
   ktcValues: KTCValues
 ): Record<string, PlayerDetails['valueProfile']> {
+  const rankLookups = buildValueProfileRankLookups(ktcValues);
   return Object.fromEntries(
     Array.from(new Set(Array.from(playerIds).filter(Boolean)))
-      .map((playerId) => [playerId, getPlayerValueProfile(playerId, players, ktcValues)])
+      .map((playerId) => [playerId, getPlayerValueProfile(playerId, players, ktcValues, rankLookups)])
       .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
   );
 }
@@ -273,7 +347,16 @@ function buildSimilarTradeValueMap(
   players: Record<string, any>,
   ktcValues: KTCValues
 ): Record<string, NonNullable<PlayerDetails['similarTradeValues']>> {
-  const candidates = Array.from(new Set(Array.from(playerIds).filter(Boolean)))
+  const requestedPlayerIds = Array.from(new Set(Array.from(playerIds).filter(Boolean)));
+  const candidateIds = Array.from(new Set([
+    ...requestedPlayerIds,
+    ...Object.keys(players).filter((playerId) => {
+      const player = players[playerId];
+      return ['QB', 'RB', 'WR', 'TE'].includes(player?.position)
+        && ['Active', 'Inactive', null, undefined].includes(player?.status);
+    }),
+  ]));
+  const candidates = candidateIds
     .map((playerId) => {
       const player = players[playerId];
       const position = player?.position;
@@ -290,13 +373,35 @@ function buildSimilarTradeValueMap(
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
-  return Object.fromEntries(candidates.map((player) => {
-    const peers = (['QB', 'RB', 'WR', 'TE'] as const)
+  const rankNumber = (rank?: string | null) => {
+    const value = Number(String(rank || '').match(/\d+/)?.[0]);
+    return Number.isFinite(value) ? value : null;
+  };
+
+  return Object.fromEntries(
+    candidates
+      .filter((player) => requestedPlayerIds.includes(player.playerId))
+      .map((player) => {
+    const currentRankNumber = rankNumber(player.rank);
+    const samePositionPeer = currentRankNumber
+      ? candidates
+        .filter((candidate) => candidate.playerId !== player.playerId && candidate.position === player.position && rankNumber(candidate.rank))
+        .sort((a, b) => {
+          const aRankDiff = Math.abs((rankNumber(a.rank) || 999) - currentRankNumber);
+          const bRankDiff = Math.abs((rankNumber(b.rank) || 999) - currentRankNumber);
+          return aRankDiff - bRankDiff || Math.abs(a.value - player.value) - Math.abs(b.value - player.value);
+        })[0]
+      : null;
+    const crossPositionPeers = (['QB', 'RB', 'WR', 'TE'] as const)
+      .filter((position) => position !== player.position)
       .map((position) => candidates
         .filter((candidate) => candidate.playerId !== player.playerId && candidate.position === position)
         .sort((a, b) => Math.abs(a.value - player.value) - Math.abs(b.value - player.value))[0])
       .filter(Boolean)
-      .sort((a, b) => Math.abs(a.value - player.value) - Math.abs(b.value - player.value))
+      .sort((a, b) => Math.abs(a.value - player.value) - Math.abs(b.value - player.value));
+    const peers = [samePositionPeer, ...crossPositionPeers]
+      .filter((peer): peer is NonNullable<typeof samePositionPeer> => Boolean(peer))
+      .slice(0, 4)
       .map((peer) => ({
         playerId: peer.playerId,
         name: peer.name,
@@ -305,11 +410,36 @@ function buildSimilarTradeValueMap(
         rank: peer.rank,
         value: peer.value,
         difference: peer.value - player.value,
-        label: `${player.position} value near ${peer.position}`,
+        label: peer.position === player.position ? `Nearest ${peer.position}` : `Near ${peer.position}`,
       }));
 
     return [player.playerId, peers];
   }));
+}
+
+function buildLatestNewsByPlayerId(
+  playerIds: Iterable<string>,
+  players: Record<string, any>,
+  newsItems: Awaited<ReturnType<typeof fetchFantasyProsNews>>
+): Record<string, NonNullable<PlayerDetails['latestNews']>> {
+  const normalize = (value: string) => cleanName(value).toLowerCase();
+  const requestedIds = Array.from(new Set(Array.from(playerIds).filter(Boolean)));
+  const normalizedNews = newsItems.map((item) => ({
+    item,
+    haystack: normalize(`${item.title} ${item.summary || ''}`),
+  }));
+
+  return Object.fromEntries(requestedIds.map((playerId) => {
+    const player = players[playerId];
+    if (!player) return null;
+    const fullName = getPlayerName(playerId, players);
+    const nameKey = normalize(fullName);
+    const lastName = normalize(player.last_name || fullName.split(/\s+/).slice(-1)[0] || '');
+    const matched = normalizedNews.find(({ haystack }) => haystack.includes(nameKey))
+      || (lastName.length >= 5 ? normalizedNews.find(({ haystack }) => haystack.includes(lastName)) : null);
+    if (!matched) return null;
+    return [playerId, matched.item];
+  }).filter((entry): entry is [string, NonNullable<PlayerDetails['latestNews']>] => Boolean(entry)));
 }
 
 async function fetchTrendingPlayers(
@@ -948,6 +1078,11 @@ export const appRouter = router({
             lastCompletedSeason,
             3
           );
+          const latestNewsByPlayerId = buildLatestNewsByPlayerId(
+            reportPlayerIds,
+            players,
+            await fetchFantasyProsNews()
+          );
           const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players);
 
           return {
@@ -970,6 +1105,7 @@ export const appRouter = router({
                     lastSeasonPointsPerGame: lastSeasonPositionRanks[playerId]?.pointsPerGame ?? null,
                     lastSeasonYear: lastSeasonPositionRanks[playerId]?.season || null,
                     availabilityHistory: availabilityHistoryById[playerId]?.availabilityHistory || [],
+                    latestNews: latestNewsByPlayerId[playerId] || null,
                     avgGamesMissed: availabilityHistoryById[playerId]?.avgGamesMissed ?? null,
                     availabilitySeasons: availabilityHistoryById[playerId]?.availabilitySeasons ?? 0,
                     similarTradeValues: similarTradeValuesById[playerId] || [],

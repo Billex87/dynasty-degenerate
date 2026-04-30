@@ -99,6 +99,7 @@ function buildPlayerModalData({
         lastSeasonPointsPerGame: playerDetails.lastSeasonPointsPerGame ?? mappedDetails?.lastSeasonPointsPerGame,
         lastSeasonYear: playerDetails.lastSeasonYear || mappedDetails?.lastSeasonYear,
         availabilityHistory: playerDetails.availabilityHistory?.length ? playerDetails.availabilityHistory : mappedDetails?.availabilityHistory,
+        latestNews: playerDetails.latestNews || mappedDetails?.latestNews,
         avgGamesMissed: playerDetails.avgGamesMissed ?? mappedDetails?.avgGamesMissed,
         availabilitySeasons: playerDetails.availabilitySeasons ?? mappedDetails?.availabilitySeasons,
         similarTradeValues: playerDetails.similarTradeValues || mappedDetails?.similarTradeValues,
@@ -110,7 +111,7 @@ function buildPlayerModalData({
     playerPos: playerPos || details?.position,
     manager: manager || undefined,
     managerAvatarUrl,
-    currentPositionRank,
+    currentPositionRank: currentPositionRank || details?.valueProfile?.seasonPositionRank || details?.valueProfile?.dynastyPositionRank || null,
     currentKtcValue: value ?? undefined,
     valueGain: valueGain ?? undefined,
     playerDetails: details,
@@ -499,34 +500,40 @@ function renderTradeItem(
       </>
     );
 
+    if (onPlayerClick) {
+      return (
+        <button
+          key={key}
+          type="button"
+          className="trade-asset trade-asset-clickable"
+          aria-label={`Open ${playerItem.playerName} player card`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onPlayerClick(buildPlayerModalData({
+              playerId: playerItem.playerId,
+              playerName: playerItem.playerName,
+              value: playerItem.value,
+              valueGain,
+              valueChangeNote: playerItem.tradeDate
+                ? `Change from this trade on ${playerItem.tradeDate} to today.`
+                : undefined,
+              playerDetails: details,
+              playerDetailsById,
+              manager,
+              managerAvatarUrl,
+              currentPositionRank: currentPositionRankById?.[playerItem.playerId],
+            }));
+          }}
+        >
+          {content}
+        </button>
+      );
+    }
+
     return (
       <div key={key} className="trade-asset">
-        {onPlayerClick ? (
-          <button
-            type="button"
-            className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left hover:text-orange-300"
-            onClick={(event) => {
-              event.stopPropagation();
-              onPlayerClick(buildPlayerModalData({
-                playerId: playerItem.playerId,
-                playerName: playerItem.playerName,
-                value: playerItem.value,
-                valueGain,
-                valueChangeNote: playerItem.tradeDate
-                  ? `Change from this trade on ${playerItem.tradeDate} to today.`
-                  : undefined,
-                playerDetails: details,
-                manager,
-                managerAvatarUrl,
-                currentPositionRank: currentPositionRankById?.[playerItem.playerId],
-              }));
-            }}
-          >
-            {content}
-          </button>
-        ) : (
-          content
-        )}
+        {content}
       </div>
     );
   }
@@ -647,6 +654,7 @@ function PlayerInsightTile({
   player,
   manager,
   managerAvatarUrl,
+  playerDetailsById,
   onSelect,
   tone = 'neutral',
   extraPill,
@@ -656,6 +664,7 @@ function PlayerInsightTile({
   player: ManagerIntelPlayer | null | undefined;
   manager: string;
   managerAvatarUrl?: string | null;
+  playerDetailsById?: PlayerDetailsById;
   onSelect: (player: PlayerModalData) => void;
   tone?: 'neutral' | 'warn' | 'danger';
   extraPill?: string | null;
@@ -673,6 +682,7 @@ function PlayerInsightTile({
         playerPos: player.pos,
         value: player.value,
         playerDetails: player.playerDetails,
+        playerDetailsById,
         currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
         manager: player.owner || manager,
         managerAvatarUrl: player.owner ? undefined : managerAvatarUrl,
@@ -943,6 +953,7 @@ export function LeagueCommandCenter({
       playerPos: player.pos,
       value: player.value,
       playerDetails: player.playerDetails,
+      playerDetailsById: data.playerDetailsById,
       manager: player.owner || selectedManager,
       managerAvatarUrl: managerAvatars?.[player.owner || selectedManager],
       currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
@@ -1350,11 +1361,13 @@ export function LeagueCommandCenter({
 export function ManagerIntelligenceCards({
   data,
   managerAvatars,
+  playerDetailsById,
   leagueId,
   leagueLogo,
 }: {
   data?: ReportData['managerRosterIntelligence'];
   managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -1450,20 +1463,21 @@ export function ManagerIntelligenceCards({
                   <div className="manager-command-section">
                     <h4>Key Players</h4>
                     <div className="manager-intel-player-grid">
-                      <PlayerInsightTile label="Bench Stash" player={selectedRow.bestBenchStash} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
-                      <PlayerInsightTile label="Upgrade Spot" player={selectedRow.weakestStarter} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="warn" />
-                      <PlayerInsightTile label="Age Risk" player={selectedRow.oldestPlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="danger" />
-                      <PlayerInsightTile label="Young Core" player={selectedRow.youngCorePlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
-                      <PlayerInsightTile label="Upside Play" player={selectedRow.breakoutCandidate} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
-                      <PlayerInsightTile label="Buy Target" player={selectedRow.buyTarget} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
-                      <PlayerInsightTile label="Sell Candidate" player={selectedRow.sellCandidate} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} tone="warn" />
-                      <PlayerInsightTile label="Trade Chip" player={selectedRow.tradeChip} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
-                      <PlayerInsightTile label="Insurance" player={selectedRow.injuryInsurance} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Bench Stash" player={selectedRow.bestBenchStash} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Upgrade Spot" player={selectedRow.weakestStarter} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} tone="warn" />
+                      <PlayerInsightTile label="Age Risk" player={selectedRow.oldestPlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} tone="danger" />
+                      <PlayerInsightTile label="Young Core" player={selectedRow.youngCorePlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Upside Play" player={selectedRow.breakoutCandidate} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Buy Target" player={selectedRow.buyTarget} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Sell Candidate" player={selectedRow.sellCandidate} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} tone="warn" />
+                      <PlayerInsightTile label="Trade Chip" player={selectedRow.tradeChip} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} />
+                      <PlayerInsightTile label="Insurance" player={selectedRow.injuryInsurance} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} />
                       <PlayerInsightTile
                         label="Last Year Stud"
                         player={selectedRow.lastSeasonStud}
                         manager={selectedRow.manager}
                         managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
+                        playerDetailsById={playerDetailsById}
                         onSelect={setSelectedPlayer}
                         crownedRank={selectedRow.lastSeasonStud?.lastSeasonPositionRank
                           ? `${selectedRow.lastSeasonStud.lastSeasonYear || '2025'} ${selectedRow.lastSeasonStud.lastSeasonPositionRank}`
@@ -1716,6 +1730,7 @@ export function OwnerIntelMatrix({
                       player={item.player}
                       manager={selectedRow.manager}
                       managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
+                      playerDetailsById={data.playerDetailsById}
                       onSelect={setSelectedPlayer}
                       tone={item.tone}
                       crownedRank={item.crownedRank}
@@ -1911,12 +1926,14 @@ export function WeeklyMomentumTable({
   data,
   title,
   managerAvatars,
+  playerDetailsById,
   leagueId,
   leagueLogo,
 }: {
   data: ReportData['weeklyRisers'];
   title: string;
   managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -1948,6 +1965,7 @@ export function WeeklyMomentumTable({
                   value: row.val_now,
                   valueGain: row.diff,
                   playerDetails: row.playerDetails,
+                  playerDetailsById,
                   manager: row.owner,
                   managerAvatarUrl: managerAvatars?.[row.owner],
                   currentPositionRank: row.currentPositionRank,
@@ -2046,6 +2064,7 @@ export function TrendingPlayersTable({
   title,
   countLabel,
   managerAvatars,
+  playerDetailsById,
   leagueId,
   leagueLogo,
 }: {
@@ -2053,6 +2072,7 @@ export function TrendingPlayersTable({
   title: string;
   countLabel: 'Adds' | 'Drops';
   managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -2086,6 +2106,7 @@ export function TrendingPlayersTable({
                     playerPos: row.pos,
                     value: row.ktcValue,
                     playerDetails: row.playerDetails,
+                    playerDetailsById,
                     currentPositionRank: row.currentPositionRank,
                     manager: row.owner || null,
                     managerAvatarUrl: row.owner ? managerAvatars?.[row.owner] : null,
@@ -2131,12 +2152,14 @@ export function ProjectedMoversTable({
   data,
   title,
   managerAvatars,
+  playerDetailsById,
   leagueId,
   leagueLogo,
 }: {
   data: ReportData['projectedRisers'];
   title: string;
   managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -2171,6 +2194,7 @@ export function ProjectedMoversTable({
                   value: row.val_2026,
                   valueGain: row.diff,
                   playerDetails: row.playerDetails,
+                  playerDetailsById,
                   manager: row.owner,
                   managerAvatarUrl: managerAvatars?.[row.owner],
                   currentPositionRank: row.currentPositionRank,
@@ -2227,6 +2251,8 @@ export function TradeProfitLeaderboardTable({
   draftPicks = [],
   playerDetailsById,
   currentPositionRankById,
+  leagueId,
+  leagueLogo,
 }: {
   data: ReportData['tradeProfitLeaderboard'];
   managerAvatars?: ManagerAvatars;
@@ -2234,9 +2260,12 @@ export function TradeProfitLeaderboardTable({
   draftPicks?: DraftPick[];
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
+  leagueId?: string;
+  leagueLogo?: string | null;
 }) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedManagerTradeKey, setSelectedManagerTradeKey] = useState<string | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const selectedManagerTrades = selectedManager
     ? [...tradeHistory]
         .filter((trade) => trade.team_a === selectedManager || trade.team_b === selectedManager)
@@ -2293,9 +2322,11 @@ export function TradeProfitLeaderboardTable({
       </Card>
       <Dialog
         open={selectedManager !== null}
-        onOpenChange={() => {
+        onOpenChange={(open) => {
+          if (open) return;
           setSelectedManager(null);
           setSelectedManagerTradeKey(null);
+          setSelectedPlayer(null);
         }}
       >
         <DialogContent className="trade-manager-modal max-h-[82vh] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-w-2xl">
@@ -2392,6 +2423,7 @@ export function TradeProfitLeaderboardTable({
                             managerAvatars={managerAvatars}
                             playerDetailsById={playerDetailsById}
                             currentPositionRankById={currentPositionRankById}
+                            onPlayerClick={setSelectedPlayer}
                           />
                         </div>
                       )}
@@ -2399,6 +2431,14 @@ export function TradeProfitLeaderboardTable({
                   );
                 })}
               </div>
+              <PlayerDetailModal
+                isOpen={selectedPlayer !== null}
+                onClose={() => setSelectedPlayer(null)}
+                pick={selectedPlayer}
+                leagueId={leagueId}
+                leagueLogo={leagueLogo}
+                managerAvatars={managerAvatars}
+              />
             </div>
           )}
         </DialogContent>
@@ -2660,11 +2700,13 @@ export function PositionAnalysisTable({
 export function StarterBenchSnapshot({
   data,
   managerAvatars,
+  playerDetailsById,
   leagueId,
   leagueLogo,
 }: {
   data?: ReportData['managerRosterIntelligence'];
   managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -2694,6 +2736,7 @@ export function StarterBenchSnapshot({
                   playerPos: row.bestBenchStash?.pos,
                   value: row.bestBenchStash?.value,
                   playerDetails: row.bestBenchStash?.playerDetails,
+                  playerDetailsById,
                   currentPositionRank: row.bestBenchStash?.currentPositionRank,
                   manager: row.manager,
                   managerAvatarUrl: managerAvatars?.[row.manager],
@@ -2716,6 +2759,7 @@ export function StarterBenchSnapshot({
                   playerPos: row.weakestStarter?.pos,
                   value: row.weakestStarter?.value,
                   playerDetails: row.weakestStarter?.playerDetails,
+                  playerDetailsById,
                   currentPositionRank: row.weakestStarter?.seasonPositionRank || row.weakestStarter?.currentPositionRank,
                   manager: row.manager,
                   managerAvatarUrl: managerAvatars?.[row.manager],
@@ -2931,6 +2975,169 @@ export function TradeTendenciesTable({
   );
 }
 
+export function TradeTheftDetector({
+  data,
+  managerAvatars,
+  draftPicks = [],
+  playerDetailsById,
+  currentPositionRankById,
+  leagueId,
+  leagueLogo,
+}: {
+  data: ReportData['tradeHistory'];
+  managerAvatars?: ManagerAvatars;
+  draftPicks?: DraftPick[];
+  playerDetailsById?: PlayerDetailsById;
+  currentPositionRankById?: CurrentPositionRankById;
+  leagueId?: string;
+  leagueLogo?: string | null;
+}) {
+  const [selectedTrade, setSelectedTrade] = useState<ReportData['tradeHistory'][number] | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  if (!data.length) return null;
+
+  const ordered = [...data].sort((a, b) => b.point_gap - a.point_gap);
+  const managerSwings = data.flatMap((trade) => [
+    {
+      trade,
+      manager: trade.team_a,
+      opponent: trade.team_b,
+      swing: getManagerTradeSwing(trade, trade.team_a),
+      result: getManagerTradeResult(trade, trade.team_a),
+    },
+    {
+      trade,
+      manager: trade.team_b,
+      opponent: trade.team_a,
+      swing: getManagerTradeSwing(trade, trade.team_b),
+      result: getManagerTradeResult(trade, trade.team_b),
+    },
+  ]);
+  const biggestGap = ordered[0];
+  const cleanestDeal = [...data].sort((a, b) => a.point_gap - b.point_gap)[0];
+  const bestSwing = [...managerSwings].sort((a, b) => b.swing - a.swing)[0];
+  const worstSwing = [...managerSwings].sort((a, b) => a.swing - b.swing)[0];
+  const robberyCount = data.filter((trade) => trade.point_gap >= 1000).length;
+  const fairCount = data.filter((trade) => trade.point_gap <= 300).length;
+  const avgGap = Math.round(data.reduce((sum, trade) => sum + trade.point_gap, 0) / data.length);
+  const fairRate = Math.round((fairCount / data.length) * 100);
+
+  const cards = [
+    biggestGap && {
+      key: 'biggest-gap',
+      eyebrow: 'Trade Theft Detector',
+      title: getTradeGapVerdict(biggestGap.point_gap).label,
+      value: biggestGap.point_gap.toLocaleString(),
+      copy: `${biggestGap.date}: ${getTradeDisplaySides(biggestGap).winners.join(' + ')} got the biggest value gap.`,
+      trade: biggestGap,
+      tone: 'fire' as const,
+    },
+    cleanestDeal && {
+      key: 'cleanest-deal',
+      eyebrow: 'Cleanest Deal',
+      title: getTradeGapVerdict(cleanestDeal.point_gap).label,
+      value: cleanestDeal.point_gap.toLocaleString(),
+      copy: `${cleanestDeal.date}: ${cleanestDeal.team_a} and ${cleanestDeal.team_b} were closest to even.`,
+      trade: cleanestDeal,
+      tone: 'fair' as const,
+    },
+    bestSwing && {
+      key: 'best-swing',
+      eyebrow: 'Best One-Trade Profit',
+      title: bestSwing.manager,
+      value: `+${bestSwing.swing.toLocaleString()}`,
+      copy: `${bestSwing.result} vs ${bestSwing.opponent} on ${bestSwing.trade.date}.`,
+      trade: bestSwing.trade,
+      tone: 'good' as const,
+    },
+    worstSwing && {
+      key: 'worst-swing',
+      eyebrow: 'Biggest One-Trade Loss',
+      title: worstSwing.manager,
+      value: worstSwing.swing.toLocaleString(),
+      copy: `${worstSwing.result} vs ${worstSwing.opponent} on ${worstSwing.trade.date}.`,
+      trade: worstSwing.trade,
+      tone: 'danger' as const,
+    },
+    {
+      key: 'robbery-rate',
+      eyebrow: 'League Market',
+      title: `${robberyCount} spicy gaps`,
+      value: avgGap.toLocaleString(),
+      copy: `${robberyCount} of ${data.length} trades crossed a 1,000-point gap. Average gap is ${avgGap.toLocaleString()}.`,
+      trade: biggestGap,
+      tone: robberyCount >= Math.max(2, data.length * 0.25) ? 'fire' as const : 'fair' as const,
+    },
+    {
+      key: 'fair-rate',
+      eyebrow: 'Handshake Rate',
+      title: `${fairRate}% fair-ish`,
+      value: `${fairCount}/${data.length}`,
+      copy: `${fairCount} trades landed within 300 points, which is our current "nobody got smoked" range.`,
+      trade: cleanestDeal,
+      tone: 'fair' as const,
+    },
+  ].filter(Boolean) as Array<{
+    key: string;
+    eyebrow: string;
+    title: string;
+    value: string;
+    copy: string;
+    trade?: ReportData['tradeHistory'][number] | null;
+    tone: 'fire' | 'fair' | 'good' | 'danger';
+  }>;
+
+  return (
+    <div className="trade-theft-wrap">
+      <div className="trade-theft-grid">
+        {cards.map((card) => (
+          <button
+            key={card.key}
+            type="button"
+            className={`trade-theft-card trade-theft-card-${card.tone}`}
+            onClick={() => card.trade && setSelectedTrade(card.trade)}
+          >
+            <span className="trade-theft-eyebrow">{card.eyebrow}</span>
+            <span className="trade-theft-main">
+              <span className="trade-theft-title">{card.title}</span>
+              <span className="trade-theft-value">{card.value}</span>
+            </span>
+            <span className="trade-theft-copy">{card.copy}</span>
+          </button>
+        ))}
+      </div>
+
+      <Dialog open={selectedTrade !== null} onOpenChange={(open) => !open && setSelectedTrade(null)}>
+        <DialogContent className="max-h-[88vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-3 text-slate-100 sm:max-w-3xl sm:p-5">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Trade Theft Detail</DialogTitle>
+            <DialogDescription>Expanded trade ledger for the selected value gap.</DialogDescription>
+          </DialogHeader>
+          {selectedTrade && (
+            <TradeDetailPanel
+              row={selectedTrade}
+              draftPicks={draftPicks}
+              managerAvatars={managerAvatars}
+              playerDetailsById={playerDetailsById}
+              currentPositionRankById={currentPositionRankById}
+              onPlayerClick={setSelectedPlayer}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
+    </div>
+  );
+}
+
 function getTradeHabit(row: NonNullable<ReportData['tradeTendencies']>[number]) {
   if (row.tradeCount === 0) return { label: 'Quiet So Far', className: 'trade-habit-neutral' };
   if (row.tradeCount === 1) {
@@ -2998,11 +3205,13 @@ export function PickPortfolioTable({
 export function WaiverIntelligencePanel({
   data,
   managerAvatars,
+  playerDetailsById,
   leagueId,
   leagueLogo,
 }: {
   data?: ReportData['waiverIntelligence'];
   managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -3026,6 +3235,7 @@ export function WaiverIntelligencePanel({
             playerPos: player.pos,
             value: player.ktcValue,
             playerDetails: player.playerDetails,
+            playerDetailsById,
             currentPositionRank: player.currentPositionRank,
             manager: player.owner || null,
             managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
@@ -3061,12 +3271,14 @@ export function TradeMarketRadar({
   risers,
   fallers,
   managerAvatars,
+  playerDetailsById,
   leagueId,
   leagueLogo,
 }: {
   risers: ReportData['weeklyRisers'];
   fallers: ReportData['weeklyFallers'];
   managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -3093,6 +3305,7 @@ export function TradeMarketRadar({
             value: player.val_now,
             valueGain: player.diff,
             playerDetails: player.playerDetails,
+            playerDetailsById,
             currentPositionRank: player.currentPositionRank,
             manager: player.owner,
             managerAvatarUrl: managerAvatars?.[player.owner],
@@ -3186,11 +3399,13 @@ export function SearchableProjectedMoversTable({
 export function ManagerPositionCountsTable({
   data,
   managerAvatars,
+  playerDetailsById,
   leagueId,
   leagueLogo,
 }: {
   data: ReportData['managerPositionCounts'];
   managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -3325,6 +3540,7 @@ export function ManagerPositionCountsTable({
                             playerPos: player.pos,
                             value: player.value,
                             playerDetails: player.playerDetails,
+                            playerDetailsById,
                             currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
                             manager: selectedManager.manager,
                             managerAvatarUrl: selectedAvatar,

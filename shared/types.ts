@@ -249,6 +249,11 @@ export interface PlayerDetails {
     contenderValue?: number | null;
     rebuilderValue?: number | null;
     balancedValue?: number | null;
+    dynastyPositionRank?: string | null;
+    seasonPositionRank?: string | null;
+    contenderPositionRank?: string | null;
+    rebuilderPositionRank?: string | null;
+    balancedPositionRank?: string | null;
     marketKtc?: number | null;
     fantasyCalcDynasty?: number | null;
     fantasyCalcRedraft?: number | null;
@@ -270,6 +275,13 @@ export interface PlayerDetails {
     gamesMissed: number | null;
     pointsPerGame: number | null;
   }>;
+  latestNews?: {
+    title: string;
+    summary?: string | null;
+    source?: string | null;
+    url?: string | null;
+    publishedAt?: string | null;
+  } | null;
   avgGamesMissed?: number | null;
   availabilitySeasons?: number | null;
   similarTradeValues?: Array<{
