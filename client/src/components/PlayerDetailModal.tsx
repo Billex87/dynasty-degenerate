@@ -163,15 +163,20 @@ export function PlayerDetailModal({
     ['Rank Change', pick.positionRankChange],
     ['Value Change', valueGain !== null && valueGain !== undefined ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '' && value !== '-');
+  const dynastyRank = getValueProfileRank(valueProfile, 'dynasty', currentRank);
+  const seasonRank = getValueProfileRank(valueProfile, 'season', currentRank);
+  const balancedRank = getValueProfileRank(valueProfile, 'balanced', currentRank);
+  const contenderRank = getValueProfileRank(valueProfile, 'contender', currentRank);
+  const rebuilderRank = getValueProfileRank(valueProfile, 'rebuilder', currentRank);
   const marketRankRows = valueProfile ? [
-    ['Dynasty Rank', valueProfile.dynastyPositionRank],
-    ['Season Rank', valueProfile.seasonPositionRank],
-    ['Balanced Rank', valueProfile.balancedPositionRank],
-    ['Contender Rank', valueProfile.contenderPositionRank],
-    ['Rebuilder Rank', valueProfile.rebuilderPositionRank],
+    ['Dynasty', dynastyRank],
+    ['Season', seasonRank],
+    ['Balanced', balancedRank],
+    ['Contender', contenderRank],
+    ['Rebuilder', rebuilderRank],
     ['FantasyPros Pos', valueProfile.fantasyProsPositionRank],
-    ['FantasyPros Overall', valueProfile.fantasyProsRank],
-    ['FantasyPros Tier', valueProfile.fantasyProsTier],
+    ['FantasyPros Overall', valueProfile.fantasyProsRank ? `#${valueProfile.fantasyProsRank}` : null],
+    ['FantasyPros Tier', valueProfile.fantasyProsTier ? `Tier ${valueProfile.fantasyProsTier}` : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const sourceValueRows = valueProfile ? [
     ['Dynasty Blend', valueProfile.dynastyValue],
@@ -179,7 +184,7 @@ export function PlayerDetailModal({
     ['Balanced Blend', valueProfile.balancedValue],
     ['Contender Blend', valueProfile.contenderValue],
     ['Rebuilder Blend', valueProfile.rebuilderValue],
-    ['KTC Market', valueProfile.marketKtc],
+    ['KeepTradeCut', valueProfile.marketKtc],
     ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
     ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
     ['DynastyProcess', valueProfile.dynastyProcess],
@@ -421,34 +426,10 @@ export function PlayerDetailModal({
             {valueProfile && (
               <div className="mx-auto max-w-xl space-y-2">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-                  <InfoTile
-                    label="Dynasty"
-                    value={valueProfile.dynastyPositionRank || valueProfile.balancedPositionRank || currentRank || '-'}
-                    valueClassName={getPositionRankPillClass(valueProfile.dynastyPositionRank || valueProfile.balancedPositionRank || currentRank)}
-                    teamColors={teamColors}
-                    tileAccent={tileAccent}
-                  />
-                  <InfoTile
-                    label="Season"
-                    value={valueProfile.seasonPositionRank || valueProfile.fantasyProsPositionRank || '-'}
-                    valueClassName={getPositionRankPillClass(valueProfile.seasonPositionRank || valueProfile.fantasyProsPositionRank)}
-                    teamColors={teamColors}
-                    tileAccent={tileAccent}
-                  />
-                  <InfoTile
-                    label="Contender"
-                    value={valueProfile.contenderPositionRank || valueProfile.seasonPositionRank || '-'}
-                    valueClassName={getPositionRankPillClass(valueProfile.contenderPositionRank || valueProfile.seasonPositionRank)}
-                    teamColors={teamColors}
-                    tileAccent={tileAccent}
-                  />
-                  <InfoTile
-                    label="Rebuilder"
-                    value={valueProfile.rebuilderPositionRank || valueProfile.dynastyPositionRank || '-'}
-                    valueClassName={getPositionRankPillClass(valueProfile.rebuilderPositionRank || valueProfile.dynastyPositionRank)}
-                    teamColors={teamColors}
-                    tileAccent={tileAccent}
-                  />
+                  <InfoTile label="Dynasty" value={dynastyRank || '-'} valueClassName={getPositionRankPillClass(dynastyRank)} teamColors={teamColors} tileAccent={tileAccent} />
+                  <InfoTile label="Season" value={seasonRank || '-'} valueClassName={getPositionRankPillClass(seasonRank)} teamColors={teamColors} tileAccent={tileAccent} />
+                  <InfoTile label="Contender" value={contenderRank || '-'} valueClassName={getPositionRankPillClass(contenderRank)} teamColors={teamColors} tileAccent={tileAccent} />
+                  <InfoTile label="Rebuilder" value={rebuilderRank || '-'} valueClassName={getPositionRankPillClass(rebuilderRank)} teamColors={teamColors} tileAccent={tileAccent} />
                 </div>
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
                   <p className="text-center text-[0.68rem] font-bold leading-relaxed uppercase tracking-[0.16em] text-cyan-200/70">
@@ -573,11 +554,11 @@ export function PlayerDetailModal({
             </div>
 
             <div className="player-complete-data mx-auto max-w-xl">
-              <p className="player-complete-title">Complete Player Data</p>
+              <p className="player-complete-title">Player Data Locker</p>
               <div className="player-complete-grid">
-                <CompleteDataSection title="Profile" rows={profileRows} teamColors={teamColors} tileAccent={tileAccent} />
-                <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues />
-                <CompleteDataSection title="Source Values" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
+                <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority />
+                <CompleteDataSection title="Player Profile" rows={profileRows} teamColors={teamColors} tileAccent={tileAccent} />
+                <CompleteDataSection title="Raw Source Values" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
                 <CompleteDataSection title="Draft Context" rows={draftContextRows} teamColors={teamColors} tileAccent={tileAccent} rankValues />
                 <CompleteDataSection title="NFL Draft" rows={nflDraftRows} teamColors={teamColors} tileAccent={tileAccent} />
                 <CompleteDataSection title="External IDs" rows={externalIdRows} teamColors={teamColors} tileAccent={tileAccent} />
@@ -718,6 +699,23 @@ function formatCompleteValue(value: unknown, compactNumbers?: boolean) {
 
 function isPositionRankValue(value: unknown) {
   return typeof value === 'string' && /^(QB|RB|WR|TE)\d+$/i.test(value);
+}
+
+function getValueProfileRank(
+  valueProfile: PlayerDetails['valueProfile'] | undefined,
+  lens: 'dynasty' | 'season' | 'balanced' | 'contender' | 'rebuilder',
+  currentRank?: string | null
+) {
+  if (!valueProfile) return null;
+  const rankByLens: Record<'dynasty' | 'season' | 'balanced' | 'contender' | 'rebuilder', string | null | undefined> = {
+    dynasty: valueProfile.dynastyPositionRank || valueProfile.balancedPositionRank || currentRank,
+    season: valueProfile.seasonPositionRank || valueProfile.fantasyProsPositionRank,
+    balanced: valueProfile.balancedPositionRank || valueProfile.dynastyPositionRank || currentRank,
+    contender: valueProfile.contenderPositionRank || valueProfile.seasonPositionRank || valueProfile.fantasyProsPositionRank || valueProfile.balancedPositionRank || currentRank,
+    rebuilder: valueProfile.rebuilderPositionRank || valueProfile.dynastyPositionRank || valueProfile.balancedPositionRank || currentRank,
+  };
+
+  return rankByLens[lens] || null;
 }
 
 function getValueChangeNote(pick: PlayerModalData) {
@@ -941,14 +939,6 @@ function buildPlayerIntelligenceNotes({
       tone: details?.injuryStatus ? 'risk' : 'neutral',
       fullWidth: true,
     });
-  } else if (newsDate) {
-    notes.push({
-      label: 'Latest Sleeper Update',
-      value: newsDate,
-      copy: 'Sleeper flagged a recent metadata update, but no public article matched this player yet.',
-      tone: details?.injuryStatus ? 'risk' : 'neutral',
-      fullWidth: true,
-    });
   }
 
   return notes.slice(0, 6);
@@ -1070,6 +1060,7 @@ function CompleteDataSection({
   compactNumbers = false,
   rankValues = false,
   wide = false,
+  priority = false,
 }: {
   title: string;
   rows: unknown[][];
@@ -1078,12 +1069,13 @@ function CompleteDataSection({
   compactNumbers?: boolean;
   rankValues?: boolean;
   wide?: boolean;
+  priority?: boolean;
 }) {
   if (!rows.length) return null;
 
   return (
     <div
-      className={`player-complete-section ${wide ? 'player-complete-section-wide' : ''}`}
+      className={`player-complete-section ${wide ? 'player-complete-section-wide' : ''} ${priority ? 'player-complete-section-priority' : ''}`}
       style={{
         borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
         background: teamColors

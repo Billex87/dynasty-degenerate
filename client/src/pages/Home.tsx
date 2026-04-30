@@ -320,7 +320,7 @@ export default function Home() {
 
             <TabsContent value="overview" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <CollapsibleReportSection title="Owner Intel Lab" kicker="Everything we know">
+                <CollapsibleReportSection title="Owner Intel Lab" kicker="Actionable owner reads">
                   <OwnerIntelMatrix
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}

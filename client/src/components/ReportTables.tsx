@@ -649,6 +649,33 @@ function getPillToneClass(value: string): string {
   return 'manager-intel-pill-neutral';
 }
 
+function normalizeIntelNote(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(the|a|an|with|for|and|or|to|of|in|if|it|is|this|that)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function dedupeIntelNotes(notes: Array<string | null | undefined>, suppress: Array<string | null | undefined> = []) {
+  const seen = new Set<string>();
+  const suppressKeys = suppress
+    .filter((note): note is string => Boolean(note))
+    .map(normalizeIntelNote)
+    .filter(Boolean);
+
+  return notes
+    .filter((note): note is string => Boolean(note))
+    .filter((note) => {
+      const key = normalizeIntelNote(note);
+      if (!key || seen.has(key)) return false;
+      if (suppressKeys.some((suppressKey) => suppressKey.includes(key) || key.includes(suppressKey))) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 function PlayerInsightTile({
   label,
   player,
@@ -1569,6 +1596,14 @@ export function OwnerIntelMatrix({
       .filter(Boolean)
       .join(' · ')
     : '';
+  const selectedValueCompPlayers = selectedRow
+    ? (['QB', 'RB', 'WR', 'TE'] as const)
+      .map((pos) => ({
+        position: pos,
+        player: selectedRow.similarValuePlayers[pos],
+      }))
+      .filter((item): item is { position: 'QB' | 'RB' | 'WR' | 'TE'; player: ManagerIntelPlayer } => Boolean(item.player))
+    : [];
   const selectedTradePulse = selectedTradeRow
     ? `${selectedTradeRow.tradeCount} trades, ${selectedTradeRow.winPct}% wins, ${selectedTradeRow.profit > 0 ? '+' : ''}${selectedTradeRow.profit.toLocaleString()} profit${selectedTradeRow.favoritePartner ? `, likes trading with ${selectedTradeRow.favoritePartner}` : ''}.`
     : 'No trade tendency profile yet.';
@@ -1584,7 +1619,7 @@ export function OwnerIntelMatrix({
     selectedTimelineRow ? `Rebuild ${selectedTimelineRow.rebuildScore}` : null,
     ...selectedRow.ageFlags,
   ].filter(Boolean).slice(0, 8) : [];
-  const selectedPlayerSections: Array<{
+  const selectedPlayerSectionsBase: Array<{
     label: string;
     player: ManagerIntelPlayer | null;
     tone?: 'neutral' | 'warn' | 'danger';
@@ -1607,27 +1642,32 @@ export function OwnerIntelMatrix({
         : null,
     },
   ] : [];
-  const selectedWildNotes = selectedRow ? [
-    ...(selectedRow.chaosNotes || []),
-    ...(selectedRow.pressurePoints || []),
-    ...(selectedRow.marketSignals || []),
-    selectedRow.tradePlan?.summary,
+  const selectedPlayerSections = selectedPlayerSectionsBase.filter((item, index, rows) => {
+    if (!item.player) return false;
+    return rows.findIndex((candidate) => candidate.player?.player_id === item.player?.player_id) === index;
+  });
+  const selectedActionNotes = selectedRow ? dedupeIntelNotes([
+    selectedRow.tradeBlueprints?.[0]?.summary,
+    selectedRow.marketSignals?.[0],
+    selectedRow.pressurePoints?.[0],
     selectedRow.buyTarget && selectedRow.sellCandidate
-      ? `Offer shape: start with ${selectedRow.sellCandidate.name} plus a sweetener only if it lands ${selectedRow.buyTarget.name}; do not donate value just to make movement.`
+      ? `Trade shape: float ${selectedRow.sellCandidate.name} only if it can solve the ${selectedRow.tradePlan?.needPosition || 'biggest'} need with ${selectedRow.buyTarget.name}.`
       : null,
     selectedRow.starterAvailability.riskiestStarter
-      ? `Insurance angle: managers should tax ${selectedRow.manager} on ${selectedRow.starterAvailability.riskiestStarter.name}'s injury profile if negotiating.`
+      ? `Availability tax: ${selectedRow.starterAvailability.riskiestStarter.name} is the player other managers should press on in negotiations.`
       : null,
     selectedRow.droppablePlayers?.length
-      ? `Roster churn: ${selectedRow.droppablePlayers.map((player) => player.name).slice(0, 3).join(', ')} are the first names to cut if waivers heat up.`
+      ? `Roster churn: ${selectedRow.droppablePlayers.map((player) => player.name).slice(0, 3).join(', ')} are the first cuts if waivers heat up.`
       : null,
     selectedRow.untouchablePlayers?.length
-      ? `Do-not-touch core: ${selectedRow.untouchablePlayers.map((player) => player.name).slice(0, 3).join(', ')} should only move for a ridiculous overpay.`
+      ? `Core rule: ${selectedRow.untouchablePlayers.map((player) => player.name).slice(0, 3).join(', ')} should only move for an obvious overpay.`
       : null,
-    selectedRow.buyTarget && selectedRow.tradePlan?.needPosition
-      ? `Negotiation angle: ask about ${selectedRow.buyTarget.name} before naming your ${selectedRow.tradePlan.surplusPosition || 'surplus'} piece so the other manager sets the price first.`
-      : null,
-  ].filter(Boolean).slice(0, 11) as string[] : [];
+    ...(selectedRow.chaosNotes || []),
+  ], [
+    selectedRow.strategySummary,
+    selectedRow.summary,
+    selectedRow.tradePlan?.summary,
+  ]).slice(0, 6) : [];
 
   return (
     <>
@@ -1756,62 +1796,77 @@ export function OwnerIntelMatrix({
                       </div>
                     </div>
                   ) : null}
-                  {selectedRow.tradeBlueprints?.length ? (
-                    <div className="owner-intel-wild-notes">
-                      <h4>Trade Blueprints</h4>
-                      <ul>
-                        {selectedRow.tradeBlueprints.map((blueprint) => (
-                          <li key={blueprint.label}>{blueprint.label}: {blueprint.summary}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {selectedRow.marketSignals?.length ? (
-                    <div className="owner-intel-wild-notes">
-                      <h4>Market Signals</h4>
-                      <ul>
-                        {selectedRow.marketSignals.slice(0, 4).map((signal) => (
-                          <li key={signal}>{signal}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  <div>
-                    <h4>Roster Read</h4>
+                  <div className="owner-intel-read-wide">
+                    <h4>Roster Thesis</h4>
                     <p>{selectedRow.strategySummary || selectedRow.summary}</p>
                   </div>
                   <div>
-                    <h4>Trade / Draft Pulse</h4>
-                    <p>{selectedTradePulse} {selectedDraftPulse}</p>
-                  </div>
-                  <div>
-                    <h4>Need-For-Surplus Trade</h4>
+                    <h4>Trade Path</h4>
                     <p>{selectedRow.tradePlan?.summary || 'No clean surplus-for-need swap found from this roster shape.'}</p>
                   </div>
                   <div>
-                    <h4>Availability</h4>
+                    <h4>Asset Pulse</h4>
+                    <p>{selectedTradePulse} {selectedDraftPulse}</p>
+                  </div>
+                  <div>
+                    <h4>Risk Read</h4>
                     <p>{selectedInjuryText}</p>
                   </div>
                   <div>
-                    <h4>Value Comps</h4>
-                    <p>{selectedValueComps || 'No clean same-position comps from this roster yet.'}</p>
-                  </div>
-                  <div>
                     <h4>Attack Points</h4>
-                    <p>QB {selectedRow.holes.bestQbRank || '-'} · RB2 {selectedRow.holes.rb2Rank || '-'} · WR3 {selectedRow.holes.wr3Rank || '-'} · TE1 {selectedRow.holes.te1Rank || '-'} · Flex depth {selectedRow.holes.flexDepth}. {titleCasePill(selectedRow.holes.summary)}</p>
+                    <div className="owner-intel-attack-list">
+                      <span><strong>QB</strong><PositionRankPill rank={selectedRow.holes.bestQbRank} /></span>
+                      <span><strong>RB2</strong><PositionRankPill rank={selectedRow.holes.rb2Rank} /></span>
+                      <span><strong>WR3</strong><PositionRankPill rank={selectedRow.holes.wr3Rank} /></span>
+                      <span><strong>TE1</strong><PositionRankPill rank={selectedRow.holes.te1Rank} /></span>
+                      <span><strong>Flex</strong><em>{selectedRow.holes.flexDepth}</em></span>
+                    </div>
+                    <p>{titleCasePill(selectedRow.holes.summary)}</p>
+                  </div>
+                  <div className="owner-intel-value-map">
+                    <h4>Value Map</h4>
+                    {selectedValueCompPlayers.length ? (
+                      <div className="owner-intel-value-map-grid">
+                        {selectedValueCompPlayers.map(({ position, player }) => (
+                          <button
+                            key={`${position}-${player.player_id}`}
+                            type="button"
+                            onClick={() => setSelectedPlayer(buildPlayerModalData({
+                              playerId: player.player_id,
+                              playerName: player.name,
+                              playerPos: player.pos,
+                              value: player.value,
+                              playerDetails: player.playerDetails,
+                              playerDetailsById: data.playerDetailsById,
+                              currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
+                              manager: player.owner || selectedRow.manager,
+                              managerAvatarUrl: managerAvatars?.[selectedRow.manager],
+                            }))}
+                          >
+                            <strong>{position}</strong>
+                            <span>{player.name}</span>
+                            <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>{selectedValueComps || 'No clean same-position value comps on this roster yet.'}</p>
+                    )}
                   </div>
                   <div>
                     <h4>Direction</h4>
                     <p>{selectedTimelineRow ? `Contender ${selectedTimelineRow.contenderScore}/100, rebuild ${selectedTimelineRow.rebuildScore}/100, aging risk ${selectedTimelineRow.agingRisk}/100.` : 'Timeline data unavailable.'} {selectedRow.sellCandidate ? `If pivoting, shop ${selectedRow.sellCandidate.name}.` : ''} {selectedRow.buyTarget ? `If buying, start with ${selectedRow.buyTarget.name}.` : ''}</p>
                   </div>
-                  <div className="owner-intel-wild-notes">
-                    <h4>Chaos Board</h4>
-                    <ul>
-                      {selectedWildNotes.map((note) => (
-                        <li key={note}>{note}</li>
-                      ))}
-                    </ul>
-                  </div>
+                  {selectedActionNotes.length ? (
+                    <div className="owner-intel-wild-notes">
+                      <h4>Action Board</h4>
+                      <ul>
+                        {selectedActionNotes.map((note) => (
+                          <li key={note}>{note}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
