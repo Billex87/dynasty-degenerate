@@ -922,6 +922,8 @@ export function LeagueCommandCenter({
       avgAge: intel.find((item) => item.manager === row.manager)?.avgAge ?? null,
       ageFlags: intel.find((item) => item.manager === row.manager)?.ageFlags || [],
       starterAvailability: intel.find((item) => item.manager === row.manager)?.starterAvailability,
+      rosterHealthScore: intel.find((item) => item.manager === row.manager)?.rosterHealthScore,
+      pressurePoints: intel.find((item) => item.manager === row.manager)?.pressurePoints || [],
       droppablePlayers: intel.find((item) => item.manager === row.manager)?.droppablePlayers || [],
     }))
     .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers);
@@ -1081,6 +1083,8 @@ export function LeagueCommandCenter({
                     tone: row.starterAvailability.riskLevel === 'high' ? 'danger' as const : row.starterAvailability.riskLevel === 'medium' ? 'warn' as const : 'good' as const,
                   }]
                 : []),
+              ...(row.rosterHealthScore ? [{ label: `Health ${row.rosterHealthScore}`, tone: row.rosterHealthScore >= 75 ? 'good' as const : row.rosterHealthScore <= 45 ? 'danger' as const : 'warn' as const }] : []),
+              ...(row.pressurePoints.length ? [{ label: `${row.pressurePoints.length} flags`, tone: 'warn' as const }] : []),
               ]}
               onClick={() => openManager(row.manager)}
             />
@@ -1242,6 +1246,43 @@ export function LeagueCommandCenter({
                   <p>{selectedIntel?.strategySummary || rosterRead}</p>
                 </div>
               </div>
+              {selectedIntel?.positionGrades ? (
+                <div className="manager-command-section">
+                  <h4>Roster Heat Map</h4>
+                  <div className="owner-intel-heat-grid">
+                    {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
+                      const grade = selectedIntel.positionGrades?.[pos];
+                      return (
+                        <span key={pos} className={`owner-intel-heat-pill owner-intel-heat-${String(grade?.grade || 'empty').toLowerCase()}`}>
+                          <strong>{pos}</strong>
+                          <em>{grade?.grade || 'Empty'}</em>
+                          <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              {selectedIntel?.tradeBlueprints?.length ? (
+                <div className="manager-command-section">
+                  <h4>Trade Blueprints</h4>
+                  <ul>
+                    {selectedIntel.tradeBlueprints.map((blueprint) => (
+                      <li key={blueprint.label}>{blueprint.label}: {blueprint.summary}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {selectedIntel?.pressurePoints?.length ? (
+                <div className="manager-command-section">
+                  <h4>Pressure Points</h4>
+                  <ul>
+                    {selectedIntel.pressurePoints.map((point) => (
+                      <li key={point}>{point}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               {selectedIntel && [selectedIntel.buyTarget, selectedIntel.sellCandidate, selectedIntel.tradeChip, selectedIntel.injuryInsurance].some(Boolean) ? (
                 <div className="manager-command-section">
                   <h4>Trade Ideas</h4>
@@ -1523,6 +1564,7 @@ export function OwnerIntelMatrix({
   const selectedOwnerTags = selectedRow ? [
     selectedRow.identity,
     selectedRow.timeline,
+    selectedRow.rosterHealthScore ? `Health ${selectedRow.rosterHealthScore}` : null,
     selectedPowerRow ? `#${selectedPowerRow.rank} ${selectedPowerRow.tier}` : null,
     selectedTimelineRow ? `Contender ${selectedTimelineRow.contenderScore}` : null,
     selectedTimelineRow ? `Rebuild ${selectedTimelineRow.rebuildScore}` : null,
@@ -1553,6 +1595,8 @@ export function OwnerIntelMatrix({
   ] : [];
   const selectedWildNotes = selectedRow ? [
     ...(selectedRow.chaosNotes || []),
+    ...(selectedRow.pressurePoints || []),
+    ...(selectedRow.marketSignals || []),
     selectedRow.tradePlan?.summary,
     selectedRow.buyTarget && selectedRow.sellCandidate
       ? `Offer shape: start with ${selectedRow.sellCandidate.name} plus a sweetener only if it lands ${selectedRow.buyTarget.name}; do not donate value just to make movement.`
@@ -1680,6 +1724,43 @@ export function OwnerIntelMatrix({
                 </div>
 
                 <div className="owner-intel-read-grid">
+                  {selectedRow.positionGrades ? (
+                    <div className="owner-intel-roster-heat">
+                      <h4>Roster Heat Map</h4>
+                      <div className="owner-intel-heat-grid">
+                        {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
+                          const grade = selectedRow.positionGrades?.[pos];
+                          return (
+                            <span key={pos} className={`owner-intel-heat-pill owner-intel-heat-${String(grade?.grade || 'empty').toLowerCase()}`}>
+                              <strong>{pos}</strong>
+                              <em>{grade?.grade || 'Empty'}</em>
+                              <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                  {selectedRow.tradeBlueprints?.length ? (
+                    <div className="owner-intel-wild-notes">
+                      <h4>Trade Blueprints</h4>
+                      <ul>
+                        {selectedRow.tradeBlueprints.map((blueprint) => (
+                          <li key={blueprint.label}>{blueprint.label}: {blueprint.summary}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {selectedRow.marketSignals?.length ? (
+                    <div className="owner-intel-wild-notes">
+                      <h4>Market Signals</h4>
+                      <ul>
+                        {selectedRow.marketSignals.slice(0, 4).map((signal) => (
+                          <li key={signal}>{signal}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   <div>
                     <h4>Roster Read</h4>
                     <p>{selectedRow.strategySummary || selectedRow.summary}</p>

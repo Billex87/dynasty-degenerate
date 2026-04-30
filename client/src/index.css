@@ -1434,6 +1434,65 @@
       rgba(2, 6, 23, 0.48);
   }
 
+  .owner-intel-read-grid > .owner-intel-roster-heat {
+    grid-column: 1 / -1;
+  }
+
+  .owner-intel-heat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-top: 0.55rem;
+  }
+
+  .owner-intel-heat-pill {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+    border: 1px solid rgba(34, 211, 238, 0.16);
+    border-radius: 0.85rem;
+    background: rgba(2, 6, 23, 0.5);
+    padding: 0.65rem 0.7rem;
+    text-align: center;
+  }
+
+  .owner-intel-heat-pill strong {
+    color: #67e8f9;
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.18em;
+  }
+
+  .owner-intel-heat-pill em {
+    color: #f8fafc;
+    font-size: 0.82rem;
+    font-style: normal;
+    font-weight: 950;
+  }
+
+  .owner-intel-heat-pill small {
+    color: rgba(203, 213, 225, 0.72);
+    font-size: 0.68rem;
+    font-weight: 900;
+  }
+
+  .owner-intel-heat-elite,
+  .owner-intel-heat-strong {
+    border-color: rgba(52, 211, 153, 0.35);
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.5), rgba(2, 6, 23, 0.58));
+  }
+
+  .owner-intel-heat-playable {
+    border-color: rgba(251, 191, 36, 0.32);
+    background: linear-gradient(135deg, rgba(120, 53, 15, 0.42), rgba(2, 6, 23, 0.58));
+  }
+
+  .owner-intel-heat-problem,
+  .owner-intel-heat-empty {
+    border-color: rgba(251, 113, 133, 0.35);
+    background: linear-gradient(135deg, rgba(127, 29, 29, 0.42), rgba(2, 6, 23, 0.58));
+  }
+
   .owner-intel-read-grid p {
     margin-top: 0.42rem;
     color: #cbd5e1;

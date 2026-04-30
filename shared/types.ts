@@ -105,7 +105,22 @@ export interface ManagerRosterIntelligence {
     surplusPosition: 'QB' | 'RB' | 'WR' | 'TE' | null;
     summary: string;
   };
+  tradeBlueprints?: Array<{
+    label: string;
+    summary: string;
+    givePlayer?: ManagerIntelPlayer | null;
+    getPlayer?: ManagerIntelPlayer | null;
+    tone?: 'buy' | 'sell' | 'risk' | 'value';
+  }>;
   chaosNotes?: string[];
+  marketSignals?: string[];
+  pressurePoints?: string[];
+  rosterHealthScore?: number;
+  positionGrades?: Record<'QB' | 'RB' | 'WR' | 'TE', {
+    rank: number | null;
+    grade: string;
+    note: string;
+  }>;
   tradeChip: ManagerIntelPlayer | null;
   injuryInsurance: ManagerIntelPlayer | null;
   droppablePlayers: ManagerIntelPlayer[];

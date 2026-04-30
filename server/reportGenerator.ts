@@ -463,6 +463,203 @@ function rowRosterExploitText({
   return `Exploit map: no obvious weekly pressure point; you probably need a premium offer or a manager-preference angle to crack this roster.`;
 }
 
+function gradeRank(rank: number | null, eliteLine: number, usableLine: number, depthLine: number) {
+  if (!rank) return 'Empty';
+  if (rank <= eliteLine) return 'Elite';
+  if (rank <= usableLine) return 'Strong';
+  if (rank <= depthLine) return 'Playable';
+  return 'Problem';
+}
+
+function buildPositionGrades({
+  qbs,
+  rbs,
+  wrs,
+  tes,
+  teamCount,
+}: {
+  qbs: ManagerIntelPlayer[];
+  rbs: ManagerIntelPlayer[];
+  wrs: ManagerIntelPlayer[];
+  tes: ManagerIntelPlayer[];
+  teamCount: number;
+}) {
+  const make = (
+    pos: 'QB' | 'RB' | 'WR' | 'TE',
+    player: ManagerIntelPlayer | undefined,
+    eliteLine: number,
+    usableLine: number,
+    depthLine: number,
+    noteTarget: string
+  ) => {
+    const rank = getRankNumber(player?.seasonPositionRank || player?.currentPositionRank);
+    const grade = gradeRank(rank, eliteLine, usableLine, depthLine);
+    const note = player
+      ? `${noteTarget} is ${player.name} (${getRankLabel(player)}), which grades as ${grade.toLowerCase()} for this league size.`
+      : `No ranked ${pos} option found.`;
+    return { rank, grade, note };
+  };
+
+  return {
+    QB: make('QB', qbs[1] || qbs[0], teamCount, teamCount * 2, teamCount * 3, qbs[1] ? 'QB2' : 'QB1'),
+    RB: make('RB', rbs[1] || rbs[0], teamCount, teamCount * 2, teamCount * 3, rbs[1] ? 'RB2' : 'RB1'),
+    WR: make('WR', wrs[2] || wrs[1] || wrs[0], teamCount, teamCount * 3, teamCount * 4, wrs[2] ? 'WR3' : wrs[1] ? 'WR2' : 'WR1'),
+    TE: make('TE', tes[0], Math.ceil(teamCount * 0.5), teamCount, Math.ceil(teamCount * 1.5), 'TE1'),
+  };
+}
+
+function buildPressurePoints({
+  qbs,
+  rbs,
+  wrs,
+  tes,
+  benchFlexCandidates,
+  riskiestStarter,
+  avgStarterGamesMissed,
+  teamCount,
+}: {
+  qbs: ManagerIntelPlayer[];
+  rbs: ManagerIntelPlayer[];
+  wrs: ManagerIntelPlayer[];
+  tes: ManagerIntelPlayer[];
+  benchFlexCandidates: number;
+  riskiestStarter: ManagerIntelPlayer | null;
+  avgStarterGamesMissed: number | null;
+  teamCount: number;
+}) {
+  const points: string[] = [];
+  const qb2 = getRankNumber(qbs[1]?.seasonPositionRank || qbs[1]?.currentPositionRank);
+  const rb3 = getRankNumber(rbs[2]?.seasonPositionRank || rbs[2]?.currentPositionRank);
+  const wr4 = getRankNumber(wrs[3]?.seasonPositionRank || wrs[3]?.currentPositionRank);
+  const te2 = getRankNumber(tes[1]?.seasonPositionRank || tes[1]?.currentPositionRank);
+  if (!qbs[1] || (qb2 && qb2 > teamCount * 2.3)) points.push('Superflex depth can get ugly if QB1 misses time.');
+  if (!rbs[2] || (rb3 && rb3 > teamCount * 3.2)) points.push('RB injury insurance is thin behind the top two.');
+  if (!wrs[3] || (wr4 && wr4 > teamCount * 4.2)) points.push('WR depth falls off before the weekly flex cushion.');
+  if (!tes[1] || (te2 && te2 > teamCount * 2)) points.push('No real TE contingency plan if the starter gets hurt.');
+  if (benchFlexCandidates <= 1) points.push('Bench flex depth is light enough that one injury changes weekly decisions.');
+  if (riskiestStarter && avgStarterGamesMissed !== null && avgStarterGamesMissed >= 2.5) {
+    points.push(`${riskiestStarter.name} is the injury-tax negotiation point at ${avgStarterGamesMissed} missed games per starter.`);
+  }
+  return points.slice(0, 5);
+}
+
+function buildMarketSignals({
+  rosterPlayers,
+  buyTarget,
+  sellCandidate,
+  isContenderBuild,
+}: {
+  rosterPlayers: Array<ManagerIntelPlayer & { age?: number | null; isStarter?: boolean }>;
+  buyTarget: ManagerIntelPlayer | null;
+  sellCandidate: ManagerIntelPlayer | null;
+  isContenderBuild: boolean;
+}) {
+  const signals: string[] = [];
+  const redraftDiscount = rosterPlayers
+    .filter((player) => (player.seasonValue || 0) - player.value >= 800)
+    .sort((a, b) => ((b.seasonValue || 0) - b.value) - ((a.seasonValue || 0) - a.value))[0];
+  const dynastyPremium = rosterPlayers
+    .filter((player) => player.value - (player.seasonValue || 0) >= 800)
+    .sort((a, b) => (b.value - (b.seasonValue || 0)) - (a.value - (a.seasonValue || 0)))[0];
+  const agingProducer = rosterPlayers
+    .filter((player) => (player.age || 0) >= (player.pos === 'RB' ? 27 : player.pos === 'WR' ? 29 : player.pos === 'TE' ? 30 : 33) && (player.seasonValue || player.value) >= 2500)
+    .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value))[0];
+  const youthHype = rosterPlayers
+    .filter((player) => (player.age || 99) <= 24 && player.value >= (player.seasonValue || 0) + 700)
+    .sort((a, b) => b.value - a.value)[0];
+
+  if (redraftDiscount) signals.push(`${redraftDiscount.name} has more current-season utility than dynasty price, a contender-friendly hold/buy.`);
+  if (dynastyPremium) signals.push(`${dynastyPremium.name} is dynasty-priced above current-season projection, so rebuilders can hold but contenders should ask what the market pays.`);
+  if (agingProducer) signals.push(`${agingProducer.name} is an aging producer: useful for a title push, dangerous as a long-term store of value.`);
+  if (youthHype) signals.push(`${youthHype.name} carries youth premium; do not sell low, but use the name value if the roster needs weekly points.`);
+  if (buyTarget) signals.push(`External target profile: ${buyTarget.name} fits the roster need better than a generic best-player trade.`);
+  if (sellCandidate) signals.push(`Internal liquidity: ${sellCandidate.name} is the cleanest piece to shop without cracking the core plan.`);
+  if (isContenderBuild) signals.push('Contender lens: prefer redraft production and injury insulation over pure dynasty value.');
+  else signals.push('Future lens: prefer age/value growth and picks over short-window production.');
+  return signals.slice(0, 6);
+}
+
+function buildTradeBlueprints({
+  tradePlan,
+  buyTarget,
+  sellCandidate,
+  tradeChip,
+  injuryInsurance,
+  oldestPlayer,
+  youngCorePlayer,
+  isContenderBuild,
+}: {
+  tradePlan: { needPosition: 'QB' | 'RB' | 'WR' | 'TE' | null; surplusPosition: 'QB' | 'RB' | 'WR' | 'TE' | null; summary: string };
+  buyTarget: ManagerIntelPlayer | null;
+  sellCandidate: ManagerIntelPlayer | null;
+  tradeChip: ManagerIntelPlayer | null;
+  injuryInsurance: ManagerIntelPlayer | null;
+  oldestPlayer: ManagerIntelPlayer | null;
+  youngCorePlayer: ManagerIntelPlayer | null;
+  isContenderBuild: boolean;
+}) {
+  return [
+    buyTarget && sellCandidate ? {
+      label: 'Need Swap',
+      summary: `Trade from ${tradePlan.surplusPosition || 'surplus'} into ${tradePlan.needPosition || 'need'}: ${sellCandidate.name} for ${buyTarget.name} is the clean starting point.`,
+      givePlayer: sellCandidate,
+      getPlayer: buyTarget,
+      tone: 'buy' as const,
+    } : null,
+    tradeChip && buyTarget ? {
+      label: 'Two-for-One Ladder',
+      summary: `Use ${tradeChip.name} as the add-on piece if it turns a decent offer into ${buyTarget.name}.`,
+      givePlayer: tradeChip,
+      getPlayer: buyTarget,
+      tone: 'value' as const,
+    } : null,
+    isContenderBuild && injuryInsurance ? {
+      label: 'Injury Hedge',
+      summary: `${injuryInsurance.name} is the internal insurance piece; do not throw him into a deal unless it clearly upgrades a starter.`,
+      givePlayer: injuryInsurance,
+      tone: 'risk' as const,
+    } : null,
+    !isContenderBuild && oldestPlayer && youngCorePlayer ? {
+      label: 'Timeline Flip',
+      summary: `Shop ${oldestPlayer.name}'s name value for younger assets built around the ${youngCorePlayer.name} timeline.`,
+      givePlayer: oldestPlayer,
+      getPlayer: youngCorePlayer,
+      tone: 'sell' as const,
+    } : null,
+  ].filter(Boolean).slice(0, 4) as Array<{
+    label: string;
+    summary: string;
+    givePlayer?: ManagerIntelPlayer | null;
+    getPlayer?: ManagerIntelPlayer | null;
+    tone?: 'buy' | 'sell' | 'risk' | 'value';
+  }>;
+}
+
+function calculateRosterHealthScore({
+  starterValuePct,
+  contenderScore,
+  rebuildScore,
+  avgStarterGamesMissed,
+  flexDepth,
+  holeCount,
+  ageFlagCount,
+}: {
+  starterValuePct: number;
+  contenderScore: number;
+  rebuildScore: number;
+  avgStarterGamesMissed: number | null;
+  flexDepth: number;
+  holeCount: number;
+  ageFlagCount: number;
+}) {
+  const availabilityPenalty = avgStarterGamesMissed === null ? 5 : Math.min(25, avgStarterGamesMissed * 4);
+  const depthBonus = Math.min(15, flexDepth * 3);
+  const directionScore = Math.max(contenderScore, rebuildScore) * 0.35;
+  const starterShape = Math.min(25, starterValuePct * 0.28);
+  const penalties = availabilityPenalty + holeCount * 7 + ageFlagCount * 2;
+  return Math.max(1, Math.min(99, Math.round(directionScore + starterShape + depthBonus + 35 - penalties)));
+}
+
 function getSeasonValue(player: ManagerIntelPlayer, allPlayers: Player, ktcValues: KTCValues): number {
   return getPlayerRedraftValue(player.player_id, allPlayers, ktcValues) || player.value;
 }
@@ -1420,6 +1617,7 @@ export async function generateReport(
             ? `No screaming lineup hole; surplus is most movable at ${surplusPosition}.`
             : 'No obvious need-for-surplus trade path from the current roster shape.',
     };
+    const positionGrades = buildPositionGrades({ qbs, rbs, wrs, tes, teamCount });
     const tradeChip = pickDistinctPlayer(
       [...bench]
         .filter((player) => player.value >= 1000)
@@ -1467,6 +1665,41 @@ export async function generateReport(
         return rankDelta || b.value - a.value;
       })
       .slice(0, 4);
+    const pressurePoints = buildPressurePoints({
+      qbs,
+      rbs,
+      wrs,
+      tes,
+      benchFlexCandidates,
+      riskiestStarter,
+      avgStarterGamesMissed,
+      teamCount,
+    });
+    const marketSignals = buildMarketSignals({
+      rosterPlayers,
+      buyTarget,
+      sellCandidate,
+      isContenderBuild,
+    });
+    const tradeBlueprints = buildTradeBlueprints({
+      tradePlan,
+      buyTarget,
+      sellCandidate,
+      tradeChip,
+      injuryInsurance,
+      oldestPlayer,
+      youngCorePlayer,
+      isContenderBuild,
+    });
+    const rosterHealthScore = calculateRosterHealthScore({
+      starterValuePct,
+      contenderScore,
+      rebuildScore,
+      avgStarterGamesMissed,
+      flexDepth,
+      holeCount: holeParts.length,
+      ageFlagCount: ageFlags.filter((flag) => /old|aging|risk/i.test(flag)).length,
+    });
     const summary = buildRosterIntelligenceSummary({
       identity,
       qbs,
@@ -1551,7 +1784,12 @@ export async function generateReport(
       buyTarget,
       sellCandidate,
       tradePlan,
+      tradeBlueprints,
       chaosNotes,
+      marketSignals,
+      pressurePoints,
+      rosterHealthScore,
+      positionGrades,
       tradeChip,
       injuryInsurance,
       droppablePlayers,
