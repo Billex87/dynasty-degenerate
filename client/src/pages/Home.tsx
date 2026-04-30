@@ -14,7 +14,6 @@ import {
   TradeProfitLeaderboardTable,
   TradeHistoryTable,
   PositionAnalysisTable,
-  ManagerIntelligenceCards,
   OwnerIntelMatrix,
   LeagueCommandCenter,
   PowerRankingsTable,
@@ -265,14 +264,6 @@ export default function Home() {
                 <CollapsibleReportSection title="League Command Center" kicker="10 idea preview">
                   <LeagueCommandCenter
                     data={reportData}
-                    managerAvatars={reportData.managerAvatars}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="Team Identity & Timeline" kicker="Manager intelligence">
-                  <ManagerIntelligenceCards
-                    data={reportData.managerRosterIntelligence}
                     managerAvatars={reportData.managerAvatars}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
