@@ -26,7 +26,7 @@ import { DraftAnalysis } from '@/components/DraftAnalysis';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v1';
+const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v2';
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 
 type SleeperLeagueOption = {
@@ -261,16 +261,16 @@ export default function Home() {
 
             <TabsContent value="overview" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <CollapsibleReportSection title="League Command Center" kicker="10 idea preview">
-                  <LeagueCommandCenter
+                <CollapsibleReportSection title="Owner Intel Lab" kicker="Everything we know">
+                  <OwnerIntelMatrix
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Owner Intel Lab" kicker="Everything we know">
-                  <OwnerIntelMatrix
+                <CollapsibleReportSection title="League Command Center" kicker="10 idea preview">
+                  <LeagueCommandCenter
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}
                     leagueId={leagueId}
