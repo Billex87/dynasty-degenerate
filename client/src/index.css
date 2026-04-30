@@ -1407,12 +1407,38 @@
     padding: 0.7rem;
   }
 
+  .owner-intel-read-grid > .owner-intel-wild-notes {
+    grid-column: 1 / -1;
+    border-color: rgba(251, 146, 60, 0.2);
+    background:
+      radial-gradient(circle at 0 0, rgba(249, 115, 22, 0.12), transparent 36%),
+      rgba(2, 6, 23, 0.48);
+  }
+
   .owner-intel-read-grid p {
     margin-top: 0.42rem;
     color: #cbd5e1;
     font-size: clamp(0.72rem, 1.7vw, 0.82rem);
     font-weight: 750;
     line-height: 1.42;
+  }
+
+  .owner-intel-wild-notes ul {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+    margin-top: 0.52rem;
+  }
+
+  .owner-intel-wild-notes li {
+    border: 1px solid rgba(251, 146, 60, 0.12);
+    border-radius: 0.7rem;
+    background: rgba(15, 23, 42, 0.62);
+    padding: 0.55rem;
+    color: #fed7aa;
+    font-size: clamp(0.68rem, 1.65vw, 0.78rem);
+    font-weight: 850;
+    line-height: 1.35;
   }
 
   .command-feature-note {

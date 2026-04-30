@@ -1543,6 +1543,19 @@ export function OwnerIntelMatrix({
                 : null,
             },
           ];
+          const wildNotes = [
+            ...(row.chaosNotes || []),
+            row.tradePlan?.summary,
+            row.buyTarget && row.sellCandidate
+              ? `Offer shape: start with ${row.sellCandidate.name} plus a sweetener only if it lands ${row.buyTarget.name}; do not donate value just to make movement.`
+              : null,
+            row.starterAvailability.riskiestStarter
+              ? `Insurance angle: managers should tax ${row.manager} on ${row.starterAvailability.riskiestStarter.name}'s injury profile if negotiating.`
+              : null,
+            row.droppablePlayers?.length
+              ? `Roster churn: ${row.droppablePlayers.map((player) => player.name).slice(0, 3).join(', ')} are the first names to cut if waivers heat up.`
+              : null,
+          ].filter(Boolean).slice(0, 9) as string[];
 
           return (
             <article key={row.manager} className="owner-intel-card">
@@ -1618,6 +1631,10 @@ export function OwnerIntelMatrix({
                     <p>{tradePulse} {draftPulse}</p>
                   </div>
                   <div>
+                    <h4>Need-For-Surplus Trade</h4>
+                    <p>{row.tradePlan?.summary || 'No clean surplus-for-need swap found from this roster shape.'}</p>
+                  </div>
+                  <div>
                     <h4>Availability</h4>
                     <p>{injuryText}</p>
                   </div>
@@ -1632,6 +1649,14 @@ export function OwnerIntelMatrix({
                   <div>
                     <h4>Direction</h4>
                     <p>{timelineRow ? `Contender ${timelineRow.contenderScore}/100, rebuild ${timelineRow.rebuildScore}/100, aging risk ${timelineRow.agingRisk}/100.` : 'Timeline data unavailable.'} {row.sellCandidate ? `If pivoting, shop ${row.sellCandidate.name}.` : ''} {row.buyTarget ? `If buying, start with ${row.buyTarget.name}.` : ''}</p>
+                  </div>
+                  <div className="owner-intel-wild-notes">
+                    <h4>Chaos Board</h4>
+                    <ul>
+                      {wildNotes.map((note) => (
+                        <li key={note}>{note}</li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               </div>

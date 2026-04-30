@@ -388,6 +388,81 @@ function compactPlayerBlurb(player?: ManagerIntelPlayer | null): string | null {
   return `${player.name} (${getRankLabel(player)})`;
 }
 
+function rowHandoffText({
+  contenderScore,
+  rebuildScore,
+  avgAge,
+  starterValuePct,
+  bestBenchStash,
+  oldestPlayer,
+  youngCorePlayer,
+}: {
+  contenderScore: number;
+  rebuildScore: number;
+  avgAge: number | null;
+  starterValuePct: number;
+  bestBenchStash: ManagerIntelPlayer | null;
+  oldestPlayer: ManagerIntelPlayer | null;
+  youngCorePlayer: ManagerIntelPlayer | null;
+}): string {
+  if (contenderScore >= 76 && oldestPlayer) {
+    return `Clock management: this team can contend, but ${oldestPlayer.name} is the veteran fuse; do not let that asset expire without either a title run or a younger replacement.`;
+  }
+  if (rebuildScore > contenderScore && youngCorePlayer) {
+    return `Rebuild lever: ${youngCorePlayer.name} is the anchor; every trade should either protect that window or add another asset on the same timeline.`;
+  }
+  if (starterValuePct < 48 && bestBenchStash) {
+    return `Bench hoarder alert: too much value is parked outside the weekly lineup; ${bestBenchStash.name} is the first chip to convert into a starter.`;
+  }
+  return `Build tension: contender ${Math.round(contenderScore)}, rebuild ${Math.round(rebuildScore)}, age ${avgAge ?? '-'}; this roster should avoid cute sideways trades until the next move clearly changes the lineup.`;
+}
+
+function rowValueTrapText({
+  sellCandidate,
+  buyTarget,
+  isContenderBuild,
+}: {
+  sellCandidate: ManagerIntelPlayer | null;
+  buyTarget: ManagerIntelPlayer | null;
+  isContenderBuild: boolean;
+}): string | null {
+  if (sellCandidate && buyTarget) {
+    return `${isContenderBuild ? 'Contender arbitrage' : 'Rebuild arbitrage'}: turn ${sellCandidate.name} into ${buyTarget.name} if the other manager values name-brand dynasty points more than the position need.`;
+  }
+  if (sellCandidate) return `Value trap watch: ${sellCandidate.name} is movable if another manager still prices him like a core piece.`;
+  if (buyTarget) return `Sneaky add: ${buyTarget.name} fits the roster shape better than the raw value table suggests.`;
+  return null;
+}
+
+function rowRosterExploitText({
+  qbs,
+  rbs,
+  wrs,
+  tes,
+  flexDepth,
+  teamCount,
+}: {
+  qbs: ManagerIntelPlayer[];
+  rbs: ManagerIntelPlayer[];
+  wrs: ManagerIntelPlayer[];
+  tes: ManagerIntelPlayer[];
+  flexDepth: number;
+  teamCount: number;
+}): string {
+  const qb2 = getRankLabel(qbs[1]);
+  const rb2 = getRankLabel(rbs[1]);
+  const wr3 = getRankLabel(wrs[2]);
+  const te1 = getRankLabel(tes[0]);
+  const danger: string[] = [];
+  if ((getRankNumber(qb2) || 999) > teamCount * 2) danger.push(`superflex gets shaky after ${qbs[0]?.name || 'QB1'}`);
+  if ((getRankNumber(rb2) || 999) > teamCount * 2.5) danger.push(`RB2 is attackable at ${rb2}`);
+  if ((getRankNumber(wr3) || 999) > teamCount * 3.5) danger.push(`WR3 is thin at ${wr3}`);
+  if ((getRankNumber(te1) || 999) > Math.ceil(teamCount * 1.2)) danger.push(`TE leaks points at ${te1}`);
+  if (flexDepth < 4) danger.push('one flex injury changes the weekly ceiling');
+  if (danger.length) return `Exploit map: ${danger.join('; ')}.`;
+  return `Exploit map: no obvious weekly pressure point; you probably need a premium offer or a manager-preference angle to crack this roster.`;
+}
+
 function getSeasonValue(player: ManagerIntelPlayer, allPlayers: Player, ktcValues: KTCValues): number {
   return getPlayerRedraftValue(player.player_id, allPlayers, ktcValues) || player.value;
 }
@@ -420,6 +495,28 @@ function getNeedPosition({
     { pos: 'TE', rank: getRankNumber(tes[0]?.seasonPositionRank || tes[0]?.currentPositionRank) || 999 },
   ];
   return candidates.sort((a, b) => b.rank - a.rank)[0]?.pos || null;
+}
+
+function getPositionDepthScore(players: ManagerIntelPlayer[], position: 'QB' | 'RB' | 'WR' | 'TE'): number {
+  const starterLine = position === 'QB' ? 2 : position === 'RB' ? 3 : position === 'WR' ? 4 : 2;
+  return players
+    .filter((player) => player.pos === position)
+    .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value))
+    .slice(0, starterLine)
+    .reduce((sum, player) => sum + (player.seasonValue || player.value), 0);
+}
+
+function getSurplusPosition(
+  rosterPlayers: Array<ManagerIntelPlayer & { isStarter?: boolean }>,
+  needPosition: 'QB' | 'RB' | 'WR' | 'TE' | null
+): 'QB' | 'RB' | 'WR' | 'TE' | null {
+  const positions = (['QB', 'RB', 'WR', 'TE'] as const).filter((pos) => pos !== needPosition);
+  const scored = positions.map((pos) => ({
+    pos,
+    score: getPositionDepthScore(rosterPlayers, pos),
+    benchStarterCount: rosterPlayers.filter((player) => player.pos === pos && !player.isStarter && (player.seasonValue || player.value) >= 1800).length,
+  }));
+  return scored.sort((a, b) => (b.benchStarterCount - a.benchStarterCount) || b.score - a.score)[0]?.pos || null;
 }
 
 function buildRosterIntelligenceSummary({
@@ -587,6 +684,7 @@ export async function generateReport(
     const name = currentSeasonData.rosterMap[r.roster_id];
     const pids = r.players || [];
     const posVals: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
+    const posSeasonValues: Record<string, number[]> = { QB: [], RB: [], WR: [], TE: [] };
     let totalVal = 0;
     let v2027 = 0;
 
@@ -600,6 +698,7 @@ export async function generateReport(
 
       if (pos in posVals) {
         posVals[pos] += val;
+        posSeasonValues[pos].push(getPlayerRedraftValue(pid, allPlayers, ktcValues) || val);
       }
 
       const p2027 = projectValue(val, pos, age, 1);
@@ -650,8 +749,14 @@ export async function generateReport(
       v2027,
     };
 
-    for (const [pos, val] of Object.entries(posVals)) {
-      rankLists.current[pos].push([name, val]);
+    for (const [pos, values] of Object.entries(posSeasonValues)) {
+      const position = pos as keyof StarterThresholds;
+      const topCount = Math.max(1, Math.ceil(starterThresholds[position] / Math.max(1, currentSeasonData.rosters.length || 10)));
+      const positionStrength = values
+        .sort((a, b) => b - a)
+        .slice(0, topCount)
+        .reduce((sum, value) => sum + value, 0);
+      rankLists.current[pos].push([name, positionStrength]);
     }
     rankLists.current.VALUE.push([name, totalVal]);
     rankLists[2027].VALUE.push([name, v2027]);
@@ -1251,45 +1356,70 @@ export async function generateReport(
       usedInsightPlayerIds
     );
     const primaryNeed = getNeedPosition({ qbs, rbs, wrs, tes, holeParts });
-    const maxAffordableTarget = Math.max(
-      2500,
-      (bestBenchStash?.value || 0) + (bench[1]?.value || 0),
-      (bench[0]?.value || 0) * 1.35,
-      starterValue * 0.18
+    const surplusPosition = getSurplusPosition(rosterPlayers, primaryNeed);
+    const sellPool = [...rosterPlayers]
+      .filter((player) => {
+        if (player.value < 900) return false;
+        if (surplusPosition && player.pos !== surplusPosition) return false;
+        const seasonValue = getSeasonValue(player, allPlayers, ktcValues);
+        if (isContenderBuild && player.isStarter && seasonValue >= player.value * 0.86) return false;
+        return !player.isStarter || player.pos === surplusPosition || getSeasonArbitrage(player, allPlayers, ktcValues) < -900;
+      })
+      .sort((a, b) => {
+        const aDepthBonus = !a.isStarter ? 1400 : 0;
+        const bDepthBonus = !b.isStarter ? 1400 : 0;
+        const aArb = Math.max(0, getSeasonArbitrage(a, allPlayers, ktcValues) * -1);
+        const bArb = Math.max(0, getSeasonArbitrage(b, allPlayers, ktcValues) * -1);
+        return (bDepthBonus + bArb + b.value * 0.25) - (aDepthBonus + aArb + a.value * 0.25);
+      });
+    const sellCandidate = pickDistinctPlayer(sellPool, usedInsightPlayerIds);
+    const targetBudget = Math.max(
+      1800,
+      (sellCandidate?.value || 0) * 1.18,
+      (sellCandidate?.value || 0) + (bench.find((player) => player.player_id !== sellCandidate?.player_id)?.value || 0) * 0.45,
+      (bestBenchStash?.value || 0) * 1.15
     );
-    const buyTarget = pickDistinctPlayer(
+    const buyTargetPool = [...externalPlayers]
+      .filter((player) => {
+        if (primaryNeed && player.pos !== primaryNeed) return false;
+        if (!primaryNeed && !['RB', 'WR', 'TE'].includes(player.pos)) return false;
+        if (player.value > targetBudget) return false;
+        if (sellCandidate && player.owner === sellCandidate.owner) return false;
+        if (isContenderBuild) return getSeasonValue(player, allPlayers, ktcValues) >= player.value * 0.66 || isLastSeasonStud(player.lastSeasonPositionRank);
+        return (player.age || 99) <= 25 && player.value >= 900;
+      })
+      .sort((a, b) => {
+        const aFit = getSeasonValue(a, allPlayers, ktcValues) + (primaryNeed && a.pos === primaryNeed ? 1200 : 0) + ((26 - (a.age || 26)) * (isContenderBuild ? 20 : 90));
+        const bFit = getSeasonValue(b, allPlayers, ktcValues) + (primaryNeed && b.pos === primaryNeed ? 1200 : 0) + ((26 - (b.age || 26)) * (isContenderBuild ? 20 : 90));
+        return bFit - aFit;
+      });
+    const needBuyTarget = pickDistinctPlayer(
+      buyTargetPool,
+      usedInsightPlayerIds
+    );
+    const fallbackBuyTarget = pickDistinctPlayer(
       [...externalPlayers]
         .filter((player) => {
           if (primaryNeed && player.pos !== primaryNeed) return false;
           if (!primaryNeed && !['RB', 'WR', 'TE'].includes(player.pos)) return false;
-          if (player.value > maxAffordableTarget) return false;
-          if (isContenderBuild) return getSeasonValue(player, allPlayers, ktcValues) >= player.value * 0.72 || isLastSeasonStud(player.lastSeasonPositionRank);
-          return (player.age || 99) <= 25 && player.value >= 1200;
+          if (player.value > targetBudget) return false;
+          return (player.age || 99) <= 25 || getSeasonValue(player, allPlayers, ktcValues) >= player.value * 0.72;
         })
-        .sort((a, b) => {
-          const contenderDelta = getSeasonValue(b, allPlayers, ktcValues) - getSeasonValue(a, allPlayers, ktcValues);
-          const rebuildDelta = ((a.age || 99) - (b.age || 99)) || b.value - a.value;
-          return isContenderBuild ? contenderDelta : rebuildDelta;
-        }),
-      usedInsightPlayerIds
+        .sort((a, b) => getSeasonValue(b, allPlayers, ktcValues) - getSeasonValue(a, allPlayers, ktcValues)),
+      new Set(usedInsightPlayerIds)
     );
-    const sellCandidate = pickDistinctPlayer(
-      [...rosterPlayers]
-        .filter((player) => {
-          if (player.value < 1000) return false;
-          const seasonValue = getSeasonValue(player, allPlayers, ktcValues);
-          const age = player.age || 0;
-          const oldLine = player.pos === 'RB' ? 26 : player.pos === 'WR' ? 30 : player.pos === 'TE' ? 31 : 33;
-          if (isContenderBuild && player.isStarter && seasonValue >= player.value * 0.78) return false;
-          return !player.isStarter || age >= oldLine || getSeasonArbitrage(player, allPlayers, ktcValues) < -1200;
-        })
-        .sort((a, b) => {
-          const aScore = (getSeasonArbitrage(a, allPlayers, ktcValues) * -1) + ((a.age || 0) * 80) + (a.isStarter ? -1500 : 800);
-          const bScore = (getSeasonArbitrage(b, allPlayers, ktcValues) * -1) + ((b.age || 0) * 80) + (b.isStarter ? -1500 : 800);
-          return bScore - aScore;
-        }),
-      usedInsightPlayerIds
-    );
+    const buyTarget = needBuyTarget || fallbackBuyTarget;
+    const tradePlan = {
+      needPosition: primaryNeed,
+      surplusPosition,
+      summary: primaryNeed && surplusPosition && buyTarget && sellCandidate
+        ? `Shop ${surplusPosition} surplus (${sellCandidate.name}) for ${primaryNeed} help (${buyTarget.name}).`
+        : primaryNeed
+          ? `Priority is ${primaryNeed}, but there is no clean same-budget surplus-for-need swap yet.`
+          : surplusPosition
+            ? `No screaming lineup hole; surplus is most movable at ${surplusPosition}.`
+            : 'No obvious need-for-surplus trade path from the current roster shape.',
+    };
     const tradeChip = pickDistinctPlayer(
       [...bench]
         .filter((player) => player.value >= 1000)
@@ -1355,6 +1485,39 @@ export async function generateReport(
       riskiestStarter,
       holeParts,
     });
+    const chaosNotes = [
+      tradePlan.summary,
+      buyTarget && sellCandidate
+        ? `Need-for-surplus swap: float ${sellCandidate.name} (${getRankLabel(sellCandidate)}) and ask for ${buyTarget.name} (${getRankLabel(buyTarget)}) because ${primaryNeed || 'lineup'} help matters more than hoarding ${surplusPosition || 'extra'} value.`
+        : null,
+      weakestStarter && buyTarget
+        ? `Pressure point: ${weakestStarter.name} is the starter opponents should attack; ${buyTarget.name} is the cleanest outside patch.`
+        : weakestStarter
+          ? `Pressure point: ${weakestStarter.name} is the softest weekly starter.`
+          : null,
+      rowHandoffText({
+        contenderScore,
+        rebuildScore,
+        avgAge,
+        starterValuePct,
+        bestBenchStash,
+        oldestPlayer,
+        youngCorePlayer,
+      }),
+      rowValueTrapText({
+        sellCandidate,
+        buyTarget,
+        isContenderBuild,
+      }),
+      rowRosterExploitText({
+        qbs,
+        rbs,
+        wrs,
+        tes,
+        flexDepth,
+        teamCount,
+      }),
+    ].filter(Boolean) as string[];
     const strategySummary = [
       contenderScore >= 72
         ? 'Contender posture: use bench value or picks to buy weekly points now'
@@ -1362,8 +1525,9 @@ export async function generateReport(
           ? 'Rebuild posture: sell older production for players who can still gain value next offseason'
           : 'Middle-build posture: avoid sideways deals and only trade when it fixes a clear lineup hole',
       primaryNeed ? `Biggest trade need: ${primaryNeed}` : null,
+      tradePlan.summary,
       buyTarget ? `Buy target profile: ${compactPlayerBlurb(buyTarget)} from ${buyTarget.owner || 'another roster'}` : null,
-      sellCandidate ? `Sell candidate: ${compactPlayerBlurb(sellCandidate)} only if the return better fits the team direction` : null,
+      sellCandidate ? `Sell candidate: ${compactPlayerBlurb(sellCandidate)} from ${surplusPosition || 'surplus'} depth only if it buys the needed position` : null,
       tradeChip ? `Trade chip: ${compactPlayerBlurb(tradeChip)} can be moved without cracking the projected lineup` : null,
       describeAvailability(riskiestStarter, avgStarterGamesMissed),
     ].filter(Boolean).join('. ');
@@ -1386,6 +1550,8 @@ export async function generateReport(
       lastSeasonStud,
       buyTarget,
       sellCandidate,
+      tradePlan,
+      chaosNotes,
       tradeChip,
       injuryInsurance,
       droppablePlayers,

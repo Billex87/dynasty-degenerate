@@ -100,6 +100,12 @@ export interface ManagerRosterIntelligence {
   lastSeasonStud: ManagerIntelPlayer | null;
   buyTarget: ManagerIntelPlayer | null;
   sellCandidate: ManagerIntelPlayer | null;
+  tradePlan?: {
+    needPosition: 'QB' | 'RB' | 'WR' | 'TE' | null;
+    surplusPosition: 'QB' | 'RB' | 'WR' | 'TE' | null;
+    summary: string;
+  };
+  chaosNotes?: string[];
   tradeChip: ManagerIntelPlayer | null;
   injuryInsurance: ManagerIntelPlayer | null;
   droppablePlayers: ManagerIntelPlayer[];
