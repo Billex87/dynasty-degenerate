@@ -356,7 +356,7 @@ function TradeDetailPanel({
                 className="trade-side-watermark"
               />
             )}
-            <div className="relative flex items-center justify-between gap-3 border-b border-orange-300/15 pb-3">
+            <div className="trade-side-header relative flex items-center justify-between gap-3 border-b border-orange-300/15 pb-3">
               <div className="min-w-0">
                 <span className={`trade-side-label ${side.isWinner ? 'trade-side-label-win' : 'trade-side-label-other'}`}>
                   {side.isWinner ? 'Winner' : 'Other Side'}

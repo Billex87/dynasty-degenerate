@@ -6176,4 +6176,12 @@
   .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-row"] {
     padding: 0.1rem 0.18rem 0.16rem !important;
   }
+
+  .report-shell .trade-detail-panel .trade-side-header {
+    gap: 0.55rem !important;
+  }
+
+  .report-shell .trade-detail-panel .trade-side-header .trade-side-manager {
+    display: none !important;
+  }
 }
