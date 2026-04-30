@@ -2555,6 +2555,10 @@
     text-transform: uppercase;
   }
 
+  .player-complete-section-centered h4 {
+    text-align: center;
+  }
+
   .player-complete-rows {
     display: grid;
     gap: 0.38rem;

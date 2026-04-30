@@ -136,33 +136,11 @@ export function PlayerDetailModal({
   const healthRows = [
     ['Injury Status', details?.injuryStatus],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
-  const profileRows = [
-    ['Full Name', details?.fullName],
-    ['Sleeper ID', details?.playerId || pick.player_id],
-    ['Position', details?.position || position],
-    ['NFL Team', details?.team || team],
-    ['Status', details?.status],
-    ['Injury', details?.injuryStatus],
-    ['Jersey', jerseyNumber !== null && jerseyNumber !== undefined && jerseyNumber !== '' ? `#${jerseyNumber}` : null],
-    ['High School', details?.highSchool],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const nflDraftRows = [
     ['NFL Draft Round', details?.nflDraftRound],
     ['NFL Draft Pick', details?.nflDraftPick],
     ['NFL Draft Team', details?.nflDraftTeam],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
-  const draftContextRows = [
-    ['Rookie Draft Year', pick.draftYear],
-    ['Rookie Round', pick.round],
-    ['Rookie Pick', pick.pick],
-    ['Draft Slot', pick.draftSlot],
-    ['Original Owner', pick.originalOwner],
-    ['Draft Value', draftValue],
-    ['Drafted Rank', pick.positionRankMay2025],
-    ['Current Rank', currentRank !== '-' ? currentRank : null],
-    ['Rank Change', pick.positionRankChange],
-    ['Value Change', valueGain !== null && valueGain !== undefined ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : null],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '' && value !== '-');
   const dynastyRank = getValueProfileRank(valueProfile, 'dynasty', currentRank);
   const seasonRank = getValueProfileRank(valueProfile, 'season', currentRank);
   const balancedRank = getValueProfileRank(valueProfile, 'balanced', currentRank);
@@ -557,9 +535,7 @@ export function PlayerDetailModal({
               <p className="player-complete-title">Player Data Locker</p>
               <div className="player-complete-grid">
                 <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority />
-                <CompleteDataSection title="Player Profile" rows={profileRows} teamColors={teamColors} tileAccent={tileAccent} />
                 <CompleteDataSection title="Raw Source Values" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
-                <CompleteDataSection title="Draft Context" rows={draftContextRows} teamColors={teamColors} tileAccent={tileAccent} rankValues />
                 <CompleteDataSection title="NFL Draft" rows={nflDraftRows} teamColors={teamColors} tileAccent={tileAccent} />
                 <CompleteDataSection title="External IDs" rows={externalIdRows} teamColors={teamColors} tileAccent={tileAccent} />
                 <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
@@ -581,7 +557,7 @@ export function PlayerDetailModal({
                   </div>
                 ) : null}
                 {valueProfile?.sources?.length ? (
-                  <div className="player-complete-section player-complete-section-wide">
+                  <div className="player-complete-section player-complete-section-wide player-complete-section-centered">
                     <h4>Rank Blend Sources</h4>
                     <p className="player-complete-copy">
                       {valueProfile.sources.map(formatSourceLabel).join(' + ')}
