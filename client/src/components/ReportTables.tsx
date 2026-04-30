@@ -676,6 +676,115 @@ function dedupeIntelNotes(notes: Array<string | null | undefined>, suppress: Arr
     });
 }
 
+type OwnerIntelRow = NonNullable<ReportData['managerRosterIntelligence']>[number];
+type OwnerTradeRow = NonNullable<ReportData['tradeTendencies']>[number];
+type OwnerPickRow = NonNullable<ReportData['pickPortfolios']>[number];
+type OwnerTimelineRow = NonNullable<ReportData['dynastyTimelines']>[number];
+
+function parsePositionRankValue(rank: string | null | undefined): number | null {
+  const match = String(rank || '').match(/\d+/);
+  if (!match) return null;
+  const value = Number(match[0]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function formatSignedCompactValue(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '-';
+  return `${value > 0 ? '+' : ''}${formatCompactValue(value)}`;
+}
+
+function buildOwnerBestMove(row: OwnerIntelRow): string {
+  const need = row.tradePlan?.needPosition;
+  const surplus = row.tradePlan?.surplusPosition;
+  const buyName = row.buyTarget?.name;
+  const sellName = row.sellCandidate?.name || row.tradeChip?.name;
+
+  if (need && surplus && buyName && sellName) {
+    return `Shop ${surplus} surplus (${sellName}) for ${need} help (${buyName}). That is the cleanest way to turn excess roster value into a lineup fix.`;
+  }
+
+  if (need && buyName) {
+    return `The clearest add is ${need} help. Start talks around ${buyName}, then use bench value or picks instead of breaking the core.`;
+  }
+
+  if (surplus && sellName) {
+    return `This roster has extra ${surplus} value. ${sellName} is the easiest trade chip if another manager overpays.`;
+  }
+
+  if (row.tradePlan?.summary) return row.tradePlan.summary;
+
+  return 'No forced trade path. This roster should wait for another manager to pay above market instead of creating a move just to move.';
+}
+
+function buildOwnerWindowCopy(row: OwnerIntelRow, timelineRow: OwnerTimelineRow | null | undefined): string {
+  if (!timelineRow) {
+    return `${titleCasePill(row.identity)} build. The model does not have enough timeline data to call a clean contender or rebuild lane yet.`;
+  }
+
+  const contenderScore = timelineRow.contenderScore;
+  const rebuildScore = timelineRow.rebuildScore;
+  const agingRisk = timelineRow.agingRisk;
+
+  if (contenderScore >= 75 && contenderScore >= rebuildScore + 12) {
+    return `Win-now lean. Contender score ${contenderScore}/100, rebuild score ${rebuildScore}/100, aging risk ${agingRisk}/100. This team should protect weekly starters and buy injury insurance before chasing long-term value.`;
+  }
+
+  if (rebuildScore >= contenderScore + 10) {
+    return `Rebuild lean. Rebuild score ${rebuildScore}/100 beats contender score ${contenderScore}/100. Move older short-window points for younger assets, picks, or players rising in dynasty value.`;
+  }
+
+  return `Middle-build profile. Contender score ${contenderScore}/100 and rebuild score ${rebuildScore}/100 are close enough that this team should avoid all-in trades unless the upgrade clearly changes the lineup.`;
+}
+
+function buildOwnerTradeDraftProfile(tradeRow: OwnerTradeRow | null | undefined, pickRow: OwnerPickRow | null | undefined): string {
+  const parts = [
+    tradeRow ? `${tradeRow.tradeCount} trades` : null,
+    tradeRow ? `${tradeRow.winPct}% win rate` : null,
+    tradeRow ? `${formatSignedCompactValue(tradeRow.profit)} net profit` : null,
+    tradeRow?.favoritePartner ? `favorite partner: ${tradeRow.favoritePartner}` : null,
+    pickRow ? `${pickRow.count2026 + pickRow.count2027} future picks` : null,
+    pickRow ? `${formatCompactValue(pickRow.totalValue)} draft capital` : null,
+  ].filter(Boolean);
+
+  return parts.length ? `${parts.join(' • ')}.` : 'No trade or draft-capital profile yet.';
+}
+
+function buildOwnerHealthCopy(row: OwnerIntelRow): string {
+  const missed = row.starterAvailability.avgGamesMissed;
+  if (missed === null || missed === undefined) {
+    return 'Availability sample is still thin, so do not overreact to the injury read yet.';
+  }
+
+  const riskiest = row.starterAvailability.riskiestStarter?.name;
+  if (missed >= 3) {
+    return `High-friction availability profile: starters averaged ${missed} missed games. ${riskiest ? `${riskiest} is the biggest negotiation pressure point.` : 'Bench insurance should matter more than luxury depth.'}`;
+  }
+
+  if (missed >= 1.5) {
+    return `Medium injury drag: starters averaged ${missed} missed games. ${riskiest ? `${riskiest} is the player to insure around.` : 'This roster should keep one extra usable spot starter.'}`;
+  }
+
+  return `Clean availability profile: starters averaged ${missed} missed games, so this roster can be more aggressive consolidating depth.`;
+}
+
+function buildOwnerWeakSpotCopy(row: OwnerIntelRow): string {
+  const qbRank = parsePositionRankValue(row.holes.bestQbRank);
+  const rb2Rank = parsePositionRankValue(row.holes.rb2Rank);
+  const wr3Rank = parsePositionRankValue(row.holes.wr3Rank);
+  const teRank = parsePositionRankValue(row.holes.te1Rank);
+  const notes = [
+    qbRank !== null && qbRank > 18 ? `QB starts at ${row.holes.bestQbRank}, so superflex pressure is real.` : null,
+    rb2Rank !== null && rb2Rank > 28 ? `RB2 is ${row.holes.rb2Rank}, which can leak weekly points.` : null,
+    wr3Rank !== null && wr3Rank > 36 ? `WR3 is ${row.holes.wr3Rank}, so receiver depth is the easiest attack point.` : null,
+    teRank !== null && teRank > 14 ? `TE1 is ${row.holes.te1Rank}, leaving a weekly ceiling gap.` : null,
+    row.holes.flexDepth <= 5 ? `Only ${row.holes.flexDepth} flex-depth pieces clear the starter window.` : null,
+  ].filter(Boolean);
+
+  if (notes.length) return notes.join(' ');
+
+  return 'No emergency hole. The better angle is forcing this manager to overpay for a preference, not attacking an obvious weak spot.';
+}
+
 function PlayerInsightTile({
   label,
   player,
@@ -1587,9 +1696,6 @@ export function OwnerIntelMatrix({
   const selectedTimelineRow = selectedRow ? getTimelineRow(selectedRow.manager) : null;
   const selectedOverviewRow = selectedRow ? getOverviewRow(selectedRow.manager) : null;
   const selectedStarterCount = selectedCountRow ? selectedCountRow.QB_starters + selectedCountRow.RB_starters + selectedCountRow.WR_starters + selectedCountRow.TE_starters : null;
-  const selectedInjuryText = selectedRow?.starterAvailability.avgGamesMissed !== null && selectedRow?.starterAvailability.avgGamesMissed !== undefined
-    ? `${titleCasePill(selectedRow.starterAvailability.riskLevel)} injury risk: ${selectedRow.starterAvailability.avgGamesMissed} missed games per starter${selectedRow.starterAvailability.riskiestStarter ? `, led by ${selectedRow.starterAvailability.riskiestStarter.name}` : ''}.`
-    : 'Injury history sample is still light.';
   const selectedValueComps = selectedRow
     ? (['QB', 'RB', 'WR', 'TE'] as const)
       .map((pos) => selectedRow.similarValuePlayers[pos] ? `${pos}: ${selectedRow.similarValuePlayers[pos]?.name} (${selectedRow.similarValuePlayers[pos]?.currentPositionRank || selectedRow.similarValuePlayers[pos]?.pos})` : null)
@@ -1604,12 +1710,6 @@ export function OwnerIntelMatrix({
       }))
       .filter((item): item is { position: 'QB' | 'RB' | 'WR' | 'TE'; player: ManagerIntelPlayer } => Boolean(item.player))
     : [];
-  const selectedTradePulse = selectedTradeRow
-    ? `${selectedTradeRow.tradeCount} trades, ${selectedTradeRow.winPct}% wins, ${selectedTradeRow.profit > 0 ? '+' : ''}${selectedTradeRow.profit.toLocaleString()} profit${selectedTradeRow.favoritePartner ? `, likes trading with ${selectedTradeRow.favoritePartner}` : ''}.`
-    : 'No trade tendency profile yet.';
-  const selectedDraftPulse = selectedPickRow
-    ? `${selectedPickRow.count2026} picks in 2026, ${selectedPickRow.count2027} picks in 2027, ${formatCompactValue(selectedPickRow.totalValue)} draft capital.`
-    : 'No draft capital profile yet.';
   const selectedOwnerTags = selectedRow ? [
     selectedRow.identity,
     selectedRow.timeline,
@@ -1668,6 +1768,12 @@ export function OwnerIntelMatrix({
     selectedRow.summary,
     selectedRow.tradePlan?.summary,
   ]).slice(0, 6) : [];
+  const selectedRosterRead = selectedRow ? selectedRow.strategySummary || selectedRow.summary : '';
+  const selectedBestMove = selectedRow ? buildOwnerBestMove(selectedRow) : '';
+  const selectedTradeDraftProfile = selectedRow ? buildOwnerTradeDraftProfile(selectedTradeRow, selectedPickRow) : '';
+  const selectedHealthCheck = selectedRow ? buildOwnerHealthCopy(selectedRow) : '';
+  const selectedWeakSpotCopy = selectedRow ? buildOwnerWeakSpotCopy(selectedRow) : '';
+  const selectedTeamWindow = selectedRow ? buildOwnerWindowCopy(selectedRow, selectedTimelineRow) : '';
 
   return (
     <>
@@ -1797,40 +1903,41 @@ export function OwnerIntelMatrix({
                     </div>
                   ) : null}
                   <div className="owner-intel-read-wide">
-                    <h4>Roster Thesis</h4>
-                    <p>{selectedRow.strategySummary || selectedRow.summary}</p>
+                    <h4>Roster Read</h4>
+                    <p>{selectedRosterRead}</p>
                   </div>
                   <div>
-                    <h4>Trade Path</h4>
-                    <p>{selectedRow.tradePlan?.summary || 'No clean surplus-for-need swap found from this roster shape.'}</p>
+                    <h4>Best Move</h4>
+                    <p>{selectedBestMove}</p>
                   </div>
                   <div>
-                    <h4>Asset Pulse</h4>
-                    <p>{selectedTradePulse} {selectedDraftPulse}</p>
+                    <h4>Trade / Draft Profile</h4>
+                    <p>{selectedTradeDraftProfile}</p>
                   </div>
                   <div>
-                    <h4>Risk Read</h4>
-                    <p>{selectedInjuryText}</p>
+                    <h4>Health Check</h4>
+                    <p>{selectedHealthCheck}</p>
                   </div>
                   <div>
-                    <h4>Attack Points</h4>
+                    <h4>Weak Spots</h4>
                     <div className="owner-intel-attack-list">
-                      <span><strong>QB</strong><PositionRankPill rank={selectedRow.holes.bestQbRank} /></span>
+                      <span><strong>Best QB</strong><PositionRankPill rank={selectedRow.holes.bestQbRank} /></span>
                       <span><strong>RB2</strong><PositionRankPill rank={selectedRow.holes.rb2Rank} /></span>
                       <span><strong>WR3</strong><PositionRankPill rank={selectedRow.holes.wr3Rank} /></span>
                       <span><strong>TE1</strong><PositionRankPill rank={selectedRow.holes.te1Rank} /></span>
-                      <span><strong>Flex</strong><em>{selectedRow.holes.flexDepth}</em></span>
+                      <span><strong>Flex Depth</strong><em>{selectedRow.holes.flexDepth}</em></span>
                     </div>
-                    <p>{titleCasePill(selectedRow.holes.summary)}</p>
+                    <p>{selectedWeakSpotCopy}</p>
                   </div>
                   <div className="owner-intel-value-map">
-                    <h4>Value Map</h4>
+                    <h4>Market Comps</h4>
                     {selectedValueCompPlayers.length ? (
                       <div className="owner-intel-value-map-grid">
                         {selectedValueCompPlayers.map(({ position, player }) => (
                           <button
                             key={`${position}-${player.player_id}`}
                             type="button"
+                            title={`${position} value comp: ${player.name}${player.owner ? ` (${player.owner})` : ''}`}
                             onClick={() => setSelectedPlayer(buildPlayerModalData({
                               playerId: player.player_id,
                               playerName: player.name,
@@ -1840,11 +1947,14 @@ export function OwnerIntelMatrix({
                               playerDetailsById: data.playerDetailsById,
                               currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
                               manager: player.owner || selectedRow.manager,
-                              managerAvatarUrl: managerAvatars?.[selectedRow.manager],
+                              managerAvatarUrl: (player.owner && managerAvatars?.[player.owner]) || managerAvatars?.[selectedRow.manager],
                             }))}
                           >
                             <strong>{position}</strong>
-                            <span>{player.name}</span>
+                            <span>
+                              <em>{player.name}</em>
+                              {player.owner && player.owner !== selectedRow.manager ? <small>{player.owner}</small> : null}
+                            </span>
                             <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
                           </button>
                         ))}
@@ -1854,12 +1964,12 @@ export function OwnerIntelMatrix({
                     )}
                   </div>
                   <div>
-                    <h4>Direction</h4>
-                    <p>{selectedTimelineRow ? `Contender ${selectedTimelineRow.contenderScore}/100, rebuild ${selectedTimelineRow.rebuildScore}/100, aging risk ${selectedTimelineRow.agingRisk}/100.` : 'Timeline data unavailable.'} {selectedRow.sellCandidate ? `If pivoting, shop ${selectedRow.sellCandidate.name}.` : ''} {selectedRow.buyTarget ? `If buying, start with ${selectedRow.buyTarget.name}.` : ''}</p>
+                    <h4>Team Window</h4>
+                    <p>{selectedTeamWindow}</p>
                   </div>
                   {selectedActionNotes.length ? (
                     <div className="owner-intel-wild-notes">
-                      <h4>Action Board</h4>
+                      <h4>What To Do Next</h4>
                       <ul>
                         {selectedActionNotes.map((note) => (
                           <li key={note}>{note}</li>

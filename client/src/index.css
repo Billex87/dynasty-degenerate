@@ -1546,10 +1546,12 @@
   }
 
   .owner-intel-value-map-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .owner-intel-value-map-grid button {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     border-radius: 0.75rem;
     text-align: left;
   }
@@ -1560,11 +1562,31 @@
   }
 
   .owner-intel-value-map-grid span:not(.position-rank-pill) {
+    display: grid;
+    gap: 0.08rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .owner-intel-value-map-grid span:not(.position-rank-pill) em {
     min-width: 0;
     overflow: hidden;
     color: #f8fafc;
     font-size: 0.72rem;
+    font-style: normal;
     font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .owner-intel-value-map-grid span:not(.position-rank-pill) small {
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(103, 232, 249, 0.72);
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    line-height: 1;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
