@@ -38,6 +38,9 @@ const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines
 const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v2';
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
+const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
+const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
+const MAX_AUTOCOMPLETE_HISTORY = 12;
 
 type SleeperLeagueOption = {
   leagueId: string;
@@ -66,9 +69,78 @@ type SleeperSession = {
   savedAt: number;
 };
 
+function readAutocompleteHistory(key: string): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .slice(0, MAX_AUTOCOMPLETE_HISTORY);
+  } catch {
+    localStorage.removeItem(key);
+    return [];
+  }
+}
+
+function rememberAutocompleteValue(key: string, value: string): string[] {
+  const trimmed = value.trim();
+  if (!trimmed) return readAutocompleteHistory(key);
+  const current = readAutocompleteHistory(key);
+  const next = [trimmed, ...current.filter((item) => item.toLowerCase() !== trimmed.toLowerCase())]
+    .slice(0, MAX_AUTOCOMPLETE_HISTORY);
+  try {
+    localStorage.setItem(key, JSON.stringify(next));
+  } catch {
+    // Autocomplete history is a convenience only.
+  }
+  return next;
+}
+
+function getFilteredAutocompleteOptions(history: string[], value: string): string[] {
+  const needle = value.trim().toLowerCase();
+  return history
+    .filter((item) => !needle || item.toLowerCase().includes(needle))
+    .slice(0, 6);
+}
+
+function RecentEntrySuggestions({
+  label,
+  options,
+  onSelect,
+}: {
+  label: string;
+  options: string[];
+  onSelect: (value: string) => void;
+}) {
+  if (!options.length) return null;
+
+  return (
+    <div className="home-autocomplete-panel" role="listbox" aria-label={label}>
+      <span>Recent</span>
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          role="option"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onSelect(option)}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Home() {
   const [leagueId, setLeagueId] = useState('');
   const [sleeperUsername, setSleeperUsername] = useState('');
+  const [leagueIdHistory, setLeagueIdHistory] = useState<string[]>(() => readAutocompleteHistory(LEAGUE_ID_HISTORY_KEY));
+  const [sleeperUsernameHistory, setSleeperUsernameHistory] = useState<string[]>(() => readAutocompleteHistory(SLEEPER_USERNAME_HISTORY_KEY));
+  const [focusedAutocomplete, setFocusedAutocomplete] = useState<'username' | 'league' | null>(null);
   const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -77,6 +149,14 @@ export default function Home() {
   const [leagueFormat, setLeagueFormat] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
+
+  const rememberLeagueId = (value: string) => {
+    setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, value));
+  };
+
+  const rememberSleeperUsername = (value: string) => {
+    setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, value));
+  };
 
   const analyzeMutation = trpc.league.analyze.useMutation({
     onSuccess: (data) => {
@@ -95,17 +175,19 @@ export default function Home() {
   });
 
   const userLeaguesMutation = trpc.league.getUserLeagues.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      const username = variables.username.trim();
       setUserLeagues(data.leagues);
       if (data.leagues.length === 0) {
         toast.error('No Sleeper leagues found for this username');
         return;
       }
+      rememberSleeperUsername(username);
       try {
         localStorage.setItem(
           SLEEPER_SESSION_KEY,
           JSON.stringify({
-            username: sleeperUsername.trim(),
+            username,
             leagues: data.leagues,
             savedAt: Date.now(),
           } satisfies SleeperSession)
@@ -126,6 +208,9 @@ export default function Home() {
       if (sleeperSession) {
         const parsed = JSON.parse(sleeperSession) as SleeperSession;
         setSleeperUsername(parsed.username || '');
+        if (parsed.username) {
+          setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, parsed.username));
+        }
         setUserLeagues(Array.isArray(parsed.leagues) ? parsed.leagues : []);
       }
     } catch {
@@ -142,6 +227,7 @@ export default function Home() {
         setLeagueFormat(parsed.leagueFormat);
         setActiveTab(parsed.activeTab || 'overview');
         setReportData(parsed.reportData);
+        setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
         return;
       }
 
@@ -153,6 +239,7 @@ export default function Home() {
         setLeagueLogo(parsed.leagueLogo);
         setLeagueFormat(parsed.leagueFormat);
         setActiveTab(parsed.activeTab || 'overview');
+        setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
         setIsLoading(true);
         analyzeMutation.mutate({ leagueId: parsed.leagueId });
       }
@@ -196,6 +283,7 @@ export default function Home() {
       return;
     }
     setLeagueId(nextLeagueId);
+    rememberLeagueId(nextLeagueId);
     setIsLoading(true);
     analyzeMutation.mutate({ leagueId: nextLeagueId });
   };
@@ -237,6 +325,9 @@ export default function Home() {
     setReportData(null);
     handleAnalyze(nextLeagueId);
   };
+
+  const usernameAutocompleteOptions = getFilteredAutocompleteOptions(sleeperUsernameHistory, sleeperUsername);
+  const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(leagueIdHistory, leagueId);
 
   if (reportData) {
     return (
@@ -596,14 +687,37 @@ export default function Home() {
                   Enter Your Sleeper Username
                 </label>
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Input
-                    type="text"
-                    placeholder="Sleeper username"
-                    value={sleeperUsername}
-                    onChange={(e) => setSleeperUsername(e.target.value)}
-                    className="bg-slate-900 border-cyan-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-cyan-300 text-center sm:text-left"
-                    onKeyDown={(e) => e.key === 'Enter' && handleFindLeagues()}
-                  />
+                  <div className="home-autocomplete-anchor flex-1">
+                    <Input
+                      id="sleeper-username"
+                      name="sleeper-username"
+                      type="text"
+                      autoComplete="username"
+                      list="sleeper-username-history"
+                      placeholder="Sleeper username"
+                      value={sleeperUsername}
+                      onChange={(e) => setSleeperUsername(e.target.value)}
+                      onFocus={() => setFocusedAutocomplete('username')}
+                      onBlur={() => window.setTimeout(() => setFocusedAutocomplete(null), 120)}
+                      className="bg-slate-900 border-cyan-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-cyan-300 text-center sm:text-left"
+                      onKeyDown={(e) => e.key === 'Enter' && handleFindLeagues()}
+                    />
+                    <datalist id="sleeper-username-history">
+                      {sleeperUsernameHistory.map((value) => (
+                        <option key={value} value={value} />
+                      ))}
+                    </datalist>
+                    {focusedAutocomplete === 'username' ? (
+                      <RecentEntrySuggestions
+                        label="Recent Sleeper usernames"
+                        options={usernameAutocompleteOptions}
+                        onSelect={(value) => {
+                          setSleeperUsername(value);
+                          setFocusedAutocomplete(null);
+                        }}
+                      />
+                    ) : null}
+                  </div>
                   <Button
                     type="button"
                     onClick={handleFindLeagues}
@@ -651,14 +765,38 @@ export default function Home() {
                 <label className="block text-sm font-semibold text-slate-200 mb-3">
                   Enter Your Sleeper League ID
                 </label>
-                <Input
-                  type="text"
-                  placeholder="Find in your Sleeper app settings or URL"
-                  value={leagueId}
-                  onChange={(e) => setLeagueId(e.target.value)}
-                  className="bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
-                />
+                <div className="home-autocomplete-anchor">
+                  <Input
+                    id="sleeper-league-id"
+                    name="sleeper-league-id"
+                    type="text"
+                    autoComplete="on"
+                    inputMode="numeric"
+                    list="sleeper-league-id-history"
+                    placeholder="Find in your Sleeper app settings or URL"
+                    value={leagueId}
+                    onChange={(e) => setLeagueId(e.target.value)}
+                    onFocus={() => setFocusedAutocomplete('league')}
+                    onBlur={() => window.setTimeout(() => setFocusedAutocomplete(null), 120)}
+                    className="bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+                  />
+                  <datalist id="sleeper-league-id-history">
+                    {leagueIdHistory.map((value) => (
+                      <option key={value} value={value} />
+                    ))}
+                  </datalist>
+                  {focusedAutocomplete === 'league' ? (
+                    <RecentEntrySuggestions
+                      label="Recent Sleeper league IDs"
+                      options={leagueIdAutocompleteOptions}
+                      onSelect={(value) => {
+                        setLeagueId(value);
+                        setFocusedAutocomplete(null);
+                      }}
+                    />
+                  ) : null}
+                </div>
                 <p className="text-xs text-slate-400 mt-2">
                   In the Sleeper app, open your league → go to General Settings → scroll to the bottom to find your League ID.
                 </p>
