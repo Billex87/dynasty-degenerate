@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { DraftPick } from '@shared/types';
+import type { DraftPick, PlayerDetails } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { PlayerDetailModal } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
@@ -59,6 +59,7 @@ interface ManagerDraftPicksModalProps {
   managerName: string;
   draftPicks: DraftPick[];
   managerAvatarUrl?: string | null;
+  playerDetailsById?: Record<string, PlayerDetails>;
   leagueId?: string;
   leagueLogo?: string | null;
 }
@@ -69,6 +70,7 @@ export function ManagerDraftPicksModal({
   managerName,
   draftPicks,
   managerAvatarUrl,
+  playerDetailsById,
   leagueId,
   leagueLogo,
 }: ManagerDraftPicksModalProps) {
@@ -175,7 +177,7 @@ export function ManagerDraftPicksModal({
                       key={idx} 
                       className="border-slate-700 hover:bg-slate-800/30 cursor-pointer"
                       style={rowStyle}
-                      onClick={() => setSelectedPlayer(pick)}
+                      onClick={() => setSelectedPlayer(enrichDraftPickDetails(pick, playerDetailsById))}
                     >
                       <TableCell className="manager-draft-player-cell min-w-0 font-semibold text-slate-100">
                         <div className="flex min-w-0 items-center">
@@ -238,6 +240,29 @@ export function ManagerDraftPicksModal({
       />
     </>
   );
+}
+
+function enrichDraftPickDetails(pick: DraftPick, playerDetailsById?: Record<string, PlayerDetails>): DraftPick {
+  const mappedDetails = pick.player_id ? playerDetailsById?.[pick.player_id] : undefined;
+  if (!mappedDetails) return pick;
+
+  return {
+    ...pick,
+    playerDetails: {
+      ...mappedDetails,
+      ...pick.playerDetails,
+      valueProfile: pick.playerDetails?.valueProfile || mappedDetails.valueProfile,
+      lastSeasonPositionRank: pick.playerDetails?.lastSeasonPositionRank || mappedDetails.lastSeasonPositionRank,
+      lastSeasonFantasyPoints: pick.playerDetails?.lastSeasonFantasyPoints ?? mappedDetails.lastSeasonFantasyPoints,
+      lastSeasonGames: pick.playerDetails?.lastSeasonGames ?? mappedDetails.lastSeasonGames,
+      lastSeasonPointsPerGame: pick.playerDetails?.lastSeasonPointsPerGame ?? mappedDetails.lastSeasonPointsPerGame,
+      lastSeasonYear: pick.playerDetails?.lastSeasonYear || mappedDetails.lastSeasonYear,
+      availabilityHistory: pick.playerDetails?.availabilityHistory?.length ? pick.playerDetails.availabilityHistory : mappedDetails.availabilityHistory,
+      avgGamesMissed: pick.playerDetails?.avgGamesMissed ?? mappedDetails.avgGamesMissed,
+      availabilitySeasons: pick.playerDetails?.availabilitySeasons ?? mappedDetails.availabilitySeasons,
+      similarTradeValues: pick.playerDetails?.similarTradeValues?.length ? pick.playerDetails.similarTradeValues : mappedDetails.similarTradeValues,
+    },
+  };
 }
 
 function ManagerDraftStat({

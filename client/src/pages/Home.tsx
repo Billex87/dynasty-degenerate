@@ -464,6 +464,7 @@ export default function Home() {
                 draftPicks={reportData.draftPicks || []}
                 draftStats={reportData.draftStats || []}
                 managerAvatars={reportData.managerAvatars}
+                playerDetailsById={reportData.playerDetailsById}
                 leagueId={leagueId}
                 leagueLogo={leagueLogo}
               />

@@ -131,11 +131,18 @@ export function PlayerDetailModal({
   const availabilityRows = [
     ['Avg Missed', details?.avgGamesMissed !== null && details?.avgGamesMissed !== undefined && details?.availabilitySeasons ? `${details.avgGamesMissed} / yr` : null],
     ['Sample', details?.availabilitySeasons ? `${details.availabilitySeasons} yr${details.availabilitySeasons === 1 ? '' : 's'}` : null],
-    ['Sleeper News', formatSleeperNewsUpdated(details?.sleeperNewsUpdated)],
+    ['News Update', formatSleeperNewsUpdated(details?.sleeperNewsUpdated)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const healthRows = [
     ['Injury Status', details?.injuryStatus],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const intelligenceNotes = buildPlayerIntelligenceNotes({
+    details,
+    currentRank,
+    currentValue,
+    position,
+    valueProfile,
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -283,6 +290,53 @@ export function PlayerDetailModal({
               <p className="text-center text-xs leading-relaxed text-slate-500">
                 <span className="font-semibold text-cyan-300">Value Change:</span> {valueChangeNote}
               </p>
+            )}
+
+            {intelligenceNotes.length > 0 && (
+              <div className="mx-auto max-w-xl rounded-2xl border border-cyan-300/15 bg-slate-950/45 p-3 shadow-inner shadow-white/[0.02] sm:p-4">
+                <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/85">
+                  Player Intelligence
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {intelligenceNotes.map((note) => (
+                    <div
+                      key={`${note.label}-${note.value}`}
+                      className="rounded-xl border bg-slate-950/55 p-3"
+                      style={{
+                        borderColor: note.tone === 'risk'
+                          ? 'rgba(251, 113, 133, 0.28)'
+                          : note.tone === 'upside'
+                            ? 'rgba(52, 211, 153, 0.28)'
+                            : note.tone === 'market'
+                              ? 'rgba(251, 191, 36, 0.28)'
+                              : 'rgba(34, 211, 238, 0.18)',
+                      }}
+                    >
+                      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">
+                        {note.label}
+                      </div>
+                      <div
+                        className={`mt-1 text-sm font-black ${
+                          note.tone === 'risk'
+                            ? 'text-rose-300'
+                            : note.tone === 'upside'
+                              ? 'text-emerald-300'
+                              : note.tone === 'market'
+                                ? 'text-amber-300'
+                                : 'text-slate-100'
+                        }`}
+                      >
+                        {note.value}
+                      </div>
+                      {note.copy && (
+                        <p className="mt-1 text-[0.72rem] font-bold leading-snug text-slate-400">
+                          {note.copy}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {valueProfile && (
@@ -535,6 +589,116 @@ function parseHexColor(hex: string) {
     g: Number.parseInt(normalized.slice(2, 4), 16),
     b: Number.parseInt(normalized.slice(4, 6), 16),
   };
+}
+
+function buildPlayerIntelligenceNotes({
+  details,
+  currentRank,
+  currentValue,
+  position,
+  valueProfile,
+}: {
+  details?: PlayerDetails;
+  currentRank?: string | null;
+  currentValue?: number | null;
+  position?: string | null;
+  valueProfile?: PlayerDetails['valueProfile'];
+}) {
+  const notes: Array<{ label: string; value: string; copy?: string; tone?: 'risk' | 'upside' | 'market' | 'neutral' }> = [];
+  const avgMissed = details?.avgGamesMissed;
+  const seasons = details?.availabilitySeasons || 0;
+  const lastRank = details?.lastSeasonPositionRank;
+  const rankNumber = parseRankNumber(currentRank);
+  const lastRankNumber = parseRankNumber(lastRank);
+  const age = details?.age;
+  const seasonValue = valueProfile?.seasonValue ?? valueProfile?.fantasyProsSeasonValue ?? null;
+  const dynastyValue = valueProfile?.dynastyValue ?? currentValue ?? null;
+  const newsDate = formatSleeperNewsUpdated(details?.sleeperNewsUpdated);
+
+  if (avgMissed !== null && avgMissed !== undefined && seasons > 0) {
+    const tone = avgMissed >= 4 ? 'risk' : avgMissed <= 1 ? 'upside' : 'neutral';
+    notes.push({
+      label: 'Durability',
+      value: `${avgMissed} missed / yr`,
+      copy: avgMissed >= 4
+        ? `Injury tax is real across the last ${seasons} season${seasons === 1 ? '' : 's'}.`
+        : avgMissed <= 1
+          ? `Has mostly stayed available in the ${seasons}-year sample.`
+          : `Moderate availability profile over ${seasons} season${seasons === 1 ? '' : 's'}.`,
+      tone,
+    });
+  }
+
+  if (lastRank) {
+    const eliteCutoff = position === 'TE' ? 6 : position === 'QB' ? 8 : 12;
+    notes.push({
+      label: 'Last Season',
+      value: `${details?.lastSeasonYear || 'Last'} ${lastRank}`,
+      copy: [
+        details?.lastSeasonGames ? `${details.lastSeasonGames} games` : null,
+        details?.lastSeasonPointsPerGame ? `${details.lastSeasonPointsPerGame} PPG` : null,
+      ].filter(Boolean).join(' · ') || undefined,
+      tone: lastRankNumber && lastRankNumber <= eliteCutoff ? 'upside' : 'neutral',
+    });
+  }
+
+  if (age !== null && age !== undefined && currentRank && rankNumber) {
+    const veteranAge = position === 'RB' ? 27 : position === 'WR' ? 29 : position === 'TE' ? 30 : 33;
+    const youngAge = position === 'RB' ? 24 : position === 'WR' ? 25 : position === 'TE' ? 26 : 27;
+    if (age >= veteranAge && rankNumber <= 24) {
+      notes.push({
+        label: 'Window',
+        value: 'Contender Lean',
+        copy: `${age} years old but still holding ${currentRank}; useful if the roster is trying to win now.`,
+        tone: 'market',
+      });
+    } else if (age <= youngAge && rankNumber <= 24) {
+      notes.push({
+        label: 'Window',
+        value: 'Core Asset',
+        copy: `${age} years old with a strong ${currentRank} profile; tougher to replace than his raw value suggests.`,
+        tone: 'upside',
+      });
+    }
+  }
+
+  if (seasonValue && dynastyValue) {
+    const gap = Math.round(seasonValue - dynastyValue);
+    if (gap >= 900) {
+      notes.push({
+        label: 'Market Angle',
+        value: 'Redraft > Dynasty',
+        copy: 'Current-season projection is stronger than dynasty market price, so contenders should care more than rebuilders.',
+        tone: 'market',
+      });
+    } else if (gap <= -900) {
+      notes.push({
+        label: 'Market Angle',
+        value: 'Dynasty Premium',
+        copy: 'Dynasty value is carrying more of the price than current-season projection.',
+        tone: 'neutral',
+      });
+    }
+  }
+
+  if (newsDate) {
+    notes.push({
+      label: 'Latest Sleeper Update',
+      value: newsDate,
+      copy: 'Sleeper has a recent player-news timestamp. Public metadata exposes the update time, not the full article text.',
+      tone: details?.injuryStatus ? 'risk' : 'neutral',
+    });
+  }
+
+  return notes.slice(0, 6);
+}
+
+function parseRankNumber(rank?: string | null) {
+  if (!rank) return null;
+  const match = String(rank).match(/\d+/);
+  if (!match) return null;
+  const number = Number(match[0]);
+  return Number.isFinite(number) ? number : null;
 }
 
 function MetricTile({

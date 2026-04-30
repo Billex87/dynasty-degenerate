@@ -93,6 +93,14 @@ function buildPlayerModalData({
         ...mappedDetails,
         ...playerDetails,
         valueProfile: playerDetails.valueProfile || mappedDetails?.valueProfile,
+        lastSeasonPositionRank: playerDetails.lastSeasonPositionRank || mappedDetails?.lastSeasonPositionRank,
+        lastSeasonFantasyPoints: playerDetails.lastSeasonFantasyPoints ?? mappedDetails?.lastSeasonFantasyPoints,
+        lastSeasonGames: playerDetails.lastSeasonGames ?? mappedDetails?.lastSeasonGames,
+        lastSeasonPointsPerGame: playerDetails.lastSeasonPointsPerGame ?? mappedDetails?.lastSeasonPointsPerGame,
+        lastSeasonYear: playerDetails.lastSeasonYear || mappedDetails?.lastSeasonYear,
+        availabilityHistory: playerDetails.availabilityHistory?.length ? playerDetails.availabilityHistory : mappedDetails?.availabilityHistory,
+        avgGamesMissed: playerDetails.avgGamesMissed ?? mappedDetails?.avgGamesMissed,
+        availabilitySeasons: playerDetails.availabilitySeasons ?? mappedDetails?.availabilitySeasons,
         similarTradeValues: playerDetails.similarTradeValues || mappedDetails?.similarTradeValues,
       }
     : mappedDetails;
