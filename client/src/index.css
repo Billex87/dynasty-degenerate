@@ -1248,6 +1248,173 @@
     color: #5eead4;
   }
 
+  .owner-intel-matrix {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.65rem, 2.4vw, 1rem);
+  }
+
+  .owner-intel-card {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid rgba(34, 211, 238, 0.18);
+    border-radius: 1rem;
+    background:
+      radial-gradient(circle at 0 0, rgba(249, 115, 22, 0.18), transparent 36%),
+      radial-gradient(circle at 100% 0, rgba(34, 211, 238, 0.15), transparent 38%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.9));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 18px 38px rgba(0, 0, 0, 0.24);
+  }
+
+  .owner-intel-wash {
+    position: absolute;
+    inset: -8rem auto auto -5rem;
+    width: 17rem;
+    opacity: 0.24;
+    filter: blur(30px) saturate(1.45);
+    transform: scale(1.25);
+  }
+
+  .owner-intel-mark {
+    position: absolute;
+    right: -2.8rem;
+    top: -2.4rem;
+    width: 14rem;
+    max-width: 52%;
+    opacity: 0.1;
+    filter: blur(1px) saturate(1.2);
+    transform: rotate(-8deg);
+  }
+
+  .owner-intel-scrim {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, rgba(2, 6, 23, 0.12), rgba(2, 6, 23, 0.66)),
+      linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.38));
+  }
+
+  .owner-intel-content {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 0.75rem;
+    padding: clamp(0.7rem, 2.4vw, 1rem);
+  }
+
+  .owner-intel-header {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  .owner-intel-avatar {
+    display: inline-flex;
+    height: clamp(2.65rem, 8vw, 3.4rem);
+    width: clamp(2.65rem, 8vw, 3.4rem);
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid rgba(34, 211, 238, 0.34);
+    border-radius: 0.8rem;
+    background: rgba(2, 6, 23, 0.76);
+    color: #fb923c;
+    font-weight: 1000;
+    object-fit: cover;
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+  }
+
+  .owner-intel-header p,
+  .owner-intel-read-grid h4 {
+    color: #67e8f9;
+    font-size: 0.62rem;
+    font-weight: 1000;
+    letter-spacing: 0.18em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .owner-intel-header h3 {
+    overflow: hidden;
+    color: #fb923c;
+    font-family: var(--font-athletic);
+    font-size: clamp(1.35rem, 4vw, 2.15rem);
+    font-weight: 1000;
+    letter-spacing: 0;
+    line-height: 0.92;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .owner-intel-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .owner-intel-stat-grid .intelligence-metric {
+    min-height: 4.4rem;
+    padding: 0.62rem;
+  }
+
+  .owner-intel-tags,
+  .owner-intel-ranks {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .owner-intel-ranks span {
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 999px;
+    background: rgba(8, 47, 73, 0.42);
+    padding: 0.22rem 0.5rem;
+    color: #67e8f9;
+    font-size: 0.66rem;
+    font-weight: 950;
+    line-height: 1;
+  }
+
+  .owner-intel-player-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .owner-intel-player-grid .manager-intel-player {
+    min-height: 7.55rem;
+    background:
+      radial-gradient(circle at 0 0, rgba(249, 115, 22, 0.1), transparent 42%),
+      rgba(2, 6, 23, 0.42);
+  }
+
+  .owner-intel-read-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .owner-intel-read-grid > div {
+    min-width: 0;
+    border: 1px solid rgba(34, 211, 238, 0.13);
+    border-radius: 0.85rem;
+    background: rgba(2, 6, 23, 0.42);
+    padding: 0.7rem;
+  }
+
+  .owner-intel-read-grid p {
+    margin-top: 0.42rem;
+    color: #cbd5e1;
+    font-size: clamp(0.72rem, 1.7vw, 0.82rem);
+    font-weight: 750;
+    line-height: 1.42;
+  }
+
   .command-feature-note {
     margin-top: 0.68rem;
     border-top: 1px solid rgba(148, 163, 184, 0.11);

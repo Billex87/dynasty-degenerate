@@ -15,6 +15,7 @@ import {
   TradeHistoryTable,
   PositionAnalysisTable,
   ManagerIntelligenceCards,
+  OwnerIntelMatrix,
   LeagueCommandCenter,
   PowerRankingsTable,
   TradeMarketRadar,
@@ -272,6 +273,14 @@ export default function Home() {
                 <CollapsibleReportSection title="Team Identity & Timeline" kicker="Manager intelligence">
                   <ManagerIntelligenceCards
                     data={reportData.managerRosterIntelligence}
+                    managerAvatars={reportData.managerAvatars}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Owner Intel Lab" kicker="Everything we know">
+                  <OwnerIntelMatrix
+                    data={reportData}
                     managerAvatars={reportData.managerAvatars}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}

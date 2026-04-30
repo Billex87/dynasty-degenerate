@@ -1467,6 +1467,191 @@ export function ManagerIntelligenceCards({
   );
 }
 
+export function OwnerIntelMatrix({
+  data,
+  managerAvatars,
+  leagueId,
+  leagueLogo,
+}: {
+  data: ReportData;
+  managerAvatars?: ManagerAvatars;
+  leagueId?: string;
+  leagueLogo?: string | null;
+}) {
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const intelRows = data.managerRosterIntelligence || [];
+  if (!intelRows.length) return null;
+
+  const getCountRow = (manager: string) => data.managerPositionCounts.find((row) => row.manager === manager);
+  const getTradeRow = (manager: string) => data.tradeTendencies?.find((row) => row.manager === manager);
+  const getPickRow = (manager: string) => data.pickPortfolios?.find((row) => row.manager === manager);
+  const getPowerRow = (manager: string) => data.powerRankings?.find((row) => row.manager === manager);
+  const getTimelineRow = (manager: string) => data.dynastyTimelines?.find((row) => row.manager === manager);
+  const getOverviewRow = (manager: string) => data.leagueOverview.find((row) => row.manager === manager);
+  return (
+    <>
+      <div className="owner-intel-matrix">
+        {intelRows.map((row) => {
+          const countRow = getCountRow(row.manager);
+          const tradeRow = getTradeRow(row.manager);
+          const pickRow = getPickRow(row.manager);
+          const powerRow = getPowerRow(row.manager);
+          const timelineRow = getTimelineRow(row.manager);
+          const overviewRow = getOverviewRow(row.manager);
+          const starterCount = countRow ? countRow.QB_starters + countRow.RB_starters + countRow.WR_starters + countRow.TE_starters : null;
+          const injuryText = row.starterAvailability.avgGamesMissed !== null
+            ? `${titleCasePill(row.starterAvailability.riskLevel)} injury risk: ${row.starterAvailability.avgGamesMissed} missed games per starter${row.starterAvailability.riskiestStarter ? `, led by ${row.starterAvailability.riskiestStarter.name}` : ''}.`
+            : 'Injury history sample is still light.';
+          const valueComps = (['QB', 'RB', 'WR', 'TE'] as const)
+            .map((pos) => row.similarValuePlayers[pos] ? `${pos}: ${row.similarValuePlayers[pos]?.name} (${row.similarValuePlayers[pos]?.currentPositionRank || row.similarValuePlayers[pos]?.pos})` : null)
+            .filter(Boolean)
+            .join(' · ');
+          const tradePulse = tradeRow
+            ? `${tradeRow.tradeCount} trades, ${tradeRow.winPct}% wins, ${tradeRow.profit > 0 ? '+' : ''}${tradeRow.profit.toLocaleString()} profit${tradeRow.favoritePartner ? `, likes trading with ${tradeRow.favoritePartner}` : ''}.`
+            : 'No trade tendency profile yet.';
+          const draftPulse = pickRow
+            ? `${pickRow.count2026} picks in 2026, ${pickRow.count2027} picks in 2027, ${formatCompactValue(pickRow.totalValue)} draft capital.`
+            : 'No draft capital profile yet.';
+          const ownerTags = [
+            row.identity,
+            row.timeline,
+            powerRow ? `#${powerRow.rank} ${powerRow.tier}` : null,
+            timelineRow ? `Contender ${timelineRow.contenderScore}` : null,
+            timelineRow ? `Rebuild ${timelineRow.rebuildScore}` : null,
+            ...row.ageFlags,
+          ].filter(Boolean).slice(0, 8);
+          const playerSections: Array<{
+            label: string;
+            player: ManagerIntelPlayer | null;
+            tone?: 'neutral' | 'warn' | 'danger';
+            crownedRank?: string | null;
+          }> = [
+            { label: 'Untouchable', player: row.untouchablePlayers?.[0] || row.youngCorePlayer },
+            { label: 'Buy Idea', player: row.buyTarget },
+            { label: 'Sell Idea', player: row.sellCandidate, tone: 'warn' },
+            { label: 'Trade Chip', player: row.tradeChip },
+            { label: 'Insurance', player: row.injuryInsurance },
+            { label: 'Droppable', player: row.droppablePlayers?.[0] || null, tone: 'danger' },
+            { label: 'Weak Link', player: row.weakestStarter, tone: 'warn' },
+            { label: 'Injury Flag', player: row.starterAvailability.riskiestStarter, tone: row.starterAvailability.riskLevel === 'high' ? 'danger' : 'warn' },
+            { label: 'Bench Stash', player: row.bestBenchStash },
+            {
+              label: 'Last Year Stud',
+              player: row.lastSeasonStud,
+              crownedRank: row.lastSeasonStud?.lastSeasonPositionRank
+                ? `${row.lastSeasonStud.lastSeasonYear || '2025'} ${row.lastSeasonStud.lastSeasonPositionRank}`
+                : null,
+            },
+          ];
+
+          return (
+            <article key={row.manager} className="owner-intel-card">
+              {managerAvatars?.[row.manager] && (
+                <>
+                  <img src={managerAvatars[row.manager] || ''} alt="" className="owner-intel-wash" />
+                  <img src={managerAvatars[row.manager] || ''} alt="" className="owner-intel-mark" />
+                </>
+              )}
+              <div className="owner-intel-scrim" />
+              <div className="owner-intel-content">
+                <div className="owner-intel-header">
+                  {managerAvatars?.[row.manager] ? (
+                    <img src={managerAvatars[row.manager] || ''} alt={row.manager} className="owner-intel-avatar" />
+                  ) : (
+                    <span className="owner-intel-avatar">{row.manager[0]?.toUpperCase() || '?'}</span>
+                  )}
+                  <div className="min-w-0">
+                    <p>Owner Deep Dive</p>
+                    <h3>{row.manager}</h3>
+                  </div>
+                </div>
+
+                <div className="owner-intel-stat-grid">
+                  <IntelligenceMetric label="Starters" value={starterCount ?? '-'} />
+                  <IntelligenceMetric label="Power" value={powerRow?.score ?? '-'} />
+                  <IntelligenceMetric label="Age" value={row.avgAge ?? '-'} />
+                  <IntelligenceMetric label="Starter Share" value={`${row.starterValuePct}%`} />
+                  <IntelligenceMetric label="Trade Profit" value={tradeRow ? `${tradeRow.profit > 0 ? '+' : ''}${formatCompactValue(tradeRow.profit)}` : '-'} />
+                  <IntelligenceMetric label="Picks" value={pickRow ? `${pickRow.count2026 + pickRow.count2027}` : '-'} />
+                </div>
+
+                <div className="owner-intel-tags">
+                  {ownerTags.map((tag) => (
+                    <span key={tag} className={`manager-intel-pill ${getPillToneClass(tag || '')}`}>
+                      {String(tag).startsWith('#') ? tag : titleCasePill(String(tag))}
+                    </span>
+                  ))}
+                </div>
+
+                {overviewRow ? (
+                  <div className="owner-intel-ranks">
+                    <span>QB #{overviewRow.rank_qb}</span>
+                    <span>RB #{overviewRow.rank_rb}</span>
+                    <span>WR #{overviewRow.rank_wr}</span>
+                    <span>TE #{overviewRow.rank_te}</span>
+                    <span>Value #{overviewRow.rank_value}</span>
+                  </div>
+                ) : null}
+
+                <div className="owner-intel-player-grid">
+                  {playerSections.map((item) => item.player ? (
+                    <PlayerInsightTile
+                      key={`${item.label}-${item.player.player_id}`}
+                      label={item.label}
+                      player={item.player}
+                      manager={row.manager}
+                      managerAvatarUrl={managerAvatars?.[row.manager]}
+                      onSelect={setSelectedPlayer}
+                      tone={item.tone}
+                      crownedRank={item.crownedRank}
+                    />
+                  ) : null)}
+                </div>
+
+                <div className="owner-intel-read-grid">
+                  <div>
+                    <h4>Roster Read</h4>
+                    <p>{row.strategySummary || row.summary}</p>
+                  </div>
+                  <div>
+                    <h4>Trade / Draft Pulse</h4>
+                    <p>{tradePulse} {draftPulse}</p>
+                  </div>
+                  <div>
+                    <h4>Availability</h4>
+                    <p>{injuryText}</p>
+                  </div>
+                  <div>
+                    <h4>Value Comps</h4>
+                    <p>{valueComps || 'No clean same-position comps from this roster yet.'}</p>
+                  </div>
+                  <div>
+                    <h4>Attack Points</h4>
+                    <p>QB {row.holes.bestQbRank || '-'} · RB2 {row.holes.rb2Rank || '-'} · WR3 {row.holes.wr3Rank || '-'} · TE1 {row.holes.te1Rank || '-'} · Flex depth {row.holes.flexDepth}. {titleCasePill(row.holes.summary)}</p>
+                  </div>
+                  <div>
+                    <h4>Direction</h4>
+                    <p>{timelineRow ? `Contender ${timelineRow.contenderScore}/100, rebuild ${timelineRow.rebuildScore}/100, aging risk ${timelineRow.agingRisk}/100.` : 'Timeline data unavailable.'} {row.sellCandidate ? `If pivoting, shop ${row.sellCandidate.name}.` : ''} {row.buyTarget ? `If buying, start with ${row.buyTarget.name}.` : ''}</p>
+                  </div>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
+    </>
+  );
+}
+
 export function PowerRankingsTable({
   data,
   managerAvatars,
