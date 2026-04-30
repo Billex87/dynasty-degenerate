@@ -665,7 +665,7 @@ function PlayerInsightTile({
         playerPos: player.pos,
         value: player.value,
         playerDetails: player.playerDetails,
-        currentPositionRank: player.currentPositionRank,
+        currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
         manager: player.owner || manager,
         managerAvatarUrl: player.owner ? undefined : managerAvatarUrl,
       }))}
@@ -675,7 +675,7 @@ function PlayerInsightTile({
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       </div>
       <div className="manager-intel-player-pills">
-        <PositionRankPill rank={player.currentPositionRank || player.pos} />
+        <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
         {extraPill && <span>{extraPill}</span>}
         <span>{player.playerDetails?.team || 'FA'}</span>
         <span>{formatCompactValue(player.value)}</span>
@@ -800,7 +800,7 @@ function CommandPlayerTile({
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       </div>
       <div className="manager-command-player-tile-pills">
-        <PositionRankPill rank={player.currentPositionRank || player.pos} />
+        <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
         <span>{player.playerDetails?.team || 'FA'}</span>
         <span className="manager-command-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
       </div>
@@ -935,7 +935,7 @@ export function LeagueCommandCenter({
       playerDetails: player.playerDetails,
       manager: player.owner || selectedManager,
       managerAvatarUrl: managerAvatars?.[player.owner || selectedManager],
-      currentPositionRank: player.currentPositionRank,
+      currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
     }));
   };
   const selectedStarters = selectedCounts?.starterPlayers || [];
@@ -945,7 +945,7 @@ export function LeagueCommandCenter({
     const take = (position: string, count: number) => {
       const picked = players
         .filter((player) => player.pos === position && !used.has(player.player_id))
-        .sort((a, b) => b.value - a.value)
+        .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value))
         .slice(0, count);
       picked.forEach((player) => used.add(player.player_id));
       return picked;
@@ -956,7 +956,7 @@ export function LeagueCommandCenter({
     const tes = take('TE', 2);
     const flex = players
       .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos) && !used.has(player.player_id))
-      .sort((a, b) => b.value - a.value)
+      .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value))
       .slice(0, 2);
     return [
       { label: 'QB / SF', players: qbs },
@@ -973,13 +973,13 @@ export function LeagueCommandCenter({
       label: 'QB',
       players: selectedStarters
         .filter((player) => player.pos === 'QB' && !projectedLineupIds.has(player.player_id))
-        .sort((a, b) => b.value - a.value),
+        .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
     },
     {
       label: 'Flex',
       players: selectedStarters
         .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos) && !projectedLineupIds.has(player.player_id))
-        .sort((a, b) => b.value - a.value),
+        .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
     },
   ].filter((group) => group.players.length);
   const selectedManagerTags = (() => {
@@ -1032,10 +1032,10 @@ export function LeagueCommandCenter({
       notes.push(`Lineup warning: ${missingLineupGroups.map((group) => group.label).join(', ')} does not fully fill from ranked players.`);
     }
     if (selectedIntel.weakestStarter) {
-      notes.push(`Lineup upgrade spot is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.pos}) after season value is considered.`);
+      notes.push(`Lineup upgrade spot is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.seasonPositionRank || selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.pos}) after season value is considered.`);
     }
     if (selectedIntel.bestBenchStash) {
-      notes.push(`${selectedIntel.bestBenchStash.name} (${selectedIntel.bestBenchStash.currentPositionRank || selectedIntel.bestBenchStash.pos}) is the best bench chip if this manager wants to patch a hole without touching the core.`);
+      notes.push(`${selectedIntel.bestBenchStash.name} (${selectedIntel.bestBenchStash.seasonPositionRank || selectedIntel.bestBenchStash.currentPositionRank || selectedIntel.bestBenchStash.pos}) is the best bench chip if this manager wants to patch a hole without touching the core.`);
     }
     if (selectedPick && selectedPick.count2026 + selectedPick.count2027 >= 15) {
       notes.push(`Draft capital is strong with ${selectedPick.count2026} 2026 picks and ${selectedPick.count2027} 2027 picks, so this team has room to buy help.`);
@@ -2367,7 +2367,7 @@ export function StarterBenchSnapshot({
                   playerPos: row.weakestStarter?.pos,
                   value: row.weakestStarter?.value,
                   playerDetails: row.weakestStarter?.playerDetails,
-                  currentPositionRank: row.weakestStarter?.currentPositionRank,
+                  currentPositionRank: row.weakestStarter?.seasonPositionRank || row.weakestStarter?.currentPositionRank,
                   manager: row.manager,
                   managerAvatarUrl: managerAvatars?.[row.manager],
                 }))}
@@ -2375,7 +2375,7 @@ export function StarterBenchSnapshot({
                 <div className="text-[0.62rem] font-black uppercase tracking-[0.14em] text-orange-300/80">Upgrade Spot</div>
                 <div className="mt-1 flex items-center justify-between gap-2 text-sm font-black text-slate-100">
                   <span className="truncate">{row.weakestStarter.name}</span>
-                  <PositionRankPill rank={row.weakestStarter.currentPositionRank || row.weakestStarter.pos} />
+                  <PositionRankPill rank={row.weakestStarter.seasonPositionRank || row.weakestStarter.currentPositionRank || row.weakestStarter.pos} />
                 </div>
               </button>
             )}
@@ -2976,7 +2976,7 @@ export function ManagerPositionCountsTable({
                             playerPos: player.pos,
                             value: player.value,
                             playerDetails: player.playerDetails,
-                            currentPositionRank: player.currentPositionRank,
+                            currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
                             manager: selectedManager.manager,
                             managerAvatarUrl: selectedAvatar,
                           }));
@@ -2986,7 +2986,7 @@ export function ManagerPositionCountsTable({
                           <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
                         </div>
                         <div className="starter-player-meta">
-                          <PositionRankPill rank={player.currentPositionRank || player.pos} />
+                          <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
                           <span className="starter-player-team-pill">{player.playerDetails?.team || 'FA'}</span>
                           <span className="starter-player-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
                           <strong>{player.value.toLocaleString()}</strong>

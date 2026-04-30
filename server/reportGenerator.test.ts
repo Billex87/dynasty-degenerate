@@ -263,7 +263,7 @@ describe('generateReport trade ledger', () => {
     expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|2865');
   });
 
-  it('scales starter counts by league size and KTC positional rank', async () => {
+  it('scales starter counts by league size and redraft positional rank', async () => {
     const report = await generateReport(
       {
         label: '2026',
@@ -289,14 +289,14 @@ describe('generateReport trade ledger', () => {
         teLow: { first_name: 'Low', last_name: 'TE', position: 'TE', age: 25 },
       },
       {
-        topqb: { name: 'Top QB', ktc_value: 5000, position_rank: 'QB4' },
-        toprb: { name: 'Top RB', ktc_value: 5000, position_rank: 'RB6' },
-        topwr: { name: 'Top WR', ktc_value: 5000, position_rank: 'WR8' },
-        topte: { name: 'Top TE', ktc_value: 5000, position_rank: 'TE3' },
-        lowqb: { name: 'Low QB', ktc_value: 5000, position_rank: 'QB5' },
-        lowrb: { name: 'Low RB', ktc_value: 5000, position_rank: 'RB7' },
-        lowwr: { name: 'Low WR', ktc_value: 5000, position_rank: 'WR9' },
-        lowte: { name: 'Low TE', ktc_value: 5000, position_rank: 'TE4' },
+        topqb: { name: 'Top QB', ktc_value: 5000, redraft_value: 9000, position_rank: 'QB4' },
+        toprb: { name: 'Top RB', ktc_value: 5000, redraft_value: 9000, position_rank: 'RB6' },
+        topwr: { name: 'Top WR', ktc_value: 5000, redraft_value: 9000, position_rank: 'WR8' },
+        topte: { name: 'Top TE', ktc_value: 5000, redraft_value: 9000, position_rank: 'TE3' },
+        lowqb: { name: 'Low QB', ktc_value: 5000, redraft_value: 1000, position_rank: 'QB5' },
+        lowrb: { name: 'Low RB', ktc_value: 5000, redraft_value: 1000, position_rank: 'RB7' },
+        lowwr: { name: 'Low WR', ktc_value: 5000, redraft_value: 1000, position_rank: 'WR9' },
+        lowte: { name: 'Low TE', ktc_value: 5000, redraft_value: 1000, position_rank: 'TE4' },
       },
       {}
     );
@@ -308,10 +308,12 @@ describe('generateReport trade ledger', () => {
       TE_starters: 1,
     });
     expect(report.managerPositionCounts[1]).toMatchObject({
-      QB_starters: 0,
-      RB_starters: 0,
-      WR_starters: 0,
-      TE_starters: 0,
+      QB_starters: 1,
+      RB_starters: 1,
+      WR_starters: 1,
+      TE_starters: 1,
     });
+    expect(report.managerPositionCounts[0].starterPlayers?.find((player) => player.pos === 'QB')?.seasonPositionRank).toBe('QB1');
+    expect(report.managerPositionCounts[1].starterPlayers?.find((player) => player.pos === 'QB')?.seasonPositionRank).toBe('QB2');
   });
 });

@@ -248,6 +248,41 @@ function isStarterRank(
   return position in starterThresholds && rankNumber <= starterThresholds[position as keyof StarterThresholds];
 }
 
+function buildSeasonPositionRanks(
+  playerIds: string[],
+  allPlayers: Player,
+  ktcValues: KTCValues
+): Record<string, string | null> {
+  const byPosition: Record<'QB' | 'RB' | 'WR' | 'TE', Array<{ pid: string; value: number }>> = {
+    QB: [],
+    RB: [],
+    WR: [],
+    TE: [],
+  };
+  const seen = new Set<string>();
+
+  for (const pid of playerIds) {
+    if (seen.has(pid)) continue;
+    seen.add(pid);
+    const pos = allPlayers[pid]?.position;
+    if (!pos || !(pos in byPosition)) continue;
+    const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || getPlayerValue(pid, allPlayers, ktcValues);
+    if (seasonValue <= 0) continue;
+    byPosition[pos as keyof typeof byPosition].push({ pid, value: seasonValue });
+  }
+
+  const ranks: Record<string, string | null> = {};
+  for (const [pos, players] of Object.entries(byPosition)) {
+    players
+      .sort((a, b) => b.value - a.value)
+      .forEach((player, index) => {
+        ranks[player.pid] = `${pos}${index + 1}`;
+      });
+  }
+
+  return ranks;
+}
+
 function getRankNumber(positionRank: string | null | undefined): number | null {
   const rankNumber = Number(positionRank?.match(/\d+/)?.[0]);
   return Number.isFinite(rankNumber) ? rankNumber : null;
@@ -321,7 +356,7 @@ function pickDistinctPlayer<T extends ManagerIntelPlayer>(
 }
 
 function getRankLabel(player?: ManagerIntelPlayer | null): string {
-  return player?.currentPositionRank || player?.pos || 'unranked';
+  return player?.seasonPositionRank || player?.currentPositionRank || player?.pos || 'unranked';
 }
 
 function getPlayerGamesMissed(player?: ManagerIntelPlayer | null): number | null {
@@ -379,10 +414,10 @@ function getNeedPosition({
   if (holeParts.some((part) => part.includes('TE'))) return 'TE';
   if (holeParts.some((part) => part.includes('QB'))) return 'QB';
   const candidates: Array<{ pos: 'QB' | 'RB' | 'WR' | 'TE'; rank: number }> = [
-    { pos: 'QB', rank: getRankNumber(qbs[1]?.currentPositionRank) || getRankNumber(qbs[0]?.currentPositionRank) || 999 },
-    { pos: 'RB', rank: getRankNumber(rbs[1]?.currentPositionRank) || 999 },
-    { pos: 'WR', rank: getRankNumber(wrs[2]?.currentPositionRank) || getRankNumber(wrs[1]?.currentPositionRank) || 999 },
-    { pos: 'TE', rank: getRankNumber(tes[0]?.currentPositionRank) || 999 },
+    { pos: 'QB', rank: getRankNumber(qbs[1]?.seasonPositionRank || qbs[1]?.currentPositionRank) || getRankNumber(qbs[0]?.seasonPositionRank || qbs[0]?.currentPositionRank) || 999 },
+    { pos: 'RB', rank: getRankNumber(rbs[1]?.seasonPositionRank || rbs[1]?.currentPositionRank) || 999 },
+    { pos: 'WR', rank: getRankNumber(wrs[2]?.seasonPositionRank || wrs[2]?.currentPositionRank) || getRankNumber(wrs[1]?.seasonPositionRank || wrs[1]?.currentPositionRank) || 999 },
+    { pos: 'TE', rank: getRankNumber(tes[0]?.seasonPositionRank || tes[0]?.currentPositionRank) || 999 },
   ];
   return candidates.sort((a, b) => b.rank - a.rank)[0]?.pos || null;
 }
@@ -476,6 +511,11 @@ export async function generateReport(
   lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {}
 ): Promise<ReportData> {
   const starterThresholds = getStarterThresholds(currentSeasonData.rosters.length || 10);
+  const seasonPositionRankById = buildSeasonPositionRanks(
+    currentSeasonData.rosters.flatMap((roster) => roster.players || []),
+    allPlayers,
+    ktcValues
+  );
   const tradeSnapshotCache: Record<string, KTCValues> = {};
   const getTradeSnapshot = (tradeDate: string): KTCValues => {
     if (!tradeSnapshotCache[tradeDate]) {
@@ -909,7 +949,9 @@ export async function generateReport(
       name: string;
       pos: string;
       value: number;
+      seasonValue?: number;
       currentPositionRank?: string | null;
+      seasonPositionRank?: string | null;
       playerDetails?: PlayerDetails;
     }>;
     lineupPlayers: Array<{
@@ -917,7 +959,9 @@ export async function generateReport(
       name: string;
       pos: string;
       value: number;
+      seasonValue?: number;
       currentPositionRank?: string | null;
+      seasonPositionRank?: string | null;
       playerDetails?: PlayerDetails;
     }>;
   }> = [];
@@ -932,7 +976,9 @@ export async function generateReport(
       name: string;
       pos: string;
       value: number;
+      seasonValue?: number;
       currentPositionRank?: string | null;
+      seasonPositionRank?: string | null;
       playerDetails?: PlayerDetails;
     }> = [];
     const starterPlayers: Array<{
@@ -940,7 +986,9 @@ export async function generateReport(
       name: string;
       pos: string;
       value: number;
+      seasonValue?: number;
       currentPositionRank?: string | null;
+      seasonPositionRank?: string | null;
       playerDetails?: PlayerDetails;
     }> = [];
 
@@ -951,25 +999,31 @@ export async function generateReport(
         posCounts[pos]++;
         const positionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
         const value = getPlayerValue(pid, allPlayers, ktcValues);
+        const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
+        const seasonPositionRank = seasonPositionRankById[pid] || null;
         const playerDetails = getPlayerDetails(pid, allPlayers);
-        if (positionRank) {
+        if (positionRank || seasonPositionRank) {
           lineupPlayers.push({
             player_id: pid,
             name: getPlayerName(pid, allPlayers),
             pos,
             value,
+            seasonValue,
             currentPositionRank: positionRank,
+            seasonPositionRank,
             playerDetails,
           });
         }
-        if (isStarterRank(pos, positionRank, starterThresholds)) {
+        if (isStarterRank(pos, seasonPositionRank, starterThresholds)) {
           posStarterCounts[pos]++;
           starterPlayers.push({
             player_id: pid,
             name: getPlayerName(pid, allPlayers),
             pos,
             value,
+            seasonValue,
             currentPositionRank: positionRank,
+            seasonPositionRank,
             playerDetails,
           });
         }
@@ -986,10 +1040,21 @@ export async function generateReport(
       WR_starters: posStarterCounts.WR,
       TE: posCounts.TE,
       TE_starters: posStarterCounts.TE,
-      starterPlayers: starterPlayers.sort((a, b) => b.value - a.value),
-      lineupPlayers: lineupPlayers.sort((a, b) => b.value - a.value),
+      starterPlayers: starterPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
+      lineupPlayers: lineupPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
     });
   }
+
+  const seasonRosterValues: Record<string, number> = Object.fromEntries(
+    currentSeasonData.rosters.map((roster) => {
+      const manager = currentSeasonData.rosterMap[roster.roster_id];
+      const value = (roster.players || []).reduce((sum, pid) => {
+        return sum + (getPlayerRedraftValue(pid, allPlayers, ktcValues) || getPlayerValue(pid, allPlayers, ktcValues));
+      }, 0);
+      return [manager, value];
+    })
+  );
+  const maxSeasonRosterValue = Math.max(...Object.values(seasonRosterValues), 1);
 
   const managerRosterIntelligence = currentSeasonData.rosters.map((r) => {
     const manager = currentSeasonData.rosterMap[r.roster_id];
@@ -998,8 +1063,10 @@ export async function generateReport(
         const player = allPlayers[pid];
         const pos = player?.position || 'UNK';
         const currentPositionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
+        const seasonPositionRank = seasonPositionRankById[pid] || null;
         const lastSeasonRank = lastSeasonPositionRanks[pid];
         const value = getPlayerValue(pid, allPlayers, ktcValues);
+        const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
         if (!['QB', 'RB', 'WR', 'TE'].includes(pos) || value <= 0) return null;
 
         return {
@@ -1008,7 +1075,9 @@ export async function generateReport(
           pos,
           owner: manager,
           value,
+          seasonValue,
           currentPositionRank,
+          seasonPositionRank,
           lastSeasonPositionRank: lastSeasonRank?.positionRank || null,
           lastSeasonFantasyPoints: lastSeasonRank?.fantasyPoints ?? null,
           lastSeasonGames: lastSeasonRank?.games ?? null,
@@ -1016,7 +1085,7 @@ export async function generateReport(
           lastSeasonYear: lastSeasonRank?.season || null,
           playerDetails: getPlayerDetails(pid, allPlayers),
           age: player?.age ?? null,
-          isStarter: isStarterRank(pos, currentPositionRank, starterThresholds),
+          isStarter: isStarterRank(pos, seasonPositionRank, starterThresholds),
         };
       })
       .filter((player): player is ManagerIntelPlayer & { age: number | null; isStarter: boolean } => Boolean(player));
@@ -1026,8 +1095,10 @@ export async function generateReport(
         const player = allPlayers[pid];
         const pos = player?.position || 'UNK';
         const currentPositionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
+        const seasonPositionRank = seasonPositionRankById[pid] || null;
         const lastSeasonRank = lastSeasonPositionRanks[pid];
         const value = getPlayerValue(pid, allPlayers, ktcValues);
+        const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
         if (!['QB', 'RB', 'WR', 'TE'].includes(pos) || value <= 0) return null;
         const owner = currentSeasonData.rosterMap[otherRoster.roster_id];
         return {
@@ -1036,7 +1107,9 @@ export async function generateReport(
           pos,
           owner,
           value,
+          seasonValue,
           currentPositionRank,
+          seasonPositionRank,
           lastSeasonPositionRank: lastSeasonRank?.positionRank || null,
           lastSeasonFantasyPoints: lastSeasonRank?.fantasyPoints ?? null,
           lastSeasonGames: lastSeasonRank?.games ?? null,
@@ -1044,15 +1117,17 @@ export async function generateReport(
           lastSeasonYear: lastSeasonRank?.season || null,
           playerDetails: getPlayerDetails(pid, allPlayers),
           age: player?.age ?? null,
-          isStarter: isStarterRank(pos, currentPositionRank, starterThresholds),
+          isStarter: isStarterRank(pos, seasonPositionRank, starterThresholds),
         };
       }))
       .filter((player): player is ManagerIntelPlayer & { age: number | null; isStarter: boolean } => Boolean(player));
 
-    const starters = rosterPlayers.filter((player) => player.isStarter).sort((a, b) => b.value - a.value);
+    const starters = rosterPlayers
+      .filter((player) => player.isStarter)
+      .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value));
     const bench = rosterPlayers.filter((player) => !player.isStarter).sort((a, b) => b.value - a.value);
     const starterValue = starters.reduce((sum, player) => sum + player.value, 0);
-    const starterSeasonValue = starters.reduce((sum, player) => sum + getPlayerRedraftValue(player.player_id, allPlayers, ktcValues), 0);
+    const starterSeasonValue = starters.reduce((sum, player) => sum + (player.seasonValue || getPlayerRedraftValue(player.player_id, allPlayers, ktcValues)), 0);
     const benchValue = bench.reduce((sum, player) => sum + player.value, 0);
     const totalValue = starterValue + benchValue;
     const starterValuePct = totalValue > 0 ? Math.round((starterValue / totalValue) * 100) : 0;
@@ -1066,14 +1141,14 @@ export async function generateReport(
 
     const byPos = (pos: string) => rosterPlayers
       .filter((player) => player.pos === pos)
-      .sort((a, b) => (getRankNumber(a.currentPositionRank) || 999) - (getRankNumber(b.currentPositionRank) || 999));
+      .sort((a, b) => (getRankNumber(a.seasonPositionRank || a.currentPositionRank) || 999) - (getRankNumber(b.seasonPositionRank || b.currentPositionRank) || 999));
     const qbs = byPos('QB');
     const rbs = byPos('RB');
     const wrs = byPos('WR');
     const tes = byPos('TE');
-    const rb2RankNumber = getRankNumber(rbs[1]?.currentPositionRank);
-    const wr2RankNumber = getRankNumber(wrs[1]?.currentPositionRank);
-    const te1RankNumber = getRankNumber(tes[0]?.currentPositionRank);
+    const rb2RankNumber = getRankNumber(rbs[1]?.seasonPositionRank || rbs[1]?.currentPositionRank);
+    const wr2RankNumber = getRankNumber(wrs[1]?.seasonPositionRank || wrs[1]?.currentPositionRank);
+    const te1RankNumber = getRankNumber(tes[0]?.seasonPositionRank || tes[0]?.currentPositionRank);
     const teamCount = currentSeasonData.rosters.length || 10;
     const coreRbLine = Math.max(1, teamCount * 2);
     const coreWrLine = Math.max(1, teamCount * 2);
@@ -1084,13 +1159,13 @@ export async function generateReport(
       TE: Math.max(coreTeLine, Math.round(teamCount * 1.5)),
     };
     const coreFlexPlayers = [
-      ...rbs.slice(0, 2).filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= coreRbLine),
-      ...wrs.slice(0, 2).filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= coreWrLine),
+      ...rbs.slice(0, 2).filter((player) => (getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999) <= coreRbLine),
+      ...wrs.slice(0, 2).filter((player) => (getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999) <= coreWrLine),
     ].length;
     const benchFlexCandidates = [
-      ...rbs.slice(2).filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.RB),
-      ...wrs.slice(2).filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.WR),
-      ...tes.slice(1).filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.TE),
+      ...rbs.slice(2).filter((player) => (getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999) <= flexDepthLine.RB),
+      ...wrs.slice(2).filter((player) => (getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999) <= flexDepthLine.WR),
+      ...tes.slice(1).filter((player) => (getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999) <= flexDepthLine.TE),
     ].length;
     const starterGamesMissed = starters
       .map(getPlayerGamesMissed)
@@ -1100,9 +1175,9 @@ export async function generateReport(
       .filter((player) => getPlayerGamesMissed(player) !== null)
       .sort((a, b) => (getPlayerGamesMissed(b) || 0) - (getPlayerGamesMissed(a) || 0))[0] || null;
     const flexDepth = [
-      ...rbs.filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.RB),
-      ...wrs.filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.WR),
-      ...tes.filter((player) => (getRankNumber(player.currentPositionRank) || 999) <= flexDepthLine.TE),
+      ...rbs.filter((player) => (getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999) <= flexDepthLine.RB),
+      ...wrs.filter((player) => (getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999) <= flexDepthLine.WR),
+      ...tes.filter((player) => (getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999) <= flexDepthLine.TE),
     ].length;
     const hasLightFlexDepth = coreFlexPlayers < 4 || benchFlexCandidates === 0;
     const holeParts = [
@@ -1129,7 +1204,7 @@ export async function generateReport(
       finalRanks[manager]?.current_VALUE || 99,
       finalRanks[manager]?.['2027_VALUE'] || 99
     );
-    const contenderScore = normalizeScore(starterSeasonValue || starterValue, Math.max(...Object.values(teamData).map((data) => data.total_val)));
+    const contenderScore = normalizeScore(starterSeasonValue || starterValue, maxSeasonRosterValue);
     const rebuildScore = Math.round(((100 - starterValuePct) * 0.35) + ((avgAge !== null ? Math.max(0, 28 - avgAge) * 8 : 35) * 0.65));
     const isContenderBuild = contenderScore >= rebuildScore || contenderScore >= 65;
     const timeline = getTimelineLabel(contenderScore, rebuildScore, avgAge !== null ? Math.max(0, avgAge - 25) * 18 : 0);
@@ -1137,7 +1212,7 @@ export async function generateReport(
     const bestBenchStash = pickDistinctPlayer(bench, usedInsightPlayerIds);
     const starterUpgradeCandidates = [...starters]
       .filter((player) => {
-        const rank = getRankNumber(player.currentPositionRank) || 999;
+        const rank = getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999;
         const seasonValue = getSeasonValue(player, allPlayers, ktcValues);
         const rankLine = player.pos === 'QB' ? teamCount * 2 : player.pos === 'RB' ? teamCount * 3 : player.pos === 'WR' ? teamCount * 4 : Math.round(teamCount * 1.5);
         return rank > rankLine || seasonValue < 3500;
@@ -1325,10 +1400,10 @@ export async function generateReport(
       },
       ageFlags,
       holes: {
-        bestQbRank: qbs[0]?.currentPositionRank || null,
-        rb2Rank: rbs[1]?.currentPositionRank || null,
-        wr3Rank: wrs[2]?.currentPositionRank || null,
-        te1Rank: tes[0]?.currentPositionRank || null,
+        bestQbRank: qbs[0]?.seasonPositionRank || qbs[0]?.currentPositionRank || null,
+        rb2Rank: rbs[1]?.seasonPositionRank || rbs[1]?.currentPositionRank || null,
+        wr3Rank: wrs[2]?.seasonPositionRank || wrs[2]?.currentPositionRank || null,
+        te1Rank: tes[0]?.seasonPositionRank || tes[0]?.currentPositionRank || null,
         flexDepth,
         summary: holeParts.length > 0 ? holeParts.join(', ') : 'No major roster hole flagged',
       },
@@ -1336,7 +1411,7 @@ export async function generateReport(
   });
 
   const maxTotalValue = Math.max(...Object.values(teamData).map((data) => data.total_val), 1);
-  const maxStarterValue = Math.max(...managerRosterIntelligence.map((row) => row.starterValue), 1);
+  const maxStarterValue = Math.max(...managerRosterIntelligence.map((row) => row.starterSeasonValue || row.starterValue), 1);
   const maxDraftCapital = 1;
   const maxTradeAbs = Math.max(...Object.values(managerProfits).map((profit) => Math.abs(profit)), 1);
 
@@ -1379,7 +1454,7 @@ export async function generateReport(
   const powerRankings = managerRosterIntelligence
     .map((intel) => {
       const data = teamData[intel.manager];
-      const starterStrength = Math.round(normalizeScore(intel.starterValue, maxStarterValue));
+      const starterStrength = Math.round(normalizeScore(intel.starterSeasonValue || intel.starterValue, maxStarterValue));
       const rosterValue = Math.round(normalizeScore(data.total_val, maxTotalValue));
       const positionalRanks = ['QB', 'RB', 'WR', 'TE'].map((pos) => finalRanks[intel.manager]?.[`current_${pos}`] || currentSeasonData.rosters.length);
       const positionalBalance = Math.round(100 - ((Math.max(...positionalRanks) - Math.min(...positionalRanks)) * (100 / Math.max(1, currentSeasonData.rosters.length))));

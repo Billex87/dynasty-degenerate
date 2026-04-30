@@ -59,7 +59,9 @@ export interface ManagerStarterPlayer {
   pos: string;
   owner?: string | null;
   value: number;
+  seasonValue?: number;
   currentPositionRank?: string | null;
+  seasonPositionRank?: string | null;
   playerDetails?: PlayerDetails;
 }
 
@@ -69,7 +71,9 @@ export interface ManagerIntelPlayer {
   pos: string;
   owner?: string | null;
   value: number;
+  seasonValue?: number;
   currentPositionRank?: string | null;
+  seasonPositionRank?: string | null;
   lastSeasonPositionRank?: string | null;
   lastSeasonFantasyPoints?: number | null;
   lastSeasonGames?: number | null;
