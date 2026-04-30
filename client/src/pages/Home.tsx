@@ -4,6 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3, Repeat2, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
@@ -28,6 +36,7 @@ import type { ReportData } from '@shared/types';
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
 const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v2';
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
+const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 
 type SleeperLeagueOption = {
   leagueId: string;
@@ -50,6 +59,12 @@ type CachedReport = {
 
 type LastLeague = Omit<CachedReport, 'reportData'>;
 
+type SleeperSession = {
+  username: string;
+  leagues: SleeperLeagueOption[];
+  savedAt: number;
+};
+
 export default function Home() {
   const [leagueId, setLeagueId] = useState('');
   const [sleeperUsername, setSleeperUsername] = useState('');
@@ -60,6 +75,7 @@ export default function Home() {
   const [leagueLogo, setLeagueLogo] = useState<string | null>(null);
   const [leagueFormat, setLeagueFormat] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
 
   const analyzeMutation = trpc.league.analyze.useMutation({
     onSuccess: (data) => {
@@ -84,6 +100,18 @@ export default function Home() {
         toast.error('No Sleeper leagues found for this username');
         return;
       }
+      try {
+        localStorage.setItem(
+          SLEEPER_SESSION_KEY,
+          JSON.stringify({
+            username: sleeperUsername.trim(),
+            leagues: data.leagues,
+            savedAt: Date.now(),
+          } satisfies SleeperSession)
+        );
+      } catch {
+        // Losing this cache only affects the league switcher, not the report itself.
+      }
       toast.success(`Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? '' : 's'}`);
     },
     onError: (error) => {
@@ -92,6 +120,17 @@ export default function Home() {
   });
 
   useEffect(() => {
+    try {
+      const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
+      if (sleeperSession) {
+        const parsed = JSON.parse(sleeperSession) as SleeperSession;
+        setSleeperUsername(parsed.username || '');
+        setUserLeagues(Array.isArray(parsed.leagues) ? parsed.leagues : []);
+      }
+    } catch {
+      localStorage.removeItem(SLEEPER_SESSION_KEY);
+    }
+
     try {
       const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
       if (cachedReport) {
@@ -168,15 +207,34 @@ export default function Home() {
     userLeaguesMutation.mutate({ username: sleeperUsername.trim() });
   };
 
-  const handleResetLeague = () => {
+  const handleStartOver = () => {
     localStorage.removeItem(REPORT_CACHE_KEY);
     localStorage.removeItem(LAST_LEAGUE_KEY);
+    localStorage.removeItem(SLEEPER_SESSION_KEY);
+    setIsLeaguePickerOpen(false);
     setReportData(null);
+    setLeagueId('');
+    setSleeperUsername('');
     setLeagueName('');
     setLeagueLogo(null);
     setLeagueFormat('');
     setUserLeagues([]);
     setActiveTab('overview');
+  };
+
+  const handleAnalyzeAnotherLeague = () => {
+    if (userLeagues.length > 0) {
+      setIsLeaguePickerOpen(true);
+      return;
+    }
+    handleStartOver();
+  };
+
+  const handleAnalyzeLeagueOption = (nextLeagueId: string) => {
+    setIsLeaguePickerOpen(false);
+    localStorage.removeItem(REPORT_CACHE_KEY);
+    setReportData(null);
+    handleAnalyze(nextLeagueId);
   };
 
   if (reportData) {
@@ -418,7 +476,7 @@ export default function Home() {
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
             <div className="flex justify-center">
               <Button
-                onClick={handleResetLeague}
+                onClick={handleAnalyzeAnotherLeague}
                 variant="outline"
                 className="border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
               >
@@ -427,6 +485,53 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        <Dialog open={isLeaguePickerOpen} onOpenChange={setIsLeaguePickerOpen}>
+          <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
+            <DialogHeader className="text-center">
+              <DialogTitle className="athletic-headline text-3xl text-orange-400">
+                Pick Another League
+              </DialogTitle>
+              <DialogDescription className="text-cyan-100/70">
+                Signed in as {sleeperUsername || 'your Sleeper account'}. Choose one of your current Sleeper leagues.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="home-league-picker league-switch-picker">
+              {userLeagues.map((league) => (
+                <button
+                  key={league.leagueId}
+                  type="button"
+                  className="home-league-card"
+                  onClick={() => handleAnalyzeLeagueOption(league.leagueId)}
+                >
+                  {league.avatarUrl ? (
+                    <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
+                  ) : (
+                    <span className="home-league-card-icon home-league-card-fallback">
+                      {league.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="min-w-0 text-left">
+                    <span className="home-league-card-name">{league.name}</span>
+                    <span className="home-league-card-format">
+                      {league.format || `${league.totalRosters || '?'}-Team Dynasty`}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+            <DialogFooter className="league-switch-footer sm:justify-center">
+              <Button
+                type="button"
+                onClick={handleStartOver}
+                variant="outline"
+                className="w-full border-orange-500/30 text-orange-300 hover:bg-orange-500/10 sm:w-auto"
+              >
+                Analyze Another League
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
