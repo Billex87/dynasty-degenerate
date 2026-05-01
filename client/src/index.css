@@ -379,39 +379,67 @@
 
   .home-league-picker {
     display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.65rem;
   }
 
   .home-league-card {
+    position: relative;
     display: flex;
+    min-height: 7.7rem;
     min-width: 0;
-    align-items: center;
-    gap: 0.8rem;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.62rem;
+    overflow: hidden;
     border: 1px solid rgba(34, 211, 238, 0.18);
     border-radius: 0.95rem;
     background:
-      radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.12), transparent 38%),
-      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.1), transparent 42%),
-      linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.6));
-    padding: 0.75rem;
+      radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.18), transparent 42%),
+      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.16), transparent 44%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.66));
+    padding: 0.8rem;
     color: #f8fafc;
     text-align: left;
     transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
   }
 
+  .home-league-card > :not(.home-league-card-watermark) {
+    position: relative;
+    z-index: 1;
+  }
+
+  .home-league-card > .min-w-0 {
+    width: 100%;
+  }
+
+  .home-league-card-watermark {
+    position: absolute;
+    right: -1.35rem;
+    top: -1.45rem;
+    z-index: 0;
+    height: 7rem;
+    width: 7rem;
+    border-radius: 999px;
+    object-fit: cover;
+    opacity: 0.16;
+    filter: blur(7px) saturate(1.35);
+    pointer-events: none;
+  }
+
   .home-league-card:hover {
     border-color: rgba(34, 211, 238, 0.38);
     background:
-      radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.16), transparent 38%),
-      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.14), transparent 42%),
-      linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(2, 6, 23, 0.7));
+      radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.22), transparent 42%),
+      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.2), transparent 44%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.93), rgba(2, 6, 23, 0.72));
     transform: translateY(-1px);
   }
 
   .home-league-card-icon {
-    width: 2.9rem;
-    height: 2.9rem;
+    width: clamp(2.55rem, 10vw, 3.15rem);
+    height: clamp(2.55rem, 10vw, 3.15rem);
     flex: 0 0 auto;
     border-radius: 999px;
     border: 1px solid rgba(34, 211, 238, 0.28);
@@ -440,7 +468,7 @@
 
   .home-league-card-name {
     color: #fb923c;
-    font-size: 0.95rem;
+    font-size: clamp(0.82rem, 3.2vw, 0.98rem);
     font-weight: 950;
     line-height: 1.15;
   }
@@ -448,7 +476,7 @@
   .home-league-card-format {
     margin-top: 0.18rem;
     color: rgba(103, 232, 249, 0.78);
-    font-size: 0.78rem;
+    font-size: clamp(0.68rem, 2.7vw, 0.78rem);
     font-weight: 800;
   }
 
@@ -469,12 +497,6 @@
   .league-switch-footer {
     border-top: 1px solid rgba(34, 211, 238, 0.14);
     padding-top: 0.9rem;
-  }
-
-  @media (min-width: 640px) {
-    .home-league-picker {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
   }
 
   .home-feature-card {

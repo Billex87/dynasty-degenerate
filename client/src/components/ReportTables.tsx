@@ -419,15 +419,28 @@ function parseTradePickItem(trimmed: string) {
   const payload = trimmed.replace('PICK:', '');
   const [label, value] = payload.split('|');
   const match = label.match(/^(\d{4}) (.+) (\d+)(?:st|nd|rd|th)(?: \((\d+\.\d+)\))?$/);
+  const draftYear = match?.[1] ?? null;
+  const round = match?.[3] ? Number(match[3]) : null;
+  const pickNumber = match?.[4] ?? null;
 
   return {
     label,
+    displayLabel: draftYear && round
+      ? `${draftYear} ${formatPickRound(round)}${pickNumber ? ` (${pickNumber})` : ''}`
+      : label,
     value: value ? Number(value) : null,
-    draftYear: match?.[1] ?? null,
+    draftYear,
     originalOwner: match?.[2] ?? null,
-    round: match?.[3] ? Number(match[3]) : null,
-    pickNumber: match?.[4] ?? null,
+    round,
+    pickNumber,
   };
+}
+
+function formatPickRound(round: number): string {
+  if (round === 1) return '1st';
+  if (round === 2) return '2nd';
+  if (round === 3) return '3rd';
+  return `${round}th`;
 }
 
 function findLandedPick(
@@ -549,7 +562,7 @@ function renderTradeItem(
           <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-orange-500/15 px-2 text-xs font-black text-orange-300">
             PICK
           </span>
-          <span className="min-w-0 flex-1 truncate">{pickItem.label}</span>
+          <span className="min-w-0 flex-1 truncate" title={pickItem.label}>{pickItem.displayLabel}</span>
           {pickItem.value !== null && (
             <span className="value-pill">
               {pickItem.value.toLocaleString()}

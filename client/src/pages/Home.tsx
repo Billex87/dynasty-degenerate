@@ -615,6 +615,9 @@ export default function Home() {
                   onClick={() => handleAnalyzeLeagueOption(league.leagueId)}
                 >
                   {league.avatarUrl ? (
+                    <img src={league.avatarUrl} alt="" aria-hidden="true" className="home-league-card-watermark" />
+                  ) : null}
+                  {league.avatarUrl ? (
                     <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
                   ) : (
                     <span className="home-league-card-icon home-league-card-fallback">
@@ -741,6 +744,9 @@ export default function Home() {
                       className="home-league-card"
                       onClick={() => handleAnalyze(league.leagueId)}
                     >
+                      {league.avatarUrl ? (
+                        <img src={league.avatarUrl} alt="" aria-hidden="true" className="home-league-card-watermark" />
+                      ) : null}
                       {league.avatarUrl ? (
                         <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
                       ) : (
