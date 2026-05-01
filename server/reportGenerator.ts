@@ -8,7 +8,7 @@ import {
   calculateValueAdjustment,
 } from './leagueAnalysis';
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
-import type { ManagerIntelPlayer, PlayerDetails, ReportData } from '../shared/types';
+import type { ManagerIntelPlayer, PlayerDetails, ReportData, TaxiTriageAction, TaxiTriageItem } from '../shared/types';
 
 export interface KTCValues {
   [key: string]: {
@@ -85,6 +85,7 @@ interface Roster {
   roster_id: number;
   owner_id: string;
   players: string[];
+  taxi?: string[];
 }
 
 interface Trade {
@@ -369,6 +370,110 @@ function getAvailabilityRisk(avgGamesMissed: number | null): 'low' | 'medium' | 
   if (avgGamesMissed >= 3) return 'high';
   if (avgGamesMissed >= 1.5) return 'medium';
   return 'low';
+}
+
+function createTaxiCounts(): Record<TaxiTriageAction, number> {
+  return {
+    'Promote Now': 0,
+    'Keep Parked': 0,
+    'Trade Sweetener': 0,
+    Cuttable: 0,
+    'Taxi Risk': 0,
+  };
+}
+
+function getTaxiAgeRiskLine(position: string): number {
+  if (position === 'RB') return 24.5;
+  if (position === 'WR') return 25.5;
+  if (position === 'TE') return 26.5;
+  if (position === 'QB') return 27.5;
+  return 25.5;
+}
+
+function getTaxiTriageAction({
+  player,
+  starterThresholds,
+  needPosition,
+  weakestStarter,
+}: {
+  player: ManagerIntelPlayer;
+  starterThresholds: StarterThresholds;
+  needPosition: 'QB' | 'RB' | 'WR' | 'TE' | null;
+  weakestStarter: ManagerIntelPlayer | null;
+}): { action: TaxiTriageAction; reason: string; score: number } {
+  const position = player.pos as keyof StarterThresholds;
+  const starterLine = starterThresholds[position] || 0;
+  const rankNumber = getRankNumber(player.seasonPositionRank || player.currentPositionRank);
+  const age = player.playerDetails?.age ?? null;
+  const seasonValue = player.seasonValue || player.value;
+  const weakestStarterValue = weakestStarter ? (weakestStarter.seasonValue || weakestStarter.value) : 0;
+  const isStarterGrade = position in starterThresholds && rankNumber !== null && rankNumber <= starterLine;
+  const fillsNeed = needPosition === player.pos;
+  const depthLine = Math.round(starterLine * 1.75);
+
+  if (isStarterGrade || (fillsNeed && rankNumber !== null && rankNumber <= depthLine && seasonValue >= Math.max(900, weakestStarterValue * 0.72))) {
+    return {
+      action: 'Promote Now',
+      reason: `${getRankLabel(player)} is close enough to starter-grade value that this player should be competing for an active bench spot, especially with ${player.pos} need on the roster.`,
+      score: 5000 + seasonValue,
+    };
+  }
+
+  if (player.value < 450 && (!rankNumber || rankNumber > depthLine)) {
+    return {
+      action: 'Cuttable',
+      reason: `Low dynasty value and no useful positional-rank signal yet. This is the first taxi spot to churn if waivers produce a better stash.`,
+      score: 1000 - player.value,
+    };
+  }
+
+  if (player.value >= 1800) {
+    return {
+      action: 'Trade Sweetener',
+      reason: `${getRankLabel(player)} still carries enough dynasty value to matter in a deal, but does not force a promotion yet.`,
+      score: 4000 + player.value,
+    };
+  }
+
+  if (age !== null && age >= getTaxiAgeRiskLine(player.pos)) {
+    return {
+      action: 'Taxi Risk',
+      reason: `${age} years old is getting late for a taxi stash at ${player.pos}. This player needs a role soon or the roster spot gets expensive.`,
+      score: 2000 + player.value,
+    };
+  }
+
+  if (player.value >= 700 || (rankNumber !== null && rankNumber <= depthLine)) {
+    return {
+      action: 'Keep Parked',
+      reason: `Young or ranked enough to keep developing, but not urgent enough to activate over current roster pieces.`,
+      score: 3000 + player.value,
+    };
+  }
+
+  return {
+    action: 'Cuttable',
+    reason: `No clear dynasty value, rank, or near-term role signal. Treat this as a churnable taxi stash.`,
+    score: 1000 - player.value,
+  };
+}
+
+function buildTaxiTriageSummary(items: TaxiTriageItem[]): string {
+  if (!items.length) return 'No taxi players reported by Sleeper for this roster.';
+
+  const counts = items.reduce((acc, item) => {
+    acc[item.taxiAction] = (acc[item.taxiAction] || 0) + 1;
+    return acc;
+  }, createTaxiCounts());
+  const parts = [
+    counts['Promote Now'] ? `${counts['Promote Now']} should be promoted` : null,
+    counts['Keep Parked'] ? `${counts['Keep Parked']} can stay parked` : null,
+    counts['Trade Sweetener'] ? `${counts['Trade Sweetener']} work as trade sweeteners` : null,
+    counts['Taxi Risk'] ? `${counts['Taxi Risk']} are taxi risks` : null,
+    counts.Cuttable ? `${counts.Cuttable} look cuttable` : null,
+  ].filter(Boolean);
+
+  return `Taxi squad read: ${parts.join(', ')}.`;
 }
 
 function describeAvailability(riskiestStarter: ManagerIntelPlayer | null, avgGamesMissed: number | null): string {
@@ -1360,8 +1465,8 @@ export async function generateReport(
 
   const managerRosterIntelligence = currentSeasonData.rosters.map((r) => {
     const manager = currentSeasonData.rosterMap[r.roster_id];
-    const rosterPlayers = (r.players || [])
-      .map((pid): (ManagerIntelPlayer & { age: number | null; isStarter: boolean }) | null => {
+    type BuiltIntelPlayer = ManagerIntelPlayer & { age: number | null; isStarter: boolean };
+    const buildIntelPlayer = (pid: string, owner: string): BuiltIntelPlayer | null => {
         const player = allPlayers[pid];
         const pos = player?.position || 'UNK';
         const currentPositionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
@@ -1389,40 +1494,23 @@ export async function generateReport(
           age: player?.age ?? null,
           isStarter: isStarterRank(pos, seasonPositionRank, starterThresholds),
         };
-      })
-      .filter((player): player is ManagerIntelPlayer & { age: number | null; isStarter: boolean } => Boolean(player));
+      };
+    const taxiIds = new Set(r.taxi || []);
+    const activePlayerIds = (r.players || []).filter((pid) => !taxiIds.has(pid));
+    const rosterPlayers = activePlayerIds
+      .map((pid) => buildIntelPlayer(pid, manager))
+      .filter((player): player is BuiltIntelPlayer => Boolean(player));
+    const taxiPlayers = (r.taxi || [])
+      .map((pid) => buildIntelPlayer(pid, manager))
+      .filter((player): player is BuiltIntelPlayer => Boolean(player));
     const externalPlayers = currentSeasonData.rosters
       .filter((otherRoster) => otherRoster.roster_id !== r.roster_id)
-      .flatMap((otherRoster) => (otherRoster.players || []).map((pid): (ManagerIntelPlayer & { age: number | null; isStarter: boolean }) | null => {
-        const player = allPlayers[pid];
-        const pos = player?.position || 'UNK';
-        const currentPositionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
-        const seasonPositionRank = seasonPositionRankById[pid] || null;
-        const lastSeasonRank = lastSeasonPositionRanks[pid];
-        const value = getPlayerValue(pid, allPlayers, ktcValues);
-        const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
-        if (!['QB', 'RB', 'WR', 'TE'].includes(pos) || value <= 0) return null;
+      .flatMap((otherRoster) => {
         const owner = currentSeasonData.rosterMap[otherRoster.roster_id];
-        return {
-          player_id: pid,
-          name: getPlayerName(pid, allPlayers),
-          pos,
-          owner,
-          value,
-          seasonValue,
-          currentPositionRank,
-          seasonPositionRank,
-          lastSeasonPositionRank: lastSeasonRank?.positionRank || null,
-          lastSeasonFantasyPoints: lastSeasonRank?.fantasyPoints ?? null,
-          lastSeasonGames: lastSeasonRank?.games ?? null,
-          lastSeasonPointsPerGame: lastSeasonRank?.pointsPerGame ?? null,
-          lastSeasonYear: lastSeasonRank?.season || null,
-          playerDetails: getPlayerDetails(pid, allPlayers),
-          age: player?.age ?? null,
-          isStarter: isStarterRank(pos, seasonPositionRank, starterThresholds),
-        };
-      }))
-      .filter((player): player is ManagerIntelPlayer & { age: number | null; isStarter: boolean } => Boolean(player));
+        return Array.from(new Set([...(otherRoster.players || []), ...(otherRoster.taxi || [])]))
+          .map((pid) => buildIntelPlayer(pid, owner));
+      })
+      .filter((player): player is BuiltIntelPlayer => Boolean(player));
 
     const starters = rosterPlayers
       .filter((player) => player.isStarter)
@@ -1554,6 +1642,26 @@ export async function generateReport(
     );
     const primaryNeed = getNeedPosition({ qbs, rbs, wrs, tes, holeParts });
     const surplusPosition = getSurplusPosition(rosterPlayers, primaryNeed);
+    const taxiTriageItems: TaxiTriageItem[] = taxiPlayers
+      .map((player) => {
+        const triage = getTaxiTriageAction({
+          player,
+          starterThresholds,
+          needPosition: primaryNeed,
+          weakestStarter,
+        });
+        return {
+          ...player,
+          taxiAction: triage.action,
+          taxiReason: triage.reason,
+          taxiScore: triage.score,
+        };
+      })
+      .sort((a, b) => b.taxiScore - a.taxiScore || b.value - a.value);
+    const taxiTriageCounts = taxiTriageItems.reduce((acc, item) => {
+      acc[item.taxiAction] += 1;
+      return acc;
+    }, createTaxiCounts());
     const sellPool = [...rosterPlayers]
       .filter((player) => {
         if (player.value < 900) return false;
@@ -1794,6 +1902,11 @@ export async function generateReport(
       injuryInsurance,
       droppablePlayers,
       untouchablePlayers,
+      taxiTriage: {
+        items: taxiTriageItems,
+        summary: buildTaxiTriageSummary(taxiTriageItems),
+        counts: taxiTriageCounts,
+      },
       similarValuePlayers,
       avgAge,
       avgAgeByPosition,

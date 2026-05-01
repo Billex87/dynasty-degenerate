@@ -149,6 +149,46 @@ describe('Draft Analysis', () => {
     expect(result.draftPicks[0].valueGain).toBe(1236);
   });
 
+  it('should use the matching draft-year rookie baseline when available', async () => {
+    const mockDraftPicks = [
+      {
+        round: 1,
+        pick_no: 10,
+        player_id: 'player1',
+        picked_by: 'roster1',
+        season: '2026',
+        user_id_to_manager_map: { roster1: 'Manager A' },
+      },
+    ] as any;
+
+    const mockPlayers = {
+      player1: { full_name: 'Emeka Egbuka', position: 'WR' },
+    };
+
+    const result = await analyzeDraftPicks(
+      mockDraftPicks,
+      mockPlayers,
+      { roster1: 'Manager A' },
+      { emekaegbuka: { name: 'Emeka Egbuka', ktc_value: 6117 } },
+      { player1: { name: 'Emeka Egbuka', pos: 'WR', adp: 10 } },
+      undefined,
+      { emekaegbuka: { name: 'Emeka Egbuka', ktc_value: 4881, position_rank_may2025: 'WR21' } },
+      { emekaegbuka: { name: 'Emeka Egbuka', ktc_value: 6117, position_rank: 'WR10' } },
+      {
+        '2026': {
+          emekaegbuka: { name: 'Emeka Egbuka', ktc_value: 5500, position_rank: 'WR13' },
+        },
+      }
+    );
+
+    expect(result.draftPicks[0].draftYear).toBe('2026');
+    expect(result.draftPicks[0].ktcValue).toBe(5500);
+    expect(result.draftPicks[0].currentKtcValue).toBe(6117);
+    expect(result.draftPicks[0].valueGain).toBe(617);
+    expect(result.draftPicks[0].positionRankMay2025).toBe('WR13');
+    expect(result.draftPicks[0].positionRankChange).toBe('+3');
+  });
+
   it('should handle missing player data gracefully', async () => {
     const mockDraftPicks = [
       {

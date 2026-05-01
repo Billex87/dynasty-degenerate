@@ -706,6 +706,15 @@ function formatSignedCompactValue(value: number | null | undefined): string {
   return `${value > 0 ? '+' : ''}${formatCompactValue(value)}`;
 }
 
+function getTaxiBadgeTone(action: string): 'good' | 'future' | 'warn' | 'danger' | 'neutral' {
+  if (action === 'Promote Now') return 'good';
+  if (action === 'Keep Parked') return 'future';
+  if (action === 'Trade Sweetener') return 'neutral';
+  if (action === 'Taxi Risk') return 'warn';
+  if (action === 'Cuttable') return 'danger';
+  return 'neutral';
+}
+
 function buildOwnerBestMove(row: OwnerIntelRow): string {
   const need = row.tradePlan?.needPosition;
   const surplus = row.tradePlan?.surplusPosition;
@@ -1084,8 +1093,22 @@ export function LeagueCommandCenter({
       rosterHealthScore: intel.find((item) => item.manager === row.manager)?.rosterHealthScore,
       pressurePoints: intel.find((item) => item.manager === row.manager)?.pressurePoints || [],
       droppablePlayers: intel.find((item) => item.manager === row.manager)?.droppablePlayers || [],
+      taxiTriage: intel.find((item) => item.manager === row.manager)?.taxiTriage,
     }))
     .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers);
+  const taxiDepth = intel
+    .filter((row) => row.taxiTriage?.items.length)
+    .map((row) => ({
+      manager: row.manager,
+      taxiTriage: row.taxiTriage,
+    }))
+    .sort((a, b) => {
+      const aPromote = a.taxiTriage.counts['Promote Now'] || 0;
+      const bPromote = b.taxiTriage.counts['Promote Now'] || 0;
+      const aCut = a.taxiTriage.counts.Cuttable || 0;
+      const bCut = b.taxiTriage.counts.Cuttable || 0;
+      return bPromote - aPromote || bCut - aCut || b.taxiTriage.items.length - a.taxiTriage.items.length;
+    });
   const selectedIntel = selectedManager ? intel.find((row) => row.manager === selectedManager) : null;
   const selectedCounts = selectedManager ? data.managerPositionCounts.find((row) => row.manager === selectedManager) : null;
   const selectedTrade = selectedManager ? trades.find((row) => row.manager === selectedManager) : null;
@@ -1251,6 +1274,35 @@ export function LeagueCommandCenter({
           ))}
         </div>
       </FeatureCard>
+
+      {taxiDepth.length ? (
+        <FeatureCard
+          number={2}
+          title="Taxi Squad Triage"
+          kicker="Promote, stash, trade, cut"
+          className="command-feature-card-wide"
+          hideNumber
+        >
+          <div className="command-depth-grid">
+            {taxiDepth.map((row) => (
+              <ManagerDepthTile
+                key={row.manager}
+                manager={row.manager}
+                avatarUrl={managerAvatars?.[row.manager]}
+                badges={[
+                  { label: `${row.taxiTriage.items.length} taxi`, tone: 'neutral' },
+                  ...(row.taxiTriage.counts['Promote Now'] ? [{ label: `${row.taxiTriage.counts['Promote Now']} promote`, tone: 'good' as const }] : []),
+                  ...(row.taxiTriage.counts['Keep Parked'] ? [{ label: `${row.taxiTriage.counts['Keep Parked']} stash`, tone: 'future' as const }] : []),
+                  ...(row.taxiTriage.counts['Trade Sweetener'] ? [{ label: `${row.taxiTriage.counts['Trade Sweetener']} sweetener`, tone: 'neutral' as const }] : []),
+                  ...(row.taxiTriage.counts['Taxi Risk'] ? [{ label: `${row.taxiTriage.counts['Taxi Risk']} risk`, tone: 'warn' as const }] : []),
+                  ...(row.taxiTriage.counts.Cuttable ? [{ label: `${row.taxiTriage.counts.Cuttable} cuttable`, tone: 'danger' as const }] : []),
+                ]}
+                onClick={() => openManager(row.manager)}
+              />
+            ))}
+          </div>
+        </FeatureCard>
+      ) : null}
 
     </div>
     <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
@@ -1420,6 +1472,29 @@ export function LeagueCommandCenter({
                         </span>
                       );
                     })}
+                  </div>
+                </div>
+              ) : null}
+              {selectedIntel?.taxiTriage?.items.length ? (
+                <div className="manager-command-section manager-command-taxi">
+                  <h4>Taxi Squad Triage</h4>
+                  <p className="manager-command-taxi-summary">{selectedIntel.taxiTriage.summary}</p>
+                  <div className="manager-command-tile-grid">
+                    {selectedIntel.taxiTriage.items.map((player) => (
+                      <CommandPlayerTile
+                        key={player.player_id}
+                        label={player.taxiAction}
+                        player={player}
+                        onClick={() => openCommandPlayer(player)}
+                      />
+                    ))}
+                  </div>
+                  <div className="manager-command-taxi-reasons">
+                    {selectedIntel.taxiTriage.items.slice(0, 4).map((player) => (
+                      <p key={`${player.player_id}-reason`}>
+                        <strong>{player.name}:</strong> {player.taxiReason}
+                      </p>
+                    ))}
                   </div>
                 </div>
               ) : null}
@@ -1730,6 +1805,9 @@ export function OwnerIntelMatrix({
     selectedPowerRow ? `#${selectedPowerRow.rank} ${selectedPowerRow.tier}` : null,
     selectedTimelineRow ? `Contender ${selectedTimelineRow.contenderScore}` : null,
     selectedTimelineRow ? `Rebuild ${selectedTimelineRow.rebuildScore}` : null,
+    selectedRow.taxiTriage?.items.length ? `${selectedRow.taxiTriage.items.length} taxi` : null,
+    selectedRow.taxiTriage?.counts['Promote Now'] ? `${selectedRow.taxiTriage.counts['Promote Now']} promote` : null,
+    selectedRow.taxiTriage?.counts.Cuttable ? `${selectedRow.taxiTriage.counts.Cuttable} cuttable` : null,
     ...selectedRow.ageFlags,
   ].filter(Boolean).slice(0, 8) : [];
   const selectedPlayerSectionsBase: Array<{
@@ -1896,6 +1974,39 @@ export function OwnerIntelMatrix({
                     />
                   ) : null)}
                 </div>
+
+                {selectedRow.taxiTriage?.items.length ? (
+                  <div className="owner-intel-taxi-panel">
+                    <div className="owner-intel-taxi-header">
+                      <h4>Taxi Squad Triage</h4>
+                      <p>{selectedRow.taxiTriage.summary}</p>
+                    </div>
+                    <div className="owner-intel-player-grid">
+                      {selectedRow.taxiTriage.items.map((player) => (
+                        <PlayerInsightTile
+                          key={`taxi-${player.player_id}`}
+                          label={player.taxiAction}
+                          player={player}
+                          manager={selectedRow.manager}
+                          managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
+                          playerDetailsById={data.playerDetailsById}
+                          onSelect={setSelectedPlayer}
+                          tone={player.taxiAction === 'Cuttable' ? 'danger' : player.taxiAction === 'Taxi Risk' ? 'warn' : 'neutral'}
+                          extraPill="Taxi"
+                        />
+                      ))}
+                    </div>
+                    <div className="owner-intel-taxi-reasons">
+                      {selectedRow.taxiTriage.items.slice(0, 4).map((player) => (
+                        <p key={`taxi-note-${player.player_id}`}>
+                          <span className={`command-mini-badge command-mini-badge-${getTaxiBadgeTone(player.taxiAction)}`}>{player.taxiAction}</span>
+                          <strong>{player.name}</strong>
+                          {player.taxiReason}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="owner-intel-read-grid">
                   {selectedRow.positionGrades ? (

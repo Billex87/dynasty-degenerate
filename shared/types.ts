@@ -82,6 +82,19 @@ export interface ManagerIntelPlayer {
   playerDetails?: PlayerDetails;
 }
 
+export type TaxiTriageAction =
+  | 'Promote Now'
+  | 'Keep Parked'
+  | 'Trade Sweetener'
+  | 'Cuttable'
+  | 'Taxi Risk';
+
+export interface TaxiTriageItem extends ManagerIntelPlayer {
+  taxiAction: TaxiTriageAction;
+  taxiReason: string;
+  taxiScore: number;
+}
+
 export interface ManagerRosterIntelligence {
   manager: string;
   identity: string;
@@ -125,6 +138,11 @@ export interface ManagerRosterIntelligence {
   injuryInsurance: ManagerIntelPlayer | null;
   droppablePlayers: ManagerIntelPlayer[];
   untouchablePlayers: ManagerIntelPlayer[];
+  taxiTriage: {
+    items: TaxiTriageItem[];
+    summary: string;
+    counts: Record<TaxiTriageAction, number>;
+  };
   similarValuePlayers: Record<'QB' | 'RB' | 'WR' | 'TE', ManagerIntelPlayer | null>;
   avgAge: number | null;
   avgAgeByPosition: Record<'QB' | 'RB' | 'WR' | 'TE', number | null>;

@@ -3,7 +3,7 @@
 /**
  * Parse May 2025 KTC rookie rankings archive
  * Extract rookie player values from superflexValues
- * Run with: node parseMay2025Rookies.mjs
+ * Run with: node server/parseMay2025Rookies.mjs
  */
 
 import fs from 'fs';
@@ -46,7 +46,7 @@ async function parseKTCRookieArchive() {
     console.log(`  Ashton Jeanty: ${players['ashton-jeanty-1742']?.ktc_value || 'NOT FOUND'}`);
 
     // Save to JSON file
-    const outputPath = '/home/ubuntu/dynasty-degenerates/server/may2025RookieKTCData.json';
+    const outputPath = new URL('./rookie-values/2025RookieValues.json', import.meta.url);
     fs.writeFileSync(outputPath, JSON.stringify(players, null, 2));
     console.log(`\nSaved ${count} rookie players to ${outputPath}`);
 

@@ -3,12 +3,12 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { loadBlendedKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshotDaysAgo, loadLocalKtcSnapshotForDate } from "./ktcLoader";
+import { loadBlendedKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshotDaysAgo } from "./ktcLoader";
 import type { KTCValues, LastSeasonPlayerRank } from "./reportGenerator";
 import { getKtcSnapshotFromDaysAgo } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
-import { getMay2025KTCSnapshot } from "./waybackMachineScraper";
+import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
 import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
@@ -990,12 +990,8 @@ export const appRouter = router({
             // Calculate ADP from the draft picks themselves
             const adpData = calculateADPFromPicks(draftPicks);
             if (draftPicks.length > 0) {
-              // Load May 2025 KTC baseline for value change calculations
-              const ktcValuesMay2025 = getMay2025KTCSnapshot();
-              // For 2026 rookie drafts, compare against the April 2026 snapshot instead of May 2025.
-              const ktcValuesByDraftYear = {
-                '2026': loadLocalKtcSnapshotForDate('2026-04-23'),
-              };
+              const rookieValues2025 = getRookieValueBaseline('2025');
+              const rookieValuesByDraftYear = getRookieValueBaselines();
               draftAnalysis = await analyzeDraftPicks(
                 draftPicks,
                 players,
@@ -1003,9 +999,9 @@ export const appRouter = router({
                 ktcValues,
                 adpData,
                 ktcValuesLastWeek,
-                ktcValuesMay2025,
+                rookieValues2025,
                 ktcValues,
-                ktcValuesByDraftYear
+                rookieValuesByDraftYear
               );
             }
           } catch (e) {

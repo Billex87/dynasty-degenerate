@@ -123,7 +123,7 @@ export async function analyzeDraftPicks(
   ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>,
   ktcValuesMay2025?: Record<string, { name: string; ktc_value: number; position_rank_may2025?: string }>,
   currentKTCRanks?: Record<string, { name: string; ktc_value: number; position_rank?: string }>,
-  ktcValuesByDraftYear?: Record<string, Record<string, { name: string; ktc_value: number; position_rank?: string }>>
+  ktcValuesByDraftYear?: Record<string, Record<string, { name: string; ktc_value: number; position_rank?: string; position_rank_may2025?: string }>>
 ): Promise<{ draftPicks: any[]; draftStats: any[] }> {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
@@ -223,8 +223,8 @@ export async function analyzeDraftPicks(
     const draftYear = pick.season ? String(pick.season) : '2025';
     
     
-    // Calculate value gain using the correct draft-year baseline when available.
-    // Example: 2026 rookie drafts use the April 23 snapshot for now.
+    // Calculate value gain using the fixed draft-year rookie baseline when available.
+    // 2025 drafts use "2025 Rookie Values"; 2026 drafts use "2026 Rookie Values".
     let valueGain: number | null = null;
     let draftKtcValue: number | null = null;
     let baselineRank: string | null = null;
@@ -236,7 +236,7 @@ export async function analyzeDraftPicks(
         const draftYearData = findPlayerData(playerName, draftYearBaseline);
         if (draftYearData?.ktc_value) {
           baselineValue = draftYearData.ktc_value;
-          baselineRank = draftYearData.position_rank || null;
+          baselineRank = draftYearData.position_rank || draftYearData.position_rank_may2025 || null;
         }
       } else if (ktcValuesMay2025) {
         // Prefer May 2025 baseline for accurate 2025 draft-day comparison
