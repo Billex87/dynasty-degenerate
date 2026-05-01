@@ -1,393 +1,1015 @@
 {
   "ashton-jeanty-1742": {
     "name": "Ashton Jeanty",
-    "ktc_value": 7830,
-    "position_rank_may2025": "RB3"
+    "ktc_value": 7320,
+    "dynasty_value": 7320,
+    "true_value": 7320,
+    "position_rank_may2025": "RB3",
+    "market_value_ktc": 7830,
+    "expert_value_dynastyprocess": 6174,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "omarion-hampton-1744": {
     "name": "Omarion Hampton",
-    "ktc_value": 6241,
-    "position_rank_may2025": "RB5"
+    "ktc_value": 5678,
+    "dynasty_value": 5678,
+    "true_value": 5678,
+    "position_rank_may2025": "RB5",
+    "market_value_ktc": 6241,
+    "expert_value_dynastyprocess": 4412,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "travis-hunter-1774": {
     "name": "Travis Hunter",
-    "ktc_value": 5930,
-    "position_rank_may2025": "WR15"
+    "ktc_value": 5209,
+    "dynasty_value": 5209,
+    "true_value": 5209,
+    "position_rank_may2025": "WR15",
+    "market_value_ktc": 5930,
+    "expert_value_dynastyprocess": 3587,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "tetairoa-mcmillan-1771": {
     "name": "Tetairoa McMillan",
-    "ktc_value": 5581,
-    "position_rank_may2025": "WR16"
+    "ktc_value": 5034,
+    "dynasty_value": 5034,
+    "true_value": 5034,
+    "position_rank_may2025": "WR16",
+    "market_value_ktc": 5581,
+    "expert_value_dynastyprocess": 3804,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "treveyon-henderson-1743": {
     "name": "TreVeyon Henderson",
-    "ktc_value": 5482,
-    "position_rank_may2025": "RB8"
+    "ktc_value": 4530,
+    "dynasty_value": 4530,
+    "true_value": 4530,
+    "position_rank_may2025": "RB8",
+    "market_value_ktc": 5482,
+    "expert_value_dynastyprocess": 2389,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "cam-ward-1730": {
     "name": "Cam Ward",
     "ktc_value": 5408,
-    "position_rank_may2025": "QB17"
+    "dynasty_value": 5408,
+    "true_value": 5408,
+    "position_rank_may2025": "QB17",
+    "market_value_ktc": 5408,
+    "value_sources": [
+      "KTC"
+    ]
   },
   "quinshon-judkins-1751": {
     "name": "Quinshon Judkins",
-    "ktc_value": 5296,
-    "position_rank_may2025": "RB11"
+    "ktc_value": 4339,
+    "dynasty_value": 4339,
+    "true_value": 4339,
+    "position_rank_may2025": "RB11",
+    "market_value_ktc": 5296,
+    "expert_value_dynastyprocess": 2185,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "emeka-egbuka-1781": {
     "name": "Emeka Egbuka",
-    "ktc_value": 4881,
-    "position_rank_may2025": "WR21"
+    "ktc_value": 3908,
+    "dynasty_value": 3908,
+    "true_value": 3908,
+    "position_rank_may2025": "WR21",
+    "market_value_ktc": 4881,
+    "expert_value_dynastyprocess": 1719,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "kaleb-johnson-1748": {
     "name": "Kaleb Johnson",
-    "ktc_value": 4708,
-    "position_rank_may2025": "RB17"
+    "ktc_value": 3682,
+    "dynasty_value": 3682,
+    "true_value": 3682,
+    "position_rank_may2025": "RB17",
+    "market_value_ktc": 4708,
+    "expert_value_dynastyprocess": 1372,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "rj-harvey-1768": {
     "name": "RJ Harvey",
-    "ktc_value": 4654,
-    "position_rank_may2025": "RB19"
+    "ktc_value": 3619,
+    "dynasty_value": 3619,
+    "true_value": 3619,
+    "position_rank_may2025": "RB19",
+    "market_value_ktc": 4654,
+    "expert_value_dynastyprocess": 1291,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "tyler-warren-1802": {
     "name": "Tyler Warren",
-    "ktc_value": 5204,
-    "position_rank_may2025": "TE4"
+    "ktc_value": 4056,
+    "dynasty_value": 4056,
+    "true_value": 4056,
+    "position_rank_may2025": "TE4",
+    "market_value_ktc": 5204,
+    "expert_value_dynastyprocess": 1472,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "colston-loveland-1804": {
     "name": "Colston Loveland",
-    "ktc_value": 5186,
-    "position_rank_may2025": "TE5"
+    "ktc_value": 4129,
+    "dynasty_value": 4129,
+    "true_value": 4129,
+    "position_rank_may2025": "TE5",
+    "market_value_ktc": 5186,
+    "expert_value_dynastyprocess": 1752,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jaxson-dart-1732": {
     "name": "Jaxson Dart",
-    "ktc_value": 4425,
-    "position_rank_may2025": "QB23"
+    "ktc_value": 3425,
+    "dynasty_value": 3425,
+    "true_value": 3425,
+    "position_rank_may2025": "QB23",
+    "market_value_ktc": 4425,
+    "expert_value_dynastyprocess": 1175,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "matthew-golden-1775": {
     "name": "Matthew Golden",
-    "ktc_value": 4321,
-    "position_rank_may2025": "WR31"
+    "ktc_value": 3316,
+    "dynasty_value": 3316,
+    "true_value": 3316,
+    "position_rank_may2025": "WR31",
+    "market_value_ktc": 4321,
+    "expert_value_dynastyprocess": 1055,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "luther-burden-1770": {
     "name": "Luther Burden",
     "ktc_value": 4164,
-    "position_rank_may2025": "WR35"
+    "dynasty_value": 4164,
+    "true_value": 4164,
+    "position_rank_may2025": "WR35",
+    "market_value_ktc": 4164,
+    "value_sources": [
+      "KTC"
+    ]
   },
   "jayden-higgins-1783": {
     "name": "Jayden Higgins",
-    "ktc_value": 3796,
-    "position_rank_may2025": "WR38"
+    "ktc_value": 2865,
+    "dynasty_value": 2865,
+    "true_value": 2865,
+    "position_rank_may2025": "WR38",
+    "market_value_ktc": 3796,
+    "expert_value_dynastyprocess": 770,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "cam-skattebo-1745": {
     "name": "Cam Skattebo",
-    "ktc_value": 3653,
-    "position_rank_may2025": "RB23"
+    "ktc_value": 2687,
+    "dynasty_value": 2687,
+    "true_value": 2687,
+    "position_rank_may2025": "RB23",
+    "market_value_ktc": 3653,
+    "expert_value_dynastyprocess": 514,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "tre-harris-1772": {
     "name": "Tre Harris",
-    "ktc_value": 3613,
-    "position_rank_may2025": "WR44"
+    "ktc_value": 2691,
+    "dynasty_value": 2691,
+    "true_value": 2691,
+    "position_rank_may2025": "WR44",
+    "market_value_ktc": 3613,
+    "expert_value_dynastyprocess": 617,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jack-bech-1778": {
     "name": "Jack Bech",
-    "ktc_value": 3356,
-    "position_rank_may2025": "WR48"
+    "ktc_value": 2437,
+    "dynasty_value": 2437,
+    "true_value": 2437,
+    "position_rank_may2025": "WR48",
+    "market_value_ktc": 3356,
+    "expert_value_dynastyprocess": 368,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jalen-milroe-1733": {
     "name": "Jalen Milroe",
-    "ktc_value": 3229,
-    "position_rank_may2025": "QB29"
+    "ktc_value": 2416,
+    "dynasty_value": 2416,
+    "true_value": 2416,
+    "position_rank_may2025": "QB29",
+    "market_value_ktc": 3229,
+    "expert_value_dynastyprocess": 586,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "kyle-williams-1812": {
     "name": "Kyle Williams",
-    "ktc_value": 3132,
-    "position_rank_may2025": "WR50"
+    "ktc_value": 2247,
+    "dynasty_value": 2247,
+    "true_value": 2247,
+    "position_rank_may2025": "WR50",
+    "market_value_ktc": 3132,
+    "expert_value_dynastyprocess": 257,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "bhayshul-tuten-1752": {
     "name": "Bhayshul Tuten",
-    "ktc_value": 3050,
-    "position_rank_may2025": "RB33"
+    "ktc_value": 2249,
+    "dynasty_value": 2249,
+    "true_value": 2249,
+    "position_rank_may2025": "RB33",
+    "market_value_ktc": 3050,
+    "expert_value_dynastyprocess": 447,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jaylin-noel-1780": {
     "name": "Jaylin Noel",
-    "ktc_value": 2993,
-    "position_rank_may2025": "WR53"
+    "ktc_value": 2179,
+    "dynasty_value": 2179,
+    "true_value": 2179,
+    "position_rank_may2025": "WR53",
+    "market_value_ktc": 2993,
+    "expert_value_dynastyprocess": 349,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "tyler-shough-1739": {
     "name": "Tyler Shough",
-    "ktc_value": 2904,
-    "position_rank_may2025": "QB31"
+    "ktc_value": 2130,
+    "dynasty_value": 2130,
+    "true_value": 2130,
+    "position_rank_may2025": "QB31",
+    "market_value_ktc": 2904,
+    "expert_value_dynastyprocess": 388,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jaydon-blue-1769": {
     "name": "Jaydon Blue",
-    "ktc_value": 2896,
-    "position_rank_may2025": "RB37"
+    "ktc_value": 2048,
+    "dynasty_value": 2048,
+    "true_value": 2048,
+    "position_rank_may2025": "RB37",
+    "market_value_ktc": 2896,
+    "expert_value_dynastyprocess": 139,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "mason-taylor-1806": {
     "name": "Mason Taylor",
-    "ktc_value": 3313,
-    "position_rank_may2025": "TE14"
+    "ktc_value": 2392,
+    "dynasty_value": 2392,
+    "true_value": 2392,
+    "position_rank_may2025": "TE14",
+    "market_value_ktc": 3313,
+    "expert_value_dynastyprocess": 319,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "terrance-ferguson-1807": {
     "name": "Terrance Ferguson",
-    "ktc_value": 3241,
-    "position_rank_may2025": "TE16"
+    "ktc_value": 2314,
+    "dynasty_value": 2314,
+    "true_value": 2314,
+    "position_rank_may2025": "TE16",
+    "market_value_ktc": 3241,
+    "expert_value_dynastyprocess": 227,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "shedeur-sanders-1731": {
     "name": "Shedeur Sanders",
-    "ktc_value": 2761,
-    "position_rank_may2025": "QB32"
+    "ktc_value": 2022,
+    "dynasty_value": 2022,
+    "true_value": 2022,
+    "position_rank_may2025": "QB32",
+    "market_value_ktc": 2761,
+    "expert_value_dynastyprocess": 359,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "dylan-sampson-1747": {
     "name": "Dylan Sampson",
-    "ktc_value": 2754,
-    "position_rank_may2025": "RB44"
+    "ktc_value": 1957,
+    "dynasty_value": 1957,
+    "true_value": 1957,
+    "position_rank_may2025": "RB44",
+    "market_value_ktc": 2754,
+    "expert_value_dynastyprocess": 164,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jalen-royals-1786": {
     "name": "Jalen Royals",
-    "ktc_value": 2658,
-    "position_rank_may2025": "WR63"
+    "ktc_value": 1884,
+    "dynasty_value": 1884,
+    "true_value": 1884,
+    "position_rank_may2025": "WR63",
+    "market_value_ktc": 2658,
+    "expert_value_dynastyprocess": 142,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "elijah-arroyo-1808": {
     "name": "Elijah Arroyo",
-    "ktc_value": 3035,
-    "position_rank_may2025": "TE22"
+    "ktc_value": 2161,
+    "dynasty_value": 2161,
+    "true_value": 2161,
+    "position_rank_may2025": "TE22",
+    "market_value_ktc": 3035,
+    "expert_value_dynastyprocess": 194,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "devin-neal-1746": {
     "name": "Devin Neal",
-    "ktc_value": 2597,
-    "position_rank_may2025": "RB51"
+    "ktc_value": 1835,
+    "dynasty_value": 1835,
+    "true_value": 1835,
+    "position_rank_may2025": "RB51",
+    "market_value_ktc": 2597,
+    "expert_value_dynastyprocess": 121,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "harold-fannin-1803": {
     "name": "Harold Fannin",
     "ktc_value": 2932,
-    "position_rank_may2025": "TE25"
+    "dynasty_value": 2932,
+    "true_value": 2932,
+    "position_rank_may2025": "TE25",
+    "market_value_ktc": 2932,
+    "value_sources": [
+      "KTC"
+    ]
   },
   "elic-ayomanor-1773": {
     "name": "Elic Ayomanor",
-    "ktc_value": 2462,
-    "position_rank_may2025": "WR70"
+    "ktc_value": 1776,
+    "dynasty_value": 1776,
+    "true_value": 1776,
+    "position_rank_may2025": "WR70",
+    "market_value_ktc": 2462,
+    "expert_value_dynastyprocess": 232,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "trevor-etienne-1756": {
     "name": "Trevor Etienne",
-    "ktc_value": 2449,
-    "position_rank_may2025": "RB53"
+    "ktc_value": 1712,
+    "dynasty_value": 1712,
+    "true_value": 1712,
+    "position_rank_may2025": "RB53",
+    "market_value_ktc": 2449,
+    "expert_value_dynastyprocess": 54,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "dj-giddens-1760": {
     "name": "DJ Giddens",
-    "ktc_value": 2339,
-    "position_rank_may2025": "RB56"
+    "ktc_value": 1645,
+    "dynasty_value": 1645,
+    "true_value": 1645,
+    "position_rank_may2025": "RB56",
+    "market_value_ktc": 2339,
+    "expert_value_dynastyprocess": 83,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "pat-bryant-1782": {
     "name": "Pat Bryant",
-    "ktc_value": 2324,
-    "position_rank_may2025": "WR74"
+    "ktc_value": 1636,
+    "dynasty_value": 1636,
+    "true_value": 1636,
+    "position_rank_may2025": "WR74",
+    "market_value_ktc": 2324,
+    "expert_value_dynastyprocess": 89,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jordan-james-1755": {
     "name": "Jordan James",
-    "ktc_value": 2268,
-    "position_rank_may2025": "RB57"
+    "ktc_value": 1588,
+    "dynasty_value": 1588,
+    "true_value": 1588,
+    "position_rank_may2025": "RB57",
+    "market_value_ktc": 2268,
+    "expert_value_dynastyprocess": 58,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "will-howard-1736": {
     "name": "Will Howard",
-    "ktc_value": 2241,
-    "position_rank_may2025": "QB33"
+    "ktc_value": 1587,
+    "dynasty_value": 1587,
+    "true_value": 1587,
+    "position_rank_may2025": "QB33",
+    "market_value_ktc": 2241,
+    "expert_value_dynastyprocess": 116,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "ollie-gordon-1759": {
     "name": "Ollie Gordon",
     "ktc_value": 2222,
-    "position_rank_may2025": "RB59"
+    "dynasty_value": 2222,
+    "true_value": 2222,
+    "position_rank_may2025": "RB59",
+    "market_value_ktc": 2222,
+    "value_sources": [
+      "KTC"
+    ]
   },
   "jarquez-hunter-1764": {
     "name": "Jarquez Hunter",
-    "ktc_value": 2158,
-    "position_rank_may2025": "RB61"
+    "ktc_value": 1520,
+    "dynasty_value": 1520,
+    "true_value": 1520,
+    "position_rank_may2025": "RB61",
+    "market_value_ktc": 2158,
+    "expert_value_dynastyprocess": 84,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "isaac-teslaa-1813": {
     "name": "Isaac TeSlaa",
-    "ktc_value": 2084,
-    "position_rank_may2025": "WR82"
+    "ktc_value": 1471,
+    "dynasty_value": 1471,
+    "true_value": 1471,
+    "position_rank_may2025": "WR82",
+    "market_value_ktc": 2084,
+    "expert_value_dynastyprocess": 91,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "dillon-gabriel-1737": {
     "name": "Dillon Gabriel",
-    "ktc_value": 2048,
-    "position_rank_may2025": "QB36"
+    "ktc_value": 1441,
+    "dynasty_value": 1441,
+    "true_value": 1441,
+    "position_rank_may2025": "QB36",
+    "market_value_ktc": 2048,
+    "expert_value_dynastyprocess": 76,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "woody-marks-1753": {
     "name": "Woody Marks",
-    "ktc_value": 2013,
-    "position_rank_may2025": "RB66"
+    "ktc_value": 1409,
+    "dynasty_value": 1409,
+    "true_value": 1409,
+    "position_rank_may2025": "RB66",
+    "market_value_ktc": 2013,
+    "expert_value_dynastyprocess": 51,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "tahj-brooks-1758": {
     "name": "Tahj Brooks",
-    "ktc_value": 2013,
-    "position_rank_may2025": "RB67"
+    "ktc_value": 1409,
+    "dynasty_value": 1409,
+    "true_value": 1409,
+    "position_rank_may2025": "RB67",
+    "market_value_ktc": 2013,
+    "expert_value_dynastyprocess": 49,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "tory-horton-1798": {
     "name": "Tory Horton",
-    "ktc_value": 1930,
-    "position_rank_may2025": "WR85"
+    "ktc_value": 1361,
+    "dynasty_value": 1361,
+    "true_value": 1361,
+    "position_rank_may2025": "WR85",
+    "market_value_ktc": 1930,
+    "expert_value_dynastyprocess": 80,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "kyle-monangai-1766": {
     "name": "Kyle Monangai",
-    "ktc_value": 1915,
-    "position_rank_may2025": "RB69"
+    "ktc_value": 1335,
+    "dynasty_value": 1335,
+    "true_value": 1335,
+    "position_rank_may2025": "RB69",
+    "market_value_ktc": 1915,
+    "expert_value_dynastyprocess": 30,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "damien-martinez-1754": {
     "name": "Damien Martinez",
-    "ktc_value": 1909,
-    "position_rank_may2025": "RB70"
+    "ktc_value": 1330,
+    "dynasty_value": 1330,
+    "true_value": 1330,
+    "position_rank_may2025": "RB70",
+    "market_value_ktc": 1909,
+    "expert_value_dynastyprocess": 28,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "quinn-ewers-1734": {
     "name": "Quinn Ewers",
-    "ktc_value": 1868,
-    "position_rank_may2025": "QB38"
+    "ktc_value": 1319,
+    "dynasty_value": 1319,
+    "true_value": 1319,
+    "position_rank_may2025": "QB38",
+    "market_value_ktc": 1868,
+    "expert_value_dynastyprocess": 83,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "xavier-restrepo-1777": {
     "name": "Xavier Restrepo",
-    "ktc_value": 1860,
-    "position_rank_may2025": "WR88"
+    "ktc_value": 1295,
+    "dynasty_value": 1295,
+    "true_value": 1295,
+    "position_rank_may2025": "WR88",
+    "market_value_ktc": 1860,
+    "expert_value_dynastyprocess": 24,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "tai-felton-1797": {
     "name": "Tai Felton",
-    "ktc_value": 1843,
-    "position_rank_may2025": "WR90"
+    "ktc_value": 1295,
+    "dynasty_value": 1295,
+    "true_value": 1295,
+    "position_rank_may2025": "WR90",
+    "market_value_ktc": 1843,
+    "expert_value_dynastyprocess": 62,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "savion-williams-1796": {
     "name": "Savion Williams",
-    "ktc_value": 1836,
-    "position_rank_may2025": "WR91"
+    "ktc_value": 1294,
+    "dynasty_value": 1294,
+    "true_value": 1294,
+    "position_rank_may2025": "WR91",
+    "market_value_ktc": 1836,
+    "expert_value_dynastyprocess": 73,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "brashard-smith-1749": {
     "name": "Brashard Smith",
-    "ktc_value": 1785,
-    "position_rank_may2025": "RB74"
+    "ktc_value": 1247,
+    "dynasty_value": 1247,
+    "true_value": 1247,
+    "position_rank_may2025": "RB74",
+    "market_value_ktc": 1785,
+    "expert_value_dynastyprocess": 38,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "gunnar-helm-1805": {
     "name": "Gunnar Helm",
-    "ktc_value": 2127,
-    "position_rank_may2025": "TE37"
+    "ktc_value": 1484,
+    "dynasty_value": 1484,
+    "true_value": 1484,
+    "position_rank_may2025": "TE37",
+    "market_value_ktc": 2127,
+    "expert_value_dynastyprocess": 38,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "chimere-dike-1814": {
     "name": "Chimere Dike",
-    "ktc_value": 1655,
-    "position_rank_may2025": "WR100"
+    "ktc_value": 1154,
+    "dynasty_value": 1154,
+    "true_value": 1154,
+    "position_rank_may2025": "WR100",
+    "market_value_ktc": 1655,
+    "expert_value_dynastyprocess": 26,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "oronde-gadsden-1799": {
     "name": "Oronde Gadsden",
     "ktc_value": 2004,
-    "position_rank_may2025": "TE39"
+    "dynasty_value": 2004,
+    "true_value": 2004,
+    "position_rank_may2025": "TE39",
+    "market_value_ktc": 2004,
+    "value_sources": [
+      "KTC"
+    ]
   },
   "jaylin-lane-1816": {
     "name": "Jaylin Lane",
-    "ktc_value": 1618,
-    "position_rank_may2025": "WR105"
+    "ktc_value": 1130,
+    "dynasty_value": 1130,
+    "true_value": 1130,
+    "position_rank_may2025": "WR105",
+    "market_value_ktc": 1618,
+    "expert_value_dynastyprocess": 31,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "tez-johnson-1779": {
     "name": "Tez Johnson",
-    "ktc_value": 1592,
-    "position_rank_may2025": "WR109"
+    "ktc_value": 1109,
+    "dynasty_value": 1109,
+    "true_value": 1109,
+    "position_rank_may2025": "WR109",
+    "market_value_ktc": 1592,
+    "expert_value_dynastyprocess": 22,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jacory-croskey-merritt-1832": {
     "name": "Jacory Croskey-Merritt",
-    "ktc_value": 1393,
-    "position_rank_may2025": "RB83"
+    "ktc_value": 970,
+    "dynasty_value": 970,
+    "true_value": 970,
+    "position_rank_may2025": "RB83",
+    "market_value_ktc": 1393,
+    "expert_value_dynastyprocess": 18,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "riley-leonard-1735": {
     "name": "Riley Leonard",
-    "ktc_value": 1120,
-    "position_rank_may2025": "QB51"
+    "ktc_value": 795,
+    "dynasty_value": 795,
+    "true_value": 795,
+    "position_rank_may2025": "QB51",
+    "market_value_ktc": 1120,
+    "expert_value_dynastyprocess": 64,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "kyle-mccord-1738": {
     "name": "Kyle McCord",
-    "ktc_value": 1044,
-    "position_rank_may2025": "QB54"
+    "ktc_value": 748,
+    "dynasty_value": 748,
+    "true_value": 748,
+    "position_rank_may2025": "QB54",
+    "market_value_ktc": 1044,
+    "expert_value_dynastyprocess": 82,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "dont-e-thornton-1787": {
     "name": "Dont'e Thornton",
     "ktc_value": 1035,
-    "position_rank_may2025": "WR139"
+    "dynasty_value": 1035,
+    "true_value": 1035,
+    "position_rank_may2025": "WR139",
+    "market_value_ktc": 1035,
+    "value_sources": [
+      "KTC"
+    ]
   },
   "lequint-allen-1761": {
     "name": "LeQuint Allen",
     "ktc_value": 1005,
-    "position_rank_may2025": "RB102"
+    "dynasty_value": 1005,
+    "true_value": 1005,
+    "position_rank_may2025": "RB102",
+    "market_value_ktc": 1005,
+    "value_sources": [
+      "KTC"
+    ]
   },
   "donovan-edwards-1757": {
     "name": "Donovan Edwards",
-    "ktc_value": 986,
-    "position_rank_may2025": "RB104"
+    "ktc_value": 685,
+    "dynasty_value": 685,
+    "true_value": 685,
+    "position_rank_may2025": "RB104",
+    "market_value_ktc": 986,
+    "expert_value_dynastyprocess": 9,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "raheim-sanders-1762": {
     "name": "Raheim Sanders",
-    "ktc_value": 976,
-    "position_rank_may2025": "RB105"
+    "ktc_value": 679,
+    "dynasty_value": 679,
+    "true_value": 679,
+    "position_rank_may2025": "RB105",
+    "market_value_ktc": 976,
+    "expert_value_dynastyprocess": 10,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "phil-mafah-1763": {
     "name": "Phil Mafah",
-    "ktc_value": 965,
-    "position_rank_may2025": "RB106"
+    "ktc_value": 674,
+    "dynasty_value": 674,
+    "true_value": 674,
+    "position_rank_may2025": "RB106",
+    "market_value_ktc": 965,
+    "expert_value_dynastyprocess": 20,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "isaiah-bond-1776": {
     "name": "Isaiah Bond",
-    "ktc_value": 945,
-    "position_rank_may2025": "WR145"
+    "ktc_value": 663,
+    "dynasty_value": 663,
+    "true_value": 663,
+    "position_rank_may2025": "WR145",
+    "market_value_ktc": 945,
+    "expert_value_dynastyprocess": 30,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "keandre-lambert-smith-1818": {
     "name": "KeAndre Lambert-Smith",
-    "ktc_value": 815,
-    "position_rank_may2025": "WR165"
+    "ktc_value": 567,
+    "dynasty_value": 567,
+    "true_value": 567,
+    "position_rank_may2025": "WR165",
+    "market_value_ktc": 815,
+    "expert_value_dynastyprocess": 10,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "arian-smith-1815": {
     "name": "Arian Smith",
-    "ktc_value": 788,
-    "position_rank_may2025": "WR169"
+    "ktc_value": 549,
+    "dynasty_value": 549,
+    "true_value": 549,
+    "position_rank_may2025": "WR169",
+    "market_value_ktc": 788,
+    "expert_value_dynastyprocess": 11,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "luke-lachey-1811": {
     "name": "Luke Lachey",
-    "ktc_value": 1070,
-    "position_rank_may2025": "TE67"
+    "ktc_value": 746,
+    "dynasty_value": 746,
+    "true_value": 746,
+    "position_rank_may2025": "TE67",
+    "market_value_ktc": 1070,
+    "expert_value_dynastyprocess": 16,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "tj-hockenson-247": {
     "name": "T.J. Hockenson",
-    "ktc_value": 4444
+    "ktc_value": 3648,
+    "dynasty_value": 3648,
+    "true_value": 3648,
+    "market_value_ktc": 4444,
+    "expert_value_dynastyprocess": 1858,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "mark-andrews-366": {
     "name": "Mark Andrews",
-    "ktc_value": 3574
+    "ktc_value": 2796,
+    "dynasty_value": 2796,
+    "true_value": 2796,
+    "market_value_ktc": 3574,
+    "expert_value_dynastyprocess": 1045,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "dalton-kincaid-1428": {
     "name": "Dalton Kincaid",
-    "ktc_value": 3741
+    "ktc_value": 3102,
+    "dynasty_value": 3102,
+    "true_value": 3102,
+    "market_value_ktc": 3741,
+    "expert_value_dynastyprocess": 1664,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jk-dobbins-636": {
     "name": "J.K. Dobbins",
-    "ktc_value": 2141
+    "ktc_value": 1511,
+    "dynasty_value": 1511,
+    "true_value": 1511,
+    "market_value_ktc": 2141,
+    "expert_value_dynastyprocess": 92,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "michael-wilson-1421": {
     "name": "Michael Wilson",
-    "ktc_value": 2015
+    "ktc_value": 1414,
+    "dynasty_value": 1414,
+    "true_value": 1414,
+    "market_value_ktc": 2015,
+    "expert_value_dynastyprocess": 62,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "joe-milton-1556": {
     "name": "Joe Milton",
-    "ktc_value": 2046
+    "ktc_value": 2046,
+    "dynasty_value": 2046,
+    "true_value": 2046,
+    "market_value_ktc": 2046,
+    "value_sources": [
+      "KTC"
+    ]
   },
   "najee-harris-1031": {
     "name": "Najee Harris",
-    "ktc_value": 2794
+    "ktc_value": 2077,
+    "dynasty_value": 2077,
+    "true_value": 2077,
+    "market_value_ktc": 2794,
+    "expert_value_dynastyprocess": 463,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "jalen-mcmillan-1599": {
     "name": "Jalen McMillan",
-    "ktc_value": 2875,
-    "position_rank_may2025": "WR92"
+    "ktc_value": 2125,
+    "dynasty_value": 2125,
+    "true_value": 2125,
+    "position_rank_may2025": "WR92",
+    "market_value_ktc": 2875,
+    "expert_value_dynastyprocess": 436,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "christian-kirk-221": {
     "name": "Christian Kirk",
-    "ktc_value": 2246
+    "ktc_value": 1643,
+    "dynasty_value": 1643,
+    "true_value": 1643,
+    "market_value_ktc": 2246,
+    "expert_value_dynastyprocess": 285,
+    "value_sources": [
+      "KTC",
+      "DynastyProcess"
+    ]
   },
   "gabriel-davis-533": {
     "name": "Gabriel Davis",
-    "ktc_value": 1209
+    "ktc_value": 1209,
+    "dynasty_value": 1209,
+    "true_value": 1209,
+    "market_value_ktc": 1209,
+    "value_sources": [
+      "KTC"
+    ]
   }
 }

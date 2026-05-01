@@ -38,7 +38,12 @@ interface DraftPickWithMetadata extends SleeperDraftPick {
 }
 
 interface PositionRankData {
+  name?: string;
+  ktc_value?: number;
+  position_rank?: string;
   position_rank_may2025?: string;
+  dynasty_value?: number;
+  true_value?: number;
   [key: string]: any;
 }
 
@@ -121,9 +126,9 @@ export async function analyzeDraftPicks(
   ktcValues: Record<string, { name: string; ktc_value: number }>,
   adpData: ADPData,
   ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>,
-  ktcValuesMay2025?: Record<string, { name: string; ktc_value: number; position_rank_may2025?: string }>,
+  ktcValuesMay2025?: Record<string, PositionRankData>,
   currentKTCRanks?: Record<string, { name: string; ktc_value: number; position_rank?: string }>,
-  ktcValuesByDraftYear?: Record<string, Record<string, { name: string; ktc_value: number; position_rank?: string; position_rank_may2025?: string }>>
+  ktcValuesByDraftYear?: Record<string, Record<string, PositionRankData>>
 ): Promise<{ draftPicks: any[]; draftStats: any[] }> {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
@@ -176,6 +181,12 @@ export async function analyzeDraftPicks(
     return null;
   };
 
+  const getBaselineValue = (record: PositionRankData | null): number | null => {
+    if (!record) return null;
+    const value = record.dynasty_value ?? record.true_value ?? record.ktc_value;
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  };
+
   // Initialize manager stats
   Object.values(rosterMap).forEach((manager) => {
     managerStats.set(manager, {
@@ -214,7 +225,7 @@ export async function analyzeDraftPicks(
     
     // Create slug to match KTC data
     const playerSlug = createSlug(playerName);
-    const ktcData = ktcValues[playerSlug];
+    const ktcData = findPlayerData(playerName, ktcValues) || ktcValues[playerSlug];
     const currentKtcValue = ktcData?.ktc_value || null;
 
     // Detect draft year based on season field from draft metadata
@@ -234,20 +245,22 @@ export async function analyzeDraftPicks(
       
       if (draftYearBaseline) {
         const draftYearData = findPlayerData(playerName, draftYearBaseline);
-        if (draftYearData?.ktc_value) {
-          baselineValue = draftYearData.ktc_value;
+        const draftYearValue = getBaselineValue(draftYearData);
+        if (draftYearValue) {
+          baselineValue = draftYearValue;
           baselineRank = draftYearData.position_rank || draftYearData.position_rank_may2025 || null;
         }
       } else if (ktcValuesMay2025) {
         // Prefer May 2025 baseline for accurate 2025 draft-day comparison
         const may2025Data = findPlayerData(playerName, ktcValuesMay2025);
-        if (may2025Data?.ktc_value) {
-          baselineValue = may2025Data.ktc_value;
+        const may2025Value = getBaselineValue(may2025Data);
+        if (may2025Value) {
+          baselineValue = may2025Value;
           baselineRank = may2025Data.position_rank_may2025 || null;
         }
       } else if (ktcValuesLastWeek) {
         // Fall back to last week's KTC as approximation
-        const lastWeekKtcData = ktcValuesLastWeek[playerSlug];
+        const lastWeekKtcData = findPlayerData(playerName, ktcValuesLastWeek) || ktcValuesLastWeek[playerSlug];
         if (lastWeekKtcData?.ktc_value) {
           baselineValue = lastWeekKtcData.ktc_value;
         }

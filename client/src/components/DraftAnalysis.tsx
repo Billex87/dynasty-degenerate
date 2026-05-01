@@ -182,7 +182,7 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
                 </button>
 
                 {isDraftBoardOpen && (
-                  <div className="player-tile-shell">
+                  <div className="rookie-draft-row-shell">
                     <div className="draft-sort-strip">
                       <button type="button" onClick={() => handleSort('currentValue')}>
                         Current Value
@@ -193,47 +193,46 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    <div className="player-tile-grid rookie-player-grid">
+                    <div className="rookie-draft-row-header" aria-hidden="true">
+                      <span>Player</span>
+                      <span>Manager</span>
+                      <span>Pick</span>
+                      <span>Draft</span>
+                      <span>Now</span>
+                      <span>Gain</span>
+                    </div>
+                    <div className="rookie-draft-row-list">
                       {yearPicks.map((pick, idx) => {
                         const details = pick.playerDetails || (pick.player_id ? playerDetailsById?.[pick.player_id] : undefined);
                         const gainTone = (pick.valueGain ?? 0) > 0 ? 'text-emerald-300' : (pick.valueGain ?? 0) < 0 ? 'text-rose-300' : 'text-slate-300';
+                        const gainClass = (pick.valueGain ?? 0) > 0 ? 'is-positive' : (pick.valueGain ?? 0) < 0 ? 'is-negative' : '';
                         return (
                           <button
                             key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
                             type="button"
-                            className="player-team-tile rookie-player-tile"
+                            className="player-team-tile rookie-draft-row"
                             style={getTeamTileStyle(details?.team)}
                             onClick={() => openDraftPlayer(pick)}
                           >
-                            <div className="player-tile-main">
+                            <span className="rookie-draft-player-cell">
                               <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
-                            </div>
-                            <div className="player-tile-owner">
+                            </span>
+                            <span className="rookie-draft-manager-cell">
                               <ManagerNameWithAvatar
                                 avatarUrl={managerAvatars?.[pick.manager]}
                                 managerName={pick.manager}
                               />
-                            </div>
-                            <div className="player-tile-pills">
-                              <span>{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
-                              <span>{details?.team || 'FA'}</span>
-                              {pick.positionRankChange ? (
-                                <span className={gainTone}>
-                                  {pick.positionRankChange}
-                                  {pick.positionRankChange.startsWith('+') && <TrendingUp className="ml-1 inline h-3.5 w-3.5" />}
-                                  {pick.positionRankChange.startsWith('-') && <TrendingDown className="ml-1 inline h-3.5 w-3.5" />}
-                                </span>
-                              ) : null}
-                            </div>
-                            <div className="player-tile-value-strip">
-                              <span>{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
-                              <span>Gain</span>
-                              <span className={gainTone}>
-                                {pick.valueGain !== null && pick.valueGain !== undefined
-                                  ? `${pick.valueGain > 0 ? '+' : ''}${pick.valueGain.toLocaleString()}`
-                                  : 'N/A'}
-                              </span>
-                            </div>
+                            </span>
+                            <span className="rookie-draft-pill" data-label="Pick">{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
+                            <span className="rookie-draft-value-cell" data-label="Draft">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
+                            <span className="rookie-draft-value-cell" data-label="Now">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
+                            <span className={`rookie-draft-gain-cell ${gainClass} ${gainTone}`} data-label="Gain">
+                              {pick.valueGain !== null && pick.valueGain !== undefined
+                                ? `${pick.valueGain > 0 ? '+' : ''}${pick.valueGain.toLocaleString()}`
+                                : 'N/A'}
+                              {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain > 0 && <TrendingUp className="h-3.5 w-3.5" />}
+                              {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain < 0 && <TrendingDown className="h-3.5 w-3.5" />}
+                            </span>
                           </button>
                         );
                       })}

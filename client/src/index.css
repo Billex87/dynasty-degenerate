@@ -6638,6 +6638,145 @@ button.player-team-tile:focus-visible {
   text-transform: uppercase;
 }
 
+.rookie-draft-row-shell {
+  display: grid;
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  gap: 0.42rem;
+  padding-inline: clamp(0.2rem, 1.5vw, 0.75rem);
+}
+
+.rookie-draft-row-header,
+.rookie-draft-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 2.2fr) minmax(7.5rem, 1.1fr) minmax(5rem, 0.62fr) minmax(4.9rem, 0.58fr) minmax(4.9rem, 0.58fr) minmax(5.6rem, 0.7fr);
+  align-items: center;
+  gap: 0.58rem;
+}
+
+.rookie-draft-row-header {
+  padding: 0.18rem 0.72rem 0.28rem;
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rookie-draft-row-header span:nth-child(n+3) {
+  text-align: right;
+}
+
+.rookie-draft-row-list {
+  display: grid;
+  gap: 0.34rem;
+}
+
+.rookie-draft-row {
+  width: 100%;
+  min-height: 3.25rem;
+  border-radius: 0.9rem;
+  padding: 0.42rem 0.68rem;
+  text-align: left;
+}
+
+.rookie-draft-player-cell,
+.rookie-draft-manager-cell {
+  min-width: 0;
+}
+
+.rookie-draft-player-cell .player-chip,
+.rookie-draft-manager-cell .manager-chip {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rookie-draft-player-cell .player-chip {
+  gap: 0.48rem;
+}
+
+.rookie-draft-player-cell .player-chip img,
+.rookie-draft-player-cell .player-chip > span[aria-hidden="true"] {
+  width: 2.05rem;
+  height: 2.05rem;
+  border: 2px solid color-mix(in srgb, var(--team-accent, #fb923c) 62%, rgba(255, 255, 255, 0.2));
+}
+
+.rookie-draft-player-cell .player-chip > span:last-child,
+.rookie-draft-manager-cell .manager-chip > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rookie-draft-player-cell .player-chip > span:last-child {
+  color: #f8fafc;
+  font-size: clamp(0.82rem, 1.7vw, 0.96rem);
+  font-weight: 950;
+}
+
+.rookie-draft-manager-cell .manager-chip {
+  gap: 0.34rem;
+}
+
+.rookie-draft-manager-cell .manager-chip img,
+.rookie-draft-manager-cell .manager-chip > span[aria-hidden="true"] {
+  width: 1.45rem;
+  height: 1.45rem;
+  border-width: 2px;
+}
+
+.rookie-draft-manager-cell .manager-chip > span:last-child {
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.rookie-draft-pill,
+.rookie-draft-value-cell,
+.rookie-draft-gain-cell {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 1.7rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.52);
+  padding: 0.24rem 0.48rem;
+  color: #cbd5e1;
+  font-size: clamp(0.72rem, 1.6vw, 0.84rem);
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rookie-draft-pill {
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  color: #67e8f9;
+}
+
+.rookie-draft-value-cell {
+  border: 1px solid rgba(251, 146, 60, 0.22);
+  color: #fdba74;
+}
+
+.rookie-draft-gain-cell {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.rookie-draft-gain-cell.is-positive {
+  border-color: rgba(16, 185, 129, 0.32);
+  color: #34d399;
+}
+
+.rookie-draft-gain-cell.is-negative {
+  border-color: rgba(244, 63, 94, 0.32);
+  color: #fb7185;
+}
+
 .owner-summary-tile {
   position: relative;
   display: grid;
@@ -7063,6 +7202,82 @@ button.owner-summary-tile:focus-visible {
     grid-template-columns: minmax(0, 1fr) minmax(0, max-content) !important;
     margin-inline: 0 !important;
     width: 100% !important;
+  }
+
+  .rookie-draft-row-shell {
+    width: 100%;
+    padding-inline: 0;
+  }
+
+  .rookie-draft-row-header {
+    display: none;
+  }
+
+  .rookie-draft-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "player pick gain"
+      "manager draft current";
+    gap: 0.32rem 0.42rem;
+    padding: 0.5rem 0.55rem;
+  }
+
+  .rookie-draft-player-cell {
+    grid-area: player;
+  }
+
+  .rookie-draft-manager-cell {
+    grid-area: manager;
+  }
+
+  .rookie-draft-pill {
+    grid-area: pick;
+  }
+
+  .rookie-draft-value-cell:nth-of-type(4) {
+    grid-area: draft;
+  }
+
+  .rookie-draft-value-cell:nth-of-type(5) {
+    grid-area: current;
+  }
+
+  .rookie-draft-gain-cell {
+    grid-area: gain;
+  }
+
+  .rookie-draft-pill,
+  .rookie-draft-value-cell,
+  .rookie-draft-gain-cell {
+    justify-content: center;
+    min-height: 1.48rem;
+    padding: 0.18rem 0.38rem;
+    font-size: clamp(0.58rem, 2.55vw, 0.7rem);
+  }
+
+  .rookie-draft-value-cell::before,
+  .rookie-draft-gain-cell::before {
+    content: attr(data-label);
+    margin-right: 0.18rem;
+    color: #67e8f9;
+    font-size: 0.52rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .rookie-draft-player-cell .player-chip img,
+  .rookie-draft-player-cell .player-chip > span[aria-hidden="true"] {
+    width: 1.9rem;
+    height: 1.9rem;
+  }
+
+  .rookie-draft-player-cell .player-chip > span:last-child {
+    font-size: clamp(0.72rem, 3vw, 0.86rem);
+  }
+
+  .rookie-draft-manager-cell .manager-chip > span:last-child {
+    font-size: clamp(0.58rem, 2.5vw, 0.7rem);
   }
 }
 

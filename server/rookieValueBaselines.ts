@@ -19,12 +19,12 @@ export type RookieValueBaseline = {
 
 const rookieValueBaselines: Record<string, RookieValueBaseline> = {
   '2025': {
-    label: '2025 Rookie Values',
+    label: '2025 Rookie Historical Blend',
     capturedAt: 'May 2025',
     values: rookieValues2025 as RookieValueMap,
   },
   '2026': {
-    label: '2026 Rookie Values',
+    label: '2026 Rookie Production Blend',
     capturedAt: '2026-04-29T20:13:16.208Z',
     values: rookieValues2026 as RookieValueMap,
   },
@@ -43,4 +43,3 @@ export function getRookieValueBaselines(): Record<string, RookieValueMap> {
 export function getRookieValueBaselineLabel(year: string): string | undefined {
   return rookieValueBaselines[year]?.label;
 }
-
