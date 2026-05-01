@@ -12,7 +12,7 @@ import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBa
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
 import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
-import type { PickPortfolio, PlayerDetails, TrendingPlayer, WaiverIntelligence } from "../shared/types";
+import type { ManagerChampionship, PickPortfolio, PlayerDetails, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -70,6 +70,93 @@ function toSleeperLeagueOption(leagueInfo: any, season: string) {
     format: formatLeagueFormat(leagueInfo),
     totalRosters: Number(leagueInfo.total_rosters || leagueInfo.settings?.num_teams || 0),
   };
+}
+
+async function fetchSleeperJson<T = any>(url: string): Promise<T | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return await response.json() as T;
+  } catch {
+    return null;
+  }
+}
+
+function getChampionRosterIdFromBracket(bracket: any[]): number | null {
+  if (!Array.isArray(bracket) || bracket.length === 0) return null;
+
+  const completed = bracket
+    .filter((matchup) => matchup && matchup.w !== undefined && matchup.w !== null)
+    .map((matchup) => ({
+      ...matchup,
+      r: Number(matchup.r || 0),
+      m: Number(matchup.m || 999),
+      w: Number(matchup.w),
+    }))
+    .filter((matchup) => Number.isFinite(matchup.w));
+
+  if (completed.length === 0) return null;
+
+  const finalMatchup = completed.sort((a, b) => {
+    if (b.r !== a.r) return b.r - a.r;
+    return a.m - b.m;
+  })[0];
+
+  return Number.isFinite(finalMatchup.w) ? finalMatchup.w : null;
+}
+
+async function buildManagerChampionships(
+  currentLeagueInfo: any,
+  currentUsers: any[] = [],
+  maxSeasons = 8
+): Promise<Record<string, ManagerChampionship>> {
+  const championships: Record<string, ManagerChampionship> = {};
+  const visited = new Set<string>();
+  const currentManagerByUserId = Object.fromEntries(
+    currentUsers.map((user: any) => [user.user_id, normalizeManagerName(user.display_name)])
+  );
+  let nextLeagueId = currentLeagueInfo?.previous_league_id ? String(currentLeagueInfo.previous_league_id) : '';
+
+  for (let depth = 0; nextLeagueId && depth < maxSeasons && !visited.has(nextLeagueId); depth += 1) {
+    visited.add(nextLeagueId);
+
+    const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${nextLeagueId}`);
+    if (!leagueInfo?.league_id) break;
+
+    const [users, rosters, winnersBracket] = await Promise.all([
+      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/users`),
+      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/rosters`),
+      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/winners_bracket`),
+    ]);
+
+    const championRosterId = getChampionRosterIdFromBracket(winnersBracket || []);
+    const championRoster = Array.isArray(rosters)
+      ? rosters.find((roster: any) => Number(roster.roster_id) === championRosterId)
+      : null;
+    const userMap = Object.fromEntries((users || []).map((user: any) => [user.user_id, user]));
+    const championOwnerId = championRoster?.owner_id ? String(championRoster.owner_id) : '';
+    const championManager = currentManagerByUserId[championOwnerId]
+      || normalizeManagerName(userMap[championOwnerId]?.display_name);
+    const season = String(leagueInfo.season || Number(currentLeagueInfo?.season || new Date().getFullYear()) - depth - 1);
+
+    if (championRosterId !== null && championManager && championManager !== 'Unknown') {
+      championships[championManager] = championships[championManager] || { seasons: [] };
+      if (!championships[championManager].seasons.includes(season)) {
+        championships[championManager].seasons.push(season);
+      }
+    }
+
+    nextLeagueId = leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : '';
+  }
+
+  return Object.fromEntries(
+    Object.entries(championships).map(([manager, championship]) => [
+      manager,
+      {
+        seasons: [...championship.seasons].sort((a, b) => Number(b) - Number(a)),
+      },
+    ])
+  );
 }
 
 function getPlayerDetails(playerId: string, player: Record<string, any> | undefined): PlayerDetails | undefined {
@@ -857,14 +944,14 @@ export const appRouter = router({
           ).then((r) => r.json());
 
           const ktcValues = await loadBlendedKTCValues();
-          // Get the latest KTC snapshot from at least 14 days ago for value-change calculations.
-          const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(14);
+          // Get the latest KTC snapshot from at least 7 days ago for weekly value-change calculations.
+          const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(7);
           let ktcValuesLastWeek: KTCValues = {};
           
           if (ktcValuesLastWeekRaw && Object.keys(ktcValuesLastWeekRaw).length > 0) {
             ktcValuesLastWeek = ktcValuesLastWeekRaw;
           } else {
-            ktcValuesLastWeek = loadLatestLocalKtcSnapshotDaysAgo(14);
+            ktcValuesLastWeek = loadLatestLocalKtcSnapshotDaysAgo(7);
             if (Object.keys(ktcValuesLastWeek).length === 0) {
               ktcValuesLastWeek = await loadKTCValuesLastWeek();
             }
@@ -1057,6 +1144,7 @@ export const appRouter = router({
             .sort((a, b) => b.score - a.score)
             .map((ranking, index) => ({ ...ranking, rank: index + 1 }));
           const waiverIntelligence = buildWaiverIntelligence(trendingAdds, trendingDrops);
+          const managerChampionships = await buildManagerChampionships(leagueInfo, users);
 
           const reportPlayerIds = [
             ...rosters.flatMap((roster: any) => roster.players || []),
@@ -1089,6 +1177,7 @@ export const appRouter = router({
             reportData: {
               ...reportData,
               managerAvatars: buildManagerAvatarMap(users),
+              managerChampionships,
               playerDetailsById: Object.fromEntries(
                 Object.entries(playerDetailsById).map(([playerId, details]) => [
                   playerId,

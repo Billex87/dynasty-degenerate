@@ -1,57 +1,16 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import type { DraftPick, PlayerDetails } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { PlayerDetailModal } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
-
-const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
-  ARI: { primary: '#97233F', secondary: '#000000', accent: '#FFB612' },
-  ATL: { primary: '#A71930', secondary: '#000000', accent: '#A5ACAF' },
-  BAL: { primary: '#241773', secondary: '#000000', accent: '#9E7C0C' },
-  BUF: { primary: '#00338D', secondary: '#C60C30', accent: '#FFFFFF' },
-  CAR: { primary: '#0085CA', secondary: '#101820', accent: '#BFC0BF' },
-  CHI: { primary: '#0B162A', secondary: '#C83803', accent: '#FFFFFF' },
-  CIN: { primary: '#FB4F14', secondary: '#000000', accent: '#FFFFFF' },
-  CLE: { primary: '#311D00', secondary: '#FF3C00', accent: '#FFFFFF' },
-  DAL: { primary: '#003594', secondary: '#041E42', accent: '#869397' },
-  DEN: { primary: '#FB4F14', secondary: '#002244', accent: '#FFFFFF' },
-  DET: { primary: '#0076B6', secondary: '#B0B7BC', accent: '#000000' },
-  GB: { primary: '#203731', secondary: '#FFB612', accent: '#FFFFFF' },
-  HOU: { primary: '#03202F', secondary: '#A71930', accent: '#FFFFFF' },
-  IND: { primary: '#002C5F', secondary: '#A2AAAD', accent: '#FFFFFF' },
-  JAX: { primary: '#006778', secondary: '#101820', accent: '#D7A22A' },
-  KC: { primary: '#E31837', secondary: '#FFB81C', accent: '#FFFFFF' },
-  LAC: { primary: '#0080C6', secondary: '#FFC20E', accent: '#FFFFFF' },
-  LAR: { primary: '#003594', secondary: '#FFA300', accent: '#FFFFFF' },
-  LV: { primary: '#000000', secondary: '#A5ACAF', accent: '#FFFFFF' },
-  MIA: { primary: '#008E97', secondary: '#FC4C02', accent: '#005778' },
-  MIN: { primary: '#4F2683', secondary: '#FFC62F', accent: '#FFFFFF' },
-  NE: { primary: '#002244', secondary: '#C60C30', accent: '#B0B7BC' },
-  NO: { primary: '#101820', secondary: '#D3BC8D', accent: '#FFFFFF' },
-  NYG: { primary: '#0B2265', secondary: '#A71930', accent: '#A5ACAF' },
-  NYJ: { primary: '#125740', secondary: '#000000', accent: '#FFFFFF' },
-  PHI: { primary: '#004C54', secondary: '#A5ACAF', accent: '#FFFFFF' },
-  PIT: { primary: '#FFB612', secondary: '#101820', accent: '#C60C30' },
-  SEA: { primary: '#002244', secondary: '#69BE28', accent: '#A5ACAF' },
-  SF: { primary: '#AA0000', secondary: '#B3995D', accent: '#FFFFFF' },
-  TB: { primary: '#D50A0A', secondary: '#34302B', accent: '#FF7900' },
-  TEN: { primary: '#0C2340', secondary: '#4B92DB', accent: '#C8102E' },
-  WAS: { primary: '#5A1414', secondary: '#FFB612', accent: '#FFFFFF' },
-};
+import { getTeamTileStyle } from '@/lib/teamTileStyle';
+import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 
 interface ManagerDraftPicksModalProps {
   isOpen: boolean;
@@ -107,19 +66,19 @@ export function ManagerDraftPicksModal({
 
               <DialogHeader className="relative pr-10 text-center">
                 <div className="manager-draft-title-lockup">
-                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl border border-cyan-300/35 bg-slate-950 shadow-xl shadow-black/40 sm:h-20 sm:w-20">
+                  <ChampionAvatarFrame managerName={managerName} className="manager-draft-champion-frame">
                     {managerAvatarUrl ? (
                       <img
                         src={managerAvatarUrl}
                         alt={managerName}
-                        className="h-full w-full object-cover"
+                        className="manager-draft-champion-avatar"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-2xl font-black text-orange-300">
+                      <div className="manager-draft-champion-avatar flex items-center justify-center text-2xl font-black text-orange-300">
                         {managerInitial}
                       </div>
                     )}
-                  </div>
+                  </ChampionAvatarFrame>
                   <div className="min-w-0 text-center">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/90">
                       Draft Portfolio
@@ -127,6 +86,7 @@ export function ManagerDraftPicksModal({
                     <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400 sm:text-4xl">
                       {managerName}
                     </DialogTitle>
+                    <ManagerChampionshipPills managerName={managerName} className="mt-2 justify-center" />
                   </div>
                 </div>
               </DialogHeader>
@@ -142,82 +102,45 @@ export function ManagerDraftPicksModal({
               </div>
             </div>
 
-            <div className="w-full overflow-x-hidden p-4 sm:p-6">
-            <Table
-              className="manager-draft-table w-full text-xs sm:text-sm"
-              containerClassName="overflow-visible"
-              style={{ tableLayout: 'fixed' }}
-            >
-              <TableHeader className="border-b-2 border-orange-500/30">
-                <TableRow className="border-slate-700">
-                  <TableHead className="w-[54%] text-white font-semibold">Player</TableHead>
-                  <TableHead className="w-[18%] text-center text-white font-semibold">
-                    <div>Pick</div>
-                    <div>#</div>
-                  </TableHead>
-                  <TableHead className="w-[28%] text-right text-white font-semibold">
-                    <div>Value</div>
-                    <div>Change</div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="player-tile-shell w-full overflow-x-hidden p-4 sm:p-6">
+              <div className="player-tile-grid manager-draft-player-grid">
                 {managerPicks.map((pick, idx) => {
-                  const teamColors = NFL_TEAM_COLORS[pick.playerDetails?.team || ''];
-                  const rowStyle = teamColors
-                    ? ({
-                        '--team-primary': teamColors.primary,
-                        '--team-secondary': teamColors.secondary,
-                        '--team-accent': teamColors.accent,
-                      } as CSSProperties)
-                    : undefined;
+                  const gainTone = (pick.valueGain ?? 0) > 0 ? 'text-emerald-300' : (pick.valueGain ?? 0) < 0 ? 'text-rose-300' : 'text-slate-300';
 
                   return (
-                    <TableRow 
-                      key={idx} 
-                      className="border-slate-700 hover:bg-slate-800/30 cursor-pointer"
-                      style={rowStyle}
+                    <button
+                      key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
+                      type="button"
+                      className="player-team-tile rookie-player-tile"
+                      style={getTeamTileStyle(pick.playerDetails?.team)}
                       onClick={() => setSelectedPlayer(enrichDraftPickDetails(pick, playerDetailsById))}
                     >
-                      <TableCell className="manager-draft-player-cell min-w-0 font-semibold text-slate-100">
-                        <div className="flex min-w-0 items-center">
-                          <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
-                        </div>
-                      </TableCell>
-                      <TableCell className="manager-draft-pick-cell text-center">
-                        <span className="font-semibold text-cyan-300">
-                          {pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}
+                      <div className="player-tile-main">
+                        <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
+                      </div>
+                      <div className="player-tile-pills">
+                        <span>{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
+                        <span>{pick.playerDetails?.team || 'FA'}</span>
+                      </div>
+                      <div className="player-tile-value-strip">
+                        <span>Gain</span>
+                        <span className={gainTone}>
+                          {pick.valueGain !== null && pick.valueGain !== undefined ? (
+                            <>
+                              {pick.valueGain > 0 ? '+' : ''}
+                              {pick.valueGain.toLocaleString()}
+                              {pick.valueGain > 0 && <TrendingUp className="ml-1 inline h-3.5 w-3.5" />}
+                              {pick.valueGain < 0 && <TrendingDown className="ml-1 inline h-3.5 w-3.5" />}
+                            </>
+                          ) : (
+                            'N/A'
+                          )}
                         </span>
-                      </TableCell>
-                      <TableCell className="manager-draft-gain-cell text-right">
-                        {pick.valueGain !== null && pick.valueGain !== undefined ? (
-                          <span
-                            className={`font-semibold ${
-                              pick.valueGain > 0
-                                ? 'text-green-400'
-                                : pick.valueGain < 0
-                                  ? 'text-red-400'
-                                  : 'text-slate-300'
-                            }`}
-                          >
-                            {pick.valueGain > 0 ? '+' : ''}
-                            {pick.valueGain.toLocaleString()}
-                            {pick.valueGain > 0 && (
-                              <TrendingUp className="inline ml-1 w-4 h-4" />
-                            )}
-                            {pick.valueGain < 0 && (
-                              <TrendingDown className="inline ml-1 w-4 h-4" />
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">N/A</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </button>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </div>
             </div>
 
           {managerPicks.length === 0 && (

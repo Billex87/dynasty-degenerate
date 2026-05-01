@@ -32,6 +32,10 @@ export interface ManagerData {
   v2027: number;
 }
 
+export interface ManagerChampionship {
+  seasons: string[];
+}
+
 export interface TradeData {
   date: string;
   season: string;
@@ -341,6 +345,7 @@ export interface ManagerDraftStats {
 
 export interface ReportData {
   managerAvatars?: Record<string, string | null>;
+  managerChampionships?: Record<string, ManagerChampionship>;
   playerDetailsById?: Record<string, PlayerDetails>;
   currentPositionRankById?: Record<string, string | null>;
   managerRosterValueGrowth: Array<{

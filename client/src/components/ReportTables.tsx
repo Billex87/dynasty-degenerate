@@ -15,52 +15,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import React, { useState, type CSSProperties } from 'react';
+import React, { useState } from 'react';
 import { ChevronDown, Crown, TrendingDown, TrendingUp } from 'lucide-react';
 import type { DraftPick, ManagerIntelPlayer, ReportData, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
+import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { getPositionRankPillClass } from '@/lib/positionRank';
+import { getTeamTileStyle } from '@/lib/teamTileStyle';
 
 type ManagerAvatars = ReportData['managerAvatars'];
 type PlayerDetailsById = ReportData['playerDetailsById'];
 type CurrentPositionRankById = ReportData['currentPositionRankById'];
-
-const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
-  ARI: { primary: '#97233F', secondary: '#000000', accent: '#FFB612' },
-  ATL: { primary: '#A71930', secondary: '#000000', accent: '#A5ACAF' },
-  BAL: { primary: '#241773', secondary: '#000000', accent: '#9E7C0C' },
-  BUF: { primary: '#00338D', secondary: '#C60C30', accent: '#FFFFFF' },
-  CAR: { primary: '#0085CA', secondary: '#101820', accent: '#BFC0BF' },
-  CHI: { primary: '#0B162A', secondary: '#C83803', accent: '#FFFFFF' },
-  CIN: { primary: '#FB4F14', secondary: '#000000', accent: '#FFFFFF' },
-  CLE: { primary: '#311D00', secondary: '#FF3C00', accent: '#FFFFFF' },
-  DAL: { primary: '#003594', secondary: '#041E42', accent: '#869397' },
-  DEN: { primary: '#FB4F14', secondary: '#002244', accent: '#FFFFFF' },
-  DET: { primary: '#0076B6', secondary: '#B0B7BC', accent: '#7fd8ff' },
-  GB: { primary: '#203731', secondary: '#FFB612', accent: '#FFFFFF' },
-  HOU: { primary: '#03202F', secondary: '#A71930', accent: '#FFFFFF' },
-  IND: { primary: '#002C5F', secondary: '#A2AAAD', accent: '#FFFFFF' },
-  JAX: { primary: '#006778', secondary: '#101820', accent: '#D7A22A' },
-  KC: { primary: '#E31837', secondary: '#FFB81C', accent: '#FFFFFF' },
-  LAC: { primary: '#0080C6', secondary: '#FFC20E', accent: '#FFFFFF' },
-  LAR: { primary: '#003594', secondary: '#FFA300', accent: '#FFFFFF' },
-  LV: { primary: '#000000', secondary: '#A5ACAF', accent: '#FFFFFF' },
-  MIA: { primary: '#008E97', secondary: '#FC4C02', accent: '#FFFFFF' },
-  MIN: { primary: '#4F2683', secondary: '#FFC62F', accent: '#FFFFFF' },
-  NE: { primary: '#002244', secondary: '#C60C30', accent: '#B0B7BC' },
-  NO: { primary: '#101820', secondary: '#D3BC8D', accent: '#FFFFFF' },
-  NYG: { primary: '#0B2265', secondary: '#A71930', accent: '#FFFFFF' },
-  NYJ: { primary: '#125740', secondary: '#000000', accent: '#FFFFFF' },
-  PHI: { primary: '#004C54', secondary: '#A5ACAF', accent: '#FFFFFF' },
-  PIT: { primary: '#101820', secondary: '#FFB612', accent: '#FFFFFF' },
-  SEA: { primary: '#002244', secondary: '#69BE28', accent: '#A5ACAF' },
-  SF: { primary: '#AA0000', secondary: '#B3995D', accent: '#FFFFFF' },
-  TB: { primary: '#D50A0A', secondary: '#34302B', accent: '#FF7900' },
-  TEN: { primary: '#0C2340', secondary: '#4B92DB', accent: '#C8102E' },
-  WAS: { primary: '#5A1414', secondary: '#FFB612', accent: '#FFFFFF' },
-};
 
 function buildPlayerModalData({
   playerId,
@@ -133,14 +100,16 @@ function renderPartnerName(manager: string, managerAvatars?: ManagerAvatars) {
   const initial = manager.trim()[0]?.toUpperCase() || '?';
 
   return (
-    <div className="partner-chip-reverse">
+    <span className="partner-chip-reverse">
       <span>{manager}</span>
-      {avatarUrl ? (
-        <img src={avatarUrl} alt={manager} />
-      ) : (
-        <span aria-hidden="true" className="partner-chip-fallback">{initial}</span>
-      )}
-    </div>
+      <ChampionAvatarFrame managerName={manager}>
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={manager} />
+        ) : (
+          <span aria-hidden="true" className="partner-chip-fallback">{initial}</span>
+        )}
+      </ChampionAvatarFrame>
+    </span>
   );
 }
 
@@ -169,20 +138,22 @@ function renderTradeSummaryManager(
     <span className={`trade-mobile-manager ${isWinner ? 'trade-mobile-winner' : 'trade-mobile-loser'}`}>
       <span className="manager-chip flex min-w-0 items-center gap-2">
         <span className="trade-mobile-avatar-wrap">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={manager}
-              className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
-            />
-          ) : (
-            <span
-              aria-hidden="true"
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-800 text-[11px] font-bold text-orange-300"
-            >
-              {initial}
-            </span>
-          )}
+          <ChampionAvatarFrame managerName={manager}>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={manager}
+                className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-800 text-[11px] font-bold text-orange-300"
+              >
+                {initial}
+              </span>
+            )}
+          </ChampionAvatarFrame>
           {isWinner && <Crown className="trade-winner-crown" aria-hidden="true" />}
         </span>
         <span className="min-w-0 truncate">{manager}</span>
@@ -202,20 +173,22 @@ function renderTradeSideManager(
   return (
     <span className={`trade-side-manager ${isWinner ? 'trade-side-manager-winner' : 'trade-side-manager-other'}`}>
       <span className="trade-mobile-avatar-wrap">
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={manager}
-            className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
-          />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-800 text-[11px] font-bold text-orange-300"
-          >
-            {initial}
-          </span>
-        )}
+        <ChampionAvatarFrame managerName={manager}>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={manager}
+              className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-800 text-[11px] font-bold text-orange-300"
+            >
+              {initial}
+            </span>
+          )}
+        </ChampionAvatarFrame>
         {isWinner && <Crown className="trade-winner-crown" aria-hidden="true" />}
       </span>
       <span className="min-w-0 truncate">{manager}</span>
@@ -496,6 +469,7 @@ function renderTradeItem(
   const playerItem = parseTradePlayerItem(trimmed);
   if (playerItem) {
     const details = playerDetailsById?.[playerItem.playerId];
+    const teamStyle = getTeamTileStyle(details?.team);
     const valueGain = playerItem.value !== null && playerItem.tradeDateValue !== null
       ? playerItem.value - playerItem.tradeDateValue
       : undefined;
@@ -518,7 +492,8 @@ function renderTradeItem(
         <button
           key={key}
           type="button"
-          className="trade-asset trade-asset-clickable"
+          className="player-team-tile trade-asset trade-asset-clickable trade-asset-player"
+          style={teamStyle}
           aria-label={`Open ${playerItem.playerName} player card`}
           onClick={(event) => {
             event.preventDefault();
@@ -545,7 +520,7 @@ function renderTradeItem(
     }
 
     return (
-      <div key={key} className="trade-asset">
+      <div key={key} className="player-team-tile trade-asset trade-asset-player" style={teamStyle}>
         {content}
       </div>
     );
@@ -616,26 +591,10 @@ function renderTradeItem(
   );
 }
 
-function getRankingColor(rank: number): string {
-  // All rankings are white
-  return 'text-white font-semibold';
-}
-
 function formatCompactValue(value: number | null | undefined): string {
   if (!value) return '-';
   if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}K`;
   return value.toLocaleString();
-}
-
-function PickYearCell({ count, value }: { count: number; value: number }) {
-  if (!count) return <span className="text-slate-500">-</span>;
-
-  return (
-    <div className="leading-tight">
-      <div className="font-black text-cyan-300">{count} pick{count === 1 ? '' : 's'}</div>
-      <div className="mt-0.5 text-[0.7rem] font-bold text-slate-400">{formatCompactValue(value)}</div>
-    </div>
-  );
 }
 
 function titleCasePill(value: string): string {
@@ -758,6 +717,23 @@ function buildOwnerWindowCopy(row: OwnerIntelRow, timelineRow: OwnerTimelineRow 
   return `Middle-build profile. Contender score ${contenderScore}/100 and rebuild score ${rebuildScore}/100 are close enough that this team should avoid all-in trades unless the upgrade clearly changes the lineup.`;
 }
 
+function buildOwnerShapeCopy(row: OwnerIntelRow): string {
+  const starterShare = Math.round(row.starterValuePct);
+  const ageCopy = row.avgAge !== null
+    ? `Average roster age is ${row.avgAge}.`
+    : 'Age profile is still incomplete.';
+  const benchCopy = row.bestBenchStash
+    ? `${row.bestBenchStash.name} is the best bench leverage piece.`
+    : 'There is no obvious bench leverage piece yet.';
+  const depthCopy = starterShare >= 58
+    ? `${starterShare}% of value sits in starters, so this team is built to score now.`
+    : starterShare <= 45
+      ? `${starterShare}% of value sits in starters, so too much value may be parked outside the weekly lineup.`
+      : `${starterShare}% of value sits in starters, which is a balanced roster shape.`;
+
+  return `${titleCasePill(row.identity)} profile. ${depthCopy} ${ageCopy} ${benchCopy}`;
+}
+
 function buildOwnerTradeDraftProfile(tradeRow: OwnerTradeRow | null | undefined, pickRow: OwnerPickRow | null | undefined): string {
   const parts = [
     tradeRow ? `${tradeRow.tradeCount} trades` : null,
@@ -829,17 +805,20 @@ function PlayerInsightTile({
   crownedRank?: string | null;
 }) {
   if (!player) return null;
+  const playerDetails = player.playerDetails || (player.player_id ? playerDetailsById?.[player.player_id] : undefined);
+  const playerTeam = playerDetails?.team || null;
 
   return (
     <button
       type="button"
-      className={`manager-intel-player ${tone === 'warn' ? 'manager-intel-player-warn' : ''} ${tone === 'danger' ? 'manager-intel-player-danger' : ''}`}
+      className={`player-team-tile manager-intel-player ${tone === 'warn' ? 'manager-intel-player-warn' : ''} ${tone === 'danger' ? 'manager-intel-player-danger' : ''}`}
+      style={getTeamTileStyle(playerTeam)}
       onClick={() => onSelect(buildPlayerModalData({
         playerId: player.player_id,
         playerName: player.name,
         playerPos: player.pos,
         value: player.value,
-        playerDetails: player.playerDetails,
+        playerDetails,
         playerDetailsById,
         currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
         manager: player.owner || manager,
@@ -853,7 +832,7 @@ function PlayerInsightTile({
       <div className="manager-intel-player-pills">
         <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
         {extraPill && <span>{extraPill}</span>}
-        <span>{player.playerDetails?.team || 'FA'}</span>
+        <span>{playerTeam || 'FA'}</span>
         <span>{formatCompactValue(player.value)}</span>
       </div>
       {crownedRank && (
@@ -862,6 +841,58 @@ function PlayerInsightTile({
           <span>{crownedRank}</span>
         </div>
       )}
+    </button>
+  );
+}
+
+function TaxiTriageRow({
+  player,
+  manager,
+  managerAvatarUrl,
+  playerDetailsById,
+  onSelect,
+}: {
+  player: NonNullable<OwnerIntelRow['taxiTriage']>['items'][number];
+  manager: string;
+  managerAvatarUrl?: string | null;
+  playerDetailsById?: PlayerDetailsById;
+  onSelect: (player: PlayerModalData) => void;
+}) {
+  const playerDetails = player.playerDetails || (player.player_id ? playerDetailsById?.[player.player_id] : undefined);
+  const playerTeam = playerDetails?.team || null;
+  const rank = player.seasonPositionRank || player.currentPositionRank || player.pos;
+  const tone = getTaxiBadgeTone(player.taxiAction);
+
+  return (
+    <button
+      type="button"
+      className={`player-team-tile owner-intel-taxi-row owner-intel-taxi-row-${tone}`}
+      style={getTeamTileStyle(playerTeam)}
+      onClick={() => onSelect(buildPlayerModalData({
+        playerId: player.player_id,
+        playerName: player.name,
+        playerPos: player.pos,
+        value: player.value,
+        playerDetails,
+        playerDetailsById,
+        currentPositionRank: rank,
+        manager,
+        managerAvatarUrl,
+      }))}
+    >
+      <div className="owner-intel-taxi-player">
+        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+        <div className="owner-intel-taxi-pills">
+          <PositionRankPill rank={rank} />
+          <span>Taxi</span>
+          <span>{playerTeam || 'FA'}</span>
+          <span>{formatCompactValue(player.value)}</span>
+        </div>
+      </div>
+      <div className="owner-intel-taxi-note">
+        <span className={`command-mini-badge command-mini-badge-${tone}`}>{player.taxiAction}</span>
+        <p>{player.taxiReason}</p>
+      </div>
     </button>
   );
 }
@@ -943,16 +974,6 @@ function PositionRankPill({ rank }: { rank?: string | null }) {
   return <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>;
 }
 
-function getCommandPlayerTileStyle(player: CommandPlayer): CSSProperties | undefined {
-  const teamColors = NFL_TEAM_COLORS[player.playerDetails?.team || ''];
-  if (!teamColors) return undefined;
-  return {
-    '--team-primary': teamColors.primary,
-    '--team-secondary': teamColors.secondary,
-    '--team-accent': teamColors.accent,
-  } as CSSProperties;
-}
-
 function CommandPlayerTile({
   player,
   onClick,
@@ -967,8 +988,8 @@ function CommandPlayerTile({
   return (
     <button
       type="button"
-      className={`manager-command-player-tile ${variant === 'step' ? 'manager-command-player-tile-step' : ''}`}
-      style={getCommandPlayerTileStyle(player)}
+      className={`player-team-tile manager-command-player-tile ${variant === 'step' ? 'manager-command-player-tile-step' : ''}`}
+      style={getTeamTileStyle(player.playerDetails?.team)}
       onClick={onClick}
     >
       {label && <div className="manager-intel-player-kicker">{label}</div>}
@@ -1046,14 +1067,17 @@ function ManagerDepthTile({
       )}
       <span className="command-depth-tile-scrim" />
       <span className="command-depth-tile-main">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={manager} className="command-depth-avatar" />
-        ) : (
-          <span className="command-depth-avatar">{manager[0]?.toUpperCase() || '?'}</span>
-        )}
+        <ChampionAvatarFrame managerName={manager} className="command-depth-champion">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={manager} className="command-depth-avatar" />
+          ) : (
+            <span className="command-depth-avatar">{manager[0]?.toUpperCase() || '?'}</span>
+          )}
+        </ChampionAvatarFrame>
         <span className="command-depth-name">{manager}</span>
       </span>
       <span className="command-depth-badges">
+        <ManagerChampionshipPills managerName={manager} className="command-depth-championships" />
         {badges.map((badge) => (
           <span key={badge.label} className={`command-mini-badge command-mini-badge-${badge.tone || 'neutral'}`}>
             {badge.label}
@@ -1061,6 +1085,77 @@ function ManagerDepthTile({
         ))}
       </span>
     </button>
+  );
+}
+
+function OwnerMetricPill({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'info';
+}) {
+  return (
+    <div className={`owner-metric-pill owner-metric-pill-${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function OwnerSummaryTile({
+  manager,
+  avatarUrl,
+  children,
+  onClick,
+  className = '',
+}: {
+  manager: string;
+  avatarUrl?: string | null;
+  children: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
+}) {
+  const content = (
+    <>
+      {avatarUrl && (
+        <>
+          <img src={avatarUrl} alt="" className="owner-summary-wash" />
+          <img src={avatarUrl} alt="" className="owner-summary-mark" />
+        </>
+      )}
+      <span className="owner-summary-scrim" />
+      <span className="owner-summary-main">
+        <ChampionAvatarFrame managerName={manager} className="owner-summary-avatar-frame">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={manager} className="owner-summary-avatar" />
+          ) : (
+            <span className="owner-summary-avatar">{manager[0]?.toUpperCase() || '?'}</span>
+          )}
+        </ChampionAvatarFrame>
+        <span className="owner-summary-name-lockup">
+          <span className="owner-summary-name">{manager}</span>
+          <ManagerChampionshipPills managerName={manager} className="owner-summary-championships" />
+        </span>
+      </span>
+      <span className="owner-summary-metrics">{children}</span>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" className={`owner-summary-tile ${className}`} onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className={`owner-summary-tile ${className}`}>
+      {content}
+    </div>
   );
 }
 
@@ -1322,14 +1417,17 @@ export function LeagueCommandCenter({
               )}
               <div className="manager-hero-scrim" />
               <div className="manager-command-title-lockup">
-              {managerAvatars?.[selectedManager] ? (
-                <img src={managerAvatars[selectedManager] || ''} alt={selectedManager} className="manager-command-avatar" />
-              ) : (
-                <span className="manager-command-avatar">{selectedManager[0]?.toUpperCase() || '?'}</span>
-              )}
+              <ChampionAvatarFrame managerName={selectedManager} className="manager-command-champion-frame">
+                {managerAvatars?.[selectedManager] ? (
+                  <img src={managerAvatars[selectedManager] || ''} alt={selectedManager} className="manager-command-avatar" />
+                ) : (
+                  <span className="manager-command-avatar">{selectedManager[0]?.toUpperCase() || '?'}</span>
+                )}
+              </ChampionAvatarFrame>
               <div className="min-w-0">
                 <p>Owner Data Room</p>
                 <h3>{selectedManager}</h3>
+                <ManagerChampionshipPills managerName={selectedManager} className="manager-command-championships" />
               </div>
               </div>
               <div className="manager-command-hero-metrics">
@@ -1646,14 +1744,17 @@ export function ManagerIntelligenceCards({
                 )}
                 <div className="manager-hero-scrim" />
                 <div className="manager-command-title-lockup">
-                  {managerAvatars?.[selectedRow.manager] ? (
-                    <img src={managerAvatars[selectedRow.manager] || ''} alt={selectedRow.manager} className="manager-command-avatar" />
-                  ) : (
-                    <span className="manager-command-avatar">{selectedRow.manager[0]?.toUpperCase() || '?'}</span>
-                  )}
+                  <ChampionAvatarFrame managerName={selectedRow.manager} className="manager-command-champion-frame">
+                    {managerAvatars?.[selectedRow.manager] ? (
+                      <img src={managerAvatars[selectedRow.manager] || ''} alt={selectedRow.manager} className="manager-command-avatar" />
+                    ) : (
+                      <span className="manager-command-avatar">{selectedRow.manager[0]?.toUpperCase() || '?'}</span>
+                    )}
+                  </ChampionAvatarFrame>
                   <div className="min-w-0">
                     <p>Team Identity</p>
                     <h3>{selectedRow.manager}</h3>
+                    <ManagerChampionshipPills managerName={selectedRow.manager} className="manager-command-championships" />
                   </div>
                 </div>
                 <div className="manager-command-hero-metrics">
@@ -1837,34 +1938,30 @@ export function OwnerIntelMatrix({
     if (!item.player) return false;
     return rows.findIndex((candidate) => candidate.player?.player_id === item.player?.player_id) === index;
   });
-  const selectedActionNotes = selectedRow ? dedupeIntelNotes([
-    selectedRow.tradeBlueprints?.[0]?.summary,
-    selectedRow.marketSignals?.[0],
-    selectedRow.pressurePoints?.[0],
-    selectedRow.buyTarget && selectedRow.sellCandidate
-      ? `Trade shape: float ${selectedRow.sellCandidate.name} only if it can solve the ${selectedRow.tradePlan?.needPosition || 'biggest'} need with ${selectedRow.buyTarget.name}.`
-      : null,
-    selectedRow.starterAvailability.riskiestStarter
-      ? `Availability tax: ${selectedRow.starterAvailability.riskiestStarter.name} is the player other managers should press on in negotiations.`
-      : null,
-    selectedRow.droppablePlayers?.length
-      ? `Roster churn: ${selectedRow.droppablePlayers.map((player) => player.name).slice(0, 3).join(', ')} are the first cuts if waivers heat up.`
-      : null,
-    selectedRow.untouchablePlayers?.length
-      ? `Core rule: ${selectedRow.untouchablePlayers.map((player) => player.name).slice(0, 3).join(', ')} should only move for an obvious overpay.`
-      : null,
-    ...(selectedRow.chaosNotes || []),
-  ], [
-    selectedRow.strategySummary,
-    selectedRow.summary,
-    selectedRow.tradePlan?.summary,
-  ]).slice(0, 6) : [];
-  const selectedRosterRead = selectedRow ? selectedRow.strategySummary || selectedRow.summary : '';
+  const selectedRosterRead = selectedRow ? buildOwnerShapeCopy(selectedRow) : '';
   const selectedBestMove = selectedRow ? buildOwnerBestMove(selectedRow) : '';
   const selectedTradeDraftProfile = selectedRow ? buildOwnerTradeDraftProfile(selectedTradeRow, selectedPickRow) : '';
   const selectedHealthCheck = selectedRow ? buildOwnerHealthCopy(selectedRow) : '';
   const selectedWeakSpotCopy = selectedRow ? buildOwnerWeakSpotCopy(selectedRow) : '';
   const selectedTeamWindow = selectedRow ? buildOwnerWindowCopy(selectedRow, selectedTimelineRow) : '';
+  const selectedActionNotes = selectedRow ? dedupeIntelNotes([
+    selectedRow.pressurePoints?.[0],
+    selectedRow.pressurePoints?.[1],
+    selectedRow.marketSignals?.find((signal) => !signal.includes('External target') && !signal.includes('Internal liquidity')),
+    selectedRow.untouchablePlayers?.length
+      ? `Core rule: ${selectedRow.untouchablePlayers.map((player) => player.name).slice(0, 3).join(', ')} should only move for an obvious overpay.`
+      : null,
+    selectedRow.droppablePlayers?.length
+      ? `Roster churn: ${selectedRow.droppablePlayers.map((player) => player.name).slice(0, 3).join(', ')} are the first cuts if waivers heat up.`
+      : null,
+  ], [
+    selectedRosterRead,
+    selectedBestMove,
+    selectedTradeDraftProfile,
+    selectedHealthCheck,
+    selectedWeakSpotCopy,
+    selectedTeamWindow,
+  ]).slice(0, 4) : [];
 
   return (
     <>
@@ -1914,14 +2011,17 @@ export function OwnerIntelMatrix({
                 )}
                 <div className="manager-hero-scrim" />
                 <div className="manager-command-title-lockup">
-                  {managerAvatars?.[selectedRow.manager] ? (
-                    <img src={managerAvatars[selectedRow.manager] || ''} alt={selectedRow.manager} className="manager-command-avatar" />
-                  ) : (
-                    <span className="manager-command-avatar">{selectedRow.manager[0]?.toUpperCase() || '?'}</span>
-                  )}
+                  <ChampionAvatarFrame managerName={selectedRow.manager} className="manager-command-champion-frame">
+                    {managerAvatars?.[selectedRow.manager] ? (
+                      <img src={managerAvatars[selectedRow.manager] || ''} alt={selectedRow.manager} className="manager-command-avatar" />
+                    ) : (
+                      <span className="manager-command-avatar">{selectedRow.manager[0]?.toUpperCase() || '?'}</span>
+                    )}
+                  </ChampionAvatarFrame>
                   <div className="min-w-0">
                     <p>Owner Intel Lab</p>
                     <h3>{selectedRow.manager}</h3>
+                    <ManagerChampionshipPills managerName={selectedRow.manager} className="manager-command-championships" />
                   </div>
                 </div>
                 <div className="manager-command-hero-metrics">
@@ -1981,28 +2081,16 @@ export function OwnerIntelMatrix({
                       <h4>Taxi Squad Triage</h4>
                       <p>{selectedRow.taxiTriage.summary}</p>
                     </div>
-                    <div className="owner-intel-player-grid">
+                    <div className="owner-intel-taxi-list">
                       {selectedRow.taxiTriage.items.map((player) => (
-                        <PlayerInsightTile
+                        <TaxiTriageRow
                           key={`taxi-${player.player_id}`}
-                          label={player.taxiAction}
                           player={player}
                           manager={selectedRow.manager}
                           managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
                           playerDetailsById={data.playerDetailsById}
                           onSelect={setSelectedPlayer}
-                          tone={player.taxiAction === 'Cuttable' ? 'danger' : player.taxiAction === 'Taxi Risk' ? 'warn' : 'neutral'}
-                          extraPill="Taxi"
                         />
-                      ))}
-                    </div>
-                    <div className="owner-intel-taxi-reasons">
-                      {selectedRow.taxiTriage.items.slice(0, 4).map((player) => (
-                        <p key={`taxi-note-${player.player_id}`}>
-                          <span className={`command-mini-badge command-mini-badge-${getTaxiBadgeTone(player.taxiAction)}`}>{player.taxiAction}</span>
-                          <strong>{player.name}</strong>
-                          {player.taxiReason}
-                        </p>
                       ))}
                     </div>
                   </div>
@@ -2130,31 +2218,21 @@ export function PowerRankingsTable({
   if (!data?.length) return null;
 
   return (
-    <div className="flex justify-center">
-      <Card className="report-card-polished overflow-hidden border-slate-800 bg-slate-900">
-        <Table className="report-table-polished power-rankings-table">
-          <TableHeader className="border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-center text-white font-semibold">Tier</TableHead>
-              <TableHead className="text-right text-white font-semibold">Score</TableHead>
-              <TableHead className="text-right text-white font-semibold">Starter</TableHead>
-              <TableHead className="text-right text-white font-semibold">Youth</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row) => (
-              <TableRow key={row.manager} className="border-slate-700">
-                <TableCell className="font-semibold text-slate-100">{renderManagerName(row.manager, managerAvatars)}</TableCell>
-                <TableCell className="text-center text-cyan-300 font-black">{row.tier}</TableCell>
-                <TableCell className="text-right text-orange-300 font-black">{row.score}</TableCell>
-                <TableCell className="text-right text-slate-300">{row.starterStrength}</TableCell>
-                <TableCell className="text-right text-slate-300">{row.youthScore}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+    <div className="owner-tile-shell">
+      <div className="owner-tile-grid">
+        {data.map((row) => (
+          <OwnerSummaryTile
+            key={row.manager}
+            manager={row.manager}
+            avatarUrl={managerAvatars?.[row.manager]}
+          >
+            <OwnerMetricPill label="Tier" value={row.tier} tone="info" />
+            <OwnerMetricPill label="Score" value={row.score} tone="warn" />
+            <OwnerMetricPill label="Starter" value={row.starterStrength} />
+            <OwnerMetricPill label="Youth" value={row.youthScore} tone="good" />
+          </OwnerSummaryTile>
+        ))}
+      </div>
     </div>
   );
 }
@@ -2167,46 +2245,25 @@ export function ManagerRosterValueGrowthTable({
   managerAvatars?: ManagerAvatars;
 }) {
   return (
-    <div className="flex justify-center">
-      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-        <div className="overflow-visible">
-          <Table className="report-table-polished roster-growth-table">
-          <TableHeader className="border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700">
-              <TableHead className="overview-manager-heading text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold"><div>2025</div><div>Value</div></TableHead>
-              <TableHead className="text-right text-white font-semibold"><div>2026</div><div>Value</div></TableHead>
-              <TableHead className="text-right text-white font-semibold"><div>Growth</div><div>%</div></TableHead>
-              <TableHead className="text-right text-white font-semibold"><div>Projected</div><div>Rank</div></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row, idx) => (
-              <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="overview-manager-cell font-semibold text-slate-100">
-                  {renderManagerName(row.manager, managerAvatars)}
-                </TableCell>
-                <TableCell className="text-right text-slate-300">
-                  {row.past_val.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-right text-slate-300">
-                  {row.total_val.toLocaleString()}
-                </TableCell>
-                <TableCell
-                  className={`text-right font-semibold ${
-                    row.growth >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}
-                >
-                  {row.growth >= 0 ? '+' : ''}
-                  {row.growth.toFixed(1)}%
-                </TableCell>
-                <TableCell className={`text-right ${getRankingColor(row.rank)}`}>#{row.rank}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-          </Table>
-        </div>
-      </Card>
+    <div className="owner-tile-shell">
+      <div className="owner-tile-grid">
+        {data.map((row, idx) => (
+          <OwnerSummaryTile
+            key={`${row.manager}-${idx}`}
+            manager={row.manager}
+            avatarUrl={managerAvatars?.[row.manager]}
+          >
+            <OwnerMetricPill label="2025" value={formatCompactValue(row.past_val)} />
+            <OwnerMetricPill label="Now" value={formatCompactValue(row.total_val)} tone="info" />
+            <OwnerMetricPill
+              label="Growth"
+              value={`${row.growth >= 0 ? '+' : ''}${row.growth.toFixed(1)}%`}
+              tone={row.growth >= 0 ? 'good' : 'danger'}
+            />
+            <OwnerMetricPill label="Proj" value={`#${row.rank}`} tone="warn" />
+          </OwnerSummaryTile>
+        ))}
+      </div>
     </div>
   );
 }
@@ -2227,66 +2284,67 @@ export function WeeklyMomentumTable({
   leagueLogo?: string | null;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const isRiserList = data.some((row) => row.pct_change > 0);
 
   return (
-    <div className="flex justify-center">
-      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-      <div className="overflow-visible">
-        <Table className="report-table-polished weekly-momentum-table">
-          <TableHeader className="border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Player</TableHead>
-              <TableHead className="weekly-manager-heading text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold"><div>Last</div><div>Week</div></TableHead>
-              <TableHead className="text-right text-white font-semibold"><div>This</div><div>Week</div></TableHead>
-              <TableHead className="text-right text-white font-semibold">Change</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row) => (
-              <TableRow
+    <div className="weekly-momentum-wrap">
+      {data.length > 0 ? (
+        <div className="weekly-momentum-grid">
+          {data.map((row) => {
+            const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
+            const isPositive = row.pct_change >= 0;
+            return (
+              <button
                 key={`${row.player_id || row.name}-${row.owner}`}
-                className="cursor-pointer border-slate-700 hover:bg-slate-800/30"
+                type="button"
+                className={`player-team-tile weekly-momentum-tile ${isPositive ? 'weekly-momentum-tile-up' : 'weekly-momentum-tile-down'}`}
+                style={getTeamTileStyle(playerDetails?.team)}
                 onClick={() => setSelectedPlayer(buildPlayerModalData({
                   playerId: row.player_id,
                   playerName: row.name,
                   playerPos: row.pos,
                   value: row.val_now,
                   valueGain: row.diff,
-                  playerDetails: row.playerDetails,
+                  playerDetails,
                   playerDetailsById,
                   manager: row.owner,
                   managerAvatarUrl: managerAvatars?.[row.owner],
                   currentPositionRank: row.currentPositionRank,
-                  valueChangeNote: 'Change from last week to this week.',
+                  valueChangeNote: 'Change over the last 7 days.',
                 }))}
               >
-                <TableCell className="font-semibold text-slate-100">
+                <div className="weekly-momentum-tile-top">
+                  <span>{isPositive ? 'Riser' : 'Faller'}</span>
+                  <strong className={isPositive ? 'text-emerald-300' : 'text-rose-300'}>
+                    {row.pct_change >= 0 ? '+' : ''}
+                    {row.pct_change.toFixed(1)}%
+                  </strong>
+                </div>
+                <div className="weekly-momentum-player">
                   <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
-                </TableCell>
-                <TableCell className="weekly-manager-cell text-center text-slate-400">
+                </div>
+                <div className="weekly-momentum-manager">
                   {renderManagerName(row.owner, managerAvatars)}
-                </TableCell>
-                <TableCell className="text-right text-slate-300">
-                  {row.val_last.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-right text-slate-300">
-                  {row.val_now.toLocaleString()}
-                </TableCell>
-                <TableCell
-                  className={`text-right font-semibold ${
-                    row.pct_change >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}
-                >
-                  {row.pct_change >= 0 ? '+' : ''}
-                  {row.pct_change.toFixed(1)}%
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </Card>
+                </div>
+                <div className="weekly-momentum-pills">
+                  <PositionRankPill rank={row.currentPositionRank || row.pos} />
+                  <span>{playerDetails?.team || 'FA'}</span>
+                  <span>{formatCompactValue(row.val_now)}</span>
+                </div>
+                <div className="weekly-momentum-values">
+                  <span>{formatCompactValue(row.val_last)}</span>
+                  <span aria-hidden="true">to</span>
+                  <span>{formatCompactValue(row.val_now)}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <Card className="report-card-polished weekly-momentum-empty border-slate-800 bg-slate-900">
+          No {isRiserList ? 'risers' : title.toLowerCase()} found for the current 7-day window.
+        </Card>
+      )}
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}
@@ -2307,43 +2365,23 @@ export function LeagueOverviewTable({
   managerAvatars?: ManagerAvatars;
 }) {
   return (
-    <div className="flex justify-center">
-      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-      <div className="overflow-visible">
-        <Table className="report-table-polished league-overview-table">
-          <TableHeader className="border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700">
-              <TableHead className="overview-manager-heading text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold"><div>Total</div><div>Value</div></TableHead>
-              <TableHead className="text-center text-white font-semibold"><div>QB</div><div>Rank</div></TableHead>
-              <TableHead className="text-center text-white font-semibold"><div>RB</div><div>Rank</div></TableHead>
-              <TableHead className="text-center text-white font-semibold"><div>WR</div><div>Rank</div></TableHead>
-              <TableHead className="text-center text-white font-semibold"><div>TE</div><div>Rank</div></TableHead>
-              <TableHead className="text-center text-white font-semibold"><div>Value</div><div>Rank</div></TableHead>
-              <TableHead className="text-center text-white font-semibold"><div>2027</div><div>Rank</div></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row, idx) => (
-              <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                <TableCell className="overview-manager-cell font-semibold text-slate-100">
-                  {renderManagerName(row.manager, managerAvatars)}
-                </TableCell>
-                <TableCell className="text-right text-slate-300">
-                  {row.total_val.toLocaleString()}
-                </TableCell>
-                <TableCell className={`text-center ${getRankingColor(row.rank_qb)}`}>#{row.rank_qb}</TableCell>
-                <TableCell className={`text-center ${getRankingColor(row.rank_rb)}`}>#{row.rank_rb}</TableCell>
-                <TableCell className={`text-center ${getRankingColor(row.rank_wr)}`}>#{row.rank_wr}</TableCell>
-                <TableCell className={`text-center ${getRankingColor(row.rank_te)}`}>#{row.rank_te}</TableCell>
-                <TableCell className={`text-center ${getRankingColor(row.rank_value)}`}>#{row.rank_value}</TableCell>
-                <TableCell className={`text-center ${getRankingColor(row.rank_2027)}`}>#{row.rank_2027}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+    <div className="owner-tile-shell">
+      <div className="owner-tile-grid owner-overview-grid">
+        {data.map((row, idx) => (
+          <OwnerSummaryTile
+            key={`${row.manager}-${idx}`}
+            manager={row.manager}
+            avatarUrl={managerAvatars?.[row.manager]}
+          >
+            <OwnerMetricPill label="Value" value={formatCompactValue(row.total_val)} tone="warn" />
+            <OwnerMetricPill label="QB" value={`#${row.rank_qb}`} />
+            <OwnerMetricPill label="RB" value={`#${row.rank_rb}`} />
+            <OwnerMetricPill label="WR" value={`#${row.rank_wr}`} />
+            <OwnerMetricPill label="TE" value={`#${row.rank_te}`} />
+            <OwnerMetricPill label="Rank" value={`#${row.rank_value}`} tone="info" />
+          </OwnerSummaryTile>
+        ))}
       </div>
-    </Card>
     </div>
   );
 }
@@ -2368,63 +2406,55 @@ export function TrendingPlayersTable({
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
 
   return (
-    <div className="flex justify-center">
-      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-        <div className="overflow-visible">
-          <Table
-            className="trending-players-table momentum-trending-table w-full text-xs sm:text-sm"
-            style={{ tableLayout: 'fixed' }}
-          >
-            <TableHeader className="border-b-2 border-orange-500/30">
-              <TableRow className="border-slate-700">
-                <TableHead className="trending-player-heading text-white font-semibold">Player</TableHead>
-                <TableHead className="trending-pos-heading text-center text-white font-semibold">Position</TableHead>
-                <TableHead className="trending-team-heading text-center text-white font-semibold">Team</TableHead>
-                <TableHead className="mobile-icon-manager-heading text-white font-semibold">Manager</TableHead>
-                <TableHead className="trending-count-heading text-right text-white font-semibold">{countLabel}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((row) => (
-                <TableRow
-                  key={row.player_id}
-                  className="cursor-pointer border-slate-700 hover:bg-slate-800/30"
-                  onClick={() => setSelectedPlayer(buildPlayerModalData({
+    <div className="trending-card-wrap">
+      {data.length > 0 ? (
+        <div className="trending-card-grid">
+          {data.map((row) => {
+            const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
+            return (
+              <button
+                key={row.player_id}
+                type="button"
+                className="player-team-tile trending-player-card"
+                style={getTeamTileStyle(playerDetails?.team || row.team)}
+                onClick={() => setSelectedPlayer(buildPlayerModalData({
                     playerId: row.player_id,
                     playerName: row.name,
                     playerPos: row.pos,
                     value: row.ktcValue,
-                    playerDetails: row.playerDetails,
+                    playerDetails,
                     playerDetailsById,
                     currentPositionRank: row.currentPositionRank,
                     manager: row.owner || null,
                     managerAvatarUrl: row.owner ? managerAvatars?.[row.owner] : null,
                   }))}
-                >
-                  <TableCell className="trending-player-cell min-w-0 font-semibold text-slate-100">
-                    <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
-                  </TableCell>
-                  <TableCell className="trending-pos-cell text-center text-slate-400">{row.pos}</TableCell>
-                  <TableCell className="trending-team-cell text-center text-slate-400">{row.team || 'FA'}</TableCell>
-                  <TableCell className="mobile-icon-manager-cell text-slate-400">
-                    {row.owner ? renderManagerName(row.owner, managerAvatars) : (
-                      <span className="available-manager-label">Available</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="trending-count-cell text-right font-semibold text-slate-300">{row.count.toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-              {data.length === 0 && (
-                <TableRow className="border-slate-700">
-                  <TableCell colSpan={5} className="py-6 text-center text-slate-500">
-                    No {title.toLowerCase()} available
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              >
+                <div className="trending-player-card-top">
+                  <span>{countLabel}</span>
+                  <strong>{row.count.toLocaleString()}</strong>
+                </div>
+                <div className="trending-player-card-main">
+                  <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
+                </div>
+                <div className="trending-player-card-owner">
+                  {row.owner ? renderManagerName(row.owner, managerAvatars) : (
+                    <span className="available-manager-label">Available</span>
+                  )}
+                </div>
+                <div className="trending-player-card-pills">
+                  <PositionRankPill rank={row.currentPositionRank || row.pos} />
+                  <span>{playerDetails?.team || row.team || 'FA'}</span>
+                  <span>{formatCompactValue(row.ktcValue)}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
-      </Card>
+      ) : (
+        <Card className="report-card-polished trending-empty-card border-slate-800 bg-slate-900">
+          No {title.toLowerCase()} available
+        </Card>
+      )}
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}
@@ -2455,72 +2485,58 @@ export function ProjectedMoversTable({
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
 
   return (
-    <div className="flex justify-center">
-      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-      <div className="overflow-visible">
-        <Table className="report-table-polished projected-movers-table">
-          <TableHeader className="border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Rank</TableHead>
-              <TableHead className="text-white font-semibold">Player</TableHead>
-              <TableHead className="text-white font-semibold">Position</TableHead>
-              <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold">Age</TableHead>
-              <TableHead className="text-right text-white font-semibold">2026 Value</TableHead>
-              <TableHead className="text-right text-white font-semibold">2027 Projection</TableHead>
-              <TableHead className="text-right text-white font-semibold">Change</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row, idx) => (
-              <TableRow
-                key={idx}
-                className="cursor-pointer border-slate-700 hover:bg-slate-800/30"
-                onClick={() => setSelectedPlayer(buildPlayerModalData({
-                  playerId: row.player_id,
-                  playerName: row.name,
-                  playerPos: row.pos,
-                  value: row.val_2026,
-                  valueGain: row.diff,
-                  playerDetails: row.playerDetails,
-                  playerDetailsById,
-                  manager: row.owner,
-                  managerAvatarUrl: managerAvatars?.[row.owner],
-                  currentPositionRank: row.currentPositionRank,
-                  valueChangeNote: 'Projected change from current value to next year’s value.',
-                }))}
-              >
-                <TableCell className="font-semibold text-slate-300">#{idx + 1}</TableCell>
-                <TableCell className="font-semibold text-slate-100">
-                  <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
-                </TableCell>
-                <TableCell className="text-slate-400">{row.pos}</TableCell>
-                <TableCell className="text-slate-400">
-                  {renderManagerName(row.owner, managerAvatars)}
-                </TableCell>
-                <TableCell className="text-right text-slate-300">
-                  {row.age !== null ? row.age : 'N/A'}
-                </TableCell>
-                <TableCell className="text-right text-slate-300">
-                  {row.val_2026.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-right text-slate-300">
-                  {row.val_2027.toLocaleString()}
-                </TableCell>
-                <TableCell
-                  className={`text-right font-semibold ${
-                    row.diff >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}
-                >
-                  {row.diff >= 0 ? '+' : ''}
+    <div className="player-tile-shell">
+      <div className="player-tile-grid projected-movers-grid">
+        {data.map((row, idx) => {
+          const details = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
+          const isPositive = row.diff >= 0;
+          return (
+            <button
+              key={`${row.player_id || row.name}-${idx}`}
+              type="button"
+              className={`player-team-tile projected-mover-tile ${isPositive ? 'projected-mover-up' : 'projected-mover-down'}`}
+              style={getTeamTileStyle(details?.team)}
+              onClick={() => setSelectedPlayer(buildPlayerModalData({
+                playerId: row.player_id,
+                playerName: row.name,
+                playerPos: row.pos,
+                value: row.val_2026,
+                valueGain: row.diff,
+                playerDetails: details,
+                playerDetailsById,
+                manager: row.owner,
+                managerAvatarUrl: managerAvatars?.[row.owner],
+                currentPositionRank: row.currentPositionRank,
+                valueChangeNote: 'Projected change from current value to next year value.',
+              }))}
+            >
+              <div className="player-tile-topline">
+                <span>#{idx + 1}</span>
+                <strong className={isPositive ? 'text-emerald-300' : 'text-rose-300'}>
+                  {isPositive ? '+' : ''}
                   {row.diff.toLocaleString()}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </strong>
+              </div>
+              <div className="player-tile-main">
+                <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
+              </div>
+              <div className="player-tile-owner">
+                {renderManagerName(row.owner, managerAvatars)}
+              </div>
+              <div className="player-tile-pills">
+                <PositionRankPill rank={row.currentPositionRank || row.pos} />
+                <span>{details?.team || 'FA'}</span>
+                <span>{row.age !== null ? `${row.age} yrs` : 'Age N/A'}</span>
+              </div>
+              <div className="player-tile-value-strip">
+                <span>{formatCompactValue(row.val_2026)}</span>
+                <span>to</span>
+                <span>{formatCompactValue(row.val_2027)}</span>
+              </div>
+            </button>
+          );
+        })}
       </div>
-    </Card>
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}
@@ -2565,50 +2581,30 @@ export function TradeProfitLeaderboardTable({
     : undefined;
 
   return (
-    <div className="flex justify-center">
-      <Card className="trade-profit-card bg-slate-900 border-slate-800 overflow-hidden">
-        <div className="overflow-visible">
-          <Table className="trade-profit-table">
-          <TableHeader className="border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700">
-              <TableHead className="trade-profit-heading font-semibold">Manager</TableHead>
-              <TableHead className="trade-profit-heading text-right font-semibold">Wins</TableHead>
-              <TableHead className="trade-profit-heading text-right font-semibold">Win %</TableHead>
-              <TableHead className="trade-profit-heading text-right font-semibold">Trades</TableHead>
-              <TableHead className="trade-profit-heading text-right font-semibold">Profit</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row) => {
-              const winPct = row.trade_count > 0 ? Math.round((row.wins / row.trade_count) * 100) : 0;
+    <div className="owner-tile-shell">
+      <div className="owner-tile-grid trade-profit-tile-grid">
+        {data.map((row) => {
+          const winPct = row.trade_count > 0 ? Math.round((row.wins / row.trade_count) * 100) : 0;
 
-              return (
-              <TableRow
-                key={row.rank}
-                className="trade-profit-row cursor-pointer border-slate-700 hover:bg-slate-800/30"
-                onClick={() => setSelectedManager(row.manager)}
-              >
-                <TableCell className="font-semibold text-slate-100">
-                  {renderManagerName(row.manager, managerAvatars)}
-                </TableCell>
-                <TableCell className="trade-profit-wins text-right font-semibold text-orange-300">{row.wins}</TableCell>
-                <TableCell className="trade-profit-winpct text-right font-semibold text-cyan-300">{winPct}%</TableCell>
-                <TableCell className="trade-profit-trades text-right text-slate-300">{row.trade_count}</TableCell>
-                <TableCell
-                  className={`trade-profit-value text-right font-semibold ${
-                    row.profit >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}
-                >
-                  {row.profit >= 0 ? '+' : ''}
-                  {row.profit.toLocaleString()}
-                </TableCell>
-              </TableRow>
-              );
-            })}
-          </TableBody>
-          </Table>
-        </div>
-      </Card>
+          return (
+            <OwnerSummaryTile
+              key={row.rank}
+              manager={row.manager}
+              avatarUrl={managerAvatars?.[row.manager]}
+              onClick={() => setSelectedManager(row.manager)}
+            >
+              <OwnerMetricPill label="Wins" value={row.wins} tone="warn" />
+              <OwnerMetricPill label="Win %" value={`${winPct}%`} tone="info" />
+              <OwnerMetricPill label="Trades" value={row.trade_count} />
+              <OwnerMetricPill
+                label="Profit"
+                value={`${row.profit >= 0 ? '+' : ''}${row.profit.toLocaleString()}`}
+                tone={row.profit >= 0 ? 'good' : 'danger'}
+              />
+            </OwnerSummaryTile>
+          );
+        })}
+      </div>
       <Dialog
         open={selectedManager !== null}
         onOpenChange={(open) => {
@@ -2639,13 +2635,13 @@ export function TradeProfitLeaderboardTable({
                 <div className="manager-hero-scrim" />
                 <DialogHeader className="trade-manager-header relative pr-8">
                   <div className="trade-manager-title-lockup">
-                    <div className="trade-manager-title-avatar">
+                    <ChampionAvatarFrame managerName={selectedManager} className="trade-manager-title-avatar">
                       {managerAvatars?.[selectedManager] ? (
                         <img src={managerAvatars[selectedManager] || ''} alt={selectedManager} />
                       ) : (
                         <span>{selectedManager.trim()[0]?.toUpperCase() || '?'}</span>
                       )}
-                    </div>
+                    </ChampionAvatarFrame>
                     <div className="min-w-0 text-center">
                       <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/90">
                         Trade Portfolio
@@ -2653,6 +2649,7 @@ export function TradeProfitLeaderboardTable({
                       <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400">
                         {selectedManager}
                       </DialogTitle>
+                      <ManagerChampionshipPills managerName={selectedManager} className="mt-2 justify-center" />
                     </div>
                   </div>
                 </DialogHeader>
@@ -2918,31 +2915,19 @@ export function PositionAnalysisTable({
           <TrendingDown className="w-5 h-5 text-red-400" />
           <h3 className="text-xl font-bold text-red-400 text-center">Position Shortages</h3>
         </div>
-          <div className="flex justify-center">
-            <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-              <div className="overflow-visible">
-              <Table className="report-table-polished position-analysis-table">
-                <TableHeader className="border-b-2 border-orange-500/30">
-                  <TableRow className="border-slate-700">
-                    <TableHead className="overview-manager-heading text-white font-semibold">Team</TableHead>
-                    <TableHead className="text-white font-semibold">Position</TableHead>
-                    <TableHead className="text-right text-white font-semibold">Count</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {shortages.map((row, idx) => (
-                    <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                      <TableCell className="overview-manager-cell font-semibold text-slate-100">
-                        {renderManagerName(row.manager, managerAvatars)}
-                      </TableCell>
-                      <TableCell className="text-slate-400">{row.position}</TableCell>
-                      <TableCell className="text-right text-red-400 font-semibold">{row.count}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              </div>
-            </Card>
+          <div className="owner-tile-shell">
+            <div className="owner-tile-grid">
+              {shortages.map((row, idx) => (
+                <OwnerSummaryTile
+                  key={`${row.manager}-${row.position}-${idx}`}
+                  manager={row.manager}
+                  avatarUrl={managerAvatars?.[row.manager]}
+                >
+                  <OwnerMetricPill label="Need" value={row.position} tone="danger" />
+                  <OwnerMetricPill label="Count" value={row.count} tone="danger" />
+                </OwnerSummaryTile>
+              ))}
+            </div>
           </div>
       </div>
       )}
@@ -2954,31 +2939,19 @@ export function PositionAnalysisTable({
           <TrendingUp className="w-5 h-5 text-emerald-400" />
           <h3 className="text-xl font-bold text-emerald-400 text-center">Position Excess</h3>
         </div>
-          <div className="flex justify-center">
-            <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-              <div className="overflow-visible">
-              <Table className="report-table-polished position-analysis-table">
-                <TableHeader className="border-b-2 border-orange-500/30">
-                  <TableRow className="border-slate-700">
-                    <TableHead className="overview-manager-heading text-white font-semibold">Team</TableHead>
-                    <TableHead className="text-white font-semibold">Position</TableHead>
-                    <TableHead className="text-right text-white font-semibold">Count</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {excesses.map((row, idx) => (
-                    <TableRow key={idx} className="border-slate-700 hover:bg-slate-800/30">
-                      <TableCell className="overview-manager-cell font-semibold text-slate-100">
-                        {renderManagerName(row.manager, managerAvatars)}
-                      </TableCell>
-                      <TableCell className="text-slate-400">{row.position}</TableCell>
-                      <TableCell className="text-right text-emerald-400 font-semibold">{row.count}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              </div>
-            </Card>
+          <div className="owner-tile-shell">
+            <div className="owner-tile-grid">
+              {excesses.map((row, idx) => (
+                <OwnerSummaryTile
+                  key={`${row.manager}-${row.position}-${idx}`}
+                  manager={row.manager}
+                  avatarUrl={managerAvatars?.[row.manager]}
+                >
+                  <OwnerMetricPill label="Extra" value={row.position} tone="good" />
+                  <OwnerMetricPill label="Count" value={row.count} tone="good" />
+                </OwnerSummaryTile>
+              ))}
+            </div>
           </div>
       </div>
       )}
@@ -3003,7 +2976,7 @@ export function StarterBenchSnapshot({
   if (!data?.length) return null;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="player-tile-grid waiver-intel-grid">
       {data.map((row) => (
         <Card key={row.manager} className="report-card-polished border-slate-800 bg-slate-900 p-4">
           <div className="mb-3 flex min-w-0 items-center justify-between gap-2">
@@ -3106,53 +3079,29 @@ export function TradeTendenciesTable({
   const biggestLoss = [...selectedSwings].reverse().find((item) => item.swing < 0) || null;
 
   return (
-    <div className="flex justify-center">
-      <Card className="trade-tendencies-card overflow-hidden border-slate-800 bg-slate-900">
-        <Table className="report-table-polished trade-tendencies-table">
-          <TableHeader className="border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold">
-                <span className="hidden sm:inline">Trades</span>
-                <span className="sm:hidden">Deals</span>
-              </TableHead>
-              <TableHead className="text-right text-white font-semibold">
-                <span className="hidden sm:inline">Avg Gap</span>
-                <span className="sm:hidden">Avg</span>
-              </TableHead>
-              <TableHead className="text-right text-white font-semibold">
-                <span className="hidden sm:inline">Trade Habit</span>
-                <span className="sm:hidden">Habit</span>
-              </TableHead>
-              <TableHead className="text-right text-white font-semibold">
-                <span className="hidden sm:inline">Likes Trading With</span>
-                <span className="sm:hidden">Partner</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row) => (
-              <TableRow
-                key={row.manager}
-                className="cursor-pointer border-slate-700"
-                onClick={() => setSelectedManager(row.manager)}
-              >
-                <TableCell className="trade-tendencies-manager font-semibold text-slate-100">{renderManagerName(row.manager, managerAvatars)}</TableCell>
-                <TableCell className="trade-tendencies-count text-right text-orange-300 font-black">{row.tradeCount}</TableCell>
-                <TableCell className="trade-tendencies-gap text-right text-slate-300">{row.avgGap.toLocaleString()}</TableCell>
-                <TableCell className="trade-tendencies-habit text-right text-cyan-300 font-bold">
-                  <span className={`trade-habit-pill ${getTradeHabit(row).className}`}>
-                    {getTradeHabit(row).label}
-                  </span>
-                </TableCell>
-                <TableCell className="trade-tendencies-partner text-right text-slate-300">
-                  {row.favoritePartner ? renderPartnerName(row.favoritePartner, managerAvatars) : '-'}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+    <div className="owner-tile-shell">
+      <div className="owner-tile-grid trade-tendency-tile-grid">
+        {data.map((row) => {
+          const habit = getTradeHabit(row);
+          return (
+            <OwnerSummaryTile
+              key={row.manager}
+              manager={row.manager}
+              avatarUrl={managerAvatars?.[row.manager]}
+              onClick={() => setSelectedManager(row.manager)}
+            >
+              <OwnerMetricPill label="Deals" value={row.tradeCount} tone="warn" />
+              <OwnerMetricPill label="Avg Gap" value={row.avgGap.toLocaleString()} />
+              <span className={`trade-habit-pill ${habit.className}`}>{habit.label}</span>
+              <OwnerMetricPill
+                label="Partner"
+                value={row.favoritePartner ? renderPartnerName(row.favoritePartner, managerAvatars) : '-'}
+                tone="info"
+              />
+            </OwnerSummaryTile>
+          );
+        })}
+      </div>
       <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
         <DialogContent className="max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-0 text-slate-100 sm:max-w-2xl">
           {selectedManager && selectedRow && (
@@ -3167,13 +3116,13 @@ export function TradeTendenciesTable({
                 <div className="trade-manager-hero-scrim" />
                 <DialogHeader className="trade-manager-header relative pr-8">
                   <div className="trade-manager-title-lockup">
-                    <div className="trade-manager-title-avatar">
+                    <ChampionAvatarFrame managerName={selectedManager} className="trade-manager-title-avatar">
                       {managerAvatars?.[selectedManager] ? (
                         <img src={managerAvatars[selectedManager] || ''} alt={selectedManager} />
                       ) : (
                         <span>{selectedManager.trim()[0]?.toUpperCase() || '?'}</span>
                       )}
-                    </div>
+                    </ChampionAvatarFrame>
                     <div className="min-w-0 text-center">
                       <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/90">
                         Trade Tendencies
@@ -3181,6 +3130,7 @@ export function TradeTendenciesTable({
                       <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400">
                         {selectedManager}
                       </DialogTitle>
+                      <ManagerChampionshipPills managerName={selectedManager} className="mt-2 justify-center" />
                     </div>
                   </div>
                 </DialogHeader>
@@ -3456,37 +3406,22 @@ export function PickPortfolioTable({
   if (!data?.length) return null;
 
   return (
-    <div className="flex justify-center">
-      <Card className="report-card-polished overflow-hidden border-slate-800 bg-slate-900">
-        <Table
-          className="report-table-polished pick-portfolio-table"
-          containerClassName="overflow-visible"
-          style={{ tableLayout: 'fixed' }}
-        >
-          <TableHeader className="border-b-2 border-orange-500/30">
-            <TableRow className="border-slate-700">
-              <TableHead className="text-white font-semibold">Manager</TableHead>
-              <TableHead className="text-right text-white font-semibold">2025</TableHead>
-              <TableHead className="text-right text-white font-semibold">2026</TableHead>
-              <TableHead className="text-right text-white font-semibold">2027</TableHead>
-              <TableHead className="text-right text-white font-semibold">Owned</TableHead>
-              <TableHead className="text-right text-white font-semibold">Total</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row) => (
-              <TableRow key={row.manager} className="border-slate-700">
-                <TableCell className="font-semibold text-slate-100">{renderManagerName(row.manager, managerAvatars)}</TableCell>
-                <TableCell className="text-right text-slate-300"><PickYearCell count={row.count2025} value={row.value2025} /></TableCell>
-                <TableCell className="text-right text-slate-300"><PickYearCell count={row.count2026} value={row.value2026} /></TableCell>
-                <TableCell className="text-right text-slate-300"><PickYearCell count={row.count2027} value={row.value2027} /></TableCell>
-                <TableCell className="text-right text-cyan-300">{row.ownPicks}/{row.ownPicks + row.acquiredPicks}</TableCell>
-                <TableCell className="text-right text-orange-300 font-black">{formatCompactValue(row.totalValue)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+    <div className="owner-tile-shell">
+      <div className="owner-tile-grid pick-portfolio-tile-grid">
+        {data.map((row) => (
+          <OwnerSummaryTile
+            key={row.manager}
+            manager={row.manager}
+            avatarUrl={managerAvatars?.[row.manager]}
+          >
+            <OwnerMetricPill label="2025" value={row.count2025 ? `${row.count2025} - ${formatCompactValue(row.value2025)}` : '-'} />
+            <OwnerMetricPill label="2026" value={row.count2026 ? `${row.count2026} - ${formatCompactValue(row.value2026)}` : '-'} />
+            <OwnerMetricPill label="2027" value={row.count2027 ? `${row.count2027} - ${formatCompactValue(row.value2027)}` : '-'} />
+            <OwnerMetricPill label="Owned" value={`${row.ownPicks}/${row.ownPicks + row.acquiredPicks}`} tone="info" />
+            <OwnerMetricPill label="Total" value={formatCompactValue(row.totalValue)} tone="warn" />
+          </OwnerSummaryTile>
+        ))}
+      </div>
     </div>
   );
 }
@@ -3517,7 +3452,8 @@ export function WaiverIntelligencePanel({
         <button
           key={label}
           type="button"
-          className="waiver-intel-card"
+          className="player-team-tile waiver-intel-card"
+          style={getTeamTileStyle(player?.playerDetails?.team || player?.team)}
           onClick={() => player && setSelectedPlayer(buildPlayerModalData({
             playerId: player.player_id,
             playerName: player.name,
@@ -3581,12 +3517,13 @@ export function TradeMarketRadar({
   if (rows.length === 0) return null;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="player-tile-grid trade-market-grid">
       {rows.map(({ label, tone, player }) => (
         <button
           key={`${label}-${player.player_id || player.name}`}
           type="button"
-          className={`trade-market-card ${tone === 'positive' ? 'trade-market-card-sell' : 'trade-market-card-buy'}`}
+          className={`player-team-tile trade-market-card ${tone === 'positive' ? 'trade-market-card-sell' : 'trade-market-card-buy'}`}
+          style={getTeamTileStyle(player.playerDetails?.team)}
           onClick={() => setSelectedPlayer(buildPlayerModalData({
             playerId: player.player_id,
             playerName: player.name,
@@ -3704,65 +3641,22 @@ export function ManagerPositionCountsTable({
   const selectedStarters = selectedManager?.starterPlayers || [];
 
   return (
-    <div className="flex justify-center">
-      <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-        <div className="overflow-visible">
-          <Table className="report-table-polished position-counts-table">
-            <TableHeader className="border-b-2 border-orange-500/30">
-              <TableRow className="border-slate-700">
-                <TableHead className="overview-manager-heading text-white font-semibold">
-                  <div>Manager</div>
-                </TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs">
-                  <div>QB</div>
-                  <div className="position-starter-header">Starters</div>
-                </TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs">
-                  <div>RB</div>
-                  <div className="position-starter-header">Starters</div>
-                </TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs">
-                  <div>WR</div>
-                  <div className="position-starter-header">Starters</div>
-                </TableHead>
-                <TableHead className="text-center text-white font-semibold text-xs">
-                  <div>TE</div>
-                  <div className="position-starter-header">Starters</div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((row, idx) => (
-                <TableRow
-                  key={idx}
-                  className="cursor-pointer border-slate-700 hover:bg-slate-800/30"
-                  onClick={() => setSelectedManager(row)}
-                >
-                  <TableCell className="overview-manager-cell font-semibold text-slate-100">
-                    {renderManagerName(row.manager, managerAvatars)}
-                  </TableCell>
-                  <TableCell className="text-center text-slate-300 text-sm">
-                    <div>{row.QB}</div>
-                    <div className="position-starter-count">{row.QB_starters}</div>
-                  </TableCell>
-                  <TableCell className="text-center text-slate-300 text-sm">
-                    <div>{row.RB}</div>
-                    <div className="position-starter-count">{row.RB_starters}</div>
-                  </TableCell>
-                  <TableCell className="text-center text-slate-300 text-sm">
-                    <div>{row.WR}</div>
-                    <div className="position-starter-count">{row.WR_starters}</div>
-                  </TableCell>
-                  <TableCell className="text-center text-slate-300 text-sm">
-                    <div>{row.TE}</div>
-                    <div className="position-starter-count">{row.TE_starters}</div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+    <div className="owner-tile-shell">
+      <div className="owner-tile-grid position-counts-tile-grid">
+        {data.map((row, idx) => (
+          <OwnerSummaryTile
+            key={`${row.manager}-${idx}`}
+            manager={row.manager}
+            avatarUrl={managerAvatars?.[row.manager]}
+            onClick={() => setSelectedManager(row)}
+          >
+            <OwnerMetricPill label="QB" value={`${row.QB_starters}/${row.QB}`} />
+            <OwnerMetricPill label="RB" value={`${row.RB_starters}/${row.RB}`} />
+            <OwnerMetricPill label="WR" value={`${row.WR_starters}/${row.WR}`} />
+            <OwnerMetricPill label="TE" value={`${row.TE_starters}/${row.TE}`} />
+          </OwnerSummaryTile>
+        ))}
+      </div>
       <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
         <DialogContent className="starter-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl">
           <DialogHeader className="sr-only">
@@ -3790,17 +3684,19 @@ export function ManagerPositionCountsTable({
                 )}
                 <div className="manager-hero-scrim" />
                 <div className="relative flex items-center gap-4">
-                  {selectedAvatar ? (
-                    <img
-                      src={selectedAvatar}
-                      alt={selectedManager.manager}
-                      className="h-16 w-16 flex-shrink-0 rounded-2xl border border-cyan-300/30 object-cover shadow-lg shadow-black/40"
-                    />
-                  ) : (
-                    <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-cyan-300/30 bg-slate-900 text-2xl font-black text-orange-300">
-                      {selectedManager.manager[0]?.toUpperCase() || '?'}
-                    </div>
-                  )}
+                  <ChampionAvatarFrame managerName={selectedManager.manager}>
+                    {selectedAvatar ? (
+                      <img
+                        src={selectedAvatar}
+                        alt={selectedManager.manager}
+                        className="h-16 w-16 flex-shrink-0 rounded-2xl border border-cyan-300/30 object-cover shadow-lg shadow-black/40"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-cyan-300/30 bg-slate-900 text-2xl font-black text-orange-300">
+                        {selectedManager.manager[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
+                  </ChampionAvatarFrame>
                   <div className="min-w-0">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">
                       Starter Room
@@ -3808,6 +3704,7 @@ export function ManagerPositionCountsTable({
                     <h3 className="athletic-headline truncate text-3xl font-black text-orange-400 sm:text-4xl">
                       {selectedManager.manager}
                     </h3>
+                    <ManagerChampionshipPills managerName={selectedManager.manager} className="mt-1" />
                     <p className="mt-1 text-sm font-bold text-slate-300">
                       {selectedStarters.length} starter{selectedStarters.length === 1 ? '' : 's'} by positional rank
                     </p>
@@ -3821,7 +3718,8 @@ export function ManagerPositionCountsTable({
                       <button
                         key={player.player_id}
                         type="button"
-                        className="starter-player-tile"
+                        className="player-team-tile starter-player-tile"
+                        style={getTeamTileStyle(player.playerDetails?.team)}
                         onClick={() => {
                           setSelectedPlayer(buildPlayerModalData({
                             playerId: player.player_id,

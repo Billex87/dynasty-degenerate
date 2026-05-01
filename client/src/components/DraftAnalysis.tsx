@@ -1,19 +1,12 @@
 import { useState, useMemo, type ReactNode } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Card } from '@/components/ui/card';
 import type { DraftPick, ManagerDraftStats, PlayerDetails } from '@shared/types';
 import { TrendingUp, TrendingDown, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
 import { PlayerDetailModal } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
+import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
+import { getTeamTileStyle } from '@/lib/teamTileStyle';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -111,68 +104,51 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
     <div className="space-y-6 sm:space-y-8">
       {/* Draft Capital Efficiency Leaderboard */}
       <DraftCollapsibleSection title="Draft Capital Efficiency" kicker="Manager hit rate">
-        <div className="flex justify-center">
-          <Card className="report-card-polished bg-slate-900 border-slate-800 overflow-hidden">
-            <div className="overflow-visible">
-              <Table
-                className="report-table-polished draft-efficiency-table"
-                containerClassName="overflow-visible"
-                style={{ tableLayout: 'fixed' }}
-              >
-                <TableHeader className="border-b-2 border-orange-500/30">
-                  <TableRow className="border-slate-700">
-                    <TableHead className="text-white font-semibold">Manager</TableHead>
-                    <TableHead className="text-right text-white font-semibold">Picks</TableHead>
-                    <TableHead className="text-right text-white font-semibold">Hits</TableHead>
-                    <TableHead className="text-right text-white font-semibold">Misses</TableHead>
-                    <TableHead className="text-right text-white font-semibold">Starters</TableHead>
-                    <TableHead className="text-right text-white font-semibold">
-                      <div>Avg</div>
-                      <div>Gain</div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {draftStats.map((stat, idx) => (
-                    <TableRow 
-                      key={idx} 
-                      className="border-slate-700 hover:bg-slate-800/30 cursor-pointer"
-                      onClick={() => setSelectedManager(stat.manager)}
-                    >
-                      <TableCell className="font-semibold text-slate-100">
-                        <ManagerNameWithAvatar
-                          avatarUrl={managerAvatars?.[stat.manager]}
-                          managerName={stat.manager}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right text-slate-300">
-                        {stat.totalPicks}
-                      </TableCell>
-                      <TableCell className="text-right text-green-400 font-semibold">
-                        <span className="value-pill value-pill-good">{stat.hits}</span>
-                      </TableCell>
-                      <TableCell className="text-right text-red-400 font-semibold">
-                        <span className="value-pill value-pill-bad">{stat.misses}</span>
-                      </TableCell>
-                      <TableCell className="text-right text-blue-400 font-semibold">
-                        <span className="value-pill value-pill-info">{stat.starters}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span
-                          className={`font-semibold ${
-                            stat.avgKtcGain >= 0 ? 'text-green-400' : 'text-red-400'
-                          }`}
-                        >
-                          {stat.avgKtcGain >= 0 ? '+' : ''}
-                          {stat.avgKtcGain.toLocaleString()}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
+        <div className="owner-tile-shell">
+          <div className="owner-tile-grid draft-efficiency-tile-grid">
+            {draftStats.map((stat, idx) => {
+              const avatarUrl = managerAvatars?.[stat.manager];
+              return (
+                <button
+                  key={`${stat.manager}-${idx}`}
+                  type="button"
+                  className="owner-summary-tile"
+                  onClick={() => setSelectedManager(stat.manager)}
+                >
+                  {avatarUrl && (
+                    <>
+                      <img src={avatarUrl} alt="" className="owner-summary-wash" />
+                      <img src={avatarUrl} alt="" className="owner-summary-mark" />
+                    </>
+                  )}
+                  <span className="owner-summary-scrim" />
+                  <span className="owner-summary-main">
+                    <ChampionAvatarFrame managerName={stat.manager} className="owner-summary-avatar-frame">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt={stat.manager} className="owner-summary-avatar" />
+                      ) : (
+                        <span className="owner-summary-avatar">{stat.manager[0]?.toUpperCase() || '?'}</span>
+                      )}
+                    </ChampionAvatarFrame>
+                    <span className="owner-summary-name-lockup">
+                      <span className="owner-summary-name">{stat.manager}</span>
+                      <ManagerChampionshipPills managerName={stat.manager} className="owner-summary-championships" />
+                    </span>
+                  </span>
+                  <span className="owner-summary-metrics">
+                    <span className="owner-metric-pill owner-metric-pill-info"><span>Picks</span><strong>{stat.totalPicks}</strong></span>
+                    <span className="owner-metric-pill owner-metric-pill-good"><span>Hits</span><strong>{stat.hits}</strong></span>
+                    <span className="owner-metric-pill owner-metric-pill-danger"><span>Misses</span><strong>{stat.misses}</strong></span>
+                    <span className="owner-metric-pill owner-metric-pill-info"><span>Starters</span><strong>{stat.starters}</strong></span>
+                    <span className={`owner-metric-pill ${stat.avgKtcGain >= 0 ? 'owner-metric-pill-good' : 'owner-metric-pill-danger'}`}>
+                      <span>Avg Gain</span>
+                      <strong>{stat.avgKtcGain >= 0 ? '+' : ''}{stat.avgKtcGain.toLocaleString()}</strong>
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </DraftCollapsibleSection>
 
@@ -206,115 +182,62 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
                 </button>
 
                 {isDraftBoardOpen && (
-                  <div className="flex justify-center">
-            <Card className="report-card-polished draft-board-card bg-slate-900 border-slate-800 overflow-hidden">
-            <div className="overflow-visible">
-              <Table
-                className="report-table-polished rookie-draft-table w-full text-xs sm:text-sm"
-                containerClassName="overflow-visible"
-                style={{ tableLayout: 'fixed' }}
-              >
-                <TableHeader className="border-b-2 border-orange-500/30">
-                  <TableRow className="border-slate-700">
-                    <TableHead className="w-[7%] text-white font-semibold">Pick</TableHead>
-                    <TableHead className="w-[32%] text-white font-semibold">Player</TableHead>
-                    <TableHead className="w-[17%] text-white font-semibold">Manager</TableHead>
-                    <TableHead className="w-[14%] text-right text-white font-semibold"><div>Position</div><div>Change</div></TableHead>
-                    <TableHead 
-                      className="w-[15%] text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
-                      onClick={() => handleSort('currentValue')}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        <div>
-                          <div>Current</div>
-                          <div>Value</div>
-                        </div>
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="w-[15%] text-right text-white font-semibold cursor-pointer hover:text-orange-400 transition-colors"
-                      onClick={() => handleSort('valueChange')}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        <div>
-                          <div>Value</div>
-                          <div>Change</div>
-                        </div>
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {yearPicks.map((pick, idx) => {
-                    return (
-                      <TableRow
-                        key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
-                        className="rookie-draft-row border-slate-700 hover:bg-slate-800/30 cursor-pointer"
-                          onClick={() => openDraftPlayer(pick)}
-                      >
-                        <TableCell className="font-semibold text-slate-300">
-                          {pick.pick}
-                        </TableCell>
-                        <TableCell className="min-w-0 font-semibold text-slate-100">
-                          <div className="min-w-0">
-                            <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
-                          </div>
-                        </TableCell>
-                        <TableCell className="rookie-draft-manager-cell min-w-0 font-semibold text-slate-100">
-                          <ManagerNameWithAvatar
-                            avatarUrl={managerAvatars?.[pick.manager]}
-                            managerName={pick.manager}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {pick.positionRankChange ? (
-                            <span
-                              className={`font-semibold ${
-                                pick.positionRankChange.startsWith('+') ? 'text-green-400' : pick.positionRankChange.startsWith('-') ? 'text-red-400' : 'text-slate-300'
-                              }`}
-                            >
-                              {pick.positionRankChange}
-                              {pick.positionRankChange.startsWith('+') && <TrendingUp className="inline ml-1 w-4 h-4" />}
-                              {pick.positionRankChange.startsWith('-') && <TrendingDown className="inline ml-1 w-4 h-4" />}
-                            </span>
-                          ) : (
-                            <span className="text-slate-500">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {pick.currentKtcValue ? (
-                            <span className="font-semibold text-slate-300">
-                              {pick.currentKtcValue.toLocaleString()}
-                            </span>
-                          ) : (
-                            <span className="text-slate-500">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {pick.valueGain !== null && pick.valueGain !== undefined ? (
-                            <span
-                              className={`font-semibold ${
-                                pick.valueGain > 0 ? 'text-green-400' : pick.valueGain < 0 ? 'text-red-400' : 'text-slate-300'
-                              }`}
-                            >
-                              {pick.valueGain > 0 ? '+' : ''}
-                              {pick.valueGain.toLocaleString()}
-                              {pick.valueGain > 0 && <TrendingUp className="inline ml-1 w-4 h-4" />}
-                              {pick.valueGain < 0 && <TrendingDown className="inline ml-1 w-4 h-4" />}
-                            </span>
-                          ) : (
-                            <span className="text-slate-500">N/A</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-            </Card>
+                  <div className="player-tile-shell">
+                    <div className="draft-sort-strip">
+                      <button type="button" onClick={() => handleSort('currentValue')}>
+                        Current Value
+                        <ArrowUpDown className="h-3.5 w-3.5" />
+                      </button>
+                      <button type="button" onClick={() => handleSort('valueChange')}>
+                        Value Change
+                        <ArrowUpDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="player-tile-grid rookie-player-grid">
+                      {yearPicks.map((pick, idx) => {
+                        const details = pick.playerDetails || (pick.player_id ? playerDetailsById?.[pick.player_id] : undefined);
+                        const gainTone = (pick.valueGain ?? 0) > 0 ? 'text-emerald-300' : (pick.valueGain ?? 0) < 0 ? 'text-rose-300' : 'text-slate-300';
+                        return (
+                          <button
+                            key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
+                            type="button"
+                            className="player-team-tile rookie-player-tile"
+                            style={getTeamTileStyle(details?.team)}
+                            onClick={() => openDraftPlayer(pick)}
+                          >
+                            <div className="player-tile-main">
+                              <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
+                            </div>
+                            <div className="player-tile-owner">
+                              <ManagerNameWithAvatar
+                                avatarUrl={managerAvatars?.[pick.manager]}
+                                managerName={pick.manager}
+                              />
+                            </div>
+                            <div className="player-tile-pills">
+                              <span>{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
+                              <span>{details?.team || 'FA'}</span>
+                              {pick.positionRankChange ? (
+                                <span className={gainTone}>
+                                  {pick.positionRankChange}
+                                  {pick.positionRankChange.startsWith('+') && <TrendingUp className="ml-1 inline h-3.5 w-3.5" />}
+                                  {pick.positionRankChange.startsWith('-') && <TrendingDown className="ml-1 inline h-3.5 w-3.5" />}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="player-tile-value-strip">
+                              <span>{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
+                              <span>Gain</span>
+                              <span className={gainTone}>
+                                {pick.valueGain !== null && pick.valueGain !== undefined
+                                  ? `${pick.valueGain > 0 ? '+' : ''}${pick.valueGain.toLocaleString()}`
+                                  : 'N/A'}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

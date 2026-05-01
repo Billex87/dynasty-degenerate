@@ -32,10 +32,11 @@ import {
   WaiverIntelligencePanel,
 } from '@/components/ReportTables';
 import { DraftAnalysis } from '@/components/DraftAnalysis';
+import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v2';
+const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v3';
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
@@ -331,6 +332,7 @@ export default function Home() {
 
   if (reportData) {
     return (
+      <ManagerChampionshipProvider championships={reportData.managerChampionships}>
       <div className="report-shell min-h-screen flex flex-col">
         {/* Premium Header */}
         <div className="report-header sticky top-0 z-50">
@@ -465,10 +467,10 @@ export default function Home() {
                     leagueLogo={leagueLogo}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 15 Weekly Risers" kicker="Market gainers">
+                <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day market gainers">
                    <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 15 Weekly Fallers" kicker="Market drops">
+                <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day market drops">
                    <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Trending Adds" kicker="Sleeper activity">
@@ -646,6 +648,7 @@ export default function Home() {
           </DialogContent>
         </Dialog>
       </div>
+      </ManagerChampionshipProvider>
     );
   }
 

@@ -1222,12 +1222,14 @@ export async function generateReport(
     }));
 
   const weeklyRisers = weeklyMomentum
+    .filter((player) => player.diff > 0 && player.pct_change > 0)
     .sort((a, b) => b.pct_change - a.pct_change)
-    .slice(0, 15);
+    .slice(0, 10);
 
   const weeklyFallers = weeklyMomentum
+    .filter((player) => player.diff < 0 && player.pct_change < 0)
     .sort((a, b) => a.pct_change - b.pct_change)
-    .slice(0, 15);
+    .slice(0, 10);
 
   const leagueOverview = Object.entries(teamData)
     .sort((a, b) => b[1].total_val - a[1].total_val)

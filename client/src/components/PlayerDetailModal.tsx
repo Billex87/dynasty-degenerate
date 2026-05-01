@@ -168,11 +168,6 @@ export function PlayerDetailModal({
     ['DynastyProcess', valueProfile.dynastyProcess],
     ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
-  const externalIdRows = details?.externalIds
-    ? Object.entries(details.externalIds)
-      .filter(([, value]) => value !== null && value !== undefined && value !== '')
-      .map(([key, value]) => [formatExternalIdLabel(key), value] as [string, string | number])
-    : [];
   const latestNewsRows = details?.latestNews ? [
     ['Title', details.latestNews.title],
     ['Date', details.latestNews.publishedAt ? formatNewsDate(details.latestNews.publishedAt) : null],
@@ -537,7 +532,6 @@ export function PlayerDetailModal({
                 <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority />
                 <CompleteDataSection title="Raw Source Values" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
                 <CompleteDataSection title="NFL Draft" rows={nflDraftRows} teamColors={teamColors} tileAccent={tileAccent} />
-                <CompleteDataSection title="External IDs" rows={externalIdRows} teamColors={teamColors} tileAccent={tileAccent} />
                 <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
                 {details?.availabilityHistory?.length ? (
                   <div className="player-complete-section player-complete-section-wide">
@@ -649,20 +643,6 @@ function formatSourceLabel(value: string) {
   return value
     .replace(/[_-]/g, ' ')
     .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
-}
-
-function formatExternalIdLabel(value: string) {
-  const labelMap: Record<string, string> = {
-    sleeper: 'Sleeper',
-    fantasy_data: 'FantasyData',
-    sportradar: 'Sportradar',
-    stats_id: 'Stats ID',
-    gsis_id: 'GSIS',
-    rotowire: 'Rotowire',
-    espn: 'ESPN',
-    yahoo: 'Yahoo',
-  };
-  return labelMap[value] || value.replace(/_/g, ' ').replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
 }
 
 function formatCompleteValue(value: unknown, compactNumbers?: boolean) {
@@ -883,6 +863,17 @@ function buildPlayerIntelligenceNotes({
         tone: 'upside',
       });
     }
+  }
+
+  const roleLabel = formatDepthChart(details?.depthChartPosition, details?.depthChartOrder);
+  if (roleLabel) {
+    const isLeadRole = roleLabel.includes('#1') || /^(QB|RB|WR|TE)$/.test(roleLabel);
+    notes.push({
+      label: 'Team Role',
+      value: roleLabel,
+      copy: `${details?.team || 'Team'} depth chart signal${details?.status ? ` with ${details.status.toLowerCase()} status` : ''}.`,
+      tone: isLeadRole ? 'upside' : 'neutral',
+    });
   }
 
   if (seasonValue && dynastyValue) {
