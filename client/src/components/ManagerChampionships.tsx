@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { BadgeX, Crown } from 'lucide-react';
+import { Crown } from 'lucide-react';
 import type { ReportData } from '@shared/types';
 
 type ManagerChampionships = NonNullable<ReportData['managerChampionships']>;
@@ -119,9 +119,10 @@ export function ChampionAvatarFrame({
         </Crown>
       )}
       {lastPlaceSeasons.length > 0 && (
-        <BadgeX className="manager-last-place-icon" aria-label={lastPlaceTitle}>
-          <title>{lastPlaceTitle}</title>
-        </BadgeX>
+        <span className="manager-sacko-dunce" aria-label={lastPlaceTitle} title={lastPlaceTitle}>
+          <span className="manager-sacko-dunce-cone" aria-hidden="true" />
+          <span className="manager-sacko-dunce-band" aria-hidden="true">S</span>
+        </span>
       )}
     </span>
   );

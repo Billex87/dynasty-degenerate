@@ -4318,7 +4318,9 @@
   }
 
   .manager-champion-avatar-last-place {
-    filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.22));
+    filter:
+      drop-shadow(0 0 10px rgba(244, 63, 94, 0.22))
+      drop-shadow(0 0 5px rgba(251, 191, 36, 0.12));
   }
 
   .manager-champion-crown {
@@ -4349,21 +4351,64 @@
     transform: rotate(12deg);
   }
 
-  .manager-last-place-icon {
+  .manager-sacko-dunce {
     position: absolute;
-    right: -0.28rem;
-    bottom: -0.28rem;
+    right: -0.38rem;
+    top: -0.58rem;
     z-index: 4;
-    height: 0.96rem;
-    width: 0.96rem;
-    border: 1px solid rgba(251, 113, 133, 0.68);
-    border-radius: 999px;
-    background: radial-gradient(circle at 40% 35%, rgba(254, 202, 202, 0.32), rgba(127, 29, 29, 0.92));
-    color: #fecdd3;
-    fill: rgba(244, 63, 94, 0.22);
-    filter: drop-shadow(0 2px 6px rgba(127, 29, 29, 0.7));
+    display: inline-grid;
+    height: 1.15rem;
+    width: 1rem;
+    place-items: center;
     pointer-events: none;
-    transform: rotate(-7deg);
+    transform: rotate(14deg);
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.62));
+  }
+
+  .manager-champion-avatar-runner-up .manager-sacko-dunce {
+    top: auto;
+    right: -0.34rem;
+    bottom: -0.46rem;
+    transform: rotate(-10deg);
+  }
+
+  .manager-sacko-dunce-cone {
+    position: absolute;
+    top: 0;
+    height: 0;
+    width: 0;
+    border-right: 0.48rem solid transparent;
+    border-bottom: 1rem solid #fb7185;
+    border-left: 0.48rem solid transparent;
+  }
+
+  .manager-sacko-dunce-cone::after {
+    position: absolute;
+    top: 0.24rem;
+    left: -0.11rem;
+    height: 0.48rem;
+    width: 0.22rem;
+    border-radius: 999px;
+    background: rgba(254, 226, 226, 0.8);
+    content: '';
+    transform: rotate(18deg);
+  }
+
+  .manager-sacko-dunce-band {
+    position: absolute;
+    bottom: 0.02rem;
+    display: inline-flex;
+    height: 0.48rem;
+    min-width: 0.86rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(254, 202, 202, 0.86);
+    border-radius: 999px;
+    background: linear-gradient(135deg, #7f1d1d, #be123c);
+    color: #fff1f2;
+    font-size: 0.43rem;
+    font-weight: 950;
+    line-height: 1;
   }
 
   .manager-championship-pills {
