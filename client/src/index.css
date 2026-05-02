@@ -4354,9 +4354,10 @@
     right: -0.22rem;
     bottom: -0.25rem;
     z-index: 4;
-    height: 0.72rem;
-    width: 0.72rem;
+    height: 0.78rem;
+    width: 0.78rem;
     color: #fb7185;
+    fill: rgba(244, 63, 94, 0.18);
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.48));
     pointer-events: none;
     transform: rotate(-7deg);
@@ -4390,6 +4391,18 @@
     text-transform: uppercase;
     white-space: nowrap;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .manager-championship-pill-runner-up {
+    border-color: rgba(226, 232, 240, 0.34);
+    background: linear-gradient(135deg, rgba(226, 232, 240, 0.16), rgba(100, 116, 139, 0.12));
+    color: #e2e8f0;
+  }
+
+  .manager-championship-pill-sacko {
+    border-color: rgba(251, 113, 133, 0.34);
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.16), rgba(88, 28, 135, 0.1));
+    color: #fda4af;
   }
 
   .manager-chip .manager-championship-pills {

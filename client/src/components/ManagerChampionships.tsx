@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { Crown, Trash2 } from 'lucide-react';
+import { BadgeX, Crown } from 'lucide-react';
 import type { ReportData } from '@shared/types';
 
 type ManagerChampionships = NonNullable<ReportData['managerChampionships']>;
@@ -51,14 +51,24 @@ export function ManagerChampionshipPills({
   managerName?: string | null;
   className?: string;
 }) {
-  const seasons = useManagerChampionshipSeasons(managerName);
-  if (seasons.length === 0) return null;
+  const { championSeasons, runnerUpSeasons, lastPlaceSeasons } = useManagerAccolades(managerName);
+  if (championSeasons.length === 0 && runnerUpSeasons.length === 0 && lastPlaceSeasons.length === 0) return null;
 
   return (
     <span className={`manager-championship-pills ${className}`}>
-      {seasons.map((season) => (
-        <span key={season} className="manager-championship-pill">
+      {championSeasons.map((season) => (
+        <span key={`champ-${season}`} className="manager-championship-pill manager-championship-pill-champ">
           {season} Champ
+        </span>
+      ))}
+      {runnerUpSeasons.map((season) => (
+        <span key={`runner-up-${season}`} className="manager-championship-pill manager-championship-pill-runner-up">
+          {season} Silver
+        </span>
+      ))}
+      {lastPlaceSeasons.map((season) => (
+        <span key={`sacko-${season}`} className="manager-championship-pill manager-championship-pill-sacko">
+          {season} Sacko
         </span>
       ))}
     </span>
@@ -82,7 +92,7 @@ export function ChampionAvatarFrame({
     ? `${managerName} finished second in ${runnerUpSeasons.join(', ')}`
     : undefined;
   const lastPlaceTitle = lastPlaceSeasons.length
-    ? `${managerName} finished last in ${lastPlaceSeasons.join(', ')}`
+    ? `${managerName} got the Sacko in ${lastPlaceSeasons.join(', ')}`
     : undefined;
   const hasAccolade = championSeasons.length > 0 || runnerUpSeasons.length > 0 || lastPlaceSeasons.length > 0;
 
@@ -109,9 +119,9 @@ export function ChampionAvatarFrame({
         </Crown>
       )}
       {lastPlaceSeasons.length > 0 && (
-        <Trash2 className="manager-last-place-icon" aria-label={lastPlaceTitle}>
+        <BadgeX className="manager-last-place-icon" aria-label={lastPlaceTitle}>
           <title>{lastPlaceTitle}</title>
-        </Trash2>
+        </BadgeX>
       )}
     </span>
   );
