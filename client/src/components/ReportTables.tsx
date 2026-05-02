@@ -1159,6 +1159,80 @@ function OwnerSummaryTile({
   );
 }
 
+function OwnerQuickModal({
+  open,
+  onOpenChange,
+  title,
+  manager,
+  avatarUrl,
+  metrics,
+  note,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  manager?: string | null;
+  avatarUrl?: string | null;
+  metrics: Array<{ label: string; value: React.ReactNode; tone?: 'neutral' | 'positive' | 'negative' }>;
+  note?: string;
+}) {
+  if (!manager) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="owner-quick-modal manager-command-dialog max-w-2xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
+        <DialogHeader className="sr-only">
+          <DialogTitle>{manager} {title}</DialogTitle>
+          <DialogDescription>Owner detail summary.</DialogDescription>
+        </DialogHeader>
+        <div className="manager-command-modal-inner">
+          <div className="manager-command-hero owner-quick-hero">
+            {avatarUrl && (
+              <>
+                <img src={avatarUrl} alt="" className="manager-hero-wash" />
+                <img src={avatarUrl} alt="" className="manager-hero-watermark" />
+              </>
+            )}
+            <div className="manager-hero-scrim" />
+            <div className="manager-command-title-lockup">
+              <ChampionAvatarFrame managerName={manager} className="manager-command-champion-frame">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={manager} className="manager-command-avatar" />
+                ) : (
+                  <span className="manager-command-avatar">{manager[0]?.toUpperCase() || '?'}</span>
+                )}
+              </ChampionAvatarFrame>
+              <div className="min-w-0">
+                <p>{title}</p>
+                <h3>{manager}</h3>
+                <ManagerChampionshipPills managerName={manager} className="manager-command-championships" />
+              </div>
+            </div>
+            <div className="manager-command-hero-metrics owner-quick-metrics">
+              {metrics.slice(0, 6).map((metric) => (
+                <IntelligenceMetric
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.value}
+                  tone={metric.tone}
+                />
+              ))}
+            </div>
+          </div>
+          {note && (
+            <div className="manager-command-body owner-quick-body">
+              <div className="manager-command-section manager-command-read">
+                <h4>Read</h4>
+                <p>{note}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function LeagueCommandCenter({
   data,
   managerAvatars,
@@ -2215,6 +2289,7 @@ export function PowerRankingsTable({
   data?: ReportData['powerRankings'];
   managerAvatars?: ManagerAvatars;
 }) {
+  const [selectedRow, setSelectedRow] = useState<NonNullable<ReportData['powerRankings']>[number] | null>(null);
   if (!data?.length) return null;
 
   return (
@@ -2225,6 +2300,7 @@ export function PowerRankingsTable({
             key={row.manager}
             manager={row.manager}
             avatarUrl={managerAvatars?.[row.manager]}
+            onClick={() => setSelectedRow(row)}
           >
             <OwnerMetricPill label="Tier" value={row.tier} tone="info" />
             <OwnerMetricPill label="Score" value={row.score} tone="warn" />
@@ -2233,6 +2309,22 @@ export function PowerRankingsTable({
           </OwnerSummaryTile>
         ))}
       </div>
+      <OwnerQuickModal
+        open={selectedRow !== null}
+        onOpenChange={(open) => !open && setSelectedRow(null)}
+        title="Power Profile"
+        manager={selectedRow?.manager}
+        avatarUrl={selectedRow ? managerAvatars?.[selectedRow.manager] : null}
+        metrics={selectedRow ? [
+          { label: 'Tier', value: selectedRow.tier },
+          { label: 'Score', value: selectedRow.score },
+          { label: 'Starter', value: selectedRow.starterStrength },
+          { label: 'Roster', value: selectedRow.rosterValue },
+          { label: 'Balance', value: selectedRow.positionalBalance },
+          { label: 'Youth', value: selectedRow.youthScore },
+        ] : []}
+        note={selectedRow ? `Power score blends starter strength, total value, positional balance, draft capital, youth, and trade efficiency. ${selectedRow.manager} is currently ${selectedRow.tier} with a ${selectedRow.score}/100 score.` : undefined}
+      />
     </div>
   );
 }
@@ -2244,6 +2336,8 @@ export function ManagerRosterValueGrowthTable({
   data: ReportData['managerRosterValueGrowth'];
   managerAvatars?: ManagerAvatars;
 }) {
+  const [selectedRow, setSelectedRow] = useState<ReportData['managerRosterValueGrowth'][number] | null>(null);
+
   return (
     <div className="owner-tile-shell">
       <div className="owner-tile-grid">
@@ -2252,6 +2346,7 @@ export function ManagerRosterValueGrowthTable({
             key={`${row.manager}-${idx}`}
             manager={row.manager}
             avatarUrl={managerAvatars?.[row.manager]}
+            onClick={() => setSelectedRow(row)}
           >
             <OwnerMetricPill label="2025" value={formatCompactValue(row.past_val)} />
             <OwnerMetricPill label="Now" value={formatCompactValue(row.total_val)} tone="info" />
@@ -2264,6 +2359,20 @@ export function ManagerRosterValueGrowthTable({
           </OwnerSummaryTile>
         ))}
       </div>
+      <OwnerQuickModal
+        open={selectedRow !== null}
+        onOpenChange={(open) => !open && setSelectedRow(null)}
+        title="Roster Value Growth"
+        manager={selectedRow?.manager}
+        avatarUrl={selectedRow ? managerAvatars?.[selectedRow.manager] : null}
+        metrics={selectedRow ? [
+          { label: '2025', value: formatCompactValue(selectedRow.past_val) },
+          { label: 'Now', value: formatCompactValue(selectedRow.total_val), tone: 'positive' },
+          { label: 'Growth', value: `${selectedRow.growth >= 0 ? '+' : ''}${selectedRow.growth.toFixed(1)}%`, tone: selectedRow.growth >= 0 ? 'positive' : 'negative' },
+          { label: 'Proj Rank', value: `#${selectedRow.rank}` },
+        ] : []}
+        note={selectedRow ? `This compares stored baseline roster value against the current blended value view. Positive growth means the roster gained market value over the stored window.` : undefined}
+      />
     </div>
   );
 }
@@ -2899,6 +3008,7 @@ export function PositionAnalysisTable({
   data: ReportData['positionDepth'];
   managerAvatars?: ManagerAvatars;
 }) {
+  const [selectedRow, setSelectedRow] = useState<ReportData['positionDepth'][number] | null>(null);
   const shortages = data.filter(d => d.status === 'shortage');
   const excesses = data.filter(d => d.status === 'excess');
 
@@ -2922,6 +3032,7 @@ export function PositionAnalysisTable({
                   key={`${row.manager}-${row.position}-${idx}`}
                   manager={row.manager}
                   avatarUrl={managerAvatars?.[row.manager]}
+                  onClick={() => setSelectedRow(row)}
                 >
                   <OwnerMetricPill label="Need" value={row.position} tone="danger" />
                   <OwnerMetricPill label="Count" value={row.count} tone="danger" />
@@ -2946,6 +3057,7 @@ export function PositionAnalysisTable({
                   key={`${row.manager}-${row.position}-${idx}`}
                   manager={row.manager}
                   avatarUrl={managerAvatars?.[row.manager]}
+                  onClick={() => setSelectedRow(row)}
                 >
                   <OwnerMetricPill label="Extra" value={row.position} tone="good" />
                   <OwnerMetricPill label="Count" value={row.count} tone="good" />
@@ -2955,6 +3067,19 @@ export function PositionAnalysisTable({
           </div>
       </div>
       )}
+      <OwnerQuickModal
+        open={selectedRow !== null}
+        onOpenChange={(open) => !open && setSelectedRow(null)}
+        title="Position Depth"
+        manager={selectedRow?.manager}
+        avatarUrl={selectedRow ? managerAvatars?.[selectedRow.manager] : null}
+        metrics={selectedRow ? [
+          { label: selectedRow.status === 'shortage' ? 'Need' : 'Extra', value: selectedRow.position, tone: selectedRow.status === 'shortage' ? 'negative' : 'positive' },
+          { label: 'Count', value: selectedRow.count },
+          { label: 'Signal', value: selectedRow.status === 'shortage' ? 'Shortage' : 'Excess' },
+        ] : []}
+        note={selectedRow ? `${selectedRow.manager} is flagged for ${selectedRow.status === 'shortage' ? 'a shortage' : 'excess depth'} at ${selectedRow.position}. This is based on position counts relative to the league average and roster requirements.` : undefined}
+      />
     </div>
   );
 }

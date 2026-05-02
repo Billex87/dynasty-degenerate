@@ -448,16 +448,19 @@ export default function Home() {
 
             <TabsContent value="momentum" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <CollapsibleReportSection title="Trade Market Radar" kicker="Buy and sell signals">
-                  <TradeMarketRadar
-                    risers={reportData.weeklyRisers}
-                    fallers={reportData.weeklyFallers}
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                  />
-                </CollapsibleReportSection>
+                {(reportData.weeklyRisers.some((player) => player.val_now >= 2500) ||
+                  reportData.weeklyFallers.some((player) => player.val_now >= 1800)) && (
+                  <CollapsibleReportSection title="Trade Market Radar" kicker="Buy and sell signals">
+                    <TradeMarketRadar
+                      risers={reportData.weeklyRisers}
+                      fallers={reportData.weeklyFallers}
+                      managerAvatars={reportData.managerAvatars}
+                      playerDetailsById={reportData.playerDetailsById}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                    />
+                  </CollapsibleReportSection>
+                )}
                 <CollapsibleReportSection title="Waiver Intelligence" kicker="Available value">
                   <WaiverIntelligencePanel
                     data={reportData.waiverIntelligence}
