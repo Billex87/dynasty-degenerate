@@ -3,11 +3,13 @@ import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampion
 interface ManagerNameWithAvatarProps {
   avatarUrl?: string | null;
   managerName: string;
+  showAccoladePills?: boolean;
 }
 
 export function ManagerNameWithAvatar({
   avatarUrl,
   managerName,
+  showAccoladePills = false,
 }: ManagerNameWithAvatarProps) {
   const initial = managerName.trim()[0]?.toUpperCase() || '?';
 
@@ -30,7 +32,7 @@ export function ManagerNameWithAvatar({
         )}
       </ChampionAvatarFrame>
       <span className="min-w-0 truncate">{managerName}</span>
-      <ManagerChampionshipPills managerName={managerName} />
+      {showAccoladePills && <ManagerChampionshipPills managerName={managerName} />}
     </div>
   );
 }

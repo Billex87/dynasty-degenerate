@@ -34,6 +34,8 @@ export interface ManagerData {
 
 export interface ManagerChampionship {
   seasons: string[];
+  runnerUpSeasons?: string[];
+  lastPlaceSeasons?: string[];
 }
 
 export interface TradeData {

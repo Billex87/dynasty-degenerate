@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { Crown } from 'lucide-react';
+import { Crown, Trash2 } from 'lucide-react';
 import type { ReportData } from '@shared/types';
 
 type ManagerChampionships = NonNullable<ReportData['managerChampionships']>;
@@ -24,6 +24,24 @@ export function useManagerChampionshipSeasons(managerName?: string | null) {
   const championships = useContext(ManagerChampionshipContext);
   if (!managerName) return [];
   return championships[managerName]?.seasons || [];
+}
+
+export function useManagerAccolades(managerName?: string | null) {
+  const championships = useContext(ManagerChampionshipContext);
+  if (!managerName) {
+    return {
+      championSeasons: [],
+      runnerUpSeasons: [],
+      lastPlaceSeasons: [],
+    };
+  }
+
+  const managerFinishes = championships[managerName];
+  return {
+    championSeasons: managerFinishes?.seasons || [],
+    runnerUpSeasons: managerFinishes?.runnerUpSeasons || [],
+    lastPlaceSeasons: managerFinishes?.lastPlaceSeasons || [],
+  };
 }
 
 export function ManagerChampionshipPills({
@@ -56,18 +74,44 @@ export function ChampionAvatarFrame({
   children: ReactNode;
   className?: string;
 }) {
-  const seasons = useManagerChampionshipSeasons(managerName);
-  const title = seasons.length
-    ? `${managerName} won ${seasons.join(', ')}`
+  const { championSeasons, runnerUpSeasons, lastPlaceSeasons } = useManagerAccolades(managerName);
+  const title = championSeasons.length
+    ? `${managerName} won ${championSeasons.join(', ')}`
     : undefined;
+  const runnerUpTitle = runnerUpSeasons.length
+    ? `${managerName} finished second in ${runnerUpSeasons.join(', ')}`
+    : undefined;
+  const lastPlaceTitle = lastPlaceSeasons.length
+    ? `${managerName} finished last in ${lastPlaceSeasons.join(', ')}`
+    : undefined;
+  const hasAccolade = championSeasons.length > 0 || runnerUpSeasons.length > 0 || lastPlaceSeasons.length > 0;
 
   return (
-    <span className={`manager-champion-avatar ${seasons.length ? 'manager-champion-avatar-winner' : ''} ${className}`}>
+    <span
+      className={[
+        'manager-champion-avatar',
+        championSeasons.length ? 'manager-champion-avatar-winner' : '',
+        runnerUpSeasons.length ? 'manager-champion-avatar-runner-up' : '',
+        lastPlaceSeasons.length ? 'manager-champion-avatar-last-place' : '',
+        hasAccolade ? 'manager-champion-avatar-accolade' : '',
+        className,
+      ].filter(Boolean).join(' ')}
+    >
       {children}
-      {seasons.length > 0 && (
+      {championSeasons.length > 0 && (
         <Crown className="manager-champion-crown" aria-label={title}>
           <title>{title}</title>
         </Crown>
+      )}
+      {runnerUpSeasons.length > 0 && (
+        <Crown className="manager-runner-up-crown" aria-label={runnerUpTitle}>
+          <title>{runnerUpTitle}</title>
+        </Crown>
+      )}
+      {lastPlaceSeasons.length > 0 && (
+        <Trash2 className="manager-last-place-icon" aria-label={lastPlaceTitle}>
+          <title>{lastPlaceTitle}</title>
+        </Trash2>
       )}
     </span>
   );

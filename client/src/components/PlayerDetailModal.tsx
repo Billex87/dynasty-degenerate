@@ -10,6 +10,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
+import { TeamLogoPill } from './TeamLogoPill';
 
 const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
   ARI: { primary: '#97233F', secondary: '#000000', accent: '#FFB612' },
@@ -293,16 +294,7 @@ export function PlayerDetailModal({
                     >
                       {position}
                     </span>
-                    <span
-                      className="rounded-full border px-3 py-1 text-xs font-bold shadow-sm shadow-black/25"
-                      style={{
-                        borderColor: teamColors ? `${teamColors.accent}77` : 'rgba(251,146,60,0.4)',
-                        backgroundColor: teamColors ? `${teamColors.primary}66` : 'rgba(251,146,60,0.14)',
-                        color: '#fff',
-                      }}
-                    >
-                      {team}
-                    </span>
+                    <TeamLogoPill team={team} className="player-modal-team-logo-pill" />
                     {details?.status && (
                       <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
                         {details.status}

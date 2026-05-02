@@ -22,6 +22,7 @@ import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
+import { TeamLogoPill } from './TeamLogoPill';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 
@@ -346,8 +347,8 @@ function TradeDetailPanel({
                 <strong>{side.total.toLocaleString()}</strong>
               </div>
             </div>
-            <div className="relative space-y-2 pt-3">
-              <div className="space-y-2 text-sm text-slate-300">
+            <div className="relative pt-3">
+              <div className="trade-side-assets text-sm text-slate-300">
                 {side.items
                   .split(',')
                   .map((item, i) => renderTradeItem(item, i, {
@@ -429,12 +430,20 @@ function findLandedPick(
     return null;
   }
 
-  return draftPicks.find(
-    pick =>
+  const parsedDraftSlot = parsedPick.pickNumber
+    ? Number(parsedPick.pickNumber.split('.')[1])
+    : null;
+
+  return draftPicks.find((pick) => {
+    const baseMatch =
       pick.draftYear === parsedPick.draftYear &&
       pick.round === parsedPick.round &&
-      pick.originalOwner === parsedPick.originalOwner
-  ) || null;
+      pick.originalOwner === parsedPick.originalOwner;
+
+    if (!baseMatch) return false;
+    if (!Number.isFinite(parsedDraftSlot)) return true;
+    return pick.draftSlot === parsedDraftSlot;
+  }) || null;
 }
 
 function renderTradeItem(
@@ -480,12 +489,14 @@ function renderTradeItem(
       : undefined;
     const content = (
       <>
-        <PlayerNameWithHeadshot
-          playerId={playerItem.playerId}
-          playerName={playerItem.playerName}
-        />
+        <span className="trade-asset-player-main">
+          <PlayerNameWithHeadshot
+            playerId={playerItem.playerId}
+            playerName={playerItem.playerName}
+          />
+        </span>
         {playerItem.value !== null && (
-          <span className="value-pill">
+          <span className="value-pill trade-asset-player-value">
             {playerItem.value.toLocaleString()}
           </span>
         )}
@@ -614,16 +625,90 @@ function titleCasePill(value: string): string {
 
 function getPillToneClass(value: string): string {
   const normalized = value.toLowerCase();
-  if (normalized.includes('old') || normalized.includes('risk') || normalized.includes('weak') || normalized.includes('behind') || normalized.includes('thin')) {
+  if (normalized.includes('old') || normalized.includes('risk') || normalized.includes('weak') || normalized.includes('behind') || normalized.includes('thin') || normalized.includes('fragile') || normalized.includes('cuttable')) {
     return 'manager-intel-pill-danger';
   }
-  if (normalized.includes('young') || normalized.includes('contender') || normalized.includes('win') || normalized.includes('elite')) {
+  if (normalized.includes('young') || normalized.includes('contender') || normalized.includes('win') || normalized.includes('elite') || normalized.includes('shark') || normalized.includes('war chest')) {
     return 'manager-intel-pill-good';
   }
-  if (normalized.includes('rebuild') || normalized.includes('future')) {
+  if (normalized.includes('rebuild') || normalized.includes('future') || normalized.includes('youth')) {
     return 'manager-intel-pill-future';
   }
   return 'manager-intel-pill-neutral';
+}
+
+function buildManagerSignalTags({
+  identity,
+  starterCount,
+  powerScore,
+  timeline,
+  rosterHealthScore,
+  avgAge,
+  starterAvailability,
+  holesSummary,
+  tradeRow,
+  pickRow,
+  taxiTriage,
+  ageFlags = [],
+}: {
+  identity?: string | null;
+  starterCount?: number | null;
+  powerScore?: number | null;
+  timeline?: OwnerTimelineRow | null;
+  rosterHealthScore?: number | null;
+  avgAge?: number | null;
+  starterAvailability?: OwnerIntelRow['starterAvailability'] | null;
+  holesSummary?: string | null;
+  tradeRow?: OwnerTradeRow | null;
+  pickRow?: OwnerPickRow | null;
+  taxiTriage?: OwnerIntelRow['taxiTriage'] | null;
+  ageFlags?: string[];
+}): Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> {
+  const contenders = timeline?.contenderScore ?? 0;
+  const rebuild = timeline?.rebuildScore ?? 0;
+  const agingRisk = timeline?.agingRisk ?? 0;
+  const futurePickCount = (pickRow?.count2026 || 0) + (pickRow?.count2027 || 0);
+  const tags: Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> = [];
+
+  if (powerScore !== null && powerScore !== undefined && powerScore >= 86) tags.push({ label: `Juggernaut ${powerScore}`, tone: 'good' });
+  else if (powerScore !== null && powerScore !== undefined && powerScore <= 48) tags.push({ label: `Needs Work ${powerScore}`, tone: 'danger' });
+
+  if (contenders >= 84 && contenders - rebuild >= 18) tags.push({ label: `True Contender ${contenders}`, tone: 'good' });
+  else if (rebuild >= 68 && rebuild - contenders >= 10) tags.push({ label: `Rebuild Mode ${rebuild}`, tone: 'future' });
+  else if (contenders >= 70 && rebuild >= 52) tags.push({ label: 'Fork In Road', tone: 'warn' });
+
+  if (identity && !['Balanced', 'Middle Build'].includes(titleCasePill(identity))) {
+    tags.push({ label: titleCasePill(identity), tone: getPillToneClass(identity).includes('danger') ? 'danger' : getPillToneClass(identity).includes('future') ? 'future' : 'neutral' });
+  }
+  if (starterCount !== null && starterCount !== undefined && starterCount >= 12) tags.push({ label: `${starterCount} Starters`, tone: 'good' });
+  if (starterCount !== null && starterCount !== undefined && starterCount <= 8) tags.push({ label: `${starterCount} Starters`, tone: 'warn' });
+  if (rosterHealthScore !== null && rosterHealthScore !== undefined && rosterHealthScore >= 82) tags.push({ label: `Durable ${rosterHealthScore}`, tone: 'good' });
+  if (rosterHealthScore !== null && rosterHealthScore !== undefined && rosterHealthScore <= 48) tags.push({ label: `Fragile ${rosterHealthScore}`, tone: 'danger' });
+  if (starterAvailability?.riskLevel === 'high') tags.push({ label: 'Injury Watch', tone: 'danger' });
+  if (avgAge !== null && avgAge !== undefined && avgAge >= 27.6) tags.push({ label: 'Age Cliff Watch', tone: 'danger' });
+  if (avgAge !== null && avgAge !== undefined && avgAge <= 25) tags.push({ label: 'Youth Core', tone: 'future' });
+  if (agingRisk >= 58) tags.push({ label: `Age Risk ${agingRisk}`, tone: 'danger' });
+  if (futurePickCount >= 17) tags.push({ label: 'Pick War Chest', tone: 'future' });
+  if (futurePickCount <= 12 && futurePickCount > 0) tags.push({ label: 'Pick Light', tone: 'warn' });
+  if (tradeRow && tradeRow.tradeCount >= 5 && tradeRow.profit >= 2500 && tradeRow.winPct >= 60) tags.push({ label: 'Trade Shark', tone: 'good' });
+  if (tradeRow && tradeRow.tradeCount >= 4 && tradeRow.profit <= -2500) tags.push({ label: 'Trade Tax', tone: 'danger' });
+  if (taxiTriage?.counts.Cuttable) tags.push({ label: `${taxiTriage.counts.Cuttable} Cuttable Taxi`, tone: 'danger' });
+  const primaryNeed = holesSummary && holesSummary !== 'No major roster hole flagged'
+    ? holesSummary.split(',')[0]?.trim()
+    : null;
+  if (primaryNeed) tags.push({ label: titleCasePill(primaryNeed), tone: 'warn' });
+  ageFlags
+    .filter((flag) => /old|young|durable|availability/i.test(flag))
+    .slice(0, 1)
+    .forEach((flag) => tags.push({ label: titleCasePill(flag), tone: getPillToneClass(flag).includes('danger') ? 'danger' : getPillToneClass(flag).includes('future') ? 'future' : 'neutral' }));
+
+  const seen = new Set<string>();
+  return tags.filter((tag) => {
+    const key = tag.label.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 7);
 }
 
 function normalizeIntelNote(value: string) {
@@ -837,7 +922,7 @@ function PlayerInsightTile({
       <div className="manager-intel-player-pills">
         <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
         {extraPill && <span>{extraPill}</span>}
-        <span>{playerTeam || 'FA'}</span>
+        <TeamLogoPill team={playerTeam} />
         <span>{formatCompactValue(player.value)}</span>
       </div>
       {crownedRank && (
@@ -890,7 +975,7 @@ function TaxiTriageRow({
         <div className="owner-intel-taxi-pills">
           <PositionRankPill rank={rank} />
           <span>Taxi</span>
-          <span>{playerTeam || 'FA'}</span>
+          <TeamLogoPill team={playerTeam} />
           <span>{formatCompactValue(player.value)}</span>
         </div>
       </div>
@@ -979,6 +1064,10 @@ function PositionRankPill({ rank }: { rank?: string | null }) {
   return <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>;
 }
 
+function getHeatPillClass(position: 'QB' | 'RB' | 'WR' | 'TE', grade?: string | null) {
+  return `owner-intel-heat-pill owner-intel-heat-position-${position.toLowerCase()} owner-intel-heat-${String(grade || 'empty').toLowerCase()}`;
+}
+
 function CommandPlayerTile({
   player,
   onClick,
@@ -1003,7 +1092,7 @@ function CommandPlayerTile({
       </div>
       <div className="manager-command-player-tile-pills">
         <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
-        <span>{player.playerDetails?.team || 'FA'}</span>
+        <TeamLogoPill team={player.playerDetails?.team} />
         <span className="manager-command-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
       </div>
     </button>
@@ -1350,18 +1439,24 @@ export function LeagueCommandCenter({
     },
   ].filter((group) => group.players.length);
   const selectedManagerTags = (() => {
-    const timelineTag = selectedTimeline
-      ? selectedTimeline.rebuildScore > selectedTimeline.contenderScore && selectedTimeline.rebuildScore >= 55
-        ? 'Rebuild runway'
-        : selectedTimeline.label
+    if (!selectedIntel) return [];
+    const starterCount = selectedCounts
+      ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters
       : null;
-    const tags = [
-      selectedIntel?.identity,
-      timelineTag,
-      ...(selectedIntel?.ageFlags || []),
-      selectedIntel?.holes.summary !== 'No major roster hole flagged' ? selectedIntel?.holes.summary : null,
-    ].filter((tag): tag is string => Boolean(tag));
-    return Array.from(new Set(tags.map(titleCasePill))).slice(0, 5);
+    return buildManagerSignalTags({
+      identity: selectedIntel.identity,
+      starterCount,
+      powerScore: selectedPower?.score,
+      timeline: selectedTimeline,
+      rosterHealthScore: selectedIntel.rosterHealthScore,
+      avgAge: selectedIntel.avgAge,
+      starterAvailability: selectedIntel.starterAvailability,
+      holesSummary: selectedIntel.holes.summary,
+      tradeRow: selectedTrade,
+      pickRow: selectedPick,
+      taxiTriage: selectedIntel.taxiTriage,
+      ageFlags: selectedIntel.ageFlags,
+    });
   })();
   const rosterRead = (() => {
     if (!selectedIntel) return 'No roster read available yet.';
@@ -1512,15 +1607,15 @@ export function LeagueCommandCenter({
               <div className="manager-command-hero-metrics">
                 <IntelligenceMetric label="Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters : '-'} />
                 <IntelligenceMetric label="Roster Age" value={selectedIntel?.avgAge ?? '-'} />
-                <IntelligenceMetric label="Power Score" value={selectedPower?.score ?? '-'} />
+                <IntelligenceMetric label="Team Score" value={selectedPower?.score ?? '-'} />
               </div>
             </div>
             <div className="manager-command-body">
               {selectedManagerTags.length ? (
                 <div className="manager-command-tag-row" aria-label="Manager profile tags">
                   {selectedManagerTags.map((tag) => (
-                    <span key={tag} className={`manager-intel-pill ${getPillToneClass(tag)}`}>
-                      {tag}
+                    <span key={tag.label} className={`manager-intel-pill command-mini-badge-${tag.tone}`}>
+                      {tag.label}
                     </span>
                   ))}
                 </div>
@@ -1553,9 +1648,9 @@ export function LeagueCommandCenter({
                 <div className="manager-command-score-summary" aria-label="Manager power and timeline scores">
                   {selectedPower ? (
                     <div>
-                      <span>Power Rank</span>
+                      <span>Team Score</span>
                       <strong>#{selectedPower.rank} {selectedPower.tier}</strong>
-                      <p>{selectedPower.score}/100 composite score from starters, roster value, balance, picks, youth, and trades.</p>
+                      <p>{selectedPower.score}/100 from weekly starter strength, total roster shape, youth, picks, and trade edge.</p>
                     </div>
                   ) : null}
                   {selectedTimeline ? (
@@ -1642,7 +1737,7 @@ export function LeagueCommandCenter({
                     {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                       const grade = selectedIntel.positionGrades?.[pos];
                       return (
-                        <span key={pos} className={`owner-intel-heat-pill owner-intel-heat-${String(grade?.grade || 'empty').toLowerCase()}`}>
+                        <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
                           <strong>{pos}</strong>
                           <em>{grade?.grade || 'Empty'}</em>
                           <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
@@ -1978,18 +2073,20 @@ export function OwnerIntelMatrix({
       }))
       .filter((item): item is { position: 'QB' | 'RB' | 'WR' | 'TE'; player: ManagerIntelPlayer } => Boolean(item.player))
     : [];
-  const selectedOwnerTags = selectedRow ? [
-    selectedRow.identity,
-    selectedRow.timeline,
-    selectedRow.rosterHealthScore ? `Health ${selectedRow.rosterHealthScore}` : null,
-    selectedPowerRow ? `#${selectedPowerRow.rank} ${selectedPowerRow.tier}` : null,
-    selectedTimelineRow ? `Contender ${selectedTimelineRow.contenderScore}` : null,
-    selectedTimelineRow ? `Rebuild ${selectedTimelineRow.rebuildScore}` : null,
-    selectedRow.taxiTriage?.items.length ? `${selectedRow.taxiTriage.items.length} taxi` : null,
-    selectedRow.taxiTriage?.counts['Promote Now'] ? `${selectedRow.taxiTriage.counts['Promote Now']} promote` : null,
-    selectedRow.taxiTriage?.counts.Cuttable ? `${selectedRow.taxiTriage.counts.Cuttable} cuttable` : null,
-    ...selectedRow.ageFlags,
-  ].filter(Boolean).slice(0, 8) : [];
+  const selectedOwnerTags = selectedRow ? buildManagerSignalTags({
+    identity: selectedRow.identity,
+    starterCount: selectedStarterCount,
+    powerScore: selectedPowerRow?.score,
+    timeline: selectedTimelineRow,
+    rosterHealthScore: selectedRow.rosterHealthScore,
+    avgAge: selectedRow.avgAge,
+    starterAvailability: selectedRow.starterAvailability,
+    holesSummary: selectedRow.holes.summary,
+    tradeRow: selectedTradeRow,
+    pickRow: selectedPickRow,
+    taxiTriage: selectedRow.taxiTriage,
+    ageFlags: selectedRow.ageFlags,
+  }) : [];
   const selectedPlayerSectionsBase: Array<{
     label: string;
     player: ManagerIntelPlayer | null;
@@ -2058,15 +2155,21 @@ export function OwnerIntelMatrix({
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
               badges={[
-                { label: titleCasePill(row.identity), tone: getPillToneClass(row.identity).includes('future') ? 'future' as const : getPillToneClass(row.identity).includes('danger') ? 'danger' as const : 'good' as const },
-                ...(starterCount !== null ? [{ label: `${starterCount} starters`, tone: 'neutral' as const }] : []),
-                ...(powerRow ? [{ label: `Power ${powerRow.score}`, tone: powerRow.score >= 75 ? 'good' as const : powerRow.score <= 45 ? 'warn' as const : 'neutral' as const }] : []),
-                ...(row.tradePlan?.needPosition ? [{ label: `Needs ${row.tradePlan.needPosition}`, tone: 'warn' as const }] : []),
-                ...(row.tradePlan?.surplusPosition ? [{ label: `Move ${row.tradePlan.surplusPosition}`, tone: 'future' as const }] : []),
-                ...(tradeRow ? [{ label: `${tradeRow.tradeCount} trades`, tone: tradeRow.profit >= 0 ? 'good' as const : 'danger' as const }] : []),
-                ...(pickRow ? [{ label: `${pickRow.count2026 + pickRow.count2027} picks`, tone: 'neutral' as const }] : []),
-                ...(timelineRow ? [{ label: titleCasePill(timelineRow.label), tone: timelineRow.contenderScore >= 70 ? 'good' as const : 'future' as const }] : []),
-              ].slice(0, 8)}
+                ...buildManagerSignalTags({
+                  identity: row.identity,
+                  starterCount,
+                  powerScore: powerRow?.score,
+                  timeline: timelineRow,
+                  rosterHealthScore: row.rosterHealthScore,
+                  avgAge: row.avgAge,
+                  starterAvailability: row.starterAvailability,
+                  holesSummary: row.holes.summary,
+                  tradeRow,
+                  pickRow,
+                  taxiTriage: row.taxiTriage,
+                  ageFlags: row.ageFlags,
+                }).slice(0, 5),
+              ]}
               onClick={() => setSelectedOwner(row.manager)}
             />
           );
@@ -2105,25 +2208,25 @@ export function OwnerIntelMatrix({
                 </div>
                 <div className="manager-command-hero-metrics">
                   <IntelligenceMetric label="Starters" value={selectedStarterCount ?? '-'} />
-                  <IntelligenceMetric label="Power" value={selectedPowerRow?.score ?? '-'} />
-                  <IntelligenceMetric label="Age" value={selectedRow.avgAge ?? '-'} />
+                  <IntelligenceMetric label="Team Score" value={selectedPowerRow?.score ?? '-'} />
+                  <IntelligenceMetric label="Avg Age" value={selectedRow.avgAge ?? '-'} />
                 </div>
               </div>
 
               <div className="manager-command-body">
                 <div className="owner-intel-tags">
                   {selectedOwnerTags.map((tag) => (
-                    <span key={tag} className={`manager-intel-pill ${getPillToneClass(String(tag))}`}>
-                      {String(tag).startsWith('#') ? tag : titleCasePill(String(tag))}
+                    <span key={tag.label} className={`manager-intel-pill command-mini-badge-${tag.tone}`}>
+                      {tag.label}
                     </span>
                   ))}
                 </div>
 
                 <div className="owner-intel-stat-grid">
-                  <IntelligenceMetric label="Starter Share" value={`${selectedRow.starterValuePct}%`} />
+                  <IntelligenceMetric label="Lineup Share" value={`${selectedRow.starterValuePct}%`} />
                   <IntelligenceMetric label="Trade Profit" value={selectedTradeRow ? `${selectedTradeRow.profit > 0 ? '+' : ''}${formatCompactValue(selectedTradeRow.profit)}` : '-'} />
-                  <IntelligenceMetric label="Picks" value={selectedPickRow ? `${selectedPickRow.count2026 + selectedPickRow.count2027}` : '-'} />
-                  <IntelligenceMetric label="Contender" value={selectedTimelineRow?.contenderScore ?? '-'} />
+                  <IntelligenceMetric label="Future Picks" value={selectedPickRow ? `${selectedPickRow.count2026 + selectedPickRow.count2027}` : '-'} />
+                  <IntelligenceMetric label="Win-Now" value={selectedTimelineRow?.contenderScore ?? '-'} />
                   <IntelligenceMetric label="Rebuild" value={selectedTimelineRow?.rebuildScore ?? '-'} />
                   <IntelligenceMetric label="Aging Risk" value={selectedTimelineRow?.agingRisk ?? '-'} />
                 </div>
@@ -2183,7 +2286,7 @@ export function OwnerIntelMatrix({
                         {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                           const grade = selectedRow.positionGrades?.[pos];
                           return (
-                            <span key={pos} className={`owner-intel-heat-pill owner-intel-heat-${String(grade?.grade || 'empty').toLowerCase()}`}>
+                            <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
                               <strong>{pos}</strong>
                               <em>{grade?.grade || 'Empty'}</em>
                               <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
@@ -2317,7 +2420,7 @@ export function PowerRankingsTable({
       <OwnerQuickModal
         open={selectedRow !== null}
         onOpenChange={(open) => !open && setSelectedRow(null)}
-        title="Power Profile"
+        title="Team Score Profile"
         manager={selectedRow?.manager}
         avatarUrl={selectedRow ? managerAvatars?.[selectedRow.manager] : null}
         metrics={selectedRow ? [
@@ -2328,7 +2431,7 @@ export function PowerRankingsTable({
           { label: 'Balance', value: selectedRow.positionalBalance },
           { label: 'Youth', value: selectedRow.youthScore },
         ] : []}
-        note={selectedRow ? `Power score blends starter strength, total value, positional balance, draft capital, youth, and trade efficiency. ${selectedRow.manager} is currently ${selectedRow.tier} with a ${selectedRow.score}/100 score.` : undefined}
+        note={selectedRow ? `Team score blends weekly starter strength, total roster shape, positional balance, draft capital, youth, and trade efficiency. ${selectedRow.manager} is currently ${selectedRow.tier} with a ${selectedRow.score}/100 score.` : undefined}
       />
     </div>
   );
@@ -2442,7 +2545,7 @@ export function WeeklyMomentumTable({
                 </div>
                 <div className="weekly-momentum-pills">
                   <PositionRankPill rank={row.currentPositionRank || row.pos} />
-                  <span>{playerDetails?.team || 'FA'}</span>
+                  <TeamLogoPill team={playerDetails?.team} />
                   <span>{formatCompactValue(row.val_now)}</span>
                 </div>
                 <div className="weekly-momentum-values">
@@ -2557,7 +2660,7 @@ export function TrendingPlayersTable({
                 </div>
                 <div className="trending-player-card-pills">
                   <PositionRankPill rank={row.currentPositionRank || row.pos} />
-                  <span>{playerDetails?.team || row.team || 'FA'}</span>
+                  <TeamLogoPill team={playerDetails?.team || row.team} />
                   <span>{formatCompactValue(row.ktcValue)}</span>
                 </div>
               </button>
@@ -2639,7 +2742,7 @@ export function ProjectedMoversTable({
               </div>
               <div className="player-tile-pills">
                 <PositionRankPill rank={row.currentPositionRank || row.pos} />
-                <span>{details?.team || 'FA'}</span>
+                <TeamLogoPill team={details?.team} />
                 <span>{row.age !== null ? `${row.age} yrs` : 'Age N/A'}</span>
               </div>
               <div className="player-tile-value-strip">
@@ -3605,7 +3708,7 @@ export function WaiverIntelligencePanel({
           </div>
           <div className="waiver-intel-pills">
             <PositionRankPill rank={player?.currentPositionRank || player?.pos || '-'} />
-            <span>{player?.playerDetails?.team || player?.team || 'FA'}</span>
+            <TeamLogoPill team={player?.playerDetails?.team || player?.team} />
             <span>{formatCompactValue(player?.ktcValue)}</span>
           </div>
         </button>
@@ -3682,7 +3785,7 @@ export function TradeMarketRadar({
           </div>
           <div className="trade-market-pills">
             <PositionRankPill rank={player.currentPositionRank || player.pos} />
-            <span>{player.playerDetails?.team || 'FA'}</span>
+            <TeamLogoPill team={player.playerDetails?.team} />
             <span>{formatCompactValue(player.val_now)}</span>
           </div>
         </button>
@@ -3869,7 +3972,7 @@ export function ManagerPositionCountsTable({
                         </div>
                         <div className="starter-player-meta">
                           <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
-                          <span className="starter-player-team-pill">{player.playerDetails?.team || 'FA'}</span>
+                          <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
                           <span className="starter-player-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
                           <strong>{player.value.toLocaleString()}</strong>
                         </div>

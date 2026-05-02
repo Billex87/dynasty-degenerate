@@ -334,10 +334,11 @@ function getRosterIdentity(
 }
 
 function getTimelineLabel(contenderScore: number, rebuildScore: number, agingRisk: number): string {
-  if (contenderScore >= 78 && agingRisk >= 55) return 'Win now, monitor age';
-  if (contenderScore >= 72) return '2026 contender';
-  if (rebuildScore >= 68) return 'Rebuild runway';
-  if (contenderScore >= 55) return 'Middle build';
+  if (contenderScore >= 84 && contenderScore - rebuildScore >= 18 && agingRisk >= 55) return 'Win now, monitor age';
+  if (contenderScore >= 84 && contenderScore - rebuildScore >= 18) return 'True contender';
+  if (rebuildScore >= 68 && rebuildScore - contenderScore >= 10) return 'Rebuild mode';
+  if (contenderScore >= 70 && rebuildScore >= 52) return 'Fork in road';
+  if (contenderScore >= 64) return 'Playoff mix';
   return 'Future focused';
 }
 
@@ -1888,9 +1889,9 @@ export async function generateReport(
       }),
     ].filter(Boolean) as string[];
     const strategySummary = [
-      contenderScore >= 72
+      contenderScore >= 84 && contenderScore - rebuildScore >= 18
         ? 'Contender posture: use bench value or picks to buy weekly points now'
-        : rebuildScore >= 68
+        : rebuildScore >= 68 && rebuildScore - contenderScore >= 10
           ? 'Rebuild posture: sell older production for players who can still gain value next offseason'
           : 'Middle-build posture: avoid sideways deals and only trade when it fixes a clear lineup hole',
       primaryNeed ? `Biggest trade need: ${primaryNeed}` : null,

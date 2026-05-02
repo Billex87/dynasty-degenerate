@@ -36,7 +36,7 @@ export const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: strin
 };
 
 export function getTeamTileStyle(team?: string | null): CSSProperties | undefined {
-  const teamColors = NFL_TEAM_COLORS[(team || '').toUpperCase()];
+  const teamColors = NFL_TEAM_COLORS[normalizeNflTeamAbbr(team) || ''];
   if (!teamColors) return undefined;
 
   return {
@@ -44,4 +44,17 @@ export function getTeamTileStyle(team?: string | null): CSSProperties | undefine
     '--team-secondary': teamColors.secondary,
     '--team-accent': teamColors.accent,
   } as CSSProperties;
+}
+
+export function normalizeNflTeamAbbr(team?: string | null): string | null {
+  const normalized = (team || '').trim().toUpperCase();
+  if (!normalized || normalized === 'FA') return null;
+  if (normalized === 'JAC') return 'JAX';
+  return normalized;
+}
+
+export function getNflTeamLogoUrl(team?: string | null): string | null {
+  const normalized = normalizeNflTeamAbbr(team);
+  if (!normalized) return null;
+  return `https://sleepercdn.com/images/team_logos/nfl/${normalized.toLowerCase()}.png`;
 }

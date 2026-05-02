@@ -15,6 +15,7 @@ import {
 import { ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3, Repeat2, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
+import { SupportButton } from '@/components/SupportButton';
 import {
   ManagerRosterValueGrowthTable,
   WeeklyMomentumTable,
@@ -589,7 +590,7 @@ export default function Home() {
         {/* Bottom Action Buttons */}
         <div className="report-footer border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
-            <div className="flex justify-center">
+            <div className="report-footer-actions">
               <Button
                 onClick={handleAnalyzeAnotherLeague}
                 variant="outline"
@@ -597,6 +598,7 @@ export default function Home() {
               >
                 Analyze Another League
               </Button>
+              <SupportButton compact />
             </div>
           </div>
         </div>
@@ -822,6 +824,9 @@ export default function Home() {
                 <Zap size={20} />
                 Illegally Scraping All Data
               </Button>
+              <div className="home-support-row">
+                <SupportButton />
+              </div>
             </div>
 
             {/* Features Grid */}

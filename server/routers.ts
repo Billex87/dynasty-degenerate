@@ -92,8 +92,8 @@ async function fetchSleeperJson<T = any>(url: string): Promise<T | null> {
   }
 }
 
-function getChampionRosterIdFromBracket(bracket: any[]): number | null {
-  if (!Array.isArray(bracket) || bracket.length === 0) return null;
+function getFinalMatchupFromBracket(bracket: any[]): { winner: number | null; loser: number | null } {
+  if (!Array.isArray(bracket) || bracket.length === 0) return { winner: null, loser: null };
 
   const completed = bracket
     .filter((matchup) => matchup && matchup.w !== undefined && matchup.w !== null)
@@ -102,17 +102,49 @@ function getChampionRosterIdFromBracket(bracket: any[]): number | null {
       r: Number(matchup.r || 0),
       m: Number(matchup.m || 999),
       w: Number(matchup.w),
+      l: Number(matchup.l),
     }))
     .filter((matchup) => Number.isFinite(matchup.w));
 
-  if (completed.length === 0) return null;
+  if (completed.length === 0) return { winner: null, loser: null };
 
   const finalMatchup = completed.sort((a, b) => {
     if (b.r !== a.r) return b.r - a.r;
     return a.m - b.m;
   })[0];
 
-  return Number.isFinite(finalMatchup.w) ? finalMatchup.w : null;
+  return {
+    winner: Number.isFinite(finalMatchup.w) ? finalMatchup.w : null,
+    loser: Number.isFinite(finalMatchup.l) ? finalMatchup.l : null,
+  };
+}
+
+function getChampionRosterIdFromBracket(bracket: any[]): number | null {
+  return getFinalMatchupFromBracket(bracket).winner;
+}
+
+function getRunnerUpRosterIdFromBracket(bracket: any[]): number | null {
+  return getFinalMatchupFromBracket(bracket).loser;
+}
+
+function getRosterIdByFinalRank(rosters: any[] = [], rank: number): number | null {
+  const roster = rosters.find((item: any) => Number(item?.settings?.rank) === rank);
+  const rosterId = Number(roster?.roster_id);
+  return Number.isFinite(rosterId) ? rosterId : null;
+}
+
+function getLastPlaceRosterIdFromRosters(rosters: any[] = []): number | null {
+  const ranked = rosters
+    .map((roster: any) => ({
+      rosterId: Number(roster?.roster_id),
+      rank: Number(roster?.settings?.rank),
+    }))
+    .filter((item) => Number.isFinite(item.rosterId) && Number.isFinite(item.rank));
+
+  if (ranked.length === 0) return null;
+
+  ranked.sort((a, b) => b.rank - a.rank);
+  return ranked[0]?.rosterId ?? null;
 }
 
 async function buildManagerChampionships(
@@ -121,6 +153,14 @@ async function buildManagerChampionships(
   maxSeasons = 8
 ): Promise<Record<string, ManagerChampionship>> {
   const championships: Record<string, ManagerChampionship> = {};
+  const addFinish = (manager: string | undefined, season: string, key: keyof ManagerChampionship) => {
+    if (!manager || manager === 'Unknown') return;
+    championships[manager] = championships[manager] || { seasons: [] };
+    const seasons = championships[manager][key] || [];
+    if (!seasons.includes(season)) {
+      championships[manager][key] = [...seasons, season];
+    }
+  };
   const visited = new Set<string>();
   const currentManagerByUserId = Object.fromEntries(
     currentUsers.map((user: any) => [user.user_id, normalizeManagerName(user.display_name)])
@@ -139,21 +179,30 @@ async function buildManagerChampionships(
       fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/winners_bracket`),
     ]);
 
-    const championRosterId = getChampionRosterIdFromBracket(winnersBracket || []);
-    const championRoster = Array.isArray(rosters)
-      ? rosters.find((roster: any) => Number(roster.roster_id) === championRosterId)
-      : null;
     const userMap = Object.fromEntries((users || []).map((user: any) => [user.user_id, user]));
-    const championOwnerId = championRoster?.owner_id ? String(championRoster.owner_id) : '';
-    const championManager = currentManagerByUserId[championOwnerId]
-      || normalizeManagerName(userMap[championOwnerId]?.display_name);
     const season = String(leagueInfo.season || Number(currentLeagueInfo?.season || new Date().getFullYear()) - depth - 1);
+    const managerByRosterId = Object.fromEntries(
+      (Array.isArray(rosters) ? rosters : []).map((roster: any) => {
+        const rosterId = Number(roster.roster_id);
+        const ownerId = roster?.owner_id ? String(roster.owner_id) : '';
+        const manager = currentManagerByUserId[ownerId]
+          || normalizeManagerName(userMap[ownerId]?.display_name);
+        return [rosterId, manager];
+      })
+    );
 
-    if (championRosterId !== null && championManager && championManager !== 'Unknown') {
-      championships[championManager] = championships[championManager] || { seasons: [] };
-      if (!championships[championManager].seasons.includes(season)) {
-        championships[championManager].seasons.push(season);
-      }
+    const championRosterId = getChampionRosterIdFromBracket(winnersBracket || [])
+      ?? getRosterIdByFinalRank(rosters || [], 1);
+    const runnerUpRosterId = getRunnerUpRosterIdFromBracket(winnersBracket || [])
+      ?? getRosterIdByFinalRank(rosters || [], 2);
+    const lastPlaceRosterId = getLastPlaceRosterIdFromRosters(rosters || []);
+
+    addFinish(managerByRosterId[championRosterId ?? -1], season, 'seasons');
+    if (runnerUpRosterId !== championRosterId) {
+      addFinish(managerByRosterId[runnerUpRosterId ?? -1], season, 'runnerUpSeasons');
+    }
+    if (lastPlaceRosterId !== championRosterId && lastPlaceRosterId !== runnerUpRosterId) {
+      addFinish(managerByRosterId[lastPlaceRosterId ?? -1], season, 'lastPlaceSeasons');
     }
 
     nextLeagueId = leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : '';
@@ -164,6 +213,8 @@ async function buildManagerChampionships(
       manager,
       {
         seasons: [...championship.seasons].sort((a, b) => Number(b) - Number(a)),
+        runnerUpSeasons: [...(championship.runnerUpSeasons || [])].sort((a, b) => Number(b) - Number(a)),
+        lastPlaceSeasons: [...(championship.lastPlaceSeasons || [])].sort((a, b) => Number(b) - Number(a)),
       },
     ])
   );

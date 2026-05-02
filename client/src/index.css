@@ -358,6 +358,66 @@
     transform: translateY(-1px);
   }
 
+  .support-button {
+    display: inline-flex;
+    min-height: 2.85rem;
+    max-width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    border: 1px solid rgba(34, 211, 238, 0.24);
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.18), transparent 38%),
+      radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.2), transparent 42%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.84));
+    padding: 0.72rem 1rem;
+    color: #e0faff;
+    font-size: 0.82rem;
+    font-weight: 950;
+    line-height: 1;
+    text-decoration: none;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+    transition: border-color 160ms ease, color 160ms ease, transform 160ms ease, background 160ms ease;
+  }
+
+  .support-button:hover,
+  .support-button:focus-visible {
+    border-color: rgba(251, 146, 60, 0.5);
+    color: #fff7ed;
+    outline: none;
+    transform: translateY(-1px);
+  }
+
+  .support-button-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+    color: #fb923c;
+  }
+
+  .support-button-external {
+    width: 0.88rem;
+    height: 0.88rem;
+    color: rgba(103, 232, 249, 0.82);
+  }
+
+  .support-button-compact {
+    min-height: 2.45rem;
+    padding: 0.62rem 0.9rem;
+  }
+
+  .home-support-row,
+  .report-footer-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .report-footer-actions {
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
   .home-id-divider {
     display: flex;
     align-items: center;
@@ -1993,6 +2053,34 @@
     text-align: center;
   }
 
+  .owner-intel-heat-position-qb {
+    border-color: rgba(244, 63, 94, 0.38);
+    background:
+      radial-gradient(circle at 0 0, rgba(244, 63, 94, 0.18), transparent 42%),
+      rgba(2, 6, 23, 0.52);
+  }
+
+  .owner-intel-heat-position-rb {
+    border-color: rgba(52, 211, 153, 0.38);
+    background:
+      radial-gradient(circle at 0 0, rgba(16, 185, 129, 0.18), transparent 42%),
+      rgba(2, 6, 23, 0.52);
+  }
+
+  .owner-intel-heat-position-wr {
+    border-color: rgba(96, 165, 250, 0.4);
+    background:
+      radial-gradient(circle at 0 0, rgba(59, 130, 246, 0.18), transparent 42%),
+      rgba(2, 6, 23, 0.52);
+  }
+
+  .owner-intel-heat-position-te {
+    border-color: rgba(251, 146, 60, 0.42);
+    background:
+      radial-gradient(circle at 0 0, rgba(251, 146, 60, 0.18), transparent 42%),
+      rgba(2, 6, 23, 0.52);
+  }
+
   .owner-intel-heat-pill strong {
     color: #67e8f9;
     font-size: 0.68rem;
@@ -2028,6 +2116,34 @@
   .owner-intel-heat-empty {
     border-color: rgba(251, 113, 133, 0.35);
     background: linear-gradient(135deg, rgba(127, 29, 29, 0.42), rgba(2, 6, 23, 0.58));
+  }
+
+  .owner-intel-heat-position-qb {
+    border-color: rgba(244, 63, 94, 0.38);
+    background:
+      radial-gradient(circle at 0 0, rgba(244, 63, 94, 0.18), transparent 42%),
+      rgba(2, 6, 23, 0.52);
+  }
+
+  .owner-intel-heat-position-rb {
+    border-color: rgba(52, 211, 153, 0.38);
+    background:
+      radial-gradient(circle at 0 0, rgba(16, 185, 129, 0.18), transparent 42%),
+      rgba(2, 6, 23, 0.52);
+  }
+
+  .owner-intel-heat-position-wr {
+    border-color: rgba(96, 165, 250, 0.4);
+    background:
+      radial-gradient(circle at 0 0, rgba(59, 130, 246, 0.18), transparent 42%),
+      rgba(2, 6, 23, 0.52);
+  }
+
+  .owner-intel-heat-position-te {
+    border-color: rgba(251, 146, 60, 0.42);
+    background:
+      radial-gradient(circle at 0 0, rgba(251, 146, 60, 0.18), transparent 42%),
+      rgba(2, 6, 23, 0.52);
   }
 
   .owner-intel-read-grid p {
@@ -3287,6 +3403,52 @@
     color: #cbd5e1 !important;
   }
 
+  .team-logo-pill {
+    display: inline-flex;
+    min-height: 1.5rem;
+    min-width: 1.5rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.28rem;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.54);
+    padding: 0.18rem 0.42rem;
+    color: #cbd5e1;
+    font-size: 0.66rem;
+    font-weight: 950;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .team-logo-pill img {
+    height: 1.05rem;
+    width: 1.05rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.32));
+  }
+
+  .team-logo-pill-fallback {
+    border-color: rgba(251, 146, 60, 0.24);
+    color: #fdba74;
+  }
+
+  .player-modal-team-logo-pill {
+    min-height: 1.75rem;
+    min-width: 1.75rem;
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(2, 6, 23, 0.48);
+    padding-inline: 0.46rem;
+  }
+
+  .player-modal-team-logo-pill img {
+    height: 1.28rem;
+    width: 1.28rem;
+  }
+
   .trade-market-card {
     width: 100%;
     border: 1px solid color-mix(in srgb, var(--team-accent, #22d3ee) 24%, rgba(34, 211, 238, 0.16));
@@ -4140,6 +4302,14 @@
     filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.2));
   }
 
+  .manager-champion-avatar-runner-up {
+    filter: drop-shadow(0 0 8px rgba(226, 232, 240, 0.14));
+  }
+
+  .manager-champion-avatar-last-place {
+    filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.12));
+  }
+
   .manager-champion-crown {
     position: absolute;
     left: -0.18rem;
@@ -4152,6 +4322,33 @@
     filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
     pointer-events: none;
     transform: rotate(-11deg);
+  }
+
+  .manager-runner-up-crown {
+    position: absolute;
+    right: -0.18rem;
+    top: -0.34rem;
+    z-index: 4;
+    height: 0.72rem;
+    width: 0.72rem;
+    color: #e2e8f0;
+    fill: rgba(226, 232, 240, 0.24);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+    pointer-events: none;
+    transform: rotate(12deg);
+  }
+
+  .manager-last-place-icon {
+    position: absolute;
+    right: -0.22rem;
+    bottom: -0.25rem;
+    z-index: 4;
+    height: 0.72rem;
+    width: 0.72rem;
+    color: #fb7185;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.48));
+    pointer-events: none;
+    transform: rotate(-7deg);
   }
 
   .manager-championship-pills {
@@ -5132,6 +5329,11 @@
     border-color: rgba(34, 211, 238, 0.22);
   }
 
+  .trade-side-assets {
+    display: grid;
+    gap: 0.5rem;
+  }
+
   .trade-asset,
   .trade-asset-boost {
     display: flex;
@@ -5146,6 +5348,14 @@
 
   .trade-asset {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  }
+
+  .trade-asset-player-main {
+    min-width: 0;
+  }
+
+  .trade-asset-player-value {
+    flex: 0 0 auto;
   }
 
   .trade-asset-player {
@@ -5180,6 +5390,51 @@
 
   .trade-asset-block {
     min-width: 0;
+  }
+
+  @media (max-width: 640px) {
+    .trade-detail-panel .trade-side-assets {
+      grid-template-columns: repeat(auto-fit, minmax(8.75rem, 1fr));
+      gap: 0.55rem;
+    }
+
+    .trade-detail-panel .trade-asset-player {
+      display: grid;
+      min-height: 5.8rem;
+      align-content: space-between;
+      align-items: start;
+      gap: 0.65rem;
+      padding: 0.7rem;
+    }
+
+    .trade-detail-panel .trade-asset-player .player-chip {
+      display: grid;
+      gap: 0.42rem;
+    }
+
+    .trade-detail-panel .trade-asset-player .player-chip img,
+    .trade-detail-panel .trade-asset-player .player-chip > span[aria-hidden="true"] {
+      height: 2.35rem;
+      width: 2.35rem;
+      border-radius: 0.8rem;
+    }
+
+    .trade-detail-panel .trade-asset-player .player-chip > span:last-child {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      white-space: normal;
+    }
+
+    .trade-detail-panel .trade-asset-player-value {
+      justify-self: end;
+    }
+
+    .trade-detail-panel .trade-asset-block,
+    .trade-detail-panel .trade-asset-boost {
+      grid-column: 1 / -1;
+    }
   }
 
   @media (min-width: 640px) {
@@ -7940,5 +8195,93 @@ button.trade-manager-trade {
 
   .player-detail-modal .player-complete-section-wide {
     grid-column: 1 / -1;
+  }
+}
+
+/* 2026-05-02 mobile audit: keep owner/player names from fighting for the same line. */
+@media (max-width: 639px) {
+  .report-shell .trade-market-card {
+    display: grid;
+    min-height: 8.85rem;
+    grid-template-rows: auto 1fr auto;
+    gap: 0.48rem;
+  }
+
+  .report-shell .trade-market-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.4rem;
+  }
+
+  .report-shell .trade-market-change {
+    justify-self: end;
+    text-align: right;
+  }
+
+  .report-shell .trade-market-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(3.35rem, 4.7rem);
+    align-items: start;
+    gap: 0.45rem;
+    margin-top: 0.18rem;
+  }
+
+  .report-shell .trade-market-main .player-chip {
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+  }
+
+  .report-shell .trade-market-main .player-chip > span:last-child {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: clamp(0.74rem, 3.25vw, 0.9rem);
+    line-height: 1.05;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .report-shell .trade-market-manager {
+    width: 100%;
+    min-width: 0;
+    justify-self: end;
+  }
+
+  .report-shell .trade-market-manager .manager-chip {
+    display: grid;
+    justify-items: end;
+    gap: 0.24rem;
+  }
+
+  .report-shell .trade-market-manager .manager-chip img,
+  .report-shell .trade-market-manager .manager-chip > span[aria-hidden="true"] {
+    height: 1.9rem;
+    width: 1.9rem;
+  }
+
+  .report-shell .trade-market-manager .manager-chip > span:last-child {
+    max-width: 100%;
+    color: #e2e8f0;
+    font-size: clamp(0.48rem, 2.1vw, 0.6rem);
+    font-weight: 900;
+    line-height: 1.04;
+    text-align: right;
+  }
+
+  .report-shell .trade-market-pills {
+    margin-top: 0.08rem;
+  }
+
+  .report-shell .trending-player-card-owner .manager-chip,
+  .report-shell .player-tile-owner .manager-chip {
+    max-width: 100%;
+  }
+
+  .report-shell .trending-player-card-owner .manager-chip > span:last-child,
+  .report-shell .player-tile-owner .manager-chip > span:last-child {
+    font-size: clamp(0.55rem, 2.25vw, 0.68rem);
   }
 }
