@@ -147,6 +147,52 @@ function getLastPlaceRosterIdFromRosters(rosters: any[] = []): number | null {
   return ranked[0]?.rosterId ?? null;
 }
 
+function getLastPlaceRosterIdFromLosersBracket(bracket: any[] = []): number | null {
+  if (!Array.isArray(bracket) || bracket.length === 0) return null;
+
+  const completed = bracket
+    .filter((matchup) => matchup && matchup.l !== undefined && matchup.l !== null)
+    .map((matchup) => ({
+      ...matchup,
+      r: Number(matchup.r || 0),
+      p: Number(matchup.p || 0),
+      m: Number(matchup.m || 999),
+      l: Number(matchup.l),
+    }))
+    .filter((matchup) => Number.isFinite(matchup.l));
+
+  if (completed.length === 0) return null;
+
+  const lastPlaceGame = completed.sort((a, b) => {
+    if (b.r !== a.r) return b.r - a.r;
+    if (b.p !== a.p) return b.p - a.p;
+    return b.m - a.m;
+  })[0];
+
+  return Number.isFinite(lastPlaceGame.l) ? lastPlaceGame.l : null;
+}
+
+function getWorstRegularSeasonRosterId(rosters: any[] = []): number | null {
+  const ranked = rosters
+    .map((roster: any) => ({
+      rosterId: Number(roster?.roster_id),
+      wins: Number(roster?.settings?.wins || 0),
+      losses: Number(roster?.settings?.losses || 0),
+      points: Number(roster?.settings?.fpts || 0) + Number(roster?.settings?.fpts_decimal || 0) / 100,
+    }))
+    .filter((item) => Number.isFinite(item.rosterId));
+
+  if (ranked.length === 0) return null;
+
+  ranked.sort((a, b) => {
+    if (a.wins !== b.wins) return a.wins - b.wins;
+    if (b.losses !== a.losses) return b.losses - a.losses;
+    return a.points - b.points;
+  });
+
+  return ranked[0]?.rosterId ?? null;
+}
+
 async function buildManagerChampionships(
   currentLeagueInfo: any,
   currentUsers: any[] = [],
@@ -173,10 +219,11 @@ async function buildManagerChampionships(
     const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${nextLeagueId}`);
     if (!leagueInfo?.league_id) break;
 
-    const [users, rosters, winnersBracket] = await Promise.all([
+    const [users, rosters, winnersBracket, losersBracket] = await Promise.all([
       fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/users`),
       fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/rosters`),
       fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/winners_bracket`),
+      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/losers_bracket`),
     ]);
 
     const userMap = Object.fromEntries((users || []).map((user: any) => [user.user_id, user]));
@@ -195,7 +242,9 @@ async function buildManagerChampionships(
       ?? getRosterIdByFinalRank(rosters || [], 1);
     const runnerUpRosterId = getRunnerUpRosterIdFromBracket(winnersBracket || [])
       ?? getRosterIdByFinalRank(rosters || [], 2);
-    const lastPlaceRosterId = getLastPlaceRosterIdFromRosters(rosters || []);
+    const lastPlaceRosterId = getLastPlaceRosterIdFromRosters(rosters || [])
+      ?? getLastPlaceRosterIdFromLosersBracket(losersBracket || [])
+      ?? getWorstRegularSeasonRosterId(rosters || []);
 
     addFinish(managerByRosterId[championRosterId ?? -1], season, 'seasons');
     if (runnerUpRosterId !== championRosterId) {
