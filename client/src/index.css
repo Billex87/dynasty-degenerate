@@ -7148,6 +7148,10 @@ button.player-team-tile:focus-visible {
   padding: 0.55rem;
 }
 
+.trade-war-selected-asset {
+  padding-right: 2.25rem;
+}
+
 .trade-war-player-muted {
   filter: saturate(0.58);
   opacity: 0.62;
@@ -7220,8 +7224,7 @@ button.player-team-tile:focus-visible {
   color: #fcd34d !important;
 }
 
-.trade-war-detail-button,
-.trade-war-remove {
+.trade-war-detail-button {
   justify-self: start;
   color: #67e8f9;
   font-size: 0.66rem;
@@ -7231,7 +7234,28 @@ button.player-team-tile:focus-visible {
 }
 
 .trade-war-remove {
-  color: #fb7185;
+  position: absolute;
+  top: 0.42rem;
+  right: 0.42rem;
+  z-index: 3;
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border: 1px solid rgba(251, 113, 133, 0.5);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fecdd3;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.trade-war-remove:hover,
+.trade-war-remove:focus-visible {
+  border-color: rgba(251, 113, 133, 0.9);
+  background: rgba(127, 29, 29, 0.72);
+  color: #fff1f2;
+  transform: scale(1.04);
 }
 
 .trade-war-note-panel {

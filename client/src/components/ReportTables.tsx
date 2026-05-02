@@ -16,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import React, { useState } from 'react';
-import { ChevronDown, Crown, TrendingDown, TrendingUp } from 'lucide-react';
+import { ChevronDown, Crown, TrendingDown, TrendingUp, X as XIcon } from 'lucide-react';
 import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
@@ -3084,8 +3084,16 @@ export function TradeWarRoom({
                   <span>{formatCompactValue(value)}</span>
                 </span>
               </button>
-              <button type="button" className="trade-war-remove" onClick={() => removeAsset(asset.player_id)}>
-                Remove
+              <button
+                type="button"
+                className="trade-war-remove"
+                aria-label={`Remove ${asset.name}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  removeAsset(asset.player_id);
+                }}
+              >
+                <XIcon className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           );
