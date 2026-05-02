@@ -227,7 +227,15 @@ describe('Draft Analysis', () => {
       mockDraftPicks,
       mockPlayers,
       { roster1: 'Manager A' },
-      { emekaegbuka: { name: 'Emeka Egbuka', ktc_value: 5148 } },
+      {
+        emekaegbuka: {
+          name: 'Emeka Egbuka',
+          ktc_value: 5165,
+          market_value_ktc: 6150,
+          expert_value_dynastyprocess: 4082,
+          value_sources: ['KTC', 'DynastyProcess'],
+        },
+      },
       { player1: { name: 'Emeka Egbuka', pos: 'WR', adp: 10 } },
       undefined,
       undefined,
@@ -247,8 +255,8 @@ describe('Draft Analysis', () => {
     );
 
     expect(result.draftPicks[0].ktcValue).toBe(3908);
-    expect(result.draftPicks[0].currentKtcValue).toBe(5148);
-    expect(result.draftPicks[0].valueGain).toBe(1240);
+    expect(result.draftPicks[0].currentKtcValue).toBe(5514);
+    expect(result.draftPicks[0].valueGain).toBe(1606);
     expect(result.draftPicks[0].positionRankMay2025).toBe('WR21');
     expect(result.draftPicks[0].positionRankChange).toBe('+7');
   });

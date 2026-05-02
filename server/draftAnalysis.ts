@@ -44,6 +44,12 @@ interface PositionRankData {
   position_rank_may2025?: string;
   dynasty_value?: number;
   true_value?: number;
+  redraft_value?: number;
+  market_value_ktc?: number;
+  market_value_fantasycalc?: number;
+  expert_value_dynastyprocess?: number;
+  fantasypros_season_value?: number;
+  value_sources?: string[];
   [key: string]: any;
 }
 
@@ -123,7 +129,7 @@ export async function analyzeDraftPicks(
   draftPicks: DraftPickWithMetadata[],
   players: Record<string, any>,
   rosterMap: Record<string, string>,
-  ktcValues: Record<string, { name: string; ktc_value: number }>,
+  ktcValues: Record<string, PositionRankData>,
   adpData: ADPData,
   ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>,
   ktcValuesMay2025?: Record<string, PositionRankData>,
@@ -187,6 +193,57 @@ export async function analyzeDraftPicks(
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
   };
 
+  const getNumberValue = (record: PositionRankData | null | undefined, field: keyof PositionRankData): number | null => {
+    const value = record?.[field];
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  };
+
+  const hasExplicitSources = (record: PositionRankData | null | undefined): boolean => {
+    return Array.isArray(record?.value_sources) && record.value_sources.length > 0;
+  };
+
+  const sourceIsAvailable = (record: PositionRankData | null | undefined, source: string): boolean => {
+    if (!record) return false;
+    return !hasExplicitSources(record) || Boolean(record.value_sources?.includes(source));
+  };
+
+  const getKtcSourceValue = (record: PositionRankData | null | undefined): number | null => {
+    const marketValue = getNumberValue(record, 'market_value_ktc');
+    if (marketValue !== null) return marketValue;
+    return sourceIsAvailable(record, 'KTC') ? getNumberValue(record, 'ktc_value') : null;
+  };
+
+  const getSourceMatchedValues = (
+    baseline: PositionRankData | null,
+    current: PositionRankData | null
+  ): { baselineValue: number; currentValue: number } | null => {
+    const parts = [
+      {
+        baseline: getKtcSourceValue(baseline),
+        current: getKtcSourceValue(current),
+        weight: 0.45,
+      },
+      {
+        baseline: getNumberValue(baseline, 'market_value_fantasycalc'),
+        current: getNumberValue(current, 'market_value_fantasycalc'),
+        weight: 0.35,
+      },
+      {
+        baseline: getNumberValue(baseline, 'expert_value_dynastyprocess'),
+        current: getNumberValue(current, 'expert_value_dynastyprocess'),
+        weight: 0.2,
+      },
+    ].filter((part) => part.baseline !== null && part.current !== null);
+
+    const totalWeight = parts.reduce((sum, part) => sum + part.weight, 0);
+    if (totalWeight <= 0) return null;
+
+    return {
+      baselineValue: Math.round(parts.reduce((sum, part) => sum + (part.baseline || 0) * part.weight, 0) / totalWeight),
+      currentValue: Math.round(parts.reduce((sum, part) => sum + (part.current || 0) * part.weight, 0) / totalWeight),
+    };
+  };
+
   const getStarterThresholds = (teamCount: number): Record<string, number> => ({
     QB: Math.max(1, Math.round(teamCount * 2)),
     RB: Math.max(1, Math.round(teamCount * 3)),
@@ -241,7 +298,7 @@ export async function analyzeDraftPicks(
     // Create slug to match KTC data
     const playerSlug = createSlug(playerName);
     const ktcData = findPlayerData(playerName, ktcValues) || ktcValues[playerSlug];
-    const currentKtcValue = ktcData?.ktc_value || null;
+    let currentKtcValue = ktcData?.ktc_value || null;
 
     // Detect draft year based on season field from draft metadata
     // The season field contains the year (e.g., 2025, 2026)
@@ -260,17 +317,25 @@ export async function analyzeDraftPicks(
       
       if (draftYearBaseline) {
         const draftYearData = findPlayerData(playerName, draftYearBaseline);
-        const draftYearValue = getBaselineValue(draftYearData);
+        const sourceMatchedValues = getSourceMatchedValues(draftYearData, ktcData);
+        const draftYearValue = sourceMatchedValues?.baselineValue ?? getBaselineValue(draftYearData);
         if (draftYearValue) {
           baselineValue = draftYearValue;
+          if (sourceMatchedValues?.currentValue) {
+            currentKtcValue = sourceMatchedValues.currentValue;
+          }
           baselineRank = draftYearData.position_rank || draftYearData.position_rank_may2025 || null;
         }
       } else if (ktcValuesMay2025) {
         // Prefer May 2025 baseline for accurate 2025 draft-day comparison
         const may2025Data = findPlayerData(playerName, ktcValuesMay2025);
-        const may2025Value = getBaselineValue(may2025Data);
+        const sourceMatchedValues = getSourceMatchedValues(may2025Data, ktcData);
+        const may2025Value = sourceMatchedValues?.baselineValue ?? getBaselineValue(may2025Data);
         if (may2025Value) {
           baselineValue = may2025Value;
+          if (sourceMatchedValues?.currentValue) {
+            currentKtcValue = sourceMatchedValues.currentValue;
+          }
           baselineRank = may2025Data.position_rank_may2025 || null;
         }
       } else if (ktcValuesLastWeek) {
