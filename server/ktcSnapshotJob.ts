@@ -2,7 +2,18 @@ import { findKtcSnapshotOnOrBefore, getDb, insertKtcSnapshot } from './db';
 import { loadKTCValues, loadLiveKTCValues, saveLocalKtcSnapshot } from './ktcLoader';
 import { loadBlendedPlayerValues } from './valueBlend';
 
-type KTCValueMap = Record<string, { name: string; ktc_value: number; position_rank?: string }>;
+type KTCValueMap = Record<string, {
+  name: string;
+  ktc_value: number;
+  position_rank?: string;
+  dynasty_value?: number;
+  true_value?: number;
+  redraft_value?: number;
+  market_value_ktc?: number;
+  market_value_fantasycalc?: number;
+  expert_value_dynastyprocess?: number;
+  fantasypros_season_value?: number;
+}>;
 
 function normalizeSnapshotData(data: unknown): KTCValueMap {
   if (!data || typeof data !== 'object') return {};
@@ -15,14 +26,23 @@ function normalizeSnapshotData(data: unknown): KTCValueMap {
         }
 
         if (value && typeof value === 'object') {
-          const raw = value as { name?: unknown; ktc_value?: unknown; position_rank?: unknown };
+          const raw = value as Record<string, unknown>;
           if (typeof raw.ktc_value === 'number') {
+            const numberField = (field: string) =>
+              typeof raw[field] === 'number' ? raw[field] as number : undefined;
             return [
               key,
               {
                 name: typeof raw.name === 'string' ? raw.name : key,
                 ktc_value: raw.ktc_value,
                 position_rank: typeof raw.position_rank === 'string' ? raw.position_rank : undefined,
+                dynasty_value: numberField('dynasty_value'),
+                true_value: numberField('true_value'),
+                redraft_value: numberField('redraft_value'),
+                market_value_ktc: numberField('market_value_ktc'),
+                market_value_fantasycalc: numberField('market_value_fantasycalc'),
+                expert_value_dynastyprocess: numberField('expert_value_dynastyprocess'),
+                fantasypros_season_value: numberField('fantasypros_season_value'),
               },
             ];
           }

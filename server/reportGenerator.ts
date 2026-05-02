@@ -1,6 +1,7 @@
 import {
   cleanName,
   getPlayerName,
+  getPlayerKtcMarketValue,
   getPlayerRedraftValue,
   getPlayerValue,
   getPickValue,
@@ -1006,10 +1007,13 @@ export async function generateReport(
       const p2027 = projectValue(val, pos, age, 1);
       v2027 += p2027;
 
-      // Weekly momentum tracking - include all players with last week values
-      const lastWeekVal = getPlayerValue(pid, allPlayers, ktcValuesLastWeek);
-      if (lastWeekVal > 0) {
-        const pct_change = lastWeekVal > 0 ? (val - lastWeekVal) / lastWeekVal * 100 : 0;
+      // Weekly momentum is a market-movement view, so compare raw KTC market
+      // value to raw KTC market value. The rest of the report can keep using
+      // the blended dynasty value.
+      const currentMarketVal = getPlayerKtcMarketValue(pid, allPlayers, ktcValues);
+      const lastWeekVal = getPlayerKtcMarketValue(pid, allPlayers, ktcValuesLastWeek);
+      if (currentMarketVal > 0 && lastWeekVal > 0) {
+        const pct_change = lastWeekVal > 0 ? (currentMarketVal - lastWeekVal) / lastWeekVal * 100 : 0;
         weeklyMomentum.push({
           name: getPlayerName(pid, allPlayers),
           player_id: pid,
@@ -1018,8 +1022,8 @@ export async function generateReport(
           owner: name,
           pos,
           val_last: lastWeekVal,
-          val_now: val,
-          diff: val - lastWeekVal,
+          val_now: currentMarketVal,
+          diff: currentMarketVal - lastWeekVal,
           pct_change,
         });
       }
@@ -1223,12 +1227,12 @@ export async function generateReport(
 
   const weeklyRisers = weeklyMomentum
     .filter((player) => player.diff > 0 && player.pct_change > 0)
-    .sort((a, b) => b.pct_change - a.pct_change)
+    .sort((a, b) => b.diff - a.diff || b.pct_change - a.pct_change)
     .slice(0, 10);
 
   const weeklyFallers = weeklyMomentum
     .filter((player) => player.diff < 0 && player.pct_change < 0)
-    .sort((a, b) => a.pct_change - b.pct_change)
+    .sort((a, b) => a.diff - b.diff || a.pct_change - b.pct_change)
     .slice(0, 10);
 
   const leagueOverview = Object.entries(teamData)

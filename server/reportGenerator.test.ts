@@ -263,6 +263,43 @@ describe('generateReport trade ledger', () => {
     expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|2865');
   });
 
+  it('ranks weekly momentum by 7-day KTC market-point movement, not blended value or percent', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterMap: { 1: 'Manager A' },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['steady', 'smallBigPct', 'bigDrop', 'smallDrop'] },
+        ],
+      },
+      null,
+      {
+        steady: { first_name: 'Steady', last_name: 'Gain', position: 'WR', age: 24 },
+        smallBigPct: { first_name: 'Small', last_name: 'Bigpct', position: 'RB', age: 24 },
+        bigDrop: { first_name: 'Big', last_name: 'Drop', position: 'QB', age: 24 },
+        smallDrop: { first_name: 'Small', last_name: 'Drop', position: 'TE', age: 24 },
+      },
+      {
+        steadygain: { name: 'Steady Gain', ktc_value: 5000, market_value_ktc: 9000 },
+        smallbigpct: { name: 'Small Bigpct', ktc_value: 5000, market_value_ktc: 2500 },
+        bigdrop: { name: 'Big Drop', ktc_value: 5000, market_value_ktc: 7000 },
+        smalldrop: { name: 'Small Drop', ktc_value: 5000, market_value_ktc: 2000 },
+      },
+      {
+        steadygain: { name: 'Steady Gain', ktc_value: 8800 },
+        smallbigpct: { name: 'Small Bigpct', ktc_value: 2000 },
+        bigdrop: { name: 'Big Drop', ktc_value: 7600 },
+        smalldrop: { name: 'Small Drop', ktc_value: 2500 },
+      }
+    );
+
+    expect(report.weeklyRisers.map((player) => player.name)).toEqual(['Small Bigpct', 'Steady Gain']);
+    expect(report.weeklyRisers.map((player) => player.diff)).toEqual([500, 200]);
+    expect(report.weeklyFallers.map((player) => player.name)).toEqual(['Big Drop', 'Small Drop']);
+    expect(report.weeklyFallers.map((player) => player.diff)).toEqual([-600, -500]);
+  });
+
   it('scales starter counts by league size and redraft positional rank', async () => {
     const report = await generateReport(
       {

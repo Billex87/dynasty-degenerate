@@ -2412,14 +2412,14 @@ export function WeeklyMomentumTable({
                   playerId: row.player_id,
                   playerName: row.name,
                   playerPos: row.pos,
-                  value: row.val_now,
+                  value: playerDetails?.valueProfile?.dynastyValue ?? row.val_now,
                   valueGain: row.diff,
                   playerDetails,
                   playerDetailsById,
                   manager: row.owner,
                   managerAvatarUrl: managerAvatars?.[row.owner],
                   currentPositionRank: row.currentPositionRank,
-                  valueChangeNote: 'Change over the last 7 days.',
+                  valueChangeNote: 'KTC market change over the last 7 days.',
                 }))}
               >
                 <div className="weekly-momentum-tile-top">

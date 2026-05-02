@@ -1,5 +1,12 @@
 interface KTCValues {
-  [key: string]: { name: string; ktc_value: number; redraft_value?: number; true_value?: number; dynasty_value?: number };
+  [key: string]: {
+    name: string;
+    ktc_value: number;
+    redraft_value?: number;
+    true_value?: number;
+    dynasty_value?: number;
+    market_value_ktc?: number;
+  };
 }
 
 interface Player {
@@ -29,6 +36,14 @@ export function getPlayerValue(
   return getPlayerValueField(pid, allPlayers, ktcValues, 'ktc_value');
 }
 
+export function getPlayerKtcMarketValue(
+  pid: string,
+  allPlayers: Player,
+  ktcValues: KTCValues
+): number {
+  return getPlayerValueField(pid, allPlayers, ktcValues, 'market_value_ktc') || getPlayerValue(pid, allPlayers, ktcValues);
+}
+
 export function getPlayerRedraftValue(
   pid: string,
   allPlayers: Player,
@@ -49,7 +64,7 @@ function getPlayerValueField(
   pid: string,
   allPlayers: Player,
   ktcValues: KTCValues,
-  field: 'ktc_value' | 'redraft_value' | 'true_value' | 'dynasty_value'
+  field: 'ktc_value' | 'redraft_value' | 'true_value' | 'dynasty_value' | 'market_value_ktc'
 ): number {
   const p = allPlayers[pid];
   if (!p) return 0;

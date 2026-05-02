@@ -187,6 +187,21 @@ export async function analyzeDraftPicks(
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
   };
 
+  const getStarterThresholds = (teamCount: number): Record<string, number> => ({
+    QB: Math.max(1, Math.round(teamCount * 2)),
+    RB: Math.max(1, Math.round(teamCount * 3)),
+    WR: Math.max(1, Math.round(teamCount * 4)),
+    TE: Math.max(1, Math.round(teamCount * 1.5)),
+  });
+
+  const isStarterByRank = (position: string, rank: string | null): boolean => {
+    const rankPosition = rank?.match(/^[A-Z]+/)?.[0];
+    const rankNumber = Number(rank?.match(/\d+/)?.[0]);
+    const thresholds = getStarterThresholds(Math.max(1, Object.values(rosterMap).filter(Boolean).length || 10));
+    if (!rankPosition || !Number.isFinite(rankNumber) || rankPosition !== position) return false;
+    return rankNumber <= (thresholds[position] || 0);
+  };
+
   // Initialize manager stats
   Object.values(rosterMap).forEach((manager) => {
     managerStats.set(manager, {
@@ -344,8 +359,12 @@ export async function analyzeDraftPicks(
         stats.avgKtcGain = (stats.avgKtcGain * (stats.totalPicks - 1) + valueGain) / stats.totalPicks;
       }
 
-      // Track starters (players with value > 4000)
-      if (currentKtcValue !== null && currentKtcValue > 4000) {
+      // Track starter-grade rookie outcomes by positional rank. Fall back to
+      // value only when a rank is missing.
+      if (
+        isStarterByRank(playerPos, currentPositionRank) ||
+        (!currentPositionRank && currentKtcValue !== null && currentKtcValue > 4000)
+      ) {
         stats.starters += 1;
       }
 
