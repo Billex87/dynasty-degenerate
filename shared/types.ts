@@ -343,7 +343,10 @@ export interface ManagerDraftStats {
   starters: number;
 }
 
+export type LeagueValueMode = 'dynasty' | 'redraft' | 'keeper';
+
 export interface ReportData {
+  leagueValueMode?: LeagueValueMode;
   managerAvatars?: Record<string, string | null>;
   managerChampionships?: Record<string, ManagerChampionship>;
   playerDetailsById?: Record<string, PlayerDetails>;

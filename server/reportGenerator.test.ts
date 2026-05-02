@@ -353,4 +353,31 @@ describe('generateReport trade ledger', () => {
     expect(report.managerPositionCounts[0].starterPlayers?.find((player) => player.pos === 'QB')?.seasonPositionRank).toBe('QB1');
     expect(report.managerPositionCounts[1].starterPlayers?.find((player) => player.pos === 'QB')?.seasonPositionRank).toBe('QB2');
   });
+
+  it('uses dynasty value as primary for dynasty leagues and season value for redraft leagues', async () => {
+    const seasonData = {
+      label: '2026',
+      trades: [],
+      rosterMap: { 1: 'Manager A' },
+      rosters: [
+        { roster_id: 1, owner_id: 'u1', players: ['youngWr'] },
+      ],
+    };
+    const players = {
+      youngWr: { first_name: 'Young', last_name: 'WR', position: 'WR', age: 22 },
+    };
+    const values = {
+      youngwr: { name: 'Young WR', ktc_value: 5000, redraft_value: 1200, position_rank: 'WR8' },
+    };
+
+    const dynastyReport = await generateReport(seasonData, null, players, values, {}, {}, { leagueValueMode: 'dynasty' });
+    const redraftReport = await generateReport(seasonData, null, players, values, {}, {}, { leagueValueMode: 'redraft' });
+
+    expect(dynastyReport.leagueValueMode).toBe('dynasty');
+    expect(redraftReport.leagueValueMode).toBe('redraft');
+    expect(dynastyReport.managerRosterValueGrowth[0].total_val).toBe(5000);
+    expect(redraftReport.managerRosterValueGrowth[0].total_val).toBe(1200);
+    expect(dynastyReport.managerPositionCounts[0].lineupPlayers[0].currentPositionRank).toBe('WR8');
+    expect(redraftReport.managerPositionCounts[0].lineupPlayers[0].currentPositionRank).toBe('WR1');
+  });
 });

@@ -41,6 +41,7 @@ function buildPlayerModalData({
   managerAvatarUrl,
   valueChangeNote,
   currentPositionRank,
+  valueMode = 'dynasty',
 }: {
   playerId?: string;
   playerName: string;
@@ -53,6 +54,7 @@ function buildPlayerModalData({
   managerAvatarUrl?: string | null;
   valueChangeNote?: string;
   currentPositionRank?: string | null;
+  valueMode?: ReportData['leagueValueMode'];
 }): PlayerModalData {
   const mappedDetails = playerId ? playerDetailsById?.[playerId] : undefined;
   const details = playerDetails
@@ -72,13 +74,16 @@ function buildPlayerModalData({
         similarTradeValues: playerDetails.similarTradeValues || mappedDetails?.similarTradeValues,
       }
     : mappedDetails;
+  const profileRank = valueMode === 'redraft'
+    ? details?.valueProfile?.seasonPositionRank || details?.valueProfile?.fantasyProsPositionRank || details?.valueProfile?.dynastyPositionRank
+    : details?.valueProfile?.dynastyPositionRank || details?.valueProfile?.balancedPositionRank || details?.valueProfile?.seasonPositionRank;
   return {
     player_id: playerId,
     playerName,
     playerPos: playerPos || details?.position,
     manager: manager || undefined,
     managerAvatarUrl,
-    currentPositionRank: currentPositionRank || details?.valueProfile?.seasonPositionRank || details?.valueProfile?.dynastyPositionRank || null,
+    currentPositionRank: currentPositionRank || profileRank || null,
     currentKtcValue: value ?? undefined,
     valueGain: valueGain ?? undefined,
     playerDetails: details,
@@ -820,7 +825,7 @@ function PlayerInsightTile({
         value: player.value,
         playerDetails,
         playerDetailsById,
-        currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
+        currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
         manager: player.owner || manager,
         managerAvatarUrl: player.owner ? undefined : managerAvatarUrl,
       }))}
@@ -830,7 +835,7 @@ function PlayerInsightTile({
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       </div>
       <div className="manager-intel-player-pills">
-        <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
+        <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
         {extraPill && <span>{extraPill}</span>}
         <span>{playerTeam || 'FA'}</span>
         <span>{formatCompactValue(player.value)}</span>
@@ -860,7 +865,7 @@ function TaxiTriageRow({
 }) {
   const playerDetails = player.playerDetails || (player.player_id ? playerDetailsById?.[player.player_id] : undefined);
   const playerTeam = playerDetails?.team || null;
-  const rank = player.seasonPositionRank || player.currentPositionRank || player.pos;
+  const rank = player.currentPositionRank || player.seasonPositionRank || player.pos;
   const tone = getTaxiBadgeTone(player.taxiAction);
 
   return (
@@ -997,7 +1002,7 @@ function CommandPlayerTile({
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       </div>
       <div className="manager-command-player-tile-pills">
-        <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
+        <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
         <span>{player.playerDetails?.team || 'FA'}</span>
         <span className="manager-command-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
       </div>
@@ -1297,7 +1302,7 @@ export function LeagueCommandCenter({
       playerDetailsById: data.playerDetailsById,
       manager: player.owner || selectedManager,
       managerAvatarUrl: managerAvatars?.[player.owner || selectedManager],
-      currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
+      currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
     }));
   };
   const selectedStarters = selectedCounts?.starterPlayers || [];
@@ -1394,10 +1399,10 @@ export function LeagueCommandCenter({
       notes.push(`Lineup warning: ${missingLineupGroups.map((group) => group.label).join(', ')} does not fully fill from ranked players.`);
     }
     if (selectedIntel.weakestStarter) {
-      notes.push(`Lineup upgrade spot is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.seasonPositionRank || selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.pos}) after season value is considered.`);
+      notes.push(`Lineup upgrade spot is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.seasonPositionRank || selectedIntel.weakestStarter.pos}) after season value is considered.`);
     }
     if (selectedIntel.bestBenchStash) {
-      notes.push(`${selectedIntel.bestBenchStash.name} (${selectedIntel.bestBenchStash.seasonPositionRank || selectedIntel.bestBenchStash.currentPositionRank || selectedIntel.bestBenchStash.pos}) is the best bench chip if this manager wants to patch a hole without touching the core.`);
+      notes.push(`${selectedIntel.bestBenchStash.name} (${selectedIntel.bestBenchStash.currentPositionRank || selectedIntel.bestBenchStash.seasonPositionRank || selectedIntel.bestBenchStash.pos}) is the best bench chip if this manager wants to patch a hole without touching the core.`);
     }
     if (selectedPick && selectedPick.count2026 + selectedPick.count2027 >= 15) {
       notes.push(`Draft capital is strong with ${selectedPick.count2026} 2026 picks and ${selectedPick.count2027} 2027 picks, so this team has room to buy help.`);
@@ -2231,7 +2236,7 @@ export function OwnerIntelMatrix({
                               value: player.value,
                               playerDetails: player.playerDetails,
                               playerDetailsById: data.playerDetailsById,
-                              currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
+                              currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
                               manager: player.owner || selectedRow.manager,
                               managerAvatarUrl: (player.owner && managerAvatars?.[player.owner]) || managerAvatars?.[selectedRow.manager],
                             }))}
@@ -2241,7 +2246,7 @@ export function OwnerIntelMatrix({
                               <em>{player.name}</em>
                               {player.owner && player.owner !== selectedRow.manager ? <small>{player.owner}</small> : null}
                             </span>
-                            <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
+                            <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
                           </button>
                         ))}
                       </div>
@@ -3147,7 +3152,7 @@ export function StarterBenchSnapshot({
                   value: row.weakestStarter?.value,
                   playerDetails: row.weakestStarter?.playerDetails,
                   playerDetailsById,
-                  currentPositionRank: row.weakestStarter?.seasonPositionRank || row.weakestStarter?.currentPositionRank,
+                  currentPositionRank: row.weakestStarter?.currentPositionRank || row.weakestStarter?.seasonPositionRank,
                   manager: row.manager,
                   managerAvatarUrl: managerAvatars?.[row.manager],
                 }))}
@@ -3853,7 +3858,7 @@ export function ManagerPositionCountsTable({
                             value: player.value,
                             playerDetails: player.playerDetails,
                             playerDetailsById,
-                            currentPositionRank: player.seasonPositionRank || player.currentPositionRank,
+                            currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
                             manager: selectedManager.manager,
                             managerAvatarUrl: selectedAvatar,
                           }));
@@ -3863,7 +3868,7 @@ export function ManagerPositionCountsTable({
                           <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
                         </div>
                         <div className="starter-player-meta">
-                          <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
+                          <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
                           <span className="starter-player-team-pill">{player.playerDetails?.team || 'FA'}</span>
                           <span className="starter-player-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
                           <strong>{player.value.toLocaleString()}</strong>

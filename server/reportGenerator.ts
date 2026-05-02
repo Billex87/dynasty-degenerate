@@ -9,7 +9,7 @@ import {
   calculateValueAdjustment,
 } from './leagueAnalysis';
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
-import type { ManagerIntelPlayer, PlayerDetails, ReportData, TaxiTriageAction, TaxiTriageItem } from '../shared/types';
+import type { LeagueValueMode, ManagerIntelPlayer, PlayerDetails, ReportData, TaxiTriageAction, TaxiTriageItem } from '../shared/types';
 
 export interface KTCValues {
   [key: string]: {
@@ -107,6 +107,10 @@ interface SeasonData {
   rosterMap: Record<number, string>;
   rosters: Roster[];
   draftSlotsBySeason?: Record<string, Record<number, number>>;
+}
+
+interface ReportOptions {
+  leagueValueMode?: LeagueValueMode;
 }
 
 type StarterThresholds = Record<'QB' | 'RB' | 'WR' | 'TE', number>;
@@ -358,7 +362,7 @@ function pickDistinctPlayer<T extends ManagerIntelPlayer>(
 }
 
 function getRankLabel(player?: ManagerIntelPlayer | null): string {
-  return player?.seasonPositionRank || player?.currentPositionRank || player?.pos || 'unranked';
+  return player?.currentPositionRank || player?.seasonPositionRank || player?.pos || 'unranked';
 }
 
 function getPlayerGamesMissed(player?: ManagerIntelPlayer | null): number | null {
@@ -908,14 +912,29 @@ export async function generateReport(
   allPlayers: Player,
   ktcValues: KTCValues,
   ktcValuesLastWeek: KTCValues,
-  lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {}
+  lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {},
+  options: ReportOptions = {}
 ): Promise<ReportData> {
+  const leagueValueMode = options.leagueValueMode || 'dynasty';
+  const useSeasonAsPrimary = leagueValueMode === 'redraft';
   const starterThresholds = getStarterThresholds(currentSeasonData.rosters.length || 10);
   const seasonPositionRankById = buildSeasonPositionRanks(
     currentSeasonData.rosters.flatMap((roster) => roster.players || []),
     allPlayers,
     ktcValues
   );
+  const getPrimaryValue = (pid: string) => {
+    if (useSeasonAsPrimary) {
+      return getPlayerRedraftValue(pid, allPlayers, ktcValues) || getPlayerValue(pid, allPlayers, ktcValues);
+    }
+    return getPlayerValue(pid, allPlayers, ktcValues);
+  };
+  const getPrimaryRank = (pid: string) => {
+    if (useSeasonAsPrimary) {
+      return seasonPositionRankById[pid] || getPlayerKtcRank(pid, allPlayers, ktcValues);
+    }
+    return getPlayerKtcRank(pid, allPlayers, ktcValues) || seasonPositionRankById[pid] || null;
+  };
   const tradeSnapshotCache: Record<string, KTCValues> = {};
   const getTradeSnapshot = (tradeDate: string): KTCValues => {
     if (!tradeSnapshotCache[tradeDate]) {
@@ -976,7 +995,7 @@ export async function generateReport(
       const name = pastSeasonData.rosterMap[r.roster_id];
       const pids = r.players || [];
       pastRosterValues[name] = pids.reduce(
-        (sum, pid) => sum + getPlayerValue(pid, allPlayers, ktcValues),
+        (sum, pid) => sum + getPrimaryValue(pid),
         0
       );
     }
@@ -995,7 +1014,7 @@ export async function generateReport(
       const p = allPlayers[pid];
       const pos = p?.position || 'UNK';
       const age = p?.age || null;
-      const val = getPlayerValue(pid, allPlayers, ktcValues);
+      const val = getPrimaryValue(pid);
 
       totalVal += val;
 
@@ -1018,7 +1037,7 @@ export async function generateReport(
           name: getPlayerName(pid, allPlayers),
           player_id: pid,
           playerDetails: getPlayerDetails(pid, allPlayers),
-          currentPositionRank: getPlayerKtcRank(pid, allPlayers, ktcValues),
+          currentPositionRank: getPrimaryRank(pid),
           owner: name,
           pos,
           val_last: lastWeekVal,
@@ -1033,7 +1052,7 @@ export async function generateReport(
           name: getPlayerName(pid, allPlayers),
           player_id: pid,
           playerDetails: getPlayerDetails(pid, allPlayers),
-          currentPositionRank: getPlayerKtcRank(pid, allPlayers, ktcValues),
+          currentPositionRank: getPrimaryRank(pid),
           owner: name,
           pos,
           age,
@@ -1118,8 +1137,11 @@ export async function generateReport(
       const adds = tx.adds || {};
       for (const [pid, rid] of Object.entries(adds)) {
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [], pickValue: 0, veteranValue: 0 };
-        const val = getPlayerValue(pid, allPlayers, ktcValues);
-        const tradeDateValue = getPlayerValue(pid, allPlayers, getTradeSnapshot(dt));
+        const val = getPrimaryValue(pid);
+        const tradeSnapshot = getTradeSnapshot(dt);
+        const tradeDateValue = useSeasonAsPrimary
+          ? getPlayerRedraftValue(pid, allPlayers, tradeSnapshot) || getPlayerValue(pid, allPlayers, tradeSnapshot)
+          : getPlayerValue(pid, allPlayers, tradeSnapshot);
         sideData[rid].items.push(encodePlayerItem(pid, getPlayerName(pid, allPlayers), val, tradeDateValue, dt));
         sideData[rid].vals.push(val);
         if ((allPlayers[pid]?.age || 0) >= 27) {
@@ -1410,8 +1432,8 @@ export async function generateReport(
       const pos = p?.position || 'UNK';
       if (pos in posCounts) {
         posCounts[pos]++;
-        const positionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
-        const value = getPlayerValue(pid, allPlayers, ktcValues);
+        const positionRank = getPrimaryRank(pid);
+        const value = getPrimaryValue(pid);
         const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
         const seasonPositionRank = seasonPositionRankById[pid] || null;
         const playerDetails = getPlayerDetails(pid, allPlayers);
@@ -1462,7 +1484,7 @@ export async function generateReport(
     currentSeasonData.rosters.map((roster) => {
       const manager = currentSeasonData.rosterMap[roster.roster_id];
       const value = (roster.players || []).reduce((sum, pid) => {
-        return sum + (getPlayerRedraftValue(pid, allPlayers, ktcValues) || getPlayerValue(pid, allPlayers, ktcValues));
+        return sum + (getPlayerRedraftValue(pid, allPlayers, ktcValues) || getPrimaryValue(pid));
       }, 0);
       return [manager, value];
     })
@@ -1475,10 +1497,10 @@ export async function generateReport(
     const buildIntelPlayer = (pid: string, owner: string): BuiltIntelPlayer | null => {
         const player = allPlayers[pid];
         const pos = player?.position || 'UNK';
-        const currentPositionRank = getPlayerKtcRank(pid, allPlayers, ktcValues);
+        const currentPositionRank = getPrimaryRank(pid);
         const seasonPositionRank = seasonPositionRankById[pid] || null;
         const lastSeasonRank = lastSeasonPositionRanks[pid];
-        const value = getPlayerValue(pid, allPlayers, ktcValues);
+        const value = getPrimaryValue(pid);
         const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
         if (!['QB', 'RB', 'WR', 'TE'].includes(pos) || value <= 0) return null;
 
@@ -2009,6 +2031,7 @@ export async function generateReport(
     .map((row, index) => ({ ...row, rank: index + 1 }));
 
   return {
+    leagueValueMode,
     managerRosterValueGrowth,
     weeklyRisers,
     weeklyFallers,

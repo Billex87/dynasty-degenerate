@@ -12,7 +12,7 @@ import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBa
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
 import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
-import type { ManagerChampionship, PickPortfolio, PlayerDetails, TrendingPlayer, WaiverIntelligence } from "../shared/types";
+import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -50,15 +50,25 @@ function buildPlayerOwnerMap(
   return ownerByPlayerId;
 }
 
+function getLeagueValueMode(leagueInfo: any): LeagueValueMode {
+  const type = Number(leagueInfo?.settings?.type ?? 0);
+  if (type === 2) return 'dynasty';
+  if (type === 1) return 'keeper';
+  return 'redraft';
+}
+
 function formatLeagueFormat(leagueInfo: any): string {
   const totalTeams = leagueInfo.total_rosters ? `${leagueInfo.total_rosters}-Team` : null;
-  const type = 'Dynasty';
+  const valueMode = getLeagueValueMode(leagueInfo);
+  const type = valueMode === 'dynasty' ? 'Dynasty' : valueMode === 'keeper' ? 'Keeper' : 'Redraft';
   const positions = Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [];
   const superflex = positions.includes('SUPER_FLEX') ? 'SF' : null;
   const rec = Number(leagueInfo.scoring_settings?.rec ?? 0);
+  const teBonus = Number(leagueInfo.scoring_settings?.bonus_rec_te ?? 0);
   const ppr = rec === 1 ? 'PPR' : rec === 0.5 ? 'Half-PPR' : rec === 0 ? 'Standard' : `${rec} PPR`;
+  const tep = teBonus > 0 ? 'TEP' : null;
 
-  return [totalTeams, type, superflex, ppr].filter(Boolean).join(' ');
+  return [totalTeams, type, superflex, ppr, tep].filter(Boolean).join(' ');
 }
 
 function toSleeperLeagueOption(leagueInfo: any, season: string) {
@@ -413,6 +423,25 @@ function buildCurrentPositionRankMap(
       playerId,
       getPlayerCurrentPositionRank(playerId, players, ktcValues),
     ])
+  );
+}
+
+function buildPrimaryPositionRankMap(
+  playerIds: Iterable<string>,
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  valueProfilesById: Record<string, PlayerDetails['valueProfile']>,
+  leagueValueMode: LeagueValueMode
+): Record<string, string | null> {
+  const dynastyRankMap = buildCurrentPositionRankMap(playerIds, players, ktcValues);
+  return Object.fromEntries(
+    Array.from(new Set(Array.from(playerIds).filter(Boolean))).map((playerId) => {
+      const profile = valueProfilesById[playerId];
+      const rank = leagueValueMode === 'redraft'
+        ? profile?.seasonPositionRank || profile?.fantasyProsPositionRank || dynastyRankMap[playerId]
+        : profile?.dynastyPositionRank || profile?.balancedPositionRank || dynastyRankMap[playerId] || profile?.seasonPositionRank;
+      return [playerId, rank || null];
+    })
   );
 }
 
@@ -1036,13 +1065,15 @@ export const appRouter = router({
             console.warn('Failed to fetch last season player stats:', error);
           }
 
+          const leagueValueMode = getLeagueValueMode(leagueInfo);
           const reportData = await generateReport(
             currentSeasonData,
             pastSeasonData,
             players,
             ktcValues,
             ktcValuesLastWeek,
-            lastSeasonPositionRanks
+            lastSeasonPositionRanks,
+            { leagueValueMode }
           );
 
           // currentUserMap is the same as userIdToManagerMap, so we can reuse it
@@ -1197,7 +1228,7 @@ export const appRouter = router({
                   },
                 ])
               ),
-              currentPositionRankById: buildCurrentPositionRankMap(reportPlayerIds, players, ktcValues),
+              currentPositionRankById: buildPrimaryPositionRankMap(reportPlayerIds, players, ktcValues, valueProfilesById, leagueValueMode),
               trendingAdds,
               trendingDrops,
               pickPortfolios,
