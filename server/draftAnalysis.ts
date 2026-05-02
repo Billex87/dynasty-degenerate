@@ -28,6 +28,7 @@ interface RosterMappingData {
   pastUserMap: Record<string, string>;
   pastUserIdToManagerMap?: Record<string, string>;
   prevLeagueId?: string;
+  draftSlotsBySeason?: Record<string, Record<number, number>>;
 }
 
 interface DraftPickWithMetadata extends SleeperDraftPick {
@@ -35,6 +36,7 @@ interface DraftPickWithMetadata extends SleeperDraftPick {
   roster_map?: Record<string, string>;
   user_id_to_manager_map?: Record<string, string>;
   season?: number;
+  original_roster_id?: number | null;
 }
 
 interface PositionRankData {
@@ -297,7 +299,11 @@ export async function analyzeDraftPicks(
     if (!manager) {
       manager = pickRosterMap[pick.picked_by] || 'Unknown';
     }
-    const originalRosterId = typeof pick.roster_id === 'number' ? pick.roster_id : null;
+    const originalRosterId = typeof pick.original_roster_id === 'number'
+      ? pick.original_roster_id
+      : typeof pick.roster_id === 'number'
+        ? pick.roster_id
+        : null;
     const originalOwner = originalRosterId !== null ? pickRosterMap[String(originalRosterId)] || null : null;
     
     const playerName = player?.full_name || 'Unknown';
@@ -486,9 +492,23 @@ export async function fetchDraftData(
   leagueId: string,
   rosterMappingData: RosterMappingData
 ): Promise<DraftPickWithMetadata[]> {
-  const { currentRosterMap, currentRosters, currentUserIdToManagerMap, pastRosterMap, pastRosters, pastUserIdToManagerMap, prevLeagueId } = rosterMappingData;
+  const { currentRosterMap, currentRosters, currentUserIdToManagerMap, pastRosterMap, pastRosters, pastUserIdToManagerMap, prevLeagueId, draftSlotsBySeason } = rosterMappingData;
   
   const allPicks: DraftPickWithMetadata[] = [];
+
+  const getOriginalRosterId = (season: string | number | undefined, pick: SleeperDraftPick): number | null => {
+    const draftSlot = typeof pick.draft_slot === 'number' ? pick.draft_slot : null;
+    const seasonSlots = season ? draftSlotsBySeason?.[String(season)] : undefined;
+    if (draftSlot !== null && seasonSlots) {
+      const originalRosterEntry = Object.entries(seasonSlots)
+        .find(([, slot]) => Number(slot) === draftSlot);
+      if (originalRosterEntry) {
+        const rosterId = Number(originalRosterEntry[0]);
+        if (Number.isFinite(rosterId)) return rosterId;
+      }
+    }
+    return typeof pick.roster_id === 'number' ? pick.roster_id : null;
+  };
 
   try {
     // Fetch current season drafts
@@ -510,6 +530,7 @@ export async function fetchDraftData(
               roster_map: currentRosterMap,
               user_id_to_manager_map: currentUserIdToManagerMap,
               season: draft.season,
+              original_roster_id: getOriginalRosterId(draft.season, pick),
             });
           });
         }
@@ -536,6 +557,7 @@ export async function fetchDraftData(
                 roster_map: pastRosterMap,
                 user_id_to_manager_map: pastUserIdToManagerMap,
                 season: draft.season,
+                original_roster_id: getOriginalRosterId(draft.season, pick),
               });
             });
           }

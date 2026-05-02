@@ -1249,6 +1249,7 @@ export const appRouter = router({
               pastUserMap,
               pastUserIdToManagerMap: pastUserMap,
               prevLeagueId,
+              draftSlotsBySeason,
             });
             // Calculate ADP from the draft picks themselves
             const adpData = calculateADPFromPicks(draftPicks);

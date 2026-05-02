@@ -436,20 +436,28 @@ function findLandedPick(
     return null;
   }
 
+  const normalizeOwner = (value: string | null | undefined) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/\d+$/g, '');
+  const parsedOwner = normalizeOwner(parsedPick.originalOwner);
   const parsedDraftSlot = parsedPick.pickNumber
     ? Number(parsedPick.pickNumber.split('.')[1])
     : null;
 
-  return draftPicks.find((pick) => {
+  const candidates = draftPicks.filter((pick) => {
     const baseMatch =
       pick.draftYear === parsedPick.draftYear &&
       pick.round === parsedPick.round &&
-      pick.originalOwner === parsedPick.originalOwner;
+      normalizeOwner(pick.originalOwner) === parsedOwner;
 
     if (!baseMatch) return false;
     if (!Number.isFinite(parsedDraftSlot)) return true;
     return pick.draftSlot === parsedDraftSlot;
-  }) || null;
+  });
+
+  return candidates[0] || null;
 }
 
 function renderTradeItem(

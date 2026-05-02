@@ -137,6 +137,38 @@ describe('Draft Analysis', () => {
     expect(managerStats.misses).toBeDefined();
   });
 
+  it('keeps the original pick owner when a traded draft slot is selected by another manager', async () => {
+    const result = await analyzeDraftPicks(
+      [
+        {
+          round: 3,
+          pick_no: 28,
+          draft_slot: 8,
+          player_id: 'downs',
+          picked_by: 'user9',
+          roster_id: 9,
+          original_roster_id: 1,
+          season: '2026',
+          roster_map: { 1: 'AwwQQ', 9: 'Beaston' },
+          user_id_to_manager_map: { user9: 'Beaston' },
+        },
+      ] as any,
+      {
+        downs: { full_name: 'Josh Downs', position: 'WR' },
+      },
+      { 1: 'AwwQQ', 9: 'Beaston' },
+      { joshdowns: { name: 'Josh Downs', ktc_value: 3200, position_rank: 'WR45' } },
+      { downs: { name: 'Josh Downs', adp: 28 } }
+    );
+
+    expect(result.draftPicks[0]).toMatchObject({
+      manager: 'Beaston',
+      originalOwner: 'AwwQQ',
+      originalRosterId: 1,
+      draftSlot: 8,
+    });
+  });
+
   it('should keep draft value separate from current value', async () => {
     const mockDraftPicks = [
       {
