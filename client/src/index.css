@@ -7680,3 +7680,265 @@ button.trade-manager-trade {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Desktop modal pass: use the full report canvas for click-through detail views. */
+[data-slot="dialog-overlay"] {
+  background: rgba(0, 0, 0, 0.72) !important;
+  z-index: 1000 !important;
+}
+
+[data-slot="dialog-content"] {
+  z-index: 1001 !important;
+}
+
+@media (min-width: 1024px) {
+  [data-slot="dialog-content"].manager-command-dialog,
+  [data-slot="dialog-content"].manager-draft-modal,
+  [data-slot="dialog-content"].trade-manager-modal,
+  [data-slot="dialog-content"].trade-detail-modal,
+  [data-slot="dialog-content"].starter-modal,
+  [data-slot="dialog-content"].player-detail-modal {
+    width: min(94vw, 82rem) !important;
+    max-width: min(94vw, 82rem) !important;
+  }
+
+  [data-slot="dialog-content"].owner-quick-modal {
+    width: min(90vw, 64rem) !important;
+    max-width: min(90vw, 64rem) !important;
+  }
+
+  [data-slot="dialog-content"].player-detail-modal {
+    max-height: min(90vh, 58rem) !important;
+  }
+
+  [data-slot="dialog-content"].player-detail-modal > div {
+    max-height: min(90vh, 58rem) !important;
+  }
+
+  [data-slot="dialog-content"].manager-command-dialog {
+    max-height: min(90vh, 58rem) !important;
+  }
+
+  .manager-command-modal-inner {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.1), transparent 34%),
+      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.1), transparent 34%),
+      linear-gradient(135deg, #0f172a 0%, #020617 68%, #020617 100%) !important;
+    max-height: min(90vh, 58rem);
+  }
+
+  .manager-command-hero,
+  .trade-manager-modal-hero,
+  .manager-draft-hero {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.18), transparent 36%),
+      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.14), transparent 38%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98)) !important;
+    padding-inline: clamp(1.35rem, 2.4vw, 2rem);
+  }
+
+  .manager-command-hero {
+    grid-template-columns: minmax(24rem, 0.92fr) minmax(30rem, 1fr);
+    align-items: center;
+  }
+
+  .manager-command-title-lockup {
+    width: 100%;
+    max-width: 100%;
+    justify-content: start;
+    margin-inline: 0;
+    text-align: left;
+  }
+
+  .manager-command-hero h3 {
+    max-width: min(100%, 28rem);
+    font-size: clamp(2rem, 2.75vw, 3.05rem);
+  }
+
+  .manager-command-avatar {
+    height: 4.6rem;
+    width: 4.6rem;
+  }
+
+  .manager-command-hero-metrics {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .manager-command-hero-metrics > div {
+    min-height: 4.85rem;
+    padding: 0.85rem 0.95rem;
+  }
+
+  .manager-command-body {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.05), transparent 34%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+    gap: 1rem;
+    padding: 1.15rem 1.35rem 1.35rem;
+  }
+
+  .manager-command-tag-row,
+  .owner-intel-tags {
+    justify-content: center;
+  }
+
+  .manager-command-rank-summary,
+  .owner-intel-ranks {
+    justify-content: center;
+  }
+
+  .manager-command-score-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .manager-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .manager-command-section,
+  .manager-command-grid > div {
+    padding: 1rem;
+  }
+
+  .manager-command-tile-grid,
+  .owner-intel-player-grid,
+  .manager-intel-player-grid {
+    gap: 0.72rem;
+  }
+
+  .manager-command-grid .manager-command-tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .manager-command-player-tile,
+  .manager-command-empty-tile {
+    min-height: 8.25rem;
+    padding: 0.78rem;
+  }
+
+  .manager-command-player-tile-main .player-chip img,
+  .manager-command-player-tile-main .player-chip > span[aria-hidden="true"] {
+    height: 3.25rem;
+    width: 3.25rem;
+  }
+
+  .owner-intel-stat-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .owner-intel-player-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    width: 100%;
+  }
+
+  .owner-intel-player-grid .manager-intel-player {
+    min-height: 8.2rem;
+  }
+
+  .owner-intel-read-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.72rem;
+  }
+
+  .owner-intel-read-grid > .owner-intel-read-wide,
+  .owner-intel-read-grid > .owner-intel-roster-heat {
+    grid-column: span 2;
+  }
+
+  .owner-intel-wild-notes ul {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .owner-intel-taxi-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .owner-intel-taxi-row {
+    grid-template-columns: 1fr;
+  }
+
+  .trade-manager-modal .trade-manager-list {
+    max-height: min(58vh, 32rem);
+  }
+
+  .trade-manager-modal-inner,
+  [data-slot="dialog-content"].manager-draft-modal {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.1), transparent 34%),
+      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.1), transparent 34%),
+      linear-gradient(135deg, #0f172a 0%, #020617 68%, #020617 100%) !important;
+  }
+
+  .trade-tendency-modal-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 1.1rem 1.25rem 1.25rem;
+  }
+
+  .trade-tendency-modal-body .trade-manager-stats,
+  .trade-tendency-modal-body .trade-tendency-swing-grid {
+    grid-column: 1 / -1;
+  }
+
+  .trade-manager-stats {
+    padding: 0;
+  }
+
+  .trade-tendency-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trade-detail-modal {
+    padding: 1.1rem !important;
+  }
+
+  .trade-detail-modal .trade-detail-panel {
+    width: 100%;
+    max-width: none;
+  }
+
+  .manager-draft-modal > div {
+    max-height: min(88vh, 56rem) !important;
+  }
+
+  .manager-draft-title-lockup,
+  .trade-manager-title-lockup {
+    max-width: min(100%, 36rem);
+  }
+
+  .manager-draft-player-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100%;
+    max-width: none;
+  }
+
+  .starter-modal {
+    max-height: min(88vh, 56rem) !important;
+  }
+
+  .starter-modal-body {
+    overflow-y: auto;
+  }
+
+  .starter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100%;
+    max-width: none;
+  }
+
+  .player-detail-modal .max-w-xl {
+    max-width: min(100%, 74rem) !important;
+  }
+
+  .player-detail-modal .player-complete-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .player-detail-modal .player-complete-section-wide {
+    grid-column: 1 / -1;
+  }
+}

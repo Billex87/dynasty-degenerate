@@ -3228,7 +3228,7 @@ export function TradeTendenciesTable({
         })}
       </div>
       <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
-        <DialogContent className="max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-0 text-slate-100 sm:max-w-2xl">
+        <DialogContent className="trade-manager-modal max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-0 text-slate-100 sm:max-w-2xl">
           {selectedManager && selectedRow && (
             <div className="trade-manager-modal-inner">
               <div className="trade-manager-modal-hero">
@@ -3472,7 +3472,7 @@ export function TradeTheftDetector({
       </div>
 
       <Dialog open={selectedTrade !== null} onOpenChange={(open) => !open && setSelectedTrade(null)}>
-        <DialogContent className="max-h-[88vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-3 text-slate-100 sm:max-w-3xl sm:p-5">
+        <DialogContent className="trade-detail-modal max-h-[88vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-3 text-slate-100 sm:max-w-3xl sm:p-5">
           <DialogHeader className="sr-only">
             <DialogTitle>Trade Theft Detail</DialogTitle>
             <DialogDescription>Expanded trade ledger for the selected value gap.</DialogDescription>
