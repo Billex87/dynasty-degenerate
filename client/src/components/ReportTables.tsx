@@ -748,6 +748,11 @@ type OwnerIntelRow = NonNullable<ReportData['managerRosterIntelligence']>[number
 type OwnerTradeRow = NonNullable<ReportData['tradeTendencies']>[number];
 type OwnerPickRow = NonNullable<ReportData['pickPortfolios']>[number];
 type OwnerTimelineRow = NonNullable<ReportData['dynastyTimelines']>[number];
+type TradeWarMode = 'dynasty' | 'contender' | 'rebuilder';
+type TradeWarAsset = ManagerIntelPlayer & {
+  manager: string;
+  assetState: 'roster' | 'bench' | 'taxi' | 'reserve';
+};
 
 function parsePositionRankValue(rank: string | null | undefined): number | null {
   const match = String(rank || '').match(/\d+/);
@@ -1068,6 +1073,167 @@ function PlayerMiniLine({
 function PositionRankPill({ rank }: { rank?: string | null }) {
   const displayRank = rank || '-';
   return <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>;
+}
+
+function getTradeWarAssetValue(player: ManagerIntelPlayer, mode: TradeWarMode): number {
+  const profile = player.playerDetails?.valueProfile;
+  const dynasty = profile?.dynastyValue ?? profile?.balancedValue ?? player.value ?? 0;
+  const season = player.seasonValue ?? profile?.seasonValue ?? profile?.fantasyProsSeasonValue ?? dynasty;
+  if (mode === 'contender') return Math.round(profile?.contenderValue ?? (dynasty * 0.4 + season * 0.6));
+  if (mode === 'rebuilder') return Math.round(profile?.rebuilderValue ?? dynasty);
+  return Math.round(dynasty);
+}
+
+function getTradeWarAssetRank(player: ManagerIntelPlayer, mode: TradeWarMode): string | null | undefined {
+  const profile = player.playerDetails?.valueProfile;
+  if (mode === 'contender') return profile?.contenderPositionRank || profile?.seasonPositionRank || player.seasonPositionRank || player.currentPositionRank;
+  if (mode === 'rebuilder') return profile?.rebuilderPositionRank || profile?.dynastyPositionRank || player.currentPositionRank || player.seasonPositionRank;
+  return profile?.dynastyPositionRank || profile?.balancedPositionRank || player.currentPositionRank || player.seasonPositionRank;
+}
+
+function getTradeWarAssetTeam(player: ManagerIntelPlayer): string | null | undefined {
+  return player.playerDetails?.team;
+}
+
+function getTradeWarModeLabel(mode: TradeWarMode): string {
+  if (mode === 'contender') return 'Contender';
+  if (mode === 'rebuilder') return 'Rebuilder';
+  return 'Dynasty';
+}
+
+function getTradeWarGapLabel(gap: number): { label: string; className: string } {
+  const absGap = Math.abs(gap);
+  if (absGap <= 250) return { label: 'Clean Enough', className: 'trade-war-gap-even' };
+  if (absGap <= 650) return { label: 'Needs Sweetener', className: 'trade-war-gap-close' };
+  if (absGap <= 1400) return { label: 'Side Needs Help', className: 'trade-war-gap-warn' };
+  return { label: 'Too Lopsided', className: 'trade-war-gap-danger' };
+}
+
+function getTradeWarPositionCounts(players: TradeWarAsset[]) {
+  return players.reduce<Record<string, number>>((acc, player) => {
+    acc[player.pos] = (acc[player.pos] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function buildTradeWarFitNotes({
+  manager,
+  row,
+  incoming,
+  outgoing,
+}: {
+  manager: string;
+  row?: OwnerIntelRow;
+  incoming: TradeWarAsset[];
+  outgoing: TradeWarAsset[];
+}): string[] {
+  if (!row) return [`Pick ${manager}'s roster first so this can judge the construction fit.`];
+  const notes: string[] = [];
+  const incomingCounts = getTradeWarPositionCounts(incoming);
+  const outgoingCounts = getTradeWarPositionCounts(outgoing);
+  const need = row.tradePlan?.needPosition;
+  const surplus = row.tradePlan?.surplusPosition;
+
+  if (need && incomingCounts[need]) {
+    notes.push(`${manager} is actually buying a need at ${need}.`);
+  }
+  if (surplus && outgoingCounts[surplus]) {
+    notes.push(`${manager} is spending from surplus ${surplus} depth.`);
+  }
+  if (surplus && incomingCounts[surplus]) {
+    notes.push(`Warning: this adds more ${surplus} to a room already flagged as surplus.`);
+  }
+  if (need && outgoingCounts[need]) {
+    notes.push(`Warning: this ships out ${need}, which is the roster's cleanest need spot.`);
+  }
+
+  if (!notes.length && incoming.length) {
+    notes.push(`${manager}'s roster fit is neutral. The deal is mostly about value, not construction.`);
+  }
+  if (!incoming.length) {
+    notes.push(`${manager} has not received anything yet.`);
+  }
+  return notes.slice(0, 3);
+}
+
+function buildTradeWarModalData({
+  asset,
+  playerDetailsById,
+  managerAvatars,
+  value,
+  mode,
+}: {
+  asset: TradeWarAsset;
+  playerDetailsById?: PlayerDetailsById;
+  managerAvatars?: ManagerAvatars;
+  value: number;
+  mode: TradeWarMode;
+}) {
+  return buildPlayerModalData({
+    playerId: asset.player_id,
+    playerName: asset.name,
+    playerPos: asset.pos,
+    value,
+    playerDetails: asset.playerDetails,
+    playerDetailsById,
+    currentPositionRank: getTradeWarAssetRank(asset, mode),
+    manager: asset.manager,
+    managerAvatarUrl: managerAvatars?.[asset.manager],
+    valueChangeNote: `${getTradeWarModeLabel(mode)} trade lens value.`,
+  });
+}
+
+function TradeWarPlayerCard({
+  asset,
+  mode,
+  isHighlighted,
+  isSideOwner,
+  managerAvatars,
+  onAdd,
+  onDetails,
+}: {
+  asset: TradeWarAsset;
+  mode: TradeWarMode;
+  isHighlighted: boolean;
+  isSideOwner: boolean;
+  managerAvatars?: ManagerAvatars;
+  onAdd: () => void;
+  onDetails: () => void;
+}) {
+  const value = getTradeWarAssetValue(asset, mode);
+  const rank = getTradeWarAssetRank(asset, mode);
+  const team = getTradeWarAssetTeam(asset);
+  return (
+    <div
+      className={`player-team-tile trade-war-player-card ${isHighlighted ? '' : 'trade-war-player-muted'}`}
+      style={getTeamTileStyle(team)}
+    >
+      <button type="button" className="trade-war-player-add" onClick={onAdd}>
+        <span className="trade-war-player-name">
+          <PlayerNameWithHeadshot playerId={asset.player_id} playerName={asset.name} />
+        </span>
+        <span className="trade-war-owner">
+          <ChampionAvatarFrame managerName={asset.manager} className="trade-war-owner-avatar">
+            {managerAvatars?.[asset.manager] ? (
+              <img src={managerAvatars[asset.manager] || ''} alt={asset.manager} />
+            ) : (
+              <span>{asset.manager.trim()[0]?.toUpperCase() || '?'}</span>
+            )}
+          </ChampionAvatarFrame>
+          <span>{asset.manager}</span>
+        </span>
+        <span className="trade-war-player-pills">
+          <TeamLogoPill team={team} />
+          <PositionRankPill rank={rank || asset.pos} />
+          <span>{formatCompactValue(value)}</span>
+          {!isSideOwner && <span className="trade-war-off-roster-pill">Other roster</span>}
+        </span>
+      </button>
+      <button type="button" className="trade-war-detail-button" onClick={onDetails}>
+        Card
+      </button>
+    </div>
+  );
 }
 
 function getHeatPillClass(position: 'QB' | 'RB' | 'WR' | 'TE', grade?: string | null) {
@@ -2762,6 +2928,363 @@ export function ProjectedMoversTable({
           );
         })}
       </div>
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
+    </div>
+  );
+}
+
+export function TradeWarRoom({
+  data,
+  managerAvatars,
+  playerDetailsById,
+  leagueId,
+  leagueLogo,
+}: {
+  data?: ReportData['managerRosterIntelligence'];
+  managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
+  leagueId?: string;
+  leagueLogo?: string | null;
+}) {
+  const managers = React.useMemo(() => (data || []).map((row) => row.manager), [data]);
+  const managerRows = React.useMemo(() => new Map((data || []).map((row) => [row.manager, row])), [data]);
+  const [mode, setMode] = useState<TradeWarMode>('dynasty');
+  const [managerAState, setManagerAState] = useState('');
+  const [managerBState, setManagerBState] = useState('');
+  const managerA = managerAState || managers[0] || '';
+  const managerB = managerBState || managers.find((manager) => manager !== managerA) || managers[0] || '';
+  const [sideAIds, setSideAIds] = useState<string[]>([]);
+  const [sideBIds, setSideBIds] = useState<string[]>([]);
+  const [queryA, setQueryA] = useState('');
+  const [queryB, setQueryB] = useState('');
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+
+  const allAssets = React.useMemo(() => {
+    const mapped = new Map<string, TradeWarAsset>();
+    (data || []).forEach((row) => {
+      const addPlayers = (players: ManagerIntelPlayer[] | undefined, assetState: TradeWarAsset['assetState']) => {
+        (players || []).forEach((player) => {
+          if (!player?.player_id || mapped.has(player.player_id)) return;
+          mapped.set(player.player_id, {
+            ...player,
+            manager: player.owner || row.manager,
+            assetState,
+          });
+        });
+      };
+      addPlayers(row.rosterPlayers, 'roster');
+      addPlayers(row.benchPlayers, 'bench');
+      addPlayers(row.reservePlayers, 'reserve');
+      addPlayers(row.taxiPlayers, 'taxi');
+    });
+    return Array.from(mapped.values()).sort((a, b) => getTradeWarAssetValue(b, mode) - getTradeWarAssetValue(a, mode));
+  }, [data, mode]);
+
+  const assetById = React.useMemo(() => new Map(allAssets.map((asset) => [asset.player_id, asset])), [allAssets]);
+  const selectedAllIds = React.useMemo(() => new Set([...sideAIds, ...sideBIds]), [sideAIds, sideBIds]);
+  const sideAAssets = sideAIds.map((id) => assetById.get(id)).filter((asset): asset is TradeWarAsset => Boolean(asset));
+  const sideBAssets = sideBIds.map((id) => assetById.get(id)).filter((asset): asset is TradeWarAsset => Boolean(asset));
+  const sideATotal = sideAAssets.reduce((sum, asset) => sum + getTradeWarAssetValue(asset, mode), 0);
+  const sideBTotal = sideBAssets.reduce((sum, asset) => sum + getTradeWarAssetValue(asset, mode), 0);
+  const valueGap = sideBTotal - sideATotal;
+  const gapRead = getTradeWarGapLabel(valueGap);
+  const managerARow = managerRows.get(managerA);
+  const managerBRow = managerRows.get(managerB);
+  const managerAFitNotes = buildTradeWarFitNotes({
+    manager: managerA,
+    row: managerARow,
+    incoming: sideBAssets,
+    outgoing: sideAAssets,
+  });
+  const managerBFitNotes = buildTradeWarFitNotes({
+    manager: managerB,
+    row: managerBRow,
+    incoming: sideAAssets,
+    outgoing: sideBAssets,
+  });
+
+  const getSearchResults = (query: string, sideManager: string) => {
+    const normalized = query.trim().toLowerCase();
+    return allAssets
+      .filter((asset) => !selectedAllIds.has(asset.player_id))
+      .filter((asset) => !normalized || asset.name.toLowerCase().includes(normalized))
+      .sort((a, b) => {
+        const ownedDelta = Number(b.manager === sideManager) - Number(a.manager === sideManager);
+        if (ownedDelta) return ownedDelta;
+        return getTradeWarAssetValue(b, mode) - getTradeWarAssetValue(a, mode);
+      })
+      .slice(0, normalized ? 12 : 8);
+  };
+
+  const getAddOnSuggestions = () => {
+    const absGap = Math.abs(valueGap);
+    if (absGap <= 250) {
+      return ['This is already inside a normal negotiation window. Use roster fit, not exact math, to decide.'];
+    }
+
+    const managerWhoShouldAdd = valueGap > 0 ? managerA : managerB;
+    const selectedIds = valueGap > 0 ? sideAIds : sideBIds;
+    const candidatePool = allAssets
+      .filter((asset) => asset.manager === managerWhoShouldAdd && !selectedIds.includes(asset.player_id) && !selectedAllIds.has(asset.player_id))
+      .map((asset) => ({
+        asset,
+        value: getTradeWarAssetValue(asset, mode),
+      }))
+      .filter(({ value }) => value > 0 && value <= absGap * 1.65)
+      .sort((a, b) => Math.abs(absGap - a.value) - Math.abs(absGap - b.value))
+      .slice(0, 3);
+
+    if (!candidatePool.length) {
+      return [`${managerWhoShouldAdd} needs roughly ${absGap.toLocaleString()} more in the ${getTradeWarModeLabel(mode).toLowerCase()} lens. No clean roster add-on is close, so this probably needs a pick or a different centerpiece.`];
+    }
+
+    return candidatePool.map(({ asset, value }) => (
+      `${managerWhoShouldAdd} adds ${asset.name} (${formatCompactValue(value)}) to get the gap closer to fair.`
+    ));
+  };
+
+  const openAssetModal = (asset: TradeWarAsset) => {
+    setSelectedPlayer(buildTradeWarModalData({
+      asset,
+      playerDetailsById,
+      managerAvatars,
+      value: getTradeWarAssetValue(asset, mode),
+      mode,
+    }));
+  };
+
+  const renderSelectedAssets = (
+    assets: TradeWarAsset[],
+    removeAsset: (playerId: string) => void,
+    emptyText: string
+  ) => {
+    if (!assets.length) {
+      return <div className="trade-war-empty">{emptyText}</div>;
+    }
+
+    return (
+      <div className="trade-war-selected-assets">
+        {assets.map((asset) => {
+          const team = getTradeWarAssetTeam(asset);
+          const value = getTradeWarAssetValue(asset, mode);
+          return (
+            <div key={asset.player_id} className="player-team-tile trade-war-selected-asset" style={getTeamTileStyle(team)}>
+              <button type="button" className="trade-war-selected-main" onClick={() => openAssetModal(asset)}>
+                <PlayerNameWithHeadshot playerId={asset.player_id} playerName={asset.name} />
+                <span className="trade-war-player-pills">
+                  <TeamLogoPill team={team} />
+                  <PositionRankPill rank={getTradeWarAssetRank(asset, mode) || asset.pos} />
+                  <span>{formatCompactValue(value)}</span>
+                </span>
+              </button>
+              <button type="button" className="trade-war-remove" onClick={() => removeAsset(asset.player_id)}>
+                Remove
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderTradeSide = ({
+    label,
+    manager,
+    otherManager,
+    query,
+    setQuery,
+    assets,
+    setAssets,
+    total,
+  }: {
+    label: string;
+    manager: string;
+    otherManager: string;
+    query: string;
+    setQuery: (value: string) => void;
+    assets: TradeWarAsset[];
+    setAssets: React.Dispatch<React.SetStateAction<string[]>>;
+    total: number;
+  }) => {
+    const results = getSearchResults(query, manager);
+    const highlightedManagers = new Set([manager, ...assets.map((asset) => asset.manager)]);
+
+    return (
+      <div className="trade-war-side">
+        <div className="trade-war-side-header">
+          <div className="trade-war-manager-lockup">
+            <ChampionAvatarFrame managerName={manager} className="trade-war-manager-avatar">
+              {managerAvatars?.[manager] ? (
+                <img src={managerAvatars[manager] || ''} alt={manager} />
+              ) : (
+                <span>{manager.trim()[0]?.toUpperCase() || '?'}</span>
+              )}
+            </ChampionAvatarFrame>
+            <div>
+              <span>{label}</span>
+              <strong>{manager}</strong>
+            </div>
+          </div>
+          <div className="trade-war-side-total">
+            <span>Sends</span>
+            <strong>{total.toLocaleString()}</strong>
+          </div>
+        </div>
+
+        {renderSelectedAssets(
+          assets,
+          (playerId) => setAssets((current) => current.filter((id) => id !== playerId)),
+          `${manager} has not added assets yet.`
+        )}
+
+        <label className="trade-war-search">
+          <span>Add player</span>
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={`Search ${manager}, ${otherManager}, or anyone`}
+          />
+        </label>
+
+        <div className="trade-war-player-grid">
+          {results.map((asset) => (
+            <TradeWarPlayerCard
+              key={asset.player_id}
+              asset={asset}
+              mode={mode}
+              managerAvatars={managerAvatars}
+              isHighlighted={highlightedManagers.has(asset.manager)}
+              isSideOwner={asset.manager === manager}
+              onAdd={() => setAssets((current) => current.includes(asset.player_id) ? current : [...current, asset.player_id])}
+              onDetails={() => openAssetModal(asset)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  if (!data?.length) return null;
+
+  return (
+    <div className="trade-war-room">
+      <div className="trade-war-top">
+        <div>
+          <p>Context-aware calculator</p>
+          <h3>Trade War Room</h3>
+        </div>
+        <div className="trade-war-mode-tabs" role="tablist" aria-label="Trade value lens">
+          {(['dynasty', 'contender', 'rebuilder'] as TradeWarMode[]).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={mode === option ? 'active' : ''}
+              onClick={() => setMode(option)}
+            >
+              {getTradeWarModeLabel(option)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="trade-war-manager-selects">
+        <label>
+          <span>Side A</span>
+          <select
+            value={managerA}
+            onChange={(event) => {
+              const nextManager = event.target.value;
+              setManagerAState(nextManager);
+              if (nextManager === managerB) {
+                setManagerBState(managers.find((manager) => manager !== nextManager) || nextManager);
+              }
+            }}
+          >
+            {managers.map((manager) => (
+              <option key={manager} value={manager}>{manager}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Side B</span>
+          <select
+            value={managerB}
+            onChange={(event) => {
+              const nextManager = event.target.value;
+              setManagerBState(nextManager);
+              if (nextManager === managerA) {
+                setManagerAState(managers.find((manager) => manager !== nextManager) || nextManager);
+              }
+            }}
+          >
+            {managers.map((manager) => (
+              <option key={manager} value={manager}>{manager}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="trade-war-scoreboard">
+        <div>
+          <span>{managerA} sends</span>
+          <strong>{sideATotal.toLocaleString()}</strong>
+        </div>
+        <div className={`trade-war-gap ${gapRead.className}`}>
+          <span>{gapRead.label}</span>
+          <strong>{Math.abs(valueGap).toLocaleString()}</strong>
+          <small>{valueGap === 0 ? 'No value gap' : valueGap > 0 ? `${managerA} receives more` : `${managerB} receives more`}</small>
+        </div>
+        <div>
+          <span>{managerB} sends</span>
+          <strong>{sideBTotal.toLocaleString()}</strong>
+        </div>
+      </div>
+
+      <div className="trade-war-side-grid">
+        {renderTradeSide({
+          label: 'Side A',
+          manager: managerA,
+          otherManager: managerB,
+          query: queryA,
+          setQuery: setQueryA,
+          assets: sideAAssets,
+          setAssets: setSideAIds,
+          total: sideATotal,
+        })}
+        {renderTradeSide({
+          label: 'Side B',
+          manager: managerB,
+          otherManager: managerA,
+          query: queryB,
+          setQuery: setQueryB,
+          assets: sideBAssets,
+          setAssets: setSideBIds,
+          total: sideBTotal,
+        })}
+      </div>
+
+      <div className="trade-war-read-grid">
+        <div className="trade-war-note-panel">
+          <span>Roster Fit</span>
+          {[...managerAFitNotes, ...managerBFitNotes].map((note) => (
+            <p key={note}>{note}</p>
+          ))}
+        </div>
+        <div className="trade-war-note-panel trade-war-suggestions">
+          <span>Make It Work</span>
+          {getAddOnSuggestions().map((suggestion) => (
+            <p key={suggestion}>{suggestion}</p>
+          ))}
+        </div>
+      </div>
+
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}

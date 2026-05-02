@@ -142,6 +142,10 @@ export interface ManagerRosterIntelligence {
   }>;
   tradeChip: ManagerIntelPlayer | null;
   injuryInsurance: ManagerIntelPlayer | null;
+  rosterPlayers?: ManagerIntelPlayer[];
+  benchPlayers?: ManagerIntelPlayer[];
+  taxiPlayers?: ManagerIntelPlayer[];
+  reservePlayers?: ManagerIntelPlayer[];
   droppablePlayers: ManagerIntelPlayer[];
   untouchablePlayers: ManagerIntelPlayer[];
   taxiTriage: {

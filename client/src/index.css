@@ -6870,6 +6870,408 @@ button.player-team-tile:focus-visible {
   transform: translateY(-1px);
 }
 
+.trade-war-room {
+  width: min(100%, 82rem);
+  margin-inline: auto;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 1.35rem;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.18), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.13), transparent 32%),
+    rgba(2, 6, 23, 0.82);
+  padding: clamp(0.8rem, 2vw, 1.15rem);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+}
+
+.trade-war-top,
+.trade-war-manager-selects,
+.trade-war-scoreboard,
+.trade-war-side-grid,
+.trade-war-read-grid {
+  display: grid;
+  gap: clamp(0.65rem, 1.4vw, 0.95rem);
+}
+
+.trade-war-top {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+
+.trade-war-top p,
+.trade-war-side-header span,
+.trade-war-search span,
+.trade-war-note-panel > span {
+  color: #67e8f9;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.trade-war-top h3 {
+  margin-top: 0.15rem;
+  color: #fb923c;
+  font-family: var(--font-athletic);
+  font-size: clamp(1.65rem, 3vw, 2.65rem);
+  font-weight: 950;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.trade-war-mode-tabs {
+  display: inline-flex;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.62);
+}
+
+.trade-war-mode-tabs button {
+  min-height: 2rem;
+  border-radius: 999px;
+  padding: 0 0.8rem;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+}
+
+.trade-war-mode-tabs button.active {
+  color: #06101b;
+  background: linear-gradient(135deg, #67e8f9, #fb923c);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.22);
+}
+
+.trade-war-manager-selects {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0.8rem;
+}
+
+.trade-war-manager-selects label,
+.trade-war-search {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.trade-war-manager-selects span {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.trade-war-manager-selects select,
+.trade-war-search input {
+  width: 100%;
+  min-height: 2.6rem;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 0.8rem;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  font-weight: 850;
+}
+
+.trade-war-manager-selects select {
+  padding: 0 0.75rem;
+}
+
+.trade-war-scoreboard {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.75fr) minmax(0, 1fr);
+  align-items: stretch;
+  margin-bottom: 0.9rem;
+}
+
+.trade-war-scoreboard > div,
+.trade-war-side,
+.trade-war-note-panel {
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.trade-war-scoreboard > div {
+  display: grid;
+  gap: 0.25rem;
+  align-content: center;
+  min-height: 4.4rem;
+  padding: 0.8rem 1rem;
+}
+
+.trade-war-scoreboard span {
+  color: #94a3b8;
+  font-size: 0.65rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.trade-war-scoreboard strong {
+  color: #f8fafc;
+  font-size: clamp(1.55rem, 2.8vw, 2.25rem);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.trade-war-gap {
+  text-align: center;
+}
+
+.trade-war-gap small {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.trade-war-gap-even strong,
+.trade-war-gap-even span {
+  color: #34d399;
+}
+
+.trade-war-gap-close strong,
+.trade-war-gap-close span {
+  color: #67e8f9;
+}
+
+.trade-war-gap-warn strong,
+.trade-war-gap-warn span {
+  color: #fbbf24;
+}
+
+.trade-war-gap-danger strong,
+.trade-war-gap-danger span {
+  color: #fb7185;
+}
+
+.trade-war-side-grid,
+.trade-war-read-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.trade-war-side {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  padding: clamp(0.7rem, 1.5vw, 1rem);
+}
+
+.trade-war-side-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.trade-war-manager-lockup {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.trade-war-manager-avatar,
+.trade-war-owner-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.trade-war-manager-avatar,
+.trade-war-manager-avatar img,
+.trade-war-manager-avatar > span {
+  width: 2.65rem;
+  height: 2.65rem;
+}
+
+.trade-war-owner-avatar,
+.trade-war-owner-avatar img,
+.trade-war-owner-avatar > span {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.trade-war-manager-lockup strong {
+  display: block;
+  max-width: 16rem;
+  overflow: hidden;
+  color: #f8fafc;
+  font-family: var(--font-athletic);
+  font-size: clamp(1.05rem, 1.8vw, 1.45rem);
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-side-total {
+  display: grid;
+  justify-items: end;
+  flex: 0 0 auto;
+}
+
+.trade-war-side-total strong {
+  color: #fb923c;
+  font-size: 1.25rem;
+  font-weight: 950;
+}
+
+.trade-war-selected-assets,
+.trade-war-player-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.trade-war-empty {
+  min-height: 3.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(148, 163, 184, 0.2);
+  border-radius: 0.85rem;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.trade-war-selected-asset,
+.trade-war-player-card {
+  position: relative;
+  display: grid;
+  gap: 0.45rem;
+  border-radius: 0.95rem;
+  padding: 0.55rem;
+}
+
+.trade-war-player-muted {
+  filter: saturate(0.58);
+  opacity: 0.62;
+}
+
+.trade-war-player-add,
+.trade-war-selected-main {
+  display: grid;
+  min-width: 0;
+  width: 100%;
+  gap: 0.45rem;
+  text-align: left;
+}
+
+.trade-war-player-name .player-chip,
+.trade-war-selected-main .player-chip {
+  min-width: 0;
+  width: 100%;
+}
+
+.trade-war-player-name .player-chip > span:last-child,
+.trade-war-selected-main .player-chip > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #f8fafc;
+  font-weight: 950;
+}
+
+.trade-war-owner {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.trade-war-owner > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-player-pills {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.trade-war-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  border: 1px solid rgba(20, 184, 166, 0.35);
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.12);
+  padding: 0 0.5rem;
+  color: #5eead4;
+  font-size: 0.68rem;
+  font-weight: 950;
+}
+
+.trade-war-off-roster-pill {
+  border-color: rgba(251, 191, 36, 0.36) !important;
+  background: rgba(251, 191, 36, 0.12) !important;
+  color: #fcd34d !important;
+}
+
+.trade-war-detail-button,
+.trade-war-remove {
+  justify-self: start;
+  color: #67e8f9;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trade-war-remove {
+  color: #fb7185;
+}
+
+.trade-war-note-panel {
+  min-height: 8rem;
+  padding: 0.85rem;
+}
+
+.trade-war-note-panel p {
+  margin-top: 0.55rem;
+  color: #dbeafe;
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .trade-war-top,
+  .trade-war-manager-selects,
+  .trade-war-scoreboard,
+  .trade-war-side-grid,
+  .trade-war-read-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trade-war-mode-tabs {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .trade-war-mode-tabs button {
+    flex: 1 1 0;
+    padding-inline: 0.45rem;
+  }
+
+  .trade-war-selected-assets,
+  .trade-war-player-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .projected-mover-tile,
 .rookie-player-tile {
   display: grid;

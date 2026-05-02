@@ -20,6 +20,7 @@ import {
   ManagerRosterValueGrowthTable,
   WeeklyMomentumTable,
   ProjectedMoversTable,
+  TradeWarRoom,
   TradeProfitLeaderboardTable,
   TradeHistoryTable,
   PositionAnalysisTable,
@@ -528,6 +529,15 @@ export default function Home() {
 
             <TabsContent value="trades" className="report-tab-content">
               <div className="trade-sections space-y-6 sm:space-y-8">
+                <CollapsibleReportSection title="Trade War Room" kicker="Context-aware calculator">
+                  <TradeWarRoom
+                    data={reportData.managerRosterIntelligence}
+                    managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </CollapsibleReportSection>
                 <CollapsibleReportSection title="All-Time Trade Profit Leaderboard" kicker="Net trade edge">
                   <TradeProfitLeaderboardTable
                     data={reportData.tradeProfitLeaderboard}

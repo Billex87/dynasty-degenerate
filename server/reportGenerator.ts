@@ -1561,11 +1561,14 @@ export async function generateReport(
     const taxiPlayers = (r.taxi || [])
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
+    const reservePlayers = (r.reserve || [])
+      .map((pid) => buildIntelPlayer(pid, manager, r))
+      .filter((player): player is BuiltIntelPlayer => Boolean(player));
     const externalPlayers = currentSeasonData.rosters
       .filter((otherRoster) => otherRoster.roster_id !== r.roster_id)
       .flatMap((otherRoster) => {
         const owner = currentSeasonData.rosterMap[otherRoster.roster_id];
-        return Array.from(new Set([...(otherRoster.players || []), ...(otherRoster.taxi || [])]))
+        return Array.from(new Set([...(otherRoster.players || []), ...(otherRoster.taxi || []), ...(otherRoster.reserve || [])]))
           .map((pid) => buildIntelPlayer(pid, owner, otherRoster));
       })
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
@@ -1958,6 +1961,10 @@ export async function generateReport(
       positionGrades,
       tradeChip,
       injuryInsurance,
+      rosterPlayers,
+      benchPlayers: bench,
+      taxiPlayers,
+      reservePlayers,
       droppablePlayers,
       untouchablePlayers,
       taxiTriage: {
