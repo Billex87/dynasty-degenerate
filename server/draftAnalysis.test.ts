@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { analyzeDraftPicks } from './draftAnalysis';
 import * as nflHeadshotFetcher from './nflHeadshotFetcher';
+import { getRookieValueBaseline, getRookieValueBaselineMetadata } from './rookieValueBaselines';
 
 // Mock the NFL headshot fetcher to avoid actual HTTP requests
 vi.mock('./nflHeadshotFetcher', () => ({
@@ -8,6 +9,23 @@ vi.mock('./nflHeadshotFetcher', () => ({
 }));
 
 describe('Draft Analysis', () => {
+  it('loads the locked 2025 rookie blend snapshot with source metadata', () => {
+    const baseline = getRookieValueBaseline('2025');
+    const metadata = getRookieValueBaselineMetadata('2025');
+    const emeka =
+      baseline?.['emeka-egbuka-1781'] ||
+      Object.values(baseline || {}).find((record) => record.name === 'Emeka Egbuka');
+
+    expect(metadata?.label).toBe('2025 Rookie Historical Blend');
+    expect(metadata?.comparisonMode).toBe('blend-to-blend');
+    expect(metadata?.sourceCoverage?.map((source) => source.source)).toEqual(
+      expect.arrayContaining(['KTC', 'DynastyProcess', 'FantasyCalc', 'FantasyPros'])
+    );
+    expect(emeka?.market_value_ktc).toBe(4881);
+    expect(emeka?.expert_value_dynastyprocess).toBe(1719);
+    expect(emeka?.ktc_value).toBe(3908);
+  });
+
   it('should analyze draft picks correctly', async () => {
     const mockDraftPicks = [
       {

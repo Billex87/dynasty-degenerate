@@ -11,6 +11,7 @@
 import fs from 'fs';
 
 const BASELINE_PATH = new URL('./rookie-values/2025RookieValues.json', import.meta.url);
+const SNAPSHOT_PATH = new URL('./rookie-values/2025RookieBlendSnapshot.json', import.meta.url);
 const DYNASTYPROCESS_URL =
   'https://raw.githubusercontent.com/dynastyprocess/data/c5fa48fd6692/files/values-players.csv';
 
@@ -121,9 +122,54 @@ async function main() {
   );
 
   fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(enriched, null, 2)}\n`);
+  fs.writeFileSync(
+    SNAPSHOT_PATH,
+    `${JSON.stringify(
+      {
+        label: '2025 Rookie Historical Blend',
+        capturedAt: 'May 2025',
+        comparisonMode: 'blend-to-blend',
+        notes:
+          'Locked historical baseline for 2025 rookie draft gain. Compare these blended draft-window values to current blended values; do not mix this with raw-only current values.',
+        sourceCoverage: [
+          {
+            source: 'KTC',
+            status: 'included',
+            capturedAt: 'May 2025',
+            weight: 0.45,
+            field: 'market_value_ktc',
+            notes: 'Archived May 2025 rookie-market baseline.',
+          },
+          {
+            source: 'DynastyProcess',
+            status: 'included',
+            capturedAt: '2025-05-09',
+            weight: 0.2,
+            field: 'expert_value_dynastyprocess',
+            url: DYNASTYPROCESS_URL,
+            notes: 'Closest verified historical expert/value CSV for the 2025 rookie window.',
+          },
+          {
+            source: 'FantasyCalc',
+            status: 'historical_not_verified',
+            notes: 'Current FantasyCalc data is used in today blends, but no stable May 2025 historical feed is locked here yet.',
+          },
+          {
+            source: 'FantasyPros',
+            status: 'historical_not_verified',
+            notes: 'Current FantasyPros season ranking data is used in today blends, but no stable May 2025 historical value snapshot is locked here yet.',
+          },
+        ],
+        values: enriched,
+      },
+      null,
+      2
+    )}\n`
+  );
 
   const matched = Object.values(enriched).filter((record) => record.expert_value_dynastyprocess).length;
   console.log(`Updated ${Object.keys(enriched).length} rookies; ${matched} matched DynastyProcess.`);
+  console.log(`Wrote ${SNAPSHOT_PATH.pathname}`);
   console.log('Emeka Egbuka:', Object.values(enriched).find((record) => record.name === 'Emeka Egbuka'));
 }
 

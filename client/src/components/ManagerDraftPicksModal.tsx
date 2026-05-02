@@ -93,9 +93,9 @@ export function ManagerDraftPicksModal({
 
               <div className="relative mt-5 grid grid-cols-3 gap-2 sm:max-w-xl sm:gap-3">
                 <ManagerDraftStat label="Picks" value={managerPicks.length.toLocaleString()} />
-                <ManagerDraftStat label="Current Value" value={totalCurrentValue.toLocaleString()} />
+                <ManagerDraftStat label="Current Blend" value={totalCurrentValue.toLocaleString()} />
                 <ManagerDraftStat
-                  label="Value Change"
+                  label="Blend Gain"
                   value={`${totalValueGain > 0 ? '+' : ''}${totalValueGain.toLocaleString()}`}
                   tone={totalValueGain > 0 ? 'positive' : totalValueGain < 0 ? 'negative' : 'neutral'}
                 />

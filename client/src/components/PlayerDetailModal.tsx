@@ -462,7 +462,7 @@ export function PlayerDetailModal({
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       {draftValue !== undefined && (
                         <InfoTile
-                          label="Draft Value"
+                          label="Draft Blend"
                           value={draftValue ? draftValue.toLocaleString() : '-'}
                           teamColors={teamColors}
                           tileAccent={tileAccent}
@@ -676,7 +676,7 @@ function getValueProfileRank(
 
 function getValueChangeNote(pick: PlayerModalData) {
   if (pick.ktcValue !== undefined) {
-    return 'Change from draft value to current value.';
+    return 'Change from historical draft-window blend to current blend.';
   }
 
   return 'Change from last week to this week.';

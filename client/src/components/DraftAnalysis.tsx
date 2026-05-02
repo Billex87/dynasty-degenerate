@@ -185,11 +185,11 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
                   <div className="rookie-draft-row-shell">
                     <div className="draft-sort-strip">
                       <button type="button" onClick={() => handleSort('currentValue')}>
-                        Current Value
+                        Current Blend
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => handleSort('valueChange')}>
-                        Value Change
+                        Blend Gain
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -197,8 +197,8 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
                       <span>Player</span>
                       <span>Manager</span>
                       <span>Pick</span>
-                      <span>Draft</span>
-                      <span>Now</span>
+                      <span>Draft Blend</span>
+                      <span>Now Blend</span>
                       <span>Gain</span>
                     </div>
                     <div className="rookie-draft-row-list">
@@ -224,8 +224,8 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
                               />
                             </span>
                             <span className="rookie-draft-pill" data-label="Pick">{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
-                            <span className="rookie-draft-value-cell" data-label="Draft">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
-                            <span className="rookie-draft-value-cell" data-label="Now">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
+                            <span className="rookie-draft-value-cell" data-label="Draft Blend">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
+                            <span className="rookie-draft-value-cell" data-label="Now Blend">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
                             <span className={`rookie-draft-gain-cell ${gainClass} ${gainTone}`} data-label="Gain">
                               {pick.valueGain !== null && pick.valueGain !== undefined
                                 ? `${pick.valueGain > 0 ? '+' : ''}${pick.valueGain.toLocaleString()}`
