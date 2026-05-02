@@ -7,6 +7,7 @@ import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
+import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -75,6 +76,7 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
       return groups;
     }, {});
   }, [sortedDraftPicks]);
+  const draftOpportunityByPick = useMemo(() => buildDraftOpportunityMap(draftPicks), [draftPicks]);
   const draftYears = Object.keys(draftPicksByYear).sort((a, b) => Number(b) - Number(a));
   const toggleDraftYear = (year: string) => {
     setClosedDraftYears((current) => {
@@ -206,6 +208,7 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
                         const details = pick.playerDetails || (pick.player_id ? playerDetailsById?.[pick.player_id] : undefined);
                         const gainTone = (pick.valueGain ?? 0) > 0 ? 'text-emerald-300' : (pick.valueGain ?? 0) < 0 ? 'text-rose-300' : 'text-slate-300';
                         const gainClass = (pick.valueGain ?? 0) > 0 ? 'is-positive' : (pick.valueGain ?? 0) < 0 ? 'is-negative' : '';
+                        const opportunity = draftOpportunityByPick[getDraftPickKey(pick)];
                         return (
                           <button
                             key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
@@ -216,6 +219,7 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
                           >
                             <span className="rookie-draft-player-cell">
                               <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
+                              <DraftOpportunityNote opportunity={opportunity} />
                             </span>
                             <span className="rookie-draft-manager-cell">
                               <ManagerNameWithAvatar
@@ -253,6 +257,7 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
         draftPicks={draftPicks}
         managerAvatarUrl={selectedManager ? managerAvatars?.[selectedManager] : null}
         playerDetailsById={playerDetailsById}
+        draftOpportunityByPick={draftOpportunityByPick}
         leagueId={leagueId}
         leagueLogo={leagueLogo}
       />
@@ -267,6 +272,24 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
         managerAvatars={managerAvatars}
       />
     </div>
+  );
+}
+
+function DraftOpportunityNote({ opportunity }: { opportunity?: DraftOpportunity }) {
+  if (!opportunity) return null;
+
+  if (opportunity.type === 'win') {
+    return (
+      <span className="draft-opportunity-note draft-opportunity-win">
+        {opportunity.label}
+      </span>
+    );
+  }
+
+  return (
+    <span className="draft-opportunity-note draft-opportunity-missed" title={`${opportunity.label}: ${opportunity.playerName} at ${opportunity.pickLabel}`}>
+      {opportunity.label}: {opportunity.playerName} +{opportunity.delta.toLocaleString()}
+    </span>
   );
 }
 

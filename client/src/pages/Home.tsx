@@ -29,7 +29,6 @@ import {
   PowerRankingsTable,
   TradeMarketRadar,
   TradeTheftDetector,
-  TradeTendenciesTable,
   TrendingPlayersTable,
   WaiverIntelligencePanel,
 } from '@/components/ReportTables';
@@ -546,15 +545,10 @@ export default function Home() {
                     draftPicks={reportData.draftPicks || []}
                     playerDetailsById={reportData.playerDetailsById}
                     currentPositionRankById={reportData.currentPositionRankById}
+                    tradeTendencies={reportData.tradeTendencies}
+                    managerRosterIntelligence={reportData.managerRosterIntelligence}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="Manager Trade Tendencies" kicker="Trading personality">
-                  <TradeTendenciesTable
-                    data={reportData.tradeTendencies}
-                    managerAvatars={reportData.managerAvatars}
-                    tradeHistory={reportData.tradeHistory}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Trade Theft Detector" kicker="Who got cooked">
@@ -564,6 +558,7 @@ export default function Home() {
                     draftPicks={reportData.draftPicks || []}
                     playerDetailsById={reportData.playerDetailsById}
                     currentPositionRankById={reportData.currentPositionRankById}
+                    managerRosterIntelligence={reportData.managerRosterIntelligence}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
@@ -575,6 +570,7 @@ export default function Home() {
                     managerAvatars={reportData.managerAvatars}
                     playerDetailsById={reportData.playerDetailsById}
                     currentPositionRankById={reportData.currentPositionRankById}
+                    managerRosterIntelligence={reportData.managerRosterIntelligence}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />

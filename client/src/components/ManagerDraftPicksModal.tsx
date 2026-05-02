@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
+import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 
 interface ManagerDraftPicksModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ interface ManagerDraftPicksModalProps {
   draftPicks: DraftPick[];
   managerAvatarUrl?: string | null;
   playerDetailsById?: Record<string, PlayerDetails>;
+  draftOpportunityByPick?: Record<string, DraftOpportunity>;
   leagueId?: string;
   leagueLogo?: string | null;
 }
@@ -31,6 +33,7 @@ export function ManagerDraftPicksModal({
   draftPicks,
   managerAvatarUrl,
   playerDetailsById,
+  draftOpportunityByPick,
   leagueId,
   leagueLogo,
 }: ManagerDraftPicksModalProps) {
@@ -38,6 +41,8 @@ export function ManagerDraftPicksModal({
 
   // Filter picks for this manager
   const managerPicks = draftPicks.filter(pick => pick.manager === managerName);
+  const fallbackOpportunityByPick = useMemo(() => buildDraftOpportunityMap(draftPicks), [draftPicks]);
+  const opportunityByPick = draftOpportunityByPick || fallbackOpportunityByPick;
   const totalCurrentValue = managerPicks.reduce((sum, pick) => sum + (pick.currentKtcValue || 0), 0);
   const totalValueGain = managerPicks.reduce((sum, pick) => sum + (pick.valueGain || 0), 0);
   const managerInitial = managerName.trim()[0]?.toUpperCase() || '?';
@@ -107,6 +112,7 @@ export function ManagerDraftPicksModal({
               <div className="player-tile-grid manager-draft-player-grid">
                 {managerPicks.map((pick, idx) => {
                   const gainTone = (pick.valueGain ?? 0) > 0 ? 'text-emerald-300' : (pick.valueGain ?? 0) < 0 ? 'text-rose-300' : 'text-slate-300';
+                  const opportunity = opportunityByPick[getDraftPickKey(pick)];
 
                   return (
                     <button
@@ -138,6 +144,7 @@ export function ManagerDraftPicksModal({
                           )}
                         </span>
                       </div>
+                      <DraftOpportunityStrip opportunity={opportunity} />
                     </button>
                   );
                 })}
@@ -163,6 +170,26 @@ export function ManagerDraftPicksModal({
         managerAvatars={managerName ? { [managerName]: managerAvatarUrl || null } : undefined}
       />
     </>
+  );
+}
+
+function DraftOpportunityStrip({ opportunity }: { opportunity?: DraftOpportunity }) {
+  if (!opportunity) return null;
+
+  if (opportunity.type === 'win') {
+    return (
+      <div className="player-tile-value-strip draft-opportunity-strip draft-opportunity-strip-win">
+        <span>Board</span>
+        <span>{opportunity.label}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="player-tile-value-strip draft-opportunity-strip draft-opportunity-strip-missed" title={`${opportunity.label}: ${opportunity.playerName} at ${opportunity.pickLabel}`}>
+      <span>{opportunity.label}</span>
+      <span>{opportunity.playerName} +{opportunity.delta.toLocaleString()}</span>
+    </div>
   );
 }
 

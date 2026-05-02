@@ -306,6 +306,7 @@ function TradeDetailPanel({
   managerAvatars,
   playerDetailsById,
   currentPositionRankById,
+  managerRosterIntelligence,
   onPlayerClick,
 }: {
   row: ReportData['tradeHistory'][number];
@@ -313,9 +314,11 @@ function TradeDetailPanel({
   managerAvatars?: ManagerAvatars;
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
   onPlayerClick?: (player: PlayerModalData) => void;
 }) {
   const { leftSide, rightSide } = getTradeDisplaySides(row);
+  const tradeFitReads = buildTradeFitReads(row, managerRosterIntelligence, playerDetailsById);
 
   return (
     <div className="trade-detail-panel">
@@ -370,6 +373,43 @@ function TradeDetailPanel({
           </div>
         ))}
       </div>
+      {tradeFitReads.length > 0 && (
+        <div className="trade-fit-read-grid">
+          {tradeFitReads.map((read) => (
+            <div key={read.manager} className={`trade-fit-read trade-fit-read-${read.tone}`}>
+              <div className="trade-fit-read-top">
+                <span>{read.label}</span>
+                <strong>{read.manager}</strong>
+              </div>
+              <p>{read.note}</p>
+              {read.target && (
+                <button
+                  type="button"
+                  className="trade-fit-target"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!onPlayerClick) return;
+                    onPlayerClick(buildPlayerModalData({
+                      playerId: read.target?.player_id,
+                      playerName: read.target?.name || '',
+                      playerPos: read.target?.pos,
+                      value: read.target?.value,
+                      playerDetails: read.target?.playerDetails,
+                      playerDetailsById,
+                      manager: read.target?.owner,
+                      currentPositionRank: read.target?.seasonPositionRank || read.target?.currentPositionRank,
+                    }));
+                  }}
+                >
+                  Better target: {read.target.name}
+                  <PositionRankPill rank={read.target.seasonPositionRank || read.target.currentPositionRank || read.target.pos} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -627,6 +667,149 @@ function formatCompactValue(value: number | null | undefined): string {
   return value.toLocaleString();
 }
 
+function splitTradeItems(items: string): string[] {
+  return items
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getTradeItemSignal(items: string, playerDetailsById?: PlayerDetailsById) {
+  const positions = new Set<string>();
+  let hasPick = false;
+  const playerNames: string[] = [];
+
+  splitTradeItems(items).forEach((item) => {
+    const player = parseTradePlayerItem(item);
+    if (player) {
+      playerNames.push(player.playerName);
+      const position = playerDetailsById?.[player.playerId]?.position;
+      if (position && ['QB', 'RB', 'WR', 'TE'].includes(position)) positions.add(position);
+      return;
+    }
+
+    if (parseTradePickItem(item)) {
+      hasPick = true;
+    }
+  });
+
+  return { positions, hasPick, playerNames };
+}
+
+function buildTradeFitReads(
+  row: ReportData['tradeHistory'][number],
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'],
+  playerDetailsById?: PlayerDetailsById
+): TradeFitRead[] {
+  if (!managerRosterIntelligence?.length) return [];
+
+  const intelByManager = new Map(managerRosterIntelligence.map((intel) => [intel.manager, intel]));
+  const sides = [
+    { manager: row.team_a, incoming: row.team_a_items, outgoing: row.team_b_items },
+    { manager: row.team_b, incoming: row.team_b_items, outgoing: row.team_a_items },
+  ];
+
+  const reads: TradeFitRead[] = [];
+
+  sides.forEach((side) => {
+    const intel = intelByManager.get(side.manager);
+    if (!intel) return;
+
+    const incoming = getTradeItemSignal(side.incoming, playerDetailsById);
+    const outgoing = getTradeItemSignal(side.outgoing, playerDetailsById);
+    const need = intel.tradePlan?.needPosition || null;
+    const surplus = intel.tradePlan?.surplusPosition || null;
+    const boughtNeed = Boolean(need && incoming.positions.has(need));
+    const soldSurplus = Boolean(surplus && outgoing.positions.has(surplus));
+    const boughtSurplus = Boolean(surplus && incoming.positions.has(surplus));
+    const soldNeed = Boolean(need && outgoing.positions.has(need));
+    const target = need && intel.buyTarget && !boughtNeed ? intel.buyTarget : null;
+    const targetRank = target?.seasonPositionRank || target?.currentPositionRank || target?.pos;
+
+    if (boughtNeed && soldSurplus) {
+      reads.push({
+        manager: side.manager,
+        label: 'Clean Fit',
+        tone: 'good',
+        note: `This lines up with the roster map: added ${need} help while selling from the ${surplus} surplus.`,
+      });
+      return;
+    }
+
+    if (boughtNeed) {
+      reads.push({
+        manager: side.manager,
+        label: 'Solved A Need',
+        tone: 'good',
+        note: `This trade makes sense for ${side.manager}: the incoming side attacks the ${need} need directly.`,
+      });
+      return;
+    }
+
+    if (soldNeed) {
+      reads.push({
+        manager: side.manager,
+        label: 'Roster Fit Problem',
+        tone: 'warn',
+        note: `This deal moved value away from ${side.manager}'s biggest ${need} pressure point. The cleaner move was buying that position, not spending it.`,
+        target,
+      });
+      return;
+    }
+
+    if (boughtSurplus && surplus) {
+      reads.push({
+        manager: side.manager,
+        label: 'More Of The Same',
+        tone: 'warn',
+        note: `This adds more ${surplus} value to an area that already looked like the surplus. The roster would probably feel cleaner if that value chased ${need || 'a weaker spot'}.`,
+        target,
+      });
+      return;
+    }
+
+    if (incoming.hasPick && intel.timeline.toLowerCase().includes('rebuild')) {
+      reads.push({
+        manager: side.manager,
+        label: 'Timeline Match',
+        tone: 'good',
+        note: `Getting picks fits the rebuild timeline. This is the kind of value that gives the roster more shots without forcing a short-term lineup decision.`,
+      });
+      return;
+    }
+
+    if (outgoing.hasPick && intel.timeline.toLowerCase().includes('contender')) {
+      reads.push({
+        manager: side.manager,
+        label: 'Contender Move',
+        tone: 'good',
+        note: `Spending pick value can make sense for a contender if the player acquired starts right away or protects a fragile position.`,
+      });
+      return;
+    }
+
+    if (target) {
+      reads.push({
+        manager: side.manager,
+        label: 'Better Target',
+        tone: 'neutral',
+        note: `The value path was not terrible, but ${side.manager}'s roster need points more toward ${target.name}${targetRank ? ` (${targetRank})` : ''}.`,
+        target,
+      });
+      return;
+    }
+
+    reads.push({
+      manager: side.manager,
+      label: 'Neutral Fit',
+      tone: 'neutral',
+      note: `No obvious roster-fit issue. This reads more like a value bet than a clear positional fix.`,
+    });
+  });
+
+  return reads;
+}
+
 function titleCasePill(value: string): string {
   const acronyms = new Set(['QB', 'RB', 'WR', 'TE', 'SF', 'PPR', 'FA']);
   return value.replace(/\w\S*/g, (word) => {
@@ -760,6 +943,13 @@ type TradeWarMode = 'dynasty' | 'contender' | 'rebuilder';
 type TradeWarAsset = ManagerIntelPlayer & {
   manager: string;
   assetState: 'roster' | 'bench' | 'taxi' | 'reserve';
+};
+type TradeFitRead = {
+  manager: string;
+  label: string;
+  note: string;
+  tone: 'good' | 'warn' | 'neutral';
+  target?: ManagerIntelPlayer | null;
 };
 
 function parsePositionRankValue(rank: string | null | undefined): number | null {
@@ -3320,6 +3510,8 @@ export function TradeProfitLeaderboardTable({
   draftPicks = [],
   playerDetailsById,
   currentPositionRankById,
+  tradeTendencies,
+  managerRosterIntelligence,
   leagueId,
   leagueLogo,
 }: {
@@ -3329,6 +3521,8 @@ export function TradeProfitLeaderboardTable({
   draftPicks?: DraftPick[];
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
+  tradeTendencies?: ReportData['tradeTendencies'];
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -3343,12 +3537,17 @@ export function TradeProfitLeaderboardTable({
   const selectedManagerSummary = selectedManager
     ? data.find((row) => row.manager === selectedManager)
     : undefined;
+  const selectedManagerTendency = selectedManager
+    ? tradeTendencies?.find((row) => row.manager === selectedManager)
+    : undefined;
 
   return (
     <div className="owner-tile-shell">
       <div className="owner-tile-grid trade-profit-tile-grid">
         {data.map((row) => {
           const winPct = row.trade_count > 0 ? Math.round((row.wins / row.trade_count) * 100) : 0;
+          const tendency = tradeTendencies?.find((item) => item.manager === row.manager);
+          const habit = tendency ? getTradeHabit(tendency) : null;
 
           return (
             <OwnerSummaryTile
@@ -3365,6 +3564,14 @@ export function TradeProfitLeaderboardTable({
                 value={`${row.profit >= 0 ? '+' : ''}${row.profit.toLocaleString()}`}
                 tone={row.profit >= 0 ? 'good' : 'danger'}
               />
+              {habit && <span className={`trade-habit-pill ${habit.className}`}>{habit.label}</span>}
+              {tendency?.favoritePartner && (
+                <OwnerMetricPill
+                  label="Likes Trading With"
+                  value={renderPartnerName(tendency.favoritePartner, managerAvatars)}
+                  tone="info"
+                />
+              )}
             </OwnerSummaryTile>
           );
         })}
@@ -3434,7 +3641,37 @@ export function TradeProfitLeaderboardTable({
                     {(selectedManagerSummary?.profit ?? 0).toLocaleString()}
                   </strong>
                 </div>
+                {selectedManagerTendency && (
+                  <>
+                    <div>
+                      <span>Avg Gap</span>
+                      <strong>{selectedManagerTendency.avgGap.toLocaleString()}</strong>
+                    </div>
+                    <div>
+                      <span>Win %</span>
+                      <strong>{selectedManagerTendency.winPct}%</strong>
+                    </div>
+                    <div>
+                      <span>Partner</span>
+                      <strong>{selectedManagerTendency.favoritePartner || '-'}</strong>
+                    </div>
+                  </>
+                )}
               </div>
+              {selectedManagerTendency && (
+                <div className="trade-manager-tendency-strip">
+                  <span className={`trade-habit-pill ${getTradeHabit(selectedManagerTendency).className}`}>
+                    {getTradeHabit(selectedManagerTendency).label}
+                  </span>
+                  {selectedManagerTendency.overpaysForPicks && <span className="trade-habit-pill trade-habit-warn">Pays For Picks</span>}
+                  {selectedManagerTendency.overpaysForVeterans && <span className="trade-habit-pill trade-habit-warn">Vet Shopper</span>}
+                  {selectedManagerTendency.favoritePartner && (
+                    <span className="trade-habit-pill trade-habit-info">
+                      Likes {selectedManagerTendency.favoritePartner}
+                    </span>
+                  )}
+                </div>
+              )}
               <div className="trade-manager-list">
                 {selectedManagerTrades.map((trade) => {
                   const swing = getManagerTradeSwing(trade, selectedManager);
@@ -3473,6 +3710,7 @@ export function TradeProfitLeaderboardTable({
                             managerAvatars={managerAvatars}
                             playerDetailsById={playerDetailsById}
                             currentPositionRankById={currentPositionRankById}
+                            managerRosterIntelligence={managerRosterIntelligence}
                             onPlayerClick={setSelectedPlayer}
                           />
                         </div>
@@ -3503,6 +3741,7 @@ export function TradeHistoryTable({
   managerAvatars,
   playerDetailsById,
   currentPositionRankById,
+  managerRosterIntelligence,
   leagueId,
   leagueLogo,
 }: {
@@ -3511,6 +3750,7 @@ export function TradeHistoryTable({
   managerAvatars?: ManagerAvatars;
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -3628,6 +3868,7 @@ export function TradeHistoryTable({
                           managerAvatars={managerAvatars}
                           playerDetailsById={playerDetailsById}
                           currentPositionRankById={currentPositionRankById}
+                          managerRosterIntelligence={managerRosterIntelligence}
                           onPlayerClick={setSelectedPlayer}
                         />
                       </TableCell>
@@ -4000,6 +4241,7 @@ export function TradeTheftDetector({
   draftPicks = [],
   playerDetailsById,
   currentPositionRankById,
+  managerRosterIntelligence,
   leagueId,
   leagueLogo,
 }: {
@@ -4008,6 +4250,7 @@ export function TradeTheftDetector({
   draftPicks?: DraftPick[];
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -4139,6 +4382,7 @@ export function TradeTheftDetector({
               managerAvatars={managerAvatars}
               playerDetailsById={playerDetailsById}
               currentPositionRankById={currentPositionRankById}
+              managerRosterIntelligence={managerRosterIntelligence}
               onPlayerClick={setSelectedPlayer}
             />
           )}
