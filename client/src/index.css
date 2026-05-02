@@ -3404,49 +3404,60 @@
   }
 
   .team-logo-pill {
-    display: inline-flex;
-    min-height: 1.5rem;
-    min-width: 1.5rem;
+    display: inline-flex !important;
+    height: 1.62rem !important;
+    min-height: 1.62rem !important;
+    width: 1.62rem !important;
+    min-width: 1.62rem !important;
     align-items: center;
     justify-content: center;
-    gap: 0.28rem;
-    border: 1px solid rgba(148, 163, 184, 0.24);
+    flex: 0 0 1.62rem;
+    gap: 0;
+    overflow: visible;
+    border: 0 !important;
     border-radius: 999px;
-    background: rgba(2, 6, 23, 0.54);
-    padding: 0.18rem 0.42rem;
+    background: transparent !important;
+    padding: 0 !important;
     color: #cbd5e1;
     font-size: 0.66rem;
     font-weight: 950;
     line-height: 1;
     white-space: nowrap;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    box-shadow: none !important;
+    -webkit-box-orient: initial !important;
+    -webkit-line-clamp: unset !important;
   }
 
   .team-logo-pill img {
-    height: 1.05rem;
-    width: 1.05rem;
+    height: 1.62rem;
+    width: 1.62rem;
     flex: 0 0 auto;
     border-radius: 999px;
     object-fit: contain;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.32));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.42));
   }
 
   .team-logo-pill-fallback {
-    border-color: rgba(251, 146, 60, 0.24);
+    width: auto !important;
+    min-width: 1.62rem !important;
+    display: inline-flex !important;
+    border: 1px solid rgba(251, 146, 60, 0.24) !important;
+    background: rgba(2, 6, 23, 0.54) !important;
+    padding: 0.18rem 0.42rem !important;
     color: #fdba74;
   }
 
   .player-modal-team-logo-pill {
-    min-height: 1.75rem;
-    min-width: 1.75rem;
-    border-color: rgba(255, 255, 255, 0.22);
-    background: rgba(2, 6, 23, 0.48);
-    padding-inline: 0.46rem;
+    height: 1.9rem !important;
+    min-height: 1.9rem !important;
+    width: 1.9rem !important;
+    min-width: 1.9rem !important;
+    flex-basis: 1.9rem;
   }
 
   .player-modal-team-logo-pill img {
-    height: 1.28rem;
-    width: 1.28rem;
+    height: 1.9rem;
+    width: 1.9rem;
   }
 
   .trade-market-card {

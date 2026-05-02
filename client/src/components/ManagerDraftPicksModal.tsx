@@ -9,6 +9,7 @@ import type { DraftPick, PlayerDetails } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { PlayerDetailModal } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
+import { TeamLogoPill } from './TeamLogoPill';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 
@@ -119,8 +120,8 @@ export function ManagerDraftPicksModal({
                         <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
                       </div>
                       <div className="player-tile-pills">
+                        <TeamLogoPill team={pick.playerDetails?.team} />
                         <span>{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
-                        <span>{pick.playerDetails?.team || 'FA'}</span>
                       </div>
                       <div className="player-tile-value-strip">
                         <span>Gain</span>

@@ -272,6 +272,7 @@ export function PlayerDetailModal({
                     {pick.playerName}
                   </div>
                   <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
+                    <TeamLogoPill team={team} className="player-modal-team-logo-pill" />
                     {jerseyNumber !== null && jerseyNumber !== undefined && jerseyNumber !== '' && (
                       <span
                         className="rounded-full border px-3 py-1 text-xs font-bold"
@@ -294,7 +295,6 @@ export function PlayerDetailModal({
                     >
                       {position}
                     </span>
-                    <TeamLogoPill team={team} className="player-modal-team-logo-pill" />
                     {details?.status && (
                       <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
                         {details.status}

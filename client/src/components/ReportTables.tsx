@@ -920,9 +920,9 @@ function PlayerInsightTile({
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       </div>
       <div className="manager-intel-player-pills">
+        <TeamLogoPill team={playerTeam} />
         <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
         {extraPill && <span>{extraPill}</span>}
-        <TeamLogoPill team={playerTeam} />
         <span>{formatCompactValue(player.value)}</span>
       </div>
       {crownedRank && (
@@ -973,9 +973,9 @@ function TaxiTriageRow({
       <div className="owner-intel-taxi-player">
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
         <div className="owner-intel-taxi-pills">
+          <TeamLogoPill team={playerTeam} />
           <PositionRankPill rank={rank} />
           <span>Taxi</span>
-          <TeamLogoPill team={playerTeam} />
           <span>{formatCompactValue(player.value)}</span>
         </div>
       </div>
@@ -1091,8 +1091,8 @@ function CommandPlayerTile({
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       </div>
       <div className="manager-command-player-tile-pills">
-        <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
         <TeamLogoPill team={player.playerDetails?.team} />
+        <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
         <span className="manager-command-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
       </div>
     </button>
@@ -2544,8 +2544,8 @@ export function WeeklyMomentumTable({
                   {renderManagerName(row.owner, managerAvatars)}
                 </div>
                 <div className="weekly-momentum-pills">
-                  <PositionRankPill rank={row.currentPositionRank || row.pos} />
                   <TeamLogoPill team={playerDetails?.team} />
+                  <PositionRankPill rank={row.currentPositionRank || row.pos} />
                   <span>{formatCompactValue(row.val_now)}</span>
                 </div>
                 <div className="weekly-momentum-values">
@@ -2659,8 +2659,8 @@ export function TrendingPlayersTable({
                   )}
                 </div>
                 <div className="trending-player-card-pills">
-                  <PositionRankPill rank={row.currentPositionRank || row.pos} />
                   <TeamLogoPill team={playerDetails?.team || row.team} />
+                  <PositionRankPill rank={row.currentPositionRank || row.pos} />
                   <span>{formatCompactValue(row.ktcValue)}</span>
                 </div>
               </button>
@@ -2741,8 +2741,8 @@ export function ProjectedMoversTable({
                 {renderManagerName(row.owner, managerAvatars)}
               </div>
               <div className="player-tile-pills">
-                <PositionRankPill rank={row.currentPositionRank || row.pos} />
                 <TeamLogoPill team={details?.team} />
+                <PositionRankPill rank={row.currentPositionRank || row.pos} />
                 <span>{row.age !== null ? `${row.age} yrs` : 'Age N/A'}</span>
               </div>
               <div className="player-tile-value-strip">
@@ -3707,8 +3707,8 @@ export function WaiverIntelligencePanel({
             <PlayerNameWithHeadshot playerId={player?.player_id} playerName={player?.name || '-'} />
           </div>
           <div className="waiver-intel-pills">
-            <PositionRankPill rank={player?.currentPositionRank || player?.pos || '-'} />
             <TeamLogoPill team={player?.playerDetails?.team || player?.team} />
+            <PositionRankPill rank={player?.currentPositionRank || player?.pos || '-'} />
             <span>{formatCompactValue(player?.ktcValue)}</span>
           </div>
         </button>
@@ -3784,8 +3784,8 @@ export function TradeMarketRadar({
             </div>
           </div>
           <div className="trade-market-pills">
-            <PositionRankPill rank={player.currentPositionRank || player.pos} />
             <TeamLogoPill team={player.playerDetails?.team} />
+            <PositionRankPill rank={player.currentPositionRank || player.pos} />
             <span>{formatCompactValue(player.val_now)}</span>
           </div>
         </button>
@@ -3971,8 +3971,8 @@ export function ManagerPositionCountsTable({
                           <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
                         </div>
                         <div className="starter-player-meta">
-                          <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
                           <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
+                          <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
                           <span className="starter-player-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
                           <strong>{player.value.toLocaleString()}</strong>
                         </div>
