@@ -87,6 +87,7 @@ interface Roster {
   owner_id: string;
   players: string[];
   taxi?: string[];
+  reserve?: string[];
 }
 
 interface Trade {
@@ -186,7 +187,31 @@ function chooseTradeWinners(
   return valueA > valueB ? [managerA] : [managerB];
 }
 
-function getPlayerDetails(pid: string, allPlayers: Player): PlayerDetails | undefined {
+function normalizeAvailabilityStatus(value: string | number | null | undefined): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  const label = String(value).replace(/_/g, ' ').trim();
+  if (!label) return null;
+  if (/^(active|healthy)$/i.test(label)) return null;
+  return label;
+}
+
+function getDisplayStatus(player: Player[string] | undefined, rosterStatus?: string | null): string {
+  const rosterLabel = normalizeAvailabilityStatus(rosterStatus);
+  if (rosterLabel) return rosterLabel;
+
+  const injuryLabel = normalizeAvailabilityStatus(player?.injury_status);
+  if (injuryLabel) return injuryLabel;
+
+  return normalizeAvailabilityStatus(player?.status) || 'Active';
+}
+
+function getRosterPlayerStatus(roster: Roster | undefined, playerId: string): string | null {
+  if (roster?.reserve?.includes(playerId)) return 'IR';
+  if (roster?.taxi?.includes(playerId)) return 'Taxi';
+  return null;
+}
+
+function getPlayerDetails(pid: string, allPlayers: Player, rosterStatus?: string | null): PlayerDetails | undefined {
   const player = allPlayers[pid];
   if (!player) return undefined;
 
@@ -207,6 +232,8 @@ function getPlayerDetails(pid: string, allPlayers: Player): PlayerDetails | unde
     nflDraftTeam: player.metadata?.draft_team ?? player.draft_team ?? null,
     highSchool: player.high_school ?? null,
     injuryStatus: player.injury_status ?? null,
+    rosterStatus: rosterStatus ?? null,
+    displayStatus: getDisplayStatus(player, rosterStatus),
     depthChartPosition: player.depth_chart_position ?? null,
     depthChartOrder: player.depth_chart_order ?? null,
     yearsExp: player.years_exp ?? null,
@@ -1037,7 +1064,7 @@ export async function generateReport(
         weeklyMomentum.push({
           name: getPlayerName(pid, allPlayers),
           player_id: pid,
-          playerDetails: getPlayerDetails(pid, allPlayers),
+          playerDetails: getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid)),
           currentPositionRank: getPrimaryRank(pid),
           owner: name,
           pos,
@@ -1052,7 +1079,7 @@ export async function generateReport(
         allPlayerMoves.push({
           name: getPlayerName(pid, allPlayers),
           player_id: pid,
-          playerDetails: getPlayerDetails(pid, allPlayers),
+          playerDetails: getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid)),
           currentPositionRank: getPrimaryRank(pid),
           owner: name,
           pos,
@@ -1310,7 +1337,8 @@ export async function generateReport(
 
   for (const r of currentSeasonData.rosters) {
     const name = currentSeasonData.rosterMap[r.roster_id];
-    const pids = r.players || [];
+    const inactiveIds = new Set([...(r.taxi || []), ...(r.reserve || [])]);
+    const pids = (r.players || []).filter((pid) => !inactiveIds.has(pid));
     const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
 
     for (const pid of pids) {
@@ -1437,7 +1465,7 @@ export async function generateReport(
         const value = getPrimaryValue(pid);
         const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
         const seasonPositionRank = seasonPositionRankById[pid] || null;
-        const playerDetails = getPlayerDetails(pid, allPlayers);
+        const playerDetails = getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid));
         if (positionRank || seasonPositionRank) {
           lineupPlayers.push({
             player_id: pid,
@@ -1495,7 +1523,7 @@ export async function generateReport(
   const managerRosterIntelligence = currentSeasonData.rosters.map((r) => {
     const manager = currentSeasonData.rosterMap[r.roster_id];
     type BuiltIntelPlayer = ManagerIntelPlayer & { age: number | null; isStarter: boolean };
-    const buildIntelPlayer = (pid: string, owner: string): BuiltIntelPlayer | null => {
+    const buildIntelPlayer = (pid: string, owner: string, roster?: Roster): BuiltIntelPlayer | null => {
         const player = allPlayers[pid];
         const pos = player?.position || 'UNK';
         const currentPositionRank = getPrimaryRank(pid);
@@ -1519,25 +1547,26 @@ export async function generateReport(
           lastSeasonGames: lastSeasonRank?.games ?? null,
           lastSeasonPointsPerGame: lastSeasonRank?.pointsPerGame ?? null,
           lastSeasonYear: lastSeasonRank?.season || null,
-          playerDetails: getPlayerDetails(pid, allPlayers),
+          playerDetails: getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(roster, pid)),
           age: player?.age ?? null,
           isStarter: isStarterRank(pos, seasonPositionRank, starterThresholds),
         };
       };
     const taxiIds = new Set(r.taxi || []);
-    const activePlayerIds = (r.players || []).filter((pid) => !taxiIds.has(pid));
+    const reserveIds = new Set(r.reserve || []);
+    const activePlayerIds = (r.players || []).filter((pid) => !taxiIds.has(pid) && !reserveIds.has(pid));
     const rosterPlayers = activePlayerIds
-      .map((pid) => buildIntelPlayer(pid, manager))
+      .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
     const taxiPlayers = (r.taxi || [])
-      .map((pid) => buildIntelPlayer(pid, manager))
+      .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
     const externalPlayers = currentSeasonData.rosters
       .filter((otherRoster) => otherRoster.roster_id !== r.roster_id)
       .flatMap((otherRoster) => {
         const owner = currentSeasonData.rosterMap[otherRoster.roster_id];
         return Array.from(new Set([...(otherRoster.players || []), ...(otherRoster.taxi || [])]))
-          .map((pid) => buildIntelPlayer(pid, owner));
+          .map((pid) => buildIntelPlayer(pid, owner, otherRoster));
       })
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
 

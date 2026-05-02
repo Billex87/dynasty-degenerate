@@ -262,6 +262,8 @@ export interface PlayerDetails {
   nflDraftTeam?: string | null;
   highSchool?: string | null;
   injuryStatus?: string | null;
+  rosterStatus?: 'IR' | 'Taxi' | string | null;
+  displayStatus?: string | null;
   depthChartPosition?: string | null;
   depthChartOrder?: number | null;
   yearsExp?: number | null;

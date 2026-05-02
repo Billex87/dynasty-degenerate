@@ -2723,6 +2723,24 @@
     text-transform: capitalize;
   }
 
+  .manager-command-player-tile-pills .manager-command-status-pill.is-warning {
+    border-color: rgba(251, 191, 36, 0.35);
+    background: rgba(245, 158, 11, 0.14);
+    color: #fde68a;
+  }
+
+  .manager-command-player-tile-pills .manager-command-status-pill.is-risk {
+    border-color: rgba(251, 113, 133, 0.38);
+    background: rgba(244, 63, 94, 0.14);
+    color: #fecdd3;
+  }
+
+  .manager-command-player-tile-pills .manager-command-status-pill.is-taxi {
+    border-color: rgba(34, 211, 238, 0.34);
+    background: rgba(8, 145, 178, 0.14);
+    color: #a5f3fc;
+  }
+
   .manager-command-empty-tile {
     display: inline-flex;
     min-height: 5.8rem;
@@ -4270,6 +4288,24 @@
     background: rgba(16, 185, 129, 0.09);
     color: #86efac;
     text-transform: capitalize;
+  }
+
+  .starter-player-meta .starter-player-status-pill.is-warning {
+    border-color: rgba(251, 191, 36, 0.35);
+    background: rgba(245, 158, 11, 0.14);
+    color: #fde68a;
+  }
+
+  .starter-player-meta .starter-player-status-pill.is-risk {
+    border-color: rgba(251, 113, 133, 0.38);
+    background: rgba(244, 63, 94, 0.14);
+    color: #fecdd3;
+  }
+
+  .starter-player-meta .starter-player-status-pill.is-taxi {
+    border-color: rgba(34, 211, 238, 0.34);
+    background: rgba(8, 145, 178, 0.14);
+    color: #a5f3fc;
   }
 
   .report-shell [data-slot="table-head"] {

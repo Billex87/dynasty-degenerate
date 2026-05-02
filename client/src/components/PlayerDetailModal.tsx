@@ -9,6 +9,7 @@ import type { DraftPick, PlayerDetails } from '@shared/types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
+import { getPlayerAvailability } from '@/lib/playerStatus';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { TeamLogoPill } from './TeamLogoPill';
 
@@ -110,6 +111,7 @@ export function PlayerDetailModal({
     : undefined;
   const managerAvatarUrl = pick.managerAvatarUrl || (pick.manager ? managerAvatars?.[pick.manager] : null);
   const playerNameSizeClass = getPlayerNameSizeClass(pick.playerName);
+  const availability = getPlayerAvailability(details);
   const physicalRows = [
     ['Age', details?.age],
     ['Height', formatHeight(details?.height)],
@@ -135,7 +137,8 @@ export function PlayerDetailModal({
     ['News Update', formatSleeperNewsUpdated(details?.sleeperNewsUpdated)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const healthRows = [
-    ['Injury Status', details?.injuryStatus],
+    ['Availability', availability.label],
+    ['Injury Status', details?.injuryStatus && details.injuryStatus !== availability.label ? details.injuryStatus : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const nflDraftRows = [
     ['NFL Draft Round', details?.nflDraftRound],
@@ -295,11 +298,7 @@ export function PlayerDetailModal({
                     >
                       {position}
                     </span>
-                    {details?.status && (
-                      <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
-                        {details.status}
-                      </span>
-                    )}
+                    <StatusPill label={availability.label} tone={availability.tone} />
                   </div>
                 </div>
               </div>
@@ -860,11 +859,12 @@ function buildPlayerIntelligenceNotes({
   const roleLabel = formatDepthChart(details?.depthChartPosition, details?.depthChartOrder);
   if (roleLabel) {
     const isLeadRole = roleLabel.includes('#1') || /^(QB|RB|WR|TE)$/.test(roleLabel);
+    const availability = getPlayerAvailability(details);
     notes.push({
       label: 'Team Role',
       value: roleLabel,
-      copy: `${details?.team || 'Team'} depth chart signal${details?.status ? ` with ${details.status.toLowerCase()} status` : ''}.`,
-      tone: isLeadRole ? 'upside' : 'neutral',
+      copy: `${details?.team || 'Team'} depth chart signal with ${availability.label.toLowerCase()} availability.`,
+      tone: availability.tone === 'risk' || availability.tone === 'warning' ? 'risk' : isLeadRole ? 'upside' : 'neutral',
     });
   }
 
@@ -919,6 +919,28 @@ function parseRankNumber(rank?: string | null) {
   if (!match) return null;
   const number = Number(match[0]);
   return Number.isFinite(number) ? number : null;
+}
+
+function StatusPill({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: 'active' | 'warning' | 'risk' | 'taxi';
+}) {
+  const toneClass = tone === 'risk'
+    ? 'border-rose-300/35 bg-rose-500/15 text-rose-100'
+    : tone === 'warning'
+      ? 'border-amber-300/35 bg-amber-400/15 text-amber-100'
+      : tone === 'taxi'
+        ? 'border-cyan-300/35 bg-cyan-400/12 text-cyan-100'
+        : 'border-emerald-300/30 bg-emerald-400/10 text-emerald-200';
+
+  return (
+    <span className={`rounded-full border px-3 py-1 text-xs font-bold ${toneClass}`}>
+      {label}
+    </span>
+  );
 }
 
 function MetricTile({

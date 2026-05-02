@@ -33,7 +33,7 @@ function buildManagerAvatarMap(users: any[]): Record<string, string | null> {
 }
 
 function buildPlayerOwnerMap(
-  rosters: Array<{ players?: string[]; roster_id: number }>,
+  rosters: Array<{ players?: string[]; taxi?: string[]; reserve?: string[]; roster_id: number }>,
   rosterUserMap: Record<string, string>
 ): Record<string, string> {
   const ownerByPlayerId: Record<string, string> = {};
@@ -42,12 +42,49 @@ function buildPlayerOwnerMap(
     const manager = rosterUserMap[String(roster.roster_id)];
     if (!manager) continue;
 
-    for (const playerId of roster.players || []) {
+    for (const playerId of [...(roster.players || []), ...(roster.taxi || []), ...(roster.reserve || [])]) {
       ownerByPlayerId[playerId] = manager;
     }
   }
 
   return ownerByPlayerId;
+}
+
+function normalizeAvailabilityStatus(value: string | number | null | undefined): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  const label = String(value).replace(/_/g, ' ').trim();
+  if (!label) return null;
+  if (/^(active|healthy)$/i.test(label)) return null;
+  return label;
+}
+
+function getDisplayStatus(player: Record<string, any> | undefined, rosterStatus?: string | null): string {
+  const rosterLabel = normalizeAvailabilityStatus(rosterStatus);
+  if (rosterLabel) return rosterLabel;
+
+  const injuryLabel = normalizeAvailabilityStatus(player?.injury_status);
+  if (injuryLabel) return injuryLabel;
+
+  return normalizeAvailabilityStatus(player?.status) || 'Active';
+}
+
+function buildPlayerRosterStatusMap(
+  rosters: Array<{ players?: string[]; taxi?: string[]; reserve?: string[] }>
+): Record<string, string> {
+  const statusByPlayerId: Record<string, string> = {};
+
+  for (const roster of rosters) {
+    for (const playerId of roster.reserve || []) {
+      statusByPlayerId[String(playerId)] = 'IR';
+    }
+    for (const playerId of roster.taxi || []) {
+      if (!statusByPlayerId[String(playerId)]) {
+        statusByPlayerId[String(playerId)] = 'Taxi';
+      }
+    }
+  }
+
+  return statusByPlayerId;
 }
 
 function getLeagueValueMode(leagueInfo: any): LeagueValueMode {
@@ -269,7 +306,7 @@ async function buildManagerChampionships(
   );
 }
 
-function getPlayerDetails(playerId: string, player: Record<string, any> | undefined): PlayerDetails | undefined {
+function getPlayerDetails(playerId: string, player: Record<string, any> | undefined, rosterStatus?: string | null): PlayerDetails | undefined {
   if (!player) return undefined;
 
   return {
@@ -289,6 +326,8 @@ function getPlayerDetails(playerId: string, player: Record<string, any> | undefi
     nflDraftTeam: player.metadata?.draft_team ?? player.draft_team ?? null,
     highSchool: player.high_school ?? null,
     injuryStatus: player.injury_status ?? null,
+    rosterStatus: rosterStatus ?? null,
+    displayStatus: getDisplayStatus(player, rosterStatus),
     depthChartPosition: player.depth_chart_position ?? null,
     depthChartOrder: player.depth_chart_order ?? null,
     yearsExp: player.years_exp ?? null,
@@ -356,10 +395,14 @@ async function fetchPlayerAvailabilityHistory(
   }));
 }
 
-function buildPlayerDetailsMap(playerIds: Iterable<string>, players: Record<string, any>): Record<string, PlayerDetails> {
+function buildPlayerDetailsMap(
+  playerIds: Iterable<string>,
+  players: Record<string, any>,
+  rosterStatusByPlayerId: Record<string, string> = {}
+): Record<string, PlayerDetails> {
   return Object.fromEntries(
     Array.from(new Set(Array.from(playerIds).filter(Boolean)))
-      .map((playerId) => [playerId, getPlayerDetails(playerId, players[playerId])])
+      .map((playerId) => [playerId, getPlayerDetails(playerId, players[playerId], rosterStatusByPlayerId[playerId])])
       .filter((entry): entry is [string, PlayerDetails] => Boolean(entry[1]))
   );
 }
@@ -662,7 +705,8 @@ async function fetchTrendingPlayers(
   type: 'add' | 'drop',
   players: Record<string, any>,
   ktcValues: KTCValues,
-  ownerByPlayerId: Record<string, string>
+  ownerByPlayerId: Record<string, string>,
+  rosterStatusByPlayerId: Record<string, string> = {}
 ): Promise<TrendingPlayer[]> {
   const trending = await fetch(
     `https://api.sleeper.app/v1/players/nfl/trending/${type}?lookback_hours=168&limit=15`
@@ -676,7 +720,7 @@ async function fetchTrendingPlayers(
     return {
       player_id: playerId,
       name: getPlayerName(playerId, players),
-      playerDetails: getPlayerDetails(playerId, player),
+      playerDetails: getPlayerDetails(playerId, player, rosterStatusByPlayerId[playerId]),
       currentPositionRank: getPlayerCurrentPositionRank(playerId, players, ktcValues),
       pos: player?.position || 'N/A',
       team: player?.team || null,
@@ -1053,6 +1097,7 @@ export const appRouter = router({
             ])
           );
           const ownerByPlayerId = buildPlayerOwnerMap(rosters, rosterUserMap);
+          const rosterStatusByPlayerId = buildPlayerRosterStatusMap(rosters);
 
           const trades: any[] = [];
           for (let week = 1; week <= 18; week++) {
@@ -1228,8 +1273,8 @@ export const appRouter = router({
 
           try {
             [trendingAdds, trendingDrops] = await Promise.all([
-              fetchTrendingPlayers('add', players, ktcValues, ownerByPlayerId),
-              fetchTrendingPlayers('drop', players, ktcValues, ownerByPlayerId),
+              fetchTrendingPlayers('add', players, ktcValues, ownerByPlayerId, rosterStatusByPlayerId),
+              fetchTrendingPlayers('drop', players, ktcValues, ownerByPlayerId, rosterStatusByPlayerId),
             ]);
             tradedPicks = await fetch(
               `https://api.sleeper.app/v1/league/${input.leagueId}/traded_picks`
@@ -1278,7 +1323,7 @@ export const appRouter = router({
           const managerChampionships = await buildManagerChampionships(leagueInfo, users);
 
           const reportPlayerIds = [
-            ...rosters.flatMap((roster: any) => roster.players || []),
+            ...rosters.flatMap((roster: any) => [...(roster.players || []), ...(roster.taxi || []), ...(roster.reserve || [])]),
             ...trades.flatMap((trade: any) => Object.keys(trade.adds || {})),
             ...draftAnalysis.draftPicks.map((pick: any) => pick.player_id),
             ...trendingAdds.map((player) => player.player_id),
@@ -1298,7 +1343,7 @@ export const appRouter = router({
             players,
             await fetchFantasyProsNews()
           );
-          const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players);
+          const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players, rosterStatusByPlayerId);
 
           return {
             leagueId: input.leagueId,

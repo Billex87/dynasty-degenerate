@@ -66,6 +66,14 @@ function isCompletedDraftPick(pick: SleeperDraftPick): boolean {
 function getPlayerDetails(playerId: string, player: Record<string, any> | undefined): PlayerDetails | undefined {
   if (!player) return undefined;
 
+  const injuryStatus = player.injury_status ?? null;
+  const normalizedInjuryStatus = injuryStatus && !/^(active|healthy)$/i.test(String(injuryStatus))
+    ? String(injuryStatus).replace(/_/g, ' ')
+    : null;
+  const rawStatus = player.status && !/^(active|healthy)$/i.test(String(player.status))
+    ? String(player.status).replace(/_/g, ' ')
+    : null;
+
   return {
     playerId,
     fullName: player.full_name || `${player.first_name || ''} ${player.last_name || ''}`.trim(),
@@ -82,7 +90,9 @@ function getPlayerDetails(playerId: string, player: Record<string, any> | undefi
     nflDraftPick: player.metadata?.draft_pick ?? player.metadata?.draft_slot ?? player.draft_pick ?? null,
     nflDraftTeam: player.metadata?.draft_team ?? player.draft_team ?? null,
     highSchool: player.high_school ?? null,
-    injuryStatus: player.injury_status ?? null,
+    injuryStatus,
+    rosterStatus: null,
+    displayStatus: normalizedInjuryStatus || rawStatus || 'Active',
     depthChartPosition: player.depth_chart_position ?? null,
     depthChartOrder: player.depth_chart_order ?? null,
     yearsExp: player.years_exp ?? null,

@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/table';
 import React, { useState } from 'react';
 import { ChevronDown, Crown, TrendingDown, TrendingUp } from 'lucide-react';
-import type { DraftPick, ManagerIntelPlayer, ReportData, TrendingPlayer } from '@shared/types';
+import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
@@ -25,6 +25,7 @@ import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { TeamLogoPill } from './TeamLogoPill';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
+import { getPlayerAvailability, getPlayerAvailabilityClass } from '@/lib/playerStatus';
 
 type ManagerAvatars = ReportData['managerAvatars'];
 type PlayerDetailsById = ReportData['playerDetailsById'];
@@ -73,6 +74,8 @@ function buildPlayerModalData({
         avgGamesMissed: playerDetails.avgGamesMissed ?? mappedDetails?.avgGamesMissed,
         availabilitySeasons: playerDetails.availabilitySeasons ?? mappedDetails?.availabilitySeasons,
         similarTradeValues: playerDetails.similarTradeValues || mappedDetails?.similarTradeValues,
+        rosterStatus: playerDetails.rosterStatus || mappedDetails?.rosterStatus,
+        displayStatus: (playerDetails.rosterStatus ? playerDetails.displayStatus : mappedDetails?.displayStatus) || playerDetails.displayStatus,
       }
     : mappedDetails;
   const profileRank = valueMode === 'redraft'
@@ -119,9 +122,12 @@ function renderPartnerName(manager: string, managerAvatars?: ManagerAvatars) {
   );
 }
 
-function formatStarterStatus(status: string | number | null | undefined): string {
-  if (status === null || status === undefined || status === '') return 'Active';
-  return String(status).replace(/_/g, ' ');
+function getPlayerStatusLabel(details?: PlayerDetails | null): string {
+  return getPlayerAvailability(details).label;
+}
+
+function getPlayerStatusClass(details?: PlayerDetails | null): string {
+  return getPlayerAvailabilityClass(details);
 }
 
 function stableTradeSeed(value: string): number {
@@ -1093,7 +1099,9 @@ function CommandPlayerTile({
       <div className="manager-command-player-tile-pills">
         <TeamLogoPill team={player.playerDetails?.team} />
         <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
-        <span className="manager-command-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
+        <span className={`manager-command-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
+          {getPlayerStatusLabel(player.playerDetails)}
+        </span>
       </div>
     </button>
   );
@@ -3973,7 +3981,9 @@ export function ManagerPositionCountsTable({
                         <div className="starter-player-meta">
                           <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
                           <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
-                          <span className="starter-player-status-pill">{formatStarterStatus(player.playerDetails?.status)}</span>
+                          <span className={`starter-player-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
+                            {getPlayerStatusLabel(player.playerDetails)}
+                          </span>
                           <strong>{player.value.toLocaleString()}</strong>
                         </div>
                       </button>
