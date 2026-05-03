@@ -140,7 +140,6 @@ export function PlayerDetailModal({
   const availabilityRows = [
     ['Avg Missed', details?.avgGamesMissed !== null && details?.avgGamesMissed !== undefined && details?.availabilitySeasons ? `${details.avgGamesMissed} / yr` : null],
     ['Sample', details?.availabilitySeasons ? `${details.availabilitySeasons} yr${details.availabilitySeasons === 1 ? '' : 's'}` : null],
-    ['News Update', formatSleeperNewsUpdated(details?.sleeperNewsUpdated)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const healthRows = [
     ['Availability', availability.label],
@@ -167,11 +166,6 @@ export function PlayerDetailModal({
     ['FantasyPros Tier', valueProfile.fantasyProsTier ? `Tier ${valueProfile.fantasyProsTier}` : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const sourceValueRows = valueProfile ? [
-    ['Dynasty Blend', valueProfile.dynastyValue],
-    ['Season Blend', valueProfile.seasonValue],
-    ['Balanced Blend', valueProfile.balancedValue],
-    ['Contender Blend', valueProfile.contenderValue],
-    ['Rebuilder Blend', valueProfile.rebuilderValue],
     ['KeepTradeCut', valueProfile.marketKtc],
     ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
     ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
@@ -570,7 +564,7 @@ export function PlayerDetailModal({
               <p className="player-complete-title">Player Data Locker</p>
               <div className="player-complete-grid">
                 <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority />
-                <CompleteDataSection title="Raw Source Values" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
+                <CompleteDataSection title="Source Inputs" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
                 <CompleteDataSection title="NFL Draft" rows={nflDraftRows} teamColors={teamColors} tileAccent={tileAccent} />
                 <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
                 {details?.availabilityHistory?.length ? (

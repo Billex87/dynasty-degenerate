@@ -120,7 +120,11 @@ export function ManagerDraftPicksModal({
                       type="button"
                       className="player-team-tile rookie-player-tile"
                       style={getTeamTileStyle(pick.playerDetails?.team)}
-                      onClick={() => setSelectedPlayer(enrichDraftPickDetails(pick, playerDetailsById))}
+                      onClick={() => setSelectedPlayer(enrichDraftPickDetails(
+                        pick,
+                        playerDetailsById,
+                        opportunity
+                      ))}
                     >
                       <div className="player-tile-main">
                         <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
@@ -193,12 +197,17 @@ function DraftOpportunityStrip({ opportunity }: { opportunity?: DraftOpportunity
   );
 }
 
-function enrichDraftPickDetails(pick: DraftPick, playerDetailsById?: Record<string, PlayerDetails>): DraftPick {
+function enrichDraftPickDetails(
+  pick: DraftPick,
+  playerDetailsById?: Record<string, PlayerDetails>,
+  opportunity?: DraftOpportunity
+): DraftPick {
   const mappedDetails = pick.player_id ? playerDetailsById?.[pick.player_id] : undefined;
-  if (!mappedDetails) return pick;
+  const withOpportunity = attachDraftOpportunity(pick, opportunity);
+  if (!mappedDetails) return withOpportunity;
 
   return {
-    ...pick,
+    ...withOpportunity,
     playerDetails: {
       ...mappedDetails,
       ...pick.playerDetails,
@@ -214,6 +223,30 @@ function enrichDraftPickDetails(pick: DraftPick, playerDetailsById?: Record<stri
       availabilitySeasons: pick.playerDetails?.availabilitySeasons ?? mappedDetails.availabilitySeasons,
       similarTradeValues: pick.playerDetails?.similarTradeValues?.length ? pick.playerDetails.similarTradeValues : mappedDetails.similarTradeValues,
     },
+  };
+}
+
+function attachDraftOpportunity(pick: DraftPick, opportunity?: DraftOpportunity): DraftPick {
+  if (!opportunity || pick.draftDecisionSummary) return pick;
+
+  if (opportunity.type === 'win') {
+    return {
+      ...pick,
+      draftDecisionVerdict: 'Board Win',
+      draftDecisionTone: 'win',
+      draftDecisionSummary: `${pick.playerName} landed as a clean board win. No later drafted player from this class beat the price enough to make this look like a miss.`,
+    };
+  }
+
+  return {
+    ...pick,
+    draftDecisionVerdict: 'Just Missed',
+    draftDecisionTone: 'watch',
+    draftDecisionSummary: `${pick.playerName} was defensible, but ${opportunity.playerName} graded better in the same draft window and was still available later.`,
+    draftDecisionAltLabel: opportunity.label,
+    draftDecisionAltPlayerName: opportunity.playerName,
+    draftDecisionAltPosition: undefined,
+    draftDecisionAltPickLabel: opportunity.pickLabel,
   };
 }
 

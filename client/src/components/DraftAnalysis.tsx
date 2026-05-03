@@ -461,16 +461,19 @@ function buildDraftDecisionAudit(
   }
 
   const needReason = primaryNeed ? getNeedReason(intel, primaryNeed) : 'No major position hole was flagged for this roster.';
-  const draftReason = boardRank <= 3
-    ? `${pick.playerName} was one of the cleanest draft-window values still on the board.`
-    : boardRank <= 8
-      ? `${pick.playerName} was still in the playable board-value pocket.`
-      : `${pick.playerName} was more of a manager preference than a pure board-value pick.`;
-  const needFitReason = needMatch
-    ? `${pickedPosition} matched the roster need.`
-    : primaryNeed
-      ? `${pickedPosition || pick.playerPos} did not directly attack the ${primaryNeed} need.`
-      : 'The pick was not forced by a glaring roster need.';
+  const summary = buildDraftDecisionSummary({
+    verdict,
+    pick,
+    primaryNeed,
+    pickedPosition,
+    needMatch,
+    boardRank,
+    bestAvailableDelta,
+    needAlternativeDelta,
+    bestAvailable,
+    bestNeedAvailable,
+    needReason,
+  });
 
   const alternative = buildDraftAlternative(pick, bestAvailable, bestNeedAvailable, needMatch, primaryNeed, bestAvailableDelta, needAlternativeDelta);
   return {
@@ -479,9 +482,73 @@ function buildDraftDecisionAudit(
     tone,
     primaryNeed,
     boardRankLabel,
-    summary: `${draftReason} ${needFitReason} ${needReason}`,
+    summary,
     alternative,
   };
+}
+
+function buildDraftDecisionSummary({
+  verdict,
+  pick,
+  primaryNeed,
+  pickedPosition,
+  needMatch,
+  boardRank,
+  bestAvailableDelta,
+  needAlternativeDelta,
+  bestAvailable,
+  bestNeedAvailable,
+  needReason,
+}: {
+  verdict: string;
+  pick: DraftPick;
+  primaryNeed: string | null;
+  pickedPosition: string;
+  needMatch: boolean;
+  boardRank: number;
+  bestAvailableDelta: number;
+  needAlternativeDelta: number;
+  bestAvailable: DraftPick | null;
+  bestNeedAvailable: DraftPick | null;
+  needReason: string;
+}) {
+  const draftedLabel = pick.positionRankMay2025 || pick.currentPositionRank || pick.playerPos;
+  const needLabel = primaryNeed ? `${primaryNeed} help` : 'pure board value';
+  const boardPocket = boardRank <= 3 ? 'top board pocket' : boardRank <= 8 ? 'strong board pocket' : 'thin value pocket';
+  const altValueGap = bestAvailableDelta > 0 ? `${bestAvailableDelta.toLocaleString()} blend points` : 'roughly even value';
+  const needGap = needAlternativeDelta > 0 ? `${needAlternativeDelta.toLocaleString()} blend points` : 'about the same cost';
+
+  if (verdict === 'Need + Value') {
+    return `${pick.playerName} checked both boxes. ${draftedLabel} filled the roster's ${needLabel} while still landing inside the ${boardPocket}. ${needReason}`;
+  }
+
+  if (verdict === 'Need Fit') {
+    return `${pick.playerName} was a roster-driven pick first. ${pickedPosition || pick.playerPos} addressed the team's clearest pressure point, and the board gap stayed manageable. ${needReason}`;
+  }
+
+  if (verdict === 'Need Reach') {
+    return `${pick.playerName} was taken for roster fit, but the price stretched. ${pickedPosition || pick.playerPos} matched the need, yet the board left ${altValueGap} on the table. ${needReason}`;
+  }
+
+  if (verdict === 'Need Miss') {
+    const missedName = bestNeedAvailable?.playerName || 'another need-fit option';
+    return `${pick.playerName} did not attack the roster's clearest need. ${missedName} would have hit the ${primaryNeed} hole for ${needGap}. ${needReason}`;
+  }
+
+  if (verdict === 'Board Pick') {
+    return `${pick.playerName} was mostly a value call. The roster did not need to force a position here, and ${draftedLabel} still sat in the ${boardPocket} when this pick came up.`;
+  }
+
+  if (verdict === 'Passed Value') {
+    const betterName = bestAvailable?.playerName || 'a stronger board value';
+    return `${pick.playerName} was more about manager preference than price. ${betterName} graded ${altValueGap} better in the same draft window, so this was a conscious pass on value.`;
+  }
+
+  if (needMatch) {
+    return `${pick.playerName} split the difference between need and value. ${pickedPosition || pick.playerPos} helped the roster, but this was not one of the board's cleanest prices.`;
+  }
+
+  return `${pick.playerName} reads like a preference pick. The roster was not forced into ${pickedPosition || pick.playerPos}, and the board did not clearly demand this player over the alternatives.`;
 }
 
 function attachDraftDecisionAudit(pick: DraftPick, audit?: DraftDecisionAudit): DraftPick {
