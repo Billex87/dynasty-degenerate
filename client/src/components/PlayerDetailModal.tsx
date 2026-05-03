@@ -75,13 +75,15 @@ export function PlayerDetailModal({
   managerAvatars,
 }: PlayerDetailModalProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
+  const [directImageFailed, setDirectImageFailed] = useState(false);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
     { playerId: pick?.player_id || '' },
-    { enabled: !!pick?.player_id && isOpen }
+    { enabled: !!pick?.player_id && isOpen && directImageFailed }
   );
 
   useEffect(() => {
     setHeadshot(null);
+    setDirectImageFailed(false);
   }, [pick?.player_id]);
 
   useEffect(() => {
@@ -92,6 +94,10 @@ export function PlayerDetailModal({
 
   if (!pick) return null;
   const details = pick.playerDetails;
+  const directHeadshot = pick.player_id && !directImageFailed
+    ? `https://sleepercdn.com/content/nfl/players/${pick.player_id}.jpg`
+    : null;
+  const playerImageSrc = headshot || directHeadshot;
   const valueProfile = details?.valueProfile;
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
   const currentValue = pick.currentKtcValue;
@@ -255,13 +261,17 @@ export function PlayerDetailModal({
             <div className="relative mt-4 flex justify-center sm:mt-7">
               <div className="flex w-full max-w-xl flex-col items-center gap-3 sm:grid sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-center sm:gap-7">
                 <div className="relative h-22 w-22 overflow-hidden rounded-2xl border border-cyan-300/35 bg-slate-950 shadow-xl shadow-black/40 sm:h-28 sm:w-28">
-                  {headshot ? (
+                  {playerImageSrc ? (
                     <img
-                      src={headshot}
+                      src={playerImageSrc}
                       alt={pick.playerName}
                       className="h-full w-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                      onError={() => {
+                        if (directHeadshot && !directImageFailed) {
+                          setDirectImageFailed(true);
+                          return;
+                        }
+                        setHeadshot(null);
                       }}
                     />
                   ) : (

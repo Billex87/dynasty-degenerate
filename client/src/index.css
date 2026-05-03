@@ -8952,3 +8952,74 @@ button.trade-manager-trade {
     font-size: clamp(0.55rem, 2.25vw, 0.68rem);
   }
 }
+
+/* 2026-05-02 audit cleanup: keep decorative art and nested card chrome inside their lanes. */
+.report-shell .command-depth-tile,
+.report-shell .owner-summary-tile {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  overflow: clip;
+  contain: paint;
+}
+
+.report-shell .command-depth-tile-wash,
+.report-shell .command-depth-tile-mark,
+.report-shell .owner-summary-wash,
+.report-shell .owner-summary-mark {
+  pointer-events: none;
+}
+
+.report-shell .command-depth-tile-wash,
+.report-shell .owner-summary-wash {
+  inset: 0 auto auto 0;
+  width: 45%;
+  transform: none;
+}
+
+.report-shell .command-depth-tile-mark,
+.report-shell .owner-summary-mark {
+  right: 0;
+  top: 0;
+  width: 38%;
+  transform: none;
+}
+
+.report-shell .manager-sacko-dunce {
+  right: 0;
+  top: 0;
+  transform: translate(26%, -30%) rotate(14deg);
+}
+
+.report-shell .trade-war-player-card,
+.report-shell .trade-war-selected-asset,
+.report-shell .trade-war-player-add,
+.report-shell .trade-war-selected-main,
+.report-shell .trade-war-player-name,
+.report-shell .trade-war-owner {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.report-shell .trade-war-player-add,
+.report-shell .trade-war-selected-main {
+  box-sizing: border-box;
+}
+
+@media (max-width: 639px) {
+  .report-shell .trade-war-player-add,
+  .report-shell .trade-war-selected-main {
+    gap: 0.35rem;
+  }
+
+  .report-shell .trade-war-player-pills {
+    gap: 0.24rem;
+  }
+
+  .report-shell .trade-war-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]) {
+    min-height: 1.18rem;
+    padding-inline: 0.34rem;
+    font-size: 0.58rem;
+  }
+}
