@@ -225,6 +225,7 @@ export interface WaiverIntelligence {
   availableTrendingAdds: TrendingPlayer[];
   highestKtcAvailable: TrendingPlayer | null;
   bestAvailableByPosition: Record<'QB' | 'RB' | 'WR' | 'TE', TrendingPlayer | null>;
+  bestTaxiStashes: TrendingPlayer[];
   recentlyDroppedValuable: TrendingPlayer[];
 }
 

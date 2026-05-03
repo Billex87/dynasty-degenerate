@@ -860,19 +860,35 @@ function buildFuturePickInventory({
 function buildWaiverIntelligence(trendingAdds: TrendingPlayer[], trendingDrops: TrendingPlayer[]): WaiverIntelligence {
   const availableAdds = trendingAdds.filter((player) => !player.owner);
   const rosteredAdds = trendingAdds.filter((player) => player.owner);
-  const highestKtcAvailable = [...availableAdds].sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null;
-  const bestAvailableByPosition = {
-    QB: [...availableAdds].filter((player) => player.pos === 'QB').sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null,
-    RB: [...availableAdds].filter((player) => player.pos === 'RB').sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null,
-    WR: [...availableAdds].filter((player) => player.pos === 'WR').sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null,
-    TE: [...availableAdds].filter((player) => player.pos === 'TE').sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))[0] || null,
+  const sortedAvailableAdds = [...availableAdds].sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0));
+  const usedPlayerIds = new Set<string>();
+
+  const takeBestUnique = (players: TrendingPlayer[]) => {
+    const next = players.find((player) => !usedPlayerIds.has(player.player_id)) || null;
+    if (next) usedPlayerIds.add(next.player_id);
+    return next;
   };
+
+  const highestKtcAvailable = takeBestUnique(sortedAvailableAdds);
+  const bestAvailableByPosition = {
+    QB: takeBestUnique(sortedAvailableAdds.filter((player) => player.pos === 'QB')),
+    RB: takeBestUnique(sortedAvailableAdds.filter((player) => player.pos === 'RB')),
+    WR: takeBestUnique(sortedAvailableAdds.filter((player) => player.pos === 'WR')),
+    TE: takeBestUnique(sortedAvailableAdds.filter((player) => player.pos === 'TE')),
+  };
+  const bestTaxiStashes = sortedAvailableAdds
+    .filter((player) => {
+      const rookieYear = Number(player.playerDetails?.rookieYear || 0);
+      return rookieYear >= new Date().getFullYear() - 1 && !usedPlayerIds.has(player.player_id);
+    })
+    .slice(0, 3);
 
   return {
     rosteredTrendingAdds: rosteredAdds,
     availableTrendingAdds: availableAdds,
     highestKtcAvailable,
     bestAvailableByPosition,
+    bestTaxiStashes,
     recentlyDroppedValuable: [...trendingDrops]
       .filter((player) => (player.ktcValue || 0) > 0)
       .sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))

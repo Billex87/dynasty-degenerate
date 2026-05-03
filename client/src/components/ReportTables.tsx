@@ -4502,6 +4502,7 @@ export function WaiverIntelligencePanel({
   const cards = [
     { label: 'Highest Available', player: data.highestKtcAvailable },
     ...Object.entries(data.bestAvailableByPosition).map(([pos, player]) => ({ label: `Best ${pos}`, player })),
+    ...data.bestTaxiStashes.map((player, index) => ({ label: `Taxi Stash ${index + 1}`, player })),
   ].filter((card) => card.player);
 
   return (
@@ -4534,6 +4535,7 @@ export function WaiverIntelligencePanel({
           <div className="waiver-intel-pills">
             <TeamLogoPill team={player?.playerDetails?.team || player?.team} />
             <PositionRankPill rank={player?.currentPositionRank || player?.pos || '-'} />
+            {label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
             <span>{formatCompactValue(player?.ktcValue)}</span>
           </div>
         </button>
