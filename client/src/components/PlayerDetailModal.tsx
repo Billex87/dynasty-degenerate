@@ -560,40 +560,47 @@ export function PlayerDetailModal({
               ))}
             </div>
 
-            <div className="player-complete-data mx-auto max-w-xl">
-              <p className="player-complete-title">Player Data Locker</p>
-              <div className="player-complete-grid">
-                <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority />
-                <CompleteDataSection title="Source Inputs" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
-                <CompleteDataSection title="NFL Draft" rows={nflDraftRows} teamColors={teamColors} tileAccent={tileAccent} />
-                <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
-                {details?.availabilityHistory?.length ? (
-                  <div className="player-complete-section player-complete-section-wide">
-                    <h4>Availability History</h4>
-                    <div className="player-availability-grid">
-                      {details.availabilityHistory.map((item) => (
-                        <div key={item.season} className="player-availability-card">
-                          <span>{item.season}</span>
-                          <strong>{item.games ?? '-'} GP</strong>
-                          <em>{item.gamesMissed ?? '-'} missed</em>
-                          {item.pointsPerGame !== null && item.pointsPerGame !== undefined && (
-                            <small>{item.pointsPerGame} PPG</small>
-                          )}
-                        </div>
-                      ))}
+            {(marketRankRows.length > 0
+              || sourceValueRows.length > 0
+              || nflDraftRows.length > 0
+              || latestNewsRows.length > 0
+              || Boolean(details?.availabilityHistory?.length)
+              || Boolean(valueProfile?.sources?.length)) && (
+              <div className="player-complete-data mx-auto max-w-xl">
+                <p className="player-complete-title">Player Data Locker</p>
+                <div className="player-complete-grid">
+                  <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority />
+                  <CompleteDataSection title="Source Inputs" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
+                  <CompleteDataSection title="NFL Draft" rows={nflDraftRows} teamColors={teamColors} tileAccent={tileAccent} />
+                  <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
+                  {details?.availabilityHistory?.length ? (
+                    <div className="player-complete-section player-complete-section-wide">
+                      <h4>Availability History</h4>
+                      <div className="player-availability-grid">
+                        {details.availabilityHistory.map((item) => (
+                          <div key={item.season} className="player-availability-card">
+                            <span>{item.season}</span>
+                            <strong>{item.games ?? '-'} GP</strong>
+                            <em>{item.gamesMissed ?? '-'} missed</em>
+                            {item.pointsPerGame !== null && item.pointsPerGame !== undefined && (
+                              <small>{item.pointsPerGame} PPG</small>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ) : null}
-                {valueProfile?.sources?.length ? (
-                  <div className="player-complete-section player-complete-section-wide player-complete-section-centered">
-                    <h4>Rank Blend Sources</h4>
-                    <p className="player-complete-copy">
-                      {valueProfile.sources.map(formatSourceLabel).join(' + ')}
-                    </p>
-                  </div>
-                ) : null}
+                  ) : null}
+                  {valueProfile?.sources?.length ? (
+                    <div className="player-complete-section player-complete-section-wide player-complete-section-centered">
+                      <h4>Rank Blend Sources</h4>
+                      <p className="player-complete-copy">
+                        {valueProfile.sources.map(formatSourceLabel).join(' + ')}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
         </div>
@@ -931,8 +938,9 @@ function buildPlayerIntelligenceNotes({
   }
 
   if (details?.latestNews?.title) {
+    const sourceLabel = details.latestNews.source ? `${details.latestNews.source} News` : 'Latest News';
     notes.push({
-      label: 'Latest Sleeper Update',
+      label: sourceLabel,
       value: details.latestNews.title,
       copy: [
         details.latestNews.publishedAt ? formatNewsDate(details.latestNews.publishedAt) : newsDate,

@@ -192,7 +192,7 @@ function DraftOpportunityStrip({ opportunity }: { opportunity?: DraftOpportunity
   return (
     <div className="player-tile-value-strip draft-opportunity-strip draft-opportunity-strip-missed" title={`${opportunity.label}: ${opportunity.playerName} at ${opportunity.pickLabel}`}>
       <span>{opportunity.label}</span>
-      <span>{opportunity.playerName} +{opportunity.delta.toLocaleString()}</span>
+      <span>{opportunity.playerName}</span>
     </div>
   );
 }

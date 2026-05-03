@@ -128,14 +128,13 @@
 .draft-opportunity-note {
   display: block;
   max-width: 100%;
-  overflow: hidden;
   margin-top: 0.18rem;
   font-size: 0.62rem;
   font-weight: 950;
   letter-spacing: 0.04em;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.18;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .draft-decision-audit-note {
@@ -347,6 +346,15 @@
   .rookie-draft-manager-cell .manager-chip > span:last-child {
     white-space: normal;
     line-height: 1.1;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  .rookie-draft-player-cell .player-chip > span:last-child {
+    white-space: normal;
+    line-height: 1.08;
+    overflow: visible;
+    text-overflow: unset;
   }
 }
 
@@ -364,9 +372,10 @@
 
 .draft-opportunity-strip > span:last-child {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .draft-opportunity-strip-win > span:last-child {
