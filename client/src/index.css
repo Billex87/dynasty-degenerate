@@ -1021,14 +1021,60 @@
     border-color: rgba(59, 130, 246, 0.2);
   }
 
-  .home-feature-purple {
-    border-color: rgba(168, 85, 247, 0.2);
-  }
+.home-feature-purple {
+  border-color: rgba(168, 85, 247, 0.2);
+}
 
-  .loading-panel {
-    width: 100%;
-    overflow: hidden;
+.clown-easter-egg-dialog {
+  overflow: hidden;
+}
+
+.clown-easter-egg-body {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.clown-easter-egg-face {
+  display: grid;
+  place-items: center;
+  width: clamp(6rem, 24vw, 8.5rem);
+  height: clamp(6rem, 24vw, 8.5rem);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(251, 191, 36, 0.18), transparent 32%),
+    radial-gradient(circle at 70% 70%, rgba(244, 63, 94, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.88));
+  font-size: clamp(3.5rem, 10vw, 5rem);
+  line-height: 1;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+  animation: clown-spin 4.8s linear infinite;
+}
+
+.clown-easter-egg-copy {
+  max-width: 24rem;
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+}
+
+@keyframes clown-spin {
+  from {
+    transform: rotate(0deg);
   }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-panel {
+  width: 100%;
+  overflow: hidden;
+}
 
   .loading-logo-wrap {
     margin-bottom: -0.75rem;
