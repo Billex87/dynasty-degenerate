@@ -8362,7 +8362,8 @@ button.owner-summary-tile:focus-visible {
     grid-template-columns: minmax(0, 1fr) auto auto;
     grid-template-areas:
       "player pick gain"
-      "manager draft current";
+      "manager manager manager"
+      "draft current current";
     gap: 0.32rem 0.42rem;
     padding: 0.5rem 0.55rem;
   }
@@ -8373,6 +8374,7 @@ button.owner-summary-tile:focus-visible {
 
   .rookie-draft-manager-cell {
     grid-area: manager;
+    min-width: 0;
   }
 
   .rookie-draft-pill {
@@ -8421,8 +8423,25 @@ button.owner-summary-tile:focus-visible {
     font-size: clamp(0.72rem, 3vw, 0.86rem);
   }
 
+  .rookie-draft-player-cell .draft-opportunity-note {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: calc(1.18em * 2);
+    line-height: 1.18;
+  }
+
+  .rookie-draft-manager-cell .manager-chip {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
   .rookie-draft-manager-cell .manager-chip > span:last-child {
-    font-size: clamp(0.58rem, 2.5vw, 0.7rem);
+    font-size: clamp(0.62rem, 2.65vw, 0.74rem);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
