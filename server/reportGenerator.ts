@@ -108,6 +108,7 @@ interface SeasonData {
   rosterMap: Record<number, string>;
   rosters: Roster[];
   draftSlotsBySeason?: Record<string, Record<number, number>>;
+  rosterPositions?: string[];
 }
 
 interface ReportOptions {
@@ -115,6 +116,18 @@ interface ReportOptions {
 }
 
 type StarterThresholds = Record<'QB' | 'RB' | 'WR' | 'TE', number>;
+type FantasyPosition = keyof StarterThresholds;
+
+const FANTASY_POSITIONS: FantasyPosition[] = ['QB', 'RB', 'WR', 'TE'];
+const BENCH_ROSTER_SLOTS = new Set(['BN', 'BE', 'BENCH', 'IR', 'TAXI', 'RESERVE']);
+const DEFAULT_STARTER_SLOTS = ['QB', 'SUPER_FLEX', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'FLEX'];
+const FLEX_ELIGIBILITY: Record<string, FantasyPosition[]> = {
+  FLEX: ['RB', 'WR', 'TE'],
+  SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'],
+  WRRB_FLEX: ['RB', 'WR'],
+  WRRBTE_FLEX: ['RB', 'WR', 'TE'],
+  REC_FLEX: ['RB', 'WR', 'TE'],
+};
 
 function getStarterThresholds(teamCount: number): StarterThresholds {
   return {
@@ -123,6 +136,50 @@ function getStarterThresholds(teamCount: number): StarterThresholds {
     WR: Math.max(1, Math.round(teamCount * 4)),
     TE: Math.max(1, Math.round(teamCount * 1.5)),
   };
+}
+
+function normalizePlayerIds(ids: Array<string | number | null | undefined> | undefined): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const id of ids || []) {
+    if (id === null || id === undefined) continue;
+    const key = String(id);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(key);
+  }
+
+  return normalized;
+}
+
+function getTaxiPlayerIds(roster: Pick<Roster, 'taxi'> | undefined): string[] {
+  return normalizePlayerIds(roster?.taxi);
+}
+
+function getReservePlayerIds(roster: Pick<Roster, 'reserve'> | undefined): string[] {
+  return normalizePlayerIds(roster?.reserve);
+}
+
+function getInactivePlayerIdSet(roster: Pick<Roster, 'taxi' | 'reserve'> | undefined): Set<string> {
+  return new Set([...getTaxiPlayerIds(roster), ...getReservePlayerIds(roster)]);
+}
+
+function getActivePlayerIds(roster: Pick<Roster, 'players' | 'taxi' | 'reserve'>): string[] {
+  const inactiveIds = getInactivePlayerIdSet(roster);
+  return normalizePlayerIds(roster.players).filter((pid) => !inactiveIds.has(pid));
+}
+
+function normalizeRosterSlot(slot: string): string {
+  return String(slot || '').toUpperCase();
+}
+
+function getStarterRosterSlots(rosterPositions?: string[]): string[] {
+  const slots = (rosterPositions || [])
+    .map(normalizeRosterSlot)
+    .filter((slot) => slot && !BENCH_ROSTER_SLOTS.has(slot));
+
+  return slots.length ? slots : DEFAULT_STARTER_SLOTS;
 }
 
 function ordinalRound(round: number): string {
@@ -206,8 +263,8 @@ function getDisplayStatus(player: Player[string] | undefined, rosterStatus?: str
 }
 
 function getRosterPlayerStatus(roster: Roster | undefined, playerId: string): string | null {
-  if (roster?.reserve?.includes(playerId)) return 'IR';
-  if (roster?.taxi?.includes(playerId)) return 'Taxi';
+  if (getReservePlayerIds(roster).includes(playerId)) return 'IR';
+  if (getTaxiPlayerIds(roster).includes(playerId)) return 'Taxi';
   return null;
 }
 
@@ -321,6 +378,63 @@ function getRankNumber(positionRank: string | null | undefined): number | null {
   return Number.isFinite(rankNumber) ? rankNumber : null;
 }
 
+function isFantasyPosition(position: string): position is FantasyPosition {
+  return FANTASY_POSITIONS.includes(position as FantasyPosition);
+}
+
+function getLineupRank(player: Pick<ManagerIntelPlayer, 'seasonPositionRank' | 'currentPositionRank'>): number {
+  return getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999;
+}
+
+function compareLineupPlayers<T extends Pick<ManagerIntelPlayer, 'seasonValue' | 'value' | 'seasonPositionRank' | 'currentPositionRank'>>(
+  a: T,
+  b: T
+): number {
+  const rankDelta = getLineupRank(a) - getLineupRank(b);
+  if (rankDelta !== 0) return rankDelta;
+  return (b.seasonValue || b.value) - (a.seasonValue || a.value);
+}
+
+function selectProjectedLineup<T extends ManagerIntelPlayer>(players: T[], rosterPositions?: string[]): T[] {
+  const slots = getStarterRosterSlots(rosterPositions);
+  const remaining = players
+    .filter((player) => isFantasyPosition(player.pos))
+    .sort(compareLineupPlayers);
+  const selected: T[] = [];
+
+  const takeBest = (eligiblePositions: FantasyPosition[]): void => {
+    const index = remaining.findIndex((player) => eligiblePositions.includes(player.pos as FantasyPosition));
+    if (index < 0) return;
+    const [player] = remaining.splice(index, 1);
+    selected.push(player);
+  };
+
+  for (const position of FANTASY_POSITIONS) {
+    const fixedSlotCount = slots.filter((slot) => slot === position).length;
+    for (let i = 0; i < fixedSlotCount; i += 1) {
+      takeBest([position]);
+    }
+  }
+
+  for (const slot of slots) {
+    const eligiblePositions = FLEX_ELIGIBILITY[slot];
+    if (eligiblePositions) {
+      takeBest(eligiblePositions);
+    }
+  }
+
+  return selected;
+}
+
+function playerWouldMakeProjectedLineup<T extends ManagerIntelPlayer>(
+  player: T,
+  activePlayers: T[],
+  rosterPositions?: string[]
+): boolean {
+  return selectProjectedLineup([...activePlayers, player], rosterPositions)
+    .some((lineupPlayer) => lineupPlayer.player_id === player.player_id);
+}
+
 function average(values: Array<number | null | undefined>): number | null {
   const filtered = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
   if (filtered.length === 0) return null;
@@ -427,28 +541,26 @@ function getTaxiTriageAction({
   player,
   starterThresholds,
   needPosition,
-  weakestStarter,
+  wouldStart,
 }: {
   player: ManagerIntelPlayer;
   starterThresholds: StarterThresholds;
   needPosition: 'QB' | 'RB' | 'WR' | 'TE' | null;
-  weakestStarter: ManagerIntelPlayer | null;
+  wouldStart: boolean;
 }): { action: TaxiTriageAction; reason: string; score: number } {
   const position = player.pos as keyof StarterThresholds;
   const starterLine = starterThresholds[position] || 0;
   const rankNumber = getRankNumber(player.seasonPositionRank || player.currentPositionRank);
   const age = player.playerDetails?.age ?? null;
   const seasonValue = player.seasonValue || player.value;
-  const weakestStarterValue = weakestStarter ? (weakestStarter.seasonValue || weakestStarter.value) : 0;
-  const isStarterGrade = position in starterThresholds && rankNumber !== null && rankNumber <= starterLine;
   const fillsNeed = needPosition === player.pos;
   const depthLine = Math.round(starterLine * 1.75);
 
-  if (isStarterGrade || (fillsNeed && rankNumber !== null && rankNumber <= depthLine && seasonValue >= Math.max(900, weakestStarterValue * 0.72))) {
+  if (wouldStart) {
     return {
       action: 'Promote Now',
-      reason: `${getRankLabel(player)} is close enough to starter-grade value that this player should be competing for an active bench spot, especially with ${player.pos} need on the roster.`,
-      score: 5000 + seasonValue,
+      reason: `${getRankLabel(player)} would crack the projected starting lineup${fillsNeed ? ` and directly answers the ${player.pos} need` : ''}. This is a real activation, not just bench depth.`,
+      score: 6500 + seasonValue,
     };
   }
 
@@ -1337,8 +1449,7 @@ export async function generateReport(
 
   for (const r of currentSeasonData.rosters) {
     const name = currentSeasonData.rosterMap[r.roster_id];
-    const inactiveIds = new Set([...(r.taxi || []), ...(r.reserve || [])]);
-    const pids = (r.players || []).filter((pid) => !inactiveIds.has(pid));
+    const pids = getActivePlayerIds(r);
     const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
 
     for (const pid of pids) {
@@ -1432,7 +1543,7 @@ export async function generateReport(
 
   for (const r of currentSeasonData.rosters) {
     const name = currentSeasonData.rosterMap[r.roster_id];
-    const pids = r.players || [];
+    const pids = getActivePlayerIds(r);
     const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
     const posStarterCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
     const lineupPlayers: Array<{
@@ -1512,7 +1623,7 @@ export async function generateReport(
   const seasonRosterValues: Record<string, number> = Object.fromEntries(
     currentSeasonData.rosters.map((roster) => {
       const manager = currentSeasonData.rosterMap[roster.roster_id];
-      const value = (roster.players || []).reduce((sum, pid) => {
+      const value = getActivePlayerIds(roster).reduce((sum, pid) => {
         return sum + (getPlayerRedraftValue(pid, allPlayers, ktcValues) || getPrimaryValue(pid));
       }, 0);
       return [manager, value];
@@ -1537,7 +1648,7 @@ export async function generateReport(
           player_id: pid,
           name: getPlayerName(pid, allPlayers),
           pos,
-          owner: manager,
+          owner,
           value,
           seasonValue,
           currentPositionRank,
@@ -1552,23 +1663,21 @@ export async function generateReport(
           isStarter: isStarterRank(pos, seasonPositionRank, starterThresholds),
         };
       };
-    const taxiIds = new Set(r.taxi || []);
-    const reserveIds = new Set(r.reserve || []);
-    const activePlayerIds = (r.players || []).filter((pid) => !taxiIds.has(pid) && !reserveIds.has(pid));
+    const activePlayerIds = getActivePlayerIds(r);
     const rosterPlayers = activePlayerIds
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
-    const taxiPlayers = (r.taxi || [])
+    const taxiPlayers = getTaxiPlayerIds(r)
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
-    const reservePlayers = (r.reserve || [])
+    const reservePlayers = getReservePlayerIds(r)
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
     const externalPlayers = currentSeasonData.rosters
       .filter((otherRoster) => otherRoster.roster_id !== r.roster_id)
       .flatMap((otherRoster) => {
         const owner = currentSeasonData.rosterMap[otherRoster.roster_id];
-        return Array.from(new Set([...(otherRoster.players || []), ...(otherRoster.taxi || []), ...(otherRoster.reserve || [])]))
+        return normalizePlayerIds([...(otherRoster.players || []), ...(otherRoster.taxi || []), ...(otherRoster.reserve || [])])
           .map((pid) => buildIntelPlayer(pid, owner, otherRoster));
       })
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
@@ -1705,11 +1814,12 @@ export async function generateReport(
     const surplusPosition = getSurplusPosition(rosterPlayers, primaryNeed);
     const taxiTriageItems: TaxiTriageItem[] = taxiPlayers
       .map((player) => {
+        const wouldStart = playerWouldMakeProjectedLineup(player, rosterPlayers, currentSeasonData.rosterPositions);
         const triage = getTaxiTriageAction({
           player,
           starterThresholds,
           needPosition: primaryNeed,
-          weakestStarter,
+          wouldStart,
         });
         return {
           ...player,

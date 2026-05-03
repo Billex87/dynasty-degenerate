@@ -1137,6 +1137,9 @@ export const appRouter = router({
 
           if (prevLeagueId) {
             try {
+              const pastLeagueInfo = await fetch(
+                `https://api.sleeper.app/v1/league/${prevLeagueId}`
+              ).then((r) => r.json());
               const pastUsers = await fetch(
                 `https://api.sleeper.app/v1/league/${prevLeagueId}/users`
               ).then((r) => r.json());
@@ -1179,6 +1182,7 @@ export const appRouter = router({
                 rosterMap: pastRosterUserMap,
                 rosters: pastRosters,
                 draftSlotsBySeason,
+                rosterPositions: Array.isArray(pastLeagueInfo.roster_positions) ? pastLeagueInfo.roster_positions : [],
               };
             } catch (e) {
               console.warn('Failed to fetch past season data:', e);
@@ -1196,6 +1200,7 @@ export const appRouter = router({
             rosterMap: rosterUserMap,
             rosters,
             draftSlotsBySeason,
+            rosterPositions: Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [],
           };
           const lastCompletedSeason = String(Number(currentSeasonData.label) - 1);
           let lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {};

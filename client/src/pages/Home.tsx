@@ -17,7 +17,6 @@ import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { SupportButton } from '@/components/SupportButton';
 import {
-  ManagerRosterValueGrowthTable,
   WeeklyMomentumTable,
   ProjectedMoversTable,
   TradeWarRoom,
@@ -26,7 +25,6 @@ import {
   PositionAnalysisTable,
   OwnerIntelMatrix,
   LeagueCommandCenter,
-  PowerRankingsTable,
   TradeMarketRadar,
   TradeTheftDetector,
   TrendingPlayersTable,
@@ -429,15 +427,6 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="Power Rankings" kicker="Composite edge">
-                  <PowerRankingsTable
-                    data={reportData.powerRankings}
-                    managerAvatars={reportData.managerAvatars}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="Manager Roster Value Growth" kicker="Season movement">
-                  <ManagerRosterValueGrowthTable data={reportData.managerRosterValueGrowth} managerAvatars={reportData.managerAvatars} />
                 </CollapsibleReportSection>
                 {reportData.positionDepth.length > 0 && (
                   <CollapsibleReportSection title="Position Depth Analysis" kicker="Shortage and excess">

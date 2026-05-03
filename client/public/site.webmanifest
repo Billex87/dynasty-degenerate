@@ -1,0 +1,19 @@
+{
+  "name": "Dynasty Degens",
+  "short_name": "Dynasty Degens",
+  "description": "Dynasty fantasy football command center for Sleeper leagues.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/assets/dynasty-favicon.png",
+      "sizes": "330x330",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "productivity", "utilities"]
+}
