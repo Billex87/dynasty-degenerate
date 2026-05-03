@@ -857,10 +857,36 @@ function buildFuturePickInventory({
     .filter((pick): pick is { manager: string; originalOwner: string; season: string; round: number; value: number } => Boolean(pick));
 }
 
-function buildWaiverIntelligence(trendingAdds: TrendingPlayer[], trendingDrops: TrendingPlayer[]): WaiverIntelligence {
+function buildWaiverIntelligence(
+  trendingAdds: TrendingPlayer[],
+  trendingDrops: TrendingPlayer[],
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  ownerByPlayerId: Record<string, string>,
+  rosterStatusByPlayerId: Record<string, string> = {}
+): WaiverIntelligence {
   const availableAdds = trendingAdds.filter((player) => !player.owner);
   const rosteredAdds = trendingAdds.filter((player) => player.owner);
   const sortedAvailableAdds = [...availableAdds].sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0));
+  const availablePlayerPool = Object.entries(players)
+    .filter(([playerId, player]) => {
+      if (!playerId || ownerByPlayerId[playerId]) return false;
+      if (!['QB', 'RB', 'WR', 'TE'].includes(player?.position)) return false;
+      const value = getPlayerValue(playerId, players, ktcValues);
+      return value > 0;
+    })
+    .map(([playerId, player]) => ({
+      player_id: playerId,
+      name: getPlayerName(playerId, players),
+      playerDetails: getPlayerDetails(playerId, player, rosterStatusByPlayerId[playerId]),
+      currentPositionRank: getPlayerCurrentPositionRank(playerId, players, ktcValues),
+      pos: player?.position || 'N/A',
+      team: player?.team || null,
+      owner: null,
+      count: 0,
+      ktcValue: getPlayerValue(playerId, players, ktcValues) || null,
+    }))
+    .sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0));
   const usedPlayerIds = new Set<string>();
 
   const takeBestUnique = (players: TrendingPlayer[]) => {
@@ -869,14 +895,14 @@ function buildWaiverIntelligence(trendingAdds: TrendingPlayer[], trendingDrops: 
     return next;
   };
 
-  const highestKtcAvailable = takeBestUnique(sortedAvailableAdds);
+  const highestKtcAvailable = takeBestUnique(availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds);
   const bestAvailableByPosition = {
-    QB: takeBestUnique(sortedAvailableAdds.filter((player) => player.pos === 'QB')),
-    RB: takeBestUnique(sortedAvailableAdds.filter((player) => player.pos === 'RB')),
-    WR: takeBestUnique(sortedAvailableAdds.filter((player) => player.pos === 'WR')),
-    TE: takeBestUnique(sortedAvailableAdds.filter((player) => player.pos === 'TE')),
+    QB: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'QB')),
+    RB: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'RB')),
+    WR: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'WR')),
+    TE: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'TE')),
   };
-  const bestTaxiStashes = sortedAvailableAdds
+  const bestTaxiStashes = (availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds)
     .filter((player) => {
       const rookieYear = Number(player.playerDetails?.rookieYear || 0);
       return rookieYear >= new Date().getFullYear() - 1 && !usedPlayerIds.has(player.player_id);
@@ -1341,7 +1367,14 @@ export const appRouter = router({
             })
             .sort((a, b) => b.score - a.score)
             .map((ranking, index) => ({ ...ranking, rank: index + 1 }));
-          const waiverIntelligence = buildWaiverIntelligence(trendingAdds, trendingDrops);
+          const waiverIntelligence = buildWaiverIntelligence(
+            trendingAdds,
+            trendingDrops,
+            players,
+            ktcValues,
+            ownerByPlayerId,
+            rosterStatusByPlayerId
+          );
           const managerChampionships = await buildManagerChampionships(leagueInfo, users);
 
           const reportPlayerIds = [
