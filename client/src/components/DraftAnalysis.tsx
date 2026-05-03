@@ -436,6 +436,11 @@ function buildDraftDecisionAudit(
     if (getDraftPickKey(candidate) === getDraftPickKey(pick)) return false;
     return needPositions.includes(normalizePosition(candidate.playerPos));
   }) || null;
+  const hasTrueNeedAlternative = Boolean(
+    primaryNeed
+      && bestNeedAvailable
+      && normalizePosition(bestNeedAvailable.playerPos) === normalizePosition(primaryNeed)
+  );
   const needMatch = Boolean(pickedPosition && needPositions.includes(pickedPosition));
   const bestAvailableDelta = bestAvailable ? getDraftWindowValue(bestAvailable) - pickedValue : 0;
   const needAlternativeDelta = bestNeedAvailable ? getDraftWindowValue(bestNeedAvailable) - pickedValue : 0;
@@ -449,7 +454,7 @@ function buildDraftDecisionAudit(
   } else if (needMatch) {
     verdict = bestAvailableDelta > 750 ? 'Need Reach' : 'Need Fit';
     tone = bestAvailableDelta > 750 ? 'watch' : 'need';
-  } else if (primaryNeed && bestNeedAvailable && needAlternativeDelta >= -450) {
+  } else if (primaryNeed && hasTrueNeedAlternative && needAlternativeDelta >= -450) {
     verdict = 'Need Miss';
     tone = 'watch';
   } else if (boardRank <= 3 || bestAvailableDelta <= 250) {
@@ -472,10 +477,20 @@ function buildDraftDecisionAudit(
     needAlternativeDelta,
     bestAvailable,
     bestNeedAvailable,
+    hasTrueNeedAlternative,
     needReason,
   });
 
-  const alternative = buildDraftAlternative(pick, bestAvailable, bestNeedAvailable, needMatch, primaryNeed, bestAvailableDelta, needAlternativeDelta);
+  const alternative = buildDraftAlternative(
+    pick,
+    bestAvailable,
+    bestNeedAvailable,
+    needMatch,
+    primaryNeed,
+    bestAvailableDelta,
+    needAlternativeDelta,
+    hasTrueNeedAlternative
+  );
   return {
     pick,
     verdict,
@@ -498,6 +513,7 @@ function buildDraftDecisionSummary({
   needAlternativeDelta,
   bestAvailable,
   bestNeedAvailable,
+  hasTrueNeedAlternative,
   needReason,
 }: {
   verdict: string;
@@ -510,6 +526,7 @@ function buildDraftDecisionSummary({
   needAlternativeDelta: number;
   bestAvailable: DraftPick | null;
   bestNeedAvailable: DraftPick | null;
+  hasTrueNeedAlternative: boolean;
   needReason: string;
 }) {
   const draftedLabel = pick.positionRankMay2025 || pick.currentPositionRank || pick.playerPos;
@@ -536,11 +553,17 @@ function buildDraftDecisionSummary({
   }
 
   if (verdict === 'Board Pick') {
+    if (primaryNeed && !needMatch) {
+      return `${pick.playerName} was mostly a value call. ${draftedLabel} still sat in the ${boardPocket}, but the roster still came away without solving the ${primaryNeed} hole. ${needReason}`;
+    }
     return `${pick.playerName} was mostly a value call. The roster did not need to force a position here, and ${draftedLabel} still sat in the ${boardPocket} when this pick came up.`;
   }
 
   if (verdict === 'Passed Value') {
     const betterName = bestAvailable?.playerName || 'a stronger board value';
+    if (primaryNeed && !needMatch && !hasTrueNeedAlternative) {
+      return `${pick.playerName} did not solve the ${primaryNeed} need, and it also passed on better board value. ${betterName} graded ${altValueGap} better in the same draft window. ${needReason}`;
+    }
     return `${pick.playerName} was more about manager preference than price. ${betterName} graded ${altValueGap} better in the same draft window, so this was a conscious pass on value.`;
   }
 
@@ -575,9 +598,10 @@ function buildDraftAlternative(
   needMatch: boolean,
   primaryNeed: string | null,
   bestAvailableDelta: number,
-  needAlternativeDelta: number
+  needAlternativeDelta: number,
+  hasTrueNeedAlternative: boolean
 ): DraftDecisionAudit['alternative'] {
-  const selectedAlternative = !needMatch && bestNeedAvailable && needAlternativeDelta >= -450
+  const selectedAlternative = !needMatch && hasTrueNeedAlternative && bestNeedAvailable && needAlternativeDelta >= -450
     ? bestNeedAvailable
     : bestAvailableDelta > 550
       ? bestAvailable
@@ -590,9 +614,11 @@ function buildDraftAlternative(
     };
   }
 
-  const label = selectedAlternative === bestNeedAvailable && primaryNeed
+  const label = selectedAlternative === bestNeedAvailable && primaryNeed && hasTrueNeedAlternative
     ? `Cleaner ${primaryNeed} target:`
-    : 'Best board alternative:';
+    : primaryNeed && !needMatch
+      ? `Missed value while ${primaryNeed} stayed open:`
+      : 'Best board alternative:';
 
   return {
     label,
