@@ -573,6 +573,7 @@ export default function Home() {
               <DraftAnalysis
                 draftPicks={reportData.draftPicks || []}
                 draftStats={reportData.draftStats || []}
+                managerRosterIntelligence={reportData.managerRosterIntelligence}
                 managerAvatars={reportData.managerAvatars}
                 playerDetailsById={reportData.playerDetailsById}
                 leagueId={leagueId}

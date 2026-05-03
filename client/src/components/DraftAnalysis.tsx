@@ -1,17 +1,19 @@
 import { useState, useMemo, type ReactNode } from 'react';
-import type { DraftPick, ManagerDraftStats, PlayerDetails } from '@shared/types';
+import type { DraftPick, ManagerDraftStats, ManagerRosterIntelligence, PlayerDetails } from '@shared/types';
 import { TrendingUp, TrendingDown, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
-import { PlayerDetailModal } from './PlayerDetailModal';
+import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
+import { getPositionRankPillClass } from '@/lib/positionRank';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
   draftStats: ManagerDraftStats[];
+  managerRosterIntelligence?: ManagerRosterIntelligence[];
   managerAvatars?: Record<string, string | null>;
   playerDetailsById?: Record<string, PlayerDetails>;
   leagueId?: string;
@@ -21,9 +23,17 @@ interface DraftAnalysisProps {
 type SortColumn = 'currentValue' | 'valueChange' | null;
 type SortDirection = 'asc' | 'desc';
 
-export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDetailsById, leagueId, leagueLogo }: DraftAnalysisProps) {
+export function DraftAnalysis({
+  draftPicks,
+  draftStats,
+  managerRosterIntelligence,
+  managerAvatars,
+  playerDetailsById,
+  leagueId,
+  leagueLogo,
+}: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
-  const [selectedPlayer, setSelectedPlayer] = useState<DraftPick | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [closedDraftYears, setClosedDraftYears] = useState<Set<string>>(new Set());
@@ -78,6 +88,16 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
   }, [sortedDraftPicks]);
   const draftOpportunityByPick = useMemo(() => buildDraftOpportunityMap(draftPicks), [draftPicks]);
   const draftYears = Object.keys(draftPicksByYear).sort((a, b) => Number(b) - Number(a));
+  const draftDecisionAudits = useMemo(() => {
+    return buildDraftDecisionAudits(sortedDraftPicks, managerRosterIntelligence || []);
+  }, [sortedDraftPicks, managerRosterIntelligence]);
+  const draftDecisionAuditByPick = useMemo(() => {
+    const map = new Map<string, DraftDecisionAudit>();
+    draftDecisionAudits.forEach((audit) => {
+      map.set(getDraftPickKey(audit.pick), audit);
+    });
+    return map;
+  }, [draftDecisionAudits]);
   const toggleDraftYear = (year: string) => {
     setClosedDraftYears((current) => {
       const next = new Set(current);
@@ -91,7 +111,11 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
   };
 
   const openDraftPlayer = (pick: DraftPick) => {
-    setSelectedPlayer(enrichDraftPickDetails(pick, playerDetailsById));
+    setSelectedPlayer(enrichDraftPickDetails(
+      pick,
+      playerDetailsById,
+      draftDecisionAuditByPick.get(getDraftPickKey(pick))
+    ));
   };
 
   if (!draftPicks || draftPicks.length === 0) {
@@ -153,6 +177,68 @@ export function DraftAnalysis({ draftPicks, draftStats, managerAvatars, playerDe
           </div>
         </div>
       </DraftCollapsibleSection>
+
+      {draftDecisionAudits.length > 0 && (
+        <DraftCollapsibleSection title="Draft Decision Audit" kicker="Need vs board value">
+          <div className="draft-decision-audit-note">
+            Uses each manager&apos;s roster pressure points, the draft-window blend, and who was still available later in that rookie draft.
+          </div>
+          <div className="draft-decision-grid">
+            {draftDecisionAudits.map((audit) => {
+              const details = audit.pick.playerDetails || (audit.pick.player_id ? playerDetailsById?.[audit.pick.player_id] : undefined);
+              return (
+                <button
+                  key={getDraftPickKey(audit.pick)}
+                  type="button"
+                  className={`player-team-tile draft-decision-card draft-decision-card-${audit.tone}`}
+                  style={getTeamTileStyle(details?.team)}
+                  onClick={() => openDraftPlayer(audit.pick)}
+                >
+                  <span className="draft-decision-topline">
+                    <span className={`draft-decision-verdict draft-decision-verdict-${audit.tone}`}>
+                      {audit.verdict}
+                    </span>
+                    <span className="draft-decision-pick">{audit.pick.draftYear} #{audit.pick.pick}</span>
+                  </span>
+                  <span className="draft-decision-main">
+                    <PlayerNameWithHeadshot playerId={audit.pick.player_id} playerName={audit.pick.playerName} />
+                    <span className="draft-decision-manager-line">
+                      {managerAvatars?.[audit.pick.manager] ? (
+                        <img
+                          src={managerAvatars[audit.pick.manager] || ''}
+                          alt=""
+                          className="draft-decision-manager-avatar"
+                        />
+                      ) : (
+                        <span className="draft-decision-manager-fallback" aria-hidden="true">
+                          {audit.pick.manager.trim()[0]?.toUpperCase() || '?'}
+                        </span>
+                      )}
+                      <span className="draft-decision-manager-name">{audit.pick.manager}</span>
+                    </span>
+                  </span>
+                  <span className="draft-decision-pills">
+                    <span className={getPositionRankPillClass(audit.pick.positionRankMay2025 || audit.pick.currentPositionRank || audit.pick.playerPos)}>
+                      {audit.pick.positionRankMay2025 || audit.pick.currentPositionRank || audit.pick.playerPos}
+                    </span>
+                    <span>{audit.primaryNeed ? `Need: ${audit.primaryNeed}` : 'No Clear Need'}</span>
+                    <span>{audit.boardRankLabel}</span>
+                  </span>
+                  <span className="draft-decision-copy">{audit.summary}</span>
+                  {audit.alternative && (
+                    <span className="draft-decision-alt">
+                      <strong>{audit.alternative.label}</strong>
+                      <span>{audit.alternative.playerName}</span>
+                      {audit.alternative.position && <em>{audit.alternative.position}</em>}
+                      {audit.alternative.pickLabel && <small>{audit.alternative.pickLabel}</small>}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </DraftCollapsibleSection>
+      )}
 
       {/* Full Draft Board */}
       <section className="report-section">
@@ -293,12 +379,240 @@ function DraftOpportunityNote({ opportunity }: { opportunity?: DraftOpportunity 
   );
 }
 
-function enrichDraftPickDetails(pick: DraftPick, playerDetailsById?: Record<string, PlayerDetails>): DraftPick {
-  const mappedDetails = pick.player_id ? playerDetailsById?.[pick.player_id] : undefined;
-  if (!mappedDetails) return pick;
+type DraftDecisionTone = 'value' | 'need' | 'watch' | 'win';
+
+interface DraftDecisionAudit {
+  pick: DraftPick;
+  verdict: string;
+  tone: DraftDecisionTone;
+  primaryNeed: string | null;
+  boardRankLabel: string;
+  summary: string;
+  alternative: {
+    label: string;
+    playerName: string;
+    position?: string | null;
+    pickLabel?: string;
+  } | null;
+}
+
+function buildDraftDecisionAudits(
+  draftPicks: DraftPick[],
+  managerRosterIntelligence: ManagerRosterIntelligence[]
+): DraftDecisionAudit[] {
+  const intelByManager = new Map(managerRosterIntelligence.map((row) => [row.manager, row]));
+  const byYear = draftPicks
+    .filter((pick) => pick.player_id && pick.playerName && pick.playerName !== 'Unknown')
+    .reduce<Record<string, DraftPick[]>>((groups, pick) => {
+      const year = pick.draftYear || 'Draft';
+      groups[year] = groups[year] || [];
+      groups[year].push(pick);
+      return groups;
+    }, {});
+
+  return Object.entries(byYear)
+    .sort(([a], [b]) => Number(b) - Number(a))
+    .flatMap(([, yearPicks]) => {
+      const orderedPicks = [...yearPicks].sort((a, b) => a.pick - b.pick);
+      return orderedPicks.map((pick) => buildDraftDecisionAudit(pick, orderedPicks, intelByManager.get(pick.manager) || null));
+    });
+}
+
+function buildDraftDecisionAudit(
+  pick: DraftPick,
+  yearPicks: DraftPick[],
+  intel: ManagerRosterIntelligence | null
+): DraftDecisionAudit {
+  const needPositions = getDraftNeedPositions(intel);
+  const primaryNeed = needPositions[0] || null;
+  const pickedPosition = normalizePosition(pick.playerPos);
+  const pickedValue = getDraftWindowValue(pick);
+  const availableAtPick = yearPicks
+    .filter((candidate) => candidate.pick >= pick.pick && getDraftWindowValue(candidate) > 0)
+    .sort((a, b) => getDraftWindowValue(b) - getDraftWindowValue(a));
+  const boardRank = Math.max(1, availableAtPick.findIndex((candidate) => getDraftPickKey(candidate) === getDraftPickKey(pick)) + 1);
+  const bestAvailable = availableAtPick.find((candidate) => getDraftPickKey(candidate) !== getDraftPickKey(pick)) || null;
+  const bestNeedAvailable = availableAtPick.find((candidate) => {
+    if (getDraftPickKey(candidate) === getDraftPickKey(pick)) return false;
+    return needPositions.includes(normalizePosition(candidate.playerPos));
+  }) || null;
+  const needMatch = Boolean(pickedPosition && needPositions.includes(pickedPosition));
+  const bestAvailableDelta = bestAvailable ? getDraftWindowValue(bestAvailable) - pickedValue : 0;
+  const needAlternativeDelta = bestNeedAvailable ? getDraftWindowValue(bestNeedAvailable) - pickedValue : 0;
+  const boardRankLabel = boardRank <= 12 ? `Board #${boardRank}` : 'Board Reach';
+
+  let verdict = 'Preference Pick';
+  let tone: DraftDecisionTone = 'watch';
+  if (needMatch && boardRank <= 5) {
+    verdict = 'Need + Value';
+    tone = 'win';
+  } else if (needMatch) {
+    verdict = bestAvailableDelta > 750 ? 'Need Reach' : 'Need Fit';
+    tone = bestAvailableDelta > 750 ? 'watch' : 'need';
+  } else if (primaryNeed && bestNeedAvailable && needAlternativeDelta >= -450) {
+    verdict = 'Need Miss';
+    tone = 'watch';
+  } else if (boardRank <= 3 || bestAvailableDelta <= 250) {
+    verdict = 'Board Pick';
+    tone = 'value';
+  } else if (bestAvailableDelta > 850) {
+    verdict = 'Passed Value';
+    tone = 'watch';
+  }
+
+  const needReason = primaryNeed ? getNeedReason(intel, primaryNeed) : 'No major position hole was flagged for this roster.';
+  const draftReason = boardRank <= 3
+    ? `${pick.playerName} was one of the cleanest draft-window values still on the board.`
+    : boardRank <= 8
+      ? `${pick.playerName} was still in the playable board-value pocket.`
+      : `${pick.playerName} was more of a manager preference than a pure board-value pick.`;
+  const needFitReason = needMatch
+    ? `${pickedPosition} matched the roster need.`
+    : primaryNeed
+      ? `${pickedPosition || pick.playerPos} did not directly attack the ${primaryNeed} need.`
+      : 'The pick was not forced by a glaring roster need.';
+
+  const alternative = buildDraftAlternative(pick, bestAvailable, bestNeedAvailable, needMatch, primaryNeed, bestAvailableDelta, needAlternativeDelta);
+  return {
+    pick,
+    verdict,
+    tone,
+    primaryNeed,
+    boardRankLabel,
+    summary: `${draftReason} ${needFitReason} ${needReason}`,
+    alternative,
+  };
+}
+
+function attachDraftDecisionAudit(pick: DraftPick, audit?: DraftDecisionAudit): DraftPick {
+  if (!audit) return pick;
 
   return {
     ...pick,
+    draftDecisionVerdict: audit.verdict,
+    draftDecisionTone: audit.tone,
+    draftDecisionPrimaryNeed: audit.primaryNeed,
+    draftDecisionBoardRankLabel: audit.boardRankLabel,
+    draftDecisionSummary: audit.summary,
+    draftDecisionAltLabel: audit.alternative?.label || null,
+    draftDecisionAltPlayerName: audit.alternative?.playerName || null,
+    draftDecisionAltPosition: audit.alternative?.position || null,
+    draftDecisionAltPickLabel: audit.alternative?.pickLabel || null,
+  };
+}
+
+function buildDraftAlternative(
+  pick: DraftPick,
+  bestAvailable: DraftPick | null,
+  bestNeedAvailable: DraftPick | null,
+  needMatch: boolean,
+  primaryNeed: string | null,
+  bestAvailableDelta: number,
+  needAlternativeDelta: number
+): DraftDecisionAudit['alternative'] {
+  const selectedAlternative = !needMatch && bestNeedAvailable && needAlternativeDelta >= -450
+    ? bestNeedAvailable
+    : bestAvailableDelta > 550
+      ? bestAvailable
+      : null;
+
+  if (!selectedAlternative) {
+    return {
+      label: 'Read:',
+      playerName: needMatch ? 'Need and board were aligned enough.' : 'No obvious better fit from the drafted players still available.',
+    };
+  }
+
+  const label = selectedAlternative === bestNeedAvailable && primaryNeed
+    ? `Cleaner ${primaryNeed} target:`
+    : 'Best board alternative:';
+
+  return {
+    label,
+    playerName: selectedAlternative.playerName,
+    position: selectedAlternative.positionRankMay2025 || selectedAlternative.currentPositionRank || selectedAlternative.playerPos,
+    pickLabel: `${selectedAlternative.draftYear || pick.draftYear || ''} #${selectedAlternative.pick}`.trim(),
+  };
+}
+
+function getDraftNeedPositions(intel: ManagerRosterIntelligence | null): string[] {
+  if (!intel) return [];
+
+  const needs: string[] = [];
+  if (intel.tradePlan?.needPosition) needs.push(intel.tradePlan.needPosition);
+
+  const summary = (intel.holes.summary || '').toUpperCase();
+  (['QB', 'RB', 'WR', 'TE'] as const).forEach((position) => {
+    if (summary.includes(position)) needs.push(position);
+  });
+
+  const bestQbRank = parseRankNumber(intel.holes.bestQbRank);
+  const rb2Rank = parseRankNumber(intel.holes.rb2Rank);
+  const wr3Rank = parseRankNumber(intel.holes.wr3Rank);
+  const te1Rank = parseRankNumber(intel.holes.te1Rank);
+  if (bestQbRank !== null && bestQbRank > 16) needs.push('QB');
+  if (rb2Rank !== null && rb2Rank > 28) needs.push('RB');
+  if (wr3Rank !== null && wr3Rank > 36) needs.push('WR');
+  if (te1Rank !== null && te1Rank > 14) needs.push('TE');
+
+  Object.entries(intel.positionGrades || {}).forEach(([position, grade]) => {
+    const gradeText = `${grade?.grade || ''} ${grade?.note || ''}`.toUpperCase();
+    if (/(WEAK|THIN|NEED|LIGHT|FRAGILE|ATTACK|BEHIND)/.test(gradeText)) {
+      needs.push(position);
+    }
+  });
+
+  if (intel.holes.flexDepth <= 5) {
+    needs.push('RB', 'WR');
+  }
+
+  return Array.from(new Set(needs.map(normalizePosition).filter(Boolean))) as string[];
+}
+
+function getNeedReason(intel: ManagerRosterIntelligence | null, position: string): string {
+  if (!intel) return 'Roster context was limited, so this leans on board value.';
+  const normalized = normalizePosition(position);
+  if (normalized === 'QB' && intel.holes.bestQbRank) return `QB pressure showed up with the best QB at ${intel.holes.bestQbRank}.`;
+  if (normalized === 'RB' && intel.holes.rb2Rank) return `RB pressure showed up with RB2 at ${intel.holes.rb2Rank}.`;
+  if (normalized === 'WR' && intel.holes.wr3Rank) return `WR pressure showed up with WR3 at ${intel.holes.wr3Rank}.`;
+  if (normalized === 'TE' && intel.holes.te1Rank) return `TE pressure showed up with TE1 at ${intel.holes.te1Rank}.`;
+  if (intel.holes.flexDepth <= 5 && (normalized === 'RB' || normalized === 'WR')) {
+    return `Flex depth was light with ${intel.holes.flexDepth} usable pieces.`;
+  }
+  return `${normalized} was part of the roster pressure profile.`;
+}
+
+function getDraftWindowValue(pick: DraftPick): number {
+  return pick.ktcValue || pick.currentKtcValue || 0;
+}
+
+function normalizePosition(position?: string | null): string {
+  const normalized = (position || '').trim().toUpperCase();
+  if (normalized === 'RDP' || normalized === 'PICK') return '';
+  if (normalized.startsWith('QB')) return 'QB';
+  if (normalized.startsWith('RB')) return 'RB';
+  if (normalized.startsWith('WR')) return 'WR';
+  if (normalized.startsWith('TE')) return 'TE';
+  return normalized;
+}
+
+function parseRankNumber(rank?: string | null): number | null {
+  if (!rank) return null;
+  const parsed = Number(rank.replace(/\D/g, ''));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function enrichDraftPickDetails(
+  pick: DraftPick,
+  playerDetailsById?: Record<string, PlayerDetails>,
+  audit?: DraftDecisionAudit
+): PlayerModalData {
+  const mappedDetails = pick.player_id ? playerDetailsById?.[pick.player_id] : undefined;
+  const basePick = attachDraftDecisionAudit(pick, audit);
+  if (!mappedDetails) return basePick;
+
+  return {
+    ...basePick,
     playerDetails: {
       ...mappedDetails,
       ...pick.playerDetails,

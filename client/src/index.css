@@ -138,6 +138,218 @@
   white-space: nowrap;
 }
 
+.draft-decision-audit-note {
+  width: min(100%, 72rem);
+  margin: 0 auto 0.65rem;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.draft-decision-grid {
+  display: grid;
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.58rem, 1.8vw, 0.9rem);
+}
+
+.draft-decision-card {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  padding: clamp(0.72rem, 2vw, 0.95rem);
+  text-align: left;
+}
+
+.draft-decision-topline,
+.draft-decision-main,
+.draft-decision-pills {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.draft-decision-topline {
+  align-items: flex-start;
+}
+
+.draft-decision-verdict,
+.draft-decision-pick {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.draft-decision-verdict-win,
+.draft-decision-verdict-value {
+  border: 1px solid rgba(52, 211, 153, 0.32);
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+}
+
+.draft-decision-verdict-need {
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  background: rgba(8, 47, 73, 0.32);
+  color: #67e8f9;
+}
+
+.draft-decision-verdict-watch {
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  background: rgba(120, 53, 15, 0.2);
+  color: #fcd34d;
+}
+
+.draft-decision-pick {
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  background: rgba(2, 6, 23, 0.52);
+  color: #67e8f9;
+}
+
+.draft-decision-main {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.draft-decision-main .player-chip {
+  width: 100%;
+}
+
+.draft-decision-main .player-chip > span:last-child {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: unset;
+  line-height: 1.05;
+}
+
+.draft-decision-manager-line {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.draft-decision-manager-avatar,
+.draft-decision-manager-fallback {
+  width: 1.7rem;
+  height: 1.7rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 2px solid rgba(34, 211, 238, 0.28);
+  object-fit: cover;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+}
+
+.draft-decision-manager-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.draft-decision-manager-name {
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.draft-decision-pills {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.draft-decision-pills > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  background: rgba(2, 6, 23, 0.46);
+  padding: 0.18rem 0.48rem;
+  color: #67e8f9;
+  font-size: 0.64rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.draft-decision-copy {
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.draft-decision-alt {
+  display: grid;
+  gap: 0.12rem;
+  color: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+.draft-decision-alt strong {
+  color: #fcd34d;
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.draft-decision-alt em,
+.draft-decision-alt small {
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-style: normal;
+}
+
+@media (max-width: 640px) {
+  .draft-decision-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .draft-decision-topline {
+    gap: 0.35rem;
+  }
+
+  .draft-decision-verdict,
+  .draft-decision-pick {
+    font-size: 0.62rem;
+    padding-inline: 0.48rem;
+  }
+
+  .draft-decision-main .player-chip > span:last-child {
+    font-size: 1rem;
+  }
+
+  .draft-decision-manager-name {
+    font-size: 0.82rem;
+  }
+
+  .draft-decision-copy {
+    font-size: 0.76rem;
+  }
+
+  .rookie-draft-manager-cell .manager-chip > span:last-child {
+    white-space: normal;
+    line-height: 1.1;
+  }
+}
+
 .draft-opportunity-win {
   color: rgba(52, 211, 153, 0.86);
 }

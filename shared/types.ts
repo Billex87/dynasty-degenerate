@@ -247,6 +247,15 @@ export interface DraftPick {
   draftYear?: string;
   player_id?: string;
   playerDetails?: PlayerDetails;
+  draftDecisionVerdict?: string | null;
+  draftDecisionTone?: 'value' | 'need' | 'watch' | 'win' | null;
+  draftDecisionPrimaryNeed?: string | null;
+  draftDecisionBoardRankLabel?: string | null;
+  draftDecisionSummary?: string | null;
+  draftDecisionAltLabel?: string | null;
+  draftDecisionAltPlayerName?: string | null;
+  draftDecisionAltPosition?: string | null;
+  draftDecisionAltPickLabel?: string | null;
 }
 
 export interface PlayerDetails {

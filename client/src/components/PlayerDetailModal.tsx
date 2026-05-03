@@ -199,6 +199,11 @@ export function PlayerDetailModal({
     position,
     valueProfile,
   });
+  const draftAuditRows = [
+    pick.draftDecisionVerdict ? ['Draft Read', pick.draftDecisionVerdict] : null,
+    pick.draftDecisionBoardRankLabel ? ['Board Read', pick.draftDecisionBoardRankLabel] : null,
+    pick.draftDecisionPrimaryNeed ? ['Roster Need', pick.draftDecisionPrimaryNeed] : null,
+  ].filter((row): row is [string, string] => Boolean(row));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -337,6 +342,40 @@ export function PlayerDetailModal({
               <p className="text-center text-xs leading-relaxed text-slate-500">
                 <span className="font-semibold text-cyan-300">Value Change:</span> {valueChangeNote}
               </p>
+            )}
+
+            {(pick.draftDecisionSummary || pick.draftDecisionAltPlayerName) && (
+              <div className="mx-auto max-w-xl rounded-2xl border border-cyan-300/18 bg-slate-950/45 p-3 shadow-inner shadow-white/[0.02] sm:p-4">
+                <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/85">
+                  Draft Decision Audit
+                </p>
+                {draftAuditRows.length > 0 && (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {draftAuditRows.map(([label, value]) => (
+                      <InfoTile
+                        key={label}
+                        label={label}
+                        value={value}
+                        teamColors={teamColors}
+                        tileAccent={tileAccent}
+                        valueClassName={label === 'Roster Need' ? '' : getPositionRankPillClass(value)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {pick.draftDecisionSummary && (
+                  <p className="mt-3 text-center text-[0.78rem] font-bold leading-relaxed text-slate-300">
+                    {pick.draftDecisionSummary}
+                  </p>
+                )}
+                {pick.draftDecisionAltPlayerName && (
+                  <p className="mt-2 text-center text-[0.74rem] font-bold leading-relaxed text-amber-300">
+                    {pick.draftDecisionAltLabel || 'Alternative:'} {pick.draftDecisionAltPlayerName}
+                    {pick.draftDecisionAltPosition ? ` (${pick.draftDecisionAltPosition})` : ''}
+                    {pick.draftDecisionAltPickLabel ? ` at ${pick.draftDecisionAltPickLabel}` : ''}
+                  </p>
+                )}
+              </div>
             )}
 
             {decisionLabels.length > 0 && (
