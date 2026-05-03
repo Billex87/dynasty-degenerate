@@ -164,7 +164,6 @@
 }
 
 .draft-decision-topline,
-.draft-decision-main,
 .draft-decision-pills {
   display: flex;
   min-width: 0;
@@ -215,12 +214,26 @@
 }
 
 .draft-decision-main {
-  flex-direction: column;
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.draft-decision-identity-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .draft-decision-main .player-chip {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .draft-decision-main .player-chip > span:last-child {
@@ -232,10 +245,14 @@
 
 .draft-decision-manager-line {
   display: flex;
-  width: 100%;
+  width: auto;
   min-width: 0;
+  max-width: 42%;
+  flex: 0 0 auto;
+  flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
+  justify-content: flex-start;
+  gap: 0.22rem;
 }
 
 .draft-decision-manager-avatar,
@@ -261,9 +278,10 @@
 
 .draft-decision-manager-name {
   color: #cbd5e1;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 850;
-  line-height: 1.15;
+  line-height: 1.1;
+  text-align: center;
   white-space: normal;
 }
 
@@ -316,6 +334,59 @@
   font-style: normal;
 }
 
+.draft-decision-alt-card {
+  display: grid;
+  gap: 0.42rem;
+  border-radius: 0.9rem;
+  padding: 0.62rem 0.72rem;
+  text-align: left;
+}
+
+.draft-decision-alt-label {
+  color: #fcd34d;
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.draft-decision-alt-main {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.draft-decision-alt-main .player-chip {
+  width: 100%;
+}
+
+.draft-decision-alt-main .player-chip > span:last-child {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: unset;
+  line-height: 1.05;
+}
+
+.draft-decision-alt-pills {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.34rem;
+}
+
+.draft-decision-alt-pills > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.38rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  background: rgba(2, 6, 23, 0.46);
+  padding: 0.16rem 0.46rem;
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
 @media (max-width: 640px) {
   .draft-decision-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -335,8 +406,20 @@
     font-size: 1rem;
   }
 
+  .draft-decision-identity-row {
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .draft-decision-manager-line {
+    max-width: 100%;
+    flex-direction: row;
+    gap: 0.45rem;
+  }
+
   .draft-decision-manager-name {
     font-size: 0.82rem;
+    text-align: left;
   }
 
   .draft-decision-copy {

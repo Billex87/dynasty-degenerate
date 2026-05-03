@@ -186,13 +186,13 @@ export function DraftAnalysis({
           <div className="draft-decision-grid">
             {draftDecisionAudits.map((audit) => {
               const details = audit.pick.playerDetails || (audit.pick.player_id ? playerDetailsById?.[audit.pick.player_id] : undefined);
+              const alternativeDetails = audit.alternative?.pick?.playerDetails
+                || (audit.alternative?.pick?.player_id ? playerDetailsById?.[audit.alternative.pick.player_id] : undefined);
               return (
-                <button
+                <div
                   key={getDraftPickKey(audit.pick)}
-                  type="button"
                   className={`player-team-tile draft-decision-card draft-decision-card-${audit.tone}`}
                   style={getTeamTileStyle(details?.team)}
-                  onClick={() => openDraftPlayer(audit.pick)}
                 >
                   <span className="draft-decision-topline">
                     <span className={`draft-decision-verdict draft-decision-verdict-${audit.tone}`}>
@@ -200,23 +200,25 @@ export function DraftAnalysis({
                     </span>
                     <span className="draft-decision-pick">{audit.pick.draftYear} #{audit.pick.pick}</span>
                   </span>
-                  <span className="draft-decision-main">
-                    <PlayerNameWithHeadshot playerId={audit.pick.player_id} playerName={audit.pick.playerName} />
-                    <span className="draft-decision-manager-line">
-                      {managerAvatars?.[audit.pick.manager] ? (
-                        <img
-                          src={managerAvatars[audit.pick.manager] || ''}
-                          alt=""
-                          className="draft-decision-manager-avatar"
-                        />
-                      ) : (
-                        <span className="draft-decision-manager-fallback" aria-hidden="true">
-                          {audit.pick.manager.trim()[0]?.toUpperCase() || '?'}
-                        </span>
-                      )}
-                      <span className="draft-decision-manager-name">{audit.pick.manager}</span>
+                  <button type="button" className="draft-decision-main" onClick={() => openDraftPlayer(audit.pick)}>
+                    <span className="draft-decision-identity-row">
+                      <PlayerNameWithHeadshot playerId={audit.pick.player_id} playerName={audit.pick.playerName} />
+                      <span className="draft-decision-manager-line">
+                        {managerAvatars?.[audit.pick.manager] ? (
+                          <img
+                            src={managerAvatars[audit.pick.manager] || ''}
+                            alt=""
+                            className="draft-decision-manager-avatar"
+                          />
+                        ) : (
+                          <span className="draft-decision-manager-fallback" aria-hidden="true">
+                            {audit.pick.manager.trim()[0]?.toUpperCase() || '?'}
+                          </span>
+                        )}
+                        <span className="draft-decision-manager-name">{audit.pick.manager}</span>
+                      </span>
                     </span>
-                  </span>
+                  </button>
                   <span className="draft-decision-pills">
                     <span className={getPositionRankPillClass(audit.pick.positionRankMay2025 || audit.pick.currentPositionRank || audit.pick.playerPos)}>
                       {audit.pick.positionRankMay2025 || audit.pick.currentPositionRank || audit.pick.playerPos}
@@ -225,15 +227,38 @@ export function DraftAnalysis({
                     <span>{audit.boardRankLabel}</span>
                   </span>
                   <span className="draft-decision-copy">{audit.summary}</span>
-                  {audit.alternative && (
+                  {audit.alternative?.pick && (
+                    <button
+                      type="button"
+                      className="player-team-tile draft-decision-alt-card"
+                      style={getTeamTileStyle(alternativeDetails?.team)}
+                      onClick={() => openDraftPlayer(audit.alternative?.pick as DraftPick)}
+                    >
+                      <span className="draft-decision-alt-label">{audit.alternative.label}</span>
+                      <span className="draft-decision-alt-main">
+                        <PlayerNameWithHeadshot
+                          playerId={audit.alternative.pick.player_id}
+                          playerName={audit.alternative.playerName}
+                        />
+                        <span className="draft-decision-alt-pills">
+                          <span>{audit.alternative.playerPos || audit.alternative.pick.playerPos || '-'}</span>
+                          {audit.alternative.position && (
+                            <span className={getPositionRankPillClass(audit.alternative.position)}>
+                              {audit.alternative.position}
+                            </span>
+                          )}
+                          {audit.alternative.pickLabel && <span>{audit.alternative.pickLabel}</span>}
+                        </span>
+                      </span>
+                    </button>
+                  )}
+                  {audit.alternative && !audit.alternative.pick && (
                     <span className="draft-decision-alt">
                       <strong>{audit.alternative.label}</strong>
                       <span>{audit.alternative.playerName}</span>
-                      {audit.alternative.position && <em>{audit.alternative.position}</em>}
-                      {audit.alternative.pickLabel && <small>{audit.alternative.pickLabel}</small>}
                     </span>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
@@ -393,6 +418,8 @@ interface DraftDecisionAudit {
     playerName: string;
     position?: string | null;
     pickLabel?: string;
+    playerPos?: string | null;
+    pick?: DraftPick | null;
   } | null;
 }
 
@@ -432,6 +459,10 @@ function buildDraftDecisionAudit(
     .sort((a, b) => getDraftWindowValue(b) - getDraftWindowValue(a));
   const boardRank = Math.max(1, availableAtPick.findIndex((candidate) => getDraftPickKey(candidate) === getDraftPickKey(pick)) + 1);
   const bestAvailable = availableAtPick.find((candidate) => getDraftPickKey(candidate) !== getDraftPickKey(pick)) || null;
+  const bestSamePositionAvailable = availableAtPick.find((candidate) => {
+    if (getDraftPickKey(candidate) === getDraftPickKey(pick)) return false;
+    return normalizePosition(candidate.playerPos) === pickedPosition;
+  }) || null;
   const bestNeedAvailable = availableAtPick.find((candidate) => {
     if (getDraftPickKey(candidate) === getDraftPickKey(pick)) return false;
     return needPositions.includes(normalizePosition(candidate.playerPos));
@@ -443,6 +474,7 @@ function buildDraftDecisionAudit(
   );
   const needMatch = Boolean(pickedPosition && needPositions.includes(pickedPosition));
   const bestAvailableDelta = bestAvailable ? getDraftWindowValue(bestAvailable) - pickedValue : 0;
+  const samePositionDelta = bestSamePositionAvailable ? getDraftWindowValue(bestSamePositionAvailable) - pickedValue : 0;
   const needAlternativeDelta = bestNeedAvailable ? getDraftWindowValue(bestNeedAvailable) - pickedValue : 0;
   const boardRankLabel = boardRank <= 12 ? `Board #${boardRank}` : 'Board Reach';
 
@@ -456,6 +488,9 @@ function buildDraftDecisionAudit(
     tone = bestAvailableDelta > 750 ? 'watch' : 'need';
   } else if (primaryNeed && hasTrueNeedAlternative && needAlternativeDelta >= -450) {
     verdict = 'Need Miss';
+    tone = 'watch';
+  } else if (!needMatch && bestSamePositionAvailable && samePositionDelta > 250) {
+    verdict = 'Passed Value';
     tone = 'watch';
   } else if (boardRank <= 3 || bestAvailableDelta <= 250) {
     verdict = 'Board Pick';
@@ -474,8 +509,10 @@ function buildDraftDecisionAudit(
     needMatch,
     boardRank,
     bestAvailableDelta,
+    samePositionDelta,
     needAlternativeDelta,
     bestAvailable,
+    bestSamePositionAvailable,
     bestNeedAvailable,
     hasTrueNeedAlternative,
     needReason,
@@ -484,10 +521,12 @@ function buildDraftDecisionAudit(
   const alternative = buildDraftAlternative(
     pick,
     bestAvailable,
+    bestSamePositionAvailable,
     bestNeedAvailable,
     needMatch,
     primaryNeed,
     bestAvailableDelta,
+    samePositionDelta,
     needAlternativeDelta,
     hasTrueNeedAlternative
   );
@@ -510,8 +549,10 @@ function buildDraftDecisionSummary({
   needMatch,
   boardRank,
   bestAvailableDelta,
+  samePositionDelta,
   needAlternativeDelta,
   bestAvailable,
+  bestSamePositionAvailable,
   bestNeedAvailable,
   hasTrueNeedAlternative,
   needReason,
@@ -523,8 +564,10 @@ function buildDraftDecisionSummary({
   needMatch: boolean;
   boardRank: number;
   bestAvailableDelta: number;
+  samePositionDelta: number;
   needAlternativeDelta: number;
   bestAvailable: DraftPick | null;
+  bestSamePositionAvailable: DraftPick | null;
   bestNeedAvailable: DraftPick | null;
   hasTrueNeedAlternative: boolean;
   needReason: string;
@@ -560,6 +603,13 @@ function buildDraftDecisionSummary({
   }
 
   if (verdict === 'Passed Value') {
+    if (bestSamePositionAvailable && samePositionDelta > 250) {
+      const betterName = bestSamePositionAvailable.playerName;
+      if (primaryNeed && !needMatch) {
+        return `${pick.playerName} left the ${primaryNeed} need unresolved, and even on the same position lane the board had more value. ${betterName} graded ${samePositionDelta.toLocaleString()} blend points better at ${bestSamePositionAvailable.positionRankMay2025 || bestSamePositionAvailable.currentPositionRank || bestSamePositionAvailable.playerPos}. ${needReason}`;
+      }
+      return `${pick.playerName} was not the cleanest value at ${pickedPosition || pick.playerPos}. ${betterName} graded ${samePositionDelta.toLocaleString()} blend points better on the same position line, so this was a straight value loss.`;
+    }
     const betterName = bestAvailable?.playerName || 'a stronger board value';
     if (primaryNeed && !needMatch && !hasTrueNeedAlternative) {
       return `${pick.playerName} did not solve the ${primaryNeed} need, and it also passed on better board value. ${betterName} graded ${altValueGap} better in the same draft window. ${needReason}`;
@@ -594,18 +644,22 @@ function attachDraftDecisionAudit(pick: DraftPick, audit?: DraftDecisionAudit): 
 function buildDraftAlternative(
   pick: DraftPick,
   bestAvailable: DraftPick | null,
+  bestSamePositionAvailable: DraftPick | null,
   bestNeedAvailable: DraftPick | null,
   needMatch: boolean,
   primaryNeed: string | null,
   bestAvailableDelta: number,
+  samePositionDelta: number,
   needAlternativeDelta: number,
   hasTrueNeedAlternative: boolean
 ): DraftDecisionAudit['alternative'] {
   const selectedAlternative = !needMatch && hasTrueNeedAlternative && bestNeedAvailable && needAlternativeDelta >= -450
     ? bestNeedAvailable
-    : bestAvailableDelta > 550
-      ? bestAvailable
-      : null;
+    : bestSamePositionAvailable && samePositionDelta > 250
+      ? bestSamePositionAvailable
+      : bestAvailableDelta > 550
+        ? bestAvailable
+        : null;
 
   if (!selectedAlternative) {
     return {
@@ -616,6 +670,8 @@ function buildDraftAlternative(
 
   const label = selectedAlternative === bestNeedAvailable && primaryNeed && hasTrueNeedAlternative
     ? `Cleaner ${primaryNeed} target:`
+    : selectedAlternative === bestSamePositionAvailable && samePositionDelta > 250
+      ? 'Higher-value same-position play:'
     : primaryNeed && !needMatch
       ? `Missed value while ${primaryNeed} stayed open:`
       : 'Best board alternative:';
@@ -625,6 +681,8 @@ function buildDraftAlternative(
     playerName: selectedAlternative.playerName,
     position: selectedAlternative.positionRankMay2025 || selectedAlternative.currentPositionRank || selectedAlternative.playerPos,
     pickLabel: `${selectedAlternative.draftYear || pick.draftYear || ''} #${selectedAlternative.pick}`.trim(),
+    playerPos: selectedAlternative.playerPos,
+    pick: selectedAlternative,
   };
 }
 
