@@ -3196,6 +3196,7 @@ export function TradeWarRoom({
   const [sideBIds, setSideBIds] = useState<string[]>([]);
   const [queryA, setQueryA] = useState('');
   const [queryB, setQueryB] = useState('');
+  const [mobilePickerOpen, setMobilePickerOpen] = useState<{ A: boolean; B: boolean }>({ A: false, B: false });
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
 
   const allAssets = React.useMemo(() => {
@@ -3336,6 +3337,7 @@ export function TradeWarRoom({
 
   const renderTradeSide = ({
     label,
+    sideKey,
     manager,
     otherManager,
     query,
@@ -3345,6 +3347,7 @@ export function TradeWarRoom({
     total,
   }: {
     label: string;
+    sideKey: 'A' | 'B';
     manager: string;
     otherManager: string;
     query: string;
@@ -3355,6 +3358,7 @@ export function TradeWarRoom({
   }) => {
     const results = getSearchResults(query, manager);
     const highlightedManagers = new Set([manager, ...assets.map((asset) => asset.manager)]);
+    const isPickerOpen = mobilePickerOpen[sideKey];
 
     return (
       <div className="trade-war-side">
@@ -3384,28 +3388,42 @@ export function TradeWarRoom({
           `${manager} has not added assets yet.`
         )}
 
-        <label className="trade-war-search">
-          <span>Add player</span>
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={`Search ${manager}, ${otherManager}, or anyone`}
-          />
-        </label>
+        <div className={`trade-war-picker ${isPickerOpen ? 'trade-war-picker-open' : ''}`}>
+          <button
+            type="button"
+            className="trade-war-picker-toggle"
+            onClick={() => setMobilePickerOpen((current) => ({ ...current, [sideKey]: !current[sideKey] }))}
+            aria-expanded={isPickerOpen}
+          >
+            <span>Add / Browse Players</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${isPickerOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
 
-        <div className="trade-war-player-grid">
-          {results.map((asset) => (
-            <TradeWarPlayerCard
-              key={asset.player_id}
-              asset={asset}
-              mode={mode}
-              managerAvatars={managerAvatars}
-              isHighlighted={highlightedManagers.has(asset.manager)}
-              isSideOwner={asset.manager === manager}
-              onAdd={() => setAssets((current) => current.includes(asset.player_id) ? current : [...current, asset.player_id])}
-              onDetails={() => openAssetModal(asset)}
-            />
-          ))}
+          <div className="trade-war-picker-body">
+            <label className="trade-war-search">
+              <span>Add player</span>
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={`Search ${manager}, ${otherManager}, or anyone`}
+              />
+            </label>
+
+            <div className="trade-war-player-grid">
+              {results.map((asset) => (
+                <TradeWarPlayerCard
+                  key={asset.player_id}
+                  asset={asset}
+                  mode={mode}
+                  managerAvatars={managerAvatars}
+                  isHighlighted={highlightedManagers.has(asset.manager)}
+                  isSideOwner={asset.manager === manager}
+                  onAdd={() => setAssets((current) => current.includes(asset.player_id) ? current : [...current, asset.player_id])}
+                  onDetails={() => openAssetModal(asset)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -3490,6 +3508,7 @@ export function TradeWarRoom({
       <div className="trade-war-side-grid">
         {renderTradeSide({
           label: 'Side A',
+          sideKey: 'A',
           manager: managerA,
           otherManager: managerB,
           query: queryA,
@@ -3500,6 +3519,7 @@ export function TradeWarRoom({
         })}
         {renderTradeSide({
           label: 'Side B',
+          sideKey: 'B',
           manager: managerB,
           otherManager: managerA,
           query: queryB,

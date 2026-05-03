@@ -7610,6 +7610,34 @@ button.player-team-tile:focus-visible {
   gap: 0.55rem;
 }
 
+.trade-war-picker {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.trade-war-picker-toggle {
+  display: none;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.8rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 0.9rem;
+  background: rgba(8, 15, 31, 0.82);
+  color: #67e8f9;
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.trade-war-picker-body {
+  display: grid;
+  gap: 0.65rem;
+}
+
 .trade-war-empty {
   min-height: 3.25rem;
   display: grid;
@@ -7768,6 +7796,14 @@ button.player-team-tile:focus-visible {
     justify-content: stretch;
   }
 
+  .trade-war-top p {
+    display: none;
+  }
+
+  .trade-war-top h3 {
+    margin-top: 0;
+  }
+
   .trade-war-mode-tabs button {
     flex: 1 1 0;
     padding-inline: 0.45rem;
@@ -7776,6 +7812,18 @@ button.player-team-tile:focus-visible {
   .trade-war-selected-assets,
   .trade-war-player-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trade-war-picker-toggle {
+    display: inline-flex;
+  }
+
+  .trade-war-picker-body {
+    display: none;
+  }
+
+  .trade-war-picker.trade-war-picker-open .trade-war-picker-body {
+    display: grid;
   }
 }
 
