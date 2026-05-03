@@ -35,12 +35,14 @@ import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
+const CLOWN_MANAGER_USERNAME = 'ArmchairGMZar';
 const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v6';
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
 const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
+const CLOWN_EASTER_EGG_USERNAME = 'armchairgmzar';
 
 type SleeperLeagueOption = {
   leagueId: string;
@@ -149,6 +151,8 @@ export default function Home() {
   const [leagueFormat, setLeagueFormat] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
+  const [isClownModalOpen, setIsClownModalOpen] = useState(false);
+  const [isClownModalOpen, setIsClownModalOpen] = useState(false);
 
   const rememberLeagueId = (value: string) => {
     setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, value));
@@ -276,6 +280,23 @@ export default function Home() {
     }
   }, [activeTab, leagueFormat, leagueId, leagueLogo, leagueName, reportData]);
 
+  useEffect(() => {
+    if (!reportData) return;
+    const managers = new Set([
+      ...Object.keys(reportData.managerAvatars || {}),
+      ...(reportData.managerRosterIntelligence || []).map((row) => row.manager),
+    ]);
+    if (!managers.has(CLOWN_MANAGER_USERNAME)) return;
+
+    setIsClownModalOpen(true);
+    const timeout = window.setTimeout(() => {
+      setIsClownModalOpen(false);
+      handleStartOver();
+    }, 2600);
+
+    return () => window.clearTimeout(timeout);
+  }, [reportData]);
+
   const handleAnalyze = async (targetLeagueId = leagueId) => {
     const nextLeagueId = targetLeagueId.trim();
     if (!nextLeagueId) {
@@ -289,11 +310,23 @@ export default function Home() {
   };
 
   const handleFindLeagues = async () => {
-    if (!sleeperUsername.trim()) {
+    const normalizedUsername = sleeperUsername.trim();
+    if (!normalizedUsername) {
       toast.error('Please enter a Sleeper username');
       return;
     }
-    userLeaguesMutation.mutate({ username: sleeperUsername.trim() });
+    if (normalizedUsername.toLowerCase() === CLOWN_EASTER_EGG_USERNAME) {
+      setIsClownModalOpen(true);
+      return;
+    }
+    userLeaguesMutation.mutate({ username: normalizedUsername });
+  };
+
+  const handleClownDismiss = () => {
+    setIsClownModalOpen(false);
+    setSleeperUsername('');
+    setUserLeagues([]);
+    setFocusedAutocomplete(null);
   };
 
   const handleStartOver = () => {
@@ -648,6 +681,38 @@ export default function Home() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
+          <DialogContent className="border-rose-500/40 bg-slate-950/95 text-slate-100 shadow-2xl shadow-rose-950/40 sm:max-w-md">
+            <DialogHeader className="items-center text-center">
+              <div
+                aria-hidden="true"
+                className="mb-3 inline-flex h-28 w-28 items-center justify-center rounded-full border border-rose-400/30 bg-rose-950/30 text-7xl animate-spin"
+                style={{ animationDuration: '1.6s' }}
+              >
+                🤡
+              </div>
+              <DialogTitle className="athletic-headline text-4xl text-rose-300">
+                You&apos;re A Clown
+              </DialogTitle>
+              <DialogDescription className="text-slate-300">
+                ArmchairGMZar detected. Sending this league back to the login screen.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="justify-center">
+              <Button
+                type="button"
+                className="bg-rose-600 text-white hover:bg-rose-500"
+                onClick={() => {
+                  setIsClownModalOpen(false);
+                  handleStartOver();
+                }}
+              >
+                Get Out
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
       </ManagerChampionshipProvider>
     );
@@ -914,6 +979,33 @@ export default function Home() {
           </p>
         </div>
       </div>
+      <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
+        <DialogContent className="clown-easter-egg-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
+          <DialogHeader className="text-center">
+            <DialogTitle className="athletic-headline text-3xl text-orange-400">
+              Rival Alert
+            </DialogTitle>
+            <DialogDescription className="text-cyan-100/75">
+              This username unlocked a special screen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="clown-easter-egg-body">
+            <div className="clown-easter-egg-face" aria-hidden="true">🤡</div>
+            <p className="clown-easter-egg-copy">
+              League rival detected. Try another Sleeper username to get back to work.
+            </p>
+          </div>
+          <DialogFooter className="sm:justify-center">
+            <Button
+              type="button"
+              onClick={handleClownDismiss}
+              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
+            >
+              Back to Login
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       )}
     </div>
   );
