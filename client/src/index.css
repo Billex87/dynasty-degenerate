@@ -8429,19 +8429,31 @@ button.owner-summary-tile:focus-visible {
     -webkit-box-orient: vertical;
     overflow: hidden;
     min-height: calc(1.18em * 2);
+    margin-top: 0.12rem;
     line-height: 1.18;
+    white-space: normal;
   }
 
   .rookie-draft-manager-cell .manager-chip {
+    display: flex;
+    align-items: center;
     justify-content: flex-start;
     width: 100%;
+    max-width: 100%;
+    gap: 0.38rem;
   }
 
   .rookie-draft-manager-cell .manager-chip > span:last-child {
-    font-size: clamp(0.62rem, 2.65vw, 0.74rem);
-    white-space: nowrap;
+    flex: 1 1 auto;
+    font-size: clamp(0.66rem, 2.8vw, 0.8rem);
+    font-weight: 850;
+    line-height: 1.15;
+    white-space: normal;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: unset;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 }
 
