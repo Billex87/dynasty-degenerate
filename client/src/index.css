@@ -8041,6 +8041,8 @@ button.owner-summary-tile:focus-visible {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
   gap: 0.38rem;
 }
 

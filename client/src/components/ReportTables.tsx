@@ -908,6 +908,88 @@ function buildManagerSignalTags({
   }).slice(0, 7);
 }
 
+function buildOwnerIntelTileTags({
+  identity,
+  powerRow,
+  timeline,
+  growthRow,
+  starterAvailability,
+  holesSummary,
+  pickRow,
+  taxiTriage,
+}: {
+  identity?: string | null;
+  powerRow?: OwnerPowerRow | null;
+  timeline?: OwnerTimelineRow | null;
+  growthRow?: OwnerGrowthRow | null;
+  starterAvailability?: OwnerIntelRow['starterAvailability'] | null;
+  holesSummary?: string | null;
+  pickRow?: OwnerPickRow | null;
+  taxiTriage?: OwnerIntelRow['taxiTriage'] | null;
+}): Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> {
+  const tags: Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> = [];
+
+  if (powerRow) {
+    tags.push({
+      label: `#${powerRow.rank} ${powerRow.tier}`,
+      tone: powerRow.score >= 78 ? 'good' : powerRow.score <= 50 ? 'danger' : 'neutral',
+    });
+  }
+
+  if (growthRow) {
+    tags.push({
+      label: `${growthRow.growth >= 0 ? '+' : ''}${growthRow.growth.toFixed(1)}% Growth`,
+      tone: growthRow.growth >= 0 ? 'good' : 'danger',
+    });
+  }
+
+  const contenderScore = timeline?.contenderScore ?? 0;
+  const rebuildScore = timeline?.rebuildScore ?? 0;
+  if (contenderScore >= 84 && contenderScore - rebuildScore >= 18) {
+    tags.push({ label: `Contender ${contenderScore}`, tone: 'good' });
+  } else if (rebuildScore >= 68 && rebuildScore - contenderScore >= 10) {
+    tags.push({ label: `Rebuild ${rebuildScore}`, tone: 'future' });
+  } else if (contenderScore >= 70 && rebuildScore >= 52) {
+    tags.push({ label: 'Fork In Road', tone: 'warn' });
+  } else if (identity) {
+    const normalizedIdentity = titleCasePill(identity);
+    if (!['Balanced', 'Middle Build'].includes(normalizedIdentity)) {
+      tags.push({
+        label: normalizedIdentity,
+        tone: getPillToneClass(identity).includes('danger')
+          ? 'danger'
+          : getPillToneClass(identity).includes('future')
+            ? 'future'
+            : 'neutral',
+      });
+    }
+  }
+
+  const primaryNeed = holesSummary && holesSummary !== 'No major roster hole flagged'
+    ? holesSummary.split(',')[0]?.trim()
+    : null;
+  if (primaryNeed) {
+    tags.push({ label: titleCasePill(primaryNeed), tone: 'warn' });
+  } else if (starterAvailability?.riskLevel === 'high') {
+    tags.push({ label: 'Injury Watch', tone: 'danger' });
+  }
+
+  const futurePickCount = (pickRow?.count2026 || 0) + (pickRow?.count2027 || 0);
+  if (futurePickCount >= 17) {
+    tags.push({ label: 'Pick War Chest', tone: 'future' });
+  } else if (taxiTriage?.counts.Cuttable) {
+    tags.push({ label: `${taxiTriage.counts.Cuttable} Cuttable Taxi`, tone: 'danger' });
+  }
+
+  const seen = new Set<string>();
+  return tags.filter((tag) => {
+    const key = tag.label.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 5);
+}
+
 function normalizeIntelNote(value: string) {
   return value
     .toLowerCase()
@@ -939,6 +1021,8 @@ type OwnerIntelRow = NonNullable<ReportData['managerRosterIntelligence']>[number
 type OwnerTradeRow = NonNullable<ReportData['tradeTendencies']>[number];
 type OwnerPickRow = NonNullable<ReportData['pickPortfolios']>[number];
 type OwnerTimelineRow = NonNullable<ReportData['dynastyTimelines']>[number];
+type OwnerPowerRow = NonNullable<ReportData['powerRankings']>[number];
+type OwnerGrowthRow = NonNullable<ReportData['managerRosterValueGrowth']>[number];
 type TradeWarMode = 'dynasty' | 'contender' | 'rebuilder';
 type TradeWarAsset = ManagerIntelPlayer & {
   manager: string;
@@ -2568,29 +2652,17 @@ export function OwnerIntelMatrix({
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
               badges={[
-                ...(powerRow ? [{
-                  label: `#${powerRow.rank} ${powerRow.tier}`,
-                  tone: powerRow.score >= 78 ? 'good' as const : powerRow.score <= 50 ? 'danger' as const : 'neutral' as const,
-                }] : []),
-                ...(growthRow ? [{
-                  label: `${growthRow.growth >= 0 ? '+' : ''}${growthRow.growth.toFixed(1)}% growth`,
-                  tone: growthRow.growth >= 0 ? 'good' as const : 'danger' as const,
-                }] : []),
-                ...buildManagerSignalTags({
+                ...buildOwnerIntelTileTags({
                   identity: row.identity,
-                  starterCount,
-                  powerScore: powerRow?.score,
+                  powerRow,
                   timeline: timelineRow,
-                  rosterHealthScore: row.rosterHealthScore,
-                  avgAge: row.avgAge,
+                  growthRow,
                   starterAvailability: row.starterAvailability,
                   holesSummary: row.holes.summary,
-                  tradeRow,
                   pickRow,
                   taxiTriage: row.taxiTriage,
-                  ageFlags: row.ageFlags,
                 }),
-              ].slice(0, 7)}
+              ]}
               onClick={() => setSelectedOwner(row.manager)}
             />
           );
