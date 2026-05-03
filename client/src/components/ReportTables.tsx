@@ -938,7 +938,7 @@ function buildOwnerIntelTileTags({
 
   if (growthRow) {
     tags.push({
-      label: `${growthRow.growth >= 0 ? '+' : ''}${growthRow.growth.toFixed(1)}% Growth`,
+      label: `${growthRow.growth >= 0 ? '+' : ''}${growthRow.growth.toFixed(1)}% growth`,
       tone: growthRow.growth >= 0 ? 'good' : 'danger',
     });
   }
@@ -946,9 +946,9 @@ function buildOwnerIntelTileTags({
   const contenderScore = timeline?.contenderScore ?? 0;
   const rebuildScore = timeline?.rebuildScore ?? 0;
   if (contenderScore >= 84 && contenderScore - rebuildScore >= 18) {
-    tags.push({ label: `Contender ${contenderScore}`, tone: 'good' });
+    tags.push({ label: 'Contender Window', tone: 'good' });
   } else if (rebuildScore >= 68 && rebuildScore - contenderScore >= 10) {
-    tags.push({ label: `Rebuild ${rebuildScore}`, tone: 'future' });
+    tags.push({ label: 'Rebuild Window', tone: 'future' });
   } else if (contenderScore >= 70 && rebuildScore >= 52) {
     tags.push({ label: 'Fork In Road', tone: 'warn' });
   } else if (identity) {
@@ -1897,36 +1897,17 @@ export function LeagueCommandCenter({
   ].filter((group) => group.players.length);
   const selectedManagerTags = (() => {
     if (!selectedIntel) return [];
-    const starterCount = selectedCounts
-      ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters
-      : null;
-    const tags = buildManagerSignalTags({
+    const tags = buildOwnerIntelTileTags({
       identity: selectedIntel.identity,
-      starterCount,
-      powerScore: selectedPower?.score,
+      powerRow: selectedPower,
       timeline: selectedTimeline,
-      rosterHealthScore: selectedIntel.rosterHealthScore,
-      avgAge: selectedIntel.avgAge,
+      growthRow: selectedGrowth,
       starterAvailability: selectedIntel.starterAvailability,
       holesSummary: selectedIntel.holes.summary,
-      tradeRow: selectedTrade,
       pickRow: selectedPick,
       taxiTriage: selectedIntel.taxiTriage,
-      ageFlags: selectedIntel.ageFlags,
     });
-    if (selectedPower) {
-      tags.unshift({
-        label: `#${selectedPower.rank} ${selectedPower.tier}`,
-        tone: selectedPower.score >= 78 ? 'good' : selectedPower.score <= 50 ? 'danger' : 'neutral',
-      });
-    }
-    if (selectedGrowth) {
-      tags.push({
-        label: `${selectedGrowth.growth >= 0 ? '+' : ''}${selectedGrowth.growth.toFixed(1)}% Growth`,
-        tone: selectedGrowth.growth >= 0 ? 'good' : 'danger',
-      });
-    }
-    return tags.slice(0, 9);
+    return tags.slice(0, 6);
   })();
   const rosterRead = (() => {
     if (!selectedIntel) return 'No roster read available yet.';
@@ -2077,7 +2058,7 @@ export function LeagueCommandCenter({
               <div className="manager-command-hero-metrics">
                 <IntelligenceMetric label="Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters : '-'} />
                 <IntelligenceMetric label="Roster Age" value={selectedIntel?.avgAge ?? '-'} />
-                <IntelligenceMetric label="Team Score" value={selectedPower?.score ?? '-'} />
+                <IntelligenceMetric label="Power" value={selectedPower?.score ?? '-'} />
               </div>
             </div>
             <div className="manager-command-body">
@@ -2112,52 +2093,6 @@ export function LeagueCommandCenter({
                     <span>Value</span>
                     <strong>#{selectedOverview.rank_value}</strong>
                   </div>
-                </div>
-              ) : null}
-              {(selectedPower || selectedTimeline || selectedGrowth) ? (
-                <div className="manager-command-score-summary" aria-label="Manager power and timeline scores">
-                  {selectedPower ? (
-                    <div>
-                      <span>Team Score</span>
-                      <strong>#{selectedPower.rank} {selectedPower.tier}</strong>
-                      <p>{selectedPower.score}/100 from weekly starter strength, total roster shape, youth, picks, and trade edge.</p>
-                    </div>
-                  ) : null}
-                  {selectedPower ? (
-                    <div>
-                      <span>Power Inputs</span>
-                      <strong>{selectedPower.starterStrength}/{selectedPower.rosterValue}/{selectedPower.youthScore}</strong>
-                      <p>Starter strength, total roster value, and youth score. Balance {selectedPower.positionalBalance}, picks {selectedPower.draftCapital}, trade edge {selectedPower.tradeEfficiency}.</p>
-                    </div>
-                  ) : null}
-                  {selectedGrowth ? (
-                    <div>
-                      <span>Value Growth</span>
-                      <strong>{selectedGrowth.growth >= 0 ? '+' : ''}{selectedGrowth.growth.toFixed(1)}%</strong>
-                      <p>{formatCompactValue(selectedGrowth.past_val)} baseline to {formatCompactValue(selectedGrowth.total_val)} current. Projected value rank #{selectedGrowth.rank}.</p>
-                    </div>
-                  ) : null}
-                  {selectedTimeline ? (
-                    <div>
-                      <span>Contender</span>
-                      <strong>{selectedTimeline.contenderScore}/100</strong>
-                      <p>Win-now score from starter strength and total roster value.</p>
-                    </div>
-                  ) : null}
-                  {selectedTimeline ? (
-                    <div>
-                      <span>Rebuild</span>
-                      <strong>{selectedTimeline.rebuildScore}/100</strong>
-                      <p>Future score from 2027 outlook, youth, and distance from contention.</p>
-                    </div>
-                  ) : null}
-                  {selectedTimeline ? (
-                    <div>
-                      <span>Aging Risk</span>
-                      <strong>{selectedTimeline.agingRisk}/100</strong>
-                      <p>Higher means the roster is older and needs age protection.</p>
-                    </div>
-                  ) : null}
                 </div>
               ) : null}
               <div className="manager-command-grid">
@@ -2545,12 +2480,6 @@ export function OwnerIntelMatrix({
   const selectedOverviewRow = selectedRow ? getOverviewRow(selectedRow.manager) : null;
   const selectedGrowthRow = selectedRow ? getGrowthRow(selectedRow.manager) : null;
   const selectedStarterCount = selectedCountRow ? selectedCountRow.QB_starters + selectedCountRow.RB_starters + selectedCountRow.WR_starters + selectedCountRow.TE_starters : null;
-  const selectedValueComps = selectedRow
-    ? (['QB', 'RB', 'WR', 'TE'] as const)
-      .map((pos) => selectedRow.similarValuePlayers[pos] ? `${pos}: ${selectedRow.similarValuePlayers[pos]?.name} (${selectedRow.similarValuePlayers[pos]?.currentPositionRank || selectedRow.similarValuePlayers[pos]?.pos})` : null)
-      .filter(Boolean)
-      .join(' · ')
-    : '';
   const selectedValueCompPlayers = selectedRow
     ? (['QB', 'RB', 'WR', 'TE'] as const)
       .map((pos) => ({
@@ -2559,30 +2488,16 @@ export function OwnerIntelMatrix({
       }))
       .filter((item): item is { position: 'QB' | 'RB' | 'WR' | 'TE'; player: ManagerIntelPlayer } => Boolean(item.player))
     : [];
-  const selectedOwnerTags = selectedRow ? [
-    ...(selectedPowerRow ? [{
-      label: `#${selectedPowerRow.rank} ${selectedPowerRow.tier}`,
-      tone: selectedPowerRow.score >= 78 ? 'good' as const : selectedPowerRow.score <= 50 ? 'danger' as const : 'neutral' as const,
-    }] : []),
-    ...(selectedGrowthRow ? [{
-      label: `${selectedGrowthRow.growth >= 0 ? '+' : ''}${selectedGrowthRow.growth.toFixed(1)}% Growth`,
-      tone: selectedGrowthRow.growth >= 0 ? 'good' as const : 'danger' as const,
-    }] : []),
-    ...buildManagerSignalTags({
-      identity: selectedRow.identity,
-      starterCount: selectedStarterCount,
-      powerScore: selectedPowerRow?.score,
-      timeline: selectedTimelineRow,
-      rosterHealthScore: selectedRow.rosterHealthScore,
-      avgAge: selectedRow.avgAge,
-      starterAvailability: selectedRow.starterAvailability,
-      holesSummary: selectedRow.holes.summary,
-      tradeRow: selectedTradeRow,
-      pickRow: selectedPickRow,
-      taxiTriage: selectedRow.taxiTriage,
-      ageFlags: selectedRow.ageFlags,
-    }),
-  ].slice(0, 10) : [];
+  const selectedOwnerTags = selectedRow ? buildOwnerIntelTileTags({
+    identity: selectedRow.identity,
+    powerRow: selectedPowerRow,
+    timeline: selectedTimelineRow,
+    growthRow: selectedGrowthRow,
+    starterAvailability: selectedRow.starterAvailability,
+    holesSummary: selectedRow.holes.summary,
+    pickRow: selectedPickRow,
+    taxiTriage: selectedRow.taxiTriage,
+  }) : [];
   const selectedPlayerSectionsBase: Array<{
     label: string;
     player: ManagerIntelPlayer | null;
@@ -2701,7 +2616,7 @@ export function OwnerIntelMatrix({
                 </div>
                 <div className="manager-command-hero-metrics">
                   <IntelligenceMetric label="Starters" value={selectedStarterCount ?? '-'} />
-                  <IntelligenceMetric label="Team Score" value={selectedPowerRow?.score ?? '-'} />
+                  <IntelligenceMetric label="Power" value={selectedPowerRow?.score ?? '-'} />
                   <IntelligenceMetric label="Avg Age" value={selectedRow.avgAge ?? '-'} />
                 </div>
               </div>
@@ -2717,14 +2632,11 @@ export function OwnerIntelMatrix({
 
                 <div className="owner-intel-stat-grid">
                   <IntelligenceMetric label="Lineup Share" value={`${selectedRow.starterValuePct}%`} />
-                  <IntelligenceMetric label="Trade Profit" value={selectedTradeRow ? `${selectedTradeRow.profit > 0 ? '+' : ''}${formatCompactValue(selectedTradeRow.profit)}` : '-'} />
+                  <IntelligenceMetric label="Current Value" value={selectedGrowthRow ? formatCompactValue(selectedGrowthRow.total_val) : '-'} />
                   <IntelligenceMetric label="Future Picks" value={selectedPickRow ? `${selectedPickRow.count2026 + selectedPickRow.count2027}` : '-'} />
                   <IntelligenceMetric label="Power Rank" value={selectedPowerRow ? `#${selectedPowerRow.rank}` : '-'} />
-                  <IntelligenceMetric label="Value Growth" value={selectedGrowthRow ? `${selectedGrowthRow.growth >= 0 ? '+' : ''}${selectedGrowthRow.growth.toFixed(1)}%` : '-'} />
-                  <IntelligenceMetric label="Current Value" value={selectedGrowthRow ? formatCompactValue(selectedGrowthRow.total_val) : '-'} />
                   <IntelligenceMetric label="Win-Now" value={selectedTimelineRow?.contenderScore ?? '-'} />
                   <IntelligenceMetric label="Rebuild" value={selectedTimelineRow?.rebuildScore ?? '-'} />
-                  <IntelligenceMetric label="Aging Risk" value={selectedTimelineRow?.agingRisk ?? '-'} />
                 </div>
 
                 {selectedOverviewRow ? (
@@ -2801,25 +2713,9 @@ export function OwnerIntelMatrix({
                     <p>{selectedBestMove}</p>
                   </div>
                   <div>
-                    <h4>Trade / Draft Profile</h4>
+                    <h4>Trade / Picks</h4>
                     <p>{selectedTradeDraftProfile}</p>
                   </div>
-                  {selectedPowerRow ? (
-                    <div>
-                      <h4>Power Profile</h4>
-                      <p>
-                        #{selectedPowerRow.rank} {selectedPowerRow.tier} at {selectedPowerRow.score}/100. Inputs: starter strength {selectedPowerRow.starterStrength}, roster value {selectedPowerRow.rosterValue}, balance {selectedPowerRow.positionalBalance}, draft capital {selectedPowerRow.draftCapital}, youth {selectedPowerRow.youthScore}, trade efficiency {selectedPowerRow.tradeEfficiency}.
-                      </p>
-                    </div>
-                  ) : null}
-                  {selectedGrowthRow ? (
-                    <div>
-                      <h4>Value Growth</h4>
-                      <p>
-                        Stored baseline {formatCompactValue(selectedGrowthRow.past_val)} to current blended roster value {formatCompactValue(selectedGrowthRow.total_val)}, a {selectedGrowthRow.growth >= 0 ? '+' : ''}{selectedGrowthRow.growth.toFixed(1)}% move. Current projected value rank is #{selectedGrowthRow.rank}.
-                      </p>
-                    </div>
-                  ) : null}
                   <div>
                     <h4>Health Check</h4>
                     <p>{selectedHealthCheck}</p>
@@ -2835,9 +2731,9 @@ export function OwnerIntelMatrix({
                     </div>
                     <p>{selectedWeakSpotCopy}</p>
                   </div>
-                  <div className="owner-intel-value-map">
-                    <h4>Market Comps</h4>
-                    {selectedValueCompPlayers.length ? (
+                  {selectedValueCompPlayers.length ? (
+                    <div className="owner-intel-value-map">
+                      <h4>Value Map</h4>
                       <div className="owner-intel-value-map-grid">
                         {selectedValueCompPlayers.map(({ position, player }) => (
                           <button
@@ -2865,10 +2761,8 @@ export function OwnerIntelMatrix({
                           </button>
                         ))}
                       </div>
-                    ) : (
-                      <p>{selectedValueComps || 'No clean same-position value comps on this roster yet.'}</p>
-                    )}
-                  </div>
+                    </div>
+                  ) : null}
                   <div>
                     <h4>Team Window</h4>
                     <p>{selectedTeamWindow}</p>

@@ -145,11 +145,6 @@ export function PlayerDetailModal({
     ['Availability', availability.label],
     ['Injury Status', details?.injuryStatus && details.injuryStatus !== availability.label ? details.injuryStatus : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
-  const nflDraftRows = [
-    ['NFL Draft Round', details?.nflDraftRound],
-    ['NFL Draft Pick', details?.nflDraftPick],
-    ['NFL Draft Team', details?.nflDraftTeam],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const dynastyRank = getValueProfileRank(valueProfile, 'dynasty', currentRank);
   const seasonRank = getValueProfileRank(valueProfile, 'season', currentRank);
   const balancedRank = getValueProfileRank(valueProfile, 'balanced', currentRank);
@@ -172,12 +167,14 @@ export function PlayerDetailModal({
     ['DynastyProcess', valueProfile.dynastyProcess],
     ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
-  const latestNewsRows = details?.latestNews ? [
-    ['Title', details.latestNews.title],
-    ['Date', details.latestNews.publishedAt ? formatNewsDate(details.latestNews.publishedAt) : null],
-    ['Source', details.latestNews.source],
-    ['Summary', details.latestNews.summary],
-    ['URL', details.latestNews.url],
+  const latestNews = details?.latestNews ?? null;
+  const hasMeaningfulNews = Boolean(latestNews?.title || latestNews?.summary);
+  const latestNewsRows = hasMeaningfulNews && latestNews ? [
+    ['Title', latestNews.title],
+    ['Date', latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null],
+    ['Source', latestNews.source],
+    ['Summary', latestNews.summary],
+    ['URL', latestNews.url],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const intelligenceNotes = buildPlayerIntelligenceNotes({
     details,
@@ -562,16 +559,13 @@ export function PlayerDetailModal({
 
             {(marketRankRows.length > 0
               || sourceValueRows.length > 0
-              || nflDraftRows.length > 0
               || latestNewsRows.length > 0
-              || Boolean(details?.availabilityHistory?.length)
-              || Boolean(valueProfile?.sources?.length)) && (
+              || Boolean(details?.availabilityHistory?.length)) && (
               <div className="player-complete-data mx-auto max-w-xl">
-                <p className="player-complete-title">Player Data Locker</p>
+                <p className="player-complete-title">Source Detail</p>
                 <div className="player-complete-grid">
                   <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority />
                   <CompleteDataSection title="Source Inputs" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
-                  <CompleteDataSection title="NFL Draft" rows={nflDraftRows} teamColors={teamColors} tileAccent={tileAccent} />
                   <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
                   {details?.availabilityHistory?.length ? (
                     <div className="player-complete-section player-complete-section-wide">
@@ -588,14 +582,6 @@ export function PlayerDetailModal({
                           </div>
                         ))}
                       </div>
-                    </div>
-                  ) : null}
-                  {valueProfile?.sources?.length ? (
-                    <div className="player-complete-section player-complete-section-wide player-complete-section-centered">
-                      <h4>Rank Blend Sources</h4>
-                      <p className="player-complete-copy">
-                        {valueProfile.sources.map(formatSourceLabel).join(' + ')}
-                      </p>
                     </div>
                   ) : null}
                 </div>
@@ -673,17 +659,6 @@ function formatValueLens(value: number | null | undefined) {
   if (!value) return '-';
   if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}K`;
   return value.toLocaleString();
-}
-
-function formatSourceLabel(value: string) {
-  const normalized = value.toLowerCase();
-  if (normalized.includes('ktc') || normalized.includes('keeptradecut')) return 'KeepTradeCut';
-  if (normalized.includes('fantasycalc')) return 'FantasyCalc';
-  if (normalized.includes('dynastyprocess')) return 'DynastyProcess';
-  if (normalized.includes('fantasypros')) return 'FantasyPros';
-  return value
-    .replace(/[_-]/g, ' ')
-    .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
 }
 
 function formatCompleteValue(value: unknown, compactNumbers?: boolean) {
