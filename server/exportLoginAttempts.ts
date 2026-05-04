@@ -1,8 +1,11 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { getLoginAttemptsSince } from "./db";
+
+dotenv.config({ path: ".env.local", override: false });
+dotenv.config();
 
 function csvEscape(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";

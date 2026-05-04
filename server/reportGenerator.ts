@@ -1670,9 +1670,11 @@ export async function generateReport(
     const rosterPlayers = activePlayerIds
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
+    const currentSeasonNumber = Number(currentSeasonData.label || new Date().getFullYear());
     const taxiPlayers = getTaxiPlayerIds(r)
       .map((pid) => buildIntelPlayer(pid, manager, r))
-      .filter((player): player is BuiltIntelPlayer => Boolean(player));
+      .filter((player): player is BuiltIntelPlayer => Boolean(player))
+      .filter((player) => Number(player.playerDetails?.rookieYear || 0) === currentSeasonNumber);
     const reservePlayers = getReservePlayerIds(r)
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
