@@ -33,6 +33,7 @@ type PlayerDetailsById = ReportData['playerDetailsById'];
 type CurrentPositionRankById = ReportData['currentPositionRankById'];
 type LeagueOverviewRows = ReportData['leagueOverview'];
 type ManagerRosterIntelRows = NonNullable<ReportData['managerRosterIntelligence']>;
+type DynastyTimelineRows = NonNullable<ReportData['dynastyTimelines']>;
 
 function buildPlayerModalData({
   playerId,
@@ -181,6 +182,7 @@ function renderTradeSideManager(
   manager: string,
   isWinner: boolean,
   managerAvatars?: ManagerAvatars,
+  buildLens?: ManagerBuildLens,
 ) {
   const avatarUrl = managerAvatars?.[manager];
   const initial = manager.trim()[0]?.toUpperCase() || '?';
@@ -206,7 +208,31 @@ function renderTradeSideManager(
         </ChampionAvatarFrame>
         {isWinner && <Crown className="trade-winner-crown" aria-hidden="true" />}
       </span>
-      <span className="min-w-0 truncate">{manager}</span>
+      <span className="trade-side-manager-lockup">
+        <span className="trade-side-manager-name">{manager}</span>
+        {buildLens && <ManagerBuildPill lens={buildLens} />}
+      </span>
+    </span>
+  );
+}
+
+function ManagerBuildPill({ lens }: { lens: ManagerBuildLens }) {
+  return (
+    <span className={`trade-build-pill trade-build-pill-${lens.tone}`} title={lens.reason}>
+      {lens.label}
+    </span>
+  );
+}
+
+function renderTradeLedgerManagerName(
+  manager: string,
+  managerAvatars?: ManagerAvatars,
+  buildLens?: ManagerBuildLens,
+) {
+  return (
+    <span className="trade-ledger-manager-lockup">
+      {renderManagerName(manager, managerAvatars)}
+      {buildLens && <ManagerBuildPill lens={buildLens} />}
     </span>
   );
 }
@@ -252,53 +278,264 @@ function getManagerTradeResult(trade: ReportData['tradeHistory'][number], manage
   return winners.includes(manager) ? 'Win' : 'Loss';
 }
 
-function getTradeDisplaySides(row: ReportData['tradeHistory'][number]) {
-  const winners = row.winners?.length ? row.winners : [row.winner];
+const TRADE_LEDGER_MUTUAL_WIN_GAP = 250;
+
+type ManagerBuildLens = {
+  mode: TradeWarMode;
+  label: string;
+  tone: 'contender' | 'rebuilder' | 'middle';
+  reason: string;
+};
+
+type TradeLedgerSideEvaluation = {
+  manager: string;
+  lens: ManagerBuildLens;
+  values: number[];
+  adjustment: number;
+  total: number;
+};
+
+type TradeLedgerEvaluation = {
+  teamA: TradeLedgerSideEvaluation;
+  teamB: TradeLedgerSideEvaluation;
+  pointGap: number;
+  winners: string[];
+};
+
+function getManagerBuildLens(
+  manager: string,
+  dynastyTimelines?: DynastyTimelineRows,
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'],
+): ManagerBuildLens {
+  const timeline = dynastyTimelines?.find((row) => row.manager === manager);
+  if (timeline) {
+    const { contenderScore, rebuildScore, label } = timeline;
+    const reason = `${label}: contender ${contenderScore}, rebuild ${rebuildScore}`;
+
+    if (contenderScore >= 74 && contenderScore >= rebuildScore - 6) {
+      return { mode: 'contender', label: 'Contender', tone: 'contender', reason };
+    }
+
+    if (rebuildScore >= 68 && rebuildScore > contenderScore) {
+      return { mode: 'rebuilder', label: 'Rebuilder', tone: 'rebuilder', reason };
+    }
+
+    if (/contender|win|playoff/i.test(label)) {
+      return { mode: 'contender', label: 'Contender', tone: 'contender', reason };
+    }
+
+    if (/rebuild|future/i.test(label)) {
+      return { mode: 'rebuilder', label: 'Rebuilder', tone: 'rebuilder', reason };
+    }
+
+    return { mode: 'dynasty', label: 'Middle', tone: 'middle', reason };
+  }
+
+  const intel = managerRosterIntelligence?.find((row) => row.manager === manager);
+  const fallbackLabel = `${intel?.timeline || intel?.identity || 'No timeline score'}`;
+  if (/rebuild|future|youth/i.test(fallbackLabel)) {
+    return { mode: 'rebuilder', label: 'Rebuilder', tone: 'rebuilder', reason: fallbackLabel };
+  }
+  if (/contender|win|playoff/i.test(fallbackLabel)) {
+    return { mode: 'contender', label: 'Contender', tone: 'contender', reason: fallbackLabel };
+  }
+
+  return { mode: 'dynasty', label: 'Middle', tone: 'middle', reason: fallbackLabel };
+}
+
+function getTradeLensNumber(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null;
+}
+
+function getTradeLedgerPlayerValue(
+  playerItem: ReturnType<typeof parseTradePlayerItem>,
+  details: PlayerDetails | undefined,
+  mode: TradeWarMode,
+): number | null {
+  if (!playerItem) return null;
+  const profile = details?.valueProfile;
+  if (mode === 'contender') {
+    return getTradeLensNumber(profile?.contenderValue)
+      ?? getTradeLensNumber(profile?.seasonValue)
+      ?? playerItem.value;
+  }
+  if (mode === 'rebuilder') {
+    return getTradeLensNumber(profile?.rebuilderValue)
+      ?? getTradeLensNumber(profile?.dynastyValue)
+      ?? playerItem.value;
+  }
+  return playerItem.value;
+}
+
+function getTradeLedgerPlayerRank(
+  playerId: string,
+  details: PlayerDetails | undefined,
+  currentPositionRankById: CurrentPositionRankById | undefined,
+  mode: TradeWarMode,
+) {
+  const profile = details?.valueProfile;
+  if (mode === 'contender') {
+    return profile?.contenderPositionRank
+      || profile?.seasonPositionRank
+      || currentPositionRankById?.[playerId]
+      || profile?.dynastyPositionRank
+      || details?.position
+      || null;
+  }
+  if (mode === 'rebuilder') {
+    return profile?.rebuilderPositionRank
+      || profile?.dynastyPositionRank
+      || currentPositionRankById?.[playerId]
+      || profile?.balancedPositionRank
+      || details?.position
+      || null;
+  }
+  return currentPositionRankById?.[playerId]
+    || profile?.dynastyPositionRank
+    || profile?.balancedPositionRank
+    || profile?.seasonPositionRank
+    || details?.position
+    || null;
+}
+
+function getTradeLedgerItemValues(
+  items: string,
+  mode: TradeWarMode,
+  playerDetailsById?: PlayerDetailsById,
+) {
+  return splitTradeItems(items)
+    .map((item) => {
+      const trimmed = item.trim();
+      if (!trimmed || parseValueAdjustmentItem(trimmed) !== null) return null;
+
+      const playerItem = parseTradePlayerItem(trimmed);
+      if (playerItem) {
+        return getTradeLedgerPlayerValue(playerItem, playerDetailsById?.[playerItem.playerId], mode);
+      }
+
+      const pickItem = parseTradePickItem(trimmed);
+      if (pickItem) return getTradeLensNumber(pickItem.value);
+
+      return null;
+    })
+    .filter((value): value is number => value !== null && Number.isFinite(value));
+}
+
+function calculateTradeLedgerValueAdjustment(sideValues: number[], otherSideValues: number[]): number {
+  if (!sideValues.length || !otherSideValues.length) return 0;
+  const bestPlayerVal = Math.max(...sideValues, ...otherSideValues);
+  if (sideValues.includes(bestPlayerVal) && sideValues.length < otherSideValues.length) {
+    const diff = otherSideValues.length - sideValues.length;
+    const avgPkgVal = otherSideValues.reduce((sum, value) => sum + value, 0) / otherSideValues.length;
+    return Math.floor(avgPkgVal * 0.25 * diff);
+  }
+  return 0;
+}
+
+function chooseTradeLedgerWinners(
+  managerA: string,
+  managerB: string,
+  valueA: number,
+  valueB: number,
+): string[] {
+  const pointGap = Math.abs(valueA - valueB);
+  if (pointGap <= TRADE_LEDGER_MUTUAL_WIN_GAP) return [managerA, managerB];
+  return valueA > valueB ? [managerA] : [managerB];
+}
+
+function buildTradeLedgerEvaluation(
+  row: ReportData['tradeHistory'][number],
+  dynastyTimelines?: DynastyTimelineRows,
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'],
+  playerDetailsById?: PlayerDetailsById,
+): TradeLedgerEvaluation {
+  const teamALens = getManagerBuildLens(row.team_a, dynastyTimelines, managerRosterIntelligence);
+  const teamBLens = getManagerBuildLens(row.team_b, dynastyTimelines, managerRosterIntelligence);
+  const teamAValues = getTradeLedgerItemValues(row.team_a_items, teamALens.mode, playerDetailsById);
+  const teamBValues = getTradeLedgerItemValues(row.team_b_items, teamBLens.mode, playerDetailsById);
+  const teamAAdjustment = calculateTradeLedgerValueAdjustment(teamAValues, teamBValues);
+  const teamBAdjustment = calculateTradeLedgerValueAdjustment(teamBValues, teamAValues);
+  const teamATotal = teamAValues.reduce((sum, value) => sum + value, 0) + teamAAdjustment;
+  const teamBTotal = teamBValues.reduce((sum, value) => sum + value, 0) + teamBAdjustment;
+  const evaluatedTeamATotal = teamATotal || row.team_a_total;
+  const evaluatedTeamBTotal = teamBTotal || row.team_b_total;
+
+  return {
+    teamA: {
+      manager: row.team_a,
+      lens: teamALens,
+      values: teamAValues,
+      adjustment: teamAAdjustment,
+      total: evaluatedTeamATotal,
+    },
+    teamB: {
+      manager: row.team_b,
+      lens: teamBLens,
+      values: teamBValues,
+      adjustment: teamBAdjustment,
+      total: evaluatedTeamBTotal,
+    },
+    pointGap: Math.abs(evaluatedTeamATotal - evaluatedTeamBTotal),
+    winners: chooseTradeLedgerWinners(row.team_a, row.team_b, evaluatedTeamATotal, evaluatedTeamBTotal),
+  };
+}
+
+function getTradeSideEvaluation(manager: string, evaluation: TradeLedgerEvaluation): TradeLedgerSideEvaluation {
+  return evaluation.teamA.manager === manager ? evaluation.teamA : evaluation.teamB;
+}
+
+function getTradeDisplaySides(
+  row: ReportData['tradeHistory'][number],
+  evaluation?: TradeLedgerEvaluation,
+) {
+  const winners = evaluation?.winners || (row.winners?.length ? row.winners : [row.winner]);
   const isTeamAWinner = winners.includes(row.team_a);
   const isTeamBWinner = winners.includes(row.team_b);
   const isMutualWin = isTeamAWinner && isTeamBWinner;
   const winnerSide = isTeamBWinner && !isTeamAWinner ? 'team_b' : 'team_a';
+  const teamATotal = evaluation?.teamA.total ?? row.team_a_total;
+  const teamBTotal = evaluation?.teamB.total ?? row.team_b_total;
   const loserName = isMutualWin
     ? 'Both Win'
     : winnerSide === 'team_a' ? row.team_b : row.team_a;
   const leftSide = isMutualWin
-    ? {
+      ? {
         manager: row.team_a,
         items: row.team_a_items,
-        total: row.team_a_total,
+        total: teamATotal,
         isWinner: true,
       }
     : winnerSide === 'team_a'
     ? {
         manager: row.team_a,
         items: row.team_a_items,
-        total: row.team_a_total,
+        total: teamATotal,
         isWinner: true,
       }
     : {
         manager: row.team_b,
         items: row.team_b_items,
-        total: row.team_b_total,
+        total: teamBTotal,
         isWinner: true,
       };
   const rightSide = isMutualWin
     ? {
         manager: row.team_b,
         items: row.team_b_items,
-        total: row.team_b_total,
+        total: teamBTotal,
         isWinner: true,
       }
     : winnerSide === 'team_a'
     ? {
         manager: row.team_b,
         items: row.team_b_items,
-        total: row.team_b_total,
+        total: teamBTotal,
         isWinner: false,
       }
     : {
         manager: row.team_a,
         items: row.team_a_items,
-        total: row.team_a_total,
+        total: teamATotal,
         isWinner: false,
       };
 
@@ -312,6 +549,7 @@ function TradeDetailPanel({
   playerDetailsById,
   currentPositionRankById,
   managerRosterIntelligence,
+  dynastyTimelines,
   leagueOverview,
   onPlayerClick,
 }: {
@@ -321,10 +559,12 @@ function TradeDetailPanel({
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  dynastyTimelines?: DynastyTimelineRows;
   leagueOverview?: LeagueOverviewRows;
   onPlayerClick?: (player: PlayerModalData) => void;
 }) {
-  const { leftSide, rightSide } = getTradeDisplaySides(row);
+  const tradeEvaluation = buildTradeLedgerEvaluation(row, dynastyTimelines, managerRosterIntelligence, playerDetailsById);
+  const { leftSide, rightSide } = getTradeDisplaySides(row, tradeEvaluation);
   const tradeFitReads = buildTradeFitReads(row, managerRosterIntelligence, playerDetailsById);
   const intelByManager = new Map((managerRosterIntelligence || []).map((intel) => [intel.manager, intel]));
   const overviewByManager = new Map((leagueOverview || []).map((overview) => [overview.manager, overview]));
@@ -337,58 +577,68 @@ function TradeDetailPanel({
         </div>
         <div className="trade-detail-gap">
           <span>Gap</span>
-          <strong>{row.point_gap.toLocaleString()}</strong>
+          <strong>{tradeEvaluation.pointGap.toLocaleString()}</strong>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-        {[leftSide, rightSide].map((side) => (
-          <div
-            key={side.manager}
-            className={`trade-side ${side.isWinner ? 'trade-side-winner' : 'trade-side-loser'}`}
-          >
-            {managerAvatars?.[side.manager] && (
-              <img
-                src={managerAvatars[side.manager] || ''}
-                alt=""
-                className="trade-side-watermark"
-              />
-            )}
-            <div className="trade-side-header relative flex items-center justify-between gap-3 border-b border-orange-300/15 pb-3">
-              <div className="min-w-0">
-                <span className={`trade-side-label ${side.isWinner ? 'trade-side-label-win' : 'trade-side-label-other'}`}>
-                  {side.isWinner ? 'Winner' : 'Other Side'}
-                </span>
+        {[leftSide, rightSide].map((side) => {
+          const sideEvaluation = getTradeSideEvaluation(side.manager, tradeEvaluation);
+          const displayItems = splitTradeItems(side.items)
+            .filter((item) => parseValueAdjustmentItem(item.trim()) === null);
+
+          return (
+            <div
+              key={side.manager}
+              className={`trade-side ${side.isWinner ? 'trade-side-winner' : 'trade-side-loser'}`}
+            >
+              {managerAvatars?.[side.manager] && (
+                <img
+                  src={managerAvatars[side.manager] || ''}
+                  alt=""
+                  className="trade-side-watermark"
+                />
+              )}
+              <div className="trade-side-header relative flex items-center justify-between gap-3 border-b border-orange-300/15 pb-3">
+                <div className="min-w-0">
+                  <span className={`trade-side-label ${side.isWinner ? 'trade-side-label-win' : 'trade-side-label-other'}`}>
+                    {side.isWinner ? 'Winner' : 'Other Side'}
+                  </span>
+                </div>
+                {renderTradeSideManager(side.manager, side.isWinner, managerAvatars, sideEvaluation.lens)}
+                <div className={`trade-side-total ${side.isWinner ? 'trade-side-total-win' : 'trade-side-total-other'}`}>
+                  <span>Total</span>
+                  <strong>{sideEvaluation.total.toLocaleString()}</strong>
+                </div>
               </div>
-              {renderTradeSideManager(side.manager, side.isWinner, managerAvatars)}
-              <div className={`trade-side-total ${side.isWinner ? 'trade-side-total-win' : 'trade-side-total-other'}`}>
-                <span>Total</span>
-                <strong>{side.total.toLocaleString()}</strong>
+              <div className="relative pt-3">
+                <div className="trade-side-assets text-sm text-slate-300">
+                  {displayItems
+                    .map((item, i) => renderTradeItem(item, i, {
+                      draftPicks,
+                      playerDetailsById,
+                      currentPositionRankById,
+                      onPlayerClick,
+                      manager: side.manager,
+                      managerAvatarUrl: managerAvatars?.[side.manager],
+                      valueMode: sideEvaluation.lens.mode,
+                    }))}
+                  {sideEvaluation.adjustment > 0 && renderTradeItem(
+                    `VALUE_ADJUSTMENT:+${sideEvaluation.adjustment}`,
+                    displayItems.length,
+                  )}
+                </div>
+                {renderTradeOverviewImpact({
+                  manager: side.manager,
+                  incomingItems: side.items,
+                  outgoingItems: side === leftSide ? rightSide.items : leftSide.items,
+                  intel: intelByManager.get(side.manager),
+                  overview: overviewByManager.get(side.manager),
+                  playerDetailsById,
+                })}
               </div>
             </div>
-            <div className="relative pt-3">
-              <div className="trade-side-assets text-sm text-slate-300">
-                {side.items
-                  .split(',')
-                  .map((item, i) => renderTradeItem(item, i, {
-                    draftPicks,
-                    playerDetailsById,
-                    currentPositionRankById,
-                    onPlayerClick,
-                    manager: side.manager,
-                    managerAvatarUrl: managerAvatars?.[side.manager],
-                  }))}
-              </div>
-              {renderTradeOverviewImpact({
-                manager: side.manager,
-                incomingItems: side.items,
-                outgoingItems: side === leftSide ? rightSide.items : leftSide.items,
-                intel: intelByManager.get(side.manager),
-                overview: overviewByManager.get(side.manager),
-                playerDetailsById,
-              })}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {tradeFitReads.length > 0 && (
         <div className="trade-fit-read-grid">
@@ -527,6 +777,7 @@ function renderTradeItem(
     onPlayerClick,
     manager,
     managerAvatarUrl,
+    valueMode = 'dynasty',
   }: {
     draftPicks?: DraftPick[];
     playerDetailsById?: PlayerDetailsById;
@@ -534,6 +785,7 @@ function renderTradeItem(
     onPlayerClick?: (player: PlayerModalData) => void;
     manager?: string;
     managerAvatarUrl?: string | null;
+    valueMode?: TradeWarMode;
   } = {}
 ) {
   const trimmed = item.trim();
@@ -555,13 +807,9 @@ function renderTradeItem(
   if (playerItem) {
     const details = playerDetailsById?.[playerItem.playerId];
     const teamStyle = getTeamTileStyle(details?.team);
-    const currentRank = currentPositionRankById?.[playerItem.playerId]
-      || details?.valueProfile?.dynastyPositionRank
-      || details?.valueProfile?.balancedPositionRank
-      || details?.valueProfile?.seasonPositionRank
-      || details?.position
-      || null;
-    const valueGain = playerItem.value !== null && playerItem.tradeDateValue !== null
+    const currentRank = getTradeLedgerPlayerRank(playerItem.playerId, details, currentPositionRankById, valueMode);
+    const displayedValue = getTradeLedgerPlayerValue(playerItem, details, valueMode);
+    const valueGain = valueMode === 'dynasty' && playerItem.value !== null && playerItem.tradeDateValue !== null
       ? playerItem.value - playerItem.tradeDateValue
       : undefined;
     const content = (
@@ -577,9 +825,9 @@ function renderTradeItem(
             <TeamLogoPill team={details?.team} />
             <PositionRankPill rank={currentRank || 'Player'} />
           </span>
-          {playerItem.value !== null && (
+          {displayedValue !== null && (
             <span className="value-pill trade-asset-player-value">
-              {playerItem.value.toLocaleString()}
+              {displayedValue.toLocaleString()}
             </span>
           )}
         </span>
@@ -600,16 +848,16 @@ function renderTradeItem(
             onPlayerClick(buildPlayerModalData({
               playerId: playerItem.playerId,
               playerName: playerItem.playerName,
-              value: playerItem.value,
+              value: displayedValue,
               valueGain,
-              valueChangeNote: playerItem.tradeDate
+              valueChangeNote: valueMode === 'dynasty' && playerItem.tradeDate
                 ? `Change from this trade on ${playerItem.tradeDate} to today.`
                 : undefined,
               playerDetails: details,
               playerDetailsById,
               manager,
               managerAvatarUrl,
-              currentPositionRank: currentPositionRankById?.[playerItem.playerId],
+              currentPositionRank: currentRank,
             }));
           }}
         >
@@ -4156,6 +4404,7 @@ export function TradeProfitLeaderboardTable({
   currentPositionRankById,
   tradeTendencies,
   managerRosterIntelligence,
+  dynastyTimelines,
   leagueOverview,
   leagueId,
   leagueLogo,
@@ -4170,6 +4419,7 @@ export function TradeProfitLeaderboardTable({
   currentPositionRankById?: CurrentPositionRankById;
   tradeTendencies?: ReportData['tradeTendencies'];
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  dynastyTimelines?: DynastyTimelineRows;
   leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
@@ -4370,6 +4620,7 @@ export function TradeProfitLeaderboardTable({
                             playerDetailsById={playerDetailsById}
                             currentPositionRankById={currentPositionRankById}
                             managerRosterIntelligence={managerRosterIntelligence}
+                            dynastyTimelines={dynastyTimelines}
                             leagueOverview={leagueOverview}
                             onPlayerClick={setSelectedPlayer}
                           />
@@ -4402,6 +4653,7 @@ export function TradeHistoryTable({
   playerDetailsById,
   currentPositionRankById,
   managerRosterIntelligence,
+  dynastyTimelines,
   leagueOverview,
   leagueId,
   leagueLogo,
@@ -4414,6 +4666,7 @@ export function TradeHistoryTable({
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  dynastyTimelines?: DynastyTimelineRows;
   leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
@@ -4483,13 +4736,14 @@ export function TradeHistoryTable({
                   {!isYearCollapsed && yearTrades.map((row) => {
               const idx = orderedTrades.indexOf(row);
               const isExpanded = expandedIdx === idx;
-              const { winners, loserName } = getTradeDisplaySides(row);
+              const tradeEvaluation = buildTradeLedgerEvaluation(row, dynastyTimelines, managerRosterIntelligence, playerDetailsById);
+              const { winners, loserName } = getTradeDisplaySides(row, tradeEvaluation);
               const tradeKey = `${row.date}-${row.team_a}-${row.team_b}-${idx}`;
               const shouldSwapSummary = stableTradeSeed(tradeKey) % 2 === 1;
               const summaryManagers = shouldSwapSummary
                 ? [row.team_b, row.team_a]
                 : [row.team_a, row.team_b];
-              const gapVerdict = getTradeGapVerdict(row.point_gap);
+              const gapVerdict = getTradeGapVerdict(tradeEvaluation.pointGap);
 
               return (
                 <React.Fragment key={`${tradeKey}-fragment`}>
@@ -4511,17 +4765,29 @@ export function TradeHistoryTable({
                     </TableCell>
                     <TableCell className="trade-ledger-manager-cell font-semibold text-sm text-orange-300">
                       {winners.map((winner) => (
-                        <span key={winner}>{renderManagerName(winner, managerAvatars)}</span>
+                        <span key={winner}>
+                          {renderTradeLedgerManagerName(
+                            winner,
+                            managerAvatars,
+                            getTradeSideEvaluation(winner, tradeEvaluation).lens,
+                          )}
+                        </span>
                       ))}
                     </TableCell>
                     <TableCell className="trade-ledger-manager-cell font-semibold text-sm text-cyan-300">
-                      {renderManagerName(loserName, managerAvatars)}
+                      {loserName === 'Both Win'
+                        ? renderManagerName(loserName, managerAvatars)
+                        : renderTradeLedgerManagerName(
+                            loserName,
+                            managerAvatars,
+                            getTradeSideEvaluation(loserName, tradeEvaluation).lens,
+                          )}
                     </TableCell>
                     <TableCell className="trade-gap-cell text-center text-slate-300">
                       <span className={`trade-gap-verdict ${gapVerdict.className}`}>
                         {gapVerdict.label}
                       </span>
-                      <span className="value-pill">{row.point_gap.toLocaleString()}</span>
+                      <span className="value-pill">{tradeEvaluation.pointGap.toLocaleString()}</span>
                     </TableCell>
                   </TableRow>
 
@@ -4535,6 +4801,7 @@ export function TradeHistoryTable({
                           playerDetailsById={playerDetailsById}
                           currentPositionRankById={currentPositionRankById}
                           managerRosterIntelligence={managerRosterIntelligence}
+                          dynastyTimelines={dynastyTimelines}
                           leagueOverview={leagueOverview}
                           onPlayerClick={setSelectedPlayer}
                         />
@@ -4909,6 +5176,7 @@ export function TradeTheftDetector({
   playerDetailsById,
   currentPositionRankById,
   managerRosterIntelligence,
+  dynastyTimelines,
   leagueOverview,
   leagueId,
   leagueLogo,
@@ -4919,6 +5187,7 @@ export function TradeTheftDetector({
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  dynastyTimelines?: DynastyTimelineRows;
   leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
@@ -5052,6 +5321,7 @@ export function TradeTheftDetector({
               playerDetailsById={playerDetailsById}
               currentPositionRankById={currentPositionRankById}
               managerRosterIntelligence={managerRosterIntelligence}
+              dynastyTimelines={dynastyTimelines}
               leagueOverview={leagueOverview}
               onPlayerClick={setSelectedPlayer}
             />
