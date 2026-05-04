@@ -229,8 +229,10 @@ function getTradeGapVerdict(gap: number) {
   if (gap < 3000) return { label: 'Receipts Needed', className: 'trade-gap-verdict-fire' };
   if (gap < 3500) return { label: 'Crime Scene', className: 'trade-gap-verdict-nuclear' };
   if (gap < 4000) return { label: 'Witness Needed', className: 'trade-gap-verdict-nuclear' };
-  if (gap < 5000) return { label: 'Delete the App', className: 'trade-gap-verdict-nuclear' };
-  return { label: 'Gen Fleece', className: 'trade-gap-verdict-nuclear' };
+  if( gap < 5000 ) return { label: 'Delete the App', className: 'trade-gap-verdict-nuclear' };
+  if( gap < 6000 ) return { label: 'Call the Lawyer', className: 'trade-gap-verdict-nuclear' };
+  if( gap < 7500 ) return { label: 'Generational Fleece', className: 'trade-gap-verdict-nuclear' };
+    return { label: 'Eternal Shame', className: 'trade-gap-verdict-nuclear' };
 }
 
 function getManagerTradeSwing(trade: ReportData['tradeHistory'][number], manager: string) {
