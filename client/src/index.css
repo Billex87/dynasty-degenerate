@@ -691,6 +691,8 @@
     display: grid;
     justify-items: center;
     gap: 0.22rem;
+    width: fit-content;
+    margin-inline: auto;
   }
 
   .home-header-side {
@@ -711,11 +713,16 @@
   }
 
   .home-header-tagline {
-    color: rgba(249, 115, 22, 0.72);
+    background: linear-gradient(90deg, #fb923c 0%, #fdba74 45%, #fde68a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
     font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
+    font-weight: 800;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+    text-align: center;
+    text-shadow: 0 12px 30px rgba(249, 115, 22, 0.16);
   }
 
   .home-header-logo {
