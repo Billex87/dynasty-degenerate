@@ -342,6 +342,35 @@ export default function Home() {
 
   const usernameAutocompleteOptions = getFilteredAutocompleteOptions(sleeperUsernameHistory, sleeperUsername);
   const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(leagueIdHistory, leagueId);
+  const clownEasterEggDialog = (
+    <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
+      <DialogContent className="clown-easter-egg-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
+        <DialogHeader className="text-center">
+          <DialogTitle className="athletic-headline text-3xl text-orange-400">
+            Homo Alert
+          </DialogTitle>
+          <DialogDescription className="text-cyan-100/75">
+            This username unlocked a special screen.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="clown-easter-egg-body">
+          <div className="clown-easter-egg-face" aria-hidden="true">🤡</div>
+          <p className="clown-easter-egg-copy">
+            League Rival Detected. Not Allowed Cuz You're Fuckin Gay.
+          </p>
+        </div>
+        <DialogFooter className="sm:justify-center">
+          <Button
+            type="button"
+            onClick={handleClownDismiss}
+            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
+          >
+            Back to Login
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   if (reportData) {
     return (
@@ -682,33 +711,7 @@ export default function Home() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
-          <DialogContent className="clown-easter-egg-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
-            <DialogHeader className="text-center">
-              <DialogTitle className="athletic-headline text-3xl text-orange-400">
-                Rival Alert
-              </DialogTitle>
-              <DialogDescription className="text-cyan-100/75">
-                This username unlocked a special screen.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="clown-easter-egg-body">
-              <div className="clown-easter-egg-face" aria-hidden="true">🤡</div>
-              <p className="clown-easter-egg-copy">
-                League Rival Detected. Not Allowed Cuz You're Fuckin Gay.
-              </p>
-            </div>
-            <DialogFooter className="sm:justify-center">
-              <Button
-                type="button"
-                onClick={handleClownDismiss}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
-              >
-                Back to Login
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {clownEasterEggDialog}
       </div>
       </ManagerChampionshipProvider>
     );
@@ -976,6 +979,7 @@ export default function Home() {
         </div>
       </div>
       )}
+      {clownEasterEggDialog}
     </div>
   );
 }
