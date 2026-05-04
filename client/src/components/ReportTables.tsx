@@ -26,6 +26,7 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { getPlayerAvailability, getPlayerAvailabilityClass } from '@/lib/playerStatus';
+import { compareManagersByViewerAndStanding, sortRowsByOverviewStrength, sortRowsByViewerAndStanding } from '@/lib/managerOrdering';
 
 type ManagerAvatars = ReportData['managerAvatars'];
 type PlayerDetailsById = ReportData['playerDetailsById'];
@@ -2205,12 +2206,16 @@ export function LeagueCommandCenter({
   leagueId,
   leagueLogo,
   section = 'all',
+  viewerManager,
+  currentStandings,
 }: {
   data: ReportData;
   managerAvatars?: ManagerAvatars;
   leagueId?: string;
   leagueLogo?: string | null;
   section?: 'all' | 'roster' | 'taxi';
+  viewerManager?: string | null;
+  currentStandings?: ReportData['currentStandings'];
 }) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
@@ -2232,7 +2237,7 @@ export function LeagueCommandCenter({
       droppablePlayers: intel.find((item) => item.manager === row.manager)?.droppablePlayers || [],
       taxiTriage: intel.find((item) => item.manager === row.manager)?.taxiTriage,
     }))
-    .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers);
+    .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers || compareManagersByViewerAndStanding(a.manager, b.manager, { viewerManager, standings: currentStandings, leagueOverview: data.leagueOverview }));
   const taxiDepth = intel
     .filter((row) => row.taxiTriage?.items.length)
     .map((row) => ({
@@ -2244,7 +2249,7 @@ export function LeagueCommandCenter({
       const bPromote = b.taxiTriage.counts['Promote Now'] || 0;
       const aCut = a.taxiTriage.counts.Cuttable || 0;
       const bCut = b.taxiTriage.counts.Cuttable || 0;
-      return bPromote - aPromote || bCut - aCut || b.taxiTriage.items.length - a.taxiTriage.items.length;
+      return bPromote - aPromote || bCut - aCut || b.taxiTriage.items.length - a.taxiTriage.items.length || compareManagersByViewerAndStanding(a.manager, b.manager, { viewerManager, standings: currentStandings, leagueOverview: data.leagueOverview });
     });
   const selectedIntel = selectedManager ? intel.find((row) => row.manager === selectedManager) : null;
   const selectedCounts = selectedManager ? data.managerPositionCounts.find((row) => row.manager === selectedManager) : null;
@@ -2875,11 +2880,15 @@ export function OwnerIntelMatrix({
   managerAvatars,
   leagueId,
   leagueLogo,
+  viewerManager: _viewerManager,
+  currentStandings: _currentStandings,
 }: {
   data: ReportData;
   managerAvatars?: ManagerAvatars;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
+  currentStandings?: ReportData['currentStandings'];
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const [selectedOwner, setSelectedOwner] = useState<string | null>(null);
@@ -2893,7 +2902,12 @@ export function OwnerIntelMatrix({
   const getTimelineRow = (manager: string) => data.dynastyTimelines?.find((row) => row.manager === manager);
   const getOverviewRow = (manager: string) => data.leagueOverview.find((row) => row.manager === manager);
   const getGrowthRow = (manager: string) => data.managerRosterValueGrowth.find((row) => row.manager === manager);
-  const selectedRow = selectedOwner ? intelRows.find((row) => row.manager === selectedOwner) : null;
+  const orderedIntelRows = sortRowsByOverviewStrength(intelRows, (row) => row.manager, {
+    powerRankings: data.powerRankings,
+    dynastyTimelines: data.dynastyTimelines,
+    leagueOverview: data.leagueOverview,
+  });
+  const selectedRow = selectedOwner ? orderedIntelRows.find((row) => row.manager === selectedOwner) : null;
   const selectedCountRow = selectedRow ? getCountRow(selectedRow.manager) : null;
   const selectedTradeRow = selectedRow ? getTradeRow(selectedRow.manager) : null;
   const selectedPickRow = selectedRow ? getPickRow(selectedRow.manager) : null;
@@ -2975,7 +2989,7 @@ export function OwnerIntelMatrix({
   return (
     <>
       <div className="command-depth-grid">
-        {intelRows.map((row) => {
+        {orderedIntelRows.map((row) => {
           const countRow = getCountRow(row.manager);
           const tradeRow = getTradeRow(row.manager);
           const pickRow = getPickRow(row.manager);
@@ -3603,6 +3617,8 @@ export function TradeWarRoom({
   leagueOverview,
   powerRankings,
   dynastyTimelines,
+  viewerManager,
+  currentStandings,
 }: {
   data?: ReportData['managerRosterIntelligence'];
   managerAvatars?: ManagerAvatars;
@@ -3612,8 +3628,17 @@ export function TradeWarRoom({
   leagueOverview?: ReportData['leagueOverview'];
   powerRankings?: ReportData['powerRankings'];
   dynastyTimelines?: ReportData['dynastyTimelines'];
+  viewerManager?: string | null;
+  currentStandings?: ReportData['currentStandings'];
 }) {
-  const managers = React.useMemo(() => (data || []).map((row) => row.manager), [data]);
+  const managers = React.useMemo(
+    () => sortRowsByViewerAndStanding(data || [], (row) => row.manager, {
+      viewerManager,
+      standings: currentStandings,
+      leagueOverview,
+    }).map((row) => row.manager),
+    [currentStandings, data, leagueOverview, viewerManager]
+  );
   const managerRows = React.useMemo(() => new Map((data || []).map((row) => [row.manager, row])), [data]);
   const [mode, setMode] = useState<TradeWarMode>('dynasty');
   const [managerAState, setManagerAState] = useState('');
@@ -4134,6 +4159,8 @@ export function TradeProfitLeaderboardTable({
   leagueOverview,
   leagueId,
   leagueLogo,
+  viewerManager,
+  currentStandings,
 }: {
   data: ReportData['tradeProfitLeaderboard'];
   managerAvatars?: ManagerAvatars;
@@ -4146,6 +4173,8 @@ export function TradeProfitLeaderboardTable({
   leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
+  currentStandings?: ReportData['currentStandings'];
 }) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedManagerTradeKey, setSelectedManagerTradeKey] = useState<string | null>(null);
@@ -4162,10 +4191,19 @@ export function TradeProfitLeaderboardTable({
     ? tradeTendencies?.find((row) => row.manager === selectedManager)
     : undefined;
 
+  const orderedRows = React.useMemo(
+    () => sortRowsByViewerAndStanding(data, (row) => row.manager, {
+      viewerManager,
+      standings: currentStandings,
+      leagueOverview,
+    }),
+    [currentStandings, data, leagueOverview, viewerManager]
+  );
+
   return (
     <div className="owner-tile-shell">
       <div className="owner-tile-grid trade-profit-tile-grid">
-        {data.map((row) => {
+                {orderedRows.map((row) => {
           const winPct = row.trade_count > 0 ? Math.round((row.wins / row.trade_count) * 100) : 0;
           const tendency = tradeTendencies?.find((item) => item.manager === row.manager);
           const habit = tendency ? getTradeHabit(tendency) : null;
@@ -4367,6 +4405,8 @@ export function TradeHistoryTable({
   leagueOverview,
   leagueId,
   leagueLogo,
+  viewerManager: _viewerManager,
+  currentStandings: _currentStandings,
 }: {
   data: ReportData['tradeHistory'];
   draftPicks?: DraftPick[];
@@ -4377,6 +4417,8 @@ export function TradeHistoryTable({
   leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
+  currentStandings?: ReportData['currentStandings'];
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [collapsedTradeYears, setCollapsedTradeYears] = useState<Set<string>>(new Set());

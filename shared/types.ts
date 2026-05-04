@@ -388,6 +388,15 @@ export type LeagueValueMode = 'dynasty' | 'redraft' | 'keeper';
 
 export interface ReportData {
   leagueValueMode?: LeagueValueMode;
+  viewerManager?: string | null;
+  currentStandings?: Array<{
+    manager: string;
+    rank: number;
+    wins: number;
+    losses: number;
+    ties: number;
+    pointsFor: number;
+  }>;
   managerAvatars?: Record<string, string | null>;
   managerChampionships?: Record<string, ManagerChampionship>;
   playerDetailsById?: Record<string, PlayerDetails>;

@@ -246,6 +246,34 @@ function getWorstRegularSeasonRosterId(rosters: any[] = []): number | null {
   return ranked[0]?.rosterId ?? null;
 }
 
+function buildCurrentStandings(rosters: any[] = [], rosterUserMap: Record<string, string> = {}) {
+  const ranked = rosters
+    .map((roster: any) => {
+      const pointsFor = Number(roster?.settings?.fpts || 0) + Number(roster?.settings?.fpts_decimal || 0) / 100;
+      return {
+        manager: rosterUserMap[String(roster?.roster_id)] || 'Unknown',
+        wins: Number(roster?.settings?.wins || 0),
+        losses: Number(roster?.settings?.losses || 0),
+        ties: Number(roster?.settings?.ties || 0),
+        pointsFor: Number.isFinite(pointsFor) ? pointsFor : 0,
+      };
+    })
+    .filter((row) => row.manager && row.manager !== 'Unknown');
+
+  ranked.sort((a, b) => {
+    if (a.wins !== b.wins) return b.wins - a.wins;
+    if (a.losses !== b.losses) return a.losses - b.losses;
+    if (a.ties !== b.ties) return b.ties - a.ties;
+    if (a.pointsFor !== b.pointsFor) return b.pointsFor - a.pointsFor;
+    return a.manager.localeCompare(b.manager);
+  });
+
+  return ranked.map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
+}
+
 async function buildManagerChampionships(
   currentLeagueInfo: any,
   currentUsers: any[] = [],
@@ -1275,7 +1303,7 @@ export const appRouter = router({
       }),
 
     analyze: publicProcedure
-      .input(z.object({ leagueId: z.string() }))
+      .input(z.object({ leagueId: z.string(), viewerUserId: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
         const ipAddress = getClientIp(ctx.req as any);
         const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
@@ -1419,6 +1447,8 @@ export const appRouter = router({
           const userIdToManagerMap = Object.fromEntries(
             users.map((u: any) => [u.user_id, normalizeManagerName(u.display_name)])
           );
+          const viewerManager = input.viewerUserId ? userIdToManagerMap[input.viewerUserId] || null : null;
+          const currentStandings = buildCurrentStandings(rosters, rosterUserMap);
 
           const currentSeasonData = {
             label: '2026',
@@ -1601,6 +1631,8 @@ export const appRouter = router({
             leagueFormat: formatLeagueFormat(leagueInfo),
             reportData: {
               ...reportData,
+              viewerManager,
+              currentStandings,
               managerAvatars: buildManagerAvatarMap(users),
               managerChampionships,
               playerDetailsById: Object.fromEntries(

@@ -53,6 +53,13 @@ type SleeperLeagueOption = {
   totalRosters: number;
 };
 
+type SleeperUserSession = {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
 type CachedReport = {
   leagueId: string;
   leagueName: string;
@@ -67,6 +74,7 @@ type LastLeague = Omit<CachedReport, 'reportData'>;
 
 type SleeperSession = {
   username: string;
+  user?: SleeperUserSession | null;
   leagues: SleeperLeagueOption[];
   savedAt: number;
 };
@@ -144,6 +152,7 @@ export default function Home() {
   const [sleeperUsernameHistory, setSleeperUsernameHistory] = useState<string[]>(() => readAutocompleteHistory(SLEEPER_USERNAME_HISTORY_KEY));
   const [focusedAutocomplete, setFocusedAutocomplete] = useState<'username' | 'league' | null>(null);
   const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [leagueName, setLeagueName] = useState('');
@@ -181,6 +190,7 @@ export default function Home() {
     onSuccess: (data, variables) => {
       const username = variables.username.trim();
       setUserLeagues(data.leagues);
+      setViewerUserId(data.user?.userId || null);
       if (data.leagues.length === 0) {
         toast.error('No Sleeper leagues found for this username');
         return;
@@ -191,6 +201,7 @@ export default function Home() {
           SLEEPER_SESSION_KEY,
           JSON.stringify({
             username,
+            user: data.user || null,
             leagues: data.leagues,
             savedAt: Date.now(),
           } satisfies SleeperSession)
@@ -206,11 +217,14 @@ export default function Home() {
   });
 
   useEffect(() => {
+    let restoredViewerUserId: string | null = null;
     try {
       const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
       if (sleeperSession) {
         const parsed = JSON.parse(sleeperSession) as SleeperSession;
         setSleeperUsername(parsed.username || '');
+        restoredViewerUserId = parsed.user?.userId || null;
+        setViewerUserId(restoredViewerUserId);
         if (parsed.username) {
           setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, parsed.username));
         }
@@ -244,7 +258,7 @@ export default function Home() {
         setActiveTab(parsed.activeTab || 'overview');
         setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
         setIsLoading(true);
-        analyzeMutation.mutate({ leagueId: parsed.leagueId });
+        analyzeMutation.mutate({ leagueId: parsed.leagueId, viewerUserId: restoredViewerUserId || undefined });
       }
     } catch {
       localStorage.removeItem(REPORT_CACHE_KEY);
@@ -288,7 +302,7 @@ export default function Home() {
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
     setIsLoading(true);
-    analyzeMutation.mutate({ leagueId: nextLeagueId });
+    analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: viewerUserId || undefined });
   };
 
   const handleFindLeagues = async () => {
@@ -323,6 +337,7 @@ export default function Home() {
     setLeagueLogo(null);
     setLeagueFormat('');
     setUserLeagues([]);
+    setViewerUserId(null);
     setActiveTab('overview');
   };
 
@@ -466,6 +481,8 @@ export default function Home() {
                     managerAvatars={reportData.managerAvatars}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    viewerManager={reportData.viewerManager}
+                    currentStandings={reportData.currentStandings}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Roster Depth Board" kicker="Starter-grade depth">
@@ -475,6 +492,8 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                     section="roster"
+                    viewerManager={reportData.viewerManager}
+                    currentStandings={reportData.currentStandings}
                   />
                 </CollapsibleReportSection>
                 {hasTaxiTriage && (
@@ -485,6 +504,8 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                     section="taxi"
+                    viewerManager={reportData.viewerManager}
+                    currentStandings={reportData.currentStandings}
                   />
                 </CollapsibleReportSection>
                 )}
@@ -599,6 +620,8 @@ export default function Home() {
                     dynastyTimelines={reportData.dynastyTimelines}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    viewerManager={reportData.viewerManager}
+                    currentStandings={reportData.currentStandings}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="All-Time Trade Profit Leaderboard" kicker="Net trade edge">
@@ -656,6 +679,9 @@ export default function Home() {
                 playerDetailsById={reportData.playerDetailsById}
                 leagueId={leagueId}
                 leagueLogo={leagueLogo}
+                viewerManager={reportData.viewerManager}
+                currentStandings={reportData.currentStandings}
+                leagueOverview={reportData.leagueOverview}
               />
             </TabsContent>
           </Tabs>

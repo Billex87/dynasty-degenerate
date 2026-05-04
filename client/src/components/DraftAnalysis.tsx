@@ -1,5 +1,5 @@
 import { useState, useMemo, type ReactNode } from 'react';
-import type { DraftPick, ManagerDraftStats, ManagerRosterIntelligence, PlayerDetails } from '@shared/types';
+import type { DraftPick, ManagerDraftStats, ManagerRosterIntelligence, PlayerDetails, ReportData } from '@shared/types';
 import { TrendingUp, TrendingDown, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
@@ -9,6 +9,7 @@ import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampion
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
+import { sortRowsByViewerAndStanding } from '@/lib/managerOrdering';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -18,6 +19,9 @@ interface DraftAnalysisProps {
   playerDetailsById?: Record<string, PlayerDetails>;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
+  currentStandings?: ReportData['currentStandings'];
+  leagueOverview?: ReportData['leagueOverview'];
 }
 
 type SortColumn = 'currentValue' | 'valueChange' | null;
@@ -31,6 +35,9 @@ export function DraftAnalysis({
   playerDetailsById,
   leagueId,
   leagueLogo,
+  viewerManager,
+  currentStandings,
+  leagueOverview,
 }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
@@ -87,6 +94,14 @@ export function DraftAnalysis({
     }, {});
   }, [sortedDraftPicks]);
   const draftOpportunityByPick = useMemo(() => buildDraftOpportunityMap(draftPicks), [draftPicks]);
+  const orderedDraftStats = useMemo(
+    () => sortRowsByViewerAndStanding(draftStats, (row) => row.manager, {
+      viewerManager,
+      standings: currentStandings,
+      leagueOverview,
+    }),
+    [currentStandings, draftStats, leagueOverview, viewerManager]
+  );
   const draftYears = Object.keys(draftPicksByYear).sort((a, b) => Number(b) - Number(a));
   const draftDecisionAudits = useMemo(() => {
     return buildDraftDecisionAudits(sortedDraftPicks, managerRosterIntelligence || []);
@@ -132,7 +147,7 @@ export function DraftAnalysis({
       <DraftCollapsibleSection title="Draft Capital Efficiency" kicker="Manager hit rate">
         <div className="owner-tile-shell">
           <div className="owner-tile-grid draft-efficiency-tile-grid">
-            {draftStats.map((stat, idx) => {
+            {orderedDraftStats.map((stat, idx) => {
               const avatarUrl = managerAvatars?.[stat.manager];
               return (
                 <button
