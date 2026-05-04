@@ -349,6 +349,14 @@ export default function Home() {
     handleStartOver();
   };
 
+  const handleHeaderLeagueClick = () => {
+    if (userLeagues.length > 0) {
+      setIsLeaguePickerOpen(true);
+      return;
+    }
+    toast.message('No cached Sleeper leagues yet. Use Analyze Another League to start over.');
+  };
+
   const handleAnalyzeLeagueOption = (nextLeagueId: string) => {
     setIsLeaguePickerOpen(false);
     localStorage.removeItem(REPORT_CACHE_KEY);
@@ -418,7 +426,12 @@ export default function Home() {
               </div>
 
               {/* Right: League Name */}
-              <div className="report-league-lockup md:col-start-3">
+              <button
+                type="button"
+                className="report-league-lockup md:col-start-3"
+                onClick={handleHeaderLeagueClick}
+                aria-label="Open league switcher"
+              >
                 <div className="min-w-0 text-right">
                   <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">{leagueName}</p>
                   {leagueFormat && (
@@ -434,7 +447,7 @@ export default function Home() {
                     className="report-league-icon"
                   />
                 )}
-              </div>
+              </button>
             </div>
           </div>
         </div>

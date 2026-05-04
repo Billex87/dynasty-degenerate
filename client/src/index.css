@@ -1218,6 +1218,12 @@
     align-items: center;
     justify-content: flex-end;
     gap: clamp(0.45rem, 1.7vw, 0.8rem);
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+    text-align: right;
   }
 
   .report-league-icon {
