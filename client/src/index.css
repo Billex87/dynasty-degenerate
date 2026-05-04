@@ -5945,6 +5945,22 @@
     min-width: 0;
   }
 
+  .trade-asset-player-meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+  }
+
+  .trade-asset-player-pills {
+    display: inline-flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.38rem;
+  }
+
   .trade-asset-player-value {
     flex: 0 0 auto;
   }
@@ -5981,6 +5997,42 @@
 
   .trade-asset-block {
     min-width: 0;
+  }
+
+  .trade-side-impact {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 0.7rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+    padding-top: 0.7rem;
+  }
+
+  .trade-side-impact-ranks,
+  .trade-side-impact-read {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .trade-side-impact-kicker {
+    color: #67e8f9;
+    font-size: 0.58rem;
+    font-weight: 950;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .trade-side-impact-rank-pills,
+  .trade-side-impact-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .trade-side-impact-read p {
+    color: #cbd5e1;
+    font-size: 0.76rem;
+    font-weight: 800;
+    line-height: 1.35;
   }
 
   @media (max-width: 640px) {
@@ -6020,6 +6072,15 @@
 
     .trade-detail-panel .trade-asset-player-value {
       justify-self: end;
+    }
+
+    .trade-detail-panel .trade-asset-player-meta {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    .trade-detail-panel .trade-asset-player-value {
+      justify-self: start;
     }
 
     .trade-detail-panel .trade-asset-block,

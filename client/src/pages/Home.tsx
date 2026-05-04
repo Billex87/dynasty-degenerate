@@ -598,6 +598,7 @@ export default function Home() {
                     currentPositionRankById={reportData.currentPositionRankById}
                     tradeTendencies={reportData.tradeTendencies}
                     managerRosterIntelligence={reportData.managerRosterIntelligence}
+                    leagueOverview={reportData.leagueOverview}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
@@ -610,6 +611,7 @@ export default function Home() {
                     playerDetailsById={reportData.playerDetailsById}
                     currentPositionRankById={reportData.currentPositionRankById}
                     managerRosterIntelligence={reportData.managerRosterIntelligence}
+                    leagueOverview={reportData.leagueOverview}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />
@@ -622,6 +624,7 @@ export default function Home() {
                     playerDetailsById={reportData.playerDetailsById}
                     currentPositionRankById={reportData.currentPositionRankById}
                     managerRosterIntelligence={reportData.managerRosterIntelligence}
+                    leagueOverview={reportData.leagueOverview}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />

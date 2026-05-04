@@ -30,6 +30,8 @@ import { getPlayerAvailability, getPlayerAvailabilityClass } from '@/lib/playerS
 type ManagerAvatars = ReportData['managerAvatars'];
 type PlayerDetailsById = ReportData['playerDetailsById'];
 type CurrentPositionRankById = ReportData['currentPositionRankById'];
+type LeagueOverviewRows = ReportData['leagueOverview'];
+type ManagerRosterIntelRows = NonNullable<ReportData['managerRosterIntelligence']>;
 
 function buildPlayerModalData({
   playerId,
@@ -307,6 +309,7 @@ function TradeDetailPanel({
   playerDetailsById,
   currentPositionRankById,
   managerRosterIntelligence,
+  leagueOverview,
   onPlayerClick,
 }: {
   row: ReportData['tradeHistory'][number];
@@ -315,10 +318,13 @@ function TradeDetailPanel({
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  leagueOverview?: LeagueOverviewRows;
   onPlayerClick?: (player: PlayerModalData) => void;
 }) {
   const { leftSide, rightSide } = getTradeDisplaySides(row);
   const tradeFitReads = buildTradeFitReads(row, managerRosterIntelligence, playerDetailsById);
+  const intelByManager = new Map((managerRosterIntelligence || []).map((intel) => [intel.manager, intel]));
+  const overviewByManager = new Map((leagueOverview || []).map((overview) => [overview.manager, overview]));
 
   return (
     <div className="trade-detail-panel">
@@ -369,6 +375,14 @@ function TradeDetailPanel({
                     managerAvatarUrl: managerAvatars?.[side.manager],
                   }))}
               </div>
+              {renderTradeOverviewImpact({
+                manager: side.manager,
+                incomingItems: side.items,
+                outgoingItems: side === leftSide ? rightSide.items : leftSide.items,
+                intel: intelByManager.get(side.manager),
+                overview: overviewByManager.get(side.manager),
+                playerDetailsById,
+              })}
             </div>
           </div>
         ))}
@@ -538,6 +552,12 @@ function renderTradeItem(
   if (playerItem) {
     const details = playerDetailsById?.[playerItem.playerId];
     const teamStyle = getTeamTileStyle(details?.team);
+    const currentRank = currentPositionRankById?.[playerItem.playerId]
+      || details?.valueProfile?.dynastyPositionRank
+      || details?.valueProfile?.balancedPositionRank
+      || details?.valueProfile?.seasonPositionRank
+      || details?.position
+      || null;
     const valueGain = playerItem.value !== null && playerItem.tradeDateValue !== null
       ? playerItem.value - playerItem.tradeDateValue
       : undefined;
@@ -549,11 +569,17 @@ function renderTradeItem(
             playerName={playerItem.playerName}
           />
         </span>
-        {playerItem.value !== null && (
-          <span className="value-pill trade-asset-player-value">
-            {playerItem.value.toLocaleString()}
+        <span className="trade-asset-player-meta">
+          <span className="trade-asset-player-pills">
+            <TeamLogoPill team={details?.team} />
+            <PositionRankPill rank={currentRank || 'Player'} />
           </span>
-        )}
+          {playerItem.value !== null && (
+            <span className="value-pill trade-asset-player-value">
+              {playerItem.value.toLocaleString()}
+            </span>
+          )}
+        </span>
       </>
     );
 
@@ -643,6 +669,13 @@ function renderTradeItem(
                 playerName={landedPick.playerName}
               />
             )}
+            <PositionRankPill
+              rank={
+                landedPick.currentPositionRank
+                || (landedPick.player_id ? currentPositionRankById?.[landedPick.player_id] : null)
+                || landedPick.playerPos
+              }
+            />
             {landedValue !== null && (
               <span className="text-slate-500">
                 {landedValue.toLocaleString()}
@@ -808,6 +841,93 @@ function buildTradeFitReads(
   });
 
   return reads;
+}
+
+function renderTradeOverviewImpact({
+  manager,
+  incomingItems,
+  outgoingItems,
+  intel,
+  overview,
+  playerDetailsById,
+}: {
+  manager: string;
+  incomingItems: string;
+  outgoingItems: string;
+  intel?: ManagerRosterIntelRows[number];
+  overview?: LeagueOverviewRows[number];
+  playerDetailsById?: PlayerDetailsById;
+}) {
+  if (!intel && !overview) return null;
+
+  const incoming = getTradeItemSignal(incomingItems, playerDetailsById);
+  const outgoing = getTradeItemSignal(outgoingItems, playerDetailsById);
+  const need = intel?.tradePlan?.needPosition || null;
+  const surplus = intel?.tradePlan?.surplusPosition || null;
+  const boughtNeed = Boolean(need && incoming.positions.has(need));
+  const soldNeed = Boolean(need && outgoing.positions.has(need));
+  const soldSurplus = Boolean(surplus && outgoing.positions.has(surplus));
+  const boughtSurplus = Boolean(surplus && incoming.positions.has(surplus));
+
+  const impactPills: Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'info' }> = [];
+  if (need) {
+    impactPills.push({
+      label: boughtNeed ? `Fixed ${need}` : `${need} Still Thin`,
+      tone: boughtNeed ? 'good' : 'warn',
+    });
+  }
+  if (surplus && soldSurplus) impactPills.push({ label: `Moved ${surplus} Surplus`, tone: 'info' });
+  if (need && soldNeed) impactPills.push({ label: `Spent ${need}`, tone: 'danger' });
+  if (surplus && boughtSurplus) impactPills.push({ label: `Added More ${surplus}`, tone: 'warn' });
+
+  const notes: string[] = [];
+  if (boughtNeed && soldSurplus) {
+    notes.push(`${manager} converted ${surplus} depth into ${need} help.`);
+  } else if (boughtNeed && need) {
+    notes.push(`${manager} used this deal to patch the ${need} need.`);
+  } else if (need) {
+    notes.push(`${manager} still came out of this trade without solving ${need}.`);
+  }
+  if (soldNeed && need) {
+    notes.push(`They also moved pieces from the same ${need} room.`);
+  }
+  if (!notes.length && intel?.holes.summary) {
+    notes.push(intel.holes.summary);
+  }
+
+  return (
+    <div className="trade-side-impact">
+      {overview && (
+        <div className="trade-side-impact-ranks">
+          <span className="trade-side-impact-kicker">Current Ranks</span>
+          <div className="trade-side-impact-rank-pills">
+            <PositionRankPill rank={`QB #${overview.rank_qb}`} />
+            <PositionRankPill rank={`RB #${overview.rank_rb}`} />
+            <PositionRankPill rank={`WR #${overview.rank_wr}`} />
+            <PositionRankPill rank={`TE #${overview.rank_te}`} />
+            <PositionRankPill rank={`Value #${overview.rank_value}`} />
+          </div>
+        </div>
+      )}
+      {(impactPills.length > 0 || notes.length > 0) && (
+        <div className="trade-side-impact-read">
+          {impactPills.length > 0 && (
+            <div className="trade-side-impact-pill-row">
+              {impactPills.map((pill) => (
+                <span
+                  key={pill.label}
+                  className={`command-mini-badge command-mini-badge-${pill.tone || 'neutral'}`}
+                >
+                  {pill.label}
+                </span>
+              ))}
+            </div>
+          )}
+          {notes.length > 0 && <p>{notes.join(' ')}</p>}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function titleCasePill(value: string): string {
@@ -3572,6 +3692,7 @@ export function TradeProfitLeaderboardTable({
   currentPositionRankById,
   tradeTendencies,
   managerRosterIntelligence,
+  leagueOverview,
   leagueId,
   leagueLogo,
 }: {
@@ -3583,6 +3704,7 @@ export function TradeProfitLeaderboardTable({
   currentPositionRankById?: CurrentPositionRankById;
   tradeTendencies?: ReportData['tradeTendencies'];
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -3771,6 +3893,7 @@ export function TradeProfitLeaderboardTable({
                             playerDetailsById={playerDetailsById}
                             currentPositionRankById={currentPositionRankById}
                             managerRosterIntelligence={managerRosterIntelligence}
+                            leagueOverview={leagueOverview}
                             onPlayerClick={setSelectedPlayer}
                           />
                         </div>
@@ -3802,6 +3925,7 @@ export function TradeHistoryTable({
   playerDetailsById,
   currentPositionRankById,
   managerRosterIntelligence,
+  leagueOverview,
   leagueId,
   leagueLogo,
 }: {
@@ -3811,6 +3935,7 @@ export function TradeHistoryTable({
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -3929,6 +4054,7 @@ export function TradeHistoryTable({
                           playerDetailsById={playerDetailsById}
                           currentPositionRankById={currentPositionRankById}
                           managerRosterIntelligence={managerRosterIntelligence}
+                          leagueOverview={leagueOverview}
                           onPlayerClick={setSelectedPlayer}
                         />
                       </TableCell>
@@ -4302,6 +4428,7 @@ export function TradeTheftDetector({
   playerDetailsById,
   currentPositionRankById,
   managerRosterIntelligence,
+  leagueOverview,
   leagueId,
   leagueLogo,
 }: {
@@ -4311,6 +4438,7 @@ export function TradeTheftDetector({
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
 }) {
@@ -4443,6 +4571,7 @@ export function TradeTheftDetector({
               playerDetailsById={playerDetailsById}
               currentPositionRankById={currentPositionRankById}
               managerRosterIntelligence={managerRosterIntelligence}
+              leagueOverview={leagueOverview}
               onPlayerClick={setSelectedPlayer}
             />
           )}
