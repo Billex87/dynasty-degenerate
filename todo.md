@@ -224,3 +224,24 @@
 - [x] Weekly Momentum: Now compares latest scrape to previous Tuesday snapshot (7 days ago)
 - [x] Rookie Draft: Confirmed compares May 2025 snapshot to latest scrape
 - [x] Verify both comparisons are using correct data sources
+
+## UI & UX Audit (2026-05-04)
+
+### 🔴 Critical Mobile Fixes (High Priority)
+- [ ] Fix text truncation on mobile hero heading ("OBLITERATE YOUR COMPETITION")
+- [ ] Make input fields full-width on mobile viewports (iPhone SE/12)
+- [ ] Stack "Find Leagues" button vertically below the username input on small screens
+- [ ] Ensure all buttons have a minimum 44px height for touch targets
+- [ ] Fix "For Degens" header text truncation on mobile
+
+### 🟡 Layout & Spacing Improvements (Medium Priority)
+- [ ] Standardize vertical gaps between all landing page sections
+- [ ] Implement responsive padding using CSS `clamp()` for container edges
+- [ ] Adjust feature cards alignment and spacing on tablet viewports (iPad Pro)
+- [ ] Fix inconsistent form field spacing on mobile devices
+
+### 🟢 Desktop & Accessibility Optimizations (Low Priority)
+- [ ] Optimize max-width for ultra-wide screens to reduce excessive whitespace
+- [ ] Improve feature cards visibility/interaction on mobile (consider carousel or better stacking)
+- [ ] Add subtle hover states and transitions for interactive elements
+- [ ] Verify accessibility contrast for all text elements on dark backgrounds
