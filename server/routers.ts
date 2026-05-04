@@ -12,7 +12,7 @@ import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBa
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
 import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
-import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, TrendingPlayer, WaiverIntelligence } from "../shared/types";
+import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -922,6 +922,110 @@ function buildWaiverIntelligence(
   };
 }
 
+function buildRecentTransactionPlayer(
+  playerId: string | null | undefined,
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  rosterStatusByPlayerId: Record<string, string> = {}
+): RecentTransactionPlayer | null {
+  if (!playerId || !players[playerId]) return null;
+  const player = players[playerId];
+  return {
+    player_id: playerId,
+    name: getPlayerName(playerId, players),
+    playerDetails: getPlayerDetails(playerId, player, rosterStatusByPlayerId[playerId]),
+    currentPositionRank: getPlayerCurrentPositionRank(playerId, players, ktcValues),
+    pos: player?.position || 'N/A',
+    team: player?.team || null,
+    ktcValue: getPlayerValue(playerId, players, ktcValues) || null,
+  };
+}
+
+function buildRecentTransactions(
+  transactions: any[],
+  rosterUserMap: Record<string, string>,
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  rosterStatusByPlayerId: Record<string, string> = {},
+  managerIntelByName: Map<string, any> = new Map(),
+  currentSeason: string
+): RecentTransaction[] {
+  const currentSeasonNumber = Number(currentSeason || new Date().getFullYear());
+
+  return [...transactions]
+    .filter((transaction) => transaction?.status === 'complete' && ['waiver', 'free_agent'].includes(transaction?.type))
+    .sort((a, b) => Number(b?.status_updated || 0) - Number(a?.status_updated || 0))
+    .slice(0, 16)
+    .map((transaction) => {
+      const manager = rosterUserMap[String(transaction.roster_ids?.[0] ?? transaction.roster_id ?? '')] || 'Unknown';
+      const addedPlayerId = Object.keys(transaction.adds || {})[0] || null;
+      const droppedPlayerId = Object.keys(transaction.drops || {})[0] || null;
+      const addedPlayer = buildRecentTransactionPlayer(addedPlayerId, players, ktcValues, rosterStatusByPlayerId);
+      const droppedPlayer = buildRecentTransactionPlayer(droppedPlayerId, players, ktcValues, rosterStatusByPlayerId);
+      const bidAmount = Number(
+        transaction.settings?.waiver_bid ??
+        transaction.settings?.bid ??
+        transaction.waiver_bid ??
+        transaction.metadata?.waiver_bid ??
+        0
+      ) || null;
+      const intel = managerIntelByName.get(manager);
+      const droppedIsCurrentRookie = Number(droppedPlayer?.playerDetails?.rookieYear || 0) === currentSeasonNumber;
+      const alternativeDrop = droppedIsCurrentRookie
+        ? null
+        : (intel?.droppablePlayers || [])
+            .filter((candidate: any) => candidate?.player_id && candidate.player_id !== droppedPlayerId)
+            .filter((candidate: any) => candidate.playerDetails?.rosterStatus !== 'Taxi')
+            .filter((candidate: any) => {
+              const candidateIsRookie = Number(candidate.playerDetails?.rookieYear || 0) === currentSeasonNumber;
+              return candidateIsRookie === droppedIsCurrentRookie;
+            })
+            .sort((a: any, b: any) => (a.value || 0) - (b.value || 0))[0] || null;
+
+      let note = `${transaction.type === 'waiver' ? 'Winning claim' : 'Free-agent add'} logged.`;
+      if (droppedPlayer && addedPlayer) {
+        const addValue = addedPlayer.ktcValue || 0;
+        const dropValue = droppedPlayer.ktcValue || 0;
+        if (!droppedIsCurrentRookie && alternativeDrop && (alternativeDrop.value || 0) + 250 < dropValue) {
+          note = `Reasonable add, but ${manager} probably should have cut ${alternativeDrop.name} instead of ${droppedPlayer.name}.`;
+        } else if (!droppedIsCurrentRookie && dropValue > addValue + 500) {
+          note = `${manager} cut more dynasty value than came back. This is a shaky churn move.`;
+        } else if (droppedIsCurrentRookie) {
+          note = 'Rookie-slot context can distort bench math, so no alternate-cut judgment here.';
+        } else {
+          note = 'This is a normal churn move unless the roster needed the dropped player type.';
+        }
+      } else if (addedPlayer && !droppedPlayer) {
+        note = transaction.type === 'waiver'
+          ? 'Clean claim with no obvious cut cost logged in the public feed.'
+          : 'Clean add with no drop attached in the public feed.';
+      }
+
+      return {
+        id: String(transaction.transaction_id || `${transaction.status_updated}-${manager}-${addedPlayerId || 'none'}`),
+        date: new Date(Number(transaction.status_updated || Date.now())).toISOString(),
+        manager,
+        type: transaction.type === 'waiver' ? 'Waiver' : 'Free Agent',
+        bidAmount,
+        addedPlayer,
+        droppedPlayer,
+        alternativeDrop: alternativeDrop
+          ? {
+              player_id: alternativeDrop.player_id,
+              name: alternativeDrop.name,
+              playerDetails: alternativeDrop.playerDetails,
+              currentPositionRank: alternativeDrop.currentPositionRank,
+              pos: alternativeDrop.pos,
+              team: alternativeDrop.playerDetails?.team || null,
+              ktcValue: alternativeDrop.value || null,
+            }
+          : null,
+        note,
+        losingBidsAvailable: false,
+      };
+    });
+}
+
 function getScoringFamily(scoringSettings: Record<string, any> | undefined): 'std' | 'half_ppr' | 'ppr' | 'custom' {
   const rec = Number(scoringSettings?.rec ?? 0);
   if (rec === 1) return 'ppr';
@@ -1375,6 +1479,16 @@ export const appRouter = router({
             ownerByPlayerId,
             rosterStatusByPlayerId
           );
+          const managerIntelByName = new Map((reportData.managerRosterIntelligence || []).map((row) => [row.manager, row]));
+          const recentTransactions = buildRecentTransactions(
+            trades,
+            rosterUserMap,
+            players,
+            ktcValues,
+            rosterStatusByPlayerId,
+            managerIntelByName,
+            currentSeason
+          );
           const managerChampionships = await buildManagerChampionships(leagueInfo, users);
 
           const reportPlayerIds = [
@@ -1434,6 +1548,7 @@ export const appRouter = router({
               pickPortfolios,
               powerRankings,
               waiverIntelligence,
+              recentTransactions,
               draftPicks: draftAnalysis.draftPicks,
               draftStats: draftAnalysis.draftStats,
             },

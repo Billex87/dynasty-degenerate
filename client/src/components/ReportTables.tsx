@@ -5146,6 +5146,102 @@ export function WaiverIntelligencePanel({
   );
 }
 
+export function RecentTransactionsPanel({
+  data,
+  managerAvatars,
+  playerDetailsById,
+  leagueId,
+  leagueLogo,
+}: {
+  data?: ReportData['recentTransactions'];
+  managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
+  leagueId?: string;
+  leagueLogo?: string | null;
+}) {
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  if (!data?.length) return null;
+
+  const openTransactionPlayer = (player: NonNullable<ReportData['recentTransactions']>[number]['addedPlayer']) => {
+    if (!player) return;
+    setSelectedPlayer(buildPlayerModalData({
+      playerId: player.player_id,
+      playerName: player.name,
+      playerPos: player.pos,
+      value: player.ktcValue,
+      playerDetails: player.playerDetails,
+      playerDetailsById,
+      currentPositionRank: player.currentPositionRank,
+    }));
+  };
+
+  const renderPlayerRow = (
+    label: string,
+    player: NonNullable<ReportData['recentTransactions']>[number]['addedPlayer'],
+    tone: 'add' | 'drop' | 'alt' = 'add',
+  ) => {
+    if (!player) return null;
+    return (
+      <button
+        type="button"
+        className={`player-team-tile recent-transaction-player recent-transaction-player-${tone}`}
+        style={getTeamTileStyle(player.playerDetails?.team || player.team)}
+        onClick={() => openTransactionPlayer(player)}
+      >
+        <div className="recent-transaction-player-kicker">{label}</div>
+        <div className="recent-transaction-player-main">
+          <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+        </div>
+        <div className="recent-transaction-player-pills">
+          <TeamLogoPill team={player.playerDetails?.team || player.team} />
+          <PositionRankPill rank={player.currentPositionRank || player.pos} />
+          <span>{formatCompactValue(player.ktcValue)}</span>
+        </div>
+      </button>
+    );
+  };
+
+  return (
+    <div className="player-tile-grid recent-transaction-grid">
+      {data.map((transaction) => (
+        <div key={transaction.id} className="report-card recent-transaction-card">
+          <div className="recent-transaction-top">
+            <div className="recent-transaction-manager">
+              <ManagerNameWithAvatar avatarUrl={managerAvatars?.[transaction.manager]} managerName={transaction.manager} />
+            </div>
+            <div className="recent-transaction-meta">
+              <span>{transaction.type}</span>
+              {transaction.bidAmount !== null && <strong>${transaction.bidAmount}</strong>}
+            </div>
+          </div>
+          <div className="recent-transaction-date">{new Date(transaction.date).toLocaleDateString()}</div>
+          <div className="recent-transaction-player-grid">
+            {renderPlayerRow('Added', transaction.addedPlayer, 'add')}
+            {renderPlayerRow('Dropped', transaction.droppedPlayer, 'drop')}
+          </div>
+          {transaction.alternativeDrop && (
+            <div className="recent-transaction-alt">
+              {renderPlayerRow('Better cut', transaction.alternativeDrop, 'alt')}
+            </div>
+          )}
+          <p className="recent-transaction-note">{transaction.note}</p>
+          {!transaction.losingBidsAvailable && (
+            <div className="recent-transaction-footnote">Public Sleeper data shows the winning claim only.</div>
+          )}
+        </div>
+      ))}
+      <PlayerDetailModal
+        isOpen={selectedPlayer !== null}
+        onClose={() => setSelectedPlayer(null)}
+        pick={selectedPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={managerAvatars}
+      />
+    </div>
+  );
+}
+
 export function TradeMarketRadar({
   risers,
   fallers,

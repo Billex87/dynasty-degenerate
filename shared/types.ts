@@ -349,6 +349,29 @@ export interface TrendingPlayer {
   ktcValue: number | null;
 }
 
+export interface RecentTransactionPlayer {
+  player_id: string;
+  name: string;
+  playerDetails?: PlayerDetails;
+  currentPositionRank?: string | null;
+  pos: string;
+  team: string | null;
+  ktcValue: number | null;
+}
+
+export interface RecentTransaction {
+  id: string;
+  date: string;
+  manager: string;
+  type: 'Waiver' | 'Free Agent';
+  bidAmount: number | null;
+  addedPlayer: RecentTransactionPlayer | null;
+  droppedPlayer: RecentTransactionPlayer | null;
+  alternativeDrop: RecentTransactionPlayer | null;
+  note: string;
+  losingBidsAvailable: boolean;
+}
+
 export interface ManagerDraftStats {
   manager: string;
   totalPicks: number;
@@ -420,6 +443,7 @@ export interface ReportData {
   dynastyTimelines?: DynastyTimeline[];
   pickPortfolios?: PickPortfolio[];
   waiverIntelligence?: WaiverIntelligence;
+  recentTransactions?: RecentTransaction[];
   draftPicks?: DraftPick[];
   draftStats?: ManagerDraftStats[];
 }

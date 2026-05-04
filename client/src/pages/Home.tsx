@@ -29,6 +29,7 @@ import {
   TradeTheftDetector,
   TrendingPlayersTable,
   WaiverIntelligencePanel,
+  RecentTransactionsPanel,
 } from '@/components/ReportTables';
 import { DraftAnalysis } from '@/components/DraftAnalysis';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
@@ -516,6 +517,15 @@ export default function Home() {
                 <CollapsibleReportSection title="Waiver Intelligence" kicker="Available value">
                   <WaiverIntelligencePanel
                     data={reportData.waiverIntelligence}
+                    managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Recent Transactions" kicker="Claims, drops, and churn">
+                  <RecentTransactionsPanel
+                    data={reportData.recentTransactions}
                     managerAvatars={reportData.managerAvatars}
                     playerDetailsById={reportData.playerDetailsById}
                     leagueId={leagueId}
