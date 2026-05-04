@@ -828,7 +828,7 @@ function DraftCollapsibleSection({
   children: ReactNode;
 }) {
   return (
-    <details className="report-section report-disclosure" open>
+    <details className="report-section report-disclosure">
       <summary className="report-disclosure-summary">
         <DraftSectionTitle title={title} kicker={kicker} />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
