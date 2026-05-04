@@ -584,6 +584,9 @@ export default function Home() {
                     data={reportData.managerRosterIntelligence}
                     managerAvatars={reportData.managerAvatars}
                     playerDetailsById={reportData.playerDetailsById}
+                    leagueOverview={reportData.leagueOverview}
+                    powerRankings={reportData.powerRankings}
+                    dynastyTimelines={reportData.dynastyTimelines}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                   />

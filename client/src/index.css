@@ -7911,6 +7911,43 @@ button.player-team-tile:focus-visible {
   line-height: 1.35;
 }
 
+.trade-war-rank-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.trade-war-rank-pills > span,
+.trade-war-suggestion-block > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 999px;
+  background: rgba(8, 15, 31, 0.78);
+  padding: 0 0.55rem;
+  color: #8cecff;
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+}
+
+.trade-war-suggestion-block + .trade-war-suggestion-block {
+  margin-top: 0.9rem;
+}
+
+.trade-war-suggested-asset {
+  width: 100%;
+  margin-top: 0.45rem;
+  text-align: left;
+}
+
+.trade-war-suggested-main {
+  display: grid;
+  gap: 0.45rem;
+}
+
 @media (max-width: 760px) {
   .trade-war-top,
   .trade-war-manager-selects,
