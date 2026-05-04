@@ -1023,7 +1023,7 @@ function CollapsibleReportSection({
   children: ReactNode;
 }) {
   return (
-    <details className="report-section report-disclosure" open>
+    <details className="report-section report-disclosure">
       <summary className="report-disclosure-summary">
         <SectionTitle title={title} kicker={kicker} />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
