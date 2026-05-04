@@ -92,8 +92,8 @@ async function main() {
       entry.count,
       entry.firstSeen,
       entry.lastSeen,
-      [...entry.usernames].sort().join(" | "),
-      [...entry.leagueIds].sort().join(" | "),
+      Array.from(entry.usernames).sort().join(" | "),
+      Array.from(entry.leagueIds).sort().join(" | "),
     ]);
 
   const toCsv = (header: string[], rows: Array<Array<string | number | null | undefined>>) =>
