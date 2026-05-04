@@ -1,4 +1,4 @@
-# Dynasty Degenerates - Project TODO
+# Dynasty Degens - Project TODO
 
 ## Completed Features
 
