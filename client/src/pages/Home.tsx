@@ -426,6 +426,10 @@ export default function Home() {
 
             <TabsContent value="overview" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
+                {(() => {
+                  const hasTaxiTriage = reportData.managerRosterIntelligence?.some((row) => (row.taxiTriage?.items.length || 0) > 0);
+                  return (
+                    <>
                 <CollapsibleReportSection title="Owner Intel Lab" kicker="Actionable owner reads">
                   <OwnerIntelMatrix
                     data={reportData}
@@ -434,19 +438,34 @@ export default function Home() {
                     leagueLogo={leagueLogo}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="League Command Center" kicker="10 idea preview">
+                <CollapsibleReportSection title="Roster Depth Board" kicker="Starter-grade depth">
                   <LeagueCommandCenter
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    section="roster"
                   />
                 </CollapsibleReportSection>
+                {hasTaxiTriage && (
+                <CollapsibleReportSection title="Taxi Squad Triage" kicker="Promote, stash, trade, cut">
+                  <LeagueCommandCenter
+                    data={reportData}
+                    managerAvatars={reportData.managerAvatars}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                    section="taxi"
+                  />
+                </CollapsibleReportSection>
+                )}
                 {reportData.positionDepth.length > 0 && (
                   <CollapsibleReportSection title="Position Depth Analysis" kicker="Shortage and excess">
                     <PositionAnalysisTable data={reportData.positionDepth} managerAvatars={reportData.managerAvatars} />
                   </CollapsibleReportSection>
                 )}
+                    </>
+                  );
+                })()}
               </div>
             </TabsContent>
 

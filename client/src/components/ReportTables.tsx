@@ -1563,6 +1563,7 @@ function FeatureCard({
   children,
   className = '',
   hideNumber = false,
+  hideHeader = false,
 }: {
   number: number;
   title: string;
@@ -1571,16 +1572,19 @@ function FeatureCard({
   children: React.ReactNode;
   className?: string;
   hideNumber?: boolean;
+  hideHeader?: boolean;
 }) {
   return (
     <Card className={`command-feature-card ${className}`}>
-      <div className="command-feature-top">
-        {!hideNumber && <span className="command-feature-number">{String(number).padStart(2, '0')}</span>}
-        <div className="min-w-0">
-          <p>{kicker}</p>
-          <h3>{title}</h3>
+      {!hideHeader && (
+        <div className="command-feature-top">
+          {!hideNumber && <span className="command-feature-number">{String(number).padStart(2, '0')}</span>}
+          <div className="min-w-0">
+            <p>{kicker}</p>
+            <h3>{title}</h3>
+          </div>
         </div>
-      </div>
+      )}
       <div className="command-feature-body">
         {children}
       </div>
@@ -1788,11 +1792,13 @@ export function LeagueCommandCenter({
   managerAvatars,
   leagueId,
   leagueLogo,
+  section = 'all',
 }: {
   data: ReportData;
   managerAvatars?: ManagerAvatars;
   leagueId?: string;
   leagueLogo?: string | null;
+  section?: 'all' | 'roster' | 'taxi';
 }) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
@@ -1960,48 +1966,52 @@ export function LeagueCommandCenter({
   return (
     <>
     <div className="command-center-grid">
-      <FeatureCard
-        number={1}
-        title="Roster Depth Board"
-        kicker="Starter-grade depth"
-        className="command-feature-card-wide"
-        hideNumber
-      >
-        <div className="command-depth-grid">
-          {starterDepth.map((row) => (
-            <ManagerDepthTile
-              key={row.manager}
-              manager={row.manager}
-              avatarUrl={managerAvatars?.[row.manager]}
-              badges={[
-              { label: `${row.starterCount} starters`, tone: 'neutral' },
-              ...(row.avgAge !== null ? [{ label: `${row.avgAge} avg age`, tone: row.avgAge >= 27.5 ? 'warn' as const : row.avgAge <= 25 ? 'future' as const : 'good' as const }] : []),
-              ...row.ageFlags.slice(0, 2).map((flag) => ({
-                label: titleCasePill(flag),
-                tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') ? 'danger' as const : 'future' as const,
-              })),
-              ...(row.starterAvailability?.avgGamesMissed !== null && row.starterAvailability?.avgGamesMissed !== undefined
-                ? [{
-                    label: `${row.starterAvailability.avgGamesMissed} missed/gm`,
-                    tone: row.starterAvailability.riskLevel === 'high' ? 'danger' as const : row.starterAvailability.riskLevel === 'medium' ? 'warn' as const : 'good' as const,
-                  }]
-                : []),
-              ...(row.rosterHealthScore ? [{ label: `Health ${row.rosterHealthScore}`, tone: row.rosterHealthScore >= 75 ? 'good' as const : row.rosterHealthScore <= 45 ? 'danger' as const : 'warn' as const }] : []),
-              ...(row.pressurePoints.length ? [{ label: `${row.pressurePoints.length} flags`, tone: 'warn' as const }] : []),
-              ]}
-              onClick={() => openManager(row.manager)}
-            />
-          ))}
-        </div>
-      </FeatureCard>
+      {section !== 'taxi' && (
+        <FeatureCard
+          number={1}
+          title="Roster Depth Board"
+          kicker="Starter-grade depth"
+          className="command-feature-card-wide"
+          hideNumber
+          hideHeader={section !== 'all'}
+        >
+          <div className="command-depth-grid">
+            {starterDepth.map((row) => (
+              <ManagerDepthTile
+                key={row.manager}
+                manager={row.manager}
+                avatarUrl={managerAvatars?.[row.manager]}
+                badges={[
+                { label: `${row.starterCount} starters`, tone: 'neutral' },
+                ...(row.avgAge !== null ? [{ label: `${row.avgAge} avg age`, tone: row.avgAge >= 27.5 ? 'warn' as const : row.avgAge <= 25 ? 'future' as const : 'good' as const }] : []),
+                ...row.ageFlags.slice(0, 2).map((flag) => ({
+                  label: titleCasePill(flag),
+                  tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') ? 'danger' as const : 'future' as const,
+                })),
+                ...(row.starterAvailability?.avgGamesMissed !== null && row.starterAvailability?.avgGamesMissed !== undefined
+                  ? [{
+                      label: `${row.starterAvailability.avgGamesMissed} missed/gm`,
+                      tone: row.starterAvailability.riskLevel === 'high' ? 'danger' as const : row.starterAvailability.riskLevel === 'medium' ? 'warn' as const : 'good' as const,
+                    }]
+                  : []),
+                ...(row.rosterHealthScore ? [{ label: `Health ${row.rosterHealthScore}`, tone: row.rosterHealthScore >= 75 ? 'good' as const : row.rosterHealthScore <= 45 ? 'danger' as const : 'warn' as const }] : []),
+                ...(row.pressurePoints.length ? [{ label: `${row.pressurePoints.length} flags`, tone: 'warn' as const }] : []),
+                ]}
+                onClick={() => openManager(row.manager)}
+              />
+            ))}
+          </div>
+        </FeatureCard>
+      )}
 
-      {taxiDepth.length ? (
+      {section !== 'roster' && taxiDepth.length ? (
         <FeatureCard
           number={2}
           title="Taxi Squad Triage"
           kicker="Promote, stash, trade, cut"
           className="command-feature-card-wide"
           hideNumber
+          hideHeader={section !== 'all'}
         >
           <div className="command-depth-grid">
             {taxiDepth.map((row) => (
@@ -3434,10 +3444,6 @@ export function TradeWarRoom({
   return (
     <div className="trade-war-room">
       <div className="trade-war-top">
-        <div>
-          <p>Context-aware calculator</p>
-          <h3>Trade War Room</h3>
-        </div>
         <div className="trade-war-mode-tabs" role="tablist" aria-label="Trade value lens">
           {(['dynasty', 'contender', 'rebuilder'] as TradeWarMode[]).map((option) => (
             <button
