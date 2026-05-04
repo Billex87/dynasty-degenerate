@@ -124,15 +124,70 @@ function formatLeagueFormat(leagueInfo: any): string {
   return [totalTeams, type, superflex, ppr, tep].filter(Boolean).join(' ');
 }
 
-function toSleeperLeagueOption(leagueInfo: any, season: string) {
+function formatLeagueMobileFormat(leagueInfo: any): string {
+  const totalTeams = leagueInfo.total_rosters ? `${leagueInfo.total_rosters}-Team` : null;
+  const valueMode = getLeagueValueMode(leagueInfo);
+  const type = valueMode === 'dynasty' ? 'Dynasty' : valueMode === 'keeper' ? 'Keeper' : 'Redraft';
+  return [totalTeams, type].filter(Boolean).join(' ');
+}
+
+function toSleeperLeagueOption(
+  leagueInfo: any,
+  season: string,
+  extras?: {
+    standingsRank?: number | null;
+    powerRank?: number | null;
+  }
+) {
   return {
     leagueId: String(leagueInfo.league_id),
     name: leagueInfo.name || 'Unnamed League',
     avatarUrl: getSleeperAvatarUrl(leagueInfo.avatar),
     season,
     format: formatLeagueFormat(leagueInfo),
+    mobileFormat: formatLeagueMobileFormat(leagueInfo),
     totalRosters: Number(leagueInfo.total_rosters || leagueInfo.settings?.num_teams || 0),
+    standingsRank: extras?.standingsRank ?? null,
+    powerRank: extras?.powerRank ?? null,
   };
+}
+
+type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
+
+function buildLeagueRosterValueRankings(
+  rosters: any[] = [],
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode
+) {
+  const playerIds = rosters.flatMap((roster: any) => [
+    ...(Array.isArray(roster?.players) ? roster.players : []),
+    ...(Array.isArray(roster?.taxi) ? roster.taxi : []),
+    ...(Array.isArray(roster?.reserve) ? roster.reserve : []),
+  ]);
+  const valueProfilesById = buildPlayerValueProfileMap(playerIds, players, ktcValues);
+
+  return rosters
+    .map((roster: any) => {
+      const rosterId = Number(roster?.roster_id);
+      const totalValue = [...(Array.isArray(roster?.players) ? roster.players : []), ...(Array.isArray(roster?.taxi) ? roster.taxi : []), ...(Array.isArray(roster?.reserve) ? roster.reserve : [])]
+        .reduce((sum: number, playerId: string) => (
+          sum + getPlayerValueForLeagueMode(String(playerId), players, ktcValues, leagueValueMode, valueProfilesById)
+        ), 0);
+      return {
+        rosterId,
+        totalValue,
+      };
+    })
+    .filter((row) => Number.isFinite(row.rosterId))
+    .sort((a, b) => {
+      if (b.totalValue !== a.totalValue) return b.totalValue - a.totalValue;
+      return a.rosterId - b.rosterId;
+    })
+    .map((row, index) => ({
+      ...row,
+      rank: index + 1,
+    }));
 }
 
 async function fetchSleeperJson<T = any>(url: string): Promise<T | null> {
@@ -1318,13 +1373,50 @@ export const appRouter = router({
           );
           const seasonLeagues = leaguesResponse.ok ? await leaguesResponse.json() : [];
 
+          const players = Array.isArray(seasonLeagues) && seasonLeagues.length > 0
+            ? await fetch("https://api.sleeper.app/v1/players/nfl").then((r) => r.json())
+            : {};
+          const ktcValues = Array.isArray(seasonLeagues) && seasonLeagues.length > 0
+            ? await loadBlendedKTCValues()
+            : {};
+
           if (Array.isArray(seasonLeagues)) {
-            for (const leagueInfo of seasonLeagues) {
+            const enrichedLeagues = await Promise.all(seasonLeagues.map(async (leagueInfo: any) => {
               const leagueId = String(leagueInfo?.league_id || '');
-              if (!leagueId || seenLeagueIds.has(leagueId)) continue;
+              if (!leagueId || seenLeagueIds.has(leagueId)) return null;
               seenLeagueIds.add(leagueId);
-              leagues.push(toSleeperLeagueOption(leagueInfo, currentSeason));
-            }
+
+              const [rosters, users] = await Promise.all([
+                fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
+                fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
+              ]);
+
+              const safeRosters = Array.isArray(rosters) ? rosters : [];
+              const safeUsers = Array.isArray(users) ? users : [];
+              const rosterUserMap = Object.fromEntries(
+                safeRosters.map((roster: any) => [
+                  roster.roster_id,
+                  normalizeManagerName(
+                    safeUsers.find((user: any) => user.user_id === roster.owner_id)?.display_name
+                  ),
+                ])
+              );
+              const currentStandings = buildCurrentStandings(safeRosters, rosterUserMap);
+              const leagueValueMode = getLeagueValueMode(leagueInfo);
+              const powerRankings = buildLeagueRosterValueRankings(safeRosters, players, ktcValues, leagueValueMode);
+              const viewerManagerName = normalizeManagerName(user.display_name || user.username || username);
+              const viewerRoster = safeRosters.find((roster: any) => String(roster.owner_id) === String(user.user_id));
+              const viewerRosterId = Number(viewerRoster?.roster_id);
+              const standingsRank = currentStandings.find((row) => row.manager === viewerManagerName)?.rank ?? null;
+              const powerRank = powerRankings.find((row) => row.rosterId === viewerRosterId)?.rank ?? null;
+
+              return toSleeperLeagueOption(leagueInfo, currentSeason, {
+                standingsRank,
+                powerRank,
+              });
+            }));
+
+            leagues.push(...enrichedLeagues.filter((league): league is SleeperLeagueOption => Boolean(league)));
           }
 
           await insertLoginAttempt({

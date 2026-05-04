@@ -50,7 +50,10 @@ type SleeperLeagueOption = {
   avatarUrl: string | null;
   season: string;
   format: string;
+  mobileFormat: string;
   totalRosters: number;
+  standingsRank: number | null;
+  powerRank: number | null;
 };
 
 type SleeperUserSession = {
@@ -142,6 +145,52 @@ function RecentEntrySuggestions({
         </button>
       ))}
     </div>
+  );
+}
+
+function LeaguePickerCard({
+  league,
+  onSelect,
+}: {
+  league: SleeperLeagueOption;
+  onSelect: (leagueId: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="home-league-card"
+      onClick={() => onSelect(league.leagueId)}
+    >
+      {league.avatarUrl ? (
+        <img src={league.avatarUrl} alt="" aria-hidden="true" className="home-league-card-watermark" />
+      ) : null}
+      <div className="home-league-card-top">
+        {league.avatarUrl ? (
+          <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
+        ) : (
+          <span className="home-league-card-icon home-league-card-fallback">
+            {league.name.slice(0, 2).toUpperCase()}
+          </span>
+        )}
+        <span className="min-w-0 text-left">
+          <span className="home-league-card-name">{league.name}</span>
+          <span className="home-league-card-format home-league-card-format-desktop">
+            {league.format || `${league.totalRosters || '?'}-Team Dynasty`}
+          </span>
+          <span className="home-league-card-format home-league-card-format-mobile">
+            {league.mobileFormat || `${league.totalRosters || '?'}-Team Dynasty`}
+          </span>
+        </span>
+      </div>
+      <div className="home-league-card-pills" aria-label={`${league.name} current league standing and power rank`}>
+        {league.powerRank ? (
+          <span className="home-league-pill">Power #{league.powerRank}</span>
+        ) : null}
+        {league.standingsRank ? (
+          <span className="home-league-pill">Standing #{league.standingsRank}</span>
+        ) : null}
+      </div>
+    </button>
   );
 }
 
@@ -728,29 +777,11 @@ export default function Home() {
             </DialogHeader>
             <div className="home-league-picker league-switch-picker">
               {userLeagues.map((league) => (
-                <button
+                <LeaguePickerCard
                   key={league.leagueId}
-                  type="button"
-                  className="home-league-card"
-                  onClick={() => handleAnalyzeLeagueOption(league.leagueId)}
-                >
-                  {league.avatarUrl ? (
-                    <img src={league.avatarUrl} alt="" aria-hidden="true" className="home-league-card-watermark" />
-                  ) : null}
-                  {league.avatarUrl ? (
-                    <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
-                  ) : (
-                    <span className="home-league-card-icon home-league-card-fallback">
-                      {league.name.slice(0, 2).toUpperCase()}
-                    </span>
-                  )}
-                  <span className="min-w-0 text-left">
-                    <span className="home-league-card-name">{league.name}</span>
-                    <span className="home-league-card-format">
-                      {league.format || `${league.totalRosters || '?'}-Team Dynasty`}
-                    </span>
-                  </span>
-                </button>
+                  league={league}
+                  onSelect={handleAnalyzeLeagueOption}
+                />
               ))}
             </div>
             <DialogFooter className="league-switch-footer sm:justify-center">
@@ -863,27 +894,11 @@ export default function Home() {
               {userLeagues.length > 0 && (
                 <div className="home-league-picker">
                   {userLeagues.map((league) => (
-                    <button
+                    <LeaguePickerCard
                       key={league.leagueId}
-                      type="button"
-                      className="home-league-card"
-                      onClick={() => handleAnalyze(league.leagueId)}
-                    >
-                      {league.avatarUrl ? (
-                        <img src={league.avatarUrl} alt="" aria-hidden="true" className="home-league-card-watermark" />
-                      ) : null}
-                      {league.avatarUrl ? (
-                        <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
-                      ) : (
-                        <span className="home-league-card-icon home-league-card-fallback">
-                          {league.name.slice(0, 2).toUpperCase()}
-                        </span>
-                      )}
-                      <span className="min-w-0 text-left">
-                        <span className="home-league-card-name">{league.name}</span>
-                        <span className="home-league-card-format">{league.format || `${league.totalRosters || '?'}-Team Dynasty`}</span>
-                      </span>
-                    </button>
+                      league={league}
+                      onSelect={handleAnalyze}
+                    />
                   ))}
                 </div>
               )}
