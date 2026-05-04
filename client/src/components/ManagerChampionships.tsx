@@ -79,10 +79,12 @@ export function ChampionAvatarFrame({
   managerName,
   children,
   className = '',
+  showAccolades = true,
 }: {
   managerName?: string | null;
   children: ReactNode;
   className?: string;
+  showAccolades?: boolean;
 }) {
   const { championSeasons, runnerUpSeasons, lastPlaceSeasons } = useManagerAccolades(managerName);
   const title = championSeasons.length
@@ -94,7 +96,7 @@ export function ChampionAvatarFrame({
   const lastPlaceTitle = lastPlaceSeasons.length
     ? `${managerName} got the Sacko in ${lastPlaceSeasons.join(', ')}`
     : undefined;
-  const hasAccolade = championSeasons.length > 0 || runnerUpSeasons.length > 0 || lastPlaceSeasons.length > 0;
+  const hasAccolade = showAccolades && (championSeasons.length > 0 || runnerUpSeasons.length > 0 || lastPlaceSeasons.length > 0);
 
   return (
     <span
@@ -108,17 +110,17 @@ export function ChampionAvatarFrame({
       ].filter(Boolean).join(' ')}
     >
       {children}
-      {championSeasons.length > 0 && (
+      {showAccolades && championSeasons.length > 0 && (
         <Crown className="manager-champion-crown" aria-label={title}>
           <title>{title}</title>
         </Crown>
       )}
-      {runnerUpSeasons.length > 0 && (
+      {showAccolades && runnerUpSeasons.length > 0 && (
         <Crown className="manager-runner-up-crown" aria-label={runnerUpTitle}>
           <title>{runnerUpTitle}</title>
         </Crown>
       )}
-      {lastPlaceSeasons.length > 0 && (
+      {showAccolades && lastPlaceSeasons.length > 0 && (
         <span className="manager-sacko-dunce" aria-label={lastPlaceTitle} title={lastPlaceTitle}>
           <span className="manager-sacko-dunce-cone" aria-hidden="true" />
           <span className="manager-sacko-dunce-band" aria-hidden="true">S</span>

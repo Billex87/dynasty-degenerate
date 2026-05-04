@@ -4844,16 +4844,19 @@
 
   .manager-champion-crown {
     position: absolute;
-    left: -0.18rem;
+    right: -0.18rem;
     top: -0.48rem;
     z-index: 4;
     height: 0.95rem;
     width: 0.95rem;
     color: #fbbf24;
-    fill: rgba(251, 191, 36, 0.28);
-    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
+    fill: rgba(251, 191, 36, 0.34);
+    filter:
+      drop-shadow(0 0 6px rgba(251, 191, 36, 0.5))
+      drop-shadow(0 0 12px rgba(251, 191, 36, 0.28))
+      drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
     pointer-events: none;
-    transform: rotate(-11deg);
+    transform: rotate(11deg);
   }
 
   .manager-runner-up-crown {

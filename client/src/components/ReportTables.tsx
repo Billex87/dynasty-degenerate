@@ -152,7 +152,7 @@ function renderTradeSummaryManager(
     <span className={`trade-mobile-manager ${isWinner ? 'trade-mobile-winner' : 'trade-mobile-loser'}`}>
       <span className="manager-chip flex min-w-0 items-center gap-2">
         <span className="trade-mobile-avatar-wrap">
-          <ChampionAvatarFrame managerName={manager}>
+          <ChampionAvatarFrame managerName={manager} showAccolades={false}>
             {avatarUrl ? (
               <img
                 src={avatarUrl}
@@ -187,7 +187,7 @@ function renderTradeSideManager(
   return (
     <span className={`trade-side-manager ${isWinner ? 'trade-side-manager-winner' : 'trade-side-manager-other'}`}>
       <span className="trade-mobile-avatar-wrap">
-        <ChampionAvatarFrame managerName={manager}>
+        <ChampionAvatarFrame managerName={manager} showAccolades={false}>
           {avatarUrl ? (
             <img
               src={avatarUrl}
