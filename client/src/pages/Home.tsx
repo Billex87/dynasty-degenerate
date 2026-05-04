@@ -348,7 +348,7 @@ export default function Home() {
       <DialogContent className="clown-easter-egg-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
         <DialogHeader className="text-center">
           <DialogTitle className="athletic-headline text-3xl text-orange-400">
-            Faggot Alert
+            Rival Alert
           </DialogTitle>
           <DialogDescription className="text-cyan-100/75">
             This username unlocked a special screen.
@@ -357,7 +357,7 @@ export default function Home() {
         <div className="clown-easter-egg-body">
           <div className="clown-easter-egg-face" aria-hidden="true">🤡</div>
           <p className="clown-easter-egg-copy">
-            Not Allowed Cuz You're Fuckin Gay.
+            Rival league energy detected.
           </p>
         </div>
         <DialogFooter className="sm:justify-center">
@@ -366,7 +366,7 @@ export default function Home() {
             onClick={handleClownDismiss}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
           >
-            Try Another UserName, Bitch
+            Back To Login
           </Button>
         </DialogFooter>
       </DialogContent>

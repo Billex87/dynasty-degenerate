@@ -12,11 +12,27 @@ import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBa
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
 import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
+import { insertLoginAttempt } from "./db";
 import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
   return fallback.replace(/\d+$/, '') || fallback;
+}
+
+function getClientIp(req: { headers: Record<string, any>; socket?: { remoteAddress?: string | null } }): string | null {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  const realIp = req.headers["x-real-ip"];
+  const raw = Array.isArray(forwardedFor)
+    ? forwardedFor[0]
+    : typeof forwardedFor === "string" && forwardedFor.length > 0
+      ? forwardedFor.split(",")[0]
+      : typeof realIp === "string" && realIp.length > 0
+        ? realIp
+        : req.socket?.remoteAddress || null;
+
+  if (!raw) return null;
+  return String(raw).trim().replace(/^::ffff:/, "") || null;
 }
 
 function getSleeperAvatarUrl(avatarId: string | null | undefined): string | null {
@@ -1172,58 +1188,122 @@ export const appRouter = router({
   league: router({
     getUserLeagues: publicProcedure
       .input(z.object({ username: z.string().min(1) }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const username = input.username.trim();
         if (!username) throw new Error('Please enter a Sleeper username');
+        const ipAddress = getClientIp(ctx.req as any);
+        const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
 
-        const userResponse = await fetch(
-          `https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`
-        );
-        if (!userResponse.ok) throw new Error('Sleeper user not found');
-
-        const user = await userResponse.json();
-        if (!user?.user_id) throw new Error('Sleeper user not found');
-
-        const currentSeason = String(new Date().getFullYear());
-        const seenLeagueIds = new Set<string>();
-        const leagues = [];
-
-        const leaguesResponse = await fetch(
-          `https://api.sleeper.app/v1/user/${user.user_id}/leagues/nfl/${currentSeason}`
-        );
-        const seasonLeagues = leaguesResponse.ok ? await leaguesResponse.json() : [];
-
-        if (Array.isArray(seasonLeagues)) {
-          for (const leagueInfo of seasonLeagues) {
-            const leagueId = String(leagueInfo?.league_id || '');
-            if (!leagueId || seenLeagueIds.has(leagueId)) continue;
-            seenLeagueIds.add(leagueId);
-            leagues.push(toSleeperLeagueOption(leagueInfo, currentSeason));
+        try {
+          const userResponse = await fetch(
+            `https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`
+          );
+          if (!userResponse.ok) {
+            await insertLoginAttempt({
+              eventType: "find_leagues",
+              status: "error",
+              username,
+              ipAddress,
+              userAgent,
+              note: "Sleeper user not found",
+            });
+            throw new Error('Sleeper user not found');
           }
-        }
 
-        return {
-          user: {
-            userId: String(user.user_id),
-            username: user.username || username,
-            displayName: user.display_name || user.username || username,
-            avatarUrl: getSleeperAvatarUrl(user.avatar),
-          },
-          leagues: leagues.sort((a, b) => Number(b.season) - Number(a.season) || a.name.localeCompare(b.name)),
-        };
+          const user = await userResponse.json();
+          if (!user?.user_id) {
+            await insertLoginAttempt({
+              eventType: "find_leagues",
+              status: "error",
+              username,
+              ipAddress,
+              userAgent,
+              note: "Sleeper response missing user_id",
+            });
+            throw new Error('Sleeper user not found');
+          }
+
+          const currentSeason = String(new Date().getFullYear());
+          const seenLeagueIds = new Set<string>();
+          const leagues = [];
+
+          const leaguesResponse = await fetch(
+            `https://api.sleeper.app/v1/user/${user.user_id}/leagues/nfl/${currentSeason}`
+          );
+          const seasonLeagues = leaguesResponse.ok ? await leaguesResponse.json() : [];
+
+          if (Array.isArray(seasonLeagues)) {
+            for (const leagueInfo of seasonLeagues) {
+              const leagueId = String(leagueInfo?.league_id || '');
+              if (!leagueId || seenLeagueIds.has(leagueId)) continue;
+              seenLeagueIds.add(leagueId);
+              leagues.push(toSleeperLeagueOption(leagueInfo, currentSeason));
+            }
+          }
+
+          await insertLoginAttempt({
+            eventType: "find_leagues",
+            status: "success",
+            username,
+            ipAddress,
+            userAgent,
+            note: `${leagues.length} current-season leagues found`,
+          });
+
+          return {
+            user: {
+              userId: String(user.user_id),
+              username: user.username || username,
+              displayName: user.display_name || user.username || username,
+              avatarUrl: getSleeperAvatarUrl(user.avatar),
+            },
+            leagues: leagues.sort((a, b) => Number(b.season) - Number(a.season) || a.name.localeCompare(b.name)),
+          };
+        } catch (error) {
+          if (!(error instanceof Error && error.message === 'Sleeper user not found')) {
+            await insertLoginAttempt({
+              eventType: "find_leagues",
+              status: "error",
+              username,
+              ipAddress,
+              userAgent,
+              note: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+          throw error;
+        }
       }),
 
     analyze: publicProcedure
       .input(z.object({ leagueId: z.string() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const ipAddress = getClientIp(ctx.req as any);
+        const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
         try {
           const leagueInfo = await fetch(
             `https://api.sleeper.app/v1/league/${input.leagueId}`
           ).then((r) => r.json());
 
           if (!leagueInfo.league_id) {
+            await insertLoginAttempt({
+              eventType: "analyze_league",
+              status: "error",
+              leagueId: input.leagueId,
+              ipAddress,
+              userAgent,
+              note: "Invalid league ID",
+            });
             throw new Error('Invalid league ID');
           }
+
+          await insertLoginAttempt({
+            eventType: "analyze_league",
+            status: "success",
+            leagueId: input.leagueId,
+            ipAddress,
+            userAgent,
+            note: leagueInfo.name || null,
+          });
 
           const users = await fetch(
             `https://api.sleeper.app/v1/league/${input.leagueId}/users`
@@ -1555,6 +1635,16 @@ export const appRouter = router({
           }
         } catch (error) {
           console.error('League analysis error:', error);
+          if (!(error instanceof Error && error.message === 'Invalid league ID')) {
+            await insertLoginAttempt({
+              eventType: "analyze_league",
+              status: "error",
+              leagueId: input.leagueId,
+              ipAddress,
+              userAgent,
+              note: error instanceof Error ? error.message : "Failed to fetch league data",
+            });
+          }
           throw new Error('Failed to fetch league data');
         }
       }),

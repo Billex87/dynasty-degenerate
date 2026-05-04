@@ -7,6 +7,21 @@ type SqlClient = ReturnType<typeof neon>;
 let sqlClient: SqlClient | null = null;
 let schemaReady: Promise<void> | null = null;
 
+export type LoginAttemptEvent = {
+  eventType: "find_leagues" | "analyze_league";
+  status: "success" | "error";
+  username?: string | null;
+  leagueId?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  note?: string | null;
+};
+
+export type StoredLoginAttempt = LoginAttemptEvent & {
+  id: number;
+  createdAt: Date;
+};
+
 function getSql() {
   if (!process.env.DATABASE_URL) return null;
   if (!sqlClient) {
@@ -44,6 +59,25 @@ async function ensureSchema(sql: SqlClient) {
       await sql`
         CREATE INDEX IF NOT EXISTS "ktcSnapshots_snapshotDate_idx"
         ON "ktcSnapshots" ("snapshotDate" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "loginAttempts" (
+          id SERIAL PRIMARY KEY,
+          "eventType" VARCHAR(32) NOT NULL,
+          status VARCHAR(16) NOT NULL,
+          username TEXT,
+          "leagueId" TEXT,
+          "ipAddress" TEXT,
+          "userAgent" TEXT,
+          note TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "loginAttempts_createdAt_idx"
+        ON "loginAttempts" ("createdAt" DESC)
       `;
     })();
   }
@@ -172,4 +206,73 @@ export async function findKtcSnapshotOnOrBefore(targetDate: Date) {
   ` as Record<string, any>[];
 
   return result[0]?.ktcData ?? null;
+}
+
+function normalizeLoginAttempt(row: any): StoredLoginAttempt {
+  return {
+    id: Number(row.id),
+    eventType: row.eventType === "analyze_league" ? "analyze_league" : "find_leagues",
+    status: row.status === "error" ? "error" : "success",
+    username: row.username ?? null,
+    leagueId: row.leagueId ?? null,
+    ipAddress: row.ipAddress ?? null,
+    userAgent: row.userAgent ?? null,
+    note: row.note ?? null,
+    createdAt: new Date(row.createdAt),
+  };
+}
+
+export async function insertLoginAttempt(event: LoginAttemptEvent): Promise<void> {
+  const sql = await getDb();
+  if (!sql) {
+    console.warn("[Database] Cannot insert login attempt: database not available");
+    return;
+  }
+
+  await sql`
+    INSERT INTO "loginAttempts" (
+      "eventType",
+      status,
+      username,
+      "leagueId",
+      "ipAddress",
+      "userAgent",
+      note
+    )
+    VALUES (
+      ${event.eventType},
+      ${event.status},
+      ${event.username ?? null},
+      ${event.leagueId ?? null},
+      ${event.ipAddress ?? null},
+      ${event.userAgent ?? null},
+      ${event.note ?? null}
+    )
+  `;
+}
+
+export async function getLoginAttemptsSince(targetDate: Date): Promise<StoredLoginAttempt[]> {
+  const sql = await getDb();
+  if (!sql) {
+    console.warn("[Database] Cannot read login attempts: database not available");
+    return [];
+  }
+
+  const result = await sql`
+    SELECT
+      id,
+      "eventType",
+      status,
+      username,
+      "leagueId",
+      "ipAddress",
+      "userAgent",
+      note,
+      "createdAt"
+    FROM "loginAttempts"
+    WHERE "createdAt" >= ${targetDate}
+    ORDER BY "createdAt" DESC
+  ` as Record<string, any>[];
+
+  return result.map(normalizeLoginAttempt);
 }
