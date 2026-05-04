@@ -808,24 +808,16 @@ export default function Home() {
 
   return (
     <div className="home-shell min-h-screen flex flex-col">
-      {/* Premium Header */}
-      <div className="home-header">
-        <div className="home-header-inner max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="home-header-side home-header-side-left md:hidden">For Degens</div>
-          <div className="home-header-brand text-center">
-            <img
-              src={DYNASTY_LOGO_SRC}
-              alt="Dynasty Degenerates"
-              className="home-header-logo mx-auto"
-            />
-            <p className="home-header-tagline hidden md:block">For Degens, By Degens</p>
-          </div>
-          <div className="home-header-side home-header-side-right md:hidden">By Degens</div>
+           <div className="home-header px-4 py-6 sm:py-8">
+        <div className="home-header-inner max-w-7xl mx-auto flex flex-col items-center justify-center text-center">
+          <h1 className="home-header-title athletic-title mb-2">
+            Dynasty<br />Degenerates
+          </h1>
+          <p className="home-header-tagline">
+            For Degens, By Degens
+          </p>
         </div>
-      </div>
-
-      {/* Hero Section */}
-      <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
+      </div>  <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
         {isLoading ? (
           <div className="w-full max-w-2xl">
             <LoadingAnimation />
@@ -848,8 +840,8 @@ export default function Home() {
                 <label className="block text-sm font-semibold text-slate-200 mb-3">
                   Enter Your Sleeper Username
                 </label>
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="home-autocomplete-anchor flex-1">
+                <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row w-full">
+                  <div className="home-autocomplete-anchor flex-1 w-full sm:w-auto">
                     <Input
                       id="sleeper-username"
                       name="sleeper-username"
@@ -861,7 +853,7 @@ export default function Home() {
                       onChange={(e) => setSleeperUsername(e.target.value)}
                       onFocus={() => setFocusedAutocomplete('username')}
                       onBlur={() => window.setTimeout(() => setFocusedAutocomplete(null), 120)}
-                      className="bg-slate-900 border-cyan-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-cyan-300 text-center sm:text-left"
+                      className="w-full bg-slate-900 border-cyan-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-cyan-300 text-center sm:text-left"
                       onKeyDown={(e) => e.key === 'Enter' && handleFindLeagues()}
                     />
                     <datalist id="sleeper-username-history">
@@ -884,7 +876,7 @@ export default function Home() {
                     type="button"
                     onClick={handleFindLeagues}
                     disabled={userLeaguesMutation.isPending}
-                    className="h-12 shrink-0 rounded-lg border border-cyan-300/25 bg-cyan-400/10 px-5 font-bold text-cyan-100 hover:bg-cyan-400/15"
+                    className="w-full sm:w-auto h-12 shrink-0 rounded-lg border border-cyan-300/25 bg-cyan-400/10 px-5 font-bold text-cyan-100 hover:bg-cyan-400/15"
                   >
                     {userLeaguesMutation.isPending ? 'Finding...' : 'Find Leagues'}
                   </Button>
@@ -914,7 +906,7 @@ export default function Home() {
                 <label className="block text-sm font-semibold text-slate-200 mb-3">
                   Enter Your Sleeper League ID
                 </label>
-                <div className="home-autocomplete-anchor">
+                <div className="home-autocomplete-anchor w-full">
                   <Input
                     id="sleeper-league-id"
                     name="sleeper-league-id"
@@ -927,7 +919,7 @@ export default function Home() {
                     onChange={(e) => setLeagueId(e.target.value)}
                     onFocus={() => setFocusedAutocomplete('league')}
                     onBlur={() => window.setTimeout(() => setFocusedAutocomplete(null), 120)}
-                    className="bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
+                    className="w-full bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
                     onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
                   />
                   <datalist id="sleeper-league-id-history">
