@@ -4661,7 +4661,7 @@ export function WaiverIntelligencePanel({
   ].filter((card) => card.player);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="player-tile-grid waiver-intel-grid">
       {cards.map(({ label, player }) => (
         <button
           key={label}

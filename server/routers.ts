@@ -905,7 +905,7 @@ function buildWaiverIntelligence(
   const bestTaxiStashes = (availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds)
     .filter((player) => {
       const rookieYear = Number(player.playerDetails?.rookieYear || 0);
-      return rookieYear >= new Date().getFullYear() - 1 && !usedPlayerIds.has(player.player_id);
+      return rookieYear === new Date().getFullYear() && !usedPlayerIds.has(player.player_id);
     })
     .slice(0, 3);
 
