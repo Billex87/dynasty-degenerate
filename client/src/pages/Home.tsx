@@ -724,15 +724,17 @@ export default function Home() {
     <div className="home-shell min-h-screen flex flex-col">
       {/* Premium Header */}
       <div className="home-header">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-center">
-          <div className="text-center">
+        <div className="home-header-inner max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="home-header-side home-header-side-left md:hidden">For Degens</div>
+          <div className="home-header-brand text-center">
             <img
               src={DYNASTY_LOGO_SRC}
               alt="Dynasty Degenerates"
               className="home-header-logo mx-auto"
             />
-            <p className="text-xs text-orange-400/70">For Degens, By Degens</p>
+            <p className="home-header-tagline hidden md:block">For Degens, By Degens</p>
           </div>
+          <div className="home-header-side home-header-side-right md:hidden">By Degens</div>
         </div>
       </div>
 
@@ -750,7 +752,7 @@ export default function Home() {
                 Obliterate Your Competition
               </h2>
               <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
-                Stop guessing. Start dominating. Dynasty Degenerates gives you the unfair advantage with deep KTC analysis, trade profit tracking, and AI-powered projections.
+                Stop guessing. Start dominating. <span className="home-subtitle-name">Dynasty Degenerates</span> blends dynasty market data, season outlooks, roster context, and AI-driven reads to give you an unfair advantage over the rest of your league.
               </p>
             </div>
 
