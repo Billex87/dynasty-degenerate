@@ -1069,6 +1069,12 @@ export async function generateReport(
     }
     return getPlayerValue(pid, allPlayers, ktcValues);
   };
+  const getPrimarySnapshotValue = (pid: string, snapshot: KTCValues) => {
+    if (useSeasonAsPrimary) {
+      return getPlayerRedraftValue(pid, allPlayers, snapshot) || getPlayerValue(pid, allPlayers, snapshot);
+    }
+    return getPlayerValue(pid, allPlayers, snapshot);
+  };
   const getPrimaryRank = (pid: string) => {
     if (useSeasonAsPrimary) {
       return seasonPositionRankById[pid] || getPlayerKtcRank(pid, allPlayers, ktcValues);
@@ -1166,11 +1172,8 @@ export async function generateReport(
       const p2027 = projectValue(val, pos, age, 1);
       v2027 += p2027;
 
-      // Weekly momentum is a market-movement view, so compare raw KTC market
-      // value to raw KTC market value. The rest of the report can keep using
-      // the blended dynasty value.
-      const currentMarketVal = getPlayerKtcMarketValue(pid, allPlayers, ktcValues);
-      const lastWeekVal = getPlayerKtcMarketValue(pid, allPlayers, ktcValuesLastWeek);
+      const currentMarketVal = getPrimaryValue(pid);
+      const lastWeekVal = getPrimarySnapshotValue(pid, ktcValuesLastWeek);
       if (currentMarketVal > 0 && lastWeekVal > 0) {
         const pct_change = lastWeekVal > 0 ? (currentMarketVal - lastWeekVal) / lastWeekVal * 100 : 0;
         weeklyMomentum.push({

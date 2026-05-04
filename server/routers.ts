@@ -475,6 +475,34 @@ function getPlayerCurrentPositionRank(
   return rank || null;
 }
 
+function getValueProfileValueForMode(
+  profile: PlayerDetails['valueProfile'] | undefined,
+  leagueValueMode: LeagueValueMode
+): number | null {
+  if (!profile) return null;
+  if (leagueValueMode === 'redraft') {
+    return profile.seasonValue ?? profile.fantasyProsSeasonValue ?? profile.dynastyValue ?? null;
+  }
+  if (leagueValueMode === 'keeper') {
+    return profile.balancedValue ?? profile.dynastyValue ?? profile.seasonValue ?? null;
+  }
+  return profile.dynastyValue ?? profile.balancedValue ?? profile.seasonValue ?? null;
+}
+
+function getValueProfileRankForMode(
+  profile: PlayerDetails['valueProfile'] | undefined,
+  leagueValueMode: LeagueValueMode
+): string | null {
+  if (!profile) return null;
+  if (leagueValueMode === 'redraft') {
+    return profile.seasonPositionRank ?? profile.fantasyProsPositionRank ?? profile.dynastyPositionRank ?? null;
+  }
+  if (leagueValueMode === 'keeper') {
+    return profile.balancedPositionRank ?? profile.dynastyPositionRank ?? profile.seasonPositionRank ?? null;
+  }
+  return profile.dynastyPositionRank ?? profile.balancedPositionRank ?? profile.seasonPositionRank ?? null;
+}
+
 function getPlayerValueProfile(
   playerId: string,
   players: Record<string, any>,
@@ -533,6 +561,30 @@ function getPlayerValueProfile(
     fantasyProsSeasonValue: data.fantasypros_season_value ?? null,
     sources: data.value_sources || [],
   };
+}
+
+function getPlayerValueForLeagueMode(
+  playerId: string,
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode,
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
+): number {
+  const profile = valueProfilesById?.[playerId] || getPlayerValueProfile(playerId, players, ktcValues);
+  const modeValue = getValueProfileValueForMode(profile, leagueValueMode);
+  if (typeof modeValue === 'number' && Number.isFinite(modeValue)) return modeValue;
+  return getPlayerValue(playerId, players, ktcValues);
+}
+
+function getPlayerPositionRankForLeagueMode(
+  playerId: string,
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode,
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
+): string | null {
+  const profile = valueProfilesById?.[playerId] || getPlayerValueProfile(playerId, players, ktcValues);
+  return getValueProfileRankForMode(profile, leagueValueMode) || getPlayerCurrentPositionRank(playerId, players, ktcValues);
 }
 
 function getKtcPosition(data: KTCValues[string]): 'QB' | 'RB' | 'WR' | 'TE' | null {
@@ -620,13 +672,9 @@ function buildPrimaryPositionRankMap(
   valueProfilesById: Record<string, PlayerDetails['valueProfile']>,
   leagueValueMode: LeagueValueMode
 ): Record<string, string | null> {
-  const dynastyRankMap = buildCurrentPositionRankMap(playerIds, players, ktcValues);
   return Object.fromEntries(
     Array.from(new Set(Array.from(playerIds).filter(Boolean))).map((playerId) => {
-      const profile = valueProfilesById[playerId];
-      const rank = leagueValueMode === 'redraft'
-        ? profile?.seasonPositionRank || profile?.fantasyProsPositionRank || dynastyRankMap[playerId]
-        : profile?.dynastyPositionRank || profile?.balancedPositionRank || dynastyRankMap[playerId] || profile?.seasonPositionRank;
+      const rank = getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
       return [playerId, rank || null];
     })
   );
@@ -648,7 +696,9 @@ function buildPlayerValueProfileMap(
 function buildSimilarTradeValueMap(
   playerIds: Iterable<string>,
   players: Record<string, any>,
-  ktcValues: KTCValues
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode,
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
 ): Record<string, NonNullable<PlayerDetails['similarTradeValues']>> {
   const requestedPlayerIds = Array.from(new Set(Array.from(playerIds).filter(Boolean)));
   const candidateIds = Array.from(new Set([
@@ -663,14 +713,14 @@ function buildSimilarTradeValueMap(
     .map((playerId) => {
       const player = players[playerId];
       const position = player?.position;
-      const value = getPlayerValue(playerId, players, ktcValues);
+      const value = getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
       if (!['QB', 'RB', 'WR', 'TE'].includes(position) || value <= 0) return null;
       return {
         playerId,
         name: getPlayerName(playerId, players),
         position,
         team: player.team || null,
-        rank: getPlayerCurrentPositionRank(playerId, players, ktcValues),
+        rank: getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById),
         value,
       };
     })
@@ -750,7 +800,9 @@ async function fetchTrendingPlayers(
   players: Record<string, any>,
   ktcValues: KTCValues,
   ownerByPlayerId: Record<string, string>,
-  rosterStatusByPlayerId: Record<string, string> = {}
+  rosterStatusByPlayerId: Record<string, string> = {},
+  leagueValueMode: LeagueValueMode = 'dynasty',
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
 ): Promise<TrendingPlayer[]> {
   const trending = await fetch(
     `https://api.sleeper.app/v1/players/nfl/trending/${type}?lookback_hours=168&limit=15`
@@ -765,12 +817,12 @@ async function fetchTrendingPlayers(
       player_id: playerId,
       name: getPlayerName(playerId, players),
       playerDetails: getPlayerDetails(playerId, player, rosterStatusByPlayerId[playerId]),
-      currentPositionRank: getPlayerCurrentPositionRank(playerId, players, ktcValues),
+      currentPositionRank: getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById),
       pos: player?.position || 'N/A',
       team: player?.team || null,
       owner: ownerByPlayerId[playerId] || null,
       count: item.count || 0,
-      ktcValue: getPlayerValue(playerId, players, ktcValues) || null,
+      ktcValue: getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById) || null,
     };
   });
 }
@@ -907,7 +959,9 @@ function buildWaiverIntelligence(
   players: Record<string, any>,
   ktcValues: KTCValues,
   ownerByPlayerId: Record<string, string>,
-  rosterStatusByPlayerId: Record<string, string> = {}
+  rosterStatusByPlayerId: Record<string, string> = {},
+  leagueValueMode: LeagueValueMode = 'dynasty',
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
 ): WaiverIntelligence {
   const availableAdds = trendingAdds.filter((player) => !player.owner);
   const rosteredAdds = trendingAdds.filter((player) => player.owner);
@@ -916,19 +970,19 @@ function buildWaiverIntelligence(
     .filter(([playerId, player]) => {
       if (!playerId || ownerByPlayerId[playerId]) return false;
       if (!['QB', 'RB', 'WR', 'TE'].includes(player?.position)) return false;
-      const value = getPlayerValue(playerId, players, ktcValues);
+      const value = getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
       return value > 0;
     })
     .map(([playerId, player]) => ({
       player_id: playerId,
       name: getPlayerName(playerId, players),
       playerDetails: getPlayerDetails(playerId, player, rosterStatusByPlayerId[playerId]),
-      currentPositionRank: getPlayerCurrentPositionRank(playerId, players, ktcValues),
+      currentPositionRank: getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById),
       pos: player?.position || 'N/A',
       team: player?.team || null,
       owner: null,
       count: 0,
-      ktcValue: getPlayerValue(playerId, players, ktcValues) || null,
+      ktcValue: getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById) || null,
     }))
     .sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0));
   const usedPlayerIds = new Set<string>();
@@ -970,7 +1024,9 @@ function buildRecentTransactionPlayer(
   playerId: string | null | undefined,
   players: Record<string, any>,
   ktcValues: KTCValues,
-  rosterStatusByPlayerId: Record<string, string> = {}
+  rosterStatusByPlayerId: Record<string, string> = {},
+  leagueValueMode: LeagueValueMode = 'dynasty',
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
 ): RecentTransactionPlayer | null {
   if (!playerId || !players[playerId]) return null;
   const player = players[playerId];
@@ -978,10 +1034,10 @@ function buildRecentTransactionPlayer(
     player_id: playerId,
     name: getPlayerName(playerId, players),
     playerDetails: getPlayerDetails(playerId, player, rosterStatusByPlayerId[playerId]),
-    currentPositionRank: getPlayerCurrentPositionRank(playerId, players, ktcValues),
+    currentPositionRank: getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById),
     pos: player?.position || 'N/A',
     team: player?.team || null,
-    ktcValue: getPlayerValue(playerId, players, ktcValues) || null,
+    ktcValue: getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById) || null,
   };
 }
 
@@ -992,7 +1048,9 @@ function buildRecentTransactions(
   ktcValues: KTCValues,
   rosterStatusByPlayerId: Record<string, string> = {},
   managerIntelByName: Map<string, any> = new Map(),
-  currentSeason: string
+  currentSeason: string,
+  leagueValueMode: LeagueValueMode = 'dynasty',
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
 ): RecentTransaction[] {
   const currentSeasonNumber = Number(currentSeason || new Date().getFullYear());
 
@@ -1004,8 +1062,8 @@ function buildRecentTransactions(
       const manager = rosterUserMap[String(transaction.roster_ids?.[0] ?? transaction.roster_id ?? '')] || 'Unknown';
       const addedPlayerId = Object.keys(transaction.adds || {})[0] || null;
       const droppedPlayerId = Object.keys(transaction.drops || {})[0] || null;
-      const addedPlayer = buildRecentTransactionPlayer(addedPlayerId, players, ktcValues, rosterStatusByPlayerId);
-      const droppedPlayer = buildRecentTransactionPlayer(droppedPlayerId, players, ktcValues, rosterStatusByPlayerId);
+      const addedPlayer = buildRecentTransactionPlayer(addedPlayerId, players, ktcValues, rosterStatusByPlayerId, leagueValueMode, valueProfilesById);
+      const droppedPlayer = buildRecentTransactionPlayer(droppedPlayerId, players, ktcValues, rosterStatusByPlayerId, leagueValueMode, valueProfilesById);
       const bidAmount = Number(
         transaction.settings?.waiver_bid ??
         transaction.settings?.bid ??
@@ -1472,6 +1530,7 @@ export const appRouter = router({
           }
 
           const leagueValueMode = getLeagueValueMode(leagueInfo);
+          const allValueProfilesById = buildPlayerValueProfileMap(Object.keys(players), players, ktcValues);
           const reportData = await generateReport(
             currentSeasonData,
             pastSeasonData,
@@ -1535,8 +1594,8 @@ export const appRouter = router({
 
           try {
             [trendingAdds, trendingDrops] = await Promise.all([
-              fetchTrendingPlayers('add', players, ktcValues, ownerByPlayerId, rosterStatusByPlayerId),
-              fetchTrendingPlayers('drop', players, ktcValues, ownerByPlayerId, rosterStatusByPlayerId),
+              fetchTrendingPlayers('add', players, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, allValueProfilesById),
+              fetchTrendingPlayers('drop', players, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, allValueProfilesById),
             ]);
             tradedPicks = await fetch(
               `https://api.sleeper.app/v1/league/${input.leagueId}/traded_picks`
@@ -1587,7 +1646,9 @@ export const appRouter = router({
             players,
             ktcValues,
             ownerByPlayerId,
-            rosterStatusByPlayerId
+            rosterStatusByPlayerId,
+            leagueValueMode,
+            allValueProfilesById
           );
           const managerIntelByName = new Map((reportData.managerRosterIntelligence || []).map((row) => [row.manager, row]));
           const recentTransactions = buildRecentTransactions(
@@ -1597,7 +1658,9 @@ export const appRouter = router({
             ktcValues,
             rosterStatusByPlayerId,
             managerIntelByName,
-            currentSeason
+            currentSeason,
+            leagueValueMode,
+            allValueProfilesById
           );
           const managerChampionships = await buildManagerChampionships(leagueInfo, users);
 
@@ -1608,8 +1671,13 @@ export const appRouter = router({
             ...trendingAdds.map((player) => player.player_id),
             ...trendingDrops.map((player) => player.player_id),
           ];
-          const valueProfilesById = buildPlayerValueProfileMap(reportPlayerIds, players, ktcValues);
-          const similarTradeValuesById = buildSimilarTradeValueMap(reportPlayerIds, players, ktcValues);
+          const valueProfilesById = Object.fromEntries(
+            reportPlayerIds
+              .filter((playerId, index, arr) => Boolean(playerId) && arr.indexOf(playerId) === index)
+              .map((playerId) => [playerId, allValueProfilesById[playerId]])
+              .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
+          );
+          const similarTradeValuesById = buildSimilarTradeValueMap(reportPlayerIds, players, ktcValues, leagueValueMode, allValueProfilesById);
           const availabilityHistoryById = await fetchPlayerAvailabilityHistory(
             reportPlayerIds,
             players,
