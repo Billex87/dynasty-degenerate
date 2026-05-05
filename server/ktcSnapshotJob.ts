@@ -1,6 +1,6 @@
 import { findKtcSnapshotOnOrBefore, getDb, insertKtcSnapshot } from './db';
-import { loadKTCValues, loadLiveKTCValues, saveLocalKtcSnapshot } from './ktcLoader';
-import { loadBlendedPlayerValues } from './valueBlend';
+import { loadKTCValues, loadLiveKTCValueProfiles, loadLiveKTCValues, saveLocalKtcSnapshot } from './ktcLoader';
+import { KTC_SNAPSHOT_PROFILES, loadBlendedPlayerValues } from './valueBlend';
 
 type KTCValueMap = Record<string, {
   name: string;
@@ -14,6 +14,23 @@ type KTCValueMap = Record<string, {
   expert_value_dynastyprocess?: number;
   fantasypros_season_value?: number;
 }>;
+
+type KtcSnapshotPayload = {
+  schemaVersion: 2;
+  generatedAt: string;
+  defaultProfile: string;
+  profilesTracked: Array<{
+    key: string;
+    label: string;
+    qbProfile: string;
+    tepProfile: string;
+    ppr: number;
+    status: 'stored' | 'pending';
+    note?: string;
+  }>;
+  values: KTCValueMap;
+  ktcProfiles: Record<string, KTCValueMap>;
+};
 
 function normalizeSnapshotData(data: unknown): KTCValueMap {
   if (!data || typeof data !== 'object') return {};
@@ -65,7 +82,10 @@ export async function storeKtcSnapshot() {
     const freshKtcData = Object.keys(liveKtcData).length > 0
       ? { ...staticAndCachedKtcData, ...liveKtcData }
       : staticAndCachedKtcData;
-    const ktcData = await loadBlendedPlayerValues(freshKtcData).catch(() => freshKtcData);
+    const [ktcData, liveProfileValues] = await Promise.all([
+      loadBlendedPlayerValues(freshKtcData).catch(() => freshKtcData),
+      loadLiveKTCValueProfiles(false).catch(() => ({} as Awaited<ReturnType<typeof loadLiveKTCValueProfiles>>)),
+    ]);
     
     if (!ktcData || Object.keys(ktcData).length === 0) {
       console.error('[KTC Snapshot] Failed to load KTC data');
@@ -74,7 +94,29 @@ export async function storeKtcSnapshot() {
 
     // Store the snapshot with today's date
     const snapshotDate = new Date();
-    const localFilePath = saveLocalKtcSnapshot(snapshotDate, ktcData);
+    const snapshotPayload: KtcSnapshotPayload = {
+      schemaVersion: 2,
+      generatedAt: snapshotDate.toISOString(),
+      defaultProfile: 'sf_ppr',
+      profilesTracked: KTC_SNAPSHOT_PROFILES.map((profile) => {
+        const storedCount = Object.keys(liveProfileValues[profile.key] || {}).length;
+        return {
+          ...profile,
+          status: storedCount > 0 ? 'stored' : 'pending',
+          note: storedCount > 0
+            ? `${storedCount} KTC market values stored for this profile.`
+            : 'Profile metadata is tracked; dedicated values were not available in this run.',
+        };
+      }),
+      values: normalizeSnapshotData(ktcData),
+      ktcProfiles: Object.fromEntries(
+        Object.entries(liveProfileValues).map(([profileKey, values]) => [
+          profileKey,
+          normalizeSnapshotData(values),
+        ])
+      ),
+    };
+    const localFilePath = saveLocalKtcSnapshot(snapshotDate, snapshotPayload);
 
     const db = await getDb();
     if (!db) {
@@ -85,7 +127,7 @@ export async function storeKtcSnapshot() {
       return;
     }
 
-    await insertKtcSnapshot(snapshotDate, JSON.stringify(ktcData));
+    await insertKtcSnapshot(snapshotDate, JSON.stringify(snapshotPayload));
 
     console.log(`[KTC Snapshot] Successfully stored snapshot for ${snapshotDate.toISOString()}`);
     if (localFilePath) {
@@ -118,7 +160,8 @@ export async function getKtcSnapshotFromDaysAgo(daysAgo: number = 14) {
       return null;
     }
 
-    return normalizeSnapshotData(JSON.parse(data));
+    const parsed = JSON.parse(data);
+    return normalizeSnapshotData(parsed?.values && typeof parsed.values === 'object' ? parsed.values : parsed);
   } catch (error) {
     console.error('[KTC Snapshot] Error retrieving snapshot:', error);
     return null;

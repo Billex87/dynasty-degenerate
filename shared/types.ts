@@ -433,8 +433,28 @@ export interface ManagerDraftStats {
 
 export type LeagueValueMode = 'dynasty' | 'redraft' | 'keeper';
 
+export interface LeagueDiagnostics {
+  teamCount: number;
+  valueMode: LeagueValueMode;
+  rosterSlots: string[];
+  starterSlots: string[];
+  lineupSlotSummary: string;
+  starterCountSummary: string;
+  starterCalculation: string;
+  benchCalculation: string;
+  tradeableDepthCalculation: string;
+  scoringSummary: string;
+  receptionScoring: number;
+  tightEndPremium: number;
+  ktcProfileLabel: string;
+  valueSnapshotProfileCount: number;
+  valueSnapshotProfiles: string[];
+  valueLimitations: string[];
+}
+
 export interface ReportData {
   leagueValueMode?: LeagueValueMode;
+  leagueDiagnostics?: LeagueDiagnostics;
   viewerManager?: string | null;
   currentStandings?: Array<{
     manager: string;

@@ -15,6 +15,7 @@ vi.mock('./ktcLoader', () => ({
     })
   ),
   loadLiveKTCValues: vi.fn(() => Promise.resolve({})),
+  loadLiveKTCValueProfiles: vi.fn(() => Promise.resolve({})),
   saveLocalKtcSnapshot: vi.fn(() => '/tmp/ktc-snapshot-2026-04-29.json'),
 }));
 

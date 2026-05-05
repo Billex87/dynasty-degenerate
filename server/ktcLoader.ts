@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { getCurrentKTCRankings } from './liveKTCScraper';
+import { getCurrentKTCRankingProfiles, getCurrentKTCRankings, type KtcProfileKey } from './liveKTCScraper';
 import { loadBlendedPlayerValues } from './valueBlend';
 
 interface KTCValues {
@@ -17,6 +17,8 @@ interface KTCValues {
     value_sources?: string[];
   };
 }
+
+type KtcProfileValues = Record<KtcProfileKey, KTCValues>;
 
 let ktcValuesCache: KTCValues | null = null;
 let ktcValuesLastWeekCache: KTCValues | null = null;
@@ -66,6 +68,14 @@ function loadStaticKTCValues(fileName: string): KTCValues {
   }
 }
 
+function unwrapSnapshotValues(data: any): KTCValues {
+  if (data && typeof data === 'object' && data.values && typeof data.values === 'object') {
+    return data.values as KTCValues;
+  }
+
+  return (data || {}) as KTCValues;
+}
+
 export async function loadLiveKTCValues(forceRefresh = false): Promise<KTCValues> {
   try {
     const rankings = await getCurrentKTCRankings(forceRefresh);
@@ -81,6 +91,30 @@ export async function loadLiveKTCValues(forceRefresh = false): Promise<KTCValues
     );
   } catch (error) {
     console.warn('Failed to load live KTC values:', error);
+    return {};
+  }
+}
+
+export async function loadLiveKTCValueProfiles(forceRefresh = false): Promise<Partial<KtcProfileValues>> {
+  try {
+    const profiles = await getCurrentKTCRankingProfiles(forceRefresh);
+    return Object.fromEntries(
+      Object.entries(profiles).map(([profileKey, rankings]) => [
+        profileKey,
+        Object.fromEntries(
+          Object.entries(rankings).map(([key, player]) => [
+            key,
+            {
+              name: player.name,
+              ktc_value: player.ktc_value,
+              position_rank: player.position_rank,
+            },
+          ])
+        ),
+      ])
+    ) as Partial<KtcProfileValues>;
+  } catch (error) {
+    console.warn('Failed to load live KTC value profiles:', error);
     return {};
   }
 }
@@ -104,7 +138,7 @@ export function loadLocalKtcSnapshotForDate(dateKey: string): KTCValues {
     if (!fs.existsSync(filePath)) return {};
 
     const data = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(data) || {};
+    return unwrapSnapshotValues(JSON.parse(data));
   } catch (error) {
     console.error('Failed to load local KTC snapshot:', error);
     return {};
@@ -126,7 +160,7 @@ export function loadLatestLocalKtcSnapshotBefore(beforeDate: Date): KTCValues {
     if (!latest) return {};
 
     const data = fs.readFileSync(path.join(KTC_SNAPSHOT_DIR, latest), 'utf-8');
-    return JSON.parse(data) || {};
+    return unwrapSnapshotValues(JSON.parse(data));
   } catch (error) {
     console.error('Failed to load local KTC snapshot:', error);
     return {};
@@ -140,7 +174,7 @@ export function loadLatestLocalKtcSnapshotDaysAgo(daysAgo: number): KTCValues {
   return loadLatestLocalKtcSnapshotBefore(targetDate);
 }
 
-export function saveLocalKtcSnapshot(date: Date, ktcData: KTCValues): string | null {
+export function saveLocalKtcSnapshot(date: Date, ktcData: unknown): string | null {
   try {
     if (!fs.existsSync(KTC_SNAPSHOT_DIR)) {
       fs.mkdirSync(KTC_SNAPSHOT_DIR, { recursive: true });

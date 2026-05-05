@@ -9,6 +9,7 @@ import {
   calculateValueAdjustment,
 } from './leagueAnalysis';
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
+import { KTC_SNAPSHOT_PROFILES } from './valueBlend';
 import type {
   LeagueValueMode,
   ManagerIntelPlayer,
@@ -120,6 +121,7 @@ interface SeasonData {
   rosters: Roster[];
   draftSlotsBySeason?: Record<string, Record<number, number>>;
   rosterPositions?: string[];
+  scoringSettings?: Record<string, any>;
 }
 
 interface ReportOptions {
@@ -491,6 +493,104 @@ type LineupGroup<T extends ManagerIntelPlayer = ManagerIntelPlayer> = {
   count: number;
   players: T[];
 };
+
+function pluralizeSlot(count: number, label: string): string {
+  return `${count} ${label}${count === 1 ? '' : 's'}`;
+}
+
+function formatLineupSlotSummary(profile: LineupSlotProfile): string {
+  const parts = [
+    profile.QB ? `${profile.QB} QB` : null,
+    profile.RB ? `${profile.RB} RB` : null,
+    profile.WR ? `${profile.WR} WR` : null,
+    profile.TE ? `${profile.TE} TE` : null,
+    profile.flex ? `${profile.flex} Flex` : null,
+    profile.superFlex ? `${profile.superFlex} Superflex` : null,
+  ].filter(Boolean);
+
+  return parts.length ? parts.join(', ') : 'Default starter slots';
+}
+
+function formatStarterCountSummary(counts: Record<FantasyPosition, number>): string {
+  return FANTASY_POSITIONS.map((position) => `${position} x${counts[position]}`).join(', ');
+}
+
+function getScoringNumber(scoringSettings: Record<string, any> | undefined, key: string): number {
+  const value = Number(scoringSettings?.[key] ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function formatScoringSummary(scoringSettings: Record<string, any> | undefined): string {
+  const rec = getScoringNumber(scoringSettings, 'rec');
+  const teBonus = getScoringNumber(scoringSettings, 'bonus_rec_te');
+  const rbBonus = getScoringNumber(scoringSettings, 'bonus_rec_rb');
+  const wrBonus = getScoringNumber(scoringSettings, 'bonus_rec_wr');
+  const passTd = getScoringNumber(scoringSettings, 'pass_td');
+  const ppr = rec === 1 ? 'PPR' : rec === 0.5 ? 'Half-PPR' : rec === 0 ? 'Standard' : `${rec} PPR`;
+  const bonuses = [
+    teBonus ? `TE +${teBonus}/rec` : null,
+    rbBonus ? `RB +${rbBonus}/rec` : null,
+    wrBonus ? `WR +${wrBonus}/rec` : null,
+    passTd ? `${passTd}-point passing TD` : null,
+  ].filter(Boolean);
+
+  return [ppr, ...bonuses].join(', ');
+}
+
+function buildLeagueDiagnostics(
+  currentSeasonData: SeasonData,
+  leagueValueMode: LeagueValueMode,
+  ktcValues: KTCValues
+): NonNullable<ReportData['leagueDiagnostics']> {
+  const teamCount = currentSeasonData.rosters.length || 10;
+  const starterSlots = getStarterRosterSlots(currentSeasonData.rosterPositions);
+  const lineupProfile = getLineupSlotProfile(currentSeasonData.rosterPositions);
+  const starterCounts = getPositionStarterCounts(currentSeasonData.rosterPositions, teamCount);
+  const receptionScoring = getScoringNumber(currentSeasonData.scoringSettings, 'rec');
+  const tightEndPremium = getScoringNumber(currentSeasonData.scoringSettings, 'bonus_rec_te');
+  const valueProfiles = Array.from(
+    new Set(
+      Object.values(ktcValues)
+        .flatMap((value) => Array.isArray(value.value_sources) ? value.value_sources : [])
+        .filter(Boolean)
+    )
+  ).sort();
+  const playerValues = Object.values(ktcValues).filter((value) => !/\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(value.name));
+  const sourceCoverage = (source: string) => playerValues.filter((value) => value.value_sources?.includes(source)).length;
+  const coverageParts = ['KTC', 'FantasyCalc', 'DynastyProcess', 'FantasyPros']
+    .filter((source) => sourceCoverage(source) > 0)
+    .map((source) => `${source}: ${sourceCoverage(source)}`);
+
+  return {
+    teamCount,
+    valueMode: leagueValueMode,
+    rosterSlots: currentSeasonData.rosterPositions || [],
+    starterSlots,
+    lineupSlotSummary: formatLineupSlotSummary(lineupProfile),
+    starterCountSummary: formatStarterCountSummary(starterCounts),
+    starterCalculation: `Projected starters are selected from active roster players only, using this league's starter slots: ${formatLineupSlotSummary(lineupProfile)}. Fixed QB/RB/WR/TE slots fill first by position rank, Superflex tries QB first, then flex slots take the best remaining RB/WR/TE options.`,
+    benchCalculation: `Bench baseline uses the best non-starting options after those projected starters are removed. Taxi players are included only for bench baseline visibility because they can be future depth, but not in the active starter room.`,
+    tradeableDepthCalculation: 'Tradeable depth uses active bench players only. Taxi and IR players are not counted as immediate tradeable depth in that tile.',
+    scoringSummary: formatScoringSummary(currentSeasonData.scoringSettings),
+    receptionScoring,
+    tightEndPremium,
+    ktcProfileLabel: 'Daily logs store the default blended value plus KTC market profiles for Superflex, 1QB, and TEP variants. Report tables still use the default blend until per-league blending is wired through each calculation.',
+    valueSnapshotProfileCount: KTC_SNAPSHOT_PROFILES.length,
+    valueSnapshotProfiles: KTC_SNAPSHOT_PROFILES.map((profile) => profile.label),
+    valueLimitations: [
+      `KTC market logs now track ${KTC_SNAPSHOT_PROFILES.length} QB/TEP profiles, but full ${teamCount}-team, Half-PPR, Standard, FantasyCalc, DynastyProcess, and FantasyPros blended variants are not fully separated yet.`,
+      tightEndPremium > 0
+        ? `This league has TE premium scoring (+${tightEndPremium} per TE reception). KTC TEP values are being logged, but the public report still needs per-league TEP value selection through every table.`
+        : 'This league does not add a TE reception bonus, so no TEP adjustment is being applied beyond the generic market blend.',
+      receptionScoring !== 1
+        ? `This league uses ${formatScoringSummary(currentSeasonData.scoringSettings)}; dedicated non-PPR/Half-PPR blended snapshots are not fully separated yet.`
+        : 'This league uses full PPR, which is closest to the current FantasyCalc blend input.',
+      coverageParts.length
+        ? `Current blended player-source coverage in this snapshot: ${coverageParts.join(', ')}. Players with fewer sources are more assumption-heavy.`
+        : 'No source coverage metadata was present in this value snapshot.',
+    ],
+  };
+}
 
 function getLineupSlotProfile(rosterPositions?: string[]): LineupSlotProfile {
   const slots = getStarterRosterSlots(rosterPositions);
@@ -2775,6 +2875,7 @@ export async function generateReport(
 
   return {
     leagueValueMode,
+    leagueDiagnostics: buildLeagueDiagnostics(currentSeasonData, leagueValueMode, ktcValues),
     managerRosterValueGrowth,
     weeklyRisers,
     weeklyFallers,

@@ -1649,6 +1649,7 @@ export const appRouter = router({
             rosters,
             draftSlotsBySeason,
             rosterPositions: Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [],
+            scoringSettings: leagueInfo.scoring_settings || {},
           };
           const lastCompletedSeason = String(Number(currentSeasonData.label) - 1);
           let lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {};

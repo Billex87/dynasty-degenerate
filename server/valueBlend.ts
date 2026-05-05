@@ -19,6 +19,37 @@ export interface BlendedValue {
 }
 
 type ValueMap = Record<string, BlendedValue>;
+type KtcRankingProfile = 'superflex' | 'one_qb';
+type KtcTepProfile = 'base' | 'tep_0_5' | 'tep_1_0' | 'tep_1_5';
+
+export type KtcSnapshotProfileKey =
+  | 'sf_ppr'
+  | 'sf_ppr_tep_0_5'
+  | 'sf_ppr_tep_1_0'
+  | 'sf_ppr_tep_1_5'
+  | 'one_qb_ppr'
+  | 'one_qb_ppr_tep_0_5'
+  | 'one_qb_ppr_tep_1_0'
+  | 'one_qb_ppr_tep_1_5';
+
+export interface KtcSnapshotProfileDefinition {
+  key: KtcSnapshotProfileKey;
+  label: string;
+  qbProfile: KtcRankingProfile;
+  tepProfile: KtcTepProfile;
+  ppr: number;
+}
+
+export const KTC_SNAPSHOT_PROFILES: KtcSnapshotProfileDefinition[] = [
+  { key: 'sf_ppr', label: 'Superflex PPR', qbProfile: 'superflex', tepProfile: 'base', ppr: 1 },
+  { key: 'sf_ppr_tep_0_5', label: 'Superflex PPR 0.5 TEP', qbProfile: 'superflex', tepProfile: 'tep_0_5', ppr: 1 },
+  { key: 'sf_ppr_tep_1_0', label: 'Superflex PPR 1.0 TEP', qbProfile: 'superflex', tepProfile: 'tep_1_0', ppr: 1 },
+  { key: 'sf_ppr_tep_1_5', label: 'Superflex PPR 1.5 TEP', qbProfile: 'superflex', tepProfile: 'tep_1_5', ppr: 1 },
+  { key: 'one_qb_ppr', label: '1QB PPR', qbProfile: 'one_qb', tepProfile: 'base', ppr: 1 },
+  { key: 'one_qb_ppr_tep_0_5', label: '1QB PPR 0.5 TEP', qbProfile: 'one_qb', tepProfile: 'tep_0_5', ppr: 1 },
+  { key: 'one_qb_ppr_tep_1_0', label: '1QB PPR 1.0 TEP', qbProfile: 'one_qb', tepProfile: 'tep_1_0', ppr: 1 },
+  { key: 'one_qb_ppr_tep_1_5', label: '1QB PPR 1.5 TEP', qbProfile: 'one_qb', tepProfile: 'tep_1_5', ppr: 1 },
+];
 
 interface FantasyCalcValue {
   player?: {

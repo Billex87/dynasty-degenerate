@@ -435,6 +435,7 @@ type AdminValueDiagnosticRow = {
   item: string;
   status: string;
   note: string;
+  tone?: 'good' | 'warn' | 'danger' | 'info';
 };
 
 type OutlookPlayer = ReportData['projectedRisers'][number];
@@ -461,6 +462,62 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
     .filter((dateKey) => dateKey >= ADMIN_VALUE_DIAGNOSTIC_START_DATE)
     .sort();
   const outlookPlayers = [...reportData.projectedRisers, ...reportData.projectedFallers];
+  const leagueDiagnostics = reportData.leagueDiagnostics;
+
+  if (leagueDiagnostics) {
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'league-lineup-shape',
+      area: 'League format',
+      item: `${leagueDiagnostics.teamCount}-team ${leagueDiagnostics.valueMode}`,
+      status: 'Dynamic input',
+      tone: 'info',
+      note: `${leagueDiagnostics.lineupSlotSummary}. Starter cutoffs for this league: ${leagueDiagnostics.starterCountSummary}.`,
+    });
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'starter-bench-calculation',
+      area: 'Starter math',
+      item: 'Starters and bench',
+      status: 'League-specific',
+      tone: 'good',
+      note: `${leagueDiagnostics.starterCalculation} ${leagueDiagnostics.benchCalculation}`,
+    });
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'tradeable-depth-calculation',
+      area: 'Depth math',
+      item: 'Tradeable depth',
+      status: 'Active bench only',
+      tone: 'good',
+      note: leagueDiagnostics.tradeableDepthCalculation,
+    });
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'league-scoring-context',
+      area: 'Scoring format',
+      item: leagueDiagnostics.scoringSummary,
+      status: leagueDiagnostics.tightEndPremium > 0 || leagueDiagnostics.receptionScoring !== 1 ? 'Adjustment needed' : 'Closest profile',
+      tone: leagueDiagnostics.tightEndPremium > 0 || leagueDiagnostics.receptionScoring !== 1 ? 'warn' : 'info',
+      note: leagueDiagnostics.tightEndPremium > 0
+        ? `Sleeper scoring gives tight ends +${leagueDiagnostics.tightEndPremium} per reception on top of base reception scoring. TE values should eventually use a dedicated TEP market profile.`
+        : `Sleeper reception scoring is ${leagueDiagnostics.receptionScoring}; values currently use the closest stored market profile, not every scoring variant.`,
+    });
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'value-profile-storage',
+      area: 'Daily value logs',
+      item: `${leagueDiagnostics.valueSnapshotProfileCount} stored profile${leagueDiagnostics.valueSnapshotProfileCount === 1 ? '' : 's'}`,
+      status: 'Needs expansion',
+      tone: 'warn',
+      note: `${leagueDiagnostics.ktcProfileLabel} Tracked profiles: ${leagueDiagnostics.valueSnapshotProfiles.join(', ')}.`,
+    });
+    leagueDiagnostics.valueLimitations.forEach((limitation, index) => {
+      addUniqueDiagnosticRow(rows, seen, {
+        id: `value-limitation-${index}`,
+        area: 'Value coverage',
+        item: `Limit ${index + 1}`,
+        status: 'Assumption',
+        tone: 'warn',
+        note: limitation,
+      });
+    });
+  }
 
   currentSnapshotGaps.forEach((dateKey) => {
     addUniqueDiagnosticRow(rows, seen, {
@@ -468,6 +525,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       area: 'Value blend',
       item: dateKey,
       status: 'Missing day',
+      tone: 'danger',
       note: 'Daily blend was not stored, so any comparison touching this date is less exact.',
     });
   });
@@ -480,6 +538,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       area: 'Player values',
       item: `${playersWithoutSourceMetadata.length} Outlook players`,
       status: 'Source check unavailable',
+      tone: 'warn',
       note: 'The displayed player values exist, but this report payload did not include source-level blend detail.',
     });
   }
@@ -497,6 +556,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       area: 'Player value',
       item: player.name,
       status: sources.length ? 'Thin blend' : 'No source list',
+      tone: sources.length ? 'warn' : 'danger',
       note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found for the current value; projection is more assumption-heavy.`,
     });
   });
@@ -508,6 +568,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       area: 'Projection input',
       item: `${missingAgePlayers.length} Outlook players`,
       status: 'Age missing',
+      tone: 'warn',
       note: 'One-year projection falls back to the current value when the age curve cannot be applied.',
     });
   }
@@ -518,11 +579,12 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       area: 'Value assumptions',
       item: 'Current report',
       status: 'No active flags',
-      note: 'No missing post-cutoff snapshot days or thin Outlook value blends were detected.',
+      tone: 'good',
+      note: 'No missing post-cutoff snapshot days or thin Outlook value blends were detected. League-format notes still show what is calculated versus inferred.',
     });
   }
 
-  return rows.slice(0, 18);
+  return rows.slice(0, 32);
 }
 
 function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) {
@@ -536,31 +598,21 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
   return (
     <div className="admin-value-diagnostics">
       <p className="admin-value-diagnostics-intro">
-        Admin eyes only. Use this for hidden value assumptions, guessed inputs, and post-cutoff blend gaps that should not sit in the public report flow.
+        Admin eyes only. This shows what is calculated from Sleeper league settings, what is covered by stored market values, and what is still an assumption.
       </p>
-      <div className="admin-value-diagnostics-table-wrap">
-        <table className="admin-value-diagnostics-table">
-          <thead>
-            <tr>
-              <th scope="col">Area</th>
-              <th scope="col">Item</th>
-              <th scope="col">Flag</th>
-              <th scope="col">Why It Matters</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>{row.area}</td>
-                <td>{row.item}</td>
-                <td>
-                  <span className="admin-value-diagnostics-flag">{row.status}</span>
-                </td>
-                <td>{row.note}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="admin-value-diagnostics-grid">
+        {rows.map((row) => (
+          <article key={row.id} className={`admin-value-diagnostics-card admin-value-diagnostics-card-${row.tone || 'info'}`}>
+            <div className="admin-value-diagnostics-card-top">
+              <div>
+                <span>{row.area}</span>
+                <strong>{row.item}</strong>
+              </div>
+              <span className="admin-value-diagnostics-flag">{row.status}</span>
+            </div>
+            <p>{row.note}</p>
+          </article>
+        ))}
       </div>
     </div>
   );
