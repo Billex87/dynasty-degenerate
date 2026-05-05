@@ -1488,16 +1488,9 @@ type OwnerTimelineRow = NonNullable<ReportData['dynastyTimelines']>[number];
 type OwnerPowerRow = NonNullable<ReportData['powerRankings']>[number];
 type OwnerGrowthRow = NonNullable<ReportData['managerRosterValueGrowth']>[number];
 
-const POSITION_STRENGTH_NOTE = 'Shows the starter-level cutoff for each position compared with the rest of the league: QB/SF, RB2, WR3, and TE1. The number is that cutoff player\'s position rank. Lower rank means this roster starts a better player there.';
-const POSITION_BASELINE_NOTE = 'Shows the actual lineup floor we are judging: top QB or superflex option, RB2, WR3, TE1, plus how many usable flex options are on the roster. Weak ranks here are the places other managers can attack.';
-const TRADEABLE_DEPTH_NOTE = 'Shows the next valuable player at each position behind the top starter. These are possible trade chips for consolidating depth into a better starter, picks, or a cleaner roster fit.';
-
-const POSITION_STRENGTH_LABELS: Record<'QB' | 'RB' | 'WR' | 'TE', string> = {
-  QB: 'QB/SF',
-  RB: 'RB2',
-  WR: 'WR3',
-  TE: 'TE1',
-};
+const STARTING_ROSTER_STRENGTH_NOTE = 'Compares this manager’s projected starters in each league slot group against every other roster using this league’s lineup settings. In superflex leagues, the QB tile includes the superflex QB path.';
+const BENCH_BASELINE_NOTE = 'Compares the best non-starting bench options against the rest of the league. These are the players who would step in after the projected starters are already filled.';
+const TRADEABLE_DEPTH_NOTE = 'Shows the best non-starting player at each position. These are the easiest depth pieces to shop without touching the projected starting lineup.';
 
 type TradeWarMode = 'dynasty' | 'contender' | 'rebuilder';
 type TradeWarAsset = ManagerIntelPlayer & {
@@ -1640,6 +1633,25 @@ function buildOwnerHealthCopy(row: OwnerIntelRow): string {
 }
 
 function buildOwnerWeakSpotCopy(row: OwnerIntelRow): string {
+  if (row.benchBaseline?.length) {
+    const weakBench = [...row.benchBaseline]
+      .filter((tile) => tile.leagueRank !== null)
+      .sort((a, b) => (b.leagueRank || 0) - (a.leagueRank || 0))[0];
+    const bestBench = [...row.benchBaseline]
+      .filter((tile) => tile.leagueRank !== null)
+      .sort((a, b) => (a.leagueRank || 99) - (b.leagueRank || 99))[0];
+
+    if (weakBench && weakBench.leagueRank && ['Playable', 'Problem'].includes(weakBench.grade)) {
+      return `${weakBench.label} is the softest bench lane. ${weakBench.player ? `${weakBench.player.name} is the first option there` : 'There is no clear player there'}, and that depth ranks #${weakBench.leagueRank} in this league.`;
+    }
+
+    if (bestBench?.player) {
+      return `The bench baseline is usable. ${bestBench.player.name} is the cleanest next-man-up profile, and ${bestBench.label} ranks #${bestBench.leagueRank} in this league.`;
+    }
+
+    return 'The bench baseline is thin because there are not enough ranked non-starters to compare cleanly.';
+  }
+
   const qbRank = parsePositionRankValue(row.holes.bestQbRank);
   const rb2Rank = parsePositionRankValue(row.holes.rb2Rank);
   const wr3Rank = parsePositionRankValue(row.holes.wr3Rank);
@@ -2247,8 +2259,9 @@ function TradeWarPlayerCard({
   );
 }
 
-function getHeatPillClass(position: 'QB' | 'RB' | 'WR' | 'TE', grade?: string | null) {
-  return `owner-intel-heat-pill owner-intel-heat-position-${position.toLowerCase()} owner-intel-heat-${String(grade || 'empty').toLowerCase()}`;
+function getHeatPillClass(position: string, grade?: string | null) {
+  const normalizedPosition = String(position || 'slot').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  return `owner-intel-heat-pill owner-intel-heat-position-${normalizedPosition} owner-intel-heat-${String(grade || 'empty').toLowerCase()}`;
 }
 
 function CommandPlayerTile({
@@ -2888,21 +2901,29 @@ export function LeagueCommandCenter({
                   <p>{selectedIntel?.strategySummary || rosterRead}</p>
                 </div>
               </div>
-              {selectedIntel?.positionGrades ? (
+              {(selectedIntel?.startingRosterStrength?.length || selectedIntel?.positionGrades) ? (
                 <div className="manager-command-section">
-                  <h4>Position Strength</h4>
-                  <p className="owner-intel-section-note">{POSITION_STRENGTH_NOTE}</p>
+                  <h4>Starting Roster Strength</h4>
+                  <p className="owner-intel-section-note">{STARTING_ROSTER_STRENGTH_NOTE}</p>
                   <div className="owner-intel-heat-grid">
-                    {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
-                      const grade = selectedIntel.positionGrades?.[pos];
-                      return (
-                        <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
-                          <strong>{POSITION_STRENGTH_LABELS[pos]}</strong>
-                          <em>{grade?.grade || 'Empty'}</em>
-                          <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
+                    {selectedIntel.startingRosterStrength?.length
+                      ? selectedIntel.startingRosterStrength.map((tile) => (
+                        <span key={tile.key} className={getHeatPillClass(tile.key, tile.grade)} title={tile.note}>
+                          <strong>{tile.label}</strong>
+                          <em>{tile.grade || 'Empty'}</em>
+                          <small>{tile.leagueRank ? `League #${tile.leagueRank}` : '-'}</small>
                         </span>
-                      );
-                    })}
+                      ))
+                      : (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
+                        const grade = selectedIntel.positionGrades?.[pos];
+                        return (
+                          <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
+                            <strong>{pos}</strong>
+                            <em>{grade?.grade || 'Empty'}</em>
+                            <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
+                          </span>
+                        );
+                      })}
                   </div>
                 </div>
               ) : null}
@@ -3160,12 +3181,17 @@ export function ManagerIntelligenceCards({
                       </p>
                     </div>
                     <div className="manager-command-inline-read">
-                      <h4>Similar Value</h4>
+                      <h4>Tradeable Depth</h4>
                       <p>
-                        {(['QB', 'RB', 'WR', 'TE'] as const)
-                          .map((pos) => selectedRow.similarValuePlayers[pos] ? `${pos}: ${selectedRow.similarValuePlayers[pos]?.name} (${selectedRow.similarValuePlayers[pos]?.currentPositionRank || pos})` : null)
-                          .filter(Boolean)
-                          .join(' · ') || 'No clean same-position value comps on this roster.'}
+                        {selectedRow.tradeableDepth?.length
+                          ? (selectedRow.tradeableDepth
+                            .map((tile) => tile.player ? `${tile.position}: ${tile.player.name} (${tile.player.currentPositionRank || tile.player.seasonPositionRank || tile.position})` : null)
+                            .filter(Boolean)
+                            .join(' · ') || 'No clean non-starting trade chip on this roster.')
+                          : (['QB', 'RB', 'WR', 'TE'] as const)
+                            .map((pos) => selectedRow.similarValuePlayers[pos] ? `${pos}: ${selectedRow.similarValuePlayers[pos]?.name} (${selectedRow.similarValuePlayers[pos]?.currentPositionRank || pos})` : null)
+                            .filter(Boolean)
+                            .join(' · ') || 'No clean non-starting trade chip on this roster.'}
                       </p>
                     </div>
                   </div>
@@ -3229,13 +3255,17 @@ export function OwnerIntelMatrix({
   const selectedOverviewRow = selectedRow ? getOverviewRow(selectedRow.manager) : null;
   const selectedGrowthRow = selectedRow ? getGrowthRow(selectedRow.manager) : null;
   const selectedStarterCount = selectedCountRow ? selectedCountRow.QB_starters + selectedCountRow.RB_starters + selectedCountRow.WR_starters + selectedCountRow.TE_starters : null;
-  const selectedValueCompPlayers = selectedRow
-    ? (['QB', 'RB', 'WR', 'TE'] as const)
-      .map((pos) => ({
+  const selectedTradeableDepthPlayers = selectedRow
+    ? (selectedRow.tradeableDepth?.length
+      ? selectedRow.tradeableDepth
+      : (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => ({
         position: pos,
         player: selectedRow.similarValuePlayers[pos],
-      }))
-      .filter((item): item is { position: 'QB' | 'RB' | 'WR' | 'TE'; player: ManagerIntelPlayer } => Boolean(item.player))
+        note: selectedRow.similarValuePlayers[pos]
+          ? `${selectedRow.similarValuePlayers[pos]?.name} is the best available non-starter at ${pos}.`
+          : `No non-starting ${pos} is available.`,
+      })))
+      .filter((item): item is { position: 'QB' | 'RB' | 'WR' | 'TE'; player: ManagerIntelPlayer; note: string } => Boolean(item.player))
     : [];
   const selectedOwnerTags = selectedRow ? buildOwnerIntelTileTags({
     identity: selectedRow.identity,
@@ -3388,11 +3418,11 @@ export function OwnerIntelMatrix({
 
                 {selectedOverviewRow ? (
                   <div className="owner-intel-ranks">
-                    <span>QB #{selectedOverviewRow.rank_qb}</span>
-                    <span>RB #{selectedOverviewRow.rank_rb}</span>
-                    <span>WR #{selectedOverviewRow.rank_wr}</span>
-                    <span>TE #{selectedOverviewRow.rank_te}</span>
-                    <span>Value #{selectedOverviewRow.rank_value}</span>
+                    <span className="owner-intel-rank-tile"><strong>QB</strong><em>#{selectedOverviewRow.rank_qb}</em></span>
+                    <span className="owner-intel-rank-tile"><strong>RB</strong><em>#{selectedOverviewRow.rank_rb}</em></span>
+                    <span className="owner-intel-rank-tile"><strong>WR</strong><em>#{selectedOverviewRow.rank_wr}</em></span>
+                    <span className="owner-intel-rank-tile"><strong>TE</strong><em>#{selectedOverviewRow.rank_te}</em></span>
+                    <span className="owner-intel-rank-tile"><strong>Value</strong><em>#{selectedOverviewRow.rank_value}</em></span>
                   </div>
                 ) : null}
 
@@ -3413,21 +3443,29 @@ export function OwnerIntelMatrix({
                 </div>
 
                 <div className="owner-intel-read-grid">
-                  {selectedRow.positionGrades ? (
+                  {(selectedRow.startingRosterStrength?.length || selectedRow.positionGrades) ? (
                     <div className="owner-intel-roster-heat">
-                      <h4>Position Strength</h4>
-                      <p className="owner-intel-section-note">{POSITION_STRENGTH_NOTE}</p>
+                      <h4>Starting Roster Strength</h4>
+                      <p className="owner-intel-section-note">{STARTING_ROSTER_STRENGTH_NOTE}</p>
                       <div className="owner-intel-heat-grid">
-                        {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
-                          const grade = selectedRow.positionGrades?.[pos];
-                          return (
-                            <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
-                              <strong>{POSITION_STRENGTH_LABELS[pos]}</strong>
-                              <em>{grade?.grade || 'Empty'}</em>
-                              <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
+                        {selectedRow.startingRosterStrength?.length
+                          ? selectedRow.startingRosterStrength.map((tile) => (
+                            <span key={tile.key} className={getHeatPillClass(tile.key, tile.grade)} title={tile.note}>
+                              <strong>{tile.label}</strong>
+                              <em>{tile.grade || 'Empty'}</em>
+                              <small>{tile.leagueRank ? `League #${tile.leagueRank}` : '-'}</small>
                             </span>
-                          );
-                        })}
+                          ))
+                          : (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
+                            const grade = selectedRow.positionGrades?.[pos];
+                            return (
+                              <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
+                                <strong>{pos}</strong>
+                                <em>{grade?.grade || 'Empty'}</em>
+                                <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
+                              </span>
+                            );
+                          })}
                       </div>
                     </div>
                   ) : null}
@@ -3448,27 +3486,37 @@ export function OwnerIntelMatrix({
                     <p>{selectedHealthCheck}</p>
                   </div>
                   <div>
-                    <h4>Position Baseline</h4>
-                    <p className="owner-intel-section-note">{POSITION_BASELINE_NOTE}</p>
+                    <h4>Bench Baseline</h4>
+                    <p className="owner-intel-section-note">{BENCH_BASELINE_NOTE}</p>
                     <div className="owner-intel-attack-list">
-                      <span><strong>QB/SF</strong><PositionRankPill rank={selectedRow.holes.bestQbRank} /></span>
-                      <span><strong>RB2</strong><PositionRankPill rank={selectedRow.holes.rb2Rank} /></span>
-                      <span><strong>WR3</strong><PositionRankPill rank={selectedRow.holes.wr3Rank} /></span>
-                      <span><strong>TE1</strong><PositionRankPill rank={selectedRow.holes.te1Rank} /></span>
-                      <span><strong>Flex depth</strong><em>{selectedRow.holes.flexDepth}</em></span>
+                      {selectedRow.benchBaseline?.length ? selectedRow.benchBaseline.map((tile) => (
+                        <span key={tile.key} title={tile.note}>
+                          <strong>{tile.label}</strong>
+                          <em>{tile.leagueRank ? `#${tile.leagueRank}` : '-'}</em>
+                          <PositionRankPill rank={tile.player?.currentPositionRank || tile.player?.seasonPositionRank || tile.player?.pos || '-'} />
+                        </span>
+                      )) : (
+                        <>
+                          <span><strong>QB/SF</strong><PositionRankPill rank={selectedRow.holes.bestQbRank} /></span>
+                          <span><strong>RB2</strong><PositionRankPill rank={selectedRow.holes.rb2Rank} /></span>
+                          <span><strong>WR3</strong><PositionRankPill rank={selectedRow.holes.wr3Rank} /></span>
+                          <span><strong>TE1</strong><PositionRankPill rank={selectedRow.holes.te1Rank} /></span>
+                          <span><strong>Flex depth</strong><em>{selectedRow.holes.flexDepth}</em></span>
+                        </>
+                      )}
                     </div>
                     <p>{selectedWeakSpotCopy}</p>
                   </div>
-                  {selectedValueCompPlayers.length ? (
+                  {selectedTradeableDepthPlayers.length ? (
                     <div className="owner-intel-value-map">
                       <h4>Tradeable Depth</h4>
                       <p className="owner-intel-section-note">{TRADEABLE_DEPTH_NOTE}</p>
                       <div className="owner-intel-value-map-grid">
-                        {selectedValueCompPlayers.map(({ position, player }) => (
+                        {selectedTradeableDepthPlayers.map(({ position, player, note }) => (
                           <button
                             key={`${position}-${player.player_id}`}
                             type="button"
-                            title={`${position} value comp: ${player.name}${player.owner ? ` (${player.owner})` : ''}`}
+                            title={note}
                             onClick={() => setSelectedPlayer(buildPlayerModalData({
                               playerId: player.player_id,
                               playerName: player.name,
@@ -3484,9 +3532,8 @@ export function OwnerIntelMatrix({
                             <strong>{position}</strong>
                             <span>
                               <em>{player.name}</em>
-                              {player.owner && player.owner !== selectedRow.manager ? <small>{player.owner}</small> : null}
+                              <small>{note}</small>
                             </span>
-                            <span className="owner-intel-value-pill">{formatCompactValue(player.value)}</span>
                             <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
                           </button>
                         ))}

@@ -9,7 +9,18 @@ import {
   calculateValueAdjustment,
 } from './leagueAnalysis';
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
-import type { LeagueValueMode, ManagerIntelPlayer, PlayerDetails, ReportData, TaxiTriageAction, TaxiTriageItem, TradeTeamContext } from '../shared/types';
+import type {
+  LeagueValueMode,
+  ManagerIntelPlayer,
+  OwnerBenchBaselineTile,
+  OwnerLineupStrengthTile,
+  OwnerTradeableDepthTile,
+  PlayerDetails,
+  ReportData,
+  TaxiTriageAction,
+  TaxiTriageItem,
+  TradeTeamContext,
+} from '../shared/types';
 
 export interface KTCValues {
   [key: string]: {
@@ -468,6 +479,221 @@ function selectValueProjectedLineup<T extends ManagerIntelPlayer>(players: T[], 
   }
 
   return selected;
+}
+
+type LineupSlotProfile = Record<'QB' | 'RB' | 'WR' | 'TE', number> & {
+  flex: number;
+  superFlex: number;
+};
+type LineupGroup<T extends ManagerIntelPlayer = ManagerIntelPlayer> = {
+  key: string;
+  label: string;
+  count: number;
+  players: T[];
+};
+
+function getLineupSlotProfile(rosterPositions?: string[]): LineupSlotProfile {
+  const slots = getStarterRosterSlots(rosterPositions);
+  const profile: LineupSlotProfile = { QB: 0, RB: 0, WR: 0, TE: 0, flex: 0, superFlex: 0 };
+
+  for (const slot of slots) {
+    if (slot === 'QB' || slot === 'RB' || slot === 'WR' || slot === 'TE') {
+      profile[slot] += 1;
+    } else if (slot === 'SUPER_FLEX') {
+      profile.superFlex += 1;
+    } else if (FLEX_ELIGIBILITY[slot]) {
+      profile.flex += 1;
+    }
+  }
+
+  return profile;
+}
+
+function getPositionStarterCounts(rosterPositions: string[] | undefined, teamCount: number): Record<FantasyPosition, number> {
+  const profile = getLineupSlotProfile(rosterPositions);
+
+  return {
+    QB: Math.max(1, profile.QB + profile.superFlex || Math.ceil(getStarterThresholds(teamCount).QB / Math.max(1, teamCount))),
+    RB: Math.max(1, profile.RB || Math.ceil(getStarterThresholds(teamCount).RB / Math.max(1, teamCount))),
+    WR: Math.max(1, profile.WR || Math.ceil(getStarterThresholds(teamCount).WR / Math.max(1, teamCount))),
+    TE: Math.max(1, profile.TE || Math.ceil(getStarterThresholds(teamCount).TE / Math.max(1, teamCount))),
+  };
+}
+
+function gradeLeagueRank(rank: number | null, teamCount: number): string {
+  if (!rank) return 'Empty';
+  if (rank <= Math.max(1, Math.ceil(teamCount * 0.25))) return 'Elite';
+  if (rank <= Math.max(1, Math.ceil(teamCount * 0.5))) return 'Strong';
+  if (rank <= Math.max(1, Math.ceil(teamCount * 0.75))) return 'Playable';
+  return 'Problem';
+}
+
+function getLeagueRank(score: number, scores: number[]): number | null {
+  if (!Number.isFinite(score) || score <= 0) return null;
+  return scores.filter((value) => value > score).length + 1;
+}
+
+function sumLineupScore(players: ManagerIntelPlayer[]): number {
+  return players.reduce((sum, player) => sum + getLineupValue(player), 0);
+}
+
+function takeBestPlayers<T extends ManagerIntelPlayer>(
+  remaining: T[],
+  eligiblePositions: FantasyPosition[],
+  count: number
+): T[] {
+  const selected: T[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const index = remaining.findIndex((player) => eligiblePositions.includes(player.pos as FantasyPosition));
+    if (index < 0) break;
+    const [player] = remaining.splice(index, 1);
+    selected.push(player);
+  }
+  return selected;
+}
+
+function getLineupGroups<T extends ManagerIntelPlayer>(players: T[], rosterPositions?: string[]): LineupGroup<T>[] {
+  const profile = getLineupSlotProfile(rosterPositions);
+  const remaining = players
+    .filter((player) => isFantasyPosition(player.pos))
+    .sort(compareLineupPlayers);
+  const groups: LineupGroup<T>[] = [];
+  const fixedByPosition: Partial<Record<FantasyPosition, T[]>> = {};
+
+  for (const position of FANTASY_POSITIONS) {
+    fixedByPosition[position] = takeBestPlayers(remaining, [position], profile[position]);
+  }
+
+  const superFlexPlayers = takeBestPlayers(remaining, ['QB'], profile.superFlex);
+  if (superFlexPlayers.length < profile.superFlex) {
+    superFlexPlayers.push(...takeBestPlayers(remaining, FANTASY_POSITIONS, profile.superFlex - superFlexPlayers.length));
+  }
+
+  const qbPlayers = [...(fixedByPosition.QB || []), ...superFlexPlayers];
+  if (qbPlayers.length || profile.QB || profile.superFlex) {
+    groups.push({
+      key: profile.superFlex ? 'QB_SF' : 'QB',
+      label: profile.superFlex ? `QB/SF x${Math.max(1, profile.QB + profile.superFlex)}` : `QB x${Math.max(1, profile.QB)}`,
+      count: Math.max(1, profile.QB + profile.superFlex),
+      players: qbPlayers,
+    });
+  }
+
+  for (const position of ['RB', 'WR', 'TE'] as const) {
+    const count = profile[position];
+    const positionPlayers = fixedByPosition[position] || [];
+    if (positionPlayers.length || count) {
+      groups.push({
+        key: position,
+        label: `${position} x${Math.max(1, count)}`,
+        count: Math.max(1, count),
+        players: positionPlayers,
+      });
+    }
+  }
+
+  const flexPlayers = takeBestPlayers(remaining, ['RB', 'WR', 'TE'], profile.flex);
+  if (flexPlayers.length || profile.flex) {
+    groups.push({
+      key: 'FLEX',
+      label: `Flex x${Math.max(1, profile.flex)}`,
+      count: Math.max(1, profile.flex),
+      players: flexPlayers,
+    });
+  }
+
+  return groups;
+}
+
+function buildStartingRosterStrengthTiles(
+  manager: string,
+  leagueGroups: Array<{ manager: string; groups: LineupGroup[] }>,
+  teamCount: number
+): OwnerLineupStrengthTile[] {
+  const managerGroups = leagueGroups.find((row) => row.manager === manager)?.groups || [];
+
+  return managerGroups.map((group) => {
+    const score = sumLineupScore(group.players);
+    const scores = leagueGroups.map((row) => sumLineupScore(row.groups.find((item) => item.key === group.key)?.players || []));
+    const leagueRank = getLeagueRank(score, scores);
+    const grade = gradeLeagueRank(leagueRank, teamCount);
+    const playerNames = group.players.map((player) => player.name);
+    const note = playerNames.length
+      ? `${group.label} compares ${playerNames.join(', ')} against the same starting slot group on every roster.`
+      : `${group.label} has no ranked starter in this lineup shape.`;
+
+    return {
+      key: group.key,
+      label: group.label,
+      count: group.count,
+      leagueRank,
+      grade,
+      playerNames,
+      note,
+    };
+  });
+}
+
+function buildBenchBaselineTiles(
+  manager: string,
+  leagueRows: Array<{ manager: string; bench: ManagerIntelPlayer[] }>,
+  rosterPositions: string[] | undefined,
+  teamCount: number
+): OwnerBenchBaselineTile[] {
+  const profile = getLineupSlotProfile(rosterPositions);
+  const managerBench = leagueRows.find((row) => row.manager === manager)?.bench || [];
+  const tileDefs: Array<{ key: string; label: string; count: number; positions: FantasyPosition[] }> = [
+    { key: 'QB', label: 'Bench QB', count: 1, positions: ['QB'] },
+    { key: 'RB', label: 'Bench RB', count: 1, positions: ['RB'] },
+    { key: 'WR', label: 'Bench WR', count: 1, positions: ['WR'] },
+    { key: 'TE', label: 'Bench TE', count: 1, positions: ['TE'] },
+  ];
+
+  if (profile.flex > 0) {
+    tileDefs.push({ key: 'FLEX', label: `Bench Flex x${profile.flex}`, count: profile.flex, positions: ['RB', 'WR', 'TE'] });
+  }
+
+  return tileDefs.map((def) => {
+    const pickBenchPlayers = (bench: ManagerIntelPlayer[]) => bench
+      .filter((player) => def.positions.includes(player.pos as FantasyPosition))
+      .sort(compareLineupPlayers)
+      .slice(0, def.count);
+    const players = pickBenchPlayers(managerBench);
+    const score = sumLineupScore(players);
+    const scores = leagueRows.map((row) => sumLineupScore(pickBenchPlayers(row.bench)));
+    const leagueRank = getLeagueRank(score, scores);
+    const grade = gradeLeagueRank(leagueRank, teamCount);
+    const player = players[0] || null;
+    const note = player
+      ? `${player.name} is the best non-starting ${def.key === 'FLEX' ? 'flex option' : def.key} for this roster.`
+      : `No non-starting ${def.key === 'FLEX' ? 'flex option' : def.key} is available.`;
+
+    return {
+      key: def.key,
+      label: def.label,
+      count: def.count,
+      leagueRank,
+      grade,
+      player,
+      players,
+      note,
+    };
+  });
+}
+
+function buildTradeableDepthTiles(bench: ManagerIntelPlayer[]): OwnerTradeableDepthTile[] {
+  return FANTASY_POSITIONS.map((position) => {
+    const player = bench
+      .filter((item) => item.pos === position)
+      .sort(compareLineupPlayers)[0] || null;
+    return {
+      position,
+      player,
+      note: player
+        ? `${player.name} is your best non-starting ${position}.`
+        : `No non-starting ${position} is available.`,
+    };
+  });
 }
 
 function average(values: Array<number | null | undefined>): number | null {
@@ -1512,9 +1738,10 @@ export async function generateReport(
       v2027,
     };
 
+    const positionStarterCounts = getPositionStarterCounts(currentSeasonData.rosterPositions, currentSeasonData.rosters.length || 10);
     for (const [pos, values] of Object.entries(posSeasonValues)) {
       const position = pos as keyof StarterThresholds;
-      const topCount = Math.max(1, Math.ceil(starterThresholds[position] / Math.max(1, currentSeasonData.rosters.length || 10)));
+      const topCount = positionStarterCounts[position];
       const positionStrength = values
         .sort((a, b) => b - a)
         .slice(0, topCount)
@@ -1903,20 +2130,15 @@ export async function generateReport(
             playerDetails,
           });
         }
-        if (isStarterRank(pos, seasonPositionRank, starterThresholds)) {
-          posStarterCounts[pos]++;
-          starterPlayers.push({
-            player_id: pid,
-            name: getPlayerName(pid, allPlayers),
-            pos,
-            value,
-            seasonValue,
-            currentPositionRank: positionRank,
-            seasonPositionRank,
-            playerDetails,
-          });
-        }
       }
+    }
+
+    const projectedStarters = selectProjectedLineup(lineupPlayers, currentSeasonData.rosterPositions);
+    for (const player of projectedStarters) {
+      if (isFantasyPosition(player.pos)) {
+        posStarterCounts[player.pos]++;
+      }
+      starterPlayers.push(player);
     }
 
     managerPositionCounts.push({
@@ -1998,10 +2220,30 @@ export async function generateReport(
       })
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
 
-    const starters = rosterPlayers
-      .filter((player) => player.isStarter)
+    const projectedStarters = selectProjectedLineup(rosterPlayers, currentSeasonData.rosterPositions);
+    const projectedStarterIds = new Set(projectedStarters.map((player) => player.player_id));
+    rosterPlayers.forEach((player) => {
+      player.isStarter = projectedStarterIds.has(player.player_id);
+    });
+    const starters = projectedStarters
       .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value));
     const bench = rosterPlayers.filter((player) => !player.isStarter).sort((a, b) => b.value - a.value);
+    const leagueLineupRows = currentSeasonData.rosters.map((otherRoster) => {
+      const owner = currentSeasonData.rosterMap[otherRoster.roster_id];
+      const players = otherRoster.roster_id === r.roster_id
+        ? rosterPlayers
+        : getActivePlayerIds(otherRoster)
+          .map((pid) => buildIntelPlayer(pid, owner, otherRoster))
+          .filter((player): player is BuiltIntelPlayer => Boolean(player));
+      const lineup = selectProjectedLineup(players, currentSeasonData.rosterPositions);
+      const lineupIds = new Set(lineup.map((player) => player.player_id));
+
+      return {
+        manager: owner,
+        groups: getLineupGroups(players, currentSeasonData.rosterPositions),
+        bench: players.filter((player) => !lineupIds.has(player.player_id)).sort(compareLineupPlayers),
+      };
+    });
     const starterValue = starters.reduce((sum, player) => sum + player.value, 0);
     const starterSeasonValue = starters.reduce((sum, player) => sum + (player.seasonValue || getPlayerRedraftValue(player.player_id, allPlayers, ktcValues)), 0);
     const benchValue = bench.reduce((sum, player) => sum + player.value, 0);
@@ -2222,6 +2464,14 @@ export async function generateReport(
             : 'No obvious need-for-surplus trade path from the current roster shape.',
     };
     const positionGrades = buildPositionGrades({ qbs, rbs, wrs, tes, teamCount });
+    const startingRosterStrength = buildStartingRosterStrengthTiles(manager, leagueLineupRows, teamCount);
+    const benchBaseline = buildBenchBaselineTiles(
+      manager,
+      leagueLineupRows.map((row) => ({ manager: row.manager, bench: row.bench })),
+      currentSeasonData.rosterPositions,
+      teamCount
+    );
+    const tradeableDepth = buildTradeableDepthTiles(bench);
     const injuryInsurance = pickDistinctPlayer(
       [...bench]
         .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos))
@@ -2388,6 +2638,9 @@ export async function generateReport(
       pressurePoints,
       rosterHealthScore,
       positionGrades,
+      startingRosterStrength,
+      benchBaseline,
+      tradeableDepth,
       tradeChip,
       injuryInsurance,
       rosterPlayers,

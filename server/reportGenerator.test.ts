@@ -359,6 +359,79 @@ describe('generateReport trade ledger', () => {
     expect(report.managerPositionCounts[1].starterPlayers?.find((player) => player.pos === 'QB')?.seasonPositionRank).toBe('QB2');
   });
 
+  it('builds owner intel from the actual superflex lineup and bench path', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterPositions: ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'FLEX', 'SUPER_FLEX', 'BN'],
+        rosterMap: {
+          1: 'Manager A',
+          2: 'Manager B',
+        },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['aQb1', 'aQb2', 'camWard', 'aRb1', 'aRb2', 'aRb3', 'aWr1', 'aWr2', 'aWr3', 'aTe1'] },
+          { roster_id: 2, owner_id: 'u2', players: ['bQb1', 'bQb2', 'bQb3', 'bRb1', 'bRb2', 'bRb3', 'bWr1', 'bWr2', 'bWr3', 'bTe1'] },
+        ],
+      },
+      null,
+      {
+        aQb1: { first_name: 'Alpha', last_name: 'QBOne', position: 'QB', age: 25 },
+        aQb2: { first_name: 'Alpha', last_name: 'QBTwo', position: 'QB', age: 25 },
+        camWard: { first_name: 'Cam', last_name: 'Ward', position: 'QB', age: 23 },
+        aRb1: { first_name: 'Alpha', last_name: 'RBOne', position: 'RB', age: 25 },
+        aRb2: { first_name: 'Alpha', last_name: 'RBTwo', position: 'RB', age: 25 },
+        aRb3: { first_name: 'Alpha', last_name: 'RBThree', position: 'RB', age: 25 },
+        aWr1: { first_name: 'Alpha', last_name: 'WROne', position: 'WR', age: 25 },
+        aWr2: { first_name: 'Alpha', last_name: 'WRTwo', position: 'WR', age: 25 },
+        aWr3: { first_name: 'Alpha', last_name: 'WRThree', position: 'WR', age: 25 },
+        aTe1: { first_name: 'Alpha', last_name: 'TEOne', position: 'TE', age: 25 },
+        bQb1: { first_name: 'Beta', last_name: 'QBOne', position: 'QB', age: 25 },
+        bQb2: { first_name: 'Beta', last_name: 'QBTwo', position: 'QB', age: 25 },
+        bQb3: { first_name: 'Beta', last_name: 'QBThree', position: 'QB', age: 25 },
+        bRb1: { first_name: 'Beta', last_name: 'RBOne', position: 'RB', age: 25 },
+        bRb2: { first_name: 'Beta', last_name: 'RBTwo', position: 'RB', age: 25 },
+        bRb3: { first_name: 'Beta', last_name: 'RBThree', position: 'RB', age: 25 },
+        bWr1: { first_name: 'Beta', last_name: 'WROne', position: 'WR', age: 25 },
+        bWr2: { first_name: 'Beta', last_name: 'WRTwo', position: 'WR', age: 25 },
+        bWr3: { first_name: 'Beta', last_name: 'WRThree', position: 'WR', age: 25 },
+        bTe1: { first_name: 'Beta', last_name: 'TEOne', position: 'TE', age: 25 },
+      },
+      {
+        alphaqbone: { name: 'Alpha QBOne', ktc_value: 9000, redraft_value: 9000, position_rank: 'QB1' },
+        alphaqbtwo: { name: 'Alpha QBTwo', ktc_value: 8500, redraft_value: 8500, position_rank: 'QB2' },
+        camward: { name: 'Cam Ward', ktc_value: 5000, redraft_value: 5000, position_rank: 'QB10' },
+        alpharbone: { name: 'Alpha RBOne', ktc_value: 8000, redraft_value: 8000, position_rank: 'RB1' },
+        alpharbtwo: { name: 'Alpha RBTwo', ktc_value: 7600, redraft_value: 7600, position_rank: 'RB2' },
+        alpharbthree: { name: 'Alpha RBThree', ktc_value: 6000, redraft_value: 6000, position_rank: 'RB6' },
+        alphawrone: { name: 'Alpha WROne', ktc_value: 8100, redraft_value: 8100, position_rank: 'WR1' },
+        alphawrtwo: { name: 'Alpha WRTwo', ktc_value: 7700, redraft_value: 7700, position_rank: 'WR2' },
+        alphawrthree: { name: 'Alpha WRThree', ktc_value: 6200, redraft_value: 6200, position_rank: 'WR6' },
+        alphateone: { name: 'Alpha TEOne', ktc_value: 7000, redraft_value: 7000, position_rank: 'TE1' },
+        betaqbone: { name: 'Beta QBOne', ktc_value: 6200, redraft_value: 6200, position_rank: 'QB6' },
+        betaqbtwo: { name: 'Beta QBTwo', ktc_value: 5900, redraft_value: 5900, position_rank: 'QB7' },
+        betaqbthree: { name: 'Beta QBThree', ktc_value: 5800, redraft_value: 5800, position_rank: 'QB8' },
+        betarbone: { name: 'Beta RBOne', ktc_value: 5000, redraft_value: 5000, position_rank: 'RB10' },
+        betarbtwo: { name: 'Beta RBTwo', ktc_value: 4800, redraft_value: 4800, position_rank: 'RB11' },
+        betarbthree: { name: 'Beta RBThree', ktc_value: 4600, redraft_value: 4600, position_rank: 'RB12' },
+        betawrone: { name: 'Beta WROne', ktc_value: 5200, redraft_value: 5200, position_rank: 'WR10' },
+        betawrtwo: { name: 'Beta WRTwo', ktc_value: 5000, redraft_value: 5000, position_rank: 'WR11' },
+        betawrthree: { name: 'Beta WRThree', ktc_value: 4900, redraft_value: 4900, position_rank: 'WR12' },
+        betateone: { name: 'Beta TEOne', ktc_value: 5200, redraft_value: 5200, position_rank: 'TE6' },
+      },
+      {}
+    );
+
+    const managerA = report.managerRosterIntelligence.find((row) => row.manager === 'Manager A');
+    expect(report.managerPositionCounts.find((row) => row.manager === 'Manager A')?.QB_starters).toBe(2);
+    expect(managerA?.startingRosterStrength?.find((tile) => tile.key === 'QB_SF')).toMatchObject({
+      label: 'QB/SF x2',
+      leagueRank: 1,
+    });
+    expect(managerA?.benchBaseline?.find((tile) => tile.key === 'QB')?.player?.name).toBe('Cam Ward');
+    expect(managerA?.tradeableDepth?.find((tile) => tile.position === 'QB')?.player?.name).toBe('Cam Ward');
+  });
+
   it('uses dynasty value as primary for dynasty leagues and season value for redraft leagues', async () => {
     const seasonData = {
       label: '2026',

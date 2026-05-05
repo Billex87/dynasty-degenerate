@@ -116,6 +116,33 @@ export interface TaxiTriageItem extends ManagerIntelPlayer {
   taxiScore: number;
 }
 
+export interface OwnerLineupStrengthTile {
+  key: string;
+  label: string;
+  count: number;
+  leagueRank: number | null;
+  grade: string;
+  playerNames: string[];
+  note: string;
+}
+
+export interface OwnerBenchBaselineTile {
+  key: string;
+  label: string;
+  count: number;
+  leagueRank: number | null;
+  grade: string;
+  player: ManagerIntelPlayer | null;
+  players?: ManagerIntelPlayer[];
+  note: string;
+}
+
+export interface OwnerTradeableDepthTile {
+  position: 'QB' | 'RB' | 'WR' | 'TE';
+  player: ManagerIntelPlayer | null;
+  note: string;
+}
+
 export interface ManagerRosterIntelligence {
   manager: string;
   identity: string;
@@ -155,6 +182,9 @@ export interface ManagerRosterIntelligence {
     grade: string;
     note: string;
   }>;
+  startingRosterStrength?: OwnerLineupStrengthTile[];
+  benchBaseline?: OwnerBenchBaselineTile[];
+  tradeableDepth?: OwnerTradeableDepthTile[];
   tradeChip: ManagerIntelPlayer | null;
   injuryInsurance: ManagerIntelPlayer | null;
   rosterPlayers?: ManagerIntelPlayer[];
