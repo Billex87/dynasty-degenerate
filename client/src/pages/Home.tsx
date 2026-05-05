@@ -44,7 +44,7 @@ const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
 const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
-const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'awwqq']);
+const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'awwqq', 'zojozo']);
 
 function getKtcAdminIdentity(user?: SleeperUserSession | null, fallbackUsername?: string): string | null {
   return user?.username || user?.displayName || fallbackUsername || null;
@@ -58,6 +58,10 @@ function isPrivilegedReportViewer(...identifiers: Array<string | null | undefine
   return identifiers
     .map(normalizeViewerIdentifier)
     .some((value) => value && PRIVILEGED_REPORT_VIEWERS.has(value));
+}
+
+function normalizeAdminViewMode(value: unknown): AdminViewMode | null {
+  return value === 'admin' || value === 'regular' ? value : null;
 }
 
 type SleeperLeagueOption = {
@@ -79,6 +83,8 @@ type SleeperUserSession = {
   avatarUrl: string | null;
 };
 
+type AdminViewMode = 'admin' | 'regular';
+
 type CachedReport = {
   leagueId: string;
   leagueName: string;
@@ -95,6 +101,7 @@ type SleeperSession = {
   username: string;
   user?: SleeperUserSession | null;
   leagues: SleeperLeagueOption[];
+  adminViewMode?: AdminViewMode | null;
   savedAt: number;
 };
 
@@ -248,6 +255,7 @@ export default function Home() {
   const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [viewerUsername, setViewerUsername] = useState<string | null>(null);
+  const [adminViewMode, setAdminViewMode] = useState<AdminViewMode | null>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [leagueName, setLeagueName] = useState('');
@@ -256,6 +264,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
+  const [isAdminPermissionsModalOpen, setIsAdminPermissionsModalOpen] = useState(false);
 
   const rememberLeagueId = (value: string) => {
     setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, value));
@@ -284,9 +293,14 @@ export default function Home() {
   const userLeaguesMutation = trpc.league.getUserLeagues.useMutation({
     onSuccess: (data, variables) => {
       const username = variables.username.trim();
+      const nextViewerUserId = data.user?.userId || null;
+      const nextViewerIdentity = getKtcAdminIdentity(data.user, username);
+      const nextIsPrivilegedViewer = isPrivilegedReportViewer(nextViewerUserId, nextViewerIdentity, username);
       setUserLeagues(data.leagues);
-      setViewerUserId(data.user?.userId || null);
-      setViewerUsername(getKtcAdminIdentity(data.user, username));
+      setViewerUserId(nextViewerUserId);
+      setViewerUsername(nextViewerIdentity);
+      setAdminViewMode(null);
+      setIsAdminPermissionsModalOpen(false);
       if (data.leagues.length === 0) {
         toast.error('No Sleeper leagues found for this username');
         return;
@@ -299,11 +313,15 @@ export default function Home() {
             username,
             user: data.user || null,
             leagues: data.leagues,
+            adminViewMode: null,
             savedAt: Date.now(),
           } satisfies SleeperSession)
         );
       } catch {
         // Losing this cache only affects the league switcher, not the report itself.
+      }
+      if (nextIsPrivilegedViewer) {
+        setIsAdminPermissionsModalOpen(true);
       }
       toast.success(`Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? '' : 's'}`);
     },
@@ -318,10 +336,19 @@ export default function Home() {
       const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
       if (sleeperSession) {
         const parsed = JSON.parse(sleeperSession) as SleeperSession;
+        const restoredViewerIdentity = getKtcAdminIdentity(parsed.user, parsed.username);
+        const restoredAdminViewMode = normalizeAdminViewMode(parsed.adminViewMode);
+        const restoredIsPrivilegedViewer = isPrivilegedReportViewer(
+          parsed.user?.userId || null,
+          restoredViewerIdentity,
+          parsed.username
+        );
         setSleeperUsername(parsed.username || '');
         restoredViewerUserId = parsed.user?.userId || null;
         setViewerUserId(restoredViewerUserId);
-        setViewerUsername(getKtcAdminIdentity(parsed.user, parsed.username));
+        setViewerUsername(restoredViewerIdentity);
+        setAdminViewMode(restoredIsPrivilegedViewer ? restoredAdminViewMode : null);
+        setIsAdminPermissionsModalOpen(restoredIsPrivilegedViewer && !restoredAdminViewMode);
         if (parsed.username) {
           setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, parsed.username));
         }
@@ -420,6 +447,35 @@ export default function Home() {
     setSleeperUsername('');
     setUserLeagues([]);
     setFocusedAutocomplete(null);
+    setAdminViewMode(null);
+    setIsAdminPermissionsModalOpen(false);
+  };
+
+  const persistAdminViewMode = (mode: AdminViewMode) => {
+    try {
+      const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
+      if (!sleeperSession) return;
+      const parsed = JSON.parse(sleeperSession) as SleeperSession;
+      localStorage.setItem(
+        SLEEPER_SESSION_KEY,
+        JSON.stringify({
+          ...parsed,
+          adminViewMode: mode,
+          savedAt: Date.now(),
+        } satisfies SleeperSession)
+      );
+    } catch {
+      // The view-mode choice only needs to last for this browser session.
+    }
+  };
+
+  const handleAdminViewModeChoice = (mode: AdminViewMode) => {
+    setAdminViewMode(mode);
+    setIsAdminPermissionsModalOpen(false);
+    persistAdminViewMode(mode);
+    if (mode === 'regular') {
+      setActiveTab('overview');
+    }
   };
 
   const handleStartOver = () => {
@@ -436,6 +492,8 @@ export default function Home() {
     setUserLeagues([]);
     setViewerUserId(null);
     setViewerUsername(null);
+    setAdminViewMode(null);
+    setIsAdminPermissionsModalOpen(false);
     setActiveTab('overview');
   };
 
@@ -464,7 +522,8 @@ export default function Home() {
 
   const usernameAutocompleteOptions = getFilteredAutocompleteOptions(sleeperUsernameHistory, sleeperUsername);
   const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(leagueIdHistory, leagueId);
-  const canViewMomentumTab = isPrivilegedReportViewer(viewerUserId, viewerUsername, sleeperUsername);
+  const isPrivilegedViewer = isPrivilegedReportViewer(viewerUserId, viewerUsername, sleeperUsername);
+  const canViewMomentumTab = isPrivilegedViewer && adminViewMode === 'admin';
   const resolvedActiveTab = !canViewMomentumTab && activeTab === 'momentum' ? 'overview' : activeTab;
   const handleReportTabChange = (nextTab: string) => {
     if (nextTab === 'momentum' && !canViewMomentumTab) {
@@ -504,6 +563,51 @@ export default function Home() {
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
           >
             Back To Login
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const adminPermissionsDialog = (
+    <Dialog
+      open={isPrivilegedViewer && isAdminPermissionsModalOpen}
+      onOpenChange={(open) => {
+        if (open) setIsAdminPermissionsModalOpen(true);
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+        className="border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg"
+      >
+        <DialogHeader className="text-center">
+          <DialogTitle className="athletic-headline text-3xl text-orange-400">
+            Admin Permissions
+          </DialogTitle>
+          <DialogDescription className="text-cyan-100/75">
+            This account can unlock admin-only report tools for this session.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="rounded-xl border border-cyan-400/15 bg-cyan-400/5 px-4 py-4 text-center text-sm font-semibold text-slate-200">
+          Choose Admin Permissions to show the hidden Momentum and KTC tools, or use the regular view to see the report like everyone else.
+        </div>
+        <DialogFooter className="sm:justify-center">
+          <Button
+            type="button"
+            onClick={() => handleAdminViewModeChoice('regular')}
+            variant="outline"
+            className="w-full border-slate-500/40 text-slate-100 hover:bg-slate-800 sm:w-auto"
+          >
+            View Like Regular Person
+          </Button>
+          <Button
+            type="button"
+            onClick={() => handleAdminViewModeChoice('admin')}
+            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
+          >
+            Admin Permissions
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -890,6 +994,7 @@ export default function Home() {
         </Dialog>
 
         {clownEasterEggDialog}
+        {adminPermissionsDialog}
       </div>
       </ManagerChampionshipProvider>
     );
@@ -1136,6 +1241,7 @@ export default function Home() {
       </div>
       )}
       {clownEasterEggDialog}
+      {adminPermissionsDialog}
     </div>
   );
 }
