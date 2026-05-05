@@ -23,7 +23,7 @@
 #### Features Grid (3 columns)
 1. **League Overview**
    - Icon: Chart/bar graph (green/teal)
-   - Description: "See every manager's total KTC value with positional rankings and 2027 projections. No bullshit, just the numbers."
+   - Description: "See every manager's total value with positional rankings and 2027 projections. No bullshit, just the numbers."
 
 2. **Trade Analysis**
    - Icon: Trending up (blue)
@@ -36,7 +36,7 @@
 #### Footer Sections (3 columns)
 1. **What We Do**
    - Scrape Sleeper data in real-time
-   - Calculate KTC player values
+   - Calculate blended player values based on multiple sources
    - Track trade profitability
    - Project future value
 

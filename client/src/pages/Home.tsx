@@ -234,10 +234,10 @@ function SnapshotCoverageBanner() {
       : 'snapshot-status-banner snapshot-status-banner-stale';
 
   const copy = data.status === 'healthy'
-    ? `KTC snapshot coverage healthy: ${data.storedDays}/${data.expectedDays} days logged.`
+    ? `Blended value snapshot coverage healthy: ${data.storedDays}/${data.expectedDays} days logged.`
     : data.status === 'today_pending'
-      ? `KTC snapshot for ${data.todayDateKey} has not landed yet. Latest stored day: ${data.latestSnapshotDateKey || 'none'}.`
-      : `KTC snapshot coverage gap: missing ${data.missingDateKeys.join(', ')}.`;
+      ? `Today's blended value snapshot has not landed yet. Latest stored day: ${data.latestSnapshotDateKey || 'none'}.`
+      : `Blended value coverage gap: missing ${data.missingDateKeys.join(', ')}.`;
 
   if (data.status === 'stale') {
     return (
@@ -595,7 +595,7 @@ export default function Home() {
         onInteractOutside={(event) => event.preventDefault()}
         className="border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg"
       >
-        <DialogHeader className="text-center">
+        <DialogHeader className="text-center sm:text-center">
           <DialogTitle className="athletic-headline text-3xl text-orange-400">
             Admin Permissions
           </DialogTitle>
@@ -604,7 +604,7 @@ export default function Home() {
           </DialogDescription>
         </DialogHeader>
         <div className="rounded-xl border border-cyan-400/15 bg-cyan-400/5 px-4 py-4 text-center text-sm font-semibold text-slate-200">
-          Choose Admin Permissions to show the hidden Momentum and KTC tools, or use the regular view to see the report like everyone else.
+          Choose Admin Permissions to show the hidden Momentum and blended-value tools, or use the regular view to see the report like everyone else.
         </div>
         <DialogFooter className="sm:justify-center">
           <Button
@@ -1174,7 +1174,7 @@ export default function Home() {
                   <h3 className="font-semibold text-white">League Overview</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  See every manager's total KTC value with positional rankings and 2027 projections. No bullshit, just the numbers.
+                  See every manager's total blended value with positional rankings and 2027 projections. No bullshit, just the numbers.
                 </p>
               </div>
 
@@ -1215,7 +1215,7 @@ export default function Home() {
               <h4 className="font-bold text-orange-400 mb-3">What We Do</h4>
               <ul className="space-y-2 text-sm text-slate-400">
                 <li>Scrape Sleeper data in real-time</li>
-                <li>Calculate KTC player values</li>
+                <li>Blend player values from multiple data sources</li>
                 <li>Track trade profitability</li>
                 <li>Project future value</li>
               </ul>
@@ -1224,7 +1224,7 @@ export default function Home() {
               <h4 className="font-bold text-orange-400 mb-3">Data Sources</h4>
               <ul className="space-y-2 text-sm text-slate-400">
                 <li>Sleeper App</li>
-                <li>KeepTradeCut</li>
+                <li>Market data feeds</li>
                 <li>FlockFantasy</li>
                 <li>Real League Data</li>
               </ul>

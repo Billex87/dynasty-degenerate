@@ -13,7 +13,7 @@ export function LoadingAnimation() {
   const [steps, setSteps] = useState<LoadingStep[]>([
     { id: 'sleeper', label: 'Hacking into Sleeper servers...', status: 'loading' },
     { id: 'league', label: 'Stealing league data & trade secrets', status: 'pending' },
-    { id: 'ktc', label: 'Scraping KTC (they hate this)', status: 'pending' },
+    { id: 'ktc', label: 'Blending market values from multiple sources', status: 'pending' },
     { id: 'dynasty', label: 'Destroying FlockFantasy\'s data fortress', status: 'pending' },
     { id: 'csv', label: 'Generating your illegal advantage', status: 'pending' },
     { id: 'final', label: 'Covering our tracks...', status: 'pending' },

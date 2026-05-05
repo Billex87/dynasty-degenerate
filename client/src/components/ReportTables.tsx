@@ -3563,7 +3563,7 @@ export function PowerRankingsTable({
           { label: 'Balance', value: selectedRow.positionalBalance },
           { label: 'Youth', value: selectedRow.youthScore },
         ] : []}
-        note={selectedRow ? `Team score weighs weekly starter strength, total roster shape, positional balance, draft capital, youth, and trade efficiency. ${selectedRow.manager} is currently ${selectedRow.tier} with a ${selectedRow.score}/100 score.` : undefined}
+        note={selectedRow ? `Team score blends weekly starter strength, total roster shape, positional balance, draft capital, youth, and trade efficiency. ${selectedRow.manager} is currently ${selectedRow.tier} with a ${selectedRow.score}/100 score.` : undefined}
       />
     </div>
   );
@@ -3611,7 +3611,7 @@ export function ManagerRosterValueGrowthTable({
           { label: 'Growth', value: `${selectedRow.growth >= 0 ? '+' : ''}${selectedRow.growth.toFixed(1)}%`, tone: selectedRow.growth >= 0 ? 'positive' : 'negative' },
           { label: 'Proj Rank', value: `#${selectedRow.rank}` },
         ] : []}
-        note={selectedRow ? `This compares stored baseline roster value against the current value view. Positive growth means the roster gained market value over the stored window.` : undefined}
+        note={selectedRow ? `This compares stored baseline roster value against the current blended value view. Positive growth means the roster gained market value over the stored window.` : undefined}
       />
     </div>
   );
@@ -3659,7 +3659,7 @@ export function WeeklyMomentumTable({
                   manager: row.owner,
                   managerAvatarUrl: managerAvatars?.[row.owner],
                   currentPositionRank: row.currentPositionRank,
-                  valueChangeNote: 'KTC market change over the last 7 days.',
+                  valueChangeNote: 'Blended value change over the last 7 days.',
                 }))}
               >
                 <div className="weekly-momentum-tile-top">

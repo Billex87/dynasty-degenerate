@@ -162,7 +162,7 @@ export function PlayerDetailModal({
     ['FantasyPros Tier', valueProfile.fantasyProsTier ? `Tier ${valueProfile.fantasyProsTier}` : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const sourceValueRows = valueProfile ? [
-    ['KeepTradeCut', valueProfile.marketKtc],
+    ['Market Consensus', valueProfile.marketKtc],
     ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
     ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
     ['DynastyProcess', valueProfile.dynastyProcess],
