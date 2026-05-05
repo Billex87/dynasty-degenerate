@@ -16,6 +16,7 @@ import { CheckCircle2, ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, 
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { SupportButton } from '@/components/SupportButton';
+import { FeedbackButton } from '@/components/FeedbackButton';
 import {
   WeeklyMomentumTable,
   ProjectedMoversTable,
@@ -1113,6 +1114,12 @@ export default function Home() {
                 Analyze Another League
               </Button>
               <SupportButton compact />
+              <FeedbackButton
+                compact
+                leagueId={leagueId}
+                leagueName={leagueName}
+                leagueFormat={leagueFormat}
+              />
             </div>
           </div>
         </div>
@@ -1433,6 +1440,9 @@ export default function Home() {
           </div>
         </div>
         <div className="border-t border-slate-700 text-center flex flex-col justify-end py-1 sm:py-2 px-4 sm:px-6 min-h-40 sm:min-h-48">
+          <div className="home-footer-action-row">
+            <FeedbackButton />
+          </div>
           <div className="flex justify-center h-40 sm:h-48 mb-0">
               <img
                 src={DYNASTY_LOGO_SRC}
