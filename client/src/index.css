@@ -1833,22 +1833,42 @@
   text-transform: uppercase;
 }
 
-.loading-success-card h2 {
+.loading-success-card h2,
+.loading-success-title {
   margin-top: 0.34rem;
-  max-width: 100%;
-  overflow: hidden;
+  max-width: min(100%, 23rem);
   background: linear-gradient(90deg, #fb923c, #fbbf24, #fb923c);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   font-family: var(--font-athletic);
-  font-size: clamp(1.65rem, 7vw, 2.55rem);
+  font-size: clamp(1.55rem, 7vw, 2.55rem);
   font-weight: 1000;
   letter-spacing: 0;
-  line-height: 0.95;
-  text-overflow: ellipsis;
+  line-height: 0.92;
+  overflow-wrap: break-word;
+  text-align: center;
+  text-wrap: balance;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.loading-success-title-long {
+  max-width: min(100%, 24rem);
+  font-size: clamp(1.25rem, 5.6vw, 2.05rem);
+  line-height: 0.94;
+}
+
+.loading-success-title-compact {
+  max-width: min(100%, 24rem);
+  font-size: clamp(1.05rem, 4.8vw, 1.58rem);
+  line-height: 0.98;
+}
+
+.loading-success-title-tiny {
+  max-width: min(100%, 24rem);
+  font-size: clamp(0.92rem, 4.1vw, 1.26rem);
+  line-height: 1.02;
 }
 
 .loading-success-format {

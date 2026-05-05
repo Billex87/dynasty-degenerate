@@ -143,6 +143,14 @@ function getFilteredAutocompleteOptions(history: string[], value: string): strin
     .slice(0, 6);
 }
 
+function getLoadingSuccessTitleClassName(leagueName: string): string {
+  const length = leagueName.trim().length;
+  if (length >= 46) return 'loading-success-title loading-success-title-tiny';
+  if (length >= 34) return 'loading-success-title loading-success-title-compact';
+  if (length >= 22) return 'loading-success-title loading-success-title-long';
+  return 'loading-success-title';
+}
+
 function RecentEntrySuggestions({
   label,
   options,
@@ -1220,7 +1228,9 @@ export default function Home() {
                   )}
                 </div>
                 <p className="loading-success-kicker">Report Generated</p>
-                <h2>{analysisCompleteMessage.leagueName || 'League report'}</h2>
+                <h2 className={getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || 'League report')}>
+                  {analysisCompleteMessage.leagueName || 'League report'}
+                </h2>
                 {analysisCompleteMessage.leagueFormat && (
                   <p className="loading-success-format">{analysisCompleteMessage.leagueFormat}</p>
                 )}
