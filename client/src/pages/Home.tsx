@@ -786,7 +786,7 @@ export default function Home() {
                   variant="outline"
                   className="report-header-action hidden md:inline-flex"
                 >
-                  Analyze Another League
+                  <span className="report-header-action-label">Analyze Another League</span>
                 </Button>
               </div>
 
