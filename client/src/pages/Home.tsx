@@ -374,6 +374,7 @@ export default function Home() {
   const [leagueFormat, setLeagueFormat] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
+  const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
   const [isAdminPermissionsModalOpen, setIsAdminPermissionsModalOpen] = useState(false);
 
@@ -594,6 +595,7 @@ export default function Home() {
     localStorage.removeItem(LAST_LEAGUE_KEY);
     localStorage.removeItem(SLEEPER_SESSION_KEY);
     setIsLeaguePickerOpen(false);
+    setIsChangeLeagueModalOpen(false);
     setReportData(null);
     setLeagueId('');
     setSleeperUsername('');
@@ -621,7 +623,7 @@ export default function Home() {
       setIsLeaguePickerOpen(true);
       return;
     }
-    toast.message('No cached Sleeper leagues yet. Use Analyze Another League to start over.');
+    setIsChangeLeagueModalOpen(true);
   };
 
   const handleAnalyzeLeagueOption = (nextLeagueId: string) => {
@@ -1102,6 +1104,36 @@ export default function Home() {
                 onClick={handleStartOver}
                 variant="outline"
                 className="w-full border-orange-500/30 text-orange-300 hover:bg-orange-500/10 sm:w-auto"
+              >
+                Analyze Another League
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isChangeLeagueModalOpen} onOpenChange={setIsChangeLeagueModalOpen}>
+          <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-md">
+            <DialogHeader className="text-center">
+              <DialogTitle className="athletic-headline text-3xl text-orange-400">
+                Change Leagues?
+              </DialogTitle>
+              <DialogDescription className="text-cyan-100/70">
+                This report was opened by league ID, so there are no cached Sleeper leagues to pick from. Start over to analyze another league.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="league-switch-footer gap-2 sm:justify-center">
+              <Button
+                type="button"
+                onClick={() => setIsChangeLeagueModalOpen(false)}
+                variant="outline"
+                className="w-full border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/10 sm:w-auto"
+              >
+                Stay Here
+              </Button>
+              <Button
+                type="button"
+                onClick={handleStartOver}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
               >
                 Analyze Another League
               </Button>
