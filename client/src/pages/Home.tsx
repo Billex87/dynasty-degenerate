@@ -44,10 +44,20 @@ const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
 const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
-const KTC_ADMIN_USERNAME = 'mynameisbillex';
+const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'awwqq']);
 
 function getKtcAdminIdentity(user?: SleeperUserSession | null, fallbackUsername?: string): string | null {
   return user?.username || user?.displayName || fallbackUsername || null;
+}
+
+function normalizeViewerIdentifier(value?: string | null): string {
+  return value?.trim().toLowerCase() || '';
+}
+
+function isPrivilegedReportViewer(...identifiers: Array<string | null | undefined>): boolean {
+  return identifiers
+    .map(normalizeViewerIdentifier)
+    .some((value) => value && PRIVILEGED_REPORT_VIEWERS.has(value));
 }
 
 type SleeperLeagueOption = {
@@ -454,7 +464,22 @@ export default function Home() {
 
   const usernameAutocompleteOptions = getFilteredAutocompleteOptions(sleeperUsernameHistory, sleeperUsername);
   const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(leagueIdHistory, leagueId);
-  const isKtcAdminViewer = viewerUsername?.trim().toLowerCase() === KTC_ADMIN_USERNAME;
+  const canViewMomentumTab = isPrivilegedReportViewer(viewerUserId, viewerUsername, sleeperUsername);
+  const resolvedActiveTab = !canViewMomentumTab && activeTab === 'momentum' ? 'overview' : activeTab;
+  const handleReportTabChange = (nextTab: string) => {
+    if (nextTab === 'momentum' && !canViewMomentumTab) {
+      setActiveTab('overview');
+      return;
+    }
+    setActiveTab(nextTab);
+  };
+
+  useEffect(() => {
+    if (!canViewMomentumTab && activeTab === 'momentum') {
+      setActiveTab('overview');
+    }
+  }, [activeTab, canViewMomentumTab]);
+
   const clownEasterEggDialog = (
     <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
       <DialogContent className="clown-easter-egg-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
@@ -543,19 +568,21 @@ export default function Home() {
 
         {/* Content */}
         <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
-          {isKtcAdminViewer && <SnapshotCoverageBanner />}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          {canViewMomentumTab && <SnapshotCoverageBanner />}
+          <Tabs value={resolvedActiveTab} onValueChange={handleReportTabChange} className="w-full">
             <TabsList className="report-tabs">
               <TabsTrigger value="overview" className="report-tab">
                 <BarChart3 className="h-4 w-4" />
                 <span>Overview</span>
               </TabsTrigger>
 
-              <TabsTrigger value="momentum" className="report-tab">
-                <TrendingUp className="h-4 w-4" />
-                <span className="report-tab-label-full">Weekly Momentum</span>
-                <span className="report-tab-label-short">Momentum</span>
-              </TabsTrigger>
+              {canViewMomentumTab && (
+                <TabsTrigger value="momentum" className="report-tab">
+                  <TrendingUp className="h-4 w-4" />
+                  <span className="report-tab-label-full">Weekly Momentum</span>
+                  <span className="report-tab-label-short">Momentum</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="projections" className="report-tab">
                 <ZapIcon className="h-4 w-4" />
                 <span className="report-tab-label-full">1-Year Outlook</span>
@@ -636,73 +663,71 @@ export default function Home() {
               </div>
             </TabsContent>
 
-            <TabsContent value="momentum" className="report-tab-content">
-              <div className="space-y-6 sm:space-y-8">
-                {isKtcAdminViewer && (reportData.weeklyRisers.some((player) => player.val_now >= 2500) ||
-                  reportData.weeklyFallers.some((player) => player.val_now >= 1800)) && (
-                  <CollapsibleReportSection title="Trade Market Radar" kicker="Buy and sell signals">
-                    <TradeMarketRadar
-                      risers={reportData.weeklyRisers}
-                      fallers={reportData.weeklyFallers}
+            {canViewMomentumTab && (
+              <TabsContent value="momentum" className="report-tab-content">
+                <div className="space-y-6 sm:space-y-8">
+                  {(reportData.weeklyRisers.some((player) => player.val_now >= 2500) ||
+                    reportData.weeklyFallers.some((player) => player.val_now >= 1800)) && (
+                    <CollapsibleReportSection title="Trade Market Radar" kicker="Buy and sell signals">
+                      <TradeMarketRadar
+                        risers={reportData.weeklyRisers}
+                        fallers={reportData.weeklyFallers}
+                        managerAvatars={reportData.managerAvatars}
+                        playerDetailsById={reportData.playerDetailsById}
+                        leagueId={leagueId}
+                        leagueLogo={leagueLogo}
+                      />
+                    </CollapsibleReportSection>
+                  )}
+                  <CollapsibleReportSection title="Waiver Intelligence" kicker="Available value">
+                    <WaiverIntelligencePanel
+                      data={reportData.waiverIntelligence}
                       managerAvatars={reportData.managerAvatars}
                       playerDetailsById={reportData.playerDetailsById}
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
                     />
                   </CollapsibleReportSection>
-                )}
-                <CollapsibleReportSection title="Waiver Intelligence" kicker="Available value">
-                  <WaiverIntelligencePanel
-                    data={reportData.waiverIntelligence}
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="Recent Transactions" kicker="Claims, drops, and churn">
-                  <RecentTransactionsPanel
-                    data={reportData.recentTransactions}
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                  />
-                </CollapsibleReportSection>
-                {isKtcAdminViewer && (
-                  <>
-                    <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers">
-                      <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
-                    </CollapsibleReportSection>
-                    <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops">
-                      <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
-                    </CollapsibleReportSection>
-                  </>
-                )}
-                <CollapsibleReportSection title="Trending Adds" kicker="Sleeper activity">
-                  <TrendingPlayersTable
-                    data={reportData.trendingAdds || []}
-                    title="Trending Adds"
-                    countLabel="Adds"
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="Trending Drops" kicker="Sleeper activity">
-                  <TrendingPlayersTable
-                    data={reportData.trendingDrops || []}
-                    title="Trending Drops"
-                    countLabel="Drops"
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                  />
-                </CollapsibleReportSection>
-              </div>
-            </TabsContent>
+                  <CollapsibleReportSection title="Recent Transactions" kicker="Claims, drops, and churn">
+                    <RecentTransactionsPanel
+                      data={reportData.recentTransactions}
+                      managerAvatars={reportData.managerAvatars}
+                      playerDetailsById={reportData.playerDetailsById}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                    />
+                  </CollapsibleReportSection>
+                  <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers">
+                    <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
+                  </CollapsibleReportSection>
+                  <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops">
+                    <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
+                  </CollapsibleReportSection>
+                  <CollapsibleReportSection title="Trending Adds" kicker="Sleeper activity">
+                    <TrendingPlayersTable
+                      data={reportData.trendingAdds || []}
+                      title="Trending Adds"
+                      countLabel="Adds"
+                      managerAvatars={reportData.managerAvatars}
+                      playerDetailsById={reportData.playerDetailsById}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                    />
+                  </CollapsibleReportSection>
+                  <CollapsibleReportSection title="Trending Drops" kicker="Sleeper activity">
+                    <TrendingPlayersTable
+                      data={reportData.trendingDrops || []}
+                      title="Trending Drops"
+                      countLabel="Drops"
+                      managerAvatars={reportData.managerAvatars}
+                      playerDetailsById={reportData.playerDetailsById}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                    />
+                  </CollapsibleReportSection>
+                </div>
+              </TabsContent>
+            )}
 
             <TabsContent value="projections" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
