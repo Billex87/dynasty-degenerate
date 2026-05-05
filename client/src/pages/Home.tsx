@@ -203,7 +203,7 @@ function LeaguePickerCard({
             <span className="home-league-pill">Power #{league.powerRank}</span>
           ) : null}
           {league.standingsRank ? (
-            <span className="home-league-pill">Stnd #{league.standingsRank}</span>
+            <span className="home-league-pill">Standings #{league.standingsRank}</span>
           ) : null}
         </span>
       </div>
