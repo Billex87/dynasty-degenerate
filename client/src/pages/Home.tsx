@@ -1137,8 +1137,9 @@ export default function Home() {
               <DialogTitle className="athletic-headline text-3xl text-orange-400">
                 Pick Another League
               </DialogTitle>
-              <DialogDescription className="text-cyan-100/70">
-                Signed in as {sleeperUsername || 'your Sleeper account'}. Choose one of your current Sleeper leagues.
+              <DialogDescription className="league-switch-description text-cyan-100/70">
+                <span>Signed in as {sleeperUsername || 'your Sleeper account'}.</span>
+                <span>Choose one of your current Sleeper leagues.</span>
               </DialogDescription>
             </DialogHeader>
             <div className="home-league-picker league-switch-picker">
