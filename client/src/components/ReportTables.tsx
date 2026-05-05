@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ChevronDown, Crown, TrendingDown, TrendingUp, X as XIcon } from 'lucide-react';
 import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
@@ -5523,6 +5523,8 @@ export function RecentTransactionsPanel({
   leagueLogo?: string | null;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
+  const transactionGroups = useMemo(() => buildRecentTransactionGroups(data || []), [data]);
   if (!data?.length) return null;
 
   const openTransactionPlayer = (player: NonNullable<ReportData['recentTransactions']>[number]['addedPlayer']) => {
@@ -5551,9 +5553,13 @@ export function RecentTransactionsPanel({
         style={getTeamTileStyle(player.playerDetails?.team || player.team)}
         onClick={() => openTransactionPlayer(player)}
       >
-        <div className="recent-transaction-player-kicker">{label}</div>
-        <div className="recent-transaction-player-main">
-          <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+        <div className="recent-transaction-player-head">
+          <div className="recent-transaction-player-main">
+            <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+          </div>
+          <span className={`recent-transaction-action-pill recent-transaction-action-pill-${tone}`}>
+            {label}
+          </span>
         </div>
         <div className="recent-transaction-player-pills">
           <TeamLogoPill team={player.playerDetails?.team || player.team} />
@@ -5565,34 +5571,69 @@ export function RecentTransactionsPanel({
   };
 
   return (
-    <div className="player-tile-grid recent-transaction-grid">
-      {data.map((transaction) => (
-        <div key={transaction.id} className="report-card recent-transaction-card">
-          <div className="recent-transaction-top">
-            <div className="recent-transaction-manager">
-              <ManagerNameWithAvatar avatarUrl={managerAvatars?.[transaction.manager]} managerName={transaction.manager} />
-            </div>
-            <div className="recent-transaction-meta">
-              <span>{transaction.type}</span>
-              {transaction.bidAmount !== null && <strong>${transaction.bidAmount}</strong>}
-            </div>
+    <div className="recent-transaction-date-list">
+      {transactionGroups.map((group) => {
+        const isExpanded = expandedDateKey === group.dateKey;
+        return (
+          <div key={group.dateKey} className={`recent-transaction-date-group ${isExpanded ? 'is-open' : ''}`}>
+            <button
+              type="button"
+              className="recent-transaction-date-toggle"
+              onClick={() => setExpandedDateKey(isExpanded ? null : group.dateKey)}
+              aria-expanded={isExpanded}
+            >
+              <span className="recent-transaction-date-label">
+                <ChevronDown className={`h-4 w-4 text-orange-300 transition-transform ${isExpanded ? 'rotate-180' : '-rotate-90'}`} />
+                <span>{group.displayDate}</span>
+              </span>
+              <span className="recent-transaction-day-pills">
+                <span className="recent-transaction-day-pill recent-transaction-day-pill-add">
+                  Adds {formatCompactValue(group.addValue)}
+                </span>
+                <span className="recent-transaction-day-pill recent-transaction-day-pill-drop">
+                  Drops {formatCompactValue(group.dropValue)}
+                </span>
+                <span className="recent-transaction-day-count">
+                  {group.transactions.length}
+                </span>
+              </span>
+            </button>
+
+            {isExpanded && (
+              <div className="recent-transaction-day-panel">
+                {group.transactions.map((transaction) => (
+                  <div key={transaction.id} className="report-card recent-transaction-card">
+                    <div className="recent-transaction-top">
+                      <div className="recent-transaction-manager">
+                        <ManagerNameWithAvatar avatarUrl={managerAvatars?.[transaction.manager]} managerName={transaction.manager} />
+                      </div>
+                      <div className="recent-transaction-meta">
+                        <span className={`recent-transaction-type-pill ${transaction.type === 'Free Agent' ? 'recent-transaction-type-fa' : 'recent-transaction-type-waiver'}`}>
+                          {transaction.type === 'Free Agent' ? 'FA' : 'Waiver'}
+                        </span>
+                        {transaction.bidAmount !== null && <strong>${transaction.bidAmount}</strong>}
+                      </div>
+                    </div>
+                    <div className="recent-transaction-player-grid">
+                      {renderPlayerRow('Added', transaction.addedPlayer, 'add')}
+                      {renderPlayerRow('Dropped', transaction.droppedPlayer, 'drop')}
+                    </div>
+                    {transaction.alternativeDrop && (
+                      <div className="recent-transaction-alt">
+                        {renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt')}
+                      </div>
+                    )}
+                    <p className="recent-transaction-note">{transaction.note}</p>
+                    {!transaction.losingBidsAvailable && (
+                      <div className="recent-transaction-footnote">Public Sleeper data shows the winning claim only.</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="recent-transaction-date">{new Date(transaction.date).toLocaleDateString()}</div>
-          <div className="recent-transaction-player-grid">
-            {renderPlayerRow('Added', transaction.addedPlayer, 'add')}
-            {renderPlayerRow('Dropped', transaction.droppedPlayer, 'drop')}
-          </div>
-          {transaction.alternativeDrop && (
-            <div className="recent-transaction-alt">
-              {renderPlayerRow('Better cut', transaction.alternativeDrop, 'alt')}
-            </div>
-          )}
-          <p className="recent-transaction-note">{transaction.note}</p>
-          {!transaction.losingBidsAvailable && (
-            <div className="recent-transaction-footnote">Public Sleeper data shows the winning claim only.</div>
-          )}
-        </div>
-      ))}
+        );
+      })}
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}
@@ -5603,6 +5644,54 @@ export function RecentTransactionsPanel({
       />
     </div>
   );
+}
+
+type RecentTransactionRow = NonNullable<ReportData['recentTransactions']>[number];
+
+function buildRecentTransactionGroups(data: RecentTransactionRow[]) {
+  const groups = new Map<string, {
+    dateKey: string;
+    displayDate: string;
+    transactions: RecentTransactionRow[];
+    addValue: number;
+    dropValue: number;
+  }>();
+
+  for (const transaction of data) {
+    const dateKey = getRecentTransactionDateKey(transaction.date);
+    const group = groups.get(dateKey) || {
+      dateKey,
+      displayDate: dateKey,
+      transactions: [],
+      addValue: 0,
+      dropValue: 0,
+    };
+
+    group.transactions.push(transaction);
+    group.addValue += transaction.addedPlayer?.ktcValue || 0;
+    group.dropValue += transaction.droppedPlayer?.ktcValue || 0;
+    groups.set(dateKey, group);
+  }
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      transactions: [...group.transactions].sort((a, b) => String(b.id).localeCompare(String(a.id))),
+    }))
+    .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+}
+
+function getRecentTransactionDateKey(date: string): string {
+  const rawDate = String(date || '').trim();
+  const dateMatch = rawDate.match(/^\d{4}-\d{2}-\d{2}/);
+  if (dateMatch) return dateMatch[0];
+
+  const parsed = new Date(rawDate);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return rawDate || 'Unknown Date';
 }
 
 export function TradeMarketRadar({

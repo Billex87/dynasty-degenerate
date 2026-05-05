@@ -171,31 +171,33 @@ function LeaguePickerCard({
         <img src={league.avatarUrl} alt="" aria-hidden="true" className="home-league-card-watermark" />
       ) : null}
       <div className="home-league-card-top">
-        {league.avatarUrl ? (
-          <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
-        ) : (
-          <span className="home-league-card-icon home-league-card-fallback">
-            {league.name.slice(0, 2).toUpperCase()}
-          </span>
-        )}
-        <span className="min-w-0 text-left">
-          <span className="home-league-card-name">{league.name}</span>
-          <span className="home-league-card-format home-league-card-format-desktop">
-            {league.format || `${league.totalRosters || '?'}-Team Dynasty`}
-          </span>
-          <span className="home-league-card-format home-league-card-format-mobile">
-            {league.mobileFormat || `${league.totalRosters || '?'}-Team Dynasty`}
-          </span>
+        <span className="home-league-card-icon-wrap">
+          {league.avatarUrl ? (
+            <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
+          ) : (
+            <span className="home-league-card-icon home-league-card-fallback">
+              {league.name.slice(0, 2).toUpperCase()}
+            </span>
+          )}
+        </span>
+        <span className="home-league-card-ranks" aria-label={`${league.name} current league standing and power rank`}>
+          {league.powerRank ? (
+            <span className="home-league-pill">Power #{league.powerRank}</span>
+          ) : null}
+          {league.standingsRank ? (
+            <span className="home-league-pill">Stnd #{league.standingsRank}</span>
+          ) : null}
         </span>
       </div>
-      <div className="home-league-card-pills" aria-label={`${league.name} current league standing and power rank`}>
-        {league.powerRank ? (
-          <span className="home-league-pill">Power #{league.powerRank}</span>
-        ) : null}
-        {league.standingsRank ? (
-          <span className="home-league-pill">Standing #{league.standingsRank}</span>
-        ) : null}
-      </div>
+      <span className="home-league-card-body">
+        <span className="home-league-card-name">{league.name}</span>
+        <span className="home-league-card-format home-league-card-format-desktop">
+          {league.format || `${league.totalRosters || '?'}-Team Dynasty`}
+        </span>
+        <span className="home-league-card-format home-league-card-format-mobile">
+          {league.mobileFormat || `${league.totalRosters || '?'}-Team Dynasty`}
+        </span>
+      </span>
     </button>
   );
 }

@@ -1067,12 +1067,10 @@
 
   .home-league-card {
     position: relative;
-    display: flex;
-    min-height: 7.7rem;
+    display: grid;
+    min-height: 8.9rem;
     min-width: 0;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 0.62rem;
     overflow: hidden;
     border: 1px solid rgba(34, 211, 238, 0.18);
@@ -1092,15 +1090,26 @@
     z-index: 1;
   }
 
-  .home-league-card > .min-w-0 {
+  .home-league-card-body {
+    display: grid;
     width: 100%;
+    min-width: 0;
+    align-content: start;
+    gap: 0.22rem;
+    text-align: left;
   }
 
   .home-league-card-top {
-    display: flex;
+    display: grid;
     width: 100%;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.62rem;
+    min-width: 0;
+  }
+
+  .home-league-card-icon-wrap {
+    display: inline-flex;
     min-width: 0;
   }
 
@@ -1148,38 +1157,34 @@
     letter-spacing: 0.08em;
   }
 
-  .home-league-card-name,
+  .home-league-card-name {
+    display: block;
+    color: #fb923c;
+    font-size: clamp(0.82rem, 3.2vw, 0.98rem);
+    font-weight: 950;
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+
   .home-league-card-format {
     display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: rgba(103, 232, 249, 0.82);
+    font-size: clamp(0.68rem, 2.7vw, 0.78rem);
+    font-weight: 850;
+    line-height: 1.12;
+    overflow-wrap: anywhere;
   }
 
   .home-league-card-format-mobile {
     display: none;
   }
 
-  .home-league-card-name {
-    color: #fb923c;
-    font-size: clamp(0.82rem, 3.2vw, 0.98rem);
-    font-weight: 950;
-    line-height: 1.15;
-  }
-
-  .home-league-card-format {
-    margin-top: 0.18rem;
-    color: rgba(103, 232, 249, 0.78);
-    font-size: clamp(0.68rem, 2.7vw, 0.78rem);
-    font-weight: 800;
-  }
-
-  .home-league-card-pills {
-    display: flex;
+  .home-league-card-ranks {
+    display: grid;
     width: 100%;
-    flex-wrap: wrap;
-    gap: 0.45rem;
-    align-items: flex-start;
+    min-width: 0;
+    justify-items: end;
+    gap: 0.34rem;
   }
 
   .home-league-pill {
@@ -1190,12 +1195,13 @@
     border-radius: 999px;
     border: 1px solid rgba(34, 211, 238, 0.24);
     background: rgba(8, 47, 73, 0.36);
-    padding: 0.28rem 0.72rem;
+    padding: 0.28rem 0.58rem;
     color: #67e8f9;
-    font-size: 0.72rem;
+    font-size: 0.66rem;
     font-weight: 900;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
+    white-space: nowrap;
   }
 
   .league-switch-dialog {
@@ -1230,12 +1236,12 @@
 
   @media (max-width: 767px) {
     .home-league-card {
-      min-height: 8.6rem;
+      min-height: 9rem;
       padding: 0.78rem;
     }
 
     .home-league-card-top {
-      align-items: flex-start;
+      align-items: center;
     }
 
     .home-league-card-format-desktop {
@@ -1248,21 +1254,22 @@
 
     .home-league-card-name {
       font-size: 0.98rem;
+      line-height: 1.05;
     }
 
     .home-league-card-format {
-      margin-top: 0.15rem;
       font-size: 0.78rem;
+      line-height: 1.1;
     }
 
-    .home-league-card-pills {
-      gap: 0.4rem;
+    .home-league-card-ranks {
+      gap: 0.32rem;
     }
 
     .home-league-pill {
-      min-height: 1.7rem;
-      padding: 0.24rem 0.62rem;
-      font-size: 0.67rem;
+      min-height: 1.55rem;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.62rem;
     }
   }
 
@@ -4498,8 +4505,99 @@
     text-transform: uppercase;
   }
 
-  .recent-transaction-grid {
-    align-items: start;
+  .recent-transaction-date-list {
+    display: grid;
+    gap: 0.72rem;
+  }
+
+  .recent-transaction-date-group {
+    overflow: hidden;
+    border: 1px solid rgba(34, 211, 238, 0.16);
+    border-radius: 1rem;
+    background:
+      linear-gradient(135deg, rgba(2, 6, 23, 0.8), rgba(15, 23, 42, 0.72)),
+      radial-gradient(circle at 0 0, rgba(34, 211, 238, 0.08), transparent 36%);
+  }
+
+  .recent-transaction-date-toggle {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.78rem 0.85rem;
+    text-align: left;
+  }
+
+  .recent-transaction-date-label {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.45rem;
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+  }
+
+  .recent-transaction-day-pills {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.38rem;
+  }
+
+  .recent-transaction-day-pill,
+  .recent-transaction-day-count,
+  .recent-transaction-type-pill,
+  .recent-transaction-action-pill {
+    display: inline-flex;
+    min-height: 1.45rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    padding: 0 0.52rem;
+    font-size: 0.64rem;
+    font-weight: 950;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .recent-transaction-day-pill-add,
+  .recent-transaction-action-pill-add {
+    border-color: rgba(52, 211, 153, 0.3);
+    background: rgba(16, 185, 129, 0.13);
+    color: #86efac;
+  }
+
+  .recent-transaction-day-pill-drop,
+  .recent-transaction-action-pill-drop {
+    border-color: rgba(251, 113, 133, 0.34);
+    background: rgba(225, 29, 72, 0.16);
+    color: #fca5a5;
+  }
+
+  .recent-transaction-action-pill-alt {
+    border-color: rgba(251, 146, 60, 0.34);
+    background: rgba(251, 146, 60, 0.14);
+    color: #fdba74;
+  }
+
+  .recent-transaction-day-count {
+    min-width: 1.6rem;
+    border-color: rgba(34, 211, 238, 0.22);
+    background: rgba(34, 211, 238, 0.1);
+    color: #67e8f9;
+  }
+
+  .recent-transaction-day-panel {
+    display: grid;
+    gap: 0.72rem;
+    border-top: 1px solid rgba(34, 211, 238, 0.1);
+    padding: 0.72rem;
   }
 
   .recent-transaction-card {
@@ -4523,14 +4621,25 @@
   }
 
   .recent-transaction-meta {
-    display: grid;
-    justify-items: end;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     gap: 0.18rem;
   }
 
-  .recent-transaction-meta span,
+  .recent-transaction-type-fa {
+    border-color: rgba(251, 146, 60, 0.34);
+    background: rgba(251, 146, 60, 0.13);
+    color: #fdba74;
+  }
+
+  .recent-transaction-type-waiver {
+    border-color: rgba(34, 211, 238, 0.26);
+    background: rgba(34, 211, 238, 0.11);
+    color: #67e8f9;
+  }
+
   .recent-transaction-date,
-  .recent-transaction-player-kicker,
   .recent-transaction-footnote {
     color: #67e8f9;
     font-size: 0.64rem;
@@ -4560,13 +4669,35 @@
     text-align: left;
   }
 
+  .recent-transaction-player-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.55rem;
+  }
+
   .recent-transaction-player-main .player-chip {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
     width: 100%;
+    align-items: flex-start;
+    gap: 0.38rem;
+    justify-items: start;
+  }
+
+  .recent-transaction-player-main .player-chip img,
+  .recent-transaction-player-main .player-chip > span[aria-hidden="true"] {
+    height: 2.15rem;
+    width: 2.15rem;
   }
 
   .recent-transaction-player-main .player-chip > span:last-child {
     color: #f8fafc;
     font-weight: 950;
+    line-height: 1.12;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .recent-transaction-player-pills {
