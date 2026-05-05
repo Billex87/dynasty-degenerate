@@ -145,9 +145,8 @@ function getFilteredAutocompleteOptions(history: string[], value: string): strin
 
 function getLoadingSuccessTitleClassName(leagueName: string): string {
   const length = leagueName.trim().length;
-  if (length >= 46) return 'loading-success-title loading-success-title-tiny';
   if (length >= 34) return 'loading-success-title loading-success-title-compact';
-  if (length >= 22) return 'loading-success-title loading-success-title-long';
+  if (length >= 20) return 'loading-success-title loading-success-title-long';
   return 'loading-success-title';
 }
 

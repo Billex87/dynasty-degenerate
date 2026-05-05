@@ -1841,34 +1841,28 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  font-family: var(--font-athletic);
-  font-size: clamp(1.55rem, 7vw, 2.55rem);
-  font-weight: 1000;
-  letter-spacing: 0;
-  line-height: 0.92;
+  font-family: inherit;
+  font-size: clamp(1.05rem, 3.2vw, 1.45rem);
+  font-weight: 950;
+  letter-spacing: 0.01em;
+  line-height: 1;
   overflow-wrap: break-word;
   text-align: center;
   text-wrap: balance;
-  text-transform: uppercase;
+  text-transform: none;
   white-space: normal;
 }
 
 .loading-success-title-long {
   max-width: min(100%, 24rem);
-  font-size: clamp(1.25rem, 5.6vw, 2.05rem);
-  line-height: 0.94;
+  font-size: clamp(0.92rem, 2.85vw, 1.2rem);
+  line-height: 1.02;
 }
 
 .loading-success-title-compact {
   max-width: min(100%, 24rem);
-  font-size: clamp(1.05rem, 4.8vw, 1.58rem);
-  line-height: 0.98;
-}
-
-.loading-success-title-tiny {
-  max-width: min(100%, 24rem);
-  font-size: clamp(0.92rem, 4.1vw, 1.26rem);
-  line-height: 1.02;
+  font-size: clamp(0.78rem, 2.35vw, 1rem);
+  line-height: 1.08;
 }
 
 .loading-success-format {
@@ -2005,8 +1999,9 @@
 
   .report-header-action {
     align-self: flex-start;
-    min-height: 1.72rem !important;
-    height: 1.72rem !important;
+    min-height: 1.32rem !important;
+    height: 1.32rem !important;
+    width: fit-content;
     justify-content: center;
     border: 1px solid rgba(251, 146, 60, 0.28) !important;
     border-radius: 999px;
@@ -2015,14 +2010,15 @@
       radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.2), transparent 44%),
       rgba(2, 6, 23, 0.72) !important;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    padding: 0 0.58rem !important;
+    padding: 0 0.42rem !important;
     color: #fdba74 !important;
-    font-size: 0.68rem;
-    font-weight: 950;
-    letter-spacing: 0.035em;
+    font-family: inherit;
+    font-size: clamp(0.62rem, 0.72vw, 0.72rem);
+    font-weight: 850;
+    letter-spacing: 0.005em;
     line-height: 1;
-    text-transform: uppercase;
-    transform: translateX(-0.08rem);
+    text-transform: none;
+    transform: none;
     transition: border-color 160ms ease, color 160ms ease, transform 160ms ease, background 160ms ease;
   }
 
@@ -2040,7 +2036,7 @@
       radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.26), transparent 44%),
       rgba(15, 23, 42, 0.78) !important;
     color: #ffedd5 !important;
-    transform: translate(-0.08rem, -1px);
+    transform: translateY(-1px);
   }
 
   .report-header-action:hover .report-header-action-label {
