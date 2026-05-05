@@ -1460,6 +1460,18 @@ type OwnerPickRow = NonNullable<ReportData['pickPortfolios']>[number];
 type OwnerTimelineRow = NonNullable<ReportData['dynastyTimelines']>[number];
 type OwnerPowerRow = NonNullable<ReportData['powerRankings']>[number];
 type OwnerGrowthRow = NonNullable<ReportData['managerRosterValueGrowth']>[number];
+
+const POSITION_STRENGTH_NOTE = 'Shows the starter-level cutoff for each position compared with the rest of the league: QB/SF, RB2, WR3, and TE1. The number is that cutoff player\'s position rank. Lower rank means this roster starts a better player there.';
+const POSITION_BASELINE_NOTE = 'Shows the actual lineup floor we are judging: top QB or superflex option, RB2, WR3, TE1, plus how many usable flex options are on the roster. Weak ranks here are the places other managers can attack.';
+const TRADEABLE_DEPTH_NOTE = 'Shows the next valuable player at each position behind the top starter. These are possible trade chips for consolidating depth into a better starter, picks, or a cleaner roster fit.';
+
+const POSITION_STRENGTH_LABELS: Record<'QB' | 'RB' | 'WR' | 'TE', string> = {
+  QB: 'QB/SF',
+  RB: 'RB2',
+  WR: 'WR3',
+  TE: 'TE1',
+};
+
 type TradeWarMode = 'dynasty' | 'contender' | 'rebuilder';
 type TradeWarAsset = ManagerIntelPlayer & {
   manager: string;
@@ -1615,7 +1627,7 @@ function buildOwnerWeakSpotCopy(row: OwnerIntelRow): string {
 
   if (notes.length) return notes.join(' ');
 
-  return 'No emergency hole from the baseline ranks. The better angle is finding manager preference or value timing, not assuming an obvious roster flaw.';
+  return 'The required starter spots are all in a playable range, so there is no obvious position to attack. The better angle is manager preference, timing, or offering a clear upgrade instead of treating this roster like it has a glaring hole.';
 }
 
 function PlayerInsightTile({
@@ -2852,13 +2864,13 @@ export function LeagueCommandCenter({
               {selectedIntel?.positionGrades ? (
                 <div className="manager-command-section">
                   <h4>Position Strength</h4>
-                  <p className="owner-intel-section-note">League rank of each lineup cutoff: QB2/SF, RB2, WR3, and TE1. Lower is stronger.</p>
+                  <p className="owner-intel-section-note">{POSITION_STRENGTH_NOTE}</p>
                   <div className="owner-intel-heat-grid">
                     {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                       const grade = selectedIntel.positionGrades?.[pos];
                       return (
                         <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
-                          <strong>{pos}</strong>
+                          <strong>{POSITION_STRENGTH_LABELS[pos]}</strong>
                           <em>{grade?.grade || 'Empty'}</em>
                           <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
                         </span>
@@ -3377,13 +3389,13 @@ export function OwnerIntelMatrix({
                   {selectedRow.positionGrades ? (
                     <div className="owner-intel-roster-heat">
                       <h4>Position Strength</h4>
-                      <p className="owner-intel-section-note">League rank of each lineup cutoff: QB2/SF, RB2, WR3, and TE1. Lower is stronger.</p>
+                      <p className="owner-intel-section-note">{POSITION_STRENGTH_NOTE}</p>
                       <div className="owner-intel-heat-grid">
                         {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                           const grade = selectedRow.positionGrades?.[pos];
                           return (
                             <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
-                              <strong>{pos}</strong>
+                              <strong>{POSITION_STRENGTH_LABELS[pos]}</strong>
                               <em>{grade?.grade || 'Empty'}</em>
                               <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
                             </span>
@@ -3410,19 +3422,20 @@ export function OwnerIntelMatrix({
                   </div>
                   <div>
                     <h4>Position Baseline</h4>
+                    <p className="owner-intel-section-note">{POSITION_BASELINE_NOTE}</p>
                     <div className="owner-intel-attack-list">
-                      <span><strong>QB</strong><PositionRankPill rank={selectedRow.holes.bestQbRank} /></span>
+                      <span><strong>QB/SF</strong><PositionRankPill rank={selectedRow.holes.bestQbRank} /></span>
                       <span><strong>RB2</strong><PositionRankPill rank={selectedRow.holes.rb2Rank} /></span>
                       <span><strong>WR3</strong><PositionRankPill rank={selectedRow.holes.wr3Rank} /></span>
-                      <span><strong>TE</strong><PositionRankPill rank={selectedRow.holes.te1Rank} /></span>
-                      <span><strong>Flex</strong><em>{selectedRow.holes.flexDepth}</em></span>
+                      <span><strong>TE1</strong><PositionRankPill rank={selectedRow.holes.te1Rank} /></span>
+                      <span><strong>Flex depth</strong><em>{selectedRow.holes.flexDepth}</em></span>
                     </div>
                     <p>{selectedWeakSpotCopy}</p>
                   </div>
                   {selectedValueCompPlayers.length ? (
                     <div className="owner-intel-value-map">
                       <h4>Tradeable Depth</h4>
-                      <p className="owner-intel-section-note">Next same-position value piece behind the starter group.</p>
+                      <p className="owner-intel-section-note">{TRADEABLE_DEPTH_NOTE}</p>
                       <div className="owner-intel-value-map-grid">
                         {selectedValueCompPlayers.map(({ position, player }) => (
                           <button
