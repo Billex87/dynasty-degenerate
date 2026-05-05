@@ -75,6 +75,13 @@ export function ManagerChampionshipPills({
   );
 }
 
+function getSeasonShortLabel(seasons: string[]) {
+  const season = seasons[0];
+  if (!season) return null;
+  const digits = season.match(/\d{2}$/)?.[0];
+  return digits || season.slice(-2);
+}
+
 export function ChampionAvatarFrame({
   managerName,
   children,
@@ -97,6 +104,9 @@ export function ChampionAvatarFrame({
     ? `${managerName} got the Sacko in ${lastPlaceSeasons.join(', ')}`
     : undefined;
   const hasAccolade = showAccolades && (championSeasons.length > 0 || runnerUpSeasons.length > 0 || lastPlaceSeasons.length > 0);
+  const championSeasonLabel = getSeasonShortLabel(championSeasons);
+  const runnerUpSeasonLabel = getSeasonShortLabel(runnerUpSeasons);
+  const lastPlaceSeasonLabel = getSeasonShortLabel(lastPlaceSeasons);
 
   return (
     <span
@@ -111,19 +121,21 @@ export function ChampionAvatarFrame({
     >
       {children}
       {showAccolades && championSeasons.length > 0 && (
-        <Crown className="manager-champion-crown" aria-label={title}>
-          <title>{title}</title>
-        </Crown>
+        <span className="manager-accolade-crown manager-accolade-crown-champ" aria-label={title} role="img" title={title}>
+          <Crown className="manager-champion-crown" aria-hidden="true" />
+          {championSeasonLabel && <span className="manager-accolade-year">{championSeasonLabel}</span>}
+        </span>
       )}
       {showAccolades && runnerUpSeasons.length > 0 && (
-        <Crown className="manager-runner-up-crown" aria-label={runnerUpTitle}>
-          <title>{runnerUpTitle}</title>
-        </Crown>
+        <span className="manager-accolade-crown manager-accolade-crown-runner-up" aria-label={runnerUpTitle} role="img" title={runnerUpTitle}>
+          <Crown className="manager-runner-up-crown" aria-hidden="true" />
+          {runnerUpSeasonLabel && <span className="manager-accolade-year">{runnerUpSeasonLabel}</span>}
+        </span>
       )}
       {showAccolades && lastPlaceSeasons.length > 0 && (
         <span className="manager-sacko-dunce" aria-label={lastPlaceTitle} title={lastPlaceTitle}>
           <span className="manager-sacko-dunce-cone" aria-hidden="true" />
-          <span className="manager-sacko-dunce-band" aria-hidden="true">S</span>
+          <span className="manager-sacko-dunce-band" aria-hidden="true">{lastPlaceSeasonLabel}</span>
         </span>
       )}
     </span>

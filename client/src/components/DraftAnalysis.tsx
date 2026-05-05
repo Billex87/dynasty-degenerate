@@ -5,7 +5,7 @@ import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
-import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
+import { ChampionAvatarFrame } from './ManagerChampionships';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
@@ -175,7 +175,6 @@ export function DraftAnalysis({
                     </ChampionAvatarFrame>
                     <span className="owner-summary-name-lockup">
                       <span className="owner-summary-name">{managerDisplayName}</span>
-                      <ManagerChampionshipPills managerName={stat.manager} className="owner-summary-championships" />
                     </span>
                   </span>
                   <span className="owner-summary-metrics">

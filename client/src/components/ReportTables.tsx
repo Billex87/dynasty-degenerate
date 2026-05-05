@@ -1475,13 +1475,25 @@ function buildOwnerBestMove(row: OwnerIntelRow): string {
   const surplus = row.tradePlan?.surplusPosition;
   const buyName = row.buyTarget?.name;
   const sellName = row.sellCandidate?.name || row.tradeChip?.name;
+  const sellValue = row.sellCandidate?.value || row.tradeChip?.value || 0;
+  const buyValue = row.buyTarget?.value || 0;
+  const targetValueGapIsTooWide = sellValue > 0 && buyValue > sellValue * 1.35 + 250;
+  const buildLens = /rebuild/i.test(row.timeline || row.identity)
+    ? 'rebuild timeline'
+    : /contend|win/i.test(row.timeline || row.identity)
+      ? 'contender lineup'
+      : 'team window';
 
   if (need && surplus && buyName && sellName) {
-    return `Shop ${surplus} surplus (${sellName}) for ${need} help (${buyName}). That is the cleanest way to turn excess roster value into a lineup fix.`;
+    if (targetValueGapIsTooWide) {
+      return `${sellName} should not be priced as a one-for-one for ${buyName}. Either package him with added value for ${need} help, or shop him for a similar-value ${need} who fits this ${buildLens}.`;
+    }
+
+    return `Shop ${surplus} surplus (${sellName}) for similar-value ${need} help like ${buyName}. That is the cleanest way to turn excess roster value into a lineup fix.`;
   }
 
   if (need && buyName) {
-    return `The clearest add is ${need} help. Start talks around ${buyName}, then use bench value or picks instead of breaking the core.`;
+    return `The clearest add is ${need} help. Start with players in the same value band as the movable bench pieces; only chase ${buyName} if picks or a package make the price realistic.`;
   }
 
   if (surplus && sellName) {
@@ -1545,20 +1557,32 @@ function buildOwnerTradeDraftProfile(tradeRow: OwnerTradeRow | null | undefined,
 
 function buildOwnerHealthCopy(row: OwnerIntelRow): string {
   const missed = row.starterAvailability.avgGamesMissed;
+  const risk = titleCasePill(row.starterAvailability.riskLevel);
+  const healthScore = row.rosterHealthScore !== null && row.rosterHealthScore !== undefined
+    ? `Health score ${row.rosterHealthScore}/100`
+    : 'Health score unavailable';
+  const riskiest = row.starterAvailability.riskiestStarter?.name;
+  const insurance = row.injuryInsurance
+    ? `Best internal cover is ${row.injuryInsurance.name} (${row.injuryInsurance.currentPositionRank || row.injuryInsurance.seasonPositionRank || row.injuryInsurance.pos}).`
+    : 'No clear internal insurance piece stands out.';
+  const depthCoverCount = [...(row.benchPlayers || []), ...(row.reservePlayers || [])]
+    .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos) && (player.seasonValue || player.value) >= 900)
+    .length;
+  const depthCopy = `${depthCoverCount} bench/reserve skill player${depthCoverCount === 1 ? '' : 's'} clear useful depth value.`;
+
   if (missed === null || missed === undefined) {
-    return 'Availability sample is still thin, so do not overreact to the injury read yet.';
+    return `${healthScore}. Availability sample is still thin, so lean more on current role, depth value, and roster age. ${insurance}`;
   }
 
-  const riskiest = row.starterAvailability.riskiestStarter?.name;
   if (missed >= 3) {
-    return `High-friction availability profile: starters averaged ${missed} missed games. ${riskiest ? `${riskiest} is the biggest negotiation pressure point.` : 'Bench insurance should matter more than luxury depth.'}`;
+    return `${healthScore}. ${risk} availability risk: starters averaged ${missed} missed games. ${riskiest ? `${riskiest} is the biggest risk flag.` : 'Bench insurance should matter more than luxury depth.'} ${insurance} ${depthCopy}`;
   }
 
   if (missed >= 1.5) {
-    return `Medium injury drag: starters averaged ${missed} missed games. ${riskiest ? `${riskiest} is the player to insure around.` : 'This roster should keep one extra usable spot starter.'}`;
+    return `${healthScore}. ${risk} availability risk: starters averaged ${missed} missed games. ${riskiest ? `${riskiest} is the player to insure around.` : 'This roster should keep one extra usable spot starter.'} ${insurance} ${depthCopy}`;
   }
 
-  return `Clean availability profile: starters averaged ${missed} missed games, so this roster can be more aggressive consolidating depth.`;
+  return `${healthScore}. ${risk} availability risk: starters averaged ${missed} missed games, so this roster can be more aggressive consolidating depth. ${insurance} ${depthCopy}`;
 }
 
 function buildOwnerWeakSpotCopy(row: OwnerIntelRow): string {
@@ -1567,16 +1591,16 @@ function buildOwnerWeakSpotCopy(row: OwnerIntelRow): string {
   const wr3Rank = parsePositionRankValue(row.holes.wr3Rank);
   const teRank = parsePositionRankValue(row.holes.te1Rank);
   const notes = [
-    qbRank !== null && qbRank > 18 ? `QB starts at ${row.holes.bestQbRank}, so superflex pressure is real.` : null,
-    rb2Rank !== null && rb2Rank > 28 ? `RB2 is ${row.holes.rb2Rank}, which can leak weekly points.` : null,
-    wr3Rank !== null && wr3Rank > 36 ? `WR3 is ${row.holes.wr3Rank}, so receiver depth is the easiest attack point.` : null,
-    teRank !== null && teRank > 14 ? `TE1 is ${row.holes.te1Rank}, leaving a weekly ceiling gap.` : null,
-    row.holes.flexDepth <= 5 ? `Only ${row.holes.flexDepth} flex-depth pieces clear the starter window.` : null,
+    qbRank !== null && qbRank > 18 ? `QB is led by ${row.holes.bestQbRank}, so superflex depth is the first place to compare against the league.` : null,
+    rb2Rank !== null && rb2Rank > 28 ? `RB2 sits at ${row.holes.rb2Rank}, below the comfort line for a weekly contender.` : null,
+    wr3Rank !== null && wr3Rank > 36 ? `WR3 sits at ${row.holes.wr3Rank}, so receiver depth is thinner than the top name suggests.` : null,
+    teRank !== null && teRank > 14 ? `TE is led by ${row.holes.te1Rank}, which can cap weekly ceiling.` : null,
+    row.holes.flexDepth <= 5 ? `Flex depth is ${row.holes.flexDepth}, so the bench cushion is limited.` : null,
   ].filter(Boolean);
 
   if (notes.length) return notes.join(' ');
 
-  return 'No emergency hole. The better angle is forcing this manager to overpay for a preference, not attacking an obvious weak spot.';
+  return 'No emergency hole from the baseline ranks. The better angle is finding manager preference or value timing, not assuming an obvious roster flaw.';
 }
 
 function PlayerInsightTile({
@@ -2334,7 +2358,6 @@ function ManagerDepthTile({
         <span className="command-depth-name">{manager}</span>
       </span>
       <span className="command-depth-badges">
-        <ManagerChampionshipPills managerName={manager} className="command-depth-championships" />
         {badges.map((badge) => (
           <span key={badge.label} className={`command-mini-badge command-mini-badge-${badge.tone || 'neutral'}`}>
             {badge.label}
@@ -2394,7 +2417,6 @@ function OwnerSummaryTile({
         </ChampionAvatarFrame>
         <span className="owner-summary-name-lockup">
           <span className="owner-summary-name">{manager}</span>
-          <ManagerChampionshipPills managerName={manager} className="owner-summary-championships" />
         </span>
       </span>
       <span className="owner-summary-metrics">{children}</span>
@@ -2868,7 +2890,8 @@ export function LeagueCommandCenter({
               </div>
               {selectedIntel?.positionGrades ? (
                 <div className="manager-command-section">
-                  <h4>Roster Heat Map</h4>
+                  <h4>Position Strength</h4>
+                  <p className="owner-intel-section-note">QB shows QB2/SF if available; RB, WR, and TE show RB2, WR3, and TE1.</p>
                   <div className="owner-intel-heat-grid">
                     {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                       const grade = selectedIntel.positionGrades?.[pos];
@@ -3415,7 +3438,8 @@ export function OwnerIntelMatrix({
                 <div className="owner-intel-read-grid">
                   {selectedRow.positionGrades ? (
                     <div className="owner-intel-roster-heat">
-                      <h4>Roster Heat Map</h4>
+                      <h4>Position Strength</h4>
+                      <p className="owner-intel-section-note">QB shows QB2/SF if available; RB, WR, and TE show RB2, WR3, and TE1.</p>
                       <div className="owner-intel-heat-grid">
                         {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                           const grade = selectedRow.positionGrades?.[pos];
@@ -3447,19 +3471,20 @@ export function OwnerIntelMatrix({
                     <p>{selectedHealthCheck}</p>
                   </div>
                   <div>
-                    <h4>Weak Spots</h4>
+                    <h4>Position Baseline</h4>
                     <div className="owner-intel-attack-list">
-                      <span><strong>Best QB</strong><PositionRankPill rank={selectedRow.holes.bestQbRank} /></span>
+                      <span><strong>QB</strong><PositionRankPill rank={selectedRow.holes.bestQbRank} /></span>
                       <span><strong>RB2</strong><PositionRankPill rank={selectedRow.holes.rb2Rank} /></span>
                       <span><strong>WR3</strong><PositionRankPill rank={selectedRow.holes.wr3Rank} /></span>
-                      <span><strong>TE1</strong><PositionRankPill rank={selectedRow.holes.te1Rank} /></span>
-                      <span><strong>Flex Depth</strong><em>{selectedRow.holes.flexDepth}</em></span>
+                      <span><strong>TE</strong><PositionRankPill rank={selectedRow.holes.te1Rank} /></span>
+                      <span><strong>Flex</strong><em>{selectedRow.holes.flexDepth}</em></span>
                     </div>
                     <p>{selectedWeakSpotCopy}</p>
                   </div>
                   {selectedValueCompPlayers.length ? (
                     <div className="owner-intel-value-map">
-                      <h4>Value Map</h4>
+                      <h4>Tradeable Depth</h4>
+                      <p className="owner-intel-section-note">Next same-position value piece behind the starter group.</p>
                       <div className="owner-intel-value-map-grid">
                         {selectedValueCompPlayers.map(({ position, player }) => (
                           <button
@@ -3483,6 +3508,7 @@ export function OwnerIntelMatrix({
                               <em>{player.name}</em>
                               {player.owner && player.owner !== selectedRow.manager ? <small>{player.owner}</small> : null}
                             </span>
+                            <span className="owner-intel-value-pill">{formatCompactValue(player.value)}</span>
                             <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
                           </button>
                         ))}
@@ -5524,7 +5550,8 @@ export function RecentTransactionsPanel({
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
-  const transactionGroups = useMemo(() => buildRecentTransactionGroups(data || []), [data]);
+  const [transactionSort, setTransactionSort] = useState<RecentTransactionSort>('add');
+  const transactionGroups = useMemo(() => buildRecentTransactionGroups(data || [], transactionSort), [data, transactionSort]);
   if (!data?.length) return null;
 
   const openTransactionPlayer = (player: NonNullable<ReportData['recentTransactions']>[number]['addedPlayer']) => {
@@ -5576,28 +5603,43 @@ export function RecentTransactionsPanel({
         const isExpanded = expandedDateKey === group.dateKey;
         return (
           <div key={group.dateKey} className={`recent-transaction-date-group ${isExpanded ? 'is-open' : ''}`}>
-            <button
-              type="button"
-              className="recent-transaction-date-toggle"
-              onClick={() => setExpandedDateKey(isExpanded ? null : group.dateKey)}
-              aria-expanded={isExpanded}
-            >
-              <span className="recent-transaction-date-label">
-                <ChevronDown className={`h-4 w-4 text-orange-300 transition-transform ${isExpanded ? 'rotate-180' : '-rotate-90'}`} />
-                <span>{group.displayDate}</span>
-              </span>
+            <div className="recent-transaction-date-header">
+              <button
+                type="button"
+                className="recent-transaction-date-toggle"
+                onClick={() => setExpandedDateKey(isExpanded ? null : group.dateKey)}
+                aria-expanded={isExpanded}
+              >
+                <span className="recent-transaction-date-label">
+                  <ChevronDown className={`h-4 w-4 text-orange-300 transition-transform ${isExpanded ? 'rotate-180' : '-rotate-90'}`} />
+                  <span>{group.displayDate}</span>
+                </span>
+              </button>
               <span className="recent-transaction-day-pills">
-                <span className="recent-transaction-day-pill recent-transaction-day-pill-add">
-                  Adds {formatCompactValue(group.addValue)}
-                </span>
-                <span className="recent-transaction-day-pill recent-transaction-day-pill-drop">
-                  Drops {formatCompactValue(group.dropValue)}
-                </span>
-                <span className="recent-transaction-day-count">
-                  {group.transactions.length}
-                </span>
+                <button
+                  type="button"
+                  className={`recent-transaction-day-pill recent-transaction-day-pill-add ${transactionSort === 'add' ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setTransactionSort('add');
+                    setExpandedDateKey(group.dateKey);
+                  }}
+                  aria-pressed={transactionSort === 'add'}
+                >
+                  Adds {group.addCount}
+                </button>
+                <button
+                  type="button"
+                  className={`recent-transaction-day-pill recent-transaction-day-pill-drop ${transactionSort === 'drop' ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setTransactionSort('drop');
+                    setExpandedDateKey(group.dateKey);
+                  }}
+                  aria-pressed={transactionSort === 'drop'}
+                >
+                  Drops {group.dropCount}
+                </button>
               </span>
-            </button>
+            </div>
 
             {isExpanded && (
               <div className="recent-transaction-day-panel">
@@ -5623,10 +5665,6 @@ export function RecentTransactionsPanel({
                         {renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt')}
                       </div>
                     )}
-                    <p className="recent-transaction-note">{transaction.note}</p>
-                    {!transaction.losingBidsAvailable && (
-                      <div className="recent-transaction-footnote">Public Sleeper data shows the winning claim only.</div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -5647,14 +5685,15 @@ export function RecentTransactionsPanel({
 }
 
 type RecentTransactionRow = NonNullable<ReportData['recentTransactions']>[number];
+type RecentTransactionSort = 'add' | 'drop';
 
-function buildRecentTransactionGroups(data: RecentTransactionRow[]) {
+function buildRecentTransactionGroups(data: RecentTransactionRow[], sortMode: RecentTransactionSort) {
   const groups = new Map<string, {
     dateKey: string;
     displayDate: string;
     transactions: RecentTransactionRow[];
-    addValue: number;
-    dropValue: number;
+    addCount: number;
+    dropCount: number;
   }>();
 
   for (const transaction of data) {
@@ -5663,22 +5702,38 @@ function buildRecentTransactionGroups(data: RecentTransactionRow[]) {
       dateKey,
       displayDate: dateKey,
       transactions: [],
-      addValue: 0,
-      dropValue: 0,
+      addCount: 0,
+      dropCount: 0,
     };
 
     group.transactions.push(transaction);
-    group.addValue += transaction.addedPlayer?.ktcValue || 0;
-    group.dropValue += transaction.droppedPlayer?.ktcValue || 0;
+    if (transaction.addedPlayer) group.addCount += 1;
+    if (transaction.droppedPlayer) group.dropCount += 1;
     groups.set(dateKey, group);
   }
 
   return Array.from(groups.values())
     .map((group) => ({
       ...group,
-      transactions: [...group.transactions].sort((a, b) => String(b.id).localeCompare(String(a.id))),
+      transactions: [...group.transactions].sort((a, b) => compareRecentTransactions(a, b, sortMode)),
     }))
     .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+}
+
+function compareRecentTransactions(a: RecentTransactionRow, b: RecentTransactionRow, sortMode: RecentTransactionSort) {
+  const primaryDiff = getRecentTransactionSortValue(b, sortMode) - getRecentTransactionSortValue(a, sortMode);
+  if (primaryDiff !== 0) return primaryDiff;
+
+  const secondaryMode: RecentTransactionSort = sortMode === 'add' ? 'drop' : 'add';
+  const secondaryDiff = getRecentTransactionSortValue(b, secondaryMode) - getRecentTransactionSortValue(a, secondaryMode);
+  if (secondaryDiff !== 0) return secondaryDiff;
+
+  return String(b.id).localeCompare(String(a.id));
+}
+
+function getRecentTransactionSortValue(transaction: RecentTransactionRow, sortMode: RecentTransactionSort) {
+  const player = sortMode === 'add' ? transaction.addedPlayer : transaction.droppedPlayer;
+  return player?.ktcValue ?? -1;
 }
 
 function getRecentTransactionDateKey(date: string): string {
@@ -5747,8 +5802,11 @@ export function TradeMarketRadar({
             </span>
           </div>
           <div className="trade-market-main">
-            <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+            <div className="trade-market-player">
+              <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+            </div>
             <div className="trade-market-manager">
+              <span className="trade-market-manager-label">Manager</span>
               {renderManagerName(player.owner, managerAvatars)}
             </div>
           </div>

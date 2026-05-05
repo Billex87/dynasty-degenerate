@@ -1012,7 +1012,7 @@ function buildTradeBlueprints({
   return [
     buyTarget && sellCandidate ? {
       label: 'Need Swap',
-      summary: `Trade from ${tradePlan.surplusPosition || 'surplus'} into ${tradePlan.needPosition || 'need'}: ${sellCandidate.name} for ${buyTarget.name} is the clean starting point.`,
+      summary: `Trade from ${tradePlan.surplusPosition || 'surplus'} into ${tradePlan.needPosition || 'need'}: use ${sellCandidate.name} to shop for similar-value help like ${buyTarget.name}.`,
       givePlayer: sellCandidate,
       getPlayer: buyTarget,
       tone: 'buy' as const,
@@ -2031,16 +2031,24 @@ export async function generateReport(
         return (bDepthBonus + bArb + b.value * 0.25) - (aDepthBonus + aArb + a.value * 0.25);
       });
     const sellCandidate = pickDistinctPlayer(sellPool, usedInsightPlayerIds);
-    const targetBudget = Math.max(
-      1800,
-      (sellCandidate?.value || 0) * 1.18,
-      (sellCandidate?.value || 0) + (bench.find((player) => player.player_id !== sellCandidate?.player_id)?.value || 0) * 0.45,
-      (bestBenchStash?.value || 0) * 1.15
+    const tradeChip = pickDistinctPlayer(
+      [...bench]
+        .filter((player) => player.value >= 1000)
+        .sort((a, b) => b.value - a.value),
+      usedInsightPlayerIds
     );
+    const tradeValueAnchor = sellCandidate?.value || tradeChip?.value || bestBenchStash?.value || 0;
+    const targetBudget = tradeValueAnchor
+      ? Math.max(900, Math.round(tradeValueAnchor * 1.18 + 250))
+      : 1800;
+    const targetValueFloor = tradeValueAnchor
+      ? Math.max(500, Math.round(tradeValueAnchor * 0.72))
+      : 700;
     const buyTargetPool = [...externalPlayers]
       .filter((player) => {
         if (primaryNeed && player.pos !== primaryNeed) return false;
         if (!primaryNeed && !['RB', 'WR', 'TE'].includes(player.pos)) return false;
+        if (player.value < targetValueFloor) return false;
         if (player.value > targetBudget) return false;
         if (sellCandidate && player.owner === sellCandidate.owner) return false;
         if (isContenderBuild) return getSeasonValue(player, allPlayers, ktcValues) >= player.value * 0.66 || isLastSeasonStud(player.lastSeasonPositionRank);
@@ -2060,6 +2068,7 @@ export async function generateReport(
         .filter((player) => {
           if (primaryNeed && player.pos !== primaryNeed) return false;
           if (!primaryNeed && !['RB', 'WR', 'TE'].includes(player.pos)) return false;
+          if (player.value < targetValueFloor) return false;
           if (player.value > targetBudget) return false;
           return (player.age || 99) <= 25 || getSeasonValue(player, allPlayers, ktcValues) >= player.value * 0.72;
         })
@@ -2071,7 +2080,7 @@ export async function generateReport(
       needPosition: primaryNeed,
       surplusPosition,
       summary: primaryNeed && surplusPosition && buyTarget && sellCandidate
-        ? `Shop ${surplusPosition} surplus (${sellCandidate.name}) for ${primaryNeed} help (${buyTarget.name}).`
+        ? `Shop ${surplusPosition} surplus (${sellCandidate.name}) for similar-value ${primaryNeed} help (${buyTarget.name}).`
         : primaryNeed
           ? `Priority is ${primaryNeed}, but there is no clean same-budget surplus-for-need swap yet.`
           : surplusPosition
@@ -2079,12 +2088,6 @@ export async function generateReport(
             : 'No obvious need-for-surplus trade path from the current roster shape.',
     };
     const positionGrades = buildPositionGrades({ qbs, rbs, wrs, tes, teamCount });
-    const tradeChip = pickDistinctPlayer(
-      [...bench]
-        .filter((player) => player.value >= 1000)
-        .sort((a, b) => b.value - a.value),
-      usedInsightPlayerIds
-    );
     const injuryInsurance = pickDistinctPlayer(
       [...bench]
         .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos))

@@ -43,6 +43,7 @@ const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
 const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
+const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-04-30';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
 const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'awwqq', 'zojozo']);
 
@@ -219,42 +220,139 @@ function LeaguePickerCard({
   );
 }
 
-function SnapshotCoverageBanner() {
+type AdminValueDiagnosticRow = {
+  id: string;
+  area: string;
+  item: string;
+  status: string;
+  note: string;
+};
+
+type OutlookPlayer = ReportData['projectedRisers'][number];
+
+function getOutlookPlayerValueProfile(reportData: ReportData, player: OutlookPlayer) {
+  return player.playerDetails?.valueProfile
+    || (player.player_id ? reportData.playerDetailsById?.[player.player_id]?.valueProfile : undefined);
+}
+
+function addUniqueDiagnosticRow(
+  rows: AdminValueDiagnosticRow[],
+  seen: Set<string>,
+  row: AdminValueDiagnosticRow
+) {
+  if (seen.has(row.id)) return;
+  seen.add(row.id);
+  rows.push(row);
+}
+
+function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: string[]): AdminValueDiagnosticRow[] {
+  const rows: AdminValueDiagnosticRow[] = [];
+  const seen = new Set<string>();
+  const currentSnapshotGaps = missingDateKeys
+    .filter((dateKey) => dateKey >= ADMIN_VALUE_DIAGNOSTIC_START_DATE)
+    .sort();
+  const outlookPlayers = [...reportData.projectedRisers, ...reportData.projectedFallers];
+
+  currentSnapshotGaps.forEach((dateKey) => {
+    addUniqueDiagnosticRow(rows, seen, {
+      id: `snapshot-${dateKey}`,
+      area: 'Value blend',
+      item: dateKey,
+      status: 'Missing day',
+      note: 'Daily blend was not stored, so any comparison touching this date is less exact.',
+    });
+  });
+
+  const playersWithoutSourceMetadata = outlookPlayers
+    .filter((player) => player.player_id && !getOutlookPlayerValueProfile(reportData, player));
+  if (playersWithoutSourceMetadata.length) {
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'source-metadata-missing',
+      area: 'Player values',
+      item: `${playersWithoutSourceMetadata.length} Outlook players`,
+      status: 'Source check unavailable',
+      note: 'The displayed player values exist, but this report payload did not include source-level blend detail.',
+    });
+  }
+
+  outlookPlayers.forEach((player) => {
+    const profile = getOutlookPlayerValueProfile(reportData, player);
+    if (!profile) return;
+
+    const sources = profile.sources || [];
+    const hasCoreMarketSource = Boolean(profile.marketKtc || profile.fantasyCalcDynasty || profile.dynastyProcess);
+    if (sources.length >= 2 && hasCoreMarketSource) return;
+
+    addUniqueDiagnosticRow(rows, seen, {
+      id: `thin-value-${player.player_id || player.name}`,
+      area: 'Player value',
+      item: player.name,
+      status: sources.length ? 'Thin blend' : 'No source list',
+      note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found for the current value; projection is more assumption-heavy.`,
+    });
+  });
+
+  const missingAgePlayers = outlookPlayers.filter((player) => player.age == null);
+  if (missingAgePlayers.length) {
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'missing-age-projection',
+      area: 'Projection input',
+      item: `${missingAgePlayers.length} Outlook players`,
+      status: 'Age missing',
+      note: 'One-year projection falls back to the current value when the age curve cannot be applied.',
+    });
+  }
+
+  if (!rows.length) {
+    rows.push({
+      id: 'no-active-diagnostics',
+      area: 'Value assumptions',
+      item: 'Current report',
+      status: 'No active flags',
+      note: 'No missing post-cutoff snapshot days or thin Outlook value blends were detected.',
+    });
+  }
+
+  return rows.slice(0, 18);
+}
+
+function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) {
   const { data } = trpc.system.snapshotCoverage.useQuery(
     { lookbackDays: 14 },
     { refetchOnWindowFocus: false, staleTime: 1000 * 60 * 5 }
   );
 
-  if (!data) return null;
-
-  const bannerClass = data.status === 'healthy'
-    ? 'snapshot-status-banner snapshot-status-banner-healthy'
-    : data.status === 'today_pending'
-      ? 'snapshot-status-banner snapshot-status-banner-pending'
-      : 'snapshot-status-banner snapshot-status-banner-stale';
-
-  const copy = data.status === 'healthy'
-    ? `Blended value snapshot coverage healthy: ${data.storedDays}/${data.expectedDays} days logged.`
-    : data.status === 'today_pending'
-      ? `Today's blended value snapshot has not landed yet. Latest stored day: ${data.latestSnapshotDateKey || 'none'}.`
-      : `Blended value coverage gap: missing ${data.missingDateKeys.join(', ')}.`;
-
-  if (data.status === 'stale') {
-    return (
-      <div className={bannerClass}>
-        <p className="snapshot-status-banner-title">Value Blends Missing From:</p>
-        <div className="snapshot-status-date-grid">
-          {data.missingDateKeys.map((dateKey) => (
-            <span key={dateKey}>{dateKey}</span>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const rows = buildAdminValueDiagnostics(reportData, data?.missingDateKeys || []);
 
   return (
-    <div className={bannerClass}>
-      <span>{copy}</span>
+    <div className="admin-value-diagnostics">
+      <p className="admin-value-diagnostics-intro">
+        Admin eyes only. Use this for hidden value assumptions, guessed inputs, and post-cutoff blend gaps that should not sit in the public report flow.
+      </p>
+      <div className="admin-value-diagnostics-table-wrap">
+        <table className="admin-value-diagnostics-table">
+          <thead>
+            <tr>
+              <th scope="col">Area</th>
+              <th scope="col">Item</th>
+              <th scope="col">Flag</th>
+              <th scope="col">Why It Matters</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                <td>{row.area}</td>
+                <td>{row.item}</td>
+                <td>
+                  <span className="admin-value-diagnostics-flag">{row.status}</span>
+                </td>
+                <td>{row.note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -685,7 +783,6 @@ export default function Home() {
 
         {/* Content */}
         <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
-          {canViewMomentumTab && <SnapshotCoverageBanner />}
           <Tabs value={resolvedActiveTab} onValueChange={handleReportTabChange} className="w-full">
             <TabsList className="report-tabs">
               <TabsTrigger value="overview" className="report-tab">
@@ -874,6 +971,11 @@ export default function Home() {
                     leagueLogo={leagueLogo}
                   />
                 </CollapsibleReportSection>
+                {canViewMomentumTab && (
+                  <CollapsibleReportSection title="Admin Eyes Only: Value Assumptions" kicker="Hidden diagnostics">
+                    <AdminValueDiagnosticsTable reportData={reportData} />
+                  </CollapsibleReportSection>
+                )}
               </div>
             </TabsContent>
 

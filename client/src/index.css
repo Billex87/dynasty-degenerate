@@ -72,19 +72,6 @@
   padding: 0.75rem;
 }
 
-.snapshot-status-banner {
-  width: min(100%, 72rem);
-  margin: 0 auto 0.9rem;
-  border-radius: 0.9rem;
-  border: 1px solid rgba(34, 211, 238, 0.18);
-  padding: 0.72rem 0.95rem;
-  font-size: 0.78rem;
-  font-weight: 850;
-  line-height: 1.35;
-  text-align: center;
-}
-
-.snapshot-status-banner-title,
 .report-intro-gradient-title {
   display: block;
   background: linear-gradient(90deg, #fb923c, #fbbf24, #fb923c);
@@ -94,44 +81,10 @@
   font-weight: 900;
 }
 
-.snapshot-status-banner-title {
-  margin: 0 0 0.55rem;
-  font-size: clamp(1rem, 3.8vw, 1.35rem);
-  line-height: 1.1;
-}
-
-.snapshot-status-date-grid {
-  display: grid;
-  grid-template-columns: repeat(3, max-content);
-  justify-content: center;
-  gap: 0.35rem 0.85rem;
-  color: #fecdd3;
-  font-size: clamp(0.76rem, 2.7vw, 0.95rem);
-  font-weight: 850;
-}
-
 .report-intro-gradient-title {
   margin-bottom: 0.3rem;
   font-size: 1.08rem;
   line-height: 1.15;
-}
-
-.snapshot-status-banner-healthy {
-  border-color: rgba(52, 211, 153, 0.28);
-  background: rgba(16, 185, 129, 0.12);
-  color: #bbf7d0;
-}
-
-.snapshot-status-banner-pending {
-  border-color: rgba(251, 191, 36, 0.26);
-  background: rgba(120, 53, 15, 0.18);
-  color: #fde68a;
-}
-
-.snapshot-status-banner-stale {
-  border-color: rgba(251, 113, 133, 0.28);
-  background: rgba(127, 29, 29, 0.2);
-  color: #fecdd3;
 }
 
 .trade-fit-read-good {
@@ -177,6 +130,89 @@
   line-height: 1.35;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.admin-value-diagnostics {
+  width: min(100%, 62rem);
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 0.95rem;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.94));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
+.admin-value-diagnostics-intro {
+  margin: 0;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.14);
+  padding: 0.9rem 1rem;
+  color: #fde68a;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.admin-value-diagnostics-table-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.admin-value-diagnostics-table {
+  width: 100%;
+  min-width: 46rem;
+  border-collapse: collapse;
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.admin-value-diagnostics-table th,
+.admin-value-diagnostics-table td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-value-diagnostics-table th {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.admin-value-diagnostics-table td {
+  color: #cbd5e1;
+  font-weight: 750;
+}
+
+.admin-value-diagnostics-table td:nth-child(1),
+.admin-value-diagnostics-table td:nth-child(2) {
+  color: #f8fafc;
+  font-weight: 900;
+}
+
+.admin-value-diagnostics-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-value-diagnostics-flag {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  border: 1px solid rgba(251, 191, 36, 0.24);
+  border-radius: 999px;
+  background: rgba(120, 53, 15, 0.28);
+  padding: 0.22rem 0.5rem;
+  color: #fde68a;
+  font-size: 0.66rem;
+  font-weight: 950;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .trade-fit-target {
@@ -1830,6 +1866,14 @@
     gap: 0.35rem;
   }
 
+  .weekly-momentum-manager {
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--team-accent, #22d3ee) 16%, rgba(148, 163, 184, 0.12));
+    border-radius: 0.65rem;
+    background: rgba(2, 6, 23, 0.3);
+    padding: 0.34rem 0.4rem;
+  }
+
   .weekly-momentum-manager .manager-chip img,
   .weekly-momentum-manager .manager-chip > span[aria-hidden="true"] {
     height: 1.55rem;
@@ -1839,12 +1883,13 @@
 
   .weekly-momentum-manager .manager-chip > span:last-child {
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
     color: #cbd5e1;
     font-size: 0.66rem;
     font-weight: 850;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.12;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .weekly-momentum-pills,
@@ -2971,6 +3016,15 @@
     line-height: 1.42;
   }
 
+  .owner-intel-read-grid .owner-intel-section-note,
+  .manager-command-section .owner-intel-section-note {
+    margin-top: 0.22rem;
+    color: #94a3b8;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+
   .owner-intel-attack-list,
   .owner-intel-value-map-grid {
     display: grid;
@@ -3017,7 +3071,7 @@
 
   .owner-intel-value-map-grid button {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     border-radius: 0.75rem;
     text-align: left;
   }
@@ -3054,6 +3108,22 @@
     letter-spacing: 0.04em;
     line-height: 1;
     text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .owner-intel-value-pill {
+    display: inline-flex !important;
+    min-height: 1.35rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(251, 146, 60, 0.22);
+    border-radius: 999px;
+    background: rgba(251, 146, 60, 0.1);
+    padding: 0 0.42rem;
+    color: #fdba74 !important;
+    font-size: 0.64rem !important;
+    font-weight: 950 !important;
+    line-height: 1;
     white-space: nowrap;
   }
 
@@ -4318,7 +4388,10 @@
   }
 
   .trade-market-card {
+    display: grid;
     width: 100%;
+    grid-template-rows: auto 1fr auto;
+    gap: 0.62rem;
     border: 1px solid color-mix(in srgb, var(--team-accent, #22d3ee) 24%, rgba(34, 211, 238, 0.16));
     border-radius: 0.95rem;
     background:
@@ -4337,8 +4410,7 @@
     border-color: color-mix(in srgb, var(--team-accent, #fb923c) 28%, rgba(251, 146, 60, 0.22));
   }
 
-  .trade-market-top,
-  .trade-market-main {
+  .trade-market-top {
     display: flex;
     min-width: 0;
     align-items: center;
@@ -4372,22 +4444,28 @@
   }
 
   .trade-market-main {
-    margin-top: 0.75rem;
-  }
-
-  .trade-market-main .player-chip {
+    display: grid;
     min-width: 0;
-    flex: 1 1 auto;
+    gap: 0.5rem;
   }
 
-  .trade-market-main .player-chip img,
-  .trade-market-main .player-chip > span[aria-hidden="true"] {
+  .trade-market-player {
+    min-width: 0;
+  }
+
+  .trade-market-player .player-chip {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .trade-market-player .player-chip img,
+  .trade-market-player .player-chip > span[aria-hidden="true"] {
     height: 2.45rem;
     width: 2.45rem;
     border: 2px solid color-mix(in srgb, var(--team-accent, #fb923c) 62%, rgba(255, 255, 255, 0.2));
   }
 
-  .trade-market-main .player-chip > span:last-child {
+  .trade-market-player .player-chip > span:last-child {
     min-width: 0;
     overflow: hidden;
     color: #f8fafc;
@@ -4399,36 +4477,50 @@
 
   .trade-market-manager {
     min-width: 0;
-    flex: 0 1 42%;
+    display: grid;
+    gap: 0.25rem;
+    border: 1px solid color-mix(in srgb, var(--team-accent, #22d3ee) 20%, rgba(148, 163, 184, 0.14));
+    border-radius: 0.7rem;
+    background: rgba(2, 6, 23, 0.32);
+    padding: 0.42rem 0.48rem;
+  }
+
+  .trade-market-manager-label {
+    color: #94a3b8;
+    font-size: 0.54rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
   }
 
   .trade-market-manager .manager-chip {
-    justify-content: flex-end;
-    gap: 0.4rem;
+    justify-content: flex-start;
+    gap: 0.38rem;
   }
 
   .trade-market-manager .manager-chip img,
   .trade-market-manager .manager-chip > span[aria-hidden="true"] {
-    height: 1.85rem;
-    width: 1.85rem;
+    height: 1.45rem;
+    width: 1.45rem;
     border-width: 2px;
   }
 
   .trade-market-manager .manager-chip > span:last-child {
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
     color: #cbd5e1;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 850;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.12;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .trade-market-pills {
     display: flex;
     flex-wrap: wrap;
     gap: 0.38rem;
-    margin-top: 0.7rem;
   }
 
   .trade-market-pills span {
@@ -4552,13 +4644,20 @@
       radial-gradient(circle at 0 0, rgba(34, 211, 238, 0.08), transparent 36%);
   }
 
-  .recent-transaction-date-toggle {
+  .recent-transaction-date-header {
     display: grid;
     width: 100%;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.65rem;
     padding: 0.78rem 0.85rem;
+    text-align: left;
+  }
+
+  .recent-transaction-date-toggle {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
     text-align: left;
   }
 
@@ -4582,7 +4681,6 @@
   }
 
   .recent-transaction-day-pill,
-  .recent-transaction-day-count,
   .recent-transaction-type-pill,
   .recent-transaction-action-pill {
     display: inline-flex;
@@ -4597,6 +4695,18 @@
     line-height: 1;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+
+  button.recent-transaction-day-pill {
+    cursor: pointer;
+    transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+  }
+
+  button.recent-transaction-day-pill:hover,
+  button.recent-transaction-day-pill:focus-visible,
+  .recent-transaction-day-pill.is-active {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 10px 24px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
   }
 
   .recent-transaction-day-pill-add,
@@ -4617,13 +4727,6 @@
     border-color: rgba(251, 146, 60, 0.34);
     background: rgba(251, 146, 60, 0.14);
     color: #fdba74;
-  }
-
-  .recent-transaction-day-count {
-    min-width: 1.6rem;
-    border-color: rgba(34, 211, 238, 0.22);
-    background: rgba(34, 211, 238, 0.1);
-    color: #67e8f9;
   }
 
   .recent-transaction-day-panel {
@@ -4672,27 +4775,14 @@
     color: #67e8f9;
   }
 
-  .recent-transaction-date,
-  .recent-transaction-footnote {
-    color: #67e8f9;
-    font-size: 0.64rem;
-    font-weight: 950;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
   .recent-transaction-meta strong {
     color: #fb923c;
     font-size: 1rem;
     font-weight: 950;
   }
 
-  .recent-transaction-date {
-    color: #94a3b8;
-  }
-
   .recent-transaction-player-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .recent-transaction-player,
@@ -4751,13 +4841,6 @@
     color: #fdba74;
     font-size: 0.68rem;
     font-weight: 900;
-  }
-
-  .recent-transaction-note {
-    color: #dbeafe;
-    font-size: 0.86rem;
-    font-weight: 800;
-    line-height: 1.35;
   }
 
   .trade-habit-pill {
@@ -5420,35 +5503,86 @@
       drop-shadow(0 0 5px rgba(251, 191, 36, 0.12));
   }
 
-  .manager-champion-crown {
+  .manager-accolade-crown {
     position: absolute;
-    right: -0.18rem;
-    top: -0.48rem;
+    right: -0.32rem;
+    top: -0.58rem;
     z-index: 4;
-    height: 0.95rem;
-    width: 0.95rem;
-    color: #fbbf24;
-    fill: rgba(251, 191, 36, 0.34);
-    filter:
-      drop-shadow(0 0 6px rgba(251, 191, 36, 0.5))
-      drop-shadow(0 0 12px rgba(251, 191, 36, 0.28))
-      drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
+    display: inline-flex;
+    height: 1.24rem;
+    width: 1.24rem;
+    align-items: center;
+    justify-content: center;
     pointer-events: none;
     transform: rotate(11deg);
   }
 
+  .manager-accolade-crown-champ {
+    filter:
+      drop-shadow(0 0 6px rgba(251, 191, 36, 0.5))
+      drop-shadow(0 0 12px rgba(251, 191, 36, 0.28))
+      drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
+  }
+
+  .manager-accolade-crown-runner-up {
+    right: -0.28rem;
+    top: -0.46rem;
+    height: 1.1rem;
+    width: 1.1rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+    transform: rotate(12deg);
+  }
+
+  .manager-champion-avatar-winner .manager-accolade-crown-runner-up {
+    right: -0.3rem;
+    top: 0.34rem;
+  }
+
+  .manager-champion-crown,
   .manager-runner-up-crown {
     position: absolute;
-    right: -0.18rem;
-    top: -0.34rem;
-    z-index: 4;
-    height: 0.72rem;
-    width: 0.72rem;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    pointer-events: none;
+    transform: none;
+  }
+
+  .manager-champion-crown {
+    color: #fbbf24;
+    fill: rgba(251, 191, 36, 0.34);
+  }
+
+  .manager-runner-up-crown {
     color: #e2e8f0;
     fill: rgba(226, 232, 240, 0.24);
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
-    pointer-events: none;
-    transform: rotate(12deg);
+  }
+
+  .manager-accolade-year {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    min-width: 0.92rem;
+    min-height: 0.62rem;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.46rem;
+    border: 1px solid rgba(15, 23, 42, 0.78);
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.78);
+    color: #fef3c7;
+    font-size: 0.52rem;
+    font-weight: 1000;
+    line-height: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
+    transform: rotate(-11deg);
+  }
+
+  .manager-accolade-crown-runner-up .manager-accolade-year {
+    min-width: 0.86rem;
+    color: #f8fafc;
+    font-size: 0.5rem;
+    transform: rotate(-12deg);
   }
 
   .manager-sacko-dunce {
@@ -5498,15 +5632,15 @@
     position: absolute;
     bottom: 0.02rem;
     display: inline-flex;
-    height: 0.48rem;
-    min-width: 0.86rem;
+    height: 0.56rem;
+    min-width: 0.92rem;
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(254, 202, 202, 0.86);
     border-radius: 999px;
     background: linear-gradient(135deg, #7f1d1d, #be123c);
     color: #fff1f2;
-    font-size: 0.43rem;
+    font-size: 0.5rem;
     font-weight: 950;
     line-height: 1;
   }
@@ -6136,7 +6270,7 @@
     object-fit: cover;
   }
 
-  .trade-manager-title-avatar > span:not(.manager-championship-pills) {
+  .trade-manager-title-avatar > span:not([class]) {
     color: #fb923c;
     font-size: 1.45rem;
     font-weight: 900;
@@ -9036,6 +9170,15 @@ button.owner-summary-tile:focus-visible {
   .owner-metric-pill > span {
     font-size: 0.5rem;
   }
+
+  .recent-transaction-date-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.46rem;
+  }
+
+  .recent-transaction-day-pills {
+    justify-content: flex-start;
+  }
 }
 
 /* Final table normalization overrides: keep the custom trade ledger aligned with the rest of the report tables. */
@@ -9733,6 +9876,38 @@ button.trade-manager-trade {
     width: 2.1rem;
   }
 
+  .report-shell .command-feature-top,
+  .report-shell .owner-intel-taxi-header,
+  .report-shell .trade-manager-header,
+  .report-shell .manager-draft-title-lockup,
+  .report-shell .starter-modal-hero {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .report-shell .command-feature-top > div,
+  .report-shell .manager-command-title-lockup > div,
+  .report-shell .trade-manager-title-lockup > div,
+  .report-shell .owner-intel-taxi-header > div {
+    text-align: center;
+  }
+
+  .report-shell .owner-intel-read-grid h4,
+  .report-shell .manager-command-section h4,
+  .report-shell .manager-command-grid h4,
+  .report-shell .manager-command-inline-read h4,
+  .report-shell .command-feature-top p,
+  .report-shell .command-feature-top h3,
+  .report-shell .owner-intel-section-note {
+    text-align: center;
+  }
+
+  .report-shell .owner-intel-read-grid p:not(.owner-intel-section-note),
+  .report-shell .manager-command-section > p:not(.owner-intel-section-note),
+  .report-shell .manager-command-grid p {
+    text-align: left;
+  }
+
   .owner-quick-modal .owner-quick-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -10004,9 +10179,9 @@ button.trade-manager-trade {
 @media (max-width: 639px) {
   .report-shell .trade-market-card {
     display: grid;
-    min-height: 8.85rem;
+    min-height: 8.35rem;
     grid-template-rows: auto 1fr auto;
-    gap: 0.48rem;
+    gap: 0.42rem;
   }
 
   .report-shell .trade-market-top {
@@ -10016,31 +10191,43 @@ button.trade-manager-trade {
     gap: 0.4rem;
   }
 
+  .report-shell .trade-market-signal {
+    min-height: 1.18rem;
+    padding: 0.18rem 0.34rem;
+    font-size: 0.52rem;
+    letter-spacing: 0.08em;
+  }
+
   .report-shell .trade-market-change {
     justify-self: end;
+    font-size: 0.86rem;
     text-align: right;
   }
 
   .report-shell .trade-market-main {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(3.35rem, 4.7rem);
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    gap: 0.45rem;
-    margin-top: 0.18rem;
+    gap: 0.36rem;
+    margin-top: 0;
   }
 
-  .report-shell .trade-market-main .player-chip {
+  .report-shell .trade-market-player {
+    min-width: 0;
+  }
+
+  .report-shell .trade-market-player .player-chip {
     width: 100%;
     min-width: 0;
     align-items: center;
   }
 
-  .report-shell .trade-market-main .player-chip > span:last-child {
+  .report-shell .trade-market-player .player-chip > span:last-child {
     display: -webkit-box;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-    font-size: clamp(0.74rem, 3.25vw, 0.9rem);
+    font-size: 0.82rem;
     line-height: 1.05;
     text-overflow: clip;
     white-space: normal;
@@ -10049,28 +10236,32 @@ button.trade-manager-trade {
   .report-shell .trade-market-manager {
     width: 100%;
     min-width: 0;
-    justify-self: end;
+    justify-self: stretch;
+    gap: 0.2rem;
+    padding: 0.34rem 0.38rem;
   }
 
   .report-shell .trade-market-manager .manager-chip {
-    display: grid;
-    justify-items: end;
-    gap: 0.24rem;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-items: start;
+    gap: 0.28rem;
   }
 
   .report-shell .trade-market-manager .manager-chip img,
   .report-shell .trade-market-manager .manager-chip > span[aria-hidden="true"] {
-    height: 1.9rem;
-    width: 1.9rem;
+    height: 1.28rem;
+    width: 1.28rem;
   }
 
   .report-shell .trade-market-manager .manager-chip > span:last-child {
     max-width: 100%;
     color: #e2e8f0;
-    font-size: clamp(0.48rem, 2.1vw, 0.6rem);
+    font-size: 0.6rem;
     font-weight: 900;
-    line-height: 1.04;
-    text-align: right;
+    line-height: 1.08;
+    text-align: left;
   }
 
   .report-shell .trade-market-pills {
@@ -10156,5 +10347,30 @@ button.trade-manager-trade {
     min-height: 1.18rem;
     padding-inline: 0.34rem;
     font-size: 0.58rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .admin-value-diagnostics {
+    border-radius: 0.85rem;
+  }
+
+  .admin-value-diagnostics-intro {
+    padding: 0.8rem 0.85rem;
+    font-size: 0.73rem;
+  }
+
+  .admin-value-diagnostics-table {
+    min-width: 42rem;
+    font-size: 0.72rem;
+  }
+
+  .admin-value-diagnostics-table th {
+    text-align: center;
+  }
+
+  .admin-value-diagnostics-table th,
+  .admin-value-diagnostics-table td {
+    padding: 0.64rem 0.66rem;
   }
 }
