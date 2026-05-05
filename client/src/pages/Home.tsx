@@ -205,23 +205,23 @@ function LeaguePickerCard({
             </span>
           )}
         </span>
-        <span className="home-league-card-ranks" aria-label={`${league.name} current league standing and power rank`}>
-          {league.powerRank ? (
-            <span className="home-league-pill">Power #{league.powerRank}</span>
-          ) : null}
-          {league.standingsRank ? (
-            <span className="home-league-pill">Standings #{league.standingsRank}</span>
-          ) : null}
+        <span className="home-league-card-body">
+          <span className="home-league-card-name">{league.name}</span>
         </span>
       </div>
-      <span className="home-league-card-body">
-        <span className="home-league-card-name">{league.name}</span>
-        <span className="home-league-card-format home-league-card-format-desktop">
-          {league.format || `${league.totalRosters || '?'}-Team Dynasty`}
-        </span>
-        <span className="home-league-card-format home-league-card-format-mobile">
-          {league.mobileFormat || `${league.totalRosters || '?'}-Team Dynasty`}
-        </span>
+      <span className="home-league-card-format home-league-card-format-desktop">
+        {league.format || `${league.totalRosters || '?'}-Team Dynasty`}
+      </span>
+      <span className="home-league-card-format home-league-card-format-mobile">
+        {league.mobileFormat || `${league.totalRosters || '?'}-Team Dynasty`}
+      </span>
+      <span className="home-league-card-ranks" aria-label={`${league.name} current league standing and power rank`}>
+        {league.powerRank ? (
+          <span className="home-league-pill">Power #{league.powerRank}</span>
+        ) : null}
+        {league.standingsRank ? (
+          <span className="home-league-pill">Standings #{league.standingsRank}</span>
+        ) : null}
       </span>
     </button>
   );
