@@ -3714,7 +3714,13 @@ export function WeeklyMomentumTable({
                 }))}
               >
                 <div className="weekly-momentum-tile-top">
-                  <span>{isPositive ? 'Riser' : 'Faller'}</span>
+                  <span
+                    className={`weekly-momentum-status-pill ${
+                      isPositive ? 'weekly-momentum-status-riser' : 'weekly-momentum-status-faller'
+                    }`}
+                  >
+                    {isPositive ? 'Riser' : 'Faller'}
+                  </span>
                   <strong className={isPositive ? 'text-emerald-300' : 'text-rose-300'}>
                     {row.pct_change >= 0 ? '+' : ''}
                     {row.pct_change.toFixed(1)}%

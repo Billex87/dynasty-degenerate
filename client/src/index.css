@@ -2393,14 +2393,35 @@
     gap: 0.28rem;
   }
 
-  .weekly-momentum-tile-top > span {
+  .weekly-momentum-status-pill {
+    display: inline-flex;
+    min-height: 1.26rem;
+    width: fit-content;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(34, 211, 238, 0.18);
+    border-radius: 999px;
+    background: rgba(8, 47, 73, 0.34);
+    padding: 0.18rem 0.48rem;
     color: #67e8f9;
     font-size: 0.56rem;
     font-weight: 950;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     line-height: 1;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+
+  .weekly-momentum-status-pill.weekly-momentum-status-riser {
+    border-color: rgba(52, 211, 153, 0.34);
+    background: rgba(6, 78, 59, 0.42);
+    color: #34d399;
+  }
+
+  .weekly-momentum-status-pill.weekly-momentum-status-faller {
+    border-color: rgba(251, 113, 133, 0.34);
+    background: rgba(136, 19, 55, 0.36);
+    color: #fb7185;
   }
 
   .weekly-momentum-tile-top strong {
@@ -2432,6 +2453,14 @@
   .weekly-momentum-value-change .weekly-momentum-value-arrow {
     color: #67e8f9;
     font-size: 0.78rem;
+  }
+
+  @media (max-width: 639px) {
+    .weekly-momentum-value-change {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
+    }
   }
 
   .weekly-momentum-identity,
