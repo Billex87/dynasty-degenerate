@@ -5868,8 +5868,8 @@ export function ManagerPositionCountsTable({
             </DialogDescription>
           </DialogHeader>
           {selectedManager && (
-            <div className="flex max-h-[calc(100dvh-1rem)] min-h-0 flex-col sm:max-h-[86vh]">
-              <div className="starter-modal-hero relative flex-shrink-0 overflow-hidden border-b border-cyan-300/20 px-5 py-5 sm:px-7">
+            <div className="manager-command-modal-inner starter-modal-inner max-h-[calc(100dvh-1rem)] min-h-0 sm:max-h-[86vh]">
+              <div className="manager-command-hero starter-modal-hero">
                 {selectedAvatar && (
                   <>
                     <img
@@ -5885,32 +5885,34 @@ export function ManagerPositionCountsTable({
                   </>
                 )}
                 <div className="manager-hero-scrim" />
-                <div className="relative flex items-center gap-4">
-                  <ChampionAvatarFrame managerName={selectedManager.manager}>
+                <div className="manager-command-title-lockup">
+                  <ChampionAvatarFrame managerName={selectedManager.manager} className="manager-command-champion-frame">
                     {selectedAvatar ? (
                       <img
                         src={selectedAvatar}
                         alt={selectedManager.manager}
-                        className="h-16 w-16 flex-shrink-0 rounded-2xl border border-cyan-300/30 object-cover shadow-lg shadow-black/40"
+                        className="manager-command-avatar"
                       />
                     ) : (
-                      <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-cyan-300/30 bg-slate-900 text-2xl font-black text-orange-300">
+                      <span className="manager-command-avatar">
                         {selectedManager.manager[0]?.toUpperCase() || '?'}
-                      </div>
+                      </span>
                     )}
                   </ChampionAvatarFrame>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">
-                      Starter Room
-                    </p>
-                    <h3 className="athletic-headline truncate text-3xl font-black text-orange-400 sm:text-4xl">
-                      {selectedManager.manager}
-                    </h3>
-                    <ManagerChampionshipPills managerName={selectedManager.manager} className="mt-1" />
-                    <p className="mt-1 text-sm font-bold text-slate-300">
+                    <p>Starter Room</p>
+                    <h3>{selectedManager.manager}</h3>
+                    <ManagerChampionshipPills managerName={selectedManager.manager} className="manager-command-championships" />
+                    <p className="starter-modal-subtitle">
                       {selectedStarters.length} starter{selectedStarters.length === 1 ? '' : 's'} by positional rank
                     </p>
                   </div>
+                </div>
+                <div className="manager-command-hero-metrics starter-modal-metrics">
+                  <IntelligenceMetric label="QB" value={`${selectedManager.QB_starters}/${selectedManager.QB}`} />
+                  <IntelligenceMetric label="RB" value={`${selectedManager.RB_starters}/${selectedManager.RB}`} />
+                  <IntelligenceMetric label="WR" value={`${selectedManager.WR_starters}/${selectedManager.WR}`} />
+                  <IntelligenceMetric label="TE" value={`${selectedManager.TE_starters}/${selectedManager.TE}`} />
                 </div>
               </div>
               <div className="starter-modal-body min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-5">
