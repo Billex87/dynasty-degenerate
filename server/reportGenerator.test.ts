@@ -263,7 +263,7 @@ describe('generateReport trade ledger', () => {
     expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|2865');
   });
 
-  it('ranks weekly momentum by 7-day KTC market-point movement, not blended value or percent', async () => {
+  it('ranks weekly momentum by 7-day KTC percentage movement', async () => {
     const report = await generateReport(
       {
         label: '2026',
@@ -287,7 +287,7 @@ describe('generateReport trade ledger', () => {
         smalldrop: { name: 'Small Drop', ktc_value: 5000, market_value_ktc: 2000 },
       },
       {
-        steadygain: { name: 'Steady Gain', ktc_value: 8800 },
+        steadygain: { name: 'Steady Gain', ktc_value: 8000 },
         smallbigpct: { name: 'Small Bigpct', ktc_value: 2000 },
         bigdrop: { name: 'Big Drop', ktc_value: 7600 },
         smalldrop: { name: 'Small Drop', ktc_value: 2500 },
@@ -295,9 +295,11 @@ describe('generateReport trade ledger', () => {
     );
 
     expect(report.weeklyRisers.map((player) => player.name)).toEqual(['Small Bigpct', 'Steady Gain']);
-    expect(report.weeklyRisers.map((player) => player.diff)).toEqual([500, 200]);
-    expect(report.weeklyFallers.map((player) => player.name)).toEqual(['Big Drop', 'Small Drop']);
-    expect(report.weeklyFallers.map((player) => player.diff)).toEqual([-600, -500]);
+    expect(report.weeklyRisers.map((player) => player.diff)).toEqual([500, 1000]);
+    expect(report.weeklyRisers.map((player) => Math.round(player.pct_change * 10) / 10)).toEqual([25, 12.5]);
+    expect(report.weeklyFallers.map((player) => player.name)).toEqual(['Small Drop', 'Big Drop']);
+    expect(report.weeklyFallers.map((player) => player.diff)).toEqual([-500, -600]);
+    expect(report.weeklyFallers.map((player) => Math.round(player.pct_change * 10) / 10)).toEqual([-20, -7.9]);
   });
 
   it('scales starter counts by league size and redraft positional rank', async () => {

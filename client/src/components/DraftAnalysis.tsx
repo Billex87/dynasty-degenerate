@@ -24,7 +24,7 @@ interface DraftAnalysisProps {
   leagueOverview?: ReportData['leagueOverview'];
 }
 
-type SortColumn = 'currentValue' | 'valueChange' | null;
+type SortColumn = 'pick' | 'currentValue' | 'valueChange' | null;
 type SortDirection = 'asc' | 'desc';
 
 export function DraftAnalysis({
@@ -47,12 +47,10 @@ export function DraftAnalysis({
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
-      // Toggle direction if clicking same column
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // New column, start with descending (highest to lowest)
       setSortColumn(column);
-      setSortDirection('desc');
+      setSortDirection(column === 'pick' ? 'asc' : 'desc');
     }
   };
 
@@ -77,6 +75,9 @@ export function DraftAnalysis({
       } else if (sortColumn === 'valueChange') {
         aVal = a.valueGain ?? 0;
         bVal = b.valueGain ?? 0;
+      } else if (sortColumn === 'pick') {
+        aVal = a.pick || 0;
+        bVal = b.pick || 0;
       }
 
       return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
@@ -149,6 +150,7 @@ export function DraftAnalysis({
           <div className="owner-tile-grid draft-efficiency-tile-grid">
             {orderedDraftStats.map((stat, idx) => {
               const avatarUrl = managerAvatars?.[stat.manager];
+              const managerDisplayName = stat.managerDisplayName || stat.manager;
               return (
                 <button
                   key={`${stat.manager}-${idx}`}
@@ -166,13 +168,13 @@ export function DraftAnalysis({
                   <span className="owner-summary-main">
                     <ChampionAvatarFrame managerName={stat.manager} className="owner-summary-avatar-frame">
                       {avatarUrl ? (
-                        <img src={avatarUrl} alt={stat.manager} className="owner-summary-avatar" />
+                        <img src={avatarUrl} alt={managerDisplayName} className="owner-summary-avatar" />
                       ) : (
-                        <span className="owner-summary-avatar">{stat.manager[0]?.toUpperCase() || '?'}</span>
+                        <span className="owner-summary-avatar">{managerDisplayName[0]?.toUpperCase() || '?'}</span>
                       )}
                     </ChampionAvatarFrame>
                     <span className="owner-summary-name-lockup">
-                      <span className="owner-summary-name">{stat.manager}</span>
+                      <span className="owner-summary-name">{managerDisplayName}</span>
                       <ManagerChampionshipPills managerName={stat.manager} className="owner-summary-championships" />
                     </span>
                   </span>
@@ -182,7 +184,7 @@ export function DraftAnalysis({
                     <span className="owner-metric-pill owner-metric-pill-danger"><span>Misses</span><strong>{stat.misses}</strong></span>
                     <span className="owner-metric-pill owner-metric-pill-info"><span>Starters</span><strong>{stat.starters}</strong></span>
                     <span className={`owner-metric-pill ${stat.avgKtcGain >= 0 ? 'owner-metric-pill-good' : 'owner-metric-pill-danger'}`}>
-                      <span>Avg Gain</span>
+                      <span>Avg Change</span>
                       <strong>{stat.avgKtcGain >= 0 ? '+' : ''}{stat.avgKtcGain.toLocaleString()}</strong>
                     </span>
                   </span>
@@ -196,13 +198,14 @@ export function DraftAnalysis({
       {draftDecisionAudits.length > 0 && (
         <DraftCollapsibleSection title="Draft Decision Audit" kicker="Need vs board value">
           <div className="draft-decision-audit-note">
-            Uses each manager&apos;s roster pressure points, the draft-window blend, and who was still available later in that rookie draft.
+            Uses each manager&apos;s roster pressure points, draft-window value, and who was still available later in that rookie draft.
           </div>
           <div className="draft-decision-grid">
             {draftDecisionAudits.map((audit) => {
               const details = audit.pick.playerDetails || (audit.pick.player_id ? playerDetailsById?.[audit.pick.player_id] : undefined);
               const alternativeDetails = audit.alternative?.pick?.playerDetails
                 || (audit.alternative?.pick?.player_id ? playerDetailsById?.[audit.alternative.pick.player_id] : undefined);
+              const managerDisplayName = audit.pick.managerDisplayName || audit.pick.manager;
               return (
                 <div
                   key={getDraftPickKey(audit.pick)}
@@ -227,10 +230,10 @@ export function DraftAnalysis({
                           />
                         ) : (
                           <span className="draft-decision-manager-fallback" aria-hidden="true">
-                            {audit.pick.manager.trim()[0]?.toUpperCase() || '?'}
+                            {managerDisplayName.trim()[0]?.toUpperCase() || '?'}
                           </span>
                         )}
-                        <span className="draft-decision-manager-name">{audit.pick.manager}</span>
+                        <span className="draft-decision-manager-name">{managerDisplayName}</span>
                       </span>
                     </span>
                   </button>
@@ -312,12 +315,16 @@ export function DraftAnalysis({
                 {isDraftBoardOpen && (
                   <div className="rookie-draft-row-shell">
                     <div className="draft-sort-strip">
+                      <button type="button" onClick={() => handleSort('pick')}>
+                        Pick #
+                        <ArrowUpDown className="h-3.5 w-3.5" />
+                      </button>
                       <button type="button" onClick={() => handleSort('currentValue')}>
-                        Current Blend
+                        Current Value
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => handleSort('valueChange')}>
-                        Blend Gain
+                        Value Change
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -325,9 +332,9 @@ export function DraftAnalysis({
                       <span>Player</span>
                       <span>Manager</span>
                       <span>Pick</span>
-                      <span>Draft Blend</span>
-                      <span>Now Blend</span>
-                      <span>Gain</span>
+                      <span>Draft-Day Value</span>
+                      <span>Current Value</span>
+                      <span>Change</span>
                     </div>
                     <div className="rookie-draft-row-list">
                       {yearPicks.map((pick, idx) => {
@@ -335,6 +342,7 @@ export function DraftAnalysis({
                         const gainTone = (pick.valueGain ?? 0) > 0 ? 'text-emerald-300' : (pick.valueGain ?? 0) < 0 ? 'text-rose-300' : 'text-slate-300';
                         const gainClass = (pick.valueGain ?? 0) > 0 ? 'is-positive' : (pick.valueGain ?? 0) < 0 ? 'is-negative' : '';
                         const opportunity = draftOpportunityByPick[getDraftPickKey(pick)];
+                        const managerDisplayName = pick.managerDisplayName || pick.manager;
                         return (
                           <button
                             key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
@@ -351,12 +359,13 @@ export function DraftAnalysis({
                               <ManagerNameWithAvatar
                                 avatarUrl={managerAvatars?.[pick.manager]}
                                 managerName={pick.manager}
+                                displayName={managerDisplayName}
                               />
                             </span>
                             <span className="rookie-draft-pill" data-label="Pick">{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
-                            <span className="rookie-draft-value-cell" data-label="Draft Blend">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
-                            <span className="rookie-draft-value-cell" data-label="Now Blend">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
-                            <span className={`rookie-draft-gain-cell ${gainClass} ${gainTone}`} data-label="Gain">
+                            <span className="rookie-draft-value-cell" data-label="Draft-Day">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
+                            <span className="rookie-draft-value-cell" data-label="Current">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
+                            <span className={`rookie-draft-gain-cell ${gainClass} ${gainTone}`} data-label="Change">
                               {pick.valueGain !== null && pick.valueGain !== undefined
                                 ? `${pick.valueGain > 0 ? '+' : ''}${pick.valueGain.toLocaleString()}`
                                 : 'N/A'}
@@ -380,6 +389,7 @@ export function DraftAnalysis({
         isOpen={selectedManager !== null}
         onClose={() => setSelectedManager(null)}
         managerName={selectedManager || ''}
+        managerDisplayName={selectedManager ? draftStats.find((stat) => stat.manager === selectedManager)?.managerDisplayName : undefined}
         draftPicks={draftPicks}
         managerAvatarUrl={selectedManager ? managerAvatars?.[selectedManager] : null}
         playerDetailsById={playerDetailsById}
@@ -590,8 +600,8 @@ function buildDraftDecisionSummary({
   const draftedLabel = pick.positionRankMay2025 || pick.currentPositionRank || pick.playerPos;
   const needLabel = primaryNeed ? `${primaryNeed} help` : 'pure board value';
   const boardPocket = boardRank <= 3 ? 'top board pocket' : boardRank <= 8 ? 'strong board pocket' : 'thin value pocket';
-  const altValueGap = bestAvailableDelta > 0 ? `${bestAvailableDelta.toLocaleString()} blend points` : 'roughly even value';
-  const needGap = needAlternativeDelta > 0 ? `${needAlternativeDelta.toLocaleString()} blend points` : 'about the same cost';
+  const altValueGap = bestAvailableDelta > 0 ? `${bestAvailableDelta.toLocaleString()} value points` : 'roughly even value';
+  const needGap = needAlternativeDelta > 0 ? `${needAlternativeDelta.toLocaleString()} value points` : 'about the same cost';
 
   if (verdict === 'Need + Value') {
     return `${pick.playerName} checked both boxes. ${draftedLabel} filled the roster's ${needLabel} while still landing inside the ${boardPocket}. ${needReason}`;
@@ -621,9 +631,9 @@ function buildDraftDecisionSummary({
     if (bestSamePositionAvailable && samePositionDelta > 250) {
       const betterName = bestSamePositionAvailable.playerName;
       if (primaryNeed && !needMatch) {
-        return `${pick.playerName} left the ${primaryNeed} need unresolved, and even on the same position lane the board had more value. ${betterName} graded ${samePositionDelta.toLocaleString()} blend points better at ${bestSamePositionAvailable.positionRankMay2025 || bestSamePositionAvailable.currentPositionRank || bestSamePositionAvailable.playerPos}. ${needReason}`;
+        return `${pick.playerName} left the ${primaryNeed} need unresolved, and even on the same position lane the board had more value. ${betterName} graded ${samePositionDelta.toLocaleString()} value points better at ${bestSamePositionAvailable.positionRankMay2025 || bestSamePositionAvailable.currentPositionRank || bestSamePositionAvailable.playerPos}. ${needReason}`;
       }
-      return `${pick.playerName} was not the cleanest value at ${pickedPosition || pick.playerPos}. ${betterName} graded ${samePositionDelta.toLocaleString()} blend points better on the same position line, so this was a straight value loss.`;
+      return `${pick.playerName} was not the cleanest value at ${pickedPosition || pick.playerPos}. ${betterName} graded ${samePositionDelta.toLocaleString()} value points better on the same position line, so this was a straight value loss.`;
     }
     const betterName = bestAvailable?.playerName || 'a stronger board value';
     if (primaryNeed && !needMatch && !hasTrueNeedAlternative) {

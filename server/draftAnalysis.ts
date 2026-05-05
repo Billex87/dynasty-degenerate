@@ -20,13 +20,17 @@ interface ADPData {
 
 interface RosterMappingData {
   currentRosterMap: Record<string, string>;
+  currentRosterDisplayMap?: Record<string, string>;
   currentRosters: any[];
   currentUserMap: Record<string, string>;
   currentUserIdToManagerMap?: Record<string, string>;
+  currentUserIdToManagerDisplayMap?: Record<string, string>;
   pastRosterMap: Record<string, string>;
+  pastRosterDisplayMap?: Record<string, string>;
   pastRosters: any[];
   pastUserMap: Record<string, string>;
   pastUserIdToManagerMap?: Record<string, string>;
+  pastUserIdToManagerDisplayMap?: Record<string, string>;
   prevLeagueId?: string;
   draftSlotsBySeason?: Record<string, Record<number, number>>;
 }
@@ -34,7 +38,9 @@ interface RosterMappingData {
 interface DraftPickWithMetadata extends SleeperDraftPick {
   draft_id?: string;
   roster_map?: Record<string, string>;
+  roster_display_map?: Record<string, string>;
   user_id_to_manager_map?: Record<string, string>;
+  user_id_to_manager_display_map?: Record<string, string>;
   season?: number;
   original_roster_id?: number | null;
 }
@@ -146,7 +152,8 @@ export async function analyzeDraftPicks(
   ktcValuesLastWeek?: Record<string, { name: string; ktc_value: number }>,
   ktcValuesMay2025?: Record<string, PositionRankData>,
   currentKTCRanks?: Record<string, { name: string; ktc_value: number; position_rank?: string }>,
-  ktcValuesByDraftYear?: Record<string, Record<string, PositionRankData>>
+  ktcValuesByDraftYear?: Record<string, Record<string, PositionRankData>>,
+  managerDisplayNameByManager: Record<string, string> = {}
 ): Promise<{ draftPicks: any[]; draftStats: any[] }> {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
@@ -275,6 +282,7 @@ export async function analyzeDraftPicks(
   Object.values(rosterMap).forEach((manager) => {
     managerStats.set(manager, {
       manager,
+      managerDisplayName: managerDisplayNameByManager[manager] || manager,
       totalPicks: 0,
       avgAdpDiff: 0,
       avgKtcGain: 0,
@@ -290,7 +298,9 @@ export async function analyzeDraftPicks(
   for (const pick of draftPicks) {
     const player = players[pick.player_id];
     const pickRosterMap = pick.roster_map || rosterMap;
+    const pickRosterDisplayMap = pick.roster_display_map || {};
     const userIdToManagerMap = pick.user_id_to_manager_map || {};
+    const userIdToManagerDisplayMap = pick.user_id_to_manager_display_map || {};
     
 
     
@@ -299,6 +309,10 @@ export async function analyzeDraftPicks(
     if (!manager) {
       manager = pickRosterMap[pick.picked_by] || 'Unknown';
     }
+    const managerDisplayName = userIdToManagerDisplayMap[pick.picked_by]
+      || pickRosterDisplayMap[pick.picked_by]
+      || managerDisplayNameByManager[manager]
+      || manager;
     const originalRosterId = typeof pick.original_roster_id === 'number'
       ? pick.original_roster_id
       : typeof pick.roster_id === 'number'
@@ -409,6 +423,7 @@ export async function analyzeDraftPicks(
       playerName,
       playerPos,
       manager,
+      managerDisplayName,
       originalOwner,
       originalRosterId,
       adp,
@@ -427,6 +442,7 @@ export async function analyzeDraftPicks(
     // Update manager stats
     const stats = managerStats.get(manager);
     if (stats) {
+      stats.managerDisplayName = managerDisplayName;
       stats.totalPicks += 1;
 
       // Track ADP diff (positive = reached, negative = fell)
@@ -492,7 +508,18 @@ export async function fetchDraftData(
   leagueId: string,
   rosterMappingData: RosterMappingData
 ): Promise<DraftPickWithMetadata[]> {
-  const { currentRosterMap, currentRosters, currentUserIdToManagerMap, pastRosterMap, pastRosters, pastUserIdToManagerMap, prevLeagueId, draftSlotsBySeason } = rosterMappingData;
+  const {
+    currentRosterMap,
+    currentRosterDisplayMap,
+    currentUserIdToManagerMap,
+    currentUserIdToManagerDisplayMap,
+    pastRosterMap,
+    pastRosterDisplayMap,
+    pastUserIdToManagerMap,
+    pastUserIdToManagerDisplayMap,
+    prevLeagueId,
+    draftSlotsBySeason,
+  } = rosterMappingData;
   
   const allPicks: DraftPickWithMetadata[] = [];
 
@@ -528,7 +555,9 @@ export async function fetchDraftData(
               ...pick,
               draft_id: draft.draft_id,
               roster_map: currentRosterMap,
+              roster_display_map: currentRosterDisplayMap,
               user_id_to_manager_map: currentUserIdToManagerMap,
+              user_id_to_manager_display_map: currentUserIdToManagerDisplayMap,
               season: draft.season,
               original_roster_id: getOriginalRosterId(draft.season, pick),
             });
@@ -555,7 +584,9 @@ export async function fetchDraftData(
                 ...pick,
                 draft_id: draft.draft_id,
                 roster_map: pastRosterMap,
+                roster_display_map: pastRosterDisplayMap,
                 user_id_to_manager_map: pastUserIdToManagerMap,
+                user_id_to_manager_display_map: pastUserIdToManagerDisplayMap,
                 season: draft.season,
                 original_roster_id: getOriginalRosterId(draft.season, pick),
               });

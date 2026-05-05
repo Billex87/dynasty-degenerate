@@ -18,6 +18,7 @@ interface ManagerDraftPicksModalProps {
   isOpen: boolean;
   onClose: () => void;
   managerName: string;
+  managerDisplayName?: string;
   draftPicks: DraftPick[];
   managerAvatarUrl?: string | null;
   playerDetailsById?: Record<string, PlayerDetails>;
@@ -30,6 +31,7 @@ export function ManagerDraftPicksModal({
   isOpen,
   onClose,
   managerName,
+  managerDisplayName,
   draftPicks,
   managerAvatarUrl,
   playerDetailsById,
@@ -45,7 +47,8 @@ export function ManagerDraftPicksModal({
   const opportunityByPick = draftOpportunityByPick || fallbackOpportunityByPick;
   const totalCurrentValue = managerPicks.reduce((sum, pick) => sum + (pick.currentKtcValue || 0), 0);
   const totalValueGain = managerPicks.reduce((sum, pick) => sum + (pick.valueGain || 0), 0);
-  const managerInitial = managerName.trim()[0]?.toUpperCase() || '?';
+  const displayManagerName = managerDisplayName || managerName;
+  const managerInitial = displayManagerName.trim()[0]?.toUpperCase() || '?';
 
   return (
     <>
@@ -76,7 +79,7 @@ export function ManagerDraftPicksModal({
                     {managerAvatarUrl ? (
                       <img
                         src={managerAvatarUrl}
-                        alt={managerName}
+                        alt={displayManagerName}
                         className="manager-draft-champion-avatar"
                       />
                     ) : (
@@ -90,7 +93,7 @@ export function ManagerDraftPicksModal({
                       Draft Portfolio
                     </p>
                     <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400 sm:text-4xl">
-                      {managerName}
+                      {displayManagerName}
                     </DialogTitle>
                     <ManagerChampionshipPills managerName={managerName} className="mt-2 justify-center" />
                   </div>
@@ -99,9 +102,9 @@ export function ManagerDraftPicksModal({
 
               <div className="relative mt-5 grid grid-cols-3 gap-2 sm:max-w-xl sm:gap-3">
                 <ManagerDraftStat label="Picks" value={managerPicks.length.toLocaleString()} />
-                <ManagerDraftStat label="Current Blend" value={totalCurrentValue.toLocaleString()} />
+                <ManagerDraftStat label="Current Value" value={totalCurrentValue.toLocaleString()} />
                 <ManagerDraftStat
-                  label="Blend Gain"
+                  label="Value Change"
                   value={`${totalValueGain > 0 ? '+' : ''}${totalValueGain.toLocaleString()}`}
                   tone={totalValueGain > 0 ? 'positive' : totalValueGain < 0 ? 'negative' : 'neutral'}
                 />
@@ -134,7 +137,7 @@ export function ManagerDraftPicksModal({
                         <span>{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
                       </div>
                       <div className="player-tile-value-strip">
-                        <span>Gain</span>
+                        <span>Change</span>
                         <span className={gainTone}>
                           {pick.valueGain !== null && pick.valueGain !== undefined ? (
                             <>
@@ -157,7 +160,7 @@ export function ManagerDraftPicksModal({
 
           {managerPicks.length === 0 && (
             <div className="text-center py-8">
-              <p className="text-slate-400">No draft picks found for {managerName}</p>
+              <p className="text-slate-400">No draft picks found for {displayManagerName}</p>
             </div>
           )}
           </div>

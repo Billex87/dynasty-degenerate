@@ -251,6 +251,7 @@ export interface DraftPick {
   playerName: string;
   playerPos: string;
   manager: string;
+  managerDisplayName?: string;
   originalOwner?: string | null;
   originalRosterId?: number | null;
   adp: number | null;
@@ -389,6 +390,7 @@ export interface RecentTransaction {
 
 export interface ManagerDraftStats {
   manager: string;
+  managerDisplayName?: string;
   totalPicks: number;
   avgAdpDiff: number;
   avgKtcGain: number;

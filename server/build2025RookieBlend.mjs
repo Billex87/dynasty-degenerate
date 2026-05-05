@@ -4,7 +4,7 @@
  * Enrich the 2025 rookie draft baseline with same-window DynastyProcess data.
  *
  * FantasyCalc/FantasyPros do not expose a reliable May 2025 historical feed for
- * this app, so this deliberately blends only sources we can prove existed then:
+ * this app, so this deliberately combines only sources we can prove existed then:
  * KTC May 2025 + DynastyProcess values-players.csv from 2025-05-09.
  */
 
@@ -126,11 +126,11 @@ async function main() {
     SNAPSHOT_PATH,
     `${JSON.stringify(
       {
-        label: '2025 Rookie Historical Blend',
+        label: '2025 Rookie Draft-Window Values',
         capturedAt: 'May 2025',
-        comparisonMode: 'blend-to-blend',
+        comparisonMode: 'value-to-value',
         notes:
-          'Locked historical baseline for 2025 rookie draft gain. Compare these blended draft-window values to current blended values; do not mix this with raw-only current values.',
+          'Locked historical baseline for 2025 rookie draft value change. Compare these draft-window values to current values; do not mix this with raw-only current values.',
         sourceCoverage: [
           {
             source: 'KTC',
@@ -152,12 +152,12 @@ async function main() {
           {
             source: 'FantasyCalc',
             status: 'historical_not_verified',
-            notes: 'Current FantasyCalc data is used in today blends, but no stable May 2025 historical feed is locked here yet.',
+            notes: 'Current FantasyCalc data is used in today values, but no stable May 2025 historical feed is locked here yet.',
           },
           {
             source: 'FantasyPros',
             status: 'historical_not_verified',
-            notes: 'Current FantasyPros season ranking data is used in today blends, but no stable May 2025 historical value snapshot is locked here yet.',
+            notes: 'Current FantasyPros season ranking data is used in today values, but no stable May 2025 historical value snapshot is locked here yet.',
           },
         ],
         values: enriched,

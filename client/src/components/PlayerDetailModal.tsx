@@ -116,6 +116,7 @@ export function PlayerDetailModal({
     ? `radial-gradient(circle at 18% 18%, ${teamColors.primary}88, transparent 34%), radial-gradient(circle at 88% 8%, ${teamColors.secondary}99, transparent 30%), linear-gradient(135deg, ${teamColors.primary} 0%, #070b13 48%, ${teamColors.secondary} 100%)`
     : undefined;
   const managerAvatarUrl = pick.managerAvatarUrl || (pick.manager ? managerAvatars?.[pick.manager] : null);
+  const managerDisplayName = pick.managerDisplayName || pick.manager || '';
   const playerNameSizeClass = getPlayerNameSizeClass(pick.playerName);
   const availability = getPlayerAvailability(details);
   const physicalRows = [
@@ -241,6 +242,7 @@ export function PlayerDetailModal({
                     <ManagerNameWithAvatar
                       avatarUrl={managerAvatarUrl}
                       managerName={pick.manager}
+                      displayName={managerDisplayName}
                     />
                   </div>
                 ) : (
@@ -312,6 +314,27 @@ export function PlayerDetailModal({
           </div>
 
           <div className="space-y-4 bg-slate-950/35 p-4 backdrop-blur-sm sm:space-y-5 sm:p-6">
+            {(pick.round !== undefined || pick.pick !== undefined) && (
+              <div className="mx-auto grid max-w-xl grid-cols-2 gap-2 sm:gap-3">
+                {pick.round !== undefined && (
+                  <InlineInfoTile
+                    label="Round"
+                    value={String(pick.round)}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                )}
+                {pick.pick !== undefined && (
+                  <InlineInfoTile
+                    label="Pick #"
+                    value={String(pick.pick)}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                )}
+              </div>
+            )}
+
             <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
               {currentValue !== undefined && (
                 <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} tileAccent={tileAccent} />
@@ -330,10 +353,32 @@ export function PlayerDetailModal({
             </div>
 
             {valueGain !== undefined && (
-              <p className="text-center text-xs leading-relaxed text-slate-500">
+              <p className="text-center text-[0.72rem] leading-none text-slate-500 sm:text-xs">
                 <span className="font-semibold text-cyan-300">Value Change:</span> {valueChangeNote}
               </p>
             )}
+
+            {details?.similarTradeValues?.length ? (
+              <div className="mx-auto max-w-xl space-y-2">
+                <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
+                  Cross-Position Trade Comps
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {details.similarTradeValues.map((peer) => (
+                    <div key={peer.playerId} className="rounded-xl border border-cyan-300/15 bg-slate-950/45 p-2 text-center">
+                      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">{peer.label || peer.position}</div>
+                      <div className="mt-1 truncate text-sm font-black text-slate-100">{peer.name}</div>
+                      <div className="mt-1 flex items-center justify-center gap-1 text-[0.68rem] font-black">
+                        <span className={getPositionRankPillClass(peer.rank || peer.position)}>{peer.rank || peer.position}</span>
+                        <span className={peer.difference > 0 ? 'text-emerald-300' : peer.difference < 0 ? 'text-rose-300' : 'text-slate-300'}>
+                          {peer.difference > 0 ? '+' : ''}{peer.difference.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {(pick.draftDecisionSummary || pick.draftDecisionAltPlayerName) && (
               <div className="mx-auto max-w-xl rounded-2xl border border-cyan-300/18 bg-slate-950/45 p-3 shadow-inner shadow-white/[0.02] sm:p-4">
@@ -341,7 +386,7 @@ export function PlayerDetailModal({
                   Draft Decision Audit
                 </p>
                 {draftAuditRows.length > 0 && (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <div className="mt-3 grid grid-cols-3 gap-2">
                     {draftAuditRows.map(([label, value]) => (
                       <InfoTile
                         key={label}
@@ -437,63 +482,21 @@ export function PlayerDetailModal({
                 </div>
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
                   <p className="text-center text-[0.68rem] font-bold leading-relaxed uppercase tracking-[0.16em] text-cyan-200/70">
-                    Our rank blend weighs dynasty market, current-season outlook, expert baselines, and team-window fit.
+                    Our rank score weighs dynasty market, current-season outlook, expert baselines, and team-window fit.
                     {valueProfile.fantasyProsPositionRank ? ` Expert season baseline: ${valueProfile.fantasyProsPositionRank}.` : ''}
                   </p>
                 )}
               </div>
             )}
 
-            {details?.similarTradeValues?.length ? (
-              <div className="mx-auto max-w-xl space-y-2">
-                <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
-                  Cross-Position Trade Comps
-                </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {details.similarTradeValues.map((peer) => (
-                    <div key={peer.playerId} className="rounded-xl border border-cyan-300/15 bg-slate-950/45 p-2 text-center">
-                      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">{peer.label || peer.position}</div>
-                      <div className="mt-1 truncate text-sm font-black text-slate-100">{peer.name}</div>
-                      <div className="mt-1 flex items-center justify-center gap-1 text-[0.68rem] font-black">
-                        <span className={getPositionRankPillClass(peer.rank || peer.position)}>{peer.rank || peer.position}</span>
-                        <span className={peer.difference > 0 ? 'text-emerald-300' : peer.difference < 0 ? 'text-rose-300' : 'text-slate-300'}>
-                          {peer.difference > 0 ? '+' : ''}{peer.difference.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
             <div className="mx-auto max-w-xl space-y-3">
               {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025) && (
                 <div className="space-y-3">
-                  {(pick.round !== undefined || pick.pick !== undefined) && (
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      {pick.round !== undefined && (
-                        <InlineInfoTile
-                          label="Round"
-                          value={String(pick.round)}
-                          teamColors={teamColors}
-                          tileAccent={tileAccent}
-                        />
-                      )}
-                      {pick.pick !== undefined && (
-                        <InlineInfoTile
-                          label="Pick #"
-                          value={String(pick.pick)}
-                          teamColors={teamColors}
-                          tileAccent={tileAccent}
-                        />
-                      )}
-                    </div>
-                  )}
                   {(draftValue !== undefined || pick.positionRankMay2025) && (
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       {draftValue !== undefined && (
                         <InfoTile
-                          label="Draft Blend"
+                          label="Draft-Day Value"
                           value={draftValue ? draftValue.toLocaleString() : '-'}
                           teamColors={teamColors}
                           tileAccent={tileAccent}
@@ -692,7 +695,7 @@ function getValueProfileRank(
 
 function getValueChangeNote(pick: PlayerModalData) {
   if (pick.ktcValue !== undefined) {
-    return 'Change from historical draft-window blend to current blend.';
+    return 'Draft-day value to current value.';
   }
 
   return 'Change from last week to this week.';

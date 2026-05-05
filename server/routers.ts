@@ -13,11 +13,16 @@ import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
 import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
 import { insertLoginAttempt } from "./db";
+import { isCurrentFantasySkillPlayer } from "./playerEligibility";
 import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
   return fallback.replace(/\d+$/, '') || fallback;
+}
+
+function getManagerDisplayName(name: string | undefined): string {
+  return name?.trim() || 'Unknown';
 }
 
 function getClientIp(req: { headers: Record<string, any>; socket?: { remoteAddress?: string | null } }): string | null {
@@ -760,7 +765,7 @@ function buildSimilarTradeValueMap(
     ...requestedPlayerIds,
     ...Object.keys(players).filter((playerId) => {
       const player = players[playerId];
-      return ['QB', 'RB', 'WR', 'TE'].includes(player?.position)
+      return isCurrentFantasySkillPlayer(player)
         && ['Active', 'Inactive', null, undefined].includes(player?.status);
     }),
   ]));
@@ -1024,7 +1029,7 @@ function buildWaiverIntelligence(
   const availablePlayerPool = Object.entries(players)
     .filter(([playerId, player]) => {
       if (!playerId || ownerByPlayerId[playerId]) return false;
-      if (!['QB', 'RB', 'WR', 'TE'].includes(player?.position)) return false;
+      if (!isCurrentFantasySkillPlayer(player)) return false;
       const value = getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
       return value > 0;
     })
@@ -1500,6 +1505,12 @@ export const appRouter = router({
               normalizeManagerName(userMap[r.owner_id]?.display_name),
             ])
           );
+          const rosterUserDisplayMap = Object.fromEntries(
+            rosters.map((r: any) => [
+              r.roster_id,
+              getManagerDisplayName(userMap[r.owner_id]?.display_name),
+            ])
+          );
           const ownerByPlayerId = buildPlayerOwnerMap(rosters, rosterUserMap);
           const rosterStatusByPlayerId = buildPlayerRosterStatusMap(rosters);
 
@@ -1539,6 +1550,7 @@ export const appRouter = router({
 
           const prevLeagueId = leagueInfo.previous_league_id;
           let pastSeasonData = null;
+          let pastRosterDisplayMap: Record<string, string> = {};
           let draftSlotsBySeason = await fetchDraftSlotsBySeason(input.leagueId, rosters);
 
           if (prevLeagueId) {
@@ -1561,6 +1573,13 @@ export const appRouter = router({
                   normalizeManagerName(pastUserMap[r.owner_id]?.display_name),
                 ])
               );
+              const pastRosterUserDisplayMap = Object.fromEntries(
+                pastRosters.map((r: any) => [
+                  r.roster_id,
+                  getManagerDisplayName(pastUserMap[r.owner_id]?.display_name),
+                ])
+              );
+              pastRosterDisplayMap = pastRosterUserDisplayMap;
               // Fetch trades from previous season
               const pastTrades: any[] = [];
               for (let week = 1; week <= 18; week++) {
@@ -1598,6 +1617,12 @@ export const appRouter = router({
           // Create user_id to manager name map for draft analysis
           const userIdToManagerMap = Object.fromEntries(
             users.map((u: any) => [u.user_id, normalizeManagerName(u.display_name)])
+          );
+          const userIdToManagerDisplayMap = Object.fromEntries(
+            users.map((u: any) => [u.user_id, getManagerDisplayName(u.display_name)])
+          );
+          const managerDisplayNameByManager = Object.fromEntries(
+            users.map((u: any) => [normalizeManagerName(u.display_name), getManagerDisplayName(u.display_name)])
           );
           const viewerManager = input.viewerUserId ? userIdToManagerMap[input.viewerUserId] || null : null;
           const currentStandings = buildCurrentStandings(rosters, rosterUserMap);
@@ -1638,12 +1663,23 @@ export const appRouter = router({
           // currentUserMap is the same as userIdToManagerMap, so we can reuse it
           const currentUserMap = userIdToManagerMap;
           let pastUserMap: Record<string, string> = {};
+          let pastUserDisplayMap: Record<string, string> = {};
+          const pastManagerDisplayNameByManager: Record<string, string> = {};
           if (pastSeasonData) {
             const pastUsers = await fetch(
               `https://api.sleeper.app/v1/league/${prevLeagueId}/users`
             ).then((r) => r.json());
             pastUserMap = Object.fromEntries(
               pastUsers.map((u: any) => [u.user_id, normalizeManagerName(u.display_name)])
+            );
+            pastUserDisplayMap = Object.fromEntries(
+              pastUsers.map((u: any) => [u.user_id, getManagerDisplayName(u.display_name)])
+            );
+            Object.assign(
+              pastManagerDisplayNameByManager,
+              Object.fromEntries(
+                pastUsers.map((u: any) => [normalizeManagerName(u.display_name), getManagerDisplayName(u.display_name)])
+              )
             );
           }
 
@@ -1655,13 +1691,17 @@ export const appRouter = router({
           try {
             const draftPicks = await fetchDraftData(input.leagueId, {
               currentRosterMap: rosterUserMap,
+              currentRosterDisplayMap: rosterUserDisplayMap,
               currentRosters: rosters,
               currentUserMap,
               currentUserIdToManagerMap: userIdToManagerMap,
+              currentUserIdToManagerDisplayMap: userIdToManagerDisplayMap,
               pastRosterMap: pastSeasonData?.rosterMap || {},
+              pastRosterDisplayMap,
               pastRosters: pastSeasonData?.rosters || [],
               pastUserMap,
               pastUserIdToManagerMap: pastUserMap,
+              pastUserIdToManagerDisplayMap: pastUserDisplayMap,
               prevLeagueId,
               draftSlotsBySeason,
             });
@@ -1679,7 +1719,11 @@ export const appRouter = router({
                 ktcValuesLastWeek,
                 rookieValues2025,
                 ktcValues,
-                rookieValuesByDraftYear
+                rookieValuesByDraftYear,
+                {
+                  ...pastManagerDisplayNameByManager,
+                  ...managerDisplayNameByManager,
+                }
               );
             }
           } catch (e) {

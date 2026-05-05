@@ -9,15 +9,15 @@ vi.mock('./nflHeadshotFetcher', () => ({
 }));
 
 describe('Draft Analysis', () => {
-  it('loads the locked 2025 rookie blend snapshot with source metadata', () => {
+  it('loads the locked 2025 rookie value snapshot with source metadata', () => {
     const baseline = getRookieValueBaseline('2025');
     const metadata = getRookieValueBaselineMetadata('2025');
     const emeka =
       baseline?.['emeka-egbuka-1781'] ||
       Object.values(baseline || {}).find((record) => record.name === 'Emeka Egbuka');
 
-    expect(metadata?.label).toBe('2025 Rookie Historical Blend');
-    expect(metadata?.comparisonMode).toBe('blend-to-blend');
+    expect(metadata?.label).toBe('2025 Rookie Draft-Window Values');
+    expect(metadata?.comparisonMode).toBe('value-to-value');
     expect(metadata?.sourceCoverage?.map((source) => source.source)).toEqual(
       expect.arrayContaining(['KTC', 'DynastyProcess', 'FantasyCalc', 'FantasyPros'])
     );
@@ -169,6 +169,43 @@ describe('Draft Analysis', () => {
     });
   });
 
+  it('carries full manager display names for draft UI without changing manager keys', async () => {
+    const result = await analyzeDraftPicks(
+      [
+        {
+          round: 1,
+          pick_no: 4,
+          player_id: 'player1',
+          picked_by: 'user1',
+          roster_map: { 1: 'PurpleHaze' },
+          roster_display_map: { 1: 'PurpleHaze89' },
+          user_id_to_manager_map: { user1: 'PurpleHaze' },
+          user_id_to_manager_display_map: { user1: 'PurpleHaze89' },
+        },
+      ] as any,
+      {
+        player1: { full_name: 'Player One', position: 'RB' },
+      },
+      { 1: 'PurpleHaze' },
+      { playerone: { name: 'Player One', ktc_value: 1000 } },
+      { player1: { name: 'Player One', adp: 4 } },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { PurpleHaze: 'PurpleHaze89' }
+    );
+
+    expect(result.draftPicks[0]).toMatchObject({
+      manager: 'PurpleHaze',
+      managerDisplayName: 'PurpleHaze89',
+    });
+    expect(result.draftStats[0]).toMatchObject({
+      manager: 'PurpleHaze',
+      managerDisplayName: 'PurpleHaze89',
+    });
+  });
+
   it('should keep draft value separate from current value', async () => {
     const mockDraftPicks = [
       {
@@ -239,7 +276,7 @@ describe('Draft Analysis', () => {
     expect(result.draftPicks[0].positionRankChange).toBe('+3');
   });
 
-  it('should prefer historical blended draft-year baseline values when available', async () => {
+  it('should prefer historical draft-year baseline values when available', async () => {
     const mockDraftPicks = [
       {
         round: 1,

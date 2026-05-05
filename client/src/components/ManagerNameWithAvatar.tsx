@@ -3,15 +3,18 @@ import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampion
 interface ManagerNameWithAvatarProps {
   avatarUrl?: string | null;
   managerName: string;
+  displayName?: string;
   showAccoladePills?: boolean;
 }
 
 export function ManagerNameWithAvatar({
   avatarUrl,
   managerName,
+  displayName,
   showAccoladePills = false,
 }: ManagerNameWithAvatarProps) {
-  const initial = managerName.trim()[0]?.toUpperCase() || '?';
+  const visibleName = displayName || managerName;
+  const initial = visibleName.trim()[0]?.toUpperCase() || '?';
 
   return (
     <div className="manager-chip flex min-w-0 items-center gap-2">
@@ -19,7 +22,7 @@ export function ManagerNameWithAvatar({
         {avatarUrl ? (
           <img
             src={avatarUrl}
-            alt={managerName}
+            alt={visibleName}
             className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
           />
         ) : (
@@ -31,7 +34,7 @@ export function ManagerNameWithAvatar({
           </span>
         )}
       </ChampionAvatarFrame>
-      <span className="min-w-0 truncate">{managerName}</span>
+      <span className="min-w-0 truncate">{visibleName}</span>
       {showAccoladePills && <ManagerChampionshipPills managerName={managerName} />}
     </div>
   );

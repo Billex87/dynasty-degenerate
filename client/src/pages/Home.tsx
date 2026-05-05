@@ -44,6 +44,11 @@ const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
 const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
+const KTC_ADMIN_USERNAME = 'mynameisbillex';
+
+function getKtcAdminIdentity(user?: SleeperUserSession | null, fallbackUsername?: string): string | null {
+  return user?.username || user?.displayName || fallbackUsername || null;
+}
 
 type SleeperLeagueOption = {
   leagueId: string;
@@ -230,6 +235,7 @@ export default function Home() {
   const [focusedAutocomplete, setFocusedAutocomplete] = useState<'username' | 'league' | null>(null);
   const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+  const [viewerUsername, setViewerUsername] = useState<string | null>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [leagueName, setLeagueName] = useState('');
@@ -268,6 +274,7 @@ export default function Home() {
       const username = variables.username.trim();
       setUserLeagues(data.leagues);
       setViewerUserId(data.user?.userId || null);
+      setViewerUsername(getKtcAdminIdentity(data.user, username));
       if (data.leagues.length === 0) {
         toast.error('No Sleeper leagues found for this username');
         return;
@@ -302,6 +309,7 @@ export default function Home() {
         setSleeperUsername(parsed.username || '');
         restoredViewerUserId = parsed.user?.userId || null;
         setViewerUserId(restoredViewerUserId);
+        setViewerUsername(getKtcAdminIdentity(parsed.user, parsed.username));
         if (parsed.username) {
           setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, parsed.username));
         }
@@ -415,6 +423,7 @@ export default function Home() {
     setLeagueFormat('');
     setUserLeagues([]);
     setViewerUserId(null);
+    setViewerUsername(null);
     setActiveTab('overview');
   };
 
@@ -443,6 +452,7 @@ export default function Home() {
 
   const usernameAutocompleteOptions = getFilteredAutocompleteOptions(sleeperUsernameHistory, sleeperUsername);
   const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(leagueIdHistory, leagueId);
+  const isKtcAdminViewer = viewerUsername?.trim().toLowerCase() === KTC_ADMIN_USERNAME;
   const clownEasterEggDialog = (
     <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
       <DialogContent className="clown-easter-egg-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
@@ -531,7 +541,7 @@ export default function Home() {
 
         {/* Content */}
         <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
-          <SnapshotCoverageBanner />
+          {isKtcAdminViewer && <SnapshotCoverageBanner />}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="report-tabs">
               <TabsTrigger value="overview" className="report-tab">
@@ -626,7 +636,7 @@ export default function Home() {
 
             <TabsContent value="momentum" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                {(reportData.weeklyRisers.some((player) => player.val_now >= 2500) ||
+                {isKtcAdminViewer && (reportData.weeklyRisers.some((player) => player.val_now >= 2500) ||
                   reportData.weeklyFallers.some((player) => player.val_now >= 1800)) && (
                   <CollapsibleReportSection title="Trade Market Radar" kicker="Buy and sell signals">
                     <TradeMarketRadar
@@ -657,12 +667,16 @@ export default function Home() {
                     leagueLogo={leagueLogo}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day market gainers">
-                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day market drops">
-                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
-                </CollapsibleReportSection>
+                {isKtcAdminViewer && (
+                  <>
+                    <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers">
+                      <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
+                    </CollapsibleReportSection>
+                    <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops">
+                      <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
+                    </CollapsibleReportSection>
+                  </>
+                )}
                 <CollapsibleReportSection title="Trending Adds" kicker="Sleeper activity">
                   <TrendingPlayersTable
                     data={reportData.trendingAdds || []}
