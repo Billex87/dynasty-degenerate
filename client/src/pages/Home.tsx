@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Repeat2, ClipboardList } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Repeat2, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { SupportButton } from '@/components/SupportButton';
@@ -373,10 +373,16 @@ export default function Home() {
   const [leagueLogo, setLeagueLogo] = useState<string | null>(null);
   const [leagueFormat, setLeagueFormat] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [analysisCompleteMessage, setAnalysisCompleteMessage] = useState<{
+    leagueName: string;
+    leagueFormat: string;
+    leagueLogo: string | null;
+  } | null>(null);
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
   const [isAdminPermissionsModalOpen, setIsAdminPermissionsModalOpen] = useState(false);
+  const successTransitionTimerRef = useRef<number | null>(null);
 
   const rememberLeagueId = (value: string) => {
     setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, value));
@@ -388,19 +394,41 @@ export default function Home() {
 
   const analyzeMutation = trpc.league.analyze.useMutation({
     onSuccess: (data) => {
+      if (successTransitionTimerRef.current) {
+        window.clearTimeout(successTransitionTimerRef.current);
+      }
       setLeagueId(data.leagueId);
-      setReportData(data.reportData);
       setLeagueName(data.leagueName);
       setLeagueLogo(data.leagueLogo);
       setLeagueFormat(data.leagueFormat);
-      setIsLoading(false);
-      toast.success('Report generated successfully!');
+      setAnalysisCompleteMessage({
+        leagueName: data.leagueName,
+        leagueFormat: data.leagueFormat,
+        leagueLogo: data.leagueLogo,
+      });
+      successTransitionTimerRef.current = window.setTimeout(() => {
+        setReportData(data.reportData);
+        setIsLoading(false);
+        setAnalysisCompleteMessage(null);
+        successTransitionTimerRef.current = null;
+      }, 1400);
     },
     onError: (error) => {
+      if (successTransitionTimerRef.current) {
+        window.clearTimeout(successTransitionTimerRef.current);
+        successTransitionTimerRef.current = null;
+      }
+      setAnalysisCompleteMessage(null);
       setIsLoading(false);
       toast.error(`Error: ${error.message}`);
     },
   });
+
+  useEffect(() => () => {
+    if (successTransitionTimerRef.current) {
+      window.clearTimeout(successTransitionTimerRef.current);
+    }
+  }, []);
 
   const userLeaguesMutation = trpc.league.getUserLeagues.useMutation({
     onSuccess: (data, variables) => {
@@ -537,6 +565,7 @@ export default function Home() {
     }
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
+    setAnalysisCompleteMessage(null);
     setIsLoading(true);
     analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: viewerUserId || undefined });
   };
@@ -594,8 +623,13 @@ export default function Home() {
     localStorage.removeItem(REPORT_CACHE_KEY);
     localStorage.removeItem(LAST_LEAGUE_KEY);
     localStorage.removeItem(SLEEPER_SESSION_KEY);
+    if (successTransitionTimerRef.current) {
+      window.clearTimeout(successTransitionTimerRef.current);
+      successTransitionTimerRef.current = null;
+    }
     setIsLeaguePickerOpen(false);
     setIsChangeLeagueModalOpen(false);
+    setAnalysisCompleteMessage(null);
     setReportData(null);
     setLeagueId('');
     setSleeperUsername('');
@@ -1170,8 +1204,28 @@ export default function Home() {
         </div>
       </div>  <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
         {isLoading ? (
-          <div className="w-full max-w-2xl">
-            <LoadingAnimation />
+          <div className="home-loading-stage w-full max-w-2xl">
+            <LoadingAnimation isComplete={Boolean(analysisCompleteMessage)} />
+            {analysisCompleteMessage && (
+              <div className="loading-success-card" role="status" aria-live="polite">
+                <div className="loading-success-icon">
+                  {analysisCompleteMessage.leagueLogo ? (
+                    <img
+                      src={analysisCompleteMessage.leagueLogo}
+                      alt=""
+                    />
+                  ) : (
+                    <CheckCircle2 aria-hidden="true" />
+                  )}
+                </div>
+                <p className="loading-success-kicker">Report Generated</p>
+                <h2>{analysisCompleteMessage.leagueName || 'League report'}</h2>
+                {analysisCompleteMessage.leagueFormat && (
+                  <p className="loading-success-format">{analysisCompleteMessage.leagueFormat}</p>
+                )}
+                <div className="loading-success-bar" aria-hidden="true" />
+              </div>
+            )}
           </div>
         ) : (
           <div className="home-hero w-full max-w-3xl space-y-8 sm:space-y-12">

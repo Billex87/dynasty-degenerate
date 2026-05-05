@@ -9,19 +9,28 @@ interface LoadingStep {
   status: 'pending' | 'loading' | 'complete';
 }
 
-export function LoadingAnimation() {
+const initialLoadingSteps: LoadingStep[] = [
+  { id: 'sleeper', label: 'Hacking into Sleeper servers...', status: 'loading' },
+  { id: 'league', label: 'Stealing league data & trade secrets', status: 'pending' },
+  { id: 'ktc', label: 'Blending market values from multiple sources', status: 'pending' },
+  { id: 'dynasty', label: 'Destroying FlockFantasy\'s data fortress', status: 'pending' },
+  { id: 'csv', label: 'Generating your illegal advantage', status: 'pending' },
+  { id: 'final', label: 'Covering our tracks...', status: 'pending' },
+];
+
+export function LoadingAnimation({ isComplete = false }: { isComplete?: boolean }) {
   const [steps, setSteps] = useState<LoadingStep[]>([
-    { id: 'sleeper', label: 'Hacking into Sleeper servers...', status: 'loading' },
-    { id: 'league', label: 'Stealing league data & trade secrets', status: 'pending' },
-    { id: 'ktc', label: 'Blending market values from multiple sources', status: 'pending' },
-    { id: 'dynasty', label: 'Destroying FlockFantasy\'s data fortress', status: 'pending' },
-    { id: 'csv', label: 'Generating your illegal advantage', status: 'pending' },
-    { id: 'final', label: 'Covering our tracks...', status: 'pending' },
+    ...initialLoadingSteps,
   ]);
 
   useEffect(() => {
+    if (isComplete) {
+      setSteps((currentSteps) => currentSteps.map((step) => ({ ...step, status: 'complete' })));
+      return;
+    }
+
     const timings = [1200, 2400, 3600, 4800, 6000, 7200];
-    const timers = steps.map((step, index) => {
+    const timers = initialLoadingSteps.map((_step, index) => {
       return setTimeout(() => {
         setSteps(prev => {
           const newSteps = [...prev];
@@ -37,7 +46,7 @@ export function LoadingAnimation() {
     });
 
     return () => timers.forEach(timer => clearTimeout(timer));
-  }, []);
+  }, [isComplete]);
 
   return (
     <div className="loading-panel flex flex-col items-center justify-start h-auto px-4 pt-1 pb-4 sm:pt-2 sm:pb-8">
@@ -50,7 +59,9 @@ export function LoadingAnimation() {
             className="w-auto h-full object-contain scale-120"
           />
         </div>
-        <p className="loading-title text-slate-400 text-lg sm:text-2xl font-semibold -mt-1 sm:-mt-2 pb-2 sm:pb-4">Analyzing your league...</p>
+        <p className="loading-title text-slate-400 text-lg sm:text-2xl font-semibold -mt-1 sm:-mt-2 pb-2 sm:pb-4">
+          {isComplete ? 'Report locked and loaded.' : 'Analyzing your league...'}
+        </p>
       </div>
 
       {/* Loading Steps - Center */}
