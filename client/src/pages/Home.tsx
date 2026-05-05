@@ -42,7 +42,9 @@ const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
 const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
+const CACHED_SLEEPER_USERS_KEY = 'dynasty-degenerates:sleeper-user-history:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
+const MAX_CACHED_SLEEPER_USERS = 5;
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-04-30';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
 const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'awwqq', 'zojozo']);
@@ -105,6 +107,121 @@ type SleeperSession = {
   adminViewMode?: AdminViewMode | null;
   savedAt: number;
 };
+
+type CachedSleeperUser = {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  leagues: SleeperLeagueOption[];
+  savedAt: number;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function normalizeLeagueOption(value: unknown): SleeperLeagueOption | null {
+  if (!isRecord(value) || typeof value.leagueId !== 'string' || typeof value.name !== 'string') {
+    return null;
+  }
+
+  return {
+    leagueId: value.leagueId,
+    name: value.name,
+    avatarUrl: typeof value.avatarUrl === 'string' ? value.avatarUrl : null,
+    season: typeof value.season === 'string' ? value.season : '',
+    format: typeof value.format === 'string' ? value.format : '',
+    mobileFormat: typeof value.mobileFormat === 'string' ? value.mobileFormat : '',
+    totalRosters: typeof value.totalRosters === 'number' ? value.totalRosters : 0,
+    standingsRank: typeof value.standingsRank === 'number' ? value.standingsRank : null,
+    powerRank: typeof value.powerRank === 'number' ? value.powerRank : null,
+  };
+}
+
+function normalizeCachedSleeperUser(value: unknown): CachedSleeperUser | null {
+  if (!isRecord(value) || typeof value.username !== 'string') return null;
+  const username = value.username.trim();
+  if (!username) return null;
+  const leagues = Array.isArray(value.leagues)
+    ? value.leagues.map(normalizeLeagueOption).filter((league): league is SleeperLeagueOption => Boolean(league))
+    : [];
+
+  return {
+    userId: typeof value.userId === 'string' && value.userId.trim() ? value.userId : username,
+    username,
+    displayName: typeof value.displayName === 'string' && value.displayName.trim() ? value.displayName : username,
+    avatarUrl: typeof value.avatarUrl === 'string' && value.avatarUrl.trim() ? value.avatarUrl : null,
+    leagues,
+    savedAt: typeof value.savedAt === 'number' ? value.savedAt : 0,
+  };
+}
+
+function readCachedSleeperUsers(): CachedSleeperUser[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CACHED_SLEEPER_USERS_KEY) || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(normalizeCachedSleeperUser)
+      .filter((user): user is CachedSleeperUser => Boolean(user))
+      .sort((a, b) => b.savedAt - a.savedAt)
+      .slice(0, MAX_CACHED_SLEEPER_USERS);
+  } catch {
+    localStorage.removeItem(CACHED_SLEEPER_USERS_KEY);
+    return [];
+  }
+}
+
+function writeCachedSleeperUsers(users: CachedSleeperUser[]): CachedSleeperUser[] {
+  const next = users
+    .filter((user) => user.username)
+    .sort((a, b) => b.savedAt - a.savedAt)
+    .slice(0, MAX_CACHED_SLEEPER_USERS);
+  try {
+    localStorage.setItem(CACHED_SLEEPER_USERS_KEY, JSON.stringify(next));
+  } catch {
+    // Recent account shortcuts are a convenience only.
+  }
+  return next;
+}
+
+function rememberCachedSleeperUser(user: CachedSleeperUser): CachedSleeperUser[] {
+  const normalizedUsername = normalizeViewerIdentifier(user.username);
+  const normalizedUserId = normalizeViewerIdentifier(user.userId);
+  const current = readCachedSleeperUsers();
+  return writeCachedSleeperUsers([
+    { ...user, savedAt: Date.now() },
+    ...current.filter((cachedUser) => (
+      normalizeViewerIdentifier(cachedUser.username) !== normalizedUsername
+      && normalizeViewerIdentifier(cachedUser.userId) !== normalizedUserId
+    )),
+  ]);
+}
+
+function buildCachedSleeperUser(
+  username: string,
+  user: SleeperUserSession | null | undefined,
+  leagues: SleeperLeagueOption[]
+): CachedSleeperUser {
+  return {
+    userId: user?.userId || username,
+    username: user?.username || username,
+    displayName: user?.displayName || user?.username || username,
+    avatarUrl: user?.avatarUrl || null,
+    leagues,
+    savedAt: Date.now(),
+  };
+}
+
+function cachedSleeperUserToSessionUser(user: CachedSleeperUser): SleeperUserSession {
+  return {
+    userId: user.userId,
+    username: user.username,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+  };
+}
 
 function readAutocompleteHistory(key: string): string[] {
   if (typeof window === 'undefined') return [];
@@ -173,6 +290,51 @@ function HomeLogoChrome() {
       <p className="home-header-slogan">
         Just some degens with scraping tools and A.I.
       </p>
+    </div>
+  );
+}
+
+function HomeCachedUserSwitcher({
+  users,
+  activeUsername,
+  onSelect,
+}: {
+  users: CachedSleeperUser[];
+  activeUsername: string;
+  onSelect: (user: CachedSleeperUser) => void;
+}) {
+  if (!users.length) return null;
+
+  const visibleUsers = users.slice(0, MAX_CACHED_SLEEPER_USERS).reverse();
+  const activeIdentifier = normalizeViewerIdentifier(activeUsername);
+
+  return (
+    <div className="home-user-switcher" aria-label="Recent Sleeper accounts">
+      <span className="home-user-switcher-label">Recent</span>
+      <div className="home-user-stack">
+        {visibleUsers.map((user, index) => {
+          const label = user.displayName || user.username;
+          const initials = label.slice(0, 2).toUpperCase();
+          const isActive = activeIdentifier && normalizeViewerIdentifier(user.username) === activeIdentifier;
+          return (
+            <button
+              key={`${user.userId}-${user.username}`}
+              type="button"
+              className={`home-user-button${isActive ? ' is-active' : ''}`}
+              onClick={() => onSelect(user)}
+              style={{ zIndex: index + 1 }}
+              title={`Use ${label}`}
+              aria-label={`Use ${label}`}
+            >
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt="" aria-hidden="true" />
+              ) : (
+                <span>{initials}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -409,6 +571,7 @@ export default function Home() {
   const [sleeperUsername, setSleeperUsername] = useState('');
   const [leagueIdHistory, setLeagueIdHistory] = useState<string[]>(() => readAutocompleteHistory(LEAGUE_ID_HISTORY_KEY));
   const [sleeperUsernameHistory, setSleeperUsernameHistory] = useState<string[]>(() => readAutocompleteHistory(SLEEPER_USERNAME_HISTORY_KEY));
+  const [cachedSleeperUsers, setCachedSleeperUsers] = useState<CachedSleeperUser[]>(() => readCachedSleeperUsers());
   const [focusedAutocomplete, setFocusedAutocomplete] = useState<'username' | 'league' | null>(null);
   const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
@@ -493,6 +656,7 @@ export default function Home() {
         return;
       }
       rememberSleeperUsername(username);
+      setCachedSleeperUsers(rememberCachedSleeperUser(buildCachedSleeperUser(username, data.user, data.leagues)));
       try {
         localStorage.setItem(
           SLEEPER_SESSION_KEY,
@@ -523,6 +687,7 @@ export default function Home() {
       const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
       if (sleeperSession) {
         const parsed = JSON.parse(sleeperSession) as SleeperSession;
+        const parsedLeagues = Array.isArray(parsed.leagues) ? parsed.leagues : [];
         const restoredViewerIdentity = getKtcAdminIdentity(parsed.user, parsed.username);
         const restoredAdminViewMode = normalizeAdminViewMode(parsed.adminViewMode);
         const restoredIsPrivilegedViewer = isPrivilegedReportViewer(
@@ -539,7 +704,10 @@ export default function Home() {
         if (parsed.username) {
           setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, parsed.username));
         }
-        setUserLeagues(Array.isArray(parsed.leagues) ? parsed.leagues : []);
+        if (parsed.username && parsedLeagues.length) {
+          setCachedSleeperUsers(rememberCachedSleeperUser(buildCachedSleeperUser(parsed.username, parsed.user, parsedLeagues)));
+        }
+        setUserLeagues(parsedLeagues);
       }
     } catch {
       localStorage.removeItem(SLEEPER_SESSION_KEY);
@@ -628,6 +796,42 @@ export default function Home() {
       return;
     }
     userLeaguesMutation.mutate({ username: normalizedUsername });
+  };
+
+  const handleCachedSleeperUserSelect = (cachedUser: CachedSleeperUser) => {
+    const sessionUser = cachedSleeperUserToSessionUser(cachedUser);
+    const nextViewerIdentity = getKtcAdminIdentity(sessionUser, cachedUser.username);
+    const nextIsPrivilegedViewer = isPrivilegedReportViewer(cachedUser.userId, nextViewerIdentity, cachedUser.username);
+    setSleeperUsername(cachedUser.username);
+    setFocusedAutocomplete(null);
+    setUserLeagues(cachedUser.leagues);
+    setViewerUserId(cachedUser.userId);
+    setViewerUsername(nextViewerIdentity);
+    setAdminViewMode(null);
+    setIsAdminPermissionsModalOpen(nextIsPrivilegedViewer);
+    setIsLeaguePickerOpen(false);
+    setIsChangeLeagueModalOpen(false);
+    rememberSleeperUsername(cachedUser.username);
+    setCachedSleeperUsers(rememberCachedSleeperUser(cachedUser));
+
+    try {
+      localStorage.setItem(
+        SLEEPER_SESSION_KEY,
+        JSON.stringify({
+          username: cachedUser.username,
+          user: sessionUser,
+          leagues: cachedUser.leagues,
+          adminViewMode: null,
+          savedAt: Date.now(),
+        } satisfies SleeperSession)
+      );
+    } catch {
+      // Account shortcuts still work for this page load.
+    }
+
+    if (!cachedUser.leagues.length) {
+      userLeaguesMutation.mutate({ username: cachedUser.username });
+    }
   };
 
   const handleClownDismiss = () => {
@@ -1252,6 +1456,11 @@ export default function Home() {
     <div className="home-shell min-h-screen flex flex-col">
       <div className="home-header px-4 py-4 sm:py-5">
         <HomeLogoChrome />
+        <HomeCachedUserSwitcher
+          users={cachedSleeperUsers}
+          activeUsername={sleeperUsername}
+          onSelect={handleCachedSleeperUserSelect}
+        />
       </div>
       <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
         {isLoading ? (
