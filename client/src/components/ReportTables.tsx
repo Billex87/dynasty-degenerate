@@ -3470,7 +3470,7 @@ export function OwnerIntelMatrix({
       </div>
 
       <Dialog open={selectedRow !== null} onOpenChange={(open) => !open && setSelectedOwner(null)}>
-        <DialogContent className="manager-command-dialog max-w-5xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
+        <DialogContent className="manager-command-dialog owner-intel-dialog max-w-5xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
           <DialogHeader className="sr-only">
             <DialogTitle>{selectedRow?.manager || 'Owner'} Intel Lab</DialogTitle>
             <DialogDescription>Owner intelligence, trade ideas, player flags, and roster notes.</DialogDescription>

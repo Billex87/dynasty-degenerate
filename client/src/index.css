@@ -12121,3 +12121,60 @@ button.trade-manager-trade {
     font-size: clamp(0.9rem, 1.9vw, 1.16rem) !important;
   }
 }
+
+[data-slot="dialog-content"].owner-intel-dialog {
+  width: min(calc(100vw - 0.75rem), 82rem) !important;
+  max-width: min(calc(100vw - 0.75rem), 82rem) !important;
+  overflow: hidden !important;
+}
+
+.owner-intel-dialog,
+.owner-intel-dialog .manager-command-modal-inner,
+.owner-intel-dialog .manager-command-hero,
+.owner-intel-dialog .manager-command-body,
+.owner-intel-dialog .owner-intel-stat-grid,
+.owner-intel-dialog .owner-intel-full-rank-panel,
+.owner-intel-dialog .owner-intel-full-rank-grid,
+.owner-intel-dialog .owner-intel-player-grid,
+.owner-intel-dialog .owner-intel-read-grid,
+.owner-intel-dialog .owner-intel-heat-grid,
+.owner-intel-dialog .owner-intel-value-map-grid,
+.owner-intel-dialog .owner-intel-bench-list,
+.owner-intel-dialog .owner-intel-wild-notes ul {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.owner-intel-dialog .manager-command-modal-inner,
+.owner-intel-dialog .manager-command-hero,
+.owner-intel-dialog .manager-command-body,
+.owner-intel-dialog .owner-intel-full-rank-panel,
+.owner-intel-dialog .owner-intel-player-grid,
+.owner-intel-dialog .owner-intel-read-grid,
+.owner-intel-dialog .owner-intel-heat-grid {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+.owner-intel-dialog .manager-command-body {
+  overflow-y: auto;
+}
+
+.owner-intel-dialog .owner-intel-tags,
+.owner-intel-dialog .owner-intel-player-grid > *,
+.owner-intel-dialog .owner-intel-read-grid > *,
+.owner-intel-dialog .owner-intel-wild-notes li,
+.owner-intel-dialog .owner-intel-value-map-grid button,
+.owner-intel-dialog .owner-intel-bench-row,
+.owner-intel-dialog .owner-intel-bench-player {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.owner-intel-dialog .owner-intel-value-map-grid span:not(.position-rank-pill) small,
+.owner-intel-dialog .owner-intel-value-map-grid span:not(.position-rank-pill) em {
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
