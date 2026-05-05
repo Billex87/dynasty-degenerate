@@ -11633,4 +11633,79 @@ button.trade-manager-trade {
     margin-inline: auto !important;
     text-align: center !important;
   }
+
+  .report-shell .owner-intel-roster-heat {
+    text-align: center !important;
+  }
+
+  .report-shell .owner-intel-section-note,
+  .report-shell .manager-command-section .owner-intel-section-note {
+    max-width: 42rem;
+    margin-inline: auto;
+    text-align: center !important;
+  }
+
+  .report-shell .owner-intel-heat-grid,
+  .manager-command-section .owner-intel-heat-grid {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+    justify-content: center;
+    gap: clamp(0.25rem, 1.35vw, 0.55rem);
+    overflow: hidden;
+  }
+
+  .report-shell .owner-intel-heat-pill,
+  .manager-command-section .owner-intel-heat-pill {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 7.3rem;
+    justify-content: center;
+    padding: clamp(0.42rem, 1.4vw, 0.62rem) clamp(0.25rem, 1.1vw, 0.52rem);
+  }
+
+  .report-shell .owner-intel-heat-pill strong,
+  .manager-command-section .owner-intel-heat-pill strong {
+    font-size: clamp(0.5rem, 1.75vw, 0.66rem);
+    letter-spacing: 0.08em;
+    line-height: 1.05;
+    white-space: nowrap;
+  }
+
+  .report-shell .owner-intel-heat-pill em,
+  .manager-command-section .owner-intel-heat-pill em {
+    font-size: clamp(0.67rem, 2.1vw, 0.82rem);
+    line-height: 1.05;
+  }
+
+  .report-shell .owner-intel-heat-pill small,
+  .manager-command-section .owner-intel-heat-pill small {
+    font-size: clamp(0.52rem, 1.65vw, 0.66rem);
+    line-height: 1.05;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  [data-slot="dialog-content"].manager-command-dialog,
+  [data-slot="dialog-content"].owner-quick-modal,
+  [data-slot="dialog-content"].manager-draft-modal,
+  [data-slot="dialog-content"].trade-manager-modal,
+  [data-slot="dialog-content"].trade-detail-modal,
+  [data-slot="dialog-content"].starter-modal,
+  [data-slot="dialog-content"].player-detail-modal {
+    width: min(calc(100vw - 1.5rem), 60rem) !important;
+    max-width: min(calc(100vw - 1.5rem), 60rem) !important;
+  }
+
+  .manager-command-body,
+  .owner-quick-modal .owner-quick-body,
+  .starter-modal-body,
+  .trade-tendency-modal-body {
+    padding-inline: clamp(1rem, 2.8vw, 1.45rem);
+  }
+
+  .owner-intel-read-grid {
+    gap: clamp(0.55rem, 1.5vw, 0.78rem);
+  }
 }
