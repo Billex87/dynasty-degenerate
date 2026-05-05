@@ -9976,12 +9976,21 @@ button.owner-summary-tile:focus-visible {
   }
 
   .recent-transaction-date-header {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.46rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.4rem;
+    padding-inline: 0.72rem;
   }
 
   .recent-transaction-day-pills {
-    justify-content: flex-start;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 0.25rem;
+  }
+
+  .recent-transaction-day-pill {
+    min-height: 1.34rem;
+    padding-inline: 0.42rem;
+    font-size: 0.58rem;
   }
 }
 
