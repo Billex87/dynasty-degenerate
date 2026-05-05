@@ -81,6 +81,39 @@
   font-size: 0.78rem;
   font-weight: 850;
   line-height: 1.35;
+  text-align: center;
+}
+
+.snapshot-status-banner-title,
+.report-intro-gradient-title {
+  display: block;
+  background: linear-gradient(90deg, #fb923c, #fbbf24, #fb923c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 900;
+}
+
+.snapshot-status-banner-title {
+  margin: 0 0 0.55rem;
+  font-size: clamp(1rem, 3.8vw, 1.35rem);
+  line-height: 1.1;
+}
+
+.snapshot-status-date-grid {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  justify-content: center;
+  gap: 0.35rem 0.85rem;
+  color: #fecdd3;
+  font-size: clamp(0.76rem, 2.7vw, 0.95rem);
+  font-weight: 850;
+}
+
+.report-intro-gradient-title {
+  margin-bottom: 0.3rem;
+  font-size: 1.08rem;
+  line-height: 1.15;
 }
 
 .snapshot-status-banner-healthy {

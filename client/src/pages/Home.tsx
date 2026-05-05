@@ -239,6 +239,19 @@ function SnapshotCoverageBanner() {
       ? `KTC snapshot for ${data.todayDateKey} has not landed yet. Latest stored day: ${data.latestSnapshotDateKey || 'none'}.`
       : `KTC snapshot coverage gap: missing ${data.missingDateKeys.join(', ')}.`;
 
+  if (data.status === 'stale') {
+    return (
+      <div className={bannerClass}>
+        <p className="snapshot-status-banner-title">Value Blends Missing From:</p>
+        <div className="snapshot-status-date-grid">
+          {data.missingDateKeys.map((dateKey) => (
+            <span key={dateKey}>{dateKey}</span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={bannerClass}>
       <span>{copy}</span>
@@ -836,8 +849,9 @@ export default function Home() {
             <TabsContent value="projections" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
                 <div className="mx-auto max-w-2xl rounded-xl border border-cyan-400/20 bg-slate-900/55 px-4 py-4 text-center shadow-lg shadow-black/20">
-                  <p className="text-sm text-slate-300">
-                    <span className="font-semibold text-orange-300">One-Year Outlook:</span> these cards project where player value could sit next offseason based on age curves and position trends.
+                  <p className="text-sm leading-relaxed text-slate-300">
+                    <span className="report-intro-gradient-title">One-Year Outlook</span>
+                    <span className="block">This projects where player values could sit next offseason based on age curve and position trends.</span>
                   </p>
                 </div>
                 <CollapsibleReportSection title="2027 Value Climbers" kicker="Next-year upside">
