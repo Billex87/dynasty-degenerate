@@ -1158,23 +1158,22 @@ export default function Home() {
 
         <Dialog open={isChangeLeagueModalOpen} onOpenChange={setIsChangeLeagueModalOpen}>
           <DialogContent className="league-switch-dialog change-league-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-md">
-            <DialogHeader className="text-center">
-              <DialogTitle className="athletic-headline text-3xl text-orange-400">
+            <DialogHeader className="change-league-header text-center sm:text-center">
+              <DialogTitle className="athletic-headline change-league-title text-3xl text-orange-400">
                 Change Leagues?
               </DialogTitle>
-              <DialogDescription className="text-cyan-100/70">
-                This report was opened by league ID, so there are no cached Sleeper leagues to pick from. Start over to analyze another league.
+              <DialogDescription className="change-league-copy">
+                This report was opened from a league ID, so there is not a saved Sleeper league list for this session. Stay on this report, or start over to analyze a different league.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="league-switch-footer gap-2 sm:justify-center">
-              <Button
+              <button
                 type="button"
                 onClick={() => setIsChangeLeagueModalOpen(false)}
-                variant="outline"
-                className="w-full border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/10 sm:w-auto"
+                className="support-button support-button-compact change-league-stay-button"
               >
                 Stay Here
-              </Button>
+              </button>
               <Button
                 type="button"
                 onClick={handleStartOver}

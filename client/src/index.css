@@ -1540,6 +1540,21 @@
     text-align: center;
   }
 
+  .change-league-header {
+    display: grid;
+    justify-items: center;
+    gap: 0.72rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .change-league-title {
+    max-width: 100%;
+    margin-inline: auto;
+    line-height: 0.95;
+    text-align: center;
+  }
+
   .change-league-dialog [data-slot="dialog-header"],
   .change-league-dialog [data-slot="dialog-footer"] {
     width: 100%;
@@ -1548,19 +1563,31 @@
     text-align: center;
   }
 
-  .change-league-dialog [data-slot="dialog-description"] {
-    max-width: 24rem;
+  .change-league-copy {
+    max-width: 26rem;
     margin-inline: auto;
+    color: rgba(207, 250, 254, 0.78) !important;
+    font-size: 0.92rem;
+    font-weight: 800;
+    line-height: 1.5;
+    text-align: center;
   }
 
   .change-league-dialog .league-switch-footer {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
   }
 
   .change-league-dialog .league-switch-footer > button {
     width: auto !important;
     min-width: 6.25rem;
+  }
+
+  .change-league-stay-button {
+    min-width: 7rem !important;
   }
 
   .league-switch-picker {
