@@ -3922,30 +3922,40 @@ export function ProjectedMoversTable({
                 valueChangeNote: 'Projected change from current value to next year value.',
               }))}
             >
-              <div className="player-tile-topline">
-                <span>#{idx + 1}</span>
+              <div className="weekly-momentum-tile-top">
+                <span
+                  className={`weekly-momentum-status-pill ${
+                    isPositive ? 'weekly-momentum-status-riser' : 'weekly-momentum-status-faller'
+                  }`}
+                >
+                  {isPositive ? 'Climber' : 'Faller'}
+                </span>
                 <strong className={isPositive ? 'text-emerald-300' : 'text-rose-300'}>
                   {isPositive ? '+' : ''}
                   {row.diff.toLocaleString()}
                 </strong>
               </div>
-              <div className="player-tile-identity">
-                <div className="player-tile-main">
+              <div className="weekly-momentum-identity">
+                <div className="weekly-momentum-player">
                   <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                 </div>
-                <div className="player-tile-owner">
-                  {renderManagerName(row.owner, managerAvatars)}
-                </div>
               </div>
-              <div className="player-tile-pills">
-                <TeamLogoPill team={details?.team} />
-                <PositionRankPill rank={row.currentPositionRank || row.pos} />
-                <span>{row.age !== null ? `${row.age} yrs` : 'Age N/A'}</span>
-              </div>
-              <div className="player-tile-value-strip">
+              <div
+                className="weekly-momentum-value-change"
+                aria-label={`Projected value moves from ${formatCompactValue(row.val_2026)} to ${formatCompactValue(row.val_2027)}`}
+              >
+                <span className="weekly-momentum-value-label">Value:</span>
                 <span>{formatCompactValue(row.val_2026)}</span>
-                <span aria-hidden="true">→</span>
+                <span className="weekly-momentum-value-arrow" aria-hidden="true">→</span>
                 <span>{formatCompactValue(row.val_2027)}</span>
+              </div>
+              <div className="activity-card-meta-row">
+                <div className="weekly-momentum-pills">
+                  <TeamLogoPill team={details?.team} />
+                  <PositionRankPill rank={row.currentPositionRank || row.pos} />
+                  <span>{row.age !== null ? `${row.age} yrs` : 'Age N/A'}</span>
+                </div>
+                {renderActivityManagerAvatar(row.owner, managerAvatars)}
               </div>
             </button>
           );
