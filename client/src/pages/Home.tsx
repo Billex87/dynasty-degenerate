@@ -381,6 +381,34 @@ function RecentEntrySuggestions({
   );
 }
 
+function getLeagueCardNameLines(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const normalizedName = words.join(' ');
+
+  if (words.length < 3 || normalizedName.length <= 16) {
+    return [normalizedName || name];
+  }
+
+  let bestSplitIndex = 1;
+  let smallestLengthDifference = Number.POSITIVE_INFINITY;
+
+  for (let index = 1; index < words.length; index += 1) {
+    const leftLength = words.slice(0, index).join(' ').length;
+    const rightLength = words.slice(index).join(' ').length;
+    const lengthDifference = Math.abs(leftLength - rightLength);
+
+    if (lengthDifference < smallestLengthDifference) {
+      bestSplitIndex = index;
+      smallestLengthDifference = lengthDifference;
+    }
+  }
+
+  return [
+    words.slice(0, bestSplitIndex).join(' '),
+    words.slice(bestSplitIndex).join(' '),
+  ];
+}
+
 function LeaguePickerCard({
   league,
   onSelect,
@@ -388,6 +416,8 @@ function LeaguePickerCard({
   league: SleeperLeagueOption;
   onSelect: (leagueId: string) => void;
 }) {
+  const leagueNameLines = getLeagueCardNameLines(league.name);
+
   return (
     <button
       type="button"
@@ -408,7 +438,16 @@ function LeaguePickerCard({
           )}
         </span>
         <span className="home-league-card-body">
-          <span className="home-league-card-name">{league.name}</span>
+          <span
+            className="home-league-card-name"
+            aria-label={league.name}
+          >
+            {leagueNameLines.map((line, index) => (
+              <span key={`${line}-${index}`} className="home-league-card-name-line">
+                {line}
+              </span>
+            ))}
+          </span>
         </span>
       </div>
       <span className="home-league-card-format home-league-card-format-desktop">
