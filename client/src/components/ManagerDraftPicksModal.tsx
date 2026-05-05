@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,6 @@ import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
-import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 
 interface ManagerDraftPicksModalProps {
   isOpen: boolean;
@@ -22,7 +21,7 @@ interface ManagerDraftPicksModalProps {
   draftPicks: DraftPick[];
   managerAvatarUrl?: string | null;
   playerDetailsById?: Record<string, PlayerDetails>;
-  draftOpportunityByPick?: Record<string, DraftOpportunity>;
+  mode?: 'portfolio' | 'audit';
   leagueId?: string;
   leagueLogo?: string | null;
 }
@@ -35,18 +34,24 @@ export function ManagerDraftPicksModal({
   draftPicks,
   managerAvatarUrl,
   playerDetailsById,
-  draftOpportunityByPick,
+  mode = 'portfolio',
   leagueId,
   leagueLogo,
 }: ManagerDraftPicksModalProps) {
   const [selectedPlayer, setSelectedPlayer] = useState<DraftPick | null>(null);
 
-  // Filter picks for this manager
-  const managerPicks = draftPicks.filter(pick => pick.manager === managerName);
-  const fallbackOpportunityByPick = useMemo(() => buildDraftOpportunityMap(draftPicks), [draftPicks]);
-  const opportunityByPick = draftOpportunityByPick || fallbackOpportunityByPick;
+  const isAuditMode = mode === 'audit';
+  const managerPicks = draftPicks
+    .filter((pick) => pick.manager === managerName)
+    .sort((a, b) => {
+      const yearDiff = Number(b.draftYear || 0) - Number(a.draftYear || 0);
+      if (yearDiff !== 0) return yearDiff;
+      return a.pick - b.pick;
+    });
   const totalCurrentValue = managerPicks.reduce((sum, pick) => sum + (pick.currentKtcValue || 0), 0);
   const totalValueGain = managerPicks.reduce((sum, pick) => sum + (pick.valueGain || 0), 0);
+  const cleanDraftReads = managerPicks.filter((pick) => pick.draftDecisionTone && pick.draftDecisionTone !== 'watch').length;
+  const watchDraftReads = managerPicks.filter((pick) => pick.draftDecisionTone === 'watch').length;
   const displayManagerName = managerDisplayName || managerName;
   const managerInitial = displayManagerName.trim()[0]?.toUpperCase() || '?';
 
@@ -90,7 +95,7 @@ export function ManagerDraftPicksModal({
                   </ChampionAvatarFrame>
                   <div className="min-w-0 text-center">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/90">
-                      Draft Portfolio
+                      {isAuditMode ? 'Draft Decision Audit' : 'Draft Portfolio'}
                     </p>
                     <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400 sm:text-4xl">
                       {displayManagerName}
@@ -101,13 +106,23 @@ export function ManagerDraftPicksModal({
               </DialogHeader>
 
               <div className="relative mt-5 grid grid-cols-3 gap-2 sm:max-w-xl sm:gap-3">
-                <ManagerDraftStat label="Picks" value={managerPicks.length.toLocaleString()} />
-                <ManagerDraftStat label="Current Value" value={totalCurrentValue.toLocaleString()} />
-                <ManagerDraftStat
-                  label="Value Change"
-                  value={`${totalValueGain > 0 ? '+' : ''}${totalValueGain.toLocaleString()}`}
-                  tone={totalValueGain > 0 ? 'positive' : totalValueGain < 0 ? 'negative' : 'neutral'}
-                />
+                {isAuditMode ? (
+                  <>
+                    <ManagerDraftStat label="Picks" value={managerPicks.length.toLocaleString()} />
+                    <ManagerDraftStat label="Clean Reads" value={cleanDraftReads.toLocaleString()} tone={cleanDraftReads ? 'positive' : 'neutral'} />
+                    <ManagerDraftStat label="Watch Flags" value={watchDraftReads.toLocaleString()} tone={watchDraftReads ? 'negative' : 'positive'} />
+                  </>
+                ) : (
+                  <>
+                    <ManagerDraftStat label="Picks" value={managerPicks.length.toLocaleString()} />
+                    <ManagerDraftStat label="Current Value" value={totalCurrentValue.toLocaleString()} />
+                    <ManagerDraftStat
+                      label="Value Change"
+                      value={`${totalValueGain > 0 ? '+' : ''}${totalValueGain.toLocaleString()}`}
+                      tone={totalValueGain > 0 ? 'positive' : totalValueGain < 0 ? 'negative' : 'neutral'}
+                    />
+                  </>
+                )}
               </div>
             </div>
 
@@ -115,7 +130,6 @@ export function ManagerDraftPicksModal({
               <div className="player-tile-grid manager-draft-player-grid">
                 {managerPicks.map((pick, idx) => {
                   const gainTone = (pick.valueGain ?? 0) > 0 ? 'text-emerald-300' : (pick.valueGain ?? 0) < 0 ? 'text-rose-300' : 'text-slate-300';
-                  const opportunity = opportunityByPick[getDraftPickKey(pick)];
 
                   return (
                     <button
@@ -125,8 +139,7 @@ export function ManagerDraftPicksModal({
                       style={getTeamTileStyle(pick.playerDetails?.team)}
                       onClick={() => setSelectedPlayer(enrichDraftPickDetails(
                         pick,
-                        playerDetailsById,
-                        opportunity
+                        playerDetailsById
                       ))}
                     >
                       <div className="player-tile-main">
@@ -135,23 +148,45 @@ export function ManagerDraftPicksModal({
                       <div className="player-tile-pills">
                         <TeamLogoPill team={pick.playerDetails?.team} />
                         <span>{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
+                        {isAuditMode && pick.draftDecisionVerdict && (
+                          <span className={`draft-decision-verdict draft-decision-verdict-${pick.draftDecisionTone || 'watch'}`}>
+                            {pick.draftDecisionVerdict}
+                          </span>
+                        )}
                       </div>
-                      <div className="player-tile-value-strip">
-                        <span>Change</span>
-                        <span className={gainTone}>
-                          {pick.valueGain !== null && pick.valueGain !== undefined ? (
-                            <>
-                              {pick.valueGain > 0 ? '+' : ''}
-                              {pick.valueGain.toLocaleString()}
-                              {pick.valueGain > 0 && <TrendingUp className="ml-1 inline h-3.5 w-3.5" />}
-                              {pick.valueGain < 0 && <TrendingDown className="ml-1 inline h-3.5 w-3.5" />}
-                            </>
-                          ) : (
-                            'N/A'
+                      {isAuditMode ? (
+                        <div className="manager-draft-decision-read">
+                          <div className="draft-decision-pills manager-draft-decision-pills">
+                            <span>{pick.draftDecisionPrimaryNeed ? `Need: ${pick.draftDecisionPrimaryNeed}` : 'No Clear Need'}</span>
+                            {pick.draftDecisionBoardRankLabel && <span>{pick.draftDecisionBoardRankLabel}</span>}
+                            <span>{pick.positionRankMay2025 || pick.currentPositionRank || pick.playerPos}</span>
+                          </div>
+                          {pick.draftDecisionSummary && <p>{pick.draftDecisionSummary}</p>}
+                          {pick.draftDecisionAltPlayerName && (
+                            <p className="manager-draft-decision-alt">
+                              <strong>{pick.draftDecisionAltLabel || 'Alternative:'}</strong> {pick.draftDecisionAltPlayerName}
+                              {pick.draftDecisionAltPosition ? ` (${pick.draftDecisionAltPosition})` : ''}
+                              {pick.draftDecisionAltPickLabel ? ` at ${pick.draftDecisionAltPickLabel}` : ''}
+                            </p>
                           )}
-                        </span>
-                      </div>
-                      <DraftOpportunityStrip opportunity={opportunity} />
+                        </div>
+                      ) : (
+                        <div className="player-tile-value-strip">
+                          <span>Change</span>
+                          <span className={gainTone}>
+                            {pick.valueGain !== null && pick.valueGain !== undefined ? (
+                              <>
+                                {pick.valueGain > 0 ? '+' : ''}
+                                {pick.valueGain.toLocaleString()}
+                                {pick.valueGain > 0 && <TrendingUp className="ml-1 inline h-3.5 w-3.5" />}
+                                {pick.valueGain < 0 && <TrendingDown className="ml-1 inline h-3.5 w-3.5" />}
+                              </>
+                            ) : (
+                              'N/A'
+                            )}
+                          </span>
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -180,37 +215,15 @@ export function ManagerDraftPicksModal({
   );
 }
 
-function DraftOpportunityStrip({ opportunity }: { opportunity?: DraftOpportunity }) {
-  if (!opportunity) return null;
-
-  if (opportunity.type === 'win') {
-    return (
-      <div className="player-tile-value-strip draft-opportunity-strip draft-opportunity-strip-win">
-        <span>Board</span>
-        <span>{opportunity.label}</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="player-tile-value-strip draft-opportunity-strip draft-opportunity-strip-missed" title={`${opportunity.label}: ${opportunity.playerName} at ${opportunity.pickLabel}`}>
-      <span>{opportunity.label}</span>
-      <span>{opportunity.playerName}</span>
-    </div>
-  );
-}
-
 function enrichDraftPickDetails(
   pick: DraftPick,
-  playerDetailsById?: Record<string, PlayerDetails>,
-  opportunity?: DraftOpportunity
+  playerDetailsById?: Record<string, PlayerDetails>
 ): DraftPick {
   const mappedDetails = pick.player_id ? playerDetailsById?.[pick.player_id] : undefined;
-  const withOpportunity = attachDraftOpportunity(pick, opportunity);
-  if (!mappedDetails) return withOpportunity;
+  if (!mappedDetails) return pick;
 
   return {
-    ...withOpportunity,
+    ...pick,
     playerDetails: {
       ...mappedDetails,
       ...pick.playerDetails,
@@ -226,30 +239,6 @@ function enrichDraftPickDetails(
       availabilitySeasons: pick.playerDetails?.availabilitySeasons ?? mappedDetails.availabilitySeasons,
       similarTradeValues: pick.playerDetails?.similarTradeValues?.length ? pick.playerDetails.similarTradeValues : mappedDetails.similarTradeValues,
     },
-  };
-}
-
-function attachDraftOpportunity(pick: DraftPick, opportunity?: DraftOpportunity): DraftPick {
-  if (!opportunity || pick.draftDecisionSummary) return pick;
-
-  if (opportunity.type === 'win') {
-    return {
-      ...pick,
-      draftDecisionVerdict: 'Board Win',
-      draftDecisionTone: 'win',
-      draftDecisionSummary: `${pick.playerName} landed as a clean board win. No later drafted player from this class beat the price enough to make this look like a miss.`,
-    };
-  }
-
-  return {
-    ...pick,
-    draftDecisionVerdict: 'Just Missed',
-    draftDecisionTone: 'watch',
-    draftDecisionSummary: `${pick.playerName} was defensible, but ${opportunity.playerName} graded better in the same draft window and was still available later.`,
-    draftDecisionAltLabel: opportunity.label,
-    draftDecisionAltPlayerName: opportunity.playerName,
-    draftDecisionAltPosition: undefined,
-    draftDecisionAltPickLabel: opportunity.pickLabel,
   };
 }
 

@@ -315,6 +315,28 @@
   text-align: center;
 }
 
+.draft-decision-manager-grid .owner-summary-tile {
+  min-height: clamp(10.25rem, 19vw, 12.75rem);
+}
+
+.draft-decision-manager-tile-clean {
+  border-color: rgba(52, 211, 153, 0.22);
+}
+
+.draft-decision-manager-tile-watch {
+  border-color: rgba(251, 191, 36, 0.24);
+}
+
+.draft-decision-manager-read {
+  position: relative;
+  z-index: 1;
+  display: block;
+  color: #cbd5e1;
+  font-size: clamp(0.72rem, 1.45vw, 0.84rem);
+  font-weight: 800;
+  line-height: 1.32;
+}
+
 .draft-decision-grid {
   display: grid;
   width: min(100%, 72rem);
@@ -373,6 +395,53 @@
   border: 1px solid rgba(251, 191, 36, 0.3);
   background: rgba(120, 53, 15, 0.2);
   color: #fcd34d;
+}
+
+.player-tile-pills .draft-decision-verdict-win,
+.player-tile-pills .draft-decision-verdict-value {
+  border-color: rgba(52, 211, 153, 0.32);
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+}
+
+.player-tile-pills .draft-decision-verdict-need {
+  border-color: rgba(34, 211, 238, 0.28);
+  background: rgba(8, 47, 73, 0.32);
+  color: #67e8f9;
+}
+
+.player-tile-pills .draft-decision-verdict-watch {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(120, 53, 15, 0.2);
+  color: #fcd34d;
+}
+
+.manager-draft-decision-read {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.manager-draft-decision-pills {
+  justify-content: flex-start;
+}
+
+.manager-draft-decision-read p {
+  color: #cbd5e1;
+  font-size: clamp(0.72rem, 1.45vw, 0.84rem);
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.manager-draft-decision-alt {
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  padding-top: 0.42rem;
+}
+
+.manager-draft-decision-alt strong {
+  color: #fcd34d;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .draft-decision-pick {
@@ -615,26 +684,6 @@
 
 .draft-opportunity-missed {
   color: rgba(251, 191, 36, 0.92);
-}
-
-.draft-opportunity-strip {
-  margin-top: 0.45rem;
-}
-
-.draft-opportunity-strip > span:last-child {
-  min-width: 0;
-  overflow: visible;
-  text-overflow: unset;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.draft-opportunity-strip-win > span:last-child {
-  color: #34d399;
-}
-
-.draft-opportunity-strip-missed > span:last-child {
-  color: #fbbf24;
 }
 
 @media (max-width: 700px) {

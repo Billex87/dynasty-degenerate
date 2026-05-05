@@ -7,7 +7,6 @@ import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame } from './ManagerChampionships';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
-import { getPositionRankPillClass } from '@/lib/positionRank';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 import { sortRowsByViewerAndStanding } from '@/lib/managerOrdering';
 
@@ -26,6 +25,7 @@ interface DraftAnalysisProps {
 
 type SortColumn = 'pick' | 'currentValue' | 'valueChange' | null;
 type SortDirection = 'asc' | 'desc';
+type ManagerDraftModalMode = 'portfolio' | 'audit';
 
 export function DraftAnalysis({
   draftPicks,
@@ -40,6 +40,7 @@ export function DraftAnalysis({
   leagueOverview,
 }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
+  const [selectedManagerMode, setSelectedManagerMode] = useState<ManagerDraftModalMode>('portfolio');
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -114,6 +115,24 @@ export function DraftAnalysis({
     });
     return map;
   }, [draftDecisionAudits]);
+  const managerDraftDecisionAudits = useMemo(() => {
+    return buildManagerDraftDecisionAudits(draftDecisionAudits, {
+      viewerManager,
+      currentStandings,
+      leagueOverview,
+    });
+  }, [currentStandings, draftDecisionAudits, leagueOverview, viewerManager]);
+  const draftPicksWithDecisionAudit = useMemo(() => {
+    return draftPicks.map((pick) => attachDraftDecisionAudit(pick, draftDecisionAuditByPick.get(getDraftPickKey(pick))));
+  }, [draftDecisionAuditByPick, draftPicks]);
+  const openManagerPortfolio = (manager: string) => {
+    setSelectedManagerMode('portfolio');
+    setSelectedManager(manager);
+  };
+  const openManagerAudit = (manager: string) => {
+    setSelectedManagerMode('audit');
+    setSelectedManager(manager);
+  };
   const toggleDraftYear = (year: string) => {
     setClosedDraftYears((current) => {
       const next = new Set(current);
@@ -156,7 +175,7 @@ export function DraftAnalysis({
                   key={`${stat.manager}-${idx}`}
                   type="button"
                   className="owner-summary-tile"
-                  onClick={() => setSelectedManager(stat.manager)}
+                  onClick={() => openManagerPortfolio(stat.manager)}
                 >
                   {avatarUrl && (
                     <>
@@ -194,90 +213,54 @@ export function DraftAnalysis({
         </div>
       </DraftCollapsibleSection>
 
-      {draftDecisionAudits.length > 0 && (
+      {managerDraftDecisionAudits.length > 0 && (
         <DraftCollapsibleSection title="Draft Decision Audit" kicker="Need vs board value">
           <div className="draft-decision-audit-note">
-            Uses each manager&apos;s roster pressure points, draft-window value, and who was still available later in that rookie draft.
+            Manager-level read on whether each draft matched roster need, board value, or left a better option on the board.
           </div>
-          <div className="draft-decision-grid">
-            {draftDecisionAudits.map((audit) => {
-              const details = audit.pick.playerDetails || (audit.pick.player_id ? playerDetailsById?.[audit.pick.player_id] : undefined);
-              const alternativeDetails = audit.alternative?.pick?.playerDetails
-                || (audit.alternative?.pick?.player_id ? playerDetailsById?.[audit.alternative.pick.player_id] : undefined);
-              const managerDisplayName = audit.pick.managerDisplayName || audit.pick.manager;
-              return (
-                <div
-                  key={getDraftPickKey(audit.pick)}
-                  className={`player-team-tile draft-decision-card draft-decision-card-${audit.tone}`}
-                  style={getTeamTileStyle(details?.team)}
-                >
-                  <span className="draft-decision-topline">
-                    <span className={`draft-decision-verdict draft-decision-verdict-${audit.tone}`}>
-                      {audit.verdict}
-                    </span>
-                    <span className="draft-decision-pick">{audit.pick.draftYear} #{audit.pick.pick}</span>
-                  </span>
-                  <button type="button" className="draft-decision-main" onClick={() => openDraftPlayer(audit.pick)}>
-                    <span className="draft-decision-identity-row">
-                      <PlayerNameWithHeadshot playerId={audit.pick.player_id} playerName={audit.pick.playerName} />
-                      <span className="draft-decision-manager-line">
-                        {managerAvatars?.[audit.pick.manager] ? (
-                          <img
-                            src={managerAvatars[audit.pick.manager] || ''}
-                            alt=""
-                            className="draft-decision-manager-avatar"
-                          />
+          <div className="owner-tile-shell">
+            <div className="owner-tile-grid draft-efficiency-tile-grid draft-decision-manager-grid">
+              {managerDraftDecisionAudits.map((audit) => {
+                const avatarUrl = managerAvatars?.[audit.manager];
+                const managerDisplayName = audit.managerDisplayName || audit.manager;
+                return (
+                  <button
+                    key={audit.manager}
+                    type="button"
+                    className={`owner-summary-tile draft-decision-manager-tile ${audit.watchFlags > 0 ? 'draft-decision-manager-tile-watch' : 'draft-decision-manager-tile-clean'}`}
+                    onClick={() => openManagerAudit(audit.manager)}
+                  >
+                    {avatarUrl && (
+                      <>
+                        <img src={avatarUrl} alt="" className="owner-summary-wash" />
+                        <img src={avatarUrl} alt="" className="owner-summary-mark" />
+                      </>
+                    )}
+                    <span className="owner-summary-scrim" />
+                    <span className="owner-summary-main">
+                      <ChampionAvatarFrame managerName={audit.manager} className="owner-summary-avatar-frame">
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt={managerDisplayName} className="owner-summary-avatar" />
                         ) : (
-                          <span className="draft-decision-manager-fallback" aria-hidden="true">
-                            {managerDisplayName.trim()[0]?.toUpperCase() || '?'}
-                          </span>
+                          <span className="owner-summary-avatar">{managerDisplayName[0]?.toUpperCase() || '?'}</span>
                         )}
-                        <span className="draft-decision-manager-name">{managerDisplayName}</span>
+                      </ChampionAvatarFrame>
+                      <span className="owner-summary-name-lockup">
+                        <span className="owner-summary-name">{managerDisplayName}</span>
                       </span>
                     </span>
+                    <span className="owner-summary-metrics">
+                      <span className="owner-metric-pill owner-metric-pill-info"><span>Picks</span><strong>{audit.totalPicks}</strong></span>
+                      <span className="owner-metric-pill owner-metric-pill-good"><span>Clean</span><strong>{audit.cleanReads}</strong></span>
+                      <span className={`owner-metric-pill ${audit.watchFlags ? 'owner-metric-pill-danger' : 'owner-metric-pill-good'}`}><span>Watch</span><strong>{audit.watchFlags}</strong></span>
+                      <span className="owner-metric-pill owner-metric-pill-info"><span>Need Fits</span><strong>{audit.needFits}</strong></span>
+                      <span className="owner-metric-pill owner-metric-pill-good"><span>Board</span><strong>{audit.boardReads}</strong></span>
+                    </span>
+                    <span className="draft-decision-manager-read">{audit.readout}</span>
                   </button>
-                  <span className="draft-decision-pills">
-                    <span className={getPositionRankPillClass(audit.pick.positionRankMay2025 || audit.pick.currentPositionRank || audit.pick.playerPos)}>
-                      {audit.pick.positionRankMay2025 || audit.pick.currentPositionRank || audit.pick.playerPos}
-                    </span>
-                    <span>{audit.primaryNeed ? `Need: ${audit.primaryNeed}` : 'No Clear Need'}</span>
-                    <span>{audit.boardRankLabel}</span>
-                  </span>
-                  <span className="draft-decision-copy">{audit.summary}</span>
-                  {audit.alternative?.pick && (
-                    <button
-                      type="button"
-                      className="player-team-tile draft-decision-alt-card"
-                      style={getTeamTileStyle(alternativeDetails?.team)}
-                      onClick={() => openDraftPlayer(audit.alternative?.pick as DraftPick)}
-                    >
-                      <span className="draft-decision-alt-label">{audit.alternative.label}</span>
-                      <span className="draft-decision-alt-main">
-                        <PlayerNameWithHeadshot
-                          playerId={audit.alternative.pick.player_id}
-                          playerName={audit.alternative.playerName}
-                        />
-                        <span className="draft-decision-alt-pills">
-                          <span>{audit.alternative.playerPos || audit.alternative.pick.playerPos || '-'}</span>
-                          {audit.alternative.position && (
-                            <span className={getPositionRankPillClass(audit.alternative.position)}>
-                              {audit.alternative.position}
-                            </span>
-                          )}
-                          {audit.alternative.pickLabel && <span>{audit.alternative.pickLabel}</span>}
-                        </span>
-                      </span>
-                    </button>
-                  )}
-                  {audit.alternative && !audit.alternative.pick && (
-                    <span className="draft-decision-alt">
-                      <strong>{audit.alternative.label}</strong>
-                      <span>{audit.alternative.playerName}</span>
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </DraftCollapsibleSection>
       )}
@@ -389,10 +372,10 @@ export function DraftAnalysis({
         onClose={() => setSelectedManager(null)}
         managerName={selectedManager || ''}
         managerDisplayName={selectedManager ? draftStats.find((stat) => stat.manager === selectedManager)?.managerDisplayName : undefined}
-        draftPicks={draftPicks}
+        draftPicks={selectedManagerMode === 'audit' ? draftPicksWithDecisionAudit : draftPicks}
         managerAvatarUrl={selectedManager ? managerAvatars?.[selectedManager] : null}
         playerDetailsById={playerDetailsById}
-        draftOpportunityByPick={draftOpportunityByPick}
+        mode={selectedManagerMode}
         leagueId={leagueId}
         leagueLogo={leagueLogo}
       />
@@ -445,6 +428,99 @@ interface DraftDecisionAudit {
     playerPos?: string | null;
     pick?: DraftPick | null;
   } | null;
+}
+
+interface ManagerDraftDecisionAudit {
+  manager: string;
+  managerDisplayName?: string;
+  audits: DraftDecisionAudit[];
+  totalPicks: number;
+  cleanReads: number;
+  watchFlags: number;
+  needFits: number;
+  boardReads: number;
+  readout: string;
+}
+
+function buildManagerDraftDecisionAudits(
+  audits: DraftDecisionAudit[],
+  {
+    viewerManager,
+    currentStandings,
+    leagueOverview,
+  }: {
+    viewerManager?: string | null;
+    currentStandings?: ReportData['currentStandings'];
+    leagueOverview?: ReportData['leagueOverview'];
+  }
+): ManagerDraftDecisionAudit[] {
+  const grouped = audits.reduce<Record<string, DraftDecisionAudit[]>>((acc, audit) => {
+    acc[audit.pick.manager] = acc[audit.pick.manager] || [];
+    acc[audit.pick.manager].push(audit);
+    return acc;
+  }, {});
+
+  const rows = Object.entries(grouped).map(([manager, managerAudits]) => {
+    const orderedAudits = [...managerAudits].sort((a, b) => {
+      const yearDiff = Number(b.pick.draftYear || 0) - Number(a.pick.draftYear || 0);
+      if (yearDiff !== 0) return yearDiff;
+      return a.pick.pick - b.pick.pick;
+    });
+    const watchFlags = orderedAudits.filter((audit) => audit.tone === 'watch').length;
+    const needFits = orderedAudits.filter((audit) => audit.verdict === 'Need + Value' || audit.verdict === 'Need Fit').length;
+    const boardReads = orderedAudits.filter((audit) => audit.verdict === 'Board Pick' || audit.tone === 'value' || audit.tone === 'win').length;
+
+    return {
+      manager,
+      managerDisplayName: orderedAudits[0]?.pick.managerDisplayName,
+      audits: orderedAudits,
+      totalPicks: orderedAudits.length,
+      cleanReads: orderedAudits.length - watchFlags,
+      watchFlags,
+      needFits,
+      boardReads,
+      readout: buildManagerDraftDecisionReadout(orderedAudits),
+    };
+  });
+
+  return sortRowsByViewerAndStanding(rows, (row) => row.manager, {
+    viewerManager,
+    standings: currentStandings,
+    leagueOverview,
+  });
+}
+
+function buildManagerDraftDecisionReadout(audits: DraftDecisionAudit[]): string {
+  const watchAudits = audits.filter((audit) => audit.tone === 'watch');
+  const cleanReads = audits.length - watchAudits.length;
+  const needFits = audits.filter((audit) => audit.verdict === 'Need + Value' || audit.verdict === 'Need Fit');
+  const boardReads = audits.filter((audit) => audit.verdict === 'Board Pick' || audit.tone === 'value' || audit.tone === 'win');
+
+  if (watchAudits.length) {
+    const mainFlag = [...watchAudits].sort((a, b) => getDraftDecisionSeverity(b) - getDraftDecisionSeverity(a))[0];
+    const alternative = mainFlag.alternative?.pick
+      ? ` Best follow-up comp is ${mainFlag.alternative.playerName} at ${mainFlag.alternative.pickLabel}.`
+      : '';
+    return `${watchAudits.length} pick${watchAudits.length === 1 ? '' : 's'} need a second look. ${mainFlag.pick.playerName} is the headline flag as a ${mainFlag.verdict.toLowerCase()}.${alternative}`;
+  }
+
+  if (needFits.length && boardReads.length) {
+    return `Clean audit: ${cleanReads}/${audits.length} picks aligned with either roster need or board value, with ${needFits.length} need fit${needFits.length === 1 ? '' : 's'} and ${boardReads.length} board read${boardReads.length === 1 ? '' : 's'}.`;
+  }
+
+  if (needFits.length) {
+    return `Roster-first draft: ${needFits.length}/${audits.length} picks matched a pressure point without creating a major board-value flag.`;
+  }
+
+  return `Board-first draft: no major decision flags, and ${boardReads.length}/${audits.length} picks stayed in a clean value pocket.`;
+}
+
+function getDraftDecisionSeverity(audit: DraftDecisionAudit): number {
+  if (audit.verdict === 'Need Miss') return 5;
+  if (audit.verdict === 'Passed Value') return 4;
+  if (audit.verdict === 'Need Reach') return 3;
+  if (audit.tone === 'watch') return 2;
+  return 1;
 }
 
 function buildDraftDecisionAudits(
