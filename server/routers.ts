@@ -337,6 +337,7 @@ function buildCurrentStandings(rosters: any[] = [], rosterUserMap: Record<string
 async function buildManagerChampionships(
   currentLeagueInfo: any,
   currentUsers: any[] = [],
+  currentRosters: any[] = [],
   maxSeasons = 8
 ): Promise<Record<string, ManagerChampionship>> {
   const championships: Record<string, ManagerChampionship> = {};
@@ -349,8 +350,20 @@ async function buildManagerChampionships(
     }
   };
   const visited = new Set<string>();
+  const safeCurrentUsers = Array.isArray(currentUsers) ? currentUsers : [];
+  const safeCurrentRosters = Array.isArray(currentRosters) ? currentRosters : [];
   const currentManagerByUserId = Object.fromEntries(
-    currentUsers.map((user: any) => [user.user_id, normalizeManagerName(user.display_name)])
+    safeCurrentUsers.map((user: any) => [user.user_id, normalizeManagerName(user.display_name)])
+  );
+  const currentUserMap = Object.fromEntries(safeCurrentUsers.map((user: any) => [user.user_id, user]));
+  const currentManagerByRosterId = Object.fromEntries(
+    safeCurrentRosters.map((roster: any) => {
+      const rosterId = Number(roster?.roster_id);
+      const ownerId = roster?.owner_id ? String(roster.owner_id) : '';
+      const manager = currentManagerByUserId[ownerId]
+        || normalizeManagerName(currentUserMap[ownerId]?.display_name);
+      return [rosterId, manager === 'Unknown' ? undefined : manager];
+    })
   );
   let nextLeagueId = currentLeagueInfo?.previous_league_id ? String(currentLeagueInfo.previous_league_id) : '';
 
@@ -373,7 +386,9 @@ async function buildManagerChampionships(
       (Array.isArray(rosters) ? rosters : []).map((roster: any) => {
         const rosterId = Number(roster.roster_id);
         const ownerId = roster?.owner_id ? String(roster.owner_id) : '';
+        const currentSlotManager = currentManagerByRosterId[rosterId];
         const manager = currentManagerByUserId[ownerId]
+          || (currentSlotManager && currentSlotManager !== 'Unknown' ? currentSlotManager : undefined)
           || normalizeManagerName(userMap[ownerId]?.display_name);
         return [rosterId, manager];
       })
@@ -1800,7 +1815,7 @@ export const appRouter = router({
             leagueValueMode,
             allValueProfilesById
           );
-          const managerChampionships = await buildManagerChampionships(leagueInfo, users);
+          const managerChampionships = await buildManagerChampionships(leagueInfo, users, rosters);
 
           const reportPlayerIds = [
             ...rosters.flatMap((roster: any) => [...(roster.players || []), ...(roster.taxi || []), ...(roster.reserve || [])]),
