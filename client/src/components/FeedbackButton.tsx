@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Lightbulb, Send, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,6 +13,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
 const DEFAULT_FEEDBACK_ENDPOINT = 'https://formspree.io/f/mzdogzgl';
+const FEEDBACK_SUBMITTED_KEY = 'dynasty-degenerates-feedback-submitted';
+
+function getStoredFeedbackSubmitted(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(FEEDBACK_SUBMITTED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
 
 type FeedbackButtonProps = {
   compact?: boolean;
@@ -39,6 +48,7 @@ export function FeedbackButton({
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [hasSubmittedFeedback, setHasSubmittedFeedback] = useState(getStoredFeedbackSubmitted);
   const resetTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -59,6 +69,15 @@ export function FeedbackButton({
     setIsSubmitted(false);
   };
 
+  const markFeedbackSubmitted = () => {
+    setHasSubmittedFeedback(true);
+    try {
+      window.localStorage.setItem(FEEDBACK_SUBMITTED_KEY, 'true');
+    } catch {
+      // The modal confirmation still prevents repeat sends for this render.
+    }
+  };
+
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (resetTimerRef.current) {
@@ -76,6 +95,7 @@ export function FeedbackButton({
 
     if (company.trim()) {
       setIsSubmitted(true);
+      markFeedbackSubmitted();
       return;
     }
 
@@ -117,7 +137,7 @@ export function FeedbackButton({
       }
 
       setIsSubmitted(true);
-      toast.success('Idea sent. We appreciate the help.');
+      markFeedbackSubmitted();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'The idea box did not submit. Try again in a minute.');
     } finally {
@@ -127,14 +147,16 @@ export function FeedbackButton({
 
   return (
     <>
-      <button
-        type="button"
-        className={`support-button feedback-button ${compact ? 'support-button-compact feedback-button-compact' : ''} ${className}`.trim()}
-        onClick={() => setIsOpen(true)}
-      >
-        <Lightbulb aria-hidden="true" className="support-button-icon" />
-        <span>{compact ? 'Got Ideas?' : 'Got Ideas For Us?'}</span>
-      </button>
+      {!hasSubmittedFeedback ? (
+        <button
+          type="button"
+          className={`support-button feedback-button ${compact ? 'support-button-compact feedback-button-compact' : ''} ${className}`.trim()}
+          onClick={() => setIsOpen(true)}
+        >
+          <Lightbulb aria-hidden="true" className="support-button-icon" />
+          <span>{compact ? 'Got Ideas?' : 'Got Ideas For Us?'}</span>
+        </button>
+      ) : null}
 
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="feedback-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
