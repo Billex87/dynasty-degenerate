@@ -1258,7 +1258,6 @@ function buildManagerSignalTags({
   holesSummary,
   tradeRow,
   pickRow,
-  taxiTriage,
   ageFlags = [],
 }: {
   identity?: string | null;
@@ -1271,7 +1270,6 @@ function buildManagerSignalTags({
   holesSummary?: string | null;
   tradeRow?: OwnerTradeRow | null;
   pickRow?: OwnerPickRow | null;
-  taxiTriage?: OwnerIntelRow['taxiTriage'] | null;
   ageFlags?: string[];
 }): Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> {
   const contenders = timeline?.contenderScore ?? 0;
@@ -1302,7 +1300,6 @@ function buildManagerSignalTags({
   if (futurePickCount <= 12 && futurePickCount > 0) tags.push({ label: 'Pick Light', tone: 'warn' });
   if (tradeRow && tradeRow.tradeCount >= 5 && tradeRow.profit >= 2500 && tradeRow.winPct >= 60) tags.push({ label: 'Trade Shark', tone: 'good' });
   if (tradeRow && tradeRow.tradeCount >= 4 && tradeRow.profit <= -2500) tags.push({ label: 'Trade Tax', tone: 'danger' });
-  if (taxiTriage?.counts.Cuttable) tags.push({ label: `${taxiTriage.counts.Cuttable} Cuttable Taxi`, tone: 'danger' });
   const primaryNeed = holesSummary && holesSummary !== 'No major roster hole flagged'
     ? holesSummary.split(',')[0]?.trim()
     : null;
@@ -1329,7 +1326,6 @@ function buildOwnerIntelTileTags({
   starterAvailability,
   holesSummary,
   pickRow,
-  taxiTriage,
 }: {
   identity?: string | null;
   powerRow?: OwnerPowerRow | null;
@@ -1338,7 +1334,6 @@ function buildOwnerIntelTileTags({
   starterAvailability?: OwnerIntelRow['starterAvailability'] | null;
   holesSummary?: string | null;
   pickRow?: OwnerPickRow | null;
-  taxiTriage?: OwnerIntelRow['taxiTriage'] | null;
 }): Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> {
   const tags: Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> = [];
 
@@ -1390,8 +1385,6 @@ function buildOwnerIntelTileTags({
   const futurePickCount = (pickRow?.count2026 || 0) + (pickRow?.count2027 || 0);
   if (futurePickCount >= 17) {
     tags.push({ label: 'Pick War Chest', tone: 'future' });
-  } else if (taxiTriage?.counts.Cuttable) {
-    tags.push({ label: `${taxiTriage.counts.Cuttable} Cuttable Taxi`, tone: 'danger' });
   }
 
   const seen = new Set<string>();
@@ -1459,15 +1452,6 @@ function parsePositionRankValue(rank: string | null | undefined): number | null 
 function formatSignedCompactValue(value: number | null | undefined): string {
   if (value === null || value === undefined) return '-';
   return `${value > 0 ? '+' : ''}${formatCompactValue(value)}`;
-}
-
-function getTaxiBadgeTone(action: string): 'good' | 'future' | 'warn' | 'danger' | 'neutral' {
-  if (action === 'Promote Now') return 'good';
-  if (action === 'Keep Parked') return 'future';
-  if (action === 'Trade Sweetener') return 'neutral';
-  if (action === 'Taxi Risk') return 'warn';
-  if (action === 'Cuttable') return 'danger';
-  return 'neutral';
 }
 
 function buildOwnerBestMove(row: OwnerIntelRow): string {
@@ -1661,58 +1645,6 @@ function PlayerInsightTile({
           <span>{crownedRank}</span>
         </div>
       )}
-    </button>
-  );
-}
-
-function TaxiTriageRow({
-  player,
-  manager,
-  managerAvatarUrl,
-  playerDetailsById,
-  onSelect,
-}: {
-  player: NonNullable<OwnerIntelRow['taxiTriage']>['items'][number];
-  manager: string;
-  managerAvatarUrl?: string | null;
-  playerDetailsById?: PlayerDetailsById;
-  onSelect: (player: PlayerModalData) => void;
-}) {
-  const playerDetails = player.playerDetails || (player.player_id ? playerDetailsById?.[player.player_id] : undefined);
-  const playerTeam = playerDetails?.team || null;
-  const rank = player.currentPositionRank || player.seasonPositionRank || player.pos;
-  const tone = getTaxiBadgeTone(player.taxiAction);
-
-  return (
-    <button
-      type="button"
-      className={`player-team-tile owner-intel-taxi-row owner-intel-taxi-row-${tone}`}
-      style={getTeamTileStyle(playerTeam)}
-      onClick={() => onSelect(buildPlayerModalData({
-        playerId: player.player_id,
-        playerName: player.name,
-        playerPos: player.pos,
-        value: player.value,
-        playerDetails,
-        playerDetailsById,
-        currentPositionRank: rank,
-        manager,
-        managerAvatarUrl,
-      }))}
-    >
-      <div className="owner-intel-taxi-player">
-        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-        <div className="owner-intel-taxi-pills">
-          <TeamLogoPill team={playerTeam} />
-          <PositionRankPill rank={rank} />
-          <span>Taxi</span>
-          <span>{formatCompactValue(player.value)}</span>
-        </div>
-      </div>
-      <div className="owner-intel-taxi-note">
-        <span className={`command-mini-badge command-mini-badge-${tone}`}>{player.taxiAction}</span>
-        <p>{player.taxiReason}</p>
-      </div>
     </button>
   );
 }
@@ -2547,7 +2479,6 @@ export function LeagueCommandCenter({
       rosterHealthScore: intel.find((item) => item.manager === row.manager)?.rosterHealthScore,
       pressurePoints: intel.find((item) => item.manager === row.manager)?.pressurePoints || [],
       droppablePlayers: intel.find((item) => item.manager === row.manager)?.droppablePlayers || [],
-      taxiTriage: intel.find((item) => item.manager === row.manager)?.taxiTriage,
     }))
     .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers || compareManagersByViewerAndStanding(a.manager, b.manager, { viewerManager, standings: currentStandings, leagueOverview: data.leagueOverview }));
   const taxiDepth = intel
@@ -2640,7 +2571,6 @@ export function LeagueCommandCenter({
       starterAvailability: selectedIntel.starterAvailability,
       holesSummary: selectedIntel.holes.summary,
       pickRow: selectedPick,
-      taxiTriage: selectedIntel.taxiTriage,
     });
     return tags.slice(0, 6);
   })();
@@ -2891,7 +2821,7 @@ export function LeagueCommandCenter({
               {selectedIntel?.positionGrades ? (
                 <div className="manager-command-section">
                   <h4>Position Strength</h4>
-                  <p className="owner-intel-section-note">League rank of each lineup cutoff: QB2/SF, RB2, WR3, and TE1. Lower is stronger; taxi calls use active lineup value separately.</p>
+                  <p className="owner-intel-section-note">League rank of each lineup cutoff: QB2/SF, RB2, WR3, and TE1. Lower is stronger.</p>
                   <div className="owner-intel-heat-grid">
                     {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                       const grade = selectedIntel.positionGrades?.[pos];
@@ -2906,7 +2836,7 @@ export function LeagueCommandCenter({
                   </div>
                 </div>
               ) : null}
-              {selectedIntel?.taxiTriage?.items.length ? (
+              {section === 'taxi' && selectedIntel?.taxiTriage?.items.length ? (
                 <div className="manager-command-section manager-command-taxi">
                   <h4>Taxi Squad Triage</h4>
                   <p className="manager-command-taxi-summary">{selectedIntel.taxiTriage.summary}</p>
@@ -3245,7 +3175,6 @@ export function OwnerIntelMatrix({
     starterAvailability: selectedRow.starterAvailability,
     holesSummary: selectedRow.holes.summary,
     pickRow: selectedPickRow,
-    taxiTriage: selectedRow.taxiTriage,
   }) : [];
   const selectedPlayerSectionsBase: Array<{
     label: string;
@@ -3324,7 +3253,6 @@ export function OwnerIntelMatrix({
                   starterAvailability: row.starterAvailability,
                   holesSummary: row.holes.summary,
                   pickRow,
-                  taxiTriage: row.taxiTriage,
                 }),
               ]}
               onClick={() => setSelectedOwner(row.manager)}
@@ -3414,32 +3342,11 @@ export function OwnerIntelMatrix({
                   ) : null)}
                 </div>
 
-                {selectedRow.taxiTriage?.items.length ? (
-                  <div className="owner-intel-taxi-panel">
-                    <div className="owner-intel-taxi-header">
-                      <h4>Taxi Squad Triage</h4>
-                      <p>{selectedRow.taxiTriage.summary}</p>
-                    </div>
-                    <div className="owner-intel-taxi-list">
-                      {selectedRow.taxiTriage.items.map((player) => (
-                        <TaxiTriageRow
-                          key={`taxi-${player.player_id}`}
-                          player={player}
-                          manager={selectedRow.manager}
-                          managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                          playerDetailsById={data.playerDetailsById}
-                          onSelect={setSelectedPlayer}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
                 <div className="owner-intel-read-grid">
                   {selectedRow.positionGrades ? (
                     <div className="owner-intel-roster-heat">
                       <h4>Position Strength</h4>
-                      <p className="owner-intel-section-note">League rank of each lineup cutoff: QB2/SF, RB2, WR3, and TE1. Lower is stronger; taxi calls use active lineup value separately.</p>
+                      <p className="owner-intel-section-note">League rank of each lineup cutoff: QB2/SF, RB2, WR3, and TE1. Lower is stronger.</p>
                       <div className="owner-intel-heat-grid">
                         {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                           const grade = selectedRow.positionGrades?.[pos];

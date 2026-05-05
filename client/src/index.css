@@ -2778,151 +2778,6 @@
     min-height: 7.55rem;
   }
 
-  .owner-intel-taxi-panel {
-    display: grid;
-    gap: 0.65rem;
-    border: 1px solid rgba(251, 191, 36, 0.18);
-    border-radius: 1rem;
-    background:
-      radial-gradient(circle at 0 0, rgba(251, 191, 36, 0.11), transparent 42%),
-      rgba(2, 6, 23, 0.44);
-    padding: 0.75rem;
-  }
-
-  .owner-intel-taxi-header {
-    display: grid;
-    gap: 0.25rem;
-  }
-
-  .owner-intel-taxi-header h4 {
-    color: #67e8f9;
-    font-size: 0.68rem;
-    font-weight: 1000;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-
-  .owner-intel-taxi-header p {
-    color: #cbd5e1;
-    font-size: clamp(0.72rem, 1.7vw, 0.82rem);
-    font-weight: 800;
-    line-height: 1.42;
-  }
-
-  .owner-intel-taxi-list {
-    display: grid;
-    gap: 0.55rem;
-  }
-
-  .owner-intel-taxi-row {
-    display: grid;
-    grid-template-columns: minmax(12rem, 0.86fr) minmax(0, 1fr);
-    gap: 0.7rem;
-    align-items: stretch;
-    border: 1px solid color-mix(in srgb, var(--team-accent, #22d3ee) 22%, rgba(34, 211, 238, 0.12));
-    border-radius: 0.9rem;
-    background:
-      linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #0f172a) 28%, rgba(15, 23, 42, 0.82)), rgba(2, 6, 23, 0.76) 60%, color-mix(in srgb, var(--team-secondary, #020617) 26%, rgba(2, 6, 23, 0.72))),
-      radial-gradient(circle at 7% 0%, color-mix(in srgb, var(--team-accent, #22d3ee) 16%, transparent), transparent 40%);
-    padding: 0.62rem;
-    text-align: left;
-    transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
-  }
-
-  .owner-intel-taxi-row:hover,
-  .owner-intel-taxi-row:focus-visible {
-    border-color: color-mix(in srgb, var(--team-accent, #22d3ee) 48%, rgba(255, 255, 255, 0.18));
-    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.26);
-    transform: translateY(-1px);
-  }
-
-  .owner-intel-taxi-player {
-    display: grid;
-    min-width: 0;
-    gap: 0.48rem;
-    border: 1px solid rgba(148, 163, 184, 0.1);
-    border-radius: 0.75rem;
-    background: rgba(2, 6, 23, 0.36);
-    padding: 0.55rem;
-  }
-
-  .owner-intel-taxi-player .player-chip {
-    min-width: 0;
-    gap: 0.42rem;
-  }
-
-  .owner-intel-taxi-player .player-chip img,
-  .owner-intel-taxi-player .player-chip > span[aria-hidden="true"] {
-    height: 2.15rem;
-    width: 2.15rem;
-    border: 2px solid color-mix(in srgb, var(--team-accent, #fb923c) 62%, rgba(255, 255, 255, 0.2));
-  }
-
-  .owner-intel-taxi-player .player-chip > span:last-child {
-    min-width: 0;
-    overflow: hidden;
-    color: #f8fafc;
-    font-family: var(--font-athletic);
-    font-size: clamp(0.82rem, 1.8vw, 1rem);
-    font-weight: 1000;
-    line-height: 1;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .owner-intel-taxi-pills {
-    display: flex;
-    min-width: 0;
-    flex-wrap: wrap;
-    gap: 0.32rem;
-  }
-
-  .owner-intel-taxi-pills span {
-    display: inline-flex;
-    min-height: 1.35rem;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(34, 211, 238, 0.16);
-    border-radius: 999px;
-    background: rgba(2, 6, 23, 0.5);
-    padding: 0.18rem 0.44rem;
-    color: #67e8f9;
-    font-size: 0.62rem;
-    font-weight: 950;
-    line-height: 1;
-    white-space: nowrap;
-  }
-
-  .owner-intel-taxi-note {
-    display: grid;
-    min-width: 0;
-    align-content: center;
-    gap: 0.42rem;
-  }
-
-  .owner-intel-taxi-note .command-mini-badge {
-    justify-self: start;
-  }
-
-  .owner-intel-taxi-note p {
-    color: #cbd5e1;
-    font-size: clamp(0.72rem, 1.45vw, 0.86rem);
-    font-weight: 850;
-    line-height: 1.32;
-  }
-
-  @media (max-width: 640px) {
-    .owner-intel-taxi-row {
-      grid-template-columns: 1fr;
-      gap: 0.5rem;
-    }
-
-    .owner-intel-taxi-note {
-      border-top: 1px solid rgba(148, 163, 184, 0.12);
-      padding-top: 0.5rem;
-    }
-  }
-
   .owner-intel-read-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -9986,7 +9841,6 @@ button.trade-manager-trade {
   }
 
   .report-shell .command-feature-top,
-  .report-shell .owner-intel-taxi-header,
   .report-shell .trade-manager-header,
   .report-shell .manager-draft-title-lockup,
   .report-shell .starter-modal-hero {
@@ -9996,8 +9850,7 @@ button.trade-manager-trade {
 
   .report-shell .command-feature-top > div,
   .report-shell .manager-command-title-lockup > div,
-  .report-shell .trade-manager-title-lockup > div,
-  .report-shell .owner-intel-taxi-header > div {
+  .report-shell .trade-manager-title-lockup > div {
     text-align: center;
   }
 
@@ -10191,14 +10044,6 @@ button.trade-manager-trade {
 
   .owner-intel-wild-notes ul {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .owner-intel-taxi-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .owner-intel-taxi-row {
-    grid-template-columns: 1fr;
   }
 
   .trade-manager-modal .trade-manager-list {
