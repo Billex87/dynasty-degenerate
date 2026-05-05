@@ -20,8 +20,18 @@ interface KTCValues {
 
 let ktcValuesCache: KTCValues | null = null;
 let ktcValuesLastWeekCache: KTCValues | null = null;
+const KTC_SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 
 export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshots');
+
+function getSnapshotDateKey(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: KTC_SNAPSHOT_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
 
 export async function loadKTCValues(): Promise<KTCValues> {
   if (ktcValuesCache) return ktcValuesCache;
@@ -104,7 +114,7 @@ export function loadLocalKtcSnapshotForDate(dateKey: string): KTCValues {
 export function loadLatestLocalKtcSnapshotBefore(beforeDate: Date): KTCValues {
   try {
     if (!fs.existsSync(KTC_SNAPSHOT_DIR)) return {};
-    const beforeDateKey = beforeDate.toISOString().split('T')[0];
+    const beforeDateKey = getSnapshotDateKey(beforeDate);
 
     const snapshotFiles = fs
       .readdirSync(KTC_SNAPSHOT_DIR)
@@ -136,7 +146,7 @@ export function saveLocalKtcSnapshot(date: Date, ktcData: KTCValues): string | n
       fs.mkdirSync(KTC_SNAPSHOT_DIR, { recursive: true });
     }
 
-    const dateKey = date.toISOString().split('T')[0];
+    const dateKey = getSnapshotDateKey(date);
     const filePath = path.join(KTC_SNAPSHOT_DIR, `ktc-snapshot-${dateKey}.json`);
     fs.writeFileSync(filePath, JSON.stringify(ktcData, null, 2));
     return filePath;
@@ -150,3 +160,5 @@ export function clearKTCCache() {
   ktcValuesCache = null;
   ktcValuesLastWeekCache = null;
 }
+
+export { getSnapshotDateKey, KTC_SNAPSHOT_TIME_ZONE };

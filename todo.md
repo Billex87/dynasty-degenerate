@@ -192,8 +192,8 @@
 
 ### Full Trade Ledger Timeline Lens
 - [x] Show contender/rebuilder pills on Full Trade Ledger managers and use that lens for displayed player values, side totals, gap, and winner
-- [ ] Reconstruct each manager's contender/rebuilder state as of the actual trade date instead of only using the current report timeline snapshot
-- [ ] Add a small explanatory note or tooltip so managers know when a trade is being skewed by contender vs rebuilder value context
+- [x] Reconstruct each manager's contender/rebuilder state as of the actual trade date instead of only using the current report timeline snapshot
+- [x] Add a small explanatory note or tooltip so managers know when a trade is being skewed by contender vs rebuilder value context
 
 ### KTC Scraper Trigger
 - [x] Manually trigger KTC scraper to run now (should have run Tuesday 11 PM)

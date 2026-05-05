@@ -4,6 +4,7 @@ import { registerOAuthRoutes } from './oauth';
 import { appRouter } from '../routers';
 import { createContext } from './context';
 import { storeKtcSnapshot } from '../ktcSnapshotJob';
+import { getSnapshotDateKey } from '../ktcLoader';
 
 const app = express();
 
@@ -11,15 +12,6 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 registerOAuthRoutes(app);
-
-function getPacificHour(date: Date): number {
-  const hour = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Vancouver',
-    hour: '2-digit',
-    hour12: false,
-  }).format(date);
-  return Number(hour);
-}
 
 app.get('/api/cron/ktc-snapshot', async (req, res) => {
   const configuredSecret = process.env.CRON_SECRET;
@@ -36,14 +28,13 @@ app.get('/api/cron/ktc-snapshot', async (req, res) => {
     return;
   }
 
-  if (!forceRun && getPacificHour(new Date()) !== 18) {
-    res.status(200).json({ ok: true, skipped: true, reason: 'Not 6 PM America/Vancouver' });
-    return;
-  }
-
   try {
     await storeKtcSnapshot();
-    res.status(200).json({ ok: true });
+    res.status(200).json({
+      ok: true,
+      forced: forceRun,
+      snapshotDateKey: getSnapshotDateKey(new Date()),
+    });
   } catch (error) {
     console.error('[Cron] KTC snapshot failed', error);
     res.status(500).json({ ok: false, error: 'KTC snapshot failed' });

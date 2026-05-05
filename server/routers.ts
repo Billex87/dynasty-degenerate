@@ -1503,12 +1503,14 @@ export const appRouter = router({
           const ownerByPlayerId = buildPlayerOwnerMap(rosters, rosterUserMap);
           const rosterStatusByPlayerId = buildPlayerRosterStatusMap(rosters);
 
+          const allTransactions: any[] = [];
           const trades: any[] = [];
           for (let week = 1; week <= 18; week++) {
             const weekTrades = await fetch(
               `https://api.sleeper.app/v1/league/${input.leagueId}/transactions/${week}`
             ).then((r) => r.json());
-            if (weekTrades) {
+            if (Array.isArray(weekTrades)) {
+              allTransactions.push(...weekTrades);
               trades.push(
                 ...weekTrades.filter(
                   (t: any) => t.type === 'trade' && t.status === 'complete'
@@ -1744,7 +1746,7 @@ export const appRouter = router({
           );
           const managerIntelByName = new Map((reportData.managerRosterIntelligence || []).map((row) => [row.manager, row]));
           const recentTransactions = buildRecentTransactions(
-            trades,
+            allTransactions,
             rosterUserMap,
             players,
             ktcValues,

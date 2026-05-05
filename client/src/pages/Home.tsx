@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Grid3x3, Repeat2, ClipboardList } from 'lucide-react';
+import { ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Repeat2, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { SupportButton } from '@/components/SupportButton';
@@ -23,6 +23,7 @@ import {
   TradeProfitLeaderboardTable,
   TradeHistoryTable,
   PositionAnalysisTable,
+  ManagerPositionCountsTable,
   OwnerIntelMatrix,
   LeagueCommandCenter,
   TradeMarketRadar,
@@ -515,8 +516,10 @@ export default function Home() {
                 <span className="report-tab-label-full">Weekly Momentum</span>
                 <span className="report-tab-label-short">Momentum</span>
               </TabsTrigger>
-              <TabsTrigger value="projections" className="report-tab hidden">
-                Projections
+              <TabsTrigger value="projections" className="report-tab">
+                <ZapIcon className="h-4 w-4" />
+                <span className="report-tab-label-full">1-Year Outlook</span>
+                <span className="report-tab-label-short">Outlook</span>
               </TabsTrigger>
               <TabsTrigger value="trades" className="report-tab">
                 <Repeat2 className="h-4 w-4" />
@@ -574,6 +577,17 @@ export default function Home() {
                 {reportData.positionDepth.length > 0 && (
                   <CollapsibleReportSection title="Position Depth Analysis" kicker="Shortage and excess">
                     <PositionAnalysisTable data={reportData.positionDepth} managerAvatars={reportData.managerAvatars} />
+                  </CollapsibleReportSection>
+                )}
+                {reportData.managerPositionCounts.length > 0 && (
+                  <CollapsibleReportSection title="Manager Position Counts" kicker="Starters vs rostered">
+                    <ManagerPositionCountsTable
+                      data={reportData.managerPositionCounts}
+                      managerAvatars={reportData.managerAvatars}
+                      playerDetailsById={reportData.playerDetailsById}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                    />
                   </CollapsibleReportSection>
                 )}
                     </>
@@ -647,26 +661,32 @@ export default function Home() {
             </TabsContent>
 
             <TabsContent value="projections" className="report-tab-content">
-              <div className="flex justify-center mb-8">
-                <div className="max-w-2xl p-4 bg-slate-800/30 rounded border border-slate-700 text-center">
-                  <p className="text-sm text-slate-300"><span className="text-amber-400 font-semibold">One-Year Projection:</span> These values predict where players will be valued one year from now based on age and position trends.</p>
+              <div className="space-y-6 sm:space-y-8">
+                <div className="mx-auto max-w-2xl rounded-xl border border-cyan-400/20 bg-slate-900/55 px-4 py-4 text-center shadow-lg shadow-black/20">
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold text-orange-300">One-Year Outlook:</span> these cards project where player value could sit next offseason based on age curves and position trends.
+                  </p>
                 </div>
-              </div>
-              <div className="space-y-8">
-                <div>
-                  <div className="space-y-2 mb-4">
-                    <h3 className="text-center text-2xl font-bold text-emerald-400 mb-6">Top Weekly Risers</h3>
-                    <p className="text-sm text-slate-400 text-center">Players about to make your league mates look stupid next year.</p>
-                  </div>
-                   <ProjectedMoversTable data={reportData.projectedRisers} title="Top Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
-                </div>
-                <div>
-                  <div className="space-y-2 mb-4">
-                    <h3 className="text-center text-2xl font-bold text-red-400 mb-6">Top Weekly Fallers</h3>
-                    <p className="text-sm text-slate-400 text-center">Players about to tank your roster value.</p>
-                  </div>
-                   <ProjectedMoversTable data={reportData.projectedFallers} title="Top Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
-                </div>
+                <CollapsibleReportSection title="2027 Value Climbers" kicker="Next-year upside">
+                  <ProjectedMoversTable
+                    data={reportData.projectedRisers}
+                    title="2027 Value Climbers"
+                    managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="2027 Value Droppers" kicker="Next-year risk">
+                  <ProjectedMoversTable
+                    data={reportData.projectedFallers}
+                    title="2027 Value Droppers"
+                    managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                  />
+                </CollapsibleReportSection>
               </div>
             </TabsContent>
 

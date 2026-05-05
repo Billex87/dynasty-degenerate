@@ -9,7 +9,7 @@ import {
   calculateValueAdjustment,
 } from './leagueAnalysis';
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
-import type { LeagueValueMode, ManagerIntelPlayer, PlayerDetails, ReportData, TaxiTriageAction, TaxiTriageItem } from '../shared/types';
+import type { LeagueValueMode, ManagerIntelPlayer, PlayerDetails, ReportData, TaxiTriageAction, TaxiTriageItem, TradeTeamContext } from '../shared/types';
 
 export interface KTCValues {
   [key: string]: {
@@ -481,6 +481,167 @@ function getTimelineLabel(contenderScore: number, rebuildScore: number, agingRis
   if (contenderScore >= 70 && rebuildScore >= 52) return 'Fork in road';
   if (contenderScore >= 64) return 'Playoff mix';
   return 'Future focused';
+}
+
+function getTradeContextMode(contenderScore: number, rebuildScore: number, label: string): TradeTeamContext['mode'] {
+  if (contenderScore >= 74 && contenderScore >= rebuildScore - 6) return 'contender';
+  if (rebuildScore >= 68 && rebuildScore > contenderScore) return 'rebuilder';
+  if (/contender|win|playoff/i.test(label)) return 'contender';
+  if (/rebuild|future/i.test(label)) return 'rebuilder';
+  return 'dynasty';
+}
+
+function buildHistoricalTradeTeamContext({
+  manager,
+  date,
+  starterSeasonValue,
+  totalValue,
+  avgAge,
+  maxStarterSeasonValue,
+  maxTotalValue,
+}: {
+  manager: string;
+  date: string;
+  starterSeasonValue: number;
+  totalValue: number;
+  avgAge: number | null;
+  maxStarterSeasonValue: number;
+  maxTotalValue: number;
+}): TradeTeamContext {
+  const contenderScore = Math.round(
+    (normalizeScore(starterSeasonValue, maxStarterSeasonValue) * 0.72)
+    + (normalizeScore(totalValue, maxTotalValue) * 0.28)
+  );
+  const starterValuePct = totalValue > 0 ? Math.round((starterSeasonValue / totalValue) * 100) : 0;
+  const rebuildScore = Math.round(
+    ((100 - starterValuePct) * 0.35)
+    + ((avgAge !== null ? Math.max(0, 28 - avgAge) * 8 : 35) * 0.65)
+  );
+  const agingRisk = Math.round(Math.max(0, ((avgAge || 25) - 25) * 18));
+  const label = getTimelineLabel(contenderScore, rebuildScore, agingRisk);
+
+  return {
+    mode: getTradeContextMode(contenderScore, rebuildScore, label),
+    label,
+    contenderScore,
+    rebuildScore,
+    agingRisk,
+    avgAge,
+    starterSeasonValue: Math.round(starterSeasonValue),
+    totalValue: Math.round(totalValue),
+    source: 'historical-roster',
+    reason: `Pre-trade roster snapshot for ${manager} on ${date}: contender ${contenderScore}, rebuild ${rebuildScore}, age ${avgAge ?? '-'} from the season roster plus later trades rolled back.`,
+  };
+}
+
+function getTradeParticipants(trade: Trade): number[] {
+  const participantIds = new Set<number>();
+
+  for (const rid of Object.values(trade.adds || {})) {
+    participantIds.add(rid);
+  }
+  for (const pick of trade.draft_picks || []) {
+    participantIds.add(pick.owner_id);
+    if (typeof pick.previous_owner_id === 'number') {
+      participantIds.add(pick.previous_owner_id);
+    }
+  }
+
+  return Array.from(participantIds);
+}
+
+function buildHistoricalTradeContextsForSeason(
+  season: SeasonData,
+  allPlayers: Player,
+  ktcValues: KTCValues,
+  getPrimaryValue: (pid: string) => number,
+  getPrimaryRank: (pid: string) => string | null,
+  seasonPositionRankById: Record<string, string | null>,
+): Map<number, Record<number, TradeTeamContext>> {
+  const rosterState = new Map<number, Set<string>>(
+    season.rosters.map((roster) => [roster.roster_id, new Set(getActivePlayerIds(roster))])
+  );
+  const sortedTrades = [...season.trades].sort((a, b) => b.status_updated - a.status_updated);
+  const contextsByTrade = new Map<number, Record<number, TradeTeamContext>>();
+
+  const buildRosterSnapshot = () => {
+    const rows = season.rosters.map((roster) => {
+      const playerIds = Array.from(rosterState.get(roster.roster_id) || []);
+      const players = playerIds
+        .map((pid) => {
+          const pos = allPlayers[pid]?.position || 'UNK';
+          const value = getPrimaryValue(pid);
+          if (!isFantasyPosition(pos) || value <= 0) return null;
+
+          const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
+          return {
+            player_id: pid,
+            name: getPlayerName(pid, allPlayers),
+            pos,
+            owner: season.rosterMap[roster.roster_id] || 'Unknown',
+            value,
+            seasonValue,
+            currentPositionRank: getPrimaryRank(pid),
+            seasonPositionRank: seasonPositionRankById[pid] || null,
+            playerDetails: getPlayerDetails(pid, allPlayers),
+          } satisfies ManagerIntelPlayer;
+        })
+        .filter((player): player is NonNullable<typeof player> => Boolean(player));
+
+      const lineup = selectProjectedLineup(players, season.rosterPositions);
+      const starterSeasonValue = lineup.reduce((sum, player) => sum + (player.seasonValue || player.value), 0);
+      const totalValue = players.reduce((sum, player) => sum + player.value, 0);
+      const avgAge = roundOne(average(players.map((player) => player.playerDetails?.age ?? null)));
+
+      return {
+        rosterId: roster.roster_id,
+        manager: season.rosterMap[roster.roster_id] || 'Unknown',
+        starterSeasonValue,
+        totalValue,
+        avgAge,
+      };
+    });
+
+    const maxStarterSeasonValue = Math.max(...rows.map((row) => row.starterSeasonValue), 1);
+    const maxTotalValue = Math.max(...rows.map((row) => row.totalValue), 1);
+    return { rows, maxStarterSeasonValue, maxTotalValue };
+  };
+
+  sortedTrades.forEach((trade) => {
+    const participants = getTradeParticipants(trade);
+    if (participants.length !== 2) return;
+
+    const [rosterA, rosterB] = participants;
+    for (const [pid, newRosterId] of Object.entries(trade.adds || {})) {
+      const oldRosterId = newRosterId === rosterA ? rosterB : rosterA;
+      rosterState.get(newRosterId)?.delete(pid);
+      if (!rosterState.has(oldRosterId)) rosterState.set(oldRosterId, new Set());
+      rosterState.get(oldRosterId)?.add(pid);
+    }
+
+    const snapshot = buildRosterSnapshot();
+    const date = new Date(trade.status_updated).toISOString().split('T')[0];
+    const rowsByRoster = new Map(snapshot.rows.map((row) => [row.rosterId, row]));
+    const tradeContexts: Record<number, TradeTeamContext> = {};
+
+    for (const rosterId of participants) {
+      const row = rowsByRoster.get(rosterId);
+      if (!row) continue;
+      tradeContexts[rosterId] = buildHistoricalTradeTeamContext({
+        manager: row.manager,
+        date,
+        starterSeasonValue: row.starterSeasonValue,
+        totalValue: row.totalValue,
+        avgAge: row.avgAge,
+        maxStarterSeasonValue: snapshot.maxStarterSeasonValue,
+        maxTotalValue: snapshot.maxTotalValue,
+      });
+    }
+
+    contextsByTrade.set(trade.status_updated, tradeContexts);
+  });
+
+  return contextsByTrade;
 }
 
 function isLastSeasonStud(positionRank?: string | null): boolean {
@@ -1172,8 +1333,8 @@ export async function generateReport(
       const p2027 = projectValue(val, pos, age, 1);
       v2027 += p2027;
 
-      const currentMarketVal = getPrimaryValue(pid);
-      const lastWeekVal = getPrimarySnapshotValue(pid, ktcValuesLastWeek);
+      const currentMarketVal = getPlayerKtcMarketValue(pid, allPlayers, ktcValues);
+      const lastWeekVal = getPlayerValue(pid, allPlayers, ktcValuesLastWeek);
       if (currentMarketVal > 0 && lastWeekVal > 0) {
         const pct_change = lastWeekVal > 0 ? (currentMarketVal - lastWeekVal) / lastWeekVal * 100 : 0;
         weeklyMomentum.push({
@@ -1267,9 +1428,20 @@ export async function generateReport(
     point_gap: number;
     winner: string;
     winners: string[];
+    team_a_context?: TradeTeamContext;
+    team_b_context?: TradeTeamContext;
   }> = [];
 
   for (const season of [currentSeasonData, ...(pastSeasonData ? [pastSeasonData] : [])]) {
+    const historicalTradeContexts = buildHistoricalTradeContextsForSeason(
+      season,
+      allPlayers,
+      ktcValues,
+      getPrimaryValue,
+      getPrimaryRank,
+      seasonPositionRankById,
+    );
+
     for (const tx of season.trades) {
       const dt = new Date(tx.status_updated).toISOString().split('T')[0];
       const sideData: Record<
@@ -1361,6 +1533,7 @@ export async function generateReport(
         winners.forEach((winner) => {
           managerWins[winner] = (managerWins[winner] || 0) + 1;
         });
+        const historicalContext = historicalTradeContexts.get(tx.status_updated);
 
         tradeRows.push({
           date: dt,
@@ -1374,6 +1547,8 @@ export async function generateReport(
           point_gap: pointGap,
           winner: winners[0],
           winners,
+          team_a_context: historicalContext?.[r1],
+          team_b_context: historicalContext?.[r2],
         });
       }
     }
@@ -1486,20 +1661,22 @@ export async function generateReport(
     }
   }
 
-  // Second pass: identify shortages and excesses using dynamic thresholds
+  // Second pass: identify the league-low and league-high outliers for each position.
   for (const { manager, posCounts } of managerPosCounts) {
     for (const [pos, count] of Object.entries(posCounts)) {
       if (pos in dynamicThresholds) {
         const { shortage, excess } = dynamicThresholds[pos];
+        const counts = allPosCounts[pos] || [];
+        const hasSpread = shortage !== excess;
 
-        if (count < shortage) {
+        if (hasSpread && count === shortage) {
           positionDepth.push({
             manager,
             position: pos,
             count,
             status: 'shortage',
           });
-        } else if (count > excess) {
+        } else if (hasSpread && count === excess) {
           positionDepth.push({
             manager,
             position: pos,

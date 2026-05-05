@@ -343,6 +343,32 @@ function getManagerBuildLens(
   return { mode: 'dynasty', label: 'Middle', tone: 'middle', reason: fallbackLabel };
 }
 
+function getTradeContextLens(context?: ReportData['tradeHistory'][number]['team_a_context']): ManagerBuildLens | null {
+  if (!context) return null;
+  return {
+    mode: context.mode,
+    label: context.mode === 'contender' ? 'Contender' : context.mode === 'rebuilder' ? 'Rebuilder' : 'Middle',
+    tone: context.mode === 'contender' ? 'contender' : context.mode === 'rebuilder' ? 'rebuilder' : 'middle',
+    reason: context.reason,
+  };
+}
+
+function getTradeRowBuildLens(
+  row: ReportData['tradeHistory'][number],
+  manager: string,
+  dynastyTimelines?: DynastyTimelineRows,
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'],
+): ManagerBuildLens {
+  const context = row.team_a === manager
+    ? row.team_a_context
+    : row.team_b === manager
+      ? row.team_b_context
+      : undefined;
+
+  return getTradeContextLens(context)
+    || getManagerBuildLens(manager, dynastyTimelines, managerRosterIntelligence);
+}
+
 function getTradeLensNumber(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null;
 }
@@ -449,8 +475,8 @@ function buildTradeLedgerEvaluation(
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'],
   playerDetailsById?: PlayerDetailsById,
 ): TradeLedgerEvaluation {
-  const teamALens = getManagerBuildLens(row.team_a, dynastyTimelines, managerRosterIntelligence);
-  const teamBLens = getManagerBuildLens(row.team_b, dynastyTimelines, managerRosterIntelligence);
+  const teamALens = getTradeRowBuildLens(row, row.team_a, dynastyTimelines, managerRosterIntelligence);
+  const teamBLens = getTradeRowBuildLens(row, row.team_b, dynastyTimelines, managerRosterIntelligence);
   const teamAValues = getTradeLedgerItemValues(row.team_a_items, teamALens.mode, playerDetailsById);
   const teamBValues = getTradeLedgerItemValues(row.team_b_items, teamBLens.mode, playerDetailsById);
   const teamAAdjustment = calculateTradeLedgerValueAdjustment(teamAValues, teamBValues);
@@ -478,6 +504,16 @@ function buildTradeLedgerEvaluation(
     pointGap: Math.abs(evaluatedTeamATotal - evaluatedTeamBTotal),
     winners: chooseTradeLedgerWinners(row.team_a, row.team_b, evaluatedTeamATotal, evaluatedTeamBTotal),
   };
+}
+
+function getTradeLensSourceNote(row: ReportData['tradeHistory'][number]): string | null {
+  const contextA = row.team_a_context;
+  const contextB = row.team_b_context;
+  if (!contextA && !contextB) return null;
+  if (contextA?.source === 'historical-roster' || contextB?.source === 'historical-roster') {
+    return 'Values are shown through each manager\'s pre-trade roster lens, not today\'s roster identity.';
+  }
+  return null;
 }
 
 function getTradeSideEvaluation(manager: string, evaluation: TradeLedgerEvaluation): TradeLedgerSideEvaluation {
@@ -568,12 +604,18 @@ function TradeDetailPanel({
   const tradeFitReads = buildTradeFitReads(row, managerRosterIntelligence, playerDetailsById);
   const intelByManager = new Map((managerRosterIntelligence || []).map((intel) => [intel.manager, intel]));
   const overviewByManager = new Map((leagueOverview || []).map((overview) => [overview.manager, overview]));
+  const tradeLensNote = getTradeLensSourceNote(row);
 
   return (
     <div className="trade-detail-panel">
       <div className="trade-detail-header">
         <div>
           <div className="trade-detail-title">Trade Ledger</div>
+          {tradeLensNote && (
+            <p className="mt-1 max-w-xl text-xs text-cyan-200/75">
+              {tradeLensNote}
+            </p>
+          )}
         </div>
         <div className="trade-detail-gap">
           <span>Gap</span>
@@ -4744,6 +4786,7 @@ export function TradeHistoryTable({
                 ? [row.team_b, row.team_a]
                 : [row.team_a, row.team_b];
               const gapVerdict = getTradeGapVerdict(tradeEvaluation.pointGap);
+              const tradeLensNote = getTradeLensSourceNote(row);
 
               return (
                 <React.Fragment key={`${tradeKey}-fragment`}>
@@ -4756,6 +4799,14 @@ export function TradeHistoryTable({
                       <div className="trade-date-main flex items-center gap-2">
                         <ChevronDown className={`h-4 w-4 text-orange-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         <span>{row.date}</span>
+                        {tradeLensNote ? (
+                          <span
+                            className="hidden rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-200 md:inline-flex"
+                            title={tradeLensNote}
+                          >
+                            Trade-Date Lens
+                          </span>
+                        ) : null}
                       </div>
                       <div className="trade-mobile-summary">
                         {renderTradeSummaryManager(summaryManagers[0], winners.includes(summaryManagers[0]), managerAvatars)}
@@ -4908,7 +4959,7 @@ export function PositionAnalysisTable({
           { label: 'Count', value: selectedRow.count },
           { label: 'Signal', value: selectedRow.status === 'shortage' ? 'Shortage' : 'Excess' },
         ] : []}
-        note={selectedRow ? `${selectedRow.manager} is flagged for ${selectedRow.status === 'shortage' ? 'a shortage' : 'excess depth'} at ${selectedRow.position}. This is based on position counts relative to the league average and roster requirements.` : undefined}
+        note={selectedRow ? `${selectedRow.manager} is flagged for ${selectedRow.status === 'shortage' ? 'the league-low count' : 'the league-high count'} at ${selectedRow.position}. This compares the full roster counts for that position across the league.` : undefined}
       />
     </div>
   );

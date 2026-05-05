@@ -50,6 +50,21 @@ export interface TradeData {
   point_gap: number;
   winner: string;
   winners?: string[];
+  team_a_context?: TradeTeamContext;
+  team_b_context?: TradeTeamContext;
+}
+
+export interface TradeTeamContext {
+  mode: 'dynasty' | 'contender' | 'rebuilder';
+  label: string;
+  contenderScore: number;
+  rebuildScore: number;
+  agingRisk: number;
+  avgAge: number | null;
+  starterSeasonValue: number;
+  totalValue: number;
+  source: 'historical-roster' | 'current-roster';
+  reason: string;
 }
 
 export interface PositionDepth {
