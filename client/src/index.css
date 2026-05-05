@@ -11121,4 +11121,50 @@ button.trade-manager-trade {
     grid-template-columns: minmax(0, 1fr);
     border-radius: 0.85rem;
   }
+
+  .manager-command-hero,
+  .trade-manager-header,
+  .manager-draft-hero,
+  .starter-modal-hero {
+    justify-content: center !important;
+    justify-items: center !important;
+    text-align: center !important;
+  }
+
+  .manager-command-title-lockup {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    justify-items: center !important;
+    gap: 0.85rem !important;
+    width: min(calc(100% - 2.75rem), 40rem) !important;
+    max-width: min(calc(100% - 2.75rem), 40rem) !important;
+    margin-inline: auto !important;
+    text-align: center !important;
+  }
+
+  .trade-manager-title-lockup,
+  .manager-draft-title-lockup {
+    justify-content: center !important;
+    justify-items: center !important;
+    margin-inline: auto !important;
+    max-width: calc(100% - 2.75rem) !important;
+    text-align: center !important;
+  }
+
+  .manager-command-title-lockup > div,
+  .trade-manager-title-lockup > div,
+  .manager-draft-title-lockup > div {
+    min-width: 0;
+    max-width: min(24rem, calc(100vw - 7rem));
+    justify-items: center !important;
+    text-align: center !important;
+  }
+
+  .manager-command-hero h3,
+  .trade-manager-title-lockup h3,
+  .manager-draft-title-lockup h3 {
+    margin-inline: auto !important;
+    text-align: center !important;
+  }
 }
