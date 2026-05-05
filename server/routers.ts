@@ -388,10 +388,10 @@ async function buildManagerChampionships(
       ?? getWorstRegularSeasonRosterId(rosters || []);
 
     addFinish(managerByRosterId[championRosterId ?? -1], season, 'seasons');
-    if (runnerUpRosterId !== championRosterId) {
+    if (depth === 0 && runnerUpRosterId !== championRosterId) {
       addFinish(managerByRosterId[runnerUpRosterId ?? -1], season, 'runnerUpSeasons');
     }
-    if (lastPlaceRosterId !== championRosterId && lastPlaceRosterId !== runnerUpRosterId) {
+    if (depth === 0 && lastPlaceRosterId !== championRosterId && lastPlaceRosterId !== runnerUpRosterId) {
       addFinish(managerByRosterId[lastPlaceRosterId ?? -1], season, 'lastPlaceSeasons');
     }
 
