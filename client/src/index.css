@@ -12161,6 +12161,63 @@ button.trade-manager-trade {
   overflow-y: auto;
 }
 
+.owner-intel-dialog .owner-intel-heat-grid,
+.owner-intel-dialog .owner-intel-full-rank-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(0.22rem, 1.15vw, 0.48rem);
+}
+
+.owner-intel-dialog .owner-intel-heat-pill {
+  min-width: 0;
+  max-width: none;
+  gap: 0.12rem;
+  padding: clamp(0.44rem, 1.35vw, 0.64rem) clamp(0.22rem, 1vw, 0.48rem);
+}
+
+.owner-intel-dialog .owner-intel-heat-pill strong,
+.owner-intel-dialog .owner-intel-heat-pill small {
+  min-width: 0;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.owner-intel-dialog .owner-intel-heat-pill strong {
+  font-size: clamp(0.48rem, 1.65vw, 0.66rem);
+  letter-spacing: 0.07em;
+}
+
+.owner-intel-dialog .owner-intel-heat-pill em {
+  font-size: clamp(0.78rem, 2.25vw, 0.96rem);
+  line-height: 1;
+}
+
+.owner-intel-dialog .owner-intel-heat-pill small {
+  font-size: clamp(0.52rem, 1.7vw, 0.66rem);
+}
+
+.owner-intel-dialog .owner-intel-comparison-heading {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+}
+
+.owner-intel-dialog .owner-intel-comparison-heading small {
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.34);
+  padding: 0.16rem 0.42rem;
+  color: rgba(103, 232, 249, 0.78);
+  font-size: clamp(0.48rem, 1.5vw, 0.56rem);
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
 .owner-intel-dialog .owner-intel-tags,
 .owner-intel-dialog .owner-intel-player-grid > *,
 .owner-intel-dialog .owner-intel-read-grid > *,

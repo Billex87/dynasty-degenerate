@@ -1497,7 +1497,9 @@ type OwnerTimelineRow = NonNullable<ReportData['dynastyTimelines']>[number];
 type OwnerPowerRow = NonNullable<ReportData['powerRankings']>[number];
 type OwnerGrowthRow = NonNullable<ReportData['managerRosterValueGrowth']>[number];
 
-const STARTING_ROSTER_STRENGTH_NOTE = 'Compares this manager’s projected starters in each league slot group against every other roster using this league’s lineup settings. In superflex leagues, the QB tile includes the superflex QB path.';
+const STARTING_ROSTER_STRENGTH_TITLE = 'Starting Roster Strength';
+const STARTING_ROSTER_STRENGTH_COMPARISON = 'vs all managers';
+const STARTING_ROSTER_STRENGTH_NOTE = 'League rank for this manager’s projected starters in each starting slot group, using this league’s lineup settings. In superflex leagues, QB/SF includes the superflex QB path.';
 const BENCH_BASELINE_NOTE = 'Compares the best non-starting bench options against the rest of the league. These are the players who would step in after the projected starters are already filled.';
 const TRADEABLE_DEPTH_NOTE = 'Shows the best non-starting player at each position. These are the easiest depth pieces to shop without touching the projected starting lineup.';
 
@@ -1695,7 +1697,6 @@ function FullRosterRankTiles({ overviewRow }: { overviewRow: LeagueOverviewRows[
           <span key={tile.key} className={`owner-intel-heat-pill owner-intel-full-rank-tile ${tile.className}`}>
             <strong>{tile.label}</strong>
             <em>#{tile.rank}</em>
-            <small>Roster</small>
           </span>
         ))}
       </div>
@@ -3010,15 +3011,18 @@ export function LeagueCommandCenter({
               </div>
               {(selectedIntel?.startingRosterStrength?.length || selectedIntel?.positionGrades) ? (
                 <div className="manager-command-section">
-                  <h4>Starting Roster Strength</h4>
+                  <h4 className="owner-intel-comparison-heading">
+                    <span>{STARTING_ROSTER_STRENGTH_TITLE}</span>
+                    <small>{STARTING_ROSTER_STRENGTH_COMPARISON}</small>
+                  </h4>
                   <p className="owner-intel-section-note">{STARTING_ROSTER_STRENGTH_NOTE}</p>
                   <div className="owner-intel-heat-grid">
                     {selectedIntel.startingRosterStrength?.length
                       ? selectedIntel.startingRosterStrength.map((tile) => (
                         <span key={tile.key} className={getHeatPillClass(tile.key, tile.grade)} title={tile.note}>
                           <strong>{tile.label}</strong>
-                          <em>{tile.grade || 'Empty'}</em>
-                          <small>{tile.leagueRank ? `League #${tile.leagueRank}` : '-'}</small>
+                          <em>{tile.leagueRank ? `#${tile.leagueRank}` : '-'}</em>
+                          <small>{tile.grade || 'Empty'}</small>
                         </span>
                       ))
                       : (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
@@ -3026,8 +3030,8 @@ export function LeagueCommandCenter({
                         return (
                           <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
                             <strong>{pos}</strong>
-                            <em>{grade?.grade || 'Empty'}</em>
-                            <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
+                            <em>{grade?.rank ? `#${grade.rank}` : '-'}</em>
+                            <small>{grade?.grade || 'Empty'}</small>
                           </span>
                         );
                       })}
@@ -3545,15 +3549,18 @@ export function OwnerIntelMatrix({
                 <div className="owner-intel-read-grid">
                   {(selectedRow.startingRosterStrength?.length || selectedRow.positionGrades) ? (
                     <div className="owner-intel-roster-heat">
-                      <h4>Starting Roster Strength</h4>
+                      <h4 className="owner-intel-comparison-heading">
+                        <span>{STARTING_ROSTER_STRENGTH_TITLE}</span>
+                        <small>{STARTING_ROSTER_STRENGTH_COMPARISON}</small>
+                      </h4>
                       <p className="owner-intel-section-note">{STARTING_ROSTER_STRENGTH_NOTE}</p>
                       <div className="owner-intel-heat-grid">
                         {selectedRow.startingRosterStrength?.length
                           ? selectedRow.startingRosterStrength.map((tile) => (
                             <span key={tile.key} className={getHeatPillClass(tile.key, tile.grade)} title={tile.note}>
                               <strong>{tile.label}</strong>
-                              <em>{tile.grade || 'Empty'}</em>
-                              <small>{tile.leagueRank ? `League #${tile.leagueRank}` : '-'}</small>
+                              <em>{tile.leagueRank ? `#${tile.leagueRank}` : '-'}</em>
+                              <small>{tile.grade || 'Empty'}</small>
                             </span>
                           ))
                           : (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
@@ -3561,8 +3568,8 @@ export function OwnerIntelMatrix({
                             return (
                               <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
                                 <strong>{pos}</strong>
-                                <em>{grade?.grade || 'Empty'}</em>
-                                <small>{grade?.rank ? `#${grade.rank}` : '-'}</small>
+                                <em>{grade?.rank ? `#${grade.rank}` : '-'}</em>
+                                <small>{grade?.grade || 'Empty'}</small>
                               </span>
                             );
                           })}
