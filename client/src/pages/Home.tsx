@@ -195,6 +195,33 @@ function LeaguePickerCard({
   );
 }
 
+function SnapshotCoverageBanner() {
+  const { data } = trpc.system.snapshotCoverage.useQuery(
+    { lookbackDays: 14 },
+    { refetchOnWindowFocus: false, staleTime: 1000 * 60 * 5 }
+  );
+
+  if (!data) return null;
+
+  const bannerClass = data.status === 'healthy'
+    ? 'snapshot-status-banner snapshot-status-banner-healthy'
+    : data.status === 'today_pending'
+      ? 'snapshot-status-banner snapshot-status-banner-pending'
+      : 'snapshot-status-banner snapshot-status-banner-stale';
+
+  const copy = data.status === 'healthy'
+    ? `KTC snapshot coverage healthy: ${data.storedDays}/${data.expectedDays} days logged.`
+    : data.status === 'today_pending'
+      ? `KTC snapshot for ${data.todayDateKey} has not landed yet. Latest stored day: ${data.latestSnapshotDateKey || 'none'}.`
+      : `KTC snapshot coverage gap: missing ${data.missingDateKeys.join(', ')}.`;
+
+  return (
+    <div className={bannerClass}>
+      <span>{copy}</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [leagueId, setLeagueId] = useState('');
   const [sleeperUsername, setSleeperUsername] = useState('');
@@ -504,6 +531,7 @@ export default function Home() {
 
         {/* Content */}
         <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
+          <SnapshotCoverageBanner />
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="report-tabs">
               <TabsTrigger value="overview" className="report-tab">

@@ -208,6 +208,22 @@ export async function findKtcSnapshotOnOrBefore(targetDate: Date) {
   return result[0]?.ktcData ?? null;
 }
 
+export async function listKtcSnapshotDateKeysSince(targetDate: Date): Promise<string[]> {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const result = await sql`
+    SELECT DISTINCT to_char("snapshotDate" AT TIME ZONE 'America/Vancouver', 'YYYY-MM-DD') AS day
+    FROM "ktcSnapshots"
+    WHERE "snapshotDate" >= ${targetDate}
+    ORDER BY day ASC
+  ` as Array<{ day?: string | null }>;
+
+  return result
+    .map((row) => row.day || null)
+    .filter((day): day is string => Boolean(day));
+}
+
 function normalizeLoginAttempt(row: any): StoredLoginAttempt {
   return {
     id: Number(row.id),
