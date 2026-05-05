@@ -108,6 +108,33 @@ function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
   );
 }
 
+function renderActivityManagerAvatar(manager: string | null | undefined, managerAvatars?: ManagerAvatars) {
+  if (!manager) {
+    return (
+      <span className="activity-manager-avatar activity-manager-avatar-empty" aria-label="Available player" title="Available">
+        FA
+      </span>
+    );
+  }
+
+  const avatarUrl = managerAvatars?.[manager];
+  const initial = manager.trim()[0]?.toUpperCase() || '?';
+
+  return (
+    <span className="activity-manager-avatar" aria-label={`Rostered by ${manager}`} title={manager}>
+      <ChampionAvatarFrame managerName={manager} showAccolades={false}>
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" />
+        ) : (
+          <span aria-hidden="true" className="activity-manager-avatar-fallback">
+            {initial}
+          </span>
+        )}
+      </ChampionAvatarFrame>
+    </span>
+  );
+}
+
 function renderPartnerName(manager: string, managerAvatars?: ManagerAvatars) {
   const avatarUrl = managerAvatars?.[manager];
   const initial = manager.trim()[0]?.toUpperCase() || '?';
@@ -3641,14 +3668,6 @@ export function WeeklyMomentumTable({
               >
                 <div className="weekly-momentum-tile-top">
                   <span>{isPositive ? 'Riser' : 'Faller'}</span>
-                  <div
-                    className="weekly-momentum-values weekly-momentum-values-top"
-                    aria-label={`Value moved from ${formatCompactValue(row.val_last)} to ${formatCompactValue(row.val_now)}`}
-                  >
-                    <span>{formatCompactValue(row.val_last)}</span>
-                    <span className="weekly-momentum-value-arrow" aria-hidden="true">→</span>
-                    <span>{formatCompactValue(row.val_now)}</span>
-                  </div>
                   <strong className={isPositive ? 'text-emerald-300' : 'text-rose-300'}>
                     {row.pct_change >= 0 ? '+' : ''}
                     {row.pct_change.toFixed(1)}%
@@ -3658,14 +3677,23 @@ export function WeeklyMomentumTable({
                   <div className="weekly-momentum-player">
                     <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                   </div>
-                  <div className="weekly-momentum-manager">
-                    {renderManagerName(row.owner, managerAvatars)}
-                  </div>
                 </div>
-                <div className="weekly-momentum-pills">
-                  <TeamLogoPill team={playerDetails?.team} />
-                  <PositionRankPill rank={row.currentPositionRank || row.pos} />
+                <div
+                  className="weekly-momentum-value-change"
+                  aria-label={`Value moved from ${formatCompactValue(row.val_last)} to ${formatCompactValue(row.val_now)}`}
+                >
+                  <span className="weekly-momentum-value-label">Value:</span>
+                  <span>{formatCompactValue(row.val_last)}</span>
+                  <span className="weekly-momentum-value-arrow" aria-hidden="true">→</span>
                   <span>{formatCompactValue(row.val_now)}</span>
+                </div>
+                <div className="activity-card-meta-row">
+                  <div className="weekly-momentum-pills">
+                    <TeamLogoPill team={playerDetails?.team} />
+                    <PositionRankPill rank={row.currentPositionRank || row.pos} />
+                    <span>{formatCompactValue(row.val_now)}</span>
+                  </div>
+                  {renderActivityManagerAvatar(row.owner, managerAvatars)}
                 </div>
               </button>
             );
@@ -3768,16 +3796,14 @@ export function TrendingPlayersTable({
                   <div className="trending-player-card-main">
                     <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
                   </div>
-                  <div className="trending-player-card-owner">
-                    {row.owner ? renderManagerName(row.owner, managerAvatars) : (
-                      <span className="available-manager-label">Available</span>
-                    )}
-                  </div>
                 </div>
-                <div className="trending-player-card-pills">
-                  <TeamLogoPill team={playerDetails?.team || row.team} />
-                  <PositionRankPill rank={row.currentPositionRank || row.pos} />
-                  <span>{formatCompactValue(row.ktcValue)}</span>
+                <div className="activity-card-meta-row">
+                  <div className="trending-player-card-pills">
+                    <TeamLogoPill team={playerDetails?.team || row.team} />
+                    <PositionRankPill rank={row.currentPositionRank || row.pos} />
+                    <span>{formatCompactValue(row.ktcValue)}</span>
+                  </div>
+                  {renderActivityManagerAvatar(row.owner, managerAvatars)}
                 </div>
               </button>
             );

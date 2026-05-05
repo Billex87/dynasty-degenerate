@@ -1116,7 +1116,7 @@ export default function Home() {
               <Button
                 onClick={handleAnalyzeAnotherLeague}
                 variant="outline"
-                className="border-orange-500/30 text-orange-300 hover:bg-orange-500/10 md:hidden"
+                className="report-footer-analyze-button border-orange-500/30 text-orange-300 hover:bg-orange-500/10 md:hidden"
               >
                 Analyze Another League
               </Button>
@@ -1156,7 +1156,7 @@ export default function Home() {
                 type="button"
                 onClick={handleStartOver}
                 variant="outline"
-                className="w-full border-orange-500/30 text-orange-300 hover:bg-orange-500/10 sm:w-auto"
+                className="league-switch-start-over-button border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
               >
                 Analyze Another League
               </Button>

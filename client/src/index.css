@@ -1208,6 +1208,17 @@
     flex-wrap: wrap;
   }
 
+  .report-footer-analyze-button {
+    width: auto !important;
+    flex: 0 0 auto;
+  }
+
+  .report-footer-actions:has(.feedback-button) .report-footer-analyze-button {
+    flex-basis: 100%;
+    justify-self: center;
+    margin-inline: auto;
+  }
+
   .home-footer-action-row {
     position: relative;
     z-index: 2;
@@ -1611,8 +1622,19 @@
   }
 
   .league-switch-footer {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
     border-top: 1px solid rgba(34, 211, 238, 0.14);
     padding-top: 0.9rem;
+  }
+
+  .league-switch-start-over-button {
+    width: auto !important;
+    max-width: 100%;
+    flex: 0 0 auto;
   }
 
   .home-feature-card {
@@ -2354,7 +2376,7 @@
   .weekly-momentum-tile-top {
     display: grid;
     min-width: 0;
-    grid-template-columns: minmax(2.7rem, auto) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.28rem;
   }
@@ -2374,6 +2396,30 @@
     font-size: 0.92rem;
     font-weight: 1000;
     line-height: 1;
+  }
+
+  .weekly-momentum-value-change {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.28rem;
+    color: #fdba74;
+    font-size: clamp(0.74rem, 2.3vw, 0.88rem);
+    font-weight: 950;
+    line-height: 1;
+  }
+
+  .weekly-momentum-value-label {
+    color: #e2e8f0;
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .weekly-momentum-value-change .weekly-momentum-value-arrow {
+    color: #67e8f9;
+    font-size: 0.78rem;
   }
 
   .weekly-momentum-identity,
@@ -2515,6 +2561,56 @@
     background: transparent;
     padding: 0 0.02rem;
     color: #67e8f9;
+  }
+
+  .activity-card-meta-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.44rem;
+  }
+
+  .activity-card-meta-row .weekly-momentum-pills,
+  .activity-card-meta-row .trending-player-card-pills {
+    flex: 1 1 auto;
+  }
+
+  .activity-manager-avatar {
+    display: inline-flex;
+    min-width: 0;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+  }
+
+  .activity-manager-avatar img,
+  .activity-manager-avatar-fallback {
+    display: inline-flex;
+    height: 1.78rem;
+    width: 1.78rem;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(34, 211, 238, 0.28);
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.64);
+    color: #fdba74;
+    font-size: 0.68rem;
+    font-weight: 950;
+    object-fit: cover;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.26);
+  }
+
+  .activity-manager-avatar-empty {
+    min-height: 1.55rem;
+    border: 1px solid rgba(52, 211, 153, 0.34);
+    border-radius: 999px;
+    background: rgba(6, 78, 59, 0.42);
+    padding: 0.16rem 0.5rem;
+    color: #34d399;
+    font-size: 0.62rem;
+    font-weight: 950;
   }
 
   .weekly-momentum-empty {
