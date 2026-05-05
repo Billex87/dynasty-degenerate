@@ -2204,9 +2204,10 @@ export async function generateReport(
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
     const currentSeasonNumber = Number(currentSeasonData.label || new Date().getFullYear());
-    const taxiPlayers = getTaxiPlayerIds(r)
+    const allTaxiPlayers = getTaxiPlayerIds(r)
       .map((pid) => buildIntelPlayer(pid, manager, r))
-      .filter((player): player is BuiltIntelPlayer => Boolean(player))
+      .filter((player): player is BuiltIntelPlayer => Boolean(player));
+    const taxiPlayers = allTaxiPlayers
       .filter((player) => Number(player.playerDetails?.rookieYear || 0) === currentSeasonNumber);
     const reservePlayers = getReservePlayerIds(r)
       .map((pid) => buildIntelPlayer(pid, manager, r))
@@ -2242,6 +2243,29 @@ export async function generateReport(
         manager: owner,
         groups: getLineupGroups(players, currentSeasonData.rosterPositions),
         bench: players.filter((player) => !lineupIds.has(player.player_id)).sort(compareLineupPlayers),
+      };
+    });
+    const benchBaselineRows = currentSeasonData.rosters.map((otherRoster) => {
+      const owner = currentSeasonData.rosterMap[otherRoster.roster_id];
+      const activePlayers = otherRoster.roster_id === r.roster_id
+        ? rosterPlayers
+        : getActivePlayerIds(otherRoster)
+          .map((pid) => buildIntelPlayer(pid, owner, otherRoster))
+          .filter((player): player is BuiltIntelPlayer => Boolean(player));
+      const taxiDepthPlayers = otherRoster.roster_id === r.roster_id
+        ? allTaxiPlayers
+        : getTaxiPlayerIds(otherRoster)
+          .map((pid) => buildIntelPlayer(pid, owner, otherRoster))
+          .filter((player): player is BuiltIntelPlayer => Boolean(player));
+      const lineup = selectProjectedLineup(activePlayers, currentSeasonData.rosterPositions);
+      const lineupIds = new Set(lineup.map((player) => player.player_id));
+
+      return {
+        manager: owner,
+        bench: [
+          ...activePlayers.filter((player) => !lineupIds.has(player.player_id)),
+          ...taxiDepthPlayers,
+        ].sort(compareLineupPlayers),
       };
     });
     const starterValue = starters.reduce((sum, player) => sum + player.value, 0);
@@ -2467,7 +2491,7 @@ export async function generateReport(
     const startingRosterStrength = buildStartingRosterStrengthTiles(manager, leagueLineupRows, teamCount);
     const benchBaseline = buildBenchBaselineTiles(
       manager,
-      leagueLineupRows.map((row) => ({ manager: row.manager, bench: row.bench })),
+      benchBaselineRows,
       currentSeasonData.rosterPositions,
       teamCount
     );

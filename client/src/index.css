@@ -3665,6 +3665,40 @@
     font-weight: 1000;
   }
 
+  .owner-intel-full-rank-panel {
+    display: grid;
+    gap: 0.55rem;
+    width: 100%;
+    max-width: min(100%, 46rem);
+    margin: 0.25rem auto 0.7rem;
+    text-align: center;
+  }
+
+  .owner-intel-full-rank-panel h4 {
+    color: #67e8f9;
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.18em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .owner-intel-full-rank-grid {
+    grid-template-columns: repeat(5, minmax(4.55rem, 1fr));
+    margin-top: 0;
+  }
+
+  .owner-intel-full-rank-tile small {
+    text-transform: uppercase;
+  }
+
+  .owner-intel-heat-position-value {
+    border-color: rgba(34, 211, 238, 0.38);
+    background:
+      radial-gradient(circle at 0 0, rgba(34, 211, 238, 0.18), transparent 42%),
+      rgba(2, 6, 23, 0.52);
+  }
+
   .owner-intel-player-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3888,6 +3922,87 @@
 
   .owner-intel-value-map-grid {
     grid-template-columns: 1fr;
+  }
+
+  .owner-intel-bench-list {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 0.55rem;
+  }
+
+  .owner-intel-bench-row {
+    display: grid;
+    min-width: 0;
+    gap: 0.28rem;
+  }
+
+  .owner-intel-bench-rank {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    color: #67e8f9;
+    font-size: 0.62rem;
+    font-weight: 1000;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .owner-intel-bench-rank em {
+    color: #f8fafc;
+    font-size: 0.7rem;
+    font-style: normal;
+  }
+
+  .owner-intel-bench-player {
+    display: grid;
+    min-width: 0;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.44rem;
+    border-radius: 0.72rem;
+    padding: 0.34rem 0.42rem;
+  }
+
+  .owner-intel-bench-player .player-chip {
+    min-width: 0;
+    gap: 0.34rem;
+    overflow: hidden;
+  }
+
+  .owner-intel-bench-player .player-chip img,
+  .owner-intel-bench-player .player-chip > span[aria-hidden="true"] {
+    height: 1.65rem;
+    width: 1.65rem;
+    border: 2px solid color-mix(in srgb, var(--team-accent, #fb923c) 62%, rgba(255, 255, 255, 0.18));
+    margin-right: 0.12rem;
+  }
+
+  .owner-intel-bench-player .player-chip > span:last-child {
+    color: #fff7ed;
+    font-size: 0.72rem;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+
+  .owner-intel-bench-player-meta {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.28rem;
+  }
+
+  .owner-intel-bench-player-empty {
+    justify-content: center;
+    border: 1px solid rgba(34, 211, 238, 0.14);
+    background: rgba(2, 6, 23, 0.52);
+    color: rgba(203, 213, 225, 0.72);
+    font-size: 0.7rem;
+    font-weight: 850;
   }
 
   .owner-intel-value-map-grid button {
@@ -11634,6 +11749,27 @@ button.trade-manager-trade {
     text-align: center !important;
   }
 
+  .manager-command-hero h3.manager-modal-name {
+    max-width: min(100%, calc(100vw - 7rem)) !important;
+    overflow: visible !important;
+    font-size: clamp(1.12rem, 4.75vw, 1.68rem) !important;
+    letter-spacing: 0 !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-long {
+    font-size: clamp(0.98rem, 4.05vw, 1.42rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-xlong {
+    font-size: clamp(0.86rem, 3.45vw, 1.24rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-xxlong {
+    font-size: clamp(0.78rem, 3.05vw, 1.08rem) !important;
+  }
+
   .report-shell .owner-intel-roster-heat {
     text-align: center !important;
   }
@@ -11684,6 +11820,39 @@ button.trade-manager-trade {
     line-height: 1.05;
     white-space: nowrap;
   }
+
+  .report-shell .owner-intel-bench-player .player-chip {
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+
+  .report-shell .owner-intel-bench-player .player-chip > span:last-child {
+    text-align: left;
+  }
+
+  .report-shell .owner-intel-bench-player {
+    gap: 0.28rem;
+    padding: 0.3rem 0.32rem;
+  }
+
+  .report-shell .owner-intel-bench-player .player-chip {
+    gap: 0.26rem;
+  }
+
+  .report-shell .owner-intel-bench-player .player-chip img,
+  .report-shell .owner-intel-bench-player .player-chip > span[aria-hidden="true"] {
+    height: 1.35rem;
+    width: 1.35rem;
+  }
+
+  .report-shell .owner-intel-bench-player .player-chip > span:last-child {
+    font-size: clamp(0.61rem, 1.8vw, 0.68rem);
+  }
+
+  .report-shell .owner-intel-bench-player .position-rank-pill {
+    padding-inline: 0.34rem;
+    font-size: 0.58rem;
+  }
 }
 
 @media (min-width: 640px) and (max-width: 1023px) {
@@ -11707,5 +11876,22 @@ button.trade-manager-trade {
 
   .owner-intel-read-grid {
     gap: clamp(0.55rem, 1.5vw, 0.78rem);
+  }
+
+  .manager-command-hero h3.manager-modal-name {
+    max-width: min(100%, calc(100vw - 10rem)) !important;
+    font-size: clamp(1.25rem, 3.15vw, 1.86rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-long {
+    font-size: clamp(1.08rem, 2.55vw, 1.55rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-xlong {
+    font-size: clamp(0.98rem, 2.15vw, 1.34rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-xxlong {
+    font-size: clamp(0.9rem, 1.9vw, 1.16rem) !important;
   }
 }

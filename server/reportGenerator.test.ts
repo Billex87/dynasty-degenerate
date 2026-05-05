@@ -370,7 +370,7 @@ describe('generateReport trade ledger', () => {
           2: 'Manager B',
         },
         rosters: [
-          { roster_id: 1, owner_id: 'u1', players: ['aQb1', 'aQb2', 'camWard', 'aRb1', 'aRb2', 'aRb3', 'aWr1', 'aWr2', 'aWr3', 'aTe1'] },
+          { roster_id: 1, owner_id: 'u1', players: ['aQb1', 'aQb2', 'aQb3', 'camWard', 'aRb1', 'aRb2', 'aRb3', 'aWr1', 'aWr2', 'aWr3', 'aTe1'], taxi: ['camWard'] },
           { roster_id: 2, owner_id: 'u2', players: ['bQb1', 'bQb2', 'bQb3', 'bRb1', 'bRb2', 'bRb3', 'bWr1', 'bWr2', 'bWr3', 'bTe1'] },
         ],
       },
@@ -378,6 +378,7 @@ describe('generateReport trade ledger', () => {
       {
         aQb1: { first_name: 'Alpha', last_name: 'QBOne', position: 'QB', age: 25 },
         aQb2: { first_name: 'Alpha', last_name: 'QBTwo', position: 'QB', age: 25 },
+        aQb3: { first_name: 'Alpha', last_name: 'QBThree', position: 'QB', age: 25 },
         camWard: { first_name: 'Cam', last_name: 'Ward', position: 'QB', age: 23 },
         aRb1: { first_name: 'Alpha', last_name: 'RBOne', position: 'RB', age: 25 },
         aRb2: { first_name: 'Alpha', last_name: 'RBTwo', position: 'RB', age: 25 },
@@ -400,6 +401,7 @@ describe('generateReport trade ledger', () => {
       {
         alphaqbone: { name: 'Alpha QBOne', ktc_value: 9000, redraft_value: 9000, position_rank: 'QB1' },
         alphaqbtwo: { name: 'Alpha QBTwo', ktc_value: 8500, redraft_value: 8500, position_rank: 'QB2' },
+        alphaqbthree: { name: 'Alpha QBThree', ktc_value: 1200, redraft_value: 1200, position_rank: 'QB44' },
         camward: { name: 'Cam Ward', ktc_value: 5000, redraft_value: 5000, position_rank: 'QB10' },
         alpharbone: { name: 'Alpha RBOne', ktc_value: 8000, redraft_value: 8000, position_rank: 'RB1' },
         alpharbtwo: { name: 'Alpha RBTwo', ktc_value: 7600, redraft_value: 7600, position_rank: 'RB2' },
@@ -429,7 +431,7 @@ describe('generateReport trade ledger', () => {
       leagueRank: 1,
     });
     expect(managerA?.benchBaseline?.find((tile) => tile.key === 'QB')?.player?.name).toBe('Cam Ward');
-    expect(managerA?.tradeableDepth?.find((tile) => tile.position === 'QB')?.player?.name).toBe('Cam Ward');
+    expect(managerA?.tradeableDepth?.find((tile) => tile.position === 'QB')?.player?.name).toBe('Alpha QBThree');
   });
 
   it('uses dynasty value as primary for dynasty leagues and season value for redraft leagues', async () => {
