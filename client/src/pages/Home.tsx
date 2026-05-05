@@ -736,15 +736,24 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-2">
              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-6">
               {/* Left: Brand */}
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <img
-                  src={DYNASTY_LOGO_SRC}
-                  alt="Dynasty Degenerates"
-                  className="report-header-mobile-logo md:hidden"
-                />
-                <h2 className="report-header-wordmark athletic-headline hidden truncate text-base sm:text-xl md:block">
-                  <span>Dynasty</span> <span>Degenerates</span>
-                </h2>
+              <div className="report-header-brand min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <img
+                    src={DYNASTY_LOGO_SRC}
+                    alt="Dynasty Degenerates"
+                    className="report-header-mobile-logo md:hidden"
+                  />
+                  <h2 className="report-header-wordmark athletic-headline hidden truncate text-base sm:text-xl md:block">
+                    <span>Dynasty</span> <span>Degenerates</span>
+                  </h2>
+                </div>
+                <Button
+                  onClick={handleAnalyzeAnotherLeague}
+                  variant="outline"
+                  className="report-header-action hidden md:inline-flex"
+                >
+                  Analyze Another League
+                </Button>
               </div>
 
               {/* Center: Logo */}
@@ -786,7 +795,7 @@ export default function Home() {
         {/* Content */}
         <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
           <Tabs value={resolvedActiveTab} onValueChange={handleReportTabChange} className="w-full">
-            <TabsList className="report-tabs">
+            <TabsList className={`report-tabs ${canViewMomentumTab ? 'report-tabs-five' : 'report-tabs-four'}`}>
               <TabsTrigger value="overview" className="report-tab">
                 <BarChart3 className="h-4 w-4" />
                 <span>Overview</span>
@@ -1070,7 +1079,7 @@ export default function Home() {
               <Button
                 onClick={handleAnalyzeAnotherLeague}
                 variant="outline"
-                className="border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
+                className="border-orange-500/30 text-orange-300 hover:bg-orange-500/10 md:hidden"
               >
                 Analyze Another League
               </Button>
