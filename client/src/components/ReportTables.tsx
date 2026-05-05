@@ -237,6 +237,73 @@ function renderTradeLedgerManagerName(
   );
 }
 
+function renderTradeFitReadManager(manager: string, managerAvatars?: ManagerAvatars) {
+  const avatarUrl = managerAvatars?.[manager];
+  const initial = manager.trim()[0]?.toUpperCase() || '?';
+
+  return (
+    <span className="trade-fit-read-manager">
+      <span>{manager}</span>
+      <ChampionAvatarFrame managerName={manager} showAccolades={false}>
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={manager} />
+        ) : (
+          <span aria-hidden="true" className="trade-fit-read-manager-fallback">
+            {initial}
+          </span>
+        )}
+      </ChampionAvatarFrame>
+    </span>
+  );
+}
+
+function renderTradeFitRead(
+  read: TradeFitRead,
+  {
+    managerAvatars,
+    playerDetailsById,
+    onPlayerClick,
+  }: {
+    managerAvatars?: ManagerAvatars;
+    playerDetailsById?: PlayerDetailsById;
+    onPlayerClick?: (player: PlayerModalData) => void;
+  }
+) {
+  return (
+    <div key={read.manager} className={`trade-fit-read trade-fit-read-${read.tone}`}>
+      <div className="trade-fit-read-top">
+        <span>{read.label}</span>
+        {renderTradeFitReadManager(read.manager, managerAvatars)}
+      </div>
+      <p>{read.note}</p>
+      {read.target && (
+        <button
+          type="button"
+          className="trade-fit-target"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!onPlayerClick) return;
+            onPlayerClick(buildPlayerModalData({
+              playerId: read.target?.player_id,
+              playerName: read.target?.name || '',
+              playerPos: read.target?.pos,
+              value: read.target?.value,
+              playerDetails: read.target?.playerDetails,
+              playerDetailsById,
+              manager: read.target?.owner,
+              currentPositionRank: read.target?.seasonPositionRank || read.target?.currentPositionRank,
+            }));
+          }}
+        >
+          <span className="trade-fit-target-label">Better target: {read.target.name}</span>
+          <PositionRankPill rank={read.target.seasonPositionRank || read.target.currentPositionRank || read.target.pos} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function getTradeGapVerdict(gap: number) {
   if (gap === 0) return { label: 'Even Steven', className: 'trade-gap-verdict-even' };
   if (gap < 100) return { label: 'Coin Flip', className: 'trade-gap-verdict-even' };
@@ -602,8 +669,10 @@ function TradeDetailPanel({
   const tradeEvaluation = buildTradeLedgerEvaluation(row, dynastyTimelines, managerRosterIntelligence, playerDetailsById);
   const { leftSide, rightSide } = getTradeDisplaySides(row, tradeEvaluation);
   const tradeFitReads = buildTradeFitReads(row, managerRosterIntelligence, playerDetailsById);
+  const tradeFitReadsByManager = new Map(
+    tradeFitReads.map((read) => [read.manager, read])
+  );
   const intelByManager = new Map((managerRosterIntelligence || []).map((intel) => [intel.manager, intel]));
-  const overviewByManager = new Map((leagueOverview || []).map((overview) => [overview.manager, overview]));
   const tradeLensNote = getTradeLensSourceNote(row);
 
   return (
@@ -674,51 +743,25 @@ function TradeDetailPanel({
                   incomingItems: side.items,
                   outgoingItems: side === leftSide ? rightSide.items : leftSide.items,
                   intel: intelByManager.get(side.manager),
-                  overview: overviewByManager.get(side.manager),
                   playerDetailsById,
                 })}
+                {tradeFitReadsByManager.has(side.manager) && (
+                  <div className="trade-side-fit-reads">
+                    {renderTradeFitRead(
+                      tradeFitReadsByManager.get(side.manager)!,
+                      {
+                        managerAvatars,
+                        playerDetailsById,
+                        onPlayerClick,
+                      }
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
       </div>
-      {tradeFitReads.length > 0 && (
-        <div className="trade-fit-read-grid">
-          {tradeFitReads.map((read) => (
-            <div key={read.manager} className={`trade-fit-read trade-fit-read-${read.tone}`}>
-              <div className="trade-fit-read-top">
-                <span>{read.label}</span>
-                <strong>{read.manager}</strong>
-              </div>
-              <p>{read.note}</p>
-              {read.target && (
-                <button
-                  type="button"
-                  className="trade-fit-target"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (!onPlayerClick) return;
-                    onPlayerClick(buildPlayerModalData({
-                      playerId: read.target?.player_id,
-                      playerName: read.target?.name || '',
-                      playerPos: read.target?.pos,
-                      value: read.target?.value,
-                      playerDetails: read.target?.playerDetails,
-                      playerDetailsById,
-                      manager: read.target?.owner,
-                      currentPositionRank: read.target?.seasonPositionRank || read.target?.currentPositionRank,
-                    }));
-                  }}
-                >
-                  Better target: {read.target.name}
-                  <PositionRankPill rank={read.target.seasonPositionRank || read.target.currentPositionRank || read.target.pos} />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -1141,17 +1184,15 @@ function renderTradeOverviewImpact({
   incomingItems,
   outgoingItems,
   intel,
-  overview,
   playerDetailsById,
 }: {
   manager: string;
   incomingItems: string;
   outgoingItems: string;
   intel?: ManagerRosterIntelRows[number];
-  overview?: LeagueOverviewRows[number];
   playerDetailsById?: PlayerDetailsById;
 }) {
-  if (!intel && !overview) return null;
+  if (!intel) return null;
 
   const incoming = getTradeItemSignal(incomingItems, playerDetailsById);
   const outgoing = getTradeItemSignal(outgoingItems, playerDetailsById);
@@ -1188,20 +1229,10 @@ function renderTradeOverviewImpact({
     notes.push(intel.holes.summary);
   }
 
+  if (impactPills.length === 0 && notes.length === 0) return null;
+
   return (
     <div className="trade-side-impact">
-      {overview && (
-        <div className="trade-side-impact-ranks">
-          <span className="trade-side-impact-kicker">Current Ranks</span>
-          <div className="trade-side-impact-rank-pills">
-            <PositionRankPill rank={`QB #${overview.rank_qb}`} />
-            <PositionRankPill rank={`RB #${overview.rank_rb}`} />
-            <PositionRankPill rank={`WR #${overview.rank_wr}`} />
-            <PositionRankPill rank={`TE #${overview.rank_te}`} />
-            <PositionRankPill rank={`Value #${overview.rank_value}`} />
-          </div>
-        </div>
-      )}
       {(impactPills.length > 0 || notes.length > 0) && (
         <div className="trade-side-impact-read">
           {impactPills.length > 0 && (
