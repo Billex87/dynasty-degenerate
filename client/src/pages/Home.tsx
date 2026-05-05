@@ -1121,7 +1121,7 @@ export default function Home() {
         </Dialog>
 
         <Dialog open={isChangeLeagueModalOpen} onOpenChange={setIsChangeLeagueModalOpen}>
-          <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-md">
+          <DialogContent className="league-switch-dialog change-league-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-md">
             <DialogHeader className="text-center">
               <DialogTitle className="athletic-headline text-3xl text-orange-400">
                 Change Leagues?

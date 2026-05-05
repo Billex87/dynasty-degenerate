@@ -1370,6 +1370,35 @@
       linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.96));
   }
 
+  .change-league-dialog {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .change-league-dialog [data-slot="dialog-header"],
+  .change-league-dialog [data-slot="dialog-footer"] {
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .change-league-dialog [data-slot="dialog-description"] {
+    max-width: 24rem;
+    margin-inline: auto;
+  }
+
+  .change-league-dialog .league-switch-footer {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .change-league-dialog .league-switch-footer > button {
+    width: auto !important;
+    min-width: 6.25rem;
+  }
+
   .league-switch-picker {
     max-height: min(58vh, 34rem);
     overflow-y: auto;
@@ -1605,27 +1634,33 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.42rem;
+    gap: 0.22rem;
   }
 
   .report-header-action {
-    min-height: 2rem;
-    border-color: rgba(249, 115, 22, 0.34);
-    border-radius: 0.72rem;
-    background: rgba(249, 115, 22, 0.08);
-    padding: 0.42rem 0.72rem;
-    color: #fed7aa;
-    font-size: 0.68rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    line-height: 1;
+    min-height: auto;
+    height: auto;
+    justify-content: flex-start;
+    border: 0 !important;
+    background: linear-gradient(90deg, #fb923c, #fbbf24, #fb923c);
+    box-shadow: none;
+    padding: 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent !important;
+    font-size: 0.75rem;
+    font-weight: 950;
+    letter-spacing: 0;
+    line-height: 1.05;
     text-transform: uppercase;
   }
 
   .report-header-action:hover {
-    border-color: rgba(249, 115, 22, 0.54);
-    background: rgba(249, 115, 22, 0.16);
-    color: #fff7ed;
+    background: linear-gradient(90deg, #fbbf24, #fb923c, #f97316);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent !important;
+    text-shadow: 0 0 12px rgba(251, 146, 60, 0.18);
   }
 
   .report-league-lockup {
