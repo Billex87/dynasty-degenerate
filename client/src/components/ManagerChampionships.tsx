@@ -104,6 +104,10 @@ function getSeasonShortLabel(season?: string | null) {
   return digits || season.slice(-2);
 }
 
+function getAvatarAccoladeRightOffset(slotIndex: number) {
+  return -0.32 + slotIndex * 0.72;
+}
+
 export function ChampionAvatarFrame({
   managerName,
   children,
@@ -125,6 +129,7 @@ export function ChampionAvatarFrame({
   const hasAccolade = showAccolades && (championSeasons.length > 0 || runnerUpSeasons.length > 0 || lastPlaceSeasons.length > 0);
   const runnerUpSeasonLabel = getSeasonShortLabel(runnerUpSeasons[0]);
   const lastPlaceSeasonLabel = getSeasonShortLabel(lastPlaceSeasons[0]);
+  const secondaryAccoladeSlotCount = runnerUpSeasons.length > 0 || lastPlaceSeasons.length > 0 ? 1 : 0;
 
   return (
     <span
@@ -149,7 +154,7 @@ export function ChampionAvatarFrame({
             role="img"
             title={seasonTitle}
             style={{
-              right: `${-0.32 + index * 0.72}rem`,
+              right: `${getAvatarAccoladeRightOffset(index + secondaryAccoladeSlotCount)}rem`,
               zIndex: 8 + championSeasons.length - index,
             }}
           >
@@ -159,7 +164,17 @@ export function ChampionAvatarFrame({
         );
       })}
       {showAccolades && runnerUpSeasons.length > 0 && (
-        <span className="manager-accolade-crown manager-accolade-crown-runner-up" aria-label={runnerUpTitle} role="img" title={runnerUpTitle}>
+        <span
+          className="manager-accolade-crown manager-accolade-crown-runner-up"
+          aria-label={runnerUpTitle}
+          role="img"
+          title={runnerUpTitle}
+          style={{
+            right: `${getAvatarAccoladeRightOffset(0)}rem`,
+            top: '-0.46rem',
+            zIndex: 10 + championSeasons.length,
+          }}
+        >
           <Crown className="manager-runner-up-crown" aria-hidden="true" />
           {runnerUpSeasonLabel && <span className="manager-accolade-year">{runnerUpSeasonLabel}</span>}
         </span>
