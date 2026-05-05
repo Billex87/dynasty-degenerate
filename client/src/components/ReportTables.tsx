@@ -111,9 +111,9 @@ function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
 
 function getManagerHeadingClassName(manager: string | null | undefined): string {
   const length = (manager || '').replace(/\s+/g, '').length;
-  if (length >= 22) return 'manager-modal-name manager-modal-name-xxlong';
-  if (length >= 18) return 'manager-modal-name manager-modal-name-xlong';
-  if (length >= 14) return 'manager-modal-name manager-modal-name-long';
+  if (length >= 20) return 'manager-modal-name manager-modal-name-xxlong';
+  if (length >= 15) return 'manager-modal-name manager-modal-name-xlong';
+  if (length >= 10) return 'manager-modal-name manager-modal-name-long';
   return 'manager-modal-name';
 }
 
@@ -5941,6 +5941,11 @@ export function SearchableProjectedMoversTable({
 }
 
 type PositionDepthSignal = ReportData['positionDepth'][number];
+type ManagerCountRow = ReportData['managerPositionCounts'][number];
+type ManagerCountPlayer = NonNullable<ManagerCountRow['lineupPlayers']>[number];
+type CountPosition = 'QB' | 'RB' | 'WR' | 'TE';
+
+const COUNT_POSITIONS: CountPosition[] = ['QB', 'RB', 'WR', 'TE'];
 
 const POSITION_DEPTH_ORDER: Record<string, number> = {
   QB: 0,
@@ -5965,8 +5970,129 @@ function getPositionDepthNeedLabel(status: PositionDepthSignal['status']) {
   return status === 'shortage' ? 'Need' : 'Extra';
 }
 
-function getPositionDepthRead(signal: PositionDepthSignal) {
-  return `${signal.manager} is flagged for ${signal.status === 'shortage' ? 'the league-low count' : 'the league-high count'} at ${signal.position}. This compares the full roster counts for that position across the league.`;
+function isCountPosition(position: string): position is CountPosition {
+  return COUNT_POSITIONS.includes(position as CountPosition);
+}
+
+function getPositionRosterCount(row: ManagerCountRow, position: CountPosition): number {
+  return Number(row[position] || 0);
+}
+
+function getPositionStarterNeed(row: ManagerCountRow, position: CountPosition): number {
+  const starterKey = `${position}_starters` as `${CountPosition}_starters`;
+  return Number(row[starterKey] || 0);
+}
+
+function formatRosterNeedRatio(row: ManagerCountRow, position: CountPosition): string {
+  return `${getPositionRosterCount(row, position)}/${getPositionStarterNeed(row, position)}`;
+}
+
+function compareManagerCountPlayers(a: ManagerCountPlayer, b: ManagerCountPlayer): number {
+  const aRank = parsePositionRankValue(a.seasonPositionRank || a.currentPositionRank) || 999;
+  const bRank = parsePositionRankValue(b.seasonPositionRank || b.currentPositionRank) || 999;
+  const rankDelta = aRank - bRank;
+  if (rankDelta !== 0) return rankDelta;
+  return (b.seasonValue || b.value || 0) - (a.seasonValue || a.value || 0);
+}
+
+function getStartingCaliberCount(row: ManagerCountRow, position: CountPosition, leagueSize: number): number {
+  const starterNeed = Math.max(1, getPositionStarterNeed(row, position));
+  const starterCaliberCutoff = Math.max(1, leagueSize) * starterNeed;
+
+  return (row.lineupPlayers || [])
+    .filter((player) => player.pos === position)
+    .filter((player) => {
+      const rank = parsePositionRankValue(player.seasonPositionRank || player.currentPositionRank);
+      return rank !== null && rank <= starterCaliberCutoff;
+    })
+    .length;
+}
+
+function getPositionDepthSignalPlayers(row: ManagerCountRow, signal: PositionDepthSignal): ManagerCountPlayer[] {
+  if (!isCountPosition(signal.position)) return [];
+
+  const positionPlayers = [...(row.lineupPlayers || [])]
+    .filter((player) => player.pos === signal.position)
+    .sort(compareManagerCountPlayers);
+
+  if (signal.status === 'excess') {
+    const starterIds = new Set(
+      (row.starterPlayers || [])
+        .filter((player) => player.pos === signal.position)
+        .map((player) => player.player_id),
+    );
+    return positionPlayers.filter((player) => !starterIds.has(player.player_id)).slice(0, 3);
+  }
+
+  return positionPlayers.slice(0, 3);
+}
+
+function getPositionDepthRead(signal: PositionDepthSignal, row?: ManagerCountRow | null, leagueSize = 0) {
+  if (!row || !isCountPosition(signal.position)) {
+    return `${signal.manager} is flagged for ${signal.status === 'shortage' ? 'the league-low count' : 'the league-high count'} at ${signal.position}. This compares the full roster counts for that position across the league.`;
+  }
+
+  const rosterCount = getPositionRosterCount(row, signal.position);
+  const starterNeed = getPositionStarterNeed(row, signal.position);
+  const startingCaliberCount = getStartingCaliberCount(row, signal.position, leagueSize);
+  const displayedPlayers = getPositionDepthSignalPlayers(row, signal).map((player) => player.name);
+  const playerCopy = displayedPlayers.length
+    ? signal.status === 'excess'
+      ? ` Best non-starting ${signal.position} options shown: ${displayedPlayers.join(', ')}.`
+      : ` Thin ${signal.position} room shown: ${displayedPlayers.join(', ')}.`
+    : '';
+
+  return `${signal.manager} has the league-${signal.status === 'shortage' ? 'low' : 'high'} ${signal.position} count: ${rosterCount}/${starterNeed} rostered-to-start. ${startingCaliberCount} ${signal.position} player${startingCaliberCount === 1 ? '' : 's'} clear the ${Math.max(leagueSize, 1)}-team starter-caliber cutoff for this lineup format.${playerCopy}`;
+}
+
+function StarterDepthSignalPlayerTile({
+  player,
+  signal,
+  manager,
+  managerAvatarUrl,
+  playerDetailsById,
+  onSelect,
+}: {
+  player: ManagerCountPlayer;
+  signal: PositionDepthSignal;
+  manager: string;
+  managerAvatarUrl?: string | null;
+  playerDetailsById?: PlayerDetailsById;
+  onSelect: (player: PlayerModalData) => void;
+}) {
+  const signalLabel = getPositionDepthSignalLabel(signal.status);
+
+  return (
+    <button
+      type="button"
+      className="starter-depth-player-tile player-team-tile"
+      style={getTeamTileStyle(player.playerDetails?.team)}
+      onClick={() => {
+        onSelect(buildPlayerModalData({
+          playerId: player.player_id,
+          playerName: player.name,
+          playerPos: player.pos,
+          value: player.value,
+          playerDetails: player.playerDetails,
+          playerDetailsById,
+          currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
+          manager,
+          managerAvatarUrl,
+        }));
+      }}
+    >
+      <span className="starter-depth-player-main">
+        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+      </span>
+      <span className="starter-depth-player-meta">
+        <TeamLogoPill team={player.playerDetails?.team} />
+        <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
+        <span className={`starter-depth-player-signal starter-depth-player-signal-${signal.status}`}>
+          {signalLabel}
+        </span>
+      </span>
+    </button>
+  );
 }
 
 
@@ -6019,10 +6145,10 @@ export function ManagerPositionCountsTable({
               className={viewerOwnedHighlightClass(row.manager, viewerManager)}
               onClick={() => setSelectedManager(row)}
             >
-              <OwnerMetricPill label="QB" value={`${row.QB_starters}/${row.QB}`} />
-              <OwnerMetricPill label="RB" value={`${row.RB_starters}/${row.RB}`} />
-              <OwnerMetricPill label="WR" value={`${row.WR_starters}/${row.WR}`} />
-              <OwnerMetricPill label="TE" value={`${row.TE_starters}/${row.TE}`} />
+              <OwnerMetricPill label="QB" value={formatRosterNeedRatio(row, 'QB')} />
+              <OwnerMetricPill label="RB" value={formatRosterNeedRatio(row, 'RB')} />
+              <OwnerMetricPill label="WR" value={formatRosterNeedRatio(row, 'WR')} />
+              <OwnerMetricPill label="TE" value={formatRosterNeedRatio(row, 'TE')} />
               {depthSignals.slice(0, 2).map((signal) => (
                 <OwnerMetricPill
                   key={`${signal.position}-${signal.status}`}
@@ -6088,39 +6214,65 @@ export function ManagerPositionCountsTable({
                   </div>
                 </div>
                 <div className="manager-command-hero-metrics starter-modal-metrics">
-                  <IntelligenceMetric label="QB" value={`${selectedManager.QB_starters}/${selectedManager.QB}`} />
-                  <IntelligenceMetric label="RB" value={`${selectedManager.RB_starters}/${selectedManager.RB}`} />
-                  <IntelligenceMetric label="WR" value={`${selectedManager.WR_starters}/${selectedManager.WR}`} />
-                  <IntelligenceMetric label="TE" value={`${selectedManager.TE_starters}/${selectedManager.TE}`} />
+                  <IntelligenceMetric label="QB" value={formatRosterNeedRatio(selectedManager, 'QB')} />
+                  <IntelligenceMetric label="RB" value={formatRosterNeedRatio(selectedManager, 'RB')} />
+                  <IntelligenceMetric label="WR" value={formatRosterNeedRatio(selectedManager, 'WR')} />
+                  <IntelligenceMetric label="TE" value={formatRosterNeedRatio(selectedManager, 'TE')} />
                 </div>
               </div>
               <div className="starter-modal-body min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-5">
                 {selectedDepthSignals.length > 0 && (
                   <div className="starter-depth-signal-board" aria-label="Position depth signals">
-                    {selectedDepthSignals.map((signal) => (
-                      <div
-                        key={`${signal.position}-${signal.status}`}
-                        className={`starter-depth-signal-card starter-depth-signal-${signal.status}`}
-                      >
-                        <div className="starter-depth-signal-metrics">
-                          <IntelligenceMetric
-                            label={getPositionDepthNeedLabel(signal.status)}
-                            value={signal.position}
-                            tone={signal.status === 'shortage' ? 'negative' : 'positive'}
-                          />
-                          <IntelligenceMetric label="Count" value={signal.count} />
-                          <IntelligenceMetric
-                            label="Signal"
-                            value={getPositionDepthSignalLabel(signal.status)}
-                            tone={signal.status === 'shortage' ? 'negative' : 'positive'}
-                          />
+                    {selectedDepthSignals.map((signal) => {
+                      const signalPlayers = getPositionDepthSignalPlayers(selectedManager, signal);
+                      const rosterNeedValue = isCountPosition(signal.position)
+                        ? formatRosterNeedRatio(selectedManager, signal.position)
+                        : signal.count;
+
+                      return (
+                        <div
+                          key={`${signal.position}-${signal.status}`}
+                          className={`starter-depth-signal-card starter-depth-signal-${signal.status}`}
+                        >
+                          <div className="starter-depth-signal-metrics">
+                            <IntelligenceMetric
+                              label={getPositionDepthNeedLabel(signal.status)}
+                              value={signal.position}
+                              tone={signal.status === 'shortage' ? 'negative' : 'positive'}
+                            />
+                            <IntelligenceMetric label="Roster/Need" value={rosterNeedValue} />
+                            <IntelligenceMetric
+                              label="Signal"
+                              value={getPositionDepthSignalLabel(signal.status)}
+                              tone={signal.status === 'shortage' ? 'negative' : 'positive'}
+                            />
+                          </div>
+                          {signalPlayers.length > 0 ? (
+                            <div className="starter-depth-player-list" aria-label={`${signal.position} ${getPositionDepthSignalLabel(signal.status)} players`}>
+                              {signalPlayers.map((player) => (
+                                <StarterDepthSignalPlayerTile
+                                  key={player.player_id}
+                                  player={player}
+                                  signal={signal}
+                                  manager={selectedManager.manager}
+                                  managerAvatarUrl={selectedAvatar}
+                                  playerDetailsById={playerDetailsById}
+                                  onSelect={setSelectedPlayer}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="starter-depth-player-empty">
+                              No ranked {signal.position} players found in this room.
+                            </div>
+                          )}
+                          <div className="starter-depth-read">
+                            <span>Read</span>
+                            <p>{getPositionDepthRead(signal, selectedManager, data.length)}</p>
+                          </div>
                         </div>
-                        <div className="starter-depth-read">
-                          <span>Read</span>
-                          <p>{getPositionDepthRead(signal)}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
                 {selectedStarters.length > 0 ? (

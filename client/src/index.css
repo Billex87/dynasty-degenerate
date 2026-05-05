@@ -4783,6 +4783,10 @@
       padding: 0.9rem 0.85rem;
     }
 
+    .starter-modal .starter-modal-hero {
+      justify-content: stretch !important;
+    }
+
     .manager-command-title-lockup {
       display: grid;
       grid-template-columns: 3.4rem minmax(0, 1fr);
@@ -4790,6 +4794,12 @@
       width: 100%;
       max-width: calc(100% - 2.5rem);
       text-align: left;
+    }
+
+    .starter-modal .manager-command-title-lockup {
+      width: min(100%, calc(100vw - 2.75rem)) !important;
+      max-width: min(100%, calc(100vw - 2.75rem)) !important;
+      justify-self: center;
     }
 
     .manager-command-avatar {
@@ -4813,10 +4823,22 @@
       width: 100%;
     }
 
+    .starter-modal .manager-command-hero-metrics.starter-modal-metrics {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+      gap: clamp(0.22rem, 1vw, 0.34rem) !important;
+      width: 100% !important;
+      justify-self: stretch;
+    }
+
     .manager-command-hero-metrics > div {
       min-width: 0;
       border-radius: 0.8rem;
       padding: 0.55rem 0.48rem;
+    }
+
+    .starter-modal .starter-modal-metrics > div {
+      min-height: 3.1rem !important;
+      padding: 0.44rem 0.26rem !important;
     }
 
     .manager-command-hero-metrics > div > div:first-child {
@@ -4825,10 +4847,20 @@
       line-height: 1.08;
     }
 
+    .starter-modal .starter-modal-metrics > div > div:first-child {
+      font-size: clamp(0.42rem, 1.5vw, 0.52rem) !important;
+      letter-spacing: 0.07em !important;
+    }
+
     .manager-command-hero-metrics > div > div:last-child {
       margin-top: 0.35rem;
       font-size: clamp(1rem, 4.4vw, 1.35rem);
       line-height: 1;
+    }
+
+    .starter-modal .starter-modal-metrics > div > div:last-child {
+      margin-top: 0.28rem !important;
+      font-size: clamp(0.82rem, 3vw, 1.06rem) !important;
     }
 
     .manager-command-body {
@@ -6391,6 +6423,96 @@
     min-height: 4rem;
     border-color: rgba(34, 211, 238, 0.18);
     background: rgba(2, 6, 23, 0.54);
+  }
+
+  .starter-depth-player-list {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 0.62rem;
+  }
+
+  .starter-depth-player-tile {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 3.4rem;
+    border-color: rgba(148, 163, 184, 0.22);
+    border-radius: 0.85rem;
+    padding: 0.48rem 0.55rem;
+    text-align: left;
+  }
+
+  .starter-depth-player-main {
+    min-width: 0;
+  }
+
+  .starter-depth-player-main .player-chip {
+    min-width: 0;
+    gap: 0.38rem;
+  }
+
+  .starter-depth-player-main .player-chip img,
+  .starter-depth-player-main .player-chip > span[aria-hidden="true"] {
+    height: 1.85rem;
+    width: 1.85rem;
+  }
+
+  .starter-depth-player-main .player-chip > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    font-size: clamp(0.72rem, 1.7vw, 0.86rem);
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .starter-depth-player-meta {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.28rem;
+  }
+
+  .starter-depth-player-signal {
+    display: inline-flex;
+    min-height: 1.45rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 0.22rem 0.45rem;
+    font-size: 0.58rem;
+    font-weight: 950;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .starter-depth-player-signal-excess {
+    background: rgba(16, 185, 129, 0.16);
+    color: #6ee7b7;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .starter-depth-player-signal-shortage {
+    background: rgba(244, 63, 94, 0.14);
+    color: #fda4af;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .starter-depth-player-empty {
+    margin-top: 0.62rem;
+    border: 1px dashed rgba(148, 163, 184, 0.22);
+    border-radius: 0.85rem;
+    padding: 0.72rem;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 850;
+    text-align: center;
   }
 
   .starter-depth-read {
@@ -11712,6 +11834,10 @@ button.trade-manager-trade {
     text-align: center !important;
   }
 
+  .report-shell .starter-modal .starter-modal-hero {
+    justify-content: stretch !important;
+  }
+
   .manager-command-title-lockup {
     display: flex !important;
     align-items: center !important;
@@ -11737,6 +11863,7 @@ button.trade-manager-trade {
   .trade-manager-title-lockup > div,
   .manager-draft-title-lockup > div {
     min-width: 0;
+    width: min(100%, calc(100vw - 7rem));
     max-width: min(24rem, calc(100vw - 7rem));
     justify-items: center !important;
     text-align: center !important;
@@ -11752,22 +11879,47 @@ button.trade-manager-trade {
   .manager-command-hero h3.manager-modal-name {
     max-width: min(100%, calc(100vw - 7rem)) !important;
     overflow: visible !important;
-    font-size: clamp(1.12rem, 4.75vw, 1.68rem) !important;
+    font-size: clamp(1.02rem, 4.35vw, 1.56rem) !important;
     letter-spacing: 0 !important;
     text-overflow: clip !important;
     white-space: nowrap !important;
   }
 
   .manager-command-hero h3.manager-modal-name-long {
-    font-size: clamp(0.98rem, 4.05vw, 1.42rem) !important;
+    font-size: clamp(0.82rem, 3.25vw, 1.12rem) !important;
   }
 
   .manager-command-hero h3.manager-modal-name-xlong {
-    font-size: clamp(0.86rem, 3.45vw, 1.24rem) !important;
+    font-size: clamp(0.72rem, 2.72vw, 0.98rem) !important;
   }
 
   .manager-command-hero h3.manager-modal-name-xxlong {
-    font-size: clamp(0.78rem, 3.05vw, 1.08rem) !important;
+    font-size: clamp(0.64rem, 2.32vw, 0.84rem) !important;
+  }
+
+  .report-shell .starter-modal .manager-command-hero-metrics.starter-modal-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: clamp(0.24rem, 1vw, 0.42rem) !important;
+    width: min(100%, 32rem) !important;
+    justify-self: center !important;
+  }
+
+  .report-shell .starter-modal .starter-modal-metrics > div {
+    min-height: 3.25rem !important;
+    border-radius: 0.72rem !important;
+    padding: clamp(0.4rem, 1.25vw, 0.55rem) clamp(0.24rem, 1vw, 0.45rem) !important;
+  }
+
+  .report-shell .starter-modal .starter-modal-metrics > div > div:first-child {
+    font-size: clamp(0.43rem, 1.45vw, 0.56rem) !important;
+    letter-spacing: 0.08em !important;
+    line-height: 1 !important;
+  }
+
+  .report-shell .starter-modal .starter-modal-metrics > div > div:last-child {
+    margin-top: 0.28rem !important;
+    font-size: clamp(0.86rem, 3vw, 1.12rem) !important;
+    line-height: 1 !important;
   }
 
   .report-shell .owner-intel-roster-heat {
@@ -11852,6 +12004,28 @@ button.trade-manager-trade {
   .report-shell .owner-intel-bench-player .position-rank-pill {
     padding-inline: 0.34rem;
     font-size: 0.58rem;
+  }
+
+  .report-shell .starter-depth-player-tile {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 0.34rem;
+    padding: 0.52rem 0.44rem;
+    text-align: center !important;
+  }
+
+  .report-shell .starter-depth-player-main .player-chip {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .report-shell .starter-depth-player-main .player-chip > span:last-child {
+    text-align: center;
+  }
+
+  .report-shell .starter-depth-player-meta {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 
