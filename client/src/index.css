@@ -1563,6 +1563,16 @@
       linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.96));
   }
 
+  .league-switch-header {
+    align-items: center;
+    text-align: center;
+  }
+
+  .league-switch-header [data-slot="dialog-title"] {
+    width: 100%;
+    text-align: center;
+  }
+
   .league-switch-description {
     display: grid;
     justify-items: center;

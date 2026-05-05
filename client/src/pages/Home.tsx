@@ -1141,7 +1141,7 @@ export default function Home() {
 
         <Dialog open={isLeaguePickerOpen} onOpenChange={setIsLeaguePickerOpen}>
           <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
-            <DialogHeader className="text-center">
+            <DialogHeader className="league-switch-header text-center sm:text-center">
               <DialogTitle className="athletic-headline text-3xl text-orange-400">
                 Pick Another League
               </DialogTitle>
