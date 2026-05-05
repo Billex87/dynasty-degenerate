@@ -27,6 +27,7 @@ import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { getPlayerAvailability, getPlayerAvailabilityClass } from '@/lib/playerStatus';
 import { compareManagersByViewerAndStanding, sortRowsByOverviewStrength, sortRowsByViewerAndStanding } from '@/lib/managerOrdering';
+import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 
 type ManagerAvatars = ReportData['managerAvatars'];
 type PlayerDetailsById = ReportData['playerDetailsById'];
@@ -2347,14 +2348,16 @@ function ManagerDepthTile({
   avatarUrl,
   badges,
   onClick,
+  className = '',
 }: {
   manager: string;
   avatarUrl?: string | null;
   badges: Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }>;
   onClick: () => void;
+  className?: string;
 }) {
   return (
-    <button type="button" className="command-depth-tile" onClick={onClick}>
+    <button type="button" className={`command-depth-tile ${className}`} onClick={onClick}>
       {avatarUrl && (
         <>
           <img src={avatarUrl} alt="" className="command-depth-tile-wash" />
@@ -2723,6 +2726,7 @@ export function LeagueCommandCenter({
                 key={row.manager}
                 manager={row.manager}
                 avatarUrl={managerAvatars?.[row.manager]}
+                className={viewerOwnedHighlightClass(row.manager, viewerManager)}
                 badges={[
                 { label: `${row.starterCount} starters`, tone: 'neutral' },
                 ...(row.avgAge !== null ? [{ label: `${row.avgAge} avg age`, tone: row.avgAge >= 27.5 ? 'warn' as const : row.avgAge <= 25 ? 'future' as const : 'good' as const }] : []),
@@ -2761,6 +2765,7 @@ export function LeagueCommandCenter({
                 key={row.manager}
                 manager={row.manager}
                 avatarUrl={managerAvatars?.[row.manager]}
+                className={viewerOwnedHighlightClass(row.manager, viewerManager)}
                 badges={[
                   { label: `${row.taxiTriage.items.length} taxi`, tone: 'neutral' },
                   ...(row.taxiTriage.counts['Promote Now'] ? [{ label: `${row.taxiTriage.counts['Promote Now']} promote`, tone: 'good' as const }] : []),
@@ -3219,7 +3224,7 @@ export function OwnerIntelMatrix({
   managerAvatars,
   leagueId,
   leagueLogo,
-  viewerManager: _viewerManager,
+  viewerManager,
   currentStandings: _currentStandings,
 }: {
   data: ReportData;
@@ -3344,6 +3349,7 @@ export function OwnerIntelMatrix({
               key={row.manager}
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
+              className={viewerOwnedHighlightClass(row.manager, viewerManager)}
               badges={[
                 ...buildOwnerIntelTileTags({
                   identity: row.identity,
@@ -3675,6 +3681,7 @@ export function WeeklyMomentumTable({
   playerDetailsById,
   leagueId,
   leagueLogo,
+  viewerManager,
 }: {
   data: ReportData['weeklyRisers'];
   title: string;
@@ -3682,6 +3689,7 @@ export function WeeklyMomentumTable({
   playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const isRiserList = data.some((row) => row.pct_change > 0);
@@ -3697,7 +3705,7 @@ export function WeeklyMomentumTable({
               <button
                 key={`${row.player_id || row.name}-${row.owner}`}
                 type="button"
-                className={`player-team-tile weekly-momentum-tile ${isPositive ? 'weekly-momentum-tile-up' : 'weekly-momentum-tile-down'}`}
+                className={`player-team-tile weekly-momentum-tile ${isPositive ? 'weekly-momentum-tile-up' : 'weekly-momentum-tile-down'} ${viewerOwnedHighlightClass(row.owner, viewerManager)}`}
                 style={getTeamTileStyle(playerDetails?.team)}
                 onClick={() => setSelectedPlayer(buildPlayerModalData({
                   playerId: row.player_id,
@@ -3806,6 +3814,7 @@ export function TrendingPlayersTable({
   playerDetailsById,
   leagueId,
   leagueLogo,
+  viewerManager,
 }: {
   data: TrendingPlayer[];
   title: string;
@@ -3814,6 +3823,7 @@ export function TrendingPlayersTable({
   playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
 
@@ -3827,7 +3837,7 @@ export function TrendingPlayersTable({
               <button
                 key={row.player_id}
                 type="button"
-                className="player-team-tile trending-player-card"
+                className={`player-team-tile trending-player-card ${viewerOwnedHighlightClass(row.owner, viewerManager)}`}
                 style={getTeamTileStyle(playerDetails?.team || row.team)}
                 onClick={() => setSelectedPlayer(buildPlayerModalData({
                     playerId: row.player_id,
@@ -3886,6 +3896,7 @@ export function ProjectedMoversTable({
   playerDetailsById,
   leagueId,
   leagueLogo,
+  viewerManager,
 }: {
   data: ReportData['projectedRisers'];
   title: string;
@@ -3893,6 +3904,7 @@ export function ProjectedMoversTable({
   playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
 
@@ -3906,7 +3918,7 @@ export function ProjectedMoversTable({
             <button
               key={`${row.player_id || row.name}-${idx}`}
               type="button"
-              className={`player-team-tile projected-mover-tile ${isPositive ? 'projected-mover-up' : 'projected-mover-down'}`}
+              className={`player-team-tile projected-mover-tile ${isPositive ? 'projected-mover-up' : 'projected-mover-down'} ${viewerOwnedHighlightClass(row.owner, viewerManager)}`}
               style={getTeamTileStyle(details?.team)}
               onClick={() => setSelectedPlayer(buildPlayerModalData({
                 playerId: row.player_id,
@@ -4580,6 +4592,7 @@ export function TradeProfitLeaderboardTable({
               key={row.rank}
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
+              className={viewerOwnedHighlightClass(row.manager, viewerManager)}
               onClick={() => setSelectedManager(row.manager)}
             >
               <OwnerMetricPill label="Wins" value={row.wins} tone="warn" />
@@ -5718,6 +5731,7 @@ export function TradeMarketRadar({
   playerDetailsById,
   leagueId,
   leagueLogo,
+  viewerManager,
 }: {
   risers: ReportData['weeklyRisers'];
   fallers: ReportData['weeklyFallers'];
@@ -5725,6 +5739,7 @@ export function TradeMarketRadar({
   playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const sellHigh = risers.filter((player) => player.val_now >= 2500).slice(0, 5);
@@ -5741,7 +5756,7 @@ export function TradeMarketRadar({
         <button
           key={`${label}-${player.player_id || player.name}`}
           type="button"
-          className={`player-team-tile trade-market-card ${tone === 'positive' ? 'trade-market-card-sell' : 'trade-market-card-buy'}`}
+          className={`player-team-tile trade-market-card ${tone === 'positive' ? 'trade-market-card-sell' : 'trade-market-card-buy'} ${viewerOwnedHighlightClass(player.owner, viewerManager)}`}
           style={getTeamTileStyle(player.playerDetails?.team)}
           onClick={() => setSelectedPlayer(buildPlayerModalData({
             playerId: player.player_id,
@@ -5879,6 +5894,7 @@ export function ManagerPositionCountsTable({
   playerDetailsById,
   leagueId,
   leagueLogo,
+  viewerManager,
 }: {
   data: ReportData['managerPositionCounts'];
   positionDepth?: ReportData['positionDepth'];
@@ -5886,6 +5902,7 @@ export function ManagerPositionCountsTable({
   playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
 }) {
   const [selectedManager, setSelectedManager] = useState<ReportData['managerPositionCounts'][number] | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
@@ -5916,6 +5933,7 @@ export function ManagerPositionCountsTable({
               key={`${row.manager}-${idx}`}
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
+              className={viewerOwnedHighlightClass(row.manager, viewerManager)}
               onClick={() => setSelectedManager(row)}
             >
               <OwnerMetricPill label="QB" value={`${row.QB_starters}/${row.QB}`} />

@@ -916,6 +916,7 @@ export default function Home() {
                       playerDetailsById={reportData.playerDetailsById}
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
+                      viewerManager={reportData.viewerManager}
                     />
                   </CollapsibleReportSection>
                 )}
@@ -938,6 +939,7 @@ export default function Home() {
                         playerDetailsById={reportData.playerDetailsById}
                         leagueId={leagueId}
                         leagueLogo={leagueLogo}
+                        viewerManager={reportData.viewerManager}
                       />
                     </CollapsibleReportSection>
                   )}
@@ -960,10 +962,10 @@ export default function Home() {
                     />
                   </CollapsibleReportSection>
                   <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers">
-                    <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
+                    <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} />
                   </CollapsibleReportSection>
                   <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops">
-                    <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} />
+                    <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} />
                   </CollapsibleReportSection>
                   <CollapsibleReportSection title="Trending Adds" kicker="Sleeper activity">
                     <TrendingPlayersTable
@@ -974,6 +976,7 @@ export default function Home() {
                       playerDetailsById={reportData.playerDetailsById}
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
+                      viewerManager={reportData.viewerManager}
                     />
                   </CollapsibleReportSection>
                   <CollapsibleReportSection title="Trending Drops" kicker="Sleeper activity">
@@ -985,6 +988,7 @@ export default function Home() {
                       playerDetailsById={reportData.playerDetailsById}
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
+                      viewerManager={reportData.viewerManager}
                     />
                   </CollapsibleReportSection>
                 </div>
@@ -1007,6 +1011,7 @@ export default function Home() {
                     playerDetailsById={reportData.playerDetailsById}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    viewerManager={reportData.viewerManager}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="2027 Value Droppers" kicker="Next-year risk">
@@ -1017,6 +1022,7 @@ export default function Home() {
                     playerDetailsById={reportData.playerDetailsById}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    viewerManager={reportData.viewerManager}
                   />
                 </CollapsibleReportSection>
                 {canViewMomentumTab && (
@@ -1057,6 +1063,8 @@ export default function Home() {
                     leagueOverview={reportData.leagueOverview}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    viewerManager={reportData.viewerManager}
+                    currentStandings={reportData.currentStandings}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Trade Theft Detector" kicker="Who got cooked">

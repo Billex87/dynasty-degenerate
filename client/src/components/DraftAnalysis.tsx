@@ -9,6 +9,7 @@ import { ChampionAvatarFrame } from './ManagerChampionships';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 import { sortRowsByViewerAndStanding } from '@/lib/managerOrdering';
+import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -174,7 +175,7 @@ export function DraftAnalysis({
                 <button
                   key={`${stat.manager}-${idx}`}
                   type="button"
-                  className="owner-summary-tile"
+                  className={`owner-summary-tile ${viewerOwnedHighlightClass(stat.manager, viewerManager)}`}
                   onClick={() => openManagerPortfolio(stat.manager)}
                 >
                   {avatarUrl && (
@@ -227,7 +228,7 @@ export function DraftAnalysis({
                   <button
                     key={audit.manager}
                     type="button"
-                    className={`owner-summary-tile draft-decision-manager-tile ${audit.watchFlags > 0 ? 'draft-decision-manager-tile-watch' : 'draft-decision-manager-tile-clean'}`}
+                    className={`owner-summary-tile draft-decision-manager-tile ${audit.watchFlags > 0 ? 'draft-decision-manager-tile-watch' : 'draft-decision-manager-tile-clean'} ${viewerOwnedHighlightClass(audit.manager, viewerManager)}`}
                     onClick={() => openManagerAudit(audit.manager)}
                   >
                     {avatarUrl && (
@@ -329,7 +330,7 @@ export function DraftAnalysis({
                           <button
                             key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
                             type="button"
-                            className="player-team-tile rookie-draft-row"
+                            className={`player-team-tile rookie-draft-row ${viewerOwnedHighlightClass(pick.manager, viewerManager)}`}
                             style={getTeamTileStyle(details?.team)}
                             onClick={() => openDraftPlayer(pick)}
                           >
