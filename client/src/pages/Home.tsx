@@ -150,6 +150,46 @@ function getLoadingSuccessTitleClassName(leagueName: string): string {
   return 'loading-success-title';
 }
 
+function HomeActionRow() {
+  return (
+    <div className="home-action-row">
+      <SupportButton className="home-action-button" />
+      <FeedbackButton className="home-action-button" />
+    </div>
+  );
+}
+
+function HomeLogoChrome() {
+  return (
+    <div className="home-header-inner max-w-7xl mx-auto">
+      <HomeActionRow />
+      <div className="home-header-logo-wrap">
+        <img
+          src={DYNASTY_LOGO_SRC}
+          alt="Dynasty Degenerates Logo"
+          className="home-header-logo"
+        />
+      </div>
+      <p className="home-header-slogan">
+        Just some degens with scraping tools and A.I.
+      </p>
+    </div>
+  );
+}
+
+function HomeBrandLockup() {
+  return (
+    <div className="home-footer-brand max-w-7xl mx-auto">
+      <h1 className="home-header-title athletic-title mb-2">
+        Dynasty<br />Degenerates
+      </h1>
+      <p className="home-header-tagline">
+        For Degens, By Degens
+      </p>
+    </div>
+  );
+}
+
 function RecentEntrySuggestions({
   label,
   options,
@@ -1210,16 +1250,10 @@ export default function Home() {
 
   return (
     <div className="home-shell min-h-screen flex flex-col">
-           <div className="home-header px-4 py-6 sm:py-8">
-        <div className="home-header-inner max-w-7xl mx-auto flex flex-col items-center justify-center text-center">
-          <h1 className="home-header-title athletic-title mb-2">
-            Dynasty<br />Degenerates
-          </h1>
-          <p className="home-header-tagline">
-            For Degens, By Degens
-          </p>
-        </div>
-      </div>  <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
+      <div className="home-header px-4 py-4 sm:py-5">
+        <HomeLogoChrome />
+      </div>
+      <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
         {isLoading ? (
           <div className="home-loading-stage w-full max-w-2xl">
             <LoadingAnimation isComplete={Boolean(analysisCompleteMessage)} />
@@ -1375,9 +1409,6 @@ export default function Home() {
                 <Zap size={20} />
                 Illegally Scraping All Data
               </Button>
-              <div className="home-support-row">
-                <SupportButton />
-              </div>
             </div>
 
             {/* Features Grid */}
@@ -1422,56 +1453,10 @@ export default function Home() {
         )}
       </div>
 
-      {/* Premium Footer */}
-      {!reportData && !isLoading && (
-      <div className="home-footer mt-auto flex flex-col">
-        <div className="hidden sm:block max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex-1">
-          <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8 mb-6 sm:mb-8">
-            <div className="text-center">
-              <h4 className="font-bold text-orange-400 mb-3">What We Do</h4>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li>Scrape Sleeper data in real-time</li>
-                <li>Blend player values from multiple data sources</li>
-                <li>Track trade profitability</li>
-                <li>Project future value</li>
-              </ul>
-            </div>
-            <div className="text-center">
-              <h4 className="font-bold text-orange-400 mb-3">Data Sources</h4>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li>Sleeper App</li>
-                <li>Market data feeds</li>
-                <li>FlockFantasy</li>
-                <li>Real League Data</li>
-              </ul>
-            </div>
-            <div className="text-center">
-              <h4 className="font-bold text-orange-400 mb-3">Premium Features</h4>
-              <ul className="space-y-2 text-sm text-slate-400">
-                <li>Real-time updates</li>
-                <li>Historical tracking</li>
-                <li>Trade ledger breakdowns</li>
-                <li>Multi-league support</li>
-              </ul>
-            </div>
-          </div>
+      {!reportData && (
+        <div className="home-footer mt-auto px-4 py-6 sm:py-8">
+          <HomeBrandLockup />
         </div>
-        <div className="border-t border-slate-700 text-center flex flex-col justify-end py-1 sm:py-2 px-4 sm:px-6 min-h-40 sm:min-h-48">
-          <div className="home-footer-action-row">
-            <FeedbackButton />
-          </div>
-          <div className="flex justify-center h-40 sm:h-48 mb-0">
-              <img
-                src={DYNASTY_LOGO_SRC}
-                alt="Dynasty Degenerates Logo"
-                className="w-auto object-contain"
-              />
-          </div>
-          <p className="bg-gradient-to-r from-orange-500 to-orange-400 bg-clip-text text-transparent font-bold text-[10px] sm:text-xs md:text-sm pb-1 sm:pb-1.5 whitespace-nowrap">
-            JUST SOME DEGENS WITH SCRAPING TOOLS AND A.I.
-          </p>
-        </div>
-      </div>
       )}
       {clownEasterEggDialog}
       {adminPermissionsDialog}

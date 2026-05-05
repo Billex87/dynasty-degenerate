@@ -940,11 +940,21 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 6rem;
-    gap: 0.5rem;
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
+    min-height: 8.25rem;
+    gap: 0.48rem;
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+    text-align: center;
   }
+
+  .home-header-logo-wrap {
+    display: flex;
+    justify-content: center;
+    height: clamp(4.9rem, 10vw, 6.6rem);
+    width: 100%;
+    min-width: 0;
+  }
+
   .home-header-brand {
     display: flex;
     flex-direction: column;
@@ -971,9 +981,25 @@
     display: block;
     height: clamp(5.2rem, 14vw, 7.4rem);
     width: auto;
+    max-height: 100%;
     max-width: min(19rem, 74vw);
     object-fit: contain;
     filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.14));
+  }
+
+  .home-header-slogan {
+    margin: 0;
+    background: linear-gradient(90deg, #fb923c 0%, #fdba74 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-size: clamp(0.62rem, 1.35vw, 0.8rem);
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    text-align: center;
+    text-transform: uppercase;
+    white-space: nowrap;
   }
 
   .home-header-title {
@@ -990,6 +1016,15 @@
 
   .home-footer {
     border-top: 1px solid rgba(249, 115, 22, 0.18);
+  }
+
+  .home-footer-brand {
+    display: flex;
+    min-height: 6.75rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
 
   .home-main,
@@ -1075,8 +1110,8 @@
 
   @media (max-width: 767px) {
      .home-header-inner {
-      min-height: 7.25rem;
-      gap: 0.3rem;
+      min-height: 8rem;
+      gap: 0.28rem;
       padding-top: 0.45rem;
       padding-bottom: 0.45rem;
     }
@@ -1084,8 +1119,36 @@
       gap: 0;
     }
     .home-header-logo {
-      height: 5.7rem;
-      max-width: min(13rem, 38vw);
+      height: 5.2rem;
+      max-width: min(13rem, 56vw);
+    }
+    .home-header-logo-wrap {
+      height: 5.35rem;
+    }
+    .home-header-slogan {
+      max-width: 100%;
+      font-size: clamp(0.52rem, 2.45vw, 0.68rem);
+      letter-spacing: 0.04em;
+      white-space: normal;
+    }
+    .home-action-row {
+      width: min(100%, 22rem);
+      gap: 0.35rem;
+    }
+    .home-action-row .support-button {
+      min-height: 2.15rem;
+      flex: 1 1 0;
+      gap: 0.32rem;
+      padding: 0.48rem 0.46rem;
+      font-size: clamp(0.58rem, 2.7vw, 0.7rem);
+    }
+    .home-action-row .support-button-icon {
+      height: 0.82rem;
+      width: 0.82rem;
+    }
+    .home-action-row .support-button-external {
+      height: 0.68rem;
+      width: 0.68rem;
     }
 
     .home-title {
@@ -1195,12 +1258,32 @@
     border-color: rgba(251, 146, 60, 0.24);
   }
 
-  .home-support-row,
-  .report-footer-actions,
-  .home-footer-action-row {
+  .home-action-row,
+  .report-footer-actions {
     display: flex;
+    align-items: center;
     justify-content: center;
     gap: 0.75rem;
+  }
+
+  .home-action-row {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 30rem);
+    flex-wrap: nowrap;
+    gap: clamp(0.35rem, 2vw, 0.75rem);
+  }
+
+  .home-action-row .support-button {
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+
+  .home-action-row .support-button span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .report-footer-actions {
@@ -1217,13 +1300,6 @@
     flex-basis: 100%;
     justify-self: center;
     margin-inline: auto;
-  }
-
-  .home-footer-action-row {
-    position: relative;
-    z-index: 2;
-    flex-wrap: wrap;
-    padding-top: 0.7rem;
   }
 
   .feedback-dialog {
