@@ -5619,6 +5619,80 @@
       linear-gradient(180deg, rgba(15, 23, 42, 0.68), rgba(2, 6, 23, 0.76));
   }
 
+  .starter-depth-signal-board {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .starter-depth-signal-card {
+    overflow: hidden;
+    border: 1px solid rgba(34, 211, 238, 0.18);
+    border-radius: 1rem;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.13), transparent 40%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.8));
+    padding: 0.78rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 14px 28px rgba(0, 0, 0, 0.2);
+  }
+
+  .starter-depth-signal-shortage {
+    border-color: rgba(251, 113, 133, 0.26);
+    background:
+      radial-gradient(circle at 0% 0%, rgba(251, 113, 133, 0.14), transparent 40%),
+      radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.12), transparent 36%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(2, 6, 23, 0.82));
+  }
+
+  .starter-depth-signal-excess {
+    border-color: rgba(52, 211, 153, 0.24);
+    background:
+      radial-gradient(circle at 0% 0%, rgba(52, 211, 153, 0.13), transparent 40%),
+      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.12), transparent 36%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(2, 6, 23, 0.82));
+  }
+
+  .starter-depth-signal-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.52rem;
+  }
+
+  .starter-depth-signal-metrics > div {
+    min-height: 4rem;
+    border-color: rgba(34, 211, 238, 0.18);
+    background: rgba(2, 6, 23, 0.54);
+  }
+
+  .starter-depth-read {
+    margin-top: 0.62rem;
+    border: 1px solid rgba(251, 146, 60, 0.18);
+    border-radius: 0.85rem;
+    background: rgba(2, 6, 23, 0.5);
+    padding: 0.68rem 0.76rem;
+  }
+
+  .starter-depth-read span {
+    display: block;
+    margin-bottom: 0.28rem;
+    color: #67e8f9;
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.18em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .starter-depth-read p {
+    margin: 0;
+    color: #e2e8f0;
+    font-size: 0.8rem;
+    font-weight: 850;
+    line-height: 1.35;
+  }
+
   .starter-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -10724,6 +10798,8 @@ button.trade-manager-trade {
   .report-shell .command-depth-tile,
   .report-shell .manager-intel-player,
   .report-shell .starter-player-tile,
+  .report-shell .starter-depth-signal-card,
+  .report-shell .starter-depth-read,
   .report-shell .owner-intel-read-grid > div,
   .report-shell .manager-command-section,
   .report-shell .manager-command-grid > div {
@@ -10819,6 +10895,7 @@ button.trade-manager-trade {
   .report-shell .owner-intel-read-grid p:not(.owner-intel-section-note),
   .report-shell .manager-command-section > p:not(.owner-intel-section-note),
   .report-shell .manager-command-grid p,
+  .report-shell .starter-depth-read p,
   .report-shell .owner-intel-wild-notes li {
     text-align: center !important;
   }

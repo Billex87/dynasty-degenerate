@@ -16,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, Crown, TrendingDown, TrendingUp, X as XIcon } from 'lucide-react';
+import { ChevronDown, Crown, X as XIcon } from 'lucide-react';
 import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
@@ -4855,89 +4855,6 @@ export function TradeHistoryTable({
 }
 
 
-export function PositionAnalysisTable({
-  data,
-  managerAvatars,
-}: {
-  data: ReportData['positionDepth'];
-  managerAvatars?: ManagerAvatars;
-}) {
-  const [selectedRow, setSelectedRow] = useState<ReportData['positionDepth'][number] | null>(null);
-  const shortages = data.filter(d => d.status === 'shortage');
-  const excesses = data.filter(d => d.status === 'excess');
-
-  if (shortages.length === 0 && excesses.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="space-y-8">
-      {/* Shortages */}
-      {shortages.length > 0 && (
-      <div>
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <TrendingDown className="w-5 h-5 text-red-400" />
-          <h3 className="text-xl font-bold text-red-400 text-center">Position Shortages</h3>
-        </div>
-          <div className="owner-tile-shell">
-            <div className="owner-tile-grid">
-              {shortages.map((row, idx) => (
-                <OwnerSummaryTile
-                  key={`${row.manager}-${row.position}-${idx}`}
-                  manager={row.manager}
-                  avatarUrl={managerAvatars?.[row.manager]}
-                  onClick={() => setSelectedRow(row)}
-                >
-                  <OwnerMetricPill label="Need" value={row.position} tone="danger" />
-                  <OwnerMetricPill label="Count" value={row.count} tone="danger" />
-                </OwnerSummaryTile>
-              ))}
-            </div>
-          </div>
-      </div>
-      )}
-
-      {/* Excesses */}
-      {excesses.length > 0 && (
-      <div>
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <TrendingUp className="w-5 h-5 text-emerald-400" />
-          <h3 className="text-xl font-bold text-emerald-400 text-center">Position Excess</h3>
-        </div>
-          <div className="owner-tile-shell">
-            <div className="owner-tile-grid">
-              {excesses.map((row, idx) => (
-                <OwnerSummaryTile
-                  key={`${row.manager}-${row.position}-${idx}`}
-                  manager={row.manager}
-                  avatarUrl={managerAvatars?.[row.manager]}
-                  onClick={() => setSelectedRow(row)}
-                >
-                  <OwnerMetricPill label="Extra" value={row.position} tone="good" />
-                  <OwnerMetricPill label="Count" value={row.count} tone="good" />
-                </OwnerSummaryTile>
-              ))}
-            </div>
-          </div>
-      </div>
-      )}
-      <OwnerQuickModal
-        open={selectedRow !== null}
-        onOpenChange={(open) => !open && setSelectedRow(null)}
-        title="Position Depth"
-        manager={selectedRow?.manager}
-        avatarUrl={selectedRow ? managerAvatars?.[selectedRow.manager] : null}
-        metrics={selectedRow ? [
-          { label: selectedRow.status === 'shortage' ? 'Need' : 'Extra', value: selectedRow.position, tone: selectedRow.status === 'shortage' ? 'negative' : 'positive' },
-          { label: 'Count', value: selectedRow.count },
-          { label: 'Signal', value: selectedRow.status === 'shortage' ? 'Shortage' : 'Excess' },
-        ] : []}
-        note={selectedRow ? `${selectedRow.manager} is flagged for ${selectedRow.status === 'shortage' ? 'the league-low count' : 'the league-high count'} at ${selectedRow.position}. This compares the full roster counts for that position across the league.` : undefined}
-      />
-    </div>
-  );
-}
-
 export function StarterBenchSnapshot({
   data,
   managerAvatars,
@@ -5823,15 +5740,46 @@ export function SearchableProjectedMoversTable({
   );
 }
 
+type PositionDepthSignal = ReportData['positionDepth'][number];
+
+const POSITION_DEPTH_ORDER: Record<string, number> = {
+  QB: 0,
+  RB: 1,
+  WR: 2,
+  TE: 3,
+};
+
+function sortPositionDepthSignals(a: PositionDepthSignal, b: PositionDepthSignal) {
+  const statusOrder = (signal: PositionDepthSignal) => (signal.status === 'shortage' ? 0 : 1);
+  return (
+    statusOrder(a) - statusOrder(b) ||
+    (POSITION_DEPTH_ORDER[a.position] ?? 99) - (POSITION_DEPTH_ORDER[b.position] ?? 99)
+  );
+}
+
+function getPositionDepthSignalLabel(status: PositionDepthSignal['status']) {
+  return status === 'shortage' ? 'Shortage' : 'Excess';
+}
+
+function getPositionDepthNeedLabel(status: PositionDepthSignal['status']) {
+  return status === 'shortage' ? 'Need' : 'Extra';
+}
+
+function getPositionDepthRead(signal: PositionDepthSignal) {
+  return `${signal.manager} is flagged for ${signal.status === 'shortage' ? 'the league-low count' : 'the league-high count'} at ${signal.position}. This compares the full roster counts for that position across the league.`;
+}
+
 
 export function ManagerPositionCountsTable({
   data,
+  positionDepth = [],
   managerAvatars,
   playerDetailsById,
   leagueId,
   leagueLogo,
 }: {
   data: ReportData['managerPositionCounts'];
+  positionDepth?: ReportData['positionDepth'];
   managerAvatars?: ManagerAvatars;
   playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
@@ -5841,23 +5789,51 @@ export function ManagerPositionCountsTable({
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const selectedAvatar = selectedManager ? managerAvatars?.[selectedManager.manager] : null;
   const selectedStarters = selectedManager?.starterPlayers || [];
+  const positionDepthByManager = useMemo(() => {
+    const signalsByManager = new Map<string, PositionDepthSignal[]>();
+
+    positionDepth.forEach((signal) => {
+      const managerSignals = signalsByManager.get(signal.manager) || [];
+      managerSignals.push(signal);
+      signalsByManager.set(signal.manager, managerSignals);
+    });
+
+    signalsByManager.forEach((signals) => signals.sort(sortPositionDepthSignals));
+    return signalsByManager;
+  }, [positionDepth]);
+  const selectedDepthSignals = selectedManager ? positionDepthByManager.get(selectedManager.manager) || [] : [];
 
   return (
     <div className="owner-tile-shell">
       <div className="owner-tile-grid position-counts-tile-grid">
-        {data.map((row, idx) => (
-          <OwnerSummaryTile
-            key={`${row.manager}-${idx}`}
-            manager={row.manager}
-            avatarUrl={managerAvatars?.[row.manager]}
-            onClick={() => setSelectedManager(row)}
-          >
-            <OwnerMetricPill label="QB" value={`${row.QB_starters}/${row.QB}`} />
-            <OwnerMetricPill label="RB" value={`${row.RB_starters}/${row.RB}`} />
-            <OwnerMetricPill label="WR" value={`${row.WR_starters}/${row.WR}`} />
-            <OwnerMetricPill label="TE" value={`${row.TE_starters}/${row.TE}`} />
-          </OwnerSummaryTile>
-        ))}
+        {data.map((row, idx) => {
+          const depthSignals = positionDepthByManager.get(row.manager) || [];
+
+          return (
+            <OwnerSummaryTile
+              key={`${row.manager}-${idx}`}
+              manager={row.manager}
+              avatarUrl={managerAvatars?.[row.manager]}
+              onClick={() => setSelectedManager(row)}
+            >
+              <OwnerMetricPill label="QB" value={`${row.QB_starters}/${row.QB}`} />
+              <OwnerMetricPill label="RB" value={`${row.RB_starters}/${row.RB}`} />
+              <OwnerMetricPill label="WR" value={`${row.WR_starters}/${row.WR}`} />
+              <OwnerMetricPill label="TE" value={`${row.TE_starters}/${row.TE}`} />
+              {depthSignals.slice(0, 2).map((signal) => (
+                <OwnerMetricPill
+                  key={`${signal.position}-${signal.status}`}
+                  label={getPositionDepthNeedLabel(signal.status)}
+                  value={signal.position}
+                  tone={signal.status === 'shortage' ? 'danger' : 'good'}
+                />
+              ))}
+              {depthSignals.length > 2 && (
+                <OwnerMetricPill label="Depth" value={`+${depthSignals.length - 2}`} tone="info" />
+              )}
+            </OwnerSummaryTile>
+          );
+        })}
       </div>
       <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
         <DialogContent className="starter-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl">
@@ -5916,6 +5892,34 @@ export function ManagerPositionCountsTable({
                 </div>
               </div>
               <div className="starter-modal-body min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-5">
+                {selectedDepthSignals.length > 0 && (
+                  <div className="starter-depth-signal-board" aria-label="Position depth signals">
+                    {selectedDepthSignals.map((signal) => (
+                      <div
+                        key={`${signal.position}-${signal.status}`}
+                        className={`starter-depth-signal-card starter-depth-signal-${signal.status}`}
+                      >
+                        <div className="starter-depth-signal-metrics">
+                          <IntelligenceMetric
+                            label={getPositionDepthNeedLabel(signal.status)}
+                            value={signal.position}
+                            tone={signal.status === 'shortage' ? 'negative' : 'positive'}
+                          />
+                          <IntelligenceMetric label="Count" value={signal.count} />
+                          <IntelligenceMetric
+                            label="Signal"
+                            value={getPositionDepthSignalLabel(signal.status)}
+                            tone={signal.status === 'shortage' ? 'negative' : 'positive'}
+                          />
+                        </div>
+                        <div className="starter-depth-read">
+                          <span>Read</span>
+                          <p>{getPositionDepthRead(signal)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {selectedStarters.length > 0 ? (
                   <div className="starter-grid">
                     {selectedStarters.map((player) => (

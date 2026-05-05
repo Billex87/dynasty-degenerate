@@ -22,7 +22,6 @@ import {
   TradeWarRoom,
   TradeProfitLeaderboardTable,
   TradeHistoryTable,
-  PositionAnalysisTable,
   ManagerPositionCountsTable,
   OwnerIntelMatrix,
   LeagueCommandCenter,
@@ -900,15 +899,11 @@ export default function Home() {
                   />
                 </CollapsibleReportSection>
                 )}
-                {reportData.positionDepth.length > 0 && (
-                  <CollapsibleReportSection title="Position Depth Analysis" kicker="Shortage and excess">
-                    <PositionAnalysisTable data={reportData.positionDepth} managerAvatars={reportData.managerAvatars} />
-                  </CollapsibleReportSection>
-                )}
                 {reportData.managerPositionCounts.length > 0 && (
                   <CollapsibleReportSection title="Manager Position Counts" kicker="Starters vs rostered">
                     <ManagerPositionCountsTable
                       data={reportData.managerPositionCounts}
+                      positionDepth={reportData.positionDepth}
                       managerAvatars={reportData.managerAvatars}
                       playerDetailsById={reportData.playerDetailsById}
                       leagueId={leagueId}
