@@ -426,13 +426,48 @@ function selectProjectedLineup<T extends ManagerIntelPlayer>(players: T[], roste
   return selected;
 }
 
-function playerWouldMakeProjectedLineup<T extends ManagerIntelPlayer>(
-  player: T,
-  activePlayers: T[],
-  rosterPositions?: string[]
-): boolean {
-  return selectProjectedLineup([...activePlayers, player], rosterPositions)
-    .some((lineupPlayer) => lineupPlayer.player_id === player.player_id);
+function getLineupValue(player: Pick<ManagerIntelPlayer, 'seasonValue' | 'value'>): number {
+  return player.seasonValue || player.value || 0;
+}
+
+function compareValueLineupPlayers<T extends Pick<ManagerIntelPlayer, 'seasonValue' | 'value' | 'seasonPositionRank' | 'currentPositionRank'>>(
+  a: T,
+  b: T
+): number {
+  const valueDelta = getLineupValue(b) - getLineupValue(a);
+  if (valueDelta !== 0) return valueDelta;
+  return getLineupRank(a) - getLineupRank(b);
+}
+
+function selectValueProjectedLineup<T extends ManagerIntelPlayer>(players: T[], rosterPositions?: string[]): T[] {
+  const slots = getStarterRosterSlots(rosterPositions);
+  const remaining = players
+    .filter((player) => isFantasyPosition(player.pos))
+    .sort(compareValueLineupPlayers);
+  const selected: T[] = [];
+
+  const takeBest = (eligiblePositions: FantasyPosition[]): void => {
+    const index = remaining.findIndex((player) => eligiblePositions.includes(player.pos as FantasyPosition));
+    if (index < 0) return;
+    const [player] = remaining.splice(index, 1);
+    selected.push(player);
+  };
+
+  for (const position of FANTASY_POSITIONS) {
+    const fixedSlotCount = slots.filter((slot) => slot === position).length;
+    for (let i = 0; i < fixedSlotCount; i += 1) {
+      takeBest([position]);
+    }
+  }
+
+  for (const slot of slots) {
+    const eligiblePositions = FLEX_ELIGIBILITY[slot];
+    if (eligiblePositions) {
+      takeBest(eligiblePositions);
+    }
+  }
+
+  return selected;
 }
 
 function average(values: Array<number | null | undefined>): number | null {
@@ -698,30 +733,129 @@ function getTaxiAgeRiskLine(position: string): number {
   return 25.5;
 }
 
+function formatReportValue(value: number): string {
+  if (value >= 1000) {
+    const scaled = value / 1000;
+    return `${scaled >= 10 ? Math.round(scaled) : scaled.toFixed(1)}K`;
+  }
+  return `${value}`;
+}
+
+function getAvailabilityLabel(player: ManagerIntelPlayer): string | null {
+  const details = player.playerDetails;
+  return normalizeAvailabilityStatus(details?.displayStatus)
+    || normalizeAvailabilityStatus(details?.rosterStatus)
+    || normalizeAvailabilityStatus(details?.injuryStatus)
+    || normalizeAvailabilityStatus(details?.status);
+}
+
+function isUnavailableStarter(player: ManagerIntelPlayer): boolean {
+  const label = getAvailabilityLabel(player)?.toLowerCase();
+  if (!label || label.includes('taxi')) return false;
+  return label.includes('ir')
+    || label.includes('injured reserve')
+    || label.includes('pup')
+    || label.includes('nfi')
+    || label.includes('out')
+    || label.includes('doubt');
+}
+
+function findDisplacedLineupPlayer<T extends ManagerIntelPlayer>(
+  beforeLineup: T[],
+  afterLineup: T[],
+  promotedPlayerId: string
+): T | null {
+  const afterIdsWithoutPromoted = new Set(
+    afterLineup
+      .filter((player) => player.player_id !== promotedPlayerId)
+      .map((player) => player.player_id)
+  );
+
+  return beforeLineup
+    .filter((player) => !afterIdsWithoutPromoted.has(player.player_id))
+    .sort((a, b) => getLineupValue(a) - getLineupValue(b))[0] || null;
+}
+
+function getTaxiPromotionContext(
+  player: ManagerIntelPlayer,
+  activePlayers: ManagerIntelPlayer[],
+  rosterPositions?: string[]
+): { shouldPromote: boolean; reason: string | null; scoreBonus: number } {
+  const taxiValue = getLineupValue(player);
+  const activeLineup = selectValueProjectedLineup(activePlayers, rosterPositions);
+  const activeWithTaxiLineup = selectValueProjectedLineup([...activePlayers, player], rosterPositions);
+  const taxiStartsNow = activeWithTaxiLineup.some((lineupPlayer) => lineupPlayer.player_id === player.player_id);
+
+  if (taxiStartsNow) {
+    const displacedPlayer = findDisplacedLineupPlayer(activeLineup, activeWithTaxiLineup, player.player_id);
+    const displacedValue = displacedPlayer ? getLineupValue(displacedPlayer) : 0;
+
+    if (!displacedPlayer || taxiValue > displacedValue) {
+      return {
+        shouldPromote: true,
+        reason: displacedPlayer
+          ? `${getRankLabel(player)} is above the current starting path, beating ${displacedPlayer.name} (${formatReportValue(displacedValue)}) for a lineup or flex spot.`
+          : `${getRankLabel(player)} fills an open lineup spot, so this is a real activation instead of bench depth.`,
+        scoreBonus: 6500,
+      };
+    }
+  }
+
+  const activeLineupIds = new Set(activeLineup.map((lineupPlayer) => lineupPlayer.player_id));
+  const hurtStarters = activeLineup.filter(isUnavailableStarter);
+  for (const hurtStarter of hurtStarters) {
+    const activeWithoutStarter = activePlayers.filter((candidate) => candidate.player_id !== hurtStarter.player_id);
+    const replacementLineup = selectValueProjectedLineup(activeWithoutStarter, rosterPositions);
+    const fillIn = replacementLineup
+      .filter((candidate) => !activeLineupIds.has(candidate.player_id))
+      .sort((a, b) => getLineupValue(a) - getLineupValue(b))[0] || null;
+    const taxiReplacementLineup = selectValueProjectedLineup([...activeWithoutStarter, player], rosterPositions);
+    const taxiStartsIfStarterSits = taxiReplacementLineup.some((lineupPlayer) => lineupPlayer.player_id === player.player_id);
+
+    if (!taxiStartsIfStarterSits) continue;
+
+    const displacedFillIn = findDisplacedLineupPlayer(replacementLineup, taxiReplacementLineup, player.player_id);
+    const fallbackFillIn = displacedFillIn || fillIn;
+    const fillInValue = fallbackFillIn ? getLineupValue(fallbackFillIn) : 0;
+
+    if ((!fallbackFillIn && taxiReplacementLineup.length > replacementLineup.length) || taxiValue > fillInValue) {
+      return {
+        shouldPromote: true,
+        reason: fallbackFillIn
+          ? `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and ${getRankLabel(player)} beats the active fill-in ${fallbackFillIn.name} (${formatReportValue(fillInValue)}).`
+          : `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and ${getRankLabel(player)} fills the open lineup slot.`,
+        scoreBonus: 6200,
+      };
+    }
+  }
+
+  return { shouldPromote: false, reason: null, scoreBonus: 0 };
+}
+
 function getTaxiTriageAction({
   player,
   starterThresholds,
   needPosition,
-  wouldStart,
+  promotion,
 }: {
   player: ManagerIntelPlayer;
   starterThresholds: StarterThresholds;
   needPosition: 'QB' | 'RB' | 'WR' | 'TE' | null;
-  wouldStart: boolean;
+  promotion: { shouldPromote: boolean; reason: string | null; scoreBonus: number };
 }): { action: TaxiTriageAction; reason: string; score: number } {
   const position = player.pos as keyof StarterThresholds;
   const starterLine = starterThresholds[position] || 0;
   const rankNumber = getRankNumber(player.seasonPositionRank || player.currentPositionRank);
   const age = player.playerDetails?.age ?? null;
-  const seasonValue = player.seasonValue || player.value;
+  const seasonValue = getLineupValue(player);
   const fillsNeed = needPosition === player.pos;
   const depthLine = Math.round(starterLine * 1.75);
 
-  if (wouldStart) {
+  if (promotion.shouldPromote) {
     return {
       action: 'Promote Now',
-      reason: `${getRankLabel(player)} would crack the projected starting lineup${fillsNeed ? ` and directly answers the ${player.pos} need` : ''}. This is a real activation, not just bench depth.`,
-      score: 6500 + seasonValue,
+      reason: `${promotion.reason}${fillsNeed ? ` It also directly answers the ${player.pos} need.` : ''}`,
+      score: promotion.scoreBonus + seasonValue,
     };
   }
 
@@ -736,7 +870,7 @@ function getTaxiTriageAction({
   if (player.value >= 1800) {
     return {
       action: 'Trade Sweetener',
-      reason: `${getRankLabel(player)} still carries enough dynasty value to matter in a deal, but does not force a promotion yet.`,
+      reason: `${getRankLabel(player)} still carries enough dynasty value to matter in a deal, but does not beat the current lineup or injury fill-in path yet.`,
       score: 4000 + player.value,
     };
   }
@@ -752,7 +886,7 @@ function getTaxiTriageAction({
   if (player.value >= 700 || (rankNumber !== null && rankNumber <= depthLine)) {
     return {
       action: 'Keep Parked',
-      reason: `Young or ranked enough to keep developing, but not urgent enough to activate over current roster pieces.`,
+      reason: `Young or ranked enough to keep developing, but not above a current starter, flex option, or injury fill-in yet.`,
       score: 3000 + player.value,
     };
   }
@@ -1996,12 +2130,12 @@ export async function generateReport(
     const surplusPosition = getSurplusPosition(rosterPlayers, primaryNeed);
     const taxiTriageItems: TaxiTriageItem[] = taxiPlayers
       .map((player) => {
-        const wouldStart = playerWouldMakeProjectedLineup(player, rosterPlayers, currentSeasonData.rosterPositions);
+        const promotion = getTaxiPromotionContext(player, rosterPlayers, currentSeasonData.rosterPositions);
         const triage = getTaxiTriageAction({
           player,
           starterThresholds,
           needPosition: primaryNeed,
-          wouldStart,
+          promotion,
         });
         return {
           ...player,

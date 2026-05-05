@@ -8,6 +8,9 @@ import {
 } from './leagueAnalysis';
 import { generateReport } from './reportGenerator';
 
+type TestPlayers = Parameters<typeof generateReport>[2];
+type TestKtcValues = Parameters<typeof generateReport>[3];
+
 describe('League Analysis Helpers', () => {
   describe('cleanName', () => {
     it('should remove special characters and lowercase', () => {
@@ -381,5 +384,90 @@ describe('generateReport trade ledger', () => {
     expect(redraftReport.managerRosterValueGrowth[0].total_val).toBe(1200);
     expect(dynastyReport.managerPositionCounts[0].lineupPlayers[0].currentPositionRank).toBe('WR8');
     expect(redraftReport.managerPositionCounts[0].lineupPlayers[0].currentPositionRank).toBe('WR1');
+  });
+});
+
+describe('generateReport taxi triage', () => {
+  const runTaxiReport = (players: TestPlayers, ktcValues: TestKtcValues, taxiId: string) => generateReport(
+    {
+      label: '2026',
+      trades: [],
+      rosterPositions: ['TE', 'FLEX'],
+      rosterMap: { 1: 'Manager A' },
+      rosters: [
+        { roster_id: 1, owner_id: 'u1', players: Object.keys(players), taxi: [taxiId] },
+      ],
+    },
+    null,
+    players,
+    ktcValues,
+    {}
+  );
+
+  it('does not promote a taxi tight end below the healthy starter and flex path', async () => {
+    const report = await runTaxiReport(
+      {
+        mcbride: { first_name: 'Trey', last_name: 'McBride', position: 'TE', age: 26 },
+        flex: { first_name: 'Flex', last_name: 'Starter', position: 'WR', age: 25 },
+        bench: { first_name: 'Bench', last_name: 'Wideout', position: 'WR', age: 24 },
+        endries: { first_name: 'Jack', last_name: 'Endries', position: 'TE', age: 22, metadata: { rookie_year: '2026' } },
+      },
+      {
+        treymcbride: { name: 'Trey McBride', ktc_value: 8000, redraft_value: 8000, position_rank: 'TE1' },
+        flexstarter: { name: 'Flex Starter', ktc_value: 1400, redraft_value: 1400, position_rank: 'WR60' },
+        benchwideout: { name: 'Bench Wideout', ktc_value: 900, redraft_value: 900, position_rank: 'WR80' },
+        jackendries: { name: 'Jack Endries', ktc_value: 800, redraft_value: 800, position_rank: 'TE23' },
+      },
+      'endries'
+    );
+
+    const taxiItem = report.managerRosterIntelligence[0].taxiTriage?.items.find((player) => player.name === 'Jack Endries');
+    expect(taxiItem?.taxiAction).toBe('Keep Parked');
+    expect(taxiItem?.taxiReason).toContain('not above a current starter, flex option, or injury fill-in');
+  });
+
+  it('promotes a taxi player when he beats the active flex value', async () => {
+    const report = await runTaxiReport(
+      {
+        mcbride: { first_name: 'Trey', last_name: 'McBride', position: 'TE', age: 26 },
+        flex: { first_name: 'Flex', last_name: 'Starter', position: 'WR', age: 25 },
+        bench: { first_name: 'Bench', last_name: 'Wideout', position: 'WR', age: 24 },
+        sadiq: { first_name: 'Kenyon', last_name: 'Sadiq', position: 'TE', age: 22, metadata: { rookie_year: '2026' } },
+      },
+      {
+        treymcbride: { name: 'Trey McBride', ktc_value: 8000, redraft_value: 8000, position_rank: 'TE1' },
+        flexstarter: { name: 'Flex Starter', ktc_value: 900, redraft_value: 900, position_rank: 'WR80' },
+        benchwideout: { name: 'Bench Wideout', ktc_value: 700, redraft_value: 700, position_rank: 'WR90' },
+        kenyonsadiq: { name: 'Kenyon Sadiq', ktc_value: 1600, redraft_value: 1600, position_rank: 'TE14' },
+      },
+      'sadiq'
+    );
+
+    const taxiItem = report.managerRosterIntelligence[0].taxiTriage?.items.find((player) => player.name === 'Kenyon Sadiq');
+    expect(taxiItem?.taxiAction).toBe('Promote Now');
+    expect(taxiItem?.taxiReason).toContain('beating Flex Starter');
+  });
+
+  it('promotes a taxi player only when an unavailable starter opens a weaker fill-in', async () => {
+    const report = await runTaxiReport(
+      {
+        mcbride: { first_name: 'Trey', last_name: 'McBride', position: 'TE', age: 26, injury_status: 'Out' },
+        flex: { first_name: 'Flex', last_name: 'Starter', position: 'WR', age: 25 },
+        benchte: { first_name: 'Bench', last_name: 'Tightend', position: 'TE', age: 24 },
+        endries: { first_name: 'Jack', last_name: 'Endries', position: 'TE', age: 22, metadata: { rookie_year: '2026' } },
+      },
+      {
+        treymcbride: { name: 'Trey McBride', ktc_value: 8000, redraft_value: 8000, position_rank: 'TE1' },
+        flexstarter: { name: 'Flex Starter', ktc_value: 1400, redraft_value: 1400, position_rank: 'WR60' },
+        benchtightend: { name: 'Bench Tightend', ktc_value: 500, redraft_value: 500, position_rank: 'TE50' },
+        jackendries: { name: 'Jack Endries', ktc_value: 800, redraft_value: 800, position_rank: 'TE23' },
+      },
+      'endries'
+    );
+
+    const taxiItem = report.managerRosterIntelligence[0].taxiTriage?.items.find((player) => player.name === 'Jack Endries');
+    expect(taxiItem?.taxiAction).toBe('Promote Now');
+    expect(taxiItem?.taxiReason).toContain('Trey McBride is tagged Out');
+    expect(taxiItem?.taxiReason).toContain('beats the active fill-in Bench Tightend');
   });
 });

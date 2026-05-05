@@ -2891,7 +2891,7 @@ export function LeagueCommandCenter({
               {selectedIntel?.positionGrades ? (
                 <div className="manager-command-section">
                   <h4>Position Strength</h4>
-                  <p className="owner-intel-section-note">QB shows QB2/SF if available; RB, WR, and TE show RB2, WR3, and TE1.</p>
+                  <p className="owner-intel-section-note">League rank of each lineup cutoff: QB2/SF, RB2, WR3, and TE1. Lower is stronger; taxi calls use active lineup value separately.</p>
                   <div className="owner-intel-heat-grid">
                     {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                       const grade = selectedIntel.positionGrades?.[pos];
@@ -3439,7 +3439,7 @@ export function OwnerIntelMatrix({
                   {selectedRow.positionGrades ? (
                     <div className="owner-intel-roster-heat">
                       <h4>Position Strength</h4>
-                      <p className="owner-intel-section-note">QB shows QB2/SF if available; RB, WR, and TE show RB2, WR3, and TE1.</p>
+                      <p className="owner-intel-section-note">League rank of each lineup cutoff: QB2/SF, RB2, WR3, and TE1. Lower is stronger; taxi calls use active lineup value separately.</p>
                       <div className="owner-intel-heat-grid">
                         {(['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
                           const grade = selectedRow.positionGrades?.[pos];
@@ -3690,25 +3690,30 @@ export function WeeklyMomentumTable({
               >
                 <div className="weekly-momentum-tile-top">
                   <span>{isPositive ? 'Riser' : 'Faller'}</span>
+                  <div
+                    className="weekly-momentum-values weekly-momentum-values-top"
+                    aria-label={`Value moved from ${formatCompactValue(row.val_last)} to ${formatCompactValue(row.val_now)}`}
+                  >
+                    <span>{formatCompactValue(row.val_last)}</span>
+                    <span className="weekly-momentum-value-arrow" aria-hidden="true">→</span>
+                    <span>{formatCompactValue(row.val_now)}</span>
+                  </div>
                   <strong className={isPositive ? 'text-emerald-300' : 'text-rose-300'}>
                     {row.pct_change >= 0 ? '+' : ''}
                     {row.pct_change.toFixed(1)}%
                   </strong>
                 </div>
-                <div className="weekly-momentum-player">
-                  <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
-                </div>
-                <div className="weekly-momentum-manager">
-                  {renderManagerName(row.owner, managerAvatars)}
+                <div className="weekly-momentum-identity">
+                  <div className="weekly-momentum-player">
+                    <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
+                  </div>
+                  <div className="weekly-momentum-manager">
+                    {renderManagerName(row.owner, managerAvatars)}
+                  </div>
                 </div>
                 <div className="weekly-momentum-pills">
                   <TeamLogoPill team={playerDetails?.team} />
                   <PositionRankPill rank={row.currentPositionRank || row.pos} />
-                  <span>{formatCompactValue(row.val_now)}</span>
-                </div>
-                <div className="weekly-momentum-values">
-                  <span>{formatCompactValue(row.val_last)}</span>
-                  <span aria-hidden="true">to</span>
                   <span>{formatCompactValue(row.val_now)}</span>
                 </div>
               </button>
@@ -3808,13 +3813,15 @@ export function TrendingPlayersTable({
                   <span>{countLabel}</span>
                   <strong>{row.count.toLocaleString()}</strong>
                 </div>
-                <div className="trending-player-card-main">
-                  <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
-                </div>
-                <div className="trending-player-card-owner">
-                  {row.owner ? renderManagerName(row.owner, managerAvatars) : (
-                    <span className="available-manager-label">Available</span>
-                  )}
+                <div className="trending-player-card-identity">
+                  <div className="trending-player-card-main">
+                    <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
+                  </div>
+                  <div className="trending-player-card-owner">
+                    {row.owner ? renderManagerName(row.owner, managerAvatars) : (
+                      <span className="available-manager-label">Available</span>
+                    )}
+                  </div>
                 </div>
                 <div className="trending-player-card-pills">
                   <TeamLogoPill team={playerDetails?.team || row.team} />
@@ -3892,11 +3899,13 @@ export function ProjectedMoversTable({
                   {row.diff.toLocaleString()}
                 </strong>
               </div>
-              <div className="player-tile-main">
-                <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
-              </div>
-              <div className="player-tile-owner">
-                {renderManagerName(row.owner, managerAvatars)}
+              <div className="player-tile-identity">
+                <div className="player-tile-main">
+                  <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
+                </div>
+                <div className="player-tile-owner">
+                  {renderManagerName(row.owner, managerAvatars)}
+                </div>
               </div>
               <div className="player-tile-pills">
                 <TeamLogoPill team={details?.team} />
@@ -3905,7 +3914,7 @@ export function ProjectedMoversTable({
               </div>
               <div className="player-tile-value-strip">
                 <span>{formatCompactValue(row.val_2026)}</span>
-                <span>to</span>
+                <span aria-hidden="true">→</span>
                 <span>{formatCompactValue(row.val_2027)}</span>
               </div>
             </button>
@@ -5581,12 +5590,12 @@ export function RecentTransactionsPanel({
         onClick={() => openTransactionPlayer(player)}
       >
         <div className="recent-transaction-player-head">
-          <div className="recent-transaction-player-main">
-            <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-          </div>
-          <span className={`recent-transaction-action-pill recent-transaction-action-pill-${tone}`}>
+          <span className={`recent-transaction-player-label recent-transaction-player-label-${tone}`}>
             {label}
           </span>
+        </div>
+        <div className="recent-transaction-player-main">
+          <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
         </div>
         <div className="recent-transaction-player-pills">
           <TeamLogoPill team={player.playerDetails?.team || player.team} />
@@ -5659,12 +5668,8 @@ export function RecentTransactionsPanel({
                     <div className="recent-transaction-player-grid">
                       {renderPlayerRow('Added', transaction.addedPlayer, 'add')}
                       {renderPlayerRow('Dropped', transaction.droppedPlayer, 'drop')}
+                      {renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt')}
                     </div>
-                    {transaction.alternativeDrop && (
-                      <div className="recent-transaction-alt">
-                        {renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt')}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -5806,7 +5811,6 @@ export function TradeMarketRadar({
               <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
             </div>
             <div className="trade-market-manager">
-              <span className="trade-market-manager-label">Manager</span>
               {renderManagerName(player.owner, managerAvatars)}
             </div>
           </div>
