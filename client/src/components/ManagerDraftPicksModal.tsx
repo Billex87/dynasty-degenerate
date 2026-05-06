@@ -129,7 +129,9 @@ export function ManagerDraftPicksModal({
             <div className="player-tile-shell w-full overflow-x-hidden p-4 sm:p-6">
               <div className="player-tile-grid manager-draft-player-grid">
                 {managerPicks.map((pick, idx) => {
-                  const gainTone = (pick.valueGain ?? 0) > 0 ? 'text-emerald-300' : (pick.valueGain ?? 0) < 0 ? 'text-rose-300' : 'text-slate-300';
+                  const draftOutcome = getDraftOutcomeLabel(getResolvedDraftOutcome(pick));
+                  const isStarter = getResolvedDraftStarter(pick);
+                  const gainTone = getDraftGainTone(pick.valueGain);
 
                   return (
                     <button
@@ -148,6 +150,21 @@ export function ManagerDraftPicksModal({
                       <div className="player-tile-pills">
                         <TeamLogoPill team={pick.playerDetails?.team} />
                         <span>{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
+                        {!isAuditMode && (
+                          <span className={`draft-outcome-pill draft-outcome-pill-${draftOutcome.tone}`}>
+                            {draftOutcome.label}
+                          </span>
+                        )}
+                        {!isAuditMode && isStarter && (
+                          <span className="draft-starter-pill">Starter</span>
+                        )}
+                        {!isAuditMode && (
+                          <span className={`draft-gain-pill draft-gain-pill-${gainTone}`}>
+                            {formatDraftGain(pick.valueGain)}
+                            {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain > 0 && <TrendingUp className="ml-1 inline h-3.5 w-3.5" />}
+                            {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain < 0 && <TrendingDown className="ml-1 inline h-3.5 w-3.5" />}
+                          </span>
+                        )}
                         {isAuditMode && pick.draftDecisionVerdict && (
                           <span className={`draft-decision-verdict draft-decision-verdict-${pick.draftDecisionTone || 'watch'}`}>
                             {pick.draftDecisionVerdict}
@@ -170,23 +187,7 @@ export function ManagerDraftPicksModal({
                             </p>
                           )}
                         </div>
-                      ) : (
-                        <div className="player-tile-value-strip">
-                          <span>Change</span>
-                          <span className={gainTone}>
-                            {pick.valueGain !== null && pick.valueGain !== undefined ? (
-                              <>
-                                {pick.valueGain > 0 ? '+' : ''}
-                                {pick.valueGain.toLocaleString()}
-                                {pick.valueGain > 0 && <TrendingUp className="ml-1 inline h-3.5 w-3.5" />}
-                                {pick.valueGain < 0 && <TrendingDown className="ml-1 inline h-3.5 w-3.5" />}
-                              </>
-                            ) : (
-                              'N/A'
-                            )}
-                          </span>
-                        </div>
-                      )}
+                      ) : null}
                     </button>
                   );
                 })}
@@ -213,6 +214,45 @@ export function ManagerDraftPicksModal({
       />
     </>
   );
+}
+
+function getDraftOutcomeLabel(outcome: DraftPick['draftOutcome']): { label: string; tone: 'hit' | 'miss' | 'neutral' } {
+  if (outcome === 'hit') return { label: 'Hit', tone: 'hit' };
+  if (outcome === 'miss') return { label: 'Miss', tone: 'miss' };
+  return { label: 'Neutral', tone: 'neutral' };
+}
+
+function getResolvedDraftOutcome(pick: DraftPick): NonNullable<DraftPick['draftOutcome']> {
+  if (pick.draftOutcome) return pick.draftOutcome;
+  const rankChange = pick.positionRankChange ? parseInt(pick.positionRankChange, 10) : 0;
+  const hasRankChange = Number.isFinite(rankChange) && rankChange !== 0;
+  const isHit = (hasRankChange && rankChange >= 10) || (pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain >= 750);
+  const isMiss = (hasRankChange && rankChange <= -10) || (pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain <= -750);
+  if (isHit && isMiss) return (pick.valueGain || 0) >= 0 ? 'hit' : 'miss';
+  if (isHit) return 'hit';
+  if (isMiss) return 'miss';
+  return 'neutral';
+}
+
+function getResolvedDraftStarter(pick: DraftPick): boolean {
+  if (typeof pick.isStarter === 'boolean') return pick.isStarter;
+  const rank = pick.currentPositionRank || '';
+  const position = rank.match(/^[A-Z]+/)?.[0] || pick.playerPos;
+  const rankNumber = Number(rank.match(/\d+/)?.[0]);
+  const starterThresholds: Record<string, number> = { QB: 24, RB: 36, WR: 48, TE: 18 };
+  if (position && Number.isFinite(rankNumber) && rankNumber <= (starterThresholds[position] || 0)) return true;
+  return !rank && pick.currentKtcValue !== null && pick.currentKtcValue !== undefined && pick.currentKtcValue > 4000;
+}
+
+function getDraftGainTone(valueGain: number | null | undefined): 'positive' | 'negative' | 'neutral' {
+  if ((valueGain ?? 0) > 0) return 'positive';
+  if ((valueGain ?? 0) < 0) return 'negative';
+  return 'neutral';
+}
+
+function formatDraftGain(valueGain: number | null | undefined): string {
+  if (valueGain === null || valueGain === undefined) return 'N/A';
+  return `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}`;
 }
 
 function enrichDraftPickDetails(

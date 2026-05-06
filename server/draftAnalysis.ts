@@ -278,6 +278,29 @@ export async function analyzeDraftPicks(
     return rankNumber <= (thresholds[position] || 0);
   };
 
+  const isStarterOutcome = (position: string, rank: string | null, value: number | null): boolean => (
+    isStarterByRank(position, rank) || (!rank && value !== null && value > 4000)
+  );
+
+  const getDraftOutcome = (
+    positionRankChange: string | null,
+    valueGain: number | null
+  ): 'hit' | 'miss' | 'neutral' => {
+    const rankChange = positionRankChange ? parseInt(positionRankChange, 10) : 0;
+    const hasRankChange = Number.isFinite(rankChange) && rankChange !== 0;
+    const isRankHit = hasRankChange && rankChange >= 10;
+    const isRankMiss = hasRankChange && rankChange <= -10;
+    const isValueHit = valueGain !== null && valueGain >= 750;
+    const isValueMiss = valueGain !== null && valueGain <= -750;
+    const isHit = isRankHit || isValueHit;
+    const isMiss = isRankMiss || isValueMiss;
+
+    if (isHit && isMiss) return (valueGain || 0) >= 0 ? 'hit' : 'miss';
+    if (isHit) return 'hit';
+    if (isMiss) return 'miss';
+    return 'neutral';
+  };
+
   // Initialize manager stats
   Object.values(rosterMap).forEach((manager) => {
     managerStats.set(manager, {
@@ -416,6 +439,9 @@ export async function analyzeDraftPicks(
     // Headshot URLs removed - was causing TLS connection errors
     // Can be re-enabled with a more reliable image source in the future
 
+    const isStarter = isStarterOutcome(playerPos, currentPositionRank, currentKtcValue);
+    const draftOutcome = getDraftOutcome(positionRankChange, valueGain);
+
     const processedPick: any = {
       round: pick.round,
       pick: pick.pick_no,
@@ -430,6 +456,8 @@ export async function analyzeDraftPicks(
       ktcValue: draftKtcValue,
       currentKtcValue,
       valueGain,
+      draftOutcome,
+      isStarter,
       positionRankMay2025,
       currentPositionRank,
       positionRankChange,
@@ -458,30 +486,15 @@ export async function analyzeDraftPicks(
 
       // Track starter-grade rookie outcomes by positional rank. Fall back to
       // value only when a rank is missing.
-      if (
-        isStarterByRank(playerPos, currentPositionRank) ||
-        (!currentPositionRank && currentKtcValue !== null && currentKtcValue > 4000)
-      ) {
+      if (isStarter) {
         stats.starters += 1;
       }
 
       // Track hits and misses based on position rank change or value gain
       // A hit is: improved by 10+ position ranks OR gained 750+ value points
       // A miss is: declined by 10+ position ranks OR lost 750+ value points
-      if (positionRankChange && positionRankChange !== '0') {
-        const rankChange = parseInt(positionRankChange);
-        if (rankChange >= 10) {
-          stats.hits += 1;
-        } else if (rankChange <= -10) {
-          stats.misses += 1;
-        }
-      } else if (valueGain !== null) {
-        if (valueGain >= 750) {
-          stats.hits += 1;
-        } else if (valueGain <= -750) {
-          stats.misses += 1;
-        }
-      }
+      if (draftOutcome === 'hit') stats.hits += 1;
+      if (draftOutcome === 'miss') stats.misses += 1;
 
       // Track best and worst picks
       if (!stats.bestPick || (valueGain !== null && valueGain > (stats.bestPick.valueGain || 0))) {

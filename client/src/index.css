@@ -10654,6 +10654,54 @@ button.player-team-tile:focus-visible {
   color: #fdba74;
 }
 
+.player-tile-pills .draft-outcome-pill-hit {
+  border-color: rgba(16, 185, 129, 0.34);
+  background: rgba(6, 78, 59, 0.46);
+  color: #6ee7b7;
+}
+
+.player-tile-pills .draft-outcome-pill-miss {
+  border-color: rgba(244, 63, 94, 0.38);
+  background: rgba(76, 5, 25, 0.46);
+  color: #fda4af;
+}
+
+.player-tile-pills .draft-outcome-pill-neutral {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.58);
+  color: #cbd5e1;
+}
+
+.player-tile-pills .draft-starter-pill {
+  border-color: rgba(250, 204, 21, 0.38);
+  background: rgba(113, 63, 18, 0.44);
+  color: #fde68a;
+}
+
+.player-tile-pills .draft-gain-pill {
+  min-width: 4.1rem;
+  border-color: rgba(148, 163, 184, 0.22);
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-tile-pills .draft-gain-pill-positive {
+  border-color: rgba(16, 185, 129, 0.34);
+  background: rgba(6, 78, 59, 0.32);
+  color: #34d399;
+}
+
+.player-tile-pills .draft-gain-pill-negative {
+  border-color: rgba(244, 63, 94, 0.38);
+  background: rgba(76, 5, 25, 0.34);
+  color: #fb7185;
+}
+
+.player-tile-pills .draft-gain-pill-neutral {
+  border-color: rgba(148, 163, 184, 0.28);
+  color: #cbd5e1;
+}
+
 .draft-sort-strip {
   display: flex;
   width: min(100%, 72rem);
