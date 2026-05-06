@@ -5888,6 +5888,9 @@ export function WaiverIntelligencePanel({
     playerDetailsById,
   });
   const recommendationByPlayerId = new Map(recommendationContext.recommendations.map((recommendation) => [recommendation.player.player_id, recommendation]));
+  const recommendationOrderByPlayerId = new Map(
+    recommendationContext.recommendations.map((recommendation, index) => [recommendation.player.player_id, index])
+  );
   const baseCards = [
     { label: 'Highest Available', player: data.highestKtcAvailable },
     ...Object.entries(data.bestAvailableByPosition).map(([pos, player]) => ({ label: `Best ${pos}`, player })),
@@ -5897,7 +5900,16 @@ export function WaiverIntelligencePanel({
   const suggestedCards = recommendationContext.recommendations
     .filter((recommendation) => !basePlayerIds.has(recommendation.player.player_id))
     .map((recommendation, index) => ({ label: `Suggested Add ${index + 1}`, player: recommendation.player }));
-  const cards = [...suggestedCards, ...baseCards];
+  const cards = [...suggestedCards, ...baseCards].sort((a, b) => {
+    const aRecommendationOrder = recommendationOrderByPlayerId.get(a.player.player_id);
+    const bRecommendationOrder = recommendationOrderByPlayerId.get(b.player.player_id);
+    const aIsSuggested = typeof aRecommendationOrder === 'number';
+    const bIsSuggested = typeof bRecommendationOrder === 'number';
+    if (aIsSuggested && bIsSuggested) return aRecommendationOrder - bRecommendationOrder;
+    if (aIsSuggested) return -1;
+    if (bIsSuggested) return 1;
+    return 0;
+  });
 
   return (
     <div className="waiver-intel-panel">
