@@ -1392,7 +1392,7 @@ export default function Home() {
         {/* Premium Header */}
         <div className="report-header sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-2">
-             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-6">
+             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-6">
               {/* Left: Brand */}
               <div className="report-header-brand min-w-0">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
