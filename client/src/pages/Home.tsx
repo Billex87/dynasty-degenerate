@@ -12,14 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CheckCircle2, ChevronDown, Zap, TrendingUp, BarChart3, Zap as ZapIcon, Repeat2, ClipboardList } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Zap, TrendingUp, BarChart3, Repeat2, ClipboardList, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { SupportButton } from '@/components/SupportButton';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import {
   WeeklyMomentumTable,
-  ProjectedMoversTable,
   TradeWarRoom,
   TradeProfitLeaderboardTable,
   TradeHistoryTable,
@@ -33,11 +32,12 @@ import {
   RecentTransactionsPanel,
 } from '@/components/ReportTables';
 import { DraftAnalysis } from '@/components/DraftAnalysis';
+import { RankingsBoard } from '@/components/RankingsBoard';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v6';
+const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v7';
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
@@ -771,7 +771,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
     addUniqueDiagnosticRow(rows, seen, {
       id: 'source-metadata-missing',
       area: 'Player values',
-      item: `${playersWithoutSourceMetadata.length} Outlook players`,
+      item: `${playersWithoutSourceMetadata.length} report players`,
       status: 'Source check unavailable',
       tone: 'warn',
       note: 'The displayed player values exist, but this report payload did not include source-level blend detail.',
@@ -792,19 +792,19 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       item: player.name,
       status: sources.length ? 'Thin blend' : 'No source list',
       tone: sources.length ? 'warn' : 'danger',
-      note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found for the current value; projection is more assumption-heavy.`,
+      note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found for the current value; this read is more assumption-heavy.`,
     });
   });
 
   const missingAgePlayers = outlookPlayers.filter((player) => player.age == null);
   if (missingAgePlayers.length) {
     addUniqueDiagnosticRow(rows, seen, {
-      id: 'missing-age-projection',
-      area: 'Projection input',
-      item: `${missingAgePlayers.length} Outlook players`,
+      id: 'missing-age-value-input',
+      area: 'Value input',
+      item: `${missingAgePlayers.length} report players`,
       status: 'Age missing',
       tone: 'warn',
-      note: 'One-year projection falls back to the current value when the age curve cannot be applied.',
+      note: 'Age-aware value context falls back to the current value when the age curve cannot be applied.',
     });
   }
 
@@ -815,7 +815,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       item: 'Current report',
       status: 'No active flags',
       tone: 'good',
-      note: 'No missing post-cutoff snapshot days or thin Outlook value blends were detected. League-format notes still show what is calculated versus inferred.',
+      note: 'No missing post-cutoff snapshot days or thin player value blends were detected. League-format notes still show what is calculated versus inferred.',
     });
   }
 
@@ -1293,7 +1293,8 @@ export default function Home() {
   );
   const isPrivilegedViewer = isPrivilegedReportViewer(viewerUserId, viewerUsername, sleeperUsername);
   const canViewMomentumTab = isPrivilegedViewer && adminViewMode === 'admin';
-  const resolvedActiveTab = !canViewMomentumTab && activeTab === 'momentum' ? 'overview' : activeTab;
+  const migratedActiveTab = activeTab === 'projections' ? 'rankings' : activeTab;
+  const resolvedActiveTab = !canViewMomentumTab && migratedActiveTab === 'momentum' ? 'overview' : migratedActiveTab;
   const handleReportTabChange = (nextTab: string) => {
     if (nextTab === 'momentum' && !canViewMomentumTab) {
       setActiveTab('overview');
@@ -1305,6 +1306,8 @@ export default function Home() {
   useEffect(() => {
     if (!canViewMomentumTab && activeTab === 'momentum') {
       setActiveTab('overview');
+    } else if (activeTab === 'projections') {
+      setActiveTab('rankings');
     }
   }, [activeTab, canViewMomentumTab]);
 
@@ -1475,10 +1478,9 @@ export default function Home() {
                   <span className="report-tab-label-short">Momentum</span>
                 </TabsTrigger>
               )}
-              <TabsTrigger value="projections" className="report-tab">
-                <ZapIcon className="h-4 w-4" />
-                <span className="report-tab-label-full">1-Year Outlook</span>
-                <span className="report-tab-label-short">Outlook</span>
+              <TabsTrigger value="rankings" className="report-tab">
+                <ListOrdered className="h-4 w-4" />
+                <span>Rankings</span>
               </TabsTrigger>
               <TabsTrigger value="trades" className="report-tab">
                 <Repeat2 className="h-4 w-4" />
@@ -1626,30 +1628,11 @@ export default function Home() {
               </TabsContent>
             )}
 
-            <TabsContent value="projections" className="report-tab-content">
+            <TabsContent value="rankings" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <div className="mx-auto max-w-2xl rounded-xl border border-cyan-400/20 bg-slate-900/55 px-4 py-4 text-center shadow-lg shadow-black/20">
-                  <p className="text-sm leading-relaxed text-slate-300">
-                    <span className="report-intro-gradient-title">One-Year Outlook</span>
-                    <span className="block">This projects where player values could sit next offseason based on age curve and position trends.</span>
-                  </p>
-                </div>
-                <CollapsibleReportSection title="2027 Value Climbers" kicker="Next-year upside">
-                  <ProjectedMoversTable
-                    data={reportData.projectedRisers}
-                    title="2027 Value Climbers"
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    viewerManager={reportData.viewerManager}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="2027 Value Droppers" kicker="Next-year risk">
-                  <ProjectedMoversTable
-                    data={reportData.projectedFallers}
-                    title="2027 Value Droppers"
-                    managerAvatars={reportData.managerAvatars}
+                <CollapsibleReportSection title="Rankings" kicker="Flock, KTC, and blended values">
+                  <RankingsBoard
+                    rankings={reportData.rankings}
                     playerDetailsById={reportData.playerDetailsById}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
@@ -2019,7 +2002,7 @@ export default function Home() {
                   <h3 className="font-semibold text-white">League Overview</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  See every manager's total blended value with positional rankings and 2027 projections. No bullshit, just the numbers.
+                  See every manager's total blended value with position-aware roster context. No bullshit, just the numbers.
                 </p>
               </div>
 
@@ -2038,12 +2021,12 @@ export default function Home() {
               <div className="home-feature-card home-feature-purple p-4 sm:p-6 space-y-3">
                 <div className="home-feature-heading">
                   <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                    <ZapIcon className="w-6 h-6 text-purple-400" />
+                    <ListOrdered className="w-6 h-6 text-purple-400" />
                   </div>
-                  <h3 className="font-semibold text-white">Player Projections</h3>
+                  <h3 className="font-semibold text-white">Player Rankings</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  AI-powered age and position-based value projections for 2027. Get ahead of the market before everyone else does.
+                  Browse blended dynasty, devy, SF, 1QB, and TEP rankings with source-aware player values.
                 </p>
               </div>
             </div>

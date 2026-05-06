@@ -1,11 +1,13 @@
 import { cleanName } from './leagueAnalysis';
 import type { ValueBlendOptions } from './valueBlend';
 
-type FlockFormat = 'SUPERFLEX' | 'ONEQB' | 'PROSPECTS_SF' | 'PROSPECTS';
+export type FlockFormat = 'SUPERFLEX' | 'ONEQB' | 'PROSPECTS_SF' | 'PROSPECTS';
 
 export interface FlockFantasyValue {
   name: string;
   position?: string;
+  team?: string | null;
+  age?: number | null;
   dynastyValue?: number;
   overallRank?: number;
   positionRank?: string | null;
@@ -13,6 +15,13 @@ export interface FlockFantasyValue {
   lastUpdated?: string | null;
   format: FlockFormat;
   rookieOnlyRank?: number | null;
+  rankDelta?: number | null;
+  initialRank?: number | null;
+  finalRank?: number | null;
+  previousYearPprAverage?: number | null;
+  picture?: string | null;
+  college?: string | null;
+  draftYear?: number | null;
 }
 
 interface FlockFantasyResponse {
@@ -28,6 +37,17 @@ interface FlockFantasyPlayer {
   overallAverageRank?: number | string | null;
   averagePositionalRank?: number | string | null;
   averageTier?: number | string | null;
+  team?: string | null;
+  age?: number | string | null;
+  rankDelta?: number | string | null;
+  initialRank?: number | string | null;
+  finalRank?: number | string | null;
+  previousYearPprAverage?: number | string | null;
+  picture?: string | null;
+  college?: string | null;
+  draftYear?: number | string | null;
+  isDraftPick?: boolean;
+  pickType?: string | null;
   fantasyCalcId?: number | string | null;
   isRookie?: boolean;
   is_rookie?: boolean;
@@ -98,8 +118,12 @@ export async function fetchFlockFantasyRankings(format: FlockFormat): Promise<Re
 
     for (const row of payload.data || []) {
       const name = row.playerName;
-      const position = row.position;
-      if (!name || !['QB', 'RB', 'WR', 'TE'].includes(position || '')) continue;
+      const position = ['QB', 'RB', 'WR', 'TE'].includes(row.position || '')
+        ? row.position
+        : row.isDraftPick || row.pickType
+          ? 'PICK'
+          : row.position;
+      if (!name || !['QB', 'RB', 'WR', 'TE', 'PICK'].includes(position || '')) continue;
 
       const overallRank = toNumber(row.overallAverageRank) ?? toNumber(row.averageRank);
       const positionRank = toNumber(row.averagePositionalRank);
@@ -109,6 +133,8 @@ export async function fetchFlockFantasyRankings(format: FlockFormat): Promise<Re
       values[cleanName(name)] = {
         name,
         position,
+        team: row.team || null,
+        age: toNumber(row.age),
         dynastyValue,
         overallRank: overallRank ?? undefined,
         positionRank: positionRank ? `${position}${Math.round(positionRank)}` : null,
@@ -116,6 +142,13 @@ export async function fetchFlockFantasyRankings(format: FlockFormat): Promise<Re
         lastUpdated,
         format,
         rookieOnlyRank: format.startsWith('PROSPECTS') ? overallRank : null,
+        rankDelta: toNumber(row.rankDelta),
+        initialRank: toNumber(row.initialRank),
+        finalRank: toNumber(row.finalRank),
+        previousYearPprAverage: toNumber(row.previousYearPprAverage),
+        picture: row.picture || null,
+        college: row.college || null,
+        draftYear: toNumber(row.draftYear),
       };
     }
 

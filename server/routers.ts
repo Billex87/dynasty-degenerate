@@ -12,6 +12,7 @@ import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBa
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
 import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
+import { buildRankingsBoard } from "./rankingsBoard";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -1894,6 +1895,14 @@ export const appRouter = router({
             leagueValueMode,
             allValueProfilesById
           );
+          const rankings = await buildRankingsBoard({
+            players,
+            ktcValues,
+            ownerByPlayerId,
+            rosterStatusByPlayerId,
+            selectedProfileKey: leagueValueProfileKey,
+            selectedProfileLabel: leagueValueProfileLabel,
+          });
           const managerChampionships = await buildManagerChampionships(leagueInfo, users, rosters);
 
           const reportPlayerIds = [
@@ -1906,6 +1915,7 @@ export const appRouter = router({
             ...Object.values(waiverIntelligence.bestAvailableByPosition).map((player) => player?.player_id),
             ...waiverIntelligence.bestTaxiStashes.map((player) => player.player_id),
             ...waiverIntelligence.recentlyDroppedValuable.map((player) => player.player_id),
+            ...Object.values(rankings.profiles || {}).flatMap((rows) => rows.map((player) => player.player_id)),
           ];
           const valueProfilesById = Object.fromEntries(
             reportPlayerIds
@@ -1965,6 +1975,7 @@ export const appRouter = router({
               powerRankings,
               waiverIntelligence,
               recentTransactions,
+              rankings,
               draftPicks: draftAnalysis.draftPicks,
               draftStats: draftAnalysis.draftStats,
             },

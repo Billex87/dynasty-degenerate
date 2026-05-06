@@ -7,6 +7,14 @@ interface KTCPlayer {
   tier: string;
   age: number | null;
   rank: number;
+  position?: string;
+  team?: string | null;
+  college?: string | null;
+  draftYear?: number | null;
+  overallTrend?: number | null;
+  positionalTrend?: number | null;
+  overall7DayTrend?: number | null;
+  positional7DayTrend?: number | null;
 }
 
 interface KTCScraperResult {
@@ -71,6 +79,14 @@ function mapProfilePlayer(player: any, profileKey: KtcProfileKey, profileCount: 
     tier: profileValues?.overallTier ? String(profileValues.overallTier) : 'Unknown',
     age: player.age || null,
     rank: Number(profileValues?.rank || profileCount + 1),
+    position: pos,
+    team: player.team || null,
+    college: player.college || player.teamLongName || null,
+    draftYear: Number(player.draftYear || player.seasonsExperience || 0) || null,
+    overallTrend: Number(profileValues?.overallTrend ?? player?.[KTC_PROFILE_CONFIG[profileKey].valueBucket]?.overallTrend ?? 0) || null,
+    positionalTrend: Number(profileValues?.positionalTrend ?? player?.[KTC_PROFILE_CONFIG[profileKey].valueBucket]?.positionalTrend ?? 0) || null,
+    overall7DayTrend: Number(profileValues?.overall7DayTrend ?? player?.[KTC_PROFILE_CONFIG[profileKey].valueBucket]?.overall7DayTrend ?? 0) || null,
+    positional7DayTrend: Number(profileValues?.positional7DayTrend ?? player?.[KTC_PROFILE_CONFIG[profileKey].valueBucket]?.positional7DayTrend ?? 0) || null,
   };
 }
 
@@ -157,11 +173,67 @@ export async function scrapeCurrentKTCRankings(): Promise<KTCScraperResult> {
   return (await scrapeCurrentKTCRankingProfiles()).sf_ppr;
 }
 
+export async function scrapeCurrentKTCDevyRankingProfiles(): Promise<KtcProfileRankingResult> {
+  try {
+    const profiles = createEmptyProfileResults();
+    const maxPages = 4;
+
+    console.log('[KTC Devy Scraper] Fetching devy ranking profiles...');
+
+    for (let page = 0; page < maxPages; page++) {
+      const url = `https://keeptradecut.com/devy-rankings?page=${page}&filters=QB|WR|RB|TE`;
+
+      try {
+        const response = await axios.get(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          },
+          timeout: 15000
+        });
+
+        const playersArrayMatch = String(response.data).match(/var\s+playersArray\s*=\s*(\[[\s\S]*?\]);/);
+        if (!playersArrayMatch) {
+          console.warn(`[KTC Devy Scraper] Could not find playersArray in HTML for page ${page}`);
+          break;
+        }
+
+        const playersArray: any[] = JSON.parse(playersArrayMatch[1]);
+        if (playersArray.length === 0) break;
+
+        playersArray.forEach((player) => {
+          const slug = getPlayerSlug(player.playerName || '');
+          if (!slug) return;
+
+          for (const profileKey of Object.keys(KTC_PROFILE_CONFIG) as KtcProfileKey[]) {
+            const profilePlayer = mapProfilePlayer(player, profileKey, Object.keys(profiles[profileKey]).length);
+            if (profilePlayer) {
+              profiles[profileKey][slug] = profilePlayer;
+            }
+          }
+        });
+
+        console.log(`[KTC Devy Scraper] Page ${page}: scraped ${playersArray.length} devy players (SF total: ${Object.keys(profiles.sf_ppr).length})`);
+        if (playersArray.length < 40) break;
+      } catch (pageError) {
+        console.warn(`[KTC Devy Scraper] Error fetching page ${page}:`, pageError);
+        break;
+      }
+    }
+
+    return profiles;
+  } catch (error) {
+    console.error('[KTC Devy Scraper] Error scraping KTC devy rankings:', error);
+    return createEmptyProfileResults();
+  }
+}
+
 /**
  * Get the latest KTC rankings, using cache if available
  */
 let ktcRankingsCache: KTCScraperResult | null = null;
 let ktcProfileRankingsCache: KtcProfileRankingResult | null = null;
+let ktcDevyProfileRankingsCache: KtcProfileRankingResult | null = null;
+let lastDevyScrapedTime: number = 0;
 let lastScrapedTime: number = 0;
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
@@ -196,8 +268,27 @@ export async function getCurrentKTCRankings(forceRefresh = false): Promise<KTCSc
   return (await getCurrentKTCRankingProfiles(forceRefresh)).sf_ppr;
 }
 
+export async function getCurrentKTCDevyRankingProfiles(forceRefresh = false): Promise<KtcProfileRankingResult> {
+  const now = Date.now();
+
+  if (ktcDevyProfileRankingsCache && !forceRefresh && (now - lastDevyScrapedTime) < CACHE_DURATION_MS) {
+    console.log('[KTC Devy Scraper] Using cached devy ranking profiles');
+    return ktcDevyProfileRankingsCache;
+  }
+
+  const profiles = await scrapeCurrentKTCDevyRankingProfiles();
+  if (Object.keys(profiles.sf_ppr).length > 0) {
+    ktcDevyProfileRankingsCache = profiles;
+    lastDevyScrapedTime = now;
+  }
+
+  return profiles;
+}
+
 export function clearKTCRankingsCache() {
   ktcRankingsCache = null;
   ktcProfileRankingsCache = null;
+  ktcDevyProfileRankingsCache = null;
   lastScrapedTime = 0;
+  lastDevyScrapedTime = 0;
 }

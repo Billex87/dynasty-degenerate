@@ -24,6 +24,61 @@ export interface WeeklyMomentum {
   pct_change: number;
 }
 
+export type RankingBoardFormat = 'dynastySf' | 'dynastyOneQb' | 'devySf' | 'devyOneQb';
+
+export interface RankingPlayer {
+  id: string;
+  player_id?: string;
+  name: string;
+  pos: string;
+  team?: string | null;
+  college?: string | null;
+  age?: number | null;
+  draftYear?: number | null;
+  overallRank: number;
+  positionRank?: string | null;
+  value: number;
+  ktcValue?: number | null;
+  flockValue?: number | null;
+  fantasyCalcValue?: number | null;
+  fantasyProsValue?: number | null;
+  seasonValue?: number | null;
+  tier?: string | number | null;
+  movement?: number | null;
+  movementLabel?: string | null;
+  movementDirection?: 'up' | 'down' | 'flat' | null;
+  previousYearPprAverage?: number | null;
+  owner?: string | null;
+  rosterStatus?: string | null;
+  sources: string[];
+  sourceCount: number;
+  isDevy?: boolean;
+  isPick?: boolean;
+  imageUrl?: string | null;
+}
+
+export interface RankingProfileOption {
+  key: string;
+  label: string;
+  board: 'dynasty' | 'devy';
+  qbFormat: 'sf' | 'one_qb';
+  tep: 0 | 0.5 | 1 | 1.5;
+}
+
+export interface RankingsBoard {
+  generatedAt: string;
+  selectedProfileKey?: string | null;
+  selectedProfileLabel?: string | null;
+  defaultProfileKey?: string | null;
+  defaultDevyProfileKey?: string | null;
+  profileOptions?: RankingProfileOption[];
+  profiles?: Record<string, RankingPlayer[]>;
+  dynastySf: RankingPlayer[];
+  dynastyOneQb: RankingPlayer[];
+  devySf: RankingPlayer[];
+  devyOneQb: RankingPlayer[];
+}
+
 export interface ManagerData {
   total_val: number;
   past_val: number;
@@ -491,6 +546,7 @@ export interface ReportData {
   }>;
   weeklyRisers: WeeklyMomentum[];
   weeklyFallers: WeeklyMomentum[];
+  rankings?: RankingsBoard;
   trendingAdds?: TrendingPlayer[];
   trendingDrops?: TrendingPlayer[];
   leagueOverview: Array<{
