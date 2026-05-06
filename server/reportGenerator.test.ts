@@ -359,6 +359,41 @@ describe('generateReport trade ledger', () => {
     expect(report.managerPositionCounts[1].starterPlayers?.find((player) => player.pos === 'QB')?.seasonPositionRank).toBe('QB2');
   });
 
+  it('counts reserve players as roster assets without projecting them as active starters', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterPositions: ['QB', 'RB', 'BN', 'IR'],
+        rosterMap: { 1: 'Manager A' },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['activeQb', 'activeRb'], reserve: ['reserveRb'] },
+        ],
+      },
+      null,
+      {
+        activeQb: { first_name: 'Active', last_name: 'QB', position: 'QB', age: 25 },
+        activeRb: { first_name: 'Active', last_name: 'RB', position: 'RB', age: 25 },
+        reserveRb: { first_name: 'Reserve', last_name: 'RB', position: 'RB', age: 24, injury_status: 'IR' },
+      },
+      {
+        activeqb: { name: 'Active QB', ktc_value: 6000, redraft_value: 6000, position_rank: 'QB8' },
+        activerb: { name: 'Active RB', ktc_value: 5000, redraft_value: 5000, position_rank: 'RB12' },
+        reserverb: { name: 'Reserve RB', ktc_value: 4000, redraft_value: 4000, position_rank: 'RB18' },
+      },
+      {}
+    );
+
+    const countRow = report.managerPositionCounts.find((row) => row.manager === 'Manager A');
+    const intelRow = report.managerRosterIntelligence.find((row) => row.manager === 'Manager A');
+
+    expect(report.managerRosterValueGrowth.find((row) => row.manager === 'Manager A')?.total_val).toBe(15000);
+    expect(countRow?.RB).toBe(2);
+    expect(countRow?.starterPlayers?.map((player) => player.name)).not.toContain('Reserve RB');
+    expect(intelRow?.reservePlayers?.[0]).toMatchObject({ name: 'Reserve RB' });
+    expect(intelRow?.reservePlayers?.[0].playerDetails?.rosterStatus).toBe('IR');
+  });
+
   it('builds owner intel from the actual superflex lineup and bench path', async () => {
     const report = await generateReport(
       {

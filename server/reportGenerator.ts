@@ -174,6 +174,14 @@ function getReservePlayerIds(roster: Pick<Roster, 'reserve'> | undefined): strin
   return normalizePlayerIds(roster?.reserve);
 }
 
+function getRosterPlayerIds(roster: Pick<Roster, 'players' | 'taxi' | 'reserve'> | undefined): string[] {
+  return normalizePlayerIds([
+    ...(roster?.players || []),
+    ...(roster?.taxi || []),
+    ...(roster?.reserve || []),
+  ]);
+}
+
 function getInactivePlayerIdSet(roster: Pick<Roster, 'taxi' | 'reserve'> | undefined): Set<string> {
   return new Set([...getTaxiPlayerIds(roster), ...getReservePlayerIds(roster)]);
 }
@@ -568,9 +576,9 @@ function buildLeagueDiagnostics(
     starterSlots,
     lineupSlotSummary: formatLineupSlotSummary(lineupProfile),
     starterCountSummary: formatStarterCountSummary(starterCounts),
-    starterCalculation: `Projected starters are selected from active roster players only, using this league's starter slots: ${formatLineupSlotSummary(lineupProfile)}. Fixed QB/RB/WR/TE slots fill first by position rank, Superflex tries QB first, then flex slots take the best remaining RB/WR/TE options.`,
-    benchCalculation: `Bench baseline uses season rank and season value to find the best non-starting QB, RB, WR, and TE after projected starters are removed. Taxi players are included only for bench baseline visibility because they can be future depth, but not in the active starter room.`,
-    tradeableDepthCalculation: 'Tradeable depth uses season rank and season value for active bench players only. Taxi and IR players are not counted as immediate tradeable depth in that tile.',
+    starterCalculation: `Projected starters are selected from active non-IR roster players only, using this league's starter slots: ${formatLineupSlotSummary(lineupProfile)}. Fixed QB/RB/WR/TE slots fill first by position rank, Superflex tries QB first, then flex slots take the best remaining RB/WR/TE options.`,
+    benchCalculation: `Bench baseline uses season rank and season value to find the best non-starting QB, RB, WR, and TE after projected starters are removed. Taxi players are included only for bench baseline visibility because they can be future depth, and IR players are retained as roster assets without counting as active starters.`,
+    tradeableDepthCalculation: 'Tradeable depth uses season rank and season value for active bench players only. Taxi and IR players are retained as roster assets, but not counted as immediate tradeable depth in that tile.',
     scoringSummary: formatScoringSummary(currentSeasonData.scoringSettings),
     receptionScoring,
     tightEndPremium,
@@ -1705,7 +1713,7 @@ export async function generateReport(
   const useSeasonAsPrimary = leagueValueMode === 'redraft';
   const starterThresholds = getStarterThresholds(currentSeasonData.rosters.length || 10);
   const seasonPositionRankById = buildSeasonPositionRanks(
-    currentSeasonData.rosters.flatMap((roster) => roster.players || []),
+    currentSeasonData.rosters.flatMap(getRosterPlayerIds),
     allPlayers,
     ktcValues
   );
@@ -1785,7 +1793,7 @@ export async function generateReport(
   if (pastSeasonData) {
     for (const r of pastSeasonData.rosters) {
       const name = pastSeasonData.rosterMap[r.roster_id];
-      const pids = r.players || [];
+      const pids = getRosterPlayerIds(r);
       pastRosterValues[name] = pids.reduce(
         (sum, pid) => sum + getPrimaryValue(pid),
         0
@@ -1796,7 +1804,7 @@ export async function generateReport(
   // Process current season rosters
   for (const r of currentSeasonData.rosters) {
     const name = currentSeasonData.rosterMap[r.roster_id];
-    const pids = r.players || [];
+    const pids = getRosterPlayerIds(r);
     const posVals: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
     const posSeasonValues: Record<string, number[]> = { QB: [], RB: [], WR: [], TE: [] };
     let totalVal = 0;
@@ -2390,6 +2398,7 @@ export async function generateReport(
     const reservePlayers = getReservePlayerIds(r)
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
+    const rosterAssetPlayers = [...rosterPlayers, ...reservePlayers, ...taxiPlayers];
     const externalPlayers = currentSeasonData.rosters
       .filter((otherRoster) => otherRoster.roster_id !== r.roster_id)
       .flatMap((otherRoster) => {
@@ -2404,6 +2413,13 @@ export async function generateReport(
     rosterPlayers.forEach((player) => {
       player.isStarter = projectedStarterIds.has(player.player_id);
     });
+    reservePlayers.forEach((player) => {
+      player.isStarter = false;
+    });
+    taxiPlayers.forEach((player) => {
+      player.isStarter = false;
+    });
+    const movableRosterPlayers = [...rosterPlayers, ...reservePlayers];
     const starters = projectedStarters
       .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value));
     const bench = rosterPlayers.filter((player) => !player.isStarter).sort((a, b) => b.value - a.value);
@@ -2448,15 +2464,15 @@ export async function generateReport(
     });
     const starterValue = starters.reduce((sum, player) => sum + player.value, 0);
     const starterSeasonValue = starters.reduce((sum, player) => sum + (player.seasonValue || getPlayerRedraftValue(player.player_id, allPlayers, ktcValues)), 0);
-    const benchValue = bench.reduce((sum, player) => sum + player.value, 0);
+    const benchValue = [...bench, ...reservePlayers, ...taxiPlayers].reduce((sum, player) => sum + player.value, 0);
     const totalValue = starterValue + benchValue;
     const starterValuePct = totalValue > 0 ? Math.round((starterValue / totalValue) * 100) : 0;
-    const avgAge = roundOne(average(rosterPlayers.map((player) => player.age)));
+    const avgAge = roundOne(average(rosterAssetPlayers.map((player) => player.age)));
     const avgAgeByPosition = {
-      QB: roundOne(average(rosterPlayers.filter((player) => player.pos === 'QB').map((player) => player.age))),
-      RB: roundOne(average(rosterPlayers.filter((player) => player.pos === 'RB').map((player) => player.age))),
-      WR: roundOne(average(rosterPlayers.filter((player) => player.pos === 'WR').map((player) => player.age))),
-      TE: roundOne(average(rosterPlayers.filter((player) => player.pos === 'TE').map((player) => player.age))),
+      QB: roundOne(average(rosterAssetPlayers.filter((player) => player.pos === 'QB').map((player) => player.age))),
+      RB: roundOne(average(rosterAssetPlayers.filter((player) => player.pos === 'RB').map((player) => player.age))),
+      WR: roundOne(average(rosterAssetPlayers.filter((player) => player.pos === 'WR').map((player) => player.age))),
+      TE: roundOne(average(rosterAssetPlayers.filter((player) => player.pos === 'TE').map((player) => player.age))),
     };
 
     const byPos = (pos: string) => rosterPlayers
@@ -2540,19 +2556,19 @@ export async function generateReport(
       .sort((a, b) => getSeasonValue(a, allPlayers, ktcValues) - getSeasonValue(b, allPlayers, ktcValues));
     const weakestStarter = pickDistinctPlayer(starterUpgradeCandidates, usedInsightPlayerIds);
     const oldestPlayer = pickDistinctPlayer(
-      [...rosterPlayers]
+      [...rosterAssetPlayers]
         .filter((player) => player.value >= 1000)
         .sort((a, b) => (b.age || 0) - (a.age || 0)) || [],
       usedInsightPlayerIds
     );
     const youngCorePlayer = pickDistinctPlayer(
-      [...rosterPlayers]
+      [...rosterAssetPlayers]
         .filter((player) => (player.age || 99) <= 25 && player.value >= 2500)
         .sort((a, b) => b.value - a.value),
       usedInsightPlayerIds
     );
     const breakoutCandidate = pickDistinctPlayer(
-      [...rosterPlayers]
+      [...rosterAssetPlayers]
         .filter((player) => {
           const rank = getRankNumber(player.currentPositionRank) || 999;
           const eliteLine = player.pos === 'QB' || player.pos === 'TE' ? 8 : 18;
@@ -2562,7 +2578,7 @@ export async function generateReport(
       usedInsightPlayerIds
     );
     const lastSeasonStud = pickDistinctPlayer(
-      [...rosterPlayers]
+      [...rosterAssetPlayers]
         .filter((player) => isLastSeasonStud(player.lastSeasonPositionRank))
         .sort((a, b) => {
           const rankDelta = (getRankNumber(a.lastSeasonPositionRank) || 999) - (getRankNumber(b.lastSeasonPositionRank) || 999);
@@ -2593,7 +2609,7 @@ export async function generateReport(
       acc[item.taxiAction] += 1;
       return acc;
     }, createTaxiCounts());
-    const sellPool = [...rosterPlayers]
+    const sellPool = [...movableRosterPlayers]
       .filter((player) => {
         if (player.value < 900) return false;
         if (surplusPosition && player.pos !== surplusPosition) return false;
@@ -2682,22 +2698,22 @@ export async function generateReport(
     );
     const similarValuePlayers = Object.fromEntries(
       (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
-        const anchor = starters.find((player) => player.pos === pos) || rosterPlayers.find((player) => player.pos === pos);
+        const anchor = starters.find((player) => player.pos === pos) || rosterAssetPlayers.find((player) => player.pos === pos);
         if (!anchor) return [pos, null];
-        const closest = rosterPlayers
+        const closest = rosterAssetPlayers
           .filter((player) => player.pos === pos && player.player_id !== anchor.player_id)
           .sort((a, b) => Math.abs(a.value - anchor.value) - Math.abs(b.value - anchor.value))[0] || null;
         return [pos, closest];
       })
     ) as Record<'QB' | 'RB' | 'WR' | 'TE', ManagerIntelPlayer | null>;
-    const droppablePlayers = [...rosterPlayers]
+    const droppablePlayers = [...movableRosterPlayers]
       .filter((player) => !player.isStarter)
       .sort((a, b) => {
         const rankDelta = (getRankNumber(b.currentPositionRank) || 999) - (getRankNumber(a.currentPositionRank) || 999);
         return rankDelta || a.value - b.value;
       })
       .slice(0, 3);
-    const untouchablePlayers = [...rosterPlayers]
+    const untouchablePlayers = [...rosterAssetPlayers]
       .filter((player) => {
         const rank = getRankNumber(player.currentPositionRank) || 999;
         const age = player.playerDetails?.age ?? 99;
@@ -2726,7 +2742,7 @@ export async function generateReport(
       teamCount,
     });
     const marketSignals = buildMarketSignals({
-      rosterPlayers,
+      rosterPlayers: rosterAssetPlayers,
       buyTarget,
       sellCandidate,
       isContenderBuild,

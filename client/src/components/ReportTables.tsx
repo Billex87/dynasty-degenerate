@@ -5677,9 +5677,13 @@ function getOpenRosterSpotCount(
       return normalized && normalized !== 'IR' && normalized !== 'TAXI' && normalized !== 'RESERVE';
     })
     .length;
-  const activeRosterCount = positionCountRow
+  const activeAndReserveRosterCount = viewerIntel
+    ? (viewerIntel.rosterPlayers?.length || 0) + (viewerIntel.reservePlayers?.length || 0)
+    : 0;
+  const fallbackRosterCount = positionCountRow
     ? positionCountRow.QB + positionCountRow.RB + positionCountRow.WR + positionCountRow.TE
-    : viewerIntel?.rosterPlayers?.length || 0;
+    : 0;
+  const activeRosterCount = activeAndReserveRosterCount || fallbackRosterCount;
   if (!activeSlotCount || !activeRosterCount) return 0;
   return Math.max(0, activeSlotCount - activeRosterCount);
 }
@@ -5758,7 +5762,7 @@ function buildWaiverRecommendationReason({
         ? 'recent role/news signal'
         : null;
   const spotCopy = openRosterSpots > 0
-    ? `fits one of ${openRosterSpots} open roster spot${openRosterSpots === 1 ? '' : 's'}`
+    ? `fits one of ${openRosterSpots} open non-IR roster spot${openRosterSpots === 1 ? '' : 's'}`
     : 'is a priority watchlist add if you create a spot';
 
   return [positionCopy, ageCopy, rankCopy, roleCopy, spotCopy].filter(Boolean).join(' • ');
@@ -5836,8 +5840,8 @@ function buildWaiverRecommendationContext({
     .slice(0, recommendationLimit);
 
   const openSpotCopy = openRosterSpots > 0
-    ? `${openRosterSpots} open active roster spot${openRosterSpots === 1 ? '' : 's'} detected.`
-    : 'No open active roster spot is detected, so treat these as priority watchlist or cut-upgrade targets.';
+    ? `${openRosterSpots} open non-IR roster spot${openRosterSpots === 1 ? '' : 's'} detected.`
+    : 'No open non-IR roster spot is detected, so treat these as priority watchlist or cut-upgrade targets.';
   const targetCopy = targetPositions.length
     ? `The AI read is leaning ${targetPositions.slice(0, 3).join(', ')} based on your roster depth.`
     : 'The AI read is leaning best available value because no single position is screaming for depth.';
@@ -5956,7 +5960,7 @@ export function WaiverIntelligencePanel({
                 <TeamLogoPill team={details?.team || player.team} />
                 <PositionRankPill rank={rank || player.pos || '-'} />
                 {label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
-                {recommendation && recommendationContext.openRosterSpots > 0 && <span>Open Spot Fit</span>}
+                {recommendation && recommendationContext.openRosterSpots > 0 && <span>Open Roster Fit</span>}
                 <span>{formatCompactValue(value)}</span>
               </div>
               {recommendation && (
