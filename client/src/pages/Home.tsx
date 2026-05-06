@@ -656,10 +656,10 @@ function LeaguePickerCard({
       </span>
       <span className="home-league-card-ranks" aria-label={`${league.name} current league standing and power rank`}>
         {league.powerRank ? (
-          <span className="home-league-pill">Power #{league.powerRank}</span>
+          <span className="home-league-pill home-league-pill-power">Power #{league.powerRank}</span>
         ) : null}
         {league.standingsRank ? (
-          <span className="home-league-pill">Standings #{league.standingsRank}</span>
+          <span className="home-league-pill home-league-pill-standings">Standings #{league.standingsRank}</span>
         ) : null}
       </span>
     </button>

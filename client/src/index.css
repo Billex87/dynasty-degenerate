@@ -1868,7 +1868,7 @@
 
   .home-league-card-ranks {
     display: flex;
-    width: min(100%, 10.7rem);
+    width: min(100%, 11.25rem);
     min-width: 0;
     flex-direction: row;
     flex-wrap: nowrap;
@@ -1896,6 +1896,18 @@
     letter-spacing: 0.03em;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+
+  .home-league-pill-power {
+    flex: 0.86 1 0;
+    min-width: min(4.45rem, calc(45% - 0.15rem));
+    max-width: 4.9rem;
+  }
+
+  .home-league-pill-standings {
+    flex: 1.18 1 0;
+    min-width: min(5.28rem, calc(55% - 0.15rem));
+    max-width: 6.3rem;
   }
 
   .league-switch-dialog {
@@ -2045,14 +2057,23 @@
     .home-league-card-ranks {
       gap: 0.22rem;
       margin-top: 0.14rem;
+      width: min(100%, 11rem);
     }
 
     .home-league-pill {
       min-height: 1.22rem;
-      min-width: min(4.55rem, calc(50% - 0.11rem));
-      max-width: 5.2rem;
-      padding: 0.13rem 0.36rem;
-      font-size: clamp(0.52rem, 2.35vw, 0.6rem);
+      padding: 0.13rem 0.3rem;
+      font-size: clamp(0.5rem, 2.2vw, 0.58rem);
+    }
+
+    .home-league-pill-power {
+      min-width: min(4.15rem, calc(44% - 0.11rem));
+      max-width: 4.62rem;
+    }
+
+    .home-league-pill-standings {
+      min-width: min(5.05rem, calc(56% - 0.11rem));
+      max-width: 6.05rem;
     }
   }
 
