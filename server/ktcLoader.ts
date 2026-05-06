@@ -25,7 +25,15 @@ interface KTCValues {
     flock_format?: string | null;
     market_value_fantasycalc?: number;
     expert_value_dynastyprocess?: number;
+    expert_value_dynastynerds?: number;
+    dynastynerds_rank?: number;
+    dynastynerds_position_rank?: string | null;
+    dynastynerds_format?: string | null;
+    benchmark_value_dynastydealer?: number;
+    dynastydealer_vote_rating?: number | null;
+    dynastydealer_updated_at?: string | null;
     value_sources?: string[];
+    benchmark_sources?: string[];
   };
 }
 

@@ -48,12 +48,15 @@ vi.mock('./valueBlend', () => ({
   loadFantasyCalcValueProfiles: vi.fn(() => Promise.resolve({})),
   loadFantasyProsValueProfiles: vi.fn(() => Promise.resolve({ STD: {}, HALF: {}, PPR: {} })),
   loadFlockFantasyValueProfiles: vi.fn(() => Promise.resolve({ SUPERFLEX: {}, ONEQB: {}, PROSPECTS_SF: {}, PROSPECTS: {} })),
+  loadDynastyNerdsValueProfiles: vi.fn(() => Promise.resolve({ PPR: {}, SFLEX: {}, STD: {}, SFLEXTEP: {} })),
   loadValueProfileSources: vi.fn(() =>
     Promise.resolve({
       fantasyCalc: {},
       flockFantasy: { SUPERFLEX: {}, ONEQB: {}, PROSPECTS_SF: {}, PROSPECTS: {} },
+      dynastyNerds: { PPR: {}, SFLEX: {}, STD: {}, SFLEXTEP: {} },
       dynastyProcess: { one_qb: {}, superflex: {} },
       fantasyPros: { STD: {}, HALF: {}, PPR: {} },
+      dynastyDealerBenchmark: {},
     })
   ),
 }));

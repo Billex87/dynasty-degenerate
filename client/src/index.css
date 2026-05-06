@@ -13252,8 +13252,14 @@ button.trade-manager-trade {
 .rankings-board {
   display: grid;
   width: 100%;
-  gap: clamp(0.75rem, 2vw, 1rem);
+  gap: clamp(1.2rem, 3vw, 1.8rem);
   overflow-x: hidden;
+}
+
+.rankings-table-section {
+  display: grid;
+  min-width: 0;
+  gap: clamp(0.75rem, 2vw, 1rem);
 }
 
 .rankings-hero-panel {
@@ -13300,6 +13306,22 @@ button.trade-manager-trade {
   line-height: 1.42;
 }
 
+.rankings-active-profile {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.58rem;
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.34);
+  padding: 0.3rem 0.62rem;
+  color: #a5f3fc;
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .rankings-source-summary {
   display: flex;
   flex-wrap: wrap;
@@ -13310,7 +13332,8 @@ button.trade-manager-trade {
 .rankings-source-summary span,
 .ranking-source-row span,
 .ranking-card-pills span,
-.ranking-owner-pill {
+.ranking-owner-pill,
+.ranking-owner-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -13330,7 +13353,7 @@ button.trade-manager-trade {
 
 .rankings-controls {
   display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1.25fr) minmax(0, 1fr) minmax(12rem, 1fr) auto;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr) minmax(12rem, 1fr) auto;
   gap: 0.55rem;
   align-items: center;
 }
@@ -13370,6 +13393,35 @@ button.trade-manager-trade {
   background: linear-gradient(135deg, rgba(249, 115, 22, 0.92), rgba(194, 65, 12, 0.82));
   color: #fff7ed;
   box-shadow: 0 10px 24px rgba(249, 115, 22, 0.2);
+}
+
+.rankings-control-group .ranking-position-button {
+  min-width: 3.35rem;
+}
+
+.rankings-control-group .ranking-position-button-qb.active {
+  border-color: rgba(244, 63, 94, 0.62);
+  background: linear-gradient(135deg, rgba(159, 18, 57, 0.92), rgba(76, 5, 25, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-rb.active {
+  border-color: rgba(16, 185, 129, 0.62);
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.9), rgba(6, 78, 59, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-wr.active {
+  border-color: rgba(59, 130, 246, 0.62);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(30, 58, 138, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-te.active {
+  border-color: rgba(251, 146, 60, 0.68);
+  background: linear-gradient(135deg, rgba(194, 65, 12, 0.92), rgba(67, 20, 7, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-pick.active {
+  border-color: rgba(168, 85, 247, 0.62);
+  background: linear-gradient(135deg, rgba(126, 34, 206, 0.9), rgba(59, 7, 100, 0.82));
 }
 
 .rankings-search-wrap {
@@ -13557,6 +13609,40 @@ button.trade-manager-trade {
   text-overflow: ellipsis;
 }
 
+.ranking-owner-chip {
+  max-width: min(13rem, 46%);
+  min-height: 1.72rem;
+  padding: 0.12rem 0.42rem 0.12rem 0.2rem;
+  color: #fed7aa;
+}
+
+.ranking-owner-chip .manager-chip {
+  gap: 0.36rem;
+  font-size: 0.66rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.ranking-owner-chip .manager-chip img,
+.ranking-owner-chip .manager-chip > span[aria-hidden="true"] {
+  height: 1.24rem !important;
+  width: 1.24rem !important;
+  font-size: 0.55rem;
+}
+
+.ranking-owner-chip .manager-chip > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-owner-pill-fa {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(6, 78, 59, 0.35);
+  color: #6ee7b7;
+}
+
 .ranking-source-row {
   justify-content: flex-start;
   flex-wrap: wrap;
@@ -13591,6 +13677,44 @@ button.trade-manager-trade {
   text-align: center;
 }
 
+.rankings-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.rankings-pagination button,
+.rankings-pagination span {
+  display: inline-flex;
+  min-height: 2.15rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.62);
+  padding: 0.28rem 0.72rem;
+  color: #c4f1ff;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rankings-pagination button:not(:disabled):hover,
+.rankings-pagination button:not(:disabled):focus-visible {
+  border-color: rgba(251, 146, 60, 0.42);
+  color: #fed7aa;
+}
+
+.rankings-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 @media (max-width: 1180px) {
   .rankings-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -13610,6 +13734,10 @@ button.trade-manager-trade {
 
   .rankings-source-summary {
     justify-content: center;
+  }
+
+  .rankings-active-profile {
+    margin-inline: auto;
   }
 
   .rankings-controls {
@@ -13650,6 +13778,10 @@ button.trade-manager-trade {
   }
 
   .ranking-owner-pill {
+    max-width: 100%;
+  }
+
+  .ranking-owner-chip {
     max-width: 100%;
   }
 

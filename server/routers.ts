@@ -10,8 +10,8 @@ import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
-import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
-import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
+import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
+import { fetchFantasyProsLatestPlayerNews, fetchFantasyProsNews, fetchFantasyProsPlayerPoints, findLatestFantasyProsNewsForPlayer } from "./fantasyPros";
 import { buildRankingsBoard } from "./rankingsBoard";
 import {
   getFantasyProsScoringForPpr,
@@ -596,15 +596,16 @@ function getPlayerCurrentPositionRank(
 
   const fullName = `${player.first_name || ''}${player.last_name || ''}`;
   const key = cleanName(fullName);
-  let rank = ktcValues[key]?.position_rank;
+  const variants = Array.from(new Set(playerNameKeyVariants(key)));
+  let rank = variants
+    .map((variant) => ktcValues[variant]?.position_rank)
+    .find(Boolean);
 
   if (!rank) {
-    for (const ktcKey in ktcValues) {
-      if (key.includes(ktcKey) || ktcKey.includes(key)) {
-        rank = ktcValues[ktcKey].position_rank;
-        break;
-      }
-    }
+    const match = Object.entries(ktcValues)
+      .filter(([ktcKey]) => variants.some((variant) => variant.includes(ktcKey) || ktcKey.includes(variant)))
+      .sort(([, a], [, b]) => ((b.value_sources?.length || 0) * 1000 + (b.ktc_value || 0)) - ((a.value_sources?.length || 0) * 1000 + (a.ktc_value || 0)))[0];
+    rank = match?.[1]?.position_rank;
   }
 
   return rank || null;
@@ -648,18 +649,26 @@ function getPlayerValueProfile(
   if (!player) return undefined;
 
   const key = cleanName(`${player.first_name || ''}${player.last_name || ''}`);
-  let data = ktcValues[key];
-  let dataKey = key;
+  const variants = Array.from(new Set(playerNameKeyVariants(key)));
+  const candidates: Array<{ key: string; data: KTCValues[string]; score: number }> = [];
 
-  if (!data) {
-    for (const ktcKey in ktcValues) {
-      if (key.includes(ktcKey) || ktcKey.includes(key)) {
-        data = ktcValues[ktcKey];
-        dataKey = ktcKey;
-        break;
-      }
+  for (const variant of variants) {
+    if (ktcValues[variant]) {
+      const sourceCount = ktcValues[variant].value_sources?.length || 0;
+      candidates.push({ key: variant, data: ktcValues[variant], score: sourceCount * 1000 + (ktcValues[variant].ktc_value || 0) });
     }
   }
+
+  for (const [ktcKey, value] of Object.entries(ktcValues)) {
+    if (variants.some((variant) => variant.includes(ktcKey) || ktcKey.includes(variant))) {
+      const sourceCount = value.value_sources?.length || 0;
+      candidates.push({ key: ktcKey, data: value, score: sourceCount * 1000 + (value.ktc_value || 0) });
+    }
+  }
+
+  const best = candidates.sort((a, b) => b.score - a.score)[0];
+  let data = best?.data;
+  let dataKey = best?.key || key;
 
   if (!data) return undefined;
 
@@ -695,6 +704,13 @@ function getPlayerValueProfile(
     fantasyCalcDynasty: data.market_value_fantasycalc ?? null,
     fantasyCalcRedraft: data.redraft_value ?? null,
     dynastyProcess: data.expert_value_dynastyprocess ?? null,
+    dynastyNerds: data.expert_value_dynastynerds ?? null,
+    dynastyNerdsRank: data.dynastynerds_rank ?? null,
+    dynastyNerdsPositionRank: data.dynastynerds_position_rank ?? null,
+    dynastyNerdsFormat: data.dynastynerds_format ?? null,
+    dynastyDealerBenchmark: data.benchmark_value_dynastydealer ?? null,
+    dynastyDealerVoteRating: data.dynastydealer_vote_rating ?? null,
+    dynastyDealerUpdatedAt: data.dynastydealer_updated_at ?? null,
     fantasyProsRank: data.fantasypros_rank ?? null,
     fantasyProsPositionRank: data.fantasypros_position_rank ?? null,
     fantasyProsTier: data.fantasypros_tier ?? null,
@@ -730,6 +746,7 @@ function getPlayerPositionRankForLeagueMode(
 function getKtcPosition(data: KTCValues[string]): 'QB' | 'RB' | 'WR' | 'TE' | null {
   const position = data?.position_rank?.match(/^[A-Z]+/)?.[0]
     || data?.flock_position_rank?.match(/^[A-Z]+/)?.[0]
+    || data?.dynastynerds_position_rank?.match(/^[A-Z]+/)?.[0]
     || data?.fantasypros_position_rank?.match(/^[A-Z]+/)?.[0]
     || null;
   return ['QB', 'RB', 'WR', 'TE'].includes(position || '') ? position as 'QB' | 'RB' | 'WR' | 'TE' : null;
@@ -916,24 +933,25 @@ function buildLatestNewsByPlayerId(
   players: Record<string, any>,
   newsItems: Awaited<ReturnType<typeof fetchFantasyProsNews>>
 ): Record<string, NonNullable<PlayerDetails['latestNews']>> {
-  const normalize = (value: string) => cleanName(value).toLowerCase();
   const requestedIds = Array.from(new Set(Array.from(playerIds).filter(Boolean)));
-  const normalizedNews = newsItems.map((item) => ({
-    item,
-    haystack: normalize(`${item.title} ${item.summary || ''}`),
-  }));
+  const entries: Array<[string, NonNullable<PlayerDetails['latestNews']>]> = [];
 
-  return Object.fromEntries(requestedIds.map((playerId) => {
+  for (const playerId of requestedIds) {
     const player = players[playerId];
-    if (!player) return null;
+    if (!player) continue;
     const fullName = getPlayerName(playerId, players);
-    const nameKey = normalize(fullName);
-    const lastName = normalize(player.last_name || fullName.split(/\s+/).slice(-1)[0] || '');
-    const matched = normalizedNews.find(({ haystack }) => haystack.includes(nameKey))
-      || (lastName.length >= 5 ? normalizedNews.find(({ haystack }) => haystack.includes(lastName)) : null);
-    if (!matched) return null;
-    return [playerId, matched.item];
-  }).filter((entry): entry is [string, NonNullable<PlayerDetails['latestNews']>] => Boolean(entry)));
+    const matched = findLatestFantasyProsNewsForPlayer(fullName, newsItems);
+    if (!matched) continue;
+    entries.push([playerId, {
+      title: matched.title,
+      summary: matched.summary || null,
+      source: matched.source || 'FantasyPros',
+      url: matched.url || null,
+      publishedAt: matched.publishedAt || null,
+    }]);
+  }
+
+  return Object.fromEntries(entries);
 }
 
 async function fetchTrendingPlayers(
@@ -1898,6 +1916,7 @@ export const appRouter = router({
           const rankings = await buildRankingsBoard({
             players,
             ktcValues,
+            baselineKtcValues: ktcValuesLastWeek,
             ownerByPlayerId,
             rosterStatusByPlayerId,
             selectedProfileKey: leagueValueProfileKey,
@@ -1994,6 +2013,36 @@ export const appRouter = router({
           }
           throw new Error('Failed to fetch league data');
         }
+    }),
+  }),
+
+  players: router({
+    latestNews: publicProcedure
+      .input(z.object({
+        playerId: z.string().optional(),
+        playerName: z.string().optional(),
+        team: z.string().optional().nullable(),
+        position: z.string().optional().nullable(),
+      }))
+      .query(async ({ input }) => {
+        const playerName = input.playerName?.trim();
+        if (!playerName) return { latestNews: null };
+
+        const latestNews = await fetchFantasyProsLatestPlayerNews({
+          playerName,
+          team: input.team || null,
+          position: input.position || null,
+        });
+
+        return {
+          latestNews: latestNews ? {
+            title: latestNews.title,
+            summary: latestNews.summary || null,
+            source: latestNews.source || 'FantasyPros',
+            url: latestNews.url || null,
+            publishedAt: latestNews.publishedAt || null,
+          } : null,
+        };
       }),
   }),
 

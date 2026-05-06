@@ -1,7 +1,6 @@
 import {
   cleanName,
   getPlayerName,
-  getPlayerKtcMarketValue,
   getPlayerRedraftValue,
   getPlayerValue,
   getPickValue,
@@ -39,11 +38,19 @@ export interface KTCValues {
     flock_format?: string | null;
     market_value_fantasycalc?: number;
     expert_value_dynastyprocess?: number;
+    expert_value_dynastynerds?: number;
+    dynastynerds_rank?: number;
+    dynastynerds_position_rank?: string | null;
+    dynastynerds_format?: string | null;
+    benchmark_value_dynastydealer?: number;
+    dynastydealer_vote_rating?: number | null;
+    dynastydealer_updated_at?: string | null;
     fantasypros_rank?: number;
     fantasypros_position_rank?: string | null;
     fantasypros_tier?: number | null;
     fantasypros_season_value?: number;
     value_sources?: string[];
+    benchmark_sources?: string[];
   };
 }
 
@@ -526,6 +533,10 @@ function formatLineupSlotSummary(profile: LineupSlotProfile): string {
   return parts.length ? parts.join(', ') : 'Default starter slots';
 }
 
+function normalizeNumQbsForDiagnostics(profile: LineupSlotProfile): 1 | 2 {
+  return profile.superFlex > 0 || profile.QB >= 2 ? 2 : 1;
+}
+
 function formatStarterCountSummary(counts: Record<FantasyPosition, number>): string {
   return FANTASY_POSITIONS.map((position) => `${position} x${counts[position]}`).join(', ');
 }
@@ -583,9 +594,10 @@ function buildLeagueDiagnostics(
   ).sort();
   const playerValues = Object.values(ktcValues).filter((value) => !/\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(value.name));
   const sourceCoverage = (source: string) => playerValues.filter((value) => value.value_sources?.includes(source)).length;
-  const coverageParts = ['FlockFantasy', 'KTC', 'FantasyCalc', 'DynastyProcess', 'FantasyPros']
+  const coverageParts = ['FlockFantasy', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess', 'FantasyPros']
     .filter((source) => sourceCoverage(source) > 0)
     .map((source) => `${source}: ${sourceCoverage(source)}`);
+  const dealerCoverage = playerValues.filter((value) => Number(value.benchmark_value_dynastydealer || 0) > 0).length;
 
   return {
     teamCount,
@@ -600,18 +612,29 @@ function buildLeagueDiagnostics(
     scoringSummary: formatScoringSummary(currentSeasonData.scoringSettings),
     receptionScoring,
     tightEndPremium,
-    ktcProfileLabel: `This report is using the ${selectedValueProfile} blended profile. Flock Fantasy is weighted as the primary dynasty/rankings source when available, with KTC, FantasyCalc, DynastyProcess, and FantasyPros filling the rest of the blend.`,
+    ktcProfileLabel: `This report is using the ${selectedValueProfile} blended profile. Flock Fantasy remains the top dynasty/rankings signal when available, Dynasty Nerds now adds format-aware expert/community values, and KTC, FantasyCalc, DynastyProcess, and FantasyPros fill the rest of the blend.`,
     valueSnapshotProfileCount: VALUE_SOURCE_PROFILE_DEFINITIONS.length,
     valueSnapshotProfiles: [
       `${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended league profiles: 10/12/14-team, 1QB/SF, Standard/Half/PPR, and 0/0.5/1/1.5 TEP buckets`,
       `${KTC_SNAPSHOT_PROFILES.length} KTC market profiles for 1QB/SF and TEP variants`,
       'Flock Fantasy dynasty and rookie rankings for 1QB/SF',
+      'Dynasty Nerds PPR, Superflex, Standard, and Superflex TEP rankings with player values, Sleeper IDs, and movement',
       'FantasyCalc format values, DynastyProcess 1QB/SF values, FantasyPros scoring-specific ranks and points',
+      dealerCoverage > 0
+        ? `Dynasty Dealer benchmark values stored for ${dealerCoverage} players, but kept out of the primary blend until that endpoint is confirmed stable/licensed.`
+        : 'Dynasty Dealer benchmark support is wired, but no benchmark values were present in this snapshot.',
     ],
     valueLimitations: [
       `Selected value profile: ${selectedValueProfile}. League analysis no longer uses the old default 12-team SF PPR blend when the league settings point elsewhere.`,
       `Daily snapshots now track ${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended format profiles across team count, QB format, reception scoring, and TEP bucket.`,
-      'Flock Fantasy is treated as the highest-priority dynasty/rookie rankings source where the public rankings endpoint returns data. Redraft Flock rankings were not available from that public endpoint in this check, so redraft stays projection/season-source driven.',
+      'Flock Fantasy is treated as the highest-priority dynasty/rookie rankings source where the public rankings endpoint returns data. Dynasty Nerds is the secondary expert/community dynasty source and is selected by the closest league format. Redraft stays projection/season-source driven.',
+      normalizeNumQbsForDiagnostics(lineupProfile) === 2 && tightEndPremium > 0
+        ? 'Dynasty Nerds has a direct Superflex TEP source for this format bucket.'
+        : normalizeNumQbsForDiagnostics(lineupProfile) === 2
+          ? 'Dynasty Nerds Superflex rankings are used for this format bucket.'
+          : receptionScoring === 0
+            ? 'Dynasty Nerds Standard rankings are used for this 1QB non-PPR bucket.'
+            : 'Dynasty Nerds PPR rankings are used for this 1QB/Half/PPR bucket because a separate 1QB TEP page was not available from the public ranking payload.',
       tightEndPremium > 0
         ? `This league has TE premium scoring (+${tightEndPremium} per TE reception). The blend selects the closest TEP bucket, and tables receive that selected profile. Exact custom scoring beyond the bucket remains an approximation.`
         : 'This league does not add a TE reception bonus, so no TEP adjustment is being applied beyond the generic market blend.',
@@ -1851,10 +1874,10 @@ export async function generateReport(
       const p2027 = projectValue(val, pos, age, 1);
       v2027 += p2027;
 
-      const currentMarketVal = getPlayerKtcMarketValue(pid, allPlayers, ktcValues);
-      const lastWeekVal = getPlayerValue(pid, allPlayers, ktcValuesLastWeek);
-      if (currentMarketVal > 0 && lastWeekVal > 0) {
-        const pct_change = lastWeekVal > 0 ? (currentMarketVal - lastWeekVal) / lastWeekVal * 100 : 0;
+      const currentWeeklyVal = getPrimarySnapshotValue(pid, ktcValues);
+      const lastWeekVal = getPrimarySnapshotValue(pid, ktcValuesLastWeek);
+      if (currentWeeklyVal > 0 && lastWeekVal > 0) {
+        const pct_change = (currentWeeklyVal - lastWeekVal) / lastWeekVal * 100;
         weeklyMomentum.push({
           name: getPlayerName(pid, allPlayers),
           player_id: pid,
@@ -1863,8 +1886,8 @@ export async function generateReport(
           owner: name,
           pos,
           val_last: lastWeekVal,
-          val_now: currentMarketVal,
-          diff: currentMarketVal - lastWeekVal,
+          val_now: currentWeeklyVal,
+          diff: currentWeeklyVal - lastWeekVal,
           pct_change,
         });
       }

@@ -80,6 +80,18 @@ export function PlayerDetailModal({
     { playerId: pick?.player_id || '' },
     { enabled: !!pick?.player_id && isOpen && directImageFailed }
   );
+  const { data: playerNewsData } = trpc.players.latestNews.useQuery(
+    {
+      playerId: pick?.player_id || '',
+      playerName: pick?.playerName || '',
+      team: pick?.playerDetails?.team || null,
+      position: pick?.playerPos || pick?.playerDetails?.position || null,
+    },
+    {
+      enabled: isOpen && Boolean(pick?.playerName),
+      staleTime: 1000 * 60 * 15,
+    }
+  );
 
   useEffect(() => {
     setHeadshot(null);
@@ -160,6 +172,9 @@ export function PlayerDetailModal({
     ['Flock Pos', valueProfile.flockPositionRank],
     ['Flock Overall', valueProfile.flockRank ? `#${valueProfile.flockRank}` : null],
     ['Flock Tier', valueProfile.flockTier ? `Tier ${valueProfile.flockTier}` : null],
+    ['Dynasty Nerds Pos', valueProfile.dynastyNerdsPositionRank],
+    ['Dynasty Nerds Overall', valueProfile.dynastyNerdsRank ? `#${valueProfile.dynastyNerdsRank}` : null],
+    ['Dynasty Nerds Format', valueProfile.dynastyNerdsFormat],
     ['FantasyPros Pos', valueProfile.fantasyProsPositionRank],
     ['FantasyPros Overall', valueProfile.fantasyProsRank ? `#${valueProfile.fantasyProsRank}` : null],
     ['FantasyPros Tier', valueProfile.fantasyProsTier ? `Tier ${valueProfile.fantasyProsTier}` : null],
@@ -170,9 +185,11 @@ export function PlayerDetailModal({
     ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
     ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
     ['DynastyProcess', valueProfile.dynastyProcess],
+    ['Dynasty Nerds', valueProfile.dynastyNerds],
+    ['Dynasty Dealer Benchmark', valueProfile.dynastyDealerBenchmark],
     ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
-  const latestNews = details?.latestNews ?? null;
+  const latestNews = playerNewsData?.latestNews ?? details?.latestNews ?? null;
   const hasMeaningfulNews = Boolean(latestNews?.title || latestNews?.summary);
   const latestNewsRows = hasMeaningfulNews && latestNews ? [
     ['Title', latestNews.title],

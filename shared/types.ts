@@ -40,6 +40,7 @@ export interface RankingPlayer {
   value: number;
   ktcValue?: number | null;
   flockValue?: number | null;
+  dynastyNerdsValue?: number | null;
   fantasyCalcValue?: number | null;
   fantasyProsValue?: number | null;
   seasonValue?: number | null;
@@ -55,6 +56,24 @@ export interface RankingPlayer {
   isDevy?: boolean;
   isPick?: boolean;
   imageUrl?: string | null;
+}
+
+export interface RankingIdentityDiagnostic {
+  id: string;
+  profileKey: string;
+  board: 'dynasty' | 'devy';
+  playerName: string;
+  sourceKey: string;
+  status: 'unmatched' | 'resolved-collision';
+  selectedPlayerId?: string | null;
+  selectedPlayerName?: string | null;
+  candidates?: Array<{
+    playerId: string;
+    name: string;
+    position?: string | null;
+    team?: string | null;
+  }>;
+  note: string;
 }
 
 export interface RankingProfileOption {
@@ -73,6 +92,7 @@ export interface RankingsBoard {
   defaultDevyProfileKey?: string | null;
   profileOptions?: RankingProfileOption[];
   profiles?: Record<string, RankingPlayer[]>;
+  identityDiagnostics?: RankingIdentityDiagnostic[];
   dynastySf: RankingPlayer[];
   dynastyOneQb: RankingPlayer[];
   devySf: RankingPlayer[];
@@ -413,6 +433,13 @@ export interface PlayerDetails {
     fantasyCalcDynasty?: number | null;
     fantasyCalcRedraft?: number | null;
     dynastyProcess?: number | null;
+    dynastyNerds?: number | null;
+    dynastyNerdsRank?: number | null;
+    dynastyNerdsPositionRank?: string | null;
+    dynastyNerdsFormat?: string | null;
+    dynastyDealerBenchmark?: number | null;
+    dynastyDealerVoteRating?: number | null;
+    dynastyDealerUpdatedAt?: string | null;
     fantasyProsRank?: number | null;
     fantasyProsPositionRank?: string | null;
     fantasyProsTier?: number | null;

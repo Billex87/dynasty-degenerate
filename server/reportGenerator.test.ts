@@ -284,10 +284,10 @@ describe('generateReport trade ledger', () => {
         smallDrop: { first_name: 'Small', last_name: 'Drop', position: 'TE', age: 24 },
       },
       {
-        steadygain: { name: 'Steady Gain', ktc_value: 5000, market_value_ktc: 9000 },
-        smallbigpct: { name: 'Small Bigpct', ktc_value: 5000, market_value_ktc: 2500 },
-        bigdrop: { name: 'Big Drop', ktc_value: 5000, market_value_ktc: 7000 },
-        smalldrop: { name: 'Small Drop', ktc_value: 5000, market_value_ktc: 2000 },
+        steadygain: { name: 'Steady Gain', ktc_value: 9000, market_value_ktc: 9000 },
+        smallbigpct: { name: 'Small Bigpct', ktc_value: 2500, market_value_ktc: 2500 },
+        bigdrop: { name: 'Big Drop', ktc_value: 7000, market_value_ktc: 7000 },
+        smalldrop: { name: 'Small Drop', ktc_value: 2000, market_value_ktc: 2000 },
       },
       {
         steadygain: { name: 'Steady Gain', ktc_value: 8000 },

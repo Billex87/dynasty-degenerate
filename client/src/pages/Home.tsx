@@ -778,12 +778,38 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
     });
   }
 
+  const rankingIdentityDiagnostics = reportData.rankings?.identityDiagnostics || [];
+  const unmatchedRankingRows = rankingIdentityDiagnostics.filter((row) => row.status === 'unmatched');
+  const resolvedRankingRows = rankingIdentityDiagnostics.filter((row) => row.status === 'resolved-collision');
+
+  if (unmatchedRankingRows.length) {
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'ranking-identity-unmatched',
+      area: 'Ranking identities',
+      item: `${unmatchedRankingRows.length} source row${unmatchedRankingRows.length === 1 ? '' : 's'}`,
+      status: 'Needs mapping',
+      tone: 'danger',
+      note: `Ranking rows did not match a Sleeper player. First example: ${unmatchedRankingRows[0].playerName}. These rows may show the wrong owner/avatar until mapped.`,
+    });
+  }
+
+  if (resolvedRankingRows.length) {
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'ranking-identity-resolved',
+      area: 'Ranking identities',
+      item: `${resolvedRankingRows.length} name collision${resolvedRankingRows.length === 1 ? '' : 's'}`,
+      status: 'Auto-resolved',
+      tone: 'info',
+      note: `Duplicate Sleeper names were resolved using player position/team context. First example: ${resolvedRankingRows[0].note}`,
+    });
+  }
+
   outlookPlayers.forEach((player) => {
     const profile = getOutlookPlayerValueProfile(reportData, player);
     if (!profile) return;
 
     const sources = profile.sources || [];
-    const hasCoreMarketSource = Boolean(profile.flockFantasy || profile.marketKtc || profile.fantasyCalcDynasty || profile.dynastyProcess);
+    const hasCoreMarketSource = Boolean(profile.flockFantasy || profile.dynastyNerds || profile.marketKtc || profile.fantasyCalcDynasty || profile.dynastyProcess);
     if (sources.length >= 2 && hasCoreMarketSource) return;
 
     addUniqueDiagnosticRow(rows, seen, {
@@ -1638,6 +1664,7 @@ export default function Home() {
                   <RankingsBoard
                     rankings={reportData.rankings}
                     playerDetailsById={reportData.playerDetailsById}
+                    managerAvatars={reportData.managerAvatars}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                     viewerManager={reportData.viewerManager}

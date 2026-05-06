@@ -7,6 +7,10 @@ interface KTCValues {
     dynasty_value?: number;
     market_value_ktc?: number;
     expert_value_flock?: number;
+    expert_value_dynastynerds?: number;
+    benchmark_value_dynastydealer?: number;
+    value_sources?: string[];
+    benchmark_sources?: string[];
   };
 }
 
@@ -21,6 +25,20 @@ interface Player {
 
 export function cleanName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+}
+
+export function stripPlayerNameSuffixKey(key: string): string {
+  return key.replace(/(jr|sr|ii|iii|iv|v)$/i, '');
+}
+
+export function canonicalPlayerNameKey(name: string): string {
+  return stripPlayerNameSuffixKey(cleanName(name));
+}
+
+export function playerNameKeyVariants(name: string): string[] {
+  const key = cleanName(name);
+  const canonicalKey = stripPlayerNameSuffixKey(key);
+  return Array.from(new Set([key, canonicalKey].filter(Boolean)));
 }
 
 export function getPlayerName(pid: string, allPlayers: Player): string {
@@ -72,19 +90,22 @@ function getPlayerValueField(
 
   const fullName = `${p.first_name || ''}${p.last_name || ''}`;
   const key = cleanName(fullName);
-  let val = ktcValues[key]?.[field] || 0;
+  const variants = Array.from(new Set(playerNameKeyVariants(key)));
 
-  if (val === 0) {
-    // Fuzzy match
-    for (const k in ktcValues) {
-      if (key.includes(k) || k.includes(key)) {
-        return ktcValues[k][field] || 0;
-      }
-    }
-    return 0; // Return 0 if not found (will be filtered out in weekly momentum)
+  for (const variant of variants) {
+    const exactValue = ktcValues[variant]?.[field];
+    if (exactValue) return exactValue;
   }
 
-  return val;
+  const match = Object.entries(ktcValues)
+    .filter(([candidateKey]) => variants.some((variant) => variant.includes(candidateKey) || candidateKey.includes(variant)))
+    .sort(([, a], [, b]) => {
+      const aSourceScore = (a.value_sources?.length || 0) * 100000;
+      const bSourceScore = (b.value_sources?.length || 0) * 100000;
+      return (bSourceScore + (b[field] || 0)) - (aSourceScore + (a[field] || 0));
+    })[0];
+
+  return match?.[1]?.[field] || 0; // Return 0 if not found (will be filtered out in weekly momentum)
 }
 
 export function getPickValue(

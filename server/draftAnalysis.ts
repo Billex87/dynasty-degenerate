@@ -54,6 +54,8 @@ interface PositionRankData {
   true_value?: number;
   redraft_value?: number;
   market_value_ktc?: number;
+  expert_value_flock?: number;
+  expert_value_dynastynerds?: number;
   market_value_fantasycalc?: number;
   expert_value_dynastyprocess?: number;
   fantasypros_season_value?: number;
@@ -238,6 +240,16 @@ export async function analyzeDraftPicks(
   ): { baselineValue: number; currentValue: number } | null => {
     const parts = [
       {
+        baseline: getNumberValue(baseline, 'expert_value_flock'),
+        current: getNumberValue(current, 'expert_value_flock'),
+        weight: 0.32,
+      },
+      {
+        baseline: getNumberValue(baseline, 'expert_value_dynastynerds'),
+        current: getNumberValue(current, 'expert_value_dynastynerds'),
+        weight: 0.22,
+      },
+      {
         baseline: getKtcSourceValue(baseline),
         current: getKtcSourceValue(current),
         weight: 0.45,
@@ -250,7 +262,7 @@ export async function analyzeDraftPicks(
       {
         baseline: getNumberValue(baseline, 'expert_value_dynastyprocess'),
         current: getNumberValue(current, 'expert_value_dynastyprocess'),
-        weight: 0.2,
+        weight: 0.20,
       },
     ].filter((part) => part.baseline !== null && part.current !== null);
 
