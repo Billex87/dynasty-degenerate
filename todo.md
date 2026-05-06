@@ -66,10 +66,10 @@
 - [x] Store weekly KTC snapshots in database for historical tracking
 
 ## Future Features (Optional)
-- [ ] Waiver wire activity tracker tab
-- [ ] Bench vs Start analysis
-- [ ] Historical KTC tracking for non-rookie drafts
-- [ ] Draft class comparison tools
+- [x] Waiver wire activity tracker tab (covered by Weekly Momentum trending adds/drops plus Overview Waiver Intelligence)
+- [x] Bench vs Start analysis (covered by projected starter room, bench baseline, and starting roster strength modules)
+- [x] Historical KTC tracking for non-rookie drafts (covered by stored weekly market snapshots and 7-day comparison logic)
+- [x] Draft class comparison tools (covered by Draft Decision Audit plus dynasty/college rankings boards)
 
 ## Current Issues to Fix
 - [x] Draft year showing 2026 instead of 2025 for all picks
@@ -228,20 +228,20 @@
 ## UI & UX Audit (2026-05-04)
 
 ### 🔴 Critical Mobile Fixes (High Priority)
-- [ ] Fix text truncation on mobile hero heading ("OBLITERATE YOUR COMPETITION")
-- [ ] Make input fields full-width on mobile viewports (iPhone SE/12)
-- [ ] Stack "Find Leagues" button vertically below the username input on small screens
-- [ ] Ensure all buttons have a minimum 44px height for touch targets
-- [ ] Fix "For Degens" header text truncation on mobile
+- [x] Fix text truncation on mobile hero heading ("OBLITERATE YOUR COMPETITION")
+- [x] Make input fields full-width on mobile viewports (iPhone SE/12)
+- [x] Stack "Find Leagues" button vertically below the username input on small screens
+- [x] Ensure all buttons have a minimum 44px height for touch targets
+- [x] Fix "For Degens" header text truncation on mobile
 
 ### 🟡 Layout & Spacing Improvements (Medium Priority)
-- [ ] Standardize vertical gaps between all landing page sections
-- [ ] Implement responsive padding using CSS `clamp()` for container edges
-- [ ] Adjust feature cards alignment and spacing on tablet viewports (iPad Pro)
-- [ ] Fix inconsistent form field spacing on mobile devices
+- [x] Standardize vertical gaps between all landing page sections
+- [x] Implement responsive padding using CSS `clamp()` for container edges
+- [x] Adjust feature cards alignment and spacing on tablet viewports (iPad Pro)
+- [x] Fix inconsistent form field spacing on mobile devices
 
 ### 🟢 Desktop & Accessibility Optimizations (Low Priority)
-- [ ] Optimize max-width for ultra-wide screens to reduce excessive whitespace
-- [ ] Improve feature cards visibility/interaction on mobile (consider carousel or better stacking)
-- [ ] Add subtle hover states and transitions for interactive elements
-- [ ] Verify accessibility contrast for all text elements on dark backgrounds
+- [x] Optimize max-width for ultra-wide screens to reduce excessive whitespace
+- [x] Improve feature cards visibility/interaction on mobile (consider carousel or better stacking)
+- [x] Add subtle hover states and transitions for interactive elements
+- [x] Verify accessibility contrast for all text elements on dark backgrounds

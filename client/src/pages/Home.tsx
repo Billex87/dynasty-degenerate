@@ -2060,9 +2060,10 @@ export default function Home() {
       <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
           <div className="home-hero w-full max-w-3xl space-y-8 sm:space-y-12">
             {/* Main Title */}
-            <div className="space-y-3 sm:space-y-4 text-center">
-              <h2 className="athletic-title home-title text-4xl sm:text-6xl md:text-7xl bg-gradient-to-r from-orange-400 via-orange-300 to-yellow-300 bg-clip-text text-transparent">
-                Obliterate Your Competition
+            <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
+              <h2 className="athletic-title home-title text-4xl sm:text-6xl md:text-7xl bg-gradient-to-r from-orange-400 via-orange-300 to-yellow-300 bg-clip-text text-transparent" aria-label="Obliterate Your Competition">
+                <span>Obliterate Your</span>
+                <span>Competition</span>
               </h2>
               <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
                 Stop guessing. Start dominating. <span className="home-subtitle-name">Dynasty Degenerates</span> blends dynasty market data, season outlooks, roster context, and AI-driven reads to give you an unfair advantage over the rest of your league.
@@ -2072,10 +2073,10 @@ export default function Home() {
             {/* Input Section */}
             <div className="home-analyze-card space-y-4 sm:space-y-6 p-4 sm:p-8">
               <div className="text-center">
-                <label className="block text-sm font-semibold text-slate-200 mb-3">
+                <label className="home-field-label block text-sm font-semibold text-slate-200 mb-3">
                   Enter Your Sleeper Username
                 </label>
-                <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row w-full">
+                <div className="home-username-row flex flex-col gap-2 sm:gap-3 sm:flex-row w-full">
                   <div className="home-autocomplete-anchor flex-1 w-full sm:w-auto">
                     <Input
                       id="sleeper-username"
@@ -2111,12 +2112,12 @@ export default function Home() {
                     type="button"
                     onClick={handleFindLeagues}
                     disabled={userLeaguesMutation.isPending}
-                    className="w-full sm:w-auto h-12 shrink-0 rounded-lg border border-cyan-300/25 bg-cyan-400/10 px-5 font-bold text-cyan-100 hover:bg-cyan-400/15"
+                    className="home-find-leagues-button w-full sm:w-auto h-12 shrink-0 rounded-lg border border-cyan-300/25 bg-cyan-400/10 px-5 font-bold text-cyan-100 hover:bg-cyan-400/15"
                   >
                     {userLeaguesMutation.isPending ? 'Finding...' : 'Find Leagues'}
                   </Button>
                 </div>
-                <p className="text-xs text-slate-400 mt-2">
+                <p className="home-field-helper text-xs text-slate-400 mt-2">
                   Pick one of your Sleeper leagues and this will run the report automatically.
                 </p>
               </div>
@@ -2138,7 +2139,7 @@ export default function Home() {
               </div>
 
               <div className="text-center">
-                <label className="block text-sm font-semibold text-slate-200 mb-3">
+                <label className="home-field-label block text-sm font-semibold text-slate-200 mb-3">
                   Enter Your Sleeper League ID
                 </label>
                 <div className="home-autocomplete-anchor w-full">
@@ -2173,7 +2174,7 @@ export default function Home() {
                     />
                   ) : null}
                 </div>
-                <p className="text-xs text-slate-400 mt-2">
+                <p className="home-field-helper text-xs text-slate-400 mt-2">
                   In the Sleeper app, open your league → go to General Settings → scroll to the bottom to find your League ID.
                 </p>
               </div>
@@ -2189,7 +2190,7 @@ export default function Home() {
             </div>
 
             {/* Features Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
+            <div className="home-feature-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
               <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
                 <div className="home-feature-heading">
                   <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
