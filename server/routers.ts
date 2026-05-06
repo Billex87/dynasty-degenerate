@@ -1824,6 +1824,10 @@ export const appRouter = router({
             ...draftAnalysis.draftPicks.map((pick: any) => pick.player_id),
             ...trendingAdds.map((player) => player.player_id),
             ...trendingDrops.map((player) => player.player_id),
+            waiverIntelligence.highestKtcAvailable?.player_id,
+            ...Object.values(waiverIntelligence.bestAvailableByPosition).map((player) => player?.player_id),
+            ...waiverIntelligence.bestTaxiStashes.map((player) => player.player_id),
+            ...waiverIntelligence.recentlyDroppedValuable.map((player) => player.player_id),
           ];
           const valueProfilesById = Object.fromEntries(
             reportPlayerIds

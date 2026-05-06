@@ -5580,62 +5580,368 @@ export function PickPortfolioTable({
   );
 }
 
+type WaiverPosition = 'QB' | 'RB' | 'WR' | 'TE';
+
+type WaiverRecommendation = {
+  player: TrendingPlayer;
+  score: number;
+  reason: string;
+  targetPosition: WaiverPosition | null;
+};
+
+type WaiverRecommendationContext = {
+  openRosterSpots: number;
+  targetPositions: WaiverPosition[];
+  recommendations: WaiverRecommendation[];
+  summary: string | null;
+};
+
+const WAIVER_POSITIONS: WaiverPosition[] = ['QB', 'RB', 'WR', 'TE'];
+const WAIVER_RECOMMENDATION_LIMIT = 4;
+
+function isWaiverPosition(position: string | null | undefined): position is WaiverPosition {
+  return WAIVER_POSITIONS.includes(position as WaiverPosition);
+}
+
+function normalizeReportManagerName(manager?: string | null): string {
+  return manager?.trim().toLowerCase() || '';
+}
+
+function getWaiverPlayerDetails(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): PlayerDetails | undefined {
+  const mappedDetails = playerDetailsById?.[player.player_id];
+  if (!mappedDetails) return player.playerDetails;
+  return {
+    ...player.playerDetails,
+    ...mappedDetails,
+    valueProfile: mappedDetails.valueProfile || player.playerDetails?.valueProfile,
+  };
+}
+
+function getWaiverPlayerValue(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): number {
+  const details = getWaiverPlayerDetails(player, playerDetailsById);
+  return Math.round(
+    player.ktcValue
+    ?? details?.valueProfile?.dynastyValue
+    ?? details?.valueProfile?.balancedValue
+    ?? details?.valueProfile?.seasonValue
+    ?? 0
+  );
+}
+
+function getWaiverPlayerRank(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): string | null {
+  const details = getWaiverPlayerDetails(player, playerDetailsById);
+  return player.currentPositionRank
+    || details?.valueProfile?.dynastyPositionRank
+    || details?.valueProfile?.balancedPositionRank
+    || details?.valueProfile?.seasonPositionRank
+    || details?.valueProfile?.fantasyProsPositionRank
+    || null;
+}
+
+function collectWaiverCandidates(data: NonNullable<ReportData['waiverIntelligence']>): TrendingPlayer[] {
+  const byId = new Map<string, TrendingPlayer>();
+  const addPlayer = (player: TrendingPlayer | null | undefined) => {
+    if (!player?.player_id || player.owner || !isWaiverPosition(player.pos)) return;
+    if (!byId.has(player.player_id)) byId.set(player.player_id, player);
+  };
+
+  addPlayer(data.highestKtcAvailable);
+  Object.values(data.bestAvailableByPosition).forEach(addPlayer);
+  data.bestTaxiStashes.forEach(addPlayer);
+  data.availableTrendingAdds.forEach(addPlayer);
+  data.recentlyDroppedValuable.forEach(addPlayer);
+
+  return Array.from(byId.values());
+}
+
+function getOpenRosterSpotCount(
+  viewerIntel: OwnerIntelRow | null | undefined,
+  leagueDiagnostics?: ReportData['leagueDiagnostics'],
+  positionCountRow?: ReportData['managerPositionCounts'][number] | null
+): number {
+  const activeSlotCount = (leagueDiagnostics?.rosterSlots || [])
+    .filter((slot) => {
+      const normalized = String(slot || '').toUpperCase();
+      return normalized && normalized !== 'IR' && normalized !== 'TAXI' && normalized !== 'RESERVE';
+    })
+    .length;
+  const activeRosterCount = positionCountRow
+    ? positionCountRow.QB + positionCountRow.RB + positionCountRow.WR + positionCountRow.TE
+    : viewerIntel?.rosterPlayers?.length || 0;
+  if (!activeSlotCount || !activeRosterCount) return 0;
+  return Math.max(0, activeSlotCount - activeRosterCount);
+}
+
+function getWaiverNeedWeights(
+  viewerIntel: OwnerIntelRow | null | undefined,
+  positionDepth?: ReportData['positionDepth'],
+  viewerManager?: string | null
+): Record<WaiverPosition, number> {
+  const weights: Record<WaiverPosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
+  const addWeight = (position: string | null | undefined, amount: number) => {
+    if (isWaiverPosition(position)) weights[position] += amount;
+    if (position === 'FLEX') {
+      weights.RB += amount * 0.72;
+      weights.WR += amount * 0.72;
+      weights.TE += amount * 0.45;
+    }
+  };
+
+  const normalizedViewer = normalizeReportManagerName(viewerManager || viewerIntel?.manager);
+  positionDepth
+    ?.filter((row) => normalizeReportManagerName(row.manager) === normalizedViewer && row.status === 'shortage')
+    .forEach((row) => addWeight(row.position, 760));
+
+  addWeight(viewerIntel?.tradePlan?.needPosition, 520);
+
+  viewerIntel?.benchBaseline?.forEach((tile) => {
+    const gradeWeight = tile.grade === 'Problem'
+      ? 680
+      : tile.grade === 'Playable'
+        ? 420
+        : tile.grade === 'Thin'
+          ? 360
+          : 0;
+    const emptyWeight = tile.player ? 0 : 520;
+    const leagueRankWeight = tile.leagueRank && tile.leagueRank >= 7 ? 220 : 0;
+    addWeight(tile.key, gradeWeight + emptyWeight + leagueRankWeight);
+  });
+
+  if ((viewerIntel?.holes.flexDepth || 0) <= 1) {
+    addWeight('FLEX', 320);
+  }
+
+  return weights;
+}
+
+function buildWaiverRecommendationReason({
+  player,
+  playerDetailsById,
+  targetPosition,
+  needWeight,
+  openRosterSpots,
+}: {
+  player: TrendingPlayer;
+  playerDetailsById?: PlayerDetailsById;
+  targetPosition: WaiverPosition | null;
+  needWeight: number;
+  openRosterSpots: number;
+}): string {
+  const details = getWaiverPlayerDetails(player, playerDetailsById);
+  const rank = getWaiverPlayerRank(player, playerDetailsById);
+  const age = details?.age ?? null;
+  const depthOrder = details?.depthChartOrder;
+  const rookieYear = Number(details?.rookieYear || 0);
+  const currentYear = new Date().getFullYear();
+  const positionCopy = targetPosition && needWeight > 0
+    ? `${targetPosition} matches your roster-depth need`
+    : `${player.pos} is the best value/role shot available`;
+  const ageCopy = age ? `${age} years old` : null;
+  const rankCopy = rank ? `${rank}` : null;
+  const roleCopy = typeof depthOrder === 'number' && Number.isFinite(depthOrder)
+    ? `Sleeper depth chart order ${depthOrder}`
+    : rookieYear === currentYear
+      ? 'rookie stash profile'
+      : details?.latestNews?.title
+        ? 'recent role/news signal'
+        : null;
+  const spotCopy = openRosterSpots > 0
+    ? `fits one of ${openRosterSpots} open roster spot${openRosterSpots === 1 ? '' : 's'}`
+    : 'is a priority watchlist add if you create a spot';
+
+  return [positionCopy, ageCopy, rankCopy, roleCopy, spotCopy].filter(Boolean).join(' • ');
+}
+
+function buildWaiverRecommendationContext({
+  data,
+  viewerManager,
+  managerRosterIntelligence,
+  managerPositionCounts,
+  positionDepth,
+  leagueDiagnostics,
+  playerDetailsById,
+}: {
+  data: NonNullable<ReportData['waiverIntelligence']>;
+  viewerManager?: string | null;
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  managerPositionCounts?: ReportData['managerPositionCounts'];
+  positionDepth?: ReportData['positionDepth'];
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
+  playerDetailsById?: PlayerDetailsById;
+}): WaiverRecommendationContext {
+  const normalizedViewer = normalizeReportManagerName(viewerManager);
+  const viewerIntel = managerRosterIntelligence?.find((row) => normalizeReportManagerName(row.manager) === normalizedViewer);
+  const viewerPositionCounts = managerPositionCounts?.find((row) => normalizeReportManagerName(row.manager) === normalizedViewer) || null;
+  if (!viewerIntel) {
+    return {
+      openRosterSpots: 0,
+      targetPositions: [],
+      recommendations: [],
+      summary: null,
+    };
+  }
+
+  const openRosterSpots = getOpenRosterSpotCount(viewerIntel, leagueDiagnostics, viewerPositionCounts);
+  const needWeights = getWaiverNeedWeights(viewerIntel, positionDepth, viewerManager);
+  const targetPositions = WAIVER_POSITIONS
+    .filter((position) => needWeights[position] > 0)
+    .sort((a, b) => needWeights[b] - needWeights[a]);
+  const recommendationLimit = Math.max(1, Math.min(WAIVER_RECOMMENDATION_LIMIT, openRosterSpots || 2));
+  const recommendations = collectWaiverCandidates(data)
+    .map((player) => {
+      const pos = isWaiverPosition(player.pos) ? player.pos : null;
+      const details = getWaiverPlayerDetails(player, playerDetailsById);
+      const value = getWaiverPlayerValue(player, playerDetailsById);
+      const rankNumber = parsePositionRankValue(getWaiverPlayerRank(player, playerDetailsById));
+      const age = details?.age ?? null;
+      const rookieYear = Number(details?.rookieYear || 0);
+      const currentYear = new Date().getFullYear();
+      const depthOrder = Number(details?.depthChartOrder || 0);
+      const needWeight = pos ? needWeights[pos] : 0;
+      const youthScore = age && age <= 22 ? 320 : age && age <= 25 ? 190 : age && age >= 29 ? -140 : 0;
+      const rankScore = rankNumber ? Math.max(0, 620 - rankNumber * 5) : 0;
+      const rolePathScore = depthOrder > 0 && depthOrder <= 3 ? 160 : 0;
+      const rookieScore = rookieYear === currentYear ? 210 : 0;
+      const trendScore = Math.min(player.count || 0, 450);
+      const valueScore = Math.min(value / 4, 1250);
+      const score = needWeight + valueScore + rankScore + youthScore + rookieScore + rolePathScore + trendScore;
+
+      return {
+        player,
+        score,
+        targetPosition: pos,
+        reason: buildWaiverRecommendationReason({
+          player,
+          playerDetailsById,
+          targetPosition: pos,
+          needWeight,
+          openRosterSpots,
+        }),
+      };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, recommendationLimit);
+
+  const openSpotCopy = openRosterSpots > 0
+    ? `${openRosterSpots} open active roster spot${openRosterSpots === 1 ? '' : 's'} detected.`
+    : 'No open active roster spot is detected, so treat these as priority watchlist or cut-upgrade targets.';
+  const targetCopy = targetPositions.length
+    ? `The AI read is leaning ${targetPositions.slice(0, 3).join(', ')} based on your roster depth.`
+    : 'The AI read is leaning best available value because no single position is screaming for depth.';
+  const summary = recommendations.length
+    ? `${openSpotCopy} Highlighted cards are suggested pickup shots based on roster depth, age, market value, trend volume, and role-path clues. ${targetCopy}`
+    : null;
+
+  return {
+    openRosterSpots,
+    targetPositions,
+    recommendations,
+    summary,
+  };
+}
+
 export function WaiverIntelligencePanel({
   data,
   managerAvatars,
   playerDetailsById,
   leagueId,
   leagueLogo,
+  viewerManager,
+  managerRosterIntelligence,
+  managerPositionCounts,
+  positionDepth,
+  leagueDiagnostics,
 }: {
   data?: ReportData['waiverIntelligence'];
   managerAvatars?: ManagerAvatars;
   playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
+  viewerManager?: string | null;
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  managerPositionCounts?: ReportData['managerPositionCounts'];
+  positionDepth?: ReportData['positionDepth'];
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   if (!data) return null;
-  const cards = [
+  const recommendationContext = buildWaiverRecommendationContext({
+    data,
+    viewerManager,
+    managerRosterIntelligence,
+    managerPositionCounts,
+    positionDepth,
+    leagueDiagnostics,
+    playerDetailsById,
+  });
+  const recommendationByPlayerId = new Map(recommendationContext.recommendations.map((recommendation) => [recommendation.player.player_id, recommendation]));
+  const baseCards = [
     { label: 'Highest Available', player: data.highestKtcAvailable },
     ...Object.entries(data.bestAvailableByPosition).map(([pos, player]) => ({ label: `Best ${pos}`, player })),
     ...data.bestTaxiStashes.map((player, index) => ({ label: `Taxi Stash ${index + 1}`, player })),
-  ].filter((card) => card.player);
+  ].filter((card): card is { label: string; player: TrendingPlayer } => Boolean(card.player));
+  const basePlayerIds = new Set(baseCards.map((card) => card.player.player_id));
+  const suggestedCards = recommendationContext.recommendations
+    .filter((recommendation) => !basePlayerIds.has(recommendation.player.player_id))
+    .map((recommendation, index) => ({ label: `Suggested Add ${index + 1}`, player: recommendation.player }));
+  const cards = [...suggestedCards, ...baseCards];
 
   return (
-    <div className="player-tile-grid waiver-intel-grid">
-      {cards.map(({ label, player }) => (
-        <button
-          key={label}
-          type="button"
-          className="player-team-tile waiver-intel-card"
-          style={getTeamTileStyle(player?.playerDetails?.team || player?.team)}
-          onClick={() => player && setSelectedPlayer(buildPlayerModalData({
-            playerId: player.player_id,
-            playerName: player.name,
-            playerPos: player.pos,
-            value: player.ktcValue,
-            playerDetails: player.playerDetails,
-            playerDetailsById,
-            currentPositionRank: player.currentPositionRank,
-            manager: player.owner || null,
-            managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
-          }))}
-        >
-          <div className="waiver-intel-top">
-            <span className="waiver-intel-label">{label}</span>
-            <span className="available-manager-label">Available</span>
-          </div>
-          <div className="waiver-intel-main">
-            <PlayerNameWithHeadshot playerId={player?.player_id} playerName={player?.name || '-'} />
-          </div>
-          <div className="waiver-intel-pills">
-            <TeamLogoPill team={player?.playerDetails?.team || player?.team} />
-            <PositionRankPill rank={player?.currentPositionRank || player?.pos || '-'} />
-            {label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
-            <span>{formatCompactValue(player?.ktcValue)}</span>
-          </div>
-        </button>
-      ))}
+    <div className="waiver-intel-panel">
+      {recommendationContext.summary && (
+        <div className="waiver-intel-recommendation-banner">
+          <span>Suggested pickups</span>
+          <p>{recommendationContext.summary}</p>
+        </div>
+      )}
+      <div className="player-tile-grid waiver-intel-grid">
+        {cards.map(({ label, player }) => {
+          const recommendation = recommendationByPlayerId.get(player.player_id);
+          const details = getWaiverPlayerDetails(player, playerDetailsById);
+          const rank = getWaiverPlayerRank(player, playerDetailsById);
+          const value = getWaiverPlayerValue(player, playerDetailsById);
+          return (
+            <button
+              key={`${label}-${player.player_id}`}
+              type="button"
+              className={`player-team-tile waiver-intel-card ${recommendation ? 'waiver-intel-card-suggested' : ''}`}
+              style={getTeamTileStyle(details?.team || player.team)}
+              onClick={() => setSelectedPlayer(buildPlayerModalData({
+                playerId: player.player_id,
+                playerName: player.name,
+                playerPos: player.pos,
+                value,
+                playerDetails: details,
+                playerDetailsById,
+                currentPositionRank: rank,
+                manager: player.owner || null,
+                managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
+              }))}
+            >
+              <div className="waiver-intel-top">
+                <span className="waiver-intel-label">{label}</span>
+                <span className={recommendation ? 'waiver-intel-suggestion-label' : 'available-manager-label'}>
+                  {recommendation ? 'Suggested Add' : 'Available'}
+                </span>
+              </div>
+              <div className="waiver-intel-main">
+                <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+              </div>
+              <div className="waiver-intel-pills">
+                <TeamLogoPill team={details?.team || player.team} />
+                <PositionRankPill rank={rank || player.pos || '-'} />
+                {label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
+                {recommendation && recommendationContext.openRosterSpots > 0 && <span>Open Spot Fit</span>}
+                <span>{formatCompactValue(value)}</span>
+              </div>
+              {recommendation && (
+                <p className="waiver-intel-recommendation-note">{recommendation.reason}</p>
+              )}
+            </button>
+          );
+        })}
+      </div>
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}

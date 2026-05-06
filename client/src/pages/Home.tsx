@@ -1578,6 +1578,11 @@ export default function Home() {
                       playerDetailsById={reportData.playerDetailsById}
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
+                      viewerManager={reportData.viewerManager}
+                      managerRosterIntelligence={reportData.managerRosterIntelligence}
+                      managerPositionCounts={reportData.managerPositionCounts}
+                      positionDepth={reportData.positionDepth}
+                      leagueDiagnostics={reportData.leagueDiagnostics}
                     />
                   </CollapsibleReportSection>
                   <CollapsibleReportSection title="Recent Transactions" kicker="Claims, drops, and churn">
