@@ -13658,3 +13658,476 @@ button.trade-manager-trade {
     white-space: normal;
   }
 }
+
+/* Premium report polish pass: keep the degenerate identity, tighten hierarchy, and never allow page-level horizontal scroll. */
+:root {
+  --dd-space-1: 0.5rem;
+  --dd-space-2: 0.75rem;
+  --dd-space-3: 1rem;
+  --dd-space-4: 1.5rem;
+  --dd-space-5: 2rem;
+  --dd-space-6: 3rem;
+  --dd-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dd-cyan: #67e8f9;
+  --dd-orange: #fb923c;
+  --dd-gold: #fbbf24;
+  --dd-good: #34d399;
+  --dd-danger: #fb7185;
+  --dd-panel: rgba(2, 6, 23, 0.72);
+}
+
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body {
+  width: 100%;
+}
+
+.report-shell,
+.report-shell > *,
+[data-slot="dialog-content"] {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.report-shell :is(button, a, input, select, textarea, summary):focus-visible,
+[data-slot="dialog-content"] :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.9);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 4px rgba(34, 211, 238, 0.16),
+    0 0 28px rgba(34, 211, 238, 0.22) !important;
+}
+
+.report-header {
+  border-bottom-color: rgba(34, 211, 238, 0.16) !important;
+  background:
+    linear-gradient(90deg, rgba(2, 6, 23, 0.98), rgba(9, 15, 30, 0.95), rgba(2, 6, 23, 0.98)),
+    radial-gradient(circle at 18% 0%, rgba(249, 115, 22, 0.16), transparent 30%),
+    radial-gradient(circle at 86% 0%, rgba(34, 211, 238, 0.12), transparent 32%) !important;
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(34, 211, 238, 0.08),
+    0 12px 42px rgba(34, 211, 238, 0.06) !important;
+}
+
+.report-header-logo,
+.report-header-mobile-logo,
+.report-league-icon,
+.league-shortcut-button {
+  transition: transform 180ms var(--dd-ease), filter 180ms var(--dd-ease), border-color 180ms var(--dd-ease);
+}
+
+.report-header-logo:hover,
+.report-header-mobile-logo:hover,
+.report-league-lockup:hover .report-league-icon,
+.league-shortcut-button:hover {
+  filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.28));
+  transform: translateY(-1px) scale(1.025);
+}
+
+.report-header-action {
+  min-height: 1.45rem !important;
+  border-color: rgba(251, 146, 60, 0.38) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 22px rgba(0, 0, 0, 0.22) !important;
+}
+
+.report-live-indicator {
+  min-height: 1.2rem;
+  align-items: center;
+  gap: 0.34rem;
+  color: rgba(103, 232, 249, 0.74);
+  font-size: clamp(0.56rem, 0.66vw, 0.68rem);
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.report-live-indicator > span {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: var(--dd-good);
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.34), 0 0 14px rgba(52, 211, 153, 0.5);
+  animation: dd-live-pulse 2.2s var(--dd-ease) infinite;
+}
+
+@keyframes dd-live-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.34), 0 0 14px rgba(52, 211, 153, 0.46);
+  }
+  50% {
+    box-shadow: 0 0 0 0.35rem rgba(52, 211, 153, 0), 0 0 20px rgba(52, 211, 153, 0.6);
+  }
+}
+
+.report-shell .report-tabs {
+  border-color: rgba(34, 211, 238, 0.2) !important;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86)),
+    radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.12), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.1), transparent 34%) !important;
+}
+
+.report-shell .report-tab {
+  position: relative;
+  overflow: hidden;
+  transition: color 180ms var(--dd-ease), border-color 180ms var(--dd-ease), background 180ms var(--dd-ease), transform 180ms var(--dd-ease);
+}
+
+.report-shell .report-tab::after {
+  content: "";
+  position: absolute;
+  inset: auto 18% 0.25rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.96), rgba(34, 211, 238, 0.86), transparent);
+  opacity: 0;
+  transform: scaleX(0.55);
+  transition: opacity 180ms var(--dd-ease), transform 180ms var(--dd-ease);
+}
+
+.report-shell .report-tab:hover {
+  color: #f8fafc;
+  background: rgba(8, 47, 73, 0.28);
+  transform: translateY(-1px);
+}
+
+.report-shell .report-tab[data-state="active"]::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.report-disclosure-summary {
+  isolation: isolate;
+}
+
+.report-disclosure-summary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    linear-gradient(rgba(34, 211, 238, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.025) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.08), transparent 45%);
+  background-size: 24px 24px, 24px 24px, auto;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.report-disclosure[open] .report-disclosure-summary {
+  border-color: rgba(34, 211, 238, 0.16);
+  background: rgba(2, 6, 23, 0.22);
+}
+
+.report-shell :is(.owner-summary-tile, .command-depth-tile, .player-team-tile, .manager-intel-player, .ranking-player-card) {
+  transition:
+    border-color 180ms var(--dd-ease),
+    box-shadow 180ms var(--dd-ease),
+    transform 180ms var(--dd-ease),
+    filter 180ms var(--dd-ease);
+}
+
+.report-shell :is(button.owner-summary-tile, button.command-depth-tile, button.player-team-tile, button.ranking-player-card):hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(34, 211, 238, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.report-shell :is(.owner-summary-tile, .command-depth-tile):hover :is(.owner-summary-avatar, .command-depth-avatar),
+.report-shell :is(.manager-intel-player, .manager-command-player-tile):hover .player-chip img {
+  transform: scale(1.035);
+}
+
+.active-owner-badge {
+  position: absolute;
+  z-index: 4;
+  top: 0.58rem;
+  right: 0.58rem;
+  display: inline-flex;
+  min-height: 1.34rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(250, 204, 21, 0.42);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(250, 204, 21, 0.2), transparent 48%),
+    rgba(2, 6, 23, 0.72);
+  padding: 0.16rem 0.48rem;
+  color: #fde68a;
+  font-size: 0.54rem;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+}
+
+.viewer-owned-highlight {
+  border-color: rgba(250, 204, 21, 0.82) !important;
+}
+
+.owner-metric-pill,
+.manager-intel-pill,
+.command-mini-badge,
+.trade-habit-pill,
+.weekly-momentum-status-pill,
+.position-rank-pill,
+.value-pill {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.command-mini-badge-good,
+.manager-intel-pill-good,
+.owner-metric-pill-good {
+  border-color: rgba(52, 211, 153, 0.34) !important;
+  background: rgba(6, 78, 59, 0.42) !important;
+}
+
+.command-mini-badge-warn,
+.owner-metric-pill-warn {
+  border-color: rgba(251, 146, 60, 0.38) !important;
+  background: rgba(124, 45, 18, 0.38) !important;
+}
+
+.command-mini-badge-danger,
+.manager-intel-pill-danger,
+.owner-metric-pill-danger {
+  border-color: rgba(251, 113, 133, 0.38) !important;
+  background: rgba(136, 19, 55, 0.36) !important;
+}
+
+.command-mini-badge-future,
+.manager-intel-pill-future,
+.owner-metric-pill-info {
+  border-color: rgba(34, 211, 238, 0.32) !important;
+  background: rgba(8, 47, 73, 0.42) !important;
+}
+
+[data-slot="dialog-content"].admin-permissions-dialog,
+[data-slot="dialog-content"].manager-command-dialog,
+[data-slot="dialog-content"].owner-quick-modal,
+[data-slot="dialog-content"].starter-modal,
+[data-slot="dialog-content"].manager-draft-modal,
+[data-slot="dialog-content"].trade-manager-modal {
+  border-color: rgba(34, 211, 238, 0.24) !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.16), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.14), transparent 34%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.94)) !important;
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 0 48px rgba(34, 211, 238, 0.1) !important;
+}
+
+.admin-permissions-dialog [data-slot="dialog-title"] {
+  background: linear-gradient(90deg, #fb923c, #fbbf24, #fb923c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 0;
+}
+
+.admin-permissions-copy {
+  line-height: 1.48;
+}
+
+.manager-command-hero {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.24),
+    inset 0 -1px 0 rgba(34, 211, 238, 0.12);
+}
+
+.manager-command-body,
+.owner-intel-read-grid p,
+.manager-command-grid p,
+.manager-command-section p {
+  line-height: 1.5;
+}
+
+.intelligence-metric {
+  border-color: rgba(34, 211, 238, 0.18) !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.08), transparent 40%),
+    rgba(2, 6, 23, 0.56) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.intelligence-metric-positive {
+  border-color: rgba(52, 211, 153, 0.28) !important;
+}
+
+.intelligence-metric-negative {
+  border-color: rgba(251, 113, 133, 0.28) !important;
+}
+
+.owner-intel-stat-grid,
+.manager-command-hero-metrics {
+  gap: clamp(0.5rem, 1.35vw, 0.8rem) !important;
+}
+
+.owner-intel-read-grid > div,
+.manager-command-section,
+.manager-command-grid > div {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.055), transparent 34%),
+    rgba(2, 6, 23, 0.48) !important;
+}
+
+.owner-intel-read-grid > .owner-intel-read-wide,
+.manager-command-read {
+  border-color: rgba(251, 146, 60, 0.2) !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.1), transparent 34%),
+    rgba(2, 6, 23, 0.5) !important;
+}
+
+.owner-intel-full-rank-panel,
+.owner-intel-roster-heat {
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: var(--report-panel-radius, 0.95rem);
+  background:
+    linear-gradient(rgba(34, 211, 238, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.025) 1px, transparent 1px),
+    rgba(2, 6, 23, 0.36);
+  background-size: 26px 26px, 26px 26px, auto;
+  padding: clamp(0.7rem, 1.6vw, 1rem);
+}
+
+.owner-intel-dialog .owner-intel-full-rank-grid,
+.owner-intel-dialog .owner-intel-heat-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+.owner-intel-heat-pill {
+  position: relative;
+  overflow: hidden;
+}
+
+.owner-intel-heat-pill::after {
+  content: "";
+  position: absolute;
+  inset: auto 10% 0.35rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.28;
+}
+
+.manager-intel-player[data-insight-label="untouchable"] {
+  border-color: rgba(251, 191, 36, 0.42) !important;
+}
+
+.manager-intel-player[data-insight-label="buy-idea"] {
+  border-color: rgba(52, 211, 153, 0.38) !important;
+}
+
+.manager-intel-player[data-insight-label="sell-idea"],
+.manager-intel-player[data-insight-label="droppable"] {
+  border-color: rgba(251, 113, 133, 0.4) !important;
+}
+
+.manager-intel-player[data-insight-label="trade-chip"] {
+  border-color: rgba(96, 165, 250, 0.42) !important;
+}
+
+.manager-intel-player[data-insight-label="insurance"],
+.manager-intel-player[data-insight-label="last-year-stud"] {
+  border-color: rgba(251, 191, 36, 0.34) !important;
+}
+
+.manager-intel-player[data-insight-label="weak-link"],
+.manager-intel-player[data-insight-label="injury-flag"] {
+  border-color: rgba(251, 146, 60, 0.42) !important;
+}
+
+.manager-intel-player[data-insight-label="bench-stash"] {
+  border-color: rgba(168, 85, 247, 0.38) !important;
+}
+
+.manager-intel-player-kicker::before {
+  content: "";
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-right: 0.38rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+  vertical-align: 0.05em;
+}
+
+.home-analyze-button {
+  box-shadow:
+    0 14px 34px rgba(249, 115, 22, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+.home-analyze-button:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1023px) {
+  .manager-command-hero {
+    position: sticky;
+  }
+
+  .active-owner-badge {
+    top: 0.45rem;
+    right: 0.45rem;
+    font-size: 0.5rem;
+  }
+
+  .owner-intel-dialog .owner-intel-full-rank-grid,
+  .owner-intel-dialog .owner-intel-heat-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell .report-tabs {
+    overflow: hidden !important;
+  }
+
+  .report-shell .report-tab svg {
+    width: 0.88rem;
+    height: 0.88rem;
+  }
+
+  .owner-intel-dialog .owner-intel-full-rank-grid,
+  .owner-intel-dialog .owner-intel-heat-grid {
+    gap: 0.24rem !important;
+  }
+
+  .owner-intel-dialog .owner-intel-heat-pill {
+    min-height: 4.35rem;
+  }
+
+  .manager-command-hero {
+    padding-top: calc(0.88rem + env(safe-area-inset-top));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-shell *,
+  [data-slot="dialog-content"] *,
+  .report-live-indicator > span {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

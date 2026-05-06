@@ -1841,6 +1841,21 @@ function TradeableDepthList({
   );
 }
 
+function getPlayerInsightLabelHelp(label: string): string {
+  const normalized = label.toLowerCase();
+  if (normalized.includes('untouchable')) return 'Core asset. Only move this player for a clear overpay.';
+  if (normalized.includes('buy')) return 'Target profile that fits this roster shape or market window.';
+  if (normalized.includes('sell')) return 'Player whose value, role, or roster fit makes them worth shopping.';
+  if (normalized.includes('trade chip')) return 'Useful value piece to consolidate into a better starter, picks, or cleaner roster fit.';
+  if (normalized.includes('insurance')) return 'Depth piece that protects a fragile starter or position room.';
+  if (normalized.includes('droppable')) return 'First cut candidate when waivers or roster churn matter.';
+  if (normalized.includes('weak')) return 'Projected starter or roster spot opponents can attack.';
+  if (normalized.includes('injury')) return 'Health or availability concern that changes this roster read.';
+  if (normalized.includes('bench')) return 'Best non-starting stash based on value and roster fit.';
+  if (normalized.includes('stud')) return 'Last-season production marker worth keeping in context.';
+  return `${label} roster insight.`;
+}
+
 function PlayerInsightTile({
   label,
   player,
@@ -1865,12 +1880,17 @@ function PlayerInsightTile({
   if (!player) return null;
   const playerDetails = player.playerDetails || (player.player_id ? playerDetailsById?.[player.player_id] : undefined);
   const playerTeam = playerDetails?.team || null;
+  const insightKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const insightTitle = getPlayerInsightLabelHelp(label);
 
   return (
     <button
       type="button"
       className={`player-team-tile manager-intel-player ${tone === 'warn' ? 'manager-intel-player-warn' : ''} ${tone === 'danger' ? 'manager-intel-player-danger' : ''}`}
+      data-insight-label={insightKey}
       style={getTeamTileStyle(playerTeam)}
+      title={insightTitle}
+      aria-label={`${label}: ${player.name}`}
       onClick={() => onSelect(buildPlayerModalData({
         playerId: player.player_id,
         playerName: player.name,
@@ -1906,7 +1926,7 @@ function PlayerInsightTile({
 function IntelligenceMetric({ label, value, tone = 'neutral' }: { label: string; value: React.ReactNode; tone?: 'neutral' | 'positive' | 'negative' }) {
   const toneClass = tone === 'positive' ? 'text-emerald-300' : tone === 'negative' ? 'text-rose-300' : 'text-slate-100';
   return (
-    <div className="rounded-xl border border-cyan-300/15 bg-slate-950/45 px-3 py-2">
+    <div className={`intelligence-metric intelligence-metric-${tone} rounded-xl border border-cyan-300/15 bg-slate-950/45 px-3 py-2`}>
       <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">{label}</div>
       <div className={`mt-1 text-lg font-black ${toneClass}`}>{value}</div>
     </div>
@@ -2531,8 +2551,10 @@ function ManagerDepthTile({
   onClick: () => void;
   className?: string;
 }) {
+  const isViewerTile = className.includes('viewer-owned-highlight');
+
   return (
-    <button type="button" className={`command-depth-tile ${className}`} onClick={onClick}>
+    <button type="button" className={`command-depth-tile ${className}`} onClick={onClick} aria-label={`Open ${manager} manager details`}>
       {avatarUrl && (
         <>
           <img src={avatarUrl} alt="" className="command-depth-tile-wash" />
@@ -2557,6 +2579,7 @@ function ManagerDepthTile({
           </span>
         ))}
       </span>
+      {isViewerTile && <span className="active-owner-badge">Your Team</span>}
     </button>
   );
 }
@@ -2591,6 +2614,7 @@ function OwnerSummaryTile({
   onClick?: () => void;
   className?: string;
 }) {
+  const isViewerTile = className.includes('viewer-owned-highlight');
   const content = (
     <>
       {avatarUrl && (
@@ -2613,12 +2637,13 @@ function OwnerSummaryTile({
         </span>
       </span>
       <span className="owner-summary-metrics">{children}</span>
+      {isViewerTile && <span className="active-owner-badge">Your Team</span>}
     </>
   );
 
   if (onClick) {
     return (
-      <button type="button" className={`owner-summary-tile ${className}`} onClick={onClick}>
+      <button type="button" className={`owner-summary-tile ${className}`} onClick={onClick} aria-label={`Open ${manager} owner details`}>
         {content}
       </button>
     );

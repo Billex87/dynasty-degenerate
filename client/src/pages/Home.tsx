@@ -1352,18 +1352,18 @@ export default function Home() {
         showCloseButton={false}
         onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
-        className="border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg"
+        className="admin-permissions-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg"
       >
         <DialogHeader className="text-center sm:text-center">
           <DialogTitle className="athletic-headline text-3xl text-orange-400">
             Admin Permissions
           </DialogTitle>
           <DialogDescription className="text-cyan-100/75">
-            This account can unlock admin-only report tools for this session.
+            Unlock advanced dynasty analytics, hidden momentum grades, and blended-value diagnostics not shown in the standard report.
           </DialogDescription>
         </DialogHeader>
-        <div className="rounded-xl border border-cyan-400/15 bg-cyan-400/5 px-4 py-4 text-center text-sm font-semibold text-slate-200">
-          Choose Admin Permissions to show the hidden Momentum and blended-value tools, or use the regular view to see the report like everyone else.
+        <div className="admin-permissions-copy rounded-xl border border-cyan-400/15 bg-cyan-400/5 px-4 py-4 text-center text-sm font-semibold text-slate-200">
+          Choose regular mode to see what everyone else sees, or unlock the full degenerate toolkit for the extra diagnostics.
         </div>
         <DialogFooter className="sm:justify-center">
           <Button
@@ -1379,7 +1379,7 @@ export default function Home() {
             onClick={() => handleAdminViewModeChoice('admin')}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
           >
-            Admin Permissions
+            Unlock Admin Tools
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1413,6 +1413,10 @@ export default function Home() {
                 >
                   <span className="report-header-action-label">Analyze Another League</span>
                 </Button>
+                <span className="report-live-indicator hidden md:inline-flex" aria-label="League analysis loaded">
+                  <span aria-hidden="true" />
+                  League scan complete
+                </span>
               </div>
 
               {/* Center: Logo */}
@@ -1988,7 +1992,7 @@ export default function Home() {
                 className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
               >
                 <Zap size={20} />
-                Illegally Scraping All Data
+                Run Degenerate Analysis
               </Button>
             </div>
 
