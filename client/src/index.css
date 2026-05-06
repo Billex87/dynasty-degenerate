@@ -10417,7 +10417,7 @@ button.player-team-tile:focus-visible {
     0 0 20px rgba(250, 204, 21, 0.22),
     0 0 30px rgba(34, 211, 238, 0.16),
     inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-  animation: viewer-owned-border-pulse 3s ease-in-out infinite;
+  animation: viewer-owned-border-pulse 7.5s ease-in-out infinite;
 }
 
 .viewer-owned-highlight::after {
@@ -10426,11 +10426,11 @@ button.player-team-tile:focus-visible {
   inset: 0;
   z-index: 2;
   border-radius: inherit;
-  background: linear-gradient(115deg, transparent 18%, rgba(255, 255, 255, 0.16) 36%, transparent 54%);
-  opacity: 0.72;
+  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.12) 38%, transparent 56%);
+  opacity: 0.58;
   pointer-events: none;
   transform: translateX(-120%);
-  animation: viewer-owned-sheen 4.4s ease-in-out infinite;
+  animation: viewer-owned-sheen 11s ease-in-out infinite;
 }
 
 @keyframes viewer-owned-border-pulse {
@@ -10454,11 +10454,11 @@ button.player-team-tile:focus-visible {
 
 @keyframes viewer-owned-sheen {
   0%,
-  42% {
+  66% {
     transform: translateX(-120%);
   }
 
-  68%,
+  84%,
   100% {
     transform: translateX(120%);
   }
@@ -14381,12 +14381,66 @@ body {
   }
 }
 
+@keyframes dd-line-glint {
+  0%,
+  64% {
+    background-position: -180% 0;
+    opacity: 0.32;
+  }
+  78% {
+    opacity: 0.9;
+  }
+  100% {
+    background-position: 180% 0;
+    opacity: 0.38;
+  }
+}
+
+.report-shell .report-header {
+  position: relative;
+  overflow: hidden;
+}
+
+.report-shell .report-header::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(251, 146, 60, 0.18) 28%, rgba(103, 232, 249, 0.72) 50%, rgba(251, 146, 60, 0.2) 72%, transparent 100%),
+    linear-gradient(90deg, rgba(251, 146, 60, 0.14), rgba(34, 211, 238, 0.2), rgba(251, 146, 60, 0.14));
+  background-size: 44% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  animation: dd-line-glint 12s ease-in-out infinite;
+}
+
 .report-shell .report-tabs {
+  position: relative;
+  overflow: hidden;
   border-color: rgba(34, 211, 238, 0.2) !important;
   background:
     linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86)),
     radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.12), transparent 34%),
     radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.1), transparent 34%) !important;
+}
+
+.report-shell .report-tabs::after {
+  content: "";
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.18rem;
+  left: 0.55rem;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.55), rgba(251, 146, 60, 0.55), transparent);
+  background-size: 38% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.4;
+  pointer-events: none;
+  animation: dd-line-glint 13.5s ease-in-out infinite;
 }
 
 .report-shell .report-tab {
@@ -14402,6 +14456,8 @@ body {
   height: 2px;
   border-radius: 999px;
   background: linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.96), rgba(34, 211, 238, 0.86), transparent);
+  background-size: 52% 100%;
+  background-repeat: no-repeat;
   opacity: 0;
   transform: scaleX(0.55);
   transition: opacity 180ms var(--dd-ease), transform 180ms var(--dd-ease);
@@ -14416,10 +14472,12 @@ body {
 .report-shell .report-tab[data-state="active"]::after {
   opacity: 1;
   transform: scaleX(1);
+  animation: dd-line-glint 10.5s ease-in-out infinite;
 }
 
 .report-disclosure-summary {
   isolation: isolate;
+  overflow: hidden;
 }
 
 .report-disclosure-summary::before {
@@ -14435,6 +14493,22 @@ body {
   background-size: 24px 24px, 24px 24px, auto;
   opacity: 0.85;
   pointer-events: none;
+}
+
+.report-disclosure-summary::after {
+  content: "";
+  position: absolute;
+  right: 14%;
+  bottom: 0.28rem;
+  left: 14%;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.52), rgba(103, 232, 249, 0.58), transparent);
+  background-size: 44% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.36;
+  pointer-events: none;
+  animation: dd-line-glint 14s ease-in-out infinite;
 }
 
 .report-disclosure[open] .report-disclosure-summary {
