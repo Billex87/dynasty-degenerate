@@ -5339,6 +5339,23 @@
     padding-bottom: 0.35rem;
   }
 
+  .player-complete-rows-inline .player-complete-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+  }
+
+  .player-complete-rows-inline .player-complete-row span {
+    flex: 1 1 auto;
+  }
+
+  .player-complete-rows-inline .player-complete-row strong,
+  .player-complete-rows-inline .player-complete-row a {
+    flex: 0 0 auto;
+  }
+
   .player-complete-row:last-child {
     border-bottom: 0;
     padding-bottom: 0;
@@ -5440,9 +5457,19 @@
       gap: 0.16rem;
     }
 
+    .player-detail-modal .player-complete-rows-inline .player-complete-row {
+      display: flex;
+      gap: 0.42rem;
+    }
+
     .player-detail-modal .player-complete-row strong,
     .player-detail-modal .player-complete-row a {
       text-align: left;
+    }
+
+    .player-detail-modal .player-complete-rows-inline .player-complete-row strong,
+    .player-detail-modal .player-complete-rows-inline .player-complete-row a {
+      text-align: right;
     }
 
     .player-detail-modal .player-complete-section-wide {

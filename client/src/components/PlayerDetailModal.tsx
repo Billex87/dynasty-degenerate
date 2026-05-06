@@ -567,8 +567,8 @@ export function PlayerDetailModal({
               <div className="player-complete-data mx-auto max-w-xl">
                 <p className="player-complete-title">Source Detail</p>
                 <div className="player-complete-grid">
-                  <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority />
-                  <CompleteDataSection title="Source Inputs" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} compactNumbers />
+                  <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority inlineRows />
+                  <CompleteDataSection title="Source Inputs" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} />
                   <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
                   {details?.availabilityHistory?.length ? (
                     <div className="player-complete-section player-complete-section-wide">
@@ -1069,6 +1069,7 @@ function CompleteDataSection({
   tileAccent,
   compactNumbers = false,
   rankValues = false,
+  inlineRows = false,
   wide = false,
   priority = false,
 }: {
@@ -1078,6 +1079,7 @@ function CompleteDataSection({
   tileAccent?: string;
   compactNumbers?: boolean;
   rankValues?: boolean;
+  inlineRows?: boolean;
   wide?: boolean;
   priority?: boolean;
 }) {
@@ -1094,7 +1096,7 @@ function CompleteDataSection({
       }}
     >
       <h4>{title}</h4>
-      <div className="player-complete-rows">
+      <div className={`player-complete-rows ${inlineRows ? 'player-complete-rows-inline' : ''}`}>
         {rows.map(([rawLabel, rawValue]) => {
           const label = String(rawLabel);
           const displayValue = formatCompleteValue(rawValue, compactNumbers);
