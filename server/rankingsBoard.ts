@@ -271,6 +271,28 @@ function getMovementLabel(movement?: number | null): string | null {
   return `${movement > 0 ? '+' : ''}${Math.round(movement).toLocaleString('en-US')}`;
 }
 
+function applyFinalRanks(rows: RankingPlayer[], limit: number): RankingPlayer[] {
+  const sortedRows = rows.sort((a, b) => b.value - a.value || a.overallRank - b.overallRank || a.name.localeCompare(b.name));
+  const positionCounts: Record<string, number> = {};
+
+  return sortedRows
+    .map((row, index) => {
+      const pos = row.pos;
+      const positionRank = !row.isPick && ['QB', 'RB', 'WR', 'TE'].includes(pos)
+        ? `${pos}${(positionCounts[pos] = (positionCounts[pos] || 0) + 1)}`
+        : row.isPick
+          ? 'PICK'
+          : row.positionRank;
+
+      return {
+        ...row,
+        overallRank: index + 1,
+        positionRank,
+      };
+    })
+    .slice(0, limit);
+}
+
 function buildRowsForProfile({
   option,
   ktcRows,
@@ -331,7 +353,6 @@ function buildRowsForProfile({
     const flockValue = flock?.dynastyValue || null;
     const dynastyNerdsValue = dynastyNerds?.dynastyValue || blended?.expert_value_dynastynerds || null;
     const fantasyCalcValue = blended?.market_value_fantasycalc || null;
-    const fantasyProsValue = blended?.fantasypros_season_value || null;
     const value = option.board === 'devy'
       ? weightedAverage([
           { value: ktcValue, weight: 0.50 },
@@ -342,8 +363,7 @@ function buildRowsForProfile({
           { value: ktcValue, weight: 0.35 },
           { value: flockValue, weight: 0.30 },
           { value: dynastyNerdsValue, weight: 0.24 },
-          { value: fantasyCalcValue, weight: 0.08 },
-          { value: fantasyProsValue, weight: 0.03 },
+          { value: fantasyCalcValue, weight: 0.11 },
         ]);
 
     if (!value) continue;
@@ -353,7 +373,6 @@ function buildRowsForProfile({
       flockValue ? 'Flock' : null,
       dynastyNerdsValue ? 'DynastyNerds' : null,
       fantasyCalcValue && option.board === 'dynasty' ? 'FantasyCalc' : null,
-      fantasyProsValue && option.board === 'dynasty' ? 'FantasyPros' : null,
     ].filter(Boolean) as string[];
     const baselineValue = canonicalBaselineValues[key]?.ktc_value || null;
     const movement = baselineValue && value ? value - baselineValue : null;
@@ -374,13 +393,10 @@ function buildRowsForProfile({
       flockValue,
       dynastyNerdsValue,
       fantasyCalcValue,
-      fantasyProsValue,
-      seasonValue: blended?.redraft_value || fantasyProsValue,
       tier: ktc?.tier || flock?.tier || null,
       movement,
       movementLabel: getMovementLabel(movement),
       movementDirection: getMovementDirection(movement),
-      previousYearPprAverage: flock?.previousYearPprAverage ?? null,
       owner: playerId ? ownerByPlayerId[playerId] || null : null,
       rosterStatus: playerId ? rosterStatusByPlayerId[playerId] || null : null,
       sources,
@@ -391,10 +407,7 @@ function buildRowsForProfile({
     });
   }
 
-  return rows
-    .sort((a, b) => b.value - a.value || a.overallRank - b.overallRank || a.name.localeCompare(b.name))
-    .map((row, index) => ({ ...row, overallRank: index + 1 }))
-    .slice(0, option.board === 'devy' ? 140 : 520);
+  return applyFinalRanks(rows, option.board === 'devy' ? 140 : 520);
 }
 
 function getDefaultProfileKey(profileKey: string | null | undefined, board: 'dynasty' | 'devy'): string {

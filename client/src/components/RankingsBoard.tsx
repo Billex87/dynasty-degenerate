@@ -153,7 +153,6 @@ function RankingCard({
         <span>Flock {formatValue(player.flockValue)}</span>
         {player.dynastyNerdsValue ? <span>Nerds {formatValue(player.dynastyNerdsValue)}</span> : null}
         {player.fantasyCalcValue ? <span>FC {formatValue(player.fantasyCalcValue)}</span> : null}
-        {player.previousYearPprAverage ? <span>{player.previousYearPprAverage.toFixed(1)} PPG</span> : null}
       </div>
 
       {player.isDevy && (player.college || player.draftYear) ? (
