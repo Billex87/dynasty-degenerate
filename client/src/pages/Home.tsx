@@ -539,11 +539,11 @@ function HomeBrandLockup() {
   );
 }
 
-function HomeFooterChrome() {
+function HomeFooterChrome({ showBrand = true }: { showBrand?: boolean }) {
   return (
     <div className="home-footer-inner max-w-7xl mx-auto">
       <HomeActionRow />
-      <HomeBrandLockup />
+      {showBrand && <HomeBrandLockup />}
     </div>
   );
 }
@@ -2053,7 +2053,7 @@ export default function Home() {
 
       {!reportData && (
         <div className="home-footer mt-auto px-4 py-6 sm:py-8">
-          <HomeFooterChrome />
+          <HomeFooterChrome showBrand={!isLoading} />
         </div>
       )}
       {clownEasterEggDialog}
