@@ -434,6 +434,69 @@ describe('generateReport trade ledger', () => {
     expect(managerA?.tradeableDepth?.find((tile) => tile.position === 'QB')?.player?.name).toBe('Alpha QBThree');
   });
 
+  it('does not reuse named bench baseline players in the bench flex slot', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterPositions: ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'FLEX', 'BN'],
+        rosterMap: { 1: 'Manager A' },
+        rosters: [
+          {
+            roster_id: 1,
+            owner_id: 'u1',
+            players: ['qbOne', 'rbOne', 'rbTwo', 'rbThree', 'wrOne', 'wrTwo', 'wrThree', 'teOne', 'benchTe', 'benchRb', 'benchWr', 'taxiRb'],
+            taxi: ['taxiRb', 'benchTe'],
+          },
+        ],
+      },
+      null,
+      {
+        qbOne: { first_name: 'Starter', last_name: 'QB', position: 'QB', age: 25 },
+        rbOne: { first_name: 'Starter', last_name: 'RBOne', position: 'RB', age: 25 },
+        rbTwo: { first_name: 'Starter', last_name: 'RBTwo', position: 'RB', age: 25 },
+        rbThree: { first_name: 'Starter', last_name: 'RBThree', position: 'RB', age: 25 },
+        wrOne: { first_name: 'Starter', last_name: 'WROne', position: 'WR', age: 25 },
+        wrTwo: { first_name: 'Starter', last_name: 'WRTwo', position: 'WR', age: 25 },
+        wrThree: { first_name: 'Starter', last_name: 'WRThree', position: 'WR', age: 25 },
+        teOne: { first_name: 'Starter', last_name: 'TE', position: 'TE', age: 25 },
+        benchTe: { first_name: 'Bench', last_name: 'TE', position: 'TE', age: 25 },
+        benchRb: { first_name: 'Bench', last_name: 'RB', position: 'RB', age: 25 },
+        benchWr: { first_name: 'Bench', last_name: 'WR', position: 'WR', age: 25 },
+        taxiRb: { first_name: 'Taxi', last_name: 'RB', position: 'RB', age: 22 },
+      },
+      {
+        starterqb: { name: 'Starter QB', ktc_value: 9000, redraft_value: 9000, position_rank: 'QB5' },
+        starterrbone: { name: 'Starter RBOne', ktc_value: 8000, redraft_value: 8000, position_rank: 'RB5' },
+        starterrbtwo: { name: 'Starter RBTwo', ktc_value: 7600, redraft_value: 7600, position_rank: 'RB8' },
+        starterrbthree: { name: 'Starter RBThree', ktc_value: 6200, redraft_value: 6200, position_rank: 'RB18' },
+        starterwrone: { name: 'Starter WROne', ktc_value: 8100, redraft_value: 8100, position_rank: 'WR5' },
+        starterwrtwo: { name: 'Starter WRTwo', ktc_value: 7700, redraft_value: 7700, position_rank: 'WR8' },
+        starterwrthree: { name: 'Starter WRThree', ktc_value: 6100, redraft_value: 6100, position_rank: 'WR19' },
+        starterte: { name: 'Starter TE', ktc_value: 7000, redraft_value: 7000, position_rank: 'TE3' },
+        benchte: { name: 'Bench TE', ktc_value: 3900, redraft_value: 3900, position_rank: 'TE30' },
+        benchrb: { name: 'Bench RB', ktc_value: 3000, redraft_value: 3000, position_rank: 'RB40' },
+        benchwr: { name: 'Bench WR', ktc_value: 2800, redraft_value: 2800, position_rank: 'WR42' },
+        taxirb: { name: 'Taxi RB', ktc_value: 3600, redraft_value: 3600, position_rank: 'RB35' },
+      },
+      {}
+    );
+
+    const managerA = report.managerRosterIntelligence.find((row) => row.manager === 'Manager A');
+    const rbTile = managerA?.benchBaseline?.find((tile) => tile.key === 'RB');
+    const wrTile = managerA?.benchBaseline?.find((tile) => tile.key === 'WR');
+    const teTile = managerA?.benchBaseline?.find((tile) => tile.key === 'TE');
+    const flexTile = managerA?.benchBaseline?.find((tile) => tile.key === 'FLEX');
+    const usedNamedBenchPlayers = new Set([rbTile?.player?.name, wrTile?.player?.name, teTile?.player?.name]);
+    const flexNames = flexTile?.players?.map((player) => player.name) || [];
+
+    expect(rbTile?.player?.name).toBe('Taxi RB');
+    expect(wrTile?.player?.name).toBe('Bench WR');
+    expect(teTile?.player?.name).toBe('Bench TE');
+    expect(flexNames).toEqual(['Bench RB']);
+    expect(flexNames.some((name) => usedNamedBenchPlayers.has(name))).toBe(false);
+  });
+
   it('uses dynasty value as primary for dynasty leagues and season value for redraft leagues', async () => {
     const seasonData = {
       label: '2026',

@@ -753,19 +753,49 @@ function buildBenchBaselineTiles(
     tileDefs.push({ key: 'FLEX', label: `Bench Flex x${profile.flex}`, count: profile.flex, positions: ['RB', 'WR', 'TE'] });
   }
 
-  return tileDefs.map((def) => {
-    const pickBenchPlayers = (bench: ManagerIntelPlayer[]) => bench
-      .filter((player) => def.positions.includes(player.pos as FantasyPosition))
-      .sort(compareLineupPlayers)
-      .slice(0, def.count);
-    const players = pickBenchPlayers(managerBench);
+  const pickBenchPlayers = (
+    bench: ManagerIntelPlayer[],
+    def: { count: number; positions: FantasyPosition[] },
+    usedPlayerIds: Set<string>
+  ) => {
+    const players: ManagerIntelPlayer[] = [];
+
+    for (const player of bench
+      .filter((item) => def.positions.includes(item.pos as FantasyPosition))
+      .sort(compareLineupPlayers)) {
+      const playerKey = player.player_id || player.name;
+      if (usedPlayerIds.has(playerKey)) continue;
+      usedPlayerIds.add(playerKey);
+      players.push(player);
+      if (players.length >= def.count) break;
+    }
+
+    return players;
+  };
+
+  const selectionsByManager = new Map<string, ManagerIntelPlayer[][]>();
+  leagueRows.forEach((row) => {
+    const usedPlayerIds = new Set<string>();
+    selectionsByManager.set(
+      row.manager,
+      tileDefs.map((def) => pickBenchPlayers(row.bench, def, usedPlayerIds))
+    );
+  });
+
+  const managerSelections = selectionsByManager.get(manager) || [];
+
+  return tileDefs.map((def, index) => {
+    const players = managerSelections[index] || [];
     const score = sumLineupScore(players);
-    const scores = leagueRows.map((row) => sumLineupScore(pickBenchPlayers(row.bench)));
+    const scores = leagueRows.map((row) => sumLineupScore(selectionsByManager.get(row.manager)?.[index] || []));
     const leagueRank = getLeagueRank(score, scores);
     const grade = gradeLeagueRank(leagueRank, teamCount);
     const player = players[0] || null;
-    const note = player
-      ? `${player.name} is the best non-starting ${def.key === 'FLEX' ? 'flex option' : def.key} for this roster.`
+    const notePosition = def.key === 'FLEX'
+      ? `flex ${players.length === 1 ? 'option' : 'options'}`
+      : def.key;
+    const note = players.length
+      ? `${players.map((item) => item.name).join(', ')} ${players.length === 1 ? 'is' : 'are'} the best unused non-starting ${notePosition} for this roster.`
       : `No non-starting ${def.key === 'FLEX' ? 'flex option' : def.key} is available.`;
 
     return {

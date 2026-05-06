@@ -3975,6 +3975,12 @@
     margin-top: 0.55rem;
   }
 
+  .owner-intel-bench-player-stack {
+    display: grid;
+    min-width: 0;
+    gap: 0.28rem;
+  }
+
   .owner-intel-bench-row {
     display: grid;
     min-width: 0;
@@ -12224,6 +12230,7 @@ button.trade-manager-trade {
 .owner-intel-dialog .owner-intel-wild-notes li,
 .owner-intel-dialog .owner-intel-value-map-grid button,
 .owner-intel-dialog .owner-intel-bench-row,
+.owner-intel-dialog .owner-intel-bench-player-stack,
 .owner-intel-dialog .owner-intel-bench-player {
   min-width: 0;
   max-width: 100%;
