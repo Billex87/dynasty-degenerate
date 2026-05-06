@@ -157,11 +157,15 @@ export function PlayerDetailModal({
     ['Balanced', balancedRank],
     ['Contender', contenderRank],
     ['Rebuilder', rebuilderRank],
+    ['Flock Pos', valueProfile.flockPositionRank],
+    ['Flock Overall', valueProfile.flockRank ? `#${valueProfile.flockRank}` : null],
+    ['Flock Tier', valueProfile.flockTier ? `Tier ${valueProfile.flockTier}` : null],
     ['FantasyPros Pos', valueProfile.fantasyProsPositionRank],
     ['FantasyPros Overall', valueProfile.fantasyProsRank ? `#${valueProfile.fantasyProsRank}` : null],
     ['FantasyPros Tier', valueProfile.fantasyProsTier ? `Tier ${valueProfile.fantasyProsTier}` : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const sourceValueRows = valueProfile ? [
+    ['Flock Fantasy', valueProfile.flockFantasy],
     ['Market Consensus', valueProfile.marketKtc],
     ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
     ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],

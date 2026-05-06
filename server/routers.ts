@@ -12,6 +12,15 @@ import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBa
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue } from "./leagueAnalysis";
 import { fetchFantasyProsNews, fetchFantasyProsPlayerPoints } from "./fantasyPros";
+import {
+  getFantasyProsScoringForPpr,
+  getKtcProfileKeyForValueOptions,
+  getValueSourceProfileKey,
+  getValueSourceProfileLabel,
+  normalizePpr,
+  normalizeTep,
+  type ValueBlendOptions,
+} from "./valueBlend";
 import { insertLoginAttempt } from "./db";
 import { isCurrentFantasySkillPlayer } from "./playerEligibility";
 import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, TrendingPlayer, WaiverIntelligence } from "../shared/types";
@@ -115,6 +124,56 @@ function getLeagueValueMode(leagueInfo: any): LeagueValueMode {
   return 'redraft';
 }
 
+function countRosterSlot(rosterPositions: unknown, slotName: string): number {
+  if (!Array.isArray(rosterPositions)) return 0;
+  return rosterPositions.filter((slot) => String(slot) === slotName).length;
+}
+
+function getLeagueNumQbs(leagueInfo: any): 1 | 2 {
+  const positions = Array.isArray(leagueInfo?.roster_positions) ? leagueInfo.roster_positions : [];
+  const qbSlots = countRosterSlot(positions, 'QB');
+  const hasSuperflex = positions.some((slot: string) => ['SUPER_FLEX', 'OP'].includes(slot));
+  return hasSuperflex || qbSlots >= 2 ? 2 : 1;
+}
+
+function getLeagueReceptionScoring(leagueInfo: any): number {
+  const value = Number(leagueInfo?.scoring_settings?.rec ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function getLeagueTightEndPremium(leagueInfo: any): number {
+  const scoring = leagueInfo?.scoring_settings || {};
+  const baseReception = getLeagueReceptionScoring(leagueInfo);
+  const teReception = Number(scoring.rec_te);
+  if (Number.isFinite(teReception) && teReception > baseReception) {
+    return teReception - baseReception;
+  }
+
+  const bonus = Number(scoring.bonus_rec_te ?? 0);
+  return Number.isFinite(bonus) ? bonus : 0;
+}
+
+function getLeagueValueBlendOptions(leagueInfo: any): ValueBlendOptions {
+  const ppr = normalizePpr(getLeagueReceptionScoring(leagueInfo));
+  const tep = normalizeTep(getLeagueTightEndPremium(leagueInfo));
+  const options: ValueBlendOptions = {
+    numQbs: getLeagueNumQbs(leagueInfo),
+    numTeams: Number(leagueInfo?.total_rosters || leagueInfo?.settings?.num_teams || 12),
+    ppr,
+    tep,
+    fantasyProsScoring: getFantasyProsScoringForPpr(ppr),
+  };
+
+  return {
+    ...options,
+    ktcProfileKey: getKtcProfileKeyForValueOptions(options),
+  };
+}
+
+function getLeagueValueProfileKey(leagueInfo: any): string {
+  return getValueSourceProfileKey(getLeagueValueBlendOptions(leagueInfo));
+}
+
 function formatLeagueFormat(leagueInfo: any): string {
   const totalTeams = leagueInfo.total_rosters ? `${leagueInfo.total_rosters}-Team` : null;
   const valueMode = getLeagueValueMode(leagueInfo);
@@ -122,7 +181,7 @@ function formatLeagueFormat(leagueInfo: any): string {
   const positions = Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [];
   const superflex = positions.includes('SUPER_FLEX') ? 'SF' : null;
   const rec = Number(leagueInfo.scoring_settings?.rec ?? 0);
-  const teBonus = Number(leagueInfo.scoring_settings?.bonus_rec_te ?? 0);
+  const teBonus = getLeagueTightEndPremium(leagueInfo);
   const ppr = rec === 1 ? 'PPR' : rec === 0.5 ? 'Half-PPR' : rec === 0 ? 'Standard' : `${rec} PPR`;
   const tep = teBonus > 0 ? 'TEP' : null;
 
@@ -627,6 +686,11 @@ function getPlayerValueProfile(
     rebuilderPositionRank: rankLookups?.[dataKey]?.rebuilderPositionRank || null,
     balancedPositionRank: rankLookups?.[dataKey]?.balancedPositionRank || data.position_rank || null,
     marketKtc: data.market_value_ktc ?? null,
+    flockFantasy: data.expert_value_flock ?? null,
+    flockRank: data.flock_rank ?? null,
+    flockPositionRank: data.flock_position_rank ?? null,
+    flockTier: data.flock_tier ?? null,
+    flockFormat: data.flock_format ?? null,
     fantasyCalcDynasty: data.market_value_fantasycalc ?? null,
     fantasyCalcRedraft: data.redraft_value ?? null,
     dynastyProcess: data.expert_value_dynastyprocess ?? null,
@@ -664,6 +728,7 @@ function getPlayerPositionRankForLeagueMode(
 
 function getKtcPosition(data: KTCValues[string]): 'QB' | 'RB' | 'WR' | 'TE' | null {
   const position = data?.position_rank?.match(/^[A-Z]+/)?.[0]
+    || data?.flock_position_rank?.match(/^[A-Z]+/)?.[0]
     || data?.fantasypros_position_rank?.match(/^[A-Z]+/)?.[0]
     || null;
   return ['QB', 'RB', 'WR', 'TE'].includes(position || '') ? position as 'QB' | 'RB' | 'WR' | 'TE' : null;
@@ -1396,9 +1461,16 @@ export const appRouter = router({
           const players = Array.isArray(seasonLeagues) && seasonLeagues.length > 0
             ? await fetch("https://api.sleeper.app/v1/players/nfl").then((r) => r.json())
             : {};
-          const ktcValues = Array.isArray(seasonLeagues) && seasonLeagues.length > 0
-            ? await loadBlendedKTCValues()
-            : {};
+          const leagueValueCache = new Map<string, Promise<KTCValues>>();
+          const getLeagueValues = (leagueInfo: any): Promise<KTCValues> => {
+            if (!Array.isArray(seasonLeagues) || seasonLeagues.length === 0) return Promise.resolve({});
+            const options = getLeagueValueBlendOptions(leagueInfo);
+            const key = getValueSourceProfileKey(options);
+            if (!leagueValueCache.has(key)) {
+              leagueValueCache.set(key, loadBlendedKTCValues(options));
+            }
+            return leagueValueCache.get(key)!;
+          };
 
           if (Array.isArray(seasonLeagues)) {
             const enrichedLeagues = await Promise.all(seasonLeagues.map(async (leagueInfo: any) => {
@@ -1423,6 +1495,7 @@ export const appRouter = router({
               );
               const currentStandings = buildCurrentStandings(safeRosters, rosterUserMap);
               const leagueValueMode = getLeagueValueMode(leagueInfo);
+              const ktcValues = await getLeagueValues(leagueInfo);
               const powerRankings = buildLeagueRosterValueRankings(safeRosters, players, ktcValues, leagueValueMode);
               const viewerManagerName = normalizeManagerName(user.display_name || user.username || username);
               const viewerRoster = safeRosters.find((roster: any) => String(roster.owner_id) === String(user.user_id));
@@ -1549,15 +1622,18 @@ export const appRouter = router({
             'https://api.sleeper.app/v1/players/nfl'
           ).then((r) => r.json());
 
-          const ktcValues = await loadBlendedKTCValues();
+          const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
+          const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
+          const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
+          const ktcValues = await loadBlendedKTCValues(leagueValueOptions);
           // Get the latest KTC snapshot from at least 7 days ago for weekly value-change calculations.
-          const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(7);
+          const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);
           let ktcValuesLastWeek: KTCValues = {};
           
           if (ktcValuesLastWeekRaw && Object.keys(ktcValuesLastWeekRaw).length > 0) {
             ktcValuesLastWeek = ktcValuesLastWeekRaw;
           } else {
-            ktcValuesLastWeek = loadLatestLocalKtcSnapshotDaysAgo(7);
+            ktcValuesLastWeek = loadLatestLocalKtcSnapshotDaysAgo(7, leagueValueProfileKey);
             if (Object.keys(ktcValuesLastWeek).length === 0) {
               ktcValuesLastWeek = await loadKTCValuesLastWeek();
             }
@@ -1650,6 +1726,8 @@ export const appRouter = router({
             draftSlotsBySeason,
             rosterPositions: Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [],
             scoringSettings: leagueInfo.scoring_settings || {},
+            valueBlendProfileKey: leagueValueProfileKey,
+            valueBlendProfileLabel: leagueValueProfileLabel,
           };
           const lastCompletedSeason = String(Number(currentSeasonData.label) - 1);
           let lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {};

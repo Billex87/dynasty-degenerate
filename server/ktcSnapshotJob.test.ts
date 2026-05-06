@@ -19,6 +19,45 @@ vi.mock('./ktcLoader', () => ({
   saveLocalKtcSnapshot: vi.fn(() => '/tmp/ktc-snapshot-2026-04-29.json'),
 }));
 
+vi.mock('./valueBlend', () => ({
+  DEFAULT_VALUE_SOURCE_PROFILE_KEY: '12_sf_ppr_base',
+  KTC_SNAPSHOT_PROFILES: [
+    { key: 'sf_ppr', label: 'Superflex PPR', qbProfile: 'superflex', tepProfile: 'base', ppr: 1 },
+  ],
+  VALUE_SOURCE_PROFILE_DEFINITIONS: [
+    {
+      key: '12_sf_ppr_base',
+      label: '12-team SF PPR',
+      numQbs: 2,
+      numTeams: 12,
+      ppr: 1,
+      tep: 0,
+      fantasyProsScoring: 'PPR',
+      ktcProfileKey: 'sf_ppr',
+    },
+  ],
+  loadBlendedPlayerValues: vi.fn((values) => Promise.resolve(values)),
+  loadBlendedValueProfiles: vi.fn(() =>
+    Promise.resolve({
+      '12_sf_ppr_base': {
+        'josh-allen': { name: 'Josh Allen', ktc_value: 1500 },
+      },
+    })
+  ),
+  loadDynastyProcessValueProfiles: vi.fn(() => Promise.resolve({ one_qb: {}, superflex: {} })),
+  loadFantasyCalcValueProfiles: vi.fn(() => Promise.resolve({})),
+  loadFantasyProsValueProfiles: vi.fn(() => Promise.resolve({ STD: {}, HALF: {}, PPR: {} })),
+  loadFlockFantasyValueProfiles: vi.fn(() => Promise.resolve({ SUPERFLEX: {}, ONEQB: {}, PROSPECTS_SF: {}, PROSPECTS: {} })),
+  loadValueProfileSources: vi.fn(() =>
+    Promise.resolve({
+      fantasyCalc: {},
+      flockFantasy: { SUPERFLEX: {}, ONEQB: {}, PROSPECTS_SF: {}, PROSPECTS: {} },
+      dynastyProcess: { one_qb: {}, superflex: {} },
+      fantasyPros: { STD: {}, HALF: {}, PPR: {} },
+    })
+  ),
+}));
+
 describe('KTC Snapshot Job', () => {
   beforeEach(() => {
     vi.clearAllMocks();

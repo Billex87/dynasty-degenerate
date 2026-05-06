@@ -9,7 +9,7 @@ import {
   calculateValueAdjustment,
 } from './leagueAnalysis';
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
-import { KTC_SNAPSHOT_PROFILES } from './valueBlend';
+import { KTC_SNAPSHOT_PROFILES, VALUE_SOURCE_PROFILE_DEFINITIONS } from './valueBlend';
 import type {
   LeagueValueMode,
   ManagerIntelPlayer,
@@ -32,6 +32,11 @@ export interface KTCValues {
     true_value?: number;
     redraft_value?: number;
     market_value_ktc?: number;
+    expert_value_flock?: number;
+    flock_rank?: number;
+    flock_position_rank?: string | null;
+    flock_tier?: number | null;
+    flock_format?: string | null;
     market_value_fantasycalc?: number;
     expert_value_dynastyprocess?: number;
     fantasypros_rank?: number;
@@ -122,6 +127,8 @@ interface SeasonData {
   draftSlotsBySeason?: Record<string, Record<number, number>>;
   rosterPositions?: string[];
   scoringSettings?: Record<string, any>;
+  valueBlendProfileKey?: string;
+  valueBlendProfileLabel?: string;
 }
 
 interface ReportOptions {
@@ -528,9 +535,19 @@ function getScoringNumber(scoringSettings: Record<string, any> | undefined, key:
   return Number.isFinite(value) ? value : 0;
 }
 
+function getTightEndPremium(scoringSettings: Record<string, any> | undefined): number {
+  const rec = getScoringNumber(scoringSettings, 'rec');
+  const teReception = Number(scoringSettings?.rec_te);
+  if (Number.isFinite(teReception) && teReception > rec) {
+    return teReception - rec;
+  }
+
+  return getScoringNumber(scoringSettings, 'bonus_rec_te');
+}
+
 function formatScoringSummary(scoringSettings: Record<string, any> | undefined): string {
   const rec = getScoringNumber(scoringSettings, 'rec');
-  const teBonus = getScoringNumber(scoringSettings, 'bonus_rec_te');
+  const teBonus = getTightEndPremium(scoringSettings);
   const rbBonus = getScoringNumber(scoringSettings, 'bonus_rec_rb');
   const wrBonus = getScoringNumber(scoringSettings, 'bonus_rec_wr');
   const passTd = getScoringNumber(scoringSettings, 'pass_td');
@@ -555,7 +572,8 @@ function buildLeagueDiagnostics(
   const lineupProfile = getLineupSlotProfile(currentSeasonData.rosterPositions);
   const starterCounts = getPositionStarterCounts(currentSeasonData.rosterPositions, teamCount);
   const receptionScoring = getScoringNumber(currentSeasonData.scoringSettings, 'rec');
-  const tightEndPremium = getScoringNumber(currentSeasonData.scoringSettings, 'bonus_rec_te');
+  const tightEndPremium = getTightEndPremium(currentSeasonData.scoringSettings);
+  const selectedValueProfile = currentSeasonData.valueBlendProfileLabel || '12-team SF PPR';
   const valueProfiles = Array.from(
     new Set(
       Object.values(ktcValues)
@@ -565,7 +583,7 @@ function buildLeagueDiagnostics(
   ).sort();
   const playerValues = Object.values(ktcValues).filter((value) => !/\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(value.name));
   const sourceCoverage = (source: string) => playerValues.filter((value) => value.value_sources?.includes(source)).length;
-  const coverageParts = ['KTC', 'FantasyCalc', 'DynastyProcess', 'FantasyPros']
+  const coverageParts = ['FlockFantasy', 'KTC', 'FantasyCalc', 'DynastyProcess', 'FantasyPros']
     .filter((source) => sourceCoverage(source) > 0)
     .map((source) => `${source}: ${sourceCoverage(source)}`);
 
@@ -582,17 +600,24 @@ function buildLeagueDiagnostics(
     scoringSummary: formatScoringSummary(currentSeasonData.scoringSettings),
     receptionScoring,
     tightEndPremium,
-    ktcProfileLabel: 'Daily logs store the default blended value plus KTC market profiles for Superflex, 1QB, and TEP variants. Report tables still use the default blend until per-league blending is wired through each calculation.',
-    valueSnapshotProfileCount: KTC_SNAPSHOT_PROFILES.length,
-    valueSnapshotProfiles: KTC_SNAPSHOT_PROFILES.map((profile) => profile.label),
+    ktcProfileLabel: `This report is using the ${selectedValueProfile} blended profile. Flock Fantasy is weighted as the primary dynasty/rankings source when available, with KTC, FantasyCalc, DynastyProcess, and FantasyPros filling the rest of the blend.`,
+    valueSnapshotProfileCount: VALUE_SOURCE_PROFILE_DEFINITIONS.length,
+    valueSnapshotProfiles: [
+      `${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended league profiles: 10/12/14-team, 1QB/SF, Standard/Half/PPR, and 0/0.5/1/1.5 TEP buckets`,
+      `${KTC_SNAPSHOT_PROFILES.length} KTC market profiles for 1QB/SF and TEP variants`,
+      'Flock Fantasy dynasty and rookie rankings for 1QB/SF',
+      'FantasyCalc format values, DynastyProcess 1QB/SF values, FantasyPros scoring-specific ranks and points',
+    ],
     valueLimitations: [
-      `KTC market logs now track ${KTC_SNAPSHOT_PROFILES.length} QB/TEP profiles, but full ${teamCount}-team, Half-PPR, Standard, FantasyCalc, DynastyProcess, and FantasyPros blended variants are not fully separated yet.`,
+      `Selected value profile: ${selectedValueProfile}. League analysis no longer uses the old default 12-team SF PPR blend when the league settings point elsewhere.`,
+      `Daily snapshots now track ${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended format profiles across team count, QB format, reception scoring, and TEP bucket.`,
+      'Flock Fantasy is treated as the highest-priority dynasty/rookie rankings source where the public rankings endpoint returns data. Redraft Flock rankings were not available from that public endpoint in this check, so redraft stays projection/season-source driven.',
       tightEndPremium > 0
-        ? `This league has TE premium scoring (+${tightEndPremium} per TE reception). KTC TEP values are being logged, but the public report still needs per-league TEP value selection through every table.`
+        ? `This league has TE premium scoring (+${tightEndPremium} per TE reception). The blend selects the closest TEP bucket, and tables receive that selected profile. Exact custom scoring beyond the bucket remains an approximation.`
         : 'This league does not add a TE reception bonus, so no TEP adjustment is being applied beyond the generic market blend.',
       receptionScoring !== 1
-        ? `This league uses ${formatScoringSummary(currentSeasonData.scoringSettings)}; dedicated non-PPR/Half-PPR blended snapshots are not fully separated yet.`
-        : 'This league uses full PPR, which is closest to the current FantasyCalc blend input.',
+        ? `This league uses ${formatScoringSummary(currentSeasonData.scoringSettings)}; the blend selects the closest Standard/Half/PPR source profile.`
+        : 'This league uses full PPR, so the PPR source profile is selected.',
       coverageParts.length
         ? `Current blended player-source coverage in this snapshot: ${coverageParts.join(', ')}. Players with fewer sources are more assumption-heavy.`
         : 'No source coverage metadata was present in this value snapshot.',

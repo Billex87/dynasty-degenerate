@@ -350,6 +350,11 @@ export interface PlayerDetails {
     rebuilderPositionRank?: string | null;
     balancedPositionRank?: string | null;
     marketKtc?: number | null;
+    flockFantasy?: number | null;
+    flockRank?: number | null;
+    flockPositionRank?: string | null;
+    flockTier?: number | null;
+    flockFormat?: string | null;
     fantasyCalcDynasty?: number | null;
     fantasyCalcRedraft?: number | null;
     dynastyProcess?: number | null;

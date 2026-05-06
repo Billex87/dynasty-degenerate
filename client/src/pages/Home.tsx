@@ -731,15 +731,15 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       status: leagueDiagnostics.tightEndPremium > 0 || leagueDiagnostics.receptionScoring !== 1 ? 'Adjustment needed' : 'Closest profile',
       tone: leagueDiagnostics.tightEndPremium > 0 || leagueDiagnostics.receptionScoring !== 1 ? 'warn' : 'info',
       note: leagueDiagnostics.tightEndPremium > 0
-        ? `Sleeper scoring gives tight ends +${leagueDiagnostics.tightEndPremium} per reception on top of base reception scoring. TE values should eventually use a dedicated TEP market profile.`
-        : `Sleeper reception scoring is ${leagueDiagnostics.receptionScoring}; values currently use the closest stored market profile, not every scoring variant.`,
+        ? `Sleeper scoring gives tight ends +${leagueDiagnostics.tightEndPremium} per reception on top of base reception scoring. The report uses the closest stored TEP value bucket for this league.`
+        : `Sleeper reception scoring is ${leagueDiagnostics.receptionScoring}; the report uses the closest Standard/Half/PPR value profile.`,
     });
     addUniqueDiagnosticRow(rows, seen, {
       id: 'value-profile-storage',
       area: 'Daily value logs',
       item: `${leagueDiagnostics.valueSnapshotProfileCount} stored profile${leagueDiagnostics.valueSnapshotProfileCount === 1 ? '' : 's'}`,
-      status: 'Needs expansion',
-      tone: 'warn',
+      status: 'Format-aware',
+      tone: 'good',
       note: `${leagueDiagnostics.ktcProfileLabel} Tracked profiles: ${leagueDiagnostics.valueSnapshotProfiles.join(', ')}.`,
     });
     leagueDiagnostics.valueLimitations.forEach((limitation, index) => {
@@ -783,7 +783,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
     if (!profile) return;
 
     const sources = profile.sources || [];
-    const hasCoreMarketSource = Boolean(profile.marketKtc || profile.fantasyCalcDynasty || profile.dynastyProcess);
+    const hasCoreMarketSource = Boolean(profile.flockFantasy || profile.marketKtc || profile.fantasyCalcDynasty || profile.dynastyProcess);
     if (sources.length >= 2 && hasCoreMarketSource) return;
 
     addUniqueDiagnosticRow(rows, seen, {

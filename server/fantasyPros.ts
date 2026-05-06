@@ -32,7 +32,7 @@ export interface FantasyProsNewsItem {
   publishedAt?: string | null;
 }
 
-let cachedDraftRankings: { loadedAt: number; season: string; values: Record<string, FantasyProsRanking> } | null = null;
+let cachedDraftRankings: { loadedAt: number; season: string; scoring: 'STD' | 'HALF' | 'PPR'; values: Record<string, FantasyProsRanking> } | null = null;
 let cachedPlayerPoints: { loadedAt: number; season: string; scoring: string; values: Record<string, FantasyProsPlayerPoints> } | null = null;
 let cachedNews: { loadedAt: number; values: FantasyProsNewsItem[] } | null = null;
 
@@ -89,8 +89,13 @@ function stripHtml(value: unknown): string | null {
     .trim() || null;
 }
 
-export async function fetchFantasyProsDraftRankings(season = String(new Date().getFullYear())): Promise<Record<string, FantasyProsRanking>> {
-  if (cachedDraftRankings?.season === season && isFresh(cachedDraftRankings)) return cachedDraftRankings.values;
+export async function fetchFantasyProsDraftRankings(
+  season = String(new Date().getFullYear()),
+  scoring: 'STD' | 'HALF' | 'PPR' = 'HALF'
+): Promise<Record<string, FantasyProsRanking>> {
+  if (cachedDraftRankings?.season === season && cachedDraftRankings.scoring === scoring && isFresh(cachedDraftRankings)) {
+    return cachedDraftRankings.values;
+  }
 
   try {
     const payload = await fantasyProsFetch<{
@@ -103,7 +108,7 @@ export async function fetchFantasyProsDraftRankings(season = String(new Date().g
         pos_rank?: string | null;
         tier?: number | string | null;
       }>;
-    }>(`/nfl/${season}/consensus-rankings?position=ALL&type=DRAFT&scoring=HALF&week=0`);
+    }>(`/nfl/${season}/consensus-rankings?position=ALL&type=DRAFT&scoring=${scoring}&week=0`);
 
     const values: Record<string, FantasyProsRanking> = {};
     for (const player of payload?.players || []) {
@@ -122,7 +127,7 @@ export async function fetchFantasyProsDraftRankings(season = String(new Date().g
       };
     }
 
-    cachedDraftRankings = { loadedAt: Date.now(), season, values };
+    cachedDraftRankings = { loadedAt: Date.now(), season, scoring, values };
     return values;
   } catch (error) {
     console.warn('[FantasyPros] Failed to load draft rankings:', error);

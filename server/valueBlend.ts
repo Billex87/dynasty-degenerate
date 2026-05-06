@@ -1,5 +1,6 @@
 import { cleanName } from './leagueAnalysis';
-import { fetchFantasyProsDraftRankings } from './fantasyPros';
+import { fetchFantasyProsDraftRankings, type FantasyProsRanking } from './fantasyPros';
+import { fetchFlockFantasyValues, loadFlockFantasyValueProfiles, type FlockFantasyValue } from './flockFantasy';
 
 export interface BlendedValue {
   name: string;
@@ -9,6 +10,11 @@ export interface BlendedValue {
   true_value?: number;
   redraft_value?: number;
   market_value_ktc?: number;
+  expert_value_flock?: number;
+  flock_rank?: number;
+  flock_position_rank?: string | null;
+  flock_tier?: number | null;
+  flock_format?: string | null;
   market_value_fantasycalc?: number;
   expert_value_dynastyprocess?: number;
   fantasypros_rank?: number;
@@ -21,6 +27,7 @@ export interface BlendedValue {
 type ValueMap = Record<string, BlendedValue>;
 type KtcRankingProfile = 'superflex' | 'one_qb';
 type KtcTepProfile = 'base' | 'tep_0_5' | 'tep_1_0' | 'tep_1_5';
+export type FantasyProsScoring = 'STD' | 'HALF' | 'PPR';
 
 export type KtcSnapshotProfileKey =
   | 'sf_ppr'
@@ -40,6 +47,26 @@ export interface KtcSnapshotProfileDefinition {
   ppr: number;
 }
 
+export interface ValueBlendOptions {
+  numQbs?: 1 | 2;
+  numTeams?: number;
+  ppr?: number;
+  tep?: number;
+  fantasyProsScoring?: FantasyProsScoring;
+  ktcProfileKey?: KtcSnapshotProfileKey;
+}
+
+export interface ValueSourceProfileDefinition {
+  key: string;
+  label: string;
+  numQbs: 1 | 2;
+  numTeams: number;
+  ppr: 0 | 0.5 | 1;
+  tep: 0 | 0.5 | 1 | 1.5;
+  fantasyProsScoring: FantasyProsScoring;
+  ktcProfileKey: KtcSnapshotProfileKey;
+}
+
 export const KTC_SNAPSHOT_PROFILES: KtcSnapshotProfileDefinition[] = [
   { key: 'sf_ppr', label: 'Superflex PPR', qbProfile: 'superflex', tepProfile: 'base', ppr: 1 },
   { key: 'sf_ppr_tep_0_5', label: 'Superflex PPR 0.5 TEP', qbProfile: 'superflex', tepProfile: 'tep_0_5', ppr: 1 },
@@ -51,6 +78,135 @@ export const KTC_SNAPSHOT_PROFILES: KtcSnapshotProfileDefinition[] = [
   { key: 'one_qb_ppr_tep_1_5', label: '1QB PPR 1.5 TEP', qbProfile: 'one_qb', tepProfile: 'tep_1_5', ppr: 1 },
 ];
 
+function getPprKey(ppr: 0 | 0.5 | 1): string {
+  if (ppr === 1) return 'ppr';
+  if (ppr === 0.5) return 'half_ppr';
+  return 'standard';
+}
+
+function getPprLabel(ppr: 0 | 0.5 | 1): string {
+  if (ppr === 1) return 'PPR';
+  if (ppr === 0.5) return 'Half-PPR';
+  return 'Standard';
+}
+
+function getTepKey(tep: 0 | 0.5 | 1 | 1.5): string {
+  if (tep === 1.5) return 'tep_1_5';
+  if (tep === 1) return 'tep_1_0';
+  if (tep === 0.5) return 'tep_0_5';
+  return 'base';
+}
+
+function getTepLabel(tep: 0 | 0.5 | 1 | 1.5): string | null {
+  if (tep === 1.5) return '1.5 TEP';
+  if (tep === 1) return '1.0 TEP';
+  if (tep === 0.5) return '0.5 TEP';
+  return null;
+}
+
+export function getFantasyProsScoringForPpr(ppr?: number): FantasyProsScoring {
+  const normalizedPpr = normalizePpr(ppr);
+  if (normalizedPpr === 1) return 'PPR';
+  if (normalizedPpr === 0) return 'STD';
+  return 'HALF';
+}
+
+function getFantasyProsScoring(ppr: 0 | 0.5 | 1): FantasyProsScoring {
+  if (ppr === 1) return 'PPR';
+  if (ppr === 0) return 'STD';
+  return 'HALF';
+}
+
+export function normalizeTeamCount(numTeams?: number): 10 | 12 | 14 {
+  if (!numTeams || !Number.isFinite(numTeams)) return 12;
+  if (numTeams <= 10) return 10;
+  if (numTeams >= 14) return 14;
+  return 12;
+}
+
+export function normalizePpr(ppr?: number): 0 | 0.5 | 1 {
+  const value = Number(ppr ?? 1);
+  if (value <= 0.25) return 0;
+  if (value < 0.75) return 0.5;
+  return 1;
+}
+
+export function normalizeTep(tep?: number): 0 | 0.5 | 1 | 1.5 {
+  const value = Number(tep ?? 0);
+  if (value >= 1.25) return 1.5;
+  if (value >= 0.75) return 1;
+  if (value >= 0.25) return 0.5;
+  return 0;
+}
+
+export function normalizeNumQbs(numQbs?: number): 1 | 2 {
+  return numQbs && numQbs >= 2 ? 2 : 1;
+}
+
+export function getKtcProfileKeyForValueOptions(options: ValueBlendOptions = {}): KtcSnapshotProfileKey {
+  const qbPrefix = normalizeNumQbs(options.numQbs) === 2 ? 'sf_ppr' : 'one_qb_ppr';
+  const tep = normalizeTep(options.tep);
+  if (tep === 1.5) return `${qbPrefix}_tep_1_5` as KtcSnapshotProfileKey;
+  if (tep === 1) return `${qbPrefix}_tep_1_0` as KtcSnapshotProfileKey;
+  if (tep === 0.5) return `${qbPrefix}_tep_0_5` as KtcSnapshotProfileKey;
+  return qbPrefix as KtcSnapshotProfileKey;
+}
+
+export function getValueSourceProfileKey(options: ValueBlendOptions = {}): string {
+  const numTeams = normalizeTeamCount(options.numTeams);
+  const numQbs = normalizeNumQbs(options.numQbs);
+  const ppr = normalizePpr(options.ppr);
+  const tep = normalizeTep(options.tep);
+  return [
+    numTeams,
+    numQbs === 2 ? 'sf' : 'one_qb',
+    getPprKey(ppr),
+    getTepKey(tep),
+  ].join('_');
+}
+
+export function getValueSourceProfileLabel(options: ValueBlendOptions = {}): string {
+  const numTeams = normalizeTeamCount(options.numTeams);
+  const numQbs = normalizeNumQbs(options.numQbs);
+  const ppr = normalizePpr(options.ppr);
+  const tep = normalizeTep(options.tep);
+  return [
+    `${numTeams}-team`,
+    numQbs === 2 ? 'SF' : '1QB',
+    getPprLabel(ppr),
+    getTepLabel(tep),
+  ].filter(Boolean).join(' ');
+}
+
+export const VALUE_SOURCE_PROFILE_DEFINITIONS: ValueSourceProfileDefinition[] = [10, 12, 14].flatMap((numTeams) =>
+  ([1, 2] as const).flatMap((numQbs) =>
+    ([0, 0.5, 1] as const).flatMap((ppr) =>
+      ([0, 0.5, 1, 1.5] as const).map((tep) => ({
+        key: getValueSourceProfileKey({ numTeams, numQbs, ppr, tep }),
+        label: getValueSourceProfileLabel({ numTeams, numQbs, ppr, tep }),
+        numQbs,
+        numTeams,
+        ppr,
+        tep,
+        fantasyProsScoring: getFantasyProsScoring(ppr),
+        ktcProfileKey: getKtcProfileKeyForValueOptions({ numQbs, tep }),
+      }))
+    )
+  )
+);
+
+export const DEFAULT_VALUE_SOURCE_PROFILE_KEY = getValueSourceProfileKey({
+  numTeams: 12,
+  numQbs: 2,
+  ppr: 1,
+  tep: 0,
+});
+
+export function getValueSourceProfileDefinition(options: ValueBlendOptions = {}): ValueSourceProfileDefinition {
+  const key = getValueSourceProfileKey(options);
+  return VALUE_SOURCE_PROFILE_DEFINITIONS.find((profile) => profile.key === key) || VALUE_SOURCE_PROFILE_DEFINITIONS[0];
+}
+
 interface FantasyCalcValue {
   player?: {
     name?: string;
@@ -61,7 +217,7 @@ interface FantasyCalcValue {
   redraftValue?: number;
 }
 
-interface ExternalValue {
+export interface ExternalValue {
   name: string;
   position?: string;
   dynastyValue?: number;
@@ -72,15 +228,35 @@ interface ExternalValue {
   seasonValue?: number;
 }
 
-const FANTASYCALC_URL = 'https://api.fantasycalc.com/values/current?isDynasty=true&numQbs=2&numTeams=12&ppr=1';
+interface BlendSourceValues {
+  fantasyCalcValues: Record<string, ExternalValue>;
+  dynastyProcessValues: Record<string, ExternalValue>;
+  fantasyProsRankings: Record<string, FantasyProsRanking>;
+  flockValues: Record<string, FlockFantasyValue>;
+}
+
+export interface ValueProfileSourceValues {
+  fantasyCalc: Record<string, Record<string, ExternalValue>>;
+  dynastyProcess: Record<'one_qb' | 'superflex', Record<string, ExternalValue>>;
+  fantasyPros: Record<FantasyProsScoring, Record<string, FantasyProsRanking>>;
+  flockFantasy: Awaited<ReturnType<typeof loadFlockFantasyValueProfiles>>;
+}
+
 const DYNASTYPROCESS_URL = 'https://raw.githubusercontent.com/dynastyprocess/data/master/files/values-players.csv';
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 
-let cachedFantasyCalc: { loadedAt: number; values: Record<string, ExternalValue> } | null = null;
-let cachedDynastyProcess: { loadedAt: number; values: Record<string, ExternalValue> } | null = null;
+let cachedFantasyCalc: Record<string, { loadedAt: number; values: Record<string, ExternalValue> }> = {};
+let cachedDynastyProcess: Record<'one_qb' | 'superflex', { loadedAt: number; values: Record<string, ExternalValue> } | null> = {
+  one_qb: null,
+  superflex: null,
+};
 
 function isFresh(cache: { loadedAt: number } | null): boolean {
   return Boolean(cache && Date.now() - cache.loadedAt < CACHE_TTL_MS);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function parseCsvLine(line: string): string[] {
@@ -116,13 +292,47 @@ function parseCsvLine(line: string): string[] {
   return values;
 }
 
-async function fetchFantasyCalcValues(): Promise<Record<string, ExternalValue>> {
-  if (isFresh(cachedFantasyCalc)) return cachedFantasyCalc!.values;
+function getFantasyCalcCacheKey(options: ValueBlendOptions = {}): string {
+  return [
+    'dynasty',
+    normalizeNumQbs(options.numQbs),
+    normalizeTeamCount(options.numTeams),
+    normalizePpr(options.ppr),
+  ].join(':');
+}
+
+function getFantasyCalcSourceProfileKey(options: ValueBlendOptions = {}): string {
+  return [
+    normalizeTeamCount(options.numTeams),
+    normalizeNumQbs(options.numQbs) === 2 ? 'sf' : 'one_qb',
+    getPprKey(normalizePpr(options.ppr)),
+  ].join('_');
+}
+
+async function fetchFantasyCalcValues(options: ValueBlendOptions = {}): Promise<Record<string, ExternalValue>> {
+  const cacheKey = getFantasyCalcCacheKey(options);
+  if (isFresh(cachedFantasyCalc[cacheKey])) return cachedFantasyCalc[cacheKey].values;
 
   try {
-    const response = await fetch(FANTASYCALC_URL);
-    if (!response.ok) throw new Error(`FantasyCalc ${response.status}`);
-    const rows = await response.json();
+    const params = new URLSearchParams({
+      isDynasty: 'true',
+      numQbs: String(normalizeNumQbs(options.numQbs)),
+      numTeams: String(normalizeTeamCount(options.numTeams)),
+      ppr: String(normalizePpr(options.ppr)),
+    });
+    const url = `https://api.fantasycalc.com/values/current?${params.toString()}`;
+    let rows: unknown = [];
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const response = await fetch(url);
+      if (response.ok) {
+        rows = await response.json();
+        break;
+      }
+
+      const shouldRetry = [429, 500, 502, 503, 504].includes(response.status) && attempt < 2;
+      if (!shouldRetry) throw new Error(`FantasyCalc ${response.status}`);
+      await sleep(750 * Math.pow(2, attempt));
+    }
     if (!Array.isArray(rows)) return {};
 
     const entries: Array<[string, ExternalValue]> = [];
@@ -141,16 +351,17 @@ async function fetchFantasyCalcValues(): Promise<Record<string, ExternalValue>> 
     }
     const values = Object.fromEntries(entries);
 
-    cachedFantasyCalc = { loadedAt: Date.now(), values };
+    cachedFantasyCalc[cacheKey] = { loadedAt: Date.now(), values };
     return values;
   } catch (error) {
     console.warn('[Value Blend] Failed to load FantasyCalc values:', error);
-    return cachedFantasyCalc?.values || {};
+    return cachedFantasyCalc[cacheKey]?.values || {};
   }
 }
 
-async function fetchDynastyProcessValues(): Promise<Record<string, ExternalValue>> {
-  if (isFresh(cachedDynastyProcess)) return cachedDynastyProcess!.values;
+async function fetchDynastyProcessValues(options: ValueBlendOptions = {}): Promise<Record<string, ExternalValue>> {
+  const profile = normalizeNumQbs(options.numQbs) === 2 ? 'superflex' : 'one_qb';
+  if (isFresh(cachedDynastyProcess[profile])) return cachedDynastyProcess[profile]!.values;
 
   try {
     const response = await fetch(DYNASTYPROCESS_URL);
@@ -161,7 +372,7 @@ async function fetchDynastyProcessValues(): Promise<Record<string, ExternalValue
     const indexOf = (header: string) => headers.indexOf(header);
     const playerIndex = indexOf('player');
     const posIndex = indexOf('pos');
-    const valueIndex = indexOf('value_2qb');
+    const valueIndex = indexOf(profile === 'superflex' ? 'value_2qb' : 'value_1qb');
 
     if (playerIndex < 0 || valueIndex < 0) return {};
 
@@ -178,11 +389,11 @@ async function fetchDynastyProcessValues(): Promise<Record<string, ExternalValue
       };
     }
 
-    cachedDynastyProcess = { loadedAt: Date.now(), values };
+    cachedDynastyProcess[profile] = { loadedAt: Date.now(), values };
     return values;
   } catch (error) {
     console.warn('[Value Blend] Failed to load DynastyProcess values:', error);
-    return cachedDynastyProcess?.values || {};
+    return cachedDynastyProcess[profile]?.values || {};
   }
 }
 
@@ -193,9 +404,14 @@ function weightedAverage(values: Array<{ value?: number; weight: number }>): num
   return available.reduce((sum, item) => sum + (item.value || 0) * item.weight, 0) / totalWeight;
 }
 
-function getPosition(entry: BlendedValue, fantasyCalc?: ExternalValue, dynastyProcess?: ExternalValue): string | null {
+function getPosition(
+  entry: BlendedValue,
+  fantasyCalc?: ExternalValue,
+  dynastyProcess?: ExternalValue,
+  flock?: FlockFantasyValue
+): string | null {
   const rankPosition = entry.position_rank?.match(/^[A-Z]+/)?.[0];
-  const position = rankPosition || fantasyCalc?.position || dynastyProcess?.position || null;
+  const position = rankPosition || flock?.position || fantasyCalc?.position || dynastyProcess?.position || null;
   return ['QB', 'RB', 'WR', 'TE'].includes(position || '') ? position : null;
 }
 
@@ -217,15 +433,33 @@ function rankBlendedValues(values: ValueMap): ValueMap {
   return ranked;
 }
 
-export async function loadBlendedPlayerValues(ktcValues: ValueMap): Promise<ValueMap> {
-  const [fantasyCalcValues, dynastyProcessValues, fantasyProsRankings] = await Promise.all([
-    fetchFantasyCalcValues(),
-    fetchDynastyProcessValues(),
-    fetchFantasyProsDraftRankings(),
+async function loadBlendSourceValues(options: ValueBlendOptions = {}): Promise<BlendSourceValues> {
+  const [fantasyCalcValues, dynastyProcessValues, fantasyProsRankings, flockValues] = await Promise.all([
+    fetchFantasyCalcValues(options),
+    fetchDynastyProcessValues(options),
+    fetchFantasyProsDraftRankings(String(new Date().getFullYear()), options.fantasyProsScoring || 'HALF'),
+    fetchFlockFantasyValues(options),
   ]);
+
+  return {
+    fantasyCalcValues,
+    dynastyProcessValues,
+    fantasyProsRankings,
+    flockValues,
+  };
+}
+
+function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues): ValueMap {
+  const {
+    fantasyCalcValues,
+    dynastyProcessValues,
+    fantasyProsRankings,
+    flockValues,
+  } = sourceValues;
 
   const keys = new Set([
     ...Object.keys(ktcValues),
+    ...Object.keys(flockValues),
     ...Object.keys(fantasyCalcValues),
     ...Object.keys(dynastyProcessValues),
     ...Object.keys(fantasyProsRankings),
@@ -235,20 +469,29 @@ export async function loadBlendedPlayerValues(ktcValues: ValueMap): Promise<Valu
 
   for (const key of Array.from(keys)) {
     const ktc = ktcValues[key];
+    const flock = flockValues[key];
     const fantasyCalc = fantasyCalcValues[key];
     const dynastyProcess = dynastyProcessValues[key];
     const fantasyPros = fantasyProsRankings[key];
-    const name = ktc?.name || fantasyCalc?.name || dynastyProcess?.name || fantasyPros?.name || key;
-    const position = getPosition(ktc || { name, ktc_value: 0, position_rank: fantasyPros?.positionRank || undefined }, fantasyCalc, dynastyProcess)
+    const name = ktc?.name || flock?.name || fantasyCalc?.name || dynastyProcess?.name || fantasyPros?.name || key;
+    const position = getPosition(
+      ktc || { name, ktc_value: 0, position_rank: fantasyPros?.positionRank || undefined },
+      fantasyCalc,
+      dynastyProcess,
+      flock
+    )
+      || flock?.position
       || fantasyPros?.position
       || null;
     const ktcValue = ktc?.ktc_value;
+    const flockValue = flock?.dynastyValue;
     const fantasyCalcDynasty = fantasyCalc?.dynastyValue;
     const dynastyProcessValue = dynastyProcess?.dynastyValue;
     const dynastyValue = weightedAverage([
-      { value: ktcValue, weight: 0.45 },
-      { value: fantasyCalcDynasty, weight: 0.35 },
-      { value: dynastyProcessValue, weight: 0.20 },
+      { value: flockValue, weight: 0.45 },
+      { value: ktcValue, weight: 0.25 },
+      { value: fantasyCalcDynasty, weight: 0.20 },
+      { value: dynastyProcessValue, weight: 0.10 },
     ]);
 
     if (!dynastyValue) continue;
@@ -272,8 +515,13 @@ export async function loadBlendedPlayerValues(ktcValues: ValueMap): Promise<Valu
       dynasty_value: Math.round(dynastyValue),
       true_value: Math.round(trueValue),
       redraft_value: redraftValue ? Math.round(redraftValue) : undefined,
-      position_rank: ktc?.position_rank || fantasyPros?.positionRank || undefined,
+      position_rank: ktc?.position_rank || flock?.positionRank || fantasyPros?.positionRank || undefined,
       market_value_ktc: ktcValue,
+      expert_value_flock: flockValue,
+      flock_rank: flock?.overallRank,
+      flock_position_rank: flock?.positionRank ?? undefined,
+      flock_tier: flock?.tier ?? undefined,
+      flock_format: flock?.format ?? undefined,
       market_value_fantasycalc: fantasyCalcDynasty,
       expert_value_dynastyprocess: dynastyProcessValue,
       fantasypros_rank: fantasyPros?.overallRank,
@@ -281,6 +529,7 @@ export async function loadBlendedPlayerValues(ktcValues: ValueMap): Promise<Valu
       fantasypros_tier: fantasyPros?.tier ?? undefined,
       fantasypros_season_value: fantasyProsSeasonValue,
       value_sources: [
+        flockValue ? 'FlockFantasy' : null,
         ktcValue ? 'KTC' : null,
         fantasyCalcDynasty ? 'FantasyCalc' : null,
         dynastyProcessValue ? 'DynastyProcess' : null,
@@ -294,4 +543,90 @@ export async function loadBlendedPlayerValues(ktcValues: ValueMap): Promise<Valu
   }
 
   return rankBlendedValues(blended);
+}
+
+export async function loadBlendedPlayerValues(ktcValues: ValueMap, options: ValueBlendOptions = {}): Promise<ValueMap> {
+  return blendPlayerValues(ktcValues, await loadBlendSourceValues(options));
+}
+
+export async function loadFantasyCalcValueProfiles(): Promise<Record<string, Record<string, ExternalValue>>> {
+  const uniqueProfiles = new Map<string, ValueSourceProfileDefinition>();
+  for (const profile of VALUE_SOURCE_PROFILE_DEFINITIONS) {
+    uniqueProfiles.set(getFantasyCalcSourceProfileKey(profile), profile);
+  }
+
+  const valuesByProfile: Record<string, Record<string, ExternalValue>> = {};
+  for (const [key, profile] of Array.from(uniqueProfiles.entries())) {
+    valuesByProfile[key] = await fetchFantasyCalcValues(profile);
+  }
+  return valuesByProfile;
+}
+
+export async function loadDynastyProcessValueProfiles(): Promise<Record<'one_qb' | 'superflex', Record<string, ExternalValue>>> {
+  const [oneQb, superflex] = await Promise.all([
+    fetchDynastyProcessValues({ numQbs: 1 }),
+    fetchDynastyProcessValues({ numQbs: 2 }),
+  ]);
+  return { one_qb: oneQb, superflex };
+}
+
+export async function loadFantasyProsValueProfiles(): Promise<Record<FantasyProsScoring, Record<string, ExternalValue>>> {
+  const [std, half, ppr] = await Promise.all([
+    fetchFantasyProsDraftRankings(String(new Date().getFullYear()), 'STD'),
+    fetchFantasyProsDraftRankings(String(new Date().getFullYear()), 'HALF'),
+    fetchFantasyProsDraftRankings(String(new Date().getFullYear()), 'PPR'),
+  ]);
+  return { STD: std, HALF: half, PPR: ppr };
+}
+
+export { loadFlockFantasyValueProfiles };
+
+export async function loadValueProfileSources(): Promise<ValueProfileSourceValues> {
+  const [fantasyCalc, dynastyProcess, fantasyPros, flockFantasy] = await Promise.all([
+    loadFantasyCalcValueProfiles(),
+    loadDynastyProcessValueProfiles(),
+    loadFantasyProsValueProfiles(),
+    loadFlockFantasyValueProfiles(),
+  ]);
+
+  return {
+    fantasyCalc,
+    dynastyProcess,
+    fantasyPros,
+    flockFantasy,
+  };
+}
+
+function getFlockProfileValues(
+  profiles: Awaited<ReturnType<typeof loadFlockFantasyValueProfiles>>,
+  options: ValueBlendOptions
+): Record<string, FlockFantasyValue> {
+  const fullFormat = normalizeNumQbs(options.numQbs) === 2 ? 'SUPERFLEX' : 'ONEQB';
+  const rookieFormat = normalizeNumQbs(options.numQbs) === 2 ? 'PROSPECTS_SF' : 'PROSPECTS';
+  return {
+    ...(profiles[rookieFormat] || {}),
+    ...(profiles[fullFormat] || {}),
+  };
+}
+
+export async function loadBlendedValueProfiles(
+  ktcProfiles: Partial<Record<KtcSnapshotProfileKey, ValueMap>>,
+  sourceProfiles?: ValueProfileSourceValues
+): Promise<Record<string, ValueMap>> {
+  const sources = sourceProfiles || await loadValueProfileSources();
+
+  const entries = VALUE_SOURCE_PROFILE_DEFINITIONS.map((profile) => {
+    const ktcValues = ktcProfiles[profile.ktcProfileKey] || ktcProfiles.sf_ppr || {};
+    const dynastyProcessKey = normalizeNumQbs(profile.numQbs) === 2 ? 'superflex' : 'one_qb';
+    return [
+      profile.key,
+      blendPlayerValues(ktcValues, {
+        fantasyCalcValues: sources.fantasyCalc[getFantasyCalcSourceProfileKey(profile)] || {},
+        dynastyProcessValues: sources.dynastyProcess[dynastyProcessKey] || {},
+        fantasyProsRankings: sources.fantasyPros[profile.fantasyProsScoring] || {},
+        flockValues: getFlockProfileValues(sources.flockFantasy, profile),
+      }),
+    ] as const;
+  });
+  return Object.fromEntries(entries);
 }

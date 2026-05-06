@@ -6,6 +6,7 @@ interface KTCValues {
     true_value?: number;
     dynasty_value?: number;
     market_value_ktc?: number;
+    expert_value_flock?: number;
   };
 }
 
