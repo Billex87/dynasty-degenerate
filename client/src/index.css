@@ -1832,10 +1832,10 @@
   .home-league-card {
     position: relative;
     display: grid;
-    min-height: 7.65rem;
+    min-height: 6.6rem;
     min-width: 0;
-    grid-template-rows: minmax(3rem, auto) auto auto;
-    gap: 0.24rem;
+    grid-template-rows: minmax(3rem, auto) auto;
+    gap: 0.34rem;
     align-content: start;
     justify-items: center;
     overflow: hidden;
@@ -1845,7 +1845,7 @@
       radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.18), transparent 42%),
       radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.16), transparent 44%),
       linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(2, 6, 23, 0.66));
-    padding: 0.72rem 0.68rem 0.58rem;
+    padding: 0.68rem 0.68rem 0.54rem;
     color: #f8fafc;
     text-align: center;
     transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
@@ -1860,7 +1860,7 @@
     display: grid;
     width: auto;
     min-width: 0;
-    max-width: min(9.4rem, calc(100% - 3.35rem));
+    max-width: min(10.2rem, calc(100% - 3.15rem));
     flex: 1 1 auto;
     align-content: center;
     justify-items: start;
@@ -1869,7 +1869,7 @@
 
   .home-league-card-top {
     display: flex;
-    width: min(100%, 10.7rem);
+    width: min(100%, 12.4rem);
     min-width: 0;
     flex-direction: row;
     align-items: center;
@@ -1928,32 +1928,51 @@
   }
 
   .home-league-card-name {
-    display: grid;
+    display: block;
+    max-width: 100%;
     justify-items: start;
-    gap: 0.02rem;
+    overflow: hidden;
     color: #fb923c;
-    font-size: clamp(0.78rem, 2.65vw, 0.96rem);
+    font-size: clamp(0.78rem, 2.45vw, 0.98rem);
     font-weight: 950;
-    line-height: 0.98;
-    overflow: visible;
-    overflow-wrap: normal;
-    white-space: normal;
+    line-height: 1;
+    text-overflow: clip;
+    white-space: nowrap;
     word-break: normal;
   }
 
-  .home-league-card-name-line {
-    display: block;
+  .home-league-card-name-long {
+    font-size: clamp(0.7rem, 2.05vw, 0.9rem);
+  }
+
+  .home-league-card-name-xlong {
+    font-size: clamp(0.48rem, 1.18vw, 0.58rem);
+  }
+
+  .home-league-card-name-xxlong {
+    font-size: clamp(0.42rem, 1vw, 0.52rem);
   }
 
   .home-league-card-format {
     display: block;
-    width: min(100%, 10.7rem);
+    width: min(100%, 12.4rem);
     color: rgba(103, 232, 249, 0.82);
-    font-size: clamp(0.68rem, 2.7vw, 0.78rem);
+    font-size: clamp(0.6rem, 2.15vw, 0.74rem);
     font-weight: 850;
-    line-height: 1.12;
-    overflow-wrap: anywhere;
+    line-height: 1;
+    overflow: hidden;
+    overflow-wrap: normal;
     text-align: center;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  .home-league-card-format-long {
+    font-size: clamp(0.54rem, 1.8vw, 0.66rem);
+  }
+
+  .home-league-card-format-xlong {
+    font-size: clamp(0.5rem, 1.55vw, 0.6rem);
   }
 
   .home-league-card-format-mobile {
@@ -1962,14 +1981,14 @@
 
   .home-league-card-ranks {
     display: flex;
-    width: min(100%, 11.25rem);
+    width: min(100%, 12.4rem);
     min-width: 0;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
     gap: 0.3rem;
-    margin-top: 0.12rem;
+    margin-top: 0.02rem;
   }
 
   .home-league-pill {
@@ -2120,9 +2139,9 @@
 
   @media (max-width: 767px) {
     .home-league-card {
-      min-height: 7.75rem;
-      gap: 0.24rem;
-      padding: 0.68rem 0.62rem 0.52rem;
+      min-height: 6.5rem;
+      gap: 0.28rem;
+      padding: 0.62rem 0.58rem 0.48rem;
     }
 
     .home-league-card-top {
@@ -2139,13 +2158,33 @@
     }
 
     .home-league-card-name {
-      font-size: clamp(0.76rem, 3.15vw, 0.88rem);
-      line-height: 1.02;
+      font-size: clamp(0.68rem, 2.8vw, 0.84rem);
+      line-height: 1;
+    }
+
+    .home-league-card-name-long {
+      font-size: clamp(0.6rem, 2.45vw, 0.76rem);
+    }
+
+    .home-league-card-name-xlong {
+      font-size: clamp(0.36rem, 1.55vw, 0.46rem);
+    }
+
+    .home-league-card-name-xxlong {
+      font-size: clamp(0.32rem, 1.38vw, 0.4rem);
     }
 
     .home-league-card-format {
-      font-size: 0.78rem;
-      line-height: 1.1;
+      font-size: clamp(0.52rem, 2.22vw, 0.66rem);
+      line-height: 1;
+    }
+
+    .home-league-card-format-long {
+      font-size: clamp(0.48rem, 1.98vw, 0.58rem);
+    }
+
+    .home-league-card-format-xlong {
+      font-size: clamp(0.44rem, 1.74vw, 0.52rem);
     }
 
     .home-league-card-ranks {
@@ -2269,6 +2308,94 @@
   overflow: hidden;
 }
 
+.analysis-loading-dialog {
+  width: min(calc(100vw - 1.5rem), 31rem) !important;
+  max-width: min(calc(100vw - 1.5rem), 31rem) !important;
+  overflow: visible;
+  padding: 0 !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.2), transparent 38%),
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.18), transparent 38%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98)) !important;
+}
+
+.analysis-loading-modal-body {
+  position: relative;
+  min-height: 25rem;
+  padding: clamp(0.85rem, 3vw, 1.15rem);
+}
+
+.analysis-loading-panel {
+  display: grid;
+  gap: 0.82rem;
+  padding: 0 !important;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.loading-modal-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.72rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 0.95rem;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.14), transparent 42%),
+    rgba(2, 6, 23, 0.48);
+  padding: 0.78rem 0.86rem;
+}
+
+.loading-modal-bolt {
+  display: inline-flex;
+  height: 2.55rem;
+  width: 2.55rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(251, 146, 60, 0.36);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(251, 146, 60, 0.24), transparent 46%),
+    rgba(2, 6, 23, 0.72);
+  color: #fb923c;
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.16), 0 0 18px rgba(34, 211, 238, 0.1);
+}
+
+.loading-modal-bolt svg {
+  width: 1.18rem;
+  height: 1.18rem;
+}
+
+.loading-title {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.92);
+  font-size: clamp(0.98rem, 3.6vw, 1.2rem);
+  font-weight: 950;
+  line-height: 1.06;
+  overflow-wrap: anywhere;
+}
+
+.loading-subtitle {
+  margin: 0.22rem 0 0;
+  color: rgba(165, 243, 252, 0.74);
+  font-size: clamp(0.68rem, 2.6vw, 0.78rem);
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.loading-step-list {
+  display: grid;
+  gap: 0.34rem;
+  width: 100%;
+}
+
+.loading-step-complete {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.9), rgba(249, 115, 22, 0.78));
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.18);
+}
+
 .home-loading-stage {
   position: relative;
 }
@@ -2285,14 +2412,14 @@
   border: 1px solid rgba(34, 211, 238, 0.28);
   border-radius: 1.1rem;
   background:
-    radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.2), transparent 36%),
-    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.16), transparent 34%),
+    radial-gradient(circle at 50% 0%, rgba(251, 146, 60, 0.22), transparent 36%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.18), transparent 34%),
     linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.96));
   padding: clamp(1rem, 4vw, 1.35rem);
   text-align: center;
   transform: translate(-50%, -50%);
   box-shadow: 0 26px 80px rgba(0, 0, 0, 0.56), 0 0 42px rgba(34, 211, 238, 0.18);
-  animation: loading-success-pop 420ms ease-out both;
+  animation: loading-success-slap 720ms cubic-bezier(0.16, 1.16, 0.28, 1) both;
 }
 
 .loading-success-card::before {
@@ -2344,8 +2471,8 @@
   inset: -0.42rem;
   z-index: -1;
   background:
-    conic-gradient(from 210deg, #22d3ee, #34d399, #fbbf24, #fb923c, #fb7185, #a78bfa, #22d3ee);
-  filter: saturate(1.2);
+    linear-gradient(135deg, rgba(251, 146, 60, 0.96), rgba(251, 191, 36, 0.72), rgba(34, 211, 238, 0.92), rgba(37, 99, 235, 0.82));
+  filter: saturate(1.05);
   opacity: 0.88;
   animation: loading-league-icon-ring 980ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -2440,7 +2567,7 @@
   height: 100%;
   width: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #22d3ee, #fbbf24, #fb923c);
+  background: linear-gradient(90deg, #fb923c, #fbbf24, #22d3ee, #2563eb);
   content: '';
   transform-origin: left;
   animation: loading-success-fill 1200ms ease-out both;
@@ -2454,6 +2581,30 @@
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes loading-success-slap {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -56%) scale(3.1) rotate(-7deg);
+    filter: blur(2px);
+  }
+  48% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.88) rotate(3deg);
+    filter: blur(0);
+  }
+  68% {
+    transform: translate(-50%, -51%) scale(1.06) rotate(-1deg);
+  }
+  82% {
+    transform: translate(-50%, -49.5%) scale(0.98) rotate(0.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    filter: blur(0);
   }
 }
 
@@ -2555,8 +2706,12 @@
   }
 
   .loading-title {
-    color: rgba(226, 232, 240, 0.88);
-    font-weight: 900;
+    margin: 0;
+    color: rgba(226, 232, 240, 0.92);
+    font-size: clamp(0.98rem, 3.6vw, 1.2rem);
+    font-weight: 950;
+    line-height: 1.06;
+    overflow-wrap: anywhere;
   }
 
   .loading-step {
