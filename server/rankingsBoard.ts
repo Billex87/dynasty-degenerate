@@ -2,11 +2,12 @@ import { canonicalPlayerNameKey, cleanName, playerNameKeyVariants } from './leag
 import { loadFlockFantasyValueProfiles, type FlockFantasyValue } from './flockFantasy';
 import { getDynastyNerdsFormat, loadDynastyNerdsValueProfiles, type DynastyNerdsValue } from './dynastyNerds';
 import { formatDynastySourceWeights, getDynastySourceWeightEntries, getDynastySourceWeights } from './dynastySourceWeights';
+import { findProspectProfile } from './prospectSource';
 import {
   getCurrentKTCDevyRankingProfiles,
   getCurrentKTCRankingProfiles,
 } from './liveKTCScraper';
-import type { RankingIdentityDiagnostic, RankingPlayer, RankingProfileOption, RankingsBoard } from '../shared/types';
+import type { ProspectProfile, RankingIdentityDiagnostic, RankingPlayer, RankingProfileOption, RankingsBoard } from '../shared/types';
 
 type KtcProfileKey =
   | 'sf_ppr'
@@ -307,6 +308,7 @@ function buildRowsForProfile({
   ownerByPlayerId,
   rosterStatusByPlayerId,
   diagnostics,
+  prospectLookup,
 }: {
   option: RankingProfileOption;
   ktcRows: KtcRankingMap;
@@ -319,6 +321,7 @@ function buildRowsForProfile({
   ownerByPlayerId: Record<string, string>;
   rosterStatusByPlayerId: Record<string, string>;
   diagnostics: Map<string, RankingIdentityDiagnostic>;
+  prospectLookup?: Map<string, ProspectProfile>;
 }): RankingPlayer[] {
   const canonicalKtcRows = canonicalizeRankingMap(ktcRows || {});
   const canonicalFlockRows = canonicalizeRankingMap(flockRows || {});
@@ -351,6 +354,11 @@ function buildRowsForProfile({
     const sleeperPlayer = playerId ? players[playerId] : null;
     const pos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position || sleeperPlayer?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank);
     const isPick = pos === 'PICK' || /\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(name);
+    const college = flock?.college || ktc?.college || sleeperPlayer?.college || null;
+    const draftYear = Number(flock?.draftYear || ktc?.draftYear || sleeperPlayer?.metadata?.rookie_year || 0) || null;
+    const prospectProfile = prospectLookup
+      ? findProspectProfile(prospectLookup, name, pos, college, draftYear)
+      : null;
     const ktcValue = ktc?.ktc_value || blended?.market_value_ktc || blended?.ktc_value || null;
     const flockValue = flock?.dynastyValue || null;
     const dynastyNerdsValue = dynastyNerds?.dynastyValue || blended?.expert_value_dynastynerds || null;
@@ -388,9 +396,9 @@ function buildRowsForProfile({
       name,
       pos,
       team: sleeperPlayer?.team || dynastyNerds?.team || flock?.team || ktc?.team || null,
-      college: flock?.college || ktc?.college || null,
+      college,
       age: Number(sleeperPlayer?.age || dynastyNerds?.age || flock?.age || ktc?.age || 0) || null,
-      draftYear: Number(flock?.draftYear || ktc?.draftYear || 0) || null,
+      draftYear,
       overallRank: Number(ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || 9999),
       positionRank: normalizeRankPosition(ktc?.position_rank || dynastyNerds?.positionRank, pos) || flock?.positionRank || null,
       value,
@@ -410,6 +418,7 @@ function buildRowsForProfile({
       isDevy: option.board === 'devy',
       isPick,
       imageUrl: getFlockImageUrl(flock) || dynastyNerds?.imageUrl || null,
+      prospectProfile,
     });
   }
 
@@ -435,6 +444,7 @@ export async function buildRankingsBoard({
   rosterStatusByPlayerId,
   selectedProfileKey,
   selectedProfileLabel,
+  prospectLookup,
 }: {
   players: PlayerMap;
   ktcValues: KtcValues;
@@ -443,6 +453,7 @@ export async function buildRankingsBoard({
   rosterStatusByPlayerId: Record<string, string>;
   selectedProfileKey?: string | null;
   selectedProfileLabel?: string | null;
+  prospectLookup?: Map<string, ProspectProfile>;
 }): Promise<RankingsBoard> {
   const [ktcProfiles, ktcDevyProfiles, flockProfiles, dynastyNerdsProfiles] = await Promise.all([
     getCurrentKTCRankingProfiles(false),
@@ -479,6 +490,7 @@ export async function buildRankingsBoard({
       ownerByPlayerId,
       rosterStatusByPlayerId,
       diagnostics: identityDiagnostics,
+      prospectLookup,
     });
   }
 

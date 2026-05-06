@@ -13,7 +13,7 @@ const initialLoadingSteps: LoadingStep[] = [
   { id: 'sleeper', label: 'Hacking into Sleeper servers...', status: 'loading' },
   { id: 'league', label: 'Stealing league data & trade secrets', status: 'pending' },
   { id: 'ktc', label: 'Blending market values from multiple sources', status: 'pending' },
-  { id: 'dynasty', label: 'Destroying FlockFantasy\'s data fortress', status: 'pending' },
+  { id: 'dynasty', label: 'Interrogating the dynasty market', status: 'pending' },
   { id: 'csv', label: 'Generating your illegal advantage', status: 'pending' },
   { id: 'final', label: 'Covering our tracks...', status: 'pending' },
 ];

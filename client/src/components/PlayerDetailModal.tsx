@@ -145,6 +145,18 @@ export function PlayerDetailModal({
     ['College', details?.college],
     ['Birthday', formatBirthday(details?.birthDate)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const prospectRows = details?.prospectProfile ? [
+    ['Role', details.prospectProfile.role],
+    ['Draft Class', details.prospectProfile.draftYear],
+    ['College', details.prospectProfile.college],
+    ['Overall Rank', details.prospectProfile.overallRank ? `#${details.prospectProfile.overallRank}` : null],
+    ['Position Rank', details.prospectProfile.positionRank ? `${details.prospectProfile.position}${details.prospectProfile.positionRank}` : null],
+    ['Rating', details.prospectProfile.rating],
+    ['Avg Scout Rank', details.prospectProfile.averageOverallRank ? `#${details.prospectProfile.averageOverallRank}` : null],
+    ['40 Time', details.prospectProfile.fortyYardDash ? `${details.prospectProfile.fortyYardDash}s` : null],
+    ['Size', [details.prospectProfile.height, details.prospectProfile.weight].filter(Boolean).join(' / ')],
+    ['Summary', details.prospectProfile.summary],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const lastSeasonRows = [
     ['Last Year Rank', details?.lastSeasonPositionRank ? `${details.lastSeasonYear || 'Last'} ${details.lastSeasonPositionRank}` : null],
     ['Games Played', details?.lastSeasonGames],
@@ -169,15 +181,6 @@ export function PlayerDetailModal({
     ['Balanced', balancedRank],
     ['Contender', contenderRank],
     ['Rebuilder', rebuilderRank],
-    ['Flock Pos', valueProfile.flockPositionRank],
-    ['Flock Overall', valueProfile.flockRank ? `#${valueProfile.flockRank}` : null],
-    ['Flock Tier', valueProfile.flockTier ? `Tier ${valueProfile.flockTier}` : null],
-    ['Dynasty Nerds Pos', valueProfile.dynastyNerdsPositionRank],
-    ['Dynasty Nerds Overall', valueProfile.dynastyNerdsRank ? `#${valueProfile.dynastyNerdsRank}` : null],
-    ['Dynasty Nerds Format', valueProfile.dynastyNerdsFormat],
-    ['FantasyPros Pos', valueProfile.fantasyProsPositionRank],
-    ['FantasyPros Overall', valueProfile.fantasyProsRank ? `#${valueProfile.fantasyProsRank}` : null],
-    ['FantasyPros Tier', valueProfile.fantasyProsTier ? `Tier ${valueProfile.fantasyProsTier}` : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const sourceValueRows = valueProfile ? [
     ['Flock Fantasy', valueProfile.flockFantasy],
@@ -583,6 +586,7 @@ export function PlayerDetailModal({
 
             {(marketRankRows.length > 0
               || sourceValueRows.length > 0
+              || prospectRows.length > 0
               || latestNewsRows.length > 0
               || Boolean(details?.availabilityHistory?.length)) && (
               <div className="player-complete-data mx-auto max-w-xl">
@@ -590,6 +594,7 @@ export function PlayerDetailModal({
                 <div className="player-complete-grid">
                   <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority inlineRows />
                   <CompleteDataSection title="Source Inputs" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} />
+                  <CompleteDataSection title="Prospect File" rows={prospectRows} teamColors={teamColors} tileAccent={tileAccent} wide />
                   <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
                   {details?.availabilityHistory?.length ? (
                     <div className="player-complete-section player-complete-section-wide">

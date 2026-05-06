@@ -1,4 +1,4 @@
-import { int, longtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { index, int, longtext, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -46,3 +46,17 @@ export const ktcSnapshots = mysqlTable("ktcSnapshots", {
 
 export type KtcSnapshot = typeof ktcSnapshots.$inferSelect;
 export type InsertKtcSnapshot = typeof ktcSnapshots.$inferInsert;
+
+export const prospectSnapshots = mysqlTable("prospectSnapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  source: varchar("source", { length: 64 }).notNull(),
+  snapshotMonth: varchar("snapshotMonth", { length: 7 }).notNull(),
+  prospectData: longtext("prospectData"), // JSON stringified prospect context
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  sourceMonthUnique: uniqueIndex("prospectSnapshots_source_month_uidx").on(table.source, table.snapshotMonth),
+  sourceMonthIndex: index("prospectSnapshots_source_month_idx").on(table.source, table.snapshotMonth),
+}));
+
+export type ProspectSnapshot = typeof prospectSnapshots.$inferSelect;
+export type InsertProspectSnapshot = typeof prospectSnapshots.$inferInsert;

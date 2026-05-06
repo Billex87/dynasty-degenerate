@@ -190,6 +190,100 @@
   text-align: center;
 }
 
+.admin-blend-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.14);
+  padding: 0.85rem;
+}
+
+.admin-blend-summary-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 0.95rem;
+  background:
+    radial-gradient(circle at 4% 0%, rgba(34, 211, 238, 0.12), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.1), transparent 30%),
+    rgba(2, 6, 23, 0.58);
+  padding: 0.9rem;
+}
+
+.admin-blend-summary-card-note {
+  border-color: rgba(251, 191, 36, 0.24);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.12), transparent 32%),
+    rgba(2, 6, 23, 0.62);
+}
+
+.admin-blend-summary-top {
+  display: grid;
+  min-width: 0;
+  gap: 0.28rem;
+}
+
+.admin-blend-summary-top span {
+  color: #67e8f9;
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-blend-summary-top strong {
+  min-width: 0;
+  color: #fb923c;
+  font-size: 0.95rem;
+  font-weight: 950;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.admin-blend-source-list {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  margin-top: 0.75rem;
+}
+
+.admin-blend-source-pill {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.38rem;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.35);
+  padding: 0.25rem 0.5rem;
+  color: #cffafe;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-blend-source-pill strong,
+.admin-blend-source-pill em {
+  min-width: 0;
+  font-style: normal;
+}
+
+.admin-blend-source-pill em {
+  color: #fed7aa;
+}
+
+.admin-blend-summary-card p {
+  margin-top: 0.7rem;
+  color: #cbd5e1;
+  font-size: 0.76rem;
+  font-weight: 780;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
 .admin-value-diagnostics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
@@ -12493,6 +12587,32 @@ button.trade-manager-trade {
     font-size: 0.73rem;
   }
 
+  .admin-blend-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 0.58rem;
+    padding: 0.7rem;
+  }
+
+  .admin-blend-summary-card {
+    padding: 0.76rem;
+    text-align: center;
+  }
+
+  .admin-blend-source-list {
+    justify-content: center;
+    gap: 0.32rem;
+  }
+
+  .admin-blend-source-pill {
+    padding-inline: 0.42rem;
+    font-size: 0.61rem;
+  }
+
+  .admin-blend-summary-card p {
+    font-size: 0.72rem;
+    text-align: center;
+  }
+
   .admin-value-diagnostics-grid {
     grid-template-columns: 1fr;
     gap: 0.58rem;
@@ -13262,6 +13382,12 @@ button.trade-manager-trade {
   gap: clamp(0.75rem, 2vw, 1rem);
 }
 
+.rankings-table-section + .rankings-table-section {
+  margin-top: clamp(0.5rem, 2vw, 1rem);
+  border-top: 1px solid rgba(34, 211, 238, 0.12);
+  padding-top: clamp(1rem, 3vw, 1.45rem);
+}
+
 .rankings-hero-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -13353,9 +13479,64 @@ button.trade-manager-trade {
 
 .rankings-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr) minmax(12rem, 1fr) auto;
+  grid-template-columns: minmax(11rem, 0.62fr) minmax(0, 1.28fr) minmax(13rem, 0.9fr) auto;
   gap: 0.55rem;
   align-items: center;
+}
+
+.rankings-league-type-control {
+  display: grid;
+  min-width: 0;
+  gap: 0.28rem;
+}
+
+.rankings-league-type-label {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 1000;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rankings-league-type-trigger {
+  width: 100% !important;
+  min-height: 2.18rem !important;
+  border: 1px solid rgba(251, 146, 60, 0.32) !important;
+  border-radius: 999px !important;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(8, 47, 73, 0.62)),
+    rgba(2, 6, 23, 0.82) !important;
+  padding-inline: 0.72rem !important;
+  color: #fed7aa !important;
+  font-size: 0.72rem !important;
+  font-weight: 1000 !important;
+  letter-spacing: 0.06em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 24px rgba(8, 47, 73, 0.14) !important;
+}
+
+.rankings-league-type-trigger:hover,
+.rankings-league-type-trigger:focus-visible {
+  border-color: rgba(251, 146, 60, 0.58) !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12), 0 12px 26px rgba(249, 115, 22, 0.12) !important;
+}
+
+.rankings-league-type-menu {
+  border-color: rgba(34, 211, 238, 0.24) !important;
+  background:
+    radial-gradient(circle at 100% 0, rgba(34, 211, 238, 0.16), transparent 36%),
+    rgba(2, 6, 23, 0.98) !important;
+  color: #e2e8f0 !important;
+}
+
+.rankings-league-type-option {
+  color: #e2e8f0 !important;
+  font-size: 0.74rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
 }
 
 .rankings-control-group {
@@ -13497,18 +13678,23 @@ button.trade-manager-trade {
 
 .rankings-player-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(0.55rem, 1.5vw, 0.8rem);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.42rem;
 }
 
 .ranking-player-card {
   display: grid;
-  min-height: 10.35rem;
-  align-content: start;
-  gap: 0.62rem;
+  min-height: 4.35rem;
+  grid-template-columns: minmax(4.7rem, 0.32fr) minmax(16rem, 1.5fr) minmax(8rem, 0.62fr);
+  align-items: center;
+  gap: 0.6rem;
   overflow: hidden;
-  padding: clamp(0.72rem, 2vw, 0.95rem);
+  padding: clamp(0.52rem, 1.15vw, 0.72rem) clamp(0.65rem, 1.4vw, 0.92rem);
   text-align: left;
+}
+
+.ranking-player-card-devy {
+  border-color: color-mix(in srgb, var(--team-accent, #f59e0b) 42%, rgba(34, 211, 238, 0.2)) !important;
 }
 
 .ranking-player-topline,
@@ -13519,6 +13705,14 @@ button.trade-manager-trade {
   align-items: center;
   justify-content: space-between;
   gap: 0.45rem;
+}
+
+.ranking-player-main {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(10rem, 0.95fr) minmax(9rem, 1fr);
+  gap: 0.6rem;
+  align-items: center;
 }
 
 .ranking-overall-rank {
@@ -13601,6 +13795,17 @@ button.trade-manager-trade {
   padding: 0.18rem 0.48rem;
 }
 
+.ranking-college-pill {
+  max-width: min(10rem, 45vw);
+  border-color: color-mix(in srgb, var(--team-accent, #f59e0b) 34%, rgba(251, 146, 60, 0.22)) !important;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #111827) 42%, rgba(2, 6, 23, 0.8)), color-mix(in srgb, var(--team-secondary, #0f172a) 30%, rgba(2, 6, 23, 0.84))) !important;
+  color: #fff7ed !important;
+  overflow: hidden;
+  padding-inline: 0.55rem !important;
+  text-overflow: ellipsis;
+}
+
 .ranking-owner-pill {
   max-width: 8.5rem;
   flex: 0 1 auto;
@@ -13610,7 +13815,7 @@ button.trade-manager-trade {
 }
 
 .ranking-owner-chip {
-  max-width: min(13rem, 46%);
+  max-width: 100%;
   min-height: 1.72rem;
   padding: 0.12rem 0.42rem 0.12rem 0.2rem;
   color: #fed7aa;
@@ -13644,10 +13849,12 @@ button.trade-manager-trade {
 }
 
 .ranking-source-row {
+  grid-column: 1 / -1;
   justify-content: flex-start;
   flex-wrap: wrap;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
-  padding-top: 0.5rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  padding-top: 0.34rem;
+  opacity: 0.82;
 }
 
 .ranking-source-row span {
@@ -13658,11 +13865,28 @@ button.trade-manager-trade {
 }
 
 .ranking-devy-line {
+  display: flex;
+  grid-column: 1 / -1;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.42rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--team-accent, #f59e0b) 28%, rgba(34, 211, 238, 0.12));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--team-primary, #0f172a) 20%, rgba(2, 6, 23, 0.48));
+  padding: 0.28rem 0.56rem;
+  color: color-mix(in srgb, var(--team-accent, #fed7aa) 54%, #e2e8f0);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ranking-devy-line span {
   min-width: 0;
   overflow: hidden;
-  color: #cbd5e1;
-  font-size: 0.66rem;
-  font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -13764,13 +13988,36 @@ button.trade-manager-trade {
   }
 
   .ranking-player-card {
-    min-height: 8.5rem;
-    gap: 0.48rem;
+    min-height: 5.75rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.42rem 0.5rem;
     text-align: center;
   }
 
+  .ranking-player-topline {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+
+  .ranking-player-main {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.34rem;
+  }
+
+  .ranking-card-meta-row {
+    grid-column: 2;
+    grid-row: 2 / 4;
+    align-self: end;
+    justify-content: flex-end;
+  }
+
+  .ranking-source-row {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
   .ranking-player-topline,
-  .ranking-card-meta-row,
   .ranking-source-row,
   .ranking-card-pills,
   .ranking-player-identity {
@@ -13785,9 +14032,17 @@ button.trade-manager-trade {
     max-width: 100%;
   }
 
+  .ranking-college-pill {
+    max-width: 100%;
+  }
+
   .ranking-player-identity .player-chip > span:last-child,
   .ranking-player-identity > span {
     white-space: normal;
+  }
+
+  .ranking-devy-line {
+    justify-content: center;
   }
 }
 

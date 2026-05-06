@@ -673,6 +673,19 @@ type AdminValueDiagnosticRow = {
   tone?: 'good' | 'warn' | 'danger' | 'info';
 };
 
+type AdminBlendSummary = {
+  id: string;
+  title: string;
+  profileLabel: string;
+  note: string;
+  sources: Array<{
+    key: string;
+    source: string;
+    percent: number;
+    note?: string;
+  }>;
+};
+
 type OutlookPlayer = ReportData['projectedRisers'][number];
 
 function getOutlookPlayerValueProfile(reportData: ReportData, player: OutlookPlayer) {
@@ -751,6 +764,18 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
         tone: 'warn',
         note: limitation,
       });
+    });
+  }
+
+  if (reportData.prospectSourceDiagnostics) {
+    const diagnostic = reportData.prospectSourceDiagnostics;
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'prospect-context-source',
+      area: 'Prospect context',
+      item: `${diagnostic.playerCount} profiles`,
+      status: diagnostic.status === 'stored' ? 'Monthly stored' : diagnostic.status === 'partial' ? 'Partial scrape' : 'Needs scrape',
+      tone: diagnostic.status === 'stored' ? 'good' : diagnostic.status === 'partial' ? 'warn' : 'danger',
+      note: diagnostic.note,
     });
   }
 
@@ -848,6 +873,58 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
   return rows.slice(0, 32);
 }
 
+function getAdminBlendProfileLabel(reportData: ReportData, profileKey?: string | null): string {
+  if (!profileKey) return 'League-matched profile';
+  const profileOption = reportData.rankings?.profileOptions?.find((option) => option.key === profileKey);
+  return profileOption?.label || 'League-matched profile';
+}
+
+function buildAdminBlendSummaries(reportData: ReportData): AdminBlendSummary[] {
+  const rankings = reportData.rankings;
+  const sourceWeightProfiles = rankings?.sourceWeightProfiles;
+  if (!rankings || !sourceWeightProfiles) return [];
+
+  const summaries: AdminBlendSummary[] = [];
+  const dynastyProfileKey = rankings.defaultProfileKey;
+  const devyProfileKey = rankings.defaultDevyProfileKey;
+
+  if (dynastyProfileKey && sourceWeightProfiles[dynastyProfileKey]) {
+    summaries.push({
+      id: 'current-league-dynasty-blend',
+      title: 'Current League Dynasty Blend',
+      profileLabel: getAdminBlendProfileLabel(reportData, dynastyProfileKey),
+      note: 'Primary dynasty market blend for rankings, roster values, trades, and non-lineup dynasty reads in this league.',
+      sources: sourceWeightProfiles[dynastyProfileKey].sources
+        .filter((source) => source.percent > 0)
+        .map((source) => ({
+          key: source.key,
+          source: source.source,
+          percent: source.percent,
+          note: source.note,
+        })),
+    });
+  }
+
+  if (devyProfileKey && sourceWeightProfiles[devyProfileKey]) {
+    summaries.push({
+      id: 'current-league-college-blend',
+      title: 'College Prospect Blend',
+      profileLabel: getAdminBlendProfileLabel(reportData, devyProfileKey),
+      note: 'Prospect-board blend for college/devy assets. Prospect traits are context only and do not directly change dynasty market values.',
+      sources: sourceWeightProfiles[devyProfileKey].sources
+        .filter((source) => source.percent > 0)
+        .map((source) => ({
+          key: source.key,
+          source: source.source,
+          percent: source.percent,
+          note: source.note,
+        })),
+    });
+  }
+
+  return summaries;
+}
+
 function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) {
   const { data } = trpc.system.snapshotCoverage.useQuery(
     { lookbackDays: 14 },
@@ -855,12 +932,49 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
   );
 
   const rows = buildAdminValueDiagnostics(reportData, data?.missingDateKeys || []);
+  const blendSummaries = buildAdminBlendSummaries(reportData);
 
   return (
     <div className="admin-value-diagnostics">
       <p className="admin-value-diagnostics-intro">
         Admin eyes only. This shows what is calculated from Sleeper league settings, what is covered by stored market values, and what is still an assumption.
       </p>
+      {blendSummaries.length > 0 && (
+        <div className="admin-blend-summary-grid">
+          {blendSummaries.map((summary) => (
+            <article key={summary.id} className="admin-blend-summary-card">
+              <div className="admin-blend-summary-top">
+                <span>{summary.title}</span>
+                <strong>{summary.profileLabel}</strong>
+              </div>
+              <div className="admin-blend-source-list" aria-label={`${summary.title} source weights`}>
+                {summary.sources.map((source) => (
+                  <span key={source.key} className="admin-blend-source-pill" title={source.note}>
+                    <strong>{source.source}</strong>
+                    <em>{source.percent}%</em>
+                  </span>
+                ))}
+              </div>
+              <p>{summary.note}</p>
+            </article>
+          ))}
+          <article className="admin-blend-summary-card admin-blend-summary-card-note">
+            <div className="admin-blend-summary-top">
+              <span>Important Blend Detail</span>
+              <strong>Weights normalize when sources are missing</strong>
+            </div>
+            <p>
+              If a player is missing one of the sources above, the available weights normalize across only the sources present. Thin blends still get flagged below.
+              Season and projection data is only for lineup and redraft-style reads, not dynasty market value.
+            </p>
+            {reportData.leagueDiagnostics && (
+              <p>
+                Current league context: {reportData.leagueDiagnostics.teamCount}-team {reportData.leagueDiagnostics.scoringSummary}. Starter math uses {reportData.leagueDiagnostics.lineupSlotSummary}.
+              </p>
+            )}
+          </article>
+        </div>
+      )}
       <div className="admin-value-diagnostics-grid">
         {rows.map((row) => (
           <article key={row.id} className={`admin-value-diagnostics-card admin-value-diagnostics-card-${row.tone || 'info'}`}>
@@ -1660,7 +1774,7 @@ export default function Home() {
 
             <TabsContent value="rankings" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <CollapsibleReportSection title="Rankings" kicker="Format-aware dynasty blend">
+                <CollapsibleReportSection title="Market Boards" kicker="Format-aware player values">
                   <RankingsBoard
                     rankings={reportData.rankings}
                     playerDetailsById={reportData.playerDetailsById}
@@ -2057,7 +2171,7 @@ export default function Home() {
                   <h3 className="font-semibold text-white">Player Rankings</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  Browse blended dynasty, devy, SF, 1QB, and TEP rankings with source-aware player values.
+                  Browse league-matched dynasty and college prospect boards across SuperFlex, 1QB, and TE-premium formats.
                 </p>
               </div>
             </div>

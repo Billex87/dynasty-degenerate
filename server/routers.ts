@@ -13,6 +13,7 @@ import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
 import { fetchFantasyProsLatestPlayerNews, fetchFantasyProsNews, fetchFantasyProsPlayerPoints, findLatestFantasyProsNewsForPlayer } from "./fantasyPros";
 import { buildRankingsBoard } from "./rankingsBoard";
+import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -577,11 +578,29 @@ async function fetchPlayerAvailabilityHistory(
 function buildPlayerDetailsMap(
   playerIds: Iterable<string>,
   players: Record<string, any>,
-  rosterStatusByPlayerId: Record<string, string> = {}
+  rosterStatusByPlayerId: Record<string, string> = {},
+  prospectLookup?: ReturnType<typeof buildProspectLookup>
 ): Record<string, PlayerDetails> {
   return Object.fromEntries(
     Array.from(new Set(Array.from(playerIds).filter(Boolean)))
-      .map((playerId) => [playerId, getPlayerDetails(playerId, players[playerId], rosterStatusByPlayerId[playerId])])
+      .map((playerId) => {
+        const details = getPlayerDetails(playerId, players[playerId], rosterStatusByPlayerId[playerId]);
+        return [
+          playerId,
+          details && prospectLookup
+            ? {
+              ...details,
+              prospectProfile: findProspectProfile(
+                prospectLookup,
+                details.fullName,
+                details.position,
+                details.college,
+                details.rookieYear
+              ),
+            }
+            : details,
+        ];
+      })
       .filter((entry): entry is [string, PlayerDetails] => Boolean(entry[1]))
   );
 }
@@ -1914,6 +1933,8 @@ export const appRouter = router({
             leagueValueMode,
             allValueProfilesById
           );
+          const prospectContext = await loadProspectContext();
+          const prospectLookup = buildProspectLookup(prospectContext.profiles);
           const rankings = await buildRankingsBoard({
             players,
             ktcValues,
@@ -1922,6 +1943,7 @@ export const appRouter = router({
             rosterStatusByPlayerId,
             selectedProfileKey: leagueValueProfileKey,
             selectedProfileLabel: leagueValueProfileLabel,
+            prospectLookup,
           });
           const managerChampionships = await buildManagerChampionships(leagueInfo, users, rosters);
 
@@ -1956,7 +1978,7 @@ export const appRouter = router({
             players,
             await fetchFantasyProsNews()
           );
-          const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players, rosterStatusByPlayerId);
+          const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players, rosterStatusByPlayerId, prospectLookup);
 
           return {
             leagueId: input.leagueId,
@@ -1965,6 +1987,7 @@ export const appRouter = router({
             leagueFormat: formatLeagueFormat(leagueInfo),
             reportData: {
               ...reportData,
+              prospectSourceDiagnostics: prospectContext.diagnostics,
               viewerManager,
               currentStandings,
               managerAvatars: buildManagerAvatarMap(users),

@@ -5,6 +5,7 @@ import { appRouter } from '../routers';
 import { createContext } from './context';
 import { storeKtcSnapshot } from '../ktcSnapshotJob';
 import { getSnapshotDateKey } from '../ktcLoader';
+import { getProspectSnapshotMonth, shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from '../prospectSource';
 
 const app = express();
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
@@ -63,6 +64,47 @@ app.get('/api/cron/ktc-snapshot', async (req, res) => {
   } catch (error) {
     console.error('[Cron] KTC snapshot failed', error);
     res.status(500).json({ ok: false, error: 'KTC snapshot failed' });
+  }
+});
+
+app.get('/api/cron/prospect-snapshot', async (req, res) => {
+  const configuredSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization;
+  const forceRun = req.query.force === 'true';
+
+  if (!configuredSecret && process.env.NODE_ENV === 'production') {
+    res.status(500).json({ ok: false, error: 'CRON_SECRET is not configured' });
+    return;
+  }
+
+  if (configuredSecret && authHeader !== `Bearer ${configuredSecret}`) {
+    res.status(401).json({ ok: false, error: 'Unauthorized' });
+    return;
+  }
+
+  const now = new Date();
+  if (!forceRun && !shouldRunMonthlyProspectSnapshot(now)) {
+    res.status(202).json({
+      ok: true,
+      skipped: true,
+      reason: 'Prospect snapshot only runs on the first day of each month at 07:00 America/Vancouver',
+      snapshotMonth: getProspectSnapshotMonth(now),
+    });
+    return;
+  }
+
+  try {
+    const snapshot = await storeNflDraftBuzzProspectSnapshot();
+    res.status(200).json({
+      ok: true,
+      forced: forceRun,
+      snapshotMonth: snapshot.scrapeMonth,
+      playerCount: snapshot.players.length,
+      errors: snapshot.errors,
+    });
+  } catch (error) {
+    console.error('[Cron] Prospect snapshot failed', error);
+    res.status(500).json({ ok: false, error: 'Prospect snapshot failed' });
   }
 });
 

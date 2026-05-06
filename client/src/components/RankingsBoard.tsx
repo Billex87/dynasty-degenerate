@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeamLogoPill } from './TeamLogoPill';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { getPositionRankPillClass } from '@/lib/positionRank';
-import { getTeamTileStyle } from '@/lib/teamTileStyle';
+import { getCollegeTileStyle, getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import type { RankingPlayer, RankingProfileOption, ReportData } from '@shared/types';
 
@@ -57,8 +58,11 @@ function getPositionButtonClass(position: PositionFilter | 'OVERALL', active: bo
 }
 
 function getProfileButtonLabel(option: RankingProfileOption): string {
-  const format = option.qbFormat === 'sf' ? 'SF' : '1QB';
-  return option.tep ? `${format} ${option.tep} TEP` : format;
+  const prefix = option.qbFormat === 'sf' ? 'SuperFlex' : '1QB';
+  if (!option.tep) return prefix;
+  if (option.tep === 0.5) return `${prefix} TEP`;
+  if (option.tep === 1) return `${prefix} TEP+`;
+  return `${prefix} TEP++`;
 }
 
 function RankingPlayerIdentity({ player }: { player: RankingPlayer }) {
@@ -96,6 +100,15 @@ function RankingOwnerChip({
   );
 }
 
+function CollegeTeamPill({ college }: { college?: string | null }) {
+  if (!college) return null;
+  return (
+    <span className="ranking-college-pill" title={college}>
+      {college}
+    </span>
+  );
+}
+
 function RankingCard({
   player,
   playerDetailsById,
@@ -110,17 +123,25 @@ function RankingCard({
   onSelect: (player: RankingPlayer) => void;
 }) {
   const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
+  const sourceInputs: Array<[string, number | null | undefined]> = [
+    ['KTC', player.ktcValue],
+    ['Flock', player.flockValue],
+    ['Nerds', player.dynastyNerdsValue],
+    ['FC', player.fantasyCalcValue],
+    ['DP', player.dynastyProcessValue],
+  ].filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0);
   const movementClass = player.movementDirection === 'up'
     ? 'ranking-move-up'
     : player.movementDirection === 'down'
       ? 'ranking-move-down'
       : 'ranking-move-flat';
+  const displayTeam = details?.team || player.team;
 
   return (
     <button
       type="button"
-      className={`player-team-tile ranking-player-card ${viewerOwnedHighlightClass(player.owner, viewerManager)}`}
-      style={getTeamTileStyle(details?.team || player.team)}
+      className={`player-team-tile ranking-player-card ${player.isDevy ? 'ranking-player-card-devy' : ''} ${viewerOwnedHighlightClass(player.owner, viewerManager)}`}
+      style={player.isDevy ? getCollegeTileStyle(player.college) : getTeamTileStyle(details?.team || player.team)}
       onClick={() => onSelect(player)}
     >
       <div className="ranking-player-topline">
@@ -130,36 +151,39 @@ function RankingCard({
         </span>
       </div>
 
-      <RankingPlayerIdentity player={player} />
-
-      <div className="ranking-card-meta-row">
+      <div className="ranking-player-main">
+        <RankingPlayerIdentity player={player} />
         <div className="ranking-card-pills">
           {player.isPick ? (
             <span className={getRankClass('PICK')}>PICK</span>
           ) : (
             <>
-              <TeamLogoPill team={details?.team || player.team} />
+              {player.isDevy && player.college ? <CollegeTeamPill college={player.college} /> : <TeamLogoPill team={displayTeam} />}
               <span className={getRankClass(player.positionRank || player.pos)}>{player.positionRank || player.pos}</span>
             </>
           )}
           <span>{getCompactValue(player.value)}</span>
           {player.age ? <span>{player.age} yrs</span> : null}
         </div>
+      </div>
+
+      <div className="ranking-card-meta-row">
         <RankingOwnerChip owner={player.owner} managerAvatars={managerAvatars} />
       </div>
 
-      <div className="ranking-source-row">
-        <span>KTC {formatValue(player.ktcValue)}</span>
-        <span>Flock {formatValue(player.flockValue)}</span>
-        {player.dynastyNerdsValue ? <span>Nerds {formatValue(player.dynastyNerdsValue)}</span> : null}
-        {player.fantasyCalcValue ? <span>FC {formatValue(player.fantasyCalcValue)}</span> : null}
-        {player.dynastyProcessValue ? <span>DP {formatValue(player.dynastyProcessValue)}</span> : null}
-      </div>
-
-      {player.isDevy && (player.college || player.draftYear) ? (
+      {player.isDevy && (player.prospectProfile || player.college || player.draftYear) ? (
         <div className="ranking-devy-line">
-          {player.college || 'College prospect'}
-          {player.draftYear ? ` - ${player.draftYear}` : ''}
+          <span>{player.prospectProfile?.role || player.college || 'College prospect'}</span>
+          {player.prospectProfile?.fortyYardDash ? <span>40: {player.prospectProfile.fortyYardDash}s</span> : null}
+          {player.draftYear ? <span>{player.draftYear} class</span> : null}
+        </div>
+      ) : null}
+
+      {sourceInputs.length ? (
+        <div className="ranking-source-row" aria-label={`${player.name} source values`}>
+          {sourceInputs.map(([label, value]) => (
+            <span key={label}>{label} {formatValue(value)}</span>
+          ))}
         </div>
       ) : null}
     </button>
@@ -204,13 +228,9 @@ function RankingsTable({
 
   const rows = rankings.profiles?.[selectedProfileKey] || [];
   const activeProfile = profileOptions.find((option) => option.key === selectedProfileKey);
-  const activeWeightProfile = rankings.sourceWeightProfiles?.[selectedProfileKey];
-  const sourceSummary = rows.reduce<Record<string, number>>((summary, player) => {
-    for (const source of player.sources) {
-      summary[source] = (summary[source] || 0) + 1;
-    }
-    return summary;
-  }, {});
+  const activeProfileLabel = activeProfile ? getProfileButtonLabel(activeProfile) : null;
+  const isLeagueMatchedProfile = Boolean(config.defaultProfileKey && selectedProfileKey === config.defaultProfileKey);
+  const sourceInputCount = new Set(rows.flatMap((player) => player.sources)).size;
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -260,28 +280,35 @@ function RankingsTable({
           <div className="rankings-kicker">{config.kicker}</div>
           <h3>{config.title}</h3>
           <p>{config.description}</p>
-          {activeProfile ? <span className="rankings-active-profile">League-matched profile: {activeProfile.label}</span> : null}
-          {activeWeightProfile?.label ? <span className="rankings-active-profile">Blend weights: {activeWeightProfile.label}</span> : null}
+          {activeProfileLabel ? (
+            <span className="rankings-active-profile">
+              {isLeagueMatchedProfile ? 'League-matched type' : 'Selected type'}: {activeProfileLabel}
+            </span>
+          ) : null}
         </div>
         <div className="rankings-source-summary">
-          {Object.entries(sourceSummary).slice(0, 5).map(([source, count]) => (
-            <span key={source}>{source}: {count}</span>
-          ))}
+          <span>{rows.length.toLocaleString()} ranked assets</span>
+          <span>{sourceInputCount} value input{sourceInputCount === 1 ? '' : 's'}</span>
         </div>
       </div>
 
       <div className="rankings-controls">
-        <div className="rankings-control-group rankings-profile-toggle">
-          {boardOptions.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              className={selectedProfileKey === option.key ? 'active' : ''}
-              onClick={() => setSelectedProfileKey(option.key)}
-            >
-              {getProfileButtonLabel(option)}
-            </button>
-          ))}
+        <div className="rankings-league-type-control">
+          <label className="rankings-league-type-label" htmlFor={`${config.board}-league-type`}>
+            League Type
+          </label>
+          <Select value={selectedProfileKey} onValueChange={setSelectedProfileKey}>
+            <SelectTrigger id={`${config.board}-league-type`} className="rankings-league-type-trigger">
+              <SelectValue placeholder="League Type" />
+            </SelectTrigger>
+            <SelectContent className="rankings-league-type-menu" align="start">
+              {boardOptions.map((option) => (
+                <SelectItem key={option.key} value={option.key} className="rankings-league-type-option">
+                  {getProfileButtonLabel(option)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="rankings-control-group rankings-position-toggle">
@@ -376,6 +403,13 @@ export function RankingsBoard({
 
   const handleSelectPlayer = (player: RankingPlayer) => {
     const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
+    const prospectOnlyDetails = player.prospectProfile ? {
+      fullName: player.name,
+      position: player.pos,
+      team: player.team || null,
+      college: player.college || player.prospectProfile.college || null,
+      prospectProfile: player.prospectProfile,
+    } : undefined;
     setSelectedPlayer({
       player_id: player.player_id,
       playerName: player.name,
@@ -386,7 +420,9 @@ export function RankingsBoard({
       valueChangeNote: player.movementLabel ? 'Blended value change over the last 7 days.' : undefined,
       manager: player.owner || undefined,
       managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
-      playerDetails: details,
+      playerDetails: details
+        ? { ...details, prospectProfile: player.prospectProfile || details.prospectProfile || null }
+        : prospectOnlyDetails,
     });
   };
 
@@ -401,14 +437,14 @@ export function RankingsBoard({
   const tableConfigs: RankingsTableConfig[] = [
     {
       board: 'dynasty',
-      title: 'Regular Rankings',
-      kicker: 'League-matched market board',
-      description: 'Blended dynasty rankings use the league format we detected, with Flock as the anchor and Dynasty Nerds, KTC, FantasyCalc, and DynastyProcess filling the market/expert support.',
+      title: 'Dynasty Market Board',
+      kicker: 'League-matched values',
+      description: 'Format-aware dynasty player and pick values matched to this league type. Use the selector to compare how the board shifts across SuperFlex, 1QB, and TE-premium rooms.',
       defaultProfileKey: rankings.defaultProfileKey,
     },
     {
       board: 'devy',
-      title: 'College Rankings',
+      title: 'College Prospect Board',
       kicker: 'Future rookie pipeline',
       description: 'College rankings use the same QB and TE-premium profile as this league so devy and future rookie values stay aligned with the room you are actually playing in.',
       defaultProfileKey: rankings.defaultDevyProfileKey,

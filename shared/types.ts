@@ -57,6 +57,7 @@ export interface RankingPlayer {
   isDevy?: boolean;
   isPick?: boolean;
   imageUrl?: string | null;
+  prospectProfile?: ProspectProfile | null;
 }
 
 export interface RankingIdentityDiagnostic {
@@ -110,6 +111,37 @@ export interface RankingsBoard {
   dynastyOneQb: RankingPlayer[];
   devySf: RankingPlayer[];
   devyOneQb: RankingPlayer[];
+}
+
+export interface ProspectProfile {
+  source: 'NFL Draft Buzz';
+  sourceUrl?: string | null;
+  scrapeMonth?: string | null;
+  draftYear: number;
+  name: string;
+  position: string;
+  role?: string | null;
+  college?: string | null;
+  overallRank?: number | null;
+  positionRank?: number | null;
+  rating?: number | null;
+  averageOverallRank?: number | null;
+  averagePositionRank?: number | null;
+  height?: string | null;
+  weight?: string | null;
+  fortyYardDash?: number | null;
+  summary?: string | null;
+}
+
+export interface ProspectSourceDiagnostics {
+  source: 'NFL Draft Buzz';
+  status: 'stored' | 'partial' | 'missing' | 'error';
+  scrapeMonth?: string | null;
+  generatedAt?: string | null;
+  playerCount: number;
+  yearsTracked: number[];
+  note: string;
+  errors?: string[];
 }
 
 export interface ManagerData {
@@ -489,6 +521,7 @@ export interface PlayerDetails {
     difference: number;
     label?: string;
   }>;
+  prospectProfile?: ProspectProfile | null;
   externalIds?: Record<string, string | number | null | undefined>;
 }
 
@@ -564,6 +597,7 @@ export interface LeagueDiagnostics {
 export interface ReportData {
   leagueValueMode?: LeagueValueMode;
   leagueDiagnostics?: LeagueDiagnostics;
+  prospectSourceDiagnostics?: ProspectSourceDiagnostics;
   viewerManager?: string | null;
   currentStandings?: Array<{
     manager: string;

@@ -62,6 +62,26 @@ async function ensureSchema(sql: SqlClient) {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS "prospectSnapshots" (
+          id SERIAL PRIMARY KEY,
+          source VARCHAR(64) NOT NULL,
+          "snapshotMonth" VARCHAR(7) NOT NULL,
+          "prospectData" TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "prospectSnapshots_source_month_uidx"
+        ON "prospectSnapshots" (source, "snapshotMonth")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "prospectSnapshots_source_month_idx"
+        ON "prospectSnapshots" (source, "snapshotMonth" DESC)
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS "loginAttempts" (
           id SERIAL PRIMARY KEY,
           "eventType" VARCHAR(32) NOT NULL,
@@ -222,6 +242,36 @@ export async function listKtcSnapshotDateKeysSince(targetDate: Date): Promise<st
   return result
     .map((row) => row.day || null)
     .filter((day): day is string => Boolean(day));
+}
+
+export async function upsertProspectSnapshot(source: string, snapshotMonth: string, prospectData: string) {
+  const sql = await getDb();
+  if (!sql) return false;
+
+  await sql`
+    INSERT INTO "prospectSnapshots" (source, "snapshotMonth", "prospectData")
+    VALUES (${source}, ${snapshotMonth}, ${prospectData})
+    ON CONFLICT (source, "snapshotMonth") DO UPDATE SET
+      "prospectData" = EXCLUDED."prospectData",
+      "createdAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function findLatestProspectSnapshot(source: string) {
+  const sql = await getDb();
+  if (!sql) return null;
+
+  const result = await sql`
+    SELECT "prospectData"
+    FROM "prospectSnapshots"
+    WHERE source = ${source}
+    ORDER BY "snapshotMonth" DESC
+    LIMIT 1
+  ` as Record<string, any>[];
+
+  return result[0]?.prospectData ?? null;
 }
 
 function normalizeLoginAttempt(row: any): StoredLoginAttempt {
