@@ -1113,6 +1113,80 @@
     margin-left: 0.22rem;
   }
 
+  .league-shortcut-switcher {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .league-shortcut-label {
+    color: rgba(203, 213, 225, 0.78);
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .league-shortcut-stack {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .league-shortcut-button {
+    position: relative;
+    display: inline-flex;
+    width: 2.55rem;
+    height: 2.55rem;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid rgba(34, 211, 238, 0.45);
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(251, 146, 60, 0.24), transparent 42%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.9));
+    color: #67e8f9;
+    font-size: 0.72rem;
+    font-weight: 950;
+    line-height: 1;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32), 0 0 0 2px rgba(2, 6, 23, 0.9);
+    transition: margin-left 170ms ease, transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease;
+  }
+
+  .league-shortcut-button + .league-shortcut-button {
+    margin-left: -0.76rem;
+  }
+
+  .league-shortcut-button img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .league-shortcut-button:hover,
+  .league-shortcut-button:focus-visible,
+  .league-shortcut-button.is-active {
+    border-color: rgba(251, 146, 60, 0.78);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.38), 0 0 0 2px rgba(251, 146, 60, 0.24), 0 0 18px rgba(34, 211, 238, 0.2);
+    outline: none;
+  }
+
+  .league-shortcut-button:hover,
+  .league-shortcut-button:focus-visible {
+    transform: translateY(-0.14rem) scale(1.04);
+  }
+
+  .league-shortcut-switcher:hover .league-shortcut-button + .league-shortcut-button,
+  .league-shortcut-switcher:focus-within .league-shortcut-button + .league-shortcut-button {
+    margin-left: 0.22rem;
+  }
+
   .home-header-title {
     background: linear-gradient(90deg, #fb923c 0%, #fdba74 45%, #fde68a 100%);
     -webkit-background-clip: text;
@@ -1289,6 +1363,33 @@
     .home-user-switcher:hover .home-user-button:nth-last-child(3),
     .home-user-switcher:focus-within .home-user-button:nth-last-child(3) {
       margin-left: 0;
+    }
+    .home-league-shortcuts {
+      top: 4.85rem;
+      right: 0.62rem;
+      gap: 0;
+      transform: none;
+    }
+    .league-shortcut-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+    .league-shortcut-button {
+      width: 2rem;
+      height: 2rem;
+      font-size: 0.58rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34), 0 0 0 2px rgba(2, 6, 23, 0.86);
+    }
+    .league-shortcut-button + .league-shortcut-button {
+      margin-left: -0.56rem;
+    }
+    .league-shortcut-switcher:hover .league-shortcut-button + .league-shortcut-button,
+    .league-shortcut-switcher:focus-within .league-shortcut-button + .league-shortcut-button {
+      margin-left: 0.12rem;
     }
     .home-action-row {
       width: min(100%, 22rem);
@@ -2342,9 +2443,18 @@
     background-clip: text;
   }
 
+  .report-league-zone {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: clamp(0.35rem, 1.25vw, 0.65rem);
+  }
+
   .report-league-lockup {
     display: flex;
     min-width: 0;
+    flex: 1 1 auto;
     align-items: center;
     justify-content: flex-end;
     gap: clamp(0.45rem, 1.7vw, 0.8rem);
@@ -2354,6 +2464,20 @@
     color: inherit;
     cursor: pointer;
     text-align: right;
+  }
+
+  .report-league-shortcuts {
+    flex: 0 0 auto;
+    gap: 0;
+  }
+
+  .report-league-shortcuts .league-shortcut-label {
+    display: none;
+  }
+
+  .report-league-shortcuts .league-shortcut-button {
+    width: clamp(2rem, 4vw, 2.35rem);
+    height: clamp(2rem, 4vw, 2.35rem);
   }
 
   .report-league-icon {
@@ -8125,6 +8249,29 @@
       position: relative;
       top: auto;
       z-index: 20;
+    }
+
+    .report-league-zone {
+      gap: 0.28rem;
+    }
+
+    .report-league-lockup {
+      gap: 0.34rem;
+    }
+
+    .report-league-shortcuts .league-shortcut-button {
+      width: 1.9rem;
+      height: 1.9rem;
+      font-size: 0.56rem;
+    }
+
+    .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {
+      margin-left: -0.58rem;
+    }
+
+    .report-league-shortcuts:hover .league-shortcut-button + .league-shortcut-button,
+    .report-league-shortcuts:focus-within .league-shortcut-button + .league-shortcut-button {
+      margin-left: 0.08rem;
     }
 
     .report-tabs {

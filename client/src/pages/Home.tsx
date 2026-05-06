@@ -45,6 +45,7 @@ const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-histo
 const CACHED_SLEEPER_USERS_KEY = 'dynasty-degenerates:sleeper-user-history:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
+const MAX_CACHED_LEAGUE_SHORTCUTS = 4;
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-04-30';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
 const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'awwqq', 'zojozo']);
@@ -114,6 +115,7 @@ type CachedSleeperUser = {
   displayName: string;
   avatarUrl: string | null;
   leagues: SleeperLeagueOption[];
+  recentLeagueIds: string[];
   savedAt: number;
 };
 
@@ -146,6 +148,14 @@ function normalizeCachedSleeperUser(value: unknown): CachedSleeperUser | null {
   const leagues = Array.isArray(value.leagues)
     ? value.leagues.map(normalizeLeagueOption).filter((league): league is SleeperLeagueOption => Boolean(league))
     : [];
+  const validLeagueIds = new Set(leagues.map((league) => league.leagueId));
+  const recentLeagueIds = Array.isArray(value.recentLeagueIds)
+    ? value.recentLeagueIds
+      .filter((leagueId): leagueId is string => typeof leagueId === 'string')
+      .filter((leagueId, index, list) => list.indexOf(leagueId) === index)
+      .filter((leagueId) => validLeagueIds.has(leagueId))
+      .slice(0, MAX_CACHED_LEAGUE_SHORTCUTS)
+    : [];
 
   return {
     userId: typeof value.userId === 'string' && value.userId.trim() ? value.userId : username,
@@ -153,6 +163,7 @@ function normalizeCachedSleeperUser(value: unknown): CachedSleeperUser | null {
     displayName: typeof value.displayName === 'string' && value.displayName.trim() ? value.displayName : username,
     avatarUrl: typeof value.avatarUrl === 'string' && value.avatarUrl.trim() ? value.avatarUrl : null,
     leagues,
+    recentLeagueIds,
     savedAt: typeof value.savedAt === 'number' ? value.savedAt : 0,
   };
 }
@@ -190,8 +201,17 @@ function rememberCachedSleeperUser(user: CachedSleeperUser): CachedSleeperUser[]
   const normalizedUsername = normalizeViewerIdentifier(user.username);
   const normalizedUserId = normalizeViewerIdentifier(user.userId);
   const current = readCachedSleeperUsers();
+  const existing = current.find((cachedUser) => (
+    normalizeViewerIdentifier(cachedUser.username) === normalizedUsername
+    || normalizeViewerIdentifier(cachedUser.userId) === normalizedUserId
+  ));
+  const leagueIds = new Set(user.leagues.map((league) => league.leagueId));
+  const recentLeagueIds = (user.recentLeagueIds.length ? user.recentLeagueIds : existing?.recentLeagueIds || [])
+    .filter((leagueId, index, list) => list.indexOf(leagueId) === index)
+    .filter((leagueId) => leagueIds.has(leagueId))
+    .slice(0, MAX_CACHED_LEAGUE_SHORTCUTS);
   return writeCachedSleeperUsers([
-    { ...user, savedAt: Date.now() },
+    { ...user, recentLeagueIds, savedAt: Date.now() },
     ...current.filter((cachedUser) => (
       normalizeViewerIdentifier(cachedUser.username) !== normalizedUsername
       && normalizeViewerIdentifier(cachedUser.userId) !== normalizedUserId
@@ -210,8 +230,98 @@ function buildCachedSleeperUser(
     displayName: user?.displayName || user?.username || username,
     avatarUrl: user?.avatarUrl || null,
     leagues,
+    recentLeagueIds: [],
     savedAt: Date.now(),
   };
+}
+
+function findCachedSleeperUser(
+  users: CachedSleeperUser[],
+  userId?: string | null,
+  username?: string | null
+): CachedSleeperUser | null {
+  const normalizedUserId = normalizeViewerIdentifier(userId);
+  const normalizedUsername = normalizeViewerIdentifier(username);
+  return users.find((user) => (
+    (normalizedUserId && normalizeViewerIdentifier(user.userId) === normalizedUserId)
+    || (normalizedUsername && normalizeViewerIdentifier(user.username) === normalizedUsername)
+  )) || users[0] || null;
+}
+
+function getLeagueFallbackInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  return name.trim().slice(0, 2).toUpperCase() || 'DD';
+}
+
+function getLeagueShortcutsForUser(
+  cachedUser: CachedSleeperUser | null,
+  userLeagues: SleeperLeagueOption[],
+  activeLeagueId?: string | null
+): SleeperLeagueOption[] {
+  const leagues = cachedUser?.leagues.length ? cachedUser.leagues : userLeagues;
+  if (!leagues.length) return [];
+
+  const leagueById = new Map(leagues.map((league) => [league.leagueId, league]));
+  const orderedIds = [
+    ...(cachedUser?.recentLeagueIds || []),
+    ...leagues.map((league) => league.leagueId),
+  ];
+  const seen = new Set<string>();
+  return orderedIds
+    .filter((leagueId) => leagueId !== activeLeagueId)
+    .filter((leagueId) => {
+      if (seen.has(leagueId)) return false;
+      seen.add(leagueId);
+      return leagueById.has(leagueId);
+    })
+    .map((leagueId) => leagueById.get(leagueId))
+    .filter((league): league is SleeperLeagueOption => Boolean(league))
+    .slice(0, MAX_CACHED_LEAGUE_SHORTCUTS);
+}
+
+function rememberCachedSleeperLeagueShortcut({
+  users,
+  user,
+  username,
+  leagues,
+  leagueId,
+}: {
+  users: CachedSleeperUser[];
+  user: SleeperUserSession | null;
+  username: string;
+  leagues: SleeperLeagueOption[];
+  leagueId: string;
+}): CachedSleeperUser[] {
+  const normalizedUsername = normalizeViewerIdentifier(user?.username || username);
+  const normalizedUserId = normalizeViewerIdentifier(user?.userId || username);
+  const leagueIds = new Set(leagues.map((league) => league.leagueId));
+  if (!normalizedUsername || !leagueIds.has(leagueId)) return users;
+
+  const existing = findCachedSleeperUser(users, user?.userId || null, user?.username || username);
+  const base = existing || buildCachedSleeperUser(username, user, leagues);
+  const nextRecentLeagueIds = [leagueId, ...(base.recentLeagueIds || [])]
+    .filter((id, index, list) => list.indexOf(id) === index)
+    .filter((id) => leagueIds.has(id))
+    .slice(0, MAX_CACHED_LEAGUE_SHORTCUTS);
+  const nextUser: CachedSleeperUser = {
+    ...base,
+    userId: user?.userId || base.userId || username,
+    username: user?.username || base.username || username,
+    displayName: user?.displayName || base.displayName || username,
+    avatarUrl: user?.avatarUrl || base.avatarUrl || null,
+    leagues,
+    recentLeagueIds: nextRecentLeagueIds,
+    savedAt: Date.now(),
+  };
+
+  return writeCachedSleeperUsers([
+    nextUser,
+    ...users.filter((cachedUser) => (
+      normalizeViewerIdentifier(cachedUser.username) !== normalizedUsername
+      && normalizeViewerIdentifier(cachedUser.userId) !== normalizedUserId
+    )),
+  ]);
 }
 
 function cachedSleeperUserToSessionUser(user: CachedSleeperUser): SleeperUserSession {
@@ -335,6 +445,86 @@ function HomeCachedUserSwitcher({
         })}
       </div>
     </div>
+  );
+}
+
+function LeagueShortcutStack({
+  leagues,
+  activeLeagueId,
+  onSelect,
+  className,
+  label = 'Leagues',
+}: {
+  leagues: SleeperLeagueOption[];
+  activeLeagueId?: string | null;
+  onSelect: (leagueId: string) => void;
+  className?: string;
+  label?: string;
+}) {
+  if (!leagues.length) return null;
+
+  return (
+    <div className={`league-shortcut-switcher${className ? ` ${className}` : ''}`} aria-label="Recent league shortcuts">
+      <span className="league-shortcut-label">{label}</span>
+      <div className="league-shortcut-stack">
+        {leagues.slice(0, MAX_CACHED_LEAGUE_SHORTCUTS).map((league, index) => {
+          const isActive = league.leagueId === activeLeagueId;
+          return (
+            <button
+              key={league.leagueId}
+              type="button"
+              className={`league-shortcut-button${isActive ? ' is-active' : ''}`}
+              onClick={() => {
+                if (!isActive) onSelect(league.leagueId);
+              }}
+              style={{ zIndex: index + 1 }}
+              title={isActive ? `${league.name} is open` : `Open ${league.name}`}
+              aria-label={isActive ? `${league.name} is open` : `Open ${league.name}`}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              {league.avatarUrl ? (
+                <img src={league.avatarUrl} alt="" aria-hidden="true" />
+              ) : (
+                <span>{getLeagueFallbackInitials(league.name)}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function HomeHeaderShortcuts({
+  leagues,
+  users,
+  activeUsername,
+  onLeagueSelect,
+  onUserSelect,
+}: {
+  leagues: SleeperLeagueOption[];
+  users: CachedSleeperUser[];
+  activeUsername: string;
+  onLeagueSelect: (leagueId: string) => void;
+  onUserSelect: (user: CachedSleeperUser) => void;
+}) {
+  if (leagues.length) {
+    return (
+      <LeagueShortcutStack
+        leagues={leagues}
+        onSelect={onLeagueSelect}
+        className="home-user-switcher home-league-shortcuts"
+        label="Leagues"
+      />
+    );
+  }
+
+  return (
+    <HomeCachedUserSwitcher
+      users={users}
+      activeUsername={activeUsername}
+      onSelect={onUserSelect}
+    />
   );
 }
 
@@ -701,6 +891,35 @@ export default function Home() {
     setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, value));
   };
 
+  const getCurrentSessionUserForCache = (): SleeperUserSession | null => {
+    const cachedUser = findCachedSleeperUser(cachedSleeperUsers, viewerUserId, sleeperUsername);
+    const username = sleeperUsername.trim() || cachedUser?.username || '';
+    if (!username) return null;
+
+    return {
+      userId: viewerUserId || cachedUser?.userId || username,
+      username: cachedUser?.username || viewerUsername || username,
+      displayName: cachedUser?.displayName || viewerUsername || username,
+      avatarUrl: cachedUser?.avatarUrl || null,
+    };
+  };
+
+  const rememberCurrentUserLeagueShortcut = (nextLeagueId: string) => {
+    if (!userLeagues.some((league) => league.leagueId === nextLeagueId)) return;
+    const sessionUser = getCurrentSessionUserForCache();
+    const username = sleeperUsername.trim() || sessionUser?.username || '';
+    if (!sessionUser || !username) return;
+
+    const nextUsers = rememberCachedSleeperLeagueShortcut({
+      users: readCachedSleeperUsers(),
+      user: sessionUser,
+      username,
+      leagues: userLeagues,
+      leagueId: nextLeagueId,
+    });
+    setCachedSleeperUsers(nextUsers);
+  };
+
   const analyzeMutation = trpc.league.analyze.useMutation({
     onSuccess: (data) => {
       if (successTransitionTimerRef.current) {
@@ -710,6 +929,7 @@ export default function Home() {
       setLeagueName(data.leagueName);
       setLeagueLogo(data.leagueLogo);
       setLeagueFormat(data.leagueFormat);
+      rememberCurrentUserLeagueShortcut(data.leagueId);
       setAnalysisCompleteMessage({
         leagueName: data.leagueName,
         leagueFormat: data.leagueFormat,
@@ -1017,8 +1237,62 @@ export default function Home() {
     handleAnalyze(nextLeagueId);
   };
 
+  const handleCachedLeagueShortcutSelect = (nextLeagueId: string) => {
+    const cachedUser = findCachedSleeperUser(cachedSleeperUsers, viewerUserId, sleeperUsername);
+    const sessionUser = cachedUser ? cachedSleeperUserToSessionUser(cachedUser) : null;
+    if (cachedUser && sessionUser) {
+      const nextViewerIdentity = getKtcAdminIdentity(sessionUser, cachedUser.username);
+      const nextIsPrivilegedViewer = isPrivilegedReportViewer(cachedUser.userId, nextViewerIdentity, cachedUser.username);
+      setSleeperUsername(cachedUser.username);
+      setFocusedAutocomplete(null);
+      setUserLeagues(cachedUser.leagues);
+      setViewerUserId(cachedUser.userId);
+      setViewerUsername(nextViewerIdentity);
+      setAdminViewMode(nextIsPrivilegedViewer ? adminViewMode : null);
+      rememberSleeperUsername(cachedUser.username);
+      setCachedSleeperUsers(rememberCachedSleeperLeagueShortcut({
+        users: readCachedSleeperUsers(),
+        user: sessionUser,
+        username: cachedUser.username,
+        leagues: cachedUser.leagues,
+        leagueId: nextLeagueId,
+      }));
+
+      try {
+        localStorage.setItem(
+          SLEEPER_SESSION_KEY,
+          JSON.stringify({
+            username: cachedUser.username,
+            user: sessionUser,
+            leagues: cachedUser.leagues,
+            adminViewMode: nextIsPrivilegedViewer ? adminViewMode : null,
+            savedAt: Date.now(),
+          } satisfies SleeperSession)
+        );
+      } catch {
+        // League shortcuts are still usable for this page load.
+      }
+    }
+
+    setIsLeaguePickerOpen(false);
+    setIsChangeLeagueModalOpen(false);
+    localStorage.removeItem(REPORT_CACHE_KEY);
+    setReportData(null);
+    setLeagueId(nextLeagueId);
+    rememberLeagueId(nextLeagueId);
+    setAnalysisCompleteMessage(null);
+    setIsLoading(true);
+    analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: cachedUser?.userId || viewerUserId || undefined });
+  };
+
   const usernameAutocompleteOptions = getFilteredAutocompleteOptions(sleeperUsernameHistory, sleeperUsername);
   const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(leagueIdHistory, leagueId);
+  const activeCachedSleeperUser = findCachedSleeperUser(cachedSleeperUsers, viewerUserId, sleeperUsername);
+  const cachedLeagueShortcuts = getLeagueShortcutsForUser(
+    activeCachedSleeperUser,
+    userLeagues,
+    reportData ? leagueId : null
+  );
   const isPrivilegedViewer = isPrivilegedReportViewer(viewerUserId, viewerUsername, sleeperUsername);
   const canViewMomentumTab = isPrivilegedViewer && adminViewMode === 'admin';
   const resolvedActiveTab = !canViewMomentumTab && activeTab === 'momentum' ? 'overview' : activeTab;
@@ -1149,29 +1423,40 @@ export default function Home() {
                 />
               </div>
 
-              {/* Right: League Name */}
-              <button
-                type="button"
-                className="report-league-lockup md:col-start-3"
-                onClick={handleHeaderLeagueClick}
-                aria-label="Open league switcher"
-              >
-                <div className="min-w-0 text-right">
-                  <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">{leagueName}</p>
-                  {leagueFormat && (
-                    <p className="truncate text-[11px] font-medium text-cyan-200/70 sm:text-xs">
-                      {leagueFormat}
-                    </p>
+              {/* Right: League Name + shortcuts */}
+              <div className="report-league-zone md:col-start-3">
+                <button
+                  type="button"
+                  className="report-league-lockup"
+                  onClick={handleHeaderLeagueClick}
+                  aria-label="Open league switcher"
+                >
+                  <div className="min-w-0 text-right">
+                    <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">{leagueName}</p>
+                    {leagueFormat && (
+                      <p className="truncate text-[11px] font-medium text-cyan-200/70 sm:text-xs">
+                        {leagueFormat}
+                      </p>
+                    )}
+                  </div>
+                  {leagueLogo && (
+                    <img
+                      src={leagueLogo}
+                      alt={leagueName ? `${leagueName} league icon` : 'League icon'}
+                      className="report-league-icon"
+                    />
                   )}
-                </div>
-                {leagueLogo && (
-                  <img
-                    src={leagueLogo}
-                    alt={leagueName ? `${leagueName} league icon` : 'League icon'}
-                    className="report-league-icon"
+                </button>
+                {cachedLeagueShortcuts.length > 0 && (
+                  <LeagueShortcutStack
+                    leagues={cachedLeagueShortcuts}
+                    activeLeagueId={leagueId}
+                    onSelect={handleCachedLeagueShortcutSelect}
+                    className="report-league-shortcuts"
+                    label="Switch"
                   />
                 )}
-              </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1555,10 +1840,12 @@ export default function Home() {
     <div className="home-shell min-h-screen flex flex-col">
       <div className="home-header px-4 py-4 sm:py-5">
         <HomeLogoChrome />
-        <HomeCachedUserSwitcher
+        <HomeHeaderShortcuts
+          leagues={cachedLeagueShortcuts}
           users={cachedSleeperUsers}
           activeUsername={sleeperUsername}
-          onSelect={handleCachedSleeperUserSelect}
+          onLeagueSelect={handleCachedLeagueShortcutSelect}
+          onUserSelect={handleCachedSleeperUserSelect}
         />
       </div>
       <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
