@@ -6340,8 +6340,32 @@ function getPositionStarterNeed(row: ManagerCountRow, position: CountPosition): 
   return Number(row[starterKey] || 0);
 }
 
-function formatRosterNeedRatio(row: ManagerCountRow, position: CountPosition): string {
-  return `${getPositionRosterCount(row, position)}/${getPositionStarterNeed(row, position)}`;
+function getLeagueAveragePositionCount(data: ReportData['managerPositionCounts'], position: CountPosition): number {
+  if (!data.length) return 0;
+  const total = data.reduce((sum, row) => sum + getPositionRosterCount(row, position), 0);
+  return total / data.length;
+}
+
+function getPositionCountDelta(row: ManagerCountRow, data: ReportData['managerPositionCounts'], position: CountPosition): number {
+  return getPositionRosterCount(row, position) - getLeagueAveragePositionCount(data, position);
+}
+
+function getPositionCountTone(delta: number): 'neutral' | 'positive' | 'negative' {
+  if (delta >= 0.75) return 'positive';
+  if (delta <= -0.75) return 'negative';
+  return 'neutral';
+}
+
+function getPositionCountPillTone(delta: number): 'neutral' | 'good' | 'danger' {
+  if (delta >= 0.75) return 'good';
+  if (delta <= -0.75) return 'danger';
+  return 'neutral';
+}
+
+function formatPositionCountDelta(delta: number): string {
+  if (Math.abs(delta) < 0.75) return 'Avg';
+  const rounded = Math.round(delta);
+  return `${rounded > 0 ? '+' : ''}${rounded} vs avg`;
 }
 
 function compareManagerCountPlayers(a: ManagerCountPlayer, b: ManagerCountPlayer): number {
@@ -6400,6 +6424,21 @@ function getPositionDepthRead(signal: PositionDepthSignal, row?: ManagerCountRow
     : '';
 
   return `${signal.manager} has the league-${signal.status === 'shortage' ? 'low' : 'high'} ${signal.position} count: ${rosterCount}/${starterNeed} rostered-to-start. ${startingCaliberCount} ${signal.position} player${startingCaliberCount === 1 ? '' : 's'} clear the ${Math.max(leagueSize, 1)}-team starter-caliber cutoff for this lineup format.${playerCopy}`;
+}
+
+function getManagerRosterPlayersByPosition(row: ManagerCountRow): Record<CountPosition, ManagerCountPlayer[]> {
+  return Object.fromEntries(
+    COUNT_POSITIONS.map((position) => [
+      position,
+      [...(row.lineupPlayers || [])]
+        .filter((player) => player.pos === position)
+        .sort((a, b) => (b.value || b.seasonValue || 0) - (a.value || a.seasonValue || 0)),
+    ])
+  ) as Record<CountPosition, ManagerCountPlayer[]>;
+}
+
+function getManagerRosterPlayerCount(row: ManagerCountRow): number {
+  return COUNT_POSITIONS.reduce((sum, position) => sum + getPositionRosterCount(row, position), 0);
 }
 
 function StarterDepthSignalPlayerTile({
@@ -6473,7 +6512,8 @@ export function ManagerPositionCountsTable({
   const [selectedManager, setSelectedManager] = useState<ReportData['managerPositionCounts'][number] | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const selectedAvatar = selectedManager ? managerAvatars?.[selectedManager.manager] : null;
-  const selectedStarters = selectedManager?.starterPlayers || [];
+  const selectedRosterPlayersByPosition = selectedManager ? getManagerRosterPlayersByPosition(selectedManager) : null;
+  const selectedRosterPlayerCount = selectedManager ? getManagerRosterPlayerCount(selectedManager) : 0;
   const positionDepthByManager = useMemo(() => {
     const signalsByManager = new Map<string, PositionDepthSignal[]>();
 
@@ -6502,10 +6542,17 @@ export function ManagerPositionCountsTable({
               className={viewerOwnedHighlightClass(row.manager, viewerManager)}
               onClick={() => setSelectedManager(row)}
             >
-              <OwnerMetricPill label="QB" value={formatRosterNeedRatio(row, 'QB')} />
-              <OwnerMetricPill label="RB" value={formatRosterNeedRatio(row, 'RB')} />
-              <OwnerMetricPill label="WR" value={formatRosterNeedRatio(row, 'WR')} />
-              <OwnerMetricPill label="TE" value={formatRosterNeedRatio(row, 'TE')} />
+              {COUNT_POSITIONS.map((position) => {
+                const delta = getPositionCountDelta(row, data, position);
+                return (
+                  <OwnerMetricPill
+                    key={position}
+                    label={position}
+                    value={getPositionRosterCount(row, position)}
+                    tone={getPositionCountPillTone(delta)}
+                  />
+                );
+              })}
               {depthSignals.slice(0, 2).map((signal) => (
                 <OwnerMetricPill
                   key={`${signal.position}-${signal.status}`}
@@ -6524,9 +6571,9 @@ export function ManagerPositionCountsTable({
       <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
         <DialogContent className="starter-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl">
           <DialogHeader className="sr-only">
-            <DialogTitle>{selectedManager?.manager} Starters</DialogTitle>
+            <DialogTitle>{selectedManager?.manager} Roster Counts</DialogTitle>
             <DialogDescription>
-              Starter players for this manager. Select a player to open the player detail modal.
+              Roster players grouped by position and sorted by value. Select a player to open the player detail modal.
             </DialogDescription>
           </DialogHeader>
           {selectedManager && (
@@ -6562,115 +6609,103 @@ export function ManagerPositionCountsTable({
                     )}
                   </ChampionAvatarFrame>
                   <div className="min-w-0">
-                    <p>Starter Room</p>
+                    <p>Roster Room</p>
                     <h3 className={getManagerHeadingClassName(selectedManager.manager)}>{selectedManager.manager}</h3>
                     <ManagerChampionshipPills managerName={selectedManager.manager} className="manager-command-championships" />
                     <p className="starter-modal-subtitle">
-                      {selectedStarters.length} starter{selectedStarters.length === 1 ? '' : 's'} by positional rank
+                      {selectedRosterPlayerCount} rostered QB/RB/WR/TE player{selectedRosterPlayerCount === 1 ? '' : 's'} by value
                     </p>
                   </div>
                 </div>
                 <div className="manager-command-hero-metrics starter-modal-metrics">
-                  <IntelligenceMetric label="QB" value={formatRosterNeedRatio(selectedManager, 'QB')} />
-                  <IntelligenceMetric label="RB" value={formatRosterNeedRatio(selectedManager, 'RB')} />
-                  <IntelligenceMetric label="WR" value={formatRosterNeedRatio(selectedManager, 'WR')} />
-                  <IntelligenceMetric label="TE" value={formatRosterNeedRatio(selectedManager, 'TE')} />
+                  {COUNT_POSITIONS.map((position) => {
+                    const delta = getPositionCountDelta(selectedManager, data, position);
+                    return (
+                      <IntelligenceMetric
+                        key={position}
+                        label={position}
+                        tone={getPositionCountTone(delta)}
+                        value={(
+                          <span className="starter-modal-count-value">
+                            <span>{getPositionRosterCount(selectedManager, position)}</span>
+                            <small>{formatPositionCountDelta(delta)}</small>
+                          </span>
+                        )}
+                      />
+                    );
+                  })}
                 </div>
               </div>
               <div className="starter-modal-body min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-5">
                 {selectedDepthSignals.length > 0 && (
-                  <div className="starter-depth-signal-board" aria-label="Position depth signals">
+                  <div className="starter-depth-signal-strip" aria-label="Position depth signals">
                     {selectedDepthSignals.map((signal) => {
-                      const signalPlayers = getPositionDepthSignalPlayers(selectedManager, signal);
-                      const rosterNeedValue = isCountPosition(signal.position)
-                        ? formatRosterNeedRatio(selectedManager, signal.position)
-                        : signal.count;
-
                       return (
-                        <div
+                        <span
                           key={`${signal.position}-${signal.status}`}
-                          className={`starter-depth-signal-card starter-depth-signal-${signal.status}`}
+                          className={`starter-depth-signal-chip starter-depth-signal-chip-${signal.status}`}
                         >
-                          <div className="starter-depth-signal-metrics">
-                            <IntelligenceMetric
-                              label={getPositionDepthNeedLabel(signal.status)}
-                              value={signal.position}
-                              tone={signal.status === 'shortage' ? 'negative' : 'positive'}
-                            />
-                            <IntelligenceMetric label="Roster/Need" value={rosterNeedValue} />
-                            <IntelligenceMetric
-                              label="Signal"
-                              value={getPositionDepthSignalLabel(signal.status)}
-                              tone={signal.status === 'shortage' ? 'negative' : 'positive'}
-                            />
-                          </div>
-                          {signalPlayers.length > 0 ? (
-                            <div className="starter-depth-player-list" aria-label={`${signal.position} ${getPositionDepthSignalLabel(signal.status)} players`}>
-                              {signalPlayers.map((player) => (
-                                <StarterDepthSignalPlayerTile
-                                  key={player.player_id}
-                                  player={player}
-                                  signal={signal}
-                                  manager={selectedManager.manager}
-                                  managerAvatarUrl={selectedAvatar}
-                                  playerDetailsById={playerDetailsById}
-                                  onSelect={setSelectedPlayer}
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="starter-depth-player-empty">
-                              No ranked {signal.position} players found in this room.
-                            </div>
-                          )}
-                          <div className="starter-depth-read">
-                            <span>Read</span>
-                            <p>{getPositionDepthRead(signal, selectedManager, data.length)}</p>
-                          </div>
-                        </div>
+                          <strong>{signal.status === 'shortage' ? 'Shortage' : 'Overage'}</strong>
+                          <span>{signal.position}</span>
+                        </span>
                       );
                     })}
                   </div>
                 )}
-                {selectedStarters.length > 0 ? (
-                  <div className="starter-grid">
-                    {selectedStarters.map((player) => (
-                      <button
-                        key={player.player_id}
-                        type="button"
-                        className="player-team-tile starter-player-tile"
-                        style={getTeamTileStyle(player.playerDetails?.team)}
-                        onClick={() => {
-                          setSelectedPlayer(buildPlayerModalData({
-                            playerId: player.player_id,
-                            playerName: player.name,
-                            playerPos: player.pos,
-                            value: player.value,
-                            playerDetails: player.playerDetails,
-                            playerDetailsById,
-                            currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
-                            manager: selectedManager.manager,
-                            managerAvatarUrl: selectedAvatar,
-                          }));
-                        }}
-                      >
-                        <div className="starter-player-main">
-                          <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-                        </div>
-                        <div className="starter-player-meta">
-                          <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
-                          <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
-                          <span className={`starter-player-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
-                            {getPlayerStatusLabel(player.playerDetails)}
-                          </span>
-                          <strong>{player.value.toLocaleString()}</strong>
-                        </div>
-                      </button>
-                    ))}
+                {selectedRosterPlayersByPosition && selectedRosterPlayerCount > 0 ? (
+                  <div className="starter-roster-position-list">
+                    {COUNT_POSITIONS.map((position) => {
+                      const players = selectedRosterPlayersByPosition[position] || [];
+                      if (!players.length) return null;
+
+                      return (
+                        <section key={position} className="starter-roster-position-section">
+                          <div className="starter-roster-position-heading">
+                            <span>{position}</span>
+                            <strong>{players.length}</strong>
+                          </div>
+                          <div className="starter-grid starter-compact-grid">
+                            {players.map((player) => (
+                              <button
+                                key={player.player_id}
+                                type="button"
+                                className="player-team-tile starter-player-tile starter-player-tile-compact"
+                                style={getTeamTileStyle(player.playerDetails?.team)}
+                                onClick={() => {
+                                  setSelectedPlayer(buildPlayerModalData({
+                                    playerId: player.player_id,
+                                    playerName: player.name,
+                                    playerPos: player.pos,
+                                    value: player.value,
+                                    playerDetails: player.playerDetails,
+                                    playerDetailsById,
+                                    currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
+                                    manager: selectedManager.manager,
+                                    managerAvatarUrl: selectedAvatar,
+                                  }));
+                                }}
+                              >
+                                <div className="starter-player-main">
+                                  <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+                                </div>
+                                <div className="starter-player-meta">
+                                  <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
+                                  <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
+                                  <span className={`starter-player-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
+                                    {getPlayerStatusLabel(player.playerDetails)}
+                                  </span>
+                                  <strong>{player.value.toLocaleString()}</strong>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-cyan-300/15 bg-slate-950/45 px-4 py-8 text-center text-sm font-bold text-slate-400">
-                    No starters found for this manager.
+                    No QB/RB/WR/TE players found for this manager.
                   </div>
                 )}
               </div>

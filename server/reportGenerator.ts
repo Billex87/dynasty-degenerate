@@ -2248,7 +2248,7 @@ export async function generateReport(
         const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
         const seasonPositionRank = seasonPositionRankById[pid] || null;
         const playerDetails = getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid));
-        if (positionRank || seasonPositionRank) {
+        if (['QB', 'RB', 'WR', 'TE'].includes(pos)) {
           lineupPlayers.push({
             player_id: pid,
             name: getPlayerName(pid, allPlayers),
