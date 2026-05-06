@@ -8,6 +8,7 @@ import {
   loadBlendedValueProfiles,
   loadValueProfileSources,
 } from './valueBlend';
+import { formatDynastySourceWeights, getDynastySourceWeights } from './dynastySourceWeights';
 
 type KTCValueMap = Record<string, {
   name: string;
@@ -296,7 +297,7 @@ export async function storeKtcSnapshot() {
           fantasyProsScoring: profile.fantasyProsScoring,
           status: storedCount > 0 ? 'stored' : 'pending',
           note: storedCount > 0
-            ? `${storedCount} blended values stored for this league format profile.`
+            ? `${storedCount} blended values stored for this league format profile. Source weights: ${formatDynastySourceWeights(getDynastySourceWeights(profile))}.`
             : 'Profile metadata is tracked; blended values were not available in this run.',
         };
       }),

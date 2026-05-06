@@ -42,6 +42,7 @@ export interface RankingPlayer {
   flockValue?: number | null;
   dynastyNerdsValue?: number | null;
   fantasyCalcValue?: number | null;
+  dynastyProcessValue?: number | null;
   fantasyProsValue?: number | null;
   seasonValue?: number | null;
   tier?: string | number | null;
@@ -84,6 +85,14 @@ export interface RankingProfileOption {
   tep: 0 | 0.5 | 1 | 1.5;
 }
 
+export interface RankingSourceWeightEntry {
+  key: string;
+  source: string;
+  weight: number;
+  percent: number;
+  note: string;
+}
+
 export interface RankingsBoard {
   generatedAt: string;
   selectedProfileKey?: string | null;
@@ -91,6 +100,10 @@ export interface RankingsBoard {
   defaultProfileKey?: string | null;
   defaultDevyProfileKey?: string | null;
   profileOptions?: RankingProfileOption[];
+  sourceWeightProfiles?: Record<string, {
+    label: string;
+    sources: RankingSourceWeightEntry[];
+  }>;
   profiles?: Record<string, RankingPlayer[]>;
   identityDiagnostics?: RankingIdentityDiagnostic[];
   dynastySf: RankingPlayer[];

@@ -1,6 +1,7 @@
 import { canonicalPlayerNameKey, cleanName, playerNameKeyVariants } from './leagueAnalysis';
 import { loadFlockFantasyValueProfiles, type FlockFantasyValue } from './flockFantasy';
 import { getDynastyNerdsFormat, loadDynastyNerdsValueProfiles, type DynastyNerdsValue } from './dynastyNerds';
+import { formatDynastySourceWeights, getDynastySourceWeightEntries, getDynastySourceWeights } from './dynastySourceWeights';
 import {
   getCurrentKTCDevyRankingProfiles,
   getCurrentKTCRankingProfiles,
@@ -28,6 +29,7 @@ type KtcValues = Record<string, {
   market_value_ktc?: number;
   market_value_fantasycalc?: number;
   expert_value_dynastynerds?: number;
+  expert_value_dynastyprocess?: number;
   dynastynerds_position_rank?: string | null;
   dynastynerds_rank?: number;
   dynastynerds_format?: string | null;
@@ -353,18 +355,20 @@ function buildRowsForProfile({
     const flockValue = flock?.dynastyValue || null;
     const dynastyNerdsValue = dynastyNerds?.dynastyValue || blended?.expert_value_dynastynerds || null;
     const fantasyCalcValue = blended?.market_value_fantasycalc || null;
-    const value = option.board === 'devy'
-      ? weightedAverage([
-          { value: ktcValue, weight: 0.50 },
-          { value: flockValue, weight: 0.30 },
-          { value: dynastyNerdsValue, weight: 0.20 },
-        ])
-      : weightedAverage([
-          { value: ktcValue, weight: 0.35 },
-          { value: flockValue, weight: 0.30 },
-          { value: dynastyNerdsValue, weight: 0.24 },
-          { value: fantasyCalcValue, weight: 0.11 },
-        ]);
+    const dynastyProcessValue = option.board === 'dynasty' ? blended?.expert_value_dynastyprocess || null : null;
+    const sourceWeights = getDynastySourceWeights({
+      board: option.board,
+      numQbs: option.qbFormat === 'sf' ? 2 : 1,
+      ppr: 1,
+      tep: option.tep,
+    });
+    const value = weightedAverage([
+      { value: flockValue, weight: sourceWeights.flock },
+      { value: dynastyNerdsValue, weight: sourceWeights.dynastyNerds },
+      { value: ktcValue, weight: sourceWeights.ktc },
+      { value: option.board === 'dynasty' ? fantasyCalcValue : null, weight: sourceWeights.fantasyCalc },
+      { value: option.board === 'dynasty' ? dynastyProcessValue : null, weight: sourceWeights.dynastyProcess },
+    ]);
 
     if (!value) continue;
 
@@ -373,6 +377,7 @@ function buildRowsForProfile({
       flockValue ? 'Flock' : null,
       dynastyNerdsValue ? 'DynastyNerds' : null,
       fantasyCalcValue && option.board === 'dynasty' ? 'FantasyCalc' : null,
+      dynastyProcessValue && option.board === 'dynasty' ? 'DynastyProcess' : null,
     ].filter(Boolean) as string[];
     const baselineValue = canonicalBaselineValues[key]?.ktc_value || null;
     const movement = baselineValue && value ? value - baselineValue : null;
@@ -393,6 +398,7 @@ function buildRowsForProfile({
       flockValue,
       dynastyNerdsValue,
       fantasyCalcValue,
+      dynastyProcessValue,
       tier: ktc?.tier || flock?.tier || null,
       movement,
       movementLabel: getMovementLabel(movement),
@@ -446,10 +452,21 @@ export async function buildRankingsBoard({
   ]);
   const playerLookup = buildPlayerIdentityLookup(players);
   const profiles: Record<string, RankingPlayer[]> = {};
+  const sourceWeightProfiles: RankingsBoard['sourceWeightProfiles'] = {};
   const identityDiagnostics = new Map<string, RankingIdentityDiagnostic>();
 
   for (const option of RANKING_PROFILE_OPTIONS) {
     const ktcProfileKey = PROFILE_KEY_BY_OPTION[option.key];
+    const sourceWeights = getDynastySourceWeights({
+      board: option.board,
+      numQbs: option.qbFormat === 'sf' ? 2 : 1,
+      ppr: 1,
+      tep: option.tep,
+    });
+    sourceWeightProfiles[option.key] = {
+      label: formatDynastySourceWeights(sourceWeights),
+      sources: getDynastySourceWeightEntries(sourceWeights).filter((entry) => entry.weight > 0),
+    };
     profiles[option.key] = buildRowsForProfile({
       option,
       ktcRows: option.board === 'devy' ? ktcDevyProfiles[ktcProfileKey] : ktcProfiles[ktcProfileKey],
@@ -475,6 +492,7 @@ export async function buildRankingsBoard({
     defaultProfileKey,
     defaultDevyProfileKey,
     profileOptions: RANKING_PROFILE_OPTIONS,
+    sourceWeightProfiles,
     profiles,
     identityDiagnostics: Array.from(identityDiagnostics.values()).slice(0, 80),
     dynastySf: profiles.dynasty_sf_ppr || [],

@@ -1836,7 +1836,8 @@ export const appRouter = router({
                 {
                   ...pastManagerDisplayNameByManager,
                   ...managerDisplayNameByManager,
-                }
+                },
+                leagueValueOptions
               );
             }
           } catch (e) {

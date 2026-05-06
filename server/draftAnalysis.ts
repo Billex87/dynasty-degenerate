@@ -1,4 +1,5 @@
 import { PlayerDetails, SleeperDraftPick } from '../shared/types';
+import { getDynastySourceWeights } from './dynastySourceWeights';
 
 
 
@@ -155,10 +156,17 @@ export async function analyzeDraftPicks(
   ktcValuesMay2025?: Record<string, PositionRankData>,
   currentKTCRanks?: Record<string, { name: string; ktc_value: number; position_rank?: string }>,
   ktcValuesByDraftYear?: Record<string, Record<string, PositionRankData>>,
-  managerDisplayNameByManager: Record<string, string> = {}
+  managerDisplayNameByManager: Record<string, string> = {},
+  valueBlendOptions: { numQbs?: number; ppr?: number; tep?: number } = {}
 ): Promise<{ draftPicks: any[]; draftStats: any[] }> {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
+  const sourceWeights = getDynastySourceWeights({
+    board: 'dynasty',
+    numQbs: valueBlendOptions.numQbs ?? 2,
+    ppr: valueBlendOptions.ppr ?? 1,
+    tep: valueBlendOptions.tep ?? 0,
+  });
 
   // Helper function to create slug from player name (removes all non-alphanumeric)
   const createSlug = (name: string): string => {
@@ -242,27 +250,27 @@ export async function analyzeDraftPicks(
       {
         baseline: getNumberValue(baseline, 'expert_value_flock'),
         current: getNumberValue(current, 'expert_value_flock'),
-        weight: 0.32,
+        weight: sourceWeights.flock,
       },
       {
         baseline: getNumberValue(baseline, 'expert_value_dynastynerds'),
         current: getNumberValue(current, 'expert_value_dynastynerds'),
-        weight: 0.22,
+        weight: sourceWeights.dynastyNerds,
       },
       {
         baseline: getKtcSourceValue(baseline),
         current: getKtcSourceValue(current),
-        weight: 0.45,
+        weight: sourceWeights.ktc,
       },
       {
         baseline: getNumberValue(baseline, 'market_value_fantasycalc'),
         current: getNumberValue(current, 'market_value_fantasycalc'),
-        weight: 0.35,
+        weight: sourceWeights.fantasyCalc,
       },
       {
         baseline: getNumberValue(baseline, 'expert_value_dynastyprocess'),
         current: getNumberValue(current, 'expert_value_dynastyprocess'),
-        weight: 0.20,
+        weight: sourceWeights.dynastyProcess,
       },
     ].filter((part) => part.baseline !== null && part.current !== null);
 

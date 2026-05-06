@@ -3,6 +3,7 @@ import { fetchFantasyProsDraftRankings, type FantasyProsRanking } from './fantas
 import { fetchFlockFantasyValues, loadFlockFantasyValueProfiles, type FlockFantasyValue } from './flockFantasy';
 import { fetchDynastyNerdsValues, getDynastyNerdsFormat, loadDynastyNerdsValueProfiles, type DynastyNerdsValue } from './dynastyNerds';
 import { fetchDynastyDealerPlayerValues, type DynastyDealerValue } from './dynastyDealer';
+import { getDynastySourceWeights } from './dynastySourceWeights';
 
 export interface BlendedValue {
   name: string;
@@ -449,50 +450,6 @@ function weightedAverage(values: Array<{ value?: number; weight: number }>): num
   return available.reduce((sum, item) => sum + (item.value || 0) * item.weight, 0) / totalWeight;
 }
 
-function getDynastySourceWeights(options: ValueBlendOptions = {}) {
-  const numQbs = normalizeNumQbs(options.numQbs);
-  const tep = normalizeTep(options.tep);
-  const ppr = normalizePpr(options.ppr);
-
-  if (numQbs === 2 && tep > 0) {
-    return {
-      flock: 0.34,
-      dynastyNerds: 0.25,
-      ktc: 0.20,
-      fantasyCalc: 0.14,
-      dynastyProcess: 0.07,
-    };
-  }
-
-  if (numQbs === 2) {
-    return {
-      flock: 0.38,
-      dynastyNerds: 0.22,
-      ktc: 0.20,
-      fantasyCalc: 0.14,
-      dynastyProcess: 0.06,
-    };
-  }
-
-  if (ppr === 0) {
-    return {
-      flock: 0.34,
-      dynastyNerds: 0.24,
-      ktc: 0.20,
-      fantasyCalc: 0.14,
-      dynastyProcess: 0.08,
-    };
-  }
-
-  return {
-    flock: 0.36,
-    dynastyNerds: 0.24,
-    ktc: 0.18,
-    fantasyCalc: 0.14,
-    dynastyProcess: 0.08,
-  };
-}
-
 function getPosition(
   entry: BlendedValue,
   fantasyCalc?: ExternalValue,
@@ -511,7 +468,7 @@ function rankBlendedValues(values: ValueMap): ValueMap {
   for (const position of ['QB', 'RB', 'WR', 'TE']) {
     Object.entries(ranked)
       .filter(([, value]) => getPosition(value) === position)
-      .sort(([, a], [, b]) => (b.true_value || b.ktc_value) - (a.true_value || a.ktc_value))
+      .sort(([, a], [, b]) => (b.dynasty_value || b.ktc_value) - (a.dynasty_value || a.ktc_value))
       .forEach(([key], index) => {
         ranked[key] = {
           ...ranked[key],
@@ -606,19 +563,13 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
       { value: fantasyCalc?.redraftValue, weight: 0.55 },
       { value: fantasyProsSeasonValue, weight: 0.45 },
     ]) || undefined;
-    const trueValue = redraftValue
-      ? weightedAverage([
-          { value: dynastyValue, weight: 0.70 },
-          { value: redraftValue, weight: 0.30 },
-        ])
-      : dynastyValue;
     const isPick = !position && /\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(name);
 
     blended[key] = {
       name,
       ktc_value: Math.round(dynastyValue),
       dynasty_value: Math.round(dynastyValue),
-      true_value: Math.round(trueValue),
+      true_value: Math.round(dynastyValue),
       redraft_value: redraftValue ? Math.round(redraftValue) : undefined,
       position_rank: ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyPros?.positionRank || undefined,
       market_value_ktc: ktcValue,
@@ -646,7 +597,6 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
         ktcValue ? 'KTC' : null,
         fantasyCalcDynasty ? 'FantasyCalc' : null,
         dynastyProcessValue ? 'DynastyProcess' : null,
-        fantasyProsSeasonValue ? 'FantasyPros' : null,
       ].filter(Boolean) as string[],
       benchmark_sources: [
         dynastyDealer?.currentValue ? 'DynastyDealer' : null,

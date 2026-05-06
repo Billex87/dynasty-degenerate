@@ -153,6 +153,7 @@ function RankingCard({
         <span>Flock {formatValue(player.flockValue)}</span>
         {player.dynastyNerdsValue ? <span>Nerds {formatValue(player.dynastyNerdsValue)}</span> : null}
         {player.fantasyCalcValue ? <span>FC {formatValue(player.fantasyCalcValue)}</span> : null}
+        {player.dynastyProcessValue ? <span>DP {formatValue(player.dynastyProcessValue)}</span> : null}
       </div>
 
       {player.isDevy && (player.college || player.draftYear) ? (
@@ -203,6 +204,7 @@ function RankingsTable({
 
   const rows = rankings.profiles?.[selectedProfileKey] || [];
   const activeProfile = profileOptions.find((option) => option.key === selectedProfileKey);
+  const activeWeightProfile = rankings.sourceWeightProfiles?.[selectedProfileKey];
   const sourceSummary = rows.reduce<Record<string, number>>((summary, player) => {
     for (const source of player.sources) {
       summary[source] = (summary[source] || 0) + 1;
@@ -259,9 +261,10 @@ function RankingsTable({
           <h3>{config.title}</h3>
           <p>{config.description}</p>
           {activeProfile ? <span className="rankings-active-profile">League-matched profile: {activeProfile.label}</span> : null}
+          {activeWeightProfile?.label ? <span className="rankings-active-profile">Blend weights: {activeWeightProfile.label}</span> : null}
         </div>
         <div className="rankings-source-summary">
-          {Object.entries(sourceSummary).slice(0, 4).map(([source, count]) => (
+          {Object.entries(sourceSummary).slice(0, 5).map(([source, count]) => (
             <span key={source}>{source}: {count}</span>
           ))}
         </div>
@@ -400,7 +403,7 @@ export function RankingsBoard({
       board: 'dynasty',
       title: 'Regular Rankings',
       kicker: 'League-matched market board',
-      description: 'Blended dynasty rankings use the league format we detected, with Flock as the anchor where available and KTC/FantasyCalc/FantasyPros support for NFL players.',
+      description: 'Blended dynasty rankings use the league format we detected, with Flock as the anchor and Dynasty Nerds, KTC, FantasyCalc, and DynastyProcess filling the market/expert support.',
       defaultProfileKey: rankings.defaultProfileKey,
     },
     {

@@ -1660,7 +1660,7 @@ export default function Home() {
 
             <TabsContent value="rankings" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <CollapsibleReportSection title="Rankings" kicker="Flock, KTC, and blended values">
+                <CollapsibleReportSection title="Rankings" kicker="Format-aware dynasty blend">
                   <RankingsBoard
                     rankings={reportData.rankings}
                     playerDetailsById={reportData.playerDetailsById}

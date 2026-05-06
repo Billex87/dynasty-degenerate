@@ -14,6 +14,10 @@ const BASELINE_PATH = new URL('./rookie-values/2025RookieValues.json', import.me
 const SNAPSHOT_PATH = new URL('./rookie-values/2025RookieBlendSnapshot.json', import.meta.url);
 const DYNASTYPROCESS_URL =
   'https://raw.githubusercontent.com/dynastyprocess/data/c5fa48fd6692/files/values-players.csv';
+const HISTORICAL_SOURCE_WEIGHTS = {
+  ktc: 0.20,
+  dynastyProcess: 0.03,
+};
 
 function cleanName(name) {
   return String(name || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -100,8 +104,8 @@ async function main() {
       const dp = dynastyProcess[cleanName(record.name)];
       const blendedValue = Math.round(
         weightedAverage([
-          { value: ktcValue, weight: 0.45 },
-          { value: dp?.value, weight: 0.20 },
+          { value: ktcValue, weight: HISTORICAL_SOURCE_WEIGHTS.ktc },
+          { value: dp?.value, weight: HISTORICAL_SOURCE_WEIGHTS.dynastyProcess },
         ])
       );
 
@@ -136,7 +140,7 @@ async function main() {
             source: 'KTC',
             status: 'included',
             capturedAt: 'May 2025',
-            weight: 0.45,
+            weight: HISTORICAL_SOURCE_WEIGHTS.ktc,
             field: 'market_value_ktc',
             notes: 'Archived May 2025 rookie-market baseline.',
           },
@@ -144,7 +148,7 @@ async function main() {
             source: 'DynastyProcess',
             status: 'included',
             capturedAt: '2025-05-09',
-            weight: 0.2,
+            weight: HISTORICAL_SOURCE_WEIGHTS.dynastyProcess,
             field: 'expert_value_dynastyprocess',
             url: DYNASTYPROCESS_URL,
             notes: 'Closest verified historical expert/value CSV for the 2025 rookie window.',

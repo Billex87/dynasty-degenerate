@@ -9,6 +9,7 @@ import {
 } from './leagueAnalysis';
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
 import { KTC_SNAPSHOT_PROFILES, VALUE_SOURCE_PROFILE_DEFINITIONS } from './valueBlend';
+import { getDynastySourceWeightNotes, getDynastySourceWeights, formatDynastySourceWeights } from './dynastySourceWeights';
 import type {
   LeagueValueMode,
   ManagerIntelPlayer,
@@ -584,6 +585,13 @@ function buildLeagueDiagnostics(
   const starterCounts = getPositionStarterCounts(currentSeasonData.rosterPositions, teamCount);
   const receptionScoring = getScoringNumber(currentSeasonData.scoringSettings, 'rec');
   const tightEndPremium = getTightEndPremium(currentSeasonData.scoringSettings);
+  const sourceWeightOptions = {
+    numQbs: normalizeNumQbsForDiagnostics(lineupProfile),
+    ppr: receptionScoring,
+    tep: tightEndPremium,
+  };
+  const sourceWeightLabel = formatDynastySourceWeights(getDynastySourceWeights(sourceWeightOptions));
+  const sourceWeightNotes = getDynastySourceWeightNotes(sourceWeightOptions);
   const selectedValueProfile = currentSeasonData.valueBlendProfileLabel || '12-team SF PPR';
   const valueProfiles = Array.from(
     new Set(
@@ -594,9 +602,10 @@ function buildLeagueDiagnostics(
   ).sort();
   const playerValues = Object.values(ktcValues).filter((value) => !/\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(value.name));
   const sourceCoverage = (source: string) => playerValues.filter((value) => value.value_sources?.includes(source)).length;
-  const coverageParts = ['FlockFantasy', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess', 'FantasyPros']
+  const coverageParts = ['FlockFantasy', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']
     .filter((source) => sourceCoverage(source) > 0)
     .map((source) => `${source}: ${sourceCoverage(source)}`);
+  const fantasyProsSeasonCoverage = playerValues.filter((value) => Number(value.fantasypros_season_value || 0) > 0).length;
   const dealerCoverage = playerValues.filter((value) => Number(value.benchmark_value_dynastydealer || 0) > 0).length;
 
   return {
@@ -612,14 +621,18 @@ function buildLeagueDiagnostics(
     scoringSummary: formatScoringSummary(currentSeasonData.scoringSettings),
     receptionScoring,
     tightEndPremium,
-    ktcProfileLabel: `This report is using the ${selectedValueProfile} blended profile. Flock Fantasy remains the top dynasty/rankings signal when available, Dynasty Nerds now adds format-aware expert/community values, and KTC, FantasyCalc, DynastyProcess, and FantasyPros fill the rest of the blend.`,
+    ktcProfileLabel: `This report is using the ${selectedValueProfile} blended profile. Primary dynasty weights for this league: ${sourceWeightLabel}. FantasyPros is season-only and Dynasty Dealer is benchmark-only; neither is counted in the dynasty blend.`,
     valueSnapshotProfileCount: VALUE_SOURCE_PROFILE_DEFINITIONS.length,
     valueSnapshotProfiles: [
       `${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended league profiles: 10/12/14-team, 1QB/SF, Standard/Half/PPR, and 0/0.5/1/1.5 TEP buckets`,
       `${KTC_SNAPSHOT_PROFILES.length} KTC market profiles for 1QB/SF and TEP variants`,
       'Flock Fantasy dynasty and rookie rankings for 1QB/SF',
       'Dynasty Nerds PPR, Superflex, Standard, and Superflex TEP rankings with player values, Sleeper IDs, and movement',
-      'FantasyCalc format values, DynastyProcess 1QB/SF values, FantasyPros scoring-specific ranks and points',
+      `Active dynasty source weights: ${sourceWeightLabel}`,
+      'FantasyCalc format values and DynastyProcess 1QB/SF values support the dynasty blend at smaller weights',
+      fantasyProsSeasonCoverage > 0
+        ? `FantasyPros season ranks and points stored for ${fantasyProsSeasonCoverage} players, but used only for season/redraft and projected-lineup context.`
+        : 'FantasyPros season-rank support is wired, but no season values were present in this snapshot.',
       dealerCoverage > 0
         ? `Dynasty Dealer benchmark values stored for ${dealerCoverage} players, but kept out of the primary blend until that endpoint is confirmed stable/licensed.`
         : 'Dynasty Dealer benchmark support is wired, but no benchmark values were present in this snapshot.',
@@ -644,6 +657,7 @@ function buildLeagueDiagnostics(
       coverageParts.length
         ? `Current blended player-source coverage in this snapshot: ${coverageParts.join(', ')}. Players with fewer sources are more assumption-heavy.`
         : 'No source coverage metadata was present in this value snapshot.',
+      ...sourceWeightNotes,
     ],
   };
 }
