@@ -2447,6 +2447,9 @@ function CommandPlayerTile({
   variant?: 'default' | 'step';
   label?: string;
 }) {
+  const seasonValue = player.seasonValue || player.value;
+  const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
+
   return (
     <button
       type="button"
@@ -2460,7 +2463,8 @@ function CommandPlayerTile({
       </div>
       <div className="manager-command-player-tile-pills">
         <TeamLogoPill team={player.playerDetails?.team} />
-        <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
+        <span className="manager-command-season-value">{formatCompactValue(seasonValue)}</span>
+        <PositionRankPill rank={seasonRank} />
         <span className={`manager-command-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
           {getPlayerStatusLabel(player.playerDetails)}
         </span>
@@ -2757,26 +2761,28 @@ export function LeagueCommandCenter({
   const selectedPick = selectedManager ? picks.find((row) => row.manager === selectedManager) : null;
   const selectedPower = selectedManager ? power.find((row) => row.manager === selectedManager) : null;
   const selectedTimeline = selectedManager ? timelines.find((row) => row.manager === selectedManager) : null;
-  const selectedOverview = selectedManager ? data.leagueOverview.find((row) => row.manager === selectedManager) : null;
   const selectedGrowth = selectedManager ? data.managerRosterValueGrowth.find((row) => row.manager === selectedManager) : null;
   const openManager = (manager: string) => setSelectedManager(manager);
   const openCommandPlayer = (player: CommandPlayer) => {
     if (!selectedManager) return;
+    const seasonValue = player.seasonValue || player.value;
+    const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
     setSelectedPlayer(buildPlayerModalData({
       playerId: player.player_id,
       playerName: player.name,
       playerPos: player.pos,
-      value: player.value,
+      value: seasonValue,
       playerDetails: player.playerDetails,
       playerDetailsById: data.playerDetailsById,
       manager: player.owner || selectedManager,
       managerAvatarUrl: managerAvatars?.[player.owner || selectedManager],
-      currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
+      currentPositionRank: seasonRank,
+      valueMode: 'redraft',
     }));
   };
   const selectedStarters = selectedCounts?.starterPlayers || [];
   const selectedLineupPlayers = selectedCounts?.lineupPlayers || selectedStarters;
-  const pickLineupPlayers = (players: typeof selectedLineupPlayers) => {
+  const fallbackStarterGroups = (players: typeof selectedStarters) => {
     const used = new Set<string>();
     const take = (position: string, count: number) => {
       const picked = players
@@ -2802,22 +2808,28 @@ export function LeagueCommandCenter({
       { label: 'Flex', players: flex },
     ];
   };
-  const lineupGroups = pickLineupPlayers(selectedLineupPlayers);
-  const projectedLineupIds = new Set(lineupGroups.flatMap((group) => group.players.map((player) => player.player_id)));
+  const lineupGroups = selectedCounts?.starterGroups?.length
+    ? selectedCounts.starterGroups.map((group) => ({ label: group.label, players: group.players || [] }))
+    : fallbackStarterGroups(selectedStarters);
+  const projectedLineupIds = new Set((selectedStarters.length ? selectedStarters : lineupGroups.flatMap((group) => group.players)).map((player) => player.player_id));
   const canStepInGroups = [
     {
       label: 'QB',
-      players: selectedStarters
+      players: selectedLineupPlayers
         .filter((player) => player.pos === 'QB' && !projectedLineupIds.has(player.player_id))
         .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
     },
     {
       label: 'Flex',
-      players: selectedStarters
+      players: selectedLineupPlayers
         .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos) && !projectedLineupIds.has(player.player_id))
         .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
     },
   ].filter((group) => group.players.length);
+  const selectedStarterSeasonValue = selectedStarters.reduce((sum, player) => sum + (player.seasonValue || player.value || 0), 0);
+  const selectedTaxiCount = selectedIntel?.taxiTriage?.items.length || 0;
+  const selectedTaxiPromoteCount = selectedIntel?.taxiTriage?.counts['Promote Now'] || 0;
+  const selectedTaxiCutCount = selectedIntel?.taxiTriage?.counts.Cuttable || 0;
   const selectedManagerTags = (() => {
     if (!selectedIntel) return [];
     const tags = buildOwnerIntelTileTags({
@@ -2867,10 +2879,10 @@ export function LeagueCommandCenter({
       notes.push(`Lineup warning: ${missingLineupGroups.map((group) => group.label).join(', ')} does not fully fill from ranked players.`);
     }
     if (selectedIntel.weakestStarter) {
-      notes.push(`Lineup upgrade spot is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.seasonPositionRank || selectedIntel.weakestStarter.pos}) after season value is considered.`);
+      notes.push(`Lineup upgrade spot is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.seasonPositionRank || selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.pos}) after season value is considered.`);
     }
     if (selectedIntel.bestBenchStash) {
-      notes.push(`${selectedIntel.bestBenchStash.name} (${selectedIntel.bestBenchStash.currentPositionRank || selectedIntel.bestBenchStash.seasonPositionRank || selectedIntel.bestBenchStash.pos}) is the best bench chip if this manager wants to patch a hole without touching the core.`);
+      notes.push(`${selectedIntel.bestBenchStash.name} (${selectedIntel.bestBenchStash.seasonPositionRank || selectedIntel.bestBenchStash.currentPositionRank || selectedIntel.bestBenchStash.pos}) is the best bench chip if this manager wants to patch a hole without touching the core.`);
     }
     if (selectedPick && selectedPick.count2026 + selectedPick.count2027 >= 15) {
       notes.push(`Draft capital is strong with ${selectedPick.count2026} 2026 picks and ${selectedPick.count2027} 2027 picks, so this team has room to buy help.`);
@@ -2885,8 +2897,8 @@ export function LeagueCommandCenter({
       {section !== 'taxi' && (
         <FeatureCard
           number={1}
-          title="Roster Depth Board"
-          kicker="Starter-grade depth"
+          title="Projected Roster Board"
+          kicker="Season starter room"
           className="command-feature-card-wide"
           hideNumber
           hideHeader={section !== 'all'}
@@ -2978,18 +2990,59 @@ export function LeagueCommandCenter({
                 )}
               </ChampionAvatarFrame>
               <div className="min-w-0">
-                <p>Owner Data Room</p>
+                <p>{section === 'taxi' ? 'Taxi Squad Triage' : 'Projected Season Roster'}</p>
                 <h3 className={getManagerHeadingClassName(selectedManager)}>{selectedManager}</h3>
                 <ManagerChampionshipPills managerName={selectedManager} className="manager-command-championships" />
               </div>
               </div>
               <div className="manager-command-hero-metrics">
-                <IntelligenceMetric label="Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters : '-'} />
-                <IntelligenceMetric label="Roster Age" value={selectedIntel?.avgAge ?? '-'} />
-                <IntelligenceMetric label="Power" value={selectedPower?.score ?? '-'} />
+                {section === 'taxi' ? (
+                  <>
+                    <IntelligenceMetric label="Taxi" value={selectedTaxiCount || '-'} />
+                    <IntelligenceMetric label="Promote" value={selectedTaxiPromoteCount || 0} />
+                    <IntelligenceMetric label="Cuttable" value={selectedTaxiCutCount || 0} />
+                  </>
+                ) : (
+                  <>
+                    <IntelligenceMetric label="Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters : '-'} />
+                    <IntelligenceMetric label="Season Value" value={selectedStarterSeasonValue ? formatCompactValue(selectedStarterSeasonValue) : '-'} />
+                    <IntelligenceMetric label="Avg Age" value={selectedIntel?.avgAge ?? '-'} />
+                  </>
+                )}
               </div>
             </div>
             <div className="manager-command-body">
+              {section === 'taxi' ? (
+                selectedIntel?.taxiTriage?.items.length ? (
+                  <div className="manager-command-section manager-command-taxi">
+                    <h4>Taxi Squad Triage</h4>
+                    <p className="manager-command-taxi-summary">{selectedIntel.taxiTriage.summary}</p>
+                    <div className="manager-command-tile-grid">
+                      {selectedIntel.taxiTriage.items.map((player) => (
+                        <CommandPlayerTile
+                          key={player.player_id}
+                          label={player.taxiAction}
+                          player={player}
+                          onClick={() => openCommandPlayer(player)}
+                        />
+                      ))}
+                    </div>
+                    <div className="manager-command-taxi-reasons">
+                      {selectedIntel.taxiTriage.items.slice(0, 4).map((player) => (
+                        <p key={`${player.player_id}-reason`}>
+                          <strong>{player.name}:</strong> {player.taxiReason}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="manager-command-section manager-command-taxi">
+                    <h4>Taxi Squad Triage</h4>
+                    <p className="manager-command-taxi-summary">No taxi players reported by Sleeper for this roster.</p>
+                  </div>
+                )
+              ) : (
+                <>
               {selectedManagerTags.length ? (
                 <div className="manager-command-tag-row" aria-label="Manager profile tags">
                   {selectedManagerTags.map((tag) => (
@@ -2997,30 +3050,6 @@ export function LeagueCommandCenter({
                       {tag.label}
                     </span>
                   ))}
-                </div>
-              ) : null}
-              {selectedOverview ? (
-                <div className="manager-command-rank-summary" aria-label="Manager league ranks">
-                  <div>
-                    <span>QB Rank</span>
-                    <strong>#{selectedOverview.rank_qb}</strong>
-                  </div>
-                  <div>
-                    <span>RB Rank</span>
-                    <strong>#{selectedOverview.rank_rb}</strong>
-                  </div>
-                  <div>
-                    <span>WR Rank</span>
-                    <strong>#{selectedOverview.rank_wr}</strong>
-                  </div>
-                  <div>
-                    <span>TE Rank</span>
-                    <strong>#{selectedOverview.rank_te}</strong>
-                  </div>
-                  <div>
-                    <span>Value</span>
-                    <strong>#{selectedOverview.rank_value}</strong>
-                  </div>
                 </div>
               ) : null}
               <div className="manager-command-grid">
@@ -3106,29 +3135,6 @@ export function LeagueCommandCenter({
                   </div>
                 </div>
               ) : null}
-              {section === 'taxi' && selectedIntel?.taxiTriage?.items.length ? (
-                <div className="manager-command-section manager-command-taxi">
-                  <h4>Taxi Squad Triage</h4>
-                  <p className="manager-command-taxi-summary">{selectedIntel.taxiTriage.summary}</p>
-                  <div className="manager-command-tile-grid">
-                    {selectedIntel.taxiTriage.items.map((player) => (
-                      <CommandPlayerTile
-                        key={player.player_id}
-                        label={player.taxiAction}
-                        player={player}
-                        onClick={() => openCommandPlayer(player)}
-                      />
-                    ))}
-                  </div>
-                  <div className="manager-command-taxi-reasons">
-                    {selectedIntel.taxiTriage.items.slice(0, 4).map((player) => (
-                      <p key={`${player.player_id}-reason`}>
-                        <strong>{player.name}:</strong> {player.taxiReason}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
               {selectedIntel?.tradeBlueprints?.length ? (
                 <div className="manager-command-section">
                   <h4>Trade Blueprints</h4>
@@ -3196,6 +3202,8 @@ export function LeagueCommandCenter({
                   </div>
                 </div>
               ) : null}
+                </>
+              )}
             </div>
           </div>
         )}
@@ -6384,7 +6392,7 @@ function getStartingCaliberCount(row: ManagerCountRow, position: CountPosition, 
   const starterNeed = Math.max(1, getPositionStarterNeed(row, position));
   const starterCaliberCutoff = Math.max(1, leagueSize) * starterNeed;
 
-  return (row.lineupPlayers || [])
+  return (row.rosterPlayers || row.lineupPlayers || [])
     .filter((player) => player.pos === position)
     .filter((player) => {
       const rank = parsePositionRankValue(player.seasonPositionRank || player.currentPositionRank);
@@ -6396,7 +6404,7 @@ function getStartingCaliberCount(row: ManagerCountRow, position: CountPosition, 
 function getPositionDepthSignalPlayers(row: ManagerCountRow, signal: PositionDepthSignal): ManagerCountPlayer[] {
   if (!isCountPosition(signal.position)) return [];
 
-  const positionPlayers = [...(row.lineupPlayers || [])]
+  const positionPlayers = [...(row.rosterPlayers || row.lineupPlayers || [])]
     .filter((player) => player.pos === signal.position)
     .sort(compareManagerCountPlayers);
 
@@ -6414,7 +6422,7 @@ function getPositionDepthSignalPlayers(row: ManagerCountRow, signal: PositionDep
 
 function getPositionDepthRead(signal: PositionDepthSignal, row?: ManagerCountRow | null, leagueSize = 0) {
   if (!row || !isCountPosition(signal.position)) {
-    return `${signal.manager} is flagged for ${signal.status === 'shortage' ? 'the league-low count' : 'the league-high count'} at ${signal.position}. This compares the full roster counts for that position across the league.`;
+    return `${signal.manager} is flagged for ${signal.status === 'shortage' ? 'the league-low count' : 'the league-high count'} at ${signal.position}. This compares full roster counts for that position across the league, including taxi and reserve players.`;
   }
 
   const rosterCount = getPositionRosterCount(row, signal.position);
@@ -6427,16 +6435,16 @@ function getPositionDepthRead(signal: PositionDepthSignal, row?: ManagerCountRow
       : ` Thin ${signal.position} room shown: ${displayedPlayers.join(', ')}.`
     : '';
 
-  return `${signal.manager} has the league-${signal.status === 'shortage' ? 'low' : 'high'} ${signal.position} count: ${rosterCount}/${starterNeed} rostered-to-start. ${startingCaliberCount} ${signal.position} player${startingCaliberCount === 1 ? '' : 's'} clear the ${Math.max(leagueSize, 1)}-team starter-caliber cutoff for this lineup format.${playerCopy}`;
+  return `${signal.manager} has the league-${signal.status === 'shortage' ? 'low' : 'high'} ${signal.position} count: ${rosterCount}/${starterNeed} rostered-to-start, including taxi and reserve players. ${startingCaliberCount} ${signal.position} player${startingCaliberCount === 1 ? '' : 's'} clear the ${Math.max(leagueSize, 1)}-team starter-caliber cutoff for this lineup format.${playerCopy}`;
 }
 
 function getManagerRosterPlayersByPosition(row: ManagerCountRow): Record<CountPosition, ManagerCountPlayer[]> {
   return Object.fromEntries(
     COUNT_POSITIONS.map((position) => [
       position,
-      [...(row.lineupPlayers || [])]
+      [...(row.rosterPlayers || row.lineupPlayers || [])]
         .filter((player) => player.pos === position)
-        .sort((a, b) => (b.value || b.seasonValue || 0) - (a.value || a.seasonValue || 0)),
+        .sort(compareManagerCountPlayers),
     ])
   ) as Record<CountPosition, ManagerCountPlayer[]>;
 }
@@ -6468,14 +6476,17 @@ function StarterDepthSignalPlayerTile({
       className="starter-depth-player-tile player-team-tile"
       style={getTeamTileStyle(player.playerDetails?.team)}
       onClick={() => {
+        const seasonValue = player.seasonValue || player.value;
+        const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
         onSelect(buildPlayerModalData({
           playerId: player.player_id,
           playerName: player.name,
           playerPos: player.pos,
-          value: player.value,
+          value: seasonValue,
           playerDetails: player.playerDetails,
           playerDetailsById,
-          currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
+          currentPositionRank: seasonRank,
+          valueMode: 'redraft',
           manager,
           managerAvatarUrl,
         }));
@@ -6486,7 +6497,7 @@ function StarterDepthSignalPlayerTile({
       </span>
       <span className="starter-depth-player-meta">
         <TeamLogoPill team={player.playerDetails?.team} />
-        <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
+        <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
         <span className={`starter-depth-player-signal starter-depth-player-signal-${signal.status}`}>
           {signalLabel}
         </span>
@@ -6617,7 +6628,7 @@ export function ManagerPositionCountsTable({
                     <h3 className={getManagerHeadingClassName(selectedManager.manager)}>{selectedManager.manager}</h3>
                     <ManagerChampionshipPills managerName={selectedManager.manager} className="manager-command-championships" />
                     <p className="starter-modal-subtitle">
-                      {selectedRosterPlayerCount} rostered QB/RB/WR/TE player{selectedRosterPlayerCount === 1 ? '' : 's'} by value
+                      {selectedRosterPlayerCount} rostered QB/RB/WR/TE player{selectedRosterPlayerCount === 1 ? '' : 's'} by season value, including taxi
                     </p>
                   </div>
                 </div>
@@ -6676,14 +6687,17 @@ export function ManagerPositionCountsTable({
                                 className="player-team-tile starter-player-tile starter-player-tile-compact"
                                 style={getTeamTileStyle(player.playerDetails?.team)}
                                 onClick={() => {
+                                  const seasonValue = player.seasonValue || player.value;
+                                  const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
                                   setSelectedPlayer(buildPlayerModalData({
                                     playerId: player.player_id,
                                     playerName: player.name,
                                     playerPos: player.pos,
-                                    value: player.value,
+                                    value: seasonValue,
                                     playerDetails: player.playerDetails,
                                     playerDetailsById,
-                                    currentPositionRank: player.currentPositionRank || player.seasonPositionRank,
+                                    currentPositionRank: seasonRank,
+                                    valueMode: 'redraft',
                                     manager: selectedManager.manager,
                                     managerAvatarUrl: selectedAvatar,
                                   }));
@@ -6694,11 +6708,11 @@ export function ManagerPositionCountsTable({
                                 </div>
                                 <div className="starter-player-meta">
                                   <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
-                                  <PositionRankPill rank={player.currentPositionRank || player.seasonPositionRank || player.pos} />
+                                  <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
                                   <span className={`starter-player-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
                                     {getPlayerStatusLabel(player.playerDetails)}
                                   </span>
-                                  <strong>{player.value.toLocaleString()}</strong>
+                                  <strong>{(player.seasonValue || player.value).toLocaleString()}</strong>
                                 </div>
                               </button>
                             ))}

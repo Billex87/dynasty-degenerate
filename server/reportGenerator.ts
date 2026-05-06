@@ -2113,7 +2113,11 @@ export async function generateReport(
 
   for (const r of currentSeasonData.rosters) {
     const name = currentSeasonData.rosterMap[r.roster_id];
-    const pids = getActivePlayerIds(r);
+    const pids = normalizePlayerIds([
+      ...getActivePlayerIds(r),
+      ...getTaxiPlayerIds(r),
+      ...getReservePlayerIds(r),
+    ]);
     const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
 
     for (const pid of pids) {
@@ -2205,11 +2209,41 @@ export async function generateReport(
       seasonPositionRank?: string | null;
       playerDetails?: PlayerDetails;
     }>;
+    rosterPlayers: Array<{
+      player_id: string;
+      name: string;
+      pos: string;
+      value: number;
+      seasonValue?: number;
+      currentPositionRank?: string | null;
+      seasonPositionRank?: string | null;
+      playerDetails?: PlayerDetails;
+    }>;
+    starterGroups: Array<{
+      key: string;
+      label: string;
+      count: number;
+      players: Array<{
+        player_id: string;
+        name: string;
+        pos: string;
+        value: number;
+        seasonValue?: number;
+        currentPositionRank?: string | null;
+        seasonPositionRank?: string | null;
+        playerDetails?: PlayerDetails;
+      }>;
+    }>;
   }> = [];
 
   for (const r of currentSeasonData.rosters) {
     const name = currentSeasonData.rosterMap[r.roster_id];
-    const pids = getActivePlayerIds(r);
+    const activePids = getActivePlayerIds(r);
+    const rosterPids = normalizePlayerIds([
+      ...activePids,
+      ...getTaxiPlayerIds(r),
+      ...getReservePlayerIds(r),
+    ]);
     const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
     const posStarterCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
     const lineupPlayers: Array<{
@@ -2232,33 +2266,47 @@ export async function generateReport(
       seasonPositionRank?: string | null;
       playerDetails?: PlayerDetails;
     }> = [];
+    const rosterPlayers: typeof lineupPlayers = [];
 
-    for (const pid of pids) {
+    const buildCountPlayer = (pid: string) => {
       const p = allPlayers[pid];
       const pos = p?.position || 'UNK';
+      if (!['QB', 'RB', 'WR', 'TE'].includes(pos)) return null;
+      const positionRank = getPrimaryRank(pid);
+      const value = getPrimaryValue(pid);
+      if (value <= 0) return null;
+      const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
+      const seasonPositionRank = seasonPositionRankById[pid] || null;
+      const playerDetails = getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid));
+      return {
+        player_id: pid,
+        name: getPlayerName(pid, allPlayers),
+        pos,
+        value,
+        seasonValue,
+        currentPositionRank: positionRank,
+        seasonPositionRank,
+        playerDetails,
+      };
+    };
+
+    for (const pid of rosterPids) {
+      const countPlayer = buildCountPlayer(pid);
+      if (!countPlayer) continue;
+      const pos = countPlayer.pos;
       if (pos in posCounts) {
         posCounts[pos]++;
-        const positionRank = getPrimaryRank(pid);
-        const value = getPrimaryValue(pid);
-        const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
-        const seasonPositionRank = seasonPositionRankById[pid] || null;
-        const playerDetails = getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid));
-        if (['QB', 'RB', 'WR', 'TE'].includes(pos)) {
-          lineupPlayers.push({
-            player_id: pid,
-            name: getPlayerName(pid, allPlayers),
-            pos,
-            value,
-            seasonValue,
-            currentPositionRank: positionRank,
-            seasonPositionRank,
-            playerDetails,
-          });
-        }
+        rosterPlayers.push(countPlayer);
       }
     }
 
-    const projectedStarters = selectProjectedLineup(lineupPlayers, currentSeasonData.rosterPositions);
+    for (const pid of activePids) {
+      const lineupPlayer = buildCountPlayer(pid);
+      if (lineupPlayer) lineupPlayers.push(lineupPlayer);
+    }
+
+    const starterGroups = getLineupGroups(lineupPlayers, currentSeasonData.rosterPositions);
+    const projectedStarters = starterGroups.flatMap((group) => group.players);
     for (const player of projectedStarters) {
       if (isFantasyPosition(player.pos)) {
         posStarterCounts[player.pos]++;
@@ -2278,6 +2326,13 @@ export async function generateReport(
       TE_starters: posStarterCounts.TE,
       starterPlayers: starterPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
       lineupPlayers: lineupPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
+      rosterPlayers: rosterPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
+      starterGroups: starterGroups.map((group) => ({
+        key: group.key,
+        label: group.label,
+        count: group.count,
+        players: group.players.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
+      })),
     });
   }
 
@@ -2328,12 +2383,10 @@ export async function generateReport(
     const rosterPlayers = activePlayerIds
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
-    const currentSeasonNumber = Number(currentSeasonData.label || new Date().getFullYear());
     const allTaxiPlayers = getTaxiPlayerIds(r)
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
-    const taxiPlayers = allTaxiPlayers
-      .filter((player) => Number(player.playerDetails?.rookieYear || 0) === currentSeasonNumber);
+    const taxiPlayers = allTaxiPlayers;
     const reservePlayers = getReservePlayerIds(r)
       .map((pid) => buildIntelPlayer(pid, manager, r))
       .filter((player): player is BuiltIntelPlayer => Boolean(player));

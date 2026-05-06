@@ -1511,7 +1511,7 @@ export default function Home() {
                     currentStandings={reportData.currentStandings}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Roster Depth Board" kicker="Starter-grade depth">
+                <CollapsibleReportSection title="Projected Roster Board" kicker="Season starter room">
                   <LeagueCommandCenter
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}

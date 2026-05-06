@@ -483,6 +483,7 @@ describe('generateReport trade ledger', () => {
     );
 
     const managerA = report.managerRosterIntelligence.find((row) => row.manager === 'Manager A');
+    const managerACounts = report.managerPositionCounts.find((row) => row.manager === 'Manager A');
     const rbTile = managerA?.benchBaseline?.find((tile) => tile.key === 'RB');
     const wrTile = managerA?.benchBaseline?.find((tile) => tile.key === 'WR');
     const teTile = managerA?.benchBaseline?.find((tile) => tile.key === 'TE');
@@ -492,6 +493,8 @@ describe('generateReport trade ledger', () => {
     expect(wrTile?.player?.name).toBe('Bench WR');
     expect(teTile?.player?.name).toBe('Bench TE');
     expect(flexTile).toBeUndefined();
+    expect(managerACounts?.RB).toBe(5);
+    expect(managerACounts?.rosterPlayers?.some((player) => player.name === 'Taxi RB')).toBe(true);
   });
 
   it('uses dynasty value as primary for dynasty leagues and season value for redraft leagues', async () => {

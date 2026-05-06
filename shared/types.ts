@@ -86,6 +86,13 @@ export interface ManagerStarterPlayer {
   playerDetails?: PlayerDetails;
 }
 
+export interface ManagerStarterGroup {
+  key: string;
+  label: string;
+  count: number;
+  players: ManagerStarterPlayer[];
+}
+
 export interface ManagerIntelPlayer {
   player_id: string;
   name: string;
@@ -512,6 +519,8 @@ export interface ReportData {
     TE_starters: number;
     starterPlayers?: ManagerStarterPlayer[];
     lineupPlayers?: ManagerStarterPlayer[];
+    rosterPlayers?: ManagerStarterPlayer[];
+    starterGroups?: ManagerStarterGroup[];
   }>;
   managerRosterIntelligence?: ManagerRosterIntelligence[];
   tradeTendencies?: TradeTendency[];

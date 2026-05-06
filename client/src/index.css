@@ -4773,6 +4773,12 @@
     line-height: 1;
   }
 
+  .manager-command-player-tile-pills .manager-command-season-value {
+    border-color: rgba(34, 211, 238, 0.22);
+    background: rgba(2, 6, 23, 0.54);
+    color: #5eead4;
+  }
+
   .manager-command-player-tile-pills .manager-command-status-pill {
     border-color: rgba(52, 211, 153, 0.24);
     background: rgba(16, 185, 129, 0.1);
