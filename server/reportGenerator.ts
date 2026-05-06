@@ -569,8 +569,8 @@ function buildLeagueDiagnostics(
     lineupSlotSummary: formatLineupSlotSummary(lineupProfile),
     starterCountSummary: formatStarterCountSummary(starterCounts),
     starterCalculation: `Projected starters are selected from active roster players only, using this league's starter slots: ${formatLineupSlotSummary(lineupProfile)}. Fixed QB/RB/WR/TE slots fill first by position rank, Superflex tries QB first, then flex slots take the best remaining RB/WR/TE options.`,
-    benchCalculation: `Bench baseline uses the best non-starting options after those projected starters are removed. Taxi players are included only for bench baseline visibility because they can be future depth, but not in the active starter room.`,
-    tradeableDepthCalculation: 'Tradeable depth uses active bench players only. Taxi and IR players are not counted as immediate tradeable depth in that tile.',
+    benchCalculation: `Bench baseline uses season rank and season value to find the best non-starting QB, RB, WR, and TE after projected starters are removed. Taxi players are included only for bench baseline visibility because they can be future depth, but not in the active starter room.`,
+    tradeableDepthCalculation: 'Tradeable depth uses season rank and season value for active bench players only. Taxi and IR players are not counted as immediate tradeable depth in that tile.',
     scoringSummary: formatScoringSummary(currentSeasonData.scoringSettings),
     receptionScoring,
     tightEndPremium,
@@ -737,10 +737,9 @@ function buildStartingRosterStrengthTiles(
 function buildBenchBaselineTiles(
   manager: string,
   leagueRows: Array<{ manager: string; bench: ManagerIntelPlayer[] }>,
-  rosterPositions: string[] | undefined,
+  _rosterPositions: string[] | undefined,
   teamCount: number
 ): OwnerBenchBaselineTile[] {
-  const profile = getLineupSlotProfile(rosterPositions);
   const managerBench = leagueRows.find((row) => row.manager === manager)?.bench || [];
   const tileDefs: Array<{ key: string; label: string; count: number; positions: FantasyPosition[] }> = [
     { key: 'QB', label: 'Bench QB', count: 1, positions: ['QB'] },
@@ -748,10 +747,6 @@ function buildBenchBaselineTiles(
     { key: 'WR', label: 'Bench WR', count: 1, positions: ['WR'] },
     { key: 'TE', label: 'Bench TE', count: 1, positions: ['TE'] },
   ];
-
-  if (profile.flex > 0) {
-    tileDefs.push({ key: 'FLEX', label: `Bench Flex x${profile.flex}`, count: profile.flex, positions: ['RB', 'WR', 'TE'] });
-  }
 
   const pickBenchPlayers = (
     bench: ManagerIntelPlayer[],

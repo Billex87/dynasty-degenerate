@@ -4167,11 +4167,12 @@
     display: grid;
     min-width: 0;
     width: 100%;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.44rem;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 0.34rem;
     border-radius: 0.72rem;
-    padding: 0.34rem 0.42rem;
+    padding: 0.42rem 0.46rem;
+    text-align: left;
   }
 
   .owner-intel-bench-player .player-chip {
@@ -4199,8 +4200,34 @@
     display: inline-flex;
     flex: 0 0 auto;
     align-items: center;
-    justify-content: flex-end;
-    gap: 0.28rem;
+    justify-content: flex-start;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
+  .owner-intel-bench-player-meta .team-logo-pill,
+  .owner-intel-bench-player-meta .team-logo-pill img {
+    height: 1.32rem !important;
+    min-height: 1.32rem !important;
+    width: 1.32rem !important;
+    min-width: 1.32rem !important;
+    flex-basis: 1.32rem;
+  }
+
+  .owner-intel-bench-player-value {
+    display: inline-flex;
+    min-height: 1.28rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(34, 211, 238, 0.22);
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.5);
+    padding: 0.16rem 0.44rem;
+    color: #5eead4;
+    font-size: 0.62rem;
+    font-weight: 950;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .owner-intel-bench-player-empty {
@@ -12590,7 +12617,8 @@ button.trade-manager-trade {
 
   .report-shell .owner-intel-bench-player {
     gap: 0.28rem;
-    padding: 0.3rem 0.32rem;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.38rem 0.4rem;
   }
 
   .report-shell .owner-intel-bench-player .player-chip {
@@ -12605,6 +12633,16 @@ button.trade-manager-trade {
 
   .report-shell .owner-intel-bench-player .player-chip > span:last-child {
     font-size: clamp(0.61rem, 1.8vw, 0.68rem);
+  }
+
+  .report-shell .owner-intel-bench-player-meta {
+    justify-content: flex-start;
+    gap: 0.24rem;
+  }
+
+  .report-shell .owner-intel-bench-player-value {
+    padding-inline: 0.34rem;
+    font-size: 0.58rem;
   }
 
   .report-shell .owner-intel-bench-player .position-rank-pill {

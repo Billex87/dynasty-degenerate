@@ -1500,8 +1500,8 @@ type OwnerGrowthRow = NonNullable<ReportData['managerRosterValueGrowth']>[number
 const STARTING_ROSTER_STRENGTH_TITLE = 'Starting Roster Strength';
 const STARTING_ROSTER_STRENGTH_COMPARISON = 'vs all managers';
 const STARTING_ROSTER_STRENGTH_NOTE = 'League rank for this manager’s projected starters in each starting slot group, using this league’s lineup settings. In superflex leagues, QB/SF includes the superflex QB path.';
-const BENCH_BASELINE_NOTE = 'Compares the best non-starting bench options against the rest of the league. These are the players who would step in after the projected starters are already filled.';
-const TRADEABLE_DEPTH_NOTE = 'Shows the best non-starting player at each position. These are the easiest depth pieces to shop without touching the projected starting lineup.';
+const BENCH_BASELINE_NOTE = 'Compares the best non-starting QB, RB, WR, and TE using season value and season position rank after projected starters are already filled.';
+const TRADEABLE_DEPTH_NOTE = 'Shows active bench trade chips by season value and season rank only. Taxi and IR players are left out.';
 
 type TradeWarMode = 'dynasty' | 'contender' | 'rebuilder';
 type TradeWarAsset = ManagerIntelPlayer & {
@@ -1719,7 +1719,8 @@ function OwnerIntelDepthPlayerButton({
 }) {
   const playerDetails = player.playerDetails || (player.player_id ? playerDetailsById?.[player.player_id] : undefined);
   const team = playerDetails?.team || null;
-  const rank = player.currentPositionRank || player.seasonPositionRank || player.pos || '-';
+  const rank = player.seasonPositionRank || player.currentPositionRank || player.pos || '-';
+  const seasonValue = player.seasonValue || player.value;
 
   return (
     <button
@@ -1730,16 +1731,19 @@ function OwnerIntelDepthPlayerButton({
         playerId: player.player_id,
         playerName: player.name,
         playerPos: player.pos,
-        value: player.value,
+        value: seasonValue,
         playerDetails,
         playerDetailsById,
         currentPositionRank: rank,
+        valueMode: 'redraft',
         manager: player.owner || manager,
         managerAvatarUrl: (player.owner && managerAvatars?.[player.owner]) || managerAvatars?.[manager],
       }))}
     >
       <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       <span className="owner-intel-bench-player-meta">
+        <TeamLogoPill team={team} />
+        <span className="owner-intel-bench-player-value">{formatCompactValue(seasonValue)}</span>
         <PositionRankPill rank={rank} />
       </span>
     </button>
@@ -3360,7 +3364,7 @@ export function ManagerIntelligenceCards({
                       <p>
                         {selectedRow.tradeableDepth?.length
                           ? (selectedRow.tradeableDepth
-                            .map((tile) => tile.player ? `${tile.position}: ${tile.player.name} (${tile.player.currentPositionRank || tile.player.seasonPositionRank || tile.position})` : null)
+                            .map((tile) => tile.player ? `${tile.position}: ${tile.player.name} (${tile.player.seasonPositionRank || tile.player.currentPositionRank || tile.position})` : null)
                             .filter(Boolean)
                             .join(' · ') || 'No clean non-starting trade chip on this roster.')
                           : (['QB', 'RB', 'WR', 'TE'] as const)

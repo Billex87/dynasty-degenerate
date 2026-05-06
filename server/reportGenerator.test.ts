@@ -434,7 +434,7 @@ describe('generateReport trade ledger', () => {
     expect(managerA?.tradeableDepth?.find((tile) => tile.position === 'QB')?.player?.name).toBe('Alpha QBThree');
   });
 
-  it('does not reuse named bench baseline players in the bench flex slot', async () => {
+  it('limits bench baseline to positional next men up', async () => {
     const report = await generateReport(
       {
         label: '2026',
@@ -487,14 +487,11 @@ describe('generateReport trade ledger', () => {
     const wrTile = managerA?.benchBaseline?.find((tile) => tile.key === 'WR');
     const teTile = managerA?.benchBaseline?.find((tile) => tile.key === 'TE');
     const flexTile = managerA?.benchBaseline?.find((tile) => tile.key === 'FLEX');
-    const usedNamedBenchPlayers = new Set([rbTile?.player?.name, wrTile?.player?.name, teTile?.player?.name]);
-    const flexNames = flexTile?.players?.map((player) => player.name) || [];
 
     expect(rbTile?.player?.name).toBe('Taxi RB');
     expect(wrTile?.player?.name).toBe('Bench WR');
     expect(teTile?.player?.name).toBe('Bench TE');
-    expect(flexNames).toEqual(['Bench RB']);
-    expect(flexNames.some((name) => usedNamedBenchPlayers.has(name))).toBe(false);
+    expect(flexTile).toBeUndefined();
   });
 
   it('uses dynasty value as primary for dynasty leagues and season value for redraft leagues', async () => {
