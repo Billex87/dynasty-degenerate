@@ -1129,9 +1129,20 @@
     border-top: 1px solid rgba(249, 115, 22, 0.18);
   }
 
+  .home-footer-inner {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.85rem;
+    text-align: center;
+  }
+
   .home-footer-brand {
     display: flex;
-    min-height: 6.75rem;
+    width: 100%;
+    min-height: 5.85rem;
     flex-direction: column;
     align-items: center;
     justify-content: center;

@@ -279,7 +279,6 @@ function HomeActionRow() {
 function HomeLogoChrome() {
   return (
     <div className="home-header-inner max-w-7xl mx-auto">
-      <HomeActionRow />
       <div className="home-header-logo-wrap">
         <img
           src={DYNASTY_LOGO_SRC}
@@ -341,13 +340,22 @@ function HomeCachedUserSwitcher({
 
 function HomeBrandLockup() {
   return (
-    <div className="home-footer-brand max-w-7xl mx-auto">
+    <div className="home-footer-brand">
       <h1 className="home-header-title athletic-title mb-2">
         Dynasty<br />Degenerates
       </h1>
       <p className="home-header-tagline">
         For Degens, By Degens
       </p>
+    </div>
+  );
+}
+
+function HomeFooterChrome() {
+  return (
+    <div className="home-footer-inner max-w-7xl mx-auto">
+      <HomeActionRow />
+      <HomeBrandLockup />
     </div>
   );
 }
@@ -1755,7 +1763,7 @@ export default function Home() {
 
       {!reportData && (
         <div className="home-footer mt-auto px-4 py-6 sm:py-8">
-          <HomeBrandLockup />
+          <HomeFooterChrome />
         </div>
       )}
       {clownEasterEggDialog}
