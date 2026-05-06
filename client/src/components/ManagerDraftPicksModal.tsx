@@ -54,6 +54,14 @@ export function ManagerDraftPicksModal({
   const watchDraftReads = managerPicks.filter((pick) => pick.draftDecisionTone === 'watch').length;
   const displayManagerName = managerDisplayName || managerName;
   const managerInitial = displayManagerName.trim()[0]?.toUpperCase() || '?';
+  const managerNameLength = displayManagerName.replace(/\s+/g, '').length;
+  const managerNameSizeClass = managerNameLength >= 20
+    ? 'manager-modal-name-xxlong'
+    : managerNameLength >= 15
+      ? 'manager-modal-name-xlong'
+      : managerNameLength >= 10
+        ? 'manager-modal-name-long'
+        : '';
 
   return (
     <>
@@ -97,7 +105,7 @@ export function ManagerDraftPicksModal({
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/90">
                       {isAuditMode ? 'Draft Decision Audit' : 'Draft Portfolio'}
                     </p>
-                    <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400 sm:text-4xl">
+                    <DialogTitle className={`manager-modal-name ${managerNameSizeClass} athletic-headline mt-1 font-black leading-none text-orange-400`}>
                       {displayManagerName}
                     </DialogTitle>
                     <ManagerChampionshipPills managerName={managerName} className="mt-2 justify-center" />

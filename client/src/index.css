@@ -12895,3 +12895,237 @@ button.trade-manager-trade {
   text-overflow: clip;
   white-space: normal;
 }
+
+/* Shared report component system: manager headers, disclosure headers, and player tiles use one contract. */
+.report-shell,
+.manager-command-dialog,
+.owner-quick-modal,
+.manager-draft-modal,
+.starter-modal,
+.trade-manager-modal {
+  --report-panel-radius: 0.95rem;
+  --report-tile-radius: 0.95rem;
+  --report-tile-padding: 0.78rem;
+  --report-tile-gap: 0.56rem;
+  --report-chip-font-size: 0.62rem;
+  --report-kicker-font-size: 0.62rem;
+  --report-manager-avatar-size: 4rem;
+  --report-manager-title-size: 2.35rem;
+  --report-manager-title-long-size: 2rem;
+  --report-manager-title-xlong-size: 1.72rem;
+  --report-manager-title-xxlong-size: 1.5rem;
+  --report-owner-card-name-size: 1.04rem;
+  --report-player-name-size: 0.96rem;
+}
+
+.report-shell :is(.report-card-polished, .trade-ledger-card, .trade-profit-card, .trade-tendencies-card, .command-feature-card),
+[data-slot="dialog-content"]:is(.manager-command-dialog, .owner-quick-modal, .manager-draft-modal, .starter-modal, .trade-manager-modal) {
+  border-radius: var(--report-panel-radius);
+}
+
+.report-shell :is(.report-disclosure-summary, .command-feature-top) {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.report-shell :is(.report-disclosure-summary p, .command-feature-top p, .manager-command-hero p, .manager-draft-title-lockup p, .trade-manager-title-lockup p),
+.report-shell :is(.manager-command-section h4, .manager-command-grid h4, .owner-intel-read-grid h4) {
+  font-size: var(--report-kicker-font-size) !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase !important;
+}
+
+.report-shell :is(.report-disclosure-summary h3, .command-feature-top h3) {
+  font-family: var(--font-athletic);
+  letter-spacing: 0;
+  line-height: 0.96;
+  text-align: center;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) > div {
+  display: grid;
+  min-width: 0;
+  justify-items: inherit;
+  gap: 0.16rem;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name, h3, [data-slot="dialog-title"]) {
+  max-width: 100%;
+  overflow: visible !important;
+  color: #fb923c;
+  font-family: var(--font-athletic);
+  font-size: var(--report-manager-title-size) !important;
+  font-weight: 950;
+  letter-spacing: 0 !important;
+  line-height: 0.94;
+  text-overflow: clip !important;
+  text-transform: uppercase;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  white-space: normal !important;
+}
+
+.manager-command-hero .manager-command-title-lockup h3.manager-modal-name,
+.manager-draft-title-lockup [data-slot="dialog-title"].manager-modal-name,
+.trade-manager-title-lockup h3.manager-modal-name {
+  font-size: var(--report-manager-title-size) !important;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name-long),
+.manager-command-hero .manager-command-title-lockup h3.manager-modal-name-long,
+.manager-draft-title-lockup [data-slot="dialog-title"].manager-modal-name-long,
+.trade-manager-title-lockup h3.manager-modal-name-long {
+  font-size: var(--report-manager-title-long-size) !important;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name-xlong),
+.manager-command-hero .manager-command-title-lockup h3.manager-modal-name-xlong,
+.manager-draft-title-lockup [data-slot="dialog-title"].manager-modal-name-xlong,
+.trade-manager-title-lockup h3.manager-modal-name-xlong {
+  font-size: var(--report-manager-title-xlong-size) !important;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name-xxlong),
+.manager-command-hero .manager-command-title-lockup h3.manager-modal-name-xxlong,
+.manager-draft-title-lockup [data-slot="dialog-title"].manager-modal-name-xxlong,
+.trade-manager-title-lockup h3.manager-modal-name-xxlong {
+  font-size: var(--report-manager-title-xxlong-size) !important;
+}
+
+:is(.manager-command-avatar, .manager-draft-champion-frame, .manager-draft-champion-avatar) {
+  height: var(--report-manager-avatar-size);
+  width: var(--report-manager-avatar-size);
+}
+
+.report-shell :is(.owner-summary-name, .command-depth-name),
+.report-shell :is(.manager-intel-player-main, .starter-player-main, .starter-depth-player-main, .weekly-momentum-player, .trending-player-card-main, .waiver-intel-main, .trade-market-player, .recent-transaction-player-main, .player-tile-main) .player-chip > span:last-child {
+  min-width: 0;
+  overflow: visible;
+  font-family: var(--font-athletic);
+  letter-spacing: 0;
+  line-height: 1.04;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.report-shell :is(.owner-summary-name, .command-depth-name) {
+  font-size: var(--report-owner-card-name-size);
+  text-align: inherit;
+}
+
+.report-shell :is(.manager-intel-player-main, .starter-player-main, .starter-depth-player-main, .weekly-momentum-player, .trending-player-card-main, .waiver-intel-main, .trade-market-player, .recent-transaction-player-main, .player-tile-main) .player-chip > span:last-child {
+  font-size: var(--report-player-name-size);
+}
+
+.report-shell :is(.player-team-tile, .owner-summary-tile, .command-depth-tile, .weekly-momentum-tile, .trending-player-card, .trade-market-card, .waiver-intel-card, .projected-mover-tile, .rookie-player-tile, .recent-transaction-player, .manager-intel-player, .starter-player-tile, .starter-depth-player-tile, .manager-command-player-tile) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: var(--report-tile-radius);
+}
+
+.report-shell :is(.weekly-momentum-tile, .trending-player-card, .trade-market-card, .waiver-intel-card, .projected-mover-tile, .rookie-player-tile, .recent-transaction-player, .manager-intel-player, .starter-player-tile, .starter-depth-player-tile, .manager-command-player-tile) {
+  gap: var(--report-tile-gap);
+  padding: var(--report-tile-padding);
+}
+
+.report-shell :is(.owner-metric-pill, .command-mini-badge, .trade-habit-pill, .manager-intel-pill, .weekly-momentum-pills span, .weekly-momentum-values span, .trending-player-card-pills span, .waiver-intel-pills span, .player-tile-pills span, .recent-transaction-player-pills span, .position-rank-pill, .value-pill) {
+  font-size: var(--report-chip-font-size);
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.report-shell :is([data-slot="table-container"], .overflow-x-auto, .overflow-x-hidden, .report-card-polished, .trade-ledger-card, .trade-profit-card, .trade-tendencies-card) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .report-shell :is(.manager-command-title-lockup, .trade-manager-title-lockup) {
+    justify-content: flex-start;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .report-shell .manager-draft-title-lockup {
+    justify-content: center;
+    justify-items: center;
+    text-align: center;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .report-shell,
+  .manager-command-dialog,
+  .owner-quick-modal,
+  .manager-draft-modal,
+  .starter-modal,
+  .trade-manager-modal {
+    --report-manager-avatar-size: 3.6rem;
+    --report-manager-title-size: 1.9rem;
+    --report-manager-title-long-size: 1.58rem;
+    --report-manager-title-xlong-size: 1.36rem;
+    --report-manager-title-xxlong-size: 1.12rem;
+    --report-owner-card-name-size: 1rem;
+    --report-player-name-size: 0.92rem;
+  }
+
+  :is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) {
+    justify-content: center !important;
+    justify-items: center !important;
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell,
+  .manager-command-dialog,
+  .owner-quick-modal,
+  .manager-draft-modal,
+  .starter-modal,
+  .trade-manager-modal {
+    --report-tile-padding: 0.58rem;
+    --report-tile-gap: 0.42rem;
+    --report-chip-font-size: 0.58rem;
+    --report-kicker-font-size: 0.56rem;
+    --report-manager-avatar-size: 3.15rem;
+    --report-manager-title-size: 1.54rem;
+    --report-manager-title-long-size: 1.2rem;
+    --report-manager-title-xlong-size: 1rem;
+    --report-manager-title-xxlong-size: 0.84rem;
+    --report-owner-card-name-size: 0.96rem;
+    --report-player-name-size: 0.84rem;
+  }
+
+  :is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) {
+    width: min(100%, calc(100vw - 1.5rem)) !important;
+    max-width: min(100%, calc(100vw - 1.5rem)) !important;
+    justify-content: center !important;
+    justify-items: center !important;
+    gap: 0.62rem !important;
+    text-align: center !important;
+  }
+
+  :is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) > div {
+    width: min(100%, calc(100vw - 6.25rem)) !important;
+    max-width: min(100%, calc(100vw - 6.25rem)) !important;
+    justify-items: center !important;
+    text-align: center !important;
+  }
+
+  :is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name, h3, [data-slot="dialog-title"]) {
+    overflow-wrap: anywhere;
+    text-align: center !important;
+  }
+}
