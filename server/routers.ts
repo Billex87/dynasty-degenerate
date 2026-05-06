@@ -321,29 +321,104 @@ function getLastPlaceRosterIdFromRosters(rosters: any[] = []): number | null {
   return ranked[0]?.rosterId ?? null;
 }
 
-function getLastPlaceRosterIdFromLosersBracket(bracket: any[] = []): number | null {
-  if (!Array.isArray(bracket) || bracket.length === 0) return null;
+type NormalizedLosersBracketMatchup = {
+  r: number;
+  p: number;
+  m: number;
+  w: number;
+  l: number;
+  t1: number;
+  t2: number;
+};
 
-  const completed = bracket
-    .filter((matchup) => matchup && matchup.l !== undefined && matchup.l !== null)
+function normalizeLosersBracket(bracket: any[] = []): NormalizedLosersBracketMatchup[] {
+  if (!Array.isArray(bracket) || bracket.length === 0) return [];
+
+  return bracket
+    .filter((matchup) => matchup && (matchup.l !== undefined || matchup.w !== undefined))
     .map((matchup) => ({
-      ...matchup,
       r: Number(matchup.r || 0),
       p: Number(matchup.p || 0),
       m: Number(matchup.m || 999),
+      w: Number(matchup.w),
       l: Number(matchup.l),
+      t1: Number(matchup.t1),
+      t2: Number(matchup.t2),
     }))
-    .filter((matchup) => Number.isFinite(matchup.l));
+    .filter((matchup) => Number.isFinite(matchup.w) || Number.isFinite(matchup.l));
+}
 
+function getLastPlaceGameFromLosersBracket(bracket: any[] = [], playoffType?: unknown): NormalizedLosersBracketMatchup | null {
+  const completed = normalizeLosersBracket(bracket);
   if (completed.length === 0) return null;
 
-  const lastPlaceGame = completed.sort((a, b) => {
-    if (b.r !== a.r) return b.r - a.r;
-    if (b.p !== a.p) return b.p - a.p;
+  const isToiletBowl = Number(playoffType) === 0;
+  const placementGames = completed.filter((matchup) => Number.isFinite(matchup.p) && matchup.p > 0);
+  const candidateGames = placementGames.length > 0 ? placementGames : completed;
+  const finalRound = Math.max(...candidateGames.map((matchup) => matchup.r));
+  const finalRoundGames = candidateGames.filter((matchup) => matchup.r === finalRound);
+
+  const lastPlaceGame = finalRoundGames.sort((a, b) => {
+    if (isToiletBowl && a.p !== b.p) return a.p - b.p;
+    if (!isToiletBowl && a.p !== b.p) return b.p - a.p;
     return b.m - a.m;
   })[0];
 
-  return Number.isFinite(lastPlaceGame.l) ? lastPlaceGame.l : null;
+  if (!lastPlaceGame) return null;
+
+  return lastPlaceGame;
+}
+
+function getRosterMatchupPoints(matchups: any[] = [], rosterId: number): number | null {
+  const row = matchups.find((matchup) => Number(matchup?.roster_id) === rosterId);
+  if (!row) return null;
+  const customPoints = Number(row.custom_points);
+  if (Number.isFinite(customPoints)) return customPoints;
+  const points = Number(row.points);
+  return Number.isFinite(points) ? points : null;
+}
+
+function getLastPlaceRosterIdFromMatchupPoints(
+  lastPlaceGame: NormalizedLosersBracketMatchup | null,
+  matchups: any[] = []
+): number | null {
+  if (!lastPlaceGame || !Number.isFinite(lastPlaceGame.t1) || !Number.isFinite(lastPlaceGame.t2)) return null;
+
+  const t1Points = getRosterMatchupPoints(matchups, lastPlaceGame.t1);
+  const t2Points = getRosterMatchupPoints(matchups, lastPlaceGame.t2);
+  if (t1Points === null || t2Points === null || t1Points === t2Points) return null;
+
+  return t1Points < t2Points ? lastPlaceGame.t1 : lastPlaceGame.t2;
+}
+
+function getBracketGameWeek(leagueInfo: any, bracketGame: NormalizedLosersBracketMatchup | null): number | null {
+  if (!bracketGame || !Number.isFinite(bracketGame.r)) return null;
+  const playoffWeekStart = Number(leagueInfo?.settings?.playoff_week_start || 0);
+  if (!Number.isFinite(playoffWeekStart) || playoffWeekStart <= 0) return null;
+  return playoffWeekStart + bracketGame.r - 1;
+}
+
+export function getLastPlaceRosterIdFromLosersBracket(
+  bracket: any[] = [],
+  playoffType?: unknown,
+  matchups: any[] = []
+): number | null {
+  const lastPlaceGame = getLastPlaceGameFromLosersBracket(bracket, playoffType);
+  if (!lastPlaceGame) return null;
+
+  const matchupPointsLoser = getLastPlaceRosterIdFromMatchupPoints(lastPlaceGame, matchups);
+  if (matchupPointsLoser !== null) return matchupPointsLoser;
+
+  const isToiletBowl = Number(playoffType) === 0;
+  const lastPlaceRosterId = isToiletBowl
+    // Sleeper's toilet-bowl `w` field represents the team that advances through the loser's path.
+    ? lastPlaceGame.w
+    // In normal consolation placement games, `l` is the loser of the lowest placement game.
+    : lastPlaceGame.l;
+
+  if (Number.isFinite(lastPlaceRosterId)) return lastPlaceRosterId;
+  const fallbackRosterId = isToiletBowl ? lastPlaceGame.l : lastPlaceGame.w;
+  return Number.isFinite(fallbackRosterId) ? fallbackRosterId : null;
 }
 
 function getWorstRegularSeasonRosterId(rosters: any[] = []): number | null {
@@ -459,8 +534,17 @@ async function buildManagerChampionships(
       ?? getRosterIdByFinalRank(rosters || [], 1);
     const runnerUpRosterId = getRunnerUpRosterIdFromBracket(winnersBracket || [])
       ?? getRosterIdByFinalRank(rosters || [], 2);
-    const lastPlaceRosterId = getLastPlaceRosterIdFromRosters(rosters || [])
-      ?? getLastPlaceRosterIdFromLosersBracket(losersBracket || [])
+    const lastPlaceGame = getLastPlaceGameFromLosersBracket(losersBracket || [], leagueInfo?.settings?.playoff_type);
+    const lastPlaceWeek = getBracketGameWeek(leagueInfo, lastPlaceGame);
+    const lastPlaceWeekMatchups = lastPlaceWeek
+      ? await fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/matchups/${lastPlaceWeek}`)
+      : null;
+    const lastPlaceRosterId = getLastPlaceRosterIdFromLosersBracket(
+      losersBracket || [],
+      leagueInfo?.settings?.playoff_type,
+      lastPlaceWeekMatchups || []
+    )
+      ?? getLastPlaceRosterIdFromRosters(rosters || [])
       ?? getWorstRegularSeasonRosterId(rosters || []);
 
     addFinish(managerByRosterId[championRosterId ?? -1], season, 'seasons');
