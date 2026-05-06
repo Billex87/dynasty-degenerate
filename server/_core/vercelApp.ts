@@ -7,6 +7,18 @@ import { storeKtcSnapshot } from '../ktcSnapshotJob';
 import { getSnapshotDateKey } from '../ktcLoader';
 
 const app = express();
+const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
+const SNAPSHOT_HOUR = 18;
+
+function getPacificHour(date: Date): number {
+  const hourPart = new Intl.DateTimeFormat('en-CA', {
+    timeZone: SNAPSHOT_TIME_ZONE,
+    hour: '2-digit',
+    hour12: false,
+  }).formatToParts(date).find((part) => part.type === 'hour')?.value;
+
+  return Number(hourPart);
+}
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -25,6 +37,19 @@ app.get('/api/cron/ktc-snapshot', async (req, res) => {
 
   if (configuredSecret && authHeader !== `Bearer ${configuredSecret}`) {
     res.status(401).json({ ok: false, error: 'Unauthorized' });
+    return;
+  }
+
+  const now = new Date();
+  const pacificHour = getPacificHour(now);
+  if (!forceRun && pacificHour !== SNAPSHOT_HOUR) {
+    res.status(202).json({
+      ok: true,
+      skipped: true,
+      reason: `Snapshot only runs at ${SNAPSHOT_HOUR}:00 ${SNAPSHOT_TIME_ZONE}`,
+      pacificHour,
+      snapshotDateKey: getSnapshotDateKey(now),
+    });
     return;
   }
 
