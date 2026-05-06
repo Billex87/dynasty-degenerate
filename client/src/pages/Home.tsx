@@ -45,7 +45,8 @@ const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-histo
 const CACHED_SLEEPER_USERS_KEY = 'dynasty-degenerates:sleeper-user-history:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
-const MAX_CACHED_LEAGUE_SHORTCUTS = 4;
+const MAX_RECENT_LEAGUES_PER_USER = 3;
+const MAX_VISIBLE_LEAGUE_SHORTCUTS = MAX_RECENT_LEAGUES_PER_USER - 1;
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-04-30';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
 const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'awwqq', 'zojozo']);
@@ -154,7 +155,7 @@ function normalizeCachedSleeperUser(value: unknown): CachedSleeperUser | null {
       .filter((leagueId): leagueId is string => typeof leagueId === 'string')
       .filter((leagueId, index, list) => list.indexOf(leagueId) === index)
       .filter((leagueId) => validLeagueIds.has(leagueId))
-      .slice(0, MAX_CACHED_LEAGUE_SHORTCUTS)
+      .slice(0, MAX_RECENT_LEAGUES_PER_USER)
     : [];
 
   return {
@@ -209,7 +210,7 @@ function rememberCachedSleeperUser(user: CachedSleeperUser): CachedSleeperUser[]
   const recentLeagueIds = (user.recentLeagueIds.length ? user.recentLeagueIds : existing?.recentLeagueIds || [])
     .filter((leagueId, index, list) => list.indexOf(leagueId) === index)
     .filter((leagueId) => leagueIds.has(leagueId))
-    .slice(0, MAX_CACHED_LEAGUE_SHORTCUTS);
+    .slice(0, MAX_RECENT_LEAGUES_PER_USER);
   return writeCachedSleeperUsers([
     { ...user, recentLeagueIds, savedAt: Date.now() },
     ...current.filter((cachedUser) => (
@@ -263,10 +264,7 @@ function getLeagueShortcutsForUser(
   if (!leagues.length) return [];
 
   const leagueById = new Map(leagues.map((league) => [league.leagueId, league]));
-  const orderedIds = [
-    ...(cachedUser?.recentLeagueIds || []),
-    ...leagues.map((league) => league.leagueId),
-  ];
+  const orderedIds = cachedUser?.recentLeagueIds || [];
   const seen = new Set<string>();
   return orderedIds
     .filter((leagueId) => leagueId !== activeLeagueId)
@@ -277,7 +275,7 @@ function getLeagueShortcutsForUser(
     })
     .map((leagueId) => leagueById.get(leagueId))
     .filter((league): league is SleeperLeagueOption => Boolean(league))
-    .slice(0, MAX_CACHED_LEAGUE_SHORTCUTS);
+    .slice(0, activeLeagueId ? MAX_VISIBLE_LEAGUE_SHORTCUTS : MAX_RECENT_LEAGUES_PER_USER);
 }
 
 function rememberCachedSleeperLeagueShortcut({
@@ -303,7 +301,7 @@ function rememberCachedSleeperLeagueShortcut({
   const nextRecentLeagueIds = [leagueId, ...(base.recentLeagueIds || [])]
     .filter((id, index, list) => list.indexOf(id) === index)
     .filter((id) => leagueIds.has(id))
-    .slice(0, MAX_CACHED_LEAGUE_SHORTCUTS);
+    .slice(0, MAX_RECENT_LEAGUES_PER_USER);
   const nextUser: CachedSleeperUser = {
     ...base,
     userId: user?.userId || base.userId || username,
@@ -467,7 +465,7 @@ function LeagueShortcutStack({
     <div className={`league-shortcut-switcher${className ? ` ${className}` : ''}`} aria-label="Recent league shortcuts">
       <span className="league-shortcut-label">{label}</span>
       <div className="league-shortcut-stack">
-        {leagues.slice(0, MAX_CACHED_LEAGUE_SHORTCUTS).map((league, index) => {
+        {leagues.slice(0, MAX_RECENT_LEAGUES_PER_USER).map((league, index) => {
           const isActive = league.leagueId === activeLeagueId;
           return (
             <button
