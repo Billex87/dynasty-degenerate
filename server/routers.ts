@@ -1335,16 +1335,16 @@ function buildRecentTransactions(
       ) || null;
       const intel = managerIntelByName.get(manager);
       const droppedIsCurrentRookie = Number(droppedPlayer?.playerDetails?.rookieYear || 0) === currentSeasonNumber;
-      const alternativeDrop = droppedIsCurrentRookie
-        ? null
-        : (intel?.droppablePlayers || [])
+      const alternativeDrop = droppedPlayer && !droppedIsCurrentRookie
+        ? (intel?.droppablePlayers || [])
             .filter((candidate: any) => candidate?.player_id && candidate.player_id !== droppedPlayerId)
             .filter((candidate: any) => candidate.playerDetails?.rosterStatus !== 'Taxi')
             .filter((candidate: any) => {
               const candidateIsRookie = Number(candidate.playerDetails?.rookieYear || 0) === currentSeasonNumber;
               return candidateIsRookie === droppedIsCurrentRookie;
             })
-            .sort((a: any, b: any) => (a.value || 0) - (b.value || 0))[0] || null;
+            .sort((a: any, b: any) => (a.value || 0) - (b.value || 0))[0] || null
+        : null;
 
       let note = `${transaction.type === 'waiver' ? 'Winning claim' : 'Free-agent add'} logged.`;
       if (droppedPlayer && addedPlayer) {

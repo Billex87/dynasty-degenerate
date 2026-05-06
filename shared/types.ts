@@ -43,6 +43,8 @@ export interface RankingPlayer {
   dynastyNerdsValue?: number | null;
   fantasyCalcValue?: number | null;
   dynastyProcessValue?: number | null;
+  dynastyDealerBenchmark?: number | null;
+  dynastyDealerVoteRating?: number | null;
   fantasyProsValue?: number | null;
   seasonValue?: number | null;
   tier?: string | number | null;

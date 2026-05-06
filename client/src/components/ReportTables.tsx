@@ -6141,7 +6141,7 @@ export function RecentTransactionsPanel({
                     <div className="recent-transaction-player-grid">
                       {renderPlayerRow('Added', transaction.addedPlayer, 'add')}
                       {renderPlayerRow('Dropped', transaction.droppedPlayer, 'drop')}
-                      {renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt')}
+                      {transaction.droppedPlayer && renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt')}
                     </div>
                   </div>
                 ))}

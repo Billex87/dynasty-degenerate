@@ -36,6 +36,11 @@ function formatValue(value?: number | null): string {
   return value.toLocaleString();
 }
 
+function formatMarketPulse(value?: number | null): string | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return Math.abs(value) >= 10 ? Math.round(value).toLocaleString() : value.toFixed(1).replace(/\.0$/, '');
+}
+
 function getCompactValue(value?: number | null): string {
   if (!value) return '-';
   if (value >= 1000) {
@@ -129,7 +134,9 @@ function RankingCard({
     ['Nerds', player.dynastyNerdsValue],
     ['FC', player.fantasyCalcValue],
     ['DP', player.dynastyProcessValue],
+    ['Dealer', player.dynastyDealerBenchmark],
   ].filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0);
+  const marketPulse = formatMarketPulse(player.dynastyDealerVoteRating);
   const movementClass = player.movementDirection === 'up'
     ? 'ranking-move-up'
     : player.movementDirection === 'down'
@@ -184,6 +191,7 @@ function RankingCard({
           {sourceInputs.map(([label, value]) => (
             <span key={label}>{label} {formatValue(value)}</span>
           ))}
+          {marketPulse !== null ? <span>Market pulse {marketPulse}</span> : null}
         </div>
       ) : null}
     </button>

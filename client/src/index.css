@@ -14962,6 +14962,152 @@ body {
   }
 }
 
+/* Dynamic report density pass: repeated cards should use the room they have instead of locking to two columns. */
+.report-shell {
+  --dd-report-grid-gap: clamp(0.55rem, 1vw, 0.95rem);
+  --dd-report-player-min: 15rem;
+  --dd-report-owner-min: 16rem;
+  --dd-report-detail-min: 14rem;
+  --dd-report-grid-max: 112rem;
+  --dd-report-modal-max: 112rem;
+  --dd-report-six-col-min: calc((100% - 4.75rem) / 6);
+  --dd-report-player-track-min: min(100%, max(var(--dd-report-player-min), var(--dd-report-six-col-min)));
+  --dd-report-owner-track-min: min(100%, max(var(--dd-report-owner-min), var(--dd-report-six-col-min)));
+  --dd-report-detail-track-min: min(100%, max(var(--dd-report-detail-min), var(--dd-report-six-col-min)));
+}
+
+[data-slot="dialog-content"]:is(.manager-command-dialog, .owner-intel-dialog, .starter-modal, .manager-draft-modal, .trade-manager-modal) {
+  --dd-report-grid-gap: clamp(0.55rem, 1vw, 0.95rem);
+  --dd-report-player-min: 15rem;
+  --dd-report-owner-min: 16rem;
+  --dd-report-detail-min: 14rem;
+  --dd-report-modal-max: 112rem;
+  --dd-report-six-col-min: calc((100% - 4.75rem) / 6);
+  --dd-report-player-track-min: min(100%, max(var(--dd-report-player-min), var(--dd-report-six-col-min)));
+  --dd-report-owner-track-min: min(100%, max(var(--dd-report-owner-min), var(--dd-report-six-col-min)));
+  --dd-report-detail-track-min: min(100%, max(var(--dd-report-detail-min), var(--dd-report-six-col-min)));
+}
+
+.report-shell > .flex-1,
+.report-shell .report-header .max-w-7xl {
+  width: min(100%, var(--dd-report-modal-max)) !important;
+  max-width: min(100%, var(--dd-report-modal-max)) !important;
+}
+
+.report-shell :is(
+  .player-tile-grid,
+  .weekly-momentum-grid,
+  .trending-card-grid,
+  .trade-market-grid,
+  .waiver-intel-grid,
+  .projected-movers-grid,
+  .manager-intel-player-grid,
+  .owner-intel-player-grid,
+  .manager-command-player-grid,
+  .manager-command-tile-grid,
+  .starter-grid,
+  .starter-compact-grid,
+  .manager-draft-player-grid,
+  .trade-war-player-grid
+) {
+  width: min(100%, var(--dd-report-grid-max)) !important;
+  max-width: min(100%, var(--dd-report-grid-max)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(var(--dd-report-player-track-min), 1fr)) !important;
+  gap: var(--dd-report-grid-gap) !important;
+}
+
+.report-shell :is(
+  .owner-tile-grid,
+  .command-depth-grid,
+  .draft-efficiency-tile-grid,
+  .draft-decision-manager-grid,
+  .trade-profit-tile-grid,
+  .trade-tendency-tile-grid,
+  .position-counts-tile-grid,
+  .pick-portfolio-tile-grid
+) {
+  width: min(100%, var(--dd-report-grid-max)) !important;
+  max-width: min(100%, var(--dd-report-grid-max)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(var(--dd-report-owner-track-min), 1fr)) !important;
+  gap: var(--dd-report-grid-gap) !important;
+}
+
+.report-shell .recent-transaction-player-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)) !important;
+}
+
+@media (min-width: 1024px) {
+  [data-slot="dialog-content"].manager-command-dialog,
+  [data-slot="dialog-content"].manager-draft-modal,
+  [data-slot="dialog-content"].trade-manager-modal,
+  [data-slot="dialog-content"].starter-modal {
+    width: min(96vw, var(--dd-report-modal-max, 112rem)) !important;
+    max-width: min(96vw, var(--dd-report-modal-max, 112rem)) !important;
+  }
+
+  :is(.owner-intel-dialog, .manager-command-dialog) .owner-intel-player-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(13.5rem, var(--dd-report-six-col-min))), 1fr)) !important;
+  }
+
+  :is(.manager-command-dialog, .owner-intel-dialog) .manager-command-tile-grid,
+  .starter-modal .starter-grid,
+  .starter-modal .starter-compact-grid,
+  .manager-draft-modal .manager-draft-player-grid {
+    grid-template-columns: repeat(auto-fit, minmax(var(--dd-report-detail-track-min), 1fr)) !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  .report-shell {
+    --dd-report-grid-max: 112rem;
+    --dd-report-player-min: 16rem;
+    --dd-report-owner-min: 17rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .report-shell {
+    --dd-report-grid-max: 100%;
+    --dd-report-player-min: 13rem;
+    --dd-report-owner-min: 14rem;
+    --dd-report-detail-min: 12.5rem;
+  }
+
+  [data-slot="dialog-content"]:is(.manager-command-dialog, .owner-intel-dialog, .starter-modal, .manager-draft-modal, .trade-manager-modal) {
+    --dd-report-player-min: 13rem;
+    --dd-report-owner-min: 14rem;
+    --dd-report-detail-min: 12.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell {
+    --dd-report-player-min: 10.8rem;
+    --dd-report-owner-min: 11.8rem;
+    --dd-report-detail-min: 10.8rem;
+  }
+
+  [data-slot="dialog-content"]:is(.manager-command-dialog, .owner-intel-dialog, .starter-modal, .manager-draft-modal, .trade-manager-modal) {
+    --dd-report-player-min: 10.8rem;
+    --dd-report-owner-min: 11.8rem;
+    --dd-report-detail-min: 10.8rem;
+  }
+}
+
+@media (max-width: 399px) {
+  .report-shell {
+    --dd-report-player-min: 100%;
+    --dd-report-owner-min: 100%;
+    --dd-report-detail-min: 100%;
+  }
+
+  [data-slot="dialog-content"]:is(.manager-command-dialog, .owner-intel-dialog, .starter-modal, .manager-draft-modal, .trade-manager-modal) {
+    --dd-report-player-min: 100%;
+    --dd-report-owner-min: 100%;
+    --dd-report-detail-min: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .report-shell *,
   [data-slot="dialog-content"] *,

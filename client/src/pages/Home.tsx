@@ -37,7 +37,7 @@ import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v8';
+const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v9';
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
@@ -2082,6 +2082,7 @@ export default function Home() {
                       id="sleeper-username"
                       name="sleeper-username"
                       type="text"
+                      aria-label="Enter Your Sleeper Username"
                       autoComplete="username"
                       list="sleeper-username-history"
                       placeholder="Sleeper username"
@@ -2147,6 +2148,7 @@ export default function Home() {
                     id="sleeper-league-id"
                     name="sleeper-league-id"
                     type="text"
+                    aria-label="Enter Your Sleeper League ID"
                     autoComplete="on"
                     inputMode="numeric"
                     list="sleeper-league-id-history"

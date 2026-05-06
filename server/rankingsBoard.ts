@@ -31,6 +31,8 @@ type KtcValues = Record<string, {
   market_value_fantasycalc?: number;
   expert_value_dynastynerds?: number;
   expert_value_dynastyprocess?: number;
+  benchmark_value_dynastydealer?: number;
+  dynastydealer_vote_rating?: number | null;
   dynastynerds_position_rank?: string | null;
   dynastynerds_rank?: number;
   dynastynerds_format?: string | null;
@@ -364,6 +366,8 @@ function buildRowsForProfile({
     const dynastyNerdsValue = dynastyNerds?.dynastyValue || blended?.expert_value_dynastynerds || null;
     const fantasyCalcValue = blended?.market_value_fantasycalc || null;
     const dynastyProcessValue = option.board === 'dynasty' ? blended?.expert_value_dynastyprocess || null : null;
+    const dynastyDealerBenchmark = option.board === 'dynasty' ? blended?.benchmark_value_dynastydealer || null : null;
+    const dynastyDealerVoteRating = option.board === 'dynasty' ? blended?.dynastydealer_vote_rating || null : null;
     const sourceWeights = getDynastySourceWeights({
       board: option.board,
       numQbs: option.qbFormat === 'sf' ? 2 : 1,
@@ -407,6 +411,8 @@ function buildRowsForProfile({
       dynastyNerdsValue,
       fantasyCalcValue,
       dynastyProcessValue,
+      dynastyDealerBenchmark,
+      dynastyDealerVoteRating,
       tier: ktc?.tier || flock?.tier || null,
       movement,
       movementLabel: getMovementLabel(movement),
