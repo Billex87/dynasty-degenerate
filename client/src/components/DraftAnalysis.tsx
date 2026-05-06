@@ -45,7 +45,7 @@ export function DraftAnalysis({
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [closedDraftYears, setClosedDraftYears] = useState<Set<string>>(new Set());
+  const [openDraftYears, setOpenDraftYears] = useState<Set<string>>(new Set());
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -135,7 +135,7 @@ export function DraftAnalysis({
     setSelectedManager(manager);
   };
   const toggleDraftYear = (year: string) => {
-    setClosedDraftYears((current) => {
+    setOpenDraftYears((current) => {
       const next = new Set(current);
       if (next.has(year)) {
         next.delete(year);
@@ -271,7 +271,7 @@ export function DraftAnalysis({
         <div className="space-y-4">
           {draftYears.map((draftYear) => {
             const yearPicks = draftPicksByYear[draftYear] || [];
-            const isDraftBoardOpen = !closedDraftYears.has(draftYear);
+            const isDraftBoardOpen = openDraftYears.has(draftYear);
 
             return (
               <div key={draftYear}>
@@ -315,6 +315,8 @@ export function DraftAnalysis({
                       <span>Player</span>
                       <span>Manager</span>
                       <span>Pick</span>
+                      <span>Draft Rank</span>
+                      <span>Current Rank</span>
                       <span>Draft-Day Value</span>
                       <span>Current Value</span>
                       <span>Change</span>
@@ -326,6 +328,8 @@ export function DraftAnalysis({
                         const gainClass = (pick.valueGain ?? 0) > 0 ? 'is-positive' : (pick.valueGain ?? 0) < 0 ? 'is-negative' : '';
                         const opportunity = draftOpportunityByPick[getDraftPickKey(pick)];
                         const managerDisplayName = pick.managerDisplayName || pick.manager;
+                        const draftRankLabel = pick.positionRankMay2025 || pick.playerPos || 'N/A';
+                        const currentRankLabel = pick.currentPositionRank || pick.playerPos || 'N/A';
                         return (
                           <button
                             key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
@@ -345,7 +349,9 @@ export function DraftAnalysis({
                                 displayName={managerDisplayName}
                               />
                             </span>
-                            <span className="rookie-draft-pill" data-label="Pick">{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
+                            <span className="rookie-draft-pill" data-label="Pick">#{pick.pick}</span>
+                            <span className="rookie-draft-rank-cell rookie-draft-rank-cell-draft" data-label="Draft">{draftRankLabel}</span>
+                            <span className="rookie-draft-rank-cell rookie-draft-rank-cell-current" data-label="Now">{currentRankLabel}</span>
                             <span className="rookie-draft-value-cell" data-label="Draft-Day">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
                             <span className="rookie-draft-value-cell" data-label="Current">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
                             <span className={`rookie-draft-gain-cell ${gainClass} ${gainTone}`} data-label="Change">
