@@ -2579,7 +2579,12 @@ function ManagerDepthTile({
           </span>
         ))}
       </span>
-      {isViewerTile && <span className="active-owner-badge">Your Team</span>}
+      {isViewerTile && (
+        <span className="active-owner-badge">
+          <span>Your</span>
+          <span>Team</span>
+        </span>
+      )}
     </button>
   );
 }
@@ -2637,7 +2642,12 @@ function OwnerSummaryTile({
         </span>
       </span>
       <span className="owner-summary-metrics">{children}</span>
-      {isViewerTile && <span className="active-owner-badge">Your Team</span>}
+      {isViewerTile && (
+        <span className="active-owner-badge">
+          <span>Your</span>
+          <span>Team</span>
+        </span>
+      )}
     </>
   );
 
