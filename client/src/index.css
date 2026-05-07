@@ -2478,10 +2478,25 @@
   width: 100%;
 }
 
+.loading-step {
+  position: relative;
+  overflow: hidden;
+  min-height: 4.12rem;
+}
+
+.loading-step > .flex-1 {
+  position: relative;
+  z-index: 1;
+}
+
 .loading-step-complete {
   position: relative;
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.9), rgba(249, 115, 22, 0.78));
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.18);
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.9), transparent 16%),
+    linear-gradient(135deg, rgba(34, 211, 238, 0.9), rgba(249, 115, 22, 0.78));
+  box-shadow:
+    0 0 18px rgba(34, 211, 238, 0.22),
+    0 0 26px rgba(251, 146, 60, 0.16);
 }
 
 .loading-step-complete::before,
@@ -2495,42 +2510,54 @@
 
 .loading-step-complete::before {
   background:
-    radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.95) 0 0.09rem, transparent 0.11rem),
-    radial-gradient(circle at 92% 42%, rgba(103, 232, 249, 0.92) 0 0.08rem, transparent 0.1rem),
-    radial-gradient(circle at 72% 92%, rgba(251, 146, 60, 0.9) 0 0.09rem, transparent 0.11rem),
-    radial-gradient(circle at 12% 58%, rgba(103, 232, 249, 0.86) 0 0.08rem, transparent 0.1rem);
+    radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.98) 0 0.09rem, transparent 0.11rem),
+    radial-gradient(circle at 84% 15%, rgba(251, 146, 60, 0.98) 0 0.08rem, transparent 0.1rem),
+    radial-gradient(circle at 101% 43%, rgba(103, 232, 249, 0.95) 0 0.08rem, transparent 0.1rem),
+    radial-gradient(circle at 82% 84%, rgba(251, 191, 36, 0.9) 0 0.09rem, transparent 0.11rem),
+    radial-gradient(circle at 54% 110%, rgba(103, 232, 249, 0.92) 0 0.08rem, transparent 0.1rem),
+    radial-gradient(circle at 13% 84%, rgba(251, 146, 60, 0.95) 0 0.09rem, transparent 0.11rem),
+    radial-gradient(circle at -3% 42%, rgba(103, 232, 249, 0.9) 0 0.08rem, transparent 0.1rem),
+    conic-gradient(from 12deg, transparent 0 9deg, rgba(251, 191, 36, 0.8) 10deg 13deg, transparent 14deg 45deg, rgba(103, 232, 249, 0.74) 46deg 49deg, transparent 50deg 94deg, rgba(251, 146, 60, 0.76) 95deg 98deg, transparent 99deg 172deg, rgba(103, 232, 249, 0.7) 173deg 176deg, transparent 177deg);
   opacity: 0;
-  animation: loading-touchdown-burst 760ms ease-out both;
+  animation: loading-touchdown-burst 980ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .loading-step-complete::after {
-  border: 1px solid rgba(251, 191, 36, 0.46);
+  border: 1px solid rgba(251, 191, 36, 0.58);
+  box-shadow:
+    0 0 18px rgba(34, 211, 238, 0.28),
+    inset 0 0 18px rgba(251, 146, 60, 0.18);
   opacity: 0;
-  animation: loading-touchdown-ring 640ms ease-out 80ms both;
+  animation: loading-touchdown-ring 820ms ease-out 80ms both;
 }
 
 .loading-football-track {
-  position: relative;
-  height: 1rem;
-  margin-top: 0.18rem;
-  overflow: hidden;
+  position: absolute;
+  top: 0.36rem;
+  right: 0.76rem;
+  left: 4.7rem;
+  z-index: 2;
+  height: 2rem;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .loading-football-arc {
   position: absolute;
-  right: 0.05rem;
-  bottom: 0.14rem;
-  left: 0.05rem;
-  height: 0.62rem;
-  border-top: 1px dashed rgba(103, 232, 249, 0.52);
-  border-radius: 50% 50% 0 0;
-  opacity: 0.72;
+  right: 0.4rem;
+  bottom: 0.05rem;
+  left: 0.4rem;
+  height: 1.58rem;
+  border-top: 1px dashed rgba(103, 232, 249, 0.58);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  opacity: 0.8;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.22));
 }
 
 .loading-football {
   position: absolute;
   left: 0;
-  bottom: 0.05rem;
+  top: 1.25rem;
   width: 0.72rem;
   height: 0.42rem;
   border: 1px solid rgba(251, 191, 36, 0.78);
@@ -2541,7 +2568,7 @@
     linear-gradient(135deg, #7c2d12, #fb923c 48%, #451a03);
   box-shadow: 0 0 14px rgba(251, 146, 60, 0.34);
   transform-origin: center;
-  animation: loading-football-pass 1050ms cubic-bezier(0.2, 0.72, 0.22, 1) infinite;
+  animation: loading-football-pass 1160ms cubic-bezier(0.2, 0.72, 0.22, 1) infinite;
 }
 
 .home-loading-stage {
@@ -2553,56 +2580,61 @@
   left: 50%;
   top: 50%;
   z-index: 20;
-  display: grid;
-  width: min(calc(100% - 1.25rem), 27rem);
-  min-height: clamp(8.25rem, 24vw, 10.85rem);
+  display: flex;
+  width: min(calc(100% - 1.25rem), 28rem);
+  min-height: clamp(9.8rem, 28vw, 13rem);
+  align-items: center;
   align-content: center;
+  justify-content: center;
   justify-items: center;
-  overflow: hidden;
-  border: 1px solid rgba(34, 211, 238, 0.28);
-  border-radius: 1.1rem;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(251, 146, 60, 0.22), transparent 36%),
-    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.18), transparent 34%),
-    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.96));
-  padding: clamp(1rem, 4vw, 1.35rem);
+  overflow: visible;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: clamp(0.7rem, 3vw, 1rem);
   text-align: center;
   transform: translate(-50%, -50%);
   transform-origin: 50% 75%;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62), 0 0 42px rgba(34, 211, 238, 0.18);
-  animation: loading-success-meteor 900ms cubic-bezier(0.12, 1.04, 0.22, 1) both;
+  box-shadow: none;
+  animation: loading-success-meteor 1320ms cubic-bezier(0.13, 0.98, 0.18, 1) both;
 }
 
 .loading-success-card-logo {
-  min-height: clamp(9.25rem, 27vw, 12rem);
-  padding: clamp(0.95rem, 3vw, 1.25rem);
-  background:
-    radial-gradient(circle at 50% 45%, rgba(2, 6, 23, 0.2), transparent 42%),
-    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.16), transparent 36%),
-    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.94));
+  min-height: clamp(10.75rem, 31vw, 14.5rem);
+  overflow: visible;
 }
 
 .loading-success-card-logo::after {
   position: absolute;
-  right: 12%;
-  bottom: -0.42rem;
-  left: 12%;
-  height: 0.6rem;
+  right: 18%;
+  bottom: 0.1rem;
+  left: 18%;
+  z-index: -3;
+  height: 0.72rem;
   border-radius: 999px;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.82), transparent 72%);
+  background:
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0.92), rgba(2, 6, 23, 0.62) 44%, transparent 76%);
   content: '';
   opacity: 0;
   transform: scaleX(0.42);
-  animation: loading-success-impact-shadow 900ms cubic-bezier(0.12, 1.04, 0.22, 1) both;
+  animation: loading-success-impact-shadow 1320ms cubic-bezier(0.13, 0.98, 0.18, 1) both;
 }
 
 .loading-success-card::before {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.08) 42%, transparent 68%);
+  inset: -8rem -3rem 50%;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(251, 191, 36, 0.88), transparent 30%),
+    radial-gradient(ellipse at 45% 90%, rgba(249, 115, 22, 0.58), transparent 38%),
+    radial-gradient(ellipse at 56% 78%, rgba(34, 211, 238, 0.36), transparent 46%),
+    linear-gradient(180deg, transparent, rgba(251, 146, 60, 0.28) 48%, rgba(34, 211, 238, 0.15));
   content: '';
-  transform: translateX(-100%);
-  animation: loading-success-sheen 1200ms ease-out 180ms both;
+  opacity: 0;
+  transform: translateY(-35%) scaleX(0.24);
+  filter: blur(8px);
+  clip-path: polygon(43% 0, 57% 0, 78% 100%, 22% 100%);
+  animation: loading-success-fire-trail 1320ms cubic-bezier(0.13, 0.98, 0.18, 1) both;
 }
 
 .loading-success-card > * {
@@ -2612,15 +2644,21 @@
 
 .loading-success-backdrop-logo {
   position: absolute;
-  inset: 0.44rem;
+  inset: 50% auto auto 50%;
   z-index: 0;
-  width: calc(100% - 0.88rem);
-  height: calc(100% - 0.88rem);
+  width: clamp(8.8rem, 36vw, 13.7rem);
+  height: clamp(8.8rem, 36vw, 13.7rem);
   object-fit: contain;
-  opacity: 0.74;
-  filter: saturate(1.08) contrast(1.08) drop-shadow(0 18px 28px rgba(0, 0, 0, 0.56));
-  transform-origin: 50% 70%;
-  animation: loading-success-logo-weight 900ms cubic-bezier(0.12, 1.04, 0.22, 1) both;
+  opacity: 1;
+  filter:
+    saturate(1.12)
+    contrast(1.08)
+    drop-shadow(0 26px 34px rgba(0, 0, 0, 0.72))
+    drop-shadow(0 0 34px rgba(251, 146, 60, 0.32))
+    drop-shadow(0 0 24px rgba(34, 211, 238, 0.2));
+  transform: translate(-50%, -50%);
+  transform-origin: 50% 72%;
+  animation: loading-success-logo-weight 1320ms cubic-bezier(0.13, 0.98, 0.18, 1) both;
 }
 
 .loading-success-copy {
@@ -2628,12 +2666,15 @@
   z-index: 2;
   display: grid;
   justify-items: center;
-  width: min(100%, 23rem);
-  border-radius: 1rem;
+  width: min(82%, 18rem);
+  border-radius: 999px;
   background:
-    radial-gradient(circle at 50% 50%, rgba(2, 6, 23, 0.58), rgba(2, 6, 23, 0.1) 58%, transparent 76%);
-  padding: clamp(0.62rem, 2vw, 0.85rem);
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.86);
+    radial-gradient(circle at 50% 50%, rgba(2, 6, 23, 0.72), rgba(2, 6, 23, 0.28) 54%, transparent 73%);
+  padding: clamp(0.58rem, 2vw, 0.82rem);
+  text-shadow:
+    0 2px 14px rgba(0, 0, 0, 0.95),
+    0 0 16px rgba(2, 6, 23, 0.9);
+  animation: loading-success-copy-land 1320ms cubic-bezier(0.13, 0.98, 0.18, 1) both;
 }
 
 .loading-success-icon {
@@ -2707,9 +2748,9 @@
 }
 
 .loading-success-kicker {
-  margin-top: 0.8rem;
+  margin-top: 0;
   color: #67e8f9;
-  font-size: 0.62rem;
+  font-size: clamp(0.52rem, 1.6vw, 0.62rem);
   font-weight: 950;
   letter-spacing: 0.18em;
   line-height: 1;
@@ -2719,13 +2760,13 @@
 .loading-success-card h2,
 .loading-success-title {
   margin-top: 0.34rem;
-  max-width: min(100%, 23rem);
+  max-width: min(100%, 18rem);
   background: linear-gradient(90deg, #fb923c, #fbbf24, #fb923c);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   font-family: inherit;
-  font-size: clamp(1.05rem, 3.2vw, 1.45rem);
+  font-size: clamp(1.02rem, 4.5vw, 1.55rem);
   font-weight: 950;
   letter-spacing: 0.01em;
   line-height: 1;
@@ -2737,14 +2778,14 @@
 }
 
 .loading-success-title-long {
-  max-width: min(100%, 24rem);
-  font-size: clamp(0.92rem, 2.85vw, 1.2rem);
+  max-width: min(100%, 18rem);
+  font-size: clamp(0.88rem, 3.6vw, 1.18rem);
   line-height: 1.02;
 }
 
 .loading-success-title-compact {
-  max-width: min(100%, 24rem);
-  font-size: clamp(0.78rem, 2.35vw, 1rem);
+  max-width: min(100%, 18rem);
+  font-size: clamp(0.72rem, 2.95vw, 0.98rem);
   line-height: 1.08;
 }
 
@@ -2758,8 +2799,8 @@
 
 .loading-success-bar {
   height: 0.24rem;
-  width: min(100%, 16rem);
-  margin-top: 0.95rem;
+  width: min(100%, 12rem);
+  margin-top: 0.6rem;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.9);
@@ -2814,22 +2855,27 @@
 @keyframes loading-success-meteor {
   0% {
     opacity: 0;
-    transform: translate(-50%, -168%) scale(1.22) rotate(-4deg);
-    filter: blur(1.4px);
+    transform: translate(-112%, -210%) scale(0.44) rotate(-28deg);
+    filter: blur(3px);
   }
-  46% {
+  22% {
     opacity: 1;
-    transform: translate(-50%, -45%) scale(1.16, 0.86) rotate(1.6deg);
+    transform: translate(-70%, -132%) scale(0.76) rotate(-15deg);
+    filter: blur(1px);
+  }
+  47% {
+    opacity: 1;
+    transform: translate(-50%, -38%) scale(1.24, 0.74) rotate(4deg);
     filter: blur(0);
   }
-  58% {
-    transform: translate(-50%, -54%) scale(0.94, 1.06) rotate(-0.8deg);
+  55% {
+    transform: translate(-50%, -64%) scale(0.9, 1.16) rotate(-2.4deg);
   }
-  72% {
-    transform: translate(-50%, -48.5%) scale(1.03, 0.97) rotate(0.35deg);
+  68% {
+    transform: translate(-50%, -47.5%) scale(1.06, 0.96) rotate(1deg);
   }
-  86% {
-    transform: translate(-50%, -50.8%) scale(0.985, 1.012) rotate(-0.15deg);
+  82% {
+    transform: translate(-50%, -52%) scale(0.985, 1.025) rotate(-0.4deg);
   }
   100% {
     opacity: 1;
@@ -2841,18 +2887,40 @@
 @keyframes loading-success-logo-weight {
   0% {
     opacity: 0;
-    transform: scale(1.42) rotate(-8deg);
+    transform: translate(-50%, -50%) scale(0.36) rotate(-260deg);
+    filter:
+      saturate(1.25)
+      contrast(1.12)
+      drop-shadow(0 -70px 34px rgba(251, 146, 60, 0.9))
+      drop-shadow(0 -46px 30px rgba(251, 191, 36, 0.5))
+      drop-shadow(0 0 24px rgba(34, 211, 238, 0.18));
   }
-  48% {
-    opacity: 0.86;
-    transform: scale(0.92, 0.78) rotate(2deg);
+  22% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.72) rotate(-150deg);
   }
-  64% {
-    transform: scale(1.06, 1.12) rotate(-0.8deg);
+  47% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.18, 0.72) rotate(14deg);
+    filter:
+      saturate(1.18)
+      contrast(1.1)
+      drop-shadow(0 22px 26px rgba(0, 0, 0, 0.78))
+      drop-shadow(0 0 46px rgba(251, 146, 60, 0.54))
+      drop-shadow(0 0 30px rgba(34, 211, 238, 0.26));
+  }
+  58% {
+    transform: translate(-50%, -50%) scale(0.92, 1.14) rotate(-5deg);
+  }
+  72% {
+    transform: translate(-50%, -50%) scale(1.045, 0.96) rotate(2deg);
+  }
+  88% {
+    transform: translate(-50%, -50%) scale(0.99, 1.012) rotate(-0.7deg);
   }
   100% {
-    opacity: 0.74;
-    transform: scale(1) rotate(0);
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0);
   }
 }
 
@@ -2863,11 +2931,52 @@
   }
   45% {
     opacity: 0.82;
-    transform: scaleX(1.1);
+    transform: scaleX(1.34);
   }
   100% {
     opacity: 0.5;
     transform: scaleX(0.88);
+  }
+}
+
+@keyframes loading-success-fire-trail {
+  0% {
+    opacity: 0;
+    transform: translateY(-60%) scaleX(0.14);
+  }
+  16% {
+    opacity: 0.9;
+  }
+  46% {
+    opacity: 0.72;
+    transform: translateY(18%) scaleX(0.66);
+  }
+  60% {
+    opacity: 0.18;
+    transform: translateY(36%) scaleX(0.28);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(42%) scaleX(0.1);
+  }
+}
+
+@keyframes loading-success-copy-land {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translateY(-0.8rem) scale(0.8);
+  }
+  48% {
+    opacity: 1;
+    transform: translateY(0.18rem) scale(1.08, 0.9);
+  }
+  62% {
+    transform: translateY(-0.08rem) scale(0.96, 1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -2889,7 +2998,7 @@
 @keyframes loading-football-pass {
   0% {
     left: 0;
-    bottom: 0.05rem;
+    top: 1.24rem;
     transform: rotate(-30deg) scale(0.82);
     opacity: 0;
   }
@@ -2898,7 +3007,7 @@
   }
   50% {
     left: 50%;
-    bottom: 0.55rem;
+    top: -0.12rem;
     transform: rotate(190deg) scale(1);
   }
   88% {
@@ -2906,7 +3015,7 @@
   }
   100% {
     left: calc(100% - 0.78rem);
-    bottom: 0.1rem;
+    top: 1.16rem;
     transform: rotate(390deg) scale(0.86);
     opacity: 0;
   }
@@ -3012,6 +3121,7 @@
   .loading-success-card::before,
   .loading-success-card::after,
   .loading-success-backdrop-logo,
+  .loading-success-copy,
   .loading-football,
   .loading-step-complete::before,
   .loading-step-complete::after,
