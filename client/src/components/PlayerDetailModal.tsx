@@ -699,7 +699,7 @@ function formatCompleteValue(value: unknown, compactNumbers?: boolean) {
 }
 
 function isPositionRankValue(value: unknown) {
-  return typeof value === 'string' && /^(QB|RB|WR|TE)\d+$/i.test(value);
+  return typeof value === 'string' && /^(QB|RB|WR|TE|K|DEF|DST)\d+$/i.test(value);
 }
 
 function getValueProfileRank(
@@ -912,7 +912,7 @@ function buildPlayerIntelligenceNotes({
 
   const roleLabel = formatDepthChart(details?.depthChartPosition, details?.depthChartOrder);
   if (roleLabel) {
-    const isLeadRole = roleLabel.includes('#1') || /^(QB|RB|WR|TE)$/.test(roleLabel);
+    const isLeadRole = roleLabel.includes('#1') || /^(QB|RB|WR|TE|K|DEF|DST)$/.test(roleLabel);
     const availability = getPlayerAvailability(details);
     notes.push({
       label: 'Team Role',

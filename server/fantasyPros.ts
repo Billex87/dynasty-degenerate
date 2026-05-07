@@ -2,6 +2,7 @@ import { cleanName, playerNameKeyVariants } from './leagueAnalysis';
 
 const FANTASYPROS_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
+const SEASON_RANK_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 
 export interface FantasyProsRanking {
   name: string;
@@ -60,9 +61,24 @@ function toNumber(value: unknown): number | undefined {
   return Number.isFinite(numeric) ? numeric : undefined;
 }
 
+function normalizeFantasyProsPosition(position?: string | null): string | null {
+  const normalized = String(position || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (!normalized) return null;
+  if (['DST', 'D', 'DEFENSE'].includes(normalized)) return 'DEF';
+  if (normalized === 'PK') return 'K';
+  return normalized;
+}
+
+function normalizeFantasyProsPositionRank(positionRank?: string | null, fallbackPosition?: string | null): string | null {
+  const rankNumber = positionRank?.match(/\d+/)?.[0];
+  const rankPosition = normalizeFantasyProsPosition(positionRank?.replace(/\d+/g, '') || fallbackPosition);
+  if (!rankNumber || !rankPosition) return positionRank || null;
+  return `${rankPosition}${rankNumber}`;
+}
+
 function positionRankToValue(positionRank?: string | null, overallRank?: number): number | undefined {
   if (!positionRank && !overallRank) return undefined;
-  const position = positionRank?.replace(/[0-9]/g, '').toUpperCase();
+  const position = normalizeFantasyProsPosition(positionRank?.replace(/[0-9]/g, ''));
   const rank = toNumber(positionRank?.match(/\d+/)?.[0]) || overallRank;
   if (!rank) return undefined;
 
@@ -71,6 +87,8 @@ function positionRankToValue(positionRank?: string | null, overallRank?: number)
     RB: 60,
     WR: 72,
     TE: 24,
+    K: 20,
+    DEF: 20,
   };
   const replacement = replacementByPosition[position || ''] || 140;
   const value = Math.max(100, Math.round(9000 * Math.pow(Math.max(0.04, (replacement - rank + 1) / replacement), 1.35)));
@@ -175,11 +193,12 @@ export async function fetchFantasyProsDraftRankings(
     const values: Record<string, FantasyProsRanking> = {};
     for (const player of payload?.players || []) {
       if (!player.player_name) continue;
+      const position = normalizeFantasyProsPosition(player.player_position_id) || player.player_position_id;
       const overallRank = toNumber(player.rank_ecr);
-      const positionRank = player.pos_rank || null;
+      const positionRank = normalizeFantasyProsPositionRank(player.pos_rank || null, position);
       values[cleanName(player.player_name)] = {
         name: player.player_name,
-        position: player.player_position_id,
+        position: position || undefined,
         team: player.player_team_id || null,
         overallRank,
         positionRank,
@@ -220,10 +239,11 @@ export async function fetchFantasyProsPlayerPoints(
 
     const values: Record<string, FantasyProsPlayerPoints> = {};
     for (const player of payload?.players || []) {
-      if (!player.player_name || !['QB', 'RB', 'WR', 'TE'].includes(player.position_id || '')) continue;
+      const position = normalizeFantasyProsPosition(player.position_id);
+      if (!player.player_name || !position || !SEASON_RANK_POSITIONS.has(position)) continue;
       values[cleanName(player.player_name)] = {
         name: player.player_name,
-        position: player.position_id,
+        position,
         team: player.team_id || null,
         games: toNumber(player.games) ?? null,
         points: toNumber(player.points) ?? null,

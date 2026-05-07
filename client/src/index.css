@@ -5998,6 +5998,24 @@
     color: #fdba74 !important;
   }
 
+  .position-rank-flex {
+    border-color: rgba(45, 212, 191, 0.38) !important;
+    background: rgba(20, 184, 166, 0.17) !important;
+    color: #5eead4 !important;
+  }
+
+  .position-rank-k {
+    border-color: rgba(168, 85, 247, 0.42) !important;
+    background: rgba(147, 51, 234, 0.19) !important;
+    color: #c084fc !important;
+  }
+
+  .position-rank-def {
+    border-color: rgba(191, 95, 64, 0.46) !important;
+    background: rgba(191, 95, 64, 0.2) !important;
+    color: rgb(255, 190, 165) !important;
+  }
+
   .position-rank-neutral {
     border-color: rgba(148, 163, 184, 0.24) !important;
     background: rgba(15, 23, 42, 0.62) !important;

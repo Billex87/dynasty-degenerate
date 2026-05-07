@@ -398,7 +398,7 @@ export interface WaiverIntelligence {
   rosteredTrendingAdds: TrendingPlayer[];
   availableTrendingAdds: TrendingPlayer[];
   highestKtcAvailable: TrendingPlayer | null;
-  bestAvailableByPosition: Record<'QB' | 'RB' | 'WR' | 'TE', TrendingPlayer | null>;
+  bestAvailableByPosition: Record<'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF', TrendingPlayer | null>;
   bestTaxiStashes: TrendingPlayer[];
   recentlyDroppedValuable: TrendingPlayer[];
 }
@@ -656,6 +656,10 @@ export interface ReportData {
     WR_starters: number;
     TE: number;
     TE_starters: number;
+    K?: number;
+    K_starters?: number;
+    DEF?: number;
+    DEF_starters?: number;
     starterPlayers?: ManagerStarterPlayer[];
     lineupPlayers?: ManagerStarterPlayer[];
     rosterPlayers?: ManagerStarterPlayer[];

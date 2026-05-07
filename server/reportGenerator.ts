@@ -143,10 +143,13 @@ interface ReportOptions {
   leagueValueMode?: LeagueValueMode;
 }
 
-type StarterThresholds = Record<'QB' | 'RB' | 'WR' | 'TE', number>;
+type CoreFantasyPosition = 'QB' | 'RB' | 'WR' | 'TE';
+type SeasonLineupPosition = CoreFantasyPosition | 'K' | 'DEF';
+type StarterThresholds = Record<CoreFantasyPosition, number>;
 type FantasyPosition = keyof StarterThresholds;
 
 const FANTASY_POSITIONS: FantasyPosition[] = ['QB', 'RB', 'WR', 'TE'];
+const SEASON_LINEUP_POSITIONS: SeasonLineupPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 const BENCH_ROSTER_SLOTS = new Set(['BN', 'BE', 'BENCH', 'IR', 'TAXI', 'RESERVE']);
 const DEFAULT_STARTER_SLOTS = ['QB', 'SUPER_FLEX', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'FLEX'];
 const FLEX_ELIGIBILITY: Record<string, FantasyPosition[]> = {
@@ -207,7 +210,10 @@ function getActivePlayerIds(roster: Pick<Roster, 'players' | 'taxi' | 'reserve'>
 }
 
 function normalizeRosterSlot(slot: string): string {
-  return String(slot || '').toUpperCase();
+  const normalized = String(slot || '').toUpperCase().replace(/[^A-Z_]/g, '');
+  if (['DST', 'D', 'DEFENSE'].includes(normalized)) return 'DEF';
+  if (normalized === 'PK') return 'K';
+  return normalized;
 }
 
 function getStarterRosterSlots(rosterPositions?: string[]): string[] {
@@ -418,6 +424,19 @@ function isFantasyPosition(position: string): position is FantasyPosition {
   return FANTASY_POSITIONS.includes(position as FantasyPosition);
 }
 
+function normalizeSeasonLineupPosition(position: string | null | undefined): SeasonLineupPosition | null {
+  const normalized = String(position || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (['DST', 'D', 'DEFENSE'].includes(normalized)) return 'DEF';
+  if (normalized === 'PK') return 'K';
+  return SEASON_LINEUP_POSITIONS.includes(normalized as SeasonLineupPosition)
+    ? normalized as SeasonLineupPosition
+    : null;
+}
+
+function isSeasonLineupPosition(position: string): position is SeasonLineupPosition {
+  return Boolean(normalizeSeasonLineupPosition(position));
+}
+
 function getLineupRank(player: Pick<ManagerIntelPlayer, 'seasonPositionRank' | 'currentPositionRank'>): number {
   return getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999;
 }
@@ -434,18 +453,18 @@ function compareLineupPlayers<T extends Pick<ManagerIntelPlayer, 'seasonValue' |
 function selectProjectedLineup<T extends ManagerIntelPlayer>(players: T[], rosterPositions?: string[]): T[] {
   const slots = getStarterRosterSlots(rosterPositions);
   const remaining = players
-    .filter((player) => isFantasyPosition(player.pos))
+    .filter((player) => isSeasonLineupPosition(player.pos))
     .sort(compareLineupPlayers);
   const selected: T[] = [];
 
-  const takeBest = (eligiblePositions: FantasyPosition[]): void => {
-    const index = remaining.findIndex((player) => eligiblePositions.includes(player.pos as FantasyPosition));
+  const takeBest = (eligiblePositions: SeasonLineupPosition[]): void => {
+    const index = remaining.findIndex((player) => eligiblePositions.includes(normalizeSeasonLineupPosition(player.pos) as SeasonLineupPosition));
     if (index < 0) return;
     const [player] = remaining.splice(index, 1);
     selected.push(player);
   };
 
-  for (const position of FANTASY_POSITIONS) {
+  for (const position of SEASON_LINEUP_POSITIONS) {
     const fixedSlotCount = slots.filter((slot) => slot === position).length;
     for (let i = 0; i < fixedSlotCount; i += 1) {
       takeBest([position]);
@@ -478,18 +497,18 @@ function compareValueLineupPlayers<T extends Pick<ManagerIntelPlayer, 'seasonVal
 function selectValueProjectedLineup<T extends ManagerIntelPlayer>(players: T[], rosterPositions?: string[]): T[] {
   const slots = getStarterRosterSlots(rosterPositions);
   const remaining = players
-    .filter((player) => isFantasyPosition(player.pos))
+    .filter((player) => isSeasonLineupPosition(player.pos))
     .sort(compareValueLineupPlayers);
   const selected: T[] = [];
 
-  const takeBest = (eligiblePositions: FantasyPosition[]): void => {
-    const index = remaining.findIndex((player) => eligiblePositions.includes(player.pos as FantasyPosition));
+  const takeBest = (eligiblePositions: SeasonLineupPosition[]): void => {
+    const index = remaining.findIndex((player) => eligiblePositions.includes(normalizeSeasonLineupPosition(player.pos) as SeasonLineupPosition));
     if (index < 0) return;
     const [player] = remaining.splice(index, 1);
     selected.push(player);
   };
 
-  for (const position of FANTASY_POSITIONS) {
+  for (const position of SEASON_LINEUP_POSITIONS) {
     const fixedSlotCount = slots.filter((slot) => slot === position).length;
     for (let i = 0; i < fixedSlotCount; i += 1) {
       takeBest([position]);
@@ -507,6 +526,8 @@ function selectValueProjectedLineup<T extends ManagerIntelPlayer>(players: T[], 
 }
 
 type LineupSlotProfile = Record<'QB' | 'RB' | 'WR' | 'TE', number> & {
+  K: number;
+  DEF: number;
   flex: number;
   superFlex: number;
 };
@@ -527,6 +548,8 @@ function formatLineupSlotSummary(profile: LineupSlotProfile): string {
     profile.RB ? `${profile.RB} RB` : null,
     profile.WR ? `${profile.WR} WR` : null,
     profile.TE ? `${profile.TE} TE` : null,
+    profile.K ? `${profile.K} K` : null,
+    profile.DEF ? `${profile.DEF} DEF` : null,
     profile.flex ? `${profile.flex} Flex` : null,
     profile.superFlex ? `${profile.superFlex} Superflex` : null,
   ].filter(Boolean);
@@ -633,6 +656,9 @@ function buildLeagueDiagnostics(
       fantasyProsSeasonCoverage > 0
         ? `FantasyPros season ranks and points stored for ${fantasyProsSeasonCoverage} players, but used only for season/redraft and projected-lineup context.`
         : 'FantasyPros season-rank support is wired, but no season values were present in this snapshot.',
+      starterSlots.some((slot) => slot === 'K' || slot === 'DEF')
+        ? 'This league has K/DEF starter slots. Kicker and defense are treated as season-only lineup positions with positional rank/projection context, not dynasty-value assets.'
+        : 'Kicker and defense support is wired for leagues that start them, but this league does not use K/DEF starter slots.',
       dealerCoverage > 0
         ? `Dynasty Dealer benchmark values stored for ${dealerCoverage} players, but kept out of the primary blend until that endpoint is confirmed stable/licensed.`
         : 'Dynasty Dealer benchmark support is wired, but no benchmark values were present in this snapshot.',
@@ -664,10 +690,10 @@ function buildLeagueDiagnostics(
 
 function getLineupSlotProfile(rosterPositions?: string[]): LineupSlotProfile {
   const slots = getStarterRosterSlots(rosterPositions);
-  const profile: LineupSlotProfile = { QB: 0, RB: 0, WR: 0, TE: 0, flex: 0, superFlex: 0 };
+  const profile: LineupSlotProfile = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0, flex: 0, superFlex: 0 };
 
   for (const slot of slots) {
-    if (slot === 'QB' || slot === 'RB' || slot === 'WR' || slot === 'TE') {
+    if (slot === 'QB' || slot === 'RB' || slot === 'WR' || slot === 'TE' || slot === 'K' || slot === 'DEF') {
       profile[slot] += 1;
     } else if (slot === 'SUPER_FLEX') {
       profile.superFlex += 1;
@@ -709,12 +735,12 @@ function sumLineupScore(players: ManagerIntelPlayer[]): number {
 
 function takeBestPlayers<T extends ManagerIntelPlayer>(
   remaining: T[],
-  eligiblePositions: FantasyPosition[],
+  eligiblePositions: SeasonLineupPosition[],
   count: number
 ): T[] {
   const selected: T[] = [];
   for (let i = 0; i < count; i += 1) {
-    const index = remaining.findIndex((player) => eligiblePositions.includes(player.pos as FantasyPosition));
+    const index = remaining.findIndex((player) => eligiblePositions.includes(normalizeSeasonLineupPosition(player.pos) as SeasonLineupPosition));
     if (index < 0) break;
     const [player] = remaining.splice(index, 1);
     selected.push(player);
@@ -725,12 +751,12 @@ function takeBestPlayers<T extends ManagerIntelPlayer>(
 function getLineupGroups<T extends ManagerIntelPlayer>(players: T[], rosterPositions?: string[]): LineupGroup<T>[] {
   const profile = getLineupSlotProfile(rosterPositions);
   const remaining = players
-    .filter((player) => isFantasyPosition(player.pos))
+    .filter((player) => isSeasonLineupPosition(player.pos))
     .sort(compareLineupPlayers);
   const groups: LineupGroup<T>[] = [];
-  const fixedByPosition: Partial<Record<FantasyPosition, T[]>> = {};
+  const fixedByPosition: Partial<Record<SeasonLineupPosition, T[]>> = {};
 
-  for (const position of FANTASY_POSITIONS) {
+  for (const position of SEASON_LINEUP_POSITIONS) {
     fixedByPosition[position] = takeBestPlayers(remaining, [position], profile[position]);
   }
 
@@ -750,6 +776,19 @@ function getLineupGroups<T extends ManagerIntelPlayer>(players: T[], rosterPosit
   }
 
   for (const position of ['RB', 'WR', 'TE'] as const) {
+    const count = profile[position];
+    const positionPlayers = fixedByPosition[position] || [];
+    if (positionPlayers.length || count) {
+      groups.push({
+        key: position,
+        label: `${position} x${Math.max(1, count)}`,
+        count: Math.max(1, count),
+        players: positionPlayers,
+      });
+    }
+  }
+
+  for (const position of ['K', 'DEF'] as const) {
     const count = profile[position];
     const positionPlayers = fixedByPosition[position] || [];
     if (positionPlayers.length || count) {
@@ -2259,6 +2298,10 @@ export async function generateReport(
     WR_starters: number;
     TE: number;
     TE_starters: number;
+    K: number;
+    K_starters: number;
+    DEF: number;
+    DEF_starters: number;
     starterPlayers: Array<{
       player_id: string;
       name: string;
@@ -2314,8 +2357,8 @@ export async function generateReport(
       ...getTaxiPlayerIds(r),
       ...getReservePlayerIds(r),
     ]);
-    const posCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
-    const posStarterCounts: Record<string, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
+    const posCounts: Record<SeasonLineupPosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
+    const posStarterCounts: Record<SeasonLineupPosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
     const lineupPlayers: Array<{
       player_id: string;
       name: string;
@@ -2340,20 +2383,21 @@ export async function generateReport(
 
     const buildCountPlayer = (pid: string) => {
       const p = allPlayers[pid];
-      const pos = p?.position || 'UNK';
-      if (!['QB', 'RB', 'WR', 'TE'].includes(pos)) return null;
+      const pos = normalizeSeasonLineupPosition(p?.position);
+      if (!pos) return null;
       const positionRank = getPrimaryRank(pid);
-      const value = getPrimaryValue(pid);
-      if (value <= 0) return null;
-      const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues) || value;
       const seasonPositionRank = seasonPositionRankById[pid] || null;
+      const dynastyValue = getPrimaryValue(pid);
+      const seasonValue = getPlayerRedraftValue(pid, allPlayers, ktcValues);
+      const value = dynastyValue || seasonValue;
+      if (value <= 0 && !seasonPositionRank) return null;
       const playerDetails = getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid));
       return {
         player_id: pid,
         name: getPlayerName(pid, allPlayers),
         pos,
         value,
-        seasonValue,
+        seasonValue: seasonValue || undefined,
         currentPositionRank: positionRank,
         seasonPositionRank,
         playerDetails,
@@ -2363,8 +2407,8 @@ export async function generateReport(
     for (const pid of rosterPids) {
       const countPlayer = buildCountPlayer(pid);
       if (!countPlayer) continue;
-      const pos = countPlayer.pos;
-      if (pos in posCounts) {
+      const pos = normalizeSeasonLineupPosition(countPlayer.pos);
+      if (pos) {
         posCounts[pos]++;
         rosterPlayers.push(countPlayer);
       }
@@ -2378,8 +2422,9 @@ export async function generateReport(
     const starterGroups = getLineupGroups(lineupPlayers, currentSeasonData.rosterPositions);
     const projectedStarters = starterGroups.flatMap((group) => group.players);
     for (const player of projectedStarters) {
-      if (isFantasyPosition(player.pos)) {
-        posStarterCounts[player.pos]++;
+      const starterPosition = normalizeSeasonLineupPosition(player.pos);
+      if (starterPosition) {
+        posStarterCounts[starterPosition]++;
       }
       starterPlayers.push(player);
     }
@@ -2394,6 +2439,10 @@ export async function generateReport(
       WR_starters: posStarterCounts.WR,
       TE: posCounts.TE,
       TE_starters: posStarterCounts.TE,
+      K: posCounts.K,
+      K_starters: posStarterCounts.K,
+      DEF: posCounts.DEF,
+      DEF_starters: posStarterCounts.DEF,
       starterPlayers: starterPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
       lineupPlayers: lineupPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
       rosterPlayers: rosterPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),

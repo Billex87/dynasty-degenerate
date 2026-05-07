@@ -2767,8 +2767,8 @@ export function LeagueCommandCenter({
   const starterDepth = (data.managerPositionCounts || [])
     .map((row) => ({
       manager: row.manager,
-      starterCount: row.QB_starters + row.RB_starters + row.WR_starters + row.TE_starters,
-      totalPlayers: row.QB + row.RB + row.WR + row.TE,
+      starterCount: row.QB_starters + row.RB_starters + row.WR_starters + row.TE_starters + (row.K_starters || 0) + (row.DEF_starters || 0),
+      totalPlayers: row.QB + row.RB + row.WR + row.TE + (row.K || 0) + (row.DEF || 0),
       avgAge: intel.find((item) => item.manager === row.manager)?.avgAge ?? null,
       ageFlags: intel.find((item) => item.manager === row.manager)?.ageFlags || [],
       starterAvailability: intel.find((item) => item.manager === row.manager)?.starterAvailability,
@@ -3039,7 +3039,7 @@ export function LeagueCommandCenter({
                   </>
                 ) : (
                   <>
-                    <IntelligenceMetric label="Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters : '-'} />
+                    <IntelligenceMetric label="Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters + (selectedCounts.K_starters || 0) + (selectedCounts.DEF_starters || 0) : '-'} />
                     <IntelligenceMetric label="Season Value" value={selectedStarterSeasonValue ? formatCompactValue(selectedStarterSeasonValue) : '-'} />
                     <IntelligenceMetric label="Avg Age" value={selectedIntel?.avgAge ?? '-'} />
                   </>
@@ -3476,7 +3476,7 @@ export function OwnerIntelMatrix({
   const selectedTimelineRow = selectedRow ? getTimelineRow(selectedRow.manager) : null;
   const selectedOverviewRow = selectedRow ? getOverviewRow(selectedRow.manager) : null;
   const selectedGrowthRow = selectedRow ? getGrowthRow(selectedRow.manager) : null;
-  const selectedStarterCount = selectedCountRow ? selectedCountRow.QB_starters + selectedCountRow.RB_starters + selectedCountRow.WR_starters + selectedCountRow.TE_starters : null;
+  const selectedStarterCount = selectedCountRow ? selectedCountRow.QB_starters + selectedCountRow.RB_starters + selectedCountRow.WR_starters + selectedCountRow.TE_starters + (selectedCountRow.K_starters || 0) + (selectedCountRow.DEF_starters || 0) : null;
   const selectedTradeableDepthPlayers = selectedRow
     ? (selectedRow.tradeableDepth?.length
       ? selectedRow.tradeableDepth
@@ -3560,7 +3560,7 @@ export function OwnerIntelMatrix({
           const powerRow = getPowerRow(row.manager);
           const timelineRow = getTimelineRow(row.manager);
           const growthRow = getGrowthRow(row.manager);
-          const starterCount = countRow ? countRow.QB_starters + countRow.RB_starters + countRow.WR_starters + countRow.TE_starters : null;
+          const starterCount = countRow ? countRow.QB_starters + countRow.RB_starters + countRow.WR_starters + countRow.TE_starters + (countRow.K_starters || 0) + (countRow.DEF_starters || 0) : null;
           return (
             <ManagerDepthTile
               key={row.manager}
@@ -5627,7 +5627,7 @@ export function PickPortfolioTable({
   );
 }
 
-type WaiverPosition = 'QB' | 'RB' | 'WR' | 'TE';
+type WaiverPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
 
 type WaiverRecommendation = {
   player: TrendingPlayer;
@@ -5643,7 +5643,7 @@ type WaiverRecommendationContext = {
   summary: string | null;
 };
 
-const WAIVER_POSITIONS: WaiverPosition[] = ['QB', 'RB', 'WR', 'TE'];
+const WAIVER_POSITIONS: WaiverPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 const WAIVER_RECOMMENDATION_LIMIT = 4;
 
 function isWaiverPosition(position: string | null | undefined): position is WaiverPosition {
@@ -5668,9 +5668,10 @@ function getWaiverPlayerValue(player: TrendingPlayer, playerDetailsById?: Player
   const details = getWaiverPlayerDetails(player, playerDetailsById);
   return Math.round(
     player.ktcValue
+    ?? details?.valueProfile?.seasonValue
+    ?? details?.valueProfile?.fantasyProsSeasonValue
     ?? details?.valueProfile?.dynastyValue
     ?? details?.valueProfile?.balancedValue
-    ?? details?.valueProfile?.seasonValue
     ?? 0
   );
 }
@@ -5678,10 +5679,10 @@ function getWaiverPlayerValue(player: TrendingPlayer, playerDetailsById?: Player
 function getWaiverPlayerRank(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): string | null {
   const details = getWaiverPlayerDetails(player, playerDetailsById);
   return player.currentPositionRank
-    || details?.valueProfile?.dynastyPositionRank
-    || details?.valueProfile?.balancedPositionRank
     || details?.valueProfile?.seasonPositionRank
     || details?.valueProfile?.fantasyProsPositionRank
+    || details?.valueProfile?.dynastyPositionRank
+    || details?.valueProfile?.balancedPositionRank
     || null;
 }
 
@@ -5716,7 +5717,7 @@ function getOpenRosterSpotCount(
     ? (viewerIntel.rosterPlayers?.length || 0) + (viewerIntel.reservePlayers?.length || 0)
     : 0;
   const fallbackRosterCount = positionCountRow
-    ? positionCountRow.QB + positionCountRow.RB + positionCountRow.WR + positionCountRow.TE
+    ? COUNT_POSITIONS.reduce((sum, position) => sum + Number(positionCountRow[position] || 0), 0)
     : 0;
   const activeRosterCount = activeAndReserveRosterCount || fallbackRosterCount;
   if (!activeSlotCount || !activeRosterCount) return 0;
@@ -5728,7 +5729,7 @@ function getWaiverNeedWeights(
   positionDepth?: ReportData['positionDepth'],
   viewerManager?: string | null
 ): Record<WaiverPosition, number> {
-  const weights: Record<WaiverPosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0 };
+  const weights: Record<WaiverPosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
   const addWeight = (position: string | null | undefined, amount: number) => {
     if (isWaiverPosition(position)) weights[position] += amount;
     if (position === 'FLEX') {
@@ -5996,7 +5997,7 @@ export function WaiverIntelligencePanel({
                 <PositionRankPill rank={rank || player.pos || '-'} />
                 {label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
                 {recommendation && recommendationContext.openRosterSpots > 0 && <span>Open Roster Fit</span>}
-                <span>{formatCompactValue(value)}</span>
+                {value > 0 && <span>{formatCompactValue(value)}</span>}
               </div>
               {recommendation && (
                 <p className="waiver-intel-recommendation-note">{recommendation.reason}</p>
@@ -6363,15 +6364,17 @@ export function SearchableProjectedMoversTable({
 type PositionDepthSignal = ReportData['positionDepth'][number];
 type ManagerCountRow = ReportData['managerPositionCounts'][number];
 type ManagerCountPlayer = NonNullable<ManagerCountRow['lineupPlayers']>[number];
-type CountPosition = 'QB' | 'RB' | 'WR' | 'TE';
+type CountPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
 
-const COUNT_POSITIONS: CountPosition[] = ['QB', 'RB', 'WR', 'TE'];
+const COUNT_POSITIONS: CountPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 const POSITION_DEPTH_ORDER: Record<string, number> = {
   QB: 0,
   RB: 1,
   WR: 2,
   TE: 3,
+  K: 4,
+  DEF: 5,
 };
 
 function sortPositionDepthSignals(a: PositionDepthSignal, b: PositionDepthSignal) {
@@ -6679,7 +6682,7 @@ export function ManagerPositionCountsTable({
                     <h3 className={getManagerHeadingClassName(selectedManager.manager)}>{selectedManager.manager}</h3>
                     <ManagerChampionshipPills managerName={selectedManager.manager} className="manager-command-championships" />
                     <p className="starter-modal-subtitle">
-                      {selectedRosterPlayerCount} rostered QB/RB/WR/TE player{selectedRosterPlayerCount === 1 ? '' : 's'} by season value, including taxi
+                      {selectedRosterPlayerCount} rostered lineup player{selectedRosterPlayerCount === 1 ? '' : 's'} by season rank, including taxi
                     </p>
                   </div>
                 </div>
@@ -6763,7 +6766,9 @@ export function ManagerPositionCountsTable({
                                   <span className={`starter-player-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
                                     {getPlayerStatusLabel(player.playerDetails)}
                                   </span>
-                                  <strong>{(player.seasonValue || player.value).toLocaleString()}</strong>
+                                  {(player.seasonValue || player.value) > 0 && (
+                                    <strong>{(player.seasonValue || player.value).toLocaleString()}</strong>
+                                  )}
                                 </div>
                               </button>
                             ))}
@@ -6774,7 +6779,7 @@ export function ManagerPositionCountsTable({
                   </div>
                 ) : (
                   <div className="rounded-xl border border-cyan-300/15 bg-slate-950/45 px-4 py-8 text-center text-sm font-bold text-slate-400">
-                    No QB/RB/WR/TE players found for this manager.
+                    No lineup-position players found for this manager.
                   </div>
                 )}
               </div>

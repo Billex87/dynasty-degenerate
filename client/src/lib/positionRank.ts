@@ -4,6 +4,9 @@ export function getPositionRankClass(rank?: string | null): string {
   if (normalized.startsWith('RB')) return 'position-rank-rb';
   if (normalized.startsWith('WR')) return 'position-rank-wr';
   if (normalized.startsWith('TE')) return 'position-rank-te';
+  if (normalized.startsWith('FLEX')) return 'position-rank-flex';
+  if (normalized.startsWith('K')) return 'position-rank-k';
+  if (normalized.startsWith('DEF') || normalized.startsWith('DST')) return 'position-rank-def';
   return 'position-rank-neutral';
 }
 

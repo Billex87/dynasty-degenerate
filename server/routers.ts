@@ -24,7 +24,7 @@ import {
   type ValueBlendOptions,
 } from "./valueBlend";
 import { insertLoginAttempt } from "./db";
-import { isCurrentFantasySkillPlayer } from "./playerEligibility";
+import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
@@ -846,20 +846,21 @@ function getPlayerPositionRankForLeagueMode(
   return getValueProfileRankForMode(profile, leagueValueMode) || getPlayerCurrentPositionRank(playerId, players, ktcValues);
 }
 
-function getKtcPosition(data: KTCValues[string]): 'QB' | 'RB' | 'WR' | 'TE' | null {
+function getKtcPosition(data: KTCValues[string]): 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | null {
   const position = data?.position_rank?.match(/^[A-Z]+/)?.[0]
     || data?.flock_position_rank?.match(/^[A-Z]+/)?.[0]
     || data?.dynastynerds_position_rank?.match(/^[A-Z]+/)?.[0]
     || data?.fantasypros_position_rank?.match(/^[A-Z]+/)?.[0]
     || null;
-  return ['QB', 'RB', 'WR', 'TE'].includes(position || '') ? position as 'QB' | 'RB' | 'WR' | 'TE' : null;
+  const normalized = normalizeSeasonLineupPosition(position);
+  return ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(normalized || '') ? normalized as 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' : null;
 }
 
 function buildValueProfileRankLookups(
   ktcValues: KTCValues
 ): Record<string, Partial<Record<'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank', string>>> {
   type LensKey = 'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank';
-  const lensValues: Record<LensKey, Array<{ key: string; position: 'QB' | 'RB' | 'WR' | 'TE'; value: number }>> = {
+  const lensValues: Record<LensKey, Array<{ key: string; position: 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF'; value: number }>> = {
     dynastyPositionRank: [],
     seasonPositionRank: [],
     contenderPositionRank: [],
@@ -897,7 +898,7 @@ function buildValueProfileRankLookups(
 
   const ranks: Record<string, Partial<Record<LensKey, string>>> = {};
   for (const [lens, rows] of Object.entries(lensValues) as Array<[LensKey, typeof lensValues[LensKey]]>) {
-    for (const position of ['QB', 'RB', 'WR', 'TE'] as const) {
+    for (const position of ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const) {
       rows
         .filter((row) => row.position === position)
         .sort((a, b) => b.value - a.value)
@@ -1231,16 +1232,18 @@ function buildWaiverIntelligence(
   const availablePlayerPool = Object.entries(players)
     .filter(([playerId, player]) => {
       if (!playerId || ownerByPlayerId[playerId]) return false;
-      if (!isCurrentFantasySkillPlayer(player)) return false;
+      if (!isCurrentSeasonLineupPlayer(player)) return false;
       const value = getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
-      return value > 0;
+      const rank = getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
+      const position = normalizeSeasonLineupPosition(player?.position);
+      return value > 0 || Boolean(rank && (position === 'K' || position === 'DEF'));
     })
     .map(([playerId, player]) => ({
       player_id: playerId,
       name: getPlayerName(playerId, players),
       playerDetails: getPlayerDetails(playerId, player, rosterStatusByPlayerId[playerId]),
       currentPositionRank: getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById),
-      pos: player?.position || 'N/A',
+      pos: normalizeSeasonLineupPosition(player?.position) || player?.position || 'N/A',
       team: player?.team || null,
       owner: null,
       count: 0,
@@ -1261,6 +1264,8 @@ function buildWaiverIntelligence(
     RB: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'RB')),
     WR: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'WR')),
     TE: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'TE')),
+    K: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'K')),
+    DEF: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'DEF')),
   };
   const bestTaxiStashes = (availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds)
     .filter((player) => {

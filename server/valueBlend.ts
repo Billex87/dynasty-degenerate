@@ -459,7 +459,11 @@ function getPosition(
 ): string | null {
   const rankPosition = entry.position_rank?.match(/^[A-Z]+/)?.[0];
   const position = rankPosition || dynastyNerds?.position || flock?.position || fantasyCalc?.position || dynastyProcess?.position || null;
-  return ['QB', 'RB', 'WR', 'TE'].includes(position || '') ? position : null;
+  return ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(position || '') ? position : null;
+}
+
+function isSeasonOnlyPosition(position?: string | null): boolean {
+  return position === 'K' || position === 'DEF';
 }
 
 function rankBlendedValues(values: ValueMap): ValueMap {
@@ -556,13 +560,16 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
       { value: dynastyProcessValue, weight: dynastyWeights.dynastyProcess },
     ]);
 
-    if (!dynastyValue) continue;
-
     const fantasyProsSeasonValue = fantasyPros?.seasonValue;
     const redraftValue = weightedAverage([
       { value: fantasyCalc?.redraftValue, weight: 0.55 },
       { value: fantasyProsSeasonValue, weight: 0.45 },
     ]) || undefined;
+    const seasonOnlyPosition = isSeasonOnlyPosition(position);
+
+    if (!dynastyValue && !seasonOnlyPosition) continue;
+    if (seasonOnlyPosition && !redraftValue && !fantasyPros?.positionRank) continue;
+
     const isPick = !position && /\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(name);
 
     blended[key] = {
