@@ -562,8 +562,8 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
 
     const fantasyProsSeasonValue = fantasyPros?.seasonValue;
     const redraftValue = weightedAverage([
-      { value: fantasyCalc?.redraftValue, weight: 0.55 },
-      { value: fantasyProsSeasonValue, weight: 0.45 },
+      { value: fantasyProsSeasonValue, weight: 0.7 },
+      { value: fantasyCalc?.redraftValue, weight: 0.3 },
     ]) || undefined;
     const seasonOnlyPosition = isSeasonOnlyPosition(position);
 

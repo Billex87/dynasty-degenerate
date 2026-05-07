@@ -71,6 +71,14 @@ export function getPlayerRedraftValue(
   return getPlayerValueField(pid, allPlayers, ktcValues, 'redraft_value') || getPlayerValue(pid, allPlayers, ktcValues);
 }
 
+export function getPlayerRedraftOnlyValue(
+  pid: string,
+  allPlayers: Player,
+  ktcValues: KTCValues
+): number {
+  return getPlayerValueField(pid, allPlayers, ktcValues, 'redraft_value');
+}
+
 export function getPlayerTrueValue(
   pid: string,
   allPlayers: Player,

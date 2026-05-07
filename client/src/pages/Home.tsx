@@ -1853,7 +1853,7 @@ export default function Home() {
 
             <TabsContent value="rankings" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <CollapsibleReportSection title="Player Value Board" kicker="League-matched rankings">
+                <CollapsibleReportSection title="Full Roster Rankings" kicker="League-matched player values">
                   <RankingsBoard
                     rankings={reportData.rankings}
                     playerDetailsById={reportData.playerDetailsById}
@@ -1866,7 +1866,7 @@ export default function Home() {
                   />
                 </CollapsibleReportSection>
                 {!isRedraftReport && (
-                  <CollapsibleReportSection title="College Prospect Board" kicker="Future rookie pipeline">
+                  <CollapsibleReportSection title="College Rankings" kicker="Future rookie pipeline">
                     <RankingsBoard
                       rankings={reportData.rankings}
                       playerDetailsById={reportData.playerDetailsById}
