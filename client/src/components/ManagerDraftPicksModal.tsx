@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { DraftPick, PlayerDetails } from '@shared/types';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, X } from 'lucide-react';
 import { PlayerDetailModal } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
@@ -85,6 +85,9 @@ export function ManagerDraftPicksModal({
                 </>
               )}
               <div className="manager-hero-scrim" />
+              <button type="button" className="manager-modal-close" onClick={onClose} aria-label={`Close ${displayManagerName} draft details`}>
+                <X aria-hidden="true" />
+              </button>
               <div className="absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-cyan-300 via-orange-400 to-transparent" />
 
               <DialogHeader className="relative pr-10 text-center">

@@ -2701,6 +2701,9 @@ function OwnerQuickModal({
               </>
             )}
             <div className="manager-hero-scrim" />
+            <button type="button" className="manager-modal-close" onClick={() => onOpenChange(false)} aria-label={`Close ${manager} details`}>
+              <XIcon aria-hidden="true" />
+            </button>
             <div className="manager-command-title-lockup">
               <ChampionAvatarFrame managerName={manager} className="manager-command-champion-frame">
                 {avatarUrl ? (
@@ -3016,6 +3019,9 @@ export function LeagueCommandCenter({
                 </>
               )}
               <div className="manager-hero-scrim" />
+              <button type="button" className="manager-modal-close" onClick={() => setSelectedManager(null)} aria-label={`Close ${selectedManager} details`}>
+                <XIcon aria-hidden="true" />
+              </button>
               <div className="manager-command-title-lockup">
               <ChampionAvatarFrame managerName={selectedManager} className="manager-command-champion-frame">
                 {managerAvatars?.[selectedManager] ? (
@@ -3319,6 +3325,9 @@ export function ManagerIntelligenceCards({
                   </>
                 )}
                 <div className="manager-hero-scrim" />
+                <button type="button" className="manager-modal-close" onClick={() => setSelectedManager(null)} aria-label={`Close ${selectedRow.manager} details`}>
+                  <XIcon aria-hidden="true" />
+                </button>
                 <div className="manager-command-title-lockup">
                   <ChampionAvatarFrame managerName={selectedRow.manager} className="manager-command-champion-frame">
                     {managerAvatars?.[selectedRow.manager] ? (
@@ -3600,6 +3609,9 @@ export function OwnerIntelMatrix({
                   </>
                 )}
                 <div className="manager-hero-scrim" />
+                <button type="button" className="manager-modal-close" onClick={() => setSelectedOwner(null)} aria-label={`Close ${selectedRow.manager} details`}>
+                  <XIcon aria-hidden="true" />
+                </button>
                 <div className="manager-command-title-lockup">
                   <ChampionAvatarFrame managerName={selectedRow.manager} className="manager-command-champion-frame">
                     {managerAvatars?.[selectedRow.manager] ? (
@@ -4824,6 +4836,18 @@ export function TradeProfitLeaderboardTable({
                   </>
                 )}
                 <div className="manager-hero-scrim" />
+                <button
+                  type="button"
+                  className="manager-modal-close"
+                  onClick={() => {
+                    setSelectedManager(null);
+                    setSelectedManagerTradeKey(null);
+                    setSelectedPlayer(null);
+                  }}
+                  aria-label={`Close ${selectedManager} details`}
+                >
+                  <XIcon aria-hidden="true" />
+                </button>
                 <DialogHeader className="trade-manager-header relative pr-8">
                   <div className="trade-manager-title-lockup">
                     <ChampionAvatarFrame managerName={selectedManager} className="trade-manager-title-avatar">
@@ -5306,6 +5330,9 @@ export function TradeTendenciesTable({
                   </>
                 )}
                 <div className="trade-manager-hero-scrim" />
+                <button type="button" className="manager-modal-close" onClick={() => setSelectedManager(null)} aria-label={`Close ${selectedManager} details`}>
+                  <XIcon aria-hidden="true" />
+                </button>
                 <DialogHeader className="trade-manager-header relative pr-8">
                   <div className="trade-manager-title-lockup">
                     <ChampionAvatarFrame managerName={selectedManager} className="trade-manager-title-avatar">
@@ -6663,6 +6690,9 @@ export function ManagerPositionCountsTable({
                   </>
                 )}
                 <div className="manager-hero-scrim" />
+                <button type="button" className="manager-modal-close" onClick={() => setSelectedManager(null)} aria-label={`Close ${selectedManager.manager} details`}>
+                  <XIcon aria-hidden="true" />
+                </button>
                 <div className="manager-command-title-lockup">
                   <ChampionAvatarFrame managerName={selectedManager.manager} className="manager-command-champion-frame">
                     {selectedAvatar ? (
