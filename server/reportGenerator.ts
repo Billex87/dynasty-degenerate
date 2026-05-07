@@ -7,6 +7,7 @@ import {
   getPickValue,
   projectValue,
   calculateValueAdjustment,
+  playerNameKeyVariants,
 } from './leagueAnalysis';
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
 import { KTC_SNAPSHOT_PROFILES, VALUE_SOURCE_PROFILE_DEFINITIONS } from './valueBlend';
@@ -94,6 +95,10 @@ interface Player {
     draft_team?: string | null;
   };
 }
+
+type KtcRankLookup = Map<string, string | undefined>;
+
+const ktcRankLookupCache = new WeakMap<KTCValues, KtcRankLookup>();
 
 interface User {
   user_id: string;
@@ -349,18 +354,42 @@ function getPlayerDetails(pid: string, allPlayers: Player, rosterStatus?: string
   };
 }
 
+function getKtcRankLookup(ktcValues: KTCValues): KtcRankLookup {
+  const cached = ktcRankLookupCache.get(ktcValues);
+  if (cached) return cached;
+
+  const lookup: KtcRankLookup = new Map();
+  for (const [candidateKey, value] of Object.entries(ktcValues)) {
+    for (const variant of playerNameKeyVariants(candidateKey).map(cleanName).filter(Boolean)) {
+      if (!lookup.has(variant) || value.position_rank) {
+        lookup.set(variant, value.position_rank);
+      }
+    }
+  }
+
+  ktcRankLookupCache.set(ktcValues, lookup);
+  return lookup;
+}
+
 function getPlayerKtcRank(pid: string, allPlayers: Player, ktcValues: KTCValues): string | null {
   const p = allPlayers[pid];
   if (!p) return null;
 
   const fullName = `${p.first_name || ''}${p.last_name || ''}`;
   const key = cleanName(fullName);
-  let rank = ktcValues[key]?.position_rank;
+  const variants = playerNameKeyVariants(key).map(cleanName).filter(Boolean);
+  let rank = variants.map((variant) => ktcValues[variant]?.position_rank).find(Boolean);
 
   if (!rank) {
-    for (const k in ktcValues) {
+    const lookup = getKtcRankLookup(ktcValues);
+    rank = variants.map((variant) => lookup.get(variant)).find(Boolean);
+  }
+
+  if (!rank) {
+    const lookup = getKtcRankLookup(ktcValues);
+    for (const k of Array.from(lookup.keys())) {
       if (key.includes(k) || k.includes(key)) {
-        rank = ktcValues[k].position_rank;
+        rank = lookup.get(k);
         break;
       }
     }
@@ -1828,23 +1857,63 @@ export async function generateReport(
     allPlayers,
     ktcValues
   );
-  const getPrimaryValue = (pid: string) => {
-    if (useSeasonAsPrimary) {
-      return getPlayerRedraftValue(pid, allPlayers, ktcValues) || getPlayerValue(pid, allPlayers, ktcValues);
+  const primarySnapshotValueCache = new WeakMap<KTCValues, Map<string, number>>();
+  const primaryRankCache = new Map<string, string | null>();
+  const redraftValueCache = new Map<string, number>();
+  const redraftOnlyValueCache = new Map<string, number>();
+  const playerNameCache = new Map<string, string>();
+  const playerDetailsCache = new Map<string, PlayerDetails | undefined>();
+
+  const getCachedPlayerName = (pid: string) => {
+    if (!playerNameCache.has(pid)) {
+      playerNameCache.set(pid, getPlayerName(pid, allPlayers));
     }
-    return getPlayerValue(pid, allPlayers, ktcValues);
+    return playerNameCache.get(pid) || `Unknown (${pid})`;
+  };
+  const getCachedPlayerDetails = (pid: string, rosterStatus?: string | null) => {
+    const cacheKey = `${pid}:${rosterStatus || ''}`;
+    if (!playerDetailsCache.has(cacheKey)) {
+      playerDetailsCache.set(cacheKey, getPlayerDetails(pid, allPlayers, rosterStatus));
+    }
+    return playerDetailsCache.get(cacheKey);
+  };
+  const getCachedRedraftValue = (pid: string) => {
+    if (!redraftValueCache.has(pid)) {
+      redraftValueCache.set(pid, getPlayerRedraftValue(pid, allPlayers, ktcValues));
+    }
+    return redraftValueCache.get(pid) || 0;
+  };
+  const getCachedRedraftOnlyValue = (pid: string) => {
+    if (!redraftOnlyValueCache.has(pid)) {
+      redraftOnlyValueCache.set(pid, getPlayerRedraftOnlyValue(pid, allPlayers, ktcValues));
+    }
+    return redraftOnlyValueCache.get(pid) || 0;
   };
   const getPrimarySnapshotValue = (pid: string, snapshot: KTCValues) => {
-    if (useSeasonAsPrimary) {
-      return getPlayerRedraftValue(pid, allPlayers, snapshot) || getPlayerValue(pid, allPlayers, snapshot);
+    let snapshotCache = primarySnapshotValueCache.get(snapshot);
+    if (!snapshotCache) {
+      snapshotCache = new Map();
+      primarySnapshotValueCache.set(snapshot, snapshotCache);
     }
-    return getPlayerValue(pid, allPlayers, snapshot);
+    if (!snapshotCache.has(pid)) {
+      const value = useSeasonAsPrimary
+        ? getPlayerRedraftValue(pid, allPlayers, snapshot) || getPlayerValue(pid, allPlayers, snapshot)
+        : getPlayerValue(pid, allPlayers, snapshot);
+      snapshotCache.set(pid, value);
+    }
+    return snapshotCache.get(pid) || 0;
+  };
+  const getPrimaryValue = (pid: string) => {
+    return getPrimarySnapshotValue(pid, ktcValues);
   };
   const getPrimaryRank = (pid: string) => {
-    if (useSeasonAsPrimary) {
-      return seasonPositionRankById[pid] || getPlayerKtcRank(pid, allPlayers, ktcValues);
+    if (!primaryRankCache.has(pid)) {
+      const rank = useSeasonAsPrimary
+        ? seasonPositionRankById[pid] || getPlayerKtcRank(pid, allPlayers, ktcValues)
+        : getPlayerKtcRank(pid, allPlayers, ktcValues) || seasonPositionRankById[pid] || null;
+      primaryRankCache.set(pid, rank);
     }
-    return getPlayerKtcRank(pid, allPlayers, ktcValues) || seasonPositionRankById[pid] || null;
+    return primaryRankCache.get(pid) || null;
   };
   const tradeSnapshotCache: Record<string, KTCValues> = {};
   const getTradeSnapshot = (tradeDate: string): KTCValues => {
@@ -1931,7 +2000,7 @@ export async function generateReport(
 
       if (pos in posVals) {
         posVals[pos] += val;
-        posSeasonValues[pos].push(getPlayerRedraftValue(pid, allPlayers, ktcValues) || val);
+        posSeasonValues[pos].push(getCachedRedraftValue(pid) || val);
       }
 
       const p2027 = projectValue(val, pos, age, 1);
@@ -1942,9 +2011,9 @@ export async function generateReport(
       if (currentWeeklyVal > 0 && lastWeekVal > 0) {
         const pct_change = (currentWeeklyVal - lastWeekVal) / lastWeekVal * 100;
         weeklyMomentum.push({
-          name: getPlayerName(pid, allPlayers),
+          name: getCachedPlayerName(pid),
           player_id: pid,
-          playerDetails: getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid)),
+          playerDetails: getCachedPlayerDetails(pid, getRosterPlayerStatus(r, pid)),
           currentPositionRank: getPrimaryRank(pid),
           owner: name,
           pos,
@@ -1957,9 +2026,9 @@ export async function generateReport(
 
       if (val > 300) {
         allPlayerMoves.push({
-          name: getPlayerName(pid, allPlayers),
+          name: getCachedPlayerName(pid),
           player_id: pid,
-          playerDetails: getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid)),
+          playerDetails: getCachedPlayerDetails(pid, getRosterPlayerStatus(r, pid)),
           currentPositionRank: getPrimaryRank(pid),
           owner: name,
           pos,
@@ -2059,10 +2128,8 @@ export async function generateReport(
         if (!sideData[rid]) sideData[rid] = { items: [], vals: [], pickValue: 0, veteranValue: 0 };
         const val = getPrimaryValue(pid);
         const tradeSnapshot = getTradeSnapshot(dt);
-        const tradeDateValue = useSeasonAsPrimary
-          ? getPlayerRedraftValue(pid, allPlayers, tradeSnapshot) || getPlayerValue(pid, allPlayers, tradeSnapshot)
-          : getPlayerValue(pid, allPlayers, tradeSnapshot);
-        sideData[rid].items.push(encodePlayerItem(pid, getPlayerName(pid, allPlayers), val, tradeDateValue, dt));
+        const tradeDateValue = getPrimarySnapshotValue(pid, tradeSnapshot);
+        sideData[rid].items.push(encodePlayerItem(pid, getCachedPlayerName(pid), val, tradeDateValue, dt));
         sideData[rid].vals.push(val);
         if ((allPlayers[pid]?.age || 0) >= 27) {
           sideData[rid].veteranValue += val;
@@ -2403,13 +2470,13 @@ export async function generateReport(
       if (!pos) return null;
       const positionRank = getPrimaryRank(pid);
       const seasonPositionRank = seasonPositionRankById[pid] || null;
-      const seasonValue = getPlayerRedraftOnlyValue(pid, allPlayers, ktcValues);
+      const seasonValue = getCachedRedraftOnlyValue(pid);
       const value = seasonValue;
       if (value <= 0 && !seasonPositionRank) return null;
-      const playerDetails = getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(r, pid));
+      const playerDetails = getCachedPlayerDetails(pid, getRosterPlayerStatus(r, pid));
       return {
         player_id: pid,
-        name: getPlayerName(pid, allPlayers),
+        name: getCachedPlayerName(pid),
         pos,
         value: value || 0,
         seasonValue: seasonValue || undefined,
@@ -2478,7 +2545,7 @@ export async function generateReport(
     currentSeasonData.rosters.map((roster) => {
       const manager = currentSeasonData.rosterMap[roster.roster_id];
       const value = getActivePlayerIds(roster).reduce((sum, pid) => {
-        return sum + getPlayerRedraftOnlyValue(pid, allPlayers, ktcValues);
+        return sum + getCachedRedraftOnlyValue(pid);
       }, 0);
       return [manager, value];
     })
@@ -2495,12 +2562,12 @@ export async function generateReport(
         const seasonPositionRank = seasonPositionRankById[pid] || null;
         const lastSeasonRank = lastSeasonPositionRanks[pid];
         const value = getPrimaryValue(pid);
-        const seasonValue = getPlayerRedraftOnlyValue(pid, allPlayers, ktcValues);
+        const seasonValue = getCachedRedraftOnlyValue(pid);
         if (!['QB', 'RB', 'WR', 'TE'].includes(pos) || (seasonValue <= 0 && value <= 0)) return null;
 
         return {
           player_id: pid,
-          name: getPlayerName(pid, allPlayers),
+          name: getCachedPlayerName(pid),
           pos,
           owner,
           value,
@@ -2512,7 +2579,7 @@ export async function generateReport(
           lastSeasonGames: lastSeasonRank?.games ?? null,
           lastSeasonPointsPerGame: lastSeasonRank?.pointsPerGame ?? null,
           lastSeasonYear: lastSeasonRank?.season || null,
-          playerDetails: getPlayerDetails(pid, allPlayers, getRosterPlayerStatus(roster, pid)),
+          playerDetails: getCachedPlayerDetails(pid, getRosterPlayerStatus(roster, pid)),
           age: player?.age ?? null,
           isStarter: isStarterRank(pos, seasonPositionRank, starterThresholds),
         };
@@ -2593,7 +2660,7 @@ export async function generateReport(
       };
     });
     const starterValue = starters.reduce((sum, player) => sum + player.value, 0);
-    const starterSeasonValue = starters.reduce((sum, player) => sum + (player.seasonValue || getPlayerRedraftOnlyValue(player.player_id, allPlayers, ktcValues)), 0);
+    const starterSeasonValue = starters.reduce((sum, player) => sum + (player.seasonValue || getCachedRedraftOnlyValue(player.player_id)), 0);
     const benchValue = [...bench, ...reservePlayers, ...taxiPlayers].reduce((sum, player) => sum + player.value, 0);
     const totalValue = starterValue + benchValue;
     const starterValuePct = totalValue > 0 ? Math.round((starterValue / totalValue) * 100) : 0;
@@ -2823,7 +2890,7 @@ export async function generateReport(
     const injuryInsurance = pickDistinctPlayer(
       [...bench]
         .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos))
-        .sort((a, b) => getPlayerRedraftOnlyValue(b.player_id, allPlayers, ktcValues) - getPlayerRedraftOnlyValue(a.player_id, allPlayers, ktcValues)),
+        .sort((a, b) => getCachedRedraftOnlyValue(b.player_id) - getCachedRedraftOnlyValue(a.player_id)),
       usedInsightPlayerIds
     );
     const similarValuePlayers = Object.fromEntries(

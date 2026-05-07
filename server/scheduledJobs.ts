@@ -2,7 +2,7 @@ import { storeKtcSnapshot } from './ktcSnapshotJob';
 import { shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from './prospectSource';
 
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
-const SNAPSHOT_HOUR = 18;
+const SNAPSHOT_HOURS = [6, 18];
 const PROSPECT_SNAPSHOT_HOUR = 7;
 
 function getPacificDateParts(date: Date) {
@@ -27,10 +27,10 @@ function getPacificDateParts(date: Date) {
 
 /**
  * Initialize scheduled jobs
- * Runs KTC snapshot storage every day at 6 PM Pacific.
+ * Runs KTC snapshot storage every day at 6 AM and 6 PM Pacific.
  */
 export function initializeScheduledJobs() {
-  let lastSnapshotRunDate: string | null = null;
+  let lastSnapshotRunKey: string | null = null;
   let lastProspectSnapshotRunMonth: string | null = null;
 
   // Using a simple interval check since we don't have a full cron library
@@ -38,10 +38,11 @@ export function initializeScheduledJobs() {
   function checkAndRunKtcSnapshot() {
     const now = new Date();
     const { dateKey, hour, minute } = getPacificDateParts(now);
+    const snapshotRunKey = `${dateKey}-${hour}`;
 
-    if (hour === SNAPSHOT_HOUR && minute === 0 && lastSnapshotRunDate !== dateKey) {
-      lastSnapshotRunDate = dateKey;
-      console.log(`[Scheduled Jobs] Running daily KTC snapshot at ${now.toISOString()} (${dateKey} 18:00 ${SNAPSHOT_TIME_ZONE})`);
+    if (SNAPSHOT_HOURS.includes(hour) && minute === 0 && lastSnapshotRunKey !== snapshotRunKey) {
+      lastSnapshotRunKey = snapshotRunKey;
+      console.log(`[Scheduled Jobs] Running KTC snapshot at ${now.toISOString()} (${dateKey} ${String(hour).padStart(2, '0')}:00 ${SNAPSHOT_TIME_ZONE})`);
       storeKtcSnapshot().catch((error) => {
         console.error('[Scheduled Jobs] Error running KTC snapshot:', error);
       });
@@ -64,5 +65,5 @@ export function initializeScheduledJobs() {
   // Check every minute if we should run the snapshot
   setInterval(checkAndRunKtcSnapshot, 60000);
   
-  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at 6 PM and prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00 ${SNAPSHOT_TIME_ZONE}`);
+  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at ${SNAPSHOT_HOURS.join(':00 and ')}:00 and prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00 ${SNAPSHOT_TIME_ZONE}`);
 }

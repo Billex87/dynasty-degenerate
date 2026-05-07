@@ -10,6 +10,7 @@ const PROSPECT_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'prospect-snaps
 const FANTASY_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
 const FANTASY_POSITION_SET = new Set<string>(FANTASY_POSITIONS);
 const MAX_PAGES_PER_POSITION = 8;
+const PROSPECT_FETCH_TIMEOUT_MS = 30000;
 
 type ProspectSnapshotPayload = {
   schemaVersion: 1;
@@ -66,7 +67,7 @@ function getProspectYears(date = new Date()): number[] {
     timeZone: SNAPSHOT_TIME_ZONE,
     year: 'numeric',
   }).format(date));
-  return Array.from(new Set([year - 3, year - 2, year - 1, year, year + 1, year + 2]))
+  return Array.from(new Set([year, year + 1, year + 2]))
     .filter((item) => Number.isFinite(item) && item >= 2020);
 }
 
@@ -76,7 +77,7 @@ function getSourceUrl(draftYear: number, position: string, page: number) {
 
 function getReaderUrls(sourceUrl: string) {
   return [
-    `https://r.jina.ai/http://${sourceUrl}`,
+    `https://r.jina.ai/${sourceUrl}`,
     sourceUrl,
   ];
 }
@@ -84,12 +85,15 @@ function getReaderUrls(sourceUrl: string) {
 async function fetchProspectPageMarkdown(sourceUrl: string): Promise<string> {
   let lastError = '';
   for (const url of getReaderUrls(sourceUrl)) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PROSPECT_FETCH_TIMEOUT_MS);
     try {
       const response = await fetch(url, {
         headers: {
           accept: 'text/plain, text/markdown, text/html;q=0.9,*/*;q=0.8',
           'user-agent': 'DynastyDegeneratesBot/1.0 monthly-prospect-context',
         },
+        signal: controller.signal,
       });
       const text = await response.text();
       if (!response.ok) {
@@ -106,6 +110,8 @@ async function fetchProspectPageMarkdown(sourceUrl: string): Promise<string> {
       lastError = 'unexpected page shape';
     } catch (error) {
       lastError = error instanceof Error ? error.message : 'fetch failed';
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

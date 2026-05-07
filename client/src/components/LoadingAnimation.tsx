@@ -68,20 +68,15 @@ export function LoadingAnimation({
           )}
         </span>
         <div>
-          <p className="loading-title">
-            {isComplete ? (
-              'Report locked and loaded.'
-            ) : (
-              <>
-                <span>Analyzing </span>
-                <span className="loading-title-league">{leagueName || 'your league'}</span>
-                <span>...</span>
-              </>
-            )}
+          <p className="loading-league-name loading-gradient-text">
+            {leagueName || 'Your League'}
           </p>
           {leagueFormat ? <p className="loading-subtitle">{leagueFormat}</p> : null}
         </div>
       </div>
+      <p className="loading-status-line">
+        {isComplete ? 'Report locked and loaded.' : 'Analyzing league data...'}
+      </p>
 
       <div className="loading-step-list">
         {steps.map((step) => (

@@ -2,6 +2,9 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import crypto from "crypto";
+import fs from "fs/promises";
+import path from "path";
 import { z } from "zod";
 import { loadBlendedKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshotDaysAgo } from "./ktcLoader";
 import type { KTCValues, LastSeasonPlayerRank } from "./reportGenerator";
@@ -10,7 +13,7 @@ import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
-import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants, playerNameKeysMatch } from "./leagueAnalysis";
+import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
 import { fetchFantasyProsLatestPlayerNews, fetchFantasyProsNews, fetchFantasyProsPlayerPoints, findLatestFantasyProsNewsForPlayer } from "./fantasyPros";
 import { buildRankingsBoard } from "./rankingsBoard";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
@@ -49,6 +52,13 @@ function getClientIp(req: { headers: Record<string, any>; socket?: { remoteAddre
 
   if (!raw) return null;
   return String(raw).trim().replace(/^::ffff:/, "") || null;
+}
+
+function canForceRefreshLeagueCache(req: { headers?: Record<string, any> }): boolean {
+  const configuredSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers?.authorization;
+  if (configuredSecret) return authHeader === `Bearer ${configuredSecret}`;
+  return process.env.NODE_ENV !== 'production' && req.headers?.['x-cache-warmer'] === 'true';
 }
 
 function getSleeperAvatarUrl(avatarId: string | null | undefined): string | null {
@@ -219,17 +229,34 @@ function toSleeperLeagueOption(
 }
 
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
+type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v14';
-const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 20;
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v17';
+const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v2';
+const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
+const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');
 const leagueReportMemoryCache = new Map<string, { loadedAt: number; payload: unknown }>();
+const ktcValueProfileLookupCache = new WeakMap<KTCValues, Map<string, KtcValueProfileCandidate>>();
 
 function getLeagueReportCacheKey(leagueId: string, viewerUserId?: string | null): string {
   return [
     LEAGUE_REPORT_CACHE_VERSION,
     String(leagueId || '').trim(),
-    String(viewerUserId || 'anonymous').trim(),
+    'league',
   ].join(':');
+}
+
+function getLeagueRankingsCacheKey(leagueId: string): string {
+  return [
+    LEAGUE_RANKINGS_CACHE_VERSION,
+    String(leagueId || '').trim(),
+    'league',
+  ].join(':');
+}
+
+function getLeagueReportFileCachePath(cacheKey: string): string {
+  const digest = crypto.createHash('sha256').update(cacheKey).digest('hex');
+  return path.join(LEAGUE_REPORT_FILE_CACHE_DIR, `${digest}.json`);
 }
 
 function getMemoryCachedLeagueReport(cacheKey: string): unknown | null {
@@ -249,9 +276,17 @@ async function readCachedLeagueReport(cacheKey: string): Promise<unknown | null>
   const storedCached = await findLeagueReportCache(cacheKey, LEAGUE_REPORT_CACHE_TTL_MS);
   if (storedCached) {
     leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: storedCached });
+    void writeFileCachedLeagueReport(cacheKey, storedCached);
+    return storedCached;
   }
 
-  return storedCached;
+  const fileCached = await readFileCachedLeagueReport(cacheKey);
+  if (fileCached) {
+    leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: fileCached });
+    return fileCached;
+  }
+
+  return null;
 }
 
 async function writeCachedLeagueReport(
@@ -261,12 +296,87 @@ async function writeCachedLeagueReport(
   payload: unknown
 ) {
   leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload });
-  await upsertLeagueReportCache({
-    cacheKey,
-    leagueId,
-    viewerUserId: viewerUserId || null,
-    payload,
-  });
+  await Promise.allSettled([
+    writeFileCachedLeagueReport(cacheKey, payload),
+    upsertLeagueReportCache({
+      cacheKey,
+      leagueId,
+      viewerUserId: viewerUserId || null,
+      payload,
+    }),
+  ]);
+}
+
+async function readFileCachedLeagueReport(cacheKey: string): Promise<unknown | null> {
+  try {
+    const filePath = getLeagueReportFileCachePath(cacheKey);
+    const stats = await fs.stat(filePath);
+    if (Date.now() - stats.mtimeMs > LEAGUE_REPORT_CACHE_TTL_MS) return null;
+    return JSON.parse(await fs.readFile(filePath, 'utf-8'));
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') {
+      console.warn('Failed to read file league report cache:', error);
+    }
+    return null;
+  }
+}
+
+async function writeFileCachedLeagueReport(cacheKey: string, payload: unknown): Promise<void> {
+  try {
+    await fs.mkdir(LEAGUE_REPORT_FILE_CACHE_DIR, { recursive: true });
+    await fs.writeFile(getLeagueReportFileCachePath(cacheKey), JSON.stringify(payload));
+  } catch (error) {
+    console.warn('Failed to write file league report cache:', error);
+  }
+}
+
+function cloneReportWithViewerManager(payload: any, viewerUserId?: string | null): any {
+  const viewerManager = viewerUserId
+    ? payload?.reportData?.viewerManagerByUserId?.[viewerUserId] || null
+    : null;
+
+  if (!payload?.reportData || payload.reportData.viewerManager === viewerManager) {
+    return payload;
+  }
+
+  return {
+    ...payload,
+    reportData: {
+      ...payload.reportData,
+      viewerManager,
+    },
+  };
+}
+
+function createLeagueAnalyzeTimer(leagueId: string) {
+  if (process.env.LOG_LEAGUE_ANALYZE_TIMING !== 'true') {
+    return () => {};
+  }
+  const started = Date.now();
+  let previous = started;
+  return (step: string) => {
+    const now = Date.now();
+    console.log(`[league.analyze ${leagueId}] ${step}: +${now - previous}ms total=${now - started}ms`);
+    previous = now;
+  };
+}
+
+async function fetchLeagueTransactions(leagueId: string): Promise<any[]> {
+  const weeks = await Promise.all(
+    Array.from({ length: 18 }, (_, index) => index + 1).map(async (week) => {
+      try {
+        const transactions = await fetch(
+          `https://api.sleeper.app/v1/league/${leagueId}/transactions/${week}`
+        ).then((r) => r.json());
+        return Array.isArray(transactions) ? transactions : [];
+      } catch (error) {
+        console.warn(`Failed to fetch Sleeper transactions for league ${leagueId} week ${week}:`, error);
+        return [];
+      }
+    })
+  );
+
+  return weeks.flat();
 }
 
 function buildLeagueRosterValueRankings(
@@ -313,6 +423,30 @@ async function fetchSleeperJson<T = any>(url: string): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+const SLEEPER_PLAYERS_CACHE_TTL_MS = 60 * 60 * 1000;
+let sleeperPlayersCache: {
+  expiresAt: number;
+  promise: Promise<Record<string, any>>;
+} | null = null;
+
+function fetchSleeperPlayersIndex(): Promise<Record<string, any>> {
+  const now = Date.now();
+  if (sleeperPlayersCache && sleeperPlayersCache.expiresAt > now) {
+    return sleeperPlayersCache.promise;
+  }
+
+  const promise = fetch("https://api.sleeper.app/v1/players/nfl")
+    .then((response) => (response.ok ? response.json() : {}))
+    .catch(() => ({}));
+
+  sleeperPlayersCache = {
+    expiresAt: now + SLEEPER_PLAYERS_CACHE_TTL_MS,
+    promise,
+  };
+
+  return promise;
 }
 
 function getFinalMatchupFromBracket(bracket: any[]): { winner: number | null; loser: number | null } {
@@ -496,6 +630,7 @@ function buildCurrentStandings(rosters: any[] = [], rosterUserMap: Record<string
     .map((roster: any) => {
       const pointsFor = Number(roster?.settings?.fpts || 0) + Number(roster?.settings?.fpts_decimal || 0) / 100;
       return {
+        rosterId: Number(roster?.roster_id),
         manager: rosterUserMap[String(roster?.roster_id)] || 'Unknown',
         wins: Number(roster?.settings?.wins || 0),
         losses: Number(roster?.settings?.losses || 0),
@@ -738,6 +873,37 @@ function buildPlayerDetailsMap(
   );
 }
 
+function getKtcValueProfileLookup(ktcValues: KTCValues): Map<string, KtcValueProfileCandidate> {
+  const cached = ktcValueProfileLookupCache.get(ktcValues);
+  if (cached) return cached;
+
+  const lookup = new Map<string, KtcValueProfileCandidate>();
+  for (const [ktcKey, value] of Object.entries(ktcValues)) {
+    const sourceCount = value.value_sources?.length || 0;
+    const candidate = { key: ktcKey, data: value, score: sourceCount * 1000 + (value.ktc_value || 0) };
+    for (const variant of playerNameKeyVariants(ktcKey).map(cleanName).filter(Boolean)) {
+      const current = lookup.get(variant);
+      if (!current || candidate.score > current.score) {
+        lookup.set(variant, candidate);
+      }
+    }
+  }
+
+  ktcValueProfileLookupCache.set(ktcValues, lookup);
+  return lookup;
+}
+
+function findKtcValueProfileCandidate(
+  key: string,
+  ktcValues: KTCValues
+): KtcValueProfileCandidate | undefined {
+  const lookup = getKtcValueProfileLookup(ktcValues);
+  return Array.from(new Set(playerNameKeyVariants(key).map(cleanName).filter(Boolean)))
+    .map((variant) => lookup.get(variant))
+    .filter((candidate): candidate is KtcValueProfileCandidate => Boolean(candidate))
+    .sort((a, b) => b.score - a.score)[0];
+}
+
 function getPlayerCurrentPositionRank(
   playerId: string,
   players: Record<string, any>,
@@ -748,17 +914,7 @@ function getPlayerCurrentPositionRank(
 
   const fullName = `${player.first_name || ''}${player.last_name || ''}`;
   const key = cleanName(fullName);
-  const variants = Array.from(new Set(playerNameKeyVariants(key)));
-  let rank = variants
-    .map((variant) => ktcValues[variant]?.position_rank)
-    .find(Boolean);
-
-  if (!rank) {
-    const match = Object.entries(ktcValues)
-      .filter(([ktcKey]) => variants.some((variant) => playerNameKeysMatch(variant, ktcKey)))
-      .sort(([, a], [, b]) => ((b.value_sources?.length || 0) * 1000 + (b.ktc_value || 0)) - ((a.value_sources?.length || 0) * 1000 + (a.ktc_value || 0)))[0];
-    rank = match?.[1]?.position_rank;
-  }
+  const rank = findKtcValueProfileCandidate(key, ktcValues)?.data.position_rank;
 
   return rank || null;
 }
@@ -801,24 +957,7 @@ function getPlayerValueProfile(
   if (!player) return undefined;
 
   const key = cleanName(`${player.first_name || ''}${player.last_name || ''}`);
-  const variants = Array.from(new Set(playerNameKeyVariants(key)));
-  const candidates: Array<{ key: string; data: KTCValues[string]; score: number }> = [];
-
-  for (const variant of variants) {
-    if (ktcValues[variant]) {
-      const sourceCount = ktcValues[variant].value_sources?.length || 0;
-      candidates.push({ key: variant, data: ktcValues[variant], score: sourceCount * 1000 + (ktcValues[variant].ktc_value || 0) });
-    }
-  }
-
-  for (const [ktcKey, value] of Object.entries(ktcValues)) {
-    if (variants.some((variant) => playerNameKeysMatch(variant, ktcKey))) {
-      const sourceCount = value.value_sources?.length || 0;
-      candidates.push({ key: ktcKey, data: value, score: sourceCount * 1000 + (value.ktc_value || 0) });
-    }
-  }
-
-  const best = candidates.sort((a, b) => b.score - a.score)[0];
+  const best = findKtcValueProfileCandidate(key, ktcValues);
   let data = best?.data;
   let dataKey = best?.key || key;
 
@@ -1463,6 +1602,25 @@ function calculateFantasyPointsFromScoring(stats: Record<string, any>, scoringSe
   }, 0);
 }
 
+const SLEEPER_SEASON_STATS_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const sleeperSeasonStatsCache = new Map<string, { loadedAt: number; values: Record<string, any> }>();
+
+async function fetchSleeperSeasonStats(season: string): Promise<Record<string, any>> {
+  const cached = sleeperSeasonStatsCache.get(season);
+  if (cached && Date.now() - cached.loadedAt < SLEEPER_SEASON_STATS_CACHE_TTL_MS) {
+    return cached.values;
+  }
+
+  const response = await fetch(`https://api.sleeper.app/v1/stats/nfl/regular/${season}`);
+  if (!response.ok) {
+    throw new Error(`Sleeper season stats ${response.status}`);
+  }
+  const values = await response.json();
+  const safeValues = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
+  sleeperSeasonStatsCache.set(season, { loadedAt: Date.now(), values: safeValues });
+  return safeValues;
+}
+
 async function fetchLastSeasonPositionRanks(
   playerIds: string[],
   players: Record<string, any>,
@@ -1474,6 +1632,7 @@ async function fetchLastSeasonPositionRanks(
   const scoringFamily = getScoringFamily(scoringSettings);
   const fantasyProsScoring = scoringFamily === 'ppr' ? 'PPR' : scoringFamily === 'std' ? 'STD' : 'HALF';
   const fantasyProsPoints = await fetchFantasyProsPlayerPoints(season, fantasyProsScoring);
+  const sleeperSeasonStats = await fetchSleeperSeasonStats(season);
   const scoredPlayers: Array<{
     playerId: string;
     position: string;
@@ -1483,42 +1642,28 @@ async function fetchLastSeasonPositionRanks(
     providedPositionRank?: number | null;
   }> = [];
 
-  for (let index = 0; index < uniquePlayerIds.length; index += 25) {
-    const batch = uniquePlayerIds.slice(index, index + 25);
-    const results = await Promise.all(batch.map(async (playerId) => {
-      try {
-        const response = await fetch(
-          `https://api.sleeper.com/stats/nfl/player/${playerId}?season_type=regular&season=${season}&grouping=season`
-        );
-        if (!response.ok) return null;
-        const payload = await response.json();
-        const stats = payload?.stats || payload;
-        if (!stats || typeof stats !== 'object') return null;
+  for (const playerId of uniquePlayerIds) {
+    const stats = sleeperSeasonStats[playerId]?.stats || sleeperSeasonStats[playerId];
+    if (!stats || typeof stats !== 'object') continue;
 
-        const position = players[playerId]?.position;
-        const nameKey = cleanName(`${players[playerId]?.first_name || ''}${players[playerId]?.last_name || ''}`);
-        const fpPoints = fantasyProsPoints[nameKey];
-        const providedPositionRank = Number(stats[`pos_rank_${scoringFamily}`] ?? stats.pos_rank_half_ppr ?? stats.pos_rank_ppr ?? stats.pos_rank_std);
-        const providedPoints = Number(stats[`pts_${scoringFamily}`] ?? stats.pts_half_ppr ?? stats.pts_ppr ?? stats.pts_std);
-        const points = scoringFamily === 'custom'
-          ? calculateFantasyPointsFromScoring(stats, scoringSettings)
-          : providedPoints;
+    const position = players[playerId]?.position;
+    const nameKey = cleanName(`${players[playerId]?.first_name || ''}${players[playerId]?.last_name || ''}`);
+    const fpPoints = fantasyProsPoints[nameKey];
+    const providedPositionRank = Number(stats[`pos_rank_${scoringFamily}`] ?? stats.pos_rank_half_ppr ?? stats.pos_rank_ppr ?? stats.pos_rank_std);
+    const providedPoints = Number(stats[`pts_${scoringFamily}`] ?? stats.pts_half_ppr ?? stats.pts_ppr ?? stats.pts_std);
+    const points = scoringFamily === 'custom'
+      ? calculateFantasyPointsFromScoring(stats, scoringSettings)
+      : providedPoints;
 
-        if (!position || !Number.isFinite(points) || points <= 0) return null;
-        return {
-          playerId,
-          position,
-          points,
-          games: fpPoints?.games ?? null,
-          pointsPerGame: fpPoints?.average ?? null,
-          providedPositionRank: Number.isFinite(providedPositionRank) ? providedPositionRank : null,
-        };
-      } catch (error) {
-        return null;
-      }
-    }));
-
-    scoredPlayers.push(...results.filter((result): result is NonNullable<typeof result> => Boolean(result)));
+    if (!position || !Number.isFinite(points) || points <= 0) continue;
+    scoredPlayers.push({
+      playerId,
+      position,
+      points,
+      games: fpPoints?.games ?? null,
+      pointsPerGame: fpPoints?.average ?? null,
+      providedPositionRank: Number.isFinite(providedPositionRank) ? providedPositionRank : null,
+    });
   }
 
   const ranks: Record<string, LastSeasonPlayerRank> = {};
@@ -1574,6 +1719,66 @@ async function fetchDraftSlotsBySeason(
   }
 
   return slotsBySeason;
+}
+
+async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false) {
+  const rankingsCacheKey = getLeagueRankingsCacheKey(leagueId);
+  const cachedRankings = forceRefresh ? null : await readCachedLeagueReport(rankingsCacheKey);
+  if (!forceRefresh && cachedRankings && typeof cachedRankings === 'object') {
+    return cachedRankings as { rankings: Awaited<ReturnType<typeof buildRankingsBoard>> };
+  }
+
+  const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${leagueId}`);
+  if (!leagueInfo?.league_id) {
+    throw new Error('Invalid league ID');
+  }
+
+  const [users, rosters, players] = await Promise.all([
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
+    fetchSleeperJson<Record<string, any>>('https://api.sleeper.app/v1/players/nfl'),
+  ]);
+
+  const safeUsers = Array.isArray(users) ? users : [];
+  const safeRosters = Array.isArray(rosters) ? rosters : [];
+  const safePlayers = players && typeof players === 'object' ? players : {};
+  const userMap = Object.fromEntries(safeUsers.map((user: any) => [user.user_id, user]));
+  const rosterUserMap = Object.fromEntries(
+    safeRosters.map((roster: any) => [
+      roster.roster_id,
+      normalizeManagerName(userMap[roster.owner_id]?.display_name),
+    ])
+  );
+  const ownerByPlayerId = buildPlayerOwnerMap(safeRosters, rosterUserMap);
+  const rosterStatusByPlayerId = buildPlayerRosterStatusMap(safeRosters);
+  const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
+  const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
+  const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
+  const ktcValues = await loadBlendedKTCValues(leagueValueOptions);
+  let ktcValuesLastWeek = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);
+
+  if (!ktcValuesLastWeek || Object.keys(ktcValuesLastWeek).length === 0) {
+    ktcValuesLastWeek = loadLatestLocalKtcSnapshotDaysAgo(7, leagueValueProfileKey);
+    if (Object.keys(ktcValuesLastWeek).length === 0) {
+      ktcValuesLastWeek = await loadKTCValuesLastWeek();
+    }
+  }
+
+  const prospectContext = await loadProspectContext();
+  const rankings = await buildRankingsBoard({
+    players: safePlayers,
+    ktcValues,
+    baselineKtcValues: ktcValuesLastWeek,
+    ownerByPlayerId,
+    rosterStatusByPlayerId,
+    selectedProfileKey: leagueValueProfileKey,
+    selectedProfileLabel: leagueValueProfileLabel,
+    prospectLookup: buildProspectLookup(prospectContext.profiles),
+    leagueTeamCount: Number(leagueInfo?.total_rosters || leagueInfo?.settings?.num_teams || safeRosters.length || 12),
+  });
+  const payload = { rankings };
+  await writeCachedLeagueReport(rankingsCacheKey, leagueId, undefined, payload);
+  return payload;
 }
 
 export const appRouter = router({
@@ -1636,58 +1841,16 @@ export const appRouter = router({
           );
           const seasonLeagues = leaguesResponse.ok ? await leaguesResponse.json() : [];
 
-          const players = Array.isArray(seasonLeagues) && seasonLeagues.length > 0
-            ? await fetch("https://api.sleeper.app/v1/players/nfl").then((r) => r.json())
-            : {};
-          const leagueValueCache = new Map<string, Promise<KTCValues>>();
-          const getLeagueValues = (leagueInfo: any): Promise<KTCValues> => {
-            if (!Array.isArray(seasonLeagues) || seasonLeagues.length === 0) return Promise.resolve({});
-            const options = getLeagueValueBlendOptions(leagueInfo);
-            const key = getValueSourceProfileKey(options);
-            if (!leagueValueCache.has(key)) {
-              leagueValueCache.set(key, loadBlendedKTCValues(options));
-            }
-            return leagueValueCache.get(key)!;
-          };
-
           if (Array.isArray(seasonLeagues)) {
-            const enrichedLeagues = await Promise.all(seasonLeagues.map(async (leagueInfo: any) => {
+            const leagueOptions = seasonLeagues.map((leagueInfo: any) => {
               const leagueId = String(leagueInfo?.league_id || '');
               if (!leagueId || seenLeagueIds.has(leagueId)) return null;
               seenLeagueIds.add(leagueId);
 
-              const [rosters, users] = await Promise.all([
-                fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
-                fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
-              ]);
+              return toSleeperLeagueOption(leagueInfo, currentSeason);
+            });
 
-              const safeRosters = Array.isArray(rosters) ? rosters : [];
-              const safeUsers = Array.isArray(users) ? users : [];
-              const rosterUserMap = Object.fromEntries(
-                safeRosters.map((roster: any) => [
-                  roster.roster_id,
-                  normalizeManagerName(
-                    safeUsers.find((user: any) => user.user_id === roster.owner_id)?.display_name
-                  ),
-                ])
-              );
-              const currentStandings = buildCurrentStandings(safeRosters, rosterUserMap);
-              const leagueValueMode = getLeagueValueMode(leagueInfo);
-              const ktcValues = await getLeagueValues(leagueInfo);
-              const powerRankings = buildLeagueRosterValueRankings(safeRosters, players, ktcValues, leagueValueMode);
-              const viewerManagerName = normalizeManagerName(user.display_name || user.username || username);
-              const viewerRoster = safeRosters.find((roster: any) => String(roster.owner_id) === String(user.user_id));
-              const viewerRosterId = Number(viewerRoster?.roster_id);
-              const standingsRank = currentStandings.find((row) => row.manager === viewerManagerName)?.rank ?? null;
-              const powerRank = powerRankings.find((row) => row.rosterId === viewerRosterId)?.rank ?? null;
-
-              return toSleeperLeagueOption(leagueInfo, currentSeason, {
-                standingsRank,
-                powerRank,
-              });
-            }));
-
-            leagues.push(...enrichedLeagues.filter((league): league is SleeperLeagueOption => Boolean(league)));
+            leagues.push(...leagueOptions.filter((league): league is SleeperLeagueOption => Boolean(league)));
           }
 
           await insertLoginAttempt({
@@ -1723,15 +1886,87 @@ export const appRouter = router({
         }
       }),
 
+    getUserLeagueRanks: publicProcedure
+      .input(z.object({
+        username: z.string().min(1),
+        userId: z.string().min(1),
+        displayName: z.string().optional(),
+        leagueIds: z.array(z.string().min(1)).max(50),
+      }))
+      .mutation(async ({ input }) => {
+        const username = input.username.trim();
+        const leagueIds = Array.from(new Set(input.leagueIds.map((leagueId) => leagueId.trim()).filter(Boolean)));
+        if (!leagueIds.length) return { ranks: [] };
+
+        const players = await fetchSleeperPlayersIndex();
+        const leagueValueCache = new Map<string, Promise<KTCValues>>();
+        const getLeagueValues = (leagueInfo: any): Promise<KTCValues> => {
+          const options = getLeagueValueBlendOptions(leagueInfo);
+          const key = getValueSourceProfileKey(options);
+          if (!leagueValueCache.has(key)) {
+            leagueValueCache.set(key, loadBlendedKTCValues(options));
+          }
+          return leagueValueCache.get(key)!;
+        };
+
+        const ranks = await Promise.all(leagueIds.map(async (leagueId) => {
+          const [leagueInfo, rosters, users] = await Promise.all([
+            fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${leagueId}`),
+            fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
+            fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
+          ]);
+
+          if (!leagueInfo) {
+            return { leagueId, standingsRank: null, powerRank: null };
+          }
+
+          const safeRosters = Array.isArray(rosters) ? rosters : [];
+          const safeUsers = Array.isArray(users) ? users : [];
+          const rosterUserMap = Object.fromEntries(
+            safeRosters.map((roster: any) => [
+              roster.roster_id,
+              normalizeManagerName(
+                safeUsers.find((user: any) => user.user_id === roster.owner_id)?.display_name
+              ),
+            ])
+          );
+          const viewerRoster = safeRosters.find((roster: any) => String(roster.owner_id) === String(input.userId));
+          const viewerRosterId = Number(viewerRoster?.roster_id);
+          const currentStandings = buildCurrentStandings(safeRosters, rosterUserMap);
+          const leagueValueMode = getLeagueValueMode(leagueInfo);
+          const ktcValues = await getLeagueValues(leagueInfo);
+          const powerRankings = buildLeagueRosterValueRankings(safeRosters, players, ktcValues, leagueValueMode);
+          const fallbackManagerName = normalizeManagerName(input.displayName || username);
+          const standingsRank = currentStandings.find((row) => row.rosterId === viewerRosterId)?.rank
+            ?? currentStandings.find((row) => row.manager === fallbackManagerName)?.rank
+            ?? null;
+          const powerRank = powerRankings.find((row) => row.rosterId === viewerRosterId)?.rank ?? null;
+
+          return { leagueId, standingsRank, powerRank };
+        }));
+
+        return { ranks };
+      }),
+
+    rankings: publicProcedure
+      .input(z.object({ leagueId: z.string(), forceRefresh: z.boolean().optional() }))
+      .query(async ({ input, ctx }) => {
+        const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
+        return buildLeagueRankingsPayload(input.leagueId, forceRefresh);
+      }),
+
     analyze: publicProcedure
-      .input(z.object({ leagueId: z.string(), viewerUserId: z.string().optional() }))
+      .input(z.object({ leagueId: z.string(), viewerUserId: z.string().optional(), forceRefresh: z.boolean().optional() }))
       .mutation(async ({ input, ctx }) => {
         const ipAddress = getClientIp(ctx.req as any);
         const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
         const reportCacheKey = getLeagueReportCacheKey(input.leagueId, input.viewerUserId);
+        const markAnalyzeStep = createLeagueAnalyzeTimer(input.leagueId);
+        const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
         try {
-          const cachedReport = await readCachedLeagueReport(reportCacheKey);
-          if (cachedReport && typeof cachedReport === 'object') {
+          const cachedReport = forceRefresh ? null : await readCachedLeagueReport(reportCacheKey);
+          markAnalyzeStep('cache lookup');
+          if (!forceRefresh && cachedReport && typeof cachedReport === 'object') {
             await insertLoginAttempt({
               eventType: "analyze_league",
               status: "success",
@@ -1740,12 +1975,13 @@ export const appRouter = router({
               userAgent,
               note: "Served cached league report",
             });
-            return cachedReport as any;
+            return cloneReportWithViewerManager(cachedReport, input.viewerUserId) as any;
           }
 
           const leagueInfo = await fetch(
             `https://api.sleeper.app/v1/league/${input.leagueId}`
           ).then((r) => r.json());
+          markAnalyzeStep('league info');
 
           if (!leagueInfo.league_id) {
             await insertLoginAttempt({
@@ -1771,10 +2007,12 @@ export const appRouter = router({
           const users = await fetch(
             `https://api.sleeper.app/v1/league/${input.leagueId}/users`
           ).then((r) => r.json());
+          markAnalyzeStep('users');
 
           const rosters = await fetch(
             `https://api.sleeper.app/v1/league/${input.leagueId}/rosters`
           ).then((r) => r.json());
+          markAnalyzeStep('rosters');
 
           const userMap = Object.fromEntries(
             users.map((u: any) => [u.user_id, u])
@@ -1794,30 +2032,22 @@ export const appRouter = router({
           const ownerByPlayerId = buildPlayerOwnerMap(rosters, rosterUserMap);
           const rosterStatusByPlayerId = buildPlayerRosterStatusMap(rosters);
 
-          const allTransactions: any[] = [];
-          const trades: any[] = [];
-          for (let week = 1; week <= 18; week++) {
-            const weekTrades = await fetch(
-              `https://api.sleeper.app/v1/league/${input.leagueId}/transactions/${week}`
-            ).then((r) => r.json());
-            if (Array.isArray(weekTrades)) {
-              allTransactions.push(...weekTrades);
-              trades.push(
-                ...weekTrades.filter(
-                  (t: any) => t.type === 'trade' && t.status === 'complete'
-                )
-              );
-            }
-          }
+          const allTransactions = await fetchLeagueTransactions(input.leagueId);
+          const trades = allTransactions.filter(
+            (t: any) => t.type === 'trade' && t.status === 'complete'
+          );
+          markAnalyzeStep('transactions');
 
           const players = await fetch(
             'https://api.sleeper.app/v1/players/nfl'
           ).then((r) => r.json());
+          markAnalyzeStep('players');
 
           const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
           const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
           const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
           const ktcValues = await loadBlendedKTCValues(leagueValueOptions);
+          markAnalyzeStep('current values');
           // Get the latest KTC snapshot from at least 7 days ago for weekly value-change calculations.
           const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);
           let ktcValuesLastWeek: KTCValues = {};
@@ -1830,6 +2060,7 @@ export const appRouter = router({
               ktcValuesLastWeek = await loadKTCValuesLastWeek();
             }
           }
+          markAnalyzeStep('weekly baseline values');
 
           const prevLeagueId = leagueInfo.previous_league_id;
           let pastSeasonData = null;
@@ -1863,20 +2094,10 @@ export const appRouter = router({
                 ])
               );
               pastRosterDisplayMap = pastRosterUserDisplayMap;
-              // Fetch trades from previous season
-              const pastTrades: any[] = [];
-              for (let week = 1; week <= 18; week++) {
-                const weekTrades = await fetch(
-                  `https://api.sleeper.app/v1/league/${prevLeagueId}/transactions/${week}`
-                ).then((r) => r.json());
-                if (weekTrades) {
-                  pastTrades.push(
-                    ...weekTrades.filter(
-                      (t: any) => t.type === "trade" && t.status === "complete"
-                    )
-                  );
-                }
-              }
+              const pastTransactions = await fetchLeagueTransactions(prevLeagueId);
+              const pastTrades = pastTransactions.filter(
+                (t: any) => t.type === "trade" && t.status === "complete"
+              );
 
               const pastDraftSlotsBySeason = await fetchDraftSlotsBySeason(prevLeagueId, pastRosters);
               draftSlotsBySeason = {
@@ -1896,6 +2117,7 @@ export const appRouter = router({
               console.warn('Failed to fetch past season data:', e);
             }
           }
+          markAnalyzeStep('previous season');
 
           // Create user_id to manager name map for draft analysis
           const userIdToManagerMap = Object.fromEntries(
@@ -1933,6 +2155,7 @@ export const appRouter = router({
           } catch (error) {
             console.warn('Failed to fetch last season player stats:', error);
           }
+          markAnalyzeStep('last season ranks');
 
           const leagueValueMode = getLeagueValueMode(leagueInfo);
           const allValueProfilesById = buildPlayerValueProfileMap(Object.keys(players), players, ktcValues);
@@ -1945,6 +2168,7 @@ export const appRouter = router({
             lastSeasonPositionRanks,
             { leagueValueMode }
           );
+          markAnalyzeStep('generate report');
 
           // currentUserMap is the same as userIdToManagerMap, so we can reuse it
           const currentUserMap = userIdToManagerMap;
@@ -1968,6 +2192,7 @@ export const appRouter = router({
               )
             );
           }
+          markAnalyzeStep('manager maps');
 
           // Fetch and analyze draft data
           let draftAnalysis: { draftPicks: any[]; draftStats: any[] } = { draftPicks: [], draftStats: [] };
@@ -2016,6 +2241,7 @@ export const appRouter = router({
           } catch (e) {
             console.warn('Failed to fetch draft data:', e);
           }
+          markAnalyzeStep('draft data');
 
           try {
             [trendingAdds, trendingDrops] = await Promise.all([
@@ -2029,6 +2255,7 @@ export const appRouter = router({
           } catch (e) {
             console.warn('Failed to fetch trending players:', e);
           }
+          markAnalyzeStep('trending players');
 
           const managers = Object.values(rosterUserMap).filter(Boolean) as string[];
           const currentSeason = String(leagueInfo.season || new Date().getFullYear());
@@ -2087,20 +2314,11 @@ export const appRouter = router({
             leagueValueMode,
             allValueProfilesById
           );
+          markAnalyzeStep('derived report tables');
           const prospectContext = await loadProspectContext();
           const prospectLookup = buildProspectLookup(prospectContext.profiles);
-          const rankings = await buildRankingsBoard({
-            players,
-            ktcValues,
-            baselineKtcValues: ktcValuesLastWeek,
-            ownerByPlayerId,
-            rosterStatusByPlayerId,
-            selectedProfileKey: leagueValueProfileKey,
-            selectedProfileLabel: leagueValueProfileLabel,
-            prospectLookup,
-            leagueTeamCount: Number(leagueInfo?.total_rosters || leagueInfo?.settings?.num_teams || rosters.length || 12),
-          });
           const managerChampionships = await buildManagerChampionships(leagueInfo, users, rosters);
+          markAnalyzeStep('prospects and crowns');
 
           const reportPlayerIds = [
             ...rosters.flatMap((roster: any) => [...(roster.players || []), ...(roster.taxi || []), ...(roster.reserve || [])]),
@@ -2112,7 +2330,6 @@ export const appRouter = router({
             ...Object.values(waiverIntelligence.bestAvailableByPosition).map((player) => player?.player_id),
             ...waiverIntelligence.bestTaxiStashes.map((player) => player.player_id),
             ...waiverIntelligence.recentlyDroppedValuable.map((player) => player.player_id),
-            ...Object.values(rankings.profiles || {}).flatMap((rows) => rows.map((player) => player.player_id)),
           ];
           const valueProfilesById = Object.fromEntries(
             reportPlayerIds
@@ -2134,6 +2351,7 @@ export const appRouter = router({
             await fetchFantasyProsNews()
           );
           const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players, rosterStatusByPlayerId, prospectLookup);
+          markAnalyzeStep('player detail assembly');
 
           const analyzePayload = {
             leagueId: input.leagueId,
@@ -2144,6 +2362,7 @@ export const appRouter = router({
               ...reportData,
               prospectSourceDiagnostics: prospectContext.diagnostics,
               viewerManager,
+              viewerManagerByUserId: userIdToManagerMap,
               currentStandings,
               managerAvatars: buildManagerAvatarMap(users),
               managerChampionships,
@@ -2173,14 +2392,15 @@ export const appRouter = router({
               powerRankings,
               waiverIntelligence,
               recentTransactions,
-              rankings,
               draftPicks: draftAnalysis.draftPicks,
               draftStats: draftAnalysis.draftStats,
             },
           };
+          markAnalyzeStep('payload assembly');
 
           try {
             await writeCachedLeagueReport(reportCacheKey, input.leagueId, input.viewerUserId, analyzePayload);
+            markAnalyzeStep('cache write');
           } catch (cacheError) {
             console.warn('Failed to cache league report:', cacheError);
           }

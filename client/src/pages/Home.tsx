@@ -37,7 +37,7 @@ import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v9';
+const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v10';
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
@@ -80,6 +80,8 @@ type SleeperLeagueOption = {
   standingsRank: number | null;
   powerRank: number | null;
 };
+
+type LeagueRankResult = Pick<SleeperLeagueOption, 'leagueId' | 'standingsRank' | 'powerRank'>;
 
 type AnalysisLeaguePreview = {
   leagueName: string;
@@ -240,6 +242,20 @@ function buildCachedSleeperUser(
     recentLeagueIds: [],
     savedAt: Date.now(),
   };
+}
+
+function mergeLeagueRanks(leagues: SleeperLeagueOption[], ranks: LeagueRankResult[]): SleeperLeagueOption[] {
+  if (!ranks.length) return leagues;
+  const rankByLeagueId = new Map(ranks.map((rank) => [rank.leagueId, rank]));
+  return leagues.map((league) => {
+    const rank = rankByLeagueId.get(league.leagueId);
+    if (!rank) return league;
+    return {
+      ...league,
+      standingsRank: rank.standingsRank,
+      powerRank: rank.powerRank,
+    };
+  });
 }
 
 function findCachedSleeperUser(
@@ -1123,7 +1139,7 @@ export default function Home() {
         setAnalysisCompleteMessage(null);
         setPendingAnalysisLeague(null);
         successTransitionTimerRef.current = null;
-      }, 2200);
+      }, 900);
     },
     onError: (error) => {
       if (successTransitionTimerRef.current) {
@@ -1142,6 +1158,12 @@ export default function Home() {
       window.clearTimeout(successTransitionTimerRef.current);
     }
   }, []);
+
+  const userLeagueRanksMutation = trpc.league.getUserLeagueRanks.useMutation({
+    onSuccess: (data) => {
+      setUserLeagues((prev) => mergeLeagueRanks(prev, data.ranks));
+    },
+  });
 
   const userLeaguesMutation = trpc.league.getUserLeagues.useMutation({
     onSuccess: (data, variables) => {
@@ -1176,6 +1198,14 @@ export default function Home() {
       }
       if (nextIsPrivilegedViewer) {
         setIsAdminPermissionsModalOpen(true);
+      }
+      if (data.user?.userId && data.leagues.length > 0) {
+        userLeagueRanksMutation.mutate({
+          username,
+          userId: data.user.userId,
+          displayName: data.user.displayName,
+          leagueIds: data.leagues.map((league) => league.leagueId),
+        });
       }
       toast.success(`Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? '' : 's'}`);
     },
@@ -1501,6 +1531,19 @@ export default function Home() {
   const canViewMomentumTab = isPrivilegedViewer && adminViewMode === 'admin';
   const migratedActiveTab = activeTab === 'projections' ? 'rankings' : activeTab;
   const resolvedActiveTab = !canViewMomentumTab && migratedActiveTab === 'momentum' ? 'overview' : migratedActiveTab;
+  const rankingsQuery = trpc.league.rankings.useQuery(
+    { leagueId },
+    {
+      enabled: Boolean(reportData && leagueId),
+      staleTime: 1000 * 60 * 60 * 12,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    }
+  );
+  const rankingsForReport = rankingsQuery.data?.rankings || reportData?.rankings;
+  const reportDataWithRankings = reportData && rankingsForReport
+    ? { ...reportData, rankings: rankingsForReport }
+    : reportData;
   const handleReportTabChange = (nextTab: string) => {
     if (nextTab === 'momentum' && !canViewMomentumTab) {
       setActiveTab('overview');
@@ -1622,22 +1665,22 @@ export default function Home() {
               role="status"
               aria-live="polite"
             >
-              {analysisCompleteMessage.leagueLogo ? (
-                <img
-                  src={analysisCompleteMessage.leagueLogo}
-                  alt=""
-                  className="loading-success-backdrop-logo"
-                />
-              ) : (
-                <div className="loading-success-icon">
-                  <CheckCircle2 aria-hidden="true" />
-                </div>
-              )}
               <div className="loading-success-copy">
-                <h2 className={`${getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || 'League report')} loading-success-league-name`}>
+                <p className="loading-success-kicker">Report Generated</p>
+                <div className="loading-success-icon">
+                  {analysisCompleteMessage.leagueLogo ? (
+                    <img
+                      src={analysisCompleteMessage.leagueLogo}
+                      alt=""
+                      className="loading-success-logo-image"
+                    />
+                  ) : (
+                    <CheckCircle2 aria-hidden="true" />
+                  )}
+                </div>
+                <h2 className={`${getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || 'League report')} loading-success-league-name loading-gradient-text`}>
                   {analysisCompleteMessage.leagueName || 'League report'}
                 </h2>
-                <p className="loading-success-kicker">Report Generated</p>
               </div>
             </div>
           )}
@@ -1648,6 +1691,7 @@ export default function Home() {
 
   if (reportData) {
     const isRedraftReport = (reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode) === 'redraft';
+    const displayReportData = reportDataWithRankings || reportData;
     return (
       <ManagerChampionshipProvider championships={reportData.managerChampionships}>
       <div className="report-shell min-h-screen flex flex-col">
@@ -1896,34 +1940,42 @@ export default function Home() {
             <TabsContent value="rankings" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
                 <CollapsibleReportSection title="Full Roster Rankings" kicker="League-matched player values">
-                  <RankingsBoard
-                    rankings={reportData.rankings}
-                    playerDetailsById={reportData.playerDetailsById}
-                    managerAvatars={reportData.managerAvatars}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    viewerManager={reportData.viewerManager}
-                    board="dynasty"
-                    hidePicks={isRedraftReport}
-                  />
-                </CollapsibleReportSection>
-                {!isRedraftReport && (
-                  <CollapsibleReportSection title="College Rankings" kicker="Future rookie pipeline">
+                  {rankingsQuery.isLoading && !rankingsForReport ? (
+                    <div className="rankings-empty-state">Loading league-matched rankings...</div>
+                  ) : (
                     <RankingsBoard
-                      rankings={reportData.rankings}
+                      rankings={rankingsForReport}
                       playerDetailsById={reportData.playerDetailsById}
                       managerAvatars={reportData.managerAvatars}
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
                       viewerManager={reportData.viewerManager}
-                      board="devy"
-                      hidePicks
+                      board="dynasty"
+                      hidePicks={isRedraftReport}
                     />
+                  )}
+                </CollapsibleReportSection>
+                {!isRedraftReport && (
+                  <CollapsibleReportSection title="College Rankings" kicker="Future rookie pipeline">
+                    {rankingsQuery.isLoading && !rankingsForReport ? (
+                      <div className="rankings-empty-state">Loading college prospect rankings...</div>
+                    ) : (
+                      <RankingsBoard
+                        rankings={rankingsForReport}
+                        playerDetailsById={reportData.playerDetailsById}
+                        managerAvatars={reportData.managerAvatars}
+                        leagueId={leagueId}
+                        leagueLogo={leagueLogo}
+                        viewerManager={reportData.viewerManager}
+                        board="devy"
+                        hidePicks
+                      />
+                    )}
                   </CollapsibleReportSection>
                 )}
                 {canViewMomentumTab && (
                   <CollapsibleReportSection title="Admin Eyes Only: Value Assumptions" kicker="Hidden diagnostics">
-                    <AdminValueDiagnosticsTable reportData={reportData} />
+                    <AdminValueDiagnosticsTable reportData={displayReportData} />
                   </CollapsibleReportSection>
                 )}
               </div>

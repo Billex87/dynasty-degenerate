@@ -29,7 +29,7 @@ function parseNumber(value?: string | null): number | null {
 function getReaderUrls(sourceUrl: string) {
   return [
     sourceUrl,
-    `https://r.jina.ai/http://${sourceUrl}`,
+    `https://r.jina.ai/${sourceUrl}`,
   ];
 }
 

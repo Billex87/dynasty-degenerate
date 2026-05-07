@@ -9,7 +9,18 @@ import { getProspectSnapshotMonth, shouldRunMonthlyProspectSnapshot, storeNflDra
 
 const app = express();
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
-const SNAPSHOT_HOUR = 18;
+const SNAPSHOT_HOURS = [6, 18] as const;
+
+function parseLeagueIds(value: string | undefined): string[] {
+  return Array.from(
+    new Set(
+      String(value || '')
+        .split(/[,\s]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  );
+}
 
 function getPacificHour(date: Date): number {
   const hourPart = new Intl.DateTimeFormat('en-CA', {
@@ -21,33 +32,42 @@ function getPacificHour(date: Date): number {
   return Number(hourPart);
 }
 
+function isCronAuthorized(req: express.Request): { ok: true; configuredSecret?: string } | { ok: false; status: number; error: string } {
+  const configuredSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization;
+
+  if (!configuredSecret && process.env.NODE_ENV === 'production') {
+    return { ok: false, status: 500, error: 'CRON_SECRET is not configured' };
+  }
+
+  if (configuredSecret && authHeader !== `Bearer ${configuredSecret}`) {
+    return { ok: false, status: 401, error: 'Unauthorized' };
+  }
+
+  return { ok: true, configuredSecret };
+}
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 registerOAuthRoutes(app);
 
 app.get('/api/cron/ktc-snapshot', async (req, res) => {
-  const configuredSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization;
+  const auth = isCronAuthorized(req);
   const forceRun = req.query.force === 'true';
 
-  if (!configuredSecret && process.env.NODE_ENV === 'production') {
-    res.status(500).json({ ok: false, error: 'CRON_SECRET is not configured' });
-    return;
-  }
-
-  if (configuredSecret && authHeader !== `Bearer ${configuredSecret}`) {
-    res.status(401).json({ ok: false, error: 'Unauthorized' });
+  if (!auth.ok) {
+    res.status(auth.status).json({ ok: false, error: auth.error });
     return;
   }
 
   const now = new Date();
   const pacificHour = getPacificHour(now);
-  if (!forceRun && pacificHour !== SNAPSHOT_HOUR) {
+  if (!forceRun && !SNAPSHOT_HOURS.includes(pacificHour as typeof SNAPSHOT_HOURS[number])) {
     res.status(202).json({
       ok: true,
       skipped: true,
-      reason: `Snapshot only runs at ${SNAPSHOT_HOUR}:00 ${SNAPSHOT_TIME_ZONE}`,
+      reason: `Snapshot only runs at ${SNAPSHOT_HOURS.join(':00 or ')}:00 ${SNAPSHOT_TIME_ZONE}`,
       pacificHour,
       snapshotDateKey: getSnapshotDateKey(now),
     });
@@ -67,18 +87,92 @@ app.get('/api/cron/ktc-snapshot', async (req, res) => {
   }
 });
 
-app.get('/api/cron/prospect-snapshot', async (req, res) => {
-  const configuredSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization;
+app.get('/api/cron/league-report-cache', async (req, res) => {
+  const auth = isCronAuthorized(req);
   const forceRun = req.query.force === 'true';
-
-  if (!configuredSecret && process.env.NODE_ENV === 'production') {
-    res.status(500).json({ ok: false, error: 'CRON_SECRET is not configured' });
+  if (!auth.ok) {
+    res.status(auth.status).json({ ok: false, error: auth.error });
     return;
   }
 
-  if (configuredSecret && authHeader !== `Bearer ${configuredSecret}`) {
-    res.status(401).json({ ok: false, error: 'Unauthorized' });
+  const now = new Date();
+  const pacificHour = getPacificHour(now);
+  if (!forceRun && !SNAPSHOT_HOURS.includes(pacificHour as typeof SNAPSHOT_HOURS[number])) {
+    res.status(202).json({
+      ok: true,
+      skipped: true,
+      reason: `Cache warming only runs after ${SNAPSHOT_HOURS.join(':00 or ')}:00 ${SNAPSHOT_TIME_ZONE} snapshots`,
+      pacificHour,
+    });
+    return;
+  }
+
+  const requestedLeagueIds = [
+    ...parseLeagueIds(process.env.LEAGUE_REPORT_WARM_LEAGUE_IDS),
+    ...parseLeagueIds(typeof req.query.leagueId === 'string' ? req.query.leagueId : undefined),
+  ];
+  const leagueIds = Array.from(new Set(requestedLeagueIds));
+
+  if (leagueIds.length === 0) {
+    res.status(202).json({
+      ok: true,
+      skipped: true,
+      reason: 'Set LEAGUE_REPORT_WARM_LEAGUE_IDS to warm shared report caches.',
+    });
+    return;
+  }
+
+  const caller = appRouter.createCaller({
+    req: {
+      headers: {
+        authorization: auth.configuredSecret ? `Bearer ${auth.configuredSecret}` : undefined,
+        'user-agent': 'league-report-cache-warmer',
+        'x-cache-warmer': 'true',
+      },
+      socket: { remoteAddress: '127.0.0.1' },
+    } as any,
+    res: {} as any,
+    user: null,
+  });
+  const startedAt = Date.now();
+  const results = [];
+
+  for (const leagueId of leagueIds) {
+    const leagueStartedAt = Date.now();
+    try {
+      await caller.league.analyze({ leagueId, forceRefresh: true });
+      await caller.league.rankings({ leagueId, forceRefresh: true });
+      results.push({
+        leagueId,
+        ok: true,
+        durationMs: Date.now() - leagueStartedAt,
+      });
+    } catch (error) {
+      console.error(`[Cron] League report cache warm failed for ${leagueId}`, error);
+      results.push({
+        leagueId,
+        ok: false,
+        durationMs: Date.now() - leagueStartedAt,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  const failed = results.filter((result) => !result.ok);
+  res.status(failed.length ? 207 : 200).json({
+    ok: failed.length === 0,
+    leagueCount: leagueIds.length,
+    durationMs: Date.now() - startedAt,
+    results,
+  });
+});
+
+app.get('/api/cron/prospect-snapshot', async (req, res) => {
+  const auth = isCronAuthorized(req);
+  const forceRun = req.query.force === 'true';
+
+  if (!auth.ok) {
+    res.status(auth.status).json({ ok: false, error: auth.error });
     return;
   }
 

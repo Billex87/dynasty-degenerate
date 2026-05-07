@@ -622,6 +622,7 @@ export interface ReportData {
   leagueDiagnostics?: LeagueDiagnostics;
   prospectSourceDiagnostics?: ProspectSourceDiagnostics;
   viewerManager?: string | null;
+  viewerManagerByUserId?: Record<string, string>;
   currentStandings?: Array<{
     manager: string;
     rank: number;

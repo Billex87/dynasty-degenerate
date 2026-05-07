@@ -14,6 +14,10 @@ interface KTCValues {
   };
 }
 
+type KtcValue = KTCValues[string];
+type ValueField = 'ktc_value' | 'redraft_value' | 'true_value' | 'dynasty_value' | 'market_value_ktc';
+type ValueFieldLookup = Map<string, { value: KtcValue; score: number }>;
+
 interface Player {
   [key: string]: {
     first_name?: string;
@@ -22,6 +26,8 @@ interface Player {
     age?: number;
   };
 }
+
+const valueFieldLookupCache = new WeakMap<KTCValues, Partial<Record<ValueField, ValueFieldLookup>>>();
 
 export function cleanName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -45,6 +51,34 @@ export function playerNameKeysMatch(left: string, right: string): boolean {
   const leftVariants = playerNameKeyVariants(left).map(cleanName).filter(Boolean);
   const rightVariants = playerNameKeyVariants(right).map(cleanName).filter(Boolean);
   return leftVariants.some((variant) => rightVariants.includes(variant));
+}
+
+function getValueFieldLookup(ktcValues: KTCValues, field: ValueField): ValueFieldLookup {
+  let fieldLookups = valueFieldLookupCache.get(ktcValues);
+  if (!fieldLookups) {
+    fieldLookups = {};
+    valueFieldLookupCache.set(ktcValues, fieldLookups);
+  }
+
+  const cached = fieldLookups[field];
+  if (cached) return cached;
+
+  const lookup: ValueFieldLookup = new Map();
+  for (const [candidateKey, candidateValue] of Object.entries(ktcValues)) {
+    const sourceScore = (candidateValue.value_sources?.length || 0) * 100000;
+    const fieldValue = Number(candidateValue[field] || 0);
+    const score = sourceScore + fieldValue;
+
+    for (const variant of playerNameKeyVariants(candidateKey).map(cleanName).filter(Boolean)) {
+      const current = lookup.get(variant);
+      if (!current || score > current.score) {
+        lookup.set(variant, { value: candidateValue, score });
+      }
+    }
+  }
+
+  fieldLookups[field] = lookup;
+  return lookup;
 }
 
 export function getPlayerName(pid: string, allPlayers: Player): string {
@@ -97,7 +131,7 @@ function getPlayerValueField(
   pid: string,
   allPlayers: Player,
   ktcValues: KTCValues,
-  field: 'ktc_value' | 'redraft_value' | 'true_value' | 'dynasty_value' | 'market_value_ktc'
+  field: ValueField
 ): number {
   const p = allPlayers[pid];
   if (!p) return 0;
@@ -111,15 +145,13 @@ function getPlayerValueField(
     if (exactValue) return exactValue;
   }
 
-  const match = Object.entries(ktcValues)
-    .filter(([candidateKey]) => variants.some((variant) => playerNameKeysMatch(variant, candidateKey)))
-    .sort(([, a], [, b]) => {
-      const aSourceScore = (a.value_sources?.length || 0) * 100000;
-      const bSourceScore = (b.value_sources?.length || 0) * 100000;
-      return (bSourceScore + (b[field] || 0)) - (aSourceScore + (a[field] || 0));
-    })[0];
+  const lookup = getValueFieldLookup(ktcValues, field);
+  const match = variants
+    .map((variant) => lookup.get(cleanName(variant)))
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+    .sort((a, b) => b.score - a.score)[0];
 
-  return match?.[1]?.[field] || 0; // Return 0 if not found (will be filtered out in weekly momentum)
+  return match?.value?.[field] || 0; // Return 0 if not found (will be filtered out in weekly momentum)
 }
 
 export function getPickValue(

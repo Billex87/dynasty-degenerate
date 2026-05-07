@@ -9,7 +9,7 @@ import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getCollegeTileStyle, getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
-import type { RankingPlayer, RankingProfileOption, ReportData } from '@shared/types';
+import type { PlayerDetails, RankingPlayer, RankingProfileOption, ReportData } from '@shared/types';
 
 type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'PICK';
 type SortMode = 'rank' | 'value' | 'movement';
@@ -69,7 +69,7 @@ function getPositionButtonClass(position: PositionFilter | 'OVERALL', active: bo
 }
 
 function getProfileButtonLabel(option: RankingProfileOption): string {
-  const prefix = option.qbFormat === 'sf' ? 'SuperFlex' : '1QB';
+  const prefix = option.qbFormat === 'sf' ? 'SuperFlex' : 'Standard';
   if (!option.tep) return prefix;
   if (option.tep === 0.5) return `${prefix} TEP`;
   if (option.tep === 1) return `${prefix} TEP+`;
@@ -77,10 +77,24 @@ function getProfileButtonLabel(option: RankingProfileOption): string {
 }
 
 function RankingPlayerIdentity({ player }: { player: RankingPlayer }) {
-  if (player.imageUrl && !player.player_id) {
+  const preferredImageUrl = player.imageUrl || player.prospectProfile?.playerImageUrl || null;
+  const shouldUseRankingImage = Boolean(preferredImageUrl && (player.isDevy || !player.player_id));
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [preferredImageUrl]);
+
+  if (shouldUseRankingImage && preferredImageUrl && !imageFailed) {
     return (
       <div className="ranking-player-identity">
-        <img src={player.imageUrl} alt={player.name} className="ranking-player-image" loading="lazy" />
+        <img
+          src={preferredImageUrl}
+          alt={player.name}
+          className="ranking-player-image"
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
         <span>{player.name}</span>
       </div>
     );
@@ -385,7 +399,8 @@ function RankingsTable({
             className={getPositionButtonClass('OVERALL', selectedPositions.length === 0)}
             onClick={() => setSelectedPositions([])}
           >
-            Overall
+            <span className="ranking-filter-label-full">Overall</span>
+            <span className="ranking-filter-label-compact">OVR</span>
           </button>
           {POSITION_FILTERS.filter((filter) => !config.hidePicks || filter.key !== 'PICK').map((filter) => (
             <button
@@ -489,6 +504,25 @@ export function RankingsBoard({
       weight: player.prospectProfile.weight || null,
       prospectProfile: player.prospectProfile,
     } : undefined;
+    const rankingOnlyDetails: PlayerDetails | undefined = !player.isDevy && !player.isPick ? {
+      playerId: player.player_id,
+      fullName: player.name,
+      position: player.pos,
+      team: player.team || null,
+      age: player.age || null,
+      valueProfile: {
+        dynastyValue: player.value,
+        dynastyPositionRank: player.positionRank || player.pos,
+        marketKtc: player.ktcValue || null,
+        flockFantasy: player.flockValue || null,
+        fantasyCalcDynasty: player.fantasyCalcValue || null,
+        dynastyProcess: player.dynastyProcessValue || null,
+        dynastyNerds: player.dynastyNerdsValue || null,
+        dynastyDealerBenchmark: player.dynastyDealerBenchmark || null,
+        dynastyDealerVoteRating: player.dynastyDealerVoteRating || null,
+        sources: player.sources || [],
+      },
+    } : undefined;
     setSelectedPlayer({
       player_id: player.player_id,
       playerName: player.name,
@@ -504,7 +538,7 @@ export function RankingsBoard({
       isCollegeProspect: player.isDevy,
       playerDetails: details
         ? { ...details, prospectProfile: player.prospectProfile || details.prospectProfile || null }
-        : prospectOnlyDetails,
+        : prospectOnlyDetails || rankingOnlyDetails,
     });
   };
 
