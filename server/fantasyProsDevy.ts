@@ -2,6 +2,8 @@ import { canonicalPlayerNameKey } from './leagueAnalysis';
 
 const FANTASYPROS_DEVY_URL = 'https://www.fantasypros.com/nfl/rankings/devy-overall.php';
 const CACHE_TTL_MS = 1000 * 60 * 60 * 12;
+const FETCH_TIMEOUT_MS = 1800;
+const READER_FETCH_TIMEOUT_MS = 1200;
 
 export interface FantasyProsDevyRanking {
   name: string;
@@ -29,6 +31,22 @@ function getReaderUrls(sourceUrl: string) {
     sourceUrl,
     `https://r.jina.ai/http://${sourceUrl}`,
   ];
+}
+
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      headers: {
+        accept: 'text/plain, text/markdown, text/html;q=0.9,*/*;q=0.8',
+        'user-agent': 'DynastyDegeneratesBot/1.0 devy-rankings',
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function extractJsonAssignment(text: string, variableName: string): unknown | null {
@@ -132,14 +150,14 @@ export async function loadFantasyProsDevyRankings(force = false): Promise<Record
   }
 
   let lastError = '';
-  for (const url of getReaderUrls(FANTASYPROS_DEVY_URL)) {
+  const urls = getReaderUrls(FANTASYPROS_DEVY_URL);
+  for (let index = 0; index < urls.length; index += 1) {
+    const url = urls[index];
     try {
-      const response = await fetch(url, {
-        headers: {
-          accept: 'text/plain, text/markdown, text/html;q=0.9,*/*;q=0.8',
-          'user-agent': 'DynastyDegeneratesBot/1.0 devy-rankings',
-        },
-      });
+      const response = await fetchWithTimeout(
+        url,
+        index === 0 ? FETCH_TIMEOUT_MS : READER_FETCH_TIMEOUT_MS
+      );
       const text = await response.text();
       if (!response.ok) {
         lastError = `${response.status} ${response.statusText}`;

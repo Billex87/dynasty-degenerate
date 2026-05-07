@@ -651,6 +651,7 @@ function buildLeagueDiagnostics(
     valueSnapshotProfileCount: VALUE_SOURCE_PROFILE_DEFINITIONS.length,
     valueSnapshotProfiles: [
       `${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended league profiles: 10/12/14-team, 1QB/SF, Standard/Half/PPR, and 0/0.5/1/1.5 TEP buckets`,
+      'The 6 PM value snapshot stores raw source payloads plus every blended league-format profile, so future 7-day comparisons use stored history instead of live guesses.',
       `${KTC_SNAPSHOT_PROFILES.length} KTC market profiles for 1QB/SF and TEP variants`,
       'Flock Fantasy dynasty and rookie rankings for 1QB/SF',
       'Dynasty Nerds PPR, Superflex, Standard, and Superflex TEP rankings with player values, Sleeper IDs, and movement',
@@ -669,7 +670,9 @@ function buildLeagueDiagnostics(
     valueLimitations: [
       `Selected value profile: ${selectedValueProfile}. League analysis no longer uses the old default 12-team SF PPR blend when the league settings point elsewhere.`,
       `Daily snapshots now track ${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended format profiles across team count, QB format, reception scoring, and TEP bucket.`,
+      'Daily storage includes raw source profiles for KTC, Flock Fantasy, Dynasty Nerds, FantasyCalc, DynastyProcess, FantasyPros season ranks, and Dynasty Dealer benchmark values before the app builds league-matched blends.',
       'Flock Fantasy is treated as the highest-priority dynasty/rookie rankings source where the public rankings endpoint returns data. Dynasty Nerds is the secondary expert/community dynasty source and is selected by the closest league format. Redraft stays projection/season-source driven.',
+      'Expansion queue for primary data coverage: licensed FantasyPros API access, LeagueLogs value/news verification, DraftSharks/GridIron-style season projection sources, and a dedicated player-news feed. These stay out of the blend until they are reliably stored and attributable.',
       normalizeNumQbsForDiagnostics(lineupProfile) === 2 && tightEndPremium > 0
         ? 'Dynasty Nerds has a direct Superflex TEP source for this format bucket.'
         : normalizeNumQbsForDiagnostics(lineupProfile) === 2

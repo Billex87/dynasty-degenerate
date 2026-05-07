@@ -99,6 +99,23 @@ async function ensureSchema(sql: SqlClient) {
         CREATE INDEX IF NOT EXISTS "loginAttempts_createdAt_idx"
         ON "loginAttempts" ("createdAt" DESC)
       `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "leagueReportCache" (
+          id SERIAL PRIMARY KEY,
+          "cacheKey" TEXT NOT NULL UNIQUE,
+          "leagueId" TEXT NOT NULL,
+          "viewerUserId" TEXT,
+          payload TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "leagueReportCache_leagueId_updatedAt_idx"
+        ON "leagueReportCache" ("leagueId", "updatedAt" DESC)
+      `;
     })();
   }
 
@@ -341,4 +358,61 @@ export async function getLoginAttemptsSince(targetDate: Date): Promise<StoredLog
   ` as Record<string, any>[];
 
   return result.map(normalizeLoginAttempt);
+}
+
+export async function findLeagueReportCache(cacheKey: string, maxAgeMs: number): Promise<unknown | null> {
+  const sql = await getDb();
+  if (!sql) return null;
+
+  const freshAfter = new Date(Date.now() - maxAgeMs);
+  const result = await sql`
+    SELECT payload
+    FROM "leagueReportCache"
+    WHERE "cacheKey" = ${cacheKey}
+      AND "updatedAt" >= ${freshAfter}
+    LIMIT 1
+  ` as Array<{ payload?: string | null }>;
+
+  const payload = result[0]?.payload;
+  if (!payload) return null;
+
+  try {
+    return JSON.parse(payload);
+  } catch (error) {
+    console.warn("[Database] Failed to parse league report cache:", error);
+    return null;
+  }
+}
+
+export async function upsertLeagueReportCache(input: {
+  cacheKey: string;
+  leagueId: string;
+  viewerUserId?: string | null;
+  payload: unknown;
+}): Promise<void> {
+  const sql = await getDb();
+  if (!sql) return;
+
+  const payload = JSON.stringify(input.payload);
+  await sql`
+    INSERT INTO "leagueReportCache" (
+      "cacheKey",
+      "leagueId",
+      "viewerUserId",
+      payload,
+      "updatedAt"
+    )
+    VALUES (
+      ${input.cacheKey},
+      ${input.leagueId},
+      ${input.viewerUserId ?? null},
+      ${payload},
+      NOW()
+    )
+    ON CONFLICT ("cacheKey") DO UPDATE SET
+      "leagueId" = EXCLUDED."leagueId",
+      "viewerUserId" = EXCLUDED."viewerUserId",
+      payload = EXCLUDED.payload,
+      "updatedAt" = NOW()
+  `;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Zap } from 'lucide-react';
+import { Check, Sparkles, Zap } from 'lucide-react';
 
 interface LoadingStep {
   id: string;
@@ -16,6 +16,10 @@ const initialLoadingSteps: LoadingStep[] = [
   { id: 'final', label: 'Covering our tracks...', status: 'pending' },
 ];
 
+function createInitialLoadingSteps() {
+  return initialLoadingSteps.map((step) => ({ ...step }));
+}
+
 export function LoadingAnimation({
   isComplete = false,
   leagueName,
@@ -27,9 +31,7 @@ export function LoadingAnimation({
   leagueFormat?: string | null;
   leagueLogo?: string | null;
 }) {
-  const [steps, setSteps] = useState<LoadingStep[]>([
-    ...initialLoadingSteps,
-  ]);
+  const [steps, setSteps] = useState<LoadingStep[]>(() => createInitialLoadingSteps());
 
   useEffect(() => {
     if (isComplete) {
@@ -37,20 +39,19 @@ export function LoadingAnimation({
       return;
     }
 
-    const timings = [1200, 2400, 3600, 4800, 6000, 7200];
-    const timers = initialLoadingSteps.map((_step, index) => {
+    setSteps(createInitialLoadingSteps());
+
+    const timings = [420, 840, 1260, 1680, 2100];
+    const timers = timings.map((timing, timerIndex) => {
       return setTimeout(() => {
         setSteps(prev => {
           const newSteps = [...prev];
-          if (index > 0) {
-            newSteps[index - 1] = { ...newSteps[index - 1], status: 'complete' };
-          }
-          if (index < newSteps.length) {
-            newSteps[index] = { ...newSteps[index], status: 'loading' };
-          }
+          const index = timerIndex + 1;
+          newSteps[index - 1] = { ...newSteps[index - 1], status: 'complete' };
+          newSteps[index] = { ...newSteps[index], status: 'loading' };
           return newSteps;
         });
-      }, timings[index]);
+      }, timing);
     });
 
     return () => timers.forEach(timer => clearTimeout(timer));
@@ -83,12 +84,14 @@ export function LoadingAnimation({
       </div>
 
       <div className="loading-step-list">
-        {steps.map((step, index) => (
-          <div key={step.id} className="loading-step flex items-center gap-4">
+        {steps.map((step) => (
+          <div key={step.id} className={`loading-step flex items-center gap-4 loading-step-${step.status}`}>
             <div className="loading-step-dot flex-shrink-0 w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center relative">
               {step.status === 'complete' ? (
                 <div className="loading-step-complete w-full h-full rounded-full flex items-center justify-center">
                   <Check className="w-6 h-6 text-white" />
+                  <Sparkles className="loading-step-spark loading-step-spark-a" aria-hidden="true" />
+                  <Sparkles className="loading-step-spark loading-step-spark-b" aria-hidden="true" />
                 </div>
               ) : step.status === 'loading' ? (
                 <>
@@ -110,34 +113,39 @@ export function LoadingAnimation({
               }`}>
                 {step.label}
               </p>
-              {step.status === 'loading' && (
-                <div className="loading-football-track" aria-hidden="true">
-                  <span className="loading-football-arc" />
-                  <span className="loading-football" />
-                </div>
-              )}
             </div>
 
             {step.status === 'complete' && (
               <div className="text-cyan-300 text-sm font-medium">Done</div>
             )}
+            {step.status === 'loading' && (
+              <div className="loading-football-track" aria-hidden="true">
+                <span className="loading-football-arc" />
+                <span className="loading-football-shadow" />
+                <span className="loading-football" />
+              </div>
+            )}
           </div>
         ))}
 
-        <p className="text-slate-500 text-xs mt-1 text-center">
-          {steps.filter(s => s.status === 'complete').length} of {steps.length} steps complete
-        </p>
+        {!isComplete && (
+          <>
+            <p className="text-slate-500 text-xs mt-1 text-center">
+              {steps.filter(s => s.status === 'complete').length} of {steps.length} steps complete
+            </p>
 
-        <div className="w-full mt-1">
-          <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-orange-500 to-cyan-400 rounded-full transition-all duration-500"
-              style={{
-                width: `${(steps.filter(s => s.status === 'complete').length / steps.length) * 100}%`
-              }}
-            />
-          </div>
-        </div>
+            <div className="w-full mt-1">
+              <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-orange-500 to-cyan-400 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${(steps.filter(s => s.status === 'complete').length / steps.length) * 100}%`
+                  }}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

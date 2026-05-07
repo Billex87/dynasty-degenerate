@@ -171,6 +171,7 @@ function RankingCard({
     player.prospectProfile.weight ? `Wt ${player.prospectProfile.weight}` : null,
     player.prospectProfile.rating ? `Buzz ${player.prospectProfile.rating}` : null,
   ].filter(Boolean) as string[] : [];
+  const showMovement = Boolean(player.movementLabel) || !player.isDevy;
   const movementClass = player.movementDirection === 'up'
     ? 'ranking-move-up'
     : player.movementDirection === 'down'
@@ -187,9 +188,11 @@ function RankingCard({
     >
       <div className="ranking-player-topline">
         <span className="ranking-overall-rank">#{player.overallRank}</span>
-        <span className={`ranking-movement-pill ${movementClass}`}>
-          {player.movementLabel || 'No 7D'}
-        </span>
+        {showMovement ? (
+          <span className={`ranking-movement-pill ${movementClass}`}>
+            {player.movementLabel || 'Stable'}
+          </span>
+        ) : null}
       </div>
 
       <div className="ranking-player-main">
@@ -208,15 +211,26 @@ function RankingCard({
         </div>
       </div>
 
-      <div className="ranking-card-meta-row">
-        <RankingOwnerChip owner={player.owner} managerAvatars={managerAvatars} />
-        <RankingOwnerAvatar owner={player.owner} managerAvatars={managerAvatars} />
+      <div className={`ranking-card-meta-row ${player.isDevy ? 'ranking-card-meta-row-devy' : ''}`}>
+        {player.isDevy ? (
+          <>
+            {player.collegeLogoUrl ? (
+              <img src={player.collegeLogoUrl} alt="" className="ranking-college-avatar-only" loading="lazy" aria-hidden="true" />
+            ) : null}
+            {player.draftYear ? <span className="ranking-devy-class-pill">{player.draftYear}</span> : null}
+          </>
+        ) : (
+          <>
+            <RankingOwnerChip owner={player.owner} managerAvatars={managerAvatars} />
+            <RankingOwnerAvatar owner={player.owner} managerAvatars={managerAvatars} />
+          </>
+        )}
       </div>
 
       {player.isDevy && (prospectPills.length || player.prospectProfile?.role || player.college || player.draftYear) ? (
         <div className="ranking-devy-line">
-          {player.tier ? <span>{player.tier}</span> : null}
-          <span>{player.prospectProfile?.role || player.college || 'College prospect'}</span>
+          {player.projectedRookiePick || player.tier ? <span>{player.projectedRookiePick || player.tier}</span> : null}
+          {player.prospectProfile?.role ? <span>{player.prospectProfile.role}</span> : null}
           {prospectPills.map((pill) => <span key={pill}>{pill}</span>)}
           {player.draftYear ? <span>{player.draftYear} class</span> : null}
         </div>
@@ -461,23 +475,33 @@ export function RankingsBoard({
 
   const handleSelectPlayer = (player: RankingPlayer) => {
     const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
+    const prospectPositionRank = player.fantasyProsDevyPositionRank
+      || player.prospectProfile?.fantasyProsDevyPositionRank
+      || (player.prospectProfile?.positionRank ? `${player.pos}${player.prospectProfile.positionRank}` : null)
+      || player.pos;
     const prospectOnlyDetails = player.prospectProfile ? {
       fullName: player.name,
       position: player.pos,
       team: player.team || null,
-      college: player.college || player.prospectProfile.college || null,
+      college: player.prospectProfile.college || player.college || null,
+      age: player.age || player.prospectProfile.fantasyProsDevyAge || null,
+      height: player.prospectProfile.height || null,
+      weight: player.prospectProfile.weight || null,
       prospectProfile: player.prospectProfile,
     } : undefined;
     setSelectedPlayer({
       player_id: player.player_id,
       playerName: player.name,
       playerPos: player.pos,
-      currentPositionRank: player.isDevy ? player.pos : player.positionRank || player.pos,
+      currentPositionRank: player.isDevy ? prospectPositionRank : player.positionRank || player.pos,
       currentKtcValue: player.isDevy ? undefined : player.value,
       valueGain: player.movement || undefined,
       valueChangeNote: player.movementLabel ? 'Blended value change over the last 7 days.' : undefined,
       manager: player.owner || undefined,
       managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
+      playerImageUrl: player.imageUrl || player.prospectProfile?.playerImageUrl || null,
+      collegeLogoUrl: player.collegeLogoUrl || player.prospectProfile?.collegeLogoUrl || null,
+      isCollegeProspect: player.isDevy,
       playerDetails: details
         ? { ...details, prospectProfile: player.prospectProfile || details.prospectProfile || null }
         : prospectOnlyDetails,

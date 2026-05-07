@@ -23,7 +23,7 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { insertLoginAttempt } from "./db";
+import { findLeagueReportCache, insertLoginAttempt, upsertLeagueReportCache } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
@@ -219,6 +219,55 @@ function toSleeperLeagueOption(
 }
 
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
+
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v14';
+const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 20;
+const leagueReportMemoryCache = new Map<string, { loadedAt: number; payload: unknown }>();
+
+function getLeagueReportCacheKey(leagueId: string, viewerUserId?: string | null): string {
+  return [
+    LEAGUE_REPORT_CACHE_VERSION,
+    String(leagueId || '').trim(),
+    String(viewerUserId || 'anonymous').trim(),
+  ].join(':');
+}
+
+function getMemoryCachedLeagueReport(cacheKey: string): unknown | null {
+  const cached = leagueReportMemoryCache.get(cacheKey);
+  if (!cached) return null;
+  if (Date.now() - cached.loadedAt > LEAGUE_REPORT_CACHE_TTL_MS) {
+    leagueReportMemoryCache.delete(cacheKey);
+    return null;
+  }
+  return cached.payload;
+}
+
+async function readCachedLeagueReport(cacheKey: string): Promise<unknown | null> {
+  const memoryCached = getMemoryCachedLeagueReport(cacheKey);
+  if (memoryCached) return memoryCached;
+
+  const storedCached = await findLeagueReportCache(cacheKey, LEAGUE_REPORT_CACHE_TTL_MS);
+  if (storedCached) {
+    leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: storedCached });
+  }
+
+  return storedCached;
+}
+
+async function writeCachedLeagueReport(
+  cacheKey: string,
+  leagueId: string,
+  viewerUserId: string | undefined,
+  payload: unknown
+) {
+  leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload });
+  await upsertLeagueReportCache({
+    cacheKey,
+    leagueId,
+    viewerUserId: viewerUserId || null,
+    payload,
+  });
+}
 
 function buildLeagueRosterValueRankings(
   rosters: any[] = [],
@@ -1679,7 +1728,21 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const ipAddress = getClientIp(ctx.req as any);
         const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
+        const reportCacheKey = getLeagueReportCacheKey(input.leagueId, input.viewerUserId);
         try {
+          const cachedReport = await readCachedLeagueReport(reportCacheKey);
+          if (cachedReport && typeof cachedReport === 'object') {
+            await insertLoginAttempt({
+              eventType: "analyze_league",
+              status: "success",
+              leagueId: input.leagueId,
+              ipAddress,
+              userAgent,
+              note: "Served cached league report",
+            });
+            return cachedReport as any;
+          }
+
           const leagueInfo = await fetch(
             `https://api.sleeper.app/v1/league/${input.leagueId}`
           ).then((r) => r.json());
@@ -2072,7 +2135,7 @@ export const appRouter = router({
           );
           const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players, rosterStatusByPlayerId, prospectLookup);
 
-          return {
+          const analyzePayload = {
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
             leagueLogo: getSleeperAvatarUrl(leagueInfo.avatar),
@@ -2114,7 +2177,15 @@ export const appRouter = router({
               draftPicks: draftAnalysis.draftPicks,
               draftStats: draftAnalysis.draftStats,
             },
+          };
+
+          try {
+            await writeCachedLeagueReport(reportCacheKey, input.leagueId, input.viewerUserId, analyzePayload);
+          } catch (cacheError) {
+            console.warn('Failed to cache league report:', cacheError);
           }
+
+          return analyzePayload;
         } catch (error) {
           console.error('League analysis error:', error);
           if (!(error instanceof Error && error.message === 'Invalid league ID')) {

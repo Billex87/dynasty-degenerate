@@ -10,6 +10,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getPlayerAvailability } from '@/lib/playerStatus';
+import { getCollegeTileStyle } from '@/lib/teamTileStyle';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { TeamLogoPill } from './TeamLogoPill';
 
@@ -64,6 +65,9 @@ export type PlayerModalData = Partial<DraftPick> & {
   playerDetails?: PlayerDetails;
   valueChangeNote?: string;
   managerAvatarUrl?: string | null;
+  playerImageUrl?: string | null;
+  collegeLogoUrl?: string | null;
+  isCollegeProspect?: boolean;
 };
 
 export function PlayerDetailModal({
@@ -88,7 +92,7 @@ export function PlayerDetailModal({
       position: pick?.playerPos || pick?.playerDetails?.position || null,
     },
     {
-      enabled: isOpen && Boolean(pick?.playerName),
+      enabled: isOpen && Boolean(pick?.playerName) && !Boolean(pick?.isCollegeProspect || pick?.playerDetails?.prospectProfile),
       staleTime: 1000 * 60 * 15,
     }
   );
@@ -106,10 +110,15 @@ export function PlayerDetailModal({
 
   if (!pick) return null;
   const details = pick.playerDetails;
-  const directHeadshot = pick.player_id && !directImageFailed
+  const prospectProfile = details?.prospectProfile || null;
+  const isCollegeProspect = Boolean(pick.isCollegeProspect || prospectProfile);
+  const prospectCollege = prospectProfile?.college || details?.college || null;
+  const directHeadshot = !isCollegeProspect && pick.player_id && !directImageFailed
     ? `https://sleepercdn.com/content/nfl/players/${pick.player_id}.jpg`
     : null;
-  const playerImageSrc = headshot || directHeadshot;
+  const playerImageSrc = isCollegeProspect
+    ? pick.playerImageUrl || prospectProfile?.playerImageUrl || prospectProfile?.collegeLogoUrl || null
+    : headshot || directHeadshot;
   const valueProfile = details?.valueProfile;
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
   const currentValue = pick.currentKtcValue;
@@ -117,20 +126,27 @@ export function PlayerDetailModal({
   const valueGain = pick.valueGain;
   const currentRank = pick.currentPositionRank || '-';
   const position = pick.playerPos || details?.position || '-';
-  const team = details?.team || 'FA';
+  const team = isCollegeProspect ? null : details?.team || 'FA';
   const jerseyNumber = details?.jerseyNumber;
-  const teamColors = NFL_TEAM_COLORS[team] || null;
-  const tileAccent = getReadableTeamAccent(teamColors);
-  const modalBackground = teamColors
+  const teamColors = team ? NFL_TEAM_COLORS[team] || null : null;
+  const collegeTileStyle = isCollegeProspect ? getCollegeTileStyle(prospectCollege) : undefined;
+  const tileAccent = isCollegeProspect ? '#fbbf24' : getReadableTeamAccent(teamColors);
+  const modalBackground = isCollegeProspect
+    ? `radial-gradient(circle at 15% 6%, color-mix(in srgb, var(--team-primary, #7c2d12) 48%, transparent), transparent 28%), radial-gradient(circle at 95% 0%, color-mix(in srgb, var(--team-secondary, #0f172a) 58%, transparent), transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, rgba(15, 23, 42, 0.36) 100%)`
+    : teamColors
     ? `radial-gradient(circle at 15% 6%, ${teamColors.primary}44, transparent 28%), radial-gradient(circle at 95% 0%, ${teamColors.secondary}66, transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, ${teamColors.primary}18 100%)`
     : undefined;
-  const heroBackground = teamColors
+  const heroBackground = isCollegeProspect
+    ? `radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--team-primary, #7c2d12) 62%, transparent), transparent 34%), radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--team-secondary, #0f172a) 76%, transparent), transparent 30%), linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #7c2d12) 72%, #070b13) 0%, #070b13 48%, color-mix(in srgb, var(--team-secondary, #0f172a) 74%, #070b13) 100%)`
+    : teamColors
     ? `radial-gradient(circle at 18% 18%, ${teamColors.primary}88, transparent 34%), radial-gradient(circle at 88% 8%, ${teamColors.secondary}99, transparent 30%), linear-gradient(135deg, ${teamColors.primary} 0%, #070b13 48%, ${teamColors.secondary} 100%)`
     : undefined;
   const managerAvatarUrl = pick.managerAvatarUrl || (pick.manager ? managerAvatars?.[pick.manager] : null);
   const managerDisplayName = pick.managerDisplayName || pick.manager || '';
   const playerNameSizeClass = getPlayerNameSizeClass(pick.playerName);
-  const availability = getPlayerAvailability(details);
+  const availability = isCollegeProspect
+    ? { label: 'College Prospect', tone: 'taxi' as const }
+    : getPlayerAvailability(details);
   const physicalRows = [
     ['Age', details?.age],
     ['Height', formatHeight(details?.height)],
@@ -141,10 +157,20 @@ export function PlayerDetailModal({
     ['Depth Chart', formatDepthChart(details?.depthChartPosition, details?.depthChartOrder)],
     ['Years Exp', details?.yearsExp],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
-  const backgroundRows = [
+  const backgroundRows = isCollegeProspect ? [] : [
     ['College', details?.college],
     ['Birthday', formatBirthday(details?.birthDate)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const prospectMetricRows = prospectProfile ? [
+    ['Projected Rookie Pick', prospectProfile.projectedRookiePick],
+    ['Board Rank', prospectProfile.fantasyProsDevyRank ? `#${prospectProfile.fantasyProsDevyRank}` : prospectProfile.overallRank ? `#${prospectProfile.overallRank}` : null],
+    ['Position Rank', prospectProfile.fantasyProsDevyPositionRank || (prospectProfile.positionRank ? `${prospectProfile.position}${prospectProfile.positionRank}` : null)],
+    ['Draft Class', prospectProfile.draftYear],
+    ['College', prospectProfile.college],
+    ['40 Time', prospectProfile.fortyYardDash ? `${prospectProfile.fortyYardDash}s` : null],
+    ['Size', [prospectProfile.height, prospectProfile.weight].filter(Boolean).join(' / ')],
+    ['Role', prospectProfile.role],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const prospectRows = details?.prospectProfile ? [
     ['Projected Rookie Pick', details.prospectProfile.projectedRookiePick],
     ['FantasyPros ECR', details.prospectProfile.fantasyProsDevyRank ? `#${details.prospectProfile.fantasyProsDevyRank}` : null],
@@ -229,8 +255,8 @@ export function PlayerDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="player-detail-modal max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-h-[88vh] sm:max-w-2xl"
-        style={{ background: modalBackground }}
+        className={`player-detail-modal ${isCollegeProspect ? 'player-detail-modal-prospect' : ''} max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-h-[88vh] sm:max-w-2xl`}
+        style={{ ...collegeTileStyle, background: modalBackground }}
       >
         <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto pb-[env(safe-area-inset-bottom)] sm:max-h-[88vh]">
           <div
@@ -312,8 +338,15 @@ export function PlayerDetailModal({
                     {pick.playerName}
                   </div>
                   <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
-                    <TeamLogoPill team={team} className="player-modal-team-logo-pill" />
-                    {jerseyNumber !== null && jerseyNumber !== undefined && jerseyNumber !== '' && (
+                    {isCollegeProspect ? (
+                      <ProspectCollegePill
+                        college={prospectCollege}
+                        logoUrl={pick.collegeLogoUrl || prospectProfile?.collegeLogoUrl}
+                      />
+                    ) : (
+                      <TeamLogoPill team={team} className="player-modal-team-logo-pill" />
+                    )}
+                    {!isCollegeProspect && jerseyNumber !== null && jerseyNumber !== undefined && jerseyNumber !== '' && (
                       <span
                         className="rounded-full border px-3 py-1 text-xs font-bold"
                         style={{
@@ -380,30 +413,45 @@ export function PlayerDetailModal({
               </div>
             )}
 
-            <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
-              {currentValue !== undefined && (
+            {isCollegeProspect && prospectMetricRows.length > 0 ? (
+              <div className="player-prospect-metric-grid mx-auto max-w-xl">
+                {prospectMetricRows.map(([label, value]) => (
+                  <InfoTile
+                    key={String(label)}
+                    label={String(label)}
+                    value={String(value)}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                    valueClassName={isPositionRankValue(value) ? getPositionRankPillClass(String(value)) : undefined}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
+                {currentValue !== undefined && (
                 <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} tileAccent={tileAccent} />
-              )}
-              <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} valueClassName={`${getPositionRankPillClass(currentRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
-              <MetricTile
-                label="Value Change"
-                value={valueGain !== undefined && valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'}
-                tone={valueGain !== undefined && valueGain !== null && valueGain > 0 ? 'positive' : valueGain !== undefined && valueGain !== null && valueGain < 0 ? 'negative' : 'neutral'}
-                icon={
-                  valueGain !== undefined && valueGain !== null && valueGain > 0 ? <TrendingUp className="h-4 w-4" /> : valueGain !== undefined && valueGain !== null && valueGain < 0 ? <TrendingDown className="h-4 w-4" /> : null
-                }
-                teamColors={teamColors}
-                tileAccent={tileAccent}
-              />
-            </div>
+                )}
+                <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} valueClassName={`${getPositionRankPillClass(currentRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
+                <MetricTile
+                  label="Value Change"
+                  value={valueGain !== undefined && valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'}
+                  tone={valueGain !== undefined && valueGain !== null && valueGain > 0 ? 'positive' : valueGain !== undefined && valueGain !== null && valueGain < 0 ? 'negative' : 'neutral'}
+                  icon={
+                    valueGain !== undefined && valueGain !== null && valueGain > 0 ? <TrendingUp className="h-4 w-4" /> : valueGain !== undefined && valueGain !== null && valueGain < 0 ? <TrendingDown className="h-4 w-4" /> : null
+                  }
+                  teamColors={teamColors}
+                  tileAccent={tileAccent}
+                />
+              </div>
+            )}
 
-            {valueGain !== undefined && (
+            {!isCollegeProspect && valueGain !== undefined && (
               <p className="text-center text-[0.72rem] leading-none text-slate-500 sm:text-xs">
                 <span className="font-semibold text-cyan-300">Value Change:</span> {valueChangeNote}
               </p>
             )}
 
-            {details?.similarTradeValues?.length ? (
+            {!isCollegeProspect && details?.similarTradeValues?.length ? (
               <div className="mx-auto max-w-xl space-y-2">
                 <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
                   Cross-Position Trade Comps
@@ -459,7 +507,7 @@ export function PlayerDetailModal({
               </div>
             )}
 
-            {decisionLabels.length > 0 && (
+            {!isCollegeProspect && decisionLabels.length > 0 && (
               <div className="player-decision-strip mx-auto max-w-xl">
                 {decisionLabels.map((label) => (
                   <span key={label.label} className={`player-decision-pill player-decision-${label.tone}`}>
@@ -470,7 +518,18 @@ export function PlayerDetailModal({
               </div>
             )}
 
-            {intelligenceNotes.length > 0 && (
+            {isCollegeProspect && prospectProfile?.summary ? (
+              <div className="mx-auto max-w-xl rounded-2xl border border-cyan-300/15 bg-slate-950/45 p-3 text-center shadow-inner shadow-white/[0.02] sm:p-4">
+                <p className="text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/85">
+                  Prospect Snapshot
+                </p>
+                <p className="mt-2 text-sm font-bold leading-relaxed text-slate-300">
+                  {prospectProfile.summary}
+                </p>
+              </div>
+            ) : null}
+
+            {!isCollegeProspect && intelligenceNotes.length > 0 && (
               <div className="mx-auto max-w-xl rounded-2xl border border-cyan-300/15 bg-slate-950/45 p-3 shadow-inner shadow-white/[0.02] sm:p-4">
                 <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/85">
                   Player Intelligence
@@ -517,7 +576,7 @@ export function PlayerDetailModal({
               </div>
             )}
 
-            {valueProfile && (
+            {!isCollegeProspect && valueProfile && (
               <div className="mx-auto max-w-xl space-y-2">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                   <InfoTile label="Dynasty" value={dynastyRank || '-'} valueClassName={getPositionRankPillClass(dynastyRank)} teamColors={teamColors} tileAccent={tileAccent} />
@@ -535,7 +594,7 @@ export function PlayerDetailModal({
             )}
 
             <div className="mx-auto max-w-xl space-y-3">
-              {physicalRows.length > 0 && (
+              {!isCollegeProspect && physicalRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {physicalRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
@@ -549,33 +608,33 @@ export function PlayerDetailModal({
                   ))}
                 </div>
               )}
-              {lastSeasonRows.length > 0 && (
+              {!isCollegeProspect && lastSeasonRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {lastSeasonRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>
               )}
-              {availabilityRows.length > 0 && (
+              {!isCollegeProspect && availabilityRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {availabilityRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>
               )}
-              {details?.availabilityHistory?.length ? (
+              {!isCollegeProspect && details?.availabilityHistory?.length ? (
                 <p className="text-center text-[0.68rem] font-bold leading-relaxed text-slate-400">
                   Availability: {details.availabilityHistory.map((item) => `${item.season}: ${item.games ?? '-'} GP`).join(' · ')}
                 </p>
               ) : null}
-              {experienceRows.length > 0 && (
+              {!isCollegeProspect && experienceRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {experienceRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>
               )}
-              {healthRows.map(([label, value]) => (
+              {!isCollegeProspect && healthRows.map(([label, value]) => (
                 <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
               ))}
             </div>
@@ -990,6 +1049,23 @@ function StatusPill({
   return (
     <span className={`rounded-full border px-3 py-1 text-xs font-bold ${toneClass}`}>
       {label}
+    </span>
+  );
+}
+
+function ProspectCollegePill({
+  college,
+  logoUrl,
+}: {
+  college?: string | null;
+  logoUrl?: string | null;
+}) {
+  if (!college && !logoUrl) return null;
+
+  return (
+    <span className="player-modal-college-pill">
+      {logoUrl ? <img src={logoUrl} alt="" loading="lazy" aria-hidden="true" /> : null}
+      <span>{college || 'College'}</span>
     </span>
   );
 }

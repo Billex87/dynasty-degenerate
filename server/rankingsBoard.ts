@@ -307,6 +307,39 @@ function getFlockImageUrl(flock?: FlockFantasyValue): string | null {
   return null;
 }
 
+function sanitizeCollegeName(value?: string | null): string | null {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+
+  // Some devy sources expose hometown/location in their "college" slot. Do not
+  // let city/state strings override the verified prospect-school profile.
+  if (/^[A-Za-z .'-]+,\s*[A-Z]{2}$/i.test(trimmed)) return null;
+  if (/^(?:n\/a|none|unknown|fa)$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+function getRankingImageUrl({
+  option,
+  flock,
+  dynastyNerds,
+  prospectProfile,
+}: {
+  option: RankingProfileOption;
+  flock?: FlockFantasyValue;
+  dynastyNerds?: DynastyNerdsValue;
+  prospectProfile?: ProspectProfile | null;
+}): string | null {
+  if (option.board === 'devy') {
+    return prospectProfile?.playerImageUrl
+      || getFlockImageUrl(flock)
+      || dynastyNerds?.imageUrl
+      || prospectProfile?.collegeLogoUrl
+      || null;
+  }
+
+  return getFlockImageUrl(flock) || dynastyNerds?.imageUrl || null;
+}
+
 function getMovementDirection(movement?: number | null): RankingPlayer['movementDirection'] {
   if (!movement) return 'flat';
   return movement > 0 ? 'up' : 'down';
@@ -491,7 +524,7 @@ function buildRowsForProfile({
     const blended = canonicalKtcValues[key];
     const name = ktc?.name || fantasyProsDevy?.name || dynastyNerds?.name || flock?.name || blended?.name || key;
     const rawPos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
-    const sourceCollege = flock?.college || ktc?.college || null;
+    const sourceCollege = sanitizeCollegeName(flock?.college || ktc?.college || null);
     const sourceTeam = dynastyNerds?.team || flock?.team || ktc?.team || null;
     const playerId = resolvePlayerIdentity({
       key,
@@ -506,7 +539,7 @@ function buildRowsForProfile({
     const sleeperPlayer = playerId ? players[playerId] : null;
     const pos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || sleeperPlayer?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
     const isPick = pos === 'PICK' || /\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(name);
-    const college = sourceCollege || sleeperPlayer?.college || null;
+    const college = sourceCollege || sanitizeCollegeName(sleeperPlayer?.college) || null;
     const draftYear = Number(flock?.draftYear || ktc?.draftYear || sleeperPlayer?.metadata?.rookie_year || 0) || null;
     const prospectProfile = prospectLookup
       ? findProspectProfile(prospectLookup, name, pos, college, draftYear)
@@ -555,6 +588,8 @@ function buildRowsForProfile({
     ].filter(Boolean) as string[];
     const baselineValue = canonicalBaselineValues[key]?.ktc_value || null;
     const movement = baselineValue && value ? value - baselineValue : null;
+    const displayCollege = prospectProfile?.college || college;
+    const displayImageUrl = getRankingImageUrl({ option, flock, dynastyNerds, prospectProfile });
 
     rows.push({
       id: `${option.key}:${key}`,
@@ -562,7 +597,7 @@ function buildRowsForProfile({
       name,
       pos,
       team: sleeperPlayer?.team || dynastyNerds?.team || flock?.team || ktc?.team || null,
-      college: college || prospectProfile?.college || null,
+      college: displayCollege || null,
       collegeLogoUrl: prospectProfile?.collegeLogoUrl || null,
       age: Number(sleeperPlayer?.age || dynastyNerds?.age || flock?.age || ktc?.age || fantasyProsDevy?.age || 0) || null,
       draftYear: draftYear || prospectProfile?.draftYear || null,
@@ -595,7 +630,7 @@ function buildRowsForProfile({
       sourceCount: sources.length,
       isDevy: option.board === 'devy',
       isPick,
-      imageUrl: getFlockImageUrl(flock) || dynastyNerds?.imageUrl || prospectProfile?.playerImageUrl || prospectProfile?.collegeLogoUrl || null,
+      imageUrl: displayImageUrl,
       prospectProfile: prospectProfile
         ? {
           ...prospectProfile,
@@ -613,7 +648,7 @@ function buildRowsForProfile({
             draftYear: draftYear || new Date().getFullYear() + 1,
             name,
             position: pos,
-            college,
+            college: displayCollege,
             fantasyProsDevyRank: fantasyProsDevy.rank,
             fantasyProsDevyPositionRank: fantasyProsDevy.positionRank,
             fantasyProsDevyAge: fantasyProsDevy.age,

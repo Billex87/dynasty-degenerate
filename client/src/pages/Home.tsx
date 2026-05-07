@@ -47,7 +47,7 @@ const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
 const MAX_VISIBLE_LEAGUE_SHORTCUTS = MAX_RECENT_LEAGUES_PER_USER - 1;
-const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-04-30';
+const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-05-05';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
 const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'awwqq', 'zojozo']);
 
@@ -701,6 +701,30 @@ type AdminBlendSummary = {
 
 type OutlookPlayer = ReportData['projectedRisers'][number];
 
+function getValueCoverageStatus(note: string): Pick<AdminValueDiagnosticRow, 'status' | 'tone'> {
+  if (/benchmark/i.test(note)) {
+    return { status: 'Benchmark stored', tone: 'info' };
+  }
+  if (/exact custom|closest|bucket/i.test(note)) {
+    return { status: 'Bucketed', tone: 'info' };
+  }
+  if (/support is wired|no .*present/i.test(note)) {
+    return { status: 'Awaiting data', tone: 'warn' };
+  }
+  return { status: 'Tracked', tone: 'good' };
+}
+
+function getValueCoverageItem(note: string, index: number): string {
+  if (/Selected value profile/i.test(note)) return 'Selected profile';
+  if (/Daily snapshots/i.test(note)) return 'Daily storage';
+  if (/Flock Fantasy|Dynasty Nerds|Redraft/i.test(note)) return 'Source weighting';
+  if (/TE premium|TEP/i.test(note)) return 'TE premium bucket';
+  if (/Standard|Half|PPR/i.test(note)) return 'PPR bucket';
+  if (/coverage/i.test(note)) return 'Source coverage';
+  if (/benchmark/i.test(note)) return 'Benchmark source';
+  return `Coverage note ${index + 1}`;
+}
+
 function getOutlookPlayerValueProfile(reportData: ReportData, player: OutlookPlayer) {
   return player.playerDetails?.valueProfile
     || (player.player_id ? reportData.playerDetailsById?.[player.player_id]?.valueProfile : undefined);
@@ -754,11 +778,11 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       id: 'league-scoring-context',
       area: 'Scoring format',
       item: leagueDiagnostics.scoringSummary,
-      status: leagueDiagnostics.tightEndPremium > 0 || leagueDiagnostics.receptionScoring !== 1 ? 'Adjustment needed' : 'Closest profile',
-      tone: leagueDiagnostics.tightEndPremium > 0 || leagueDiagnostics.receptionScoring !== 1 ? 'warn' : 'info',
+      status: 'League-matched',
+      tone: 'good',
       note: leagueDiagnostics.tightEndPremium > 0
-        ? `Sleeper scoring gives tight ends +${leagueDiagnostics.tightEndPremium} per reception on top of base reception scoring. The report uses the closest stored TEP value bucket for this league.`
-        : `Sleeper reception scoring is ${leagueDiagnostics.receptionScoring}; the report uses the closest Standard/Half/PPR value profile.`,
+        ? `Sleeper scoring gives tight ends +${leagueDiagnostics.tightEndPremium} per reception on top of base reception scoring. The report selects the closest stored TEP bucket for this league instead of falling back to a generic profile.`
+        : `Sleeper reception scoring is ${leagueDiagnostics.receptionScoring}; the report selects the matching Standard/Half/PPR value profile when that scoring bucket exists.`,
     });
     addUniqueDiagnosticRow(rows, seen, {
       id: 'value-profile-storage',
@@ -769,12 +793,13 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       note: `${leagueDiagnostics.ktcProfileLabel} Tracked profiles: ${leagueDiagnostics.valueSnapshotProfiles.join(', ')}.`,
     });
     leagueDiagnostics.valueLimitations.forEach((limitation, index) => {
+      const coverageStatus = getValueCoverageStatus(limitation);
       addUniqueDiagnosticRow(rows, seen, {
         id: `value-limitation-${index}`,
         area: 'Value coverage',
-        item: `Limit ${index + 1}`,
-        status: 'Assumption',
-        tone: 'warn',
+        item: getValueCoverageItem(limitation, index),
+        status: coverageStatus.status,
+        tone: coverageStatus.tone,
         note: limitation,
       });
     });
@@ -786,8 +811,8 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       id: 'prospect-context-source',
       area: 'Prospect context',
       item: `${diagnostic.playerCount} profiles`,
-      status: diagnostic.status === 'stored' ? 'Monthly stored' : diagnostic.status === 'partial' ? 'Partial scrape' : 'Needs scrape',
-      tone: diagnostic.status === 'stored' ? 'good' : diagnostic.status === 'partial' ? 'warn' : 'danger',
+      status: diagnostic.status === 'stored' ? 'Monthly stored' : diagnostic.status === 'partial' ? 'Stored with gaps' : 'Snapshot pending',
+      tone: diagnostic.status === 'stored' ? 'good' : diagnostic.status === 'partial' ? 'warn' : 'info',
       note: diagnostic.note,
     });
   }
@@ -798,8 +823,8 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       area: 'Value blend',
       item: dateKey,
       status: 'Missing day',
-      tone: 'danger',
-      note: 'Daily blend was not stored, so any comparison touching this date is less exact.',
+      tone: 'warn',
+      note: `Daily blend was not stored after the ${ADMIN_VALUE_DIAGNOSTIC_START_DATE} blend cutoff, so any comparison touching this date uses the nearest available stored profile.`,
     });
   });
 
@@ -817,7 +842,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
   }
 
   const rankingIdentityDiagnostics = reportData.rankings?.identityDiagnostics || [];
-  const unmatchedRankingRows = rankingIdentityDiagnostics.filter((row) => row.status === 'unmatched');
+  const unmatchedRankingRows = rankingIdentityDiagnostics.filter((row) => row.status === 'unmatched' && row.board !== 'devy');
   const resolvedRankingRows = rankingIdentityDiagnostics.filter((row) => row.status === 'resolved-collision');
 
   if (unmatchedRankingRows.length) {
@@ -848,15 +873,15 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
 
     const sources = profile.sources || [];
     const hasCoreMarketSource = Boolean(profile.flockFantasy || profile.dynastyNerds || profile.marketKtc || profile.fantasyCalcDynasty || profile.dynastyProcess);
-    if (sources.length >= 2 && hasCoreMarketSource) return;
+    if (hasCoreMarketSource) return;
 
     addUniqueDiagnosticRow(rows, seen, {
       id: `thin-value-${player.player_id || player.name}`,
       area: 'Player value',
       item: player.name,
-      status: sources.length ? 'Thin blend' : 'No source list',
-      tone: sources.length ? 'warn' : 'danger',
-      note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found for the current value; this read is more assumption-heavy.`,
+      status: sources.length ? 'Non-primary source' : 'No source list',
+      tone: sources.length ? 'info' : 'warn',
+      note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found, but none are one of the primary dynasty blend sources. The card can render, but admin should verify the player mapping/value source.`,
     });
   });
 
@@ -879,7 +904,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       item: 'Current report',
       status: 'No active flags',
       tone: 'good',
-      note: 'No missing post-cutoff snapshot days or thin player value blends were detected. League-format notes still show what is calculated versus inferred.',
+      note: 'No missing post-cutoff snapshot days or unmapped primary-value players were detected. League-format notes still show what is calculated versus bucketed.',
     });
   }
 
@@ -950,7 +975,7 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
   return (
     <div className="admin-value-diagnostics">
       <p className="admin-value-diagnostics-intro">
-        Admin eyes only. This shows what is calculated from Sleeper league settings, what is covered by stored market values, and what is still an assumption.
+        Admin eyes only. This shows what is calculated from Sleeper league settings, what is covered by stored market values, and only the gaps that still need attention.
       </p>
       {blendSummaries.length > 0 && (
         <div className="admin-blend-summary-grid">
@@ -977,7 +1002,7 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
               <strong>Weights normalize when sources are missing</strong>
             </div>
             <p>
-              If a player is missing one of the sources above, the available weights normalize across only the sources present. Thin blends still get flagged below.
+              If a player is missing one of the sources above, the available weights normalize across only the sources present. Players only get flagged below when no primary blend source is attached.
               Season and projection data is only for lineup and redraft-style reads, not dynasty market value.
             </p>
             {reportData.leagueDiagnostics && (
@@ -1082,6 +1107,11 @@ export default function Home() {
       setLeagueLogo(data.leagueLogo);
       setLeagueFormat(data.leagueFormat);
       rememberCurrentUserLeagueShortcut(data.leagueId);
+      setPendingAnalysisLeague({
+        leagueName: data.leagueName,
+        leagueFormat: data.leagueFormat,
+        leagueLogo: data.leagueLogo,
+      });
       setAnalysisCompleteMessage({
         leagueName: data.leagueName,
         leagueFormat: data.leagueFormat,
@@ -1093,7 +1123,7 @@ export default function Home() {
         setAnalysisCompleteMessage(null);
         setPendingAnalysisLeague(null);
         successTransitionTimerRef.current = null;
-      }, 1400);
+      }, 2200);
     },
     onError: (error) => {
       if (successTransitionTimerRef.current) {
@@ -1209,6 +1239,11 @@ export default function Home() {
         setLeagueFormat(parsed.leagueFormat);
         setActiveTab(parsed.activeTab || 'overview');
         setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
+        setPendingAnalysisLeague({
+          leagueName: parsed.leagueName,
+          leagueFormat: parsed.leagueFormat,
+          leagueLogo: parsed.leagueLogo,
+        });
         setIsLoading(true);
         analyzeMutation.mutate({ leagueId: parsed.leagueId, viewerUserId: restoredViewerUserId || undefined });
       }
@@ -1599,14 +1634,10 @@ export default function Home() {
                 </div>
               )}
               <div className="loading-success-copy">
-              <p className="loading-success-kicker">Report Generated</p>
-              <h2 className={getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || 'League report')}>
-                {analysisCompleteMessage.leagueName || 'League report'}
-              </h2>
-              {analysisCompleteMessage.leagueFormat && (
-                <p className="loading-success-format">{analysisCompleteMessage.leagueFormat}</p>
-              )}
-              <div className="loading-success-bar" aria-hidden="true" />
+                <h2 className={`${getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || 'League report')} loading-success-league-name`}>
+                  {analysisCompleteMessage.leagueName || 'League report'}
+                </h2>
+                <p className="loading-success-kicker">Report Generated</p>
               </div>
             </div>
           )}
