@@ -266,7 +266,7 @@ describe('generateReport trade ledger', () => {
     expect(trade.team_b_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|2865');
   });
 
-  it('ranks weekly momentum by 7-day KTC percentage movement', async () => {
+  it('ranks weekly momentum by 7-day blended percentage movement', async () => {
     const report = await generateReport(
       {
         label: '2026',
@@ -388,6 +388,9 @@ describe('generateReport trade ledger', () => {
     const intelRow = report.managerRosterIntelligence.find((row) => row.manager === 'Manager A');
 
     expect(report.managerRosterValueGrowth.find((row) => row.manager === 'Manager A')?.total_val).toBe(15000);
+    expect(countRow?.activePlayerCount).toBe(2);
+    expect(countRow?.reservePlayerCount).toBe(1);
+    expect(countRow?.totalRosterPlayerCount).toBe(3);
     expect(countRow?.RB).toBe(2);
     expect(countRow?.starterPlayers?.map((player) => player.name)).not.toContain('Reserve RB');
     expect(intelRow?.reservePlayers?.[0]).toMatchObject({ name: 'Reserve RB' });

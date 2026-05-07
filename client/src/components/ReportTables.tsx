@@ -3804,6 +3804,13 @@ export function WeeklyMomentumTable({
 
   return (
     <div className="weekly-momentum-wrap">
+      <div className="weekly-momentum-baseline-note">
+        <span>7-day baseline</span>
+        <p>
+          Movement compares today&apos;s league-matched blended value to the closest stored snapshot from at least seven days back.
+          The first clean same-blend window starts {FIRST_FULL_BLEND_WEEK_LABEL}.
+        </p>
+      </div>
       {data.length > 0 ? (
         <div className="weekly-momentum-grid">
           {data.map((row) => {
@@ -3826,7 +3833,7 @@ export function WeeklyMomentumTable({
                   manager: row.owner,
                   managerAvatarUrl: managerAvatars?.[row.owner],
                   currentPositionRank: row.currentPositionRank,
-                  valueChangeNote: 'Blended value change over the last 7 days.',
+                  valueChangeNote: `7-day movement compares the current league-matched blend with the closest stored snapshot from at least seven days back. Same-blend history starts ${VALUE_BLEND_HISTORY_START_LABEL}.`,
                 }))}
               >
                 <div className="weekly-momentum-tile-top">
@@ -5575,11 +5582,13 @@ type WaiverRecommendation = {
   player: TrendingPlayer;
   score: number;
   reason: string;
+  label: string;
   targetPosition: WaiverPosition | null;
 };
 
 type WaiverRecommendationContext = {
   openRosterSpots: number;
+  irOnlyOpenSpots: number;
   targetPositions: WaiverPosition[];
   recommendations: WaiverRecommendation[];
   summary: string | null;
@@ -5587,6 +5596,8 @@ type WaiverRecommendationContext = {
 
 const WAIVER_POSITIONS: WaiverPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 const WAIVER_RECOMMENDATION_LIMIT = 4;
+const VALUE_BLEND_HISTORY_START_LABEL = 'May 5, 2026';
+const FIRST_FULL_BLEND_WEEK_LABEL = 'May 12, 2026 after the 6 PM scrape';
 
 function isWaiverPosition(position: string | null | undefined): position is WaiverPosition {
   return WAIVER_POSITIONS.includes(position as WaiverPosition);
@@ -5606,26 +5617,59 @@ function getWaiverPlayerDetails(player: TrendingPlayer, playerDetailsById?: Play
   };
 }
 
-function getWaiverPlayerValue(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): number {
+function isNonDynastyWaiverPosition(position: string | null | undefined): boolean {
+  return position === 'K' || position === 'DEF';
+}
+
+function getWaiverDynastyValue(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): number {
+  if (isNonDynastyWaiverPosition(player.pos)) return 0;
   const details = getWaiverPlayerDetails(player, playerDetailsById);
   return Math.round(
-    player.ktcValue
-    ?? details?.valueProfile?.seasonValue
-    ?? details?.valueProfile?.fantasyProsSeasonValue
-    ?? details?.valueProfile?.dynastyValue
+    details?.valueProfile?.dynastyValue
     ?? details?.valueProfile?.balancedValue
+    ?? player.ktcValue
     ?? 0
   );
 }
 
-function getWaiverPlayerRank(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): string | null {
+function getWaiverSeasonValue(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): number {
   const details = getWaiverPlayerDetails(player, playerDetailsById);
-  return player.currentPositionRank
-    || details?.valueProfile?.seasonPositionRank
-    || details?.valueProfile?.fantasyProsPositionRank
-    || details?.valueProfile?.dynastyPositionRank
+  const fallbackSeasonValue = isNonDynastyWaiverPosition(player.pos) ? player.ktcValue : null;
+  return Math.round(
+    details?.valueProfile?.seasonValue
+    ?? details?.valueProfile?.fantasyProsSeasonValue
+    ?? fallbackSeasonValue
+    ?? 0
+  );
+}
+
+function getWaiverPlayerValue(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): number {
+  return getWaiverDynastyValue(player, playerDetailsById)
+    || getWaiverSeasonValue(player, playerDetailsById)
+    || Math.round(player.ktcValue || 0);
+}
+
+function getWaiverDynastyRank(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): string | null {
+  if (isNonDynastyWaiverPosition(player.pos)) return null;
+  const details = getWaiverPlayerDetails(player, playerDetailsById);
+  const explicitRank = details?.valueProfile?.dynastyPositionRank
     || details?.valueProfile?.balancedPositionRank
     || null;
+  if (explicitRank) return explicitRank;
+  return details?.valueProfile?.seasonPositionRank ? null : player.currentPositionRank || null;
+}
+
+function getWaiverSeasonRank(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): string | null {
+  const details = getWaiverPlayerDetails(player, playerDetailsById);
+  return details?.valueProfile?.seasonPositionRank
+    || details?.valueProfile?.fantasyProsPositionRank
+    || (isNonDynastyWaiverPosition(player.pos) ? player.currentPositionRank : null)
+    || null;
+}
+
+function getWaiverPlayerRank(player: TrendingPlayer, playerDetailsById?: PlayerDetailsById): string | null {
+  return getWaiverDynastyRank(player, playerDetailsById)
+    || getWaiverSeasonRank(player, playerDetailsById);
 }
 
 function collectWaiverCandidates(data: NonNullable<ReportData['waiverIntelligence']>): TrendingPlayer[] {
@@ -5644,26 +5688,37 @@ function collectWaiverCandidates(data: NonNullable<ReportData['waiverIntelligenc
   return Array.from(byId.values());
 }
 
-function getOpenRosterSpotCount(
+function getWaiverRosterOpenings(
   viewerIntel: OwnerIntelRow | null | undefined,
   leagueDiagnostics?: ReportData['leagueDiagnostics'],
   positionCountRow?: ReportData['managerPositionCounts'][number] | null
-): number {
-  const activeSlotCount = (leagueDiagnostics?.rosterSlots || [])
+): { activeOpenSpots: number; irOnlyOpenSpots: number } {
+  const rosterSlots = leagueDiagnostics?.rosterSlots || [];
+  const activeSlotCount = rosterSlots
     .filter((slot) => {
       const normalized = String(slot || '').toUpperCase();
       return normalized && normalized !== 'IR' && normalized !== 'TAXI' && normalized !== 'RESERVE';
     })
     .length;
-  const activeAndReserveRosterCount = viewerIntel
-    ? (viewerIntel.rosterPlayers?.length || 0) + (viewerIntel.reservePlayers?.length || 0)
-    : 0;
+  const irSlotCount = rosterSlots
+    .filter((slot) => {
+      const normalized = String(slot || '').toUpperCase();
+      return normalized === 'IR' || normalized === 'RESERVE';
+    })
+    .length;
+  const exactActiveRosterCount = Number(positionCountRow?.activePlayerCount || 0);
+  const exactReserveRosterCount = Number(positionCountRow?.reservePlayerCount || 0);
+  const displayedActiveRosterCount = positionCountRow?.lineupPlayers?.length || viewerIntel?.rosterPlayers?.length || 0;
+  const displayedReserveRosterCount = viewerIntel?.reservePlayers?.length || 0;
   const fallbackRosterCount = positionCountRow
     ? COUNT_POSITIONS.reduce((sum, position) => sum + Number(positionCountRow[position] || 0), 0)
     : 0;
-  const activeRosterCount = activeAndReserveRosterCount || fallbackRosterCount;
-  if (!activeSlotCount || !activeRosterCount) return 0;
-  return Math.max(0, activeSlotCount - activeRosterCount);
+  const activeRosterCount = exactActiveRosterCount || displayedActiveRosterCount || fallbackRosterCount;
+  const reserveRosterCount = exactReserveRosterCount || displayedReserveRosterCount;
+  return {
+    activeOpenSpots: activeSlotCount ? Math.max(0, activeSlotCount - activeRosterCount) : 0,
+    irOnlyOpenSpots: irSlotCount ? Math.max(0, irSlotCount - reserveRosterCount) : 0,
+  };
 }
 
 function getWaiverNeedWeights(
@@ -5722,28 +5777,52 @@ function buildWaiverRecommendationReason({
   openRosterSpots: number;
 }): string {
   const details = getWaiverPlayerDetails(player, playerDetailsById);
-  const rank = getWaiverPlayerRank(player, playerDetailsById);
+  const dynastyRank = getWaiverDynastyRank(player, playerDetailsById);
+  const seasonRank = getWaiverSeasonRank(player, playerDetailsById);
   const age = details?.age ?? null;
   const depthOrder = details?.depthChartOrder;
   const rookieYear = Number(details?.rookieYear || 0);
   const currentYear = new Date().getFullYear();
   const positionCopy = targetPosition && needWeight > 0
     ? `${targetPosition} matches your roster-depth need`
-    : `${player.pos} is the best value/role shot available`;
+    : `${player.pos} is the best dynasty/role shot available`;
   const ageCopy = age ? `${age} years old` : null;
-  const rankCopy = rank ? `${rank}` : null;
+  const rankCopy = [
+    dynastyRank ? `Dynasty ${dynastyRank}` : null,
+    seasonRank ? `Season ${seasonRank}` : null,
+  ].filter(Boolean).join(' / ') || null;
   const roleCopy = typeof depthOrder === 'number' && Number.isFinite(depthOrder)
-    ? `Sleeper depth chart order ${depthOrder}`
+    ? `depth chart path ${depthOrder}`
     : rookieYear === currentYear
       ? 'rookie stash profile'
       : details?.latestNews?.title
         ? 'recent role/news signal'
         : null;
   const spotCopy = openRosterSpots > 0
-    ? `fits one of ${openRosterSpots} open non-IR roster spot${openRosterSpots === 1 ? '' : 's'}`
+    ? (openRosterSpots === 1 ? 'fits the active roster opening' : `fits one of ${openRosterSpots} active roster openings`)
     : 'is a priority watchlist add if you create a spot';
 
   return [positionCopy, ageCopy, rankCopy, roleCopy, spotCopy].filter(Boolean).join(' • ');
+}
+
+function getWaiverRecommendationLabel(
+  player: TrendingPlayer,
+  playerDetailsById?: PlayerDetailsById
+): string {
+  const details = getWaiverPlayerDetails(player, playerDetailsById);
+  const dynastyRankNumber = parsePositionRankValue(getWaiverDynastyRank(player, playerDetailsById));
+  const seasonRankNumber = parsePositionRankValue(getWaiverSeasonRank(player, playerDetailsById));
+  const depthOrder = Number(details?.depthChartOrder || 0);
+  const age = Number(details?.age || 0);
+  const rookieYear = Number(details?.rookieYear || 0);
+  const currentYear = new Date().getFullYear();
+
+  if (isNonDynastyWaiverPosition(player.pos)) return `${player.pos} Streamer`;
+  if (rookieYear === currentYear || age && age <= 22) return 'Dynasty Stash';
+  if (depthOrder > 0 && depthOrder <= 2) return 'Role Path';
+  if (seasonRankNumber && seasonRankNumber <= 72) return 'Season Path';
+  if (dynastyRankNumber && dynastyRankNumber <= 120) return 'Value Add';
+  return 'Upside Add';
 }
 
 function buildWaiverRecommendationContext({
@@ -5769,14 +5848,20 @@ function buildWaiverRecommendationContext({
   if (!viewerIntel) {
     return {
       openRosterSpots: 0,
+      irOnlyOpenSpots: 0,
       targetPositions: [],
       recommendations: [],
       summary: null,
     };
   }
 
-  const openRosterSpots = getOpenRosterSpotCount(viewerIntel, leagueDiagnostics, viewerPositionCounts);
+  const { activeOpenSpots: openRosterSpots, irOnlyOpenSpots } = getWaiverRosterOpenings(
+    viewerIntel,
+    leagueDiagnostics,
+    viewerPositionCounts
+  );
   const needWeights = getWaiverNeedWeights(viewerIntel, positionDepth, viewerManager);
+  const isDynastyLeague = (leagueDiagnostics?.valueMode || 'dynasty') === 'dynasty';
   const targetPositions = WAIVER_POSITIONS
     .filter((position) => needWeights[position] > 0)
     .sort((a, b) => needWeights[b] - needWeights[a]);
@@ -5785,24 +5870,40 @@ function buildWaiverRecommendationContext({
     .map((player) => {
       const pos = isWaiverPosition(player.pos) ? player.pos : null;
       const details = getWaiverPlayerDetails(player, playerDetailsById);
-      const value = getWaiverPlayerValue(player, playerDetailsById);
-      const rankNumber = parsePositionRankValue(getWaiverPlayerRank(player, playerDetailsById));
+      const dynastyValue = getWaiverDynastyValue(player, playerDetailsById);
+      const seasonValue = getWaiverSeasonValue(player, playerDetailsById);
+      const dynastyRankNumber = parsePositionRankValue(getWaiverDynastyRank(player, playerDetailsById));
+      const seasonRankNumber = parsePositionRankValue(getWaiverSeasonRank(player, playerDetailsById));
       const age = details?.age ?? null;
       const rookieYear = Number(details?.rookieYear || 0);
       const currentYear = new Date().getFullYear();
       const depthOrder = Number(details?.depthChartOrder || 0);
       const needWeight = pos ? needWeights[pos] : 0;
-      const youthScore = age && age <= 22 ? 320 : age && age <= 25 ? 190 : age && age >= 29 ? -140 : 0;
-      const rankScore = rankNumber ? Math.max(0, 620 - rankNumber * 5) : 0;
-      const rolePathScore = depthOrder > 0 && depthOrder <= 3 ? 160 : 0;
-      const rookieScore = rookieYear === currentYear ? 210 : 0;
-      const trendScore = Math.min(player.count || 0, 450);
-      const valueScore = Math.min(value / 4, 1250);
-      const score = needWeight + valueScore + rankScore + youthScore + rookieScore + rolePathScore + trendScore;
+      const isSpecialTeams = pos === 'K' || pos === 'DEF';
+      const youthScore = age && age <= 22 ? 560 : age && age <= 25 ? 320 : age && age >= 29 ? -260 : 0;
+      const dynastyRankScore = dynastyRankNumber ? Math.max(0, 760 - dynastyRankNumber * 5.4) : 0;
+      const seasonRankScore = seasonRankNumber ? Math.max(0, 360 - seasonRankNumber * 3.1) : 0;
+      const rolePathScore = depthOrder > 0 && depthOrder <= 2 ? 360 : depthOrder === 3 ? 190 : 0;
+      const rookieScore = rookieYear === currentYear ? 260 : 0;
+      const trendScore = Math.min(player.count || 0, 360);
+      const dynastyValueScore = Math.min(dynastyValue / 3.8, 1400);
+      const seasonValueScore = Math.min(seasonValue / 9, 520);
+      const specialTeamsDynastyPenalty = isDynastyLeague && isSpecialTeams ? -2400 : 0;
+      const score = needWeight
+        + dynastyValueScore
+        + seasonValueScore
+        + dynastyRankScore
+        + seasonRankScore
+        + youthScore
+        + rookieScore
+        + rolePathScore
+        + trendScore
+        + specialTeamsDynastyPenalty;
 
       return {
         player,
         score,
+        label: getWaiverRecommendationLabel(player, playerDetailsById),
         targetPosition: pos,
         reason: buildWaiverRecommendationReason({
           player,
@@ -5818,17 +5919,21 @@ function buildWaiverRecommendationContext({
     .slice(0, recommendationLimit);
 
   const openSpotCopy = openRosterSpots > 0
-    ? `${openRosterSpots} open non-IR roster spot${openRosterSpots === 1 ? '' : 's'} detected.`
-    : 'No open non-IR roster spot is detected, so treat these as priority watchlist or cut-upgrade targets.';
+    ? `${openRosterSpots} active roster opening${openRosterSpots === 1 ? '' : 's'} detected.`
+    : 'No active roster opening is detected, so treat these as priority watchlist or cut-upgrade targets.';
+  const irSpotCopy = irOnlyOpenSpots > 0
+    ? ` ${irOnlyOpenSpots} IR-only opening${irOnlyOpenSpots === 1 ? '' : 's'} also exists and is not counted for normal free-agent adds.`
+    : '';
   const targetCopy = targetPositions.length
-    ? `The AI read is leaning ${targetPositions.slice(0, 3).join(', ')} based on your roster depth.`
-    : 'The AI read is leaning best available value because no single position is screaming for depth.';
+    ? `Priority lean: ${targetPositions.slice(0, 3).join(', ')} based on roster depth.`
+    : 'Priority lean: best available dynasty stash because no single position is screaming for depth.';
   const summary = recommendations.length
-    ? `${openSpotCopy} Highlighted cards are suggested pickup shots based on roster depth, age, market value, trend volume, and role-path clues. ${targetCopy}`
+    ? `${openSpotCopy}${irSpotCopy} Highlighted cards prioritize young dynasty value, useful season-rank paths, trend volume, and depth-chart clues. ${targetCopy}`
     : null;
 
   return {
     openRosterSpots,
+    irOnlyOpenSpots,
     targetPositions,
     recommendations,
     summary,
@@ -5881,7 +5986,7 @@ export function WaiverIntelligencePanel({
   const basePlayerIds = new Set(baseCards.map((card) => card.player.player_id));
   const suggestedCards = recommendationContext.recommendations
     .filter((recommendation) => !basePlayerIds.has(recommendation.player.player_id))
-    .map((recommendation, index) => ({ label: `Suggested Add ${index + 1}`, player: recommendation.player }));
+    .map((recommendation) => ({ label: recommendation.label, player: recommendation.player }));
   const cards = [...suggestedCards, ...baseCards].sort((a, b) => {
     const aRecommendationOrder = recommendationOrderByPlayerId.get(a.player.player_id);
     const bRecommendationOrder = recommendationOrderByPlayerId.get(b.player.player_id);
@@ -5906,6 +6011,8 @@ export function WaiverIntelligencePanel({
           const recommendation = recommendationByPlayerId.get(player.player_id);
           const details = getWaiverPlayerDetails(player, playerDetailsById);
           const rank = getWaiverPlayerRank(player, playerDetailsById);
+          const dynastyRank = getWaiverDynastyRank(player, playerDetailsById);
+          const seasonRank = getWaiverSeasonRank(player, playerDetailsById);
           const value = getWaiverPlayerValue(player, playerDetailsById);
           return (
             <button
@@ -5936,10 +6043,12 @@ export function WaiverIntelligencePanel({
               </div>
               <div className="waiver-intel-pills">
                 <TeamLogoPill team={details?.team || player.team} />
-                <PositionRankPill rank={rank || player.pos || '-'} />
+                {dynastyRank && <span className="waiver-intel-rank-pill waiver-intel-rank-pill-dynasty">Dynasty {dynastyRank}</span>}
+                {seasonRank && <span className="waiver-intel-rank-pill waiver-intel-rank-pill-season">Season {seasonRank}</span>}
+                {!dynastyRank && !seasonRank && <PositionRankPill rank={rank || player.pos || '-'} />}
                 {label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
-                {recommendation && recommendationContext.openRosterSpots > 0 && <span>Open Roster Fit</span>}
-                {value > 0 && <span>{formatCompactValue(value)}</span>}
+                {recommendation && recommendationContext.openRosterSpots > 0 && <span>Active Spot Fit</span>}
+                {value > 0 && <span className="waiver-intel-value-pill">{formatCompactValue(value)}</span>}
               </div>
               {recommendation && (
                 <p className="waiver-intel-recommendation-note">{recommendation.reason}</p>

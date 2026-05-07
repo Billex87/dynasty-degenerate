@@ -669,6 +669,10 @@ export interface ReportData {
   positionDepth: PositionDepth[];
   managerPositionCounts: Array<{
     manager: string;
+    activePlayerCount?: number;
+    reservePlayerCount?: number;
+    taxiPlayerCount?: number;
+    totalRosterPlayerCount?: number;
     QB: number;
     QB_starters: number;
     RB: number;

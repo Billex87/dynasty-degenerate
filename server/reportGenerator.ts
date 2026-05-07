@@ -2300,6 +2300,10 @@ export async function generateReport(
   // Create manager position counts table
   const managerPositionCounts: Array<{
     manager: string;
+    activePlayerCount: number;
+    reservePlayerCount: number;
+    taxiPlayerCount: number;
+    totalRosterPlayerCount: number;
     QB: number;
     QB_starters: number;
     RB: number;
@@ -2362,10 +2366,12 @@ export async function generateReport(
   for (const r of currentSeasonData.rosters) {
     const name = currentSeasonData.rosterMap[r.roster_id];
     const activePids = getActivePlayerIds(r);
+    const taxiPids = getTaxiPlayerIds(r);
+    const reservePids = getReservePlayerIds(r);
     const rosterPids = normalizePlayerIds([
       ...activePids,
-      ...getTaxiPlayerIds(r),
-      ...getReservePlayerIds(r),
+      ...taxiPids,
+      ...reservePids,
     ]);
     const posCounts: Record<SeasonLineupPosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
     const posStarterCounts: Record<SeasonLineupPosition, number> = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
@@ -2440,6 +2446,10 @@ export async function generateReport(
 
     managerPositionCounts.push({
       manager: name,
+      activePlayerCount: activePids.length,
+      reservePlayerCount: reservePids.length,
+      taxiPlayerCount: taxiPids.length,
+      totalRosterPlayerCount: rosterPids.length,
       QB: posCounts.QB,
       QB_starters: posStarterCounts.QB,
       RB: posCounts.RB,
