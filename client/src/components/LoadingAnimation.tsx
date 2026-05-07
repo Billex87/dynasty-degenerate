@@ -20,10 +20,12 @@ export function LoadingAnimation({
   isComplete = false,
   leagueName,
   leagueFormat,
+  leagueLogo,
 }: {
   isComplete?: boolean;
   leagueName?: string | null;
   leagueFormat?: string | null;
+  leagueLogo?: string | null;
 }) {
   const [steps, setSteps] = useState<LoadingStep[]>([
     ...initialLoadingSteps,
@@ -58,7 +60,11 @@ export function LoadingAnimation({
     <div className="loading-panel analysis-loading-panel">
       <div className="loading-modal-header">
         <span className="loading-modal-bolt" aria-hidden="true">
-          <Zap />
+          {isComplete && leagueLogo ? (
+            <img src={leagueLogo} alt="" className="loading-modal-league-icon" />
+          ) : (
+            <Zap />
+          )}
         </span>
         <div>
           <p className="loading-title">

@@ -1575,6 +1575,7 @@ export default function Home() {
             isComplete={Boolean(analysisCompleteMessage)}
             leagueName={loadingLeague?.leagueName}
             leagueFormat={loadingLeague?.leagueFormat}
+            leagueLogo={loadingLeague?.leagueLogo}
           />
           {analysisCompleteMessage && (
             <div className="loading-success-card" role="status" aria-live="polite">
