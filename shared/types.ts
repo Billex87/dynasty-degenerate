@@ -35,17 +35,28 @@ export interface RankingPlayer {
   college?: string | null;
   age?: number | null;
   draftYear?: number | null;
+  collegeLogoUrl?: string | null;
   overallRank: number;
   positionRank?: string | null;
   value: number;
   ktcValue?: number | null;
+  ktcRank?: number | null;
   flockValue?: number | null;
+  flockRank?: number | null;
   dynastyNerdsValue?: number | null;
   fantasyCalcValue?: number | null;
   dynastyProcessValue?: number | null;
   dynastyDealerBenchmark?: number | null;
   dynastyDealerVoteRating?: number | null;
   fantasyProsValue?: number | null;
+  fantasyProsDevyRank?: number | null;
+  fantasyProsDevyPositionRank?: string | null;
+  fantasyProsDevyAge?: number | null;
+  fantasyProsDevyBestRank?: number | null;
+  fantasyProsDevyWorstRank?: number | null;
+  fantasyProsDevyAverageRank?: number | null;
+  fantasyProsDevyStdDev?: number | null;
+  projectedRookiePick?: string | null;
   seasonValue?: number | null;
   tier?: string | number | null;
   movement?: number | null;
@@ -124,6 +135,8 @@ export interface ProspectProfile {
   position: string;
   role?: string | null;
   college?: string | null;
+  playerImageUrl?: string | null;
+  collegeLogoUrl?: string | null;
   overallRank?: number | null;
   positionRank?: number | null;
   rating?: number | null;
@@ -133,6 +146,14 @@ export interface ProspectProfile {
   weight?: string | null;
   fortyYardDash?: number | null;
   summary?: string | null;
+  fantasyProsDevyRank?: number | null;
+  fantasyProsDevyPositionRank?: string | null;
+  fantasyProsDevyAge?: number | null;
+  fantasyProsDevyBestRank?: number | null;
+  fantasyProsDevyWorstRank?: number | null;
+  fantasyProsDevyAverageRank?: number | null;
+  fantasyProsDevyStdDev?: number | null;
+  projectedRookiePick?: string | null;
 }
 
 export interface ProspectSourceDiagnostics {

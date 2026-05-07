@@ -14496,6 +14496,9 @@ button.trade-manager-trade {
 }
 
 .ranking-college-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
   max-width: min(10rem, 45vw);
   border-color: color-mix(in srgb, var(--team-accent, #f59e0b) 34%, rgba(251, 146, 60, 0.22)) !important;
   background:
@@ -14504,6 +14507,13 @@ button.trade-manager-trade {
   overflow: hidden;
   padding-inline: 0.55rem !important;
   text-overflow: ellipsis;
+}
+
+.ranking-college-pill img {
+  height: 1rem;
+  width: 1rem;
+  flex: 0 0 auto;
+  object-fit: contain;
 }
 
 .ranking-owner-pill {

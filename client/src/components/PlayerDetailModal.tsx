@@ -146,6 +146,11 @@ export function PlayerDetailModal({
     ['Birthday', formatBirthday(details?.birthDate)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const prospectRows = details?.prospectProfile ? [
+    ['Projected Rookie Pick', details.prospectProfile.projectedRookiePick],
+    ['FantasyPros ECR', details.prospectProfile.fantasyProsDevyRank ? `#${details.prospectProfile.fantasyProsDevyRank}` : null],
+    ['FantasyPros Pos', details.prospectProfile.fantasyProsDevyPositionRank],
+    ['FP Best/Worst', details.prospectProfile.fantasyProsDevyBestRank && details.prospectProfile.fantasyProsDevyWorstRank ? `${details.prospectProfile.fantasyProsDevyBestRank} / ${details.prospectProfile.fantasyProsDevyWorstRank}` : null],
+    ['FP Avg/Std Dev', details.prospectProfile.fantasyProsDevyAverageRank && details.prospectProfile.fantasyProsDevyStdDev !== null && details.prospectProfile.fantasyProsDevyStdDev !== undefined ? `${details.prospectProfile.fantasyProsDevyAverageRank} / ${details.prospectProfile.fantasyProsDevyStdDev}` : null],
     ['Role', details.prospectProfile.role],
     ['Draft Class', details.prospectProfile.draftYear],
     ['College', details.prospectProfile.college],

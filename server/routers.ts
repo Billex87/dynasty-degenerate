@@ -2035,6 +2035,7 @@ export const appRouter = router({
             selectedProfileKey: leagueValueProfileKey,
             selectedProfileLabel: leagueValueProfileLabel,
             prospectLookup,
+            leagueTeamCount: Number(leagueInfo?.total_rosters || leagueInfo?.settings?.num_teams || rosters.length || 12),
           });
           const managerChampionships = await buildManagerChampionships(leagueInfo, users, rosters);
 

@@ -11,6 +11,8 @@ const SAMPLE_MARKDOWN = `
 
 ![Image 1: Ohio State Mascot](https://example.com/osu.png)
 
+[![Image 2: Julian Sayin Profile Picture](https://example.com/julian.png)](https://example.com/julian)
+
 QB
 
 Julian Sayin
@@ -64,6 +66,62 @@ describe('NFL Draft Buzz prospect source', () => {
       weight: '203lbs',
       fortyYardDash: 4.62,
       rating: 91.4,
+      playerImageUrl: 'https://example.com/julian.png',
+      collegeLogoUrl: 'https://example.com/osu.png',
+    });
+  });
+
+  it('parses current scouting-report cards from position pages', () => {
+    const markdown = `
+### #1 RANKED - SCOUTING REPORT
+
+![Image 43: Ohio State Mascot](https://www.nfldraftbuzz.com/Content/collmascots/ohio-state-buckeyes.png)
+
+[![Image 44: Jeremiah Smith Profile Picture](https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Jeremiah-Smith-WR-OhioState.png)](https://www.nfldraftbuzz.com/Player/Jeremiah-Smith-WR-OhioState)
+
+#### Jeremiah Smith from Ohio State WR 2027 Scouting Report
+
+###### POSITION
+
+RANK
+
+#1
+
+###### OUR
+
+RATING
+
+94.0
+
+ WR
+
+All Scouts Average Overall Rank 2
+
+All Scouts Average Position Rank 1
+
+Height Feet 6-3
+
+Weight Lbs 223lbs
+
+College Junior Ohio State
+
+Forty Time Secs 4.32
+
+Player Summary Put the tape on and you'll see why every scout who walks through Columbus comes away shaking their head.
+`;
+    const prospects = parseNflDraftBuzzMarkdown(markdown, 2027, 'https://www.nfldraftbuzz.com/positions/WR/1/2027');
+
+    expect(prospects[0]).toMatchObject({
+      name: 'Jeremiah Smith',
+      position: 'WR',
+      college: 'Ohio State',
+      draftYear: 2027,
+      overallRank: 1,
+      positionRank: 1,
+      rating: 94,
+      height: '6-3',
+      weight: '223lbs',
+      fortyYardDash: 4.32,
     });
   });
 

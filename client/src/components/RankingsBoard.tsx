@@ -126,10 +126,11 @@ function RankingOwnerAvatar({
   return <span className="ranking-owner-avatar-fallback" aria-hidden="true">{owner.slice(0, 2).toUpperCase()}</span>;
 }
 
-function CollegeTeamPill({ college }: { college?: string | null }) {
+function CollegeTeamPill({ college, logoUrl }: { college?: string | null; logoUrl?: string | null }) {
   if (!college) return null;
   return (
     <span className="ranking-college-pill" title={college}>
+      {logoUrl ? <img src={logoUrl} alt="" loading="lazy" aria-hidden="true" /> : null}
       {college}
     </span>
   );
@@ -149,7 +150,7 @@ function RankingCard({
   onSelect: (player: RankingPlayer) => void;
 }) {
   const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
-  const sourceInputs: Array<[string, number | null | undefined]> = [
+  const sourceInputs: Array<[string, number | null | undefined]> = player.isDevy ? [] : [
     ['KTC', player.ktcValue],
     ['Flock', player.flockValue],
     ['Nerds', player.dynastyNerdsValue],
@@ -157,12 +158,18 @@ function RankingCard({
     ['DP', player.dynastyProcessValue],
     ['Dealer', player.dynastyDealerBenchmark],
   ].filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0);
+  const devyBoardInputs = player.isDevy ? [
+    player.fantasyProsDevyRank ? `FP ECR #${player.fantasyProsDevyRank}` : null,
+    player.ktcRank ? `KTC #${player.ktcRank}` : null,
+    player.flockRank ? `Flock #${player.flockRank}` : null,
+    player.prospectProfile?.overallRank ? `Buzz #${player.prospectProfile.overallRank}` : null,
+  ].filter(Boolean) as string[] : [];
   const marketPulse = formatMarketPulse(player.dynastyDealerVoteRating);
   const prospectPills = player.isDevy && player.prospectProfile ? [
     player.prospectProfile.fortyYardDash ? `40 ${player.prospectProfile.fortyYardDash}s` : null,
     player.prospectProfile.height ? `Ht ${player.prospectProfile.height}` : null,
     player.prospectProfile.weight ? `Wt ${player.prospectProfile.weight}` : null,
-    player.prospectProfile.averageOverallRank ? `Buzz #${Math.round(player.prospectProfile.averageOverallRank)}` : null,
+    player.prospectProfile.rating ? `Buzz ${player.prospectProfile.rating}` : null,
   ].filter(Boolean) as string[] : [];
   const movementClass = player.movementDirection === 'up'
     ? 'ranking-move-up'
@@ -192,11 +199,11 @@ function RankingCard({
             <span className={getRankClass('PICK')}>PICK</span>
           ) : (
             <>
-              {player.isDevy && player.college ? <CollegeTeamPill college={player.college} /> : <TeamLogoPill team={displayTeam} />}
-              <span className={getRankClass(player.positionRank || player.pos)}>{player.positionRank || player.pos}</span>
+              {player.isDevy && player.college ? <CollegeTeamPill college={player.college} logoUrl={player.collegeLogoUrl || player.prospectProfile?.collegeLogoUrl} /> : <TeamLogoPill team={displayTeam} />}
+              <span className={player.isDevy ? getRankClass(player.pos) : getRankClass(player.positionRank || player.pos)}>{player.isDevy ? player.pos : player.positionRank || player.pos}</span>
             </>
           )}
-          <span>{getCompactValue(player.value)}</span>
+          {!player.isDevy ? <span>{getCompactValue(player.value)}</span> : null}
           {player.age ? <span>{player.age} yrs</span> : null}
         </div>
       </div>
@@ -208,6 +215,7 @@ function RankingCard({
 
       {player.isDevy && (prospectPills.length || player.prospectProfile?.role || player.college || player.draftYear) ? (
         <div className="ranking-devy-line">
+          {player.tier ? <span>{player.tier}</span> : null}
           <span>{player.prospectProfile?.role || player.college || 'College prospect'}</span>
           {prospectPills.map((pill) => <span key={pill}>{pill}</span>)}
           {player.draftYear ? <span>{player.draftYear} class</span> : null}
@@ -220,6 +228,11 @@ function RankingCard({
             <span key={label}>{label} {formatValue(value)}</span>
           ))}
           {marketPulse !== null ? <span>Market pulse {marketPulse}</span> : null}
+        </div>
+      ) : null}
+      {devyBoardInputs.length ? (
+        <div className="ranking-source-row" aria-label={`${player.name} prospect board inputs`}>
+          {devyBoardInputs.map((label) => <span key={label}>{label}</span>)}
         </div>
       ) : null}
     </button>
@@ -459,8 +472,8 @@ export function RankingsBoard({
       player_id: player.player_id,
       playerName: player.name,
       playerPos: player.pos,
-      currentPositionRank: player.positionRank || player.pos,
-      currentKtcValue: player.value,
+      currentPositionRank: player.isDevy ? player.pos : player.positionRank || player.pos,
+      currentKtcValue: player.isDevy ? undefined : player.value,
       valueGain: player.movement || undefined,
       valueChangeNote: player.movementLabel ? 'Blended value change over the last 7 days.' : undefined,
       manager: player.owner || undefined,

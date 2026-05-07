@@ -2,6 +2,7 @@ import { canonicalPlayerNameKey, cleanName, playerNameKeyVariants } from './leag
 import { loadFlockFantasyValueProfiles, type FlockFantasyValue } from './flockFantasy';
 import { getDynastyNerdsFormat, loadDynastyNerdsValueProfiles, type DynastyNerdsValue } from './dynastyNerds';
 import { formatDynastySourceWeights, getDynastySourceWeightEntries, getDynastySourceWeights } from './dynastySourceWeights';
+import { loadFantasyProsDevyRankings, type FantasyProsDevyRanking } from './fantasyProsDevy';
 import { findProspectProfile } from './prospectSource';
 import {
   getCurrentKTCDevyRankingProfiles,
@@ -48,6 +49,7 @@ type PlayerCandidate = {
 
 type PlayerIdentityLookup = {
   candidatesByKey: Record<string, PlayerCandidate[]>;
+  candidates: PlayerCandidate[];
 };
 
 const RANKING_PROFILE_OPTIONS: RankingProfileOption[] = [
@@ -150,13 +152,32 @@ function buildPlayerIdentityLookup(players: PlayerMap): PlayerIdentityLookup {
     candidatesByKey[key].sort((a, b) => b.score - a.score);
   }
 
-  return { candidatesByKey };
+  const candidates = Object.values(candidatesByKey)
+    .flat()
+    .filter((candidate, index, list) => list.findIndex((item) => item.playerId === candidate.playerId) === index)
+    .sort((a, b) => b.score - a.score);
+
+  return { candidatesByKey, candidates };
+}
+
+function tokenSet(value: string): Set<string> {
+  return new Set(canonicalPlayerNameKey(value).split(/\s+/).filter((token) => token.length > 1));
+}
+
+function nameSimilarity(a: string, b: string): number {
+  const aTokens = tokenSet(a);
+  const bTokens = tokenSet(b);
+  if (!aTokens.size || !bTokens.size) return 0;
+  const overlap = Array.from(aTokens).filter((token) => bTokens.has(token)).length;
+  return overlap / Math.max(aTokens.size, bTokens.size);
 }
 
 function resolvePlayerIdentity({
   key,
   name,
   position,
+  team,
+  college,
   lookup,
   option,
   diagnostics,
@@ -164,6 +185,8 @@ function resolvePlayerIdentity({
   key: string;
   name: string;
   position: string;
+  team?: string | null;
+  college?: string | null;
   lookup: PlayerIdentityLookup;
   option: RankingProfileOption;
   diagnostics: Map<string, RankingIdentityDiagnostic>;
@@ -177,7 +200,25 @@ function resolvePlayerIdentity({
   const uniqueCandidates = Array.from(
     new Map(candidates.map((candidate) => [candidate.playerId, candidate])).values()
   );
-  if (!uniqueCandidates.length) {
+  const sourceTeam = team ? String(team).toUpperCase() : '';
+  const sourceCollege = college ? canonicalPlayerNameKey(String(college)) : '';
+  const contextMatchedNearMatches = !uniqueCandidates.length && ['QB', 'RB', 'WR', 'TE'].includes(position)
+    ? lookup.candidates
+      .filter((candidate) => getCandidatePosition(candidate.player) === position)
+      .filter((candidate) => {
+        if (option.board === 'devy') {
+          const candidateCollege = canonicalPlayerNameKey(candidate.player?.college || '');
+          return Boolean(sourceCollege && candidateCollege && candidateCollege === sourceCollege);
+        }
+        return Boolean(sourceTeam && candidate.player?.team && String(candidate.player.team).toUpperCase() === sourceTeam);
+      })
+      .filter((candidate) => nameSimilarity(name, getCandidateName(candidate.player)) >= 0.5)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+    : [];
+  const identityCandidates = uniqueCandidates.length ? uniqueCandidates : contextMatchedNearMatches;
+
+  if (!identityCandidates.length) {
     if (!/\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(name)) {
       const id = `${option.key}:${key}:unmatched`;
       diagnostics.set(id, {
@@ -194,13 +235,13 @@ function resolvePlayerIdentity({
   }
 
   const positionMatched = ['QB', 'RB', 'WR', 'TE'].includes(position)
-    ? uniqueCandidates.filter((candidate) => getCandidatePosition(candidate.player) === position)
+    ? identityCandidates.filter((candidate) => getCandidatePosition(candidate.player) === position)
     : [];
-  const orderedCandidates = (positionMatched.length ? positionMatched : uniqueCandidates)
+  const orderedCandidates = (positionMatched.length ? positionMatched : identityCandidates)
     .sort((a, b) => b.score - a.score);
   const selected = orderedCandidates[0];
 
-  if (uniqueCandidates.length > 1) {
+  if (identityCandidates.length > 1 || contextMatchedNearMatches.length) {
     const id = `${option.key}:${key}:resolved-collision`;
     diagnostics.set(id, {
       id,
@@ -211,7 +252,7 @@ function resolvePlayerIdentity({
       status: 'resolved-collision',
       selectedPlayerId: selected.playerId,
       selectedPlayerName: getCandidateName(selected.player),
-      candidates: uniqueCandidates.slice(0, 4).map((candidate) => ({
+      candidates: identityCandidates.slice(0, 4).map((candidate) => ({
         playerId: candidate.playerId,
         name: getCandidateName(candidate.player),
         position: getCandidatePosition(candidate.player),
@@ -305,11 +346,13 @@ function isCollegeEligibleRankingPlayer({
     draftYear,
   );
   const hasNflTeam = Boolean(sleeperPlayer?.team);
+  const prospectYear = getNumericMetadataValue(prospectProfile?.draftYear, draftYear, rookieYear);
   if (yearsExp > 0) return false;
-  if (hasNflTeam && rookieYear && rookieYear < currentYear) return false;
+  if (hasNflTeam) return false;
+  if (prospectYear && prospectYear <= currentYear) return false;
   if (prospectProfile) return true;
 
-  return Boolean(rookieYear && rookieYear >= currentYear && (!hasNflTeam || yearsExp === 0));
+  return Boolean(rookieYear && rookieYear > currentYear && !hasNflTeam && yearsExp === 0);
 }
 
 function applyFinalRanks(rows: RankingPlayer[], limit: number): RankingPlayer[] {
@@ -334,6 +377,66 @@ function applyFinalRanks(rows: RankingPlayer[], limit: number): RankingPlayer[] 
     .slice(0, limit);
 }
 
+function mergeRankingRows(rows: RankingPlayer[]): RankingPlayer[] {
+  const merged = new Map<string, RankingPlayer>();
+  for (const row of rows) {
+    const profileName = row.prospectProfile?.name || row.name;
+    const profileYear = row.prospectProfile?.draftYear || row.draftYear || '';
+    const key = `${profileYear}:${row.pos}:${canonicalPlayerNameKey(profileName)}`;
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, row);
+      continue;
+    }
+    merged.set(key, {
+      ...existing,
+      name: existing.prospectProfile?.name || row.prospectProfile?.name || existing.name,
+      college: existing.college || row.college,
+      collegeLogoUrl: existing.collegeLogoUrl || row.collegeLogoUrl,
+      age: existing.age || row.age,
+      draftYear: existing.draftYear || row.draftYear,
+      overallRank: Math.min(existing.overallRank || 9999, row.overallRank || 9999),
+      positionRank: existing.positionRank || row.positionRank,
+      value: Math.max(existing.value, row.value),
+      ktcValue: existing.ktcValue || row.ktcValue,
+      ktcRank: existing.ktcRank || row.ktcRank,
+      flockValue: existing.flockValue || row.flockValue,
+      flockRank: existing.flockRank || row.flockRank,
+      dynastyNerdsValue: existing.dynastyNerdsValue || row.dynastyNerdsValue,
+      fantasyProsDevyRank: existing.fantasyProsDevyRank || row.fantasyProsDevyRank,
+      fantasyProsDevyPositionRank: existing.fantasyProsDevyPositionRank || row.fantasyProsDevyPositionRank,
+      fantasyProsDevyAge: existing.fantasyProsDevyAge || row.fantasyProsDevyAge,
+      fantasyProsDevyBestRank: existing.fantasyProsDevyBestRank || row.fantasyProsDevyBestRank,
+      fantasyProsDevyWorstRank: existing.fantasyProsDevyWorstRank || row.fantasyProsDevyWorstRank,
+      fantasyProsDevyAverageRank: existing.fantasyProsDevyAverageRank || row.fantasyProsDevyAverageRank,
+      fantasyProsDevyStdDev: existing.fantasyProsDevyStdDev || row.fantasyProsDevyStdDev,
+      projectedRookiePick: existing.projectedRookiePick || row.projectedRookiePick,
+      sources: Array.from(new Set([...existing.sources, ...row.sources])),
+      sourceCount: Array.from(new Set([...existing.sources, ...row.sources])).length,
+      imageUrl: existing.imageUrl || row.imageUrl,
+      prospectProfile: (existing.prospectProfile || row.prospectProfile)
+        ? {
+          ...(row.prospectProfile || {}),
+          ...(existing.prospectProfile || {}),
+          fantasyProsDevyRank: existing.fantasyProsDevyRank || row.fantasyProsDevyRank || existing.prospectProfile?.fantasyProsDevyRank || row.prospectProfile?.fantasyProsDevyRank || null,
+          fantasyProsDevyPositionRank: existing.fantasyProsDevyPositionRank || row.fantasyProsDevyPositionRank || existing.prospectProfile?.fantasyProsDevyPositionRank || row.prospectProfile?.fantasyProsDevyPositionRank || null,
+          fantasyProsDevyAge: existing.fantasyProsDevyAge || row.fantasyProsDevyAge || existing.prospectProfile?.fantasyProsDevyAge || row.prospectProfile?.fantasyProsDevyAge || null,
+          fantasyProsDevyBestRank: existing.fantasyProsDevyBestRank || row.fantasyProsDevyBestRank || existing.prospectProfile?.fantasyProsDevyBestRank || row.prospectProfile?.fantasyProsDevyBestRank || null,
+          fantasyProsDevyWorstRank: existing.fantasyProsDevyWorstRank || row.fantasyProsDevyWorstRank || existing.prospectProfile?.fantasyProsDevyWorstRank || row.prospectProfile?.fantasyProsDevyWorstRank || null,
+          fantasyProsDevyAverageRank: existing.fantasyProsDevyAverageRank || row.fantasyProsDevyAverageRank || existing.prospectProfile?.fantasyProsDevyAverageRank || row.prospectProfile?.fantasyProsDevyAverageRank || null,
+          fantasyProsDevyStdDev: existing.fantasyProsDevyStdDev || row.fantasyProsDevyStdDev || existing.prospectProfile?.fantasyProsDevyStdDev || row.prospectProfile?.fantasyProsDevyStdDev || null,
+          projectedRookiePick: existing.projectedRookiePick || row.projectedRookiePick || existing.prospectProfile?.projectedRookiePick || row.prospectProfile?.projectedRookiePick || null,
+        } as ProspectProfile
+        : null,
+    });
+  }
+  return Array.from(merged.values());
+}
+
+function prepareRankingRows(rows: RankingPlayer[], option: RankingProfileOption, limit: number): RankingPlayer[] {
+  return applyFinalRanks(option.board === 'devy' ? mergeRankingRows(rows) : rows, limit);
+}
+
 function buildRowsForProfile({
   option,
   ktcRows,
@@ -347,6 +450,8 @@ function buildRowsForProfile({
   rosterStatusByPlayerId,
   diagnostics,
   prospectLookup,
+  fantasyProsDevyRows,
+  leagueTeamCount,
 }: {
   option: RankingProfileOption;
   ktcRows: KtcRankingMap;
@@ -360,16 +465,20 @@ function buildRowsForProfile({
   rosterStatusByPlayerId: Record<string, string>;
   diagnostics: Map<string, RankingIdentityDiagnostic>;
   prospectLookup?: Map<string, ProspectProfile>;
+  fantasyProsDevyRows?: Record<string, FantasyProsDevyRanking>;
+  leagueTeamCount?: number;
 }): RankingPlayer[] {
   const canonicalKtcRows = canonicalizeRankingMap(ktcRows || {});
   const canonicalFlockRows = canonicalizeRankingMap(flockRows || {});
   const canonicalDynastyNerdsRows = option.board === 'devy' ? {} : canonicalizeRankingMap(dynastyNerdsRows || {});
   const canonicalKtcValues = canonicalizeRankingMap(ktcValues || {});
   const canonicalBaselineValues = canonicalizeRankingMap(baselineKtcValues || {});
+  const canonicalFantasyProsDevyRows = option.board === 'devy' ? canonicalizeRankingMap(fantasyProsDevyRows || {}) : {};
   const keys = new Set([
     ...Object.keys(canonicalKtcRows),
     ...Object.keys(canonicalFlockRows),
     ...Object.keys(canonicalDynastyNerdsRows),
+    ...Object.keys(canonicalFantasyProsDevyRows),
     ...(option.board === 'dynasty' ? Object.keys(canonicalKtcValues) : []),
   ]);
   const rows: RankingPlayer[] = [];
@@ -378,21 +487,26 @@ function buildRowsForProfile({
     const ktc = canonicalKtcRows?.[key];
     const flock = canonicalFlockRows?.[key];
     const dynastyNerds = canonicalDynastyNerdsRows?.[key];
+    const fantasyProsDevy = canonicalFantasyProsDevyRows?.[key];
     const blended = canonicalKtcValues[key];
-    const name = ktc?.name || dynastyNerds?.name || flock?.name || blended?.name || key;
-    const rawPos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank);
+    const name = ktc?.name || fantasyProsDevy?.name || dynastyNerds?.name || flock?.name || blended?.name || key;
+    const rawPos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
+    const sourceCollege = flock?.college || ktc?.college || null;
+    const sourceTeam = dynastyNerds?.team || flock?.team || ktc?.team || null;
     const playerId = resolvePlayerIdentity({
       key,
       name,
       position: rawPos,
+      team: sourceTeam,
+      college: sourceCollege,
       lookup: playerLookup,
       option,
       diagnostics,
     });
     const sleeperPlayer = playerId ? players[playerId] : null;
-    const pos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position || sleeperPlayer?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank);
+    const pos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || sleeperPlayer?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
     const isPick = pos === 'PICK' || /\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(name);
-    const college = flock?.college || ktc?.college || sleeperPlayer?.college || null;
+    const college = sourceCollege || sleeperPlayer?.college || null;
     const draftYear = Number(flock?.draftYear || ktc?.draftYear || sleeperPlayer?.metadata?.rookie_year || 0) || null;
     const prospectProfile = prospectLookup
       ? findProspectProfile(prospectLookup, name, pos, college, draftYear)
@@ -413,7 +527,15 @@ function buildRowsForProfile({
       ppr: 1,
       tep: option.tep,
     });
-    const value = weightedAverage([
+    const value = option.board === 'devy'
+      ? Math.max(
+        1,
+        Math.round(
+          10000
+          - ((fantasyProsDevy?.rank || ktc?.rank || flock?.overallRank || prospectProfile?.overallRank || 9999) - 1) * 30
+        )
+      )
+      : weightedAverage([
       { value: flockValue, weight: sourceWeights.flock },
       { value: dynastyNerdsValue, weight: sourceWeights.dynastyNerds },
       { value: ktcValue, weight: sourceWeights.ktc },
@@ -426,6 +548,7 @@ function buildRowsForProfile({
     const sources = [
       ktcValue ? 'KTC' : null,
       flockValue ? 'Flock' : null,
+      fantasyProsDevy && option.board === 'devy' ? 'FantasyPros' : null,
       dynastyNerdsValue ? 'DynastyNerds' : null,
       fantasyCalcValue && option.board === 'dynasty' ? 'FantasyCalc' : null,
       dynastyProcessValue && option.board === 'dynasty' ? 'DynastyProcess' : null,
@@ -439,19 +562,29 @@ function buildRowsForProfile({
       name,
       pos,
       team: sleeperPlayer?.team || dynastyNerds?.team || flock?.team || ktc?.team || null,
-      college,
-      age: Number(sleeperPlayer?.age || dynastyNerds?.age || flock?.age || ktc?.age || 0) || null,
-      draftYear,
-      overallRank: Number(ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || 9999),
-      positionRank: normalizeRankPosition(ktc?.position_rank || dynastyNerds?.positionRank, pos) || flock?.positionRank || null,
+      college: college || prospectProfile?.college || null,
+      collegeLogoUrl: prospectProfile?.collegeLogoUrl || null,
+      age: Number(sleeperPlayer?.age || dynastyNerds?.age || flock?.age || ktc?.age || fantasyProsDevy?.age || 0) || null,
+      draftYear: draftYear || prospectProfile?.draftYear || null,
+      overallRank: Number(fantasyProsDevy?.rank || ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || prospectProfile?.overallRank || 9999),
+      positionRank: normalizeRankPosition(fantasyProsDevy?.positionRank || ktc?.position_rank || dynastyNerds?.positionRank, pos) || flock?.positionRank || null,
       value,
       ktcValue,
+      ktcRank: ktc?.rank || null,
       flockValue,
+      flockRank: flock?.overallRank || null,
       dynastyNerdsValue,
       fantasyCalcValue,
       dynastyProcessValue,
       dynastyDealerBenchmark,
       dynastyDealerVoteRating,
+      fantasyProsDevyRank: fantasyProsDevy?.rank || prospectProfile?.fantasyProsDevyRank || null,
+      fantasyProsDevyPositionRank: fantasyProsDevy?.positionRank || prospectProfile?.fantasyProsDevyPositionRank || null,
+      fantasyProsDevyAge: fantasyProsDevy?.age || prospectProfile?.fantasyProsDevyAge || null,
+      fantasyProsDevyBestRank: fantasyProsDevy?.bestRank || prospectProfile?.fantasyProsDevyBestRank || null,
+      fantasyProsDevyWorstRank: fantasyProsDevy?.worstRank || prospectProfile?.fantasyProsDevyWorstRank || null,
+      fantasyProsDevyAverageRank: fantasyProsDevy?.averageRank || prospectProfile?.fantasyProsDevyAverageRank || null,
+      fantasyProsDevyStdDev: fantasyProsDevy?.stdDev || prospectProfile?.fantasyProsDevyStdDev || null,
       tier: ktc?.tier || flock?.tier || null,
       movement,
       movementLabel: getMovementLabel(movement),
@@ -462,12 +595,54 @@ function buildRowsForProfile({
       sourceCount: sources.length,
       isDevy: option.board === 'devy',
       isPick,
-      imageUrl: getFlockImageUrl(flock) || dynastyNerds?.imageUrl || null,
-      prospectProfile,
+      imageUrl: getFlockImageUrl(flock) || dynastyNerds?.imageUrl || prospectProfile?.playerImageUrl || prospectProfile?.collegeLogoUrl || null,
+      prospectProfile: prospectProfile
+        ? {
+          ...prospectProfile,
+          fantasyProsDevyRank: fantasyProsDevy?.rank || prospectProfile.fantasyProsDevyRank || null,
+          fantasyProsDevyPositionRank: fantasyProsDevy?.positionRank || prospectProfile.fantasyProsDevyPositionRank || null,
+          fantasyProsDevyAge: fantasyProsDevy?.age || prospectProfile.fantasyProsDevyAge || null,
+          fantasyProsDevyBestRank: fantasyProsDevy?.bestRank || prospectProfile.fantasyProsDevyBestRank || null,
+          fantasyProsDevyWorstRank: fantasyProsDevy?.worstRank || prospectProfile.fantasyProsDevyWorstRank || null,
+          fantasyProsDevyAverageRank: fantasyProsDevy?.averageRank || prospectProfile.fantasyProsDevyAverageRank || null,
+          fantasyProsDevyStdDev: fantasyProsDevy?.stdDev || prospectProfile.fantasyProsDevyStdDev || null,
+        }
+        : fantasyProsDevy
+          ? {
+            source: 'NFL Draft Buzz',
+            draftYear: draftYear || new Date().getFullYear() + 1,
+            name,
+            position: pos,
+            college,
+            fantasyProsDevyRank: fantasyProsDevy.rank,
+            fantasyProsDevyPositionRank: fantasyProsDevy.positionRank,
+            fantasyProsDevyAge: fantasyProsDevy.age,
+            fantasyProsDevyBestRank: fantasyProsDevy.bestRank,
+            fantasyProsDevyWorstRank: fantasyProsDevy.worstRank,
+            fantasyProsDevyAverageRank: fantasyProsDevy.averageRank,
+            fantasyProsDevyStdDev: fantasyProsDevy.stdDev,
+          }
+          : null,
     });
   }
 
-  return applyFinalRanks(rows, option.board === 'devy' ? 140 : 520);
+  const rankedRows = prepareRankingRows(rows, option, option.board === 'devy' ? 140 : 520);
+  if (option.board !== 'devy') return rankedRows;
+  const teamCount = Math.max(1, Number(leagueTeamCount || 12));
+  const classCounts: Record<number, number> = {};
+  return rankedRows.map((row) => {
+    const year = Number(row.draftYear || row.prospectProfile?.draftYear || new Date().getFullYear() + 1);
+    const pickIndex = (classCounts[year] = (classCounts[year] || 0) + 1);
+    const round = Math.ceil(pickIndex / teamCount);
+    const pick = ((pickIndex - 1) % teamCount) + 1;
+    const projectedRookiePick = `Projected ${year} ${round}.${String(pick).padStart(2, '0')}`;
+    return {
+      ...row,
+      tier: projectedRookiePick,
+      projectedRookiePick,
+      prospectProfile: row.prospectProfile ? { ...row.prospectProfile, projectedRookiePick } : row.prospectProfile,
+    };
+  });
 }
 
 function getDefaultProfileKey(profileKey: string | null | undefined, board: 'dynasty' | 'devy'): string {
@@ -490,6 +665,7 @@ export async function buildRankingsBoard({
   selectedProfileKey,
   selectedProfileLabel,
   prospectLookup,
+  leagueTeamCount,
 }: {
   players: PlayerMap;
   ktcValues: KtcValues;
@@ -499,12 +675,14 @@ export async function buildRankingsBoard({
   selectedProfileKey?: string | null;
   selectedProfileLabel?: string | null;
   prospectLookup?: Map<string, ProspectProfile>;
+  leagueTeamCount?: number;
 }): Promise<RankingsBoard> {
-  const [ktcProfiles, ktcDevyProfiles, flockProfiles, dynastyNerdsProfiles] = await Promise.all([
+  const [ktcProfiles, ktcDevyProfiles, flockProfiles, dynastyNerdsProfiles, fantasyProsDevyRows] = await Promise.all([
     getCurrentKTCRankingProfiles(false),
     getCurrentKTCDevyRankingProfiles(false),
     loadFlockFantasyValueProfiles(),
     loadDynastyNerdsValueProfiles(),
+    loadFantasyProsDevyRankings(),
   ]);
   const playerLookup = buildPlayerIdentityLookup(players);
   const profiles: Record<string, RankingPlayer[]> = {};
@@ -536,6 +714,8 @@ export async function buildRankingsBoard({
       rosterStatusByPlayerId,
       diagnostics: identityDiagnostics,
       prospectLookup,
+      fantasyProsDevyRows,
+      leagueTeamCount,
     });
   }
 
