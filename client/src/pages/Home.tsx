@@ -1605,6 +1605,7 @@ export default function Home() {
   );
 
   if (reportData) {
+    const isRedraftReport = (reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode) === 'redraft';
     return (
       <ManagerChampionshipProvider championships={reportData.managerChampionships}>
       <div className="report-shell min-h-screen flex flex-col">
@@ -1720,7 +1721,7 @@ export default function Home() {
             <TabsContent value="overview" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
                 {(() => {
-                  const hasTaxiTriage = reportData.managerRosterIntelligence?.some((row) => (row.taxiTriage?.items.length || 0) > 0);
+                  const hasTaxiTriage = !isRedraftReport && reportData.managerRosterIntelligence?.some((row) => (row.taxiTriage?.items.length || 0) > 0);
                   return (
                     <>
                 <CollapsibleReportSection title="Owner Intel Lab" kicker="Actionable owner reads">
@@ -1852,7 +1853,7 @@ export default function Home() {
 
             <TabsContent value="rankings" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <CollapsibleReportSection title="Market Boards" kicker="Format-aware player values">
+                <CollapsibleReportSection title="Player Value Board" kicker="League-matched rankings">
                   <RankingsBoard
                     rankings={reportData.rankings}
                     playerDetailsById={reportData.playerDetailsById}
@@ -1860,8 +1861,24 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                     viewerManager={reportData.viewerManager}
+                    board="dynasty"
+                    hidePicks={isRedraftReport}
                   />
                 </CollapsibleReportSection>
+                {!isRedraftReport && (
+                  <CollapsibleReportSection title="College Prospect Board" kicker="Future rookie pipeline">
+                    <RankingsBoard
+                      rankings={reportData.rankings}
+                      playerDetailsById={reportData.playerDetailsById}
+                      managerAvatars={reportData.managerAvatars}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                      viewerManager={reportData.viewerManager}
+                      board="devy"
+                      hidePicks
+                    />
+                  </CollapsibleReportSection>
+                )}
                 {canViewMomentumTab && (
                   <CollapsibleReportSection title="Admin Eyes Only: Value Assumptions" kicker="Hidden diagnostics">
                     <AdminValueDiagnosticsTable reportData={reportData} />

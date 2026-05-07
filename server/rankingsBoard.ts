@@ -276,6 +276,42 @@ function getMovementLabel(movement?: number | null): string | null {
   return `${movement > 0 ? '+' : ''}${Math.round(movement).toLocaleString('en-US')}`;
 }
 
+function getNumericMetadataValue(...values: unknown[]): number | null {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  }
+  return null;
+}
+
+function isCollegeEligibleRankingPlayer({
+  isPick,
+  prospectProfile,
+  sleeperPlayer,
+  draftYear,
+}: {
+  isPick: boolean;
+  prospectProfile?: ProspectProfile | null;
+  sleeperPlayer?: any;
+  draftYear?: number | null;
+}): boolean {
+  if (isPick) return false;
+
+  const currentYear = new Date().getFullYear();
+  const yearsExp = getNumericMetadataValue(sleeperPlayer?.years_exp, sleeperPlayer?.metadata?.years_exp) || 0;
+  const rookieYear = getNumericMetadataValue(
+    sleeperPlayer?.metadata?.rookie_year,
+    sleeperPlayer?.rookie_year,
+    draftYear,
+  );
+  const hasNflTeam = Boolean(sleeperPlayer?.team);
+  if (yearsExp > 0) return false;
+  if (hasNflTeam && rookieYear && rookieYear < currentYear) return false;
+  if (prospectProfile) return true;
+
+  return Boolean(rookieYear && rookieYear >= currentYear && (!hasNflTeam || yearsExp === 0));
+}
+
 function applyFinalRanks(rows: RankingPlayer[], limit: number): RankingPlayer[] {
   const sortedRows = rows.sort((a, b) => b.value - a.value || a.overallRank - b.overallRank || a.name.localeCompare(b.name));
   const positionCounts: Record<string, number> = {};
@@ -327,7 +363,7 @@ function buildRowsForProfile({
 }): RankingPlayer[] {
   const canonicalKtcRows = canonicalizeRankingMap(ktcRows || {});
   const canonicalFlockRows = canonicalizeRankingMap(flockRows || {});
-  const canonicalDynastyNerdsRows = canonicalizeRankingMap(dynastyNerdsRows || {});
+  const canonicalDynastyNerdsRows = option.board === 'devy' ? {} : canonicalizeRankingMap(dynastyNerdsRows || {});
   const canonicalKtcValues = canonicalizeRankingMap(ktcValues || {});
   const canonicalBaselineValues = canonicalizeRankingMap(baselineKtcValues || {});
   const keys = new Set([
@@ -361,6 +397,9 @@ function buildRowsForProfile({
     const prospectProfile = prospectLookup
       ? findProspectProfile(prospectLookup, name, pos, college, draftYear)
       : null;
+    if (option.board === 'devy' && !isCollegeEligibleRankingPlayer({ isPick, prospectProfile, sleeperPlayer, draftYear })) {
+      continue;
+    }
     const ktcValue = ktc?.ktc_value || blended?.market_value_ktc || blended?.ktc_value || null;
     const flockValue = flock?.dynastyValue || null;
     const dynastyNerdsValue = dynastyNerds?.dynastyValue || blended?.expert_value_dynastynerds || null;

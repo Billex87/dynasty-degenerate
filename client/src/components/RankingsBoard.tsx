@@ -20,6 +20,7 @@ type RankingsTableConfig = {
   kicker: string;
   description: string;
   defaultProfileKey?: string | null;
+  hidePicks?: boolean;
 };
 
 const PAGE_SIZE = 25;
@@ -59,7 +60,12 @@ function getRankClass(rank?: string | null): string {
 }
 
 function getPositionButtonClass(position: PositionFilter | 'OVERALL', active: boolean): string {
-  return ['ranking-position-button', `ranking-position-button-${position.toLowerCase()}`, active ? 'active' : ''].filter(Boolean).join(' ');
+  return [
+    'ranking-position-button',
+    `ranking-position-button-${position.toLowerCase()}`,
+    position === 'PICK' && !active ? 'ranking-position-button-optional' : '',
+    active ? 'active' : '',
+  ].filter(Boolean).join(' ');
 }
 
 function getProfileButtonLabel(option: RankingProfileOption): string {
@@ -105,6 +111,21 @@ function RankingOwnerChip({
   );
 }
 
+function RankingOwnerAvatar({
+  owner,
+  managerAvatars,
+}: {
+  owner?: string | null;
+  managerAvatars?: ReportData['managerAvatars'];
+}) {
+  if (!owner) return <span className="ranking-owner-avatar-fallback">FA</span>;
+  const avatarUrl = managerAvatars?.[owner];
+  if (avatarUrl) {
+    return <img src={avatarUrl} alt="" className="ranking-owner-avatar-only" loading="lazy" aria-hidden="true" />;
+  }
+  return <span className="ranking-owner-avatar-fallback" aria-hidden="true">{owner.slice(0, 2).toUpperCase()}</span>;
+}
+
 function CollegeTeamPill({ college }: { college?: string | null }) {
   if (!college) return null;
   return (
@@ -137,6 +158,12 @@ function RankingCard({
     ['Dealer', player.dynastyDealerBenchmark],
   ].filter((entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0);
   const marketPulse = formatMarketPulse(player.dynastyDealerVoteRating);
+  const prospectPills = player.isDevy && player.prospectProfile ? [
+    player.prospectProfile.fortyYardDash ? `40 ${player.prospectProfile.fortyYardDash}s` : null,
+    player.prospectProfile.height ? `Ht ${player.prospectProfile.height}` : null,
+    player.prospectProfile.weight ? `Wt ${player.prospectProfile.weight}` : null,
+    player.prospectProfile.averageOverallRank ? `Buzz #${Math.round(player.prospectProfile.averageOverallRank)}` : null,
+  ].filter(Boolean) as string[] : [];
   const movementClass = player.movementDirection === 'up'
     ? 'ranking-move-up'
     : player.movementDirection === 'down'
@@ -176,12 +203,13 @@ function RankingCard({
 
       <div className="ranking-card-meta-row">
         <RankingOwnerChip owner={player.owner} managerAvatars={managerAvatars} />
+        <RankingOwnerAvatar owner={player.owner} managerAvatars={managerAvatars} />
       </div>
 
-      {player.isDevy && (player.prospectProfile || player.college || player.draftYear) ? (
+      {player.isDevy && (prospectPills.length || player.prospectProfile?.role || player.college || player.draftYear) ? (
         <div className="ranking-devy-line">
           <span>{player.prospectProfile?.role || player.college || 'College prospect'}</span>
-          {player.prospectProfile?.fortyYardDash ? <span>40: {player.prospectProfile.fortyYardDash}s</span> : null}
+          {prospectPills.map((pill) => <span key={pill}>{pill}</span>)}
           {player.draftYear ? <span>{player.draftYear} class</span> : null}
         </div>
       ) : null}
@@ -243,7 +271,12 @@ function RankingsTable({
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return rows
-      .filter((player) => selectedPositions.length === 0 || selectedPositions.includes(player.pos as PositionFilter))
+      .filter((player) => {
+        if (config.hidePicks && player.isPick) return false;
+        if (config.board === 'devy' && (player.isPick || !player.isDevy)) return false;
+        if (selectedPositions.length === 0) return !player.isPick;
+        return selectedPositions.includes(player.pos as PositionFilter);
+      })
       .filter((player) => {
         if (!normalizedQuery) return true;
         return [
@@ -259,7 +292,7 @@ function RankingsTable({
         if (sortMode === 'movement') return Math.abs(b.movement || 0) - Math.abs(a.movement || 0) || a.overallRank - b.overallRank;
         return a.overallRank - b.overallRank;
       });
-  }, [query, rows, selectedPositions, sortMode]);
+  }, [config.board, config.hidePicks, query, rows, selectedPositions, sortMode]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -327,7 +360,7 @@ function RankingsTable({
           >
             Overall
           </button>
-          {POSITION_FILTERS.map((filter) => (
+          {POSITION_FILTERS.filter((filter) => !config.hidePicks || filter.key !== 'PICK').map((filter) => (
             <button
               key={filter.key}
               type="button"
@@ -399,6 +432,8 @@ export function RankingsBoard({
   leagueId,
   leagueLogo,
   viewerManager,
+  board = 'all',
+  hidePicks = false,
 }: {
   rankings?: ReportData['rankings'];
   playerDetailsById?: ReportData['playerDetailsById'];
@@ -406,6 +441,8 @@ export function RankingsBoard({
   leagueId?: string;
   leagueLogo?: string | null;
   viewerManager?: string | null;
+  board?: 'all' | 'dynasty' | 'devy';
+  hidePicks?: boolean;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
 
@@ -442,22 +479,24 @@ export function RankingsBoard({
     );
   }
 
-  const tableConfigs: RankingsTableConfig[] = [
+  const tableConfigs = ([
     {
       board: 'dynasty',
-      title: 'Dynasty Market Board',
+      title: 'Dynasty Value Board',
       kicker: 'League-matched values',
       description: 'Format-aware dynasty player and pick values matched to this league type. Use the selector to compare how the board shifts across SuperFlex, 1QB, and TE-premium rooms.',
       defaultProfileKey: rankings.defaultProfileKey,
+      hidePicks,
     },
     {
       board: 'devy',
       title: 'College Prospect Board',
       kicker: 'Future rookie pipeline',
-      description: 'College rankings use the same QB and TE-premium profile as this league so devy and future rookie values stay aligned with the room you are actually playing in.',
+      description: 'College-only prospect values use the same QB and TE-premium profile as this league, with verified prospect measurables layered in where available.',
       defaultProfileKey: rankings.defaultDevyProfileKey,
+      hidePicks: true,
     },
-  ];
+  ] satisfies RankingsTableConfig[]).filter((config) => board === 'all' || config.board === board);
 
   return (
     <div className="rankings-board">
