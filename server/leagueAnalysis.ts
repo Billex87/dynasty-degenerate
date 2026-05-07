@@ -28,9 +28,24 @@ interface Player {
 }
 
 const valueFieldLookupCache = new WeakMap<KTCValues, Partial<Record<ValueField, ValueFieldLookup>>>();
+const PLAYER_NAME_ALIAS_GROUPS = [
+  ['chigoziemokonkwo', 'chigokonkwo'],
+  ['zonovanknight', 'bamknight'],
+  ['gabrieldavis', 'gabedavis'],
+  ['marquisebrown', 'hollywoodbrown'],
+] as const;
+const PLAYER_NAME_CANONICAL_ALIAS_BY_KEY: Map<string, string> = new Map(
+  PLAYER_NAME_ALIAS_GROUPS.flatMap((group) => group.map((key) => [key, group[0]] as const))
+);
+const PLAYER_NAME_ALIASES_BY_KEY: Map<string, readonly string[]> = new Map(
+  PLAYER_NAME_ALIAS_GROUPS.flatMap((group) => group.map((key) => [key, group] as const))
+);
 
 export function cleanName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  return name
+    .replace(/\(\s*duplicate\s*\)/gi, '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase();
 }
 
 export function stripPlayerNameSuffixKey(key: string): string {
@@ -38,13 +53,15 @@ export function stripPlayerNameSuffixKey(key: string): string {
 }
 
 export function canonicalPlayerNameKey(name: string): string {
-  return stripPlayerNameSuffixKey(cleanName(name));
+  const suffixlessKey = stripPlayerNameSuffixKey(cleanName(name));
+  return PLAYER_NAME_CANONICAL_ALIAS_BY_KEY.get(suffixlessKey) || suffixlessKey;
 }
 
 export function playerNameKeyVariants(name: string): string[] {
   const key = cleanName(name);
   const canonicalKey = stripPlayerNameSuffixKey(key);
-  return Array.from(new Set([key, canonicalKey].filter(Boolean)));
+  const aliasKeys = PLAYER_NAME_ALIASES_BY_KEY.get(canonicalKey) || [];
+  return Array.from(new Set([key, canonicalKey, canonicalPlayerNameKey(name), ...aliasKeys].filter(Boolean)));
 }
 
 export function playerNameKeysMatch(left: string, right: string): boolean {

@@ -97,6 +97,7 @@ function buildPlayerModalData({
     valueGain: valueGain ?? undefined,
     playerDetails: details,
     valueChangeNote,
+    valueMode,
   };
 }
 
@@ -1070,6 +1071,16 @@ function formatCompactValue(value: number | null | undefined): string {
   if (!value) return '-';
   if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}K`;
   return value.toLocaleString();
+}
+
+function getCommandPlayerValueLens(player: Pick<ManagerIntelPlayer, 'seasonValue' | 'value'>) {
+  const hasSeasonValue = typeof player.seasonValue === 'number' && Number.isFinite(player.seasonValue) && player.seasonValue > 0;
+  return {
+    label: hasSeasonValue ? 'Season' : 'Dynasty',
+    value: hasSeasonValue ? Number(player.seasonValue) : player.value,
+    className: hasSeasonValue ? 'manager-command-season-value' : 'manager-command-season-value manager-command-dynasty-value',
+    kind: hasSeasonValue ? 'season' as const : 'dynasty' as const,
+  };
 }
 
 function splitTradeItems(items: string): string[] {
@@ -2600,7 +2611,7 @@ function CommandPlayerTile({
   variant?: 'default' | 'step';
   label?: string;
 }) {
-  const seasonValue = player.seasonValue || player.value;
+  const valueLens = getCommandPlayerValueLens(player);
   const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
 
   return (
@@ -2616,7 +2627,10 @@ function CommandPlayerTile({
       </div>
       <div className="manager-command-player-tile-pills">
         <TeamLogoPill team={player.playerDetails?.team} />
-        <span className="manager-command-season-value">{formatCompactValue(seasonValue)}</span>
+        <span className={valueLens.className}>
+          <em>{valueLens.label}</em>
+          {formatCompactValue(valueLens.value)}
+        </span>
         <PositionRankPill rank={seasonRank} />
         <span className={`manager-command-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
           {getPlayerStatusLabel(player.playerDetails)}
@@ -2930,19 +2944,21 @@ export function LeagueCommandCenter({
   const openManager = (manager: string) => setSelectedManager(manager);
   const openCommandPlayer = (player: CommandPlayer) => {
     if (!selectedManager) return;
-    const seasonValue = player.seasonValue || player.value;
-    const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
+    const valueLens = getCommandPlayerValueLens(player);
+    const rank = valueLens.kind === 'season'
+      ? player.seasonPositionRank || player.currentPositionRank || player.pos
+      : player.currentPositionRank || player.seasonPositionRank || player.pos;
     setSelectedPlayer(buildPlayerModalData({
       playerId: player.player_id,
       playerName: player.name,
       playerPos: player.pos,
-      value: seasonValue,
+      value: valueLens.value,
       playerDetails: player.playerDetails,
       playerDetailsById: data.playerDetailsById,
       manager: player.owner || selectedManager,
       managerAvatarUrl: managerAvatars?.[player.owner || selectedManager],
-      currentPositionRank: seasonRank,
-      valueMode: 'redraft',
+      currentPositionRank: rank,
+      valueMode: valueLens.kind === 'season' ? 'redraft' : 'dynasty',
     }));
   };
   const selectedStarters = selectedCounts?.starterPlayers || [];
@@ -3146,6 +3162,9 @@ export function LeagueCommandCenter({
                   <div className="manager-command-section manager-command-taxi">
                     <h4>Taxi Squad Triage</h4>
                     <p className="manager-command-taxi-summary">{selectedIntel.taxiTriage.summary}</p>
+                    <p className="manager-command-taxi-note">
+                      Activation calls use current-season values and ranks against active starters and injury fill-ins. Cards marked Dynasty are stash value only, not a season projection.
+                    </p>
                     <div className="manager-command-tile-grid">
                       {selectedIntel.taxiTriage.items.map((player) => (
                         <CommandPlayerTile

@@ -188,6 +188,15 @@ function nameSimilarity(a: string, b: string): number {
   return overlap / Math.max(aTokens.size, bTokens.size);
 }
 
+function isDraftPickName(name: string): boolean {
+  return /\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(name)
+    || /\d{4}\s*pick\s*\d+\.\d+/i.test(name);
+}
+
+function getRankingDisplayName(name: string): string {
+  return name.replace(/\s*\(\s*duplicate\s*\)\s*/gi, ' ').replace(/\s+/g, ' ').trim() || name;
+}
+
 function resolvePlayerIdentity({
   key,
   name,
@@ -235,7 +244,7 @@ function resolvePlayerIdentity({
   const identityCandidates = uniqueCandidates.length ? uniqueCandidates : contextMatchedNearMatches;
 
   if (!identityCandidates.length) {
-    if (!/\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(name)) {
+    if (position !== 'PICK' && !isDraftPickName(name)) {
       const id = `${option.key}:${key}:unmatched`;
       diagnostics.set(id, {
         id,
@@ -585,7 +594,11 @@ function buildRowsForProfile({
       });
     const sleeperPlayer = playerId ? players[playerId] : null;
     const pos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || prospectRow?.position || sleeperPlayer?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
-    const isPick = pos === 'PICK' || /\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(name);
+    const hasDraftPickName = isDraftPickName(name);
+    const isPick = pos === 'PICK' || hasDraftPickName;
+    if (option.board === 'dynasty' && pos === 'PICK' && !hasDraftPickName && !sleeperPlayer) {
+      continue;
+    }
     const college = sourceCollege || sanitizeCollegeName(sleeperPlayer?.college) || null;
     const draftYear = Number(flock?.draftYear || ktc?.draftYear || prospectRow?.draftYear || sleeperPlayer?.metadata?.rookie_year || 0) || null;
     const prospectProfile = prospectRow || (prospectLookup
@@ -650,7 +663,7 @@ function buildRowsForProfile({
     rows.push({
       id: `${option.key}:${key}`,
       player_id: playerId,
-      name,
+      name: getRankingDisplayName(name),
       pos,
       team: sleeperPlayer?.team || dynastyNerds?.team || flock?.team || ktc?.team || null,
       college: displayCollege || null,

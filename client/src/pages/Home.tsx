@@ -730,6 +730,10 @@ function getValueCoverageStatus(note: string): Pick<AdminValueDiagnosticRow, 'st
   return { status: 'Tracked', tone: 'good' };
 }
 
+function isActionableDiagnosticTone(tone?: AdminValueDiagnosticRow['tone']): boolean {
+  return tone === 'warn' || tone === 'danger';
+}
+
 function getValueCoverageItem(note: string, index: number): string {
   if (/Selected value profile/i.test(note)) return 'Selected profile';
   if (/Daily snapshots/i.test(note)) return 'Daily storage';
@@ -766,50 +770,9 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
   const leagueDiagnostics = reportData.leagueDiagnostics;
 
   if (leagueDiagnostics) {
-    addUniqueDiagnosticRow(rows, seen, {
-      id: 'league-lineup-shape',
-      area: 'League format',
-      item: `${leagueDiagnostics.teamCount}-team ${leagueDiagnostics.valueMode}`,
-      status: 'Dynamic input',
-      tone: 'info',
-      note: `${leagueDiagnostics.lineupSlotSummary}. Starter cutoffs for this league: ${leagueDiagnostics.starterCountSummary}.`,
-    });
-    addUniqueDiagnosticRow(rows, seen, {
-      id: 'starter-bench-calculation',
-      area: 'Starter math',
-      item: 'Starters and bench',
-      status: 'League-specific',
-      tone: 'good',
-      note: `${leagueDiagnostics.starterCalculation} ${leagueDiagnostics.benchCalculation}`,
-    });
-    addUniqueDiagnosticRow(rows, seen, {
-      id: 'tradeable-depth-calculation',
-      area: 'Depth math',
-      item: 'Tradeable depth',
-      status: 'Active bench only',
-      tone: 'good',
-      note: leagueDiagnostics.tradeableDepthCalculation,
-    });
-    addUniqueDiagnosticRow(rows, seen, {
-      id: 'league-scoring-context',
-      area: 'Scoring format',
-      item: leagueDiagnostics.scoringSummary,
-      status: 'League-matched',
-      tone: 'good',
-      note: leagueDiagnostics.tightEndPremium > 0
-        ? `Sleeper scoring gives tight ends +${leagueDiagnostics.tightEndPremium} per reception on top of base reception scoring. The report selects the closest stored TEP bucket for this league instead of falling back to a generic profile.`
-        : `Sleeper reception scoring is ${leagueDiagnostics.receptionScoring}; the report selects the matching Standard/Half/PPR value profile when that scoring bucket exists.`,
-    });
-    addUniqueDiagnosticRow(rows, seen, {
-      id: 'value-profile-storage',
-      area: 'Daily value logs',
-      item: `${leagueDiagnostics.valueSnapshotProfileCount} stored profile${leagueDiagnostics.valueSnapshotProfileCount === 1 ? '' : 's'}`,
-      status: 'Format-aware',
-      tone: 'good',
-      note: `${leagueDiagnostics.ktcProfileLabel} Tracked profiles: ${leagueDiagnostics.valueSnapshotProfiles.join(', ')}.`,
-    });
     leagueDiagnostics.valueLimitations.forEach((limitation, index) => {
       const coverageStatus = getValueCoverageStatus(limitation);
+      if (!isActionableDiagnosticTone(coverageStatus.tone)) return;
       addUniqueDiagnosticRow(rows, seen, {
         id: `value-limitation-${index}`,
         area: 'Value coverage',
@@ -823,14 +786,20 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
 
   if (reportData.prospectSourceDiagnostics) {
     const diagnostic = reportData.prospectSourceDiagnostics;
-    addUniqueDiagnosticRow(rows, seen, {
-      id: 'prospect-context-source',
-      area: 'Prospect context',
-      item: `${diagnostic.playerCount} profiles`,
-      status: diagnostic.status === 'stored' ? 'Monthly stored' : diagnostic.status === 'partial' ? 'Stored with gaps' : 'Snapshot pending',
-      tone: diagnostic.status === 'stored' ? 'good' : diagnostic.status === 'partial' ? 'warn' : 'info',
-      note: diagnostic.note,
-    });
+    const tone = diagnostic.status === 'stored' ? 'good' : diagnostic.status === 'partial' ? 'warn' : 'warn';
+    if (isActionableDiagnosticTone(tone)) {
+      const errorNote = diagnostic.status === 'partial' && diagnostic.errors?.length
+        ? ` ${diagnostic.errors.length} scrape gap${diagnostic.errors.length === 1 ? '' : 's'} remain. First: ${diagnostic.errors[0]}.`
+        : '';
+      addUniqueDiagnosticRow(rows, seen, {
+        id: 'prospect-context-source',
+        area: 'Prospect context',
+        item: `${diagnostic.playerCount} profiles`,
+        status: diagnostic.status === 'partial' ? 'Stored with gaps' : 'Snapshot pending',
+        tone,
+        note: `${diagnostic.note}${errorNote}`,
+      });
+    }
   }
 
   currentSnapshotGaps.forEach((dateKey) => {
@@ -859,7 +828,6 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
 
   const rankingIdentityDiagnostics = reportData.rankings?.identityDiagnostics || [];
   const unmatchedRankingRows = rankingIdentityDiagnostics.filter((row) => row.status === 'unmatched' && row.board !== 'devy');
-  const resolvedRankingRows = rankingIdentityDiagnostics.filter((row) => row.status === 'resolved-collision');
 
   if (unmatchedRankingRows.length) {
     addUniqueDiagnosticRow(rows, seen, {
@@ -869,17 +837,6 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       status: 'Needs mapping',
       tone: 'danger',
       note: `Ranking rows did not match a Sleeper player. First example: ${unmatchedRankingRows[0].playerName}. These rows may show the wrong owner/avatar until mapped.`,
-    });
-  }
-
-  if (resolvedRankingRows.length) {
-    addUniqueDiagnosticRow(rows, seen, {
-      id: 'ranking-identity-resolved',
-      area: 'Ranking identities',
-      item: `${resolvedRankingRows.length} name collision${resolvedRankingRows.length === 1 ? '' : 's'}`,
-      status: 'Auto-resolved',
-      tone: 'info',
-      note: `Duplicate Sleeper names were resolved using player position/team context. First example: ${resolvedRankingRows[0].note}`,
     });
   }
 
@@ -896,7 +853,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       area: 'Player value',
       item: player.name,
       status: sources.length ? 'Non-primary source' : 'No source list',
-      tone: sources.length ? 'info' : 'warn',
+      tone: 'warn',
       note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found, but none are one of the primary dynasty blend sources. The card can render, but admin should verify the player mapping/value source.`,
     });
   });
@@ -979,13 +936,21 @@ function buildAdminBlendSummaries(reportData: ReportData): AdminBlendSummary[] {
   return summaries;
 }
 
+function getActionableMissingSnapshotDates(data?: {
+  missingDateKeys?: string[];
+  todayDateKey?: string | null;
+}): string[] {
+  if (!data?.missingDateKeys?.length || !data.todayDateKey) return [];
+  return data.missingDateKeys.filter((dateKey) => dateKey === data.todayDateKey);
+}
+
 function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) {
   const { data } = trpc.system.snapshotCoverage.useQuery(
     { lookbackDays: 14 },
     { refetchOnWindowFocus: false, staleTime: 1000 * 60 * 5 }
   );
 
-  const rows = buildAdminValueDiagnostics(reportData, data?.missingDateKeys || []);
+  const rows = buildAdminValueDiagnostics(reportData, getActionableMissingSnapshotDates(data));
   const blendSummaries = buildAdminBlendSummaries(reportData);
 
   return (

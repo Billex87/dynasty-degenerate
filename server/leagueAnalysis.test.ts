@@ -8,4 +8,12 @@ describe('playerNameKeysMatch', () => {
     expect(playerNameKeysMatch('Brian Thomas', 'Ian Thomas')).toBe(false);
     expect(playerNameKeysMatch('brianthomas', 'ianthomas')).toBe(false);
   });
+
+  it('matches curated football name aliases from source providers and Sleeper', () => {
+    expect(playerNameKeysMatch('Chigoziem Okonkwo', 'Chig Okonkwo')).toBe(true);
+    expect(playerNameKeysMatch('Bam Knight', 'Zonovan Knight')).toBe(true);
+    expect(playerNameKeysMatch('Gabriel Davis', 'Gabe Davis')).toBe(true);
+    expect(playerNameKeysMatch('Hollywood Brown', 'Marquise Brown')).toBe(true);
+    expect(playerNameKeysMatch('Deion Burks (Duplicate)', 'Deion Burks')).toBe(true);
+  });
 });

@@ -11,6 +11,7 @@ import { PlayerDetailModal } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
+import { getPositionRankPillClass } from '@/lib/positionRank';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 
 interface ManagerDraftPicksModalProps {
@@ -172,7 +173,7 @@ export function ManagerDraftPicksModal({
                         {pick.ktcValue !== null && pick.ktcValue !== undefined && (
                           <span>Day {pick.ktcValue.toLocaleString()}</span>
                         )}
-                        {pick.positionRankMay2025 && <span>Draft {pick.positionRankMay2025}</span>}
+                        {pick.positionRankMay2025 && <span className={getPositionRankPillClass(pick.positionRankMay2025)}>Draft {pick.positionRankMay2025}</span>}
                         {!isAuditMode && draftOutcome.tone !== 'neutral' && (
                           <span className={`draft-outcome-pill draft-outcome-pill-${draftOutcome.tone}`}>
                             {draftOutcome.label}
@@ -195,7 +196,9 @@ export function ManagerDraftPicksModal({
                         <div className="manager-draft-decision-read">
                           <div className="draft-decision-pills manager-draft-decision-pills">
                             {pick.draftDecisionBoardRankLabel && <span>{pick.draftDecisionBoardRankLabel}</span>}
-                            <span>Now {pick.currentPositionRank || pick.playerPos}</span>
+                            <span className={getPositionRankPillClass(pick.currentPositionRank || pick.playerPos)}>
+                              Now {pick.currentPositionRank || pick.playerPos}
+                            </span>
                             {pick.valueGain !== null && pick.valueGain !== undefined && (
                               <span className={pick.valueGain >= 0 ? 'is-positive' : 'is-negative'}>
                                 {pick.valueGain > 0 ? '+' : ''}{pick.valueGain.toLocaleString()}

@@ -6,7 +6,9 @@ import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame } from './ManagerChampionships';
+import { TeamLogoPill } from './TeamLogoPill';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
+import { getPositionRankPillClass } from '@/lib/positionRank';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 import { sortRowsByViewerAndStanding } from '@/lib/managerOrdering';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
@@ -352,11 +354,12 @@ export function DraftAnalysis({
                               />
                             </span>
                             <span className="rookie-draft-pill" data-label="Pick">#{pick.pick}</span>
-                            <span className="rookie-draft-rank-cell rookie-draft-rank-cell-draft" data-label="Draft">{draftRankLabel}</span>
-                            <span className="rookie-draft-rank-cell rookie-draft-rank-cell-current" data-label="Now">{currentRankLabel}</span>
+                            <span className={getPositionRankPillClass(draftRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-draft')} data-label="Draft">{draftRankLabel}</span>
+                            <span className={getPositionRankPillClass(currentRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-current')} data-label="Now">{currentRankLabel}</span>
                             <span className="rookie-draft-value-cell" data-label="Draft-Day">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
                             <span className="rookie-draft-value-cell" data-label="Current">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
                             <span className={`rookie-draft-gain-cell ${gainClass} ${gainTone}`} data-label="Change">
+                              {details?.team ? <TeamLogoPill team={details.team} className="rookie-draft-change-team" /> : null}
                               {pick.valueGain !== null && pick.valueGain !== undefined
                                 ? `${pick.valueGain > 0 ? '+' : ''}${pick.valueGain.toLocaleString()}`
                                 : 'N/A'}

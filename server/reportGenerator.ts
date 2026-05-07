@@ -517,6 +517,14 @@ function getLineupValue(player: Pick<ManagerIntelPlayer, 'seasonValue' | 'value'
   return player.seasonValue || player.value || 0;
 }
 
+function hasSeasonProjection(player: Pick<ManagerIntelPlayer, 'seasonValue'>): boolean {
+  return typeof player.seasonValue === 'number' && Number.isFinite(player.seasonValue) && player.seasonValue > 0;
+}
+
+function getActivationLineupValue(player: Pick<ManagerIntelPlayer, 'seasonValue'>): number {
+  return hasSeasonProjection(player) ? Number(player.seasonValue) : 0;
+}
+
 function compareValueLineupPlayers<T extends Pick<ManagerIntelPlayer, 'seasonValue' | 'value' | 'seasonPositionRank' | 'currentPositionRank'>>(
   a: T,
   b: T
@@ -531,6 +539,46 @@ function selectValueProjectedLineup<T extends ManagerIntelPlayer>(players: T[], 
   const remaining = players
     .filter((player) => isSeasonLineupPosition(player.pos))
     .sort(compareValueLineupPlayers);
+  const selected: T[] = [];
+
+  const takeBest = (eligiblePositions: SeasonLineupPosition[]): void => {
+    const index = remaining.findIndex((player) => eligiblePositions.includes(normalizeSeasonLineupPosition(player.pos) as SeasonLineupPosition));
+    if (index < 0) return;
+    const [player] = remaining.splice(index, 1);
+    selected.push(player);
+  };
+
+  for (const position of SEASON_LINEUP_POSITIONS) {
+    const fixedSlotCount = slots.filter((slot) => slot === position).length;
+    for (let i = 0; i < fixedSlotCount; i += 1) {
+      takeBest([position]);
+    }
+  }
+
+  for (const slot of slots) {
+    const eligiblePositions = FLEX_ELIGIBILITY[slot];
+    if (eligiblePositions) {
+      takeBest(eligiblePositions);
+    }
+  }
+
+  return selected;
+}
+
+function compareActivationLineupPlayers<T extends Pick<ManagerIntelPlayer, 'seasonValue' | 'seasonPositionRank' | 'currentPositionRank'>>(
+  a: T,
+  b: T
+): number {
+  const valueDelta = getActivationLineupValue(b) - getActivationLineupValue(a);
+  if (valueDelta !== 0) return valueDelta;
+  return getLineupRank(a) - getLineupRank(b);
+}
+
+function selectActivationProjectedLineup<T extends ManagerIntelPlayer>(players: T[], rosterPositions?: string[]): T[] {
+  const slots = getStarterRosterSlots(rosterPositions);
+  const remaining = players
+    .filter((player) => isSeasonLineupPosition(player.pos) && getActivationLineupValue(player) > 0)
+    .sort(compareActivationLineupPlayers);
   const selected: T[] = [];
 
   const takeBest = (eligiblePositions: SeasonLineupPosition[]): void => {
@@ -1202,6 +1250,12 @@ function getSeasonRankLabel(player?: ManagerIntelPlayer | null): string {
   return player?.seasonPositionRank || player?.currentPositionRank || player?.pos || 'unranked';
 }
 
+function getTaxiValueLensLabel(player: ManagerIntelPlayer): string {
+  return hasSeasonProjection(player)
+    ? `Season ${getSeasonRankLabel(player)}`
+    : `Dynasty ${getRankLabel(player)}`;
+}
+
 function getPlayerGamesMissed(player?: ManagerIntelPlayer | null): number | null {
   if (!player || typeof player.lastSeasonGames !== 'number') return null;
   return Math.max(0, 17 - player.lastSeasonGames);
@@ -1280,21 +1334,23 @@ function getTaxiPromotionContext(
   activePlayers: ManagerIntelPlayer[],
   rosterPositions?: string[]
 ): { shouldPromote: boolean; reason: string | null; scoreBonus: number } {
-  const taxiValue = getLineupValue(player);
-  const activeLineup = selectValueProjectedLineup(activePlayers, rosterPositions);
-  const activeWithTaxiLineup = selectValueProjectedLineup([...activePlayers, player], rosterPositions);
+  const taxiValue = getActivationLineupValue(player);
+  if (taxiValue <= 0) return { shouldPromote: false, reason: null, scoreBonus: 0 };
+
+  const activeLineup = selectActivationProjectedLineup(activePlayers, rosterPositions);
+  const activeWithTaxiLineup = selectActivationProjectedLineup([...activePlayers, player], rosterPositions);
   const taxiStartsNow = activeWithTaxiLineup.some((lineupPlayer) => lineupPlayer.player_id === player.player_id);
 
   if (taxiStartsNow) {
     const displacedPlayer = findDisplacedLineupPlayer(activeLineup, activeWithTaxiLineup, player.player_id);
-    const displacedValue = displacedPlayer ? getLineupValue(displacedPlayer) : 0;
+    const displacedValue = displacedPlayer ? getActivationLineupValue(displacedPlayer) : 0;
 
     if (!displacedPlayer || taxiValue > displacedValue) {
       return {
         shouldPromote: true,
         reason: displacedPlayer
-          ? `${getSeasonRankLabel(player)} is above the current starting path, beating ${displacedPlayer.name} (${formatReportValue(displacedValue)}) for a lineup or flex spot.`
-          : `${getSeasonRankLabel(player)} fills an open lineup spot, so this is a real activation instead of bench depth.`,
+          ? `Season ${getSeasonRankLabel(player)} is above the current starting path, beating ${displacedPlayer.name} (${formatReportValue(displacedValue)}) for a lineup or flex spot.`
+          : `Season ${getSeasonRankLabel(player)} fills an open lineup spot, so this is a real activation instead of bench depth.`,
         scoreBonus: 6500,
       };
     }
@@ -1304,25 +1360,25 @@ function getTaxiPromotionContext(
   const hurtStarters = activeLineup.filter(isUnavailableStarter);
   for (const hurtStarter of hurtStarters) {
     const activeWithoutStarter = activePlayers.filter((candidate) => candidate.player_id !== hurtStarter.player_id);
-    const replacementLineup = selectValueProjectedLineup(activeWithoutStarter, rosterPositions);
+    const replacementLineup = selectActivationProjectedLineup(activeWithoutStarter, rosterPositions);
     const fillIn = replacementLineup
       .filter((candidate) => !activeLineupIds.has(candidate.player_id))
-      .sort((a, b) => getLineupValue(a) - getLineupValue(b))[0] || null;
-    const taxiReplacementLineup = selectValueProjectedLineup([...activeWithoutStarter, player], rosterPositions);
+      .sort((a, b) => getActivationLineupValue(a) - getActivationLineupValue(b))[0] || null;
+    const taxiReplacementLineup = selectActivationProjectedLineup([...activeWithoutStarter, player], rosterPositions);
     const taxiStartsIfStarterSits = taxiReplacementLineup.some((lineupPlayer) => lineupPlayer.player_id === player.player_id);
 
     if (!taxiStartsIfStarterSits) continue;
 
     const displacedFillIn = findDisplacedLineupPlayer(replacementLineup, taxiReplacementLineup, player.player_id);
     const fallbackFillIn = displacedFillIn || fillIn;
-    const fillInValue = fallbackFillIn ? getLineupValue(fallbackFillIn) : 0;
+    const fillInValue = fallbackFillIn ? getActivationLineupValue(fallbackFillIn) : 0;
 
     if ((!fallbackFillIn && taxiReplacementLineup.length > replacementLineup.length) || taxiValue > fillInValue) {
       return {
         shouldPromote: true,
         reason: fallbackFillIn
-          ? `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and ${getSeasonRankLabel(player)} beats the active fill-in ${fallbackFillIn.name} (${formatReportValue(fillInValue)}).`
-          : `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and ${getSeasonRankLabel(player)} fills the open lineup slot.`,
+          ? `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and Season ${getSeasonRankLabel(player)} beats the active fill-in ${fallbackFillIn.name} (${formatReportValue(fillInValue)}).`
+          : `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and Season ${getSeasonRankLabel(player)} fills the open lineup slot.`,
         scoreBonus: 6200,
       };
     }
@@ -1346,7 +1402,7 @@ function getTaxiTriageAction({
   const starterLine = starterThresholds[position] || 0;
   const rankNumber = getRankNumber(player.seasonPositionRank || player.currentPositionRank);
   const age = player.playerDetails?.age ?? null;
-  const seasonValue = getLineupValue(player);
+  const seasonValue = getActivationLineupValue(player);
   const fillsNeed = needPosition === player.pos;
   const depthLine = Math.round(starterLine * 1.75);
 
@@ -1369,7 +1425,9 @@ function getTaxiTriageAction({
   if (player.value >= 1800) {
     return {
       action: 'Keep Parked',
-      reason: `${getSeasonRankLabel(player)} still carries stash value, but does not beat the current lineup or injury fill-in path yet. Keep him taxied unless he becomes a starter.`,
+      reason: hasSeasonProjection(player)
+        ? `${getTaxiValueLensLabel(player)} still carries stash value, but does not beat the current lineup or injury fill-in path yet. Keep him taxied unless he becomes a starter.`
+        : `${getTaxiValueLensLabel(player)} carries stash value, but does not carry a current-season projection strong enough to beat the active lineup or injury fill-in path yet. Keep him taxied unless his role changes.`,
       score: 4000 + player.value,
     };
   }

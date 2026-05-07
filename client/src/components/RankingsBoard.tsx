@@ -29,7 +29,7 @@ const POSITION_FILTERS: Array<{ key: PositionFilter; label: string; compactLabel
   { key: 'RB', label: 'RB' },
   { key: 'WR', label: 'WR' },
   { key: 'TE', label: 'TE' },
-  { key: 'PICK', label: 'Picks', compactLabel: 'PCK' },
+  { key: 'PICK', label: 'Pick', compactLabel: 'Pick' },
 ];
 
 function formatValue(value?: number | null): string {
@@ -155,7 +155,7 @@ function CollegeTeamPill({ college, logoUrl }: { college?: string | null; logoUr
   );
 }
 
-function RankingCard({
+function RankingValueRow({
   player,
   playerDetailsById,
   managerAvatars,
@@ -197,54 +197,66 @@ function RankingCard({
       ? 'ranking-move-down'
       : 'ranking-move-flat';
   const displayTeam = details?.team || player.team;
+  const rankLabel = `#${player.overallRank}`;
+  const valueLabel = player.isDevy ? formatValue(player.value) : getCompactValue(player.value);
+  const positionLabel = player.isPick
+    ? 'PICK'
+    : player.isDevy
+      ? player.pos
+      : player.positionRank || player.pos;
 
   return (
     <button
       type="button"
-      className={`player-team-tile ranking-player-card ${player.isDevy ? 'ranking-player-card-devy' : ''} ${viewerOwnedHighlightClass(player.owner, viewerManager)}`}
+      className={`player-team-tile ranking-player-card value-board__row value-board__mobile-card ${player.isDevy ? 'ranking-player-card-devy value-board__row-devy' : ''} ${viewerOwnedHighlightClass(player.owner, viewerManager)}`}
       style={player.isDevy ? getCollegeTileStyle(player.college) : getTeamTileStyle(details?.team || player.team)}
       onClick={() => onSelect(player)}
     >
-      <div className="ranking-player-topline">
-        <span className="ranking-overall-rank">#{player.overallRank}</span>
+      <div className="value-board__score">
+        <span className="ranking-overall-rank value-board__rank">{rankLabel}</span>
+        <span className="ranking-inline-value value-board__value">
+          <span className="value-board__value-label">Value</span>
+          <strong>{valueLabel}</strong>
+        </span>
       </div>
 
-      <div className="ranking-player-main">
-        <div className="ranking-player-primary">
-          <RankingPlayerIdentity player={player} />
-          {!player.isDevy ? <span className="ranking-inline-value">{getCompactValue(player.value)}</span> : null}
-        </div>
-        <div className="ranking-card-pills">
+      <div className="value-board__player">
+        <RankingPlayerIdentity player={player} />
+      </div>
+
+      <div className="value-board__mobile-meta">
+        <div className="value-board__team">
           {player.isPick ? (
-            <span className={getRankClass('PICK')}>PICK</span>
+            <span className="ranking-owner-pill value-board__pick-team">Pick</span>
+          ) : player.isDevy && player.college ? (
+            <CollegeTeamPill college={player.college} logoUrl={player.collegeLogoUrl || player.prospectProfile?.collegeLogoUrl} />
+          ) : (
+            <TeamLogoPill team={displayTeam} />
+          )}
+        </div>
+
+        <div className="ranking-card-pills value-board__meta">
+          <span className={getRankClass(positionLabel)}>{positionLabel}</span>
+          {player.age ? <span className="value-board__age-pill">{player.age} yrs</span> : null}
+          {player.isDevy && player.draftYear ? <span className="ranking-devy-class-pill">{player.draftYear}</span> : null}
+        </div>
+
+        <div className="value-board__manager">
+          {player.isDevy ? (
+            player.collegeLogoUrl ? (
+              <img src={player.collegeLogoUrl} alt="" className="ranking-college-avatar-only" loading="lazy" aria-hidden="true" />
+            ) : null
           ) : (
             <>
-              {player.isDevy && player.college ? <CollegeTeamPill college={player.college} logoUrl={player.collegeLogoUrl || player.prospectProfile?.collegeLogoUrl} /> : <TeamLogoPill team={displayTeam} />}
-              <span className={player.isDevy ? getRankClass(player.pos) : getRankClass(player.positionRank || player.pos)}>{player.isDevy ? player.pos : player.positionRank || player.pos}</span>
+              <RankingOwnerChip owner={player.owner} managerAvatars={managerAvatars} />
+              <RankingOwnerAvatar owner={player.owner} managerAvatars={managerAvatars} />
             </>
           )}
-          {player.age ? <span>{player.age} yrs</span> : null}
         </div>
-      </div>
-
-      <div className={`ranking-card-meta-row ${player.isDevy ? 'ranking-card-meta-row-devy' : ''}`}>
-        {player.isDevy ? (
-          <>
-            {player.collegeLogoUrl ? (
-              <img src={player.collegeLogoUrl} alt="" className="ranking-college-avatar-only" loading="lazy" aria-hidden="true" />
-            ) : null}
-            {player.draftYear ? <span className="ranking-devy-class-pill">{player.draftYear}</span> : null}
-          </>
-        ) : (
-          <>
-            <RankingOwnerChip owner={player.owner} managerAvatars={managerAvatars} />
-            <RankingOwnerAvatar owner={player.owner} managerAvatars={managerAvatars} />
-          </>
-        )}
       </div>
 
       {showMovement ? (
-        <div className="ranking-card-movement">
+        <div className="value-board__movement">
           <span className={`ranking-movement-pill ${movementClass}`}>
             {player.movementLabel || 'Stable'}
           </span>
@@ -261,15 +273,23 @@ function RankingCard({
       ) : null}
 
       {sourceInputs.length ? (
-        <div className="ranking-source-row" aria-label={`${player.name} source values`}>
+        <div className="ranking-source-row value-board__market-values" aria-label={`${player.name} source values`}>
           {sourceInputs.map(([label, value]) => (
-            <span key={label}>{label} {formatValue(value)}</span>
+            <span key={label}>
+              <em>{label}</em>
+              <strong>{formatValue(value)}</strong>
+            </span>
           ))}
-          {marketPulse !== null ? <span>Market pulse {marketPulse}</span> : null}
+          {marketPulse !== null ? (
+            <span>
+              <em>Pulse</em>
+              <strong>{marketPulse}</strong>
+            </span>
+          ) : null}
         </div>
       ) : null}
       {devyBoardInputs.length ? (
-        <div className="ranking-source-row" aria-label={`${player.name} prospect board inputs`}>
+        <div className="ranking-source-row value-board__market-values" aria-label={`${player.name} prospect board inputs`}>
           {devyBoardInputs.map((label) => <span key={label}>{label}</span>)}
         </div>
       ) : null}
@@ -432,7 +452,7 @@ function RankingsTable({
         </div>
       </div>
 
-      <div className={`rankings-controls ${!config.hidePicks && config.board === 'dynasty' ? 'rankings-controls-with-picks' : ''} ${config.board === 'devy' ? 'rankings-controls-devy' : ''}`}>
+      <div className={`rankings-controls value-board__toolbar ${!config.hidePicks && config.board === 'dynasty' ? 'rankings-controls-with-picks' : ''} ${config.board === 'devy' ? 'rankings-controls-devy' : ''}`}>
         <div className="rankings-league-type-control">
           <label className="rankings-league-type-label" htmlFor={`${config.board}-league-type`}>
             League Type
@@ -451,7 +471,7 @@ function RankingsTable({
           </Select>
         </div>
 
-        <div className="rankings-control-group rankings-position-toggle">
+        <div className="rankings-control-group rankings-position-toggle value-board__filters">
           <button
             type="button"
             className={getPositionButtonClass('OVERALL', selectedPositions.length === 0)}
@@ -467,7 +487,7 @@ function RankingsTable({
               className={getPositionButtonClass(filter.key, selectedPositions.includes(filter.key) || (filter.key === 'PICK' && includePicksWithOverall && selectedPositions.length === 0))}
               onClick={() => togglePosition(filter.key)}
             >
-              {filter.compactLabel ? (
+              {filter.compactLabel && filter.compactLabel !== filter.label ? (
                 <>
                   <span className="ranking-filter-label-full">{filter.label}</span>
                   <span className="ranking-filter-label-compact">{filter.compactLabel}</span>
@@ -477,38 +497,40 @@ function RankingsTable({
           ))}
         </div>
 
-        <div className="rankings-search-wrap">
-          <Search className="h-4 w-4" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search player, team, manager"
-            className="rankings-search-input"
-          />
-        </div>
-
-        {config.board === 'devy' && draftClassOptions.length ? (
-          <div className="rankings-control-group rankings-class-toggle" aria-label="Draft class filter">
-            <button type="button" className={!selectedDraftClass ? 'active' : ''} onClick={() => setSelectedDraftClass(null)}>All</button>
-            {draftClassOptions.map((draftClass) => (
-              <button
-                key={draftClass}
-                type="button"
-                className={selectedDraftClass === draftClass ? 'active' : ''}
-                onClick={() => setSelectedDraftClass(draftClass)}
-              >
-                {draftClass}
-              </button>
-            ))}
+        <div className="value-board__toolbar-actions">
+          <div className="rankings-search-wrap value-board__search">
+            <Search className="h-4 w-4" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search player"
+              className="rankings-search-input"
+            />
           </div>
-        ) : null}
 
-        <div className="rankings-control-group rankings-sort-toggle">
-          <button type="button" className={sortMode === 'rank' ? 'active' : ''} onClick={() => setSortMode('rank')}>Rank</button>
-          <button type="button" className={sortMode === 'value' ? 'active' : ''} onClick={() => setSortMode('value')}>Value</button>
-          {config.board !== 'devy' ? (
-            <button type="button" className={sortMode === 'movement' ? 'active' : ''} onClick={() => setSortMode('movement')}>7-Day</button>
+          {config.board === 'devy' && draftClassOptions.length ? (
+            <div className="rankings-control-group rankings-class-toggle" aria-label="Draft class filter">
+              <button type="button" className={!selectedDraftClass ? 'active' : ''} onClick={() => setSelectedDraftClass(null)}>All</button>
+              {draftClassOptions.map((draftClass) => (
+                <button
+                  key={draftClass}
+                  type="button"
+                  className={selectedDraftClass === draftClass ? 'active' : ''}
+                  onClick={() => setSelectedDraftClass(draftClass)}
+                >
+                  {draftClass}
+                </button>
+              ))}
+            </div>
           ) : null}
+
+          <div className="rankings-control-group rankings-sort-toggle">
+            <button type="button" className={sortMode === 'rank' ? 'active' : ''} onClick={() => setSortMode('rank')}>Rank</button>
+            <button type="button" className={sortMode === 'value' ? 'active' : ''} onClick={() => setSortMode('value')}>Value</button>
+            {config.board !== 'devy' ? (
+              <button type="button" className={sortMode === 'movement' ? 'active' : ''} onClick={() => setSortMode('movement')}>7-Day</button>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -516,9 +538,19 @@ function RankingsTable({
         Showing {pageRows.length.toLocaleString()} of {filteredRows.length.toLocaleString()} ranked assets
       </div>
 
-      <div className="rankings-player-grid">
+      <div className="rankings-player-grid value-board__rows">
+        <div className="value-board__row-header" aria-hidden="true">
+          <span>Rank</span>
+          <span>Player</span>
+          <span>{config.board === 'devy' ? 'School' : 'Team'}</span>
+          <span>Pos / Age</span>
+          <span>{config.board === 'devy' ? 'Class' : 'Manager'}</span>
+          <span>Value</span>
+          <span>7-Day</span>
+          <span>Market Values</span>
+        </div>
         {pageRows.map((player) => (
-          <RankingCard
+          <RankingValueRow
             key={player.id}
             player={player}
             playerDetailsById={playerDetailsById}

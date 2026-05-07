@@ -36,6 +36,86 @@ vi.mock('./fantasyProsDevy', () => ({
 }));
 
 describe('rankings board prospect fallback', () => {
+  it('does not emit Sleeper identity diagnostics for rookie pick rows', async () => {
+    const { buildRankingsBoard } = await import('./rankingsBoard');
+
+    const board = await buildRankingsBoard({
+      players: {},
+      ktcValues: {
+        '2026pick101': {
+          name: '2026 Pick 1.01',
+          ktc_value: 5000,
+          value_sources: ['KTC'],
+        },
+      },
+      ownerByPlayerId: {},
+      rosterStatusByPlayerId: {},
+    });
+
+    expect(board.identityDiagnostics?.filter((row) => row.status === 'unmatched')).toEqual([]);
+    expect(board.dynastySf.find((row) => row.name === '2026 Pick 1.01')).toMatchObject({
+      isPick: true,
+      player_id: undefined,
+    });
+  });
+
+  it('maps curated source aliases to Sleeper player identities', async () => {
+    const { buildRankingsBoard } = await import('./rankingsBoard');
+
+    const board = await buildRankingsBoard({
+      players: {
+        '6943': {
+          full_name: 'Gabe Davis',
+          first_name: 'Gabe',
+          last_name: 'Davis',
+          position: 'WR',
+          active: true,
+        },
+        '5848': {
+          full_name: 'Marquise Brown',
+          first_name: 'Marquise',
+          last_name: 'Brown',
+          position: 'WR',
+          active: true,
+        },
+        '13333': {
+          full_name: 'Deion Burks',
+          first_name: 'Deion',
+          last_name: 'Burks',
+          position: 'WR',
+          active: true,
+        },
+      },
+      ktcValues: {
+        gabrieldavis: {
+          name: 'Gabriel Davis',
+          ktc_value: 1100,
+          position_rank: 'WR90',
+          value_sources: ['KTC'],
+        },
+        hollywoodbrown: {
+          name: 'Hollywood Brown',
+          ktc_value: 900,
+          position_rank: 'WR100',
+          value_sources: ['KTC'],
+        },
+        deionburksduplicate: {
+          name: 'Deion Burks (Duplicate)',
+          ktc_value: 700,
+          position_rank: 'WR120',
+          value_sources: ['KTC'],
+        },
+      },
+      ownerByPlayerId: {},
+      rosterStatusByPlayerId: {},
+    });
+
+    expect(board.identityDiagnostics?.filter((row) => row.status === 'unmatched')).toEqual([]);
+    expect(board.dynastySf.find((row) => row.name === 'Gabriel Davis')?.player_id).toBe('6943');
+    expect(board.dynastySf.find((row) => row.name === 'Hollywood Brown')?.player_id).toBe('5848');
+    expect(board.dynastySf.find((row) => row.name === 'Deion Burks')?.player_id).toBe('13333');
+  });
+
   it('builds college rows from NFL Draft Buzz without Sleeper players', async () => {
     const { buildRankingsBoard } = await import('./rankingsBoard');
     const prospect: ProspectProfile = {

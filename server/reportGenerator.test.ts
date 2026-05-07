@@ -624,6 +624,29 @@ describe('generateReport taxi triage', () => {
     expect(taxiItem?.taxiReason).toContain('beating Flex Starter');
   });
 
+  it('does not promote a dynasty-only taxi value over an active season starter', async () => {
+    const report = await runTaxiReport(
+      {
+        mcbride: { first_name: 'Trey', last_name: 'McBride', position: 'TE', age: 26 },
+        flex: { first_name: 'Flex', last_name: 'Starter', position: 'WR', age: 25 },
+        bench: { first_name: 'Bench', last_name: 'Wideout', position: 'WR', age: 24 },
+        sadiq: { first_name: 'Kenyon', last_name: 'Sadiq', position: 'TE', age: 22, metadata: { rookie_year: '2026' } },
+      },
+      {
+        treymcbride: { name: 'Trey McBride', ktc_value: 8000, redraft_value: 8000, position_rank: 'TE1' },
+        flexstarter: { name: 'Flex Starter', ktc_value: 900, redraft_value: 900, position_rank: 'WR80' },
+        benchwideout: { name: 'Bench Wideout', ktc_value: 700, redraft_value: 700, position_rank: 'WR90' },
+        kenyonsadiq: { name: 'Kenyon Sadiq', ktc_value: 3000, position_rank: 'TE14' },
+      },
+      'sadiq'
+    );
+
+    const taxiItem = report.managerRosterIntelligence[0].taxiTriage?.items.find((player) => player.name === 'Kenyon Sadiq');
+    expect(taxiItem?.taxiAction).toBe('Keep Parked');
+    expect(taxiItem?.taxiReason).toContain('Dynasty TE14');
+    expect(taxiItem?.taxiReason).toContain('does not carry a current-season projection');
+  });
+
   it('promotes a taxi player only when an unavailable starter opens a weaker fill-in', async () => {
     const report = await runTaxiReport(
       {

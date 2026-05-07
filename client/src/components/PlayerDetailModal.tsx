@@ -5,8 +5,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { DraftPick, PlayerDetails } from '@shared/types';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import type { DraftPick, LeagueValueMode, PlayerDetails } from '@shared/types';
+import { TrendingUp, TrendingDown, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getPlayerAvailability } from '@/lib/playerStatus';
@@ -68,6 +68,7 @@ export type PlayerModalData = Partial<DraftPick> & {
   playerImageUrl?: string | null;
   collegeLogoUrl?: string | null;
   isCollegeProspect?: boolean;
+  valueMode?: LeagueValueMode;
 };
 
 export function PlayerDetailModal({
@@ -120,6 +121,7 @@ export function PlayerDetailModal({
     ? pick.playerImageUrl || prospectProfile?.playerImageUrl || prospectProfile?.collegeLogoUrl || null
     : headshot || directHeadshot;
   const valueProfile = details?.valueProfile;
+  const valueMode = pick.valueMode || 'dynasty';
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
   const currentValue = pick.currentKtcValue;
   const draftValue = pick.ktcValue;
@@ -206,6 +208,13 @@ export function PlayerDetailModal({
   const balancedRank = getValueProfileRank(valueProfile, 'balanced', currentRank);
   const contenderRank = getValueProfileRank(valueProfile, 'contender', currentRank);
   const rebuilderRank = getValueProfileRank(valueProfile, 'rebuilder', currentRank);
+  const topDynastyRank = dynastyRank || (valueMode !== 'redraft' ? currentRank : null);
+  const topSeasonRank = seasonRank || (valueMode === 'redraft' ? currentRank : null);
+  const currentValueLabel = valueMode === 'redraft'
+    ? 'Season Value'
+    : valueMode === 'keeper'
+      ? 'Keeper Value'
+      : 'Dynasty Value';
   const marketRankRows = valueProfile ? [
     ['Dynasty', dynastyRank],
     ['Season', seasonRank],
@@ -255,6 +264,7 @@ export function PlayerDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
+        showCloseButton={false}
         className={`player-detail-modal ${isCollegeProspect ? 'player-detail-modal-prospect' : ''} max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-h-[88vh] sm:max-w-2xl`}
         style={{ ...collegeTileStyle, background: modalBackground }}
       >
@@ -278,6 +288,9 @@ export function PlayerDetailModal({
                   : undefined,
               }}
             />
+            <button type="button" className="manager-modal-close player-modal-close" onClick={onClose} aria-label={`Close ${pick.playerName} details`}>
+              <X aria-hidden="true" />
+            </button>
 
             {leagueLogo && (
               <div className="absolute left-4 top-4 z-10 h-12 w-12 overflow-hidden rounded-full border border-cyan-300/30 bg-slate-950/65 p-1 shadow-lg shadow-black/35 sm:h-14 sm:w-14">
@@ -358,14 +371,7 @@ export function PlayerDetailModal({
                         #{jerseyNumber}
                       </span>
                     )}
-                    <span
-                      className="rounded-full border px-3 py-1 text-xs font-bold"
-                      style={{
-                        borderColor: teamColors ? `${teamColors.accent}66` : undefined,
-                        backgroundColor: teamColors ? `${teamColors.accent}20` : undefined,
-                        color: teamColors?.accent || undefined,
-                      }}
-                    >
+                    <span className={getPositionRankPillClass(position, 'player-modal-position-pill')}>
                       {position}
                     </span>
                     <StatusPill label={availability.label} tone={availability.tone} />
@@ -408,6 +414,7 @@ export function PlayerDetailModal({
                     value={pick.positionRankMay2025}
                     teamColors={teamColors}
                     tileAccent={tileAccent}
+                    valueClassName={getPositionRankPillClass(pick.positionRankMay2025)}
                   />
                 )}
               </div>
@@ -427,13 +434,21 @@ export function PlayerDetailModal({
                 ))}
               </div>
             ) : (
-              <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 sm:gap-3">
+              <div className="mx-auto grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                 {currentValue !== undefined && (
-                <MetricTile label="Current Value" value={currentValue ? currentValue.toLocaleString() : '-'} teamColors={teamColors} tileAccent={tileAccent} />
+                  <MetricTile
+                    label={currentValueLabel}
+                    mobileLabel={valueMode === 'redraft' ? 'Season' : valueMode === 'keeper' ? 'Keeper' : 'Dynasty'}
+                    value={currentValue ? currentValue.toLocaleString() : '-'}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
                 )}
-                <MetricTile label="Position Ranking" mobileLabel="POS. Ranking" value={currentRank} valueClassName={`${getPositionRankPillClass(currentRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
+                <MetricTile label="Dynasty Rank" mobileLabel="Dynasty" value={topDynastyRank || '-'} valueClassName={`${getPositionRankPillClass(topDynastyRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
+                <MetricTile label="Season Rank" mobileLabel="Season" value={topSeasonRank || '-'} valueClassName={`${getPositionRankPillClass(topSeasonRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
                 <MetricTile
                   label="Value Change"
+                  mobileLabel="Change"
                   value={valueGain !== undefined && valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'}
                   tone={valueGain !== undefined && valueGain !== null && valueGain > 0 ? 'positive' : valueGain !== undefined && valueGain !== null && valueGain < 0 ? 'negative' : 'neutral'}
                   icon={
@@ -530,30 +545,21 @@ export function PlayerDetailModal({
             ) : null}
 
             {!isCollegeProspect && intelligenceNotes.length > 0 && (
-              <div className="mx-auto max-w-xl rounded-2xl border border-cyan-300/15 bg-slate-950/45 p-3 shadow-inner shadow-white/[0.02] sm:p-4">
-                <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/85">
+              <div className="player-intelligence-panel mx-auto max-w-xl">
+                <p className="player-intelligence-title">
                   Player Intelligence
                 </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="player-intelligence-grid">
                   {intelligenceNotes.map((note) => (
                     <div
                       key={`${note.label}-${note.value}`}
-                      className={`rounded-xl border bg-slate-950/55 p-3 ${note.fullWidth ? 'sm:col-span-2' : ''}`}
-                      style={{
-                        borderColor: note.tone === 'risk'
-                          ? 'rgba(251, 113, 133, 0.28)'
-                          : note.tone === 'upside'
-                            ? 'rgba(52, 211, 153, 0.28)'
-                            : note.tone === 'market'
-                              ? 'rgba(251, 191, 36, 0.28)'
-                              : 'rgba(34, 211, 238, 0.18)',
-                      }}
+                      className={`player-intelligence-card player-intelligence-card-${note.tone || 'neutral'} ${note.fullWidth ? 'player-intelligence-card-wide' : ''}`}
                     >
-                      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">
+                      <div className="player-intelligence-label">
                         {note.label}
                       </div>
                       <div
-                        className={`mt-1 text-sm font-black ${
+                        className={`player-intelligence-value ${
                           note.tone === 'risk'
                             ? 'text-rose-300'
                             : note.tone === 'upside'
@@ -566,7 +572,7 @@ export function PlayerDetailModal({
                         {note.value}
                       </div>
                       {note.copy && (
-                        <p className="mt-1 text-[0.72rem] font-bold leading-snug text-slate-400">
+                        <p className="player-intelligence-copy">
                           {note.copy}
                         </p>
                       )}
@@ -916,6 +922,10 @@ function buildPlayerIntelligenceNotes({
   const age = details?.age;
   const seasonValue = valueProfile?.seasonValue ?? valueProfile?.fantasyProsSeasonValue ?? null;
   const dynastyValue = valueProfile?.dynastyValue ?? currentValue ?? null;
+  const dynastyRank = valueProfile?.dynastyPositionRank || valueProfile?.balancedPositionRank || currentRank || null;
+  const seasonRank = valueProfile?.seasonPositionRank || valueProfile?.fantasyProsPositionRank || null;
+  const dynastyRankNumber = parseRankNumber(dynastyRank);
+  const seasonRankNumber = parseRankNumber(seasonRank);
   const newsDate = formatSleeperNewsUpdated(details?.sleeperNewsUpdated);
 
   if (avgMissed !== null && avgMissed !== undefined && seasons > 0) {
@@ -974,6 +984,23 @@ function buildPlayerIntelligenceNotes({
       value: roleLabel,
       copy: `${details?.team || 'Team'} depth chart signal with ${availability.label.toLowerCase()} availability.`,
       tone: availability.tone === 'risk' || availability.tone === 'warning' ? 'risk' : isLeadRole ? 'upside' : 'neutral',
+    });
+  }
+
+  if (dynastyRank && seasonRank && dynastyRankNumber && seasonRankNumber) {
+    const rankGap = seasonRankNumber - dynastyRankNumber;
+    const value = Math.abs(rankGap) >= 8
+      ? `${dynastyRank} / ${seasonRank}`
+      : 'Similar Ranks';
+    notes.push({
+      label: 'Rank Split',
+      value,
+      copy: rankGap >= 25
+        ? 'Dynasty rank is well ahead of current-season rank, so this reads more like a stash than a lineup helper.'
+        : rankGap <= -10
+          ? 'Current-season rank is ahead of dynasty rank, which matters more for contenders than rebuilders.'
+          : 'Dynasty and current-season rankings are close enough to support a balanced valuation.',
+      tone: rankGap >= 25 ? 'neutral' : rankGap <= -10 ? 'market' : 'upside',
     });
   }
 
@@ -1224,11 +1251,13 @@ function InlineInfoTile({
   value,
   teamColors,
   tileAccent,
+  valueClassName,
 }: {
   label: string;
   value: string | number;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
+  valueClassName?: string;
 }) {
   return (
     <div
@@ -1243,7 +1272,7 @@ function InlineInfoTile({
       <span className="text-sm font-black tracking-normal sm:text-base" style={{ color: tileAccent || teamColors?.accent || undefined }}>
         {label}:
       </span>
-      <span className="text-sm font-black text-slate-100 sm:text-base">{value}</span>
+      <span className={`text-sm font-black text-slate-100 sm:text-base ${valueClassName || ''}`}>{value}</span>
     </div>
   );
 }

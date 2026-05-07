@@ -2,7 +2,7 @@ import { z } from "zod";
 import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
 import { listKtcSnapshotDateKeysSince } from "../db";
-import { getSnapshotDateKey } from "../ktcLoader";
+import { getSnapshotDateKey, listLocalKtcSnapshotDateKeysSince } from "../ktcLoader";
 
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 
@@ -50,7 +50,10 @@ export const systemRouter = router({
     .query(async ({ input }) => {
       const { start, end } = getSnapshotStatusRange(input.lookbackDays);
       const expectedDateKeys = buildExpectedDateKeys(start, end);
-      const storedDateKeys = await listKtcSnapshotDateKeysSince(start);
+      const storedDateKeys = Array.from(new Set([
+        ...(await listKtcSnapshotDateKeysSince(start)),
+        ...listLocalKtcSnapshotDateKeysSince(start),
+      ])).sort();
       const storedSet = new Set(storedDateKeys);
       const missingDateKeys = expectedDateKeys.filter((dateKey) => !storedSet.has(dateKey));
       const latestSnapshotDateKey = storedDateKeys.at(-1) || null;

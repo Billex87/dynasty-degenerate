@@ -44,6 +44,8 @@ let ktcValuesLastWeekCache: KTCValues | null = null;
 let blendedKtcValuesCache: Record<string, KTCValues> = {};
 const localKtcSnapshotCache = new Map<string, KTCValues>();
 const KTC_SNAPSHOT_TIME_ZONE = 'America/Vancouver';
+const BLENDED_VALUE_PROFILE_KEY_PATTERN = /^(10|12|14)_(one_qb|sf)_(standard|half_ppr|ppr)_(base|tep_0_5|tep_1_0|tep_1_5)$/;
+const PRIMARY_VALUE_SOURCES = new Set(['FlockFantasy', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']);
 
 export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshots');
 
@@ -136,6 +138,17 @@ function unwrapSnapshotValues(data: any, valueProfileKey?: string): KTCValues {
   return (data || {}) as KTCValues;
 }
 
+export function hasUsableBlendedSnapshotValues(values: KTCValues, valueProfileKey?: string): boolean {
+  const rows = Object.values(values || {});
+  if (!rows.length) return false;
+  if (!valueProfileKey || !BLENDED_VALUE_PROFILE_KEY_PATTERN.test(valueProfileKey)) return true;
+
+  return rows.some((value) => (
+    Array.isArray(value.value_sources)
+    && value.value_sources.some((source) => PRIMARY_VALUE_SOURCES.has(source))
+  ));
+}
+
 export async function loadLiveKTCValues(forceRefresh = false): Promise<KTCValues> {
   try {
     const rankings = await getCurrentKTCRankings(forceRefresh);
@@ -190,6 +203,21 @@ export function loadLatestLocalKtcSnapshot(): KTCValues {
   return loadLatestLocalKtcSnapshotBefore(new Date());
 }
 
+export function listLocalKtcSnapshotDateKeysSince(startDate: Date): string[] {
+  try {
+    if (!fs.existsSync(KTC_SNAPSHOT_DIR)) return [];
+    const startDateKey = getSnapshotDateKey(startDate);
+    return fs
+      .readdirSync(KTC_SNAPSHOT_DIR)
+      .map((file) => file.match(/^ktc-snapshot-(\d{4}-\d{2}-\d{2})\.json$/)?.[1] || null)
+      .filter((dateKey): dateKey is string => Boolean(dateKey && dateKey >= startDateKey))
+      .sort();
+  } catch (error) {
+    console.error('Failed to list local KTC snapshots:', error);
+    return [];
+  }
+}
+
 export function loadLocalKtcSnapshotForDate(dateKey: string, valueProfileKey?: string): KTCValues {
   try {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return {};
@@ -224,13 +252,19 @@ export function loadLatestLocalKtcSnapshotBefore(beforeDate: Date, valueProfileK
       .filter(file => file.replace('ktc-snapshot-', '').replace('.json', '') < beforeDateKey)
       .sort();
 
-    const latest = snapshotFiles.at(-1);
-    if (!latest) return {};
+    for (const snapshotFile of snapshotFiles.reverse()) {
+      const data = fs.readFileSync(path.join(KTC_SNAPSHOT_DIR, snapshotFile), 'utf-8');
+      const values = unwrapSnapshotValues(JSON.parse(data), valueProfileKey);
+      if (!hasUsableBlendedSnapshotValues(values, valueProfileKey)) {
+        console.warn(`[KTC Snapshot] Skipping ${snapshotFile} for ${valueProfileKey || 'default'} because it is missing blended source metadata`);
+        continue;
+      }
 
-    const data = fs.readFileSync(path.join(KTC_SNAPSHOT_DIR, latest), 'utf-8');
-    const values = unwrapSnapshotValues(JSON.parse(data), valueProfileKey);
-    localKtcSnapshotCache.set(cacheKey, values);
-    return values;
+      localKtcSnapshotCache.set(cacheKey, values);
+      return values;
+    }
+
+    return {};
   } catch (error) {
     console.error('Failed to load local KTC snapshot:', error);
     return {};
