@@ -1169,6 +1169,10 @@ function getRankLabel(player?: ManagerIntelPlayer | null): string {
   return player?.currentPositionRank || player?.seasonPositionRank || player?.pos || 'unranked';
 }
 
+function getSeasonRankLabel(player?: ManagerIntelPlayer | null): string {
+  return player?.seasonPositionRank || player?.currentPositionRank || player?.pos || 'unranked';
+}
+
 function getPlayerGamesMissed(player?: ManagerIntelPlayer | null): number | null {
   if (!player || typeof player.lastSeasonGames !== 'number') return null;
   return Math.max(0, 17 - player.lastSeasonGames);
@@ -1260,8 +1264,8 @@ function getTaxiPromotionContext(
       return {
         shouldPromote: true,
         reason: displacedPlayer
-          ? `${getRankLabel(player)} is above the current starting path, beating ${displacedPlayer.name} (${formatReportValue(displacedValue)}) for a lineup or flex spot.`
-          : `${getRankLabel(player)} fills an open lineup spot, so this is a real activation instead of bench depth.`,
+          ? `${getSeasonRankLabel(player)} is above the current starting path, beating ${displacedPlayer.name} (${formatReportValue(displacedValue)}) for a lineup or flex spot.`
+          : `${getSeasonRankLabel(player)} fills an open lineup spot, so this is a real activation instead of bench depth.`,
         scoreBonus: 6500,
       };
     }
@@ -1288,8 +1292,8 @@ function getTaxiPromotionContext(
       return {
         shouldPromote: true,
         reason: fallbackFillIn
-          ? `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and ${getRankLabel(player)} beats the active fill-in ${fallbackFillIn.name} (${formatReportValue(fillInValue)}).`
-          : `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and ${getRankLabel(player)} fills the open lineup slot.`,
+          ? `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and ${getSeasonRankLabel(player)} beats the active fill-in ${fallbackFillIn.name} (${formatReportValue(fillInValue)}).`
+          : `${hurtStarter.name} is tagged ${getAvailabilityLabel(hurtStarter)}, and ${getSeasonRankLabel(player)} fills the open lineup slot.`,
         scoreBonus: 6200,
       };
     }
@@ -1328,15 +1332,15 @@ function getTaxiTriageAction({
   if (player.value < 450 && (!rankNumber || rankNumber > depthLine)) {
     return {
       action: 'Cuttable',
-      reason: `Low dynasty value and no useful positional-rank signal yet. This is the first taxi spot to churn if waivers produce a better stash.`,
+      reason: `Low stash value and no useful season-rank signal yet. This is the first taxi spot to churn if waivers produce a better developmental player.`,
       score: 1000 - player.value,
     };
   }
 
   if (player.value >= 1800) {
     return {
-      action: 'Trade Sweetener',
-      reason: `${getRankLabel(player)} still carries enough dynasty value to matter in a deal, but does not beat the current lineup or injury fill-in path yet.`,
+      action: 'Keep Parked',
+      reason: `${getSeasonRankLabel(player)} still carries stash value, but does not beat the current lineup or injury fill-in path yet. Keep him taxied unless he becomes a starter.`,
       score: 4000 + player.value,
     };
   }
@@ -1359,7 +1363,7 @@ function getTaxiTriageAction({
 
   return {
     action: 'Cuttable',
-    reason: `No clear dynasty value, rank, or near-term role signal. Treat this as a churnable taxi stash.`,
+    reason: `No clear stash value, season rank, or near-term role signal. Treat this as a churnable taxi stash.`,
     score: 1000 - player.value,
   };
 }
@@ -1374,7 +1378,7 @@ function buildTaxiTriageSummary(items: TaxiTriageItem[]): string {
   const parts = [
     counts['Promote Now'] ? `${counts['Promote Now']} should be promoted` : null,
     counts['Keep Parked'] ? `${counts['Keep Parked']} can stay parked` : null,
-    counts['Trade Sweetener'] ? `${counts['Trade Sweetener']} work as trade sweeteners` : null,
+    counts['Trade Sweetener'] ? `${counts['Trade Sweetener']} should stay taxied unless they become lineup upgrades` : null,
     counts['Taxi Risk'] ? `${counts['Taxi Risk']} are taxi risks` : null,
     counts.Cuttable ? `${counts.Cuttable} look cuttable` : null,
   ].filter(Boolean);

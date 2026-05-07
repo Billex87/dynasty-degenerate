@@ -26,7 +26,7 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { getPlayerAvailability, getPlayerAvailabilityClass } from '@/lib/playerStatus';
-import { compareManagersByViewerAndStanding, sortRowsByOverviewStrength, sortRowsByViewerAndStanding } from '@/lib/managerOrdering';
+import { compareManagersByViewerAndStanding, sortRowsByViewerAndStanding } from '@/lib/managerOrdering';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 
 type ManagerAvatars = ReportData['managerAvatars'];
@@ -1680,6 +1680,139 @@ function buildOwnerWeakSpotCopy(row: OwnerIntelRow): string {
   return 'The required starter spots are all in a playable range, so there is no obvious position to attack. The better angle is manager preference, timing, or offering a clear upgrade instead of treating this roster like it has a glaring hole.';
 }
 
+function buildDynastyOwnerTags({
+  row,
+  overviewRow,
+  growthRow,
+  pickRow,
+}: {
+  row: OwnerIntelRow;
+  overviewRow?: LeagueOverviewRows[number] | null;
+  growthRow?: OwnerGrowthRow | null;
+  pickRow?: OwnerPickRow | null;
+}): Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> {
+  const tags: Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> = [
+    overviewRow ? { label: `Value #${overviewRow.rank_value}`, tone: overviewRow.rank_value <= 3 ? 'good' : overviewRow.rank_value >= 8 ? 'warn' : 'neutral' } : null,
+    { label: titleCasePill(row.identity), tone: getPillToneClass(row.identity).includes('future') ? 'future' : getPillToneClass(row.identity).includes('danger') ? 'danger' : 'good' },
+    growthRow ? { label: `${growthRow.growth >= 0 ? '+' : ''}${growthRow.growth.toFixed(1)}% dynasty growth`, tone: growthRow.growth >= 0 ? 'good' : 'danger' } : null,
+    pickRow && pickRow.count2026 + pickRow.count2027 >= 15 ? { label: 'Pick War Chest', tone: 'future' } : null,
+    ...row.ageFlags
+      .filter((flag) => !/availability|durable/i.test(flag))
+      .slice(0, 2)
+      .map((flag) => ({
+        label: titleCasePill(flag),
+        tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') ? 'danger' as const : 'future' as const,
+      })),
+  ].filter(Boolean) as Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }>;
+
+  return tags.slice(0, 6);
+}
+
+function buildDynastyRosterRead(row: OwnerIntelRow, overviewRow?: LeagueOverviewRows[number] | null): string {
+  const valueRank = overviewRow ? `#${overviewRow.rank_value}` : 'unranked';
+  const ageCopy = row.avgAge !== null
+    ? `Average roster age is ${row.avgAge}, with ${row.avgAgeByPosition.RB ?? '-'} RB age and ${row.avgAgeByPosition.WR ?? '-'} WR age.`
+    : 'Age profile is incomplete.';
+  const core = row.untouchablePlayers?.length
+    ? `Core assets: ${row.untouchablePlayers.map((player) => `${player.name} (${player.currentPositionRank || player.pos})`).slice(0, 3).join(', ')}.`
+    : row.youngCorePlayer
+      ? `Best core asset is ${row.youngCorePlayer.name} (${row.youngCorePlayer.currentPositionRank || row.youngCorePlayer.pos}).`
+      : 'No obvious elite young core asset is separated from the pack yet.';
+  const risk = row.oldestPlayer && (row.oldestPlayer.playerDetails?.age || 0) >= 28 && row.oldestPlayer.value >= 1200
+    ? `${row.oldestPlayer.name} is the dynasty age/liquidity risk to monitor.`
+    : row.sellCandidate
+      ? `${row.sellCandidate.name} is the cleanest dynasty sell candidate if market value can be turned into younger value.`
+      : 'There is no forced age/liquidity sell from the current blend.';
+
+  return `${titleCasePill(row.identity)} dynasty profile with roster value ${valueRank}. ${ageCopy} ${core} ${risk}`;
+}
+
+function buildDynastyBestMove(row: OwnerIntelRow, pickRow?: OwnerPickRow | null): string {
+  const buy = row.buyTarget;
+  const sell = row.sellCandidate || row.oldestPlayer;
+  const tradeChip = row.tradeChip || row.bestBenchStash;
+  const hasPickWarChest = Boolean(pickRow && pickRow.count2026 + pickRow.count2027 >= 15);
+
+  if (/rebuild/i.test(row.identity) || /rebuild/i.test(row.timeline)) {
+    if (sell) {
+      return `Rebuild lens: shop ${sell.name} only for younger dynasty value or picks. Do not spend liquidity on short-term starters unless the player can still gain dynasty value.`;
+    }
+    return `Rebuild lens: keep collecting liquid assets. ${hasPickWarChest ? 'The pick bank is already useful, so wait for a manager to overpay for a veteran.' : 'Add picks or young insulated players before chasing points.'}`;
+  }
+
+  if (/contend|win/i.test(row.identity) && tradeChip && buy) {
+    return `Contender dynasty lens: use movable value like ${tradeChip.name} to chase a stable long-term asset such as ${buy.name}. The goal is not just this season’s points; it is keeping the contender window liquid.`;
+  }
+
+  if (buy && sell) {
+    return `Value arbitrage: compare ${sell.name} against younger or safer market profiles like ${buy.name}. If the room prices them similarly, take the side with better dynasty insulation.`;
+  }
+
+  return `No forced dynasty move. Keep the core intact, keep the liquid assets liquid, and only move when another manager pays above the blended market.`;
+}
+
+function buildDynastyActionNotes(row: OwnerIntelRow, pickRow?: OwnerPickRow | null): string[] {
+  const notes = [
+    row.buyTarget ? `Target watchlist: ${row.buyTarget.name} is the cleanest outside dynasty target in this value band.` : null,
+    row.sellCandidate ? `Sell discipline: ${row.sellCandidate.name} should be shopped before role, age, or market liquidity moves against him.` : null,
+    row.breakoutCandidate ? `Upside hold: ${row.breakoutCandidate.name} has enough age/value runway to keep unless the offer includes a safer asset tier.` : null,
+    row.droppablePlayers?.length ? `Roster churn: ${row.droppablePlayers.map((player) => player.name).slice(0, 2).join(', ')} are the first dynasty-value cuts if a better stash appears.` : null,
+    pickRow && pickRow.count2026 + pickRow.count2027 >= 15 ? `Draft capital gives this manager leverage: ${pickRow.count2026} 2026 picks and ${pickRow.count2027} 2027 picks can buy a distressed asset without touching the core.` : null,
+  ].filter(Boolean) as string[];
+
+  return notes.slice(0, 4);
+}
+
+function buildSeasonRosterRead({
+  selectedIntel,
+  selectedCounts,
+  lineupGroups,
+  canStepInGroups,
+}: {
+  selectedIntel?: OwnerIntelRow | null;
+  selectedCounts?: ManagerCountRow | null;
+  lineupGroups: Array<{ label: string; count?: number; players: CommandPlayer[] }>;
+  canStepInGroups: Array<{ label: string; players: CommandPlayer[] }>;
+}): string {
+  const missingGroups = lineupGroups.filter((group) => group.players.length < Math.max(1, group.count ?? 1));
+  const starterCount = selectedCounts
+    ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters + (selectedCounts.K_starters || 0) + (selectedCounts.DEF_starters || 0)
+    : lineupGroups.reduce((sum, group) => sum + group.players.length, 0);
+  const depthNames = canStepInGroups.flatMap((group) => group.players.slice(0, 2).map((player) => `${player.name} (${player.seasonPositionRank || player.currentPositionRank || player.pos})`));
+  const weakStarter = selectedIntel?.weakestStarter;
+  const riskStarter = selectedIntel?.starterAvailability?.riskiestStarter;
+  const riskCopy = selectedIntel?.starterAvailability?.avgGamesMissed !== null && selectedIntel?.starterAvailability?.avgGamesMissed !== undefined
+    ? `Availability risk is ${selectedIntel.starterAvailability.riskLevel}; projected starters averaged ${selectedIntel.starterAvailability.avgGamesMissed} missed games.`
+    : 'Availability history is limited, so current season rank and role carry more weight.';
+  const weakCopy = weakStarter
+    ? `${weakStarter.name} (${weakStarter.seasonPositionRank || weakStarter.currentPositionRank || weakStarter.pos}) is the first projected starter to upgrade.`
+    : 'No projected starter is clearly below the league line.';
+  const depthCopy = depthNames.length
+    ? `Best next-man-up options: ${depthNames.slice(0, 4).join(', ')}.`
+    : 'There is not much starter-grade depth behind the projected lineup.';
+  const missingCopy = missingGroups.length
+    ? `Lineup fill warning: ${missingGroups.map((group) => group.label).join(', ')} needs a better season-rank option.`
+    : `${starterCount} projected starters fill from ranked active players.`;
+
+  return `${missingCopy} ${weakCopy} ${riskCopy} ${depthCopy}`;
+}
+
+function buildSeasonInsuranceRead(row?: OwnerIntelRow | null): string | null {
+  if (!row?.injuryInsurance && !row?.starterAvailability?.riskiestStarter) return null;
+  const risky = row.starterAvailability?.riskiestStarter;
+  const cover = row.injuryInsurance;
+
+  if (risky && cover) {
+    return `${risky.name} is the player to insure around. ${cover.name} (${cover.seasonPositionRank || cover.currentPositionRank || cover.pos}) is the best internal emergency cover. If the real-life backup is cheap on waivers or in a small trade, compare that role path against keeping ${cover.name} as the first in-house patch.`;
+  }
+
+  if (cover) {
+    return `${cover.name} is the cleanest internal injury cover. This roster should avoid cutting that profile unless waivers produce a clearer season role.`;
+  }
+
+  return `${risky?.name} is the main availability concern, but there is no clean internal cover showing in the current season ranks.`;
+}
+
 function FullRosterRankTiles({ overviewRow }: { overviewRow: LeagueOverviewRows[number] }) {
   const tiles = [
     { key: 'QB', label: 'QB', rank: overviewRow.rank_qb, className: 'owner-intel-heat-position-qb' },
@@ -2763,23 +2896,22 @@ export function LeagueCommandCenter({
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const intel = data.managerRosterIntelligence || [];
-  const power = data.powerRankings || [];
-  const timelines = data.dynastyTimelines || [];
-  const trades = data.tradeTendencies || [];
-  const picks = data.pickPortfolios || [];
   const starterDepth = (data.managerPositionCounts || [])
-    .map((row) => ({
-      manager: row.manager,
-      starterCount: row.QB_starters + row.RB_starters + row.WR_starters + row.TE_starters + (row.K_starters || 0) + (row.DEF_starters || 0),
-      totalPlayers: row.QB + row.RB + row.WR + row.TE + (row.K || 0) + (row.DEF || 0),
-      avgAge: intel.find((item) => item.manager === row.manager)?.avgAge ?? null,
-      ageFlags: intel.find((item) => item.manager === row.manager)?.ageFlags || [],
-      starterAvailability: intel.find((item) => item.manager === row.manager)?.starterAvailability,
-      rosterHealthScore: intel.find((item) => item.manager === row.manager)?.rosterHealthScore,
-      pressurePoints: intel.find((item) => item.manager === row.manager)?.pressurePoints || [],
-      droppablePlayers: intel.find((item) => item.manager === row.manager)?.droppablePlayers || [],
-    }))
-    .sort((a, b) => b.starterCount - a.starterCount || b.totalPlayers - a.totalPlayers || compareManagersByViewerAndStanding(a.manager, b.manager, { viewerManager, standings: currentStandings, leagueOverview: data.leagueOverview }));
+    .map((row) => {
+      const rowIntel = intel.find((item) => item.manager === row.manager);
+      const starterSeasonValue = (row.starterPlayers || []).reduce((sum, player) => sum + (player.seasonValue || player.value || 0), 0);
+
+      return {
+        manager: row.manager,
+        starterCount: row.QB_starters + row.RB_starters + row.WR_starters + row.TE_starters + (row.K_starters || 0) + (row.DEF_starters || 0),
+        totalPlayers: row.QB + row.RB + row.WR + row.TE + (row.K || 0) + (row.DEF || 0),
+        starterSeasonValue,
+        starterAvailability: rowIntel?.starterAvailability,
+        rosterHealthScore: rowIntel?.rosterHealthScore,
+        pressurePoints: rowIntel?.pressurePoints || [],
+      };
+    })
+    .sort((a, b) => b.starterCount - a.starterCount || b.starterSeasonValue - a.starterSeasonValue || b.totalPlayers - a.totalPlayers || compareManagersByViewerAndStanding(a.manager, b.manager, { viewerManager, standings: currentStandings, leagueOverview: data.leagueOverview }));
   const taxiDepth = intel
     .filter((row) => row.taxiTriage?.items.length)
     .map((row) => ({
@@ -2795,11 +2927,6 @@ export function LeagueCommandCenter({
     });
   const selectedIntel = selectedManager ? intel.find((row) => row.manager === selectedManager) : null;
   const selectedCounts = selectedManager ? data.managerPositionCounts.find((row) => row.manager === selectedManager) : null;
-  const selectedTrade = selectedManager ? trades.find((row) => row.manager === selectedManager) : null;
-  const selectedPick = selectedManager ? picks.find((row) => row.manager === selectedManager) : null;
-  const selectedPower = selectedManager ? power.find((row) => row.manager === selectedManager) : null;
-  const selectedTimeline = selectedManager ? timelines.find((row) => row.manager === selectedManager) : null;
-  const selectedGrowth = selectedManager ? data.managerRosterValueGrowth.find((row) => row.manager === selectedManager) : null;
   const openManager = (manager: string) => setSelectedManager(manager);
   const openCommandPlayer = (player: CommandPlayer) => {
     if (!selectedManager) return;
@@ -2833,21 +2960,21 @@ export function LeagueCommandCenter({
     const qbs = take('QB', 2);
     const rbs = take('RB', 2);
     const wrs = take('WR', 2);
-    const tes = take('TE', 2);
+    const tes = take('TE', 1);
     const flex = players
       .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos) && !used.has(player.player_id))
       .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value))
       .slice(0, 2);
     return [
-      { label: 'QB / SF', players: qbs },
-      { label: 'RB', players: rbs },
-      { label: 'WR', players: wrs },
-      { label: 'TE', players: tes },
-      { label: 'Flex', players: flex },
+      { label: 'QB / SF', count: 2, players: qbs },
+      { label: 'RB', count: 2, players: rbs },
+      { label: 'WR', count: 2, players: wrs },
+      { label: 'TE', count: 1, players: tes },
+      { label: 'Flex', count: 2, players: flex },
     ];
   };
   const lineupGroups = selectedCounts?.starterGroups?.length
-    ? selectedCounts.starterGroups.map((group) => ({ label: group.label, players: group.players || [] }))
+    ? selectedCounts.starterGroups.map((group) => ({ label: group.label, count: group.count, players: group.players || [] }))
     : fallbackStarterGroups(selectedStarters);
   const projectedLineupIds = new Set((selectedStarters.length ? selectedStarters : lineupGroups.flatMap((group) => group.players)).map((player) => player.player_id));
   const canStepInGroups = [
@@ -2868,66 +2995,32 @@ export function LeagueCommandCenter({
   const selectedTaxiCount = selectedIntel?.taxiTriage?.items.length || 0;
   const selectedTaxiPromoteCount = selectedIntel?.taxiTriage?.counts['Promote Now'] || 0;
   const selectedTaxiCutCount = selectedIntel?.taxiTriage?.counts.Cuttable || 0;
-  const selectedManagerTags = (() => {
+  const selectedSeasonTags = (() => {
     if (!selectedIntel) return [];
-    const tags = buildOwnerIntelTileTags({
-      identity: selectedIntel.identity,
-      powerRow: selectedPower,
-      timeline: selectedTimeline,
-      growthRow: selectedGrowth,
-      starterAvailability: selectedIntel.starterAvailability,
-      holesSummary: selectedIntel.holes.summary,
-      pickRow: selectedPick,
-    });
+    const starterCount = selectedCounts
+      ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters + (selectedCounts.K_starters || 0) + (selectedCounts.DEF_starters || 0)
+      : 0;
+    const tags: Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> = [
+      starterCount ? { label: `${starterCount} projected starters`, tone: 'neutral' } : null,
+      selectedStarterSeasonValue ? { label: `Season value ${formatCompactValue(selectedStarterSeasonValue)}`, tone: 'good' } : null,
+      selectedIntel.rosterHealthScore !== null && selectedIntel.rosterHealthScore !== undefined
+        ? { label: `Health ${selectedIntel.rosterHealthScore}`, tone: selectedIntel.rosterHealthScore >= 75 ? 'good' : selectedIntel.rosterHealthScore <= 45 ? 'danger' : 'warn' }
+        : null,
+      selectedIntel.starterAvailability?.riskLevel === 'high' ? { label: 'Injury Watch', tone: 'danger' } : null,
+      selectedIntel.holes.summary && selectedIntel.holes.summary !== 'No major roster hole flagged'
+        ? { label: titleCasePill(selectedIntel.holes.summary.split(',')[0]?.trim() || 'Lineup Pressure'), tone: 'warn' }
+        : null,
+      selectedIntel.pressurePoints?.length ? { label: `${selectedIntel.pressurePoints.length} pressure flags`, tone: 'warn' } : null,
+    ].filter(Boolean) as Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }>;
     return tags.slice(0, 6);
   })();
-  const rosterRead = (() => {
-    if (!selectedIntel) return 'No roster read available yet.';
-    const notes: string[] = [];
-    const rbAge = selectedIntel.avgAgeByPosition.RB;
-    const wrAge = selectedIntel.avgAgeByPosition.WR;
-    const teAge = selectedIntel.avgAgeByPosition.TE;
-    const missingLineupGroups = lineupGroups.filter((group) => group.players.length < (group.label === 'TE' ? 1 : 2));
-    const rb2Rank = selectedIntel.holes.rb2Rank ? Number(selectedIntel.holes.rb2Rank.replace(/\D/g, '')) : null;
-    const wr3Rank = selectedIntel.holes.wr3Rank ? Number(selectedIntel.holes.wr3Rank.replace(/\D/g, '')) : null;
-    const teRank = selectedIntel.holes.te1Rank ? Number(selectedIntel.holes.te1Rank.replace(/\D/g, '')) : null;
-
-    if (selectedTimeline) {
-      notes.push(`${selectedTimeline.label}. Contender score ${selectedTimeline.contenderScore}, rebuild score ${selectedTimeline.rebuildScore}, so this team should ${selectedTimeline.contenderScore >= 70 ? 'protect weekly starters and buy injury insurance' : 'keep leaning into picks and young upside'}.`);
-    }
-    if (wrAge !== null && wrAge >= 27) {
-      notes.push(`WR room is aging at ${wrAge.toFixed(1)} on average, so a younger wideout should be a priority before that room loses trade value.`);
-    } else if (wr3Rank !== null && wr3Rank > 36) {
-      notes.push(`WR depth is the soft spot: WR3 is ${selectedIntel.holes.wr3Rank}, so one injury can push a shaky receiver into the weekly lineup.`);
-    }
-    if (rbAge !== null && rbAge >= 26.5) {
-      notes.push(`RB room is older at ${rbAge.toFixed(1)} on average; that is fine for a contender, but this is the position most likely to need a refresh soon.`);
-    } else if (rb2Rank !== null && rb2Rank > 24) {
-      notes.push(`RB2 is ${selectedIntel.holes.rb2Rank}, which is below the comfort line for this league size and gives other managers an obvious attack point.`);
-    }
-    if (teAge !== null && teAge >= 29) {
-      notes.push(`TE is veteran-heavy at ${teAge.toFixed(1)} on average, so the backup plan matters if the starter loses role or health.`);
-    } else if (teRank !== null && teRank > 12) {
-      notes.push(`TE1 is ${selectedIntel.holes.te1Rank}, so this roster may be giving up weekly points at a single-start position.`);
-    }
-    if (selectedIntel.holes.flexDepth <= 1) {
-      notes.push('Flex depth is thin enough that one injury could force a replacement-level player into the lineup.');
-    }
-    if (missingLineupGroups.length) {
-      notes.push(`Lineup warning: ${missingLineupGroups.map((group) => group.label).join(', ')} does not fully fill from ranked players.`);
-    }
-    if (selectedIntel.weakestStarter) {
-      notes.push(`Lineup upgrade spot is ${selectedIntel.weakestStarter.name} (${selectedIntel.weakestStarter.seasonPositionRank || selectedIntel.weakestStarter.currentPositionRank || selectedIntel.weakestStarter.pos}) after season value is considered.`);
-    }
-    if (selectedIntel.bestBenchStash) {
-      notes.push(`${selectedIntel.bestBenchStash.name} (${selectedIntel.bestBenchStash.seasonPositionRank || selectedIntel.bestBenchStash.currentPositionRank || selectedIntel.bestBenchStash.pos}) is the best bench chip if this manager wants to patch a hole without touching the core.`);
-    }
-    if (selectedPick && selectedPick.count2026 + selectedPick.count2027 >= 15) {
-      notes.push(`Draft capital is strong with ${selectedPick.count2026} 2026 picks and ${selectedPick.count2027} 2027 picks, so this team has room to buy help.`);
-    }
-    if (!notes.length) notes.push('This roster is fairly clean: no obvious age cliff, weak starter, or depth emergency from the current positional ranks.');
-    return notes.slice(0, 5).join(' ');
-  })();
+  const rosterRead = buildSeasonRosterRead({
+    selectedIntel,
+    selectedCounts,
+    lineupGroups,
+    canStepInGroups,
+  });
+  const seasonInsuranceRead = buildSeasonInsuranceRead(selectedIntel);
 
   return (
     <>
@@ -2949,12 +3042,8 @@ export function LeagueCommandCenter({
                 avatarUrl={managerAvatars?.[row.manager]}
                 className={viewerOwnedHighlightClass(row.manager, viewerManager)}
                 badges={[
-                { label: `${row.starterCount} starters`, tone: 'neutral' },
-                ...(row.avgAge !== null ? [{ label: `${row.avgAge} avg age`, tone: row.avgAge >= 27.5 ? 'warn' as const : row.avgAge <= 25 ? 'future' as const : 'good' as const }] : []),
-                ...row.ageFlags.slice(0, 2).map((flag) => ({
-                  label: titleCasePill(flag),
-                  tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') ? 'danger' as const : 'future' as const,
-                })),
+                { label: `${row.starterCount} projected`, tone: 'neutral' },
+                ...(row.starterSeasonValue ? [{ label: `Season ${formatCompactValue(row.starterSeasonValue)}`, tone: 'good' as const }] : []),
                 ...(row.starterAvailability?.avgGamesMissed !== null && row.starterAvailability?.avgGamesMissed !== undefined
                   ? [{
                       label: `${row.starterAvailability.avgGamesMissed} missed/gm`,
@@ -2975,7 +3064,7 @@ export function LeagueCommandCenter({
         <FeatureCard
           number={2}
           title="Taxi Squad Triage"
-          kicker="Promote, stash, trade, cut"
+          kicker="Taxi-only activation checks"
           className="command-feature-card-wide"
           hideNumber
           hideHeader={section !== 'all'}
@@ -2991,7 +3080,6 @@ export function LeagueCommandCenter({
                   { label: `${row.taxiTriage.items.length} taxi`, tone: 'neutral' },
                   ...(row.taxiTriage.counts['Promote Now'] ? [{ label: `${row.taxiTriage.counts['Promote Now']} promote`, tone: 'good' as const }] : []),
                   ...(row.taxiTriage.counts['Keep Parked'] ? [{ label: `${row.taxiTriage.counts['Keep Parked']} stash`, tone: 'future' as const }] : []),
-                  ...(row.taxiTriage.counts['Trade Sweetener'] ? [{ label: `${row.taxiTriage.counts['Trade Sweetener']} sweetener`, tone: 'neutral' as const }] : []),
                   ...(row.taxiTriage.counts['Taxi Risk'] ? [{ label: `${row.taxiTriage.counts['Taxi Risk']} risk`, tone: 'warn' as const }] : []),
                   ...(row.taxiTriage.counts.Cuttable ? [{ label: `${row.taxiTriage.counts.Cuttable} cuttable`, tone: 'danger' as const }] : []),
                 ]}
@@ -3047,7 +3135,7 @@ export function LeagueCommandCenter({
                   <>
                     <IntelligenceMetric label="Starters" value={selectedCounts ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters + (selectedCounts.K_starters || 0) + (selectedCounts.DEF_starters || 0) : '-'} />
                     <IntelligenceMetric label="Season Value" value={selectedStarterSeasonValue ? formatCompactValue(selectedStarterSeasonValue) : '-'} />
-                    <IntelligenceMetric label="Avg Age" value={selectedIntel?.avgAge ?? '-'} />
+                    <IntelligenceMetric label="Health" value={selectedIntel?.rosterHealthScore ?? '-'} />
                   </>
                 )}
               </div>
@@ -3084,9 +3172,9 @@ export function LeagueCommandCenter({
                 )
               ) : (
                 <>
-              {selectedManagerTags.length ? (
-                <div className="manager-command-tag-row" aria-label="Manager profile tags">
-                  {selectedManagerTags.map((tag) => (
+              {selectedSeasonTags.length ? (
+                <div className="manager-command-tag-row" aria-label="Season roster tags">
+                  {selectedSeasonTags.map((tag) => (
                     <span key={tag.label} className={`manager-intel-pill command-mini-badge-${tag.tone}`}>
                       {tag.label}
                     </span>
@@ -3139,13 +3227,14 @@ export function LeagueCommandCenter({
                 </div>
               </div>
               <div className="manager-command-section manager-command-read">
-                <h4>Trade / Picks</h4>
-                <p>{selectedTrade ? `${selectedTrade.tradeCount} trades, ${selectedTrade.winPct}% win rate, ${selectedTrade.profit > 0 ? '+' : ''}${selectedTrade.profit.toLocaleString()} profit` : 'No completed trade profile yet.'}</p>
-                <p>{selectedPick ? `${selectedPick.count2026} picks in 2026, ${selectedPick.count2027} picks in 2027, ${formatCompactValue(selectedPick.totalValue)} total draft capital` : 'No pick portfolio data available.'}</p>
-                <div className="manager-command-inline-read">
-                  <h4>Roster Read</h4>
-                  <p>{selectedIntel?.strategySummary || rosterRead}</p>
-                </div>
+                <h4>Season AI Read</h4>
+                <p>{rosterRead}</p>
+                {seasonInsuranceRead ? (
+                  <div className="manager-command-inline-read">
+                    <h4>Injury Insurance</h4>
+                    <p>{seasonInsuranceRead}</p>
+                  </div>
+                ) : null}
               </div>
               {(selectedIntel?.startingRosterStrength?.length || selectedIntel?.positionGrades) ? (
                 <div className="manager-command-section">
@@ -3176,16 +3265,6 @@ export function LeagueCommandCenter({
                   </div>
                 </div>
               ) : null}
-              {selectedIntel?.tradeBlueprints?.length ? (
-                <div className="manager-command-section">
-                  <h4>Trade Blueprints</h4>
-                  <ul>
-                    {selectedIntel.tradeBlueprints.map((blueprint) => (
-                      <li key={blueprint.label}>{blueprint.label}: {blueprint.summary}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
               {selectedIntel?.pressurePoints?.length ? (
                 <div className="manager-command-section">
                   <h4>Pressure Points</h4>
@@ -3194,53 +3273,6 @@ export function LeagueCommandCenter({
                       <li key={point}>{point}</li>
                     ))}
                   </ul>
-                </div>
-              ) : null}
-              {selectedIntel && [selectedIntel.buyTarget, selectedIntel.sellCandidate, selectedIntel.tradeChip, selectedIntel.injuryInsurance].some(Boolean) ? (
-                <div className="manager-command-section">
-                  <h4>Trade Ideas</h4>
-                  <div className="manager-command-tile-grid">
-                    {selectedIntel.buyTarget ? (
-                      <CommandPlayerTile label="Buy Target" player={selectedIntel.buyTarget} onClick={() => openCommandPlayer(selectedIntel.buyTarget!)} />
-                    ) : null}
-                    {selectedIntel.sellCandidate ? (
-                      <CommandPlayerTile label="Sell Candidate" player={selectedIntel.sellCandidate} onClick={() => openCommandPlayer(selectedIntel.sellCandidate!)} />
-                    ) : null}
-                    {selectedIntel.tradeChip ? (
-                      <CommandPlayerTile label="Trade Chip" player={selectedIntel.tradeChip} onClick={() => openCommandPlayer(selectedIntel.tradeChip!)} />
-                    ) : null}
-                    {selectedIntel.injuryInsurance ? (
-                      <CommandPlayerTile label="Insurance" player={selectedIntel.injuryInsurance} onClick={() => openCommandPlayer(selectedIntel.injuryInsurance!)} />
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-              {selectedIntel?.untouchablePlayers?.length ? (
-                <div className="manager-command-section manager-command-untouchable">
-                  <h4>Should Be Untouchable</h4>
-                  <div className="manager-command-tile-grid">
-                    {selectedIntel.untouchablePlayers.map((player) => (
-                      <CommandPlayerTile
-                        key={player.player_id}
-                        player={player}
-                        onClick={() => openCommandPlayer(player)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {selectedIntel?.droppablePlayers?.length ? (
-                <div className="manager-command-section">
-                  <h4>Most Droppable</h4>
-                  <div className="manager-command-tile-grid">
-                    {selectedIntel.droppablePlayers.map((player) => (
-                      <CommandPlayerTile
-                        key={player.player_id}
-                        player={player}
-                        onClick={() => openCommandPlayer(player)}
-                      />
-                    ))}
-                  </div>
                 </div>
               ) : null}
                 </>
@@ -3465,46 +3497,27 @@ export function OwnerIntelMatrix({
   const intelRows = data.managerRosterIntelligence || [];
   if (!intelRows.length) return null;
 
-  const getCountRow = (manager: string) => data.managerPositionCounts.find((row) => row.manager === manager);
   const getTradeRow = (manager: string) => data.tradeTendencies?.find((row) => row.manager === manager);
   const getPickRow = (manager: string) => data.pickPortfolios?.find((row) => row.manager === manager);
-  const getPowerRow = (manager: string) => data.powerRankings?.find((row) => row.manager === manager);
-  const getTimelineRow = (manager: string) => data.dynastyTimelines?.find((row) => row.manager === manager);
   const getOverviewRow = (manager: string) => data.leagueOverview.find((row) => row.manager === manager);
   const getGrowthRow = (manager: string) => data.managerRosterValueGrowth.find((row) => row.manager === manager);
-  const orderedIntelRows = sortRowsByOverviewStrength(intelRows, (row) => row.manager, {
-    powerRankings: data.powerRankings,
-    dynastyTimelines: data.dynastyTimelines,
-    leagueOverview: data.leagueOverview,
+  const orderedIntelRows = [...intelRows].sort((a, b) => {
+    if (viewerManager && a.manager === viewerManager && b.manager !== viewerManager) return -1;
+    if (viewerManager && b.manager === viewerManager && a.manager !== viewerManager) return 1;
+    const aRank = getOverviewRow(a.manager)?.rank_value ?? Number.MAX_SAFE_INTEGER;
+    const bRank = getOverviewRow(b.manager)?.rank_value ?? Number.MAX_SAFE_INTEGER;
+    if (aRank !== bRank) return aRank - bRank;
+    return a.manager.localeCompare(b.manager);
   });
   const selectedRow = selectedOwner ? orderedIntelRows.find((row) => row.manager === selectedOwner) : null;
-  const selectedCountRow = selectedRow ? getCountRow(selectedRow.manager) : null;
   const selectedTradeRow = selectedRow ? getTradeRow(selectedRow.manager) : null;
   const selectedPickRow = selectedRow ? getPickRow(selectedRow.manager) : null;
-  const selectedPowerRow = selectedRow ? getPowerRow(selectedRow.manager) : null;
-  const selectedTimelineRow = selectedRow ? getTimelineRow(selectedRow.manager) : null;
   const selectedOverviewRow = selectedRow ? getOverviewRow(selectedRow.manager) : null;
   const selectedGrowthRow = selectedRow ? getGrowthRow(selectedRow.manager) : null;
-  const selectedStarterCount = selectedCountRow ? selectedCountRow.QB_starters + selectedCountRow.RB_starters + selectedCountRow.WR_starters + selectedCountRow.TE_starters + (selectedCountRow.K_starters || 0) + (selectedCountRow.DEF_starters || 0) : null;
-  const selectedTradeableDepthPlayers = selectedRow
-    ? (selectedRow.tradeableDepth?.length
-      ? selectedRow.tradeableDepth
-      : (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => ({
-        position: pos,
-        player: selectedRow.similarValuePlayers[pos],
-        note: selectedRow.similarValuePlayers[pos]
-          ? `${selectedRow.similarValuePlayers[pos]?.name} is the best available non-starter at ${pos}.`
-          : `No non-starting ${pos} is available.`,
-      })))
-      .filter((item): item is { position: 'QB' | 'RB' | 'WR' | 'TE'; player: ManagerIntelPlayer; note: string } => Boolean(item.player))
-    : [];
-  const selectedOwnerTags = selectedRow ? buildOwnerIntelTileTags({
-    identity: selectedRow.identity,
-    powerRow: selectedPowerRow,
-    timeline: selectedTimelineRow,
+  const selectedOwnerTags = selectedRow ? buildDynastyOwnerTags({
+    row: selectedRow,
+    overviewRow: selectedOverviewRow,
     growthRow: selectedGrowthRow,
-    starterAvailability: selectedRow.starterAvailability,
-    holesSummary: selectedRow.holes.summary,
     pickRow: selectedPickRow,
   }) : [];
   const selectedPlayerSectionsBase: Array<{
@@ -3517,76 +3530,39 @@ export function OwnerIntelMatrix({
     { label: 'Buy Idea', player: selectedRow.buyTarget },
     { label: 'Sell Idea', player: selectedRow.sellCandidate, tone: 'warn' },
     { label: 'Trade Chip', player: selectedRow.tradeChip },
-    { label: 'Insurance', player: selectedRow.injuryInsurance },
     { label: 'Droppable', player: selectedRow.droppablePlayers?.[0] || null, tone: 'danger' },
-    { label: 'Weak Link', player: selectedRow.weakestStarter, tone: 'warn' },
-    { label: 'Injury Flag', player: selectedRow.starterAvailability.riskiestStarter, tone: selectedRow.starterAvailability.riskLevel === 'high' ? 'danger' : 'warn' },
     { label: 'Bench Stash', player: selectedRow.bestBenchStash },
-    {
-      label: 'Last Year Stud',
-      player: selectedRow.lastSeasonStud,
-      crownedRank: selectedRow.lastSeasonStud?.lastSeasonPositionRank
-        ? `${selectedRow.lastSeasonStud.lastSeasonYear || '2025'} ${selectedRow.lastSeasonStud.lastSeasonPositionRank}`
-        : null,
-    },
+    { label: 'Young Core', player: selectedRow.youngCorePlayer },
+    { label: 'Upside Play', player: selectedRow.breakoutCandidate },
+    { label: 'Age Risk', player: selectedRow.oldestPlayer, tone: 'warn' },
   ] : [];
   const selectedPlayerSections = selectedPlayerSectionsBase.filter((item, index, rows) => {
     if (!item.player) return false;
     return rows.findIndex((candidate) => candidate.player?.player_id === item.player?.player_id) === index;
   });
-  const selectedRosterRead = selectedRow ? buildOwnerShapeCopy(selectedRow) : '';
-  const selectedBestMove = selectedRow ? buildOwnerBestMove(selectedRow) : '';
+  const selectedRosterRead = selectedRow ? buildDynastyRosterRead(selectedRow, selectedOverviewRow) : '';
+  const selectedBestMove = selectedRow ? buildDynastyBestMove(selectedRow, selectedPickRow) : '';
   const selectedTradeDraftProfile = selectedRow ? buildOwnerTradeDraftProfile(selectedTradeRow, selectedPickRow) : '';
-  const selectedHealthCheck = selectedRow ? buildOwnerHealthCopy(selectedRow) : '';
-  const selectedWeakSpotCopy = selectedRow ? buildOwnerWeakSpotCopy(selectedRow) : '';
-  const selectedTeamWindow = selectedRow ? buildOwnerWindowCopy(selectedRow, selectedTimelineRow) : '';
-  const selectedActionNotes = selectedRow ? dedupeIntelNotes([
-    selectedRow.pressurePoints?.[0],
-    selectedRow.pressurePoints?.[1],
-    selectedRow.marketSignals?.find((signal) => !signal.includes('External target') && !signal.includes('Internal liquidity')),
-    selectedRow.untouchablePlayers?.length
-      ? `Core rule: ${selectedRow.untouchablePlayers.map((player) => player.name).slice(0, 3).join(', ')} should only move for an obvious overpay.`
-      : null,
-    selectedRow.droppablePlayers?.length
-      ? `Roster churn: ${selectedRow.droppablePlayers.map((player) => player.name).slice(0, 3).join(', ')} are the first cuts if waivers heat up.`
-      : null,
-  ], [
+  const selectedActionNotes = selectedRow ? dedupeIntelNotes(buildDynastyActionNotes(selectedRow, selectedPickRow), [
     selectedRosterRead,
     selectedBestMove,
     selectedTradeDraftProfile,
-    selectedHealthCheck,
-    selectedWeakSpotCopy,
-    selectedTeamWindow,
   ]).slice(0, 4) : [];
 
   return (
     <>
       <div className="command-depth-grid">
         {orderedIntelRows.map((row) => {
-          const countRow = getCountRow(row.manager);
-          const tradeRow = getTradeRow(row.manager);
           const pickRow = getPickRow(row.manager);
-          const powerRow = getPowerRow(row.manager);
-          const timelineRow = getTimelineRow(row.manager);
+          const overviewRow = getOverviewRow(row.manager);
           const growthRow = getGrowthRow(row.manager);
-          const starterCount = countRow ? countRow.QB_starters + countRow.RB_starters + countRow.WR_starters + countRow.TE_starters + (countRow.K_starters || 0) + (countRow.DEF_starters || 0) : null;
           return (
             <ManagerDepthTile
               key={row.manager}
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
               className={viewerOwnedHighlightClass(row.manager, viewerManager)}
-              badges={[
-                ...buildOwnerIntelTileTags({
-                  identity: row.identity,
-                  powerRow,
-                  timeline: timelineRow,
-                  growthRow,
-                  starterAvailability: row.starterAvailability,
-                  holesSummary: row.holes.summary,
-                  pickRow,
-                }),
-              ]}
+              badges={buildDynastyOwnerTags({ row, overviewRow, growthRow, pickRow })}
               onClick={() => setSelectedOwner(row.manager)}
             />
           );
@@ -3627,8 +3603,8 @@ export function OwnerIntelMatrix({
                   </div>
                 </div>
                 <div className="manager-command-hero-metrics">
-                  <IntelligenceMetric label="Starters" value={selectedStarterCount ?? '-'} />
-                  <IntelligenceMetric label="Power" value={selectedPowerRow?.score ?? '-'} />
+                  <IntelligenceMetric label="Dynasty Value" value={selectedGrowthRow ? formatCompactValue(selectedGrowthRow.total_val) : '-'} />
+                  <IntelligenceMetric label="Value Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_value}` : '-'} />
                   <IntelligenceMetric label="Avg Age" value={selectedRow.avgAge ?? '-'} />
                 </div>
               </div>
@@ -3643,12 +3619,12 @@ export function OwnerIntelMatrix({
                 </div>
 
                 <div className="owner-intel-stat-grid">
-                  <IntelligenceMetric label="Lineup Share" value={`${selectedRow.starterValuePct}%`} />
-                  <IntelligenceMetric label="Current Value" value={selectedGrowthRow ? formatCompactValue(selectedGrowthRow.total_val) : '-'} />
+                  <IntelligenceMetric label="Dynasty Value" value={selectedGrowthRow ? formatCompactValue(selectedGrowthRow.total_val) : '-'} />
                   <IntelligenceMetric label="Future Picks" value={selectedPickRow ? `${selectedPickRow.count2026 + selectedPickRow.count2027}` : '-'} />
-                  <IntelligenceMetric label="Power Rank" value={selectedPowerRow ? `#${selectedPowerRow.rank}` : '-'} />
-                  <IntelligenceMetric label="Win-Now" value={selectedTimelineRow?.contenderScore ?? '-'} />
-                  <IntelligenceMetric label="Rebuild" value={selectedTimelineRow?.rebuildScore ?? '-'} />
+                  <IntelligenceMetric label="QB Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_qb}` : '-'} />
+                  <IntelligenceMetric label="RB Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_rb}` : '-'} />
+                  <IntelligenceMetric label="WR Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_wr}` : '-'} />
+                  <IntelligenceMetric label="TE Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_te}` : '-'} />
                 </div>
 
                 {selectedOverviewRow ? <FullRosterRankTiles overviewRow={selectedOverviewRow} /> : null}
@@ -3670,82 +3646,21 @@ export function OwnerIntelMatrix({
                 </div>
 
                 <div className="owner-intel-read-grid">
-                  {(selectedRow.startingRosterStrength?.length || selectedRow.positionGrades) ? (
-                    <div className="owner-intel-roster-heat">
-                      <h4 className="owner-intel-comparison-heading">
-                        <span>{STARTING_ROSTER_STRENGTH_TITLE}</span>
-                        <small>{STARTING_ROSTER_STRENGTH_COMPARISON}</small>
-                      </h4>
-                      <p className="owner-intel-section-note">{STARTING_ROSTER_STRENGTH_NOTE}</p>
-                      <div className="owner-intel-heat-grid">
-                        {selectedRow.startingRosterStrength?.length
-                          ? selectedRow.startingRosterStrength.map((tile) => (
-                            <span key={tile.key} className={getHeatPillClass(tile.key, tile.grade)} title={tile.note}>
-                              <strong>{tile.label}</strong>
-                              <em>{tile.leagueRank ? `#${tile.leagueRank}` : '-'}</em>
-                              <small>{tile.grade || 'Empty'}</small>
-                            </span>
-                          ))
-                          : (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
-                            const grade = selectedRow.positionGrades?.[pos];
-                            return (
-                              <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
-                                <strong>{pos}</strong>
-                                <em>{grade?.rank ? `#${grade.rank}` : '-'}</em>
-                                <small>{grade?.grade || 'Empty'}</small>
-                              </span>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  ) : null}
                   <div className="owner-intel-read-wide">
-                    <h4>Roster Read</h4>
+                    <h4>Dynasty Roster Read</h4>
                     <p>{selectedRosterRead}</p>
                   </div>
                   <div>
-                    <h4>Best Move</h4>
+                    <h4>Dynasty Best Move</h4>
                     <p>{selectedBestMove}</p>
                   </div>
                   <div>
-                    <h4>Trade / Picks</h4>
+                    <h4>Market / Picks</h4>
                     <p>{selectedTradeDraftProfile}</p>
-                  </div>
-                  <div className="owner-intel-bench-baseline">
-                    <h4>Bench Baseline</h4>
-                    <p className="owner-intel-section-note">{BENCH_BASELINE_NOTE}</p>
-                    <BenchBaselineList
-                      row={selectedRow}
-                      playerDetailsById={data.playerDetailsById}
-                      managerAvatars={managerAvatars}
-                      onSelect={setSelectedPlayer}
-                    />
-                    <p>{selectedWeakSpotCopy}</p>
-                  </div>
-                  {selectedTradeableDepthPlayers.length ? (
-                    <div className="owner-intel-value-map">
-                      <h4>Tradeable Depth</h4>
-                      <p className="owner-intel-section-note">{TRADEABLE_DEPTH_NOTE}</p>
-                      <TradeableDepthList
-                        items={selectedTradeableDepthPlayers}
-                        row={selectedRow}
-                        playerDetailsById={data.playerDetailsById}
-                        managerAvatars={managerAvatars}
-                        onSelect={setSelectedPlayer}
-                      />
-                    </div>
-                  ) : null}
-                  <div>
-                    <h4>Health Check</h4>
-                    <p>{selectedHealthCheck}</p>
-                  </div>
-                  <div>
-                    <h4>Team Window</h4>
-                    <p>{selectedTeamWindow}</p>
                   </div>
                   {selectedActionNotes.length ? (
                     <div className="owner-intel-wild-notes">
-                      <h4>What To Do Next</h4>
+                      <h4>Dynasty AI Notes</h4>
                       <ul>
                         {selectedActionNotes.map((note) => (
                           <li key={note}>{note}</li>
@@ -6519,6 +6434,34 @@ function getPositionDepthRead(signal: PositionDepthSignal, row?: ManagerCountRow
   return `${signal.manager} has the league-${signal.status === 'shortage' ? 'low' : 'high'} ${signal.position} count: ${rosterCount}/${starterNeed} rostered-to-start, including taxi and reserve players. ${startingCaliberCount} ${signal.position} player${startingCaliberCount === 1 ? '' : 's'} clear the ${Math.max(leagueSize, 1)}-team starter-caliber cutoff for this lineup format.${playerCopy}`;
 }
 
+function buildManagerPositionCountAiRead(row: ManagerCountRow, data: ReportData['managerPositionCounts'], signals: PositionDepthSignal[]): string {
+  const leagueSize = Math.max(data.length, 1);
+  const shortageSignals = signals.filter((signal) => signal.status === 'shortage' && isCountPosition(signal.position));
+  const excessSignals = signals.filter((signal) => signal.status === 'excess' && isCountPosition(signal.position));
+  const countReads = COUNT_POSITIONS
+    .map((position) => {
+      const count = getPositionRosterCount(row, position);
+      if (!count) return null;
+      const delta = getPositionCountDelta(row, data, position);
+      const starterNeed = getPositionStarterNeed(row, position);
+      const starterCaliberCount = getStartingCaliberCount(row, position, leagueSize);
+      const deltaCopy = Math.abs(delta) < 0.75 ? 'near league average' : `${delta > 0 ? '+' : ''}${Math.round(delta)} vs average`;
+      return `${position}: ${count} rostered, ${starterNeed} projected starter slot${starterNeed === 1 ? '' : 's'}, ${starterCaliberCount} starter-caliber by season rank, ${deltaCopy}`;
+    })
+    .filter(Boolean) as string[];
+  const excessPlayerCopy = excessSignals
+    .flatMap((signal) => getPositionDepthSignalPlayers(row, signal).slice(0, 2).map((player) => `${player.name} (${player.seasonPositionRank || player.currentPositionRank || player.pos})`))
+    .slice(0, 4);
+  const shortageCopy = shortageSignals.length
+    ? `Shortage watch: ${shortageSignals.map((signal) => signal.position).join(', ')}.`
+    : 'No position is meaningfully below league count average.';
+  const excessCopy = excessSignals.length
+    ? `Overage leverage: ${excessSignals.map((signal) => signal.position).join(', ')}${excessPlayerCopy.length ? `, led by ${excessPlayerCopy.join(', ')}` : ''}.`
+    : 'No position is meaningfully over league count average.';
+
+  return `${shortageCopy} ${excessCopy} This count board includes starters, bench, IR, and taxi, then compares the full room against the league. ${countReads.slice(0, 4).join(' ')}${countReads.length > 4 ? ' Extra K/DEF rooms are included when this league uses them.' : ''}`;
+}
+
 function getManagerRosterPlayersByPosition(row: ManagerCountRow): Record<CountPosition, ManagerCountPlayer[]> {
   return Object.fromEntries(
     COUNT_POSITIONS.map((position) => [
@@ -6712,7 +6655,7 @@ export function ManagerPositionCountsTable({
                     <h3 className={getManagerHeadingClassName(selectedManager.manager)}>{selectedManager.manager}</h3>
                     <ManagerChampionshipPills managerName={selectedManager.manager} className="manager-command-championships" />
                     <p className="starter-modal-subtitle">
-                      {selectedRosterPlayerCount} rostered lineup player{selectedRosterPlayerCount === 1 ? '' : 's'} by season rank, including taxi
+                      {selectedRosterPlayerCount} rostered lineup player{selectedRosterPlayerCount === 1 ? '' : 's'} by season rank, including bench, IR, and taxi
                     </p>
                   </div>
                 </div>
@@ -6751,6 +6694,10 @@ export function ManagerPositionCountsTable({
                     })}
                   </div>
                 )}
+                <div className="manager-command-section manager-command-read starter-depth-count-read">
+                  <h4>Full Roster Count Read</h4>
+                  <p>{buildManagerPositionCountAiRead(selectedManager, data, selectedDepthSignals)}</p>
+                </div>
                 {selectedRosterPlayersByPosition && selectedRosterPlayerCount > 0 ? (
                   <div className="starter-roster-position-list">
                     {COUNT_POSITIONS.map((position) => {

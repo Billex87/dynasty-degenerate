@@ -1766,7 +1766,7 @@ export default function Home() {
                   const hasTaxiTriage = !isRedraftReport && reportData.managerRosterIntelligence?.some((row) => (row.taxiTriage?.items.length || 0) > 0);
                   return (
                     <>
-                <CollapsibleReportSection title="Owner Intel Lab" kicker="Actionable owner reads">
+                <CollapsibleReportSection title="Owner Intel Lab" kicker="Dynasty owner reads">
                   <OwnerIntelMatrix
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}
@@ -1788,7 +1788,7 @@ export default function Home() {
                   />
                 </CollapsibleReportSection>
                 {hasTaxiTriage && (
-                <CollapsibleReportSection title="Taxi Squad Triage" kicker="Promote, stash, trade, cut">
+                <CollapsibleReportSection title="Taxi Squad Triage" kicker="Taxi-only activation checks">
                   <LeagueCommandCenter
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}
@@ -1801,7 +1801,7 @@ export default function Home() {
                 </CollapsibleReportSection>
                 )}
                 {reportData.managerPositionCounts.length > 0 && (
-                  <CollapsibleReportSection title="Manager Position Counts" kicker="Starters vs rostered">
+                  <CollapsibleReportSection title="Manager Position Counts" kicker="Full roster depth map">
                     <ManagerPositionCountsTable
                       data={reportData.managerPositionCounts}
                       positionDepth={reportData.positionDepth}
