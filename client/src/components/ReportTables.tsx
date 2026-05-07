@@ -2820,7 +2820,7 @@ function OwnerQuickModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="owner-quick-modal manager-command-dialog max-w-2xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
+      <DialogContent showCloseButton={false} className="owner-quick-modal manager-command-dialog max-w-2xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
         <DialogHeader className="sr-only">
           <DialogTitle>{manager} {title}</DialogTitle>
           <DialogDescription>Owner detail summary.</DialogDescription>
@@ -3092,7 +3092,7 @@ export function LeagueCommandCenter({
 
     </div>
     <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
-      <DialogContent className="manager-command-dialog max-w-3xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
+      <DialogContent showCloseButton={false} className="manager-command-dialog max-w-3xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
         <DialogHeader className="sr-only">
           <DialogTitle>{selectedManager || 'Manager'} Command Center</DialogTitle>
           <DialogDescription>Manager-level calculation details and data points.</DialogDescription>
@@ -3342,7 +3342,7 @@ export function ManagerIntelligenceCards({
       </div>
 
       <Dialog open={selectedRow !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
-        <DialogContent className="manager-command-dialog max-w-4xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
+        <DialogContent showCloseButton={false} className="manager-command-dialog max-w-4xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
           <DialogHeader className="sr-only">
             <DialogTitle>{selectedRow?.manager || 'Manager'} Identity Timeline</DialogTitle>
             <DialogDescription>Roster identity, age curve, depth signals, and key players.</DialogDescription>
@@ -3570,7 +3570,7 @@ export function OwnerIntelMatrix({
       </div>
 
       <Dialog open={selectedRow !== null} onOpenChange={(open) => !open && setSelectedOwner(null)}>
-        <DialogContent className="manager-command-dialog owner-intel-dialog max-w-5xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
+        <DialogContent showCloseButton={false} className="manager-command-dialog owner-intel-dialog max-w-5xl border-cyan-300/20 bg-slate-950 p-0 text-slate-100">
           <DialogHeader className="sr-only">
             <DialogTitle>{selectedRow?.manager || 'Owner'} Intel Lab</DialogTitle>
             <DialogDescription>Owner intelligence, trade ideas, player flags, and roster notes.</DialogDescription>
@@ -4739,7 +4739,7 @@ export function TradeProfitLeaderboardTable({
           setSelectedPlayer(null);
         }}
       >
-        <DialogContent className="trade-manager-modal max-h-[82vh] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-w-2xl">
+        <DialogContent showCloseButton={false} className="trade-manager-modal max-h-[82vh] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-w-2xl">
           {selectedManager && (
             <div className="trade-manager-modal-inner">
               <div className="trade-manager-modal-hero">
@@ -5241,7 +5241,7 @@ export function TradeTendenciesTable({
         })}
       </div>
       <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
-        <DialogContent className="trade-manager-modal max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-0 text-slate-100 sm:max-w-2xl">
+        <DialogContent showCloseButton={false} className="trade-manager-modal max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-0 text-slate-100 sm:max-w-2xl">
           {selectedManager && selectedRow && (
             <div className="trade-manager-modal-inner">
               <div className="trade-manager-modal-hero">
@@ -6717,7 +6717,7 @@ export function ManagerPositionCountsTable({
         })}
       </div>
       <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
-        <DialogContent className="starter-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl">
+        <DialogContent showCloseButton={false} className="starter-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl">
           <DialogHeader className="sr-only">
             <DialogTitle>{selectedManager?.manager} Roster Counts</DialogTitle>
             <DialogDescription>

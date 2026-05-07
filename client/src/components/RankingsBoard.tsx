@@ -24,12 +24,12 @@ type RankingsTableConfig = {
 };
 
 const PAGE_SIZE = 25;
-const POSITION_FILTERS: Array<{ key: PositionFilter; label: string }> = [
+const POSITION_FILTERS: Array<{ key: PositionFilter; label: string; compactLabel?: string }> = [
   { key: 'QB', label: 'QB' },
   { key: 'RB', label: 'RB' },
   { key: 'WR', label: 'WR' },
   { key: 'TE', label: 'TE' },
-  { key: 'PICK', label: 'Picks' },
+  { key: 'PICK', label: 'Picks', compactLabel: 'PCK' },
 ];
 
 function formatValue(value?: number | null): string {
@@ -49,6 +49,11 @@ function getCompactValue(value?: number | null): string {
     return `${compact >= 10 ? Math.round(compact) : compact.toFixed(1).replace(/\.0$/, '')}K`;
   }
   return String(value);
+}
+
+function getDraftClassValue(player: RankingPlayer): number | null {
+  const year = Number(player.draftYear || player.prospectProfile?.draftYear || 0);
+  return Number.isFinite(year) && year > 0 ? year : null;
 }
 
 function getProfileFallback(options: RankingProfileOption[], board: 'dynasty' | 'devy'): string {
@@ -202,15 +207,13 @@ function RankingCard({
     >
       <div className="ranking-player-topline">
         <span className="ranking-overall-rank">#{player.overallRank}</span>
-        {showMovement ? (
-          <span className={`ranking-movement-pill ${movementClass}`}>
-            {player.movementLabel || 'Stable'}
-          </span>
-        ) : null}
       </div>
 
       <div className="ranking-player-main">
-        <RankingPlayerIdentity player={player} />
+        <div className="ranking-player-primary">
+          <RankingPlayerIdentity player={player} />
+          {!player.isDevy ? <span className="ranking-inline-value">{getCompactValue(player.value)}</span> : null}
+        </div>
         <div className="ranking-card-pills">
           {player.isPick ? (
             <span className={getRankClass('PICK')}>PICK</span>
@@ -220,7 +223,6 @@ function RankingCard({
               <span className={player.isDevy ? getRankClass(player.pos) : getRankClass(player.positionRank || player.pos)}>{player.isDevy ? player.pos : player.positionRank || player.pos}</span>
             </>
           )}
-          {!player.isDevy ? <span>{getCompactValue(player.value)}</span> : null}
           {player.age ? <span>{player.age} yrs</span> : null}
         </div>
       </div>
@@ -240,6 +242,14 @@ function RankingCard({
           </>
         )}
       </div>
+
+      {showMovement ? (
+        <div className="ranking-card-movement">
+          <span className={`ranking-movement-pill ${movementClass}`}>
+            {player.movementLabel || 'Stable'}
+          </span>
+        </div>
+      ) : null}
 
       {player.isDevy && (prospectPills.length || player.prospectProfile?.role || player.college || player.draftYear) ? (
         <div className="ranking-devy-line">
@@ -288,6 +298,8 @@ function RankingsTable({
     config.defaultProfileKey || getProfileFallback(profileOptions, config.board)
   );
   const [selectedPositions, setSelectedPositions] = useState<PositionFilter[]>([]);
+  const [includePicksWithOverall, setIncludePicksWithOverall] = useState(false);
+  const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('rank');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -297,6 +309,8 @@ function RankingsTable({
     if (nextProfileKey) {
       setSelectedProfileKey(nextProfileKey);
       setSelectedPositions([]);
+      setIncludePicksWithOverall(false);
+      setSelectedDraftClass(null);
       setSortMode('rank');
       setQuery('');
       setPage(1);
@@ -308,6 +322,18 @@ function RankingsTable({
   const activeProfileLabel = activeProfile ? getProfileButtonLabel(activeProfile) : null;
   const isLeagueMatchedProfile = Boolean(config.defaultProfileKey && selectedProfileKey === config.defaultProfileKey);
   const sourceInputCount = new Set(rows.flatMap((player) => player.sources)).size;
+  const canIncludePicksWithOverall = config.board === 'dynasty' && !config.hidePicks;
+  const draftClassOptions = useMemo(() => {
+    if (config.board !== 'devy') return [];
+    return Array.from(new Set(rows.map(getDraftClassValue).filter((year): year is number => Boolean(year))))
+      .sort((a, b) => a - b);
+  }, [config.board, rows]);
+
+  useEffect(() => {
+    if (selectedDraftClass && !draftClassOptions.includes(selectedDraftClass)) {
+      setSelectedDraftClass(null);
+    }
+  }, [draftClassOptions, selectedDraftClass]);
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -315,9 +341,16 @@ function RankingsTable({
       .filter((player) => {
         if (config.hidePicks && player.isPick) return false;
         if (config.board === 'devy' && (player.isPick || !player.isDevy)) return false;
-        if (selectedPositions.length === 0) return !player.isPick;
+        if (selectedPositions.length === 0) {
+          return includePicksWithOverall && canIncludePicksWithOverall ? true : !player.isPick;
+        }
         return selectedPositions.includes(player.pos as PositionFilter);
       })
+      .filter((player) => (
+        config.board !== 'devy'
+        || !selectedDraftClass
+        || getDraftClassValue(player) === selectedDraftClass
+      ))
       .filter((player) => {
         if (!normalizedQuery) return true;
         return [
@@ -333,7 +366,7 @@ function RankingsTable({
         if (sortMode === 'movement') return Math.abs(b.movement || 0) - Math.abs(a.movement || 0) || a.overallRank - b.overallRank;
         return a.overallRank - b.overallRank;
       });
-  }, [config.board, config.hidePicks, query, rows, selectedPositions, sortMode]);
+  }, [canIncludePicksWithOverall, config.board, config.hidePicks, includePicksWithOverall, query, rows, selectedDraftClass, selectedPositions, sortMode]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -341,18 +374,43 @@ function RankingsTable({
 
   useEffect(() => {
     setPage(1);
-  }, [query, selectedPositions, selectedProfileKey, sortMode]);
+  }, [includePicksWithOverall, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode]);
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
 
   const togglePosition = (position: PositionFilter) => {
+    if (position === 'PICK') {
+      if (canIncludePicksWithOverall && selectedPositions.length === 0) {
+        setIncludePicksWithOverall((current) => !current);
+        return;
+      }
+
+      setIncludePicksWithOverall(false);
+      setSelectedPositions((current) => (
+        current.length === 1 && current[0] === 'PICK' ? [] : ['PICK']
+      ));
+      return;
+    }
+
+    setIncludePicksWithOverall(false);
     setSelectedPositions((current) => (
       current.includes(position)
         ? current.filter((item) => item !== position)
-        : [...current, position]
+        : [...current.filter((item) => item !== 'PICK'), position]
     ));
+  };
+
+  const selectOverall = () => {
+    if (canIncludePicksWithOverall && selectedPositions.length === 1 && selectedPositions[0] === 'PICK') {
+      setSelectedPositions([]);
+      setIncludePicksWithOverall(true);
+      return;
+    }
+
+    setSelectedPositions([]);
+    setIncludePicksWithOverall(false);
   };
 
   return (
@@ -374,7 +432,7 @@ function RankingsTable({
         </div>
       </div>
 
-      <div className="rankings-controls">
+      <div className={`rankings-controls ${!config.hidePicks && config.board === 'dynasty' ? 'rankings-controls-with-picks' : ''} ${config.board === 'devy' ? 'rankings-controls-devy' : ''}`}>
         <div className="rankings-league-type-control">
           <label className="rankings-league-type-label" htmlFor={`${config.board}-league-type`}>
             League Type
@@ -397,7 +455,7 @@ function RankingsTable({
           <button
             type="button"
             className={getPositionButtonClass('OVERALL', selectedPositions.length === 0)}
-            onClick={() => setSelectedPositions([])}
+            onClick={selectOverall}
           >
             <span className="ranking-filter-label-full">Overall</span>
             <span className="ranking-filter-label-compact">OVR</span>
@@ -406,10 +464,15 @@ function RankingsTable({
             <button
               key={filter.key}
               type="button"
-              className={getPositionButtonClass(filter.key, selectedPositions.includes(filter.key))}
+              className={getPositionButtonClass(filter.key, selectedPositions.includes(filter.key) || (filter.key === 'PICK' && includePicksWithOverall && selectedPositions.length === 0))}
               onClick={() => togglePosition(filter.key)}
             >
-              {filter.label}
+              {filter.compactLabel ? (
+                <>
+                  <span className="ranking-filter-label-full">{filter.label}</span>
+                  <span className="ranking-filter-label-compact">{filter.compactLabel}</span>
+                </>
+              ) : filter.label}
             </button>
           ))}
         </div>
@@ -424,10 +487,28 @@ function RankingsTable({
           />
         </div>
 
+        {config.board === 'devy' && draftClassOptions.length ? (
+          <div className="rankings-control-group rankings-class-toggle" aria-label="Draft class filter">
+            <button type="button" className={!selectedDraftClass ? 'active' : ''} onClick={() => setSelectedDraftClass(null)}>All</button>
+            {draftClassOptions.map((draftClass) => (
+              <button
+                key={draftClass}
+                type="button"
+                className={selectedDraftClass === draftClass ? 'active' : ''}
+                onClick={() => setSelectedDraftClass(draftClass)}
+              >
+                {draftClass}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         <div className="rankings-control-group rankings-sort-toggle">
           <button type="button" className={sortMode === 'rank' ? 'active' : ''} onClick={() => setSortMode('rank')}>Rank</button>
           <button type="button" className={sortMode === 'value' ? 'active' : ''} onClick={() => setSortMode('value')}>Value</button>
-          <button type="button" className={sortMode === 'movement' ? 'active' : ''} onClick={() => setSortMode('movement')}>7-Day</button>
+          {config.board !== 'devy' ? (
+            <button type="button" className={sortMode === 'movement' ? 'active' : ''} onClick={() => setSortMode('movement')}>7-Day</button>
+          ) : null}
         </div>
       </div>
 
@@ -555,7 +636,7 @@ export function RankingsBoard({
       board: 'dynasty',
       title: 'Dynasty Value Board',
       kicker: 'League-matched values',
-      description: 'Format-aware dynasty player and pick values matched to this league type. Use the selector to compare how the board shifts across SuperFlex, 1QB, and TE-premium rooms.',
+      description: 'Format-aware dynasty player and pick values matched to this league type. Use the selector to compare how the board shifts across SuperFlex, Standard, and TE-premium rooms.',
       defaultProfileKey: rankings.defaultProfileKey,
       hidePicks,
     },

@@ -2337,7 +2337,7 @@ export default function Home() {
                   <h3 className="font-semibold text-white">Player Rankings</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  Browse league-matched dynasty and college prospect boards across SuperFlex, 1QB, and TE-premium formats.
+                  Browse league-matched dynasty and college prospect boards across SuperFlex, Standard, and TE-premium formats.
                 </p>
               </div>
             </div>

@@ -67,7 +67,7 @@ export function ManagerDraftPicksModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="manager-draft-modal max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-w-4xl">
+        <DialogContent showCloseButton={false} className="manager-draft-modal max-h-[86vh] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-w-4xl">
           <div className="max-h-[86vh] overflow-y-auto overflow-x-hidden">
             <div className="manager-draft-hero relative overflow-hidden border-b border-cyan-300/20 px-5 pb-5 pt-6 sm:px-7 sm:pb-6">
               {managerAvatarUrl && (
