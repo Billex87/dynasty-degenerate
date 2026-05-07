@@ -338,8 +338,8 @@ export function PlayerDetailModal({
           </div>
 
           <div className="space-y-4 bg-slate-950/35 p-4 backdrop-blur-sm sm:space-y-5 sm:p-6">
-            {(pick.round !== undefined || pick.pick !== undefined) && (
-              <div className="mx-auto grid max-w-xl grid-cols-2 gap-2 sm:gap-3">
+            {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025) && (
+              <div className="mx-auto grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                 {pick.round !== undefined && (
                   <InlineInfoTile
                     label="Round"
@@ -352,6 +352,22 @@ export function PlayerDetailModal({
                   <InlineInfoTile
                     label="Pick #"
                     value={String(pick.pick)}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                )}
+                {draftValue !== undefined && (
+                  <InlineInfoTile
+                    label="Draft-Day Value"
+                    value={draftValue ? draftValue.toLocaleString() : '-'}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                )}
+                {pick.positionRankMay2025 && (
+                  <InlineInfoTile
+                    label="Drafted Rank"
+                    value={pick.positionRankMay2025}
                     teamColors={teamColors}
                     tileAccent={tileAccent}
                   />
@@ -514,31 +530,6 @@ export function PlayerDetailModal({
             )}
 
             <div className="mx-auto max-w-xl space-y-3">
-              {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025) && (
-                <div className="space-y-3">
-                  {(draftValue !== undefined || pick.positionRankMay2025) && (
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      {draftValue !== undefined && (
-                        <InfoTile
-                          label="Draft-Day Value"
-                          value={draftValue ? draftValue.toLocaleString() : '-'}
-                          teamColors={teamColors}
-                          tileAccent={tileAccent}
-                        />
-                      )}
-                      {pick.positionRankMay2025 && (
-                        <InfoTile
-                          label="Drafted Rank"
-                          value={pick.positionRankMay2025}
-                          valueClassName={getPositionRankPillClass(pick.positionRankMay2025)}
-                          teamColors={teamColors}
-                          tileAccent={tileAccent}
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
               {physicalRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {physicalRows.map(([label, value]) => (

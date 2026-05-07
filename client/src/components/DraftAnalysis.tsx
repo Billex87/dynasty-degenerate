@@ -215,9 +215,9 @@ export function DraftAnalysis({
       </DraftCollapsibleSection>
 
       {managerDraftDecisionAudits.length > 0 && (
-        <DraftCollapsibleSection title="Draft Decision Audit" kicker="Need vs board value">
+        <DraftCollapsibleSection title="Draft Decision Audit" kicker="Board value first">
           <div className="draft-decision-audit-note">
-            Manager-level read on whether each draft matched roster need, board value, or left a better option on the board.
+            Manager-level read on whether each draft stayed near the best dynasty values available. Roster need is only used as a tiebreaker after board value.
           </div>
           <div className="owner-tile-shell">
             <div className="owner-tile-grid draft-efficiency-tile-grid draft-decision-manager-grid">
@@ -252,10 +252,12 @@ export function DraftAnalysis({
                     </span>
                     <span className="owner-summary-metrics">
                       <span className="owner-metric-pill owner-metric-pill-info"><span>Picks</span><strong>{audit.totalPicks}</strong></span>
-                      <span className="owner-metric-pill owner-metric-pill-good"><span>Clean</span><strong>{audit.cleanReads}</strong></span>
-                      <span className={`owner-metric-pill ${audit.watchFlags ? 'owner-metric-pill-danger' : 'owner-metric-pill-good'}`}><span>Watch</span><strong>{audit.watchFlags}</strong></span>
-                      <span className="owner-metric-pill owner-metric-pill-info"><span>Need Fits</span><strong>{audit.needFits}</strong></span>
-                      <span className="owner-metric-pill owner-metric-pill-good"><span>Board</span><strong>{audit.boardReads}</strong></span>
+                      <span className="owner-metric-pill owner-metric-pill-good"><span>Hits</span><strong>{audit.hits}</strong></span>
+                      <span className={`owner-metric-pill ${audit.misses ? 'owner-metric-pill-danger' : 'owner-metric-pill-good'}`}><span>Misses</span><strong>{audit.misses}</strong></span>
+                      <span className="owner-metric-pill owner-metric-pill-info"><span>Starters</span><strong>{audit.starters}</strong></span>
+                      <span className={`owner-metric-pill ${audit.avgChange >= 0 ? 'owner-metric-pill-good' : 'owner-metric-pill-danger'}`}>
+                        <span>Avg Change</span><strong>{audit.avgChange >= 0 ? '+' : ''}{audit.avgChange.toLocaleString()}</strong>
+                      </span>
                     </span>
                     <span className="draft-decision-manager-read">{audit.readout}</span>
                   </button>
@@ -446,6 +448,10 @@ interface ManagerDraftDecisionAudit {
   watchFlags: number;
   needFits: number;
   boardReads: number;
+  hits: number;
+  misses: number;
+  starters: number;
+  avgChange: number;
   readout: string;
 }
 
@@ -476,6 +482,10 @@ function buildManagerDraftDecisionAudits(
     const watchFlags = orderedAudits.filter((audit) => audit.tone === 'watch').length;
     const needFits = orderedAudits.filter((audit) => audit.verdict === 'Need + Value' || audit.verdict === 'Need Fit').length;
     const boardReads = orderedAudits.filter((audit) => audit.verdict === 'Board Pick' || audit.tone === 'value' || audit.tone === 'win').length;
+    const hits = orderedAudits.filter((audit) => getResolvedDraftOutcome(audit.pick) === 'hit').length;
+    const misses = orderedAudits.filter((audit) => getResolvedDraftOutcome(audit.pick) === 'miss').length;
+    const starters = orderedAudits.filter((audit) => getResolvedDraftStarter(audit.pick)).length;
+    const avgChange = Math.round(orderedAudits.reduce((sum, audit) => sum + (audit.pick.valueGain || 0), 0) / Math.max(orderedAudits.length, 1));
 
     return {
       manager,
@@ -486,6 +496,10 @@ function buildManagerDraftDecisionAudits(
       watchFlags,
       needFits,
       boardReads,
+      hits,
+      misses,
+      starters,
+      avgChange,
       readout: buildManagerDraftDecisionReadout(orderedAudits),
     };
   });
@@ -499,33 +513,29 @@ function buildManagerDraftDecisionAudits(
 
 function buildManagerDraftDecisionReadout(audits: DraftDecisionAudit[]): string {
   const watchAudits = audits.filter((audit) => audit.tone === 'watch');
-  const cleanReads = audits.length - watchAudits.length;
-  const needFits = audits.filter((audit) => audit.verdict === 'Need + Value' || audit.verdict === 'Need Fit');
-  const boardReads = audits.filter((audit) => audit.verdict === 'Board Pick' || audit.tone === 'value' || audit.tone === 'win');
+  const boardReads = audits.filter((audit) => audit.tone === 'value' || audit.tone === 'win');
+  const hits = audits.filter((audit) => getResolvedDraftOutcome(audit.pick) === 'hit').length;
+  const misses = audits.filter((audit) => getResolvedDraftOutcome(audit.pick) === 'miss').length;
 
   if (watchAudits.length) {
     const mainFlag = [...watchAudits].sort((a, b) => getDraftDecisionSeverity(b) - getDraftDecisionSeverity(a))[0];
     const alternative = mainFlag.alternative?.pick
       ? ` Best follow-up comp is ${mainFlag.alternative.playerName} at ${mainFlag.alternative.pickLabel}.`
       : '';
-    return `${watchAudits.length} pick${watchAudits.length === 1 ? '' : 's'} need a second look. ${mainFlag.pick.playerName} is the headline flag as a ${mainFlag.verdict.toLowerCase()}.${alternative}`;
+    return `${watchAudits.length} pick${watchAudits.length === 1 ? '' : 's'} left value to question. ${mainFlag.pick.playerName} is the headline ${mainFlag.verdict.toLowerCase()}.${alternative}`;
   }
 
-  if (needFits.length && boardReads.length) {
-    return `Clean audit: ${cleanReads}/${audits.length} picks aligned with either roster need or board value, with ${needFits.length} need fit${needFits.length === 1 ? '' : 's'} and ${boardReads.length} board read${boardReads.length === 1 ? '' : 's'}.`;
+  if (hits || misses) {
+    return `Clean value audit: ${boardReads.length}/${audits.length} picks stayed in a strong value lane. Current aged-result check shows ${hits} hit${hits === 1 ? '' : 's'} and ${misses} miss${misses === 1 ? '' : 'es'}.`;
   }
 
-  if (needFits.length) {
-    return `Roster-first draft: ${needFits.length}/${audits.length} picks matched a pressure point without creating a major board-value flag.`;
-  }
-
-  return `Board-first draft: no major decision flags, and ${boardReads.length}/${audits.length} picks stayed in a clean value pocket.`;
+  return `Board-first draft: no major decision flags, and ${boardReads.length}/${audits.length} picks stayed in a clean value pocket. Fresh classes are treated as early reads, not victory laps.`;
 }
 
 function getDraftDecisionSeverity(audit: DraftDecisionAudit): number {
-  if (audit.verdict === 'Need Miss') return 5;
-  if (audit.verdict === 'Passed Value') return 4;
-  if (audit.verdict === 'Need Reach') return 3;
+  if (audit.verdict === 'Passed Board Value') return 5;
+  if (audit.verdict === 'Passed Position Value') return 4;
+  if (audit.verdict === 'Preference Pick') return 3;
   if (audit.tone === 'watch') return 2;
   return 1;
 }
@@ -587,24 +597,21 @@ function buildDraftDecisionAudit(
 
   let verdict = 'Preference Pick';
   let tone: DraftDecisionTone = 'watch';
-  if (needMatch && boardRank <= 5) {
-    verdict = 'Need + Value';
+  if (boardRank <= 3 || bestAvailableDelta <= 150) {
+    verdict = needMatch ? 'Board + Fit' : 'Board Pick';
     tone = 'win';
+  } else if (bestAvailableDelta <= 550) {
+    verdict = needMatch ? 'Fit Tiebreaker' : 'Value Pocket';
+    tone = needMatch ? 'need' : 'value';
+  } else if (bestSamePositionAvailable && samePositionDelta > 350) {
+    verdict = 'Passed Position Value';
+    tone = 'watch';
+  } else if (bestAvailableDelta > 900) {
+    verdict = 'Passed Board Value';
+    tone = 'watch';
   } else if (needMatch) {
-    verdict = bestAvailableDelta > 750 ? 'Need Reach' : 'Need Fit';
-    tone = bestAvailableDelta > 750 ? 'watch' : 'need';
-  } else if (primaryNeed && hasTrueNeedAlternative && needAlternativeDelta >= -450) {
-    verdict = 'Need Miss';
-    tone = 'watch';
-  } else if (!needMatch && bestSamePositionAvailable && samePositionDelta > 250) {
-    verdict = 'Passed Value';
-    tone = 'watch';
-  } else if (boardRank <= 3 || bestAvailableDelta <= 250) {
-    verdict = 'Board Pick';
-    tone = 'value';
-  } else if (bestAvailableDelta > 850) {
-    verdict = 'Passed Value';
-    tone = 'watch';
+    verdict = 'Fit Tiebreaker';
+    tone = 'need';
   }
 
   const needReason = primaryNeed ? getNeedReason(intel, primaryNeed) : 'No major position hole was flagged for this roster.';
@@ -617,11 +624,8 @@ function buildDraftDecisionAudit(
     boardRank,
     bestAvailableDelta,
     samePositionDelta,
-    needAlternativeDelta,
     bestAvailable,
     bestSamePositionAvailable,
-    bestNeedAvailable,
-    hasTrueNeedAlternative,
     needReason,
   });
 
@@ -657,11 +661,8 @@ function buildDraftDecisionSummary({
   boardRank,
   bestAvailableDelta,
   samePositionDelta,
-  needAlternativeDelta,
   bestAvailable,
   bestSamePositionAvailable,
-  bestNeedAvailable,
-  hasTrueNeedAlternative,
   needReason,
 }: {
   verdict: string;
@@ -672,55 +673,42 @@ function buildDraftDecisionSummary({
   boardRank: number;
   bestAvailableDelta: number;
   samePositionDelta: number;
-  needAlternativeDelta: number;
   bestAvailable: DraftPick | null;
   bestSamePositionAvailable: DraftPick | null;
-  bestNeedAvailable: DraftPick | null;
-  hasTrueNeedAlternative: boolean;
   needReason: string;
 }) {
   const draftedLabel = pick.positionRankMay2025 || pick.currentPositionRank || pick.playerPos;
-  const needLabel = primaryNeed ? `${primaryNeed} help` : 'pure board value';
   const boardPocket = boardRank <= 3 ? 'top board pocket' : boardRank <= 8 ? 'strong board pocket' : 'thin value pocket';
   const altValueGap = bestAvailableDelta > 0 ? `${bestAvailableDelta.toLocaleString()} value points` : 'roughly even value';
-  const needGap = needAlternativeDelta > 0 ? `${needAlternativeDelta.toLocaleString()} value points` : 'about the same cost';
 
-  if (verdict === 'Need + Value') {
-    return `${pick.playerName} checked both boxes. ${draftedLabel} filled the roster's ${needLabel} while still landing inside the ${boardPocket}. ${needReason}`;
+  if (verdict === 'Board + Fit') {
+    return `${pick.playerName} was the clean kind of dynasty pick: board value first, roster fit second. ${draftedLabel} landed inside the ${boardPocket}, and ${needReason}`;
   }
 
-  if (verdict === 'Need Fit') {
-    return `${pick.playerName} was a roster-driven pick first. ${pickedPosition || pick.playerPos} addressed the team's clearest pressure point, and the board gap stayed manageable. ${needReason}`;
+  if (verdict === 'Fit Tiebreaker') {
+    return `${pick.playerName} was close enough on value for roster context to matter. ${pickedPosition || pick.playerPos} helped the pressure profile, but this is still graded as a value-window pick first. ${needReason}`;
   }
 
-  if (verdict === 'Need Reach') {
-    return `${pick.playerName} was taken for roster fit, but the price stretched. ${pickedPosition || pick.playerPos} matched the need, yet the board left ${altValueGap} on the table. ${needReason}`;
-  }
-
-  if (verdict === 'Need Miss') {
-    const missedName = bestNeedAvailable?.playerName || 'another need-fit option';
-    return `${pick.playerName} did not attack the roster's clearest need. ${missedName} would have hit the ${primaryNeed} hole for ${needGap}. ${needReason}`;
+  if (verdict === 'Value Pocket') {
+    return `${pick.playerName} stayed in a reasonable value lane. ${draftedLabel} was not the top name left, but the gap to the board was small enough that manager preference is defensible.`;
   }
 
   if (verdict === 'Board Pick') {
     if (primaryNeed && !needMatch) {
-      return `${pick.playerName} was mostly a value call. ${draftedLabel} still sat in the ${boardPocket}, but the roster still came away without solving the ${primaryNeed} hole. ${needReason}`;
+      return `${pick.playerName} was the right kind of dynasty bet: take the value, then solve ${primaryNeed} later by trade. ${draftedLabel} still sat in the ${boardPocket}.`;
     }
     return `${pick.playerName} was mostly a value call. The roster did not need to force a position here, and ${draftedLabel} still sat in the ${boardPocket} when this pick came up.`;
   }
 
-  if (verdict === 'Passed Value') {
+  if (verdict === 'Passed Position Value' || verdict === 'Passed Board Value') {
     if (bestSamePositionAvailable && samePositionDelta > 250) {
       const betterName = bestSamePositionAvailable.playerName;
       if (primaryNeed && !needMatch) {
-        return `${pick.playerName} left the ${primaryNeed} need unresolved, and even on the same position lane the board had more value. ${betterName} graded ${samePositionDelta.toLocaleString()} value points better at ${bestSamePositionAvailable.positionRankMay2025 || bestSamePositionAvailable.currentPositionRank || bestSamePositionAvailable.playerPos}. ${needReason}`;
+        return `${pick.playerName} left stronger value on the board. ${betterName} graded ${samePositionDelta.toLocaleString()} value points better on the same position line at ${bestSamePositionAvailable.positionRankMay2025 || bestSamePositionAvailable.currentPositionRank || bestSamePositionAvailable.playerPos}; the ${primaryNeed} need is just supporting context.`;
       }
       return `${pick.playerName} was not the cleanest value at ${pickedPosition || pick.playerPos}. ${betterName} graded ${samePositionDelta.toLocaleString()} value points better on the same position line, so this was a straight value loss.`;
     }
     const betterName = bestAvailable?.playerName || 'a stronger board value';
-    if (primaryNeed && !needMatch && !hasTrueNeedAlternative) {
-      return `${pick.playerName} did not solve the ${primaryNeed} need, and it also passed on better board value. ${betterName} graded ${altValueGap} better in the same draft window. ${needReason}`;
-    }
     return `${pick.playerName} was more about manager preference than price. ${betterName} graded ${altValueGap} better in the same draft window, so this was a conscious pass on value.`;
   }
 
@@ -858,6 +846,32 @@ function parseRankNumber(rank?: string | null): number | null {
   if (!rank) return null;
   const parsed = Number(rank.replace(/\D/g, ''));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function getResolvedDraftOutcome(pick: DraftPick): NonNullable<DraftPick['draftOutcome']> {
+  if (pick.draftOutcome) return pick.draftOutcome;
+  const rankChange = pick.positionRankChange ? parseInt(pick.positionRankChange, 10) : 0;
+  const hasRankChange = Number.isFinite(rankChange) && rankChange !== 0;
+  const draftYear = Number(pick.draftYear);
+  const isFreshClass = Number.isFinite(draftYear) && draftYear >= new Date().getFullYear();
+  const rankThreshold = isFreshClass ? 12 : 8;
+  const valueThreshold = isFreshClass ? 1500 : 900;
+  const isHit = (hasRankChange && rankChange >= rankThreshold) || (pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain >= valueThreshold);
+  const isMiss = (hasRankChange && rankChange <= -rankThreshold) || (pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain <= -valueThreshold);
+  if (isHit && isMiss) return (pick.valueGain || 0) >= 0 ? 'hit' : 'miss';
+  if (isHit) return 'hit';
+  if (isMiss) return 'miss';
+  return 'neutral';
+}
+
+function getResolvedDraftStarter(pick: DraftPick): boolean {
+  if (typeof pick.isStarter === 'boolean') return pick.isStarter;
+  const rank = pick.currentPositionRank || '';
+  const position = rank.match(/^[A-Z]+/)?.[0] || pick.playerPos;
+  const rankNumber = Number(rank.match(/\d+/)?.[0]);
+  const starterThresholds: Record<string, number> = { QB: 24, RB: 36, WR: 48, TE: 18 };
+  if (position && Number.isFinite(rankNumber) && rankNumber <= (starterThresholds[position] || 0)) return true;
+  return !rank && pick.currentKtcValue !== null && pick.currentKtcValue !== undefined && pick.currentKtcValue > 4000;
 }
 
 function enrichDraftPickDetails(

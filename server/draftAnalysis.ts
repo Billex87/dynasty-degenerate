@@ -304,14 +304,20 @@ export async function analyzeDraftPicks(
 
   const getDraftOutcome = (
     positionRankChange: string | null,
-    valueGain: number | null
+    valueGain: number | null,
+    draftYear: string
   ): 'hit' | 'miss' | 'neutral' => {
     const rankChange = positionRankChange ? parseInt(positionRankChange, 10) : 0;
     const hasRankChange = Number.isFinite(rankChange) && rankChange !== 0;
-    const isRankHit = hasRankChange && rankChange >= 10;
-    const isRankMiss = hasRankChange && rankChange <= -10;
-    const isValueHit = valueGain !== null && valueGain >= 750;
-    const isValueMiss = valueGain !== null && valueGain <= -750;
+    const draftYearNumber = Number(draftYear);
+    const currentYear = new Date().getFullYear();
+    const isFreshClass = Number.isFinite(draftYearNumber) && draftYearNumber >= currentYear;
+    const rankThreshold = isFreshClass ? 12 : 8;
+    const valueThreshold = isFreshClass ? 1500 : 900;
+    const isRankHit = hasRankChange && rankChange >= rankThreshold;
+    const isRankMiss = hasRankChange && rankChange <= -rankThreshold;
+    const isValueHit = valueGain !== null && valueGain >= valueThreshold;
+    const isValueMiss = valueGain !== null && valueGain <= -valueThreshold;
     const isHit = isRankHit || isValueHit;
     const isMiss = isRankMiss || isValueMiss;
 
@@ -460,7 +466,7 @@ export async function analyzeDraftPicks(
     // Can be re-enabled with a more reliable image source in the future
 
     const isStarter = isStarterOutcome(playerPos, currentPositionRank, currentKtcValue);
-    const draftOutcome = getDraftOutcome(positionRankChange, valueGain);
+    const draftOutcome = getDraftOutcome(positionRankChange, valueGain, draftYear);
 
     const processedPick: any = {
       round: pick.round,
@@ -510,9 +516,8 @@ export async function analyzeDraftPicks(
         stats.starters += 1;
       }
 
-      // Track hits and misses based on position rank change or value gain
-      // A hit is: improved by 10+ position ranks OR gained 750+ value points
-      // A miss is: declined by 10+ position ranks OR lost 750+ value points
+      // Track hits and misses based on meaningful position-rank or value movement.
+      // Fresh rookie classes need a larger move before calling a pick a real hit/miss.
       if (draftOutcome === 'hit') stats.hits += 1;
       if (draftOutcome === 'miss') stats.misses += 1;
 

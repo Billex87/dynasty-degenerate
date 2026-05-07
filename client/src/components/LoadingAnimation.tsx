@@ -60,7 +60,7 @@ export function LoadingAnimation({
     <div className="loading-panel analysis-loading-panel">
       <div className="loading-modal-header">
         <span className="loading-modal-bolt" aria-hidden="true">
-          {isComplete && leagueLogo ? (
+          {leagueLogo ? (
             <img src={leagueLogo} alt="" className="loading-modal-league-icon" />
           ) : (
             <Zap />
@@ -68,7 +68,15 @@ export function LoadingAnimation({
         </span>
         <div>
           <p className="loading-title">
-            {isComplete ? 'Report locked and loaded.' : `Analyzing ${leagueName || 'your league'}...`}
+            {isComplete ? (
+              'Report locked and loaded.'
+            ) : (
+              <>
+                <span>Analyzing </span>
+                <span className="loading-title-league">{leagueName || 'your league'}</span>
+                <span>...</span>
+              </>
+            )}
           </p>
           {leagueFormat ? <p className="loading-subtitle">{leagueFormat}</p> : null}
         </div>
@@ -103,7 +111,10 @@ export function LoadingAnimation({
                 {step.label}
               </p>
               {step.status === 'loading' && (
-                <div className="mt-1 h-1 bg-gradient-to-r from-orange-500 to-cyan-400 rounded-full animate-pulse" />
+                <div className="loading-football-track" aria-hidden="true">
+                  <span className="loading-football-arc" />
+                  <span className="loading-football" />
+                </div>
               )}
             </div>
 

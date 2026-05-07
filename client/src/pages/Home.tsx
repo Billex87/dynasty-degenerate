@@ -1557,7 +1557,11 @@ export default function Home() {
     </Dialog>
   );
 
-  const loadingLeague = analysisCompleteMessage || pendingAnalysisLeague;
+  const loadingLeague = analysisCompleteMessage || pendingAnalysisLeague || (
+    leagueName || leagueFormat || leagueLogo
+      ? { leagueName, leagueFormat, leagueLogo }
+      : null
+  );
   const loadingDialog = (
     <Dialog open={isLoading} onOpenChange={() => undefined}>
       <DialogContent
@@ -1578,17 +1582,23 @@ export default function Home() {
             leagueLogo={loadingLeague?.leagueLogo}
           />
           {analysisCompleteMessage && (
-            <div className="loading-success-card" role="status" aria-live="polite">
-              <div className="loading-success-icon">
-                {analysisCompleteMessage.leagueLogo ? (
-                  <img
-                    src={analysisCompleteMessage.leagueLogo}
-                    alt=""
-                  />
-                ) : (
+            <div
+              className={`loading-success-card ${analysisCompleteMessage.leagueLogo ? 'loading-success-card-logo' : ''}`}
+              role="status"
+              aria-live="polite"
+            >
+              {analysisCompleteMessage.leagueLogo ? (
+                <img
+                  src={analysisCompleteMessage.leagueLogo}
+                  alt=""
+                  className="loading-success-backdrop-logo"
+                />
+              ) : (
+                <div className="loading-success-icon">
                   <CheckCircle2 aria-hidden="true" />
-                )}
-              </div>
+                </div>
+              )}
+              <div className="loading-success-copy">
               <p className="loading-success-kicker">Report Generated</p>
               <h2 className={getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || 'League report')}>
                 {analysisCompleteMessage.leagueName || 'League report'}
@@ -1597,6 +1607,7 @@ export default function Home() {
                 <p className="loading-success-format">{analysisCompleteMessage.leagueFormat}</p>
               )}
               <div className="loading-success-bar" aria-hidden="true" />
+              </div>
             </div>
           )}
         </div>

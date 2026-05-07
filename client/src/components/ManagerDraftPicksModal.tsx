@@ -50,8 +50,9 @@ export function ManagerDraftPicksModal({
     });
   const totalCurrentValue = managerPicks.reduce((sum, pick) => sum + (pick.currentKtcValue || 0), 0);
   const totalValueGain = managerPicks.reduce((sum, pick) => sum + (pick.valueGain || 0), 0);
-  const cleanDraftReads = managerPicks.filter((pick) => pick.draftDecisionTone && pick.draftDecisionTone !== 'watch').length;
-  const watchDraftReads = managerPicks.filter((pick) => pick.draftDecisionTone === 'watch').length;
+  const hitCount = managerPicks.filter((pick) => getResolvedDraftOutcome(pick) === 'hit').length;
+  const missCount = managerPicks.filter((pick) => getResolvedDraftOutcome(pick) === 'miss').length;
+  const starterCount = managerPicks.filter(getResolvedDraftStarter).length;
   const displayManagerName = managerDisplayName || managerName;
   const managerInitial = displayManagerName.trim()[0]?.toUpperCase() || '?';
   const managerNameLength = displayManagerName.replace(/\s+/g, '').length;
@@ -113,12 +114,18 @@ export function ManagerDraftPicksModal({
                 </div>
               </DialogHeader>
 
-              <div className="relative mt-5 grid grid-cols-3 gap-2 sm:max-w-xl sm:gap-3">
+              <div className="relative mt-5 grid grid-cols-2 gap-2 sm:max-w-3xl sm:grid-cols-5 sm:gap-3">
                 {isAuditMode ? (
                   <>
                     <ManagerDraftStat label="Picks" value={managerPicks.length.toLocaleString()} />
-                    <ManagerDraftStat label="Clean Reads" value={cleanDraftReads.toLocaleString()} tone={cleanDraftReads ? 'positive' : 'neutral'} />
-                    <ManagerDraftStat label="Watch Flags" value={watchDraftReads.toLocaleString()} tone={watchDraftReads ? 'negative' : 'positive'} />
+                    <ManagerDraftStat label="Hits" value={hitCount.toLocaleString()} tone={hitCount ? 'positive' : 'neutral'} />
+                    <ManagerDraftStat label="Misses" value={missCount.toLocaleString()} tone={missCount ? 'negative' : 'positive'} />
+                    <ManagerDraftStat label="Starters" value={starterCount.toLocaleString()} tone={starterCount ? 'positive' : 'neutral'} />
+                    <ManagerDraftStat
+                      label="Avg Change"
+                      value={`${Math.round(totalValueGain / Math.max(managerPicks.length, 1)) > 0 ? '+' : ''}${Math.round(totalValueGain / Math.max(managerPicks.length, 1)).toLocaleString()}`}
+                      tone={totalValueGain > 0 ? 'positive' : totalValueGain < 0 ? 'negative' : 'neutral'}
+                    />
                   </>
                 ) : (
                   <>
@@ -152,19 +159,21 @@ export function ManagerDraftPicksModal({
                         playerDetailsById
                       ))}
                     >
+                      {isStarter && <span className="draft-starter-corner">Starter</span>}
                       <div className="player-tile-main">
                         <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
                       </div>
                       <div className="player-tile-pills">
                         <TeamLogoPill team={pick.playerDetails?.team} />
                         <span>{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
-                        {!isAuditMode && (
+                        {pick.ktcValue !== null && pick.ktcValue !== undefined && (
+                          <span>Day {pick.ktcValue.toLocaleString()}</span>
+                        )}
+                        {pick.positionRankMay2025 && <span>Draft {pick.positionRankMay2025}</span>}
+                        {!isAuditMode && draftOutcome.tone !== 'neutral' && (
                           <span className={`draft-outcome-pill draft-outcome-pill-${draftOutcome.tone}`}>
                             {draftOutcome.label}
                           </span>
-                        )}
-                        {!isAuditMode && isStarter && (
-                          <span className="draft-starter-pill">Starter</span>
                         )}
                         {!isAuditMode && (
                           <span className={`draft-gain-pill draft-gain-pill-${gainTone}`}>
@@ -182,9 +191,13 @@ export function ManagerDraftPicksModal({
                       {isAuditMode ? (
                         <div className="manager-draft-decision-read">
                           <div className="draft-decision-pills manager-draft-decision-pills">
-                            <span>{pick.draftDecisionPrimaryNeed ? `Need: ${pick.draftDecisionPrimaryNeed}` : 'No Clear Need'}</span>
                             {pick.draftDecisionBoardRankLabel && <span>{pick.draftDecisionBoardRankLabel}</span>}
-                            <span>{pick.positionRankMay2025 || pick.currentPositionRank || pick.playerPos}</span>
+                            <span>Now {pick.currentPositionRank || pick.playerPos}</span>
+                            {pick.valueGain !== null && pick.valueGain !== undefined && (
+                              <span className={pick.valueGain >= 0 ? 'is-positive' : 'is-negative'}>
+                                {pick.valueGain > 0 ? '+' : ''}{pick.valueGain.toLocaleString()}
+                              </span>
+                            )}
                           </div>
                           {pick.draftDecisionSummary && <p>{pick.draftDecisionSummary}</p>}
                           {pick.draftDecisionAltPlayerName && (
@@ -227,15 +240,19 @@ export function ManagerDraftPicksModal({
 function getDraftOutcomeLabel(outcome: DraftPick['draftOutcome']): { label: string; tone: 'hit' | 'miss' | 'neutral' } {
   if (outcome === 'hit') return { label: 'Hit', tone: 'hit' };
   if (outcome === 'miss') return { label: 'Miss', tone: 'miss' };
-  return { label: 'Neutral', tone: 'neutral' };
+  return { label: 'Early Read', tone: 'neutral' };
 }
 
 function getResolvedDraftOutcome(pick: DraftPick): NonNullable<DraftPick['draftOutcome']> {
   if (pick.draftOutcome) return pick.draftOutcome;
   const rankChange = pick.positionRankChange ? parseInt(pick.positionRankChange, 10) : 0;
   const hasRankChange = Number.isFinite(rankChange) && rankChange !== 0;
-  const isHit = (hasRankChange && rankChange >= 10) || (pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain >= 750);
-  const isMiss = (hasRankChange && rankChange <= -10) || (pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain <= -750);
+  const draftYear = Number(pick.draftYear);
+  const isFreshClass = Number.isFinite(draftYear) && draftYear >= new Date().getFullYear();
+  const rankThreshold = isFreshClass ? 12 : 8;
+  const valueThreshold = isFreshClass ? 1500 : 900;
+  const isHit = (hasRankChange && rankChange >= rankThreshold) || (pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain >= valueThreshold);
+  const isMiss = (hasRankChange && rankChange <= -rankThreshold) || (pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain <= -valueThreshold);
   if (isHit && isMiss) return (pick.valueGain || 0) >= 0 ? 'hit' : 'miss';
   if (isHit) return 'hit';
   if (isMiss) return 'miss';
