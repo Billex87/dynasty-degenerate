@@ -10,7 +10,7 @@ import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
-import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
+import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants, playerNameKeysMatch } from "./leagueAnalysis";
 import { fetchFantasyProsLatestPlayerNews, fetchFantasyProsNews, fetchFantasyProsPlayerPoints, findLatestFantasyProsNewsForPlayer } from "./fantasyPros";
 import { buildRankingsBoard } from "./rankingsBoard";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
@@ -706,7 +706,7 @@ function getPlayerCurrentPositionRank(
 
   if (!rank) {
     const match = Object.entries(ktcValues)
-      .filter(([ktcKey]) => variants.some((variant) => variant.includes(ktcKey) || ktcKey.includes(variant)))
+      .filter(([ktcKey]) => variants.some((variant) => playerNameKeysMatch(variant, ktcKey)))
       .sort(([, a], [, b]) => ((b.value_sources?.length || 0) * 1000 + (b.ktc_value || 0)) - ((a.value_sources?.length || 0) * 1000 + (a.ktc_value || 0)))[0];
     rank = match?.[1]?.position_rank;
   }
@@ -763,7 +763,7 @@ function getPlayerValueProfile(
   }
 
   for (const [ktcKey, value] of Object.entries(ktcValues)) {
-    if (variants.some((variant) => variant.includes(ktcKey) || ktcKey.includes(variant))) {
+    if (variants.some((variant) => playerNameKeysMatch(variant, ktcKey))) {
       const sourceCount = value.value_sources?.length || 0;
       candidates.push({ key: ktcKey, data: value, score: sourceCount * 1000 + (value.ktc_value || 0) });
     }
@@ -977,12 +977,14 @@ function buildSimilarTradeValueMap(
       const position = player?.position;
       const value = getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
       if (!['QB', 'RB', 'WR', 'TE'].includes(position) || value <= 0) return null;
+      const rank = getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
+      const rankPosition = rank?.match(/^[A-Z]+/)?.[0] || null;
       return {
         playerId,
         name: getPlayerName(playerId, players),
         position,
         team: player.team || null,
-        rank: getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById),
+        rank: rankPosition === position ? rank : null,
         value,
       };
     })

@@ -41,6 +41,12 @@ export function playerNameKeyVariants(name: string): string[] {
   return Array.from(new Set([key, canonicalKey].filter(Boolean)));
 }
 
+export function playerNameKeysMatch(left: string, right: string): boolean {
+  const leftVariants = playerNameKeyVariants(left).map(cleanName).filter(Boolean);
+  const rightVariants = playerNameKeyVariants(right).map(cleanName).filter(Boolean);
+  return leftVariants.some((variant) => rightVariants.includes(variant));
+}
+
 export function getPlayerName(pid: string, allPlayers: Player): string {
   const p = allPlayers[pid];
   if (!p) return `Unknown (${pid})`;
@@ -106,7 +112,7 @@ function getPlayerValueField(
   }
 
   const match = Object.entries(ktcValues)
-    .filter(([candidateKey]) => variants.some((variant) => variant.includes(candidateKey) || candidateKey.includes(variant)))
+    .filter(([candidateKey]) => variants.some((variant) => playerNameKeysMatch(variant, candidateKey)))
     .sort(([, a], [, b]) => {
       const aSourceScore = (a.value_sources?.length || 0) * 100000;
       const bSourceScore = (b.value_sources?.length || 0) * 100000;
