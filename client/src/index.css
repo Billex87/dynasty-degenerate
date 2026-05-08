@@ -22957,6 +22957,76 @@ body,
   object-fit: contain;
 }
 
+.value-board__team {
+  --ranking-team-mark-size: 1.55rem;
+}
+
+.value-board__team .ranking-college-pill,
+.value-board__team .ranking-college-pill-icon-only {
+  width: var(--ranking-team-mark-size) !important;
+  min-width: var(--ranking-team-mark-size) !important;
+  max-width: var(--ranking-team-mark-size) !important;
+  height: var(--ranking-team-mark-size) !important;
+  min-height: var(--ranking-team-mark-size) !important;
+  flex: 0 0 var(--ranking-team-mark-size) !important;
+  justify-content: center;
+}
+
+.value-board__team .ranking-college-pill img,
+.value-board__team .ranking-college-fallback-icon {
+  width: var(--ranking-team-mark-size) !important;
+  min-width: var(--ranking-team-mark-size) !important;
+  height: var(--ranking-team-mark-size) !important;
+  min-height: var(--ranking-team-mark-size) !important;
+}
+
+.value-board__team .ranking-college-fallback-icon {
+  font-size: 0.68rem;
+}
+
+.draftbuzz-table__logo-cell,
+.draftbuzz-team-school {
+  --draftbuzz-team-mark-size: 1.42rem;
+}
+
+.draftbuzz-table__logo-cell .ranking-college-pill,
+.draftbuzz-team-school .ranking-college-pill {
+  width: var(--draftbuzz-team-mark-size) !important;
+  min-width: var(--draftbuzz-team-mark-size) !important;
+  max-width: var(--draftbuzz-team-mark-size) !important;
+  height: var(--draftbuzz-team-mark-size) !important;
+  min-height: var(--draftbuzz-team-mark-size) !important;
+  flex: 0 0 var(--draftbuzz-team-mark-size) !important;
+  justify-content: center;
+}
+
+.draftbuzz-table__logo-cell .ranking-college-pill img,
+.draftbuzz-table__logo-cell .ranking-college-fallback-icon,
+.draftbuzz-team-school .ranking-college-pill img,
+.draftbuzz-team-school .ranking-college-fallback-icon {
+  width: var(--draftbuzz-team-mark-size) !important;
+  min-width: var(--draftbuzz-team-mark-size) !important;
+  height: var(--draftbuzz-team-mark-size) !important;
+  min-height: var(--draftbuzz-team-mark-size) !important;
+}
+
+.draftbuzz-table__logo-cell .ranking-college-fallback-icon,
+.draftbuzz-team-school .ranking-college-fallback-icon {
+  font-size: 0.72rem;
+}
+
+@media (max-width: 767px) {
+  .value-board__team {
+    --ranking-team-mark-size: 1.14rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .value-board__team {
+    --ranking-team-mark-size: 1.16rem;
+  }
+}
+
 /* Free-reign motion pass: tangible report navigation, deploying sections, and trade-room feedback. */
 .home-shell .home-header-logo {
   transform-origin: 50% 65%;

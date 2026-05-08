@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import { SupportButton } from '@/components/SupportButton';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import { ReportSectionHeader } from '@/components/reportPrimitives';
-import { PRIVILEGED_REPORT_VIEWERS } from '@shared/const';
+import { PRIVILEGED_REPORT_VIEWERS, UNAUTHED_ERR_MSG } from '@shared/const';
 import type { ReportData } from '@shared/types';
 
 const DraftAnalysis = lazy(() => import('@/components/DraftAnalysis').then((module) => ({ default: module.DraftAnalysis })));
@@ -79,6 +79,11 @@ function isPrivilegedReportViewer(...identifiers: Array<string | null | undefine
   return identifiers
     .map(normalizeViewerIdentifier)
     .some((value) => value && PRIVILEGED_REPORT_VIEWER_SET.has(value));
+}
+
+function showMutationErrorToast(error: { message: string }) {
+  if (error.message === UNAUTHED_ERR_MSG) return;
+  toast.error(`Error: ${error.message}`);
 }
 
 function ReportSectionLoadingFallback() {
@@ -1213,6 +1218,7 @@ export default function Home() {
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
   const [isAdminPermissionsModalOpen, setIsAdminPermissionsModalOpen] = useState(false);
   const [loadingTransitionPhase, setLoadingTransitionPhase] = useState<LoadingTransitionPhase>('loading');
+  const [prospectArchiveOpenedWhileLoading, setProspectArchiveOpenedWhileLoading] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
 
   const clearSuccessTransitionTimers = () => {
@@ -1305,7 +1311,7 @@ export default function Home() {
       setPendingAnalysisLeague(null);
       setLoadingTransitionPhase('loading');
       setIsLoading(false);
-      toast.error(`Error: ${error.message}`);
+      showMutationErrorToast(error);
     },
   });
 
@@ -1364,7 +1370,7 @@ export default function Home() {
       toast.success(`Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? '' : 's'}`);
     },
     onError: (error) => {
-      toast.error(`Error: ${error.message}`);
+      showMutationErrorToast(error);
     },
   });
 
@@ -1726,6 +1732,7 @@ export default function Home() {
     }
   );
   const rankingsForReport = rankingsQuery.data?.rankings || reportData?.rankings;
+  const isProspectArchiveLoading = rankingsQuery.isLoading && !rankingsForReport;
   const reportDataWithRankings = reportData && rankingsForReport
     ? { ...reportData, rankings: rankingsForReport }
     : reportData;
@@ -1744,6 +1751,12 @@ export default function Home() {
       setActiveTab('rankings');
     }
   }, [activeTab, canViewMomentumTab]);
+
+  useEffect(() => {
+    if (!isProspectArchiveLoading) {
+      setProspectArchiveOpenedWhileLoading(false);
+    }
+  }, [isProspectArchiveLoading]);
 
   const clownEasterEggDialog = (
     <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
@@ -2174,10 +2187,19 @@ export default function Home() {
                   </CollapsibleReportSection>
                 )}
                 {!isRedraftReport && (
-                  <CollapsibleReportSection title="Prospect Score Archive" kicker="Scouting data archive" defaultOpen>
-                    {rankingsQuery.isLoading && !rankingsForReport ? (
+                  <CollapsibleReportSection
+                    title="Prospect Score Archive"
+                    kicker="Scouting data archive"
+                    defaultOpen={!isProspectArchiveLoading}
+                    onOpenChange={(open) => {
+                      if (open && isProspectArchiveLoading) {
+                        setProspectArchiveOpenedWhileLoading(true);
+                      }
+                    }}
+                  >
+                    {isProspectArchiveLoading && prospectArchiveOpenedWhileLoading ? (
                       <ProspectArchiveLoadingState />
-                    ) : (
+                    ) : isProspectArchiveLoading ? null : (
                       <RankingsBoard
                         rankings={rankingsForReport}
                         playerDetailsById={reportData.playerDetailsById}
@@ -2593,15 +2615,29 @@ function CollapsibleReportSection({
   title,
   kicker,
   defaultOpen = false,
+  onOpenChange,
   children,
 }: {
   title: string;
   kicker?: string;
   defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    setIsOpen(defaultOpen);
+  }, [defaultOpen]);
+
+  const handleToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
+    const nextOpen = event.currentTarget.open;
+    setIsOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  };
+
   return (
-    <details className="report-section report-disclosure" open={defaultOpen}>
+    <details className="report-section report-disclosure" open={isOpen} onToggle={handleToggle}>
       <summary className="report-disclosure-summary">
         <ReportSectionHeader title={title} kicker={kicker} />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />

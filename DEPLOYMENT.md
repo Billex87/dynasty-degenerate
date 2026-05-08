@@ -26,7 +26,7 @@ You must configure the following environment variables in your deployment platfo
 - `FANTASYPROS_API_KEY`: FantasyPros API key for rankings, points, and injury data.
 - `CRON_SECRET`: A random secret used by Vercel Cron when calling `/api/cron/ktc-snapshot`.
 - `LEAGUE_REPORT_WARM_LEAGUE_IDS`: Optional comma- or space-separated Sleeper league IDs to prebuild into the shared server cache after value snapshots.
-- `REQUIRE_AUTH_FOR_REPORTS`: Optional. Set to `true` to require an authenticated app session before public league lookup, report, and rankings endpoints run.
+- `REQUIRE_AUTH_FOR_REPORTS`: Optional internal-only kill switch. Leave unset for the public site so visitors can run reports without being sent through Manus OAuth. Set to `true` only for a private/staging deployment where every report viewer should have an authenticated app session.
 - `BUILT_IN_FORGE_API_URL`: (Optional) For storage/data features.
 - `BUILT_IN_FORGE_API_KEY`: (Optional) For storage/data features.
 
@@ -52,7 +52,7 @@ Ensure your OAuth portal is configured with the following callback URL:
 
 ## Abuse Protection
 
-The app has in-process throttles on expensive public tRPC procedures, no-store/noindex headers for API responses, an optional `REQUIRE_AUTH_FOR_REPORTS` gate, and server-only storage for KTC seed value JSON. Keep `CRON_SECRET` configured in production so cache warmers bypass public throttles without exposing force refresh to visitors.
+The app has in-process throttles on public tRPC procedures, no-store/noindex headers for API responses, and server-only storage for KTC seed value JSON. Keep `REQUIRE_AUTH_FOR_REPORTS` unset on the public production app; use rate limits, cache warmers, and targeted Vercel Firewall rules for abuse control instead of forcing visitors through Manus OAuth. Keep `CRON_SECRET` configured in production so cache warmers bypass public throttles without exposing force refresh to visitors.
 
 Admin traffic telemetry is exposed only through the admin tRPC guard, which allows app admins plus authenticated identities matching `PRIVILEGED_REPORT_VIEWERS` in `shared/const.ts`. Keep that list limited to trusted operators and prefer app-level admin roles for permanent access.
 
@@ -71,5 +71,5 @@ Production env rollout:
 ```bash
 vercel env ls production
 printf '%s' "$CRON_SECRET" | vercel env add CRON_SECRET production preview development --sensitive
-printf 'true' | vercel env add REQUIRE_AUTH_FOR_REPORTS production preview development
+# Do not set REQUIRE_AUTH_FOR_REPORTS on the public production app.
 ```

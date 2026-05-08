@@ -2076,7 +2076,6 @@ export const appRouter = router({
     getUserLeagues: publicProcedure
       .input(z.object({ username: sleeperUsernameSchema }))
       .mutation(async ({ input, ctx }) => {
-        assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
           id: 'league.getUserLeagues',
           max: 20,
@@ -2179,7 +2178,6 @@ export const appRouter = router({
         leagueIds: z.array(sleeperLeagueIdSchema).max(50),
       }))
       .mutation(async ({ input, ctx }) => {
-        assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
           id: 'league.getUserLeagueRanks',
           max: 15,
