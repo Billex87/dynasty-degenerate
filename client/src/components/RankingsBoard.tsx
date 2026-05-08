@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, ArrowUp, ChevronLeft, ChevronRight, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeamLogoPill } from './TeamLogoPill';
@@ -14,7 +14,12 @@ import type { DraftBuzzScoreboardEntry, PlayerDetails, RankingPlayer, RankingPro
 type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'PICK';
 type SortMode = 'rank' | 'value' | 'movement';
 type DraftBuzzPosition = Exclude<PositionFilter, 'PICK'>;
-type DraftBuzzSortMode = 'score' | 'forty' | 'height' | 'weight';
+type SortDirection = 'asc' | 'desc';
+type DraftBuzzSortKey = 'class' | 'rank' | 'player' | 'team' | 'school' | 'position' | 'score' | 'forty' | 'height' | 'weight';
+type DraftBuzzSort = {
+  key: DraftBuzzSortKey;
+  direction: SortDirection;
+};
 
 type RankingsTableConfig = {
   board: 'dynasty' | 'devy';
@@ -28,6 +33,18 @@ type RankingsTableConfig = {
 const PAGE_SIZE = 25;
 const DRAFT_BUZZ_PAGE_SIZE = 100;
 const DRAFT_BUZZ_POSITIONS: DraftBuzzPosition[] = ['QB', 'RB', 'WR', 'TE'];
+const DRAFT_BUZZ_SORT_COLUMNS: Array<{ key: DraftBuzzSortKey; label: string }> = [
+  { key: 'class', label: 'Class' },
+  { key: 'rank', label: 'Rank' },
+  { key: 'player', label: 'Player' },
+  { key: 'team', label: 'Team' },
+  { key: 'school', label: 'School' },
+  { key: 'position', label: 'Pos' },
+  { key: 'score', label: 'Score' },
+  { key: 'forty', label: '40' },
+  { key: 'height', label: 'Height' },
+  { key: 'weight', label: 'Weight' },
+];
 const POSITION_FILTERS: Array<{
   key: PositionFilter;
   label: string;
@@ -191,23 +208,82 @@ function compareNullableMetric(a: number | null, b: number | null, direction: 'a
   return direction === 'asc' ? a - b : b - a;
 }
 
-function compareDraftBuzzRows(a: DraftBuzzScoreboardEntry, b: DraftBuzzScoreboardEntry, sortMode: DraftBuzzSortMode) {
-  if (sortMode === 'forty') {
-    const metricSort = compareNullableMetric(a.fortyYardDash ?? null, b.fortyYardDash ?? null, 'asc');
-    if (metricSort) return metricSort;
-  }
+function compareNullableText(a?: string | number | null, b?: string | number | null, direction: SortDirection = 'asc') {
+  const valueA = String(a || '').trim();
+  const valueB = String(b || '').trim();
+  if (!valueA && !valueB) return 0;
+  if (!valueA) return 1;
+  if (!valueB) return -1;
+  const compared = valueA.localeCompare(valueB, undefined, { numeric: true, sensitivity: 'base' });
+  return direction === 'asc' ? compared : -compared;
+}
 
-  if (sortMode === 'height') {
-    const metricSort = compareNullableMetric(parseDraftBuzzHeight(a.height), parseDraftBuzzHeight(b.height), 'desc');
-    if (metricSort) return metricSort;
-  }
-
-  if (sortMode === 'weight') {
-    const metricSort = compareNullableMetric(parseDraftBuzzWeight(a.weight), parseDraftBuzzWeight(b.weight), 'desc');
-    if (metricSort) return metricSort;
-  }
-
+function compareDraftBuzzDefaultRows(a: DraftBuzzScoreboardEntry, b: DraftBuzzScoreboardEntry) {
   return b.rating - a.rating || (a.overallRank || 9999) - (b.overallRank || 9999) || a.draftYear - b.draftYear || a.position.localeCompare(b.position) || a.name.localeCompare(b.name);
+}
+
+function compareDraftBuzzRows(a: DraftBuzzScoreboardEntry, b: DraftBuzzScoreboardEntry, sort: DraftBuzzSort) {
+  const { key, direction } = sort;
+  let result = 0;
+
+  if (key === 'class') result = compareNullableMetric(a.draftYear || null, b.draftYear || null, direction);
+  if (key === 'rank') result = compareNullableMetric(a.overallRank || null, b.overallRank || null, direction);
+  if (key === 'player') result = compareNullableText(a.name, b.name, direction);
+  if (key === 'team') result = compareNullableText(a.nflTeam || a.team, b.nflTeam || b.team, direction);
+  if (key === 'school') result = compareNullableText(a.college, b.college, direction);
+  if (key === 'position') result = compareNullableText(getDraftBuzzPositionRankLabel(a), getDraftBuzzPositionRankLabel(b), direction);
+  if (key === 'score') result = compareNullableMetric(a.rating || null, b.rating || null, direction);
+  if (key === 'forty') result = compareNullableMetric(a.fortyYardDash ?? null, b.fortyYardDash ?? null, direction);
+  if (key === 'height') result = compareNullableMetric(parseDraftBuzzHeight(a.height), parseDraftBuzzHeight(b.height), direction);
+  if (key === 'weight') result = compareNullableMetric(parseDraftBuzzWeight(a.weight), parseDraftBuzzWeight(b.weight), direction);
+
+  return result || compareDraftBuzzDefaultRows(a, b);
+}
+
+function getDefaultDraftBuzzSortDirection(key: DraftBuzzSortKey): SortDirection {
+  return key === 'rank' || key === 'player' || key === 'team' || key === 'school' || key === 'position' || key === 'forty' ? 'asc' : 'desc';
+}
+
+function normalizeDraftBuzzSourceImageUrl(url?: string | null): string | null {
+  const trimmed = String(url || '').trim();
+  if (!trimmed || trimmed.startsWith('/assets/draftbuzz-cache') || /noImage/i.test(trimmed)) return null;
+  const normalized = trimmed.replace('/Content/PlayerHeadShotsSmall/', '/Content/PlayerHeadShots/');
+  if (/^https?:\/\//i.test(normalized)) return normalized.replace(/^http:/i, 'https:');
+  if (normalized.startsWith('/')) return `https://www.nfldraftbuzz.com${normalized}`;
+  return `https://www.nfldraftbuzz.com/${normalized}`;
+}
+
+function toDraftBuzzAssetSlugPart(value?: string | null, separator = '-'): string | null {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\bA\s*&\s*M\b/gi, 'AANDM')
+    .replace(/&/g, 'AND')
+    .replace(/\./g, '')
+    .replace(/[^A-Za-z0-9]+/g, separator);
+  const compacted = separator
+    ? normalized
+        .replace(new RegExp(`${separator}+`, 'g'), separator)
+        .replace(new RegExp(`^${separator}|${separator}$`, 'g'), '')
+    : normalized;
+  return compacted || null;
+}
+
+function getDraftBuzzGeneratedHeadshotUrl(entry: DraftBuzzScoreboardEntry): string | null {
+  const nameSlug = toDraftBuzzAssetSlugPart(entry.name, '-');
+  const schoolSlug = toDraftBuzzAssetSlugPart(entry.college, '');
+  if (!nameSlug || !entry.position || !schoolSlug) return null;
+  return `https://www.nfldraftbuzz.com/Content/PlayerHeadShots/${nameSlug}-${entry.position}-${schoolSlug}.png`;
+}
+
+function buildDraftBuzzHeadshotCandidates(entry: DraftBuzzScoreboardEntry): string[] {
+  const candidates = [
+    getCachedDraftBuzzImageUrl(entry.playerImageUrl),
+    normalizeDraftBuzzSourceImageUrl(entry.playerImageUrl),
+    getDraftBuzzGeneratedHeadshotUrl(entry),
+  ].filter((url): url is string => Boolean(url));
+
+  return Array.from(new Set(candidates));
 }
 
 function getProfileFallback(options: RankingProfileOption[], board: 'dynasty' | 'devy'): string {
@@ -438,17 +514,19 @@ function RankingValueRow({ player, playerDetailsById, managerAvatars, viewerMana
 }
 
 function DraftBuzzEntryIdentity({ entry }: { entry: DraftBuzzScoreboardEntry }) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const imageUrl = getCachedDraftBuzzImageUrl(entry.playerImageUrl);
+  const imageCandidates = useMemo(() => buildDraftBuzzHeadshotCandidates(entry), [entry.playerImageUrl, entry.name, entry.position, entry.college]);
+  const imageCandidateKey = imageCandidates.join('|');
+  const [imageIndex, setImageIndex] = useState(0);
+  const imageUrl = imageCandidates[imageIndex] || null;
 
   useEffect(() => {
-    setImageFailed(false);
-  }, [imageUrl]);
+    setImageIndex(0);
+  }, [imageCandidateKey]);
 
-  if (imageUrl && !imageFailed) {
+  if (imageUrl) {
     return (
       <span className="ranking-player-identity">
-        <img src={imageUrl} alt={entry.name} className="ranking-player-image" loading="lazy" onError={() => setImageFailed(true)} />
+        <img src={imageUrl} alt={entry.name} className="ranking-player-image" loading="lazy" onError={() => setImageIndex(current => current + 1)} />
         <span>{entry.name}</span>
       </span>
     );
@@ -496,7 +574,7 @@ function DraftBuzzSchoolLogo({ entry }: { entry: DraftBuzzScoreboardEntry }) {
 function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzScoreboardEntry[]; onSelectEntry: (entry: DraftBuzzScoreboardEntry) => void }) {
   const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(null);
   const [selectedPositions, setSelectedPositions] = useState<DraftBuzzPosition[]>([]);
-  const [sortMode, setSortMode] = useState<DraftBuzzSortMode>('score');
+  const [sort, setSort] = useState<DraftBuzzSort>({ key: 'score', direction: 'desc' });
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
 
@@ -540,8 +618,8 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
             .includes(normalizedQuery)
         );
       })
-      .sort((a, b) => compareDraftBuzzRows(a, b, sortMode));
-  }, [allRows, query, selectedDraftClass, selectedPositions, sortMode]);
+      .sort((a, b) => compareDraftBuzzRows(a, b, sort));
+  }, [allRows, query, selectedDraftClass, selectedPositions, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / DRAFT_BUZZ_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -549,7 +627,7 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
 
   useEffect(() => {
     setPage(1);
-  }, [query, selectedDraftClass, selectedPositions, sortMode]);
+  }, [query, selectedDraftClass, selectedPositions, sort]);
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
@@ -557,6 +635,14 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
 
   const togglePosition = (position: DraftBuzzPosition) => {
     setSelectedPositions(current => (current.includes(position) ? current.filter(item => item !== position) : [...current, position]));
+  };
+
+  const handleSortColumn = (key: DraftBuzzSortKey) => {
+    setSort(current =>
+      current.key === key
+        ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: getDefaultDraftBuzzSortDirection(key) }
+    );
   };
 
   if (!allRows.length) {
@@ -599,21 +685,6 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
           ))}
         </div>
 
-        <div className="rankings-control-group draftbuzz-sort-toggle value-board__draftbuzz-sort" aria-label="Prospect archive sort">
-          <button type="button" className={sortMode === 'score' ? 'active' : ''} aria-pressed={sortMode === 'score'} onClick={() => setSortMode('score')}>
-            Score
-          </button>
-          <button type="button" className={sortMode === 'forty' ? 'active' : ''} aria-pressed={sortMode === 'forty'} onClick={() => setSortMode('forty')}>
-            40
-          </button>
-          <button type="button" className={sortMode === 'height' ? 'active' : ''} aria-pressed={sortMode === 'height'} onClick={() => setSortMode('height')}>
-            Height
-          </button>
-          <button type="button" className={sortMode === 'weight' ? 'active' : ''} aria-pressed={sortMode === 'weight'} onClick={() => setSortMode('weight')}>
-            Weight
-          </button>
-        </div>
-
         <div className="rankings-control-group rankings-position-toggle" aria-label="Prospect position filter">
           <button type="button" className={getPositionButtonClass('OVERALL', selectedPositions.length === 0)} aria-label="Overall" aria-pressed={selectedPositions.length === 0} onClick={() => setSelectedPositions([])}>
             <span className="ranking-filter-label-full" aria-hidden="true">
@@ -636,17 +707,24 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
       </div>
 
       <div className="draftbuzz-table">
-        <div className="draftbuzz-table__header" aria-hidden="true">
-          <span>Class</span>
-          <span>Rank</span>
-          <span>Player</span>
-          <span>Team</span>
-          <span>School</span>
-          <span>Pos</span>
-          <span>Score</span>
-          <span>40</span>
-          <span>Height</span>
-          <span>Weight</span>
+        <div className="draftbuzz-table__header" role="row">
+          {DRAFT_BUZZ_SORT_COLUMNS.map(column => {
+            const isActive = sort.key === column.key;
+            const Icon = isActive ? (sort.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowDownUp;
+            return (
+              <span key={column.key} role="columnheader" aria-sort={isActive ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button
+                  type="button"
+                  className={`draftbuzz-table__sort-heading ${isActive ? 'active' : ''}`}
+                  onClick={() => handleSortColumn(column.key)}
+                  aria-label={`Sort prospects by ${column.label}${isActive ? ` ${sort.direction === 'asc' ? 'descending' : 'ascending'}` : ''}`}
+                >
+                  <span>{column.label}</span>
+                  <Icon className="draftbuzz-table__sort-icon" aria-hidden="true" />
+                </button>
+              </span>
+            );
+          })}
         </div>
         {pageRows.map(player => (
           <button type="button" key={player.id} className="draftbuzz-table__row" style={getTeamTileStyle(player.nflTeam || player.team) || getCollegeTileStyle(player.college)} onClick={() => onSelectEntry(player)}>

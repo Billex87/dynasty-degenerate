@@ -21534,24 +21534,19 @@ body,
 
 .draftbuzz-controls.value-board__toolbar {
   width: 100%;
-  grid-template-columns: minmax(14rem, 1.15fr) max-content max-content max-content !important;
+  grid-template-columns: minmax(14rem, 1.15fr) max-content max-content !important;
 }
 
 .draftbuzz-controls .value-board__search {
   max-width: none;
 }
 
-.draftbuzz-controls .rankings-class-toggle,
-.draftbuzz-controls .draftbuzz-sort-toggle {
+.draftbuzz-controls .rankings-class-toggle {
   justify-content: flex-start;
 }
 
 .draftbuzz-controls .rankings-position-toggle {
   justify-content: flex-end;
-}
-
-.draftbuzz-sort-toggle button {
-  min-width: 3.05rem;
 }
 
 .draftbuzz-table {
@@ -21586,6 +21581,63 @@ body,
   letter-spacing: 0.09em;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.draftbuzz-table__header > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.draftbuzz-table__sort-heading {
+  display: inline-flex;
+  min-width: 0;
+  width: 100%;
+  min-height: 1.42rem;
+  align-items: center;
+  gap: 0.18rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  justify-content: flex-start;
+  letter-spacing: inherit;
+  padding: 0;
+  text-align: left;
+  text-transform: inherit;
+  transition:
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+.draftbuzz-table__sort-heading:hover,
+.draftbuzz-table__sort-heading:focus-visible,
+.draftbuzz-table__sort-heading.active {
+  color: #f8fafc;
+}
+
+.draftbuzz-table__sort-heading:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.52);
+  outline-offset: 2px;
+}
+
+.draftbuzz-table__sort-heading span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draftbuzz-table__sort-icon {
+  width: 0.72rem;
+  height: 0.72rem;
+  flex: 0 0 auto;
+  opacity: 0.56;
+}
+
+.draftbuzz-table__sort-heading.active .draftbuzz-table__sort-icon {
+  opacity: 1;
 }
 
 .draftbuzz-table__row {
@@ -21630,11 +21682,16 @@ body,
   font-weight: 1000;
 }
 
-.draftbuzz-table__header span:nth-child(n + 4),
+.draftbuzz-table__header > span:nth-child(n + 4),
 .draftbuzz-table__forty,
 .draftbuzz-table__height,
 .draftbuzz-table__weight {
   justify-self: center;
+  text-align: center;
+}
+
+.draftbuzz-table__header > span:nth-child(n + 4) .draftbuzz-table__sort-heading {
+  justify-content: center;
   text-align: center;
 }
 
@@ -21844,7 +21901,6 @@ body,
 
   .draftbuzz-controls .value-board__search,
   .draftbuzz-controls .rankings-class-toggle,
-  .draftbuzz-controls .draftbuzz-sort-toggle,
   .draftbuzz-controls .rankings-position-toggle {
     grid-column: 1 / -1;
     width: 100%;
@@ -21964,7 +22020,6 @@ body,
 
   .draftbuzz-controls .value-board__search,
   .draftbuzz-controls .rankings-class-toggle,
-  .draftbuzz-controls .draftbuzz-sort-toggle,
   .draftbuzz-controls .rankings-position-toggle {
     width: 100%;
   }
@@ -21986,12 +22041,6 @@ body,
     width: auto;
     flex-wrap: nowrap;
     justify-content: flex-end;
-  }
-
-  .draftbuzz-controls .draftbuzz-sort-toggle {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    justify-content: center;
   }
 
   .draftbuzz-controls .rankings-control-group {

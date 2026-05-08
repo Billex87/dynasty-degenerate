@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "NFL Draft Buzz",
-  "generatedAt": "2026-05-08T16:34:22.353Z",
+  "generatedAt": "2026-05-08T18:31:07.048Z",
   "scrapeMonth": "2026-05",
   "yearsTracked": [
     2027,
@@ -290,10 +290,10 @@
       "height": "6-3",
       "weight": "247lbs",
       "fortyYardDash": 4.65,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/DJ-Lagway-QB-Florida.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/florida-gators.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Let's cut through the noise: Lagway possesses the kind of arm talent that makes NFL general managers dream about what could be...."
     },
     {
       "source": "NFL Draft Buzz",
@@ -312,10 +312,10 @@
       "height": "6-3",
       "weight": "230lbs",
       "fortyYardDash": 4.8,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Dylan-Raiola-QB-Nebraska.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/oregon-ducks.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Here's what you need to understand about Raiola: the arm talent is legitimate NFL caliber. His deep ball stands out even among..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -334,10 +334,10 @@
       "height": "6-6",
       "weight": "215lbs",
       "fortyYardDash": 4.75,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Nico-Iamaleava-QB-Tennessee.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/ucla-bruins.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "The NFL comparison that keeps coming to mind when studying Iamaleava is Justin Herbert on paper - another tall, athletic California QB who..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -356,10 +356,10 @@
       "height": "6-3",
       "weight": "205lbs",
       "fortyYardDash": 4.75,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Darian-Mensah-QB-Tulane.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/miami-hurricanes.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Mensah enters the conversation as a developmental backup who profiles similarly to quarterbacks taken in the middle rounds -Day..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -378,10 +378,10 @@
       "height": "6-2",
       "weight": "200lbs",
       "fortyYardDash": 4.9,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Josh-Hoover-QB-TCU.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/tcu-horned-frogs.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "What stands out immediately is how Hoover's brain operates faster than his body can keep up with. He sees coverages develop before..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -400,10 +400,10 @@
       "height": "5-10",
       "weight": "186lbs",
       "fortyYardDash": 4.75,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Noah-Fifita-QB-Arizona.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/arizona-wildcats.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Fifita represents a polarizing evaluation for NFL scouts as he enters the 2025 season - a quarterback whose film contains both tantalizing..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -422,10 +422,10 @@
       "height": "6-1",
       "weight": "219lbs",
       "fortyYardDash": 4.67,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Jackson-Arnold-QB-Oklahoma.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/auburn-tigers.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Arnold enters the NFL draft as a high-ceiling, high-risk prospect who showed both tantalizing potential and concerning limitations during..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -444,10 +444,10 @@
       "height": "6-3",
       "weight": "193lbs",
       "fortyYardDash": 4.55,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Malachi-Nelson-QB-USC.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/utep-miners.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Nelson walks into the 2025 season carrying more questions than answers, but the foundation remains intriguing enough to warrant..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -466,10 +466,10 @@
       "height": "6-3",
       "weight": "210lbs",
       "fortyYardDash": 4.85,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Conner-Weigman-QB-TexasAANDM.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/houston-cougars.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Weigman profiles as an intriguing developmental prospect with some starting upside if he can stay healthy and iron out his mechanical..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -488,10 +488,10 @@
       "height": "6-0",
       "weight": "192lbs",
       "fortyYardDash": 4.6,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Kevin-Jennings-QB-SMU.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/smu-mustangs.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Entering the 2025 season, Jennings brings a tantalizing package of physical tools that has NFL offensive coordinators making extra trips to..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -510,10 +510,10 @@
       "height": "6-1",
       "weight": "215lbs",
       "fortyYardDash": 4.65,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Gunner-Stockton-QB-Georgia.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/georgia-bulldogs.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Stockton's toolkit screams upside, but his lack of significant college snaps is a glaring red flag. The young signal-caller flashes..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -532,10 +532,10 @@
       "height": "6-3",
       "weight": "225lbs",
       "fortyYardDash": 4.65,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Aidan-Chiles-QB-OregonState.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/michigan-state-spartans.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Aidan Chiles is a quarterback caught between two worlds - one where his rushing ability and explosive arm create highlight-reel moments,..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1038,10 +1038,10 @@
       "height": "6-1",
       "weight": "227lbs",
       "fortyYardDash": 4.48,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/CJ-Baxter-RB-Texas.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/texas-longhorns.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Baxter's workhorse frame and between-the-tackles running style align well with teams seeking a complementary power runner who can handle..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1060,10 +1060,10 @@
       "height": "5-11",
       "weight": "195lbs",
       "fortyYardDash": 4.52,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Hollywood-Smothers-RB-NCState.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/nc-state-wolfpack.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Smothers profiles as a complementary back who can contribute immediately in a committee backfield, though his limitations suggest he'll..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1082,8 +1082,8 @@
       "height": "6-2",
       "weight": "220lbs",
       "fortyYardDash": 4.46,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/LJ-Martin-RB-BYU.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/byu-cougars.png",
       "nflTeam": null,
       "summary": null
     },
@@ -1104,10 +1104,10 @@
       "height": "6-0",
       "weight": "215lbs",
       "fortyYardDash": 4.54,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Darius-Taylor-RB-Minnesota.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/minnesota-golden-gophers.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "The tape doesn't lie about what makes Taylor tick as a runner. When he gets downhill with conviction, this kid plays like he's still on the..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1126,10 +1126,10 @@
       "height": "6-0",
       "weight": "194lbs",
       "fortyYardDash": 4.5,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Quintrevion-Wisner-RB-Texas.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/texas-longhorns.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Wisner is a back who understands how to find the right gap and make the most of what's blocked for him, but he lacks the physical..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1148,10 +1148,10 @@
       "height": "5-11",
       "weight": "210lbs",
       "fortyYardDash": 4.44,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Makhi-Hughes-RB-Tulane.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/oregon-ducks.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Hughes brings a punishing, compact running style with surprising home-run pop. His elite contact balance allows him to absorb..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1170,10 +1170,10 @@
       "height": "5-11",
       "weight": "205lbs",
       "fortyYardDash": 4.47,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Quinten-Joyner-RB-USC.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/texas-tech-red-raiders.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "The tale of two backs emerges when studying Joyner's film. Between the tackles, he hammers downhill with impressive burst and natural..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1192,10 +1192,10 @@
       "height": "5-7",
       "weight": "190lbs",
       "fortyYardDash": 4.45,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Jahiem-White-RB-WestVirginia.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/west-virginia-mountaineers.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "White brings legitimate game-breaking speed to the professional level, but his path to consistent snaps remains clouded by..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1214,10 +1214,10 @@
       "height": "6-0",
       "weight": "215lbs",
       "fortyYardDash": 4.44,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/AMarion-Peterson-RB-USC.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/utsa-roadrunners.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Peterson enters the 2025 season as one of the most intriguing \"prove it\" prospects in the country. His physical tools scream NFL..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1236,10 +1236,10 @@
       "height": "6-2",
       "weight": "227lbs",
       "fortyYardDash": 4.48,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Dante-Dowdell-RB-Oregon.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/kentucky-wildcats.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Well-built with a thick frame and powerful lower body which keeps his legs pumping through contact. Patient behind the line of scrimmage,..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1258,10 +1258,10 @@
       "height": "5-11",
       "weight": "200lbs",
       "fortyYardDash": 4.42,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Jeremiah-Cobb-RB-Auburn.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/auburn-tigers.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Once Cobb plants his foot, he’s explosive moving upfield, and his 0-to-60 acceleration is enough to catch defenses off-guard. Cobb..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1280,10 +1280,10 @@
       "height": "6-2",
       "weight": "210lbs",
       "fortyYardDash": 4.5,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Isaiah-Augustave-RB-Arkansas.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/south-carolina-gamecocks.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "He’s capable as a receiver, a weapon on swing passes and in the screen game. Possesses quick feet and straight-line speed but doesn't have..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1302,10 +1302,10 @@
       "height": "5-11",
       "weight": "215lbs",
       "fortyYardDash": 4.38,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Rueben-Owens-RB-TexasAM.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/texas-aandm-aggies.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Cuts on a dime with lightning-fast feet and the quick-twitch explosion of an Olympic sprinter out of the block. Very good vision. His..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1324,10 +1324,10 @@
       "height": "5-9",
       "weight": "170lbs",
       "fortyYardDash": 4.35,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Dylan-Edwards-RB-Colorado.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/kansas-state-wildcats.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Edwards has very good vision and a knack for picking out cut-back lanes and then breaking offchunks of yardage. He’s patient, letting..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1346,10 +1346,10 @@
       "height": "6-1",
       "weight": "235lbs",
       "fortyYardDash": 4.64,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Roderick-RobinsonII-RB-Georgia.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/georgia-bulldogs.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Robinson has the size to hold up if asked to pass protect, and Robinson has improved as a pass catcher to the point that he’s passable as a..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1368,10 +1368,10 @@
       "height": "6-0",
       "weight": "234lbs",
       "fortyYardDash": 4.43,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Kaleb-Jackson-RB-LSU.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/lsu-tigers.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "He’s patient, letting blocks develop then accelerating. Jackson runs with a good forward lean and consistently falls forward. He’s..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1390,10 +1390,10 @@
       "height": "5-9",
       "weight": "188lbs",
       "fortyYardDash": 4.38,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Datrell-Jones-RB-BostonCollege.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/boston-college-eagles.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Jones keeps his pads low and consistently falls forward. Unlike most backs his size, Jones has the lateral movement and stop-start ability..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -1412,10 +1412,10 @@
       "height": "5-11",
       "weight": "205lbs",
       "fortyYardDash": 4.46,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Jayden-Limar-RB-Oregon.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/washington-huskies.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Limar might be able to contribute as a runner with some consistency if used on outside zone runs, but Limar is more likely a complementary..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2094,10 +2094,10 @@
       "height": "5-10",
       "weight": "180lbs",
       "fortyYardDash": 4.34,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Eric-SingletonJr-WR-GeorgiaTech.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/auburn-tigers.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Watching Singleton's tape reveals a dynamic weapon whose impact will be felt from day one at the next level. His rare blend of explosive..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2116,10 +2116,10 @@
       "height": "6-5",
       "weight": "235lbs",
       "fortyYardDash": 4.24,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Nyck-Harbor-WR-SouthCarolina.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/south-carolina-gamecocks.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "The NFL is getting a unicorn in Harbor - a vertical weapon with a rare blend of size and track speed that defensive coordinators must..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2138,10 +2138,10 @@
       "height": "6-6",
       "weight": "222lbs",
       "fortyYardDash": 4.65,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Duce-Robinson-WR-USC.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/florida-state-seminoles.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Robinson has the 2025 season in Tallahassee to refine his game and answer the lingering questions scouts have about his development. If he..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2160,10 +2160,10 @@
       "height": "5-10",
       "weight": "194lbs",
       "fortyYardDash": 4.43,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Eugene-WilsonIII-WR-Florida.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/florida-gators.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "A dynamic slot receiver with return specialist upside, Wilson brings instant juice to an NFL offense. His suddenness off the line and..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2182,10 +2182,10 @@
       "height": "6-6",
       "weight": "225lbs",
       "fortyYardDash": 4.58,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/KJ-Duff-WR-Rutgers.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/rutgers-scarlet-knights.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Duff's tape against Penn State is the one you want to build an argument around. Five targets, five catches, 127 yards, a touchdown, and he..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2204,10 +2204,10 @@
       "height": "6-4",
       "weight": "208lbs",
       "fortyYardDash": 4.52,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Nic-Anderson-WR-Oklahoma.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/lsu-tigers.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "With Anderson, you get a dangerous vertical threat with the frame and ball skills to dominate in contested situations downfield. His length..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2226,10 +2226,10 @@
       "height": "6-1",
       "weight": "212lbs",
       "fortyYardDash": 4.55,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Jaden-Greathouse-WR-NotreDame.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/notre-dame-fighting-irish.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Despite his incredible reliability at the catch point, Greathouse faces an uphill battle to separate consistently against NFL corners with..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2248,10 +2248,10 @@
       "height": "6-0",
       "weight": "170lbs",
       "fortyYardDash": 4.33,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Evan-Stewart-WR-TexasAANDM.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/oregon-ducks.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "The speed jumps off the tape immediately with Stewart-a legitimate 4.3 burner who can take the top off defenses-but watch closer and you'll..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2270,10 +2270,10 @@
       "height": "6-0",
       "weight": "192lbs",
       "fortyYardDash": 4.42,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/DeAndre-MooreJr-WR-Texas.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/texas-longhorns.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Moore brings immediate value as a slot weapon with legitimate third-down and red zone capabilities. His hands and route precision in the..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2292,10 +2292,10 @@
       "height": "5-11",
       "weight": "175lbs",
       "fortyYardDash": 4.49,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Cayden-Lee-WR-Mississippi.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/ole-miss-rebels.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "The tape reveals a receiver whose ceiling gets capped by his physical limitations but whose floor remains remarkably high due to technical..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2314,10 +2314,10 @@
       "height": "6-0",
       "weight": "199lbs",
       "fortyYardDash": 4.38,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Brandon-Inniss-WR-OhioState.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/ohio-state-buckeyes.png",
       "nflTeam": null,
-      "summary": null
+      "summary": "Fits a zone system, can sift through oncoming traffic and explode through tiny creases and cutback lanes. Elite, darting stop-and-go..."
     },
     {
       "source": "NFL Draft Buzz",
@@ -2336,8 +2336,8 @@
       "height": "5-11",
       "weight": "180lbs",
       "fortyYardDash": 4.32,
-      "playerImageUrl": null,
-      "collegeLogoUrl": null,
+      "playerImageUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Anthony-EvansIII-WR-Georgia.png",
+      "collegeLogoUrl": "https://www.nfldraftbuzz.com/Content/collmascots/mississippi-state-bulldogs.png",
       "nflTeam": null,
       "summary": null
     },

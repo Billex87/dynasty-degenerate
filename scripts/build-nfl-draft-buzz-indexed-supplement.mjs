@@ -220,10 +220,17 @@ function dedupe(players) {
   for (const player of players) {
     const key = playerKey(player);
     const existing = byKey.get(key);
+    const addsMissingMedia =
+      Boolean(existing)
+      && ((!existing.playerImageUrl && player.playerImageUrl)
+        || (!existing.collegeLogoUrl && player.collegeLogoUrl)
+        || (!existing.college && player.college)
+        || (!existing.nflTeam && player.nflTeam));
     const shouldPreferPlayer =
       !existing
       || (player.positionRank || 9999) < (existing.positionRank || 9999)
       || (player.rating || 0) > (existing.rating || 0)
+      || addsMissingMedia
       || (String(player.sourceUrl || '').includes('/RATING/DESC') && !String(existing.sourceUrl || '').includes('/RATING/DESC'));
 
     if (!existing || shouldPreferPlayer) {
