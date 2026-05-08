@@ -83,7 +83,7 @@ function formatFantasyPointTotal(value?: number | null): string | null {
   });
 }
 
-function getPreviousSeasonPointsRankPill(details?: PlayerDetails): { label: string; title: string } | null {
+function getPreviousSeasonRankPill(details?: PlayerDetails): { label: string; title: string } | null {
   const rank = details?.lastSeasonPositionRank;
   if (!rank) return null;
 
@@ -98,6 +98,23 @@ function getPreviousSeasonPointsRankPill(details?: PlayerDetails): { label: stri
 
   return {
     label: `${season} ${rank}`,
+    title: titleParts.join(' • '),
+  };
+}
+
+function getPreviousSeasonPointsPill(details?: PlayerDetails): { label: string; title: string } | null {
+  const points = formatFantasyPointTotal(details?.lastSeasonFantasyPoints);
+  if (!points) return null;
+
+  const season = details?.lastSeasonYear || 'Previous season';
+  const pointsPerGame = formatFantasyPointTotal(details?.lastSeasonPointsPerGame);
+  const titleParts = [
+    `${season} league-scoring fantasy points: ${points}`,
+    pointsPerGame ? `${pointsPerGame} PPG` : null,
+  ].filter(Boolean);
+
+  return {
+    label: `${points} pts`,
     title: titleParts.join(' • '),
   };
 }
@@ -132,18 +149,16 @@ function getDraftBuzzScore(player: RankingPlayer): number | null {
   return Number.isFinite(score) && score > 0 ? score : null;
 }
 
-function getDraftBuzzMetricLabel(player: DraftBuzzScoreboardEntry): string {
-  const traits = [
-    player.fortyYardDash ? `${player.fortyYardDash}s` : null,
-    [player.height, player.weight].filter(Boolean).join(' / ') || null,
-  ].filter(Boolean);
-  return traits.join(' • ');
-}
-
 function formatDraftBuzzScore(value?: number | null): string {
   const score = Number(value);
   if (!Number.isFinite(score) || score <= 0) return '-';
   return score.toFixed(Number.isInteger(score) ? 0 : 1);
+}
+
+function formatDraftBuzzForty(value?: number | null): string {
+  const forty = Number(value);
+  if (!Number.isFinite(forty) || forty <= 0) return '-';
+  return `${forty.toFixed(2).replace(/0$/, '')}s`;
 }
 
 function formatDraftBuzzRank(value?: number | null, prefix = '#'): string {
@@ -152,6 +167,15 @@ function formatDraftBuzzRank(value?: number | null, prefix = '#'): string {
   return `${prefix}${rank.toLocaleString(undefined, {
     maximumFractionDigits: Number.isInteger(rank) ? 0 : 1,
   })}`;
+}
+
+function getDraftBuzzPositionRankLabel(player: DraftBuzzScoreboardEntry): string {
+  const rank = Number(player.positionRank || 0);
+  return Number.isFinite(rank) && rank > 0 ? `${player.position}${rank}` : player.position;
+}
+
+function formatDraftBuzzTrait(value?: string | number | null): string {
+  return value === null || value === undefined || value === '' ? '-' : String(value);
 }
 
 function getProfileFallback(options: RankingProfileOption[], board: 'dynasty' | 'devy'): string {
@@ -205,7 +229,7 @@ function RankingPlayerIdentity({ player }: { player: RankingPlayer }) {
 
   return (
     <div className="ranking-player-identity">
-      <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+      <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} fallbackImageUrl={preferredImageUrl} />
     </div>
   );
 }
@@ -310,8 +334,11 @@ function RankingValueRow({
     : player.isDevy
       ? player.pos
       : player.positionRank || player.pos;
-  const previousSeasonPointsRankPill = !player.isDevy && !player.isPick
-    ? getPreviousSeasonPointsRankPill(details)
+  const previousSeasonRankPill = !player.isDevy && !player.isPick
+    ? getPreviousSeasonRankPill(details)
+    : null;
+  const previousSeasonPointsPill = !player.isDevy && !player.isPick
+    ? getPreviousSeasonPointsPill(details)
     : null;
 
   return (
@@ -346,18 +373,40 @@ function RankingValueRow({
 
         <div className="ranking-card-pills value-board__meta">
           <span className={getRankClass(positionLabel)}>{positionLabel}</span>
-          {previousSeasonPointsRankPill ? (
-            <span className="ranking-last-season-rank-pill" title={previousSeasonPointsRankPill.title}>
-              {previousSeasonPointsRankPill.label}
-            </span>
-          ) : null}
         </div>
+
+        {!player.isDevy && !player.isPick ? (
+          <>
+            <div className="ranking-card-pills value-board__previous-rank">
+              {previousSeasonRankPill ? (
+                <span className="ranking-last-season-rank-pill" title={previousSeasonRankPill.title}>
+                  {previousSeasonRankPill.label}
+                </span>
+              ) : (
+                <span className="ranking-last-season-empty">-</span>
+              )}
+            </div>
+
+            <div className="ranking-card-pills value-board__previous-points">
+              {previousSeasonPointsPill ? (
+                <span className="ranking-last-season-points-pill" title={previousSeasonPointsPill.title}>
+                  {previousSeasonPointsPill.label}
+                </span>
+              ) : (
+                <span className="ranking-last-season-empty">-</span>
+              )}
+            </div>
+          </>
+        ) : null}
 
         <div className="ranking-card-pills value-board__age">
           {player.isDevy && player.draftYear ? (
             <span className="ranking-devy-class-pill">{player.draftYear}</span>
           ) : player.age ? (
-            <span className="value-board__age-pill">{player.age} yrs</span>
+            <span className="value-board__age-pill">
+              <span className="value-board__age-short" aria-hidden="true">{player.age} yrs</span>
+              <span className="value-board__age-full">{player.age} Year Old</span>
+            </span>
           ) : (
             <span className="value-board__age-empty">-</span>
           )}
@@ -535,8 +584,10 @@ function DraftBuzzScoreboard({
         row.position,
         row.draftYear,
         row.rating,
+        row.fortyYardDash,
         row.height,
         row.weight,
+        getDraftBuzzPositionRankLabel(row),
       ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
     });
   }, [allRows, query, selectedDraftClass, selectedPositions]);
@@ -564,12 +615,6 @@ function DraftBuzzScoreboard({
   if (!allRows.length) {
     return (
       <section className="draftbuzz-scoreboard" aria-label="Prospect score archive">
-        <div className="draftbuzz-scoreboard__header">
-          <div>
-            <div className="rankings-kicker">Scouting data archive</div>
-            <h4>Prospect Scores By Draft Year</h4>
-          </div>
-        </div>
         <EmptyState className="rankings-empty-state" title="No prospect scores are available yet." />
       </section>
     );
@@ -577,11 +622,7 @@ function DraftBuzzScoreboard({
 
   return (
     <section className="draftbuzz-scoreboard" aria-label="Prospect score archive">
-      <div className="draftbuzz-scoreboard__header">
-        <div>
-          <div className="rankings-kicker">Scouting data archive</div>
-          <h4>Prospect Scores By Draft Year</h4>
-        </div>
+      <div className="draftbuzz-scoreboard__meta" aria-label="Prospect archive coverage">
         <div className="draftbuzz-scoreboard__badges">
           {coverageLabel ? <span>{coverageLabel}</span> : null}
           <span>{allRows.length.toLocaleString()} scored players</span>
@@ -666,12 +707,11 @@ function DraftBuzzScoreboard({
           <span>School</span>
           <span>Pos</span>
           <span>Score</span>
-          <span>Avg Ranks</span>
-          <span>Metrics</span>
+          <span>40</span>
+          <span>Height</span>
+          <span>Weight</span>
         </div>
-        {pageRows.map((player) => {
-          const metricLabel = getDraftBuzzMetricLabel(player);
-          return (
+        {pageRows.map((player) => (
             <button
               type="button"
               key={player.id}
@@ -690,15 +730,13 @@ function DraftBuzzScoreboard({
               <span className="draftbuzz-table__school">
                 <DraftBuzzSchoolLogo entry={player} />
               </span>
-              <span className={getRankClass(player.position)}>{player.position}</span>
+              <span className={getRankClass(player.position)}>{getDraftBuzzPositionRankLabel(player)}</span>
               <strong className="draftbuzz-table__score">{formatDraftBuzzScore(player.rating)}</strong>
-              <span className="draftbuzz-table__avg">
-                OVR {formatDraftBuzzRank(player.averageOverallRank, '')} / POS {formatDraftBuzzRank(player.averagePositionRank, '')}
-              </span>
-              <span className="draftbuzz-table__metrics">{metricLabel || '-'}</span>
+              <span className="draftbuzz-table__forty">{formatDraftBuzzForty(player.fortyYardDash)}</span>
+              <span className="draftbuzz-table__height">{formatDraftBuzzTrait(player.height)}</span>
+              <span className="draftbuzz-table__weight">{formatDraftBuzzTrait(player.weight)}</span>
             </button>
-          );
-        })}
+        ))}
       </div>
 
       {filteredRows.length === 0 ? (
@@ -980,7 +1018,9 @@ function RankingsTable({
           <span>Rank</span>
           <span>Player</span>
           <span>{config.board === 'devy' ? 'School' : 'Team'}</span>
-          <span>Pos</span>
+          <span>{config.board === 'devy' ? 'Pos Rank' : 'Pos Rank'}</span>
+          {config.board !== 'devy' ? <span>Prev Finish</span> : null}
+          {config.board !== 'devy' ? <span>Last Yr Pts</span> : null}
           <span>{config.board === 'devy' ? 'Class' : 'Age'}</span>
           <span>{config.board === 'devy' ? 'Projection' : 'Manager'}</span>
           <span>Rank +/-</span>

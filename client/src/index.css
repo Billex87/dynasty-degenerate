@@ -22529,20 +22529,62 @@ body,
   transform: translateY(-50%) scaleX(-1);
 }
 
-.value-board__meta .ranking-last-season-rank-pill {
-  max-width: 5.55rem;
+.value-board__previous-rank,
+.value-board__previous-points {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.ranking-last-season-rank-pill,
+.ranking-last-season-points-pill,
+.ranking-last-season-empty {
+  display: inline-flex;
+  min-height: 1.35rem;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.56);
+  padding: 0.16rem 0.44rem;
+  font-size: 0.56rem;
+  font-weight: 1000;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ranking-last-season-rank-pill {
+  max-width: 5.55rem;
   border-color: rgba(250, 204, 21, 0.34) !important;
   background:
     radial-gradient(circle at 20% 20%, rgba(250, 204, 21, 0.18), transparent 56%),
     rgba(2, 6, 23, 0.6) !important;
   color: #fde68a !important;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.ranking-last-season-points-pill {
+  max-width: 5rem;
+  border-color: rgba(34, 211, 238, 0.26);
+  background:
+    radial-gradient(circle at 24% 20%, rgba(34, 211, 238, 0.16), transparent 58%),
+    rgba(2, 6, 23, 0.58);
+  color: #a5f3fc;
+}
+
+.ranking-last-season-empty {
+  min-width: 2.15rem;
+  color: rgba(203, 213, 225, 0.52);
 }
 
 @media (max-width: 767px) {
-  .value-board__meta .ranking-last-season-rank-pill {
+  .ranking-last-season-rank-pill,
+  .ranking-last-season-points-pill,
+  .ranking-last-season-empty {
     max-width: 5.35rem;
     padding-inline: 0.28rem;
     font-size: 0.45rem;
@@ -22561,14 +22603,152 @@ body,
   .value-board__rows:not(.value-board__rows-devy) .value-board__row {
     grid-template-columns:
       minmax(2.7rem, 2.7rem)
-      minmax(8rem, 1.24fr)
-      minmax(2.55rem, 0.24fr)
-      minmax(6.35rem, 0.56fr)
-      minmax(3.35rem, 0.32fr)
-      minmax(5.25rem, 0.48fr)
-      minmax(4.2rem, 0.4fr)
-      minmax(4.25rem, 0.4fr)
-      minmax(5.45rem, 0.5fr) !important;
+      minmax(7.8rem, 1.24fr)
+      minmax(2.45rem, 0.22fr)
+      minmax(3.45rem, 0.32fr)
+      minmax(4.75rem, 0.42fr)
+      minmax(4.35rem, 0.38fr)
+      minmax(4.1rem, 0.36fr)
+      minmax(5.15rem, 0.48fr)
+      minmax(3.85rem, 0.36fr)
+      minmax(4rem, 0.38fr)
+      minmax(5.15rem, 0.46fr) !important;
+    gap: 0.34rem;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__row-header span:nth-child(3),
+  .value-board__rows:not(.value-board__rows-devy) .value-board__row-header span:nth-child(4),
+  .value-board__rows:not(.value-board__rows-devy) .value-board__row-header span:nth-child(5),
+  .value-board__rows:not(.value-board__rows-devy) .value-board__row-header span:nth-child(6),
+  .value-board__rows:not(.value-board__rows-devy) .value-board__row-header span:nth-child(7) {
+    text-align: center;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__row-header span:nth-child(8) {
+    text-align: left;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__row-header span:nth-child(n+9) {
+    text-align: right;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__meta {
+    grid-column: 4;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__previous-rank {
+    grid-column: 5;
+    grid-row: 1;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__previous-points {
+    grid-column: 6;
+    grid-row: 1;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__age {
+    grid-column: 7;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__manager {
+    grid-column: 8;
+    justify-content: flex-start;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__trend {
+    grid-column: 9;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__movement {
+    grid-column: 10;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__value {
+    grid-column: 11;
+  }
+}
+
+.value-board__age-pill .value-board__age-full {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .value-board__rows:not(.value-board__rows-devy) .value-board__row {
+    grid-template-columns: minmax(0, 1fr) max-content max-content max-content max-content;
+    grid-template-areas:
+      "player trend movement value rank"
+      "meta meta meta meta meta";
+    min-height: 4.95rem;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__mobile-meta {
+    grid-area: meta;
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    justify-self: stretch;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.18rem;
+    padding-right: 1.78rem;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__meta {
+    order: 1;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__team {
+    order: 2;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__age {
+    order: 3;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__previous-points {
+    order: 4;
+    margin-left: auto;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__previous-rank {
+    order: 5;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__manager {
+    position: absolute;
+    right: 0.55rem;
+    bottom: 0.5rem;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__trend {
+    grid-area: trend;
+    justify-self: end;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__movement {
+    grid-area: movement;
+    justify-self: end;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__value {
+    grid-area: value;
+    justify-self: end;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__rank {
+    grid-area: rank;
+  }
+
+  .value-board__age-pill .value-board__age-short {
+    display: none;
+  }
+
+  .value-board__age-pill .value-board__age-full {
+    display: inline;
+  }
+
+  .value-board__rows:not(.value-board__rows-devy) .value-board__age-pill {
+    min-width: 4.15rem;
   }
 }
 
@@ -23368,6 +23548,400 @@ body,
     transition: none !important;
   }
 
+}
+
+/* Shared AI neural field: grid depth, routed signal pulses, badge scan, and motion fallback. */
+.report-shell .ai-neural-surface,
+.ai-neural-surface {
+  --ai-neural-accent: #22d3ee;
+  --ai-neural-core: rgba(103, 232, 249, 0.88);
+  --ai-neural-soft: rgba(103, 232, 249, 0.36);
+  --ai-neural-muted: rgba(45, 212, 191, 0.22);
+  --ai-neural-border: rgba(34, 211, 238, 0.32);
+  --ai-neural-grid: rgba(45, 212, 191, 0.052);
+  --ai-neural-grid-strong: rgba(103, 232, 249, 0.105);
+  --ai-neural-glow: rgba(34, 211, 238, 0.075);
+  --ai-neural-halo: rgba(34, 211, 238, 0.055);
+  --ai-neural-grid-size: 18px;
+  --ai-neural-grid-size-strong: 72px;
+  --ai-neural-speed: 18.5s;
+  --ai-neural-delay: -1.2s;
+  --ai-neural-depth-speed: 31s;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: var(--ai-neural-border) !important;
+  background:
+    radial-gradient(circle at 12% 0%, var(--ai-neural-glow), transparent 34%),
+    radial-gradient(circle at 92% 6%, rgba(251, 146, 60, 0.055), transparent 32%),
+    linear-gradient(135deg, rgba(1, 5, 14, 0.99), rgba(2, 12, 24, 0.96) 52%, rgba(1, 5, 14, 0.98)) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.026),
+    0 0 22px var(--ai-neural-halo),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    inset 0 0 34px rgba(2, 6, 23, 0.42) !important;
+}
+
+.ai-neural-surface-trade {
+  --ai-neural-accent: #34d399;
+  --ai-neural-core: rgba(134, 239, 172, 0.84);
+  --ai-neural-soft: rgba(134, 239, 172, 0.34);
+  --ai-neural-muted: rgba(52, 211, 153, 0.24);
+  --ai-neural-border: rgba(52, 211, 153, 0.34);
+  --ai-neural-grid: rgba(52, 211, 153, 0.052);
+  --ai-neural-grid-strong: rgba(134, 239, 172, 0.105);
+  --ai-neural-glow: rgba(16, 185, 129, 0.082);
+  --ai-neural-halo: rgba(52, 211, 153, 0.058);
+  --ai-neural-delay: -2.8s;
+}
+
+.ai-neural-surface-window {
+  --ai-neural-accent: #2dd4bf;
+  --ai-neural-core: rgba(94, 234, 212, 0.82);
+  --ai-neural-soft: rgba(94, 234, 212, 0.34);
+  --ai-neural-muted: rgba(45, 212, 191, 0.24);
+  --ai-neural-border: rgba(45, 212, 191, 0.32);
+  --ai-neural-grid: rgba(45, 212, 191, 0.052);
+  --ai-neural-grid-strong: rgba(94, 234, 212, 0.102);
+  --ai-neural-glow: rgba(20, 184, 166, 0.078);
+  --ai-neural-halo: rgba(45, 212, 191, 0.052);
+  --ai-neural-delay: -6.1s;
+  --ai-neural-speed: 21s;
+}
+
+.ai-neural-surface-draft {
+  --ai-neural-accent: #facc15;
+  --ai-neural-core: rgba(253, 224, 71, 0.78);
+  --ai-neural-soft: rgba(253, 224, 71, 0.3);
+  --ai-neural-muted: rgba(250, 204, 21, 0.2);
+  --ai-neural-border: rgba(250, 204, 21, 0.32);
+  --ai-neural-grid: rgba(250, 204, 21, 0.048);
+  --ai-neural-grid-strong: rgba(253, 224, 71, 0.095);
+  --ai-neural-glow: rgba(250, 204, 21, 0.06);
+  --ai-neural-halo: rgba(250, 204, 21, 0.046);
+  --ai-neural-delay: -9.4s;
+}
+
+.ai-neural-surface-churn,
+.ai-neural-surface-sell {
+  --ai-neural-accent: #fb923c;
+  --ai-neural-core: rgba(253, 186, 116, 0.8);
+  --ai-neural-soft: rgba(253, 186, 116, 0.31);
+  --ai-neural-muted: rgba(251, 146, 60, 0.21);
+  --ai-neural-border: rgba(251, 146, 60, 0.32);
+  --ai-neural-grid: rgba(251, 146, 60, 0.052);
+  --ai-neural-grid-strong: rgba(253, 186, 116, 0.1);
+  --ai-neural-glow: rgba(249, 115, 22, 0.066);
+  --ai-neural-halo: rgba(251, 146, 60, 0.048);
+  --ai-neural-delay: -8.3s;
+}
+
+.ai-neural-surface-risk {
+  --ai-neural-accent: #fb7185;
+  --ai-neural-core: rgba(253, 164, 175, 0.78);
+  --ai-neural-soft: rgba(253, 164, 175, 0.31);
+  --ai-neural-muted: rgba(251, 113, 133, 0.2);
+  --ai-neural-border: rgba(251, 113, 133, 0.32);
+  --ai-neural-grid: rgba(251, 113, 133, 0.048);
+  --ai-neural-grid-strong: rgba(253, 164, 175, 0.095);
+  --ai-neural-glow: rgba(244, 63, 94, 0.06);
+  --ai-neural-halo: rgba(251, 113, 133, 0.044);
+  --ai-neural-delay: -4.7s;
+}
+
+.ai-neural-surface-upside {
+  --ai-neural-accent: #c084fc;
+  --ai-neural-core: rgba(216, 180, 254, 0.76);
+  --ai-neural-soft: rgba(216, 180, 254, 0.28);
+  --ai-neural-muted: rgba(192, 132, 252, 0.18);
+  --ai-neural-border: rgba(192, 132, 252, 0.3);
+  --ai-neural-grid: rgba(192, 132, 252, 0.045);
+  --ai-neural-grid-strong: rgba(216, 180, 254, 0.088);
+  --ai-neural-glow: rgba(168, 85, 247, 0.052);
+  --ai-neural-halo: rgba(192, 132, 252, 0.04);
+  --ai-neural-delay: -14.2s;
+}
+
+.ai-neural-surface-core {
+  --ai-neural-accent: #7dd3fc;
+  --ai-neural-core: rgba(186, 230, 253, 0.78);
+  --ai-neural-soft: rgba(186, 230, 253, 0.3);
+  --ai-neural-muted: rgba(125, 211, 252, 0.2);
+  --ai-neural-border: rgba(125, 211, 252, 0.32);
+  --ai-neural-grid: rgba(125, 211, 252, 0.048);
+  --ai-neural-grid-strong: rgba(186, 230, 253, 0.09);
+  --ai-neural-glow: rgba(56, 189, 248, 0.06);
+  --ai-neural-halo: rgba(125, 211, 252, 0.046);
+  --ai-neural-delay: -11.6s;
+}
+
+.ai-neural-surface-neutral {
+  --ai-neural-delay: -1.5s;
+}
+
+.waiver-intel-grid .ai-neural-surface:nth-child(3n + 1),
+.owner-intel-read-grid .ai-neural-surface:nth-child(3n + 1) {
+  --ai-neural-speed: 19.5s;
+  --ai-neural-delay: -4.2s;
+}
+
+.waiver-intel-grid .ai-neural-surface:nth-child(3n + 2),
+.owner-intel-read-grid .ai-neural-surface:nth-child(3n + 2) {
+  --ai-neural-speed: 22s;
+  --ai-neural-delay: -8.6s;
+}
+
+.waiver-intel-grid .ai-neural-surface:nth-child(3n + 3),
+.owner-intel-read-grid .ai-neural-surface:nth-child(3n + 3) {
+  --ai-neural-speed: 17.75s;
+  --ai-neural-delay: -12.4s;
+}
+
+.ai-neural-surface::before,
+.ai-neural-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.ai-neural-surface::before {
+  background:
+    linear-gradient(180deg, transparent, var(--ai-neural-core) 18%, var(--ai-neural-accent) 50%, var(--ai-neural-core) 82%, transparent) 0 0 / 2px 100% no-repeat,
+    linear-gradient(90deg, var(--ai-neural-soft), transparent 34%) 0 0 / 42% 1px no-repeat,
+    linear-gradient(270deg, var(--ai-neural-soft), transparent 34%) 100% 100% / 42% 1px no-repeat,
+    linear-gradient(var(--ai-neural-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ai-neural-grid) 1px, transparent 1px),
+    linear-gradient(var(--ai-neural-grid-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ai-neural-grid-strong) 1px, transparent 1px),
+    radial-gradient(circle at 20% 26%, var(--ai-neural-soft) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 72% 64%, var(--ai-neural-muted) 0 1px, transparent 1.8px),
+    repeating-linear-gradient(180deg, transparent 0 9px, rgba(186, 230, 253, 0.018) 10px, transparent 12px);
+  background-size:
+    2px 100%,
+    42% 1px,
+    42% 1px,
+    var(--ai-neural-grid-size) var(--ai-neural-grid-size),
+    var(--ai-neural-grid-size) var(--ai-neural-grid-size),
+    var(--ai-neural-grid-size-strong) var(--ai-neural-grid-size-strong),
+    var(--ai-neural-grid-size-strong) var(--ai-neural-grid-size-strong),
+    88px 64px,
+    116px 92px,
+    100% 12px;
+  opacity: 0.66;
+  transform: translate3d(0, 0, 0);
+  animation: ai-neural-field-breathe var(--ai-neural-depth-speed) ease-in-out infinite;
+  animation-delay: calc(var(--ai-neural-delay) * 0.5);
+}
+
+.ai-neural-surface::after {
+  inset: -14%;
+  background:
+    radial-gradient(circle, var(--ai-neural-core) 0 1.2px, var(--ai-neural-soft) 2px, transparent 14px),
+    linear-gradient(90deg, transparent 0 10%, var(--ai-neural-muted) 30%, var(--ai-neural-core) 50%, var(--ai-neural-muted) 70%, transparent 90%),
+    linear-gradient(0deg, transparent 0 14%, var(--ai-neural-muted) 34%, var(--ai-neural-core) 50%, var(--ai-neural-muted) 66%, transparent 86%),
+    radial-gradient(circle, var(--ai-neural-core) 0 1px, var(--ai-neural-muted) 2px, transparent 12px),
+    linear-gradient(90deg, transparent 0 12%, var(--ai-neural-muted) 34%, var(--ai-neural-soft) 50%, var(--ai-neural-muted) 66%, transparent 88%),
+    linear-gradient(0deg, transparent 0 12%, var(--ai-neural-muted) 34%, var(--ai-neural-soft) 50%, var(--ai-neural-muted) 66%, transparent 88%),
+    radial-gradient(circle, var(--ai-neural-core) 0 1.2px, var(--ai-neural-soft) 2px, transparent 16px),
+    linear-gradient(90deg, transparent 0 9%, var(--ai-neural-muted) 28%, var(--ai-neural-core) 50%, var(--ai-neural-muted) 72%, transparent 91%),
+    linear-gradient(0deg, transparent 0 18%, var(--ai-neural-muted) 36%, var(--ai-neural-core) 50%, var(--ai-neural-muted) 64%, transparent 82%);
+  background-position:
+    17% 30%,
+    calc(17% - 48px) 30%,
+    17% calc(30% - 34px),
+    55% 68%,
+    calc(55% - 36px) 68%,
+    55% calc(68% - 24px),
+    84% 34%,
+    calc(84% - 58px) 34%,
+    84% calc(34% - 42px);
+  background-repeat: no-repeat;
+  background-size:
+    42px 42px,
+    96px 2px,
+    2px 68px,
+    32px 32px,
+    72px 2px,
+    2px 46px,
+    52px 52px,
+    116px 2px,
+    2px 84px;
+  opacity: 0.055;
+  transform: translate3d(-1.5%, -1%, 0) scale(1);
+  will-change: transform, opacity;
+  animation: ai-neural-signal-route var(--ai-neural-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite;
+  animation-delay: var(--ai-neural-delay);
+}
+
+.ai-neural-surface > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ai-neural-surface:is(button):is(:hover, :focus-visible) {
+  border-color: color-mix(in srgb, var(--ai-neural-accent) 62%, rgba(255, 255, 255, 0.12)) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 0 30px var(--ai-neural-halo),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.045),
+    inset 0 0 36px rgba(2, 6, 23, 0.38) !important;
+}
+
+.ai-recommendation-badge {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--ai-neural-accent, #34d399) 50%, rgba(255, 255, 255, 0.12)) !important;
+  background:
+    linear-gradient(90deg, rgba(2, 6, 23, 0.84), color-mix(in srgb, var(--ai-neural-accent, #34d399) 18%, rgba(2, 6, 23, 0.72))),
+    radial-gradient(circle at 0% 0%, var(--ai-neural-glow, rgba(34, 211, 238, 0.1)), transparent 44%) !important;
+  color: color-mix(in srgb, var(--ai-neural-core, #86efac) 82%, white) !important;
+  letter-spacing: 0.13em;
+  text-shadow: 0 0 12px var(--ai-neural-soft, rgba(134, 239, 172, 0.28));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 0 16px var(--ai-neural-halo, rgba(52, 211, 153, 0.05));
+}
+
+.ai-recommendation-badge::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 0 35%, rgba(255, 255, 255, 0.32) 48%, transparent 62% 100%);
+  opacity: 0.36;
+  transform: translate3d(-145%, 0, 0);
+  animation: ai-neural-badge-scan 7.2s ease-in-out infinite;
+  animation-delay: calc(var(--ai-neural-delay, -1s) * 0.4);
+  pointer-events: none;
+}
+
+.waiver-intel-card-suggested .waiver-intel-main .player-chip img,
+.waiver-intel-card-suggested .waiver-intel-main .player-chip > span[aria-hidden="true"] {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ai-neural-accent) 48%, rgba(255, 255, 255, 0.16)),
+    0 0 18px var(--ai-neural-halo);
+}
+
+@keyframes ai-neural-field-breathe {
+  0%,
+  100% {
+    opacity: 0.58;
+    transform: translate3d(0, 0, 0);
+  }
+
+  44% {
+    opacity: 0.74;
+    transform: translate3d(0.35%, -0.35%, 0);
+  }
+
+  72% {
+    opacity: 0.62;
+    transform: translate3d(-0.25%, 0.2%, 0);
+  }
+}
+
+@keyframes ai-neural-signal-route {
+  0%,
+  100% {
+    opacity: 0.038;
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+
+  8% {
+    opacity: 0.16;
+  }
+
+  17% {
+    opacity: 0.05;
+    transform: translate3d(5%, 5.5%, 0) scale(1.012);
+  }
+
+  33% {
+    opacity: 0.044;
+    transform: translate3d(-4%, 8%, 0) scale(1.004);
+  }
+
+  42% {
+    opacity: 0.18;
+  }
+
+  52% {
+    opacity: 0.048;
+    transform: translate3d(9%, -3%, 0) scale(1.018);
+  }
+
+  69% {
+    opacity: 0.04;
+    transform: translate3d(-6%, -5%, 0) scale(1.006);
+  }
+
+  77% {
+    opacity: 0.14;
+  }
+
+  88% {
+    opacity: 0.05;
+    transform: translate3d(3%, 7%, 0) scale(1.01);
+  }
+}
+
+@keyframes ai-neural-badge-scan {
+  0%,
+  62%,
+  100% {
+    transform: translate3d(-145%, 0, 0);
+    opacity: 0;
+  }
+
+  70% {
+    opacity: 0.34;
+  }
+
+  84% {
+    transform: translate3d(145%, 0, 0);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .ai-neural-surface {
+    --ai-neural-grid-size: 16px;
+    --ai-neural-grid-size-strong: 64px;
+  }
+
+  .ai-recommendation-badge {
+    max-width: 100%;
+    padding-inline: 0.42rem;
+    font-size: 0.56rem;
+    letter-spacing: 0.1em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-neural-surface,
+  .ai-neural-surface::before,
+  .ai-neural-surface::after,
+  .ai-recommendation-badge::after {
+    animation: none !important;
+    transform: none !important;
+    transition-duration: 1ms !important;
+  }
+
+  .ai-neural-surface::before {
+    opacity: 0.58;
+  }
+
+  .ai-neural-surface::after {
+    opacity: 0.085;
+  }
+
+  .ai-recommendation-badge::after {
+    opacity: 0;
+  }
 }
 
 /* Shared interaction primitives: subtle, transform-only polish for identities and controls. */
