@@ -1703,20 +1703,7 @@ export default function Home() {
               aria-live="polite"
             >
               <div className="loading-success-copy">
-                <div className="loading-success-stamp-stage">
-                  <span className="loading-success-impact-shadow" aria-hidden="true" />
-                  <span className="loading-success-stamp-press" aria-hidden="true">
-                    <span className="loading-success-stamp-handle" />
-                    <span className="loading-success-stamp-face">
-                      <span>REPORT</span>
-                      <span>GENERATED</span>
-                    </span>
-                  </span>
-                  <p className="loading-success-kicker loading-success-ink-mark" aria-label="Report Generated">
-                    <span aria-hidden="true">REPORT</span>
-                    <span aria-hidden="true">GENERATED</span>
-                  </p>
-                </div>
+                <p className="loading-success-kicker">Report Generated</p>
                 <div className="loading-success-icon">
                   {analysisCompleteMessage.leagueLogo ? (
                     <img
@@ -1824,7 +1811,10 @@ export default function Home() {
         {/* Content */}
         <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
           <Tabs value={resolvedActiveTab} onValueChange={handleReportTabChange} className="w-full">
-            <TabsList className={`report-tabs ${canViewMomentumTab ? 'report-tabs-five' : 'report-tabs-four'}`}>
+            <TabsList
+              className={`report-tabs ${canViewMomentumTab ? 'report-tabs-five' : 'report-tabs-four'}`}
+              data-active-tab={resolvedActiveTab}
+            >
               <TabsTrigger value="overview" className="report-tab">
                 <BarChart3 className="h-4 w-4" />
                 <span>Overview</span>
@@ -2471,7 +2461,9 @@ function CollapsibleReportSection({
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </summary>
       <div className="report-disclosure-body">
-        {children}
+        <div className="report-disclosure-body-inner">
+          {children}
+        </div>
       </div>
     </details>
   );

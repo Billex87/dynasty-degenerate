@@ -6160,6 +6160,7 @@ export function TradeWarRoom({
   const sideBTotal = sideBAssets.reduce((sum, asset) => sum + getTradeWarAssetValue(asset, mode), 0);
   const valueGap = sideBTotal - sideATotal;
   const gapRead = getTradeWarGapLabel(valueGap);
+  const tradeWarPulseKey = `${mode}-${sideATotal}-${sideBTotal}-${gapRead.className}`;
   const managerARow = managerRows.get(managerA);
   const managerBRow = managerRows.get(managerB);
   const assetsByManager = React.useMemo(() => {
@@ -6429,7 +6430,7 @@ export function TradeWarRoom({
     const isPickerOpen = mobilePickerOpen[sideKey];
 
     return (
-      <div className="trade-war-side">
+      <div className={`trade-war-side ${assets.length ? 'trade-war-side-loaded' : ''}`} data-side={sideKey}>
         <div className="trade-war-side-header">
           <div className="trade-war-manager-lockup">
             <ChampionAvatarFrame managerName={manager} className="trade-war-manager-avatar">
@@ -6446,7 +6447,7 @@ export function TradeWarRoom({
           </div>
           <div className="trade-war-side-total">
             <span>Sends</span>
-            <strong>{total.toLocaleString()}</strong>
+            <strong key={`${sideKey}-${mode}-${total}`}>{total.toLocaleString()}</strong>
           </div>
         </div>
 
@@ -6554,16 +6555,16 @@ export function TradeWarRoom({
       </div>
 
       <div className="trade-war-scoreboard">
-        <div>
+        <div className="trade-war-score-card" key={`score-a-${mode}-${sideATotal}`}>
           <span>{managerA} sends</span>
           <strong>{sideATotal.toLocaleString()}</strong>
         </div>
-        <div className={`trade-war-gap ${gapRead.className}`}>
+        <div className={`trade-war-gap ${gapRead.className}`} key={tradeWarPulseKey} aria-live="polite">
           <span>{gapRead.label}</span>
           <strong>{Math.abs(valueGap).toLocaleString()}</strong>
           <small>{valueGap === 0 ? 'No value gap' : valueGap > 0 ? `${managerA} receives more` : `${managerB} receives more`}</small>
         </div>
-        <div>
+        <div className="trade-war-score-card" key={`score-b-${mode}-${sideBTotal}`}>
           <span>{managerB} sends</span>
           <strong>{sideBTotal.toLocaleString()}</strong>
         </div>

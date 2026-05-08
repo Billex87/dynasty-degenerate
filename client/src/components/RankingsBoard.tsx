@@ -441,12 +441,15 @@ function DraftBuzzTeamSchool({ entry }: { entry: DraftBuzzScoreboardEntry }) {
 
   return (
     <span className="draftbuzz-team-school">
-      {team ? (
-        <TeamLogoPill team={team} showText className="draftbuzz-team-school__team" />
+      {team ? <TeamLogoPill team={team} className="draftbuzz-team-school__team" /> : null}
+      {school ? (
+        <span className="draftbuzz-team-school__college">
+          <CollegeTeamPill college={school} logoUrl={entry.collegeLogoUrl} />
+          <em>{school}</em>
+        </span>
       ) : (
-        <CollegeTeamPill college={school} logoUrl={entry.collegeLogoUrl} />
+        <em>School unavailable</em>
       )}
-      {school ? <em>{school}</em> : <em>School unavailable</em>}
     </span>
   );
 }
