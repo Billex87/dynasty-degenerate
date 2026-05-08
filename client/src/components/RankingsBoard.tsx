@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeamLogoPill } from './TeamLogoPill';
@@ -250,6 +250,11 @@ function RankingValueRow({
     : player.movementDirection === 'down'
       ? 'ranking-move-down'
       : 'ranking-move-flat';
+  const movementIcon = player.movementDirection === 'up'
+    ? <TrendingUp className="h-3.5 w-3.5" />
+    : player.movementDirection === 'down'
+      ? <TrendingDown className="h-3.5 w-3.5" />
+      : null;
   const rankMovementClass = player.rankMovementDirection === 'up'
     ? 'ranking-move-up'
     : player.rankMovementDirection === 'down'
@@ -332,6 +337,7 @@ function RankingValueRow({
         <div className="value-board__movement">
           <span className={`ranking-movement-pill ${movementClass}`}>
             {player.movementLabel || 'Stable'}
+            {movementIcon}
           </span>
         </div>
       ) : null}
@@ -342,11 +348,13 @@ function RankingValueRow({
         </div>
       ) : null}
 
-      <div className="value-board__trend" aria-label={`${player.name} board movement`}>
-        <span className={`ranking-trend-pill ${rankMovementClass} ${hasRankMovement ? '' : 'ranking-trend-pill-empty'}`}>
-          {player.rankMovementLabel || '-'}
-        </span>
-      </div>
+      {hasRankMovement ? (
+        <div className="value-board__trend" aria-label={`${player.name} board movement`}>
+          <span className={`ranking-trend-pill ${rankMovementClass}`}>
+            {player.rankMovementLabel}
+          </span>
+        </div>
+      ) : null}
     </button>
   );
 }
@@ -436,7 +444,7 @@ function DraftBuzzScoreboard({
     <section className="draftbuzz-scoreboard" aria-label="DraftBuzz score index">
       <div className="draftbuzz-scoreboard__header">
         <div>
-          <div className="rankings-kicker">NFL Draft Buzz score index</div>
+          <div className="rankings-kicker">NFL Draft Buzz data archive</div>
           <h4>DraftBuzz Scores By Draft Year</h4>
         </div>
         <span>{playerCount.toLocaleString()} scored players</span>
@@ -545,7 +553,6 @@ function RankingsTable({
   const activeProfile = profileOptions.find((option) => option.key === selectedProfileKey);
   const activeProfileLabel = activeProfile ? getProfileButtonLabel(activeProfile) : null;
   const isLeagueMatchedProfile = Boolean(config.defaultProfileKey && selectedProfileKey === config.defaultProfileKey);
-  const sourceInputCount = new Set(rows.flatMap((player) => player.sources)).size;
   const canIncludePicksWithOverall = config.board === 'dynasty' && !config.hidePicks;
   const draftClassOptions = useMemo(() => {
     if (config.board !== 'devy') return [];
@@ -660,12 +667,6 @@ function RankingsTable({
               : {activeProfileLabel}
             </span>
           ) : null}
-        </div>
-        <div className="rankings-source-summary">
-          <span>{rows.length.toLocaleString()} ranked assets</span>
-          <span>
-            {sourceInputCount} {config.board === 'devy' ? 'ranking' : 'value'} input{sourceInputCount === 1 ? '' : 's'}
-          </span>
         </div>
       </div>
 
@@ -793,9 +794,6 @@ function RankingsTable({
         </div>
       )}
 
-      {config.board === 'devy' ? (
-        <DraftBuzzScoreboard entries={rankings.draftBuzzScoreboard || []} onSelectEntry={onSelectDraftBuzzEntry} />
-      ) : null}
     </section>
   );
 }
@@ -816,7 +814,7 @@ export function RankingsBoard({
   leagueId?: string;
   leagueLogo?: string | null;
   viewerManager?: string | null;
-  board?: 'all' | 'dynasty' | 'devy';
+  board?: 'all' | 'dynasty' | 'devy' | 'draftbuzz';
   hidePicks?: boolean;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
@@ -933,6 +931,7 @@ export function RankingsBoard({
       hidePicks: true,
     },
   ] satisfies RankingsTableConfig[]).filter((config) => board === 'all' || config.board === board);
+  const showDraftBuzzScoreboard = board === 'all' || board === 'draftbuzz';
 
   return (
     <div className="rankings-board">
@@ -948,6 +947,14 @@ export function RankingsBoard({
           onSelectDraftBuzzEntry={handleSelectDraftBuzzEntry}
         />
       ))}
+
+      {showDraftBuzzScoreboard ? (
+        rankings.draftBuzzScoreboard?.length ? (
+          <DraftBuzzScoreboard entries={rankings.draftBuzzScoreboard} onSelectEntry={handleSelectDraftBuzzEntry} />
+        ) : (
+          <div className="rankings-empty-state">NFL Draft Buzz archive is not available for this report yet.</div>
+        )
+      ) : null}
 
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}

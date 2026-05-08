@@ -37,7 +37,7 @@ import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_DATA_VERSION = 'trade-ledger-outcomes-v3';
+const REPORT_CACHE_DATA_VERSION = 'trade-ledger-outcomes-v4';
 const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v17';
 const STALE_REPORT_CACHE_KEYS = [
   'dynasty-degenerates:last-report:v10',
@@ -1977,6 +1977,24 @@ export default function Home() {
                         leagueLogo={leagueLogo}
                         viewerManager={reportData.viewerManager}
                         board="devy"
+                        hidePicks
+                      />
+                    )}
+                  </CollapsibleReportSection>
+                )}
+                {!isRedraftReport && (
+                  <CollapsibleReportSection title="NFL Draft Buzz Archive" kicker="Scouting data archive">
+                    {rankingsQuery.isLoading && !rankingsForReport ? (
+                      <div className="rankings-empty-state">Loading NFL Draft Buzz archive...</div>
+                    ) : (
+                      <RankingsBoard
+                        rankings={rankingsForReport}
+                        playerDetailsById={reportData.playerDetailsById}
+                        managerAvatars={reportData.managerAvatars}
+                        leagueId={leagueId}
+                        leagueLogo={leagueLogo}
+                        viewerManager={reportData.viewerManager}
+                        board="draftbuzz"
                         hidePicks
                       />
                     )}

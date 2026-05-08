@@ -9,6 +9,8 @@ const ESPN_SOURCE_NAME = 'ESPN' as const;
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 const PROSPECT_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'prospect-snapshots');
 const ESPN_PROSPECT_FILE = path.join(PROSPECT_SNAPSHOT_DIR, 'espn-college-prospects.json');
+const NFL_DRAFT_BUZZ_INDEXED_SUPPLEMENT_FILE = path.join(PROSPECT_SNAPSHOT_DIR, 'nfl-draft-buzz-indexed-supplement.json');
+const NFL_DRAFT_BUZZ_HISTORICAL_SUPPLEMENT_FILE = path.join(PROSPECT_SNAPSHOT_DIR, 'nfl-draft-buzz-historical-supplement.json');
 const FANTASY_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
 const FANTASY_POSITION_SET = new Set<string>(FANTASY_POSITIONS);
 const DRAFT_BUZZ_HISTORY_START_YEAR = 2021;
@@ -43,6 +45,16 @@ type EspnProspectSnapshotPayload = {
   schemaVersion: 1;
   source: typeof ESPN_SOURCE_NAME;
   generatedAt: string;
+  players: ProspectProfile[];
+  errors?: string[];
+};
+
+type IndexedProspectSupplementPayload = {
+  schemaVersion: 1;
+  source: typeof SOURCE_NAME;
+  generatedAt: string;
+  scrapeMonth: string;
+  note?: string;
   players: ProspectProfile[];
   errors?: string[];
 };
@@ -638,6 +650,41 @@ function normalizeEspnProspectSnapshot(raw: unknown): EspnProspectSnapshotPayloa
   };
 }
 
+function normalizeIndexedProspectSupplement(raw: unknown): IndexedProspectSupplementPayload | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const payload = raw as Partial<IndexedProspectSupplementPayload>;
+  if (!Array.isArray(payload.players)) return null;
+  return {
+    schemaVersion: 1,
+    source: SOURCE_NAME,
+    generatedAt: typeof payload.generatedAt === 'string' ? payload.generatedAt : new Date().toISOString(),
+    scrapeMonth: typeof payload.scrapeMonth === 'string' ? payload.scrapeMonth : getProspectSnapshotMonth(),
+    note: typeof payload.note === 'string' ? payload.note : undefined,
+    players: dedupeProspects(payload.players
+      .filter((profile): profile is ProspectProfile => Boolean(profile?.name && profile?.position && profile?.draftYear))
+      .map((profile) => ({
+        ...profile,
+        source: SOURCE_NAME,
+      }))),
+    errors: Array.isArray(payload.errors) ? payload.errors.filter((error): error is string => typeof error === 'string') : [],
+  };
+}
+
+function loadLocalNflDraftBuzzSupplements(): IndexedProspectSupplementPayload[] {
+  return [
+    NFL_DRAFT_BUZZ_HISTORICAL_SUPPLEMENT_FILE,
+    NFL_DRAFT_BUZZ_INDEXED_SUPPLEMENT_FILE,
+  ].map((filePath) => {
+    try {
+      if (!fs.existsSync(filePath)) return null;
+      return normalizeIndexedProspectSupplement(JSON.parse(fs.readFileSync(filePath, 'utf-8')));
+    } catch (error) {
+      console.warn(`[NFL Draft Buzz] Failed to load prospect supplement ${path.basename(filePath)}:`, error);
+      return null;
+    }
+  }).filter((payload): payload is IndexedProspectSupplementPayload => Boolean(payload));
+}
+
 function loadLocalEspnProspectSnapshot(): EspnProspectSnapshotPayload | null {
   try {
     if (!fs.existsSync(ESPN_PROSPECT_FILE)) return null;
@@ -796,14 +843,19 @@ function buildDiagnostics(
 export async function loadProspectContext(): Promise<ProspectContext> {
   if (prospectContextCache) return prospectContextCache;
   const payload = await loadLatestStoredProspectSnapshot();
+  const nflDraftBuzzSupplements = loadLocalNflDraftBuzzSupplements();
   const espnSnapshot = loadLocalEspnProspectSnapshot();
   const profiles = mergeParsedProspects([
     ...(payload?.players || []),
+    ...nflDraftBuzzSupplements.flatMap((supplement) => supplement.players),
     ...(espnSnapshot?.players || []),
   ]);
   prospectContextCache = {
     profiles,
-    diagnostics: buildDiagnostics(payload, profiles.length, espnSnapshot?.players.length || 0, espnSnapshot?.errors || []),
+    diagnostics: buildDiagnostics(payload, profiles.length, espnSnapshot?.players.length || 0, [
+      ...nflDraftBuzzSupplements.flatMap((supplement) => supplement.errors || []),
+      ...(espnSnapshot?.errors || []),
+    ]),
   };
   return prospectContextCache;
 }

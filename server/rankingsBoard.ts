@@ -533,9 +533,9 @@ function isCollegeEligibleRankingPlayer({
   const prospectYear = getNumericMetadataValue(prospectProfile?.draftYear, draftYear, rookieYear);
   if (yearsExp > 0) return false;
   if (hasNflTeam) return false;
-  if (prospectProfile) return !prospectYear || prospectYear >= currentYear;
+  if (prospectProfile) return Boolean(prospectYear && prospectYear > currentYear);
 
-  return Boolean(rookieYear && rookieYear >= currentYear && !hasNflTeam && yearsExp === 0);
+  return Boolean(rookieYear && rookieYear > currentYear && !hasNflTeam && yearsExp === 0);
 }
 
 function getCollegeSourceRank(row: RankingPlayer): number {
@@ -752,7 +752,7 @@ function buildRowsForProfile({
       ? findProspectProfile(prospectLookup, name, pos, college, sourceDraftYear)
       : null);
     const draftYear = option.board === 'devy'
-      ? getCollegeDraftYear(sourceDraftYear, rawProspectProfile?.draftYear)
+      ? getCollegeDraftYear(rawProspectProfile?.draftYear, sourceDraftYear)
       : sourceDraftYear;
     const prospectProfile = option.board === 'devy'
       ? normalizeCollegeProspectProfile(rawProspectProfile, draftYear)

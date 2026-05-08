@@ -558,9 +558,10 @@ function getTradeLedgerItemValues(
   mode: TradeWarMode,
   playerDetailsById?: PlayerDetailsById,
   draftPicks: DraftPick[] = [],
+  manager?: string,
 ) {
   return splitTradeItems(items)
-    .map((item) => getTradeLedgerItemValue(item, mode, playerDetailsById, draftPicks))
+    .map((item) => getTradeLedgerItemValue(item, mode, playerDetailsById, draftPicks, manager))
     .filter((value): value is number => value !== null && Number.isFinite(value));
 }
 
@@ -569,7 +570,7 @@ function getTradeLedgerItemValue(
   mode: TradeWarMode,
   playerDetailsById?: PlayerDetailsById,
   draftPicks: DraftPick[] = [],
-  depth = 0,
+  manager?: string,
 ): number | null {
   const trimmed = item.trim();
   if (!trimmed || parseValueAdjustmentItem(trimmed) !== null) return null;
@@ -581,18 +582,13 @@ function getTradeLedgerItemValue(
 
   const pickItem = parseTradePickItem(trimmed);
   if (pickItem) {
-    const flippedValues = depth < 3
-      ? pickItem.flipOutcome?.assets
-        .map((asset) => getTradeLedgerItemValue(asset, mode, playerDetailsById, draftPicks, depth + 1))
-        .filter((value): value is number => value !== null && Number.isFinite(value))
-      : [];
-    if (flippedValues?.length) {
-      return flippedValues.reduce((sum, value) => sum + value, 0);
+    const basisValue = getTradeLensNumber(pickItem.value);
+    const landedPick = findLandedPick(pickItem, draftPicks);
+    if (landedPick && didManagerMakeLandedPick(manager, landedPick)) {
+      return getTradeLensNumber(landedPick.currentKtcValue ?? landedPick.ktcValue) ?? basisValue;
     }
 
-    const landedPick = findLandedPick(pickItem, draftPicks);
-    return getTradeLensNumber(landedPick?.currentKtcValue ?? landedPick?.ktcValue)
-      ?? getTradeLensNumber(pickItem.value);
+    return basisValue;
   }
 
   return null;
@@ -629,8 +625,8 @@ function buildTradeLedgerEvaluation(
 ): TradeLedgerEvaluation {
   const teamALens = getTradeRowBuildLens(row, row.team_a, dynastyTimelines, managerRosterIntelligence);
   const teamBLens = getTradeRowBuildLens(row, row.team_b, dynastyTimelines, managerRosterIntelligence);
-  const teamAValues = getTradeLedgerItemValues(row.team_a_items, teamALens.mode, playerDetailsById, draftPicks);
-  const teamBValues = getTradeLedgerItemValues(row.team_b_items, teamBLens.mode, playerDetailsById, draftPicks);
+  const teamAValues = getTradeLedgerItemValues(row.team_a_items, teamALens.mode, playerDetailsById, draftPicks, row.team_a);
+  const teamBValues = getTradeLedgerItemValues(row.team_b_items, teamBLens.mode, playerDetailsById, draftPicks, row.team_b);
   const teamAAdjustment = calculateTradeLedgerValueAdjustment(teamAValues, teamBValues);
   const teamBAdjustment = calculateTradeLedgerValueAdjustment(teamBValues, teamAValues);
   const teamATotal = teamAValues.reduce((sum, value) => sum + value, 0) + teamAAdjustment;
@@ -737,6 +733,7 @@ type TradeOutcomeAsset = {
   seasonValue: number;
   rank?: string | null;
   detail?: string | null;
+  outcomeNote?: string | null;
   status?: string | null;
   playerId?: string;
   children?: TradeOutcomeAsset[];
@@ -813,7 +810,7 @@ function getOutcomeAssetsFromItems(
   playerDetailsById?: PlayerDetailsById,
   currentPositionRankById?: CurrentPositionRankById,
   draftPicks: DraftPick[] = [],
-  depth = 0,
+  manager?: string,
 ): TradeOutcomeAsset[] {
   return splitTradeItems(items)
     .filter((item) => parseValueAdjustmentItem(item.trim()) === null)
@@ -832,7 +829,7 @@ function getOutcomeAssetsFromItems(
             ? `${details.valueProfile.seasonPositionRank} season lens`
             : null;
         return [{
-          id: `${depth}-${index}-${playerItem.playerId}`,
+          id: `${index}-${playerItem.playerId}`,
           label: playerItem.playerName,
           name: playerItem.playerName,
           kind: 'player',
@@ -855,42 +852,17 @@ function getOutcomeAssetsFromItems(
         ? `${pickItem.draftYear} ${formatPickRound(pickItem.round)} (${pickItem.round}.${String(landedPick.draftSlot).padStart(2, '0')})`
         : pickItem.displayLabel;
       const basisValue = getTradeLensNumber(pickItem.value) ?? 0;
-      const flippedAssets = depth < 3 && pickItem.flipOutcome?.assets?.length
-        ? pickItem.flipOutcome.assets.flatMap((asset) => getOutcomeAssetsFromItems(
-          asset,
-          mode,
-          playerDetailsById,
-          currentPositionRankById,
-          draftPicks,
-          depth + 1,
-        ))
-        : [];
+      const managerMadePick = didManagerMakeLandedPick(manager, landedPick);
+      const movedAfterTrade = Boolean(pickItem.flipOutcome?.assets?.length);
 
-      if (flippedAssets.length) {
-        const value = flippedAssets.reduce((sum, asset) => sum + asset.value, 0);
-        const seasonValue = flippedAssets.reduce((sum, asset) => sum + asset.seasonValue, 0);
-        return [{
-          id: `${depth}-${index}-${displayedPickLabel}`,
-          label: displayedPickLabel,
-          name: displayedPickLabel,
-          kind: 'pick',
-          value,
-          basisValue,
-          valueDelta: value - basisValue,
-          seasonValue,
-          detail: `Flipped${pickItem.flipOutcome?.date ? ` on ${pickItem.flipOutcome.date}` : ''} for ${flippedAssets.map((asset) => asset.name).join(' + ')}`,
-          children: flippedAssets,
-        }];
-      }
-
-      if (landedPick) {
+      if (landedPick && managerMadePick) {
         const details = landedPick.player_id ? playerDetailsById?.[landedPick.player_id] || landedPick.playerDetails : landedPick.playerDetails;
         const value = getTradeLensNumber(landedPick.currentKtcValue ?? landedPick.ktcValue) ?? basisValue;
         const rank = landedPick.currentPositionRank
           || (landedPick.player_id ? currentPositionRankById?.[landedPick.player_id] : null)
           || landedPick.playerPos;
         return [{
-          id: `${depth}-${index}-${displayedPickLabel}`,
+          id: `${index}-${displayedPickLabel}`,
           label: displayedPickLabel,
           name: landedPick.playerName,
           kind: 'pick',
@@ -905,8 +877,43 @@ function getOutcomeAssetsFromItems(
         }];
       }
 
+      if (landedPick) {
+        const selectedBy = landedPick.manager || 'another manager';
+        const movedNote = movedAfterTrade && pickItem.flipOutcome?.date
+          ? `${manager || 'This side'} moved ${displayedPickLabel} on ${pickItem.flipOutcome.date}; the outcome keeps the pick's market value instead of chasing later returns. ${selectedBy} selected ${landedPick.playerName}.`
+          : `${manager || 'This side'} did not make ${displayedPickLabel}; the outcome keeps the pick's market value. ${selectedBy} selected ${landedPick.playerName}.`;
+        return [{
+          id: `${index}-${displayedPickLabel}`,
+          label: displayedPickLabel,
+          name: displayedPickLabel,
+          kind: 'pick',
+          value: basisValue,
+          basisValue,
+          valueDelta: 0,
+          seasonValue: 0,
+          detail: `${displayedPickLabel} selected by ${selectedBy}`,
+          outcomeNote: movedNote,
+          playerId: landedPick.player_id,
+        }];
+      }
+
+      if (movedAfterTrade) {
+        return [{
+          id: `${index}-${displayedPickLabel}`,
+          label: displayedPickLabel,
+          name: displayedPickLabel,
+          kind: 'pick',
+          value: basisValue,
+          basisValue,
+          valueDelta: 0,
+          seasonValue: 0,
+          detail: `Moved${pickItem.flipOutcome?.date ? ` on ${pickItem.flipOutcome.date}` : ''}; retained at pick-market value`,
+          outcomeNote: `${manager || 'This side'} moved ${displayedPickLabel} after this deal; the outcome keeps the pick's market value instead of chasing later returns.`,
+        }];
+      }
+
       return [{
-        id: `${depth}-${index}-${displayedPickLabel}`,
+        id: `${index}-${displayedPickLabel}`,
         label: displayedPickLabel,
         name: displayedPickLabel,
         kind: 'pick',
@@ -989,6 +996,7 @@ function buildTradeOutcomeReview({
       playerDetailsById,
       currentPositionRankById,
       draftPicks,
+      side.manager,
     );
     const assetValue = assets.reduce((sum, asset) => sum + asset.value, 0);
     const basisValue = assets.reduce((sum, asset) => sum + asset.basisValue, 0);
@@ -1012,7 +1020,7 @@ function buildTradeOutcomeReview({
   const valueGap = Math.abs(firstOutcome.evaluation.total - secondOutcome.evaluation.total);
   const seasonGap = Math.abs(firstOutcome.seasonValue - secondOutcome.seasonValue);
   const seasonLeader = firstOutcome.seasonValue >= secondOutcome.seasonValue ? firstOutcome : secondOutcome;
-  const estimatedGames = seasonGap >= 450 ? Math.min(3, Math.round((seasonGap / 1600) * 10) / 10) : 0;
+  const hasLineupSignal = seasonGap >= 450;
   const records = buildOutcomeRecords(
     row,
     outcomeSides.map((side) => side.manager),
@@ -1028,18 +1036,23 @@ function buildTradeOutcomeReview({
     : null;
   const recordNote = records.length === 2
     ? `${records[0].manager} went ${records[0].wins}-${records[0].losses}${records[0].ties ? `-${records[0].ties}` : ''}; ${records[1].manager} went ${records[1].wins}-${records[1].losses}${records[1].ties ? `-${records[1].ties}` : ''}. That is a ${Math.abs(recordDelta!.wins)} win and ${formatCompactValue(Math.abs(recordDelta!.points))} points-for spread in the tracked window, context rather than direct causality.`
-    : 'No completed-season win/loss record is available inside this outcome window yet, so the game-impact read is a lineup-value estimate.';
-  const flippedNotes = outcomeSides.flatMap((side) => side.assets
-    .filter((asset) => asset.children?.length)
-    .map((asset) => `${side.manager} did not hold ${asset.label}; it became ${asset.children!.map((child) => child.name).join(' + ')}.`));
+    : 'No completed-season win/loss record is available inside this outcome window yet, so the record read falls back to current lineup value.';
+  const pickLineageNotes = outcomeSides.flatMap((side) => side.assets
+    .filter((asset) => asset.outcomeNote)
+    .map((asset) => asset.outcomeNote!));
   const availabilityNotes = outcomeSides.flatMap((side) => side.assets
     .flatMap((asset) => [asset, ...(asset.children || [])])
     .filter((asset) => asset.status)
     .slice(0, 2)
     .map((asset) => `${asset.name} carries ${asset.status} risk/status on ${side.manager}'s outcome side.`));
-  const verdict = `${leadingSide.manager} is ahead by ${valueGap.toLocaleString()} in realized ledger value through ${formatOutcomeDate(observedThrough)}. ${estimatedGames > 0
-    ? `${seasonLeader.manager} also owns the stronger weekly-lineup signal by roughly ${formatCompactValue(seasonGap)} season-value points, about a ${estimatedGames.toFixed(1)} game pressure estimate.`
-    : 'The weekly-lineup signal is not strong enough to call this a clear extra-win trade yet.'}`;
+  const recordMetricValue = records.length === 2
+    ? recordDelta!.wins === 0
+      ? 'Even'
+      : `${recordDelta!.wins > 0 ? records[0].manager : records[1].manager} +${Math.abs(recordDelta!.wins)} W`
+    : 'No record';
+  const verdict = `${leadingSide.manager} is ahead by ${valueGap.toLocaleString()} in realized ledger value through ${formatOutcomeDate(observedThrough)}. ${hasLineupSignal
+    ? `${seasonLeader.manager} also owns the stronger current lineup-value signal by roughly ${formatCompactValue(seasonGap)}. This is not a direct win estimate.`
+    : 'The current lineup-value signal is thin, so this is mainly an asset-value read.'}`;
 
   return {
     statusLabel: isFinal ? 'Final Outcome' : 'Outcome So Far',
@@ -1060,21 +1073,21 @@ function buildTradeOutcomeReview({
         tone: leadingSide.valueDelta > 0 ? 'good' : leadingSide.valueDelta < 0 ? 'bad' : 'neutral',
       },
       {
-        label: 'Game Impact',
-        value: estimatedGames > 0 ? `~${estimatedGames.toFixed(1)}` : 'TBD',
-        note: estimatedGames > 0 ? `estimated games of lineup pressure toward ${seasonLeader.manager}` : 'no clean record or lineup edge yet',
-        tone: estimatedGames > 0 ? 'good' : 'neutral',
+        label: 'Lineup Signal',
+        value: hasLineupSignal ? `+${formatCompactValue(seasonGap)}` : 'Thin',
+        note: hasLineupSignal ? `${seasonLeader.manager} current lineup-value lean; not wins` : 'no clear weekly lineup-value lean',
+        tone: hasLineupSignal ? 'good' : 'neutral',
       },
       {
-        label: 'Record Signal',
-        value: records.length === 2 ? `${recordDelta!.wins > 0 ? '+' : ''}${recordDelta!.wins} W` : 'No record',
-        note: records.length === 2 ? `${records[0].manager} vs ${records[1].manager} after trade` : 'current league standings are not meaningful yet',
+        label: 'Actual Record',
+        value: recordMetricValue,
+        note: records.length === 2 ? 'post-trade standings context only' : 'current league standings are not meaningful yet',
         tone: 'neutral',
       },
     ],
     notes: [
       recordNote,
-      ...flippedNotes,
+      ...pickLineageNotes,
       ...(availabilityNotes.length ? availabilityNotes : ['No major injury/status drag is visible on the primary outcome assets.']),
     ].slice(0, 5),
     sides: outcomeSides,
@@ -1468,6 +1481,11 @@ function findLandedPick(
   return ownerRoundCandidates.length === 1 ? ownerRoundCandidates[0] : null;
 }
 
+function didManagerMakeLandedPick(manager: string | undefined, landedPick: DraftPick | null | undefined): boolean {
+  if (!manager || !landedPick?.manager) return false;
+  return normalizeManagerKey(manager) === normalizeManagerKey(landedPick.manager);
+}
+
 function renderTradeItem(
   item: string,
   key: number,
@@ -1616,9 +1634,12 @@ function renderTradeItem(
           )}
         </div>
         {wasFlipped ? (
-          <div className="trade-asset-flip-return">
+          <div
+            className="trade-asset-flip-return"
+            title="Context only: original trade outcome keeps this pick at market value unless this manager made the selection."
+          >
             <span className="trade-asset-flip-label">
-              Traded for
+              Later traded for
             </span>
             <div className="trade-asset-flip-assets">
               {flippedAssets.map((asset, assetIndex) => renderTradeItem(asset, assetIndex, {
@@ -1674,7 +1695,12 @@ function renderTradeItem(
               }
             />
             {landedValue !== null && (
-              <span className="text-slate-500" title="Landed player value used in the trade ledger total">
+              <span
+                className="text-slate-500"
+                title={selectedByDifferentManager
+                  ? 'Drafted-player value is context only; pick market value drives this side of the ledger.'
+                  : 'Landed player value used in the trade ledger total'}
+              >
                 {landedValue.toLocaleString()}
               </span>
             )}
@@ -2434,6 +2460,7 @@ type OwnerPowerRow = NonNullable<ReportData['powerRankings']>[number];
 type OwnerGrowthRow = NonNullable<ReportData['managerRosterValueGrowth']>[number];
 type OwnerNeedPosition = 'QB' | 'RB' | 'WR' | 'TE';
 type OwnerSignalTone = 'neutral' | 'good' | 'warn' | 'danger' | 'future';
+type DynastyAiTheme = 'trade' | 'window' | 'draft' | 'churn' | 'risk' | 'upside' | 'sell' | 'core' | 'neutral';
 type OwnerSignalTag = { label: string; tone?: OwnerSignalTone };
 type OwnerBuildLabel = 'Strong Contender' | 'Contender' | 'Soft Rebuilder' | 'Strong Rebuilder';
 type OwnerScoreLens = {
@@ -2447,6 +2474,7 @@ type DynastyAiSuggestion = {
   title: string;
   copy: string;
   tone: OwnerSignalTone;
+  theme?: DynastyAiTheme;
   wide?: boolean;
 };
 
@@ -3114,6 +3142,52 @@ function buildDynastyActionNotes(row: OwnerIntelRow, pickRow?: OwnerPickRow | nu
   return notes.slice(0, 4);
 }
 
+function buildDynastyCoreProtection(row: OwnerIntelRow, buildLabel?: OwnerBuildLabel | null): DynastyAiSuggestion | null {
+  const protectedCore = (row.untouchablePlayers || []).slice(0, 2);
+  const core = protectedCore[0] || row.youngCorePlayer;
+  if (!core) return null;
+
+  const protectedNames = protectedCore.length
+    ? protectedCore.map((player) => `${player.name} (${getPlayerRankCopy(player)})`).join(' and ')
+    : `${core.name} (${getPlayerRankCopy(core)})`;
+  const isContender = isOwnerContenderLane(buildLabel) || /contend|win/i.test(row.identity);
+  const isRebuild = isOwnerRebuildLane(buildLabel) || /rebuild/i.test(row.identity);
+
+  return {
+    title: 'AI Core Protection',
+    tone: isRebuild ? 'future' : isContender ? 'good' : 'neutral',
+    theme: 'core',
+    copy: `${protectedNames} should be treated as the roster spine. ${isRebuild ? 'Only move core value if the return resets the age curve and adds liquid draft capital.' : isContender ? 'Contender upgrades should be funded from depth or picks before this tier enters the offer.' : 'Use this tier as the comparison point for any consolidation offer before accepting a flatter asset package.'}`,
+  };
+}
+
+function buildDynastySellLine(row: OwnerIntelRow): DynastyAiSuggestion | null {
+  const sell = row.sellCandidate || row.oldestPlayer || row.tradeChip;
+  if (!sell) return null;
+  const age = sell.playerDetails?.age;
+  const rankCopy = getPlayerRankCopy(sell);
+  const ageCopy = age ? `${age}-year-old ` : '';
+
+  return {
+    title: 'AI Sell Line',
+    tone: row.oldestPlayer?.player_id === sell.player_id ? 'danger' : 'warn',
+    theme: 'sell',
+    copy: `${sell.name} is the ${ageCopy}${rankCopy} exit monitor. Set the sell line before sending offers: the return should add better age, safer role insulation, or at least one liquid pick. Do not let a lateral points offer become the new baseline.`,
+  };
+}
+
+function buildDynastyUpsideSignal(row: OwnerIntelRow): DynastyAiSuggestion | null {
+  const upside = row.breakoutCandidate || row.bestBenchStash || row.youngCorePlayer;
+  if (!upside) return null;
+
+  return {
+    title: 'AI Upside Signal',
+    tone: 'future',
+    theme: 'upside',
+    copy: `${upside.name} is the asymmetric hold. The model is treating the profile as more useful than a flat value chip, so the exit price should be a safer young asset tier, a meaningful pick upgrade, or a starter who clearly changes lineup math.`,
+  };
+}
+
 function getPlayerRankCopy(player?: ManagerIntelPlayer | null): string {
   if (!player) return '';
   return player.currentPositionRank || player.seasonPositionRank || player.pos || 'asset';
@@ -3182,6 +3256,7 @@ function buildDynastyWindowGuardrail(row: OwnerIntelRow, pickRow?: OwnerPickRow 
     return {
       title: 'AI Window Guardrail',
       tone: isStrongRebuild ? 'future' : 'warn',
+      theme: 'window',
       copy: `${isStrongRebuild ? 'Strong rebuild rule' : 'Soft rebuild rule'}: every accepted deal should improve future draft position, add a younger insulated asset, or create more liquid draft capital. ${core ? `Keep ${core.name} as the core reference point.` : 'Do not sell young value just to make the current lineup look cleaner.'} ${pickCount >= 15 ? 'The pick base is strong enough to wait for distressed sellers.' : 'Add picks before buying short-window production.'}`,
     };
   }
@@ -3190,6 +3265,7 @@ function buildDynastyWindowGuardrail(row: OwnerIntelRow, pickRow?: OwnerPickRow 
     return {
       title: 'AI Window Guardrail',
       tone: 'good',
+      theme: 'window',
       copy: `${isStrongContender ? 'Strong contender rule' : 'Contender rule'}: spend from depth, not the spine of the roster. ${isStrongContender ? 'You can pay for a title-edge starter, but do not turn the elite core into a one-week rental bet.' : olderRisk ? `${olderRisk.name} is the veteran value to keep liquid.` : 'Avoid converting young value into aging points unless the weekly lineup clearly jumps a tier.'}`,
     };
   }
@@ -3197,6 +3273,7 @@ function buildDynastyWindowGuardrail(row: OwnerIntelRow, pickRow?: OwnerPickRow 
   return {
     title: 'AI Window Guardrail',
     tone: 'warn',
+    theme: 'window',
     copy: `Soft rebuild rule: do not let one trade pick the direction by accident. Only buy points if the upgrade is a clear starter, and sell veterans when the return adds youth or picks without making the lineup collapse.`,
   };
 }
@@ -3210,6 +3287,7 @@ function buildDynastyRosterChurn(row: OwnerIntelRow): DynastyAiSuggestion {
     return {
       title: 'AI Roster Churn',
       tone: 'warn',
+      theme: 'churn',
       copy: `First churn path: protect ${stash.name} and use ${cutNames.join(', ')} as the first cut candidate${cutNames.length === 1 ? '' : 's'} when a better stash appears. The back of the roster should create upside, not hold low-liquidity names.`,
     };
   }
@@ -3218,6 +3296,7 @@ function buildDynastyRosterChurn(row: OwnerIntelRow): DynastyAiSuggestion {
     return {
       title: 'AI Roster Churn',
       tone: 'future',
+      theme: 'churn',
       copy: `${upside.name} is the upside hold. Do not cash that profile out for a flat value return unless the deal adds a safer young asset or a meaningful pick upgrade.`,
     };
   }
@@ -3225,6 +3304,7 @@ function buildDynastyRosterChurn(row: OwnerIntelRow): DynastyAiSuggestion {
   return {
     title: 'AI Roster Churn',
     tone: 'neutral',
+    theme: 'churn',
     copy: 'No obvious dynasty cut pressure is showing. Keep the last roster spots flexible and make waivers beat the current stash value before churning.',
   };
 }
@@ -3237,6 +3317,7 @@ function buildDynastyPickLeverage(pickRow?: OwnerPickRow | null): DynastyAiSugge
     return {
       title: 'AI Pick Leverage',
       tone: 'neutral',
+      theme: 'draft',
       copy: 'Draft-capital data is thin for this manager, so the model should price trades through player liquidity first and avoid assuming picks can solve the roster shape.',
     };
   }
@@ -3245,6 +3326,7 @@ function buildDynastyPickLeverage(pickRow?: OwnerPickRow | null): DynastyAiSugge
     return {
       title: 'AI Pick Leverage',
       tone: 'future',
+      theme: 'draft',
       copy: `${pickCount} future picks and ${draftValue} of draft capital gives this roster leverage. Use picks as the first sweetener before attaching core players. A pick-rich team should make other managers solve their lineup urgency.`,
     };
   }
@@ -3253,6 +3335,7 @@ function buildDynastyPickLeverage(pickRow?: OwnerPickRow | null): DynastyAiSugge
     return {
       title: 'AI Pick Leverage',
       tone: 'warn',
+      theme: 'draft',
       copy: `${pickCount} future picks is light enough that draft capital should be protected. If a veteran is moved, ask for at least one liquid pick or a younger player who can gain market value.`,
     };
   }
@@ -3260,6 +3343,7 @@ function buildDynastyPickLeverage(pickRow?: OwnerPickRow | null): DynastyAiSugge
   return {
     title: 'AI Pick Leverage',
     tone: 'neutral',
+    theme: 'draft',
     copy: `${pickCount} future picks and ${draftValue} of draft capital is a workable bank. Spend one pick only when it turns a bench asset into a true starter or a safer dynasty profile.`,
   };
 }
@@ -3274,6 +3358,7 @@ function buildDynastyRiskRadar(row: OwnerIntelRow): DynastyAiSuggestion {
     return {
       title: 'AI Risk Radar',
       tone: 'danger',
+      theme: 'risk',
       copy: `${riskStarter.name} is the availability flag. Keep ${insurance.name} as internal cover unless the trade return materially improves age, role security, or pick liquidity.`,
     };
   }
@@ -3282,6 +3367,7 @@ function buildDynastyRiskRadar(row: OwnerIntelRow): DynastyAiSuggestion {
     return {
       title: 'AI Risk Radar',
       tone: 'warn',
+      theme: 'risk',
       copy: `Projected starters averaged ${missed} missed games, so depth is not just decoration here. Consolidate only when the incoming player is durable enough to reduce weekly fragility.`,
     };
   }
@@ -3290,6 +3376,7 @@ function buildDynastyRiskRadar(row: OwnerIntelRow): DynastyAiSuggestion {
     return {
       title: 'AI Risk Radar',
       tone: 'warn',
+      theme: 'risk',
       copy: `${oldest.name} is the age/liquidity monitor. Keep him if the lineup needs points, but set the sell line before the market starts treating the profile like declining value.`,
     };
   }
@@ -3297,6 +3384,7 @@ function buildDynastyRiskRadar(row: OwnerIntelRow): DynastyAiSuggestion {
   return {
     title: 'AI Risk Radar',
     tone: 'good',
+    theme: 'risk',
     copy: 'No severe health or age flag is forcing action. That gives this roster permission to be selective instead of accepting discounts for safer but lower-upside assets.',
   };
 }
@@ -3311,6 +3399,7 @@ function buildDynastyOfferFilter(row: OwnerIntelRow, overviewRow?: LeagueOvervie
     return {
       title: 'AI Offer Filter',
       tone: 'good',
+      theme: 'trade',
       copy: `Auto-compare every offer to this baseline: would you rather hold ${sell.name}, or reset that value into ${buy.name} plus better age, liquidity, or lineup fit? If the answer is not obvious, make the other manager add.`,
     };
   }
@@ -3318,6 +3407,7 @@ function buildDynastyOfferFilter(row: OwnerIntelRow, overviewRow?: LeagueOvervie
   return {
     title: 'AI Offer Filter',
     tone: 'neutral',
+    theme: 'trade',
     copy: `Use ${rankCopy} as the floor. Decline trades that make the roster older, thinner, and less liquid unless the weekly starter upgrade is immediate and measurable.`,
   };
 }
@@ -3344,6 +3434,7 @@ function buildDynastyAiSuggestions({
     {
       title: 'AI Trade Builder',
       tone: isOwnerRebuildLane(buildLabel) ? (isOwnerStrongRebuildLane(buildLabel) ? 'future' : 'warn') : effectiveNeed ? 'good' : 'neutral',
+      theme: 'trade',
       copy: buildDynastyTradeBuilder(row, pickRow, buildLabel, overviewRow, leagueSize),
     },
     buildDynastyWindowGuardrail(row, pickRow, buildLabel),
@@ -3351,23 +3442,32 @@ function buildDynastyAiSuggestions({
     buildDynastyRosterChurn(row),
     buildDynastyRiskRadar(row),
     buildDynastyOfferFilter(row, overviewRow),
+    buildDynastyCoreProtection(row, buildLabel),
+    buildDynastySellLine(row),
+    buildDynastyUpsideSignal(row),
+  ].filter((card): card is DynastyAiSuggestion => Boolean(card));
+  const actionMeta: Array<{ title: string; tone: OwnerSignalTone; theme: DynastyAiTheme }> = [
+    { title: 'AI Watchlist', tone: 'good', theme: 'trade' },
+    { title: 'AI Sell Discipline', tone: 'warn', theme: 'sell' },
+    { title: 'AI Upside Hold', tone: 'future', theme: 'upside' },
+    { title: 'AI Cut List', tone: 'danger', theme: 'churn' },
+    { title: 'AI Draft Leverage', tone: 'future', theme: 'draft' },
   ];
   const actionCards = buildDynastyActionNotes(row, pickRow).map((copy, index) => ({
-    title: ['AI Watchlist', 'AI Sell Line', 'AI Upside Hold', 'AI Cut List'][index] || 'AI Note',
-    tone: index === 1 ? 'warn' as const : index === 3 ? 'danger' as const : 'future' as const,
+    ...(actionMeta[index] || { title: 'AI Note', tone: 'neutral' as const, theme: 'neutral' as const }),
     copy,
   }));
   const dedupedCopy = dedupeIntelNotes([...baseCards, ...actionCards].map((card) => card.copy), suppress);
   const candidateCards = dedupedCopy
     .map((copy) => [...baseCards, ...actionCards].find((card) => card.copy === copy))
-    .filter((card): card is DynastyAiSuggestion => Boolean(card))
+    .filter((card): card is DynastyAiSuggestion => Boolean(card));
 
   return filterByPlayerNameMentionBudget(
     candidateCards,
     (card) => card.copy,
     getDynastyTradeTrackedNames(row),
     seededTradeCopies,
-  ).slice(0, 6);
+  ).slice(0, 8);
 }
 
 function buildSeasonRosterRead({
@@ -5029,7 +5129,7 @@ export function LeagueCommandCenter({
                   </div>
                 </div>
               </div>
-              <div className="manager-command-section manager-command-read">
+              <div className="manager-command-section manager-command-read manager-command-ai-read">
                 <h4>Season AI Read</h4>
                 <p>{rosterRead}</p>
                 {seasonInsuranceRead ? (
@@ -5497,7 +5597,7 @@ export function OwnerIntelMatrix({
                     <p>{selectedTradeDraftProfile}</p>
                   </div>
                   {selectedAiSuggestions.map((card) => (
-                    <div key={card.title} className={`owner-intel-ai-card owner-intel-ai-card-${card.tone} ${card.wide ? 'owner-intel-read-wide' : ''}`}>
+                    <div key={`${card.title}-${card.copy}`} className={`owner-intel-ai-card owner-intel-ai-card-${card.tone} ${card.theme ? `owner-intel-ai-theme-${card.theme}` : ''} ${card.wide ? 'owner-intel-read-wide' : ''}`}>
                       <h4>{card.title}</h4>
                       <p>{card.copy}</p>
                     </div>
@@ -8167,12 +8267,13 @@ export function RecentTransactionsPanel({
     label: string,
     player: NonNullable<ReportData['recentTransactions']>[number]['addedPlayer'],
     tone: 'add' | 'drop' | 'alt' = 'add',
+    embeddedInsight?: BetterCutInsight | null,
   ) => {
     if (!player) return null;
     return (
       <button
         type="button"
-        className={`player-team-tile recent-transaction-player recent-transaction-player-${tone}`}
+        className={`player-team-tile recent-transaction-player recent-transaction-player-${tone}${embeddedInsight ? ' recent-transaction-player-has-insight' : ''}`}
         style={getTeamTileStyle(player.playerDetails?.team || player.team)}
         onClick={() => openTransactionPlayer(player)}
       >
@@ -8189,6 +8290,7 @@ export function RecentTransactionsPanel({
           <PositionRankPill rank={player.currentPositionRank || player.pos} />
           <span>{formatCompactValue(player.ktcValue)}</span>
         </div>
+        {embeddedInsight ? renderBetterCutInsight(embeddedInsight, 'embedded') : null}
       </button>
     );
   };
@@ -8225,11 +8327,12 @@ export function RecentTransactionsPanel({
     );
   };
 
-  const renderBetterCutReason = (transaction: RecentTransactionRow) => {
-    if (!transaction.droppedPlayer || !transaction.alternativeDrop) return null;
-    const insight = buildBetterCutInsight(transaction, leagueValueMode);
+  const renderBetterCutInsight = (
+    insight: BetterCutInsight,
+    placement: 'standalone' | 'embedded' = 'standalone',
+  ) => {
     return (
-      <div className="recent-transaction-insight-card recent-transaction-insight-card-alt">
+      <div className={placement === 'embedded' ? 'recent-transaction-inline-insight' : 'recent-transaction-insight-card recent-transaction-insight-card-alt'}>
         <div className="recent-transaction-insight-head">
           <span className="recent-transaction-insight-title">Why Better Cut</span>
           <span className="recent-transaction-insight-lens">{insight.lensLabel}</span>
@@ -8308,6 +8411,10 @@ export function RecentTransactionsPanel({
                   const suggestedBetterAdd = transaction.addedPlayer && !transaction.droppedPlayer
                     ? getRecentTransactionSuggestedBetterAdd(transaction, waiverCandidates, playerDetailsById)
                     : null;
+                  const betterCutInsight = transaction.alternativeDrop
+                    ? buildBetterCutInsight(transaction, leagueValueMode)
+                    : null;
+                  const validBetterCutInsight = betterCutInsight?.isBetterCut ? betterCutInsight : null;
 
                   return (
                     <div key={transaction.id} className="report-card recent-transaction-card">
@@ -8322,11 +8429,11 @@ export function RecentTransactionsPanel({
                           {transaction.bidAmount !== null && <strong>${transaction.bidAmount}</strong>}
                         </div>
                       </div>
-                      <div className="recent-transaction-player-grid">
+                      <div className={`recent-transaction-player-grid${validBetterCutInsight ? ' recent-transaction-player-grid-with-insight' : ''}`}>
                         {renderPlayerRow('Added', transaction.addedPlayer, 'add')}
                         {renderPlayerRow('Dropped', transaction.droppedPlayer, 'drop')}
-                        {renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt')}
-                        {transaction.alternativeDrop && renderBetterCutReason(transaction)}
+                        {validBetterCutInsight && renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt', validBetterCutInsight)}
+                        {validBetterCutInsight && renderBetterCutInsight(validBetterCutInsight)}
                         {suggestedBetterAdd && renderSuggestedAdd(suggestedBetterAdd, transaction)}
                       </div>
                     </div>
@@ -8351,6 +8458,7 @@ export function RecentTransactionsPanel({
 
 type RecentTransactionRow = NonNullable<ReportData['recentTransactions']>[number];
 type RecentTransactionSort = 'add' | 'drop';
+type BetterCutInsight = ReturnType<typeof buildBetterCutInsight>;
 
 function getRecentTransactionSuggestedBetterAdd(
   transaction: RecentTransactionRow,
@@ -8450,14 +8558,28 @@ function buildBetterCutInsight(
     && alternativeDrop?.pos
     && droppedPlayer.pos === alternativeDrop.pos
   );
+  const droppedValue = droppedPlayer?.ktcValue || 0;
+  const cutValue = alternativeDrop?.ktcValue || 0;
+  const hasSamePositionRankComparison = samePosition
+    && cutRankNumber !== null
+    && droppedRankNumber !== null;
+  const rankedBehindSamePosition = hasSamePositionRankComparison
+    && cutRankNumber > droppedRankNumber;
+  const lowerValueChurn = cutValue > 0
+    && droppedValue > 0
+    && cutValue + 250 < droppedValue
+    && (!samePosition || !hasSamePositionRankComparison);
+  const isBetterCut = Boolean(
+    droppedPlayer
+    && alternativeDrop
+    && (rankedBehindSamePosition || lowerValueChurn)
+  );
 
   let reason = `${alternativeDrop?.name || 'The alternate cut'} was the cleaner churn piece than ${droppedPlayer?.name || 'the logged drop'} by ${lensCopy} roster fit.`;
 
   if (droppedPlayer && alternativeDrop && cutRankNumber && droppedRankNumber) {
     if (samePosition && cutRankNumber > droppedRankNumber) {
       reason = `${alternativeDrop.name} sits behind ${droppedPlayer.name} in the ${lensCopy} position stack, making the lower-ranked ${alternativeDrop.pos} the cleaner churn.`;
-    } else if (samePosition && cutRankNumber < droppedRankNumber) {
-      reason = `${alternativeDrop.name} is actually ahead by ${lensCopy} positional rank, so this cut only works if ${droppedPlayer.name}'s roster role was easier to replace.`;
     } else if (!samePosition && cutRankNumber > droppedRankNumber) {
       reason = `${alternativeDrop.name}'s ${cutRank} profile was the softer roster hold than ${droppedPlayer.name}'s ${keepRank} profile.`;
     } else {
@@ -8476,6 +8598,7 @@ function buildBetterCutInsight(
     cutName: alternativeDrop?.name || 'Alt cut',
     cutRank,
     reason,
+    isBetterCut,
   };
 }
 
@@ -9094,8 +9217,8 @@ export function ManagerPositionCountsTable({
                     })}
                   </div>
                 )}
-                <div className="manager-command-section manager-command-read starter-depth-count-read">
-                  <h4>Full Roster Count Read</h4>
+                <div className="manager-command-section manager-command-read manager-command-ai-read starter-depth-count-read">
+                  <h4>Roster Count AI Read</h4>
                   <p>{buildManagerPositionCountAiRead(selectedManager, data, selectedDepthSignals)}</p>
                 </div>
                 {selectedRosterPlayersByPosition && selectedRosterPlayerCount > 0 ? (

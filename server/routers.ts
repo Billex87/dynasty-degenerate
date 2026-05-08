@@ -231,9 +231,10 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v30';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v32';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v9';
 const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
+const RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP = 250;
 const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');
 const leagueReportMemoryCache = new Map<string, { loadedAt: number; payload: unknown }>();
 const ktcValueProfileLookupCache = new WeakMap<KTCValues, Map<string, KtcValueProfileCandidate>>();
@@ -1649,6 +1650,38 @@ function buildRecentTransactionPlayer(
   };
 }
 
+function getRecentTransactionRankNumber(positionRank: string | null | undefined): number | null {
+  const match = String(positionRank || '').match(/\d+/);
+  if (!match) return null;
+  const rank = Number(match[0]);
+  return Number.isFinite(rank) ? rank : null;
+}
+
+function getRecentTransactionCandidateValue(candidate: any): number {
+  const value = Number(candidate?.value ?? candidate?.ktcValue ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function isBetterRecentTransactionDropCandidate(candidate: any, droppedPlayer: RecentTransactionPlayer | null): boolean {
+  if (!candidate || !droppedPlayer) return false;
+
+  const candidatePos = candidate.pos || candidate.playerDetails?.position || null;
+  const droppedPos = droppedPlayer.pos || droppedPlayer.playerDetails?.position || null;
+  const candidateRank = getRecentTransactionRankNumber(candidate.currentPositionRank);
+  const droppedRank = getRecentTransactionRankNumber(droppedPlayer.currentPositionRank);
+  const samePosition = Boolean(candidatePos && droppedPos && candidatePos === droppedPos);
+
+  if (samePosition && candidateRank !== null && droppedRank !== null) {
+    return candidateRank > droppedRank;
+  }
+
+  const candidateValue = getRecentTransactionCandidateValue(candidate);
+  const droppedValue = Number(droppedPlayer.ktcValue || 0);
+  return candidateValue > 0
+    && droppedValue > 0
+    && candidateValue + RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP < droppedValue;
+}
+
 function buildRecentTransactions(
   transactions: any[],
   rosterUserMap: Record<string, string>,
@@ -1689,6 +1722,7 @@ function buildRecentTransactions(
               const candidateIsRookie = Number(candidate.playerDetails?.rookieYear || 0) === currentSeasonNumber;
               return candidateIsRookie === droppedIsCurrentRookie;
             })
+            .filter((candidate: any) => isBetterRecentTransactionDropCandidate(candidate, droppedPlayer))
             .sort((a: any, b: any) => (a.value || 0) - (b.value || 0))[0] || null
         : null;
 

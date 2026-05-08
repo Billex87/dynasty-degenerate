@@ -118,11 +118,12 @@ describe('rankings board prospect fallback', () => {
 
   it('builds college rows from NFL Draft Buzz without Sleeper players', async () => {
     const { buildRankingsBoard } = await import('./rankingsBoard');
+    const futureYear = new Date().getFullYear() + 1;
     const prospect: ProspectProfile = {
       source: 'NFL Draft Buzz',
-      sourceUrl: 'https://www.nfldraftbuzz.com/positions/WR/1/2027',
+      sourceUrl: `https://www.nfldraftbuzz.com/positions/WR/1/${futureYear}`,
       scrapeMonth: '2026-05',
-      draftYear: 2027,
+      draftYear: futureYear,
       name: 'Jeremiah Smith',
       position: 'WR',
       role: 'Alpha',
@@ -160,7 +161,7 @@ describe('rankings board prospect fallback', () => {
       positionRank: 'WR1',
       isDevy: true,
       sources: ['NFL Draft Buzz'],
-      projectedRookiePick: 'Projected 2027 1.01',
+      projectedRookiePick: `Projected ${futureYear} 1.01`,
     });
     expect(row?.prospectProfile).toMatchObject({
       source: 'NFL Draft Buzz',
@@ -172,10 +173,11 @@ describe('rankings board prospect fallback', () => {
     });
   });
 
-  it('preserves the source draft class for current-year college prospects', async () => {
+  it('excludes current-year prospects from the college board', async () => {
     const { buildRankingsBoard } = await import('./rankingsBoard');
     const currentYear = new Date().getFullYear();
-    const prospect: ProspectProfile = {
+    const futureYear = currentYear + 1;
+    const currentYearProspect: ProspectProfile = {
       source: 'NFL Draft Buzz',
       sourceUrl: `https://www.nfldraftbuzz.com/positions/QB/1/${currentYear}`,
       scrapeMonth: `${currentYear}-05`,
@@ -185,7 +187,75 @@ describe('rankings board prospect fallback', () => {
       college: 'Test State',
       overallRank: 3,
       positionRank: 2,
+      rating: 88,
     };
+    const futureYearProspect: ProspectProfile = {
+      source: 'NFL Draft Buzz',
+      sourceUrl: `https://www.nfldraftbuzz.com/positions/QB/1/${futureYear}`,
+      scrapeMonth: `${currentYear}-05`,
+      draftYear: futureYear,
+      name: 'Future Year Prospect',
+      position: 'QB',
+      college: 'Future State',
+      overallRank: 4,
+      positionRank: 3,
+      rating: 87,
+    };
+
+    const board = await buildRankingsBoard({
+      players: {},
+      ktcValues: {},
+      ownerByPlayerId: {},
+      rosterStatusByPlayerId: {},
+      prospectLookup: buildProspectLookup([currentYearProspect, futureYearProspect]),
+      prospectProfiles: [currentYearProspect, futureYearProspect],
+      leagueTeamCount: 12,
+    });
+
+    const row = board.profiles?.devy_sf_ppr?.find((player) => player.name === 'Current Year Prospect');
+    const futureRow = board.profiles?.devy_sf_ppr?.find((player) => player.name === 'Future Year Prospect');
+
+    expect(row).toBeUndefined();
+    expect(futureRow).toMatchObject({
+      draftYear: futureYear,
+      positionRank: 'QB1',
+      projectedRookiePick: `Projected ${futureYear} 1.01`,
+    });
+    expect(board.draftBuzzScoreboard?.map((entry) => entry.name)).toEqual([
+      'Current Year Prospect',
+      'Future Year Prospect',
+    ]);
+  });
+
+  it('uses the verified prospect draft class when ranking sources disagree', async () => {
+    const { buildRankingsBoard } = await import('./rankingsBoard');
+    const { getCurrentKTCDevyRankingProfiles } = await import('./liveKTCScraper');
+    const currentYear = new Date().getFullYear();
+    const futureYear = currentYear + 1;
+    const prospect: ProspectProfile = {
+      source: 'NFL Draft Buzz',
+      sourceUrl: `https://www.nfldraftbuzz.com/positions/QB/1/${futureYear}`,
+      scrapeMonth: `${currentYear}-05`,
+      draftYear: futureYear,
+      name: 'Disputed Class Prospect',
+      position: 'QB',
+      college: 'Test State',
+      overallRank: 7,
+      positionRank: 4,
+      rating: 84,
+    };
+    vi.mocked(getCurrentKTCDevyRankingProfiles).mockResolvedValueOnce({
+      ...emptyKtcProfiles,
+      sf_ppr: {
+        disputedclassprospect: {
+          name: 'Disputed Class Prospect',
+          position: 'QB',
+          rank: 10,
+          ktc_value: 3200,
+          draftYear: currentYear,
+        },
+      },
+    });
 
     const board = await buildRankingsBoard({
       players: {},
@@ -196,13 +266,11 @@ describe('rankings board prospect fallback', () => {
       leagueTeamCount: 12,
     });
 
-    const row = board.profiles?.devy_sf_ppr?.find((player) => player.name === 'Current Year Prospect');
+    const row = board.profiles?.devy_sf_ppr?.find((player) => player.name === 'Disputed Class Prospect');
 
     expect(row).toMatchObject({
-      draftYear: currentYear,
-      positionRank: 'QB1',
-      projectedRookiePick: `Projected ${currentYear} 1.01`,
+      draftYear: futureYear,
+      projectedRookiePick: `Projected ${futureYear} 1.01`,
     });
-    expect(row?.prospectProfile?.draftYear).toBe(currentYear);
   });
 });

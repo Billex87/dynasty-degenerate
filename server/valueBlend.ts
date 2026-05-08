@@ -466,6 +466,18 @@ function isSeasonOnlyPosition(position?: string | null): boolean {
   return position === 'K' || position === 'DEF';
 }
 
+function isProspectFlockValue(flock?: FlockFantasyValue): boolean {
+  return Boolean(flock?.format?.startsWith('PROSPECTS'));
+}
+
+function hasDynastyMarketSupport(values: {
+  ktcValue?: number;
+  dynastyNerdsValue?: number;
+  fantasyCalcDynasty?: number;
+}): boolean {
+  return Boolean(values.ktcValue || values.dynastyNerdsValue || values.fantasyCalcDynasty);
+}
+
 function rankBlendedValues(values: ValueMap): ValueMap {
   const ranked = { ...values };
 
@@ -547,10 +559,16 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
       || fantasyPros?.position
       || dynastyDealer?.position
       || null;
-    const ktcValue = ktc?.ktc_value;
-    const flockValue = flock?.dynastyValue;
     const dynastyNerdsValue = dynastyNerds?.dynastyValue;
     const fantasyCalcDynasty = fantasyCalc?.dynastyValue;
+    const ktcValue = ktc?.ktc_value;
+    const canUseFlockValue = !isProspectFlockValue(flock) || hasDynastyMarketSupport({
+      ktcValue,
+      dynastyNerdsValue,
+      fantasyCalcDynasty,
+    });
+    const supportedFlock = canUseFlockValue ? flock : undefined;
+    const flockValue = supportedFlock?.dynastyValue;
     const dynastyProcessValue = dynastyProcess?.dynastyValue;
     const dynastyValue = weightedAverage([
       { value: flockValue, weight: dynastyWeights.flock },
@@ -578,13 +596,13 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
       dynasty_value: Math.round(dynastyValue),
       true_value: Math.round(dynastyValue),
       redraft_value: redraftValue ? Math.round(redraftValue) : undefined,
-      position_rank: ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyPros?.positionRank || undefined,
+      position_rank: ktc?.position_rank || dynastyNerds?.positionRank || supportedFlock?.positionRank || fantasyPros?.positionRank || undefined,
       market_value_ktc: ktcValue,
       expert_value_flock: flockValue,
-      flock_rank: flock?.overallRank,
-      flock_position_rank: flock?.positionRank ?? undefined,
-      flock_tier: flock?.tier ?? undefined,
-      flock_format: flock?.format ?? undefined,
+      flock_rank: supportedFlock?.overallRank,
+      flock_position_rank: supportedFlock?.positionRank ?? undefined,
+      flock_tier: supportedFlock?.tier ?? undefined,
+      flock_format: supportedFlock?.format ?? undefined,
       market_value_fantasycalc: fantasyCalcDynasty,
       expert_value_dynastyprocess: dynastyProcessValue,
       expert_value_dynastynerds: dynastyNerdsValue,

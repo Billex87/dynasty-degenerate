@@ -32,12 +32,17 @@ interface KTCValues {
     benchmark_value_dynastydealer?: number;
     dynastydealer_vote_rating?: number | null;
     dynastydealer_updated_at?: string | null;
+    fantasypros_rank?: number;
+    fantasypros_position_rank?: string | null;
+    fantasypros_tier?: number | null;
+    fantasypros_season_value?: number;
     value_sources?: string[];
     benchmark_sources?: string[];
   };
 }
 
 type KtcProfileValues = Record<KtcSnapshotProfileKey, KTCValues>;
+type FlockSnapshotSourceProfiles = Partial<Record<'SUPERFLEX' | 'ONEQB' | 'PROSPECTS_SF' | 'PROSPECTS', KTCValues>>;
 
 let ktcValuesCache: KTCValues | null = null;
 let ktcValuesLastWeekCache: KTCValues | null = null;
@@ -46,6 +51,7 @@ const localKtcSnapshotCache = new Map<string, KTCValues>();
 const KTC_SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 const BLENDED_VALUE_PROFILE_KEY_PATTERN = /^(10|12|14)_(one_qb|sf)_(standard|half_ppr|ppr)_(base|tep_0_5|tep_1_0|tep_1_5)$/;
 const PRIMARY_VALUE_SOURCES = new Set(['FlockFantasy', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']);
+const LOW_CONFIDENCE_FLOCK_FALLBACK_VALUE_MAX = 25;
 
 export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshots');
 
@@ -119,6 +125,9 @@ function loadStaticKTCValues(fileName: string): KTCValues {
 }
 
 function unwrapSnapshotValues(data: any, valueProfileKey?: string): KTCValues {
+  const flockSourceProfiles = data?.sourceProfiles?.flockFantasy as FlockSnapshotSourceProfiles | undefined;
+  const sanitizeValues = (values: KTCValues) => sanitizeKtcSnapshotValues(values, flockSourceProfiles);
+
   if (
     valueProfileKey &&
     data &&
@@ -128,14 +137,81 @@ function unwrapSnapshotValues(data: any, valueProfileKey?: string): KTCValues {
     data.blendedProfiles[valueProfileKey] &&
     typeof data.blendedProfiles[valueProfileKey] === 'object'
   ) {
-    return data.blendedProfiles[valueProfileKey] as KTCValues;
+    return sanitizeValues(data.blendedProfiles[valueProfileKey] as KTCValues);
   }
 
   if (data && typeof data === 'object' && data.values && typeof data.values === 'object') {
-    return data.values as KTCValues;
+    return sanitizeValues(data.values as KTCValues);
   }
 
-  return (data || {}) as KTCValues;
+  return sanitizeValues((data || {}) as KTCValues);
+}
+
+function hasFlockSourceProfile(
+  key: string,
+  flockSourceProfiles: FlockSnapshotSourceProfiles | undefined,
+  formats: Array<keyof FlockSnapshotSourceProfiles>
+): boolean {
+  return formats.some((format) => Boolean(flockSourceProfiles?.[format]?.[key]));
+}
+
+function sanitizeLowConfidenceFlockProspectValue(
+  key: string,
+  value: KTCValues[string],
+  flockSourceProfiles?: FlockSnapshotSourceProfiles
+): KTCValues[string] | null {
+  const sources = new Set(value.value_sources || []);
+  const hasFlockValue = sources.has('FlockFantasy') || Boolean(value.expert_value_flock);
+  if (!hasFlockValue) return value;
+
+  const hasDynastyMarketSupport = Boolean(
+    value.market_value_ktc
+    || value.market_value_fantasycalc
+    || value.expert_value_dynastynerds
+  );
+  const hasSeasonSupport = Boolean(
+    value.redraft_value
+    || value.fantasypros_season_value
+    || value.fantasypros_position_rank
+  );
+  if (hasDynastyMarketSupport || hasSeasonSupport) return value;
+
+  const hasProspectProfile = hasFlockSourceProfile(key, flockSourceProfiles, ['PROSPECTS_SF', 'PROSPECTS']);
+  const hasFullProfile = hasFlockSourceProfile(key, flockSourceProfiles, ['SUPERFLEX', 'ONEQB']);
+  const markedProspectFlock = Boolean(value.flock_format?.startsWith('PROSPECTS')) || (hasProspectProfile && !hasFullProfile);
+  if (!markedProspectFlock) return value;
+
+  const fallbackValue = Number(value.expert_value_dynastyprocess || 0);
+  if (!Number.isFinite(fallbackValue) || fallbackValue <= 0) return null;
+  if (fallbackValue > LOW_CONFIDENCE_FLOCK_FALLBACK_VALUE_MAX) return value;
+
+  const roundedFallback = Math.round(fallbackValue);
+  const nextSources = (value.value_sources || []).filter((source) => source !== 'FlockFantasy');
+
+  return {
+    ...value,
+    ktc_value: roundedFallback,
+    dynasty_value: roundedFallback,
+    true_value: roundedFallback,
+    position_rank: undefined,
+    expert_value_flock: undefined,
+    flock_rank: undefined,
+    flock_position_rank: undefined,
+    flock_tier: undefined,
+    flock_format: undefined,
+    value_sources: nextSources.length ? nextSources : undefined,
+  };
+}
+
+export function sanitizeKtcSnapshotValues(
+  values: KTCValues,
+  flockSourceProfiles?: FlockSnapshotSourceProfiles
+): KTCValues {
+  return Object.fromEntries(
+    Object.entries(values || {})
+      .map(([key, value]) => [key, sanitizeLowConfidenceFlockProspectValue(key, value, flockSourceProfiles)] as const)
+      .filter((entry): entry is [string, KTCValues[string]] => Boolean(entry[1]))
+  );
 }
 
 export function hasUsableBlendedSnapshotValues(values: KTCValues, valueProfileKey?: string): boolean {
