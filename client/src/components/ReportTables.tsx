@@ -2479,9 +2479,9 @@ type DynastyAiSuggestion = {
   wide?: boolean;
 };
 
-const STARTING_ROSTER_STRENGTH_TITLE = 'Starter Slot Rankings';
-const STARTING_ROSTER_STRENGTH_COMPARISON = 'league rank by lineup slot';
-const STARTING_ROSTER_STRENGTH_NOTE = 'Ranks this manager’s projected starters against every roster using this league’s actual starting slots. QB/SF includes the superflex QB path; K and DEF appear only when the league starts them.';
+const STARTING_ROSTER_STRENGTH_TITLE = 'Projected Lineup Slot Ranks';
+const STARTING_ROSTER_STRENGTH_COMPARISON = 'league rank by required lineup slot';
+const STARTING_ROSTER_STRENGTH_NOTE = 'Ranks this manager’s projected lineup against every roster using this league’s actual required slots. QB/SF includes the superflex QB path; K and DEF appear only when the league starts them.';
 const BENCH_BASELINE_NOTE = 'Compares the best non-starting QB, RB, WR, and TE using season value and season position rank after projected starters are already filled.';
 const TRADEABLE_DEPTH_NOTE = 'Shows active bench trade chips by season value and season rank only. Taxi and IR players are left out.';
 
@@ -3638,7 +3638,7 @@ function StartingRosterRankTiles({
 
   return (
     <div className="owner-intel-full-rank-panel manager-command-starting-rank-panel">
-      <h4>Starter Position Totals</h4>
+      <h4>Projected Starter Position Ranks</h4>
       <div className="owner-intel-heat-grid owner-intel-full-rank-grid">
         {tiles.map((tile) => (
           <span key={tile.key} className={`owner-intel-heat-pill owner-intel-full-rank-tile ${tile.className}`}>

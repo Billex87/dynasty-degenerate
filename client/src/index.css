@@ -18257,8 +18257,13 @@ body {
   inset: auto 10% 0.35rem;
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, currentColor, transparent);
-  opacity: 0.28;
+  background:
+    linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.72), rgba(103, 232, 249, 0.86), transparent),
+    linear-gradient(90deg, transparent, currentColor, transparent);
+  background-size: 48% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+  animation: dd-line-glint 12.5s ease-in-out infinite;
 }
 
 .manager-intel-player[data-insight-label="untouchable"] {
@@ -22496,25 +22501,32 @@ body,
 .manager-command-dialog .manager-command-tile-group > span::after {
   content: "";
   position: absolute;
-  top: calc(100% + 0.2rem);
+  top: 50%;
+  z-index: -1;
   width: clamp(1.35rem, 7vw, 5rem);
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, var(--lineup-label-glow-a), var(--lineup-label-glow-b));
+  background:
+    linear-gradient(90deg, transparent, var(--lineup-label-glow-a), var(--lineup-label-glow-b), transparent),
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--lineup-label-glow-a) 54%, transparent), transparent);
+  background-size: 52% 100%, 100% 100%;
+  background-repeat: no-repeat;
   box-shadow:
     0 0 8px color-mix(in srgb, var(--lineup-label-glow-a) 70%, transparent),
     0 0 14px color-mix(in srgb, var(--lineup-label-glow-b) 48%, transparent);
   opacity: 0.78;
   pointer-events: none;
+  animation: dd-line-glint 12s ease-in-out infinite;
 }
 
 .manager-command-dialog .manager-command-tile-group > span::before {
   right: calc(50% + 0.7rem);
+  transform: translateY(-50%);
 }
 
 .manager-command-dialog .manager-command-tile-group > span::after {
   left: calc(50% + 0.7rem);
-  transform: scaleX(-1);
+  transform: translateY(-50%) scaleX(-1);
 }
 
 .value-board__meta .ranking-last-season-rank-pill {
