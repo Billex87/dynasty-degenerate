@@ -326,7 +326,7 @@ export function getCollegeInitials(college?: string | null): string {
 
 export function getCollegeLogoUrl(college?: string | null, preferredLogoUrl?: string | null): string | null {
   const preferred = preferredLogoUrl?.trim();
-  if (preferred) return preferred;
+  if (preferred && !/\/NFLLogos\//i.test(preferred)) return preferred;
 
   const normalized = normalizeCollegeName(college);
   if (!normalized) return null;

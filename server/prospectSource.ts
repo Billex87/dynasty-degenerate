@@ -182,6 +182,7 @@ function normalizeNflDraftBuzzProfile(profile: ProspectProfile): ProspectProfile
   return {
     ...profile,
     college: school || profile.college || null,
+    collegeLogoUrl: logoTeam ? null : profile.collegeLogoUrl || null,
     nflTeam: nflTeam || profile.nflTeam || null,
   };
 }

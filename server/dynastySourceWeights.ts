@@ -180,7 +180,7 @@ export function getDynastySourceWeightNotes(options: DynastySourceWeightOptions 
   ];
 
   if (board === 'devy') {
-    notes.push('College rankings use devy/prospect coverage from Flock Fantasy and KTC for market context, FantasyPros devy ECR for board order, and NFL Draft Buzz for scouting context. Draft Buzz measurements and scouting notes do not directly create market value.');
+    notes.push('College rankings use devy/prospect coverage from Flock Fantasy and KTC for market context, FantasyPros devy ECR for board order, and archived scouting data for context. Scouting measurements and notes do not directly create market value.');
   }
 
   return notes;

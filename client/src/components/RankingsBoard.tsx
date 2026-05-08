@@ -282,7 +282,7 @@ function RankingValueRow({
     player.prospectProfile.fortyYardDash ? `40 ${player.prospectProfile.fortyYardDash}s` : null,
     player.prospectProfile.height ? `Ht ${player.prospectProfile.height}` : null,
     player.prospectProfile.weight ? `Wt ${player.prospectProfile.weight}` : null,
-    player.prospectProfile.rating ? `Buzz ${player.prospectProfile.rating}` : null,
+    player.prospectProfile.rating ? `Score ${player.prospectProfile.rating}` : null,
   ].filter(Boolean) as string[] : [];
   const showMovement = Boolean(player.movementLabel) || !player.isDevy;
   const movementClass = player.movementDirection === 'up'
@@ -433,21 +433,30 @@ function DraftBuzzEntryIdentity({ entry }: { entry: DraftBuzzScoreboardEntry }) 
   return <PlayerNameWithHeadshot playerId={entry.player_id || undefined} playerName={entry.name} />;
 }
 
-function DraftBuzzTeamSchool({ entry }: { entry: DraftBuzzScoreboardEntry }) {
+function DraftBuzzTeamLogo({ entry }: { entry: DraftBuzzScoreboardEntry }) {
   const team = entry.nflTeam || entry.team || null;
-  const school = entry.college || null;
+
+  if (!team) {
+    return <span className="draftbuzz-table__empty-icon" aria-label="No NFL team">-</span>;
+  }
 
   return (
-    <span className="draftbuzz-team-school">
-      {team ? <TeamLogoPill team={team} className="draftbuzz-team-school__team" /> : null}
-      {school ? (
-        <span className="draftbuzz-team-school__college">
-          <CollegeTeamPill college={school} logoUrl={entry.collegeLogoUrl} />
-          <em>{school}</em>
-        </span>
-      ) : (
-        <em>School unavailable</em>
-      )}
+    <span className="draftbuzz-table__logo-cell" title={team} aria-label={team}>
+      <TeamLogoPill team={team} className="draftbuzz-team-school__team" />
+    </span>
+  );
+}
+
+function DraftBuzzSchoolLogo({ entry }: { entry: DraftBuzzScoreboardEntry }) {
+  const school = entry.college || null;
+
+  if (!school) {
+    return <span className="draftbuzz-table__empty-icon" aria-label="School unavailable">-</span>;
+  }
+
+  return (
+    <span className="draftbuzz-table__logo-cell" title={school} aria-label={school}>
+      <CollegeTeamPill college={school} logoUrl={entry.collegeLogoUrl} />
     </span>
   );
 }
@@ -479,10 +488,10 @@ function DraftBuzzScoreboard({
     }
 
     return Array.from(deduped.values()).sort((a, b) => (
-      a.draftYear - b.draftYear
-      || a.position.localeCompare(b.position)
+      b.rating - a.rating
       || (a.overallRank || 9999) - (b.overallRank || 9999)
-      || b.rating - a.rating
+      || a.draftYear - b.draftYear
+      || a.position.localeCompare(b.position)
       || a.name.localeCompare(b.name)
     ));
   }, [entries]);
@@ -555,11 +564,11 @@ function DraftBuzzScoreboard({
   if (!allRows.length) return null;
 
   return (
-    <section className="draftbuzz-scoreboard" aria-label="DraftBuzz score index">
+    <section className="draftbuzz-scoreboard" aria-label="Prospect score archive">
       <div className="draftbuzz-scoreboard__header">
         <div>
-          <div className="rankings-kicker">NFL Draft Buzz data archive</div>
-          <h4>DraftBuzz Scores By Draft Year</h4>
+          <div className="rankings-kicker">Scouting data archive</div>
+          <h4>Prospect Scores By Draft Year</h4>
         </div>
         <div className="draftbuzz-scoreboard__badges">
           {coverageLabel ? <span>{coverageLabel}</span> : null}
@@ -607,7 +616,7 @@ function DraftBuzzScoreboard({
           ))}
         </div>
 
-        <div className="rankings-control-group rankings-position-toggle" aria-label="Draft Buzz position filter">
+        <div className="rankings-control-group rankings-position-toggle" aria-label="Prospect position filter">
           <button
             type="button"
             className={getPositionButtonClass('OVERALL', selectedPositions.length === 0)}
@@ -633,7 +642,7 @@ function DraftBuzzScoreboard({
       </div>
 
       <div className="rankings-result-count">
-        Showing {pageRows.length.toLocaleString()} of {filteredRows.length.toLocaleString()} Draft Buzz players
+        Showing {pageRows.length.toLocaleString()} of {filteredRows.length.toLocaleString()} scored prospects
       </div>
 
       <div className="draftbuzz-table">
@@ -642,6 +651,7 @@ function DraftBuzzScoreboard({
           <span>Rank</span>
           <span>Player</span>
           <span>Team</span>
+          <span>School</span>
           <span>Pos</span>
           <span>Score</span>
           <span>Avg Ranks</span>
@@ -662,8 +672,11 @@ function DraftBuzzScoreboard({
               <span className="draftbuzz-table__player">
                 <DraftBuzzEntryIdentity entry={player} />
               </span>
+              <span className="draftbuzz-table__team">
+                <DraftBuzzTeamLogo entry={player} />
+              </span>
               <span className="draftbuzz-table__school">
-                <DraftBuzzTeamSchool entry={player} />
+                <DraftBuzzSchoolLogo entry={player} />
               </span>
               <span className={getRankClass(player.position)}>{player.position}</span>
               <strong className="draftbuzz-table__score">{formatDraftBuzzScore(player.rating)}</strong>
@@ -677,9 +690,9 @@ function DraftBuzzScoreboard({
       </div>
 
       {filteredRows.length === 0 ? (
-        <EmptyState className="rankings-empty-state" title="No Draft Buzz players match those filters." />
+        <EmptyState className="rankings-empty-state" title="No prospect scores match those filters." />
       ) : (
-        <div className="rankings-pagination" aria-label="Draft Buzz archive pagination">
+        <div className="rankings-pagination" aria-label="Prospect archive pagination">
           <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage <= 1}>
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             Prev
@@ -1146,7 +1159,7 @@ export function RankingsBoard({
         rankings.draftBuzzScoreboard?.length ? (
           <DraftBuzzScoreboard entries={rankings.draftBuzzScoreboard} onSelectEntry={handleSelectDraftBuzzEntry} />
         ) : (
-          <EmptyState className="rankings-empty-state" title="NFL Draft Buzz archive is not available for this report yet." />
+          <EmptyState className="rankings-empty-state" title="Prospect score archive is not available for this report yet." />
         )
       ) : null}
 

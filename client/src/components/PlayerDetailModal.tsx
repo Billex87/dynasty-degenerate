@@ -50,6 +50,11 @@ const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; acce
   WAS: { primary: '#5A1414', secondary: '#FFB612', accent: '#FFFFFF' },
 };
 
+function getProspectSourceLabel(source?: string | null): string | null {
+  if (!source) return null;
+  return source === 'NFL Draft Buzz' ? 'Prospect Archive' : source;
+}
+
 interface PlayerDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -216,7 +221,7 @@ export function PlayerDetailModal({
     ['FP Best/Worst', details.prospectProfile.fantasyProsDevyBestRank && details.prospectProfile.fantasyProsDevyWorstRank ? `${details.prospectProfile.fantasyProsDevyBestRank} / ${details.prospectProfile.fantasyProsDevyWorstRank}` : null],
     ['FP Avg/Std Dev', details.prospectProfile.fantasyProsDevyAverageRank && details.prospectProfile.fantasyProsDevyStdDev !== null && details.prospectProfile.fantasyProsDevyStdDev !== undefined ? `${details.prospectProfile.fantasyProsDevyAverageRank} / ${details.prospectProfile.fantasyProsDevyStdDev}` : null],
     ['Role', details.prospectProfile.role],
-    ['Source', details.prospectProfile.source],
+    ['Source', getProspectSourceLabel(details.prospectProfile.source)],
     ['ESPN ID', details.prospectProfile.espnId],
     ['Class', details.prospectProfile.classYear],
     ['Jersey', details.prospectProfile.jersey],

@@ -21101,7 +21101,8 @@ body,
     minmax(3.5rem, 0.36fr)
     minmax(3.6rem, 0.38fr)
     minmax(13rem, 1.35fr)
-    minmax(8.5rem, 0.9fr)
+    minmax(4rem, 0.36fr)
+    minmax(4.2rem, 0.38fr)
     minmax(3.4rem, 0.32fr)
     minmax(4.1rem, 0.36fr)
     minmax(8rem, 0.72fr)
@@ -21188,12 +21189,26 @@ body,
   white-space: nowrap;
 }
 
+.draftbuzz-table__team,
 .draftbuzz-table__school {
   min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.draftbuzz-table__school .ranking-college-pill {
-  max-width: 100%;
+.draftbuzz-table__logo-cell {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.draftbuzz-table__empty-icon {
+  color: rgba(148, 163, 184, 0.7);
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .draftbuzz-team-school {
@@ -21203,11 +21218,14 @@ body,
   gap: 0.36rem;
 }
 
+.draftbuzz-table__logo-cell .team-logo-pill,
+.draftbuzz-table__logo-cell .ranking-college-pill,
 .draftbuzz-team-school .team-logo-pill,
 .draftbuzz-team-school .ranking-college-pill {
   flex: 0 0 auto;
 }
 
+.draftbuzz-table__logo-cell .team-logo-pill,
 .draftbuzz-team-school .team-logo-pill {
   height: 1.42rem !important;
   min-height: 1.42rem !important;
@@ -21216,6 +21234,7 @@ body,
   flex-basis: 1.42rem;
 }
 
+.draftbuzz-table__logo-cell .ranking-college-pill,
 .draftbuzz-team-school .ranking-college-pill {
   height: 1.42rem;
   min-height: 1.42rem;
@@ -21231,6 +21250,9 @@ body,
   gap: 0.36rem;
 }
 
+.draftbuzz-table__logo-cell .team-logo-pill img,
+.draftbuzz-table__logo-cell .ranking-college-pill img,
+.draftbuzz-table__logo-cell .ranking-college-fallback-icon,
 .draftbuzz-team-school .team-logo-pill img,
 .draftbuzz-team-school .ranking-college-pill img,
 .draftbuzz-team-school .ranking-college-fallback-icon {
@@ -21238,6 +21260,7 @@ body,
   height: 1.18rem;
 }
 
+.draftbuzz-table__logo-cell .team-logo-pill img,
 .draftbuzz-team-school .team-logo-pill img {
   width: 1.42rem;
   height: 1.42rem;
@@ -21365,13 +21388,14 @@ body,
       minmax(3.2rem, 0.34fr)
       minmax(3.35rem, 0.34fr)
       minmax(11rem, 1.35fr)
-      minmax(7.5rem, 0.85fr)
+      minmax(3.6rem, 0.34fr)
+      minmax(3.8rem, 0.36fr)
       minmax(3.2rem, 0.32fr)
       minmax(3.7rem, 0.35fr)
       minmax(7rem, 0.7fr);
   }
 
-  .draftbuzz-table__header span:nth-child(8),
+  .draftbuzz-table__header span:nth-child(9),
   .draftbuzz-table__metrics {
     display: none;
   }
@@ -21493,8 +21517,8 @@ body,
     grid-template-columns: 3rem minmax(0, 1fr) max-content;
     grid-template-areas:
       "class player score"
-      "rank school pos"
-      "avg avg metrics";
+      "rank team pos"
+      "school avg metrics";
     align-items: center;
     gap: 0.4rem 0.52rem;
     min-height: 5.15rem;
@@ -21513,8 +21537,14 @@ body,
     grid-area: player;
   }
 
+  .draftbuzz-table__team {
+    grid-area: team;
+    justify-content: start;
+  }
+
   .draftbuzz-table__school {
     grid-area: school;
+    justify-content: start;
   }
 
   .draftbuzz-table__row > .ranking-card-rank-pill {
@@ -22755,6 +22785,106 @@ body,
     transform: translateY(0) scale(1);
     filter: blur(0) saturate(1);
   }
+}
+
+/* Keep the polished report style but make shared surfaces read less glassy. */
+.report-shell {
+  --dd-solid-surface: rgba(2, 6, 23, 0.94);
+  --dd-solid-surface-soft: rgba(15, 23, 42, 0.94);
+  --dd-solid-surface-deep: rgba(2, 6, 23, 0.9);
+}
+
+.report-shell .report-disclosure[open] .report-disclosure-summary {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.06), transparent 42%),
+    linear-gradient(135deg, rgba(2, 6, 23, 0.9), rgba(15, 23, 42, 0.84)) !important;
+}
+
+.report-shell :is(
+  .report-card-polished,
+  .trade-ledger-card,
+  .trade-profit-card,
+  .trade-tendencies-card,
+  .command-feature-card,
+  .rankings-hero-panel,
+  .report-empty-state,
+  .recent-transaction-card,
+  .recent-transaction-date-group,
+  .value-board__toolbar
+) {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.055), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.06), transparent 36%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.92)) !important;
+}
+
+.report-shell :is(
+  .weekly-momentum-tile,
+  .trending-player-card,
+  .trade-market-card,
+  .waiver-intel-card,
+  .projected-mover-tile,
+  .rookie-player-tile,
+  .recent-transaction-player,
+  .manager-intel-player,
+  .starter-player-tile,
+  .starter-depth-player-tile,
+  .manager-command-player-tile,
+  .value-board__row,
+  .rookie-draft-row,
+  .draftbuzz-table__row
+) {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--team-primary, #0f172a) 22%, var(--dd-solid-surface-soft)),
+      var(--dd-solid-surface) 58%,
+      color-mix(in srgb, var(--team-secondary, #020617) 16%, var(--dd-solid-surface-deep))
+    ),
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--team-accent, #22d3ee) 10%, transparent), transparent 38%),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--team-primary, #0f172a) 10%, transparent), transparent 40%) !important;
+}
+
+.report-shell :is(.owner-summary-tile, .command-depth-tile) {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--team-primary, #0f172a) 20%, rgba(15, 23, 42, 0.96)),
+      rgba(2, 6, 23, 0.92) 62%,
+      color-mix(in srgb, var(--team-secondary, #020617) 16%, rgba(2, 6, 23, 0.9))
+    ) !important;
+}
+
+.report-shell :is(.owner-summary-scrim, .command-depth-tile-scrim) {
+  background:
+    linear-gradient(90deg, rgba(2, 6, 23, 0.46), rgba(2, 6, 23, 0.84)),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.16), rgba(2, 6, 23, 0.42)) !important;
+}
+
+.report-shell :is(.owner-summary-wash, .command-depth-tile-wash) {
+  opacity: 0.18 !important;
+}
+
+.report-shell :is(.owner-summary-mark, .command-depth-tile-mark) {
+  opacity: 0.07 !important;
+}
+
+.report-shell .report-player-identity-meta > span:not(.team-logo-pill),
+.report-shell :is(
+  .weekly-momentum-pills span,
+  .weekly-momentum-values span,
+  .trending-player-card-pills span,
+  .trade-market-pills span,
+  .waiver-intel-pills span,
+  .player-tile-pills span,
+  .recent-transaction-player-pills span,
+  .owner-metric-pill,
+  .command-mini-badge,
+  .trade-habit-pill,
+  .manager-intel-pill,
+  .rankings-active-profile
+) {
+  background-color: rgba(2, 6, 23, 0.76);
 }
 
 @media (max-width: 639px) {

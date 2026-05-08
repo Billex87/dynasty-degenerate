@@ -908,6 +908,12 @@ function getAdminBlendProfileLabel(reportData: ReportData, profileKey?: string |
   return profileOption?.label || 'League-matched profile';
 }
 
+function formatScoutingArchiveCopy(value?: string | null): string {
+  return String(value || '')
+    .replace(/NFL Draft Buzz/g, 'archived scouting data')
+    .replace(/Draft Buzz/g, 'scouting archive');
+}
+
 function buildAdminBlendSummaries(reportData: ReportData): AdminBlendSummary[] {
   const rankings = reportData.rankings;
   const sourceWeightProfiles = rankings?.sourceWeightProfiles;
@@ -927,9 +933,9 @@ function buildAdminBlendSummaries(reportData: ReportData): AdminBlendSummary[] {
         .filter((source) => source.percent > 0)
         .map((source) => ({
           key: source.key,
-          source: source.source,
+          source: formatScoutingArchiveCopy(source.source),
           percent: source.percent,
-          note: source.note,
+          note: formatScoutingArchiveCopy(source.note),
         })),
     });
   }
@@ -944,9 +950,9 @@ function buildAdminBlendSummaries(reportData: ReportData): AdminBlendSummary[] {
         .filter((source) => source.percent > 0)
         .map((source) => ({
           key: source.key,
-          source: source.source,
+          source: formatScoutingArchiveCopy(source.source),
           percent: source.percent,
-          note: source.note,
+          note: formatScoutingArchiveCopy(source.note),
         })),
     });
   }
@@ -2018,9 +2024,9 @@ export default function Home() {
                   </CollapsibleReportSection>
                 )}
                 {!isRedraftReport && (
-                  <CollapsibleReportSection title="NFL Draft Buzz Archive" kicker="Scouting data archive" defaultOpen>
+                  <CollapsibleReportSection title="Prospect Score Archive" kicker="Scouting data archive" defaultOpen>
                     {rankingsQuery.isLoading && !rankingsForReport ? (
-                      <div className="rankings-empty-state">Loading NFL Draft Buzz archive...</div>
+                      <div className="rankings-empty-state">Loading prospect score archive...</div>
                     ) : (
                       <RankingsBoard
                         rankings={rankingsForReport}
