@@ -57,7 +57,6 @@ const CACHED_SLEEPER_USERS_KEY = 'dynasty-degenerates:sleeper-user-history:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
-const MAX_VISIBLE_LEAGUE_SHORTCUTS = MAX_RECENT_LEAGUES_PER_USER - 1;
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-05-05';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
 const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'zojozo']);
@@ -322,7 +321,7 @@ function getLeagueShortcutsForUser(
     })
     .map((leagueId) => leagueById.get(leagueId))
     .filter((league): league is SleeperLeagueOption => Boolean(league))
-    .slice(0, activeLeagueId ? MAX_VISIBLE_LEAGUE_SHORTCUTS : MAX_RECENT_LEAGUES_PER_USER);
+    .slice(0, MAX_RECENT_LEAGUES_PER_USER);
 }
 
 function getOrderedLeagueOptions(
@@ -530,11 +529,13 @@ function LeagueShortcutStack({
 }) {
   if (!leagues.length) return null;
 
+  const visibleLeagues = leagues.slice(0, MAX_RECENT_LEAGUES_PER_USER);
+
   return (
-    <div className={`league-shortcut-switcher${className ? ` ${className}` : ''}`} aria-label="Recent league shortcuts">
+    <div className={`league-shortcut-switcher${className ? ` ${className}` : ''}`} aria-label="Previous league shortcuts">
       <span className="league-shortcut-label">{label}</span>
       <div className="league-shortcut-stack">
-        {leagues.slice(0, MAX_RECENT_LEAGUES_PER_USER).map((league, index) => {
+        {visibleLeagues.map((league, index) => {
           const isActive = league.leagueId === activeLeagueId;
           return (
             <button
@@ -544,7 +545,7 @@ function LeagueShortcutStack({
               onClick={() => {
                 if (!isActive) onSelect(league.leagueId);
               }}
-              style={{ zIndex: index + 1 }}
+              style={{ zIndex: visibleLeagues.length - index }}
               title={isActive ? `${league.name} is open` : `Open ${league.name}`}
               aria-label={isActive ? `${league.name} is open` : `Open ${league.name}`}
               aria-current={isActive ? 'page' : undefined}
@@ -581,7 +582,7 @@ function HomeHeaderShortcuts({
         leagues={leagues}
         onSelect={onLeagueSelect}
         className="home-user-switcher home-league-shortcuts"
-        label="Leagues"
+        label="Previous Leagues"
       />
     );
   }
@@ -2111,7 +2112,7 @@ export default function Home() {
                     leagueValueMode={reportData.leagueValueMode}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Full Trade Ledger" kicker="Every completed deal">
+                <ModalReportSection title="Full Trade Ledger" kicker="Every completed deal">
                   <TradeHistoryTable
                     data={reportData.tradeHistory}
                     draftPicks={reportData.draftPicks || []}
@@ -2126,8 +2127,9 @@ export default function Home() {
                     currentStandings={reportData.currentStandings}
                     standingsHistory={reportData.standingsHistory}
                     leagueValueMode={reportData.leagueValueMode}
+                    variant="modal"
                   />
-                </CollapsibleReportSection>
+                </ModalReportSection>
               </div>
             </TabsContent>
 
@@ -2465,5 +2467,49 @@ function CollapsibleReportSection({
         </div>
       </div>
     </details>
+  );
+}
+
+function ModalReportSection({
+  title,
+  kicker,
+  children,
+}: {
+  title: string;
+  kicker?: string;
+  children: ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <section className="report-section report-disclosure report-modal-section">
+      <button
+        type="button"
+        className="report-disclosure-summary report-modal-trigger"
+        onClick={() => setIsOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+      >
+        <ReportSectionHeader title={title} kicker={kicker} />
+        <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
+      </button>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="full-trade-ledger-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[90vh] sm:max-w-6xl">
+          <DialogHeader className="trade-ledger-modal-header">
+            <DialogTitle className="trade-ledger-modal-title">
+              {title}
+            </DialogTitle>
+            {kicker && (
+              <DialogDescription className="trade-ledger-modal-kicker">
+                {kicker}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="trade-ledger-modal-body">
+            {children}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }

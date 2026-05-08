@@ -164,6 +164,85 @@ Justice
     });
   });
 
+  it('merges scouting-card school data with table-row NFL teams and full headshots', () => {
+    const markdown = `
+### #3 RANKED - SCOUTING REPORT
+
+![Image 46: Arkansas Mascot](http://www.nfldraftbuzz.com/Content/collmascots/arkansas-razorbacks.png)
+
+[![Image 47: Mike Washington Jr. Profile Picture](http://www.nfldraftbuzz.com/Content/PlayerHeadShots/Mike-Washington-RB-NewMexicoState.png)](http://www.nfldraftbuzz.com/Player/Mike-Washington-RB-NewMexicoState)
+
+#### Mike Washington Jr. from Arkansas RB 2026 Scouting Report
+
+RANK
+
+#3
+
+RATING
+
+84.8
+
+All Scouts Average Overall Rank 66.8
+
+All Scouts Average Position Rank 3
+
+Height Feet 6-1
+
+Weight Lbs 223lbs
+
+College Junior Arkansas
+
+Forty Time Secs 4.33
+
+## Player Rankings - Running Back
+
+###### _3_[![Image 54: Mike Washington Jr. Arkansas Thumbnail - NFLDraftBUZZ.com](http://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Mike-Washington-RB-NewMexicoState.png)](http://www.nfldraftbuzz.com/Player/Mike-Washington-RB-NewMexicoState)
+
+#### RB
+
+Mike
+
+ Washington J...6-1 223lbs 4.33 RB![Image 55: LV   Mascot](http://www.nfldraftbuzz.com/Content/NFLLogos/LV.png)
+
+![Image 56: LV Mascot](http://www.nfldraftbuzz.com/Content/NFLLogos/LV.png)223lbs 6-1 4.33 3 66.8 84.8
+`;
+    const prospects = parseNflDraftBuzzMarkdown(markdown, 2026, 'https://www.nfldraftbuzz.com/positions/RB/1/2026');
+
+    expect(prospects).toHaveLength(1);
+    expect(prospects[0]).toMatchObject({
+      name: 'Mike Washington Jr.',
+      position: 'RB',
+      college: 'Arkansas',
+      nflTeam: 'LV',
+      playerImageUrl: 'https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Mike-Washington-RB-NewMexicoState.png',
+      collegeLogoUrl: 'https://www.nfldraftbuzz.com/Content/collmascots/arkansas-razorbacks.png',
+    });
+  });
+
+  it('keeps full thumbnail URLs when DraftBuzz filenames contain parentheses', () => {
+    const markdown = `
+## Player Rankings - Wide Receiver
+
+###### _12_[![Image 89: Elijah Sarratt Indiana Thumbnail - NFLDraftBUZZ.com](http://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Elijah-Sarratt-WR-StFrancis(PA).png)](http://www.nfldraftbuzz.com/Player/Elijah-Sarratt-WR-StFrancis(PA))
+
+#### WR
+
+Elijah
+
+ Sarratt 6-2 210lbs 4.53 WR![Image 90: BAL   Mascot](http://www.nfldraftbuzz.com/Content/NFLLogos/BAL.png)
+
+![Image 91: BAL Mascot](http://www.nfldraftbuzz.com/Content/NFLLogos/BAL.png)210lbs 6-2 4.53 14 71 84.8
+`;
+    const prospects = parseNflDraftBuzzMarkdown(markdown, 2026, 'https://www.nfldraftbuzz.com/positions/WR/1/2026');
+
+    expect(prospects[0]).toMatchObject({
+      name: 'Elijah Sarratt',
+      position: 'WR',
+      playerImageUrl: 'https://www.nfldraftbuzz.com/Content/PlayerHeadShots/Elijah-Sarratt-WR-StFrancis(PA).png',
+      collegeLogoUrl: 'https://www.nfldraftbuzz.com/Content/NFLLogos/BAL.png',
+    });
+  });
+
   it('matches prospects by name, position, draft year, and college', () => {
     const lookup = buildProspectLookup(parseNflDraftBuzzMarkdown(SAMPLE_MARKDOWN, 2027, 'https://example.com'));
     const profile = findProspectProfile(lookup, 'Ryan Williams', 'WR', 'Alabama', 2027);
@@ -225,16 +304,10 @@ Justice
     expect(shouldRunMonthlyProspectSnapshot(new Date('2026-06-02T14:00:00Z'), 7)).toBe(false);
   });
 
-  it('tracks historical DraftBuzz classes plus future rookie pipeline years', () => {
-    expect(getProspectYears(new Date('2026-05-08T00:00:00Z'))).toEqual([
-      2021,
-      2022,
-      2023,
-      2024,
-      2025,
-      2026,
-      2027,
-      2028,
-    ]);
+  it('tracks only future rookie pipeline years after the May 1 draft rollover', () => {
+    expect(getProspectYears(new Date('2026-04-30T19:00:00Z'))).toEqual([2026, 2027, 2028]);
+    expect(getProspectYears(new Date('2026-05-01T19:00:00Z'))).toEqual([2027, 2028]);
+    expect(getProspectYears(new Date('2027-04-30T19:00:00Z'))).toEqual([2027, 2028, 2029]);
+    expect(getProspectYears(new Date('2027-05-01T19:00:00Z'))).toEqual([2028, 2029]);
   });
 });

@@ -13,17 +13,11 @@ const NFL_DRAFT_BUZZ_INDEXED_SUPPLEMENT_FILE = path.join(PROSPECT_SNAPSHOT_DIR, 
 const NFL_DRAFT_BUZZ_HISTORICAL_SUPPLEMENT_FILE = path.join(PROSPECT_SNAPSHOT_DIR, 'nfl-draft-buzz-historical-supplement.json');
 const FANTASY_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
 const FANTASY_POSITION_SET = new Set<string>(FANTASY_POSITIONS);
-const NFL_TEAM_ABBRS = new Set([
-  'ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN',
-  'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LAC', 'LAR', 'LV', 'MIA',
-  'MIN', 'NE', 'NO', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SF', 'TB',
-  'TEN', 'WAS',
-]);
-const PLAYER_SLUG_POSITIONS = new Set([
-  'QB', 'RB', 'WR', 'TE', 'FB', 'LB', 'CB', 'S', 'SAF', 'EDGE', 'DE',
-  'DT', 'DL', 'OL', 'OT', 'OG', 'C', 'K', 'P',
-]);
-const DRAFT_BUZZ_HISTORY_START_YEAR = 2021;
+const NFL_TEAM_ABBRS = new Set(['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LAC', 'LAR', 'LV', 'MIA', 'MIN', 'NE', 'NO', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SF', 'TB', 'TEN', 'WAS']);
+const PLAYER_SLUG_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'FB', 'LB', 'CB', 'S', 'SAF', 'EDGE', 'DE', 'DT', 'DL', 'OL', 'OT', 'OG', 'C', 'K', 'P']);
+const DRAFT_BUZZ_ROLLOVER_MONTH = 5;
+const DRAFT_BUZZ_ROLLOVER_DAY = 1;
+const DRAFT_BUZZ_PIPELINE_YEARS_AHEAD = 2;
 const MAX_PAGES_PER_POSITION = 8;
 const PROSPECT_FETCH_TIMEOUT_MS = 30000;
 const PROSPECT_FETCH_DELAY_MS = 2500;
@@ -77,7 +71,7 @@ export function getProspectSnapshotMonth(date = new Date()): string {
     year: 'numeric',
     month: '2-digit',
   }).formatToParts(date);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value || '';
+  const value = (type: string) => parts.find(part => part.type === type)?.value || '';
   return `${value('year')}-${value('month')}`;
 }
 
@@ -90,8 +84,10 @@ function getProspectDateParts(date = new Date()) {
     hour: '2-digit',
     hour12: false,
   }).formatToParts(date);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value || '0';
+  const value = (type: string) => parts.find(part => part.type === type)?.value || '0';
   return {
+    year: Number(value('year')),
+    month: Number(value('month')),
     monthKey: `${value('year')}-${value('month')}`,
     day: Number(value('day')),
     hour: Number(value('hour')),
@@ -104,41 +100,39 @@ export function shouldRunMonthlyProspectSnapshot(date = new Date(), snapshotHour
 }
 
 export function getProspectYears(date = new Date()): number[] {
-  const year = Number(new Intl.DateTimeFormat('en-CA', {
-    timeZone: SNAPSHOT_TIME_ZONE,
-    year: 'numeric',
-  }).format(date));
-  const finalYear = year + 2;
-  return Array.from(
-    { length: Math.max(0, finalYear - DRAFT_BUZZ_HISTORY_START_YEAR + 1) },
-    (_, index) => DRAFT_BUZZ_HISTORY_START_YEAR + index
-  ).filter((item) => Number.isFinite(item));
+  const { year, month, day } = getProspectDateParts(date);
+  if (!Number.isFinite(year)) return [];
+  const isPastDraftRollover = month > DRAFT_BUZZ_ROLLOVER_MONTH || (month === DRAFT_BUZZ_ROLLOVER_MONTH && day >= DRAFT_BUZZ_ROLLOVER_DAY);
+  const firstFutureClass = isPastDraftRollover ? year + 1 : year;
+  const finalYear = year + DRAFT_BUZZ_PIPELINE_YEARS_AHEAD;
+  return Array.from({ length: Math.max(0, finalYear - firstFutureClass + 1) }, (_, index) => firstFutureClass + index).filter(item => Number.isFinite(item));
 }
 
 function getSourceUrl(draftYear: number, position: string, page: number) {
   return `https://www.nfldraftbuzz.com/positions/${position}/${page}/${draftYear}`;
 }
 
-function getReaderTargetUrl(sourceUrl: string) {
+function getReaderTargetUrls(sourceUrl: string) {
   try {
     const parsed = new URL(sourceUrl);
     if (parsed.hostname.endsWith('nfldraftbuzz.com')) {
       parsed.protocol = 'http:';
-      return parsed.toString();
+      const targets = new Set<string>();
+      const noWww = new URL(parsed.toString());
+      noWww.hostname = noWww.hostname.replace(/^www\./i, '');
+      targets.add(noWww.toString());
+      targets.add(parsed.toString());
+      return Array.from(targets);
     }
   } catch {
-    return sourceUrl;
+    return [sourceUrl];
   }
-  return sourceUrl;
+  return [sourceUrl];
 }
 
 function getReaderUrls(sourceUrl: string) {
-  const readerTargetUrl = getReaderTargetUrl(sourceUrl);
-  return [
-    `https://r.jina.ai/${readerTargetUrl}`,
-    `https://r.jina.ai/${sourceUrl}`,
-    sourceUrl,
-  ];
+  const readerTargetUrls = getReaderTargetUrls(sourceUrl);
+  return [...readerTargetUrls.map(readerTargetUrl => `https://r.jina.ai/${readerTargetUrl}`), sourceUrl];
 }
 
 function normalizeDraftBuzzSchoolName(value?: string | null): string | null {
@@ -150,17 +144,29 @@ function normalizeDraftBuzzSchoolName(value?: string | null): string | null {
   return normalized || null;
 }
 
+function normalizeDraftBuzzNflTeamAbbr(value?: string | null): string | null {
+  const team = String(value || '')
+    .trim()
+    .toUpperCase();
+  if (!team || team === 'FA') return null;
+  const normalized = team === 'JAC' ? 'JAX' : team === 'WSH' ? 'WAS' : team;
+  return NFL_TEAM_ABBRS.has(normalized) ? normalized : null;
+}
+
 function getNflTeamFromDraftBuzzLogoUrl(url?: string | null): string | null {
-  const team = String(url || '').match(/\/NFLLogos\/([A-Z]{2,3})\.png/i)?.[1]?.toUpperCase();
-  return team && NFL_TEAM_ABBRS.has(team) ? team : null;
+  return normalizeDraftBuzzNflTeamAbbr(String(url || '').match(/\/NFLLogos\/([A-Z]{2,3})\.png/i)?.[1]);
 }
 
 function getSchoolFromDraftBuzzAssetUrl(url: string | null | undefined, expectedPosition?: string | null): string | null {
-  const fileName = String(url || '').split('/').pop()?.replace(/\.[a-z0-9]+$/i, '') || '';
+  const fileName =
+    String(url || '')
+      .split('/')
+      .pop()
+      ?.replace(/\.[a-z0-9]+$/i, '') || '';
   const parts = fileName.split('-').filter(Boolean);
-  let positionIndex = parts.findIndex((part) => part.toUpperCase() === String(expectedPosition || '').toUpperCase());
+  let positionIndex = parts.findIndex(part => part.toUpperCase() === String(expectedPosition || '').toUpperCase());
   if (positionIndex < 0) {
-    positionIndex = parts.findIndex((part) => PLAYER_SLUG_POSITIONS.has(part.toUpperCase()));
+    positionIndex = parts.findIndex(part => PLAYER_SLUG_POSITIONS.has(part.toUpperCase()));
   }
   if (positionIndex < 0 || positionIndex === parts.length - 1) return null;
   return normalizeDraftBuzzSchoolName(parts.slice(positionIndex + 1).join(' '));
@@ -170,12 +176,12 @@ function normalizeNflDraftBuzzProfile(profile: ProspectProfile): ProspectProfile
   if (profile.source !== SOURCE_NAME) return profile;
 
   const college = typeof profile.college === 'string' ? profile.college.trim() : '';
-  const existingTeam = typeof profile.nflTeam === 'string' ? profile.nflTeam.trim().toUpperCase() : '';
+  const existingTeam = normalizeDraftBuzzNflTeamAbbr(profile.nflTeam);
   const logoTeam = getNflTeamFromDraftBuzzLogoUrl(profile.collegeLogoUrl);
-  const collegeTeam = NFL_TEAM_ABBRS.has(college.toUpperCase()) ? college.toUpperCase() : null;
+  const collegeTeam = normalizeDraftBuzzNflTeamAbbr(college);
   const nflTeam = existingTeam || logoTeam || collegeTeam || null;
-  const school = getSchoolFromDraftBuzzAssetUrl(profile.playerImageUrl, profile.position)
-    || (nflTeam ? null : normalizeDraftBuzzSchoolName(college));
+  const explicitSchool = collegeTeam ? null : normalizeDraftBuzzSchoolName(college);
+  const school = explicitSchool || (!nflTeam ? getSchoolFromDraftBuzzAssetUrl(profile.playerImageUrl, profile.position) : null);
 
   if (!nflTeam && school === college) return profile;
 
@@ -254,7 +260,7 @@ function normalizeEspnWeight(value?: string | number | null): string | null {
 }
 
 function sleep(ms: number) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     setTimeout(resolve, ms);
   });
 }
@@ -279,34 +285,24 @@ function normalizeSourceImageUrl(url: string | null | undefined, sourceUrl: stri
 
 function getHighResolutionImageUrl(url: string | null | undefined): string | null {
   if (!url || /noImage/i.test(url)) return null;
-  return url
-    .replace('/Content/PlayerHeadShotsSmall/', '/Content/PlayerHeadShots/')
-    .replace('/Content/collmascotsSmall/', '/Content/collmascots/');
+  return url.replace('/Content/PlayerHeadShotsSmall/', '/Content/PlayerHeadShots/').replace('/Content/collmascotsSmall/', '/Content/collmascots/');
 }
 
 function getEspnTeamLogo(athlete: any): string | null {
   const logos = Array.isArray(athlete?.team?.logos) ? athlete.team.logos : [];
-  return logos.find((logo: any) => Array.isArray(logo?.rel) && logo.rel.includes('default'))?.href
-    || logos[0]?.href
-    || null;
+  return logos.find((logo: any) => Array.isArray(logo?.rel) && logo.rel.includes('default'))?.href || logos[0]?.href || null;
 }
 
 function getEspnProfileUrl(athlete: any): string | null {
   const links = Array.isArray(athlete?.links) ? athlete.links : [];
-  return links.find((link: any) => Array.isArray(link?.rel) && link.rel.includes('playercard'))?.href
-    || links[0]?.href
-    || null;
+  return links.find((link: any) => Array.isArray(link?.rel) && link.rel.includes('playercard'))?.href || links[0]?.href || null;
 }
 
 export function normalizeEspnAthleteProfile(raw: unknown, draftYear: number): ProspectProfile | null {
   if (!raw || typeof raw !== 'object') return null;
   const payload = raw as { athlete?: any };
-  const athlete = payload.athlete && typeof payload.athlete === 'object' ? payload.athlete : raw as any;
-  const name = typeof athlete?.displayName === 'string'
-    ? athlete.displayName
-    : typeof athlete?.fullName === 'string'
-      ? athlete.fullName
-      : null;
+  const athlete = payload.athlete && typeof payload.athlete === 'object' ? payload.athlete : (raw as any);
+  const name = typeof athlete?.displayName === 'string' ? athlete.displayName : typeof athlete?.fullName === 'string' ? athlete.fullName : null;
   const position = athlete?.position?.abbreviation || athlete?.position?.name || null;
   if (!name || !position || !Number.isFinite(Number(draftYear))) return null;
 
@@ -333,12 +329,52 @@ export function normalizeEspnAthleteProfile(raw: unknown, draftYear: number): Pr
 function extractMarkdownImages(rawBlock: string[], sourceUrl: string): Array<{ alt: string; url: string }> {
   const images: Array<{ alt: string; url: string }> = [];
   for (const line of rawBlock) {
-    for (const match of Array.from(line.matchAll(/!\[([^\]]*)\]\(([^)]+)\)/g))) {
-      const url = normalizeSourceImageUrl(match[2], sourceUrl);
+    const imagePattern = /!\[([^\]]*)\]\(/g;
+    let match: RegExpExecArray | null;
+    while ((match = imagePattern.exec(line))) {
+      let endIndex = match.index + match[0].length;
+      let depth = 0;
+      for (; endIndex < line.length; endIndex += 1) {
+        const char = line[endIndex];
+        if (char === '\\') {
+          endIndex += 1;
+          continue;
+        }
+        if (char === '(') {
+          depth += 1;
+          continue;
+        }
+        if (char === ')') {
+          if (depth === 0) break;
+          depth -= 1;
+        }
+      }
+      if (endIndex >= line.length) break;
+      const destination = line.slice(match.index + match[0].length, endIndex).trim();
+      const url = normalizeSourceImageUrl(destination, sourceUrl);
       if (url) images.push({ alt: match[1] || '', url });
+      imagePattern.lastIndex = endIndex + 1;
     }
   }
   return images;
+}
+
+function getDraftBuzzPlayerNameFromLink(rawBlock: string[], expectedPosition: string): string | null {
+  const joined = rawBlock.join(' ');
+  const match = joined.match(/\/Player\/([A-Za-z0-9'().-]+)/);
+  const slug = match?.[1] || '';
+  const parts = slug.split('-').filter(Boolean);
+  const positionIndex = parts.findIndex(part => part.toUpperCase() === expectedPosition);
+  if (positionIndex <= 0) return null;
+  return (
+    parts
+      .slice(0, positionIndex)
+      .join(' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/\b(Jr|Sr|II|III|IV|V)\b\.?/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim() || null
+  );
 }
 
 function stripMarkdownNoise(line: string): string {
@@ -349,24 +385,15 @@ function stripMarkdownNoise(line: string): string {
 }
 
 function isNoiseLine(line: string): boolean {
-  return (
-    !line
-    || line === 'MORE'
-    || line === '----'
-    || line.startsWith('*')
-    || line.startsWith('[')
-    || line.startsWith('![')
-    || /^REGISTER|^Home$|^Position Ranking$/i.test(line)
-    || /^Image\s+\d+:/i.test(line)
-  );
+  return !line || line === 'MORE' || line === '----' || line.startsWith('*') || line.startsWith('[') || line.startsWith('![') || /^REGISTER|^Home$|^Position Ranking$/i.test(line) || /^Image\s+\d+:/i.test(line);
 }
 
 function parseProspectBlock(rawBlock: string[], draftYear: number, sourceUrl: string): ProspectProfile | null {
   const images = extractMarkdownImages(rawBlock, sourceUrl);
-  const collegeLogoUrl = getHighResolutionImageUrl(images.find((image) => /mascot/i.test(image.alt))?.url) || null;
-  const playerImageUrl = getHighResolutionImageUrl(images.find((image) => /profile picture|thumbnail/i.test(image.alt))?.url) || null;
+  const collegeLogoUrl = getHighResolutionImageUrl(images.find(image => /mascot/i.test(image.alt))?.url) || null;
+  const playerImageUrl = getHighResolutionImageUrl(images.find(image => /profile picture|thumbnail/i.test(image.alt))?.url) || null;
   const cleanLines = rawBlock.map(stripMarkdownNoise).filter(Boolean);
-  const scoutingHeader = cleanLines.find((line) => /from .+ (QB|RB|WR|TE) \d{4} Scouting Report/i.test(line));
+  const scoutingHeader = cleanLines.find(line => /from .+ (QB|RB|WR|TE) \d{4} Scouting Report/i.test(line));
   if (scoutingHeader) {
     const rankMatch = rawBlock[0]?.match(/^#{1,6}\s+#?(\d+)/);
     const overallRank = rankMatch ? Number(rankMatch[1]) : null;
@@ -374,13 +401,11 @@ function parseProspectBlock(rawBlock: string[], draftYear: number, sourceUrl: st
     if (!headerMatch || !overallRank) return null;
     const [, nameRaw, collegeRaw, positionRaw, draftYearRaw] = headerMatch;
     const position = positionRaw.toUpperCase();
-    const ratingIndex = cleanLines.findIndex((line) => /^RATING$/i.test(line));
-    const rankIndex = cleanLines.findIndex((line) => /^RANK$/i.test(line));
-    const collegeLine = cleanLines.find((line) => /^College\s+/i.test(line));
-    const college = collegeLine
-      ? collegeLine.replace(/^College\s+(Freshman|Sophomore|Junior|Senior|RS\s+\w+)\s+/i, '').trim()
-      : collegeRaw.trim();
-    const summaryLine = cleanLines.find((line) => /^Player Summary\s+/i.test(line));
+    const ratingIndex = cleanLines.findIndex(line => /^RATING$/i.test(line));
+    const rankIndex = cleanLines.findIndex(line => /^RANK$/i.test(line));
+    const collegeLine = cleanLines.find(line => /^College\s+/i.test(line));
+    const college = collegeLine ? collegeLine.replace(/^College\s+(Freshman|Sophomore|Junior|Senior|RS\s+\w+)\s+/i, '').trim() : collegeRaw.trim();
+    const summaryLine = cleanLines.find(line => /^Player Summary\s+/i.test(line));
 
     return {
       source: SOURCE_NAME,
@@ -395,12 +420,12 @@ function parseProspectBlock(rawBlock: string[], draftYear: number, sourceUrl: st
       collegeLogoUrl,
       overallRank,
       positionRank: rankIndex >= 0 ? parseNumber(cleanLines[rankIndex + 1]) : null,
-      averageOverallRank: parseNumber(cleanLines.find((line) => /^All Scouts Average Overall Rank/i.test(line))),
-      averagePositionRank: parseNumber(cleanLines.find((line) => /^All Scouts Average Position Rank/i.test(line))),
+      averageOverallRank: parseNumber(cleanLines.find(line => /^All Scouts Average Overall Rank/i.test(line))),
+      averagePositionRank: parseNumber(cleanLines.find(line => /^All Scouts Average Position Rank/i.test(line))),
       rating: ratingIndex >= 0 ? parseNumber(cleanLines[ratingIndex + 1]) : null,
-      height: cleanLines.find((line) => /^Height Feet/i.test(line))?.replace(/^Height Feet\s+/i, '') || null,
-      weight: cleanLines.find((line) => /^Weight Lbs/i.test(line))?.replace(/^Weight Lbs\s+/i, '') || null,
-      fortyYardDash: parseNumber(cleanLines.find((line) => /^Forty Time Secs/i.test(line))),
+      height: cleanLines.find(line => /^Height Feet/i.test(line))?.replace(/^Height Feet\s+/i, '') || null,
+      weight: cleanLines.find(line => /^Weight Lbs/i.test(line))?.replace(/^Weight Lbs\s+/i, '') || null,
+      fortyYardDash: parseNumber(cleanLines.find(line => /^Forty Time Secs/i.test(line))),
       summary: summaryLine?.replace(/^Player Summary\s+/i, '') || null,
     };
   }
@@ -413,36 +438,38 @@ function parseProspectBlock(rawBlock: string[], draftYear: number, sourceUrl: st
   const lines = rawBlock
     .slice(1)
     .map(stripMarkdownNoise)
-    .filter((line) => !isNoiseLine(line));
-  const posIndex = lines.findIndex((line) => FANTASY_POSITION_SET.has(line));
+    .filter(line => !isNoiseLine(line));
+  const posIndex = lines.findIndex(line => FANTASY_POSITION_SET.has(line));
   if (posIndex < 0) return null;
 
   const position = lines[posIndex];
   const firstMeasureIndex = lines.findIndex((line, index) => index > posIndex && /^\d+-\d+\s+\d+lbs\s+[\d.]+$/.test(line));
   if (firstMeasureIndex < 0) return null;
 
-  const name = lines.slice(posIndex + 1, firstMeasureIndex).join(' ').replace(/\s+/g, ' ').trim();
+  const name = lines
+    .slice(posIndex + 1, firstMeasureIndex)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!name) return null;
 
   const [height, weight, fortyYardDashRaw] = lines[firstMeasureIndex].split(/\s+/);
   const roleLine = lines[firstMeasureIndex + 1];
   const role = roleLine && roleLine.length <= 24 && !/^\d/.test(roleLine) ? roleLine : position;
-  const metricsLine = lines.find((line, index) => (
-    index > firstMeasureIndex
-    && /^\d+lbs\s+\d+-\d+\s+[\d.]+\s+[\d.]+\s+[\d.]+$/.test(line)
-  ));
+  const metricsLine = lines.find((line, index) => index > firstMeasureIndex && /^\d+lbs\s+\d+-\d+\s+[\d.]+\s+[\d.]+\s+[\d.]+$/.test(line));
   const metricParts = metricsLine?.split(/\s+/) || [];
   const averageOverallRank = parseNumber(metricParts[3]);
   const averagePositionRank = parseNumber(metricParts[4]);
   const metricIndex = metricsLine ? lines.indexOf(metricsLine) : -1;
-  const rating = metricIndex >= 0 ? parseNumber(lines.slice(metricIndex + 1).find((line) => /^[\d.]+$/.test(line))) : null;
-  const moreIndex = rawBlock.findIndex((line) => stripMarkdownNoise(line) === 'MORE');
-  const summary = moreIndex >= 0
-    ? rawBlock
-      .slice(moreIndex + 1)
-      .map(stripMarkdownNoise)
-      .find((line) => line.length > 24 && !isNoiseLine(line)) || null
-    : null;
+  const rating = metricIndex >= 0 ? parseNumber(lines.slice(metricIndex + 1).find(line => /^[\d.]+$/.test(line))) : null;
+  const moreIndex = rawBlock.findIndex(line => stripMarkdownNoise(line) === 'MORE');
+  const summary =
+    moreIndex >= 0
+      ? rawBlock
+          .slice(moreIndex + 1)
+          .map(stripMarkdownNoise)
+          .find(line => line.length > 24 && !isNoiseLine(line)) || null
+      : null;
   return {
     source: SOURCE_NAME,
     sourceUrl,
@@ -471,14 +498,14 @@ function parseProspectRankingRow(rawBlock: string[], draftYear: number, sourceUr
   if (!overallRank) return null;
 
   const images = extractMarkdownImages(rawBlock, sourceUrl);
-  const collegeLogoUrl = getHighResolutionImageUrl(images.find((image) => /mascot/i.test(image.alt))?.url) || null;
-  const playerImageUrl = getHighResolutionImageUrl(images.find((image) => /profile picture|thumbnail/i.test(image.alt))?.url) || null;
+  const collegeLogoUrl = getHighResolutionImageUrl(images.find(image => /mascot/i.test(image.alt))?.url) || null;
+  const playerImageUrl = getHighResolutionImageUrl(images.find(image => /profile picture|thumbnail/i.test(image.alt))?.url) || null;
   const college = rawBlock.map(cleanCollegeFromImage).find(Boolean) || null;
   const cleanLines = rawBlock
     .map(stripMarkdownNoise)
-    .map((line) => line.replace(/\s+/g, ' ').trim())
-    .filter((line) => line && !/^######/.test(line) && line !== '####' && !/^Image\s+\d+:/i.test(line));
-  const posIndex = cleanLines.findIndex((line) => FANTASY_POSITION_SET.has(line));
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(line => line && !/^######/.test(line) && line !== '####' && !/^Image\s+\d+:/i.test(line));
+  const posIndex = cleanLines.findIndex(line => FANTASY_POSITION_SET.has(line));
   if (posIndex < 0) return null;
 
   const measurementPattern = /(\d+-\d+)\s+(\d+lbs)\s+([\d.]+)/;
@@ -503,23 +530,15 @@ function parseProspectRankingRow(rawBlock: string[], draftYear: number, sourceUr
 
   if (!measurementMatch) return null;
   const [height, weight, fortyYardDashRaw] = measurementMatch.slice(1);
-  const name = nameParts.join(' ').replace(/\s+/g, ' ').trim();
+  const rawName = nameParts.join(' ').replace(/\s+/g, ' ').trim();
+  const name = /\.\.\./.test(rawName) ? getDraftBuzzPlayerNameFromLink(rawBlock, cleanLines[posIndex]) || rawName : rawName;
   if (!name) return null;
 
-  const metricIndex = cleanLines.findIndex((line, index) => (
-    index > measurementIndex
-    && /\d+lbs\s+\d+-\d+\s+[\d.]+\s+[\d.]+\s+[\d.]+/.test(line)
-  ));
-  const metricMatch = metricIndex >= 0
-    ? cleanLines[metricIndex].match(/\d+lbs\s+\d+-\d+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)(?:\s+([\d.]+))?/)
-    : null;
-  const rating = metricMatch?.[3]
-    ? parseNumber(metricMatch[3])
-    : parseNumber(cleanLines.slice(Math.max(metricIndex + 1, measurementIndex + 1)).find((line) => /^[\d.]+$/.test(line)));
-  const moreIndex = cleanLines.findIndex((line) => /^MORE>>/i.test(line));
-  const summary = moreIndex >= 0
-    ? cleanLines[moreIndex].replace(/^MORE>>\s*/i, '').trim() || cleanLines[moreIndex + 1] || null
-    : null;
+  const metricIndex = cleanLines.findIndex((line, index) => index > measurementIndex && /\d+lbs\s+\d+-\d+\s+[\d.]+\s+[\d.]+\s+[\d.]+/.test(line));
+  const metricMatch = metricIndex >= 0 ? cleanLines[metricIndex].match(/\d+lbs\s+\d+-\d+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)(?:\s+([\d.]+))?/) : null;
+  const rating = metricMatch?.[3] ? parseNumber(metricMatch[3]) : parseNumber(cleanLines.slice(Math.max(metricIndex + 1, measurementIndex + 1)).find(line => /^[\d.]+$/.test(line)));
+  const moreIndex = cleanLines.findIndex(line => /^MORE>>/i.test(line));
+  const summary = moreIndex >= 0 ? cleanLines[moreIndex].replace(/^MORE>>\s*/i, '').trim() || cleanLines[moreIndex + 1] || null : null;
 
   return {
     source: SOURCE_NAME,
@@ -545,8 +564,8 @@ function parseProspectRankingRow(rawBlock: string[], draftYear: number, sourceUr
 }
 
 function parseProspectRankingRows(markdown: string, draftYear: number, sourceUrl: string): ProspectProfile[] {
-  const lines = markdown.split(/\r?\n/).map((line) => line.trim());
-  const startIndex = lines.findIndex((line) => /^##\s+Player Rankings/i.test(line));
+  const lines = markdown.split(/\r?\n/).map(line => line.trim());
+  const startIndex = lines.findIndex(line => /^##\s+Player Rankings/i.test(line));
   if (startIndex < 0) return [];
 
   const prospects: ProspectProfile[] = [];
@@ -586,8 +605,18 @@ function mergeParsedProspects(profiles: ProspectProfile[]): ProspectProfile[] {
     }
     const primary = profile.source === SOURCE_NAME || existing.source !== SOURCE_NAME ? profile : existing;
     const secondary = primary === profile ? existing : profile;
+    const primaryTeam = getNflTeamFromDraftBuzzLogoUrl(primary.collegeLogoUrl) || normalizeDraftBuzzNflTeamAbbr(primary.nflTeam) || normalizeDraftBuzzNflTeamAbbr(primary.college);
+    const secondaryTeam = getNflTeamFromDraftBuzzLogoUrl(secondary.collegeLogoUrl) || normalizeDraftBuzzNflTeamAbbr(secondary.nflTeam) || normalizeDraftBuzzNflTeamAbbr(secondary.college);
+    const primaryCollege = normalizeDraftBuzzNflTeamAbbr(primary.college) ? null : primary.college;
+    const secondaryCollege = normalizeDraftBuzzNflTeamAbbr(secondary.college) ? null : secondary.college;
+    const primaryCollegeLogo = getNflTeamFromDraftBuzzLogoUrl(primary.collegeLogoUrl) ? null : primary.collegeLogoUrl;
+    const secondaryCollegeLogo = getNflTeamFromDraftBuzzLogoUrl(secondary.collegeLogoUrl) ? null : secondary.collegeLogoUrl;
+    const inferredCollege = primaryTeam || secondaryTeam ? null : getSchoolFromDraftBuzzAssetUrl(primary.playerImageUrl || secondary.playerImageUrl, primary.position || secondary.position);
+    const displayName = /\.\.\./.test(primary.name) ? secondary.name : /\.\.\./.test(secondary.name) ? primary.name : secondary.name.length > primary.name.length ? secondary.name : primary.name;
+
     merged.set(key, {
       ...primary,
+      name: displayName,
       source: primary.source,
       sourceUrl: primary.sourceUrl || secondary.sourceUrl || null,
       scrapeMonth: primary.scrapeMonth || secondary.scrapeMonth || null,
@@ -597,9 +626,9 @@ function mergeParsedProspects(profiles: ProspectProfile[]): ProspectProfile[] {
       status: primary.status || secondary.status || null,
       birthPlace: primary.birthPlace || secondary.birthPlace || null,
       playerImageUrl: primary.playerImageUrl || secondary.playerImageUrl || null,
-      collegeLogoUrl: primary.collegeLogoUrl || secondary.collegeLogoUrl || null,
-      college: primary.college || secondary.college || null,
-      nflTeam: primary.nflTeam || secondary.nflTeam || null,
+      collegeLogoUrl: primaryCollegeLogo || secondaryCollegeLogo || null,
+      college: primaryCollege || secondaryCollege || inferredCollege || null,
+      nflTeam: primaryTeam || secondaryTeam || null,
       summary: primary.summary || secondary.summary || null,
       overallRank: primary.overallRank || secondary.overallRank || null,
       positionRank: primary.positionRank || secondary.positionRank || null,
@@ -615,7 +644,7 @@ function mergeParsedProspects(profiles: ProspectProfile[]): ProspectProfile[] {
 }
 
 export function parseNflDraftBuzzMarkdown(markdown: string, draftYear: number, sourceUrl: string): ProspectProfile[] {
-  const lines = markdown.split(/\r?\n/).map((line) => line.trim());
+  const lines = markdown.split(/\r?\n/).map(line => line.trim());
   const prospects: ProspectProfile[] = [];
   let block: string[] = [];
 
@@ -637,7 +666,7 @@ export function parseNflDraftBuzzMarkdown(markdown: string, draftYear: number, s
   flush();
 
   const positionCounts = new Map<string, number>();
-  return mergeParsedProspects([...prospects, ...parseProspectRankingRows(markdown, draftYear, sourceUrl)]).map((prospect) => {
+  return mergeParsedProspects([...prospects, ...parseProspectRankingRows(markdown, draftYear, sourceUrl)]).map(prospect => {
     const nextPositionRank = (positionCounts.get(prospect.position) || 0) + 1;
     positionCounts.set(prospect.position, nextPositionRank);
     return {
@@ -685,12 +714,14 @@ function normalizeProspectSnapshot(raw: unknown): ProspectSnapshotPayload | null
     scrapeMonth: typeof payload.scrapeMonth === 'string' ? payload.scrapeMonth : getProspectSnapshotMonth(),
     yearsTracked: Array.isArray(payload.yearsTracked) ? payload.yearsTracked.filter((year): year is number => typeof year === 'number') : [],
     pageCount: typeof payload.pageCount === 'number' ? payload.pageCount : 0,
-    players: dedupeProspects(payload.players
-      .filter((profile): profile is ProspectProfile => Boolean(profile?.name && profile?.position && profile?.draftYear))
-      .map((profile) => ({
-        ...profile,
-        source: SOURCE_NAME,
-      }))),
+    players: dedupeProspects(
+      payload.players
+        .filter((profile): profile is ProspectProfile => Boolean(profile?.name && profile?.position && profile?.draftYear))
+        .map(profile => ({
+          ...profile,
+          source: SOURCE_NAME,
+        }))
+    ),
     errors: Array.isArray(payload.errors) ? payload.errors.filter((error): error is string => typeof error === 'string') : [],
   };
 }
@@ -705,7 +736,7 @@ function normalizeEspnProspectSnapshot(raw: unknown): EspnProspectSnapshotPayloa
     generatedAt: typeof payload.generatedAt === 'string' ? payload.generatedAt : new Date().toISOString(),
     players: payload.players
       .filter((profile): profile is ProspectProfile => Boolean(profile?.name && profile?.position && profile?.draftYear))
-      .map((profile) => ({
+      .map(profile => ({
         ...profile,
         source: ESPN_SOURCE_NAME,
       })),
@@ -723,29 +754,30 @@ function normalizeIndexedProspectSupplement(raw: unknown): IndexedProspectSupple
     generatedAt: typeof payload.generatedAt === 'string' ? payload.generatedAt : new Date().toISOString(),
     scrapeMonth: typeof payload.scrapeMonth === 'string' ? payload.scrapeMonth : getProspectSnapshotMonth(),
     note: typeof payload.note === 'string' ? payload.note : undefined,
-    players: dedupeProspects(payload.players
-      .filter((profile): profile is ProspectProfile => Boolean(profile?.name && profile?.position && profile?.draftYear))
-      .map((profile) => ({
-        ...profile,
-        source: SOURCE_NAME,
-      }))),
+    players: dedupeProspects(
+      payload.players
+        .filter((profile): profile is ProspectProfile => Boolean(profile?.name && profile?.position && profile?.draftYear))
+        .map(profile => ({
+          ...profile,
+          source: SOURCE_NAME,
+        }))
+    ),
     errors: Array.isArray(payload.errors) ? payload.errors.filter((error): error is string => typeof error === 'string') : [],
   };
 }
 
 function loadLocalNflDraftBuzzSupplements(): IndexedProspectSupplementPayload[] {
-  return [
-    NFL_DRAFT_BUZZ_HISTORICAL_SUPPLEMENT_FILE,
-    NFL_DRAFT_BUZZ_INDEXED_SUPPLEMENT_FILE,
-  ].map((filePath) => {
-    try {
-      if (!fs.existsSync(filePath)) return null;
-      return normalizeIndexedProspectSupplement(JSON.parse(fs.readFileSync(filePath, 'utf-8')));
-    } catch (error) {
-      console.warn(`[NFL Draft Buzz] Failed to load prospect supplement ${path.basename(filePath)}:`, error);
-      return null;
-    }
-  }).filter((payload): payload is IndexedProspectSupplementPayload => Boolean(payload));
+  return [NFL_DRAFT_BUZZ_HISTORICAL_SUPPLEMENT_FILE, NFL_DRAFT_BUZZ_INDEXED_SUPPLEMENT_FILE]
+    .map(filePath => {
+      try {
+        if (!fs.existsSync(filePath)) return null;
+        return normalizeIndexedProspectSupplement(JSON.parse(fs.readFileSync(filePath, 'utf-8')));
+      } catch (error) {
+        console.warn(`[NFL Draft Buzz] Failed to load prospect supplement ${path.basename(filePath)}:`, error);
+        return null;
+      }
+    })
+    .filter((payload): payload is IndexedProspectSupplementPayload => Boolean(payload));
 }
 
 function loadLocalEspnProspectSnapshot(): EspnProspectSnapshotPayload | null {
@@ -763,7 +795,7 @@ function loadLatestLocalProspectSnapshot(): ProspectSnapshotPayload | null {
     if (!fs.existsSync(PROSPECT_SNAPSHOT_DIR)) return null;
     const file = fs
       .readdirSync(PROSPECT_SNAPSHOT_DIR)
-      .filter((item) => /^nfl-draft-buzz-\d{4}-\d{2}\.json$/.test(item))
+      .filter(item => /^nfl-draft-buzz-\d{4}-\d{2}\.json$/.test(item))
       .sort()
       .at(-1);
     if (!file) return null;
@@ -794,8 +826,7 @@ export async function storeNflDraftBuzzProspectSnapshot(forceYears?: number[]): 
   const errors: string[] = [];
   let pageCount = 0;
 
-  scrapeYears:
-  for (const draftYear of years) {
+  scrapeYears: for (const draftYear of years) {
     for (const position of FANTASY_POSITIONS) {
       for (let page = 1; page <= MAX_PAGES_PER_POSITION; page += 1) {
         const sourceUrl = getSourceUrl(draftYear, position, page);
@@ -804,8 +835,7 @@ export async function storeNflDraftBuzzProspectSnapshot(forceYears?: number[]): 
             await sleep(PROSPECT_FETCH_DELAY_MS);
           }
           const markdown = await fetchProspectPageMarkdown(sourceUrl);
-          const parsed = parseNflDraftBuzzMarkdown(markdown, draftYear, sourceUrl)
-            .filter((profile) => profile.position === position);
+          const parsed = parseNflDraftBuzzMarkdown(markdown, draftYear, sourceUrl).filter(profile => profile.position === position);
           if (!parsed.length) break;
           players.push(...parsed);
           pageCount += 1;
@@ -822,26 +852,21 @@ export async function storeNflDraftBuzzProspectSnapshot(forceYears?: number[]): 
   }
 
   const previousSnapshot = errors.length ? await loadLatestStoredProspectSnapshot() : null;
-  if (pageCount === 0 && errors.length && previousSnapshot?.players?.length) {
+  const previousPlayersForYears = previousSnapshot?.players?.filter(profile => years.includes(profile.draftYear)) || [];
+  if (pageCount === 0 && errors.length && previousSnapshot && previousPlayersForYears.length) {
     console.warn('[NFL Draft Buzz] Scrape returned no readable pages; keeping the previous prospect snapshot unchanged');
     return {
       ...previousSnapshot,
       generatedAt: new Date().toISOString(),
+      yearsTracked: years,
       pageCount: 0,
-      errors: [
-        'Current scrape returned no readable pages; previous stored NFL Draft Buzz snapshot was kept unchanged.',
-        ...errors,
-        ...(previousSnapshot.errors || []),
-      ],
+      players: dedupeProspects(previousPlayersForYears),
+      errors: ['Current scrape returned no readable pages; previous stored NFL Draft Buzz snapshot was kept unchanged.', ...errors, ...(previousSnapshot.errors || [])],
     };
   }
 
-  const mergedPlayers = previousSnapshot?.players?.length
-    ? dedupeProspects([...previousSnapshot.players, ...players])
-    : dedupeProspects(players);
-  const yearsTracked = previousSnapshot?.yearsTracked?.length
-    ? Array.from(new Set([...previousSnapshot.yearsTracked, ...years])).sort((a, b) => a - b)
-    : years;
+  const mergedPlayers = previousPlayersForYears.length ? dedupeProspects([...previousPlayersForYears, ...players]) : dedupeProspects(players);
+  const yearsTracked = years;
 
   const payload: ProspectSnapshotPayload = {
     schemaVersion: 1,
@@ -868,21 +893,14 @@ export async function storeNflDraftBuzzProspectSnapshot(forceYears?: number[]): 
   return payload;
 }
 
-function buildDiagnostics(
-  payload: ProspectSnapshotPayload | null,
-  totalPlayerCount?: number,
-  espnSupplementalCount = 0,
-  espnErrors: string[] = []
-): ProspectSourceDiagnostics {
+function buildDiagnostics(payload: ProspectSnapshotPayload | null, totalPlayerCount?: number, espnSupplementalCount = 0, espnErrors: string[] = []): ProspectSourceDiagnostics {
   if (!payload) {
     return {
       source: SOURCE_NAME,
       status: espnSupplementalCount ? 'partial' : 'missing',
       playerCount: totalPlayerCount || 0,
       yearsTracked: [],
-      note: espnSupplementalCount
-        ? `${espnSupplementalCount} ESPN prospect profiles are available locally, but no monthly NFL Draft Buzz snapshot has been stored yet.`
-        : 'No monthly prospect snapshot has been stored yet. Prospect trait cards will stay hidden until the first successful monthly run.',
+      note: espnSupplementalCount ? `${espnSupplementalCount} ESPN prospect profiles are available locally, but no monthly NFL Draft Buzz snapshot has been stored yet.` : 'No monthly prospect snapshot has been stored yet. Prospect trait cards will stay hidden until the first successful monthly run.',
       errors: espnErrors.length ? espnErrors : undefined,
     };
   }
@@ -896,9 +914,7 @@ function buildDiagnostics(
     generatedAt: payload.generatedAt,
     playerCount,
     yearsTracked: payload.yearsTracked,
-    note: playerCount
-      ? `${playerCount} offensive prospect profiles are available for college/devy context${espnSupplementalCount ? `, including ${espnSupplementalCount} local ESPN enrichments` : ''}. This is context only and does not affect blended values.`
-      : 'The latest monthly prospect scrape did not return offensive players.',
+    note: playerCount ? `${playerCount} offensive prospect profiles are available for college/devy context${espnSupplementalCount ? `, including ${espnSupplementalCount} local ESPN enrichments` : ''}. This is context only and does not affect blended values.` : 'The latest monthly prospect scrape did not return offensive players.',
     errors,
   };
 }
@@ -908,17 +924,10 @@ export async function loadProspectContext(): Promise<ProspectContext> {
   const payload = await loadLatestStoredProspectSnapshot();
   const nflDraftBuzzSupplements = loadLocalNflDraftBuzzSupplements();
   const espnSnapshot = loadLocalEspnProspectSnapshot();
-  const profiles = mergeParsedProspects([
-    ...(payload?.players || []),
-    ...nflDraftBuzzSupplements.flatMap((supplement) => supplement.players),
-    ...(espnSnapshot?.players || []),
-  ]);
+  const profiles = mergeParsedProspects([...(payload?.players || []), ...nflDraftBuzzSupplements.flatMap(supplement => supplement.players), ...(espnSnapshot?.players || [])]);
   prospectContextCache = {
     profiles,
-    diagnostics: buildDiagnostics(payload, profiles.length, espnSnapshot?.players.length || 0, [
-      ...nflDraftBuzzSupplements.flatMap((supplement) => supplement.errors || []),
-      ...(espnSnapshot?.errors || []),
-    ]),
+    diagnostics: buildDiagnostics(payload, profiles.length, espnSnapshot?.players.length || 0, [...nflDraftBuzzSupplements.flatMap(supplement => supplement.errors || []), ...(espnSnapshot?.errors || [])]),
   };
   return prospectContextCache;
 }
@@ -930,14 +939,7 @@ export function buildProspectLookup(profiles: ProspectProfile[]): Map<string, Pr
     if (!nameKey) continue;
     const nameParts = nameKey.split(/\s+/).filter(Boolean);
     const firstLastKey = nameParts.length > 2 ? `${nameParts[0]} ${nameParts[nameParts.length - 1]}` : '';
-    const baseKeys = [
-      nameKey,
-      firstLastKey,
-      `${nameKey}:${profile.position}`,
-      firstLastKey && `${firstLastKey}:${profile.position}`,
-      `${nameKey}:${profile.draftYear}`,
-      firstLastKey && `${firstLastKey}:${profile.draftYear}`,
-    ].filter(Boolean) as string[];
+    const baseKeys = [nameKey, firstLastKey, `${nameKey}:${profile.position}`, firstLastKey && `${firstLastKey}:${profile.position}`, `${nameKey}:${profile.draftYear}`, firstLastKey && `${firstLastKey}:${profile.draftYear}`].filter(Boolean) as string[];
     const collegeKey = profile.college ? canonicalPlayerNameKey(profile.college) : '';
     for (const key of baseKeys) {
       if (!lookup.has(key)) lookup.set(key, profile);
@@ -947,13 +949,7 @@ export function buildProspectLookup(profiles: ProspectProfile[]): Map<string, Pr
   return lookup;
 }
 
-export function findProspectProfile(
-  lookup: Map<string, ProspectProfile>,
-  name?: string | null,
-  position?: string | null,
-  college?: string | null,
-  rookieYear?: string | number | null
-): ProspectProfile | null {
+export function findProspectProfile(lookup: Map<string, ProspectProfile>, name?: string | null, position?: string | null, college?: string | null, rookieYear?: string | number | null): ProspectProfile | null {
   const nameKey = canonicalPlayerNameKey(name || '');
   if (!nameKey) return null;
   const nameParts = nameKey.split(/\s+/).filter(Boolean);
@@ -961,22 +957,9 @@ export function findProspectProfile(
   const collegeKey = college ? canonicalPlayerNameKey(String(college)) : '';
   const draftYear = rookieYear ? String(rookieYear) : '';
   const positionKey = position ? String(position).toUpperCase() : '';
-  const keys = [
-    collegeKey && `${nameKey}:${positionKey}:${collegeKey}`,
-    firstLastKey && collegeKey && `${firstLastKey}:${positionKey}:${collegeKey}`,
-    collegeKey && `${nameKey}:${draftYear}:${collegeKey}`,
-    firstLastKey && collegeKey && `${firstLastKey}:${draftYear}:${collegeKey}`,
-    draftYear && `${nameKey}:${draftYear}`,
-    firstLastKey && draftYear && `${firstLastKey}:${draftYear}`,
-    positionKey && `${nameKey}:${positionKey}`,
-    firstLastKey && positionKey && `${firstLastKey}:${positionKey}`,
-    collegeKey && `${nameKey}:${collegeKey}`,
-    firstLastKey && collegeKey && `${firstLastKey}:${collegeKey}`,
-    nameKey,
-    firstLastKey,
-  ].filter(Boolean) as string[];
+  const keys = [collegeKey && `${nameKey}:${positionKey}:${collegeKey}`, firstLastKey && collegeKey && `${firstLastKey}:${positionKey}:${collegeKey}`, collegeKey && `${nameKey}:${draftYear}:${collegeKey}`, firstLastKey && collegeKey && `${firstLastKey}:${draftYear}:${collegeKey}`, draftYear && `${nameKey}:${draftYear}`, firstLastKey && draftYear && `${firstLastKey}:${draftYear}`, positionKey && `${nameKey}:${positionKey}`, firstLastKey && positionKey && `${firstLastKey}:${positionKey}`, collegeKey && `${nameKey}:${collegeKey}`, firstLastKey && collegeKey && `${firstLastKey}:${collegeKey}`, nameKey, firstLastKey].filter(Boolean) as string[];
 
-  return keys.map((key) => lookup.get(key)).find(Boolean) || null;
+  return keys.map(key => lookup.get(key)).find(Boolean) || null;
 }
 
 export function clearProspectContextCache() {

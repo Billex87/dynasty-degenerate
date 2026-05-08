@@ -44,7 +44,7 @@ function fileNameFromUrl(url) {
 function localPathForSource(url) {
   const fileName = fileNameFromUrl(url);
   if (!fileName) return null;
-  if (/\/Content\/PlayerHeadShots\//i.test(url)) return `player-headshots/${fileName}`;
+  if (/\/Content\/PlayerHeadShots(?:Small)?\//i.test(url)) return `player-headshots/${fileName}`;
   if (/\/Content\/collmascots\//i.test(url)) return `college-logos/${fileName}`;
   if (/\/Content\/NFLLogos\//i.test(url)) return `nfl-logos/${fileName.toLowerCase()}`;
   if (/\/i\/teamlogos\/ncaa\/500\/(\d+)\.png/i.test(url)) {
@@ -56,6 +56,22 @@ function localPathForSource(url) {
     return team ? `nfl-logos/${team.toLowerCase()}.png` : null;
   }
   return null;
+}
+
+function normalizeDraftBuzzAssetSourceUrl(url) {
+  const normalized = decodeHtmlEntities(url)
+    .replace('/Content/PlayerHeadShotsSmall/', '/Content/PlayerHeadShots/')
+    .replace('/Content/collmascotsSmall/', '/Content/collmascots/');
+  try {
+    const parsed = new URL(normalized);
+    if (parsed.hostname.endsWith('nfldraftbuzz.com')) {
+      parsed.protocol = 'https:';
+      return parsed.toString();
+    }
+  } catch {
+    return normalized;
+  }
+  return normalized;
 }
 
 function readConstRecord(source, constName) {
@@ -72,8 +88,8 @@ async function collectAssetUrls() {
     if (!file.endsWith('.json')) continue;
     const payload = JSON.parse(await fs.readFile(path.join(SNAPSHOT_DIR, file), 'utf-8'));
     for (const player of payload.players || []) {
-      if (player.playerImageUrl) urls.add(player.playerImageUrl);
-      if (player.collegeLogoUrl) urls.add(player.collegeLogoUrl);
+      if (player.playerImageUrl) urls.add(normalizeDraftBuzzAssetSourceUrl(player.playerImageUrl));
+      if (player.collegeLogoUrl) urls.add(normalizeDraftBuzzAssetSourceUrl(player.collegeLogoUrl));
     }
   }
 

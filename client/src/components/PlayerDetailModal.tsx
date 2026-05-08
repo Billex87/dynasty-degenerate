@@ -111,6 +111,7 @@ export function PlayerDetailModal({
   const pick = focusedPeerPick || selectedPick;
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
+  const [fallbackImageFailed, setFallbackImageFailed] = useState(false);
   const queryDetails = pick?.playerDetails;
   const queryIsCollegeProspect = isCollegeOnlyModalPick(pick, queryDetails);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
@@ -133,7 +134,8 @@ export function PlayerDetailModal({
   useEffect(() => {
     setHeadshot(null);
     setDirectImageFailed(false);
-  }, [pick?.player_id]);
+    setFallbackImageFailed(false);
+  }, [pick?.player_id, pick?.playerImageUrl]);
 
   useEffect(() => {
     setFocusedPeerPick(null);
@@ -153,9 +155,12 @@ export function PlayerDetailModal({
   const directHeadshot = !isCollegeProspect && pick.player_id && !directImageFailed
     ? `https://sleepercdn.com/content/nfl/players/${pick.player_id}.jpg`
     : null;
+  const fallbackDraftBuzzImage = !fallbackImageFailed
+    ? getCachedDraftBuzzImageUrl(pick.playerImageUrl || prospectProfile?.playerImageUrl || null)
+    : null;
   const playerImageSrc = isCollegeProspect
-    ? getCachedDraftBuzzImageUrl(pick.playerImageUrl || prospectProfile?.playerImageUrl || prospectProfile?.collegeLogoUrl || null)
-    : headshot || directHeadshot;
+    ? fallbackDraftBuzzImage || getCachedDraftBuzzImageUrl(prospectProfile?.collegeLogoUrl || null)
+    : headshot || directHeadshot || fallbackDraftBuzzImage;
   const valueProfile = details?.valueProfile;
   const valueMode = pick.valueMode || 'dynasty';
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
@@ -414,8 +419,12 @@ export function PlayerDetailModal({
                       alt={pick.playerName}
                       className="h-full w-full object-cover"
                       onError={() => {
-                        if (directHeadshot && !directImageFailed) {
+                        if (playerImageSrc === directHeadshot && !directImageFailed) {
                           setDirectImageFailed(true);
+                          return;
+                        }
+                        if (playerImageSrc === fallbackDraftBuzzImage) {
+                          setFallbackImageFailed(true);
                           return;
                         }
                         setHeadshot(null);

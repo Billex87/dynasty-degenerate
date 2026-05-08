@@ -4,14 +4,17 @@ import { trpc } from '@/lib/trpc';
 interface PlayerNameWithHeadshotProps {
   playerId?: string;
   playerName: string;
+  fallbackImageUrl?: string | null;
 }
 
 export function PlayerNameWithHeadshot({
   playerId,
   playerName,
+  fallbackImageUrl,
 }: PlayerNameWithHeadshotProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
+  const [fallbackImageFailed, setFallbackImageFailed] = useState(false);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
     { playerId: playerId || '' },
     { enabled: !!playerId && directImageFailed }
@@ -20,7 +23,8 @@ export function PlayerNameWithHeadshot({
   useEffect(() => {
     setHeadshot(null);
     setDirectImageFailed(false);
-  }, [playerId]);
+    setFallbackImageFailed(false);
+  }, [playerId, fallbackImageUrl]);
 
   useEffect(() => {
     if (headshotData?.success && headshotData?.data) {
@@ -39,7 +43,8 @@ export function PlayerNameWithHeadshot({
   const directHeadshot = playerId
     ? `https://sleepercdn.com/content/nfl/players/${playerId}.jpg`
     : null;
-  const imageSrc = headshot || (!directImageFailed ? directHeadshot : null);
+  const fallbackImage = fallbackImageUrl && !fallbackImageFailed ? fallbackImageUrl : null;
+  const imageSrc = headshot || (!directImageFailed ? directHeadshot : null) || fallbackImage;
 
   return (
     <div className="interactive-identity player-chip flex min-w-0 items-center gap-2">
@@ -49,8 +54,12 @@ export function PlayerNameWithHeadshot({
           alt={playerName}
           className="interactive-identity-avatar h-7 w-7 flex-shrink-0 rounded-full border border-orange-300/40 object-cover shadow-sm shadow-black/30"
           onError={() => {
-            if (!directImageFailed && directHeadshot) {
+            if (imageSrc === directHeadshot && !directImageFailed) {
               setDirectImageFailed(true);
+              return;
+            }
+            if (imageSrc === fallbackImage) {
+              setFallbackImageFailed(true);
               return;
             }
             setHeadshot(null);

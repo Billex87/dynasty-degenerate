@@ -271,7 +271,7 @@ export function getCachedDraftBuzzImageUrl(url?: string | null): string | null {
   const fileName = fileNameFromAssetUrl(trimmed);
   if (!fileName) return trimmed;
 
-  if (/\/Content\/PlayerHeadShots\//i.test(trimmed)) {
+  if (/\/Content\/PlayerHeadShots(?:Small)?\//i.test(trimmed)) {
     const localPath = `player-headshots/${fileName}`;
     return MISSING_CACHED_DRAFT_BUZZ_ASSETS.has(localPath) ? null : `${DRAFT_BUZZ_ASSET_BASE}/${localPath}`;
   }
@@ -317,6 +317,7 @@ export function normalizeNflTeamAbbr(team?: string | null): string | null {
   const normalized = (team || '').trim().toUpperCase();
   if (!normalized || normalized === 'FA') return null;
   if (normalized === 'JAC') return 'JAX';
+  if (normalized === 'WSH') return 'WAS';
   return normalized;
 }
 

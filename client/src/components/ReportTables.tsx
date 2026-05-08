@@ -2479,6 +2479,18 @@ type DynastyAiSuggestion = {
   wide?: boolean;
 };
 
+const AI_RECOMMENDATION_BADGE_LABEL = 'AI TARGET';
+const AI_RECOMMENDATION_BANNER_LABEL = 'AI PICKUP SIGNAL';
+const AI_NEURAL_SURFACE_CLASS = 'ai-neural-surface';
+
+function getAiNeuralSurfaceClass(theme: DynastyAiTheme = 'neutral', extraClassName = '') {
+  return [
+    AI_NEURAL_SURFACE_CLASS,
+    `${AI_NEURAL_SURFACE_CLASS}-${theme}`,
+    extraClassName,
+  ].filter(Boolean).join(' ');
+}
+
 const STARTING_ROSTER_STRENGTH_TITLE = 'Projected Lineup Slot Ranks';
 const STARTING_ROSTER_STRENGTH_COMPARISON = 'league rank by required lineup slot';
 const STARTING_ROSTER_STRENGTH_NOTE = 'Ranks this manager’s projected lineup against every roster using this league’s actual required slots. QB/SF includes the superflex QB path; K and DEF appear only when the league starts them.';
@@ -5168,7 +5180,7 @@ export function LeagueCommandCenter({
                   </div>
                 </div>
               </div>
-              <div className="manager-command-section manager-command-read manager-command-ai-read">
+              <div className={getAiNeuralSurfaceClass('window', 'manager-command-section manager-command-read manager-command-ai-read')}>
                 <h4>Season AI Read</h4>
                 <p>{rosterRead}</p>
                 {seasonInsuranceRead ? (
@@ -5636,13 +5648,19 @@ export function OwnerIntelMatrix({
                     <p>{selectedTradeDraftProfile}</p>
                   </div>
                   {selectedAiSuggestions.map((card) => (
-                    <div key={`${card.title}-${card.copy}`} className={`owner-intel-ai-card owner-intel-ai-card-${card.tone} ${card.theme ? `owner-intel-ai-theme-${card.theme}` : ''} ${card.wide ? 'owner-intel-read-wide' : ''}`}>
+                    <div
+                      key={`${card.title}-${card.copy}`}
+                      className={getAiNeuralSurfaceClass(
+                        card.theme || 'neutral',
+                        `owner-intel-ai-card owner-intel-ai-card-${card.tone} ${card.theme ? `owner-intel-ai-theme-${card.theme}` : ''} ${card.wide ? 'owner-intel-read-wide' : ''}`,
+                      )}
+                    >
                       <h4>{card.title}</h4>
                       <p>{card.copy}</p>
                     </div>
                   ))}
                   {selectedActionNotes.length ? (
-                    <div className="owner-intel-wild-notes">
+                    <div className={getAiNeuralSurfaceClass('neutral', 'owner-intel-wild-notes')}>
                       <h4>Dynasty AI Notes</h4>
                       <ul>
                         {selectedActionNotes.map((note) => (
@@ -6942,6 +6960,7 @@ export function TradeHistoryTable({
   currentStandings: _currentStandings,
   standingsHistory,
   leagueValueMode = 'dynasty',
+  variant = 'inline',
 }: {
   data: ReportData['tradeHistory'];
   draftPicks?: DraftPick[];
@@ -6957,10 +6976,12 @@ export function TradeHistoryTable({
   currentStandings?: ReportData['currentStandings'];
   standingsHistory?: ReportData['standingsHistory'];
   leagueValueMode?: ReportData['leagueValueMode'];
+  variant?: 'inline' | 'modal';
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [collapsedTradeYears, setCollapsedTradeYears] = useState<Set<string>>(new Set());
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const isModal = variant === 'modal';
   const orderedTrades = [...data].reverse();
   const tradeYears = Array.from(new Set(orderedTrades.map((row) => row.date.slice(0, 4))));
   const toggleTradeYear = (year: string) => {
@@ -6977,8 +6998,8 @@ export function TradeHistoryTable({
   };
 
   return (
-    <div className="flex justify-center">
-      <Card className="trade-ledger-card bg-slate-900 border-slate-800 overflow-hidden">
+    <div className={`trade-ledger-shell ${isModal ? 'trade-ledger-shell-modal' : 'flex justify-center'}`}>
+      <Card className={`trade-ledger-card ${isModal ? 'trade-ledger-card-modal' : ''} bg-slate-900 border-slate-800 overflow-hidden`}>
       <div className="overflow-visible">
         <Table className="trade-ledger-table">
           <TableHeader className="border-b-2 border-orange-500/30">
@@ -8109,7 +8130,7 @@ function buildWaiverRecommendationContext({
     .map((recommendation) => `${recommendation.player.name}: ${recommendation.reason}`)
     .join(' Next: ');
   const summary = recommendations.length
-    ? `${openSpotCopy}${irSpotCopy} Suggested pickup${featuredRecommendationCount > 1 ? 's' : ''}: ${featuredRecommendationCopy}. ${targetCopy}`
+    ? `${openSpotCopy}${irSpotCopy} Signal read: ${featuredRecommendationCopy}. ${targetCopy}`
     : null;
 
   return {
@@ -8183,7 +8204,7 @@ export function WaiverIntelligencePanel({
     <div className="waiver-intel-panel">
       {recommendationContext.summary && (
         <div className="waiver-intel-recommendation-banner">
-          <span>Suggested pickups</span>
+          <span>{AI_RECOMMENDATION_BANNER_LABEL}</span>
           <p>{recommendationContext.summary}</p>
         </div>
       )}
@@ -8199,7 +8220,7 @@ export function WaiverIntelligencePanel({
             <button
               key={`${label}-${player.player_id}`}
               type="button"
-              className={`player-team-tile waiver-intel-card ${recommendation ? 'waiver-intel-card-suggested' : ''}`}
+              className={`player-team-tile waiver-intel-card ${recommendation ? getAiNeuralSurfaceClass('trade', 'waiver-intel-card-suggested') : ''}`}
               style={getTeamTileStyle(details?.team || player.team)}
               onClick={() => setSelectedPlayer(buildPlayerModalData({
                 playerId: player.player_id,
@@ -8215,8 +8236,8 @@ export function WaiverIntelligencePanel({
             >
               <div className="waiver-intel-top">
                 <span className="waiver-intel-label">{label}</span>
-                <span className={recommendation ? 'waiver-intel-suggestion-label' : 'available-manager-label'}>
-                  {recommendation ? 'Suggested Add' : 'Available'}
+                <span className={recommendation ? 'waiver-intel-suggestion-label ai-recommendation-badge' : 'available-manager-label'}>
+                  {recommendation ? AI_RECOMMENDATION_BADGE_LABEL : 'Available'}
                 </span>
               </div>
               <PlayerIdentityRow
@@ -8367,13 +8388,13 @@ export function RecentTransactionsPanel({
     return (
       <button
         type="button"
-        className="player-team-tile recent-transaction-player recent-transaction-player-suggestion"
+        className={getAiNeuralSurfaceClass('trade', 'player-team-tile recent-transaction-player recent-transaction-player-suggestion')}
         style={getTeamTileStyle(details?.team || player.team)}
         onClick={() => openSuggestedAddPlayer(player)}
       >
         <div className="recent-transaction-player-head">
-          <span className="recent-transaction-player-label recent-transaction-player-label-suggestion">
-            Better Add
+          <span className="recent-transaction-player-label recent-transaction-player-label-suggestion ai-recommendation-badge">
+            {AI_RECOMMENDATION_BADGE_LABEL}
           </span>
         </div>
         <PlayerIdentityRow
@@ -9311,7 +9332,7 @@ export function ManagerPositionCountsTable({
                     })}
                   </div>
                 )}
-                <div className="manager-command-section manager-command-read manager-command-ai-read starter-depth-count-read">
+                <div className={getAiNeuralSurfaceClass('window', 'manager-command-section manager-command-read manager-command-ai-read starter-depth-count-read')}>
                   <h4>Roster Count AI Read</h4>
                   <p>{buildManagerPositionCountAiRead(selectedManager, data, selectedDepthSignals, visibleCountPositions)}</p>
                 </div>
