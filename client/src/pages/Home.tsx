@@ -2168,7 +2168,7 @@ export default function Home() {
                     />
                   )}
                 </CollapsibleReportSection>
-                {!isRedraftReport && (
+                {canViewMomentumTab && !isRedraftReport && (
                   <CollapsibleReportSection title="College Rankings" kicker="Future rookie pipeline">
                     {rankingsQuery.isLoading && !rankingsForReport ? (
                       <div className="rankings-empty-state">Loading college prospect rankings...</div>
@@ -2186,7 +2186,7 @@ export default function Home() {
                     )}
                   </CollapsibleReportSection>
                 )}
-                {!isRedraftReport && (
+                {canViewMomentumTab && !isRedraftReport && (
                   <CollapsibleReportSection
                     title="Prospect Score Archive"
                     kicker="Scouting data archive"
@@ -2228,20 +2228,22 @@ export default function Home() {
 
             <TabsContent value="trades" className="report-tab-content">
               <div className="trade-sections space-y-6 sm:space-y-8">
-                <CollapsibleReportSection title="Trade War Room" kicker="Context-aware calculator">
-                  <TradeWarRoom
-                    data={reportData.managerRosterIntelligence}
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueOverview={reportData.leagueOverview}
-                    powerRankings={reportData.powerRankings}
-                    dynastyTimelines={reportData.dynastyTimelines}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    viewerManager={reportData.viewerManager}
-                    currentStandings={reportData.currentStandings}
-                  />
-                </CollapsibleReportSection>
+                {canViewMomentumTab && (
+                  <CollapsibleReportSection title="Trade War Room" kicker="Context-aware calculator">
+                    <TradeWarRoom
+                      data={reportData.managerRosterIntelligence}
+                      managerAvatars={reportData.managerAvatars}
+                      playerDetailsById={reportData.playerDetailsById}
+                      leagueOverview={reportData.leagueOverview}
+                      powerRankings={reportData.powerRankings}
+                      dynastyTimelines={reportData.dynastyTimelines}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                      viewerManager={reportData.viewerManager}
+                      currentStandings={reportData.currentStandings}
+                    />
+                  </CollapsibleReportSection>
+                )}
                 <CollapsibleReportSection title="All-Time Trade Profit Leaderboard" kicker="Net trade edge">
                   <TradeProfitLeaderboardTable
                     data={reportData.tradeProfitLeaderboard}
