@@ -4,13 +4,7 @@
   "outputDirectory": "dist/public",
   "functions": {
     "api/**/*.js": {
-      "includeFiles": [
-        "dist/vercelApp.js",
-        "server/ktc-static/*.json",
-        "server/ktc-snapshots/*.json",
-        "server/prospect-snapshots/*.json",
-        "server/rookie-values/*.json"
-      ]
+      "includeFiles": "{dist/vercelApp.js,server/ktc-static/*.json,server/ktc-snapshots/*.json,server/prospect-snapshots/*.json,server/rookie-values/*.json}"
     }
   },
   "headers": [
