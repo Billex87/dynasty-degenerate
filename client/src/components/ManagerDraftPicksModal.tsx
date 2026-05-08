@@ -250,6 +250,7 @@ export function ManagerDraftPicksModal({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerName ? { [managerName]: managerAvatarUrl || null } : undefined}
+        playerDetailsById={playerDetailsById}
       />
     </>
   );

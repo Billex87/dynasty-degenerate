@@ -2673,26 +2673,28 @@ export const appRouter = router({
             ...waiverIntelligence.bestTaxiStashes.map((player) => player.player_id),
             ...waiverIntelligence.recentlyDroppedValuable.map((player) => player.player_id),
           ];
+          const similarTradeValuesById = buildSimilarTradeValueMap(reportPlayerIds, players, ktcValues, leagueValueMode, allValueProfilesById);
+          const tradeCompPlayerIds = Object.values(similarTradeValuesById)
+            .flatMap((peers) => peers.map((peer) => peer.playerId));
+          const detailPlayerIds = Array.from(new Set([...reportPlayerIds, ...tradeCompPlayerIds].filter((playerId): playerId is string => Boolean(playerId))));
           const valueProfilesById = Object.fromEntries(
-            reportPlayerIds
-              .filter((playerId, index, arr) => Boolean(playerId) && arr.indexOf(playerId) === index)
+            detailPlayerIds
               .map((playerId) => [playerId, allValueProfilesById[playerId]])
               .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
           );
-          const similarTradeValuesById = buildSimilarTradeValueMap(reportPlayerIds, players, ktcValues, leagueValueMode, allValueProfilesById);
           const availabilityHistoryById = await fetchPlayerAvailabilityHistory(
-            reportPlayerIds,
+            detailPlayerIds,
             players,
             leagueInfo.scoring_settings,
             lastCompletedSeason,
             3
           );
           const latestNewsByPlayerId = buildLatestNewsByPlayerId(
-            reportPlayerIds,
+            detailPlayerIds,
             players,
             await fetchFantasyProsNews()
           );
-          const playerDetailsById = buildPlayerDetailsMap(reportPlayerIds, players, rosterStatusByPlayerId, prospectLookup);
+          const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, prospectLookup);
           markAnalyzeStep('player detail assembly');
 
           const analyzePayload = {
@@ -2727,7 +2729,7 @@ export const appRouter = router({
                   },
                 ])
               ),
-              currentPositionRankById: buildPrimaryPositionRankMap(reportPlayerIds, players, ktcValues, valueProfilesById, leagueValueMode),
+              currentPositionRankById: buildPrimaryPositionRankMap(detailPlayerIds, players, ktcValues, valueProfilesById, leagueValueMode),
               trendingAdds,
               trendingDrops,
               pickPortfolios,

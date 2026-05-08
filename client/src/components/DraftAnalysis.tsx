@@ -423,6 +423,7 @@ export function DraftAnalysis({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );

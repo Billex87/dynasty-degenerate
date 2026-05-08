@@ -1065,25 +1065,25 @@ function buildTradeOutcomeReview({
       {
         label: 'Realized Edge',
         value: valueGap.toLocaleString(),
-        note: `${leadingSide.manager} over ${trailingSide.manager}`,
+        note: `${leadingSide.manager} context-adjusted value edge over ${trailingSide.manager}`,
         tone: valueGap >= 1000 ? 'good' : valueGap >= 300 ? 'neutral' : 'bad',
       },
       {
-        label: 'Value Momentum',
-        value: `${leadingSide.valueDelta >= 0 ? '+' : ''}${leadingSide.valueDelta.toLocaleString()}`,
-        note: `${leadingSide.manager}'s asset gain/loss from trade basis`,
+        label: 'Asset Change',
+        value: formatOutcomeDeltaLabel(leadingSide.valueDelta),
+        note: `current value minus trade-day value for ${leadingSide.manager}'s side`,
         tone: leadingSide.valueDelta > 0 ? 'good' : leadingSide.valueDelta < 0 ? 'bad' : 'neutral',
       },
       {
         label: 'Lineup Signal',
-        value: hasLineupSignal ? `+${formatCompactValue(seasonGap)}` : 'Thin',
-        note: hasLineupSignal ? `${seasonLeader.manager} current lineup-value lean; not wins` : 'no clear weekly lineup-value lean',
+        value: hasLineupSignal ? `Lean +${formatCompactValue(seasonGap)}` : 'Thin',
+        note: hasLineupSignal ? `${seasonLeader.manager} current weekly lineup-value lean, not projected wins` : 'no clear weekly lineup-value lean',
         tone: hasLineupSignal ? 'good' : 'neutral',
       },
       {
         label: 'Actual Record',
         value: recordMetricValue,
-        note: records.length === 2 ? 'post-trade standings context only' : 'current league standings are not meaningful yet',
+        note: records.length === 2 ? 'standings context, not trade credit' : 'current league standings are not meaningful yet',
         tone: 'neutral',
       },
     ],
@@ -1097,6 +1097,11 @@ function buildTradeOutcomeReview({
   };
 }
 
+function formatOutcomeDeltaLabel(value: number): string {
+  if (value === 0) return 'No change';
+  return `${value > 0 ? 'Gained' : 'Lost'} ${Math.abs(value).toLocaleString()}`;
+}
+
 function renderOutcomeAssetLine(asset: TradeOutcomeAsset) {
   const resolvedText = asset.kind === 'pick' && asset.name && asset.name !== asset.label
     ? ` -> ${asset.name}`
@@ -1107,8 +1112,12 @@ function renderOutcomeAssetLine(asset: TradeOutcomeAsset) {
   return (
     <li key={asset.id}>
       <span>{asset.label}{childText}</span>
-      <strong className={asset.valueDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
-        {asset.valueDelta >= 0 ? '+' : ''}{asset.valueDelta.toLocaleString()}
+      <strong
+        className={asset.valueDelta > 0 ? 'text-emerald-300' : asset.valueDelta < 0 ? 'text-rose-300' : 'text-slate-300'}
+        title="Current value minus the value at the time of the trade"
+      >
+        <span className="trade-outcome-change-label">Value change</span>
+        <span>{formatOutcomeDeltaLabel(asset.valueDelta)}</span>
       </strong>
     </li>
   );
@@ -1153,6 +1162,68 @@ function TradeOutcomePanel({ outcome }: { outcome: TradeOutcomeReview }) {
           <li key={note}>{note}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function getTradeFairnessSuggestionCopy(suggestion: TradeFairnessSuggestion): string {
+  return `${suggestion.fromManager} should have added ${suggestion.player.name} to ${suggestion.toManager}'s side to make this trade closer to even.`;
+}
+
+function TradeFairnessCard({
+  suggestion,
+  leagueValueMode,
+  managerAvatars,
+  playerDetailsById,
+  onPlayerClick,
+}: {
+  suggestion: TradeFairnessSuggestion;
+  leagueValueMode: ReportData['leagueValueMode'];
+  managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
+  onPlayerClick?: (player: PlayerModalData) => void;
+}) {
+  const playerDetails = suggestion.player.playerDetails || playerDetailsById?.[suggestion.player.player_id];
+
+  return (
+    <div className="trade-fairness-card">
+      <div>
+        <span>Balancing Piece</span>
+        <p>{getTradeFairnessSuggestionCopy(suggestion)}</p>
+      </div>
+      <button
+        type="button"
+        className="trade-fairness-player"
+        style={getTeamTileStyle(playerDetails?.team)}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!onPlayerClick) return;
+          onPlayerClick(buildPlayerModalData({
+            playerId: suggestion.player.player_id,
+            playerName: suggestion.player.name,
+            playerPos: suggestion.player.pos,
+            value: suggestion.player.value,
+            playerDetails,
+            playerDetailsById,
+            manager: suggestion.player.owner || suggestion.fromManager,
+            managerAvatarUrl: managerAvatars?.[suggestion.fromManager],
+            currentPositionRank: suggestion.player.currentPositionRank || suggestion.player.seasonPositionRank,
+          }));
+        }}
+      >
+        <PlayerNameWithHeadshot
+          playerId={suggestion.player.player_id}
+          playerName={suggestion.player.name}
+          team={playerDetails?.team}
+          position={suggestion.player.pos}
+        />
+        {leagueValueMode === 'redraft' ? (
+          <span className="trade-fairness-value">{formatCompactValue(suggestion.displayValue)}</span>
+        ) : (
+          <PositionRankPill rank={suggestion.displayRank || suggestion.player.pos} />
+        )}
+      </button>
     </div>
   );
 }
@@ -1209,7 +1280,8 @@ function TradeDetailPanel({
   return (
     <div className="trade-detail-panel">
       <div className="trade-detail-header">
-        <div>
+        <div className="trade-detail-heading">
+          <div className="trade-detail-kicker">Trade Detail</div>
           <div className="trade-detail-title">Trade Ledger</div>
           {tradeLensNote && (
             <p className="mt-1 max-w-xl text-xs text-cyan-200/75">
@@ -1217,51 +1289,23 @@ function TradeDetailPanel({
             </p>
           )}
         </div>
-        <div className="trade-detail-gap">
-          <span>Gap</span>
-          <strong>{tradeEvaluation.pointGap.toLocaleString()}</strong>
+        <div className={`trade-detail-decision-bar ${fairnessSuggestion ? 'trade-detail-decision-bar-with-balance' : ''}`}>
+          <div className="trade-detail-gap">
+            <span>Value Gap</span>
+            <strong>{tradeEvaluation.pointGap.toLocaleString()}</strong>
+            <small>context-adjusted edge</small>
+          </div>
+          {fairnessSuggestion && (
+            <TradeFairnessCard
+              suggestion={fairnessSuggestion}
+              leagueValueMode={leagueValueMode}
+              managerAvatars={managerAvatars}
+              playerDetailsById={playerDetailsById}
+              onPlayerClick={onPlayerClick}
+            />
+          )}
         </div>
       </div>
-      {fairnessSuggestion && (
-        <div className="trade-fairness-card">
-          <div>
-            <span>Balancing Piece</span>
-          </div>
-          <button
-            type="button"
-            className="trade-fairness-player"
-            style={getTeamTileStyle(playerDetailsById?.[fairnessSuggestion.player.player_id]?.team || fairnessSuggestion.player.playerDetails?.team)}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (!onPlayerClick) return;
-              onPlayerClick(buildPlayerModalData({
-                playerId: fairnessSuggestion.player.player_id,
-                playerName: fairnessSuggestion.player.name,
-                playerPos: fairnessSuggestion.player.pos,
-                value: fairnessSuggestion.player.value,
-                playerDetails: fairnessSuggestion.player.playerDetails || playerDetailsById?.[fairnessSuggestion.player.player_id],
-                playerDetailsById,
-                manager: fairnessSuggestion.player.owner || fairnessSuggestion.fromManager,
-                managerAvatarUrl: managerAvatars?.[fairnessSuggestion.fromManager],
-                currentPositionRank: fairnessSuggestion.player.currentPositionRank || fairnessSuggestion.player.seasonPositionRank,
-              }));
-            }}
-          >
-            <PlayerNameWithHeadshot
-              playerId={fairnessSuggestion.player.player_id}
-              playerName={fairnessSuggestion.player.name}
-              team={fairnessSuggestion.player.playerDetails?.team}
-              position={fairnessSuggestion.player.pos}
-            />
-            {leagueValueMode === 'redraft' ? (
-              <span className="trade-fairness-value">{formatCompactValue(fairnessSuggestion.displayValue)}</span>
-            ) : (
-              <PositionRankPill rank={fairnessSuggestion.displayRank || fairnessSuggestion.player.pos} />
-            )}
-          </button>
-        </div>
-      )}
       <TradeOutcomePanel outcome={outcomeReview} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         {[leftSide, rightSide].map((side) => {
@@ -5246,6 +5290,7 @@ export function LeagueCommandCenter({
       leagueId={leagueId}
       leagueLogo={leagueLogo}
       managerAvatars={managerAvatars}
+      playerDetailsById={data.playerDetailsById}
     />
     </>
   );
@@ -5443,6 +5488,7 @@ export function ManagerIntelligenceCards({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </>
   );
@@ -5729,6 +5775,7 @@ export function OwnerIntelMatrix({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={data.playerDetailsById}
       />
     </>
   );
@@ -5939,6 +5986,7 @@ export function WeeklyMomentumTable({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -6053,6 +6101,7 @@ export function TrendingPlayersTable({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -6155,6 +6204,7 @@ export function ProjectedMoversTable({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -6700,6 +6750,7 @@ export function TradeWarRoom({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -6998,6 +7049,7 @@ export function TradeProfitLeaderboardTable({
                 leagueId={leagueId}
                 leagueLogo={leagueLogo}
                 managerAvatars={managerAvatars}
+                playerDetailsById={playerDetailsById}
               />
             </div>
           )}
@@ -7019,7 +7071,7 @@ export function TradeHistoryTable({
   leagueId,
   leagueLogo,
   viewerManager: _viewerManager,
-  currentStandings: _currentStandings,
+  currentStandings,
   standingsHistory,
   leagueValueMode = 'dynasty',
   variant = 'inline',
@@ -7040,14 +7092,16 @@ export function TradeHistoryTable({
   leagueValueMode?: ReportData['leagueValueMode'];
   variant?: 'inline' | 'modal';
 }) {
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [collapsedTradeYears, setCollapsedTradeYears] = useState<Set<string>>(new Set());
+  const [selectedTradeDetail, setSelectedTradeDetail] = useState<{
+    row: ReportData['tradeHistory'][number];
+    sideOrder: [string, string];
+  } | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const isModal = variant === 'modal';
   const orderedTrades = [...data].reverse();
   const tradeYears = Array.from(new Set(orderedTrades.map((row) => row.date.slice(0, 4))));
   const toggleTradeYear = (year: string) => {
-    setExpandedIdx(null);
     setCollapsedTradeYears((current) => {
       const next = new Set(current);
       if (next.has(year)) {
@@ -7103,7 +7157,6 @@ export function TradeHistoryTable({
 
                   {!isYearCollapsed && yearTrades.map((row) => {
               const idx = orderedTrades.indexOf(row);
-              const isExpanded = expandedIdx === idx;
               const tradeEvaluation = buildTradeLedgerEvaluation(row, dynastyTimelines, managerRosterIntelligence, playerDetailsById, draftPicks);
               const { winners, loserName } = getTradeDisplaySides(row, tradeEvaluation);
               const tradeKey = `${row.date}-${row.team_a}-${row.team_b}-${idx}`;
@@ -7113,17 +7166,28 @@ export function TradeHistoryTable({
                 : [row.team_a, row.team_b];
               const gapVerdict = getTradeGapVerdict(tradeEvaluation.pointGap);
               const tradeLensNote = getTradeLensSourceNote(row);
+              const fairnessSuggestion = buildTradeFairnessSuggestion(row, tradeEvaluation, leagueValueMode);
+              const openTradeDetail = () => setSelectedTradeDetail({ row, sideOrder: summaryManagers });
 
               return (
                 <React.Fragment key={`${tradeKey}-fragment`}>
                   <TableRow
                     key={`${tradeKey}-main`}
                     className="trade-ledger-row border-slate-700 hover:bg-slate-800/30 cursor-pointer"
-                      onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                    role="button"
+                    tabIndex={0}
+                    aria-haspopup="dialog"
+                    aria-label={`Open trade detail for ${row.date}: ${row.team_a} and ${row.team_b}`}
+                    onClick={openTradeDetail}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      event.preventDefault();
+                      openTradeDetail();
+                    }}
                     >
                     <TableCell className="trade-date-cell text-slate-300 text-sm">
                       <div className="trade-date-main flex items-center gap-2">
-                        <ChevronDown className={`h-4 w-4 text-orange-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        <ArrowRight className="trade-row-open-icon h-4 w-4 text-orange-300 transition-transform" aria-hidden="true" />
                         <span>{row.date}</span>
                         {tradeLensNote ? (
                           <span
@@ -7139,6 +7203,7 @@ export function TradeHistoryTable({
                         <span className="trade-mobile-vs">vs</span>
                         {renderTradeSummaryManager(summaryManagers[1], winners.includes(summaryManagers[1]), managerAvatars)}
                       </div>
+                      <div className="trade-row-open-copy">Open full trade detail</div>
                     </TableCell>
                     <TableCell className="trade-ledger-manager-cell font-semibold text-sm text-orange-300">
                       {winners.map((winner) => (
@@ -7164,31 +7229,20 @@ export function TradeHistoryTable({
                       <span className={`trade-gap-verdict ${gapVerdict.className}`}>
                         {gapVerdict.label}
                       </span>
-                      <span className="value-pill">{tradeEvaluation.pointGap.toLocaleString()}</span>
+                      <span className="value-pill" title="Context-adjusted value gap">
+                        {tradeEvaluation.pointGap.toLocaleString()}
+                      </span>
+                      {fairnessSuggestion && (
+                        <span
+                          className="trade-row-balance-chip"
+                          title={getTradeFairnessSuggestionCopy(fairnessSuggestion)}
+                        >
+                          <span>Balancing Piece</span>
+                          <strong>{fairnessSuggestion.player.name}</strong>
+                        </span>
+                      )}
                     </TableCell>
                   </TableRow>
-
-                  {isExpanded && (
-                    <TableRow key={`${tradeKey}-details`} className="border-slate-700 bg-slate-950/35">
-                      <TableCell colSpan={4} className="trade-detail-cell p-3 sm:p-6">
-                        <TradeDetailPanel
-                          row={row}
-                          draftPicks={draftPicks}
-                          managerAvatars={managerAvatars}
-                          playerDetailsById={playerDetailsById}
-                          currentPositionRankById={currentPositionRankById}
-                          managerRosterIntelligence={managerRosterIntelligence}
-                          dynastyTimelines={dynastyTimelines}
-                          leagueOverview={leagueOverview}
-                          sideOrder={summaryManagers}
-                          standingsHistory={standingsHistory}
-                          currentStandings={_currentStandings}
-                          leagueValueMode={leagueValueMode}
-                          onPlayerClick={setSelectedPlayer}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  )}
                 </React.Fragment>
                   );
                   })}
@@ -7199,6 +7253,37 @@ export function TradeHistoryTable({
         </Table>
       </div>
     </Card>
+      <Dialog
+        open={selectedTradeDetail !== null}
+        onOpenChange={(open) => {
+          if (open) return;
+          setSelectedTradeDetail(null);
+        }}
+      >
+        <DialogContent className="trade-detail-modal max-h-[88vh] max-w-[calc(100vw-1rem)] overflow-y-auto border-cyan-300/20 bg-slate-950 p-3 text-slate-100 sm:max-w-4xl sm:p-5">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Trade Ledger Detail</DialogTitle>
+            <DialogDescription>Expanded trade ledger details for the selected trade.</DialogDescription>
+          </DialogHeader>
+          {selectedTradeDetail && (
+            <TradeDetailPanel
+              row={selectedTradeDetail.row}
+              draftPicks={draftPicks}
+              managerAvatars={managerAvatars}
+              playerDetailsById={playerDetailsById}
+              currentPositionRankById={currentPositionRankById}
+              managerRosterIntelligence={managerRosterIntelligence}
+              dynastyTimelines={dynastyTimelines}
+              leagueOverview={leagueOverview}
+              sideOrder={selectedTradeDetail.sideOrder}
+              standingsHistory={standingsHistory}
+              currentStandings={currentStandings}
+              leagueValueMode={leagueValueMode}
+              onPlayerClick={setSelectedPlayer}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}
@@ -7206,6 +7291,7 @@ export function TradeHistoryTable({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -7297,6 +7383,7 @@ export function StarterBenchSnapshot({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -7653,6 +7740,7 @@ export function TradeTheftDetector({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -8345,6 +8433,7 @@ export function WaiverIntelligencePanel({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -8603,6 +8692,7 @@ export function RecentTransactionsPanel({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -8926,6 +9016,7 @@ export function TradeMarketRadar({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );
@@ -9492,6 +9583,7 @@ export function ManagerPositionCountsTable({
         leagueId={leagueId}
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
+        playerDetailsById={playerDetailsById}
       />
     </div>
   );

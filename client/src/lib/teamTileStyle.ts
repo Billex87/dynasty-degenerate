@@ -431,5 +431,6 @@ export function getCollegeLogoUrl(college?: string | null, preferredLogoUrl?: st
 export function getNflTeamLogoUrl(team?: string | null): string | null {
   const normalized = normalizeNflTeamAbbr(team);
   if (!normalized) return null;
-  return `${DRAFT_BUZZ_ASSET_BASE}/nfl-logos/${normalized.toLowerCase()}.png`;
+  const assetAbbr = normalized === 'WAS' ? 'wsh' : normalized.toLowerCase();
+  return `${DRAFT_BUZZ_ASSET_BASE}/nfl-logos/${assetAbbr}.png`;
 }

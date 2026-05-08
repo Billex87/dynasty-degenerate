@@ -63,6 +63,7 @@ interface PlayerDetailModalProps {
   leagueId?: string;
   leagueLogo?: string | null;
   managerAvatars?: Record<string, string | null>;
+  playerDetailsById?: Record<string, PlayerDetails>;
 }
 
 export type PlayerModalData = Partial<DraftPick> & {
@@ -107,6 +108,7 @@ export function PlayerDetailModal({
   leagueId,
   leagueLogo,
   managerAvatars,
+  playerDetailsById,
 }: PlayerDetailModalProps) {
   const [focusedPeerPick, setFocusedPeerPick] = useState<PlayerModalData | null>(null);
   const pick = focusedPeerPick || selectedPick;
@@ -177,9 +179,9 @@ export function PlayerDetailModal({
   const collegeTileStyle = isCollegeProspect ? getCollegeTileStyle(prospectCollege) : undefined;
   const tileAccent = isCollegeProspect ? '#fbbf24' : getReadableTeamAccent(teamColors);
   const modalBackground = isCollegeProspect
-    ? `radial-gradient(circle at 15% 6%, color-mix(in srgb, var(--team-primary, #7c2d12) 48%, transparent), transparent 28%), radial-gradient(circle at 95% 0%, color-mix(in srgb, var(--team-secondary, #0f172a) 58%, transparent), transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, rgba(15, 23, 42, 0.36) 100%)`
+    ? `radial-gradient(circle at 15% 6%, color-mix(in srgb, var(--team-primary, #7c2d12) 38%, transparent), transparent 28%), radial-gradient(circle at 95% 0%, color-mix(in srgb, var(--team-secondary, #0f172a) 46%, transparent), transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, #070b13 100%)`
     : teamColors
-    ? `radial-gradient(circle at 15% 6%, ${teamColors.primary}44, transparent 28%), radial-gradient(circle at 95% 0%, ${teamColors.secondary}66, transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, ${teamColors.primary}18 100%)`
+    ? `radial-gradient(circle at 15% 6%, ${teamColors.primary}38, transparent 28%), radial-gradient(circle at 95% 0%, ${teamColors.secondary}52, transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, #070b13 100%)`
     : undefined;
   const heroBackground = isCollegeProspect
     ? `radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--team-primary, #7c2d12) 62%, transparent), transparent 34%), radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--team-secondary, #0f172a) 76%, transparent), transparent 30%), linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #7c2d12) 72%, #070b13) 0%, #070b13 48%, color-mix(in srgb, var(--team-secondary, #0f172a) 74%, #070b13) 100%)`
@@ -271,6 +273,9 @@ export function PlayerDetailModal({
   const rebuilderRank = getValueProfileRank(valueProfile, 'rebuilder', currentRank);
   const topDynastyRank = dynastyRank || (valueMode !== 'redraft' ? currentRank : null);
   const topSeasonRank = seasonRank || (valueMode === 'redraft' ? currentRank : null);
+  const lastSeasonRank = details?.lastSeasonPositionRank
+    ? `${details.lastSeasonYear || 'Last'} ${details.lastSeasonPositionRank}`
+    : null;
   const dynastyValue = valueProfile?.dynastyValue
     ?? valueProfile?.balancedValue
     ?? (valueMode !== 'redraft' ? currentValue : null);
@@ -323,26 +328,35 @@ export function PlayerDetailModal({
     pick.draftDecisionPrimaryNeed ? ['Roster Need', pick.draftDecisionPrimaryNeed] : null,
   ].filter((row): row is [string, string] => Boolean(row));
   const openTradeCompPeer = (peer: NonNullable<PlayerDetails['similarTradeValues']>[number]) => {
+    const peerDetails = playerDetailsById?.[peer.playerId];
+    const peerRank = getPeerRankForMode(peer, peerDetails, valueMode);
+    const peerValue = getPeerValueForMode(peer, peerDetails, valueMode);
     setFocusedPeerPick({
       player_id: peer.playerId,
       playerName: peer.name,
       playerPos: peer.position,
-      currentPositionRank: peer.rank || peer.position,
-      currentKtcValue: peer.value,
+      currentPositionRank: peerRank || peer.position,
+      currentKtcValue: peerValue,
       valueGain: peer.difference,
       valueChangeNote: `Value difference versus ${pick.playerName}.`,
       valueMode,
-      playerDetails: {
+      playerDetails: peerDetails || {
         playerId: peer.playerId,
         fullName: peer.name,
         position: peer.position,
         team: peer.team || null,
-        valueProfile: {
-          dynastyValue: peer.value,
-          dynastyPositionRank: peer.rank || peer.position,
-          sources: [],
+        valueProfile: valueMode === 'redraft'
+          ? {
+              seasonValue: peer.value,
+              seasonPositionRank: peer.rank || peer.position,
+              sources: [],
+            }
+          : {
+              dynastyValue: peer.value,
+              dynastyPositionRank: peer.rank || peer.position,
+              sources: [],
+            },
         },
-      },
     });
   };
 
@@ -350,6 +364,7 @@ export function PlayerDetailModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         showCloseButton={false}
+        overlayClassName="player-detail-modal-overlay"
         className={`player-detail-modal ${isCollegeProspect ? 'player-detail-modal-prospect' : ''} max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-h-[88vh] sm:max-w-2xl`}
         style={{ ...collegeTileStyle, background: modalBackground }}
       >
@@ -473,7 +488,7 @@ export function PlayerDetailModal({
             </div>
           </div>
 
-          <div className="space-y-4 bg-slate-950/35 p-4 backdrop-blur-sm sm:space-y-5 sm:p-6">
+          <div className="space-y-4 bg-slate-950/85 p-4 backdrop-blur-sm sm:space-y-5 sm:p-6">
             {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025) && (
               <div className="mx-auto grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                 {pick.round !== undefined && (
@@ -526,23 +541,36 @@ export function PlayerDetailModal({
                 ))}
               </div>
             ) : (
-              <div className="mx-auto grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+              <div className="player-modal-metric-grid mx-auto grid max-w-xl gap-2 sm:gap-3">
                 <MetricTile
                   label="Dynasty Value"
                   mobileLabel="Dynasty"
                   value={dynastyValue ? dynastyValue.toLocaleString() : '-'}
                   teamColors={teamColors}
                   tileAccent={tileAccent}
+                  className="player-modal-metric-dynasty-value"
                 />
-                <MetricTile label="Dynasty Rank" mobileLabel="Dynasty" value={topDynastyRank || '-'} valueClassName={`${getPositionRankPillClass(topDynastyRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
+                <MetricTile label="Dynasty Rank" mobileLabel="D-Rank" value={topDynastyRank || '-'} valueClassName={`${getPositionRankPillClass(topDynastyRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-dynasty-rank" />
                 <MetricTile
                   label="Season Value"
                   mobileLabel="Season"
                   value={seasonValue ? seasonValue.toLocaleString() : '-'}
                   teamColors={teamColors}
                   tileAccent={tileAccent}
+                  className="player-modal-metric-season-value"
                 />
-                <MetricTile label="Season Rank" mobileLabel="Season" value={topSeasonRank || '-'} valueClassName={`${getPositionRankPillClass(topSeasonRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
+                <MetricTile label="Season Rank" mobileLabel="S-Rank" value={topSeasonRank || '-'} valueClassName={`${getPositionRankPillClass(topSeasonRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-season-rank" />
+                {lastSeasonRank && (
+                <MetricTile
+                  label="Last Season Rank"
+                  mobileLabel="Last Yr"
+                  value={lastSeasonRank}
+                  valueClassName={`${getPositionRankPillClass(details?.lastSeasonPositionRank)} player-modal-rank-value`}
+                  teamColors={teamColors}
+                  tileAccent={tileAccent}
+                  className="player-modal-metric-last-season"
+                />
+                )}
                 {valueGain !== undefined && valueGain !== null && (
                 <MetricTile
                   label="Value Change"
@@ -554,6 +582,7 @@ export function PlayerDetailModal({
                   }
                   teamColors={teamColors}
                   tileAccent={tileAccent}
+                  className="player-modal-metric-change"
                 />
                 )}
               </div>
@@ -580,7 +609,7 @@ export function PlayerDetailModal({
                 <p className="player-modal-section-kicker text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
                   Cross-Position Trade Comps
                 </p>
-                <div className="player-trade-comp-grid grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="player-trade-comp-grid grid grid-cols-1 gap-2 sm:grid-cols-4">
                   {details.similarTradeValues.map((peer) => (
                     <button
                       key={peer.playerId}
@@ -912,6 +941,32 @@ function getValueProfileRank(
   };
 
   return rankByLens[lens] || null;
+}
+
+function getPeerRankForMode(
+  peer: NonNullable<PlayerDetails['similarTradeValues']>[number],
+  details: PlayerDetails | undefined,
+  valueMode: LeagueValueMode
+) {
+  const profile = details?.valueProfile;
+  if (valueMode === 'redraft') {
+    return profile?.seasonPositionRank || profile?.fantasyProsPositionRank || peer.rank || details?.position || peer.position;
+  }
+
+  return profile?.dynastyPositionRank || profile?.balancedPositionRank || peer.rank || details?.position || peer.position;
+}
+
+function getPeerValueForMode(
+  peer: NonNullable<PlayerDetails['similarTradeValues']>[number],
+  details: PlayerDetails | undefined,
+  valueMode: LeagueValueMode
+) {
+  const profile = details?.valueProfile;
+  if (valueMode === 'redraft') {
+    return profile?.seasonValue ?? profile?.fantasyProsSeasonValue ?? peer.value;
+  }
+
+  return profile?.dynastyValue ?? profile?.balancedValue ?? peer.value;
 }
 
 function getValueChangeNote(pick: PlayerModalData) {
@@ -1251,6 +1306,7 @@ function MetricTile({
   teamColors,
   tileAccent,
   valueClassName,
+  className = '',
 }: {
   label: string;
   mobileLabel?: string;
@@ -1260,6 +1316,7 @@ function MetricTile({
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   valueClassName?: string;
+  className?: string;
 }) {
   const toneClass = tone === 'positive'
     ? 'text-emerald-300'
@@ -1269,7 +1326,7 @@ function MetricTile({
 
   return (
     <div
-      className="rounded-xl border p-2.5 shadow-inner shadow-white/[0.02] sm:p-4"
+      className={`player-modal-metric-tile rounded-xl border p-2.5 shadow-inner shadow-white/[0.02] sm:p-4 ${className}`.trim()}
       style={{
         borderColor: teamColors ? `${tileAccent || teamColors.accent}33` : undefined,
         background: teamColors

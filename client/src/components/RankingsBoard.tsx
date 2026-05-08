@@ -1148,7 +1148,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
 
       {showDraftBuzzScoreboard ? rankings.draftBuzzScoreboard?.length ? <DraftBuzzScoreboard entries={rankings.draftBuzzScoreboard} onSelectEntry={handleSelectDraftBuzzEntry} /> : <EmptyState className="rankings-empty-state" title="Prospect score archive is not available for this report yet." /> : null}
 
-      <PlayerDetailModal isOpen={selectedPlayer !== null} onClose={() => setSelectedPlayer(null)} pick={selectedPlayer} leagueId={leagueId} leagueLogo={leagueLogo} managerAvatars={managerAvatars} />
+      <PlayerDetailModal isOpen={selectedPlayer !== null} onClose={() => setSelectedPlayer(null)} pick={selectedPlayer} leagueId={leagueId} leagueLogo={leagueLogo} managerAvatars={managerAvatars} playerDetailsById={playerDetailsById} />
     </div>
   );
 }
