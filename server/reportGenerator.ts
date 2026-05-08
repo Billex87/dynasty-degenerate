@@ -1194,6 +1194,16 @@ function getLineupGroups<T extends ManagerIntelPlayer>(players: T[], rosterPosit
     }
   }
 
+  const flexPlayers = takeBestPlayers(remaining, ['RB', 'WR', 'TE'], profile.flex);
+  if (flexPlayers.length || profile.flex) {
+    groups.push({
+      key: 'FLEX',
+      label: `Flex x${Math.max(1, profile.flex)}`,
+      count: Math.max(1, profile.flex),
+      players: flexPlayers,
+    });
+  }
+
   for (const position of ['K', 'DEF'] as const) {
     const count = profile[position];
     const positionPlayers = fixedByPosition[position] || [];
@@ -1205,16 +1215,6 @@ function getLineupGroups<T extends ManagerIntelPlayer>(players: T[], rosterPosit
         players: positionPlayers,
       });
     }
-  }
-
-  const flexPlayers = takeBestPlayers(remaining, ['RB', 'WR', 'TE'], profile.flex);
-  if (flexPlayers.length || profile.flex) {
-    groups.push({
-      key: 'FLEX',
-      label: `Flex x${Math.max(1, profile.flex)}`,
-      count: Math.max(1, profile.flex),
-      players: flexPlayers,
-    });
   }
 
   return groups;

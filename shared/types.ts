@@ -134,6 +134,7 @@ export interface DraftBuzzScoreboardEntry {
   id: string;
   player_id?: string | null;
   team?: string | null;
+  nflTeam?: string | null;
   age?: number | null;
   draftYear: number;
   name: string;
@@ -171,6 +172,7 @@ export interface ProspectProfile {
   status?: string | null;
   birthPlace?: string | null;
   college?: string | null;
+  nflTeam?: string | null;
   playerImageUrl?: string | null;
   collegeLogoUrl?: string | null;
   overallRank?: number | null;

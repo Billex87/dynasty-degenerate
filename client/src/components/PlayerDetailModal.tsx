@@ -74,6 +74,25 @@ export type PlayerModalData = Partial<DraftPick> & {
   taxiReason?: string;
 };
 
+function hasResolvedNflIdentity(pick?: PlayerModalData | null, details?: PlayerDetails) {
+  const hasKnownExperience = details?.yearsExp !== null && details?.yearsExp !== undefined;
+
+  return Boolean(
+    pick?.player_id ||
+      details?.playerId ||
+      details?.team ||
+      details?.rookieYear ||
+      details?.nflDraftTeam ||
+      details?.nflDraftRound ||
+      details?.nflDraftPick ||
+      hasKnownExperience
+  );
+}
+
+function isCollegeOnlyModalPick(pick?: PlayerModalData | null, details?: PlayerDetails) {
+  return pick?.isCollegeProspect ?? (!hasResolvedNflIdentity(pick, details) && Boolean(details?.prospectProfile));
+}
+
 export function PlayerDetailModal({
   isOpen,
   onClose,
@@ -84,6 +103,8 @@ export function PlayerDetailModal({
 }: PlayerDetailModalProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
+  const queryDetails = pick?.playerDetails;
+  const queryIsCollegeProspect = isCollegeOnlyModalPick(pick, queryDetails);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
     { playerId: pick?.player_id || '' },
     { enabled: !!pick?.player_id && isOpen && directImageFailed }
@@ -96,7 +117,7 @@ export function PlayerDetailModal({
       position: pick?.playerPos || pick?.playerDetails?.position || null,
     },
     {
-      enabled: isOpen && Boolean(pick?.playerName) && !Boolean(pick?.isCollegeProspect || pick?.playerDetails?.prospectProfile),
+      enabled: isOpen && Boolean(pick?.playerName) && !queryIsCollegeProspect,
       staleTime: 1000 * 60 * 15,
     }
   );
@@ -115,7 +136,7 @@ export function PlayerDetailModal({
   if (!pick) return null;
   const details = pick.playerDetails;
   const prospectProfile = details?.prospectProfile || null;
-  const isCollegeProspect = pick.isCollegeProspect ?? Boolean(prospectProfile);
+  const isCollegeProspect = isCollegeOnlyModalPick(pick, details);
   const prospectCollege = prospectProfile?.college || details?.college || null;
   const directHeadshot = !isCollegeProspect && pick.player_id && !directImageFailed
     ? `https://sleepercdn.com/content/nfl/players/${pick.player_id}.jpg`

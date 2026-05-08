@@ -223,10 +223,12 @@ function buildDraftBuzzScoreboardEntries(
 
     const playerMatch = getDraftBuzzPlayerMatch({ ...profile, position }, playerLookup);
     const matchedPlayer = playerMatch?.player || null;
+    const nflTeam = profile.nflTeam || matchedPlayer?.team || null;
     const entry: DraftBuzzScoreboardEntry = {
       id: `draftbuzz:${draftYear}:${position}:${nameKey}`,
       player_id: playerMatch?.playerId || null,
-      team: matchedPlayer?.team || null,
+      team: matchedPlayer?.team || nflTeam,
+      nflTeam,
       age: Number(matchedPlayer?.age || 0) || null,
       draftYear,
       name: profile.name,

@@ -25,6 +25,7 @@ type RankingsTableConfig = {
 };
 
 const PAGE_SIZE = 25;
+const DRAFT_BUZZ_PAGE_SIZE = 100;
 const DRAFT_BUZZ_POSITIONS: DraftBuzzPosition[] = ['QB', 'RB', 'WR', 'TE'];
 const POSITION_FILTERS: Array<{ key: PositionFilter; label: string; compactLabel?: string }> = [
   { key: 'QB', label: 'QB' },
@@ -74,6 +75,33 @@ function formatValue(value?: number | null): string {
   return value.toLocaleString();
 }
 
+function formatFantasyPointTotal(value?: number | null): string | null {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return null;
+  return numericValue.toLocaleString(undefined, {
+    maximumFractionDigits: Number.isInteger(numericValue) ? 0 : 1,
+  });
+}
+
+function getPreviousSeasonPointsRankPill(details?: PlayerDetails): { label: string; title: string } | null {
+  const rank = details?.lastSeasonPositionRank;
+  if (!rank) return null;
+
+  const season = details.lastSeasonYear || 'Prev';
+  const points = formatFantasyPointTotal(details.lastSeasonFantasyPoints);
+  const pointsPerGame = formatFantasyPointTotal(details.lastSeasonPointsPerGame);
+  const titleParts = [
+    `${season} fantasy points rank: ${rank}`,
+    points ? `${points} total points` : null,
+    pointsPerGame ? `${pointsPerGame} PPG` : null,
+  ].filter(Boolean);
+
+  return {
+    label: `${season} ${rank}`,
+    title: titleParts.join(' • '),
+  };
+}
+
 function getTeamSearchTerms(team?: string | null): string[] {
   const normalizedTeam = normalizeNflTeamAbbr(team);
   if (!normalizedTeam) return ['free agent', 'fa'];
@@ -110,6 +138,20 @@ function getDraftBuzzMetricLabel(player: DraftBuzzScoreboardEntry): string {
     [player.height, player.weight].filter(Boolean).join(' / ') || null,
   ].filter(Boolean);
   return traits.join(' • ');
+}
+
+function formatDraftBuzzScore(value?: number | null): string {
+  const score = Number(value);
+  if (!Number.isFinite(score) || score <= 0) return '-';
+  return score.toFixed(Number.isInteger(score) ? 0 : 1);
+}
+
+function formatDraftBuzzRank(value?: number | null, prefix = '#'): string {
+  const rank = Number(value);
+  if (!Number.isFinite(rank) || rank <= 0) return '-';
+  return `${prefix}${rank.toLocaleString(undefined, {
+    maximumFractionDigits: Number.isInteger(rank) ? 0 : 1,
+  })}`;
 }
 
 function getProfileFallback(options: RankingProfileOption[], board: 'dynasty' | 'devy'): string {
@@ -270,6 +312,9 @@ function RankingValueRow({
     : player.isDevy
       ? player.pos
       : player.positionRank || player.pos;
+  const previousSeasonPointsRankPill = !player.isDevy && !player.isPick
+    ? getPreviousSeasonPointsRankPill(details)
+    : null;
 
   return (
     <button
@@ -303,6 +348,11 @@ function RankingValueRow({
 
         <div className="ranking-card-pills value-board__meta">
           <span className={getRankClass(positionLabel)}>{positionLabel}</span>
+          {previousSeasonPointsRankPill ? (
+            <span className="ranking-last-season-rank-pill" title={previousSeasonPointsRankPill.title}>
+              {previousSeasonPointsRankPill.label}
+            </span>
+          ) : null}
         </div>
 
         <div className="ranking-card-pills value-board__age">
@@ -385,6 +435,22 @@ function DraftBuzzEntryIdentity({ entry }: { entry: DraftBuzzScoreboardEntry }) 
   return <PlayerNameWithHeadshot playerId={entry.player_id || undefined} playerName={entry.name} />;
 }
 
+function DraftBuzzTeamSchool({ entry }: { entry: DraftBuzzScoreboardEntry }) {
+  const team = entry.nflTeam || entry.team || null;
+  const school = entry.college || null;
+
+  return (
+    <span className="draftbuzz-team-school">
+      {team ? (
+        <TeamLogoPill team={team} showText className="draftbuzz-team-school__team" />
+      ) : (
+        <CollegeTeamPill college={school} logoUrl={entry.collegeLogoUrl} />
+      )}
+      {school ? <em>{school}</em> : <em>School unavailable</em>}
+    </span>
+  );
+}
+
 function DraftBuzzScoreboard({
   entries,
   onSelectEntry,
@@ -392,7 +458,12 @@ function DraftBuzzScoreboard({
   entries: DraftBuzzScoreboardEntry[];
   onSelectEntry: (entry: DraftBuzzScoreboardEntry) => void;
 }) {
-  const groupedRows = useMemo(() => {
+  const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(null);
+  const [selectedPositions, setSelectedPositions] = useState<DraftBuzzPosition[]>([]);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+
+  const allRows = useMemo(() => {
     const deduped = new Map<string, DraftBuzzScoreboardEntry>();
     for (const entry of entries) {
       const score = entry.rating;
@@ -406,39 +477,78 @@ function DraftBuzzScoreboard({
       }
     }
 
-    const byClass = new Map<number, Record<DraftBuzzPosition, DraftBuzzScoreboardEntry[]>>();
-    for (const player of Array.from(deduped.values())) {
-      const draftClass = player.draftYear;
-      const position = player.position as DraftBuzzPosition;
-      if (!draftClass || !DRAFT_BUZZ_POSITIONS.includes(position)) continue;
-      const classRows = byClass.get(draftClass) || { QB: [], RB: [], WR: [], TE: [] };
-      classRows[position].push(player);
-      byClass.set(draftClass, classRows);
-    }
-
-    return Array.from(byClass.entries())
-      .sort(([classA], [classB]) => classA - classB)
-      .map(([draftClass, positionRows]) => ({
-        draftClass,
-        positionRows: Object.fromEntries(
-          DRAFT_BUZZ_POSITIONS.map((position) => [
-            position,
-            positionRows[position].sort((a, b) => (
-              b.rating - a.rating
-              || (a.overallRank || 9999) - (b.overallRank || 9999)
-              || a.name.localeCompare(b.name)
-            )),
-          ])
-        ) as Record<DraftBuzzPosition, DraftBuzzScoreboardEntry[]>,
-      }));
+    return Array.from(deduped.values()).sort((a, b) => (
+      b.rating - a.rating
+      || a.draftYear - b.draftYear
+      || (a.overallRank || 9999) - (b.overallRank || 9999)
+      || a.position.localeCompare(b.position)
+      || a.name.localeCompare(b.name)
+    ));
   }, [entries]);
 
-  const playerCount = groupedRows.reduce(
-    (total, group) => total + DRAFT_BUZZ_POSITIONS.reduce((count, position) => count + group.positionRows[position].length, 0),
-    0
-  );
+  const draftClassOptions = useMemo(() => (
+    Array.from(new Set(allRows.map((row) => row.draftYear).filter((year): year is number => Boolean(year))))
+      .sort((a, b) => a - b)
+  ), [allRows]);
 
-  if (!playerCount) return null;
+  useEffect(() => {
+    if (selectedDraftClass && !draftClassOptions.includes(selectedDraftClass)) {
+      setSelectedDraftClass(null);
+    }
+  }, [draftClassOptions, selectedDraftClass]);
+
+  const classSummaries = useMemo(() => {
+    const byClass = new Map<number, number>();
+    for (const row of allRows) {
+      byClass.set(row.draftYear, (byClass.get(row.draftYear) || 0) + 1);
+    }
+    return Array.from(byClass.entries())
+      .sort(([classA], [classB]) => classA - classB)
+      .map(([draftClass, count]) => ({ draftClass, count }));
+  }, [allRows]);
+
+  const filteredRows = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return allRows.filter((row) => {
+      if (selectedDraftClass && row.draftYear !== selectedDraftClass) return false;
+      if (selectedPositions.length && !selectedPositions.includes(row.position as DraftBuzzPosition)) return false;
+      if (!normalizedQuery) return true;
+
+      return [
+        row.name,
+        row.college,
+        row.nflTeam,
+        row.team,
+        row.position,
+        row.draftYear,
+        row.rating,
+        row.height,
+        row.weight,
+      ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
+    });
+  }, [allRows, query, selectedDraftClass, selectedPositions]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / DRAFT_BUZZ_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = filteredRows.slice((currentPage - 1) * DRAFT_BUZZ_PAGE_SIZE, currentPage * DRAFT_BUZZ_PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, selectedDraftClass, selectedPositions]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
+  const togglePosition = (position: DraftBuzzPosition) => {
+    setSelectedPositions((current) => (
+      current.includes(position)
+        ? current.filter((item) => item !== position)
+        : [...current, position]
+    ));
+  };
+
+  if (!allRows.length) return null;
 
   return (
     <section className="draftbuzz-scoreboard" aria-label="DraftBuzz score index">
@@ -447,62 +557,129 @@ function DraftBuzzScoreboard({
           <div className="rankings-kicker">NFL Draft Buzz data archive</div>
           <h4>DraftBuzz Scores By Draft Year</h4>
         </div>
-        <span>{playerCount.toLocaleString()} scored players</span>
+        <span>{allRows.length.toLocaleString()} scored players</span>
       </div>
 
-      <div className="draftbuzz-scoreboard__classes">
-        {groupedRows.map((group) => (
-          <div key={group.draftClass} className="draftbuzz-class-group">
-            <div className="draftbuzz-class-group__title">
-              <strong>{group.draftClass}</strong>
-              <span>
-                {DRAFT_BUZZ_POSITIONS.reduce((count, position) => count + group.positionRows[position].length, 0)} players
-              </span>
-            </div>
-
-            <div className="draftbuzz-position-grid">
-              {DRAFT_BUZZ_POSITIONS.map((position) => (
-                <div key={position} className={`draftbuzz-position-column draftbuzz-position-column-${position.toLowerCase()}`}>
-                  <div className="draftbuzz-position-column__title">
-                    <span>{position}</span>
-                    <em>{group.positionRows[position].length}</em>
-                  </div>
-
-                  {group.positionRows[position].length ? (
-                    <div className="draftbuzz-player-list">
-                      {group.positionRows[position].map((player, index) => {
-                        const score = player.rating;
-                        const metricLabel = getDraftBuzzMetricLabel(player);
-                        return (
-                          <button
-                            type="button"
-                            key={`${group.draftClass}:${position}:${player.name}`}
-                            className="draftbuzz-player-row"
-                            style={getCollegeTileStyle(player.college)}
-                            onClick={() => onSelectEntry(player)}
-                          >
-                            <span className="draftbuzz-player-row__rank">#{index + 1}</span>
-                            <span className="draftbuzz-player-row__identity">
-                              <DraftBuzzEntryIdentity entry={player} />
-                              <span className="draftbuzz-player-row__school">
-                                <CollegeTeamPill college={player.college} logoUrl={player.collegeLogoUrl} />
-                                {metricLabel ? <em>{metricLabel}</em> : null}
-                              </span>
-                            </span>
-                            <strong>{score?.toFixed(score % 1 === 0 ? 0 : 1)}</strong>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="draftbuzz-empty-position">-</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="draftbuzz-year-summary" aria-label="Draft class totals">
+        {classSummaries.map((summary) => (
+          <button
+            key={summary.draftClass}
+            type="button"
+            className={selectedDraftClass === summary.draftClass ? 'active' : ''}
+            onClick={() => setSelectedDraftClass((current) => (current === summary.draftClass ? null : summary.draftClass))}
+          >
+            <strong>{summary.draftClass}</strong>
+            <span>{summary.count.toLocaleString()}</span>
+          </button>
         ))}
       </div>
+
+      <div className="draftbuzz-controls value-board__toolbar">
+        <div className="rankings-search-wrap value-board__search">
+          <Search className="h-4 w-4" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search player, school, class"
+            className="rankings-search-input"
+          />
+        </div>
+
+        <div className="rankings-control-group rankings-class-toggle" aria-label="Draft class filter">
+          <button type="button" className={!selectedDraftClass ? 'active' : ''} onClick={() => setSelectedDraftClass(null)}>All</button>
+          {draftClassOptions.map((draftClass) => (
+            <button
+              key={draftClass}
+              type="button"
+              className={selectedDraftClass === draftClass ? 'active' : ''}
+              onClick={() => setSelectedDraftClass(draftClass)}
+            >
+              {draftClass}
+            </button>
+          ))}
+        </div>
+
+        <div className="rankings-control-group rankings-position-toggle" aria-label="Draft Buzz position filter">
+          <button
+            type="button"
+            className={getPositionButtonClass('OVERALL', selectedPositions.length === 0)}
+            onClick={() => setSelectedPositions([])}
+          >
+            <span className="ranking-filter-label-full">Overall</span>
+            <span className="ranking-filter-label-compact">OVR</span>
+          </button>
+          {DRAFT_BUZZ_POSITIONS.map((position) => (
+            <button
+              key={position}
+              type="button"
+              className={getPositionButtonClass(position, selectedPositions.includes(position))}
+              onClick={() => togglePosition(position)}
+            >
+              {position}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rankings-result-count">
+        Showing {pageRows.length.toLocaleString()} of {filteredRows.length.toLocaleString()} Draft Buzz players
+      </div>
+
+      <div className="draftbuzz-table">
+        <div className="draftbuzz-table__header" aria-hidden="true">
+          <span>Class</span>
+          <span>Rank</span>
+          <span>Player</span>
+          <span>Team</span>
+          <span>Pos</span>
+          <span>Score</span>
+          <span>Avg Ranks</span>
+          <span>Metrics</span>
+        </div>
+        {pageRows.map((player) => {
+          const metricLabel = getDraftBuzzMetricLabel(player);
+          return (
+            <button
+              type="button"
+              key={player.id}
+              className="draftbuzz-table__row"
+              style={getTeamTileStyle(player.nflTeam || player.team) || getCollegeTileStyle(player.college)}
+              onClick={() => onSelectEntry(player)}
+            >
+              <span className="draftbuzz-table__class">{player.draftYear}</span>
+              <span className="draftbuzz-table__rank">{formatDraftBuzzRank(player.overallRank)}</span>
+              <span className="draftbuzz-table__player">
+                <DraftBuzzEntryIdentity entry={player} />
+              </span>
+              <span className="draftbuzz-table__school">
+                <DraftBuzzTeamSchool entry={player} />
+              </span>
+              <span className={getRankClass(player.position)}>{player.position}</span>
+              <strong className="draftbuzz-table__score">{formatDraftBuzzScore(player.rating)}</strong>
+              <span className="draftbuzz-table__avg">
+                OVR {formatDraftBuzzRank(player.averageOverallRank, '')} / POS {formatDraftBuzzRank(player.averagePositionRank, '')}
+              </span>
+              <span className="draftbuzz-table__metrics">{metricLabel || '-'}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {filteredRows.length === 0 ? (
+        <div className="rankings-empty-state">No Draft Buzz players match those filters.</div>
+      ) : (
+        <div className="rankings-pagination" aria-label="Draft Buzz archive pagination">
+          <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage <= 1}>
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            Prev
+          </button>
+          <span>Page {currentPage} of {pageCount}</span>
+          <button type="button" onClick={() => setPage((value) => Math.min(pageCount, value + 1))} disabled={currentPage >= pageCount}>
+            Next
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </section>
   );
 }

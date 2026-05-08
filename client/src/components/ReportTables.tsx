@@ -2478,8 +2478,8 @@ type DynastyAiSuggestion = {
   wide?: boolean;
 };
 
-const STARTING_ROSTER_STRENGTH_TITLE = 'Starter Slot Strength';
-const STARTING_ROSTER_STRENGTH_COMPARISON = 'league ranks by slot';
+const STARTING_ROSTER_STRENGTH_TITLE = 'Starter Slot Rankings';
+const STARTING_ROSTER_STRENGTH_COMPARISON = 'league rank by lineup slot';
 const STARTING_ROSTER_STRENGTH_NOTE = 'Ranks this manager’s projected starters against every roster using this league’s actual starting slots. QB/SF includes the superflex QB path; K and DEF appear only when the league starts them.';
 const BENCH_BASELINE_NOTE = 'Compares the best non-starting QB, RB, WR, and TE using season value and season position rank after projected starters are already filled.';
 const TRADEABLE_DEPTH_NOTE = 'Shows active bench trade chips by season value and season rank only. Taxi and IR players are left out.';
@@ -3586,6 +3586,22 @@ function getRankFromDescendingScores(score: number, scores: number[]): number | 
   return scores.filter((value) => Number.isFinite(value) && value > score).length + 1;
 }
 
+function getLineupDisplayOrder(group: { key?: string; label?: string }): number {
+  const key = String(group.key || group.label || '').toUpperCase();
+  if (key.includes('QB_SF') || key.includes('QB/SF') || key === 'QB') return 0;
+  if (key === 'RB' || key.startsWith('RB ')) return 1;
+  if (key === 'WR' || key.startsWith('WR ')) return 2;
+  if (key === 'TE' || key.startsWith('TE ')) return 3;
+  if (key === 'FLEX' || key.startsWith('FLEX')) return 4;
+  if (key === 'K' || key.startsWith('K ')) return 5;
+  if (key === 'DEF' || key.startsWith('DEF')) return 6;
+  return 99;
+}
+
+function sortLineupGroupsForDisplay<T extends { key?: string; label?: string }>(groups: T[]): T[] {
+  return [...groups].sort((a, b) => getLineupDisplayOrder(a) - getLineupDisplayOrder(b) || String(a.label || '').localeCompare(String(b.label || '')));
+}
+
 function StartingRosterRankTiles({
   manager,
   managerPositionCounts,
@@ -3613,7 +3629,7 @@ function StartingRosterRankTiles({
     ...positionTiles,
     {
       key: 'VALUE',
-      label: 'Value',
+      label: 'Season Value',
       rank: getRankFromDescendingScores(valueScore, valueScores),
       className: 'owner-intel-heat-position-value',
     },
@@ -3621,7 +3637,7 @@ function StartingRosterRankTiles({
 
   return (
     <div className="owner-intel-full-rank-panel manager-command-starting-rank-panel">
-      <h4>Starting Roster Rankings</h4>
+      <h4>Starter Position Totals</h4>
       <div className="owner-intel-heat-grid owner-intel-full-rank-grid">
         {tiles.map((tile) => (
           <span key={tile.key} className={`owner-intel-heat-pill owner-intel-full-rank-tile ${tile.className}`}>
@@ -3928,6 +3944,25 @@ function PlayerMiniLine({
 function PositionRankPill({ rank }: { rank?: string | null }) {
   const displayRank = rank || '-';
   return <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>;
+}
+
+function WaiverRankPill({
+  label,
+  shortLabel,
+  rank,
+  className,
+}: {
+  label: string;
+  shortLabel: string;
+  rank: string;
+  className: string;
+}) {
+  return (
+    <span className={`waiver-intel-rank-pill ${className}`} aria-label={`${label} rank ${rank}`} title={`${label} ${rank}`}>
+      <em aria-hidden="true">{shortLabel}</em>
+      <PositionRankPill rank={rank} />
+    </span>
+  );
 }
 
 function getTradeWarAssetValue(player: ManagerIntelPlayer, mode: TradeWarMode): number {
@@ -4403,6 +4438,8 @@ function CommandPlayerTile({
   const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
   const dynastyLens = getCommandPlayerDynastyLens(player);
   const seasonLens = getCommandPlayerSeasonLens(player);
+  const availability = getPlayerAvailability(player.playerDetails);
+  const shouldShowStatusPill = !showValueStack || availability.tone !== 'taxi';
 
   return (
     <button
@@ -4423,16 +4460,20 @@ function CommandPlayerTile({
         <TeamLogoPill team={player.playerDetails?.team} />
         {showValueStack ? (
           <>
-            <span className="manager-command-season-value manager-command-dynasty-value">
-              <em>Dynasty</em>
-              {formatCompactValue(dynastyLens.value)}
+            <span className="manager-command-season-value manager-command-dynasty-value manager-command-value-rank-pill">
+              <span className="manager-command-value-label">
+                <em>Dynasty</em>
+                {formatCompactValue(dynastyLens.value)}
+              </span>
+              <PositionRankPill rank={dynastyLens.rank} />
             </span>
-            <PositionRankPill rank={dynastyLens.rank} />
-            <span className="manager-command-season-value">
-              <em>Season</em>
-              {formatCompactValue(seasonLens.value)}
+            <span className="manager-command-season-value manager-command-value-rank-pill">
+              <span className="manager-command-value-label">
+                <em>Season</em>
+                {formatCompactValue(seasonLens.value)}
+              </span>
+              <PositionRankPill rank={seasonLens.rank} />
             </span>
-            <PositionRankPill rank={seasonLens.rank} />
           </>
         ) : (
           <>
@@ -4443,9 +4484,11 @@ function CommandPlayerTile({
             <PositionRankPill rank={seasonRank} />
           </>
         )}
-        <span className={`manager-command-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
-          {getPlayerStatusLabel(player.playerDetails)}
-        </span>
+        {shouldShowStatusPill && (
+          <span className={`manager-command-status-pill is-${availability.tone}`}>
+            {availability.label}
+          </span>
+        )}
       </div>
     </button>
   );
@@ -4814,16 +4857,16 @@ export function LeagueCommandCenter({
       .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value))
       .slice(0, 2);
     return [
-      { label: 'QB / SF', count: 2, players: qbs },
-      { label: 'RB', count: 2, players: rbs },
-      { label: 'WR', count: 2, players: wrs },
-      { label: 'TE', count: 1, players: tes },
-      { label: 'Flex', count: 2, players: flex },
+      { key: 'QB_SF', label: 'QB / SF', count: 2, players: qbs },
+      { key: 'RB', label: 'RB', count: 2, players: rbs },
+      { key: 'WR', label: 'WR', count: 2, players: wrs },
+      { key: 'TE', label: 'TE', count: 1, players: tes },
+      { key: 'FLEX', label: 'Flex', count: 2, players: flex },
     ];
   };
   const lineupGroups = selectedCounts?.starterGroups?.length
-    ? selectedCounts.starterGroups.map((group) => ({ label: group.label, count: group.count, players: group.players || [] }))
-    : fallbackStarterGroups(selectedStarters);
+    ? sortLineupGroupsForDisplay(selectedCounts.starterGroups.map((group) => ({ key: group.key, label: group.label, count: group.count, players: group.players || [] })))
+    : sortLineupGroupsForDisplay(fallbackStarterGroups(selectedStarters));
   const projectedLineupIds = new Set((selectedStarters.length ? selectedStarters : lineupGroups.flatMap((group) => group.players)).map((player) => player.player_id));
   const hasKickerSlot = lineupGroups.some((group) => group.players.some((player) => player.pos === 'K') || /^K\b/i.test(group.label));
   const hasDefenseSlot = lineupGroups.some((group) => group.players.some((player) => player.pos === 'DEF') || /^DEF\b/i.test(group.label));
@@ -4884,7 +4927,7 @@ export function LeagueCommandCenter({
     canStepInGroups,
   });
   const seasonInsuranceRead = buildSeasonInsuranceRead(selectedIntel);
-  const startingRosterStrengthTiles = selectedIntel?.startingRosterStrength || [];
+  const startingRosterStrengthTiles = sortLineupGroupsForDisplay(selectedIntel?.startingRosterStrength || []);
   const hasStartingRosterStrength = startingRosterStrengthTiles.length > 0 || Boolean(selectedIntel?.positionGrades);
 
   return (
@@ -5085,7 +5128,7 @@ export function LeagueCommandCenter({
                 </div>
               ) : null}
               <div className="manager-command-grid">
-                <div>
+                <div className="manager-command-lineup-panel">
                   <h4>Projected Starters</h4>
                   <div className="manager-command-tile-lineup">
                     {lineupGroups.map((group) => (
@@ -5106,7 +5149,7 @@ export function LeagueCommandCenter({
                     ))}
                   </div>
                 </div>
-                <div>
+                <div className="manager-command-lineup-panel manager-command-lineup-panel-step">
                   <h4>Can Step In</h4>
                   <div className="manager-command-tile-lineup manager-command-step-in">
                     {canStepInGroups.length ? canStepInGroups.map((group) => (
@@ -8180,14 +8223,32 @@ export function WaiverIntelligencePanel({
               <div className="waiver-intel-main">
                 <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
               </div>
-              <div className="waiver-intel-pills">
-                <TeamLogoPill team={details?.team || player.team} />
-                {dynastyRank && <span className="waiver-intel-rank-pill waiver-intel-rank-pill-dynasty">Dynasty {dynastyRank}</span>}
-                {seasonRank && <span className="waiver-intel-rank-pill waiver-intel-rank-pill-season">Season {seasonRank}</span>}
-                {!dynastyRank && !seasonRank && <PositionRankPill rank={rank || player.pos || '-'} />}
-                {label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
-                {recommendation && recommendationContext.openRosterSpots > 0 && <span>Active Spot Fit</span>}
-                {value > 0 && <span className="waiver-intel-value-pill">{formatCompactValue(value)}</span>}
+              <div className="waiver-intel-pills" aria-label={`${player.name} waiver profile`}>
+                <div className="waiver-intel-pill-row waiver-intel-pill-row-primary">
+                  <TeamLogoPill team={details?.team || player.team} />
+                  {dynastyRank && (
+                    <WaiverRankPill
+                      label="Dynasty"
+                      shortLabel="DYN"
+                      rank={dynastyRank}
+                      className="waiver-intel-rank-pill-dynasty"
+                    />
+                  )}
+                  {seasonRank && (
+                    <WaiverRankPill
+                      label="Season"
+                      shortLabel="SZN"
+                      rank={seasonRank}
+                      className="waiver-intel-rank-pill-season"
+                    />
+                  )}
+                  {!dynastyRank && !seasonRank && <PositionRankPill rank={rank || player.pos || '-'} />}
+                </div>
+                <div className="waiver-intel-pill-row waiver-intel-pill-row-secondary">
+                  {label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
+                  {recommendation && recommendationContext.openRosterSpots > 0 && <span>Active Spot Fit</span>}
+                  {value > 0 && <span className="waiver-intel-value-pill">{formatCompactValue(value)}</span>}
+                </div>
               </div>
             </button>
           );

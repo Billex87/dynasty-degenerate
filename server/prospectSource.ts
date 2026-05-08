@@ -13,6 +13,16 @@ const NFL_DRAFT_BUZZ_INDEXED_SUPPLEMENT_FILE = path.join(PROSPECT_SNAPSHOT_DIR, 
 const NFL_DRAFT_BUZZ_HISTORICAL_SUPPLEMENT_FILE = path.join(PROSPECT_SNAPSHOT_DIR, 'nfl-draft-buzz-historical-supplement.json');
 const FANTASY_POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
 const FANTASY_POSITION_SET = new Set<string>(FANTASY_POSITIONS);
+const NFL_TEAM_ABBRS = new Set([
+  'ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN',
+  'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LAC', 'LAR', 'LV', 'MIA',
+  'MIN', 'NE', 'NO', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SF', 'TB',
+  'TEN', 'WAS',
+]);
+const PLAYER_SLUG_POSITIONS = new Set([
+  'QB', 'RB', 'WR', 'TE', 'FB', 'LB', 'CB', 'S', 'SAF', 'EDGE', 'DE',
+  'DT', 'DL', 'OL', 'OT', 'OG', 'C', 'K', 'P',
+]);
 const DRAFT_BUZZ_HISTORY_START_YEAR = 2021;
 const MAX_PAGES_PER_POSITION = 8;
 const PROSPECT_FETCH_TIMEOUT_MS = 30000;
@@ -129,6 +139,51 @@ function getReaderUrls(sourceUrl: string) {
     `https://r.jina.ai/${sourceUrl}`,
     sourceUrl,
   ];
+}
+
+function normalizeDraftBuzzSchoolName(value?: string | null): string | null {
+  const normalized = String(value || '')
+    .replace(/AANDM/g, 'A&M')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return normalized || null;
+}
+
+function getNflTeamFromDraftBuzzLogoUrl(url?: string | null): string | null {
+  const team = String(url || '').match(/\/NFLLogos\/([A-Z]{2,3})\.png/i)?.[1]?.toUpperCase();
+  return team && NFL_TEAM_ABBRS.has(team) ? team : null;
+}
+
+function getSchoolFromDraftBuzzAssetUrl(url: string | null | undefined, expectedPosition?: string | null): string | null {
+  const fileName = String(url || '').split('/').pop()?.replace(/\.[a-z0-9]+$/i, '') || '';
+  const parts = fileName.split('-').filter(Boolean);
+  let positionIndex = parts.findIndex((part) => part.toUpperCase() === String(expectedPosition || '').toUpperCase());
+  if (positionIndex < 0) {
+    positionIndex = parts.findIndex((part) => PLAYER_SLUG_POSITIONS.has(part.toUpperCase()));
+  }
+  if (positionIndex < 0 || positionIndex === parts.length - 1) return null;
+  return normalizeDraftBuzzSchoolName(parts.slice(positionIndex + 1).join(' '));
+}
+
+function normalizeNflDraftBuzzProfile(profile: ProspectProfile): ProspectProfile {
+  if (profile.source !== SOURCE_NAME) return profile;
+
+  const college = typeof profile.college === 'string' ? profile.college.trim() : '';
+  const existingTeam = typeof profile.nflTeam === 'string' ? profile.nflTeam.trim().toUpperCase() : '';
+  const logoTeam = getNflTeamFromDraftBuzzLogoUrl(profile.collegeLogoUrl);
+  const collegeTeam = NFL_TEAM_ABBRS.has(college.toUpperCase()) ? college.toUpperCase() : null;
+  const nflTeam = existingTeam || logoTeam || collegeTeam || null;
+  const school = getSchoolFromDraftBuzzAssetUrl(profile.playerImageUrl, profile.position)
+    || (nflTeam ? null : normalizeDraftBuzzSchoolName(college));
+
+  if (!nflTeam && school === college) return profile;
+
+  return {
+    ...profile,
+    college: school || profile.college || null,
+    nflTeam: nflTeam || profile.nflTeam || null,
+  };
 }
 
 async function fetchProspectPageMarkdown(sourceUrl: string): Promise<string> {
@@ -543,6 +598,7 @@ function mergeParsedProspects(profiles: ProspectProfile[]): ProspectProfile[] {
       playerImageUrl: primary.playerImageUrl || secondary.playerImageUrl || null,
       collegeLogoUrl: primary.collegeLogoUrl || secondary.collegeLogoUrl || null,
       college: primary.college || secondary.college || null,
+      nflTeam: primary.nflTeam || secondary.nflTeam || null,
       summary: primary.summary || secondary.summary || null,
       overallRank: primary.overallRank || secondary.overallRank || null,
       positionRank: primary.positionRank || secondary.positionRank || null,
@@ -592,7 +648,8 @@ export function parseNflDraftBuzzMarkdown(markdown: string, draftYear: number, s
 
 function dedupeProspects(profiles: ProspectProfile[]): ProspectProfile[] {
   const byKey = new Map<string, ProspectProfile>();
-  for (const profile of profiles) {
+  for (const rawProfile of profiles) {
+    const profile = normalizeNflDraftBuzzProfile(rawProfile);
     const key = `${profile.draftYear}:${canonicalPlayerNameKey(profile.name)}:${profile.position}`;
     const existing = byKey.get(key);
     if (!existing || (profile.overallRank || 9999) < (existing.overallRank || 9999)) {
@@ -627,7 +684,12 @@ function normalizeProspectSnapshot(raw: unknown): ProspectSnapshotPayload | null
     scrapeMonth: typeof payload.scrapeMonth === 'string' ? payload.scrapeMonth : getProspectSnapshotMonth(),
     yearsTracked: Array.isArray(payload.yearsTracked) ? payload.yearsTracked.filter((year): year is number => typeof year === 'number') : [],
     pageCount: typeof payload.pageCount === 'number' ? payload.pageCount : 0,
-    players: payload.players,
+    players: dedupeProspects(payload.players
+      .filter((profile): profile is ProspectProfile => Boolean(profile?.name && profile?.position && profile?.draftYear))
+      .map((profile) => ({
+        ...profile,
+        source: SOURCE_NAME,
+      }))),
     errors: Array.isArray(payload.errors) ? payload.errors.filter((error): error is string => typeof error === 'string') : [],
   };
 }

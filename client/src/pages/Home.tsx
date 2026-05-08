@@ -59,7 +59,12 @@ const MAX_RECENT_LEAGUES_PER_USER = 3;
 const MAX_VISIBLE_LEAGUE_SHORTCUTS = MAX_RECENT_LEAGUES_PER_USER - 1;
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-05-05';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
-const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'awwqq', 'zojozo']);
+const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'zojozo']);
+const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
+const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 1850;
+const REPORT_SUCCESS_KICK_MS = 900;
+
+type LoadingTransitionPhase = 'loading' | 'success' | 'reveal' | 'kick' | 'done';
 
 function getKtcAdminIdentity(user?: SleeperUserSession | null, fallbackUsername?: string): string | null {
   return user?.username || user?.displayName || fallbackUsername || null;
@@ -1051,7 +1056,21 @@ export default function Home() {
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
   const [isAdminPermissionsModalOpen, setIsAdminPermissionsModalOpen] = useState(false);
-  const successTransitionTimerRef = useRef<number | null>(null);
+  const [loadingTransitionPhase, setLoadingTransitionPhase] = useState<LoadingTransitionPhase>('loading');
+  const successTransitionTimerRefs = useRef<number[]>([]);
+
+  const clearSuccessTransitionTimers = () => {
+    successTransitionTimerRefs.current.forEach((timer) => window.clearTimeout(timer));
+    successTransitionTimerRefs.current = [];
+  };
+
+  const queueSuccessTransitionTimer = (callback: () => void, delay: number) => {
+    const timer = window.setTimeout(() => {
+      successTransitionTimerRefs.current = successTransitionTimerRefs.current.filter((queuedTimer) => queuedTimer !== timer);
+      callback();
+    }, delay);
+    successTransitionTimerRefs.current.push(timer);
+  };
 
   const rememberLeagueId = (value: string) => {
     setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, value));
@@ -1092,9 +1111,7 @@ export default function Home() {
 
   const analyzeMutation = trpc.league.analyze.useMutation({
     onSuccess: (data) => {
-      if (successTransitionTimerRef.current) {
-        window.clearTimeout(successTransitionTimerRef.current);
-      }
+      clearSuccessTransitionTimers();
       setLeagueId(data.leagueId);
       setLeagueName(data.leagueName);
       setLeagueLogo(data.leagueLogo);
@@ -1110,31 +1127,34 @@ export default function Home() {
         leagueFormat: data.leagueFormat,
         leagueLogo: data.leagueLogo,
       });
-      successTransitionTimerRef.current = window.setTimeout(() => {
+      setLoadingTransitionPhase('success');
+      queueSuccessTransitionTimer(() => {
         setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
         setReportData(data.reportData);
+        setLoadingTransitionPhase('reveal');
+      }, REPORT_SUCCESS_REVEAL_DELAY_MS);
+      queueSuccessTransitionTimer(() => {
+        setLoadingTransitionPhase('kick');
+      }, REPORT_SUCCESS_REVEAL_DELAY_MS + REPORT_SUCCESS_READ_AFTER_REVEAL_MS);
+      queueSuccessTransitionTimer(() => {
+        setLoadingTransitionPhase('done');
         setIsLoading(false);
         setAnalysisCompleteMessage(null);
         setPendingAnalysisLeague(null);
-        successTransitionTimerRef.current = null;
-      }, 900);
+      }, REPORT_SUCCESS_REVEAL_DELAY_MS + REPORT_SUCCESS_READ_AFTER_REVEAL_MS + REPORT_SUCCESS_KICK_MS);
     },
     onError: (error) => {
-      if (successTransitionTimerRef.current) {
-        window.clearTimeout(successTransitionTimerRef.current);
-        successTransitionTimerRef.current = null;
-      }
+      clearSuccessTransitionTimers();
       setAnalysisCompleteMessage(null);
       setPendingAnalysisLeague(null);
+      setLoadingTransitionPhase('loading');
       setIsLoading(false);
       toast.error(`Error: ${error.message}`);
     },
   });
 
   useEffect(() => () => {
-    if (successTransitionTimerRef.current) {
-      window.clearTimeout(successTransitionTimerRef.current);
-    }
+    clearSuccessTransitionTimers();
   }, []);
 
   const userLeagueRanksMutation = trpc.league.getUserLeagueRanks.useMutation({
@@ -1257,6 +1277,7 @@ export default function Home() {
           leagueFormat: parsed.leagueFormat,
           leagueLogo: parsed.leagueLogo,
         });
+        setLoadingTransitionPhase('loading');
         setIsLoading(true);
         analyzeMutation.mutate({ leagueId: parsed.leagueId, viewerUserId: restoredViewerUserId || undefined });
       }
@@ -1310,6 +1331,7 @@ export default function Home() {
       leagueFormat,
       leagueLogo,
     });
+    setLoadingTransitionPhase('loading');
     setIsLoading(true);
     analyzeMutation.mutate({ leagueId, viewerUserId: viewerUserId || undefined });
     // This intentionally runs when a preserved React Fast Refresh state has report data
@@ -1332,6 +1354,7 @@ export default function Home() {
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
     setAnalysisCompleteMessage(null);
+    setLoadingTransitionPhase('loading');
     setIsLoading(true);
     analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: viewerUserId || undefined });
   };
@@ -1425,14 +1448,12 @@ export default function Home() {
     localStorage.removeItem(REPORT_CACHE_KEY);
     localStorage.removeItem(LAST_LEAGUE_KEY);
     localStorage.removeItem(SLEEPER_SESSION_KEY);
-    if (successTransitionTimerRef.current) {
-      window.clearTimeout(successTransitionTimerRef.current);
-      successTransitionTimerRef.current = null;
-    }
+    clearSuccessTransitionTimers();
     setIsLeaguePickerOpen(false);
     setIsChangeLeagueModalOpen(false);
     setAnalysisCompleteMessage(null);
     setPendingAnalysisLeague(null);
+    setLoadingTransitionPhase('loading');
     setReportData(null);
     setLeagueId('');
     setSleeperUsername('');
@@ -1521,6 +1542,7 @@ export default function Home() {
       leagueLogo: pendingLeague.avatarUrl,
     } : null);
     setAnalysisCompleteMessage(null);
+    setLoadingTransitionPhase('loading');
     setIsLoading(true);
     analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: cachedUser?.userId || viewerUserId || undefined });
   };
@@ -1647,17 +1669,25 @@ export default function Home() {
       ? { leagueName, leagueFormat, leagueLogo }
       : null
   );
+  const isLoadingRevealPhase = loadingTransitionPhase === 'reveal' || loadingTransitionPhase === 'kick';
+  const loadingSuccessCardClassName = [
+    'loading-success-card',
+    analysisCompleteMessage?.leagueLogo ? 'loading-success-card-logo' : '',
+    loadingTransitionPhase === 'reveal' ? 'loading-success-card-reveal' : '',
+    loadingTransitionPhase === 'kick' ? 'loading-success-card-kick' : '',
+  ].filter(Boolean).join(' ');
   const loadingDialog = (
     <Dialog open={isLoading} onOpenChange={() => undefined}>
       <DialogContent
-        className="analysis-loading-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg"
+        className={`analysis-loading-dialog analysis-loading-dialog-${loadingTransitionPhase} border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg`}
+        overlayClassName={`analysis-loading-overlay analysis-loading-overlay-${loadingTransitionPhase}`}
         showCloseButton={false}
         onEscapeKeyDown={(event) => event.preventDefault()}
         onPointerDownOutside={(event) => event.preventDefault()}
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>Analyzing League</DialogTitle>
-          <DialogDescription>Generating the selected league report.</DialogDescription>
+          <DialogTitle>{analysisCompleteMessage ? 'Report Generated' : 'Analyzing League'}</DialogTitle>
+          <DialogDescription>{analysisCompleteMessage ? 'The league report is ready.' : 'Generating the selected league report.'}</DialogDescription>
         </DialogHeader>
         <div className="analysis-loading-modal-body">
           <LoadingAnimation
@@ -1668,12 +1698,25 @@ export default function Home() {
           />
           {analysisCompleteMessage && (
             <div
-              className={`loading-success-card ${analysisCompleteMessage.leagueLogo ? 'loading-success-card-logo' : ''}`}
+              className={loadingSuccessCardClassName}
               role="status"
               aria-live="polite"
             >
               <div className="loading-success-copy">
-                <p className="loading-success-kicker">Report Generated</p>
+                <div className="loading-success-stamp-stage">
+                  <span className="loading-success-impact-shadow" aria-hidden="true" />
+                  <span className="loading-success-stamp-press" aria-hidden="true">
+                    <span className="loading-success-stamp-handle" />
+                    <span className="loading-success-stamp-face">
+                      <span>REPORT</span>
+                      <span>GENERATED</span>
+                    </span>
+                  </span>
+                  <p className="loading-success-kicker loading-success-ink-mark" aria-label="Report Generated">
+                    <span aria-hidden="true">REPORT</span>
+                    <span aria-hidden="true">GENERATED</span>
+                  </p>
+                </div>
                 <div className="loading-success-icon">
                   {analysisCompleteMessage.leagueLogo ? (
                     <img
@@ -1701,7 +1744,7 @@ export default function Home() {
     const displayReportData = reportDataWithRankings || reportData;
     return (
       <ManagerChampionshipProvider championships={reportData.managerChampionships}>
-      <div className="report-shell min-h-screen flex flex-col">
+      <div className={`report-shell min-h-screen flex flex-col ${isLoadingRevealPhase ? 'report-shell-entering' : ''}`}>
         {/* Premium Header */}
         <div className="report-header sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-2">

@@ -2,12 +2,28 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const OUTPUT_FILE = path.join(process.cwd(), 'server', 'prospect-snapshots', 'nfl-draft-buzz-historical-supplement.json');
-const YEARS = [2021, 2022, 2023, 2024, 2025];
-const POSITIONS = ['QB', 'RB', 'WR', 'TE'];
+const YEARS = (process.env.DRAFT_BUZZ_YEARS || '2021,2022,2023,2024,2025')
+  .split(',')
+  .map((year) => Number(year.trim()))
+  .filter((year) => Number.isFinite(year));
+const POSITIONS = (process.env.DRAFT_BUZZ_POSITIONS || 'QB,RB,WR,TE')
+  .split(',')
+  .map((position) => position.trim().toUpperCase())
+  .filter(Boolean);
 const MAX_PAGES = 8;
 const REQUEST_DELAY_MS = 500;
 const FETCH_TIMEOUT_MS = 60000;
 const FETCH_RETRIES = 3;
+const PLAYER_SLUG_POSITIONS = new Set([
+  'QB', 'RB', 'WR', 'TE', 'FB', 'LB', 'CB', 'S', 'SAF', 'EDGE', 'DE',
+  'DT', 'DL', 'OL', 'OT', 'OG', 'C', 'K', 'P',
+]);
+const NFL_TEAM_ABBRS = new Set([
+  'ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN',
+  'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LAC', 'LAR', 'LV', 'MIA',
+  'MIN', 'NE', 'NO', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SF', 'TB',
+  'TEN', 'WAS',
+]);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -42,12 +58,46 @@ function normalizeSourceImageUrl(url) {
   return `https://www.nfldraftbuzz.com/${normalized}`;
 }
 
+function normalizeSchoolName(value) {
+  return String(value || '')
+    .replace(/AANDM/g, 'A&M')
+    .replace(/AANDM/i, 'A&M')
+    .replace(/UTSA/g, 'UTSA')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim() || null;
+}
+
+function getNflTeamFromLogoUrl(url) {
+  const match = String(url || '').match(/\/NFLLogos\/([A-Z]{2,3})\.png/i);
+  const team = match?.[1]?.toUpperCase();
+  return team && NFL_TEAM_ABBRS.has(team) ? team : null;
+}
+
 function playerCollegeFromHref(href, position) {
   const slug = href.split('/').pop() || '';
   const parts = slug.split('-');
   const posIndex = parts.findIndex((part) => part.toUpperCase() === position);
-  if (posIndex < 0 || posIndex === parts.length - 1) return null;
-  return parts.slice(posIndex + 1).join(' ').replace(/([a-z])([A-Z])/g, '$1 $2') || null;
+  const fallbackPosIndex = posIndex < 0
+    ? parts.findIndex((part) => PLAYER_SLUG_POSITIONS.has(part.toUpperCase()))
+    : posIndex;
+  if (fallbackPosIndex < 0 || fallbackPosIndex === parts.length - 1) return null;
+  return normalizeSchoolName(parts.slice(fallbackPosIndex + 1).join(' '));
+}
+
+function playerNameFromHref(href, position) {
+  const slug = href.split('/').pop() || '';
+  const parts = slug.split('-');
+  const posIndex = parts.findIndex((part) => part.toUpperCase() === position);
+  if (posIndex <= 0) return null;
+
+  return parts
+    .slice(0, posIndex)
+    .join(' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b(Jr|Sr|II|III|IV)\b\.?/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim() || null;
 }
 
 function parseRankingRows(html, draftYear, position, sourceUrl) {
@@ -61,7 +111,11 @@ function parseRankingRows(html, draftYear, position, sourceUrl) {
     const rank = parseNumber(row.match(/<h6[^>]*>\s*<i>\s*(\d+)\s*<\/i>/i)?.[1]);
     const firstName = stripTags(row.match(/<span[^>]*class="firstName"[^>]*>([\s\S]*?)<\/span>/i)?.[1]);
     const lastName = stripTags(row.match(/<span[^>]*class="lastName"[^>]*>([\s\S]*?)<\/span>/i)?.[1]);
-    const name = [firstName, lastName].filter(Boolean).join(' ').trim();
+    const displayName = [firstName, lastName].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    const hrefName = playerNameFromHref(href, position);
+    const name = displayName.includes('...')
+      ? hrefName || displayName.replace(/\.+$/g, '').trim()
+      : displayName || hrefName || '';
     const rating = parseNumber(row.match(/whiteBold[\s\S]*?<div>\s*([0-9.]+)\s*<\/div>/i)?.[1]);
     const statusCells = Array.from(row.matchAll(/<td[^>]*class="[^"]*team-result__status d-none d-sm-table-cell[^"]*"[^>]*>([\s\S]*?)<\/td>/gi))
       .map((cell) => stripTags(cell[1]))
@@ -76,8 +130,11 @@ function parseRankingRows(html, draftYear, position, sourceUrl) {
     const averageOverallRank = parseNumber(statusCells[5]);
     const playerImageUrl = normalizeSourceImageUrl(row.match(/player-portrait__img[\s\S]*?<img[^>]+src="([^"]+)"/i)?.[1]);
     const collegeLogoUrl = normalizeSourceImageUrl(row.match(/player-college-image-small[\s\S]*?<img[^>]+src="([^"]+)"/i)?.[1]);
-    const college = stripTags(row.match(/player-college-image-small[\s\S]*?<img[^>]+alt="([^"]+?)\s+Mascot"/i)?.[1])
-      || playerCollegeFromHref(href, position);
+    const logoAlt = stripTags(row.match(/player-college-image-small[\s\S]*?<img[^>]+alt="([^"]+?)\s+Mascot"/i)?.[1]);
+    const nflTeam = getNflTeamFromLogoUrl(collegeLogoUrl) || (NFL_TEAM_ABBRS.has(logoAlt) ? logoAlt : null);
+    const college = playerCollegeFromHref(href, position)
+      || playerCollegeFromHref(playerImageUrl || '', position)
+      || (nflTeam ? null : logoAlt);
     const summary = stripTags(row.match(/<td[^>]*style="text-align:left"[^>]*>([\s\S]*?)<\/td>/i)?.[1]) || null;
 
     players.push({
@@ -89,6 +146,7 @@ function parseRankingRows(html, draftYear, position, sourceUrl) {
       position,
       role: position,
       college,
+      nflTeam,
       playerImageUrl,
       collegeLogoUrl,
       overallRank: rank,
@@ -132,14 +190,29 @@ async function fetchText(url) {
 }
 
 async function getWaybackSnapshotUrls(sourceUrl) {
+  const noWwwSourceUrl = sourceUrl.replace('https://www.nfldraftbuzz.com/', 'https://nfldraftbuzz.com/');
+  const fallbackUrls = [
+    `https://web.archive.org/web/0id_/${sourceUrl}`,
+    `https://web.archive.org/web/0id_/${noWwwSourceUrl}`,
+  ];
   const cdxUrl = `https://web.archive.org/cdx?url=${encodeURIComponent(sourceUrl)}&output=json&fl=timestamp,original,statuscode,mimetype,digest&filter=statuscode:200&collapse=digest&limit=80`;
-  const text = await fetchText(cdxUrl);
-  const rows = JSON.parse(text);
-  if (!Array.isArray(rows) || rows.length <= 1) return [];
-  const snapshots = rows.slice(1).filter((row) => Array.isArray(row) && row[0]);
-  return snapshots
-    .reverse()
-    .map((snapshot) => `https://web.archive.org/web/${snapshot[0]}id_/${sourceUrl}`);
+  try {
+    const text = await fetchText(cdxUrl);
+    const rows = JSON.parse(text);
+    if (!Array.isArray(rows) || rows.length <= 1) return fallbackUrls;
+    const snapshots = rows.slice(1).filter((row) => Array.isArray(row) && row[0]);
+    return [
+      ...snapshots
+        .reverse()
+        .flatMap((snapshot) => [
+          `https://web.archive.org/web/${snapshot[0]}id_/${sourceUrl}`,
+          `https://web.archive.org/web/${snapshot[0]}id_/${noWwwSourceUrl}`,
+        ]),
+      ...fallbackUrls,
+    ];
+  } catch {
+    return fallbackUrls;
+  }
 }
 
 async function fetchArchivedPositionPage(draftYear, position, page) {
@@ -182,6 +255,18 @@ const players = [];
 const errors = [];
 const pages = [];
 
+try {
+  const existing = JSON.parse(await fs.readFile(OUTPUT_FILE, 'utf-8'));
+  if (Array.isArray(existing.players)) {
+    players.push(...existing.players);
+  }
+  if (Array.isArray(existing.pages)) {
+    pages.push(...existing.pages.filter((page) => typeof page === 'string'));
+  }
+} catch {
+  // First run.
+}
+
 for (const draftYear of YEARS) {
   for (const position of POSITIONS) {
     for (let page = 1; page <= MAX_PAGES; page += 1) {
@@ -217,7 +302,7 @@ const payload = {
   note: 'Historical NFL Draft Buzz archive generated from Wayback snapshots for fantasy positions.',
   players: dedupe(players),
   errors,
-  pages,
+  pages: Array.from(new Set(pages)),
 };
 
 await fs.mkdir(path.dirname(OUTPUT_FILE), { recursive: true });
