@@ -54,6 +54,7 @@ const PRIMARY_VALUE_SOURCES = new Set(['FlockFantasy', 'DynastyNerds', 'KTC', 'F
 const LOW_CONFIDENCE_FLOCK_FALLBACK_VALUE_MAX = 25;
 
 export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshots');
+const KTC_STATIC_DIR = path.join(process.cwd(), 'server', 'ktc-static');
 
 function getSnapshotDateKey(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -115,7 +116,12 @@ export async function loadBlendedKTCValues(options: ValueBlendOptions = {}): Pro
 
 function loadStaticKTCValues(fileName: string): KTCValues {
   try {
-    const filePath = path.join(process.cwd(), 'client', 'public', fileName);
+    const candidatePaths = [
+      path.join(KTC_STATIC_DIR, fileName),
+      path.join(process.cwd(), 'client', 'public', fileName),
+    ];
+    const filePath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath));
+    if (!filePath) return {};
     const data = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(data) || {};
   } catch (error) {

@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /assets/draftbuzz-cache/
+Disallow: /ktc_values.json
+Disallow: /ktc_values_last_week.json
+Disallow: /*?*league*
 
 Sitemap: https://dynastydegens.com/sitemap.xml

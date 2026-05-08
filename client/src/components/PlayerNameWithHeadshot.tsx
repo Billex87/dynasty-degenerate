@@ -1,30 +1,43 @@
 import { useState, useEffect } from 'react';
+import { getNflTeamLogoUrl, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
 import { trpc } from '@/lib/trpc';
 
 interface PlayerNameWithHeadshotProps {
   playerId?: string;
   playerName: string;
   fallbackImageUrl?: string | null;
+  team?: string | null;
+  position?: string | null;
 }
 
 export function PlayerNameWithHeadshot({
   playerId,
   playerName,
   fallbackImageUrl,
+  team,
+  position,
 }: PlayerNameWithHeadshotProps) {
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
   const [fallbackImageFailed, setFallbackImageFailed] = useState(false);
+  const [teamLogoFailed, setTeamLogoFailed] = useState(false);
+  const normalizedTeam = normalizeNflTeamAbbr(team);
+  const normalizedPosition = (position || '').trim().toUpperCase();
+  const isDefense = normalizedPosition === 'DEF' || normalizedPosition === 'DST';
+  const defenseLogo = isDefense && normalizedTeam && !teamLogoFailed
+    ? getNflTeamLogoUrl(normalizedTeam)
+    : null;
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
     { playerId: playerId || '' },
-    { enabled: !!playerId && directImageFailed }
+    { enabled: !!playerId && !isDefense && directImageFailed }
   );
 
   useEffect(() => {
     setHeadshot(null);
     setDirectImageFailed(false);
     setFallbackImageFailed(false);
-  }, [playerId, fallbackImageUrl]);
+    setTeamLogoFailed(false);
+  }, [playerId, fallbackImageUrl, normalizedTeam, normalizedPosition]);
 
   useEffect(() => {
     if (headshotData?.success && headshotData?.data) {
@@ -44,7 +57,7 @@ export function PlayerNameWithHeadshot({
     ? `https://sleepercdn.com/content/nfl/players/${playerId}.jpg`
     : null;
   const fallbackImage = fallbackImageUrl && !fallbackImageFailed ? fallbackImageUrl : null;
-  const imageSrc = headshot || (!directImageFailed ? directHeadshot : null) || fallbackImage;
+  const imageSrc = defenseLogo || headshot || (!isDefense && !directImageFailed ? directHeadshot : null) || fallbackImage;
 
   return (
     <div className="interactive-identity player-chip flex min-w-0 items-center gap-2">
@@ -52,8 +65,12 @@ export function PlayerNameWithHeadshot({
         <img
           src={imageSrc}
           alt={playerName}
-          className="interactive-identity-avatar h-7 w-7 flex-shrink-0 rounded-full border border-orange-300/40 object-cover shadow-sm shadow-black/30"
+          className="interactive-identity-avatar h-8 w-8 flex-shrink-0 object-contain drop-shadow-[0_3px_8px_rgba(0,0,0,0.38)]"
           onError={() => {
+            if (imageSrc === defenseLogo) {
+              setTeamLogoFailed(true);
+              return;
+            }
             if (imageSrc === directHeadshot && !directImageFailed) {
               setDirectImageFailed(true);
               return;

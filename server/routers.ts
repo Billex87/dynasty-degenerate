@@ -1,4 +1,5 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, UNAUTHED_ERR_MSG } from "@shared/const";
+import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
@@ -39,26 +40,101 @@ function getManagerDisplayName(name: string | undefined): string {
   return name?.trim() || 'Unknown';
 }
 
+const SLEEPER_ID_PATTERN = /^\d{8,24}$/;
+const sleeperLeagueIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a valid Sleeper league ID');
+const sleeperUserIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a valid Sleeper user ID');
+const sleeperUsernameSchema = z.string().trim().min(1).max(64);
+const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+let lastRateLimitSweepAt = 0;
+
+type RequestLike = { headers?: Record<string, any>; socket?: { remoteAddress?: string | null } };
+type RateLimitOptions = {
+  id: string;
+  max: number;
+  windowMs: number;
+  scope?: string;
+  message: string;
+};
+
+function getHeaderValue(headers: Record<string, any> | undefined, key: string): string | null {
+  const value = headers?.[key];
+  if (Array.isArray(value)) return value.find((item) => typeof item === 'string' && item.trim())?.trim() || null;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 function getClientIp(req: { headers: Record<string, any>; socket?: { remoteAddress?: string | null } }): string | null {
   const forwardedFor = req.headers["x-forwarded-for"];
-  const realIp = req.headers["x-real-ip"];
+  const vercelForwardedFor = getHeaderValue(req.headers, "x-vercel-forwarded-for");
+  const cfConnectingIp = getHeaderValue(req.headers, "cf-connecting-ip");
+  const realIp = getHeaderValue(req.headers, "x-real-ip");
   const raw = Array.isArray(forwardedFor)
     ? forwardedFor[0]
     : typeof forwardedFor === "string" && forwardedFor.length > 0
       ? forwardedFor.split(",")[0]
-      : typeof realIp === "string" && realIp.length > 0
-        ? realIp
-        : req.socket?.remoteAddress || null;
+      : vercelForwardedFor || cfConnectingIp || realIp || req.socket?.remoteAddress || null;
 
   if (!raw) return null;
   return String(raw).trim().replace(/^::ffff:/, "") || null;
 }
 
-function canForceRefreshLeagueCache(req: { headers?: Record<string, any> }): boolean {
+function isTrustedAutomationRequest(req: RequestLike): boolean {
   const configuredSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers?.authorization;
+  const authHeader = getHeaderValue(req.headers, 'authorization');
   if (configuredSecret) return authHeader === `Bearer ${configuredSecret}`;
   return process.env.NODE_ENV !== 'production' && req.headers?.['x-cache-warmer'] === 'true';
+}
+
+function canForceRefreshLeagueCache(req: { headers?: Record<string, any> }): boolean {
+  return isTrustedAutomationRequest(req);
+}
+
+function sweepRateLimitBuckets(now = Date.now()) {
+  if (now - lastRateLimitSweepAt < 1000 * 60 * 5) return;
+  lastRateLimitSweepAt = now;
+  for (const [key, bucket] of Array.from(rateLimitBuckets.entries())) {
+    if (bucket.resetAt <= now) rateLimitBuckets.delete(key);
+  }
+}
+
+function assertRateLimit(req: RequestLike, options: RateLimitOptions) {
+  if (process.env.NODE_ENV === 'test' || isTrustedAutomationRequest(req)) return;
+
+  const now = Date.now();
+  sweepRateLimitBuckets(now);
+  const clientId = getClientIp({
+    headers: req.headers || {},
+    socket: req.socket,
+  }) || 'anonymous';
+  const key = [options.id, clientId, options.scope || 'global'].join(':');
+  const existing = rateLimitBuckets.get(key);
+  const bucket = existing && existing.resetAt > now
+    ? existing
+    : { count: 0, resetAt: now + options.windowMs };
+
+  bucket.count += 1;
+  rateLimitBuckets.set(key, bucket);
+
+  if (bucket.count > options.max) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+    console.warn(`[RateLimit] ${options.id} blocked for ${clientId}; retry after ${retryAfterSeconds}s`);
+    void insertLoginAttempt({
+      eventType: 'rate_limit',
+      status: 'error',
+      leagueId: options.scope && SLEEPER_ID_PATTERN.test(options.scope) ? options.scope : null,
+      ipAddress: clientId,
+      userAgent: getHeaderValue(req.headers, 'user-agent'),
+      note: `${options.id}; retryAfter=${retryAfterSeconds}s`,
+    });
+    throw new TRPCError({
+      code: 'TOO_MANY_REQUESTS',
+      message: options.message,
+    });
+  }
+}
+
+function assertReportAccess(ctx: { user?: unknown }) {
+  if (process.env.REQUIRE_AUTH_FOR_REPORTS !== 'true' || ctx.user) return;
+  throw new TRPCError({ code: 'UNAUTHORIZED', message: UNAUTHED_ERR_MSG });
 }
 
 function getSleeperAvatarUrl(avatarId: string | null | undefined): string | null {
@@ -1998,8 +2074,15 @@ export const appRouter = router({
 
   league: router({
     getUserLeagues: publicProcedure
-      .input(z.object({ username: z.string().min(1) }))
+      .input(z.object({ username: sleeperUsernameSchema }))
       .mutation(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.getUserLeagues',
+          max: 20,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many league lookup attempts. Please wait a few minutes and try again.',
+        });
         const username = input.username.trim();
         if (!username) throw new Error('Please enter a Sleeper username');
         const ipAddress = getClientIp(ctx.req as any);
@@ -2090,12 +2173,19 @@ export const appRouter = router({
 
     getUserLeagueRanks: publicProcedure
       .input(z.object({
-        username: z.string().min(1),
-        userId: z.string().min(1),
+        username: sleeperUsernameSchema,
+        userId: sleeperUserIdSchema,
         displayName: z.string().optional(),
-        leagueIds: z.array(z.string().min(1)).max(50),
+        leagueIds: z.array(sleeperLeagueIdSchema).max(50),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.getUserLeagueRanks',
+          max: 15,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many league rank lookups. Please wait a few minutes and try again.',
+        });
         const username = input.username.trim();
         const leagueIds = Array.from(new Set(input.leagueIds.map((leagueId) => leagueId.trim()).filter(Boolean)));
         if (!leagueIds.length) return { ranks: [] };
@@ -2151,17 +2241,33 @@ export const appRouter = router({
       }),
 
     rankings: publicProcedure
-      .input(z.object({ leagueId: z.string(), forceRefresh: z.boolean().optional() }))
+      .input(z.object({ leagueId: sleeperLeagueIdSchema, forceRefresh: z.boolean().optional() }))
       .query(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.rankings',
+          max: 45,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId,
+          message: 'Too many ranking requests for this league. Please wait a few minutes and try again.',
+        });
         const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
         return buildLeagueRankingsPayload(input.leagueId, forceRefresh);
       }),
 
     analyze: publicProcedure
-      .input(z.object({ leagueId: z.string(), viewerUserId: z.string().optional(), forceRefresh: z.boolean().optional() }))
+      .input(z.object({ leagueId: sleeperLeagueIdSchema, viewerUserId: sleeperUserIdSchema.optional(), forceRefresh: z.boolean().optional() }))
       .mutation(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
         const ipAddress = getClientIp(ctx.req as any);
         const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
+        assertRateLimit(ctx.req as any, {
+          id: 'league.analyze.view',
+          max: 18,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId,
+          message: 'Too many report requests for this league. Please wait a few minutes and try again.',
+        });
         const reportCacheKey = getLeagueReportCacheKey(input.leagueId, input.viewerUserId);
         const markAnalyzeStep = createLeagueAnalyzeTimer(input.leagueId);
         const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
@@ -2179,6 +2285,20 @@ export const appRouter = router({
             });
             return cloneReportWithViewerManager(cachedReport, input.viewerUserId) as any;
           }
+
+          assertRateLimit(ctx.req as any, {
+            id: 'league.analyze.generate.ip',
+            max: 6,
+            windowMs: 1000 * 60 * 60,
+            message: 'Too many fresh report generations. Please wait before running another uncached analysis.',
+          });
+          assertRateLimit(ctx.req as any, {
+            id: 'league.analyze.generate.league',
+            max: 3,
+            windowMs: 1000 * 60 * 60,
+            scope: input.leagueId,
+            message: 'Fresh report generation is temporarily throttled for this league.',
+          });
 
           const leagueInfo = await fetch(
             `https://api.sleeper.app/v1/league/${input.leagueId}`
@@ -2631,6 +2751,7 @@ export const appRouter = router({
 
           return analyzePayload;
         } catch (error) {
+          if (error instanceof TRPCError) throw error;
           console.error('League analysis error:', error);
           if (!(error instanceof Error && error.message === 'Invalid league ID')) {
             await insertLoginAttempt({

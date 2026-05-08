@@ -8,7 +8,7 @@ let sqlClient: SqlClient | null = null;
 let schemaReady: Promise<void> | null = null;
 
 export type LoginAttemptEvent = {
-  eventType: "find_leagues" | "analyze_league";
+  eventType: "find_leagues" | "analyze_league" | "rate_limit";
   status: "success" | "error";
   username?: string | null;
   leagueId?: string | null;
@@ -292,9 +292,15 @@ export async function findLatestProspectSnapshot(source: string) {
 }
 
 function normalizeLoginAttempt(row: any): StoredLoginAttempt {
+  const eventType = row.eventType === "analyze_league"
+    ? "analyze_league"
+    : row.eventType === "rate_limit"
+      ? "rate_limit"
+      : "find_leagues";
+
   return {
     id: Number(row.id),
-    eventType: row.eventType === "analyze_league" ? "analyze_league" : "find_leagues",
+    eventType,
     status: row.status === "error" ? "error" : "success",
     username: row.username ?? null,
     leagueId: row.leagueId ?? null,

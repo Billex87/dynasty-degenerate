@@ -363,6 +363,179 @@
   white-space: nowrap;
 }
 
+.admin-traffic-panel {
+  width: min(100%, 62rem);
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 0.95rem;
+  background: radial-gradient(circle at 8% 0%, rgba(34, 211, 238, 0.12), transparent 34%), linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.96));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
+.admin-traffic-panel-error {
+  padding: 1rem;
+  text-align: center;
+}
+
+.admin-traffic-panel-error p,
+.admin-traffic-panel-error span {
+  margin: 0;
+  color: #fecaca;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.admin-traffic-panel-error span {
+  display: block;
+  margin-top: 0.35rem;
+  color: #cbd5e1;
+}
+
+.admin-traffic-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.14);
+  padding: 0.9rem 1rem;
+}
+
+.admin-traffic-header > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.admin-traffic-header span,
+.admin-traffic-card h4 {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-traffic-header strong {
+  color: #f8fafc;
+  font-size: 0.92rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.admin-traffic-refresh {
+  flex: 0 0 auto;
+  border-color: rgba(34, 211, 238, 0.28);
+  color: #cffafe;
+}
+
+.admin-traffic-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+  gap: 0.6rem;
+  padding: 0.85rem;
+}
+
+.admin-traffic-stat {
+  min-width: 0;
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: 0.84rem;
+  background: rgba(8, 47, 73, 0.26);
+  padding: 0.7rem;
+}
+
+.admin-traffic-stat span {
+  display: block;
+  color: #bae6fd;
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.admin-traffic-stat strong {
+  display: block;
+  margin-top: 0.22rem;
+  color: #fb923c;
+  font-size: 1.22rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.admin-traffic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 0.75rem;
+  border-top: 1px solid rgba(34, 211, 238, 0.14);
+  padding: 0.85rem;
+}
+
+.admin-traffic-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: 0.9rem;
+  background: rgba(2, 6, 23, 0.5);
+  padding: 0.8rem;
+}
+
+.admin-traffic-card h4 {
+  margin: 0 0 0.65rem;
+}
+
+.admin-traffic-list {
+  display: grid;
+  min-width: 0;
+  gap: 0.55rem;
+}
+
+.admin-traffic-row {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 0.72rem;
+  background: rgba(15, 23, 42, 0.64);
+  padding: 0.58rem;
+}
+
+.admin-traffic-row-error {
+  border-color: rgba(251, 113, 133, 0.2);
+}
+
+.admin-traffic-row strong,
+.admin-traffic-row span,
+.admin-traffic-row em,
+.admin-traffic-empty {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-traffic-row strong {
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.admin-traffic-row span {
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 820;
+  line-height: 1.25;
+}
+
+.admin-traffic-row em,
+.admin-traffic-empty {
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
 .trade-fit-target {
   display: inline-flex;
   min-width: 0;
@@ -14673,7 +14846,7 @@ button.owner-summary-tile:focus-visible {
 
 .report-shell .report-disclosure-summary {
   max-width: min(100%, 42rem);
-  margin-bottom: clamp(0.55rem, 1.35vw, 1rem);
+  margin-bottom: clamp(0.35rem, 0.9vw, 0.7rem);
 }
 
 .report-shell .report-disclosure-summary p,
@@ -14687,6 +14860,10 @@ button.owner-summary-tile:focus-visible {
 
 .report-shell .report-disclosure-body {
   margin-top: 0 !important;
+}
+
+.report-shell .report-disclosure-body-inner {
+  padding: var(--dd-report-content-y) var(--dd-report-content-x) clamp(0.72rem, 1.1vw, 1rem);
 }
 
 .report-shell .player-tile-grid,
@@ -14774,6 +14951,10 @@ button.trade-manager-trade {
 .report-shell .command-feature-card {
   border-color: rgba(34, 211, 238, 0.16) !important;
   background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.08), transparent 34%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.09), transparent 36%), linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.82)) !important;
+}
+
+.report-shell .command-feature-card {
+  padding: var(--dd-report-panel-y) var(--dd-report-panel-x) !important;
 }
 
 .report-shell [data-slot="table-container"],
@@ -18513,6 +18694,10 @@ body {
 /* Dynamic report density pass: repeated cards should use the room they have instead of locking to two columns. */
 .report-shell {
   --dd-report-grid-gap: clamp(0.55rem, 1vw, 0.95rem);
+  --dd-report-content-x: clamp(0.78rem, 1.65vw, 1.35rem);
+  --dd-report-content-y: clamp(0.32rem, 0.8vw, 0.62rem);
+  --dd-report-panel-x: clamp(0.9rem, 1.45vw, 1.35rem);
+  --dd-report-panel-y: clamp(0.62rem, 1vw, 0.9rem);
   --dd-report-player-min: 15rem;
   --dd-report-owner-min: 16rem;
   --dd-report-detail-min: 14rem;
@@ -18581,6 +18766,12 @@ body {
 
 .report-shell .recent-transaction-player-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)) !important;
+}
+
+@media (min-width: 1280px) {
+  .report-shell .balanced-tile-grid {
+    grid-template-columns: repeat(var(--dd-balanced-grid-columns), minmax(0, 1fr)) !important;
+  }
 }
 
 @media (min-width: 1180px) {
@@ -23974,4 +24165,210 @@ body,
   .command-depth-name {
     transform: none !important;
   }
+}
+
+/* Final report tile overrides. Keep this last so broad report polish rules do not re-wrap these tile details. */
+:is(.report-shell, .manager-command-dialog) .manager-command-player-tile-pills {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 0.36rem;
+}
+
+:is(.report-shell, .manager-command-dialog) .manager-command-player-tile-pills-main {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+}
+
+:is(.report-shell, .manager-command-dialog) .manager-command-player-status-row,
+:is(.report-shell, .starter-modal) .starter-player-status-row {
+  display: flex;
+  grid-column: 1 / -1;
+  width: 100%;
+  justify-content: center;
+}
+
+:is(.report-shell, .manager-command-dialog) .manager-command-player-status-row .manager-command-status-pill,
+:is(.report-shell, .starter-modal) .starter-player-status-row .starter-player-status-pill {
+  display: inline-flex;
+  min-height: 1.18rem;
+  min-width: min(100%, 5.75rem);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.48);
+  padding: 0.18rem 0.55rem;
+  color: #cbd5e1;
+  font-size: 0.62rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: capitalize;
+}
+
+:is(.report-shell, .manager-command-dialog) .manager-command-player-status-row .manager-command-status-pill.is-active,
+:is(.report-shell, .starter-modal) .starter-player-status-row .starter-player-status-pill.is-active {
+  border-color: rgba(52, 211, 153, 0.36);
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+}
+
+:is(.report-shell, .manager-command-dialog) .manager-command-player-status-row .manager-command-status-pill.is-warning,
+:is(.report-shell, .starter-modal) .starter-player-status-row .starter-player-status-pill.is-warning {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+}
+
+:is(.report-shell, .manager-command-dialog) .manager-command-player-status-row .manager-command-status-pill.is-risk,
+:is(.report-shell, .starter-modal) .starter-player-status-row .starter-player-status-pill.is-risk {
+  border-color: rgba(251, 113, 133, 0.38);
+  background: rgba(244, 63, 94, 0.14);
+  color: #fecdd3;
+}
+
+:is(.report-shell, .manager-command-dialog) .manager-command-player-status-row .manager-command-status-pill.is-taxi,
+:is(.report-shell, .starter-modal) .starter-player-status-row .starter-player-status-pill.is-taxi {
+  border-color: rgba(34, 211, 238, 0.34);
+  background: rgba(8, 145, 178, 0.14);
+  color: #a5f3fc;
+}
+
+:is(.report-shell, .starter-modal) .starter-player-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.38rem;
+}
+
+:is(.report-shell, .starter-modal) .starter-player-meta-main {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.38rem;
+}
+
+.manager-command-dialog .manager-command-tile-group > span::before {
+  right: calc(100% + 0.62rem) !important;
+}
+
+.manager-command-dialog .manager-command-tile-group > span::after {
+  left: calc(100% + 0.62rem) !important;
+}
+
+.report-shell .waiver-intel-pills .waiver-intel-rank-pill {
+  display: grid;
+  min-height: 2.55rem;
+  min-width: 4.35rem;
+  align-items: center;
+  justify-items: center;
+  gap: 0.14rem;
+  border-radius: 0.72rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.08), transparent 58%),
+    rgba(2, 6, 23, 0.58) !important;
+  padding: 0.3rem 0.5rem 0.34rem;
+  letter-spacing: 0;
+}
+
+.report-shell .waiver-intel-rank-pill em {
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 0.5rem;
+  font-style: normal;
+  font-weight: 1000;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.report-shell .waiver-intel-rank-pill strong {
+  color: currentColor;
+  font-family: var(--font-athletic);
+  font-size: 0.86rem;
+  font-weight: 1000;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.report-shell .player-chip > img,
+.manager-command-dialog .player-chip > img,
+.starter-modal .player-chip > img,
+.manager-draft-modal .player-chip > img,
+.trade-manager-modal .player-chip > img,
+.player-detail-modal .player-chip > img,
+.full-trade-ledger-modal .player-chip > img,
+.owner-intel-dialog .player-chip > img,
+.report-shell .ranking-player-image {
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  object-fit: contain !important;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.44));
+}
+
+.report-shell :is(.weekly-momentum-tile-top strong, .trade-market-change, .player-trade-comp-delta-positive strong, .player-trade-comp-delta-negative strong, .player-trade-comp-delta-neutral strong),
+.player-detail-modal :is(.player-trade-comp-delta-positive strong, .player-trade-comp-delta-negative strong, .player-trade-comp-delta-neutral strong) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+}
+
+:is(.report-shell, .manager-command-dialog) .manager-command-player-tile-pills-main > span:not(.position-rank-pill):not(.team-logo-pill) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.46);
+  padding: 0.18rem 0.44rem;
+  color: #cbd5e1;
+  font-size: 0.62rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+:is(.report-shell, .starter-modal) .starter-player-tile-compact .starter-player-meta-main {
+  gap: 0.24rem;
+}
+
+.report-shell .waiver-intel-pills .waiver-intel-rank-pill.position-rank-qb,
+.report-shell .waiver-intel-pills .waiver-intel-rank-pill.position-rank-rb,
+.report-shell .waiver-intel-pills .waiver-intel-rank-pill.position-rank-wr,
+.report-shell .waiver-intel-pills .waiver-intel-rank-pill.position-rank-te,
+.report-shell .waiver-intel-pills .waiver-intel-rank-pill.position-rank-flex,
+.report-shell .waiver-intel-pills .waiver-intel-rank-pill.position-rank-k,
+.report-shell .waiver-intel-pills .waiver-intel-rank-pill.position-rank-def,
+.report-shell .waiver-intel-pills .waiver-intel-rank-pill.position-rank-neutral {
+  background:
+    radial-gradient(circle at 50% 0%, currentColor 0, transparent 62%),
+    rgba(2, 6, 23, 0.64) !important;
+}
+
+.report-shell :is(.weekly-momentum-player, .trending-player-card-main, .waiver-intel-main, .trade-market-player, .recent-transaction-player-main, .player-tile-main, .rookie-draft-player-cell, .value-board__player) .player-chip > img {
+  height: 2.45rem;
+  width: 2.45rem;
+}
+
+:is(.report-shell, .manager-command-dialog) .manager-command-player-tile-main .player-chip > img {
+  height: 3.18rem;
+  width: 3.18rem;
+}
+
+:is(.report-shell, .starter-modal) .starter-player-main .player-chip > img,
+:is(.report-shell, .starter-modal) .starter-depth-player-main .player-chip > img {
+  height: 3.1rem;
+  width: 3.1rem;
+}
+
+:is(.report-shell, .starter-modal) .starter-player-tile-compact .starter-player-main .player-chip > img {
+  height: 2.35rem;
+  width: 2.35rem;
 }

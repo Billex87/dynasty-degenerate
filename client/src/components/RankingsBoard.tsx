@@ -230,7 +230,7 @@ function getProfileButtonLabel(option: RankingProfileOption): string {
   return `${prefix} TEP++`;
 }
 
-function RankingPlayerIdentity({ player }: { player: RankingPlayer }) {
+function RankingPlayerIdentity({ player, team }: { player: RankingPlayer; team?: string | null }) {
   const preferredImageUrl = getCachedDraftBuzzImageUrl(player.imageUrl || player.prospectProfile?.playerImageUrl || null);
   const shouldUseRankingImage = Boolean(preferredImageUrl && (player.isDevy || !player.player_id));
   const [imageFailed, setImageFailed] = useState(false);
@@ -250,7 +250,13 @@ function RankingPlayerIdentity({ player }: { player: RankingPlayer }) {
 
   return (
     <div className="ranking-player-identity">
-      <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} fallbackImageUrl={preferredImageUrl} />
+      <PlayerNameWithHeadshot
+        playerId={player.player_id}
+        playerName={player.name}
+        fallbackImageUrl={preferredImageUrl}
+        team={team || player.team}
+        position={player.pos}
+      />
     </div>
   );
 }
@@ -312,6 +318,7 @@ function RankingValueRow({ player, playerDetailsById, managerAvatars, viewerMana
   const movementClass = player.movementDirection === 'up' ? 'ranking-move-up' : player.movementDirection === 'down' ? 'ranking-move-down' : 'ranking-move-flat';
   const movementIcon = player.movementDirection === 'up' ? <TrendingUp className="h-3.5 w-3.5" /> : player.movementDirection === 'down' ? <TrendingDown className="h-3.5 w-3.5" /> : null;
   const rankMovementClass = player.rankMovementDirection === 'up' ? 'ranking-move-up' : player.rankMovementDirection === 'down' ? 'ranking-move-down' : 'ranking-move-flat';
+  const rankMovementIcon = player.rankMovementDirection === 'up' ? <TrendingUp className="h-3.5 w-3.5" /> : player.rankMovementDirection === 'down' ? <TrendingDown className="h-3.5 w-3.5" /> : null;
   const hasRankMovement = Boolean(player.rankMovementLabel);
   const displayTeam = details?.team || player.team;
   const rankLabel = `#${player.overallRank}`;
@@ -332,7 +339,7 @@ function RankingValueRow({ player, playerDetailsById, managerAvatars, viewerMana
       </div>
 
       <div className="value-board__player">
-        <RankingPlayerIdentity player={player} />
+        <RankingPlayerIdentity player={player} team={displayTeam} />
       </div>
 
       <div className="value-board__mobile-meta">
@@ -420,7 +427,10 @@ function RankingValueRow({ player, playerDetailsById, managerAvatars, viewerMana
 
       {hasRankMovement ? (
         <div className="value-board__trend" aria-label={`${player.name} board movement`}>
-          <span className={`ranking-trend-pill ${rankMovementClass}`}>{player.rankMovementLabel}</span>
+          <span className={`ranking-trend-pill ${rankMovementClass}`}>
+            {player.rankMovementLabel}
+            {rankMovementIcon}
+          </span>
         </div>
       ) : null}
     </button>

@@ -19,6 +19,7 @@ import { SupportButton } from '@/components/SupportButton';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import { ReportSectionHeader } from '@/components/reportPrimitives';
+import { PRIVILEGED_REPORT_VIEWERS } from '@shared/const';
 import type { ReportData } from '@shared/types';
 
 const DraftAnalysis = lazy(() => import('@/components/DraftAnalysis').then((module) => ({ default: module.DraftAnalysis })));
@@ -59,7 +60,7 @@ const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-05-05';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
-const PRIVILEGED_REPORT_VIEWERS = new Set(['mynameisbillex', 'zojozo']);
+const PRIVILEGED_REPORT_VIEWER_SET = new Set<string>(PRIVILEGED_REPORT_VIEWERS);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
 const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 1850;
 const REPORT_SUCCESS_KICK_MS = 900;
@@ -77,7 +78,7 @@ function normalizeViewerIdentifier(value?: string | null): string {
 function isPrivilegedReportViewer(...identifiers: Array<string | null | undefined>): boolean {
   return identifiers
     .map(normalizeViewerIdentifier)
-    .some((value) => value && PRIVILEGED_REPORT_VIEWERS.has(value));
+    .some((value) => value && PRIVILEGED_REPORT_VIEWER_SET.has(value));
 }
 
 function ReportSectionLoadingFallback() {
@@ -1059,6 +1060,125 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
             <p>{row.note}</p>
           </article>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function formatAdminTelemetryDate(value?: string | null): string {
+  if (!value) return 'n/a';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'n/a';
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function AdminAbuseTelemetryPanel() {
+  const { data, error, isLoading, isFetching, refetch } = trpc.system.abuseTelemetry.useQuery(
+    { lookbackDays: 7 },
+    {
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: 1000 * 60,
+    }
+  );
+
+  if (isLoading) {
+    return <div className="rankings-empty-state">Loading traffic telemetry...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="admin-traffic-panel admin-traffic-panel-error">
+        <p>Admin traffic telemetry is unavailable for this session.</p>
+        <span>{error.message}</span>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return <div className="rankings-empty-state">No traffic telemetry available.</div>;
+  }
+
+  const totalCards = [
+    { label: 'Events', value: data.totals.events },
+    { label: 'Generated Reports', value: data.totals.generatedReports },
+    { label: 'Cached Reports', value: data.totals.cachedReports },
+    { label: 'Rate Limits', value: data.totals.rateLimitEvents },
+    { label: 'Unique IPs', value: data.totals.uniqueIps },
+    { label: 'Unique Leagues', value: data.totals.uniqueLeagueIds },
+  ];
+
+  return (
+    <div className="admin-traffic-panel">
+      <div className="admin-traffic-header">
+        <div>
+          <span>Last {data.lookbackDays} days</span>
+          <strong>Generated {formatAdminTelemetryDate(data.generatedAt)}</strong>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="admin-traffic-refresh"
+          disabled={isFetching}
+          onClick={() => void refetch()}
+        >
+          Refresh
+        </Button>
+      </div>
+
+      <div className="admin-traffic-stat-grid">
+        {totalCards.map((card) => (
+          <article key={card.label} className="admin-traffic-stat">
+            <span>{card.label}</span>
+            <strong>{card.value.toLocaleString()}</strong>
+          </article>
+        ))}
+      </div>
+
+      <div className="admin-traffic-grid">
+        <section className="admin-traffic-card">
+          <h4>Top IPs</h4>
+          <div className="admin-traffic-list">
+            {data.topIps.map((entry) => (
+              <div key={entry.label} className="admin-traffic-row">
+                <strong>{entry.label}</strong>
+                <span>{entry.count} events · {entry.rateLimited} limited · {entry.uniqueLeagueIds} leagues</span>
+                <em>Last seen {formatAdminTelemetryDate(entry.lastSeen)}</em>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Top Leagues</h4>
+          <div className="admin-traffic-list">
+            {data.topLeagueIds.length ? data.topLeagueIds.map((entry) => (
+              <div key={entry.label} className="admin-traffic-row">
+                <strong>{entry.label}</strong>
+                <span>{entry.count} events · {entry.success} success · {entry.error} errors</span>
+                <em>Last seen {formatAdminTelemetryDate(entry.lastSeen)}</em>
+              </div>
+            )) : <p className="admin-traffic-empty">No league-specific events yet.</p>}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Recent Events</h4>
+          <div className="admin-traffic-list">
+            {data.recentEvents.map((event) => (
+              <div key={event.id} className={`admin-traffic-row admin-traffic-row-${event.status}`}>
+                <strong>{event.eventType.replace(/_/g, ' ')}</strong>
+                <span>{event.status} · {event.username || event.leagueId || event.ipAddress || 'unknown'}</span>
+                <em>{formatAdminTelemetryDate(event.createdAt)}{event.note ? ` · ${event.note}` : ''}</em>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -2072,9 +2192,14 @@ export default function Home() {
                   </CollapsibleReportSection>
                 )}
                 {canViewMomentumTab && (
-                  <CollapsibleReportSection title="Admin Eyes Only: Value Assumptions" kicker="Hidden diagnostics">
-                    <AdminValueDiagnosticsTable reportData={displayReportData} />
-                  </CollapsibleReportSection>
+                  <>
+                    <CollapsibleReportSection title="Admin Eyes Only: Traffic & Abuse" kicker="Request telemetry">
+                      <AdminAbuseTelemetryPanel />
+                    </CollapsibleReportSection>
+                    <CollapsibleReportSection title="Admin Eyes Only: Value Assumptions" kicker="Hidden diagnostics">
+                      <AdminValueDiagnosticsTable reportData={displayReportData} />
+                    </CollapsibleReportSection>
+                  </>
                 )}
               </div>
             </TabsContent>

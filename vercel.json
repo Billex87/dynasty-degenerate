@@ -4,9 +4,64 @@
   "outputDirectory": "dist/public",
   "functions": {
     "api/**/*.js": {
-      "includeFiles": "dist/vercelApp.js"
+      "includeFiles": [
+        "dist/vercelApp.js",
+        "server/ktc-static/*.json",
+        "server/ktc-snapshots/*.json",
+        "server/prospect-snapshots/*.json",
+        "server/rookie-values/*.json"
+      ]
     }
   },
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store, max-age=0"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/assets/draftbuzz-cache/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, noimageindex, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://formspree.io; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' https://forge.butterfly-effect.dev https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://formspree.io https://forge.butterfly-effect.dev https://*.googleapis.com https://*.gstatic.com; upgrade-insecure-requests"
+        }
+      ]
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/ktc-snapshot",

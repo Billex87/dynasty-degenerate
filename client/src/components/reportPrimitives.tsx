@@ -98,7 +98,7 @@ export function PlayerIdentityRow({
 
   return (
     <div className={cn('report-player-identity-row', className)}>
-      <PlayerNameWithHeadshot playerId={playerId} playerName={playerName} />
+      <PlayerNameWithHeadshot playerId={playerId} playerName={playerName} team={team} position={position} />
       {hasMeta && (
         <span className="report-player-identity-meta" aria-label={`${playerName} player context`}>
           <TeamLogoPill team={team} />

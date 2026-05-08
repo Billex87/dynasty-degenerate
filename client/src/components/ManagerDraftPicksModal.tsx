@@ -14,6 +14,7 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
+import { getBalancedGridStyle } from '@/lib/balancedGrid';
 
 interface ManagerDraftPicksModalProps {
   isOpen: boolean;
@@ -150,7 +151,7 @@ export function ManagerDraftPicksModal({
             </div>
 
             <div className="player-tile-shell w-full overflow-x-hidden p-4 sm:p-6">
-              <div className="player-tile-grid manager-draft-player-grid">
+              <div className="player-tile-grid manager-draft-player-grid balanced-tile-grid" style={getBalancedGridStyle(managerPicks.length)}>
                 {managerPicks.map((pick, idx) => {
                   const draftOutcome = getDraftOutcomeLabel(getResolvedDraftOutcome(pick));
                   const isStarter = getResolvedDraftStarter(pick);
@@ -169,7 +170,12 @@ export function ManagerDraftPicksModal({
                     >
                       {isStarter && <span className="draft-starter-corner">Starter</span>}
                       <div className="player-tile-main">
-                        <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
+                        <PlayerNameWithHeadshot
+                          playerId={pick.player_id}
+                          playerName={pick.playerName}
+                          team={pick.playerDetails?.team}
+                          position={pick.playerPos}
+                        />
                       </div>
                       <div className="player-tile-pills">
                         <TeamLogoPill team={pick.playerDetails?.team} />
@@ -206,6 +212,8 @@ export function ManagerDraftPicksModal({
                             {pick.valueGain !== null && pick.valueGain !== undefined && (
                               <span className={pick.valueGain >= 0 ? 'is-positive' : 'is-negative'}>
                                 {pick.valueGain > 0 ? '+' : ''}{pick.valueGain.toLocaleString()}
+                                {pick.valueGain > 0 && <TrendingUp className="ml-1 inline h-3.5 w-3.5" />}
+                                {pick.valueGain < 0 && <TrendingDown className="ml-1 inline h-3.5 w-3.5" />}
                               </span>
                             )}
                           </div>

@@ -3,6 +3,7 @@ import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { registerOAuthRoutes } from './oauth';
 import { appRouter } from '../routers';
 import { createContext } from './context';
+import { apiErrorHandler, apiNotFoundHandler, configureSecurity } from './security';
 import { storeKtcSnapshot } from '../ktcSnapshotJob';
 import { getSnapshotDateKey } from '../ktcLoader';
 import { getProspectSnapshotMonth, shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from '../prospectSource';
@@ -47,8 +48,9 @@ function isCronAuthorized(req: express.Request): { ok: true; configuredSecret?: 
   return { ok: true, configuredSecret };
 }
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+configureSecurity(app);
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ limit: '1mb', extended: true, parameterLimit: 100 }));
 
 registerOAuthRoutes(app);
 
@@ -209,5 +211,8 @@ app.use(
     createContext,
   })
 );
+
+app.use(apiNotFoundHandler);
+app.use(apiErrorHandler);
 
 export default app;

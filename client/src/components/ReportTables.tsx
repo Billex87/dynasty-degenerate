@@ -16,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, ChevronDown, Crown, Scissors, ShieldCheck, X as XIcon } from 'lucide-react';
+import { ArrowRight, ChevronDown, Crown, Scissors, ShieldCheck, TrendingDown, TrendingUp, X as XIcon } from 'lucide-react';
 import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TaxiTriageItem, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
@@ -24,11 +24,12 @@ import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampion
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { TeamLogoPill } from './TeamLogoPill';
 import { EmptyState, MetricPill, PlayerIdentityRow, ReportCard } from './reportPrimitives';
-import { getPositionRankPillClass } from '@/lib/positionRank';
+import { getPositionRankClass, getPositionRankPillClass } from '@/lib/positionRank';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { getPlayerAvailability, getPlayerAvailabilityClass } from '@/lib/playerStatus';
 import { compareManagersByViewerAndStanding, sortRowsByViewerAndStanding } from '@/lib/managerOrdering';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
+import { getBalancedGridStyle } from '@/lib/balancedGrid';
 
 type ManagerAvatars = ReportData['managerAvatars'];
 type PlayerDetailsById = ReportData['playerDetailsById'];
@@ -1250,6 +1251,8 @@ function TradeDetailPanel({
             <PlayerNameWithHeadshot
               playerId={fairnessSuggestion.player.player_id}
               playerName={fairnessSuggestion.player.name}
+              team={fairnessSuggestion.player.playerDetails?.team}
+              position={fairnessSuggestion.player.pos}
             />
             {leagueValueMode === 'redraft' ? (
               <span className="trade-fairness-value">{formatCompactValue(fairnessSuggestion.displayValue)}</span>
@@ -1538,6 +1541,8 @@ function renderTradeItem(
           <PlayerNameWithHeadshot
             playerId={playerItem.playerId}
             playerName={playerItem.playerName}
+            team={details?.team}
+            position={details?.position}
           />
         </span>
         <span className="trade-asset-player-meta">
@@ -1680,12 +1685,16 @@ function renderTradeItem(
                 <PlayerNameWithHeadshot
                   playerId={landedPick.player_id}
                   playerName={landedPick.playerName}
+                  team={landedPick.playerDetails?.team}
+                  position={landedPick.playerPos}
                 />
               </button>
             ) : (
               <PlayerNameWithHeadshot
                 playerId={landedPick.player_id}
                 playerName={landedPick.playerName}
+                team={landedPick.playerDetails?.team}
+                position={landedPick.playerPos}
               />
             )}
             <PositionRankPill
@@ -3699,7 +3708,7 @@ function OwnerIntelDepthPlayerButton({
         managerAvatarUrl: (player.owner && managerAvatars?.[player.owner]) || managerAvatars?.[manager],
       }))}
     >
-      <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+      <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} team={team} position={player.pos} />
       <span className="owner-intel-bench-player-meta">
         <TeamLogoPill team={team} />
         <span className="owner-intel-bench-player-value">{formatCompactValue(seasonValue)}</span>
@@ -3864,7 +3873,7 @@ function PlayerInsightTile({
     >
       <div className="manager-intel-player-kicker">{label}</div>
       <div className="manager-intel-player-main">
-        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} team={playerTeam} position={player.pos} />
       </div>
       <div className="manager-intel-player-pills">
         <TeamLogoPill team={playerTeam} />
@@ -3959,21 +3968,35 @@ function PositionRankPill({ rank }: { rank?: string | null }) {
   return <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>;
 }
 
+function ValueTrendIcon({
+  value,
+  className = 'h-3.5 w-3.5',
+}: {
+  value?: number | null;
+  className?: string;
+}) {
+  if (!value) return null;
+  const Icon = value > 0 ? TrendingUp : TrendingDown;
+  return <Icon className={className} aria-hidden="true" />;
+}
+
 function WaiverRankPill({
   label,
-  shortLabel,
   rank,
   className,
 }: {
   label: string;
-  shortLabel: string;
   rank: string;
   className: string;
 }) {
   return (
-    <span className={`waiver-intel-rank-pill ${className}`} aria-label={`${label} rank ${rank}`} title={`${label} ${rank}`}>
-      <em aria-hidden="true">{shortLabel}</em>
-      <PositionRankPill rank={rank} />
+    <span
+      className={`waiver-intel-rank-pill ${className} ${getPositionRankClass(rank)}`}
+      aria-label={`${label} rank ${rank}`}
+      title={`${label} ${rank}`}
+    >
+      <em>{label}</em>
+      <strong>{rank}</strong>
     </span>
   );
 }
@@ -4403,7 +4426,7 @@ function TradeWarPlayerCard({
     >
       <button type="button" className="trade-war-player-add" onClick={onAdd}>
         <span className="trade-war-player-name">
-          <PlayerNameWithHeadshot playerId={asset.player_id} playerName={asset.name} />
+          <PlayerNameWithHeadshot playerId={asset.player_id} playerName={asset.name} team={team} position={asset.pos} />
         </span>
         <span className="trade-war-owner">
           <ChampionAvatarFrame managerName={asset.manager} className="trade-war-owner-avatar">
@@ -4467,40 +4490,49 @@ function CommandPlayerTile({
         </div>
       )}
       <div className="manager-command-player-tile-main">
-        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+        <PlayerNameWithHeadshot
+          playerId={player.player_id}
+          playerName={player.name}
+          team={player.playerDetails?.team}
+          position={player.pos}
+        />
       </div>
       <div className="manager-command-player-tile-pills">
-        <TeamLogoPill team={player.playerDetails?.team} />
-        {showValueStack ? (
-          <>
-            <span className="manager-command-season-value manager-command-dynasty-value manager-command-value-rank-pill">
-              <span className="manager-command-value-label">
-                <em>Dynasty</em>
-                {formatCompactValue(dynastyLens.value)}
+        <div className="manager-command-player-tile-pills-main">
+          <TeamLogoPill team={player.playerDetails?.team} />
+          {showValueStack ? (
+            <>
+              <span className="manager-command-season-value manager-command-dynasty-value manager-command-value-rank-pill">
+                <span className="manager-command-value-label">
+                  <em>Dynasty</em>
+                  {formatCompactValue(dynastyLens.value)}
+                </span>
+                <PositionRankPill rank={dynastyLens.rank} />
               </span>
-              <PositionRankPill rank={dynastyLens.rank} />
-            </span>
-            <span className="manager-command-season-value manager-command-value-rank-pill">
-              <span className="manager-command-value-label">
-                <em>Season</em>
-                {formatCompactValue(seasonLens.value)}
+              <span className="manager-command-season-value manager-command-value-rank-pill">
+                <span className="manager-command-value-label">
+                  <em>Season</em>
+                  {formatCompactValue(seasonLens.value)}
+                </span>
+                <PositionRankPill rank={seasonLens.rank} />
               </span>
-              <PositionRankPill rank={seasonLens.rank} />
-            </span>
-          </>
-        ) : (
-          <>
-            <span className={valueLens.className}>
-              <em>{valueLens.label}</em>
-              {formatCompactValue(valueLens.value)}
-            </span>
-            <PositionRankPill rank={seasonRank} />
-          </>
-        )}
+            </>
+          ) : (
+            <>
+              <span className={valueLens.className}>
+                <em>{valueLens.label}</em>
+                {formatCompactValue(valueLens.value)}
+              </span>
+              <PositionRankPill rank={seasonRank} />
+            </>
+          )}
+        </div>
         {shouldShowStatusPill && (
-          <span className={`manager-command-status-pill is-${availability.tone}`}>
-            {availability.label}
-          </span>
+          <div className="manager-command-player-status-row">
+            <span className={`manager-command-status-pill is-${availability.tone}`}>
+              {availability.label}
+            </span>
+          </div>
         )}
       </div>
     </button>
@@ -4950,7 +4982,7 @@ export function LeagueCommandCenter({
           hideNumber
           hideHeader={section !== 'all'}
         >
-          <div className="command-depth-grid">
+          <div className="command-depth-grid balanced-tile-grid" style={getBalancedGridStyle(starterDepth.length)}>
             {starterDepth.map((row) => (
               <ManagerDepthTile
                 key={row.manager}
@@ -4985,7 +5017,7 @@ export function LeagueCommandCenter({
           hideNumber
           hideHeader={section !== 'all'}
         >
-          <div className="command-depth-grid">
+          <div className="command-depth-grid balanced-tile-grid" style={getBalancedGridStyle(taxiDepth.length)}>
             {taxiDepth.map((row) => (
               <ManagerDepthTile
                 key={row.manager}
@@ -5073,7 +5105,7 @@ export function LeagueCommandCenter({
                         </p>
                       ))}
                     </div>
-                    <div className="manager-command-tile-grid">
+                    <div className="manager-command-tile-grid balanced-tile-grid" style={getBalancedGridStyle(selectedIntel.taxiTriage.items.length)}>
                       {selectedIntel.taxiTriage.items.map((player) => (
                         <CommandPlayerTile
                           key={player.player_id}
@@ -5142,7 +5174,7 @@ export function LeagueCommandCenter({
                     {lineupGroups.map((group) => (
                       <div key={group.label} className="manager-command-tile-group">
                         <span>{group.label}</span>
-                        <div className="manager-command-tile-grid">
+                        <div className="manager-command-tile-grid balanced-tile-grid" style={getBalancedGridStyle(Math.max(group.players.length, 1))}>
                           {group.players.length ? group.players.map((player) => (
                             <CommandPlayerTile
                               key={player.player_id}
@@ -5163,7 +5195,7 @@ export function LeagueCommandCenter({
                     {canStepInGroups.length ? canStepInGroups.map((group) => (
                       <div key={group.label} className="manager-command-tile-group">
                         <span>{group.label}</span>
-                        <div className="manager-command-tile-grid">
+                        <div className="manager-command-tile-grid balanced-tile-grid" style={getBalancedGridStyle(group.players.length)}>
                           {group.players.map((player) => (
                             <CommandPlayerTile
                               key={player.player_id}
@@ -5236,10 +5268,24 @@ export function ManagerIntelligenceCards({
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   if (!data?.length) return null;
   const selectedRow = selectedManager ? data.find((row) => row.manager === selectedManager) : null;
+  const selectedInsightPlayerCount = selectedRow
+    ? [
+        selectedRow.bestBenchStash,
+        selectedRow.weakestStarter,
+        selectedRow.oldestPlayer,
+        selectedRow.youngCorePlayer,
+        selectedRow.breakoutCandidate,
+        selectedRow.buyTarget,
+        selectedRow.sellCandidate,
+        selectedRow.tradeChip,
+        selectedRow.injuryInsurance,
+        selectedRow.lastSeasonStud,
+      ].filter(Boolean).length
+    : 0;
 
   return (
     <>
-      <div className="command-depth-grid">
+      <div className="command-depth-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
         {data.map((row) => (
           <ManagerDepthTile
             key={row.manager}
@@ -5329,7 +5375,7 @@ export function ManagerIntelligenceCards({
                 <div className="manager-command-grid">
                   <div className="manager-command-section">
                     <h4>Key Players</h4>
-                    <div className="manager-intel-player-grid">
+                    <div className="manager-intel-player-grid balanced-tile-grid" style={getBalancedGridStyle(selectedInsightPlayerCount)}>
                       <PlayerInsightTile label="Bench Stash" player={selectedRow.bestBenchStash} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} />
                       <PlayerInsightTile label="Upgrade Spot" player={selectedRow.weakestStarter} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} tone="warn" />
                       <PlayerInsightTile label="Age Risk" player={selectedRow.oldestPlayer} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} tone="danger" />
@@ -5522,7 +5568,7 @@ export function OwnerIntelMatrix({
 
   return (
     <>
-      <div className="command-depth-grid">
+      <div className="command-depth-grid balanced-tile-grid" style={getBalancedGridStyle(orderedIntelRows.length)}>
         {orderedIntelRows.map((row) => {
           const pickRow = getPickRow(row.manager);
           const overviewRow = getOverviewRow(row.manager);
@@ -5618,7 +5664,7 @@ export function OwnerIntelMatrix({
 
                 {selectedOverviewRow ? <FullRosterRankTiles overviewRow={selectedOverviewRow} /> : null}
 
-                <div className="owner-intel-player-grid">
+                <div className="owner-intel-player-grid balanced-tile-grid" style={getBalancedGridStyle(selectedPlayerSections.filter((item) => item.player).length)}>
                   {selectedPlayerSections.map((item) => item.player ? (
                     <PlayerInsightTile
                       key={`${item.label}-${item.player.player_id}`}
@@ -5700,7 +5746,7 @@ export function PowerRankingsTable({
 
   return (
     <div className="owner-tile-shell">
-      <div className="owner-tile-grid">
+      <div className="owner-tile-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
         {data.map((row) => (
           <OwnerSummaryTile
             key={row.manager}
@@ -5746,7 +5792,7 @@ export function ManagerRosterValueGrowthTable({
 
   return (
     <div className="owner-tile-shell">
-      <div className="owner-tile-grid">
+      <div className="owner-tile-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
         {data.map((row, idx) => (
           <OwnerSummaryTile
             key={`${row.manager}-${idx}`}
@@ -5813,7 +5859,7 @@ export function WeeklyMomentumTable({
         </p>
       </div>
       {data.length > 0 ? (
-        <div className="weekly-momentum-grid">
+        <div className="weekly-momentum-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
           {data.map((row) => {
             const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
             const isPositive = row.pct_change >= 0;
@@ -5848,6 +5894,7 @@ export function WeeklyMomentumTable({
                   <strong className={isPositive ? 'text-emerald-300' : 'text-rose-300'}>
                     {row.pct_change >= 0 ? '+' : ''}
                     {row.pct_change.toFixed(1)}%
+                    <ValueTrendIcon value={row.pct_change} />
                   </strong>
                 </div>
                 <div className="weekly-momentum-identity">
@@ -5855,6 +5902,8 @@ export function WeeklyMomentumTable({
                     className="weekly-momentum-player"
                     playerId={row.player_id}
                     playerName={row.name}
+                    team={playerDetails?.team}
+                    position={row.pos}
                   />
                 </div>
                 <div
@@ -5904,7 +5953,7 @@ export function LeagueOverviewTable({
 }) {
   return (
     <div className="owner-tile-shell">
-      <div className="owner-tile-grid owner-overview-grid">
+      <div className="owner-tile-grid owner-overview-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
         {data.map((row, idx) => (
           <OwnerSummaryTile
             key={`${row.manager}-${idx}`}
@@ -5948,7 +5997,7 @@ export function TrendingPlayersTable({
   return (
     <div className="trending-card-wrap">
       {data.length > 0 ? (
-        <div className="trending-card-grid">
+        <div className="trending-card-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
           {data.map((row) => {
             const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
             return (
@@ -5978,6 +6027,8 @@ export function TrendingPlayersTable({
                     className="trending-player-card-main"
                     playerId={row.player_id}
                     playerName={row.name}
+                    team={playerDetails?.team || row.team}
+                    position={row.pos}
                   />
                 </div>
                 <div className="activity-card-meta-row">
@@ -6028,7 +6079,7 @@ export function ProjectedMoversTable({
 
   return (
     <div className="player-tile-shell">
-      <div className="player-tile-grid projected-movers-grid">
+      <div className="player-tile-grid projected-movers-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
         {data.map((row, idx) => {
           const details = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
           const isPositive = row.diff >= 0;
@@ -6063,11 +6114,17 @@ export function ProjectedMoversTable({
                 <strong className={isPositive ? 'text-emerald-300' : 'text-rose-300'}>
                   {isPositive ? '+' : ''}
                   {row.diff.toLocaleString()}
+                  <ValueTrendIcon value={row.diff} />
                 </strong>
               </div>
               <div className="weekly-momentum-identity">
                 <div className="weekly-momentum-player">
-                  <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
+                  <PlayerNameWithHeadshot
+                    playerId={row.player_id}
+                    playerName={row.name}
+                    team={details?.team}
+                    position={row.pos}
+                  />
                 </div>
               </div>
               <div
@@ -6325,7 +6382,12 @@ export function TradeWarRoom({
           onClick={() => openAssetModal(suggestion.asset)}
         >
           <div className="trade-war-suggested-main">
-            <PlayerNameWithHeadshot playerId={suggestion.asset.player_id} playerName={suggestion.asset.name} />
+            <PlayerNameWithHeadshot
+              playerId={suggestion.asset.player_id}
+              playerName={suggestion.asset.name}
+              team={team}
+              position={suggestion.asset.pos}
+            />
             <span className="trade-war-player-pills">
               <TeamLogoPill team={team} />
               <PositionRankPill rank={getTradeWarAssetRank(suggestion.asset, mode) || suggestion.asset.pos} />
@@ -6395,7 +6457,7 @@ export function TradeWarRoom({
           return (
             <div key={asset.player_id} className="player-team-tile trade-war-selected-asset" style={getTeamTileStyle(team)}>
               <button type="button" className="trade-war-selected-main" onClick={() => openAssetModal(asset)}>
-                <PlayerNameWithHeadshot playerId={asset.player_id} playerName={asset.name} />
+                <PlayerNameWithHeadshot playerId={asset.player_id} playerName={asset.name} team={team} position={asset.pos} />
                 <span className="trade-war-player-pills">
                   <TeamLogoPill team={team} />
                   <PositionRankPill rank={getTradeWarAssetRank(asset, mode) || asset.pos} />
@@ -6494,7 +6556,7 @@ export function TradeWarRoom({
               />
             </label>
 
-            <div className="trade-war-player-grid">
+            <div className="trade-war-player-grid balanced-tile-grid" style={getBalancedGridStyle(results.length)}>
               {results.map((asset) => (
                 <TradeWarPlayerCard
                   key={asset.player_id}
@@ -6731,7 +6793,7 @@ export function TradeProfitLeaderboardTable({
 
   return (
     <div className="owner-tile-shell">
-      <div className="owner-tile-grid trade-profit-tile-grid">
+      <div className="owner-tile-grid trade-profit-tile-grid balanced-tile-grid" style={getBalancedGridStyle(orderedRows.length)}>
                 {orderedRows.map((row) => {
           const winPct = row.trade_count > 0 ? Math.round((row.wins / row.trade_count) * 100) : 0;
           const tendency = tradeTendencies?.find((item) => item.manager === row.manager);
@@ -7167,7 +7229,7 @@ export function StarterBenchSnapshot({
   if (!data?.length) return null;
 
   return (
-    <div className="player-tile-grid waiver-intel-grid">
+    <div className="player-tile-grid waiver-intel-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
       {data.map((row) => (
         <Card key={row.manager} className="report-card-polished border-slate-800 bg-slate-900 p-4">
           <div className="mb-3 flex min-w-0 items-center justify-between gap-2">
@@ -7271,7 +7333,7 @@ export function TradeTendenciesTable({
 
   return (
     <div className="owner-tile-shell">
-      <div className="owner-tile-grid trade-tendency-tile-grid">
+      <div className="owner-tile-grid trade-tendency-tile-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
         {data.map((row) => {
           const habit = getTradeHabit(row);
           return (
@@ -7626,7 +7688,7 @@ export function PickPortfolioTable({
 
   return (
     <div className="owner-tile-shell">
-      <div className="owner-tile-grid pick-portfolio-tile-grid">
+      <div className="owner-tile-grid pick-portfolio-tile-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
         {data.map((row) => (
           <OwnerSummaryTile
             key={row.manager}
@@ -8208,7 +8270,7 @@ export function WaiverIntelligencePanel({
           <p>{recommendationContext.summary}</p>
         </div>
       )}
-      <div className="player-tile-grid waiver-intel-grid">
+      <div className="player-tile-grid waiver-intel-grid balanced-tile-grid" style={getBalancedGridStyle(cards.length)}>
         {cards.map(({ label, player }) => {
           const recommendation = recommendationByPlayerId.get(player.player_id);
           const details = getWaiverPlayerDetails(player, playerDetailsById);
@@ -8244,6 +8306,8 @@ export function WaiverIntelligencePanel({
                 className="waiver-intel-main"
                 playerId={player.player_id}
                 playerName={player.name}
+                team={details?.team || player.team}
+                position={player.pos}
               />
               <div className="waiver-intel-pills" aria-label={`${player.name} waiver profile`}>
                 <div className="waiver-intel-pill-row waiver-intel-pill-row-primary">
@@ -8251,7 +8315,6 @@ export function WaiverIntelligencePanel({
                   {dynastyRank && (
                     <WaiverRankPill
                       label="Dynasty"
-                      shortLabel="DYN"
                       rank={dynastyRank}
                       className="waiver-intel-rank-pill-dynasty"
                     />
@@ -8259,7 +8322,6 @@ export function WaiverIntelligencePanel({
                   {seasonRank && (
                     <WaiverRankPill
                       label="Season"
-                      shortLabel="SZN"
                       rank={seasonRank}
                       className="waiver-intel-rank-pill-season"
                     />
@@ -8369,6 +8431,8 @@ export function RecentTransactionsPanel({
           className="recent-transaction-player-main"
           playerId={player.player_id}
           playerName={player.name}
+          team={player.playerDetails?.team || player.team}
+          position={player.pos}
         />
         <div className="recent-transaction-player-pills">
           <TeamLogoPill team={player.playerDetails?.team || player.team} />
@@ -8401,6 +8465,8 @@ export function RecentTransactionsPanel({
           className="recent-transaction-player-main"
           playerId={player.player_id}
           playerName={player.name}
+          team={details?.team || player.team}
+          position={player.pos}
         />
         <div className="recent-transaction-player-pills">
           <TeamLogoPill team={details?.team || player.team} />
@@ -8806,7 +8872,7 @@ export function TradeMarketRadar({
   if (rows.length === 0) return null;
 
   return (
-    <div className="player-tile-grid trade-market-grid">
+    <div className="player-tile-grid trade-market-grid balanced-tile-grid" style={getBalancedGridStyle(rows.length)}>
       {rows.map(({ label, tone, player }) => (
         <button
           key={`${label}-${player.player_id || player.name}`}
@@ -8831,6 +8897,7 @@ export function TradeMarketRadar({
             <span className="trade-market-signal">{label}</span>
             <span className={`trade-market-change ${tone === 'positive' ? 'text-emerald-300' : 'text-rose-300'}`}>
               {player.diff > 0 ? '+' : ''}{player.diff.toLocaleString()}
+              <ValueTrendIcon value={player.diff} />
             </span>
           </div>
           <div className="trade-market-main">
@@ -8838,6 +8905,8 @@ export function TradeMarketRadar({
               className="trade-market-player"
               playerId={player.player_id}
               playerName={player.name}
+              team={player.playerDetails?.team}
+              position={player.pos}
             />
             <div className="trade-market-manager">
               {renderManagerName(player.owner, managerAvatars)}
@@ -9147,7 +9216,12 @@ function StarterDepthSignalPlayerTile({
       }}
     >
       <span className="starter-depth-player-main">
-        <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+        <PlayerNameWithHeadshot
+          playerId={player.player_id}
+          playerName={player.name}
+          team={player.playerDetails?.team}
+          position={player.pos}
+        />
       </span>
       <span className="starter-depth-player-meta">
         <TeamLogoPill team={player.playerDetails?.team} />
@@ -9205,7 +9279,7 @@ export function ManagerPositionCountsTable({
 
   return (
     <div className="owner-tile-shell">
-      <div className="owner-tile-grid position-counts-tile-grid">
+      <div className="owner-tile-grid position-counts-tile-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
         {data.map((row, idx) => {
           const depthSignals = (positionDepthByManager.get(row.manager) || []).filter(
             (signal) => isCountPosition(signal.position) && visibleCountPositions.includes(signal.position)
@@ -9348,7 +9422,7 @@ export function ManagerPositionCountsTable({
                             <span>{position}</span>
                             <strong>{players.length}</strong>
                           </div>
-                          <div className="starter-grid starter-compact-grid">
+                          <div className="starter-grid starter-compact-grid balanced-tile-grid" style={getBalancedGridStyle(players.length)}>
                             {players.map((player) => (
                               <button
                                 key={player.player_id}
@@ -9373,17 +9447,26 @@ export function ManagerPositionCountsTable({
                                 }}
                               >
                                 <div className="starter-player-main">
-                                  <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+                                  <PlayerNameWithHeadshot
+                                    playerId={player.player_id}
+                                    playerName={player.name}
+                                    team={player.playerDetails?.team}
+                                    position={player.pos}
+                                  />
                                 </div>
                                 <div className="starter-player-meta">
-                                  <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
-                                  <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
-                                  <span className={`starter-player-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
-                                    {getPlayerStatusLabel(player.playerDetails)}
-                                  </span>
-                                  {(player.seasonValue || player.value) > 0 && (
-                                    <strong>{(player.seasonValue || player.value).toLocaleString()}</strong>
-                                  )}
+                                  <div className="starter-player-meta-main">
+                                    <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
+                                    <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
+                                    {(player.seasonValue || player.value) > 0 && (
+                                      <strong>{(player.seasonValue || player.value).toLocaleString()}</strong>
+                                    )}
+                                  </div>
+                                  <div className="starter-player-status-row">
+                                    <span className={`starter-player-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
+                                      {getPlayerStatusLabel(player.playerDetails)}
+                                    </span>
+                                  </div>
                                 </div>
                               </button>
                             ))}

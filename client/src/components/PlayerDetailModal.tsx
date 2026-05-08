@@ -591,7 +591,12 @@ export function PlayerDetailModal({
                     >
                       <span className="player-trade-comp-context">{peer.label || `Nearest ${peer.position}`}</span>
                       <span className="player-trade-comp-identity">
-                        <PlayerNameWithHeadshot playerId={peer.playerId} playerName={peer.name} />
+                        <PlayerNameWithHeadshot
+                          playerId={peer.playerId}
+                          playerName={peer.name}
+                          team={peer.team}
+                          position={peer.position}
+                        />
                       </span>
                       <span className="player-trade-comp-meta">
                         <TeamLogoPill team={peer.team} />
@@ -604,7 +609,11 @@ export function PlayerDetailModal({
                         </span>
                         <span className={peer.difference > 0 ? 'player-trade-comp-delta-positive' : peer.difference < 0 ? 'player-trade-comp-delta-negative' : 'player-trade-comp-delta-neutral'}>
                           <em>Delta</em>
-                          <strong>{peer.difference > 0 ? '+' : ''}{peer.difference.toLocaleString()}</strong>
+                          <strong>
+                            {peer.difference > 0 ? '+' : ''}{peer.difference.toLocaleString()}
+                            {peer.difference > 0 && <TrendingUp className="h-3.5 w-3.5" />}
+                            {peer.difference < 0 && <TrendingDown className="h-3.5 w-3.5" />}
+                          </strong>
                         </span>
                       </div>
                     </button>

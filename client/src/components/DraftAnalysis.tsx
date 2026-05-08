@@ -11,6 +11,7 @@ import { EmptyState, MetricPill, ReportSectionHeader } from './reportPrimitives'
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
+import { getBalancedGridStyle } from '@/lib/balancedGrid';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -166,7 +167,7 @@ export function DraftAnalysis({
       {/* Draft Capital Efficiency Leaderboard */}
       <DraftCollapsibleSection title="Draft Capital Efficiency" kicker="Hit rate first">
         <div className="owner-tile-shell">
-          <div className="owner-tile-grid draft-efficiency-tile-grid">
+          <div className="owner-tile-grid draft-efficiency-tile-grid balanced-tile-grid" style={getBalancedGridStyle(orderedDraftStats.length)}>
             {orderedDraftStats.map((stat, idx) => {
               const avatarUrl = managerAvatars?.[stat.manager];
               const managerDisplayName = stat.managerDisplayName || stat.manager;
@@ -220,7 +221,7 @@ export function DraftAnalysis({
             Manager-level read on whether each draft stayed near the best dynasty values available. Roster need is only used as a tiebreaker after board value.
           </div>
           <div className="owner-tile-shell">
-            <div className="owner-tile-grid draft-efficiency-tile-grid draft-decision-manager-grid">
+            <div className="owner-tile-grid draft-efficiency-tile-grid draft-decision-manager-grid balanced-tile-grid" style={getBalancedGridStyle(managerDraftDecisionAudits.length)}>
               {managerDraftDecisionAudits.map((audit) => {
                 const avatarUrl = managerAvatars?.[audit.manager];
                 const managerDisplayName = audit.managerDisplayName || audit.manager;
@@ -350,7 +351,12 @@ export function DraftAnalysis({
                           >
                             <span className="rookie-draft-pick-cell" data-label="Pick">#{pick.pick}</span>
                             <span className="rookie-draft-player-cell">
-                              <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
+                              <PlayerNameWithHeadshot
+                                playerId={pick.player_id}
+                                playerName={pick.playerName}
+                                team={details?.team}
+                                position={pick.playerPos}
+                              />
                               <DraftOpportunityNote opportunity={opportunity} />
                             </span>
                             <span className="rookie-draft-team-cell">

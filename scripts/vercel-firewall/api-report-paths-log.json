@@ -1,0 +1,28 @@
+{
+  "action": "rules.insert",
+  "id": null,
+  "value": {
+    "active": true,
+    "name": "Log high-cost Dynasty Degens API report traffic",
+    "description": "Log requests to expensive public report and rankings tRPC endpoints before escalating abusive patterns to challenge or deny.",
+    "conditionGroup": [
+      {
+        "conditions": [
+          {
+            "type": "path",
+            "op": "re",
+            "value": "^/api/trpc/(league\\.)?(analyze|rankings)(\\b|/|\\?|,)"
+          }
+        ]
+      }
+    ],
+    "action": {
+      "mitigate": {
+        "action": "log",
+        "rateLimit": null,
+        "redirect": null,
+        "actionDuration": null
+      }
+    }
+  }
+}
