@@ -1,4 +1,4 @@
-import type { DraftPick } from '@shared/types';
+import type { DraftPick, ManagerRosterIntelligence } from '@shared/types';
 
 export type DraftOpportunity =
   | {
@@ -23,7 +23,11 @@ export function getDraftPickKey(pick: Pick<DraftPick, 'draftYear' | 'round' | 'p
   ].join('|');
 }
 
-export function buildDraftOpportunityMap(draftPicks: DraftPick[]): Record<string, DraftOpportunity> {
+export function buildDraftOpportunityMap(
+  draftPicks: DraftPick[],
+  managerRosterIntelligence: ManagerRosterIntelligence[] = []
+): Record<string, DraftOpportunity> {
+  const intelByManager = new Map(managerRosterIntelligence.map((row) => [row.manager, row]));
   const pickedOnly = draftPicks
     .filter((pick) => pick.player_id && pick.playerName && pick.playerName !== 'Unknown' && pick.currentKtcValue)
     .sort((a, b) => {
@@ -44,17 +48,27 @@ export function buildDraftOpportunityMap(draftPicks: DraftPick[]): Record<string
   Object.values(byYear).forEach((yearPicks) => {
     yearPicks.forEach((pick) => {
       const currentValue = pick.currentKtcValue || 0;
+      const pickedPosition = normalizePosition(pick.playerPos);
+      const needPositions = getDraftNeedPositions(intelByManager.get(pick.manager) || null);
+      const isNeedPick = Boolean(pickedPosition && needPositions.includes(pickedPosition));
       const laterPicks = yearPicks
         .filter((candidate) => candidate.pick > pick.pick && (candidate.currentKtcValue || 0) > currentValue + 250)
         .map((candidate) => ({
           candidate,
           delta: (candidate.currentKtcValue || 0) - currentValue,
           distance: candidate.pick - pick.pick,
+          position: normalizePosition(candidate.playerPos),
         }))
+        .filter((candidate) => {
+          if (!isNeedPick) return true;
+          return candidate.position === pickedPosition || needPositions.includes(candidate.position);
+        })
         .sort((a, b) => {
           const aCloseBonus = a.distance <= 5 ? 700 : 0;
           const bCloseBonus = b.distance <= 5 ? 700 : 0;
-          return (b.delta + bCloseBonus) - (a.delta + aCloseBonus);
+          const aNeedBonus = isNeedPick && a.position === pickedPosition ? 500 : 0;
+          const bNeedBonus = isNeedPick && b.position === pickedPosition ? 500 : 0;
+          return (b.delta + bCloseBonus + bNeedBonus) - (a.delta + aCloseBonus + aNeedBonus);
         });
 
       const missed = laterPicks[0];
@@ -78,4 +92,53 @@ export function buildDraftOpportunityMap(draftPicks: DraftPick[]): Record<string
   });
 
   return result;
+}
+
+function normalizePosition(position?: string | null): string {
+  const normalized = (position || '').toUpperCase();
+  if (normalized.startsWith('QB')) return 'QB';
+  if (normalized.startsWith('RB')) return 'RB';
+  if (normalized.startsWith('WR')) return 'WR';
+  if (normalized.startsWith('TE')) return 'TE';
+  return normalized;
+}
+
+function getDraftNeedPositions(intel: ManagerRosterIntelligence | null): string[] {
+  if (!intel) return [];
+
+  const needs: string[] = [];
+  if (intel.tradePlan?.needPosition) needs.push(intel.tradePlan.needPosition);
+
+  const summary = (intel.holes.summary || '').toUpperCase();
+  (['QB', 'RB', 'WR', 'TE'] as const).forEach((position) => {
+    if (summary.includes(position)) needs.push(position);
+  });
+
+  const bestQbRank = parseRankNumber(intel.holes.bestQbRank);
+  const rb2Rank = parseRankNumber(intel.holes.rb2Rank);
+  const wr3Rank = parseRankNumber(intel.holes.wr3Rank);
+  const te1Rank = parseRankNumber(intel.holes.te1Rank);
+  if (bestQbRank !== null && bestQbRank > 16) needs.push('QB');
+  if (rb2Rank !== null && rb2Rank > 28) needs.push('RB');
+  if (wr3Rank !== null && wr3Rank > 36) needs.push('WR');
+  if (te1Rank !== null && te1Rank > 14) needs.push('TE');
+
+  Object.entries(intel.positionGrades || {}).forEach(([position, grade]) => {
+    const gradeText = `${grade?.grade || ''} ${grade?.note || ''}`.toUpperCase();
+    if (/(WEAK|THIN|NEED|LIGHT|FRAGILE|ATTACK|BEHIND)/.test(gradeText)) {
+      needs.push(position);
+    }
+  });
+
+  if (intel.holes.flexDepth <= 5) {
+    needs.push('RB', 'WR');
+  }
+
+  return Array.from(new Set(needs.map(normalizePosition).filter(Boolean)));
+}
+
+function parseRankNumber(rank?: string | null): number | null {
+  if (!rank) return null;
+  const match = rank.match(/\d+/);
+  return match ? Number(match[0]) : null;
 }

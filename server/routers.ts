@@ -231,8 +231,8 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v18';
-const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v2';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v30';
+const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v9';
 const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
 const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');
 const leagueReportMemoryCache = new Map<string, { loadedAt: number; payload: unknown }>();
@@ -1034,6 +1034,133 @@ function getPlayerPositionRankForLeagueMode(
   return getValueProfileRankForMode(profile, leagueValueMode) || getPlayerCurrentPositionRank(playerId, players, ktcValues);
 }
 
+type WaiverLineupPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
+type WaiverSpecialTeamsPosition = Extract<WaiverLineupPosition, 'K' | 'DEF'>;
+
+function getWaiverRankNumber(positionRank: string | null | undefined): number | null {
+  const match = String(positionRank || '').match(/\d+/);
+  if (!match) return null;
+  const value = Number(match[0]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function getWaiverRankPosition(positionRank: string | null | undefined): WaiverLineupPosition | null {
+  const position = String(positionRank || '').replace(/\d+/g, '');
+  const normalized = normalizeSeasonLineupPosition(position);
+  return ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(normalized || '')
+    ? normalized as WaiverLineupPosition
+    : null;
+}
+
+function getWaiverPositionRankForPosition(
+  positionRank: string | null | undefined,
+  position: WaiverLineupPosition
+): string | null {
+  const rankPosition = getWaiverRankPosition(positionRank);
+  const rankNumber = getWaiverRankNumber(positionRank);
+  if (!rankPosition || rankPosition !== position || !rankNumber) return null;
+  return `${position}${rankNumber}`;
+}
+
+function getRankBasedWaiverSeasonValue(positionRank: string | null | undefined): number {
+  const position = getWaiverRankPosition(positionRank);
+  const rank = getWaiverRankNumber(positionRank);
+  if (!position || !rank) return 0;
+
+  const replacementByPosition: Record<WaiverLineupPosition, number> = {
+    QB: 30,
+    RB: 60,
+    WR: 72,
+    TE: 24,
+    K: 20,
+    DEF: 20,
+  };
+  const ceilingByPosition: Record<WaiverLineupPosition, number> = {
+    QB: 7000,
+    RB: 6500,
+    WR: 6500,
+    TE: 4500,
+    K: 1200,
+    DEF: 1200,
+  };
+  const replacement = replacementByPosition[position];
+  const ratio = Math.max(0.04, (replacement - rank + 1) / replacement);
+  return Math.max(100, Math.round(ceilingByPosition[position] * Math.pow(ratio, 1.35)));
+}
+
+function leagueUsesWaiverSpecialTeamsPosition(
+  rosterPositions: string[] | undefined,
+  position: WaiverSpecialTeamsPosition
+): boolean {
+  return (rosterPositions || []).some((slot) => normalizeSeasonLineupPosition(slot) === position);
+}
+
+function getSpecialTeamsWaiverRank(
+  playerId: string,
+  position: WaiverSpecialTeamsPosition,
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>,
+  lastSeasonPositionRanks?: Record<string, LastSeasonPlayerRank>
+): string | null {
+  const profile = valueProfilesById?.[playerId];
+  return getWaiverPositionRankForPosition(
+    profile?.seasonPositionRank
+      || profile?.fantasyProsPositionRank
+      || lastSeasonPositionRanks?.[playerId]?.positionRank
+      || null,
+    position
+  );
+}
+
+function getSpecialTeamsWaiverValue(
+  playerId: string,
+  position: WaiverSpecialTeamsPosition,
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>,
+  lastSeasonPositionRanks?: Record<string, LastSeasonPlayerRank>
+): number {
+  const profile = valueProfilesById?.[playerId];
+  const profileValue = profile?.seasonValue ?? profile?.fantasyProsSeasonValue ?? null;
+  if (typeof profileValue === 'number' && Number.isFinite(profileValue) && profileValue > 0) return profileValue;
+  const rank = getSpecialTeamsWaiverRank(playerId, position, valueProfilesById, lastSeasonPositionRanks);
+  return getRankBasedWaiverSeasonValue(rank);
+}
+
+function getWaiverCandidateRank(
+  playerId: string,
+  position: WaiverLineupPosition,
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode,
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>,
+  lastSeasonPositionRanks?: Record<string, LastSeasonPlayerRank>
+): string | null {
+  if (position === 'K' || position === 'DEF') {
+    return getSpecialTeamsWaiverRank(playerId, position, valueProfilesById, lastSeasonPositionRanks)
+      || getWaiverPositionRankForPosition(
+        getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById),
+        position
+      );
+  }
+
+  return getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
+}
+
+function getWaiverCandidateValue(
+  playerId: string,
+  position: WaiverLineupPosition,
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode,
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>,
+  lastSeasonPositionRanks?: Record<string, LastSeasonPlayerRank>
+): number {
+  if (position === 'K' || position === 'DEF') {
+    return getSpecialTeamsWaiverValue(playerId, position, valueProfilesById, lastSeasonPositionRanks)
+      || getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
+  }
+
+  return getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
+}
+
 function getKtcPosition(data: KTCValues[string]): 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | null {
   const position = data?.position_rank?.match(/^[A-Z]+/)?.[0]
     || data?.flock_position_rank?.match(/^[A-Z]+/)?.[0]
@@ -1182,31 +1309,26 @@ function buildSimilarTradeValueMap(
     const value = Number(String(rank || '').match(/\d+/)?.[0]);
     return Number.isFinite(value) ? value : null;
   };
+  type SimilarTradeCandidate = typeof candidates[number];
 
   return Object.fromEntries(
     candidates
       .filter((player) => requestedPlayerIds.includes(player.playerId))
       .map((player) => {
     const currentRankNumber = rankNumber(player.rank);
-    const samePositionPeer = currentRankNumber
-      ? candidates
-        .filter((candidate) => candidate.playerId !== player.playerId && candidate.position === player.position && rankNumber(candidate.rank))
-        .sort((a, b) => {
-          const aRankDiff = Math.abs((rankNumber(a.rank) || 999) - currentRankNumber);
-          const bRankDiff = Math.abs((rankNumber(b.rank) || 999) - currentRankNumber);
-          return aRankDiff - bRankDiff || Math.abs(a.value - player.value) - Math.abs(b.value - player.value);
-        })[0]
-      : null;
-    const crossPositionPeers = (['QB', 'RB', 'WR', 'TE'] as const)
-      .filter((position) => position !== player.position)
+    const peers = (['QB', 'RB', 'WR', 'TE'] as const)
       .map((position) => candidates
         .filter((candidate) => candidate.playerId !== player.playerId && candidate.position === position)
-        .sort((a, b) => Math.abs(a.value - player.value) - Math.abs(b.value - player.value))[0])
-      .filter(Boolean)
-      .sort((a, b) => Math.abs(a.value - player.value) - Math.abs(b.value - player.value));
-    const peers = [samePositionPeer, ...crossPositionPeers]
-      .filter((peer): peer is NonNullable<typeof samePositionPeer> => Boolean(peer))
-      .slice(0, 4)
+        .sort((a, b) => {
+          if (position === player.position && currentRankNumber) {
+            const aRankDiff = Math.abs((rankNumber(a.rank) || 999) - currentRankNumber);
+            const bRankDiff = Math.abs((rankNumber(b.rank) || 999) - currentRankNumber);
+            if (aRankDiff !== bRankDiff) return aRankDiff - bRankDiff;
+          }
+
+          return Math.abs(a.value - player.value) - Math.abs(b.value - player.value);
+        })[0])
+      .filter((peer): peer is SimilarTradeCandidate => Boolean(peer))
       .map((peer) => ({
         playerId: peer.playerId,
         name: peer.name,
@@ -1215,7 +1337,7 @@ function buildSimilarTradeValueMap(
         rank: peer.rank,
         value: peer.value,
         difference: peer.value - player.value,
-        label: peer.position === player.position ? `Nearest ${peer.position}` : `Near ${peer.position}`,
+        label: `Nearest ${peer.position}`,
       }));
 
     return [player.playerId, peers];
@@ -1414,31 +1536,60 @@ function buildWaiverIntelligence(
   ownerByPlayerId: Record<string, string>,
   rosterStatusByPlayerId: Record<string, string> = {},
   leagueValueMode: LeagueValueMode = 'dynasty',
-  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>,
+  options: {
+    rosterPositions?: string[];
+    lastSeasonPositionRanks?: Record<string, LastSeasonPlayerRank>;
+  } = {}
 ): WaiverIntelligence {
   const availableAdds = trendingAdds.filter((player) => !player.owner);
   const rosteredAdds = trendingAdds.filter((player) => player.owner);
   const sortedAvailableAdds = [...availableAdds].sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0));
-  const availablePlayerPool = Object.entries(players)
-    .filter(([playerId, player]) => {
-      if (!playerId || ownerByPlayerId[playerId]) return false;
-      if (!isCurrentSeasonLineupPlayer(player)) return false;
-      const value = getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
-      const rank = getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
+  const availablePlayerPool: TrendingPlayer[] = Object.entries(players)
+    .map(([playerId, player]): TrendingPlayer | null => {
+      if (!playerId || ownerByPlayerId[playerId]) return null;
+      if (!isCurrentSeasonLineupPlayer(player)) return null;
       const position = normalizeSeasonLineupPosition(player?.position);
-      return value > 0 || Boolean(rank && (position === 'K' || position === 'DEF'));
+      if (!position || !['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(position)) return null;
+      const waiverPosition = position as WaiverLineupPosition;
+      if (
+        (waiverPosition === 'K' || waiverPosition === 'DEF')
+        && !leagueUsesWaiverSpecialTeamsPosition(options.rosterPositions, waiverPosition)
+      ) {
+        return null;
+      }
+      const value = getWaiverCandidateValue(
+        playerId,
+        waiverPosition,
+        players,
+        ktcValues,
+        leagueValueMode,
+        valueProfilesById,
+        options.lastSeasonPositionRanks
+      );
+      const rank = getWaiverCandidateRank(
+        playerId,
+        waiverPosition,
+        players,
+        ktcValues,
+        leagueValueMode,
+        valueProfilesById,
+        options.lastSeasonPositionRanks
+      );
+      if (value <= 0 && !(rank && (waiverPosition === 'K' || waiverPosition === 'DEF'))) return null;
+      return {
+        player_id: playerId,
+        name: getPlayerName(playerId, players),
+        playerDetails: getPlayerDetails(playerId, player, rosterStatusByPlayerId[playerId]),
+        currentPositionRank: rank,
+        pos: waiverPosition,
+        team: player?.team || null,
+        owner: null,
+        count: 0,
+        ktcValue: value || null,
+      };
     })
-    .map(([playerId, player]) => ({
-      player_id: playerId,
-      name: getPlayerName(playerId, players),
-      playerDetails: getPlayerDetails(playerId, player, rosterStatusByPlayerId[playerId]),
-      currentPositionRank: getPlayerPositionRankForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById),
-      pos: normalizeSeasonLineupPosition(player?.position) || player?.position || 'N/A',
-      team: player?.team || null,
-      owner: null,
-      count: 0,
-      ktcValue: getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById) || null,
-    }))
+    .filter((player): player is TrendingPlayer => Boolean(player))
     .sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0));
   const usedPlayerIds = new Set<string>();
 
@@ -1462,7 +1613,7 @@ function buildWaiverIntelligence(
       const rookieYear = Number(player.playerDetails?.rookieYear || 0);
       return rookieYear === new Date().getFullYear() && !usedPlayerIds.has(player.player_id);
     })
-    .slice(0, 3);
+    .slice(0, 2);
 
   return {
     rosteredTrendingAdds: rosteredAdds,
@@ -1532,7 +1683,7 @@ function buildRecentTransactions(
       const droppedIsCurrentRookie = Number(droppedPlayer?.playerDetails?.rookieYear || 0) === currentSeasonNumber;
       const alternativeDrop = droppedPlayer && !droppedIsCurrentRookie
         ? (intel?.droppablePlayers || [])
-            .filter((candidate: any) => candidate?.player_id && candidate.player_id !== droppedPlayerId)
+            .filter((candidate: any) => candidate?.player_id && candidate.player_id !== droppedPlayerId && candidate.player_id !== addedPlayerId)
             .filter((candidate: any) => candidate.playerDetails?.rosterStatus !== 'Taxi')
             .filter((candidate: any) => {
               const candidateIsRookie = Number(candidate.playerDetails?.rookieYear || 0) === currentSeasonNumber;
@@ -1627,8 +1778,12 @@ async function fetchLastSeasonPositionRanks(
   scoringSettings: Record<string, any> | undefined,
   season: string
 ): Promise<Record<string, LastSeasonPlayerRank>> {
+  const rankPositions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
   const uniquePlayerIds = Array.from(new Set(playerIds))
-    .filter((playerId) => ['QB', 'RB', 'WR', 'TE'].includes(players[playerId]?.position));
+    .filter((playerId) => {
+      const position = normalizeSeasonLineupPosition(players[playerId]?.position);
+      return Boolean(position && rankPositions.includes(position));
+    });
   const scoringFamily = getScoringFamily(scoringSettings);
   const fantasyProsScoring = scoringFamily === 'ppr' ? 'PPR' : scoringFamily === 'std' ? 'STD' : 'HALF';
   const fantasyProsPoints = await fetchFantasyProsPlayerPoints(season, fantasyProsScoring);
@@ -1646,7 +1801,7 @@ async function fetchLastSeasonPositionRanks(
     const stats = sleeperSeasonStats[playerId]?.stats || sleeperSeasonStats[playerId];
     if (!stats || typeof stats !== 'object') continue;
 
-    const position = players[playerId]?.position;
+    const position = normalizeSeasonLineupPosition(players[playerId]?.position);
     const nameKey = cleanName(`${players[playerId]?.first_name || ''}${players[playerId]?.last_name || ''}`);
     const fpPoints = fantasyProsPoints[nameKey];
     const providedPositionRank = Number(stats[`pos_rank_${scoringFamily}`] ?? stats.pos_rank_half_ppr ?? stats.pos_rank_ppr ?? stats.pos_rank_std);
@@ -1667,7 +1822,7 @@ async function fetchLastSeasonPositionRanks(
   }
 
   const ranks: Record<string, LastSeasonPlayerRank> = {};
-  for (const position of ['QB', 'RB', 'WR', 'TE']) {
+  for (const position of rankPositions) {
     const positionPlayers = scoredPlayers
       .filter((player) => player.position === position)
       .sort((a, b) => b.points - a.points);
@@ -1774,6 +1929,7 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
     selectedProfileKey: leagueValueProfileKey,
     selectedProfileLabel: leagueValueProfileLabel,
     prospectLookup: buildProspectLookup(prospectContext.profiles),
+    prospectProfiles: prospectContext.profiles,
     leagueTeamCount: Number(leagueInfo?.total_rosters || leagueInfo?.settings?.num_teams || safeRosters.length || 12),
   });
   const payload = { rankings };
@@ -2066,6 +2222,15 @@ export const appRouter = router({
           let pastSeasonData = null;
           let pastRosterDisplayMap: Record<string, string> = {};
           let draftSlotsBySeason = await fetchDraftSlotsBySeason(input.leagueId, rosters);
+          let tradedPicks: Array<{ season: string; round: number; roster_id: number; owner_id: number }> = [];
+          try {
+            const fetchedTradedPicks = await fetch(
+              `https://api.sleeper.app/v1/league/${input.leagueId}/traded_picks`
+            ).then((r) => r.json());
+            tradedPicks = Array.isArray(fetchedTradedPicks) ? fetchedTradedPicks : [];
+          } catch (error) {
+            console.warn('Failed to fetch traded picks:', error);
+          }
 
           if (prevLeagueId) {
             try {
@@ -2110,6 +2275,7 @@ export const appRouter = router({
                 trades: pastTrades,
                 rosterMap: pastRosterUserMap,
                 rosters: pastRosters,
+                finalTradedPicks: tradedPicks,
                 draftSlotsBySeason,
                 rosterPositions: Array.isArray(pastLeagueInfo.roster_positions) ? pastLeagueInfo.roster_positions : [],
               };
@@ -2137,6 +2303,7 @@ export const appRouter = router({
             trades,
             rosterMap: rosterUserMap,
             rosters,
+            finalTradedPicks: tradedPicks,
             draftSlotsBySeason,
             rosterPositions: Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [],
             scoringSettings: leagueInfo.scoring_settings || {},
@@ -2146,8 +2313,20 @@ export const appRouter = router({
           const lastCompletedSeason = String(Number(currentSeasonData.label) - 1);
           let lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {};
           try {
+            const rosteredPlayerIds = rosters.flatMap((roster: any) => roster.players || []);
+            const usesSpecialTeams = (['K', 'DEF'] as const).some((position) =>
+              leagueUsesWaiverSpecialTeamsPosition(currentSeasonData.rosterPositions, position)
+            );
+            const specialTeamsPlayerIds = usesSpecialTeams
+              ? Object.entries(players as Record<string, any>)
+                .filter(([, player]) => {
+                  const position = normalizeSeasonLineupPosition(player?.position);
+                  return (position === 'K' || position === 'DEF') && isCurrentSeasonLineupPlayer(player);
+                })
+                .map(([playerId]) => playerId)
+              : [];
             lastSeasonPositionRanks = await fetchLastSeasonPositionRanks(
-              rosters.flatMap((roster: any) => roster.players || []),
+              [...rosteredPlayerIds, ...specialTeamsPlayerIds],
               players,
               leagueInfo.scoring_settings,
               lastCompletedSeason
@@ -2198,7 +2377,6 @@ export const appRouter = router({
           let draftAnalysis: { draftPicks: any[]; draftStats: any[] } = { draftPicks: [], draftStats: [] };
           let trendingAdds: TrendingPlayer[] = [];
           let trendingDrops: TrendingPlayer[] = [];
-          let tradedPicks: Array<{ season: string; round: number; roster_id: number; owner_id: number }> = [];
           try {
             const draftPicks = await fetchDraftData(input.leagueId, {
               currentRosterMap: rosterUserMap,
@@ -2248,10 +2426,6 @@ export const appRouter = router({
               fetchTrendingPlayers('add', players, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, allValueProfilesById),
               fetchTrendingPlayers('drop', players, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, allValueProfilesById),
             ]);
-            tradedPicks = await fetch(
-              `https://api.sleeper.app/v1/league/${input.leagueId}/traded_picks`
-            ).then((r) => r.json());
-            if (!Array.isArray(tradedPicks)) tradedPicks = [];
           } catch (e) {
             console.warn('Failed to fetch trending players:', e);
           }
@@ -2300,7 +2474,11 @@ export const appRouter = router({
             ownerByPlayerId,
             rosterStatusByPlayerId,
             leagueValueMode,
-            allValueProfilesById
+            allValueProfilesById,
+            {
+              rosterPositions: currentSeasonData.rosterPositions,
+              lastSeasonPositionRanks,
+            }
           );
           const managerIntelByName = new Map((reportData.managerRosterIntelligence || []).map((row) => [row.manager, row]));
           const recentTransactions = buildRecentTransactions(

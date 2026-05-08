@@ -62,6 +62,9 @@ export interface RankingPlayer {
   movement?: number | null;
   movementLabel?: string | null;
   movementDirection?: 'up' | 'down' | 'flat' | null;
+  rankMovement?: number | null;
+  rankMovementLabel?: string | null;
+  rankMovementDirection?: 'up' | 'down' | 'flat' | null;
   previousYearPprAverage?: number | null;
   owner?: string | null;
   rosterStatus?: string | null;
@@ -120,20 +123,53 @@ export interface RankingsBoard {
   }>;
   profiles?: Record<string, RankingPlayer[]>;
   identityDiagnostics?: RankingIdentityDiagnostic[];
+  draftBuzzScoreboard?: DraftBuzzScoreboardEntry[];
   dynastySf: RankingPlayer[];
   dynastyOneQb: RankingPlayer[];
   devySf: RankingPlayer[];
   devyOneQb: RankingPlayer[];
 }
 
+export interface DraftBuzzScoreboardEntry {
+  id: string;
+  player_id?: string | null;
+  team?: string | null;
+  age?: number | null;
+  draftYear: number;
+  name: string;
+  position: string;
+  college?: string | null;
+  playerImageUrl?: string | null;
+  collegeLogoUrl?: string | null;
+  rating: number;
+  overallRank?: number | null;
+  positionRank?: number | null;
+  averageOverallRank?: number | null;
+  averagePositionRank?: number | null;
+  height?: string | null;
+  weight?: string | null;
+  fortyYardDash?: number | null;
+  role?: string | null;
+  sourceUrl?: string | null;
+  summary?: string | null;
+  prospectProfile: ProspectProfile;
+}
+
+export type ProspectProfileSource = 'NFL Draft Buzz' | 'ESPN';
+
 export interface ProspectProfile {
-  source: 'NFL Draft Buzz';
+  source: ProspectProfileSource;
   sourceUrl?: string | null;
   scrapeMonth?: string | null;
+  espnId?: string | null;
   draftYear: number;
   name: string;
   position: string;
   role?: string | null;
+  classYear?: string | null;
+  jersey?: string | null;
+  status?: string | null;
+  birthPlace?: string | null;
   college?: string | null;
   playerImageUrl?: string | null;
   collegeLogoUrl?: string | null;
@@ -208,6 +244,7 @@ export interface TradeTeamContext {
   totalValue: number;
   source: 'historical-roster' | 'current-roster';
   reason: string;
+  rosterPlayers?: ManagerIntelPlayer[];
 }
 
 export interface PositionDepth {
@@ -432,6 +469,7 @@ export interface DraftPick {
   playerPos: string;
   manager: string;
   managerDisplayName?: string;
+  managerRosterId?: number | null;
   originalOwner?: string | null;
   originalRosterId?: number | null;
   adp: number | null;
@@ -624,6 +662,17 @@ export interface ReportData {
   viewerManager?: string | null;
   viewerManagerByUserId?: Record<string, string>;
   currentStandings?: Array<{
+    rosterId?: number;
+    manager: string;
+    rank: number;
+    wins: number;
+    losses: number;
+    ties: number;
+    pointsFor: number;
+  }>;
+  standingsHistory?: Array<{
+    season: string;
+    rosterId?: number;
     manager: string;
     rank: number;
     wins: number;

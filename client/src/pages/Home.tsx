@@ -37,7 +37,17 @@ import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v10';
+const REPORT_CACHE_DATA_VERSION = 'trade-ledger-outcomes-v3';
+const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v17';
+const STALE_REPORT_CACHE_KEYS = [
+  'dynasty-degenerates:last-report:v10',
+  'dynasty-degenerates:last-report:v11',
+  'dynasty-degenerates:last-report:v12',
+  'dynasty-degenerates:last-report:v13',
+  'dynasty-degenerates:last-report:v14',
+  'dynasty-degenerates:last-report:v15',
+  'dynasty-degenerates:last-report:v16',
+];
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
@@ -99,6 +109,7 @@ type SleeperUserSession = {
 type AdminViewMode = 'admin' | 'regular';
 
 type CachedReport = {
+  cacheVersion?: string;
   leagueId: string;
   leagueName: string;
   leagueLogo: string | null;
@@ -1024,6 +1035,7 @@ export default function Home() {
   const [viewerUsername, setViewerUsername] = useState<string | null>(null);
   const [adminViewMode, setAdminViewMode] = useState<AdminViewMode | null>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [reportDataCacheVersion, setReportDataCacheVersion] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [leagueName, setLeagueName] = useState('');
   const [leagueLogo, setLeagueLogo] = useState<string | null>(null);
@@ -1099,6 +1111,7 @@ export default function Home() {
         leagueLogo: data.leagueLogo,
       });
       successTransitionTimerRef.current = window.setTimeout(() => {
+        setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
         setReportData(data.reportData);
         setIsLoading(false);
         setAnalysisCompleteMessage(null);
@@ -1212,17 +1225,22 @@ export default function Home() {
     }
 
     try {
+      STALE_REPORT_CACHE_KEYS.forEach((key) => localStorage.removeItem(key));
       const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
       if (cachedReport) {
         const parsed = JSON.parse(cachedReport) as CachedReport;
-        setLeagueId(parsed.leagueId);
-        setLeagueName(parsed.leagueName);
-        setLeagueLogo(parsed.leagueLogo);
-        setLeagueFormat(parsed.leagueFormat);
-        setActiveTab(parsed.activeTab || 'overview');
-        setReportData(parsed.reportData);
-        setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
-        return;
+        if (parsed.cacheVersion === REPORT_CACHE_DATA_VERSION) {
+          setLeagueId(parsed.leagueId);
+          setLeagueName(parsed.leagueName);
+          setLeagueLogo(parsed.leagueLogo);
+          setLeagueFormat(parsed.leagueFormat);
+          setActiveTab(parsed.activeTab || 'overview');
+          setReportDataCacheVersion(parsed.cacheVersion);
+          setReportData(parsed.reportData);
+          setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
+          return;
+        }
+        localStorage.removeItem(REPORT_CACHE_KEY);
       }
 
       const lastLeague = localStorage.getItem(LAST_LEAGUE_KEY);
@@ -1264,7 +1282,11 @@ export default function Home() {
 
     try {
       localStorage.setItem(LAST_LEAGUE_KEY, JSON.stringify(lastLeague));
-      localStorage.setItem(REPORT_CACHE_KEY, JSON.stringify({ ...lastLeague, reportData }));
+      localStorage.setItem(REPORT_CACHE_KEY, JSON.stringify({
+        ...lastLeague,
+        cacheVersion: REPORT_CACHE_DATA_VERSION,
+        reportData,
+      } satisfies CachedReport));
     } catch {
       localStorage.removeItem(REPORT_CACHE_KEY);
       try {
@@ -1274,6 +1296,26 @@ export default function Home() {
       }
     }
   }, [activeTab, leagueFormat, leagueId, leagueLogo, leagueName, reportData]);
+
+  useEffect(() => {
+    if (!reportData || reportDataCacheVersion === REPORT_CACHE_DATA_VERSION || !leagueId || isLoading) return;
+
+    localStorage.removeItem(REPORT_CACHE_KEY);
+    STALE_REPORT_CACHE_KEYS.forEach((key) => localStorage.removeItem(key));
+    setReportData(null);
+    setReportDataCacheVersion(null);
+    setAnalysisCompleteMessage(null);
+    setPendingAnalysisLeague({
+      leagueName,
+      leagueFormat,
+      leagueLogo,
+    });
+    setIsLoading(true);
+    analyzeMutation.mutate({ leagueId, viewerUserId: viewerUserId || undefined });
+    // This intentionally runs when a preserved React Fast Refresh state has report data
+    // from an older browser cache version.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportData, reportDataCacheVersion, leagueId, isLoading, viewerUserId]);
 
   const handleAnalyze = async (targetLeagueId = leagueId) => {
     const nextLeagueId = targetLeagueId.trim();
@@ -1862,10 +1904,12 @@ export default function Home() {
                   <CollapsibleReportSection title="Recent Transactions" kicker="Claims, drops, and churn">
                     <RecentTransactionsPanel
                       data={reportData.recentTransactions}
+                      waiverIntelligence={reportData.waiverIntelligence}
                       managerAvatars={reportData.managerAvatars}
                       playerDetailsById={reportData.playerDetailsById}
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
+                      leagueValueMode={reportData.leagueValueMode}
                     />
                   </CollapsibleReportSection>
                   <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers">
@@ -1978,6 +2022,8 @@ export default function Home() {
                     leagueLogo={leagueLogo}
                     viewerManager={reportData.viewerManager}
                     currentStandings={reportData.currentStandings}
+                    standingsHistory={reportData.standingsHistory}
+                    leagueValueMode={reportData.leagueValueMode}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Trade Theft Detector" kicker="Who got cooked">
@@ -1992,6 +2038,9 @@ export default function Home() {
                     leagueOverview={reportData.leagueOverview}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    currentStandings={reportData.currentStandings}
+                    standingsHistory={reportData.standingsHistory}
+                    leagueValueMode={reportData.leagueValueMode}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection title="Full Trade Ledger" kicker="Every completed deal">
@@ -2006,6 +2055,9 @@ export default function Home() {
                     leagueOverview={reportData.leagueOverview}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    currentStandings={reportData.currentStandings}
+                    standingsHistory={reportData.standingsHistory}
+                    leagueValueMode={reportData.leagueValueMode}
                   />
                 </CollapsibleReportSection>
               </div>

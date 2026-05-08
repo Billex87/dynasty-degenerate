@@ -90,8 +90,17 @@ function positionRankToValue(positionRank?: string | null, overallRank?: number)
     K: 20,
     DEF: 20,
   };
+  const ceilingByPosition: Record<string, number> = {
+    QB: 9000,
+    RB: 9000,
+    WR: 9000,
+    TE: 9000,
+    K: 1200,
+    DEF: 1200,
+  };
   const replacement = replacementByPosition[position || ''] || 140;
-  const value = Math.max(100, Math.round(9000 * Math.pow(Math.max(0.04, (replacement - rank + 1) / replacement), 1.35)));
+  const ceiling = ceilingByPosition[position || ''] || 9000;
+  const value = Math.max(100, Math.round(ceiling * Math.pow(Math.max(0.04, (replacement - rank + 1) / replacement), 1.35)));
   return value;
 }
 

@@ -14,15 +14,11 @@
     },
     {
       "path": "/api/cron/ktc-snapshot",
-      "schedule": "0 14 * * *"
+      "schedule": "0 19 * * *"
     },
     {
       "path": "/api/cron/ktc-snapshot",
       "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/cron/ktc-snapshot",
-      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/cron/league-report-cache",
@@ -30,15 +26,11 @@
     },
     {
       "path": "/api/cron/league-report-cache",
-      "schedule": "20 14 * * *"
+      "schedule": "20 19 * * *"
     },
     {
       "path": "/api/cron/league-report-cache",
       "schedule": "20 1 * * *"
-    },
-    {
-      "path": "/api/cron/league-report-cache",
-      "schedule": "20 2 * * *"
     },
     {
       "path": "/api/cron/prospect-snapshot",

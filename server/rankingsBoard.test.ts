@@ -171,4 +171,38 @@ describe('rankings board prospect fallback', () => {
       summary: 'High-end receiving prospect.',
     });
   });
+
+  it('preserves the source draft class for current-year college prospects', async () => {
+    const { buildRankingsBoard } = await import('./rankingsBoard');
+    const currentYear = new Date().getFullYear();
+    const prospect: ProspectProfile = {
+      source: 'NFL Draft Buzz',
+      sourceUrl: `https://www.nfldraftbuzz.com/positions/QB/1/${currentYear}`,
+      scrapeMonth: `${currentYear}-05`,
+      draftYear: currentYear,
+      name: 'Current Year Prospect',
+      position: 'QB',
+      college: 'Test State',
+      overallRank: 3,
+      positionRank: 2,
+    };
+
+    const board = await buildRankingsBoard({
+      players: {},
+      ktcValues: {},
+      ownerByPlayerId: {},
+      rosterStatusByPlayerId: {},
+      prospectLookup: buildProspectLookup([prospect]),
+      leagueTeamCount: 12,
+    });
+
+    const row = board.profiles?.devy_sf_ppr?.find((player) => player.name === 'Current Year Prospect');
+
+    expect(row).toMatchObject({
+      draftYear: currentYear,
+      positionRank: 'QB1',
+      projectedRookiePick: `Projected ${currentYear} 1.01`,
+    });
+    expect(row?.prospectProfile?.draftYear).toBe(currentYear);
+  });
 });

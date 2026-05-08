@@ -98,7 +98,10 @@ export function DraftAnalysis({
       return groups;
     }, {});
   }, [sortedDraftPicks]);
-  const draftOpportunityByPick = useMemo(() => buildDraftOpportunityMap(draftPicks), [draftPicks]);
+  const draftOpportunityByPick = useMemo(
+    () => buildDraftOpportunityMap(draftPicks, managerRosterIntelligence || []),
+    [draftPicks, managerRosterIntelligence]
+  );
   const orderedDraftStats = useMemo(
     () => sortRowsByViewerAndStanding(draftStats, (row) => row.manager, {
       viewerManager,
@@ -317,12 +320,16 @@ export function DraftAnalysis({
                     </div>
                     <div className="rookie-draft-row-header" aria-hidden="true">
                       <span>Player</span>
-                      <span>Manager</span>
                       <span>Pick</span>
-                      <span>Draft Rank</span>
-                      <span>Current Rank</span>
-                      <span>Draft-Day Value</span>
-                      <span>Current Value</span>
+                      <span>Team</span>
+                      <span>
+                        <span className="rookie-draft-header-full">Manager</span>
+                        <span className="rookie-draft-header-short">Mgr</span>
+                      </span>
+                      <span>Draft</span>
+                      <span>Now</span>
+                      <span>Draft Value</span>
+                      <span>Now Value</span>
                       <span>Change</span>
                     </div>
                     <div className="rookie-draft-row-list">
@@ -346,6 +353,10 @@ export function DraftAnalysis({
                               <PlayerNameWithHeadshot playerId={pick.player_id} playerName={pick.playerName} />
                               <DraftOpportunityNote opportunity={opportunity} />
                             </span>
+                            <span className="rookie-draft-pill" data-label="Pick">#{pick.pick}</span>
+                            <span className="rookie-draft-team-cell">
+                              {details?.team ? <TeamLogoPill team={details.team} /> : <span className="rookie-draft-team-empty">FA</span>}
+                            </span>
                             <span className="rookie-draft-manager-cell">
                               <ManagerNameWithAvatar
                                 avatarUrl={managerAvatars?.[pick.manager]}
@@ -353,18 +364,23 @@ export function DraftAnalysis({
                                 displayName={managerDisplayName}
                               />
                             </span>
-                            <span className="rookie-draft-pill" data-label="Pick">#{pick.pick}</span>
                             <span className={getPositionRankPillClass(draftRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-draft')} data-label="Draft">{draftRankLabel}</span>
                             <span className={getPositionRankPillClass(currentRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-current')} data-label="Now">{currentRankLabel}</span>
-                            <span className="rookie-draft-value-cell" data-label="Draft-Day">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
-                            <span className="rookie-draft-value-cell" data-label="Current">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
-                            <span className={`rookie-draft-gain-cell ${gainClass} ${gainTone}`} data-label="Change">
-                              {details?.team ? <TeamLogoPill team={details.team} className="rookie-draft-change-team" /> : null}
-                              {pick.valueGain !== null && pick.valueGain !== undefined
-                                ? `${pick.valueGain > 0 ? '+' : ''}${pick.valueGain.toLocaleString()}`
-                                : 'N/A'}
-                              {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain > 0 && <TrendingUp className="h-3.5 w-3.5" />}
-                              {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain < 0 && <TrendingDown className="h-3.5 w-3.5" />}
+                            <span className="rookie-draft-value-cell" data-label="Draft">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
+                            <span className="rookie-draft-value-cell" data-label="Now">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
+                            <span className="rookie-draft-change-cell" aria-label={`${pick.playerName} value change`}>
+                              {details?.team ? (
+                                <span className="rookie-draft-change-team" aria-hidden="true">
+                                  <TeamLogoPill team={details.team} />
+                                </span>
+                              ) : null}
+                              <span className={`rookie-draft-gain-cell ${gainClass} ${gainTone}`} data-label="Change">
+                                {pick.valueGain !== null && pick.valueGain !== undefined
+                                  ? `${pick.valueGain > 0 ? '+' : ''}${pick.valueGain.toLocaleString()}`
+                                  : 'N/A'}
+                                {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain > 0 && <TrendingUp className="h-3.5 w-3.5" />}
+                                {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain < 0 && <TrendingDown className="h-3.5 w-3.5" />}
+                              </span>
                             </span>
                           </button>
                         );

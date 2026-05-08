@@ -476,6 +476,7 @@ export async function analyzeDraftPicks(
       playerPos,
       manager,
       managerDisplayName,
+      managerRosterId: typeof pick.roster_id === 'number' ? pick.roster_id : null,
       originalOwner,
       originalRosterId,
       adp,

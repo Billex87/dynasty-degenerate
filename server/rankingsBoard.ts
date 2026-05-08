@@ -7,7 +7,7 @@ import { findProspectProfile } from './prospectSource';
 import {
   getCurrentKTCDevyRankingProfiles,
 } from './liveKTCScraper';
-import type { ProspectProfile, RankingIdentityDiagnostic, RankingPlayer, RankingProfileOption, RankingsBoard } from '../shared/types';
+import type { DraftBuzzScoreboardEntry, ProspectProfile, RankingIdentityDiagnostic, RankingPlayer, RankingProfileOption, RankingsBoard } from '../shared/types';
 
 type KtcProfileKey =
   | 'sf_ppr'
@@ -86,6 +86,8 @@ const RANKING_PROFILE_OPTIONS: RankingProfileOption[] = [
   { key: 'devy_one_qb_ppr_tep_1_0', label: 'Devy 1QB 1.0 TEP', board: 'devy', qbFormat: 'one_qb', tep: 1 },
   { key: 'devy_one_qb_ppr_tep_1_5', label: 'Devy 1QB 1.5 TEP', board: 'devy', qbFormat: 'one_qb', tep: 1.5 },
 ];
+
+const DRAFT_BUZZ_SCOREBOARD_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE']);
 
 const PROFILE_KEY_BY_OPTION: Record<string, KtcProfileKey> = {
   dynasty_sf_ppr: 'sf_ppr',
@@ -195,6 +197,74 @@ function isDraftPickName(name: string): boolean {
 
 function getRankingDisplayName(name: string): string {
   return name.replace(/\s*\(\s*duplicate\s*\)\s*/gi, ' ').replace(/\s+/g, ' ').trim() || name;
+}
+
+function getDraftBuzzPlayerMatch(profile: ProspectProfile, lookup: PlayerIdentityLookup): PlayerCandidate | null {
+  const nameKey = canonicalPlayerNameKey(profile.name);
+  if (!nameKey) return null;
+  const candidates = lookup.candidatesByKey[nameKey] || [];
+  return candidates.find((candidate) => getCandidatePosition(candidate.player) === profile.position) || candidates[0] || null;
+}
+
+function buildDraftBuzzScoreboardEntries(
+  prospectProfiles: ProspectProfile[] | undefined,
+  playerLookup: PlayerIdentityLookup
+): DraftBuzzScoreboardEntry[] {
+  const byKey = new Map<string, DraftBuzzScoreboardEntry>();
+
+  for (const profile of prospectProfiles || []) {
+    const rating = Number(profile.rating || 0);
+    const position = String(profile.position || '').toUpperCase();
+    const draftYear = Number(profile.draftYear || 0);
+    const nameKey = canonicalPlayerNameKey(profile.name);
+    if (profile.source !== 'NFL Draft Buzz' || !rating || !draftYear || !nameKey || !DRAFT_BUZZ_SCOREBOARD_POSITIONS.has(position)) {
+      continue;
+    }
+
+    const playerMatch = getDraftBuzzPlayerMatch({ ...profile, position }, playerLookup);
+    const matchedPlayer = playerMatch?.player || null;
+    const entry: DraftBuzzScoreboardEntry = {
+      id: `draftbuzz:${draftYear}:${position}:${nameKey}`,
+      player_id: playerMatch?.playerId || null,
+      team: matchedPlayer?.team || null,
+      age: Number(matchedPlayer?.age || 0) || null,
+      draftYear,
+      name: profile.name,
+      position,
+      college: profile.college || null,
+      playerImageUrl: profile.playerImageUrl || null,
+      collegeLogoUrl: profile.collegeLogoUrl || null,
+      rating,
+      overallRank: profile.overallRank || null,
+      positionRank: profile.positionRank || null,
+      averageOverallRank: profile.averageOverallRank || null,
+      averagePositionRank: profile.averagePositionRank || null,
+      height: profile.height || null,
+      weight: profile.weight || null,
+      fortyYardDash: profile.fortyYardDash || null,
+      role: profile.role || null,
+      sourceUrl: profile.sourceUrl || null,
+      summary: profile.summary || null,
+      prospectProfile: {
+        ...profile,
+        position,
+        rating,
+      },
+    };
+
+    const existing = byKey.get(entry.id);
+    if (!existing || entry.rating > existing.rating || (entry.overallRank || 9999) < (existing.overallRank || 9999)) {
+      byKey.set(entry.id, entry);
+    }
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => (
+    a.draftYear - b.draftYear
+    || a.position.localeCompare(b.position)
+    || b.rating - a.rating
+    || (a.overallRank || 9999) - (b.overallRank || 9999)
+    || a.name.localeCompare(b.name)
+  ));
 }
 
 function resolvePlayerIdentity({
@@ -322,7 +392,6 @@ function normalizePosition(pos?: string | null, rank?: string | null): string {
 function getProspectRowsFromLookup(prospectLookup?: Map<string, ProspectProfile>): Record<string, ProspectProfile> {
   if (!prospectLookup) return {};
 
-  const currentYear = new Date().getFullYear();
   const seenProfiles = new Set<ProspectProfile>();
   const rows: Record<string, ProspectProfile> = {};
 
@@ -332,13 +401,15 @@ function getProspectRowsFromLookup(prospectLookup?: Map<string, ProspectProfile>
 
     const key = canonicalPlayerNameKey(profile.name);
     const position = normalizePosition(profile.position);
-    const draftYear = Number(profile.draftYear || 0);
+    const normalizedProfile = normalizeCollegeProspectProfile(profile);
+    if (!normalizedProfile) continue;
+    const draftYear = Number(normalizedProfile?.draftYear || 0);
     if (!key || !['QB', 'RB', 'WR', 'TE'].includes(position)) continue;
-    if (!draftYear || draftYear <= currentYear) continue;
+    if (!draftYear) continue;
 
     const existing = rows[key];
-    if (!existing || (profile.overallRank || 9999) < (existing.overallRank || 9999)) {
-      rows[key] = profile;
+    if (!existing || (normalizedProfile.overallRank || 9999) < (existing.overallRank || 9999)) {
+      rows[key] = normalizedProfile;
     }
   }
 
@@ -401,12 +472,41 @@ function getMovementLabel(movement?: number | null): string | null {
   return `${movement > 0 ? '+' : ''}${Math.round(movement).toLocaleString('en-US')}`;
 }
 
+function getRankMovementDirection(movement?: number | null): RankingPlayer['rankMovementDirection'] {
+  if (!movement) return 'flat';
+  return movement > 0 ? 'up' : 'down';
+}
+
+function getRankMovementLabel(movement?: number | null): string | null {
+  if (!movement) return null;
+  return `${movement > 0 ? '+' : ''}${Math.round(movement).toLocaleString('en-US')}`;
+}
+
 function getNumericMetadataValue(...values: unknown[]): number | null {
   for (const value of values) {
     const numeric = Number(value);
     if (Number.isFinite(numeric) && numeric > 0) return numeric;
   }
   return null;
+}
+
+function getCollegeDraftYear(...values: unknown[]): number | null {
+  return getNumericMetadataValue(...values);
+}
+
+function normalizeCollegeProspectProfile(
+  profile?: ProspectProfile | null,
+  fallbackDraftYear?: number | null
+): ProspectProfile | null {
+  if (!profile) return null;
+
+  const draftYear = getCollegeDraftYear(profile.draftYear, fallbackDraftYear);
+  if (!draftYear || draftYear === profile.draftYear) return profile;
+
+  return {
+    ...profile,
+    draftYear,
+  };
 }
 
 function isCollegeEligibleRankingPlayer({
@@ -433,14 +533,34 @@ function isCollegeEligibleRankingPlayer({
   const prospectYear = getNumericMetadataValue(prospectProfile?.draftYear, draftYear, rookieYear);
   if (yearsExp > 0) return false;
   if (hasNflTeam) return false;
-  if (prospectYear && prospectYear <= currentYear) return false;
-  if (prospectProfile) return true;
+  if (prospectProfile) return !prospectYear || prospectYear >= currentYear;
 
-  return Boolean(rookieYear && rookieYear > currentYear && !hasNflTeam && yearsExp === 0);
+  return Boolean(rookieYear && rookieYear >= currentYear && !hasNflTeam && yearsExp === 0);
 }
 
-function applyFinalRanks(rows: RankingPlayer[], limit: number): RankingPlayer[] {
-  const sortedRows = rows.sort((a, b) => b.value - a.value || a.overallRank - b.overallRank || a.name.localeCompare(b.name));
+function getCollegeSourceRank(row: RankingPlayer): number {
+  return Number(
+    row.fantasyProsDevyRank
+    || row.ktcRank
+    || row.flockRank
+    || row.prospectProfile?.overallRank
+    || row.overallRank
+    || 9999
+  );
+}
+
+function compareRankingRows(a: RankingPlayer, b: RankingPlayer, option: RankingProfileOption): number {
+  if (option.board === 'devy') {
+    return getCollegeSourceRank(a) - getCollegeSourceRank(b)
+      || a.overallRank - b.overallRank
+      || a.name.localeCompare(b.name);
+  }
+
+  return b.value - a.value || a.overallRank - b.overallRank || a.name.localeCompare(b.name);
+}
+
+function applyFinalRanks(rows: RankingPlayer[], option: RankingProfileOption, limit: number): RankingPlayer[] {
+  const sortedRows = rows.sort((a, b) => compareRankingRows(a, b, option));
   const positionCounts: Record<string, number> = {};
 
   return sortedRows
@@ -518,7 +638,34 @@ function mergeRankingRows(rows: RankingPlayer[]): RankingPlayer[] {
 }
 
 function prepareRankingRows(rows: RankingPlayer[], option: RankingProfileOption, limit: number): RankingPlayer[] {
-  return applyFinalRanks(option.board === 'devy' ? mergeRankingRows(rows) : rows, limit);
+  return applyFinalRanks(option.board === 'devy' ? mergeRankingRows(rows) : rows, option, limit);
+}
+
+type RankingRowWithBaseline = RankingPlayer & { baselineRankValue?: number | null };
+
+function buildBaselineRankMap(rows: RankingRowWithBaseline[], option: RankingProfileOption, limit: number): Map<string, number> {
+  const comparableRows = (option.board === 'devy' ? mergeRankingRows(rows) : rows) as RankingRowWithBaseline[];
+  return new Map(
+    comparableRows
+      .filter((row) => Number.isFinite(Number(row.baselineRankValue)) && Number(row.baselineRankValue) > 0)
+      .sort((a, b) => Number(b.baselineRankValue) - Number(a.baselineRankValue) || a.overallRank - b.overallRank || a.name.localeCompare(b.name))
+      .slice(0, limit)
+      .map((row, index) => [row.id, index + 1])
+  );
+}
+
+function applyRankMovement(rows: RankingRowWithBaseline[], baselineRankById: Map<string, number>): RankingPlayer[] {
+  return rows.map((row) => {
+    const previousRank = baselineRankById.get(row.id) || null;
+    const rankMovement = previousRank ? previousRank - row.overallRank : null;
+    const { baselineRankValue, ...publicRow } = row;
+    return {
+      ...publicRow,
+      rankMovement,
+      rankMovementLabel: getRankMovementLabel(rankMovement),
+      rankMovementDirection: getRankMovementDirection(rankMovement),
+    };
+  });
 }
 
 function buildRowsForProfile({
@@ -567,7 +714,7 @@ function buildRowsForProfile({
     ...Object.keys(canonicalProspectRows),
     ...(option.board === 'dynasty' ? Object.keys(canonicalKtcValues) : []),
   ]);
-  const rows: RankingPlayer[] = [];
+  const rows: RankingRowWithBaseline[] = [];
 
   for (const key of Array.from(keys)) {
     const ktc = canonicalKtcRows?.[key];
@@ -600,10 +747,16 @@ function buildRowsForProfile({
       continue;
     }
     const college = sourceCollege || sanitizeCollegeName(sleeperPlayer?.college) || null;
-    const draftYear = Number(flock?.draftYear || ktc?.draftYear || prospectRow?.draftYear || sleeperPlayer?.metadata?.rookie_year || 0) || null;
-    const prospectProfile = prospectRow || (prospectLookup
-      ? findProspectProfile(prospectLookup, name, pos, college, draftYear)
+    const sourceDraftYear = Number(flock?.draftYear || ktc?.draftYear || prospectRow?.draftYear || sleeperPlayer?.metadata?.rookie_year || 0) || null;
+    const rawProspectProfile = prospectRow || (prospectLookup
+      ? findProspectProfile(prospectLookup, name, pos, college, sourceDraftYear)
       : null);
+    const draftYear = option.board === 'devy'
+      ? getCollegeDraftYear(sourceDraftYear, rawProspectProfile?.draftYear)
+      : sourceDraftYear;
+    const prospectProfile = option.board === 'devy'
+      ? normalizeCollegeProspectProfile(rawProspectProfile, draftYear)
+      : rawProspectProfile;
     if (option.board === 'devy' && !isCollegeEligibleRankingPlayer({ isPick, prospectProfile, sleeperPlayer, draftYear })) {
       continue;
     }
@@ -642,7 +795,8 @@ function buildRowsForProfile({
       ktcValue ? 'KTC' : null,
       flockValue ? 'Flock' : null,
       fantasyProsDevy && option.board === 'devy' ? 'FantasyPros' : null,
-      prospectProfile && option.board === 'devy' ? 'NFL Draft Buzz' : null,
+      prospectProfile?.source === 'NFL Draft Buzz' && option.board === 'devy' ? 'NFL Draft Buzz' : null,
+      (prospectProfile?.source === 'ESPN' || prospectProfile?.espnId) && option.board === 'devy' ? 'ESPN' : null,
       dynastyNerdsValue ? 'DynastyNerds' : null,
       fantasyCalcValue && option.board === 'dynasty' ? 'FantasyCalc' : null,
       dynastyProcessValue && option.board === 'dynasty' ? 'DynastyProcess' : null,
@@ -693,6 +847,7 @@ function buildRowsForProfile({
       movement,
       movementLabel: getMovementLabel(movement),
       movementDirection: getMovementDirection(movement),
+      baselineRankValue: baselineValue,
       owner: playerId ? ownerByPlayerId[playerId] || null : null,
       rosterStatus: playerId ? rosterStatusByPlayerId[playerId] || null : null,
       sources,
@@ -730,12 +885,17 @@ function buildRowsForProfile({
     });
   }
 
-  const rankedRows = prepareRankingRows(rows, option, option.board === 'devy' ? 140 : 520);
+  const rankingLimit = option.board === 'devy' ? 140 : 520;
+  const baselineRankById = buildBaselineRankMap(rows, option, rankingLimit);
+  const rankedRows = applyRankMovement(
+    prepareRankingRows(rows, option, rankingLimit) as RankingRowWithBaseline[],
+    baselineRankById
+  );
   if (option.board !== 'devy') return rankedRows;
   const teamCount = Math.max(1, Number(leagueTeamCount || 12));
   const classCounts: Record<number, number> = {};
   return rankedRows.map((row) => {
-    const year = Number(row.draftYear || row.prospectProfile?.draftYear || new Date().getFullYear() + 1);
+    const year = getCollegeDraftYear(row.draftYear, row.prospectProfile?.draftYear) || new Date().getFullYear() + 1;
     const pickIndex = (classCounts[year] = (classCounts[year] || 0) + 1);
     const round = Math.ceil(pickIndex / teamCount);
     const pick = ((pickIndex - 1) % teamCount) + 1;
@@ -769,6 +929,7 @@ export async function buildRankingsBoard({
   selectedProfileKey,
   selectedProfileLabel,
   prospectLookup,
+  prospectProfiles,
   leagueTeamCount,
 }: {
   players: PlayerMap;
@@ -779,6 +940,7 @@ export async function buildRankingsBoard({
   selectedProfileKey?: string | null;
   selectedProfileLabel?: string | null;
   prospectLookup?: Map<string, ProspectProfile>;
+  prospectProfiles?: ProspectProfile[];
   leagueTeamCount?: number;
 }): Promise<RankingsBoard> {
   const [ktcDevyProfiles, flockProfiles, dynastyNerdsProfiles, fantasyProsDevyRows] = await Promise.all([
@@ -835,6 +997,7 @@ export async function buildRankingsBoard({
     sourceWeightProfiles,
     profiles,
     identityDiagnostics: Array.from(identityDiagnostics.values()).slice(0, 80),
+    draftBuzzScoreboard: buildDraftBuzzScoreboardEntries(prospectProfiles, playerLookup),
     dynastySf: profiles.dynasty_sf_ppr || [],
     dynastyOneQb: profiles.dynasty_one_qb_ppr || [],
     devySf: profiles.devy_sf_ppr || [],

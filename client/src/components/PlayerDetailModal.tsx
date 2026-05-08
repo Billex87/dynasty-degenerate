@@ -2,6 +2,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -10,7 +11,7 @@ import { TrendingUp, TrendingDown, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getPlayerAvailability } from '@/lib/playerStatus';
-import { getCollegeTileStyle } from '@/lib/teamTileStyle';
+import { getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle } from '@/lib/teamTileStyle';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { TeamLogoPill } from './TeamLogoPill';
 
@@ -69,6 +70,8 @@ export type PlayerModalData = Partial<DraftPick> & {
   collegeLogoUrl?: string | null;
   isCollegeProspect?: boolean;
   valueMode?: LeagueValueMode;
+  taxiAction?: string;
+  taxiReason?: string;
 };
 
 export function PlayerDetailModal({
@@ -112,7 +115,7 @@ export function PlayerDetailModal({
   if (!pick) return null;
   const details = pick.playerDetails;
   const prospectProfile = details?.prospectProfile || null;
-  const isCollegeProspect = Boolean(pick.isCollegeProspect || prospectProfile);
+  const isCollegeProspect = pick.isCollegeProspect ?? Boolean(prospectProfile);
   const prospectCollege = prospectProfile?.college || details?.college || null;
   const directHeadshot = !isCollegeProspect && pick.player_id && !directImageFailed
     ? `https://sleepercdn.com/content/nfl/players/${pick.player_id}.jpg`
@@ -149,6 +152,12 @@ export function PlayerDetailModal({
   const availability = isCollegeProspect
     ? { label: 'College Prospect', tone: 'taxi' as const }
     : getPlayerAvailability(details);
+  const collegeInfoLogo = details?.college ? (
+    <ProspectCollegePill
+      college={details.college}
+      logoUrl={details.prospectProfile?.collegeLogoUrl || pick.collegeLogoUrl}
+    />
+  ) : null;
   const physicalRows = [
     ['Age', details?.age],
     ['Height', formatHeight(details?.height)],
@@ -160,7 +169,7 @@ export function PlayerDetailModal({
     ['Years Exp', details?.yearsExp],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const backgroundRows = isCollegeProspect ? [] : [
-    ['College', details?.college],
+    ['College', collegeInfoLogo],
     ['Birthday', formatBirthday(details?.birthDate)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const prospectMetricRows = prospectProfile ? [
@@ -168,7 +177,13 @@ export function PlayerDetailModal({
     ['Board Rank', prospectProfile.fantasyProsDevyRank ? `#${prospectProfile.fantasyProsDevyRank}` : prospectProfile.overallRank ? `#${prospectProfile.overallRank}` : null],
     ['Position Rank', prospectProfile.fantasyProsDevyPositionRank || (prospectProfile.positionRank ? `${prospectProfile.position}${prospectProfile.positionRank}` : null)],
     ['Draft Class', prospectProfile.draftYear],
-    ['College', prospectProfile.college],
+    ['College', prospectProfile.college ? (
+      <ProspectCollegePill
+        college={prospectProfile.college}
+        logoUrl={pick.collegeLogoUrl || prospectProfile.collegeLogoUrl}
+      />
+    ) : null],
+    ['Class', prospectProfile.classYear],
     ['40 Time', prospectProfile.fortyYardDash ? `${prospectProfile.fortyYardDash}s` : null],
     ['Size', [prospectProfile.height, prospectProfile.weight].filter(Boolean).join(' / ')],
     ['Role', prospectProfile.role],
@@ -180,6 +195,12 @@ export function PlayerDetailModal({
     ['FP Best/Worst', details.prospectProfile.fantasyProsDevyBestRank && details.prospectProfile.fantasyProsDevyWorstRank ? `${details.prospectProfile.fantasyProsDevyBestRank} / ${details.prospectProfile.fantasyProsDevyWorstRank}` : null],
     ['FP Avg/Std Dev', details.prospectProfile.fantasyProsDevyAverageRank && details.prospectProfile.fantasyProsDevyStdDev !== null && details.prospectProfile.fantasyProsDevyStdDev !== undefined ? `${details.prospectProfile.fantasyProsDevyAverageRank} / ${details.prospectProfile.fantasyProsDevyStdDev}` : null],
     ['Role', details.prospectProfile.role],
+    ['Source', details.prospectProfile.source],
+    ['ESPN ID', details.prospectProfile.espnId],
+    ['Class', details.prospectProfile.classYear],
+    ['Jersey', details.prospectProfile.jersey],
+    ['Status', details.prospectProfile.status],
+    ['Birthplace', details.prospectProfile.birthPlace],
     ['Draft Class', details.prospectProfile.draftYear],
     ['College', details.prospectProfile.college],
     ['Overall Rank', details.prospectProfile.overallRank ? `#${details.prospectProfile.overallRank}` : null],
@@ -210,11 +231,12 @@ export function PlayerDetailModal({
   const rebuilderRank = getValueProfileRank(valueProfile, 'rebuilder', currentRank);
   const topDynastyRank = dynastyRank || (valueMode !== 'redraft' ? currentRank : null);
   const topSeasonRank = seasonRank || (valueMode === 'redraft' ? currentRank : null);
-  const currentValueLabel = valueMode === 'redraft'
-    ? 'Season Value'
-    : valueMode === 'keeper'
-      ? 'Keeper Value'
-      : 'Dynasty Value';
+  const dynastyValue = valueProfile?.dynastyValue
+    ?? valueProfile?.balancedValue
+    ?? (valueMode !== 'redraft' ? currentValue : null);
+  const seasonValue = valueProfile?.seasonValue
+    ?? valueProfile?.fantasyProsSeasonValue
+    ?? (valueMode === 'redraft' ? currentValue : null);
   const marketRankRows = valueProfile ? [
     ['Dynasty', dynastyRank],
     ['Season', seasonRank],
@@ -322,6 +344,9 @@ export function PlayerDetailModal({
               <DialogTitle className="sr-only">
                 {pick.playerName}
               </DialogTitle>
+              <DialogDescription className="sr-only">
+                Player detail view with roster value, rankings, availability, market notes, and source data.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="relative mt-4 flex justify-center sm:mt-7">
@@ -426,7 +451,7 @@ export function PlayerDetailModal({
                   <InfoTile
                     key={String(label)}
                     label={String(label)}
-                    value={String(value)}
+                    value={value as ReactNode}
                     teamColors={teamColors}
                     tileAccent={tileAccent}
                     valueClassName={isPositionRankValue(value) ? getPositionRankPillClass(String(value)) : undefined}
@@ -435,17 +460,23 @@ export function PlayerDetailModal({
               </div>
             ) : (
               <div className="mx-auto grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-                {currentValue !== undefined && (
-                  <MetricTile
-                    label={currentValueLabel}
-                    mobileLabel={valueMode === 'redraft' ? 'Season' : valueMode === 'keeper' ? 'Keeper' : 'Dynasty'}
-                    value={currentValue ? currentValue.toLocaleString() : '-'}
-                    teamColors={teamColors}
-                    tileAccent={tileAccent}
-                  />
-                )}
+                <MetricTile
+                  label="Dynasty Value"
+                  mobileLabel="Dynasty"
+                  value={dynastyValue ? dynastyValue.toLocaleString() : '-'}
+                  teamColors={teamColors}
+                  tileAccent={tileAccent}
+                />
                 <MetricTile label="Dynasty Rank" mobileLabel="Dynasty" value={topDynastyRank || '-'} valueClassName={`${getPositionRankPillClass(topDynastyRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
+                <MetricTile
+                  label="Season Value"
+                  mobileLabel="Season"
+                  value={seasonValue ? seasonValue.toLocaleString() : '-'}
+                  teamColors={teamColors}
+                  tileAccent={tileAccent}
+                />
                 <MetricTile label="Season Rank" mobileLabel="Season" value={topSeasonRank || '-'} valueClassName={`${getPositionRankPillClass(topSeasonRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} />
+                {valueGain !== undefined && valueGain !== null && (
                 <MetricTile
                   label="Value Change"
                   mobileLabel="Change"
@@ -457,6 +488,7 @@ export function PlayerDetailModal({
                   teamColors={teamColors}
                   tileAccent={tileAccent}
                 />
+                )}
               </div>
             )}
 
@@ -464,6 +496,16 @@ export function PlayerDetailModal({
               <p className="text-center text-[0.72rem] leading-none text-slate-500 sm:text-xs">
                 <span className="font-semibold text-cyan-300">Value Change:</span> {valueChangeNote}
               </p>
+            )}
+
+            {!isCollegeProspect && pick.taxiReason && (
+              <div className="player-modal-taxi-read mx-auto max-w-xl">
+                <div>
+                  <span>Taxi Read</span>
+                  <strong>{pick.taxiAction || 'Taxi Note'}</strong>
+                </div>
+                <p>{pick.taxiReason}</p>
+              </div>
             )}
 
             {!isCollegeProspect && details?.similarTradeValues?.length ? (
@@ -610,7 +652,7 @@ export function PlayerDetailModal({
               {backgroundRows.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   {backgroundRows.map(([label, value]) => (
-                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
+                    <InfoTile key={String(label)} label={String(label)} value={value as ReactNode} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>
               )}
@@ -1087,12 +1129,23 @@ function ProspectCollegePill({
   college?: string | null;
   logoUrl?: string | null;
 }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [college, logoUrl]);
+
   if (!college && !logoUrl) return null;
+  const label = college || 'College';
+  const logoSrc = logoFailed ? null : getCollegeLogoUrl(college, logoUrl);
 
   return (
-    <span className="player-modal-college-pill">
-      {logoUrl ? <img src={logoUrl} alt="" loading="lazy" aria-hidden="true" /> : null}
-      <span>{college || 'College'}</span>
+    <span className="player-modal-college-pill" title={label} aria-label={label}>
+      {logoSrc ? (
+        <img src={logoSrc} alt="" loading="lazy" aria-hidden="true" onError={() => setLogoFailed(true)} />
+      ) : (
+        <span className="player-modal-college-fallback" aria-hidden="true">{getCollegeInitials(college)}</span>
+      )}
     </span>
   );
 }
@@ -1157,7 +1210,7 @@ function InfoTile({
   valueClassName,
 }: {
   label: string;
-  value: string | number;
+  value: ReactNode;
   tone?: 'positive' | 'negative' | 'neutral';
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
@@ -1180,8 +1233,10 @@ function InfoTile({
       }}
     >
       <div className="text-center text-[0.6rem] font-semibold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]" style={{ color: tileAccent || teamColors?.accent || undefined }}>{label}</div>
-      <div className={`mt-1 truncate text-center text-sm font-bold sm:text-base ${toneClass}`}>
-        <span className={valueClassName}>{value}</span>
+      <div className={`mt-1 flex min-h-[1.65rem] items-center justify-center text-center text-sm font-bold sm:text-base ${toneClass}`}>
+        <span className={`${typeof value === 'string' || typeof value === 'number' ? 'min-w-0 truncate' : 'inline-flex items-center justify-center'} ${valueClassName || ''}`}>
+          {value}
+        </span>
       </div>
     </div>
   );

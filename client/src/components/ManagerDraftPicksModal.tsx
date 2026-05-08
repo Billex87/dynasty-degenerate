@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -113,6 +114,9 @@ export function ManagerDraftPicksModal({
                     <DialogTitle className={`manager-modal-name ${managerNameSizeClass} athletic-headline mt-1 font-black leading-none text-orange-400`}>
                       {displayManagerName}
                     </DialogTitle>
+                    <DialogDescription className="sr-only">
+                      Manager draft portfolio with pick outcomes, value movement, and player-level draft decision context.
+                    </DialogDescription>
                     <ManagerChampionshipPills managerName={managerName} className="mt-2 justify-center" />
                   </div>
                 </div>

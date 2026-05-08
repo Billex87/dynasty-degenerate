@@ -187,6 +187,39 @@ describe('generateReport trade ledger', () => {
     },
   };
 
+  it('includes season standings history for trade outcome windows', async () => {
+    const report = await generateReport(
+      {
+        ...baseSeason,
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['london'], settings: { wins: 9, losses: 5, ties: 0, fpts: 1734, fpts_decimal: 25 } },
+          { roster_id: 3, owner_id: 'u3', players: ['smith'], settings: { wins: 9, losses: 5, ties: 0, fpts: 1600, fpts_decimal: 0 } },
+          { roster_id: 9, owner_id: 'u9', players: ['downs'], settings: { wins: 8, losses: 6, ties: 0, fpts: 1640, fpts_decimal: 50 } },
+          { roster_id: 10, owner_id: 'u10', players: [], settings: { wins: 0, losses: 14, ties: 0, fpts: 900, fpts_decimal: 0 } },
+        ],
+        trades: [],
+      },
+      null,
+      players,
+      ktcValues,
+      {}
+    );
+
+    expect(report.standingsHistory?.find((row) => row.manager === 'AwwQQ')).toMatchObject({
+      season: '2026',
+      rosterId: 1,
+      rank: 1,
+      wins: 9,
+      losses: 5,
+      ties: 0,
+      pointsFor: 1734.25,
+    });
+    expect(report.standingsHistory?.find((row) => row.manager === 'mynameisbillex')).toMatchObject({
+      rank: 2,
+      pointsFor: 1600,
+    });
+  });
+
   it('shows draft picks in the side that received them', async () => {
     const report = await generateReport(
       {
@@ -218,6 +251,290 @@ describe('generateReport trade ledger', () => {
     expect(trade.team_a_items).toContain('PLAYER:downs|Josh Downs|3200');
     expect(trade.team_b).toBe('Beaston1989');
     expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 3rd (3.08)|2117');
+  });
+
+  it('uses Sleeper roster_id as the original pick identity even when owner_id is the recipient', async () => {
+    const report = await generateReport(
+      {
+        ...baseSeason,
+        draftSlotsBySeason: {
+          '2026': {
+            1: 8,
+            3: 9,
+          },
+        },
+        trades: [
+          {
+            status_updated: Date.parse('2026-05-02T12:00:00Z'),
+            adds: { downs: 3 },
+            draft_picks: [
+              {
+                round: 1,
+                season: '2026',
+                roster_id: 1,
+                owner_id: 1,
+                previous_owner_id: 3,
+              },
+            ],
+          },
+        ],
+      },
+      null,
+      players,
+      ktcValues,
+      {}
+    );
+
+    const trade = report.tradeHistory[0];
+    expect(trade.team_a).toBe('AwwQQ');
+    expect(trade.team_a_items).toContain('PICK:2026 AwwQQ 1st (1.08)|3928');
+    expect(trade.team_b).toBe('mynameisbillex');
+    expect(trade.team_b_items).toContain('PLAYER:downs|Josh Downs|3200');
+  });
+
+  it('keeps the raw original pick identity when a return trade follows an unrelated pick-only swap', async () => {
+    const report = await generateReport(
+      {
+        ...baseSeason,
+        rosterMap: {
+          ...baseSeason.rosterMap,
+          7: 'StefanLyren',
+        },
+        rosters: [
+          ...baseSeason.rosters,
+          { roster_id: 7, owner_id: 'u7', players: [] },
+        ],
+        draftSlotsBySeason: {
+          '2026': {
+            1: 8,
+            3: 9,
+            7: 7,
+          },
+        },
+        trades: [
+          {
+            status_updated: Date.parse('2026-01-02T12:00:00Z'),
+            draft_picks: [
+              {
+                round: 1,
+                season: '2026',
+                roster_id: 3,
+                owner_id: 7,
+                previous_owner_id: 3,
+              },
+              {
+                round: 1,
+                season: '2026',
+                roster_id: 7,
+                owner_id: 3,
+                previous_owner_id: 7,
+              },
+            ],
+          },
+          {
+            status_updated: Date.parse('2026-05-02T12:00:00Z'),
+            adds: { downs: 3 },
+            draft_picks: [
+              {
+                round: 1,
+                season: '2026',
+                roster_id: 1,
+                owner_id: 1,
+                previous_owner_id: 3,
+              },
+            ],
+          },
+        ],
+      },
+      null,
+      players,
+      ktcValues,
+      {}
+    );
+
+    const trade = report.tradeHistory.find((row) => row.date === '2026-05-02');
+    expect(trade?.team_a).toBe('AwwQQ');
+    expect(trade?.team_a_items).toContain('PICK:2026 AwwQQ 1st (1.08)|3928');
+    expect(trade?.team_a_items).not.toContain('PICK:2026 mynameisbillex 1st (1.09)|3928');
+    expect(trade?.team_a_items).not.toContain('PICK:2026 StefanLyren 1st (1.07)|3928');
+    expect(trade?.team_b).toBe('mynameisbillex');
+    expect(trade?.team_b_items).toContain('PLAYER:downs|Josh Downs|3200');
+  });
+
+  it('tracks the same original pick across past and current season trade ledgers', async () => {
+    const report = await generateReport(
+      {
+        ...baseSeason,
+        draftSlotsBySeason: {
+          '2026': {
+            1: 8,
+            3: 9,
+            10: 10,
+          },
+        },
+        trades: [
+          {
+            status_updated: Date.parse('2026-01-03T12:00:00Z'),
+            adds: { downs: 1, smith: 3 },
+            draft_picks: [
+              {
+                round: 2,
+                season: '2026',
+                roster_id: 10,
+                owner_id: 1,
+                previous_owner_id: 3,
+              },
+            ],
+          },
+          {
+            status_updated: Date.parse('2026-05-02T12:00:00Z'),
+            adds: { downs: 3 },
+            draft_picks: [
+              {
+                round: 1,
+                season: '2026',
+                roster_id: 1,
+                owner_id: 1,
+                previous_owner_id: 3,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        ...baseSeason,
+        label: '2025',
+        draftSlotsBySeason: {
+          '2026': {
+            1: 8,
+            3: 9,
+            10: 10,
+          },
+        },
+        trades: [
+          {
+            status_updated: Date.parse('2025-08-13T12:00:00Z'),
+            adds: {
+              london: 1,
+              smith: 3,
+            },
+            draft_picks: [
+              {
+                round: 1,
+                season: '2026',
+                roster_id: 1,
+                owner_id: 3,
+                previous_owner_id: 1,
+              },
+              {
+                round: 2,
+                season: '2026',
+                roster_id: 10,
+                owner_id: 3,
+                previous_owner_id: 1,
+              },
+            ],
+          },
+        ],
+      },
+      players,
+      ktcValues,
+      {}
+    );
+
+    const originalTrade = report.tradeHistory.find((row) => row.date === '2025-08-13');
+    const firstReturn = report.tradeHistory.find((row) => row.date === '2026-01-03');
+    const secondReturn = report.tradeHistory.find((row) => row.date === '2026-05-02');
+
+    expect(originalTrade?.team_b_items).toContain('PICK:2026 AwwQQ 1st (1.08)|3928|2026|1|1');
+    expect(originalTrade?.team_b_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|2865|2026|2|10');
+    expect(originalTrade?.team_b_items.match(/FLIP:/g) || []).toHaveLength(2);
+    expect(originalTrade?.team_b_items).toContain('Josh%20Downs');
+    expect(originalTrade?.team_b_items).toContain('DeVonta%20Smith');
+    expect(firstReturn?.team_a_items).toContain('PICK:2026 S1monB1rch 2nd (2.10)|2865|2026|2|10');
+    expect(secondReturn?.team_a_items).toContain('PICK:2026 AwwQQ 1st (1.08)|3928|2026|1|1');
+  });
+
+  it('reconciles returned pick labels against the completed draft pick state', async () => {
+    const rosterMap = {
+      ...baseSeason.rosterMap,
+      2: 'DickyTwoTime',
+    };
+    const rosters = [
+      ...baseSeason.rosters,
+      { roster_id: 2, owner_id: 'u2', players: [] },
+    ];
+    const draftSlotsBySeason = {
+      '2026': {
+        1: 9,
+        2: 2,
+        3: 8,
+        10: 10,
+      },
+    };
+
+    const report = await generateReport(
+      {
+        ...baseSeason,
+        rosterMap,
+        rosters,
+        draftSlotsBySeason,
+        finalTradedPicks: [
+          { season: '2026', round: 1, roster_id: 1, owner_id: 2 },
+          { season: '2026', round: 1, roster_id: 3, owner_id: 1 },
+        ],
+        trades: [
+          {
+            status_updated: Date.parse('2026-05-02T12:00:00Z'),
+            adds: { downs: 1, smith: 3 },
+            draft_picks: [
+              {
+                round: 1,
+                season: '2026',
+                roster_id: 1,
+                owner_id: 1,
+                previous_owner_id: 3,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        ...baseSeason,
+        rosterMap,
+        rosters,
+        draftSlotsBySeason,
+        trades: [
+          {
+            status_updated: Date.parse('2025-08-13T12:00:00Z'),
+            adds: {
+              london: 1,
+              smith: 3,
+            },
+            draft_picks: [
+              {
+                round: 1,
+                season: '2026',
+                roster_id: 1,
+                owner_id: 3,
+                previous_owner_id: 1,
+              },
+            ],
+          },
+        ],
+      },
+      players,
+      ktcValues,
+      {}
+    );
+
+    const originalTrade = report.tradeHistory.find((row) => row.date === '2025-08-13');
+    const returnTrade = report.tradeHistory.find((row) => row.date === '2026-05-02');
+
+    expect(originalTrade?.team_b_items).toContain('PICK:2026 mynameisbillex 1st (1.08)|');
+    expect(originalTrade?.team_b_items).toContain('|2026|1|3|1|FLIP:');
+    expect(originalTrade?.team_b_items).not.toContain('PICK:2026 AwwQQ 1st (1.09)|');
+    expect(returnTrade?.team_a_items).toContain('PICK:2026 mynameisbillex 1st (1.08)|');
   });
 
   it('keeps player names visible when value adjustment is applied', async () => {
@@ -357,6 +674,70 @@ describe('generateReport trade ledger', () => {
     });
     expect(report.managerPositionCounts[0].starterPlayers?.find((player) => player.pos === 'QB')?.seasonPositionRank).toBe('QB1');
     expect(report.managerPositionCounts[1].starterPlayers?.find((player) => player.pos === 'QB')?.seasonPositionRank).toBe('QB2');
+  });
+
+  it('fills kicker and defense starter slots from season-only rank context', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterPositions: ['QB', 'K', 'DEF', 'BN'],
+        rosterMap: {
+          1: 'Manager A',
+          2: 'Manager B',
+        },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['qbA', 'kA', 'defA'] },
+          { roster_id: 2, owner_id: 'u2', players: ['qbB', 'kB', 'defB'] },
+        ],
+      },
+      null,
+      {
+        qbA: { first_name: 'Alpha', last_name: 'QB', position: 'QB', age: 25 },
+        kA: { first_name: 'Alpha', last_name: 'Kicker', position: 'K', age: 28 },
+        defA: { first_name: 'Alpha', last_name: 'Defense', position: 'DEF' },
+        qbB: { first_name: 'Beta', last_name: 'QB', position: 'QB', age: 25 },
+        kB: { first_name: 'Beta', last_name: 'Kicker', position: 'K', age: 28 },
+        defB: { first_name: 'Beta', last_name: 'Defense', position: 'DEF' },
+      },
+      {
+        alphaqb: { name: 'Alpha QB', ktc_value: 5000, redraft_value: 5000, position_rank: 'QB8' },
+        betaqb: { name: 'Beta QB', ktc_value: 4500, redraft_value: 4500, position_rank: 'QB12' },
+      },
+      {},
+      {
+        kA: { positionRank: 'K3', fantasyPoints: 150, season: '2025' },
+        defA: { positionRank: 'DEF5', fantasyPoints: 140, season: '2025' },
+        kB: { positionRank: 'K10', fantasyPoints: 120, season: '2025' },
+        defB: { positionRank: 'DEF1', fantasyPoints: 170, season: '2025' },
+      }
+    );
+
+    const managerA = report.managerPositionCounts.find((row) => row.manager === 'Manager A');
+    const managerAIntel = report.managerRosterIntelligence.find((row) => row.manager === 'Manager A');
+
+    expect(managerA).toMatchObject({
+      K_starters: 1,
+      DEF_starters: 1,
+    });
+    expect(managerA?.starterGroups?.find((group) => group.key === 'K')?.players[0]).toMatchObject({
+      name: 'Alpha Kicker',
+      seasonPositionRank: 'K3',
+      seasonValue: 900,
+    });
+    expect(managerA?.starterGroups?.find((group) => group.key === 'DEF')?.players[0]).toMatchObject({
+      name: 'Alpha Defense',
+      seasonPositionRank: 'DEF5',
+      seasonValue: 840,
+    });
+    expect(managerAIntel?.startingRosterStrength?.find((tile) => tile.key === 'K')).toMatchObject({
+      label: 'K x1',
+      leagueRank: 1,
+    });
+    expect(managerAIntel?.startingRosterStrength?.find((tile) => tile.key === 'DEF')).toMatchObject({
+      label: 'DEF x1',
+      leagueRank: 2,
+    });
   });
 
   it('counts reserve players as roster assets without projecting them as active starters', async () => {

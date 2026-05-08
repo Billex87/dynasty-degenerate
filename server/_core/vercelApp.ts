@@ -9,7 +9,7 @@ import { getProspectSnapshotMonth, shouldRunMonthlyProspectSnapshot, storeNflDra
 
 const app = express();
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
-const SNAPSHOT_HOURS = [6, 18] as const;
+const SNAPSHOT_HOURS = [6, 12, 18] as const;
 
 function parseLeagueIds(value: string | undefined): string[] {
   return Array.from(

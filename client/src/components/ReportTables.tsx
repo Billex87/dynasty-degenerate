@@ -16,8 +16,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, Crown, X as XIcon } from 'lucide-react';
-import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TrendingPlayer } from '@shared/types';
+import { ArrowRight, ChevronDown, Crown, Scissors, ShieldCheck, X as XIcon } from 'lucide-react';
+import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TaxiTriageItem, TrendingPlayer } from '@shared/types';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
@@ -49,6 +49,8 @@ function buildPlayerModalData({
   valueChangeNote,
   currentPositionRank,
   valueMode = 'dynasty',
+  taxiAction,
+  taxiReason,
 }: {
   playerId?: string;
   playerName: string;
@@ -62,6 +64,8 @@ function buildPlayerModalData({
   valueChangeNote?: string;
   currentPositionRank?: string | null;
   valueMode?: ReportData['leagueValueMode'];
+  taxiAction?: string | null;
+  taxiReason?: string | null;
 }): PlayerModalData {
   const mappedDetails = playerId ? playerDetailsById?.[playerId] : undefined;
   const details = playerDetails
@@ -98,6 +102,8 @@ function buildPlayerModalData({
     playerDetails: details,
     valueChangeNote,
     valueMode,
+    taxiAction: taxiAction || undefined,
+    taxiReason: taxiReason || undefined,
   };
 }
 
@@ -177,6 +183,14 @@ function stableTradeSeed(value: string): number {
     hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
   }
   return Math.abs(hash);
+}
+
+function normalizeManagerKey(value: string | null | undefined): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/\d+$/g, '');
 }
 
 function renderTradeSummaryManager(
@@ -333,7 +347,7 @@ function renderTradeFitRead(
             }));
           }}
         >
-          <span className="trade-fit-target-label">Better target: {read.target.name}</span>
+          <span className="trade-fit-target-label">Trade-date target: {read.target.name}</span>
           <PositionRankPill rank={read.target.seasonPositionRank || read.target.currentPositionRank || read.target.pos} />
         </button>
       )}
@@ -370,6 +384,17 @@ function getManagerTradeSwing(trade: ReportData['tradeHistory'][number], manager
   if (trade.team_a === manager) return trade.team_a_total - trade.team_b_total;
   if (trade.team_b === manager) return trade.team_b_total - trade.team_a_total;
   return 0;
+}
+
+function getManagerTradeEvaluationSwing(evaluation: TradeLedgerEvaluation, manager: string) {
+  if (evaluation.teamA.manager === manager) return evaluation.teamA.total - evaluation.teamB.total;
+  if (evaluation.teamB.manager === manager) return evaluation.teamB.total - evaluation.teamA.total;
+  return 0;
+}
+
+function getManagerTradeEvaluationResult(evaluation: TradeLedgerEvaluation, manager: string) {
+  if (evaluation.winners.length > 1 && evaluation.winners.includes(manager)) return 'Even Win';
+  return evaluation.winners.includes(manager) ? 'Win' : 'Loss';
 }
 
 function getTradeOpponent(trade: ReportData['tradeHistory'][number], manager: string) {
@@ -532,23 +557,45 @@ function getTradeLedgerItemValues(
   items: string,
   mode: TradeWarMode,
   playerDetailsById?: PlayerDetailsById,
+  draftPicks: DraftPick[] = [],
 ) {
   return splitTradeItems(items)
-    .map((item) => {
-      const trimmed = item.trim();
-      if (!trimmed || parseValueAdjustmentItem(trimmed) !== null) return null;
-
-      const playerItem = parseTradePlayerItem(trimmed);
-      if (playerItem) {
-        return getTradeLedgerPlayerValue(playerItem, playerDetailsById?.[playerItem.playerId], mode);
-      }
-
-      const pickItem = parseTradePickItem(trimmed);
-      if (pickItem) return getTradeLensNumber(pickItem.value);
-
-      return null;
-    })
+    .map((item) => getTradeLedgerItemValue(item, mode, playerDetailsById, draftPicks))
     .filter((value): value is number => value !== null && Number.isFinite(value));
+}
+
+function getTradeLedgerItemValue(
+  item: string,
+  mode: TradeWarMode,
+  playerDetailsById?: PlayerDetailsById,
+  draftPicks: DraftPick[] = [],
+  depth = 0,
+): number | null {
+  const trimmed = item.trim();
+  if (!trimmed || parseValueAdjustmentItem(trimmed) !== null) return null;
+
+  const playerItem = parseTradePlayerItem(trimmed);
+  if (playerItem) {
+    return getTradeLedgerPlayerValue(playerItem, playerDetailsById?.[playerItem.playerId], mode);
+  }
+
+  const pickItem = parseTradePickItem(trimmed);
+  if (pickItem) {
+    const flippedValues = depth < 3
+      ? pickItem.flipOutcome?.assets
+        .map((asset) => getTradeLedgerItemValue(asset, mode, playerDetailsById, draftPicks, depth + 1))
+        .filter((value): value is number => value !== null && Number.isFinite(value))
+      : [];
+    if (flippedValues?.length) {
+      return flippedValues.reduce((sum, value) => sum + value, 0);
+    }
+
+    const landedPick = findLandedPick(pickItem, draftPicks);
+    return getTradeLensNumber(landedPick?.currentKtcValue ?? landedPick?.ktcValue)
+      ?? getTradeLensNumber(pickItem.value);
+  }
+
+  return null;
 }
 
 function calculateTradeLedgerValueAdjustment(sideValues: number[], otherSideValues: number[]): number {
@@ -578,11 +625,12 @@ function buildTradeLedgerEvaluation(
   dynastyTimelines?: DynastyTimelineRows,
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'],
   playerDetailsById?: PlayerDetailsById,
+  draftPicks: DraftPick[] = [],
 ): TradeLedgerEvaluation {
   const teamALens = getTradeRowBuildLens(row, row.team_a, dynastyTimelines, managerRosterIntelligence);
   const teamBLens = getTradeRowBuildLens(row, row.team_b, dynastyTimelines, managerRosterIntelligence);
-  const teamAValues = getTradeLedgerItemValues(row.team_a_items, teamALens.mode, playerDetailsById);
-  const teamBValues = getTradeLedgerItemValues(row.team_b_items, teamBLens.mode, playerDetailsById);
+  const teamAValues = getTradeLedgerItemValues(row.team_a_items, teamALens.mode, playerDetailsById, draftPicks);
+  const teamBValues = getTradeLedgerItemValues(row.team_b_items, teamBLens.mode, playerDetailsById, draftPicks);
   const teamAAdjustment = calculateTradeLedgerValueAdjustment(teamAValues, teamBValues);
   const teamBAdjustment = calculateTradeLedgerValueAdjustment(teamBValues, teamAValues);
   const teamATotal = teamAValues.reduce((sum, value) => sum + value, 0) + teamAAdjustment;
@@ -624,9 +672,17 @@ function getTradeSideEvaluation(manager: string, evaluation: TradeLedgerEvaluati
   return evaluation.teamA.manager === manager ? evaluation.teamA : evaluation.teamB;
 }
 
+type TradeDisplaySide = {
+  manager: string;
+  items: string;
+  total: number;
+  isWinner: boolean;
+};
+
 function getTradeDisplaySides(
   row: ReportData['tradeHistory'][number],
   evaluation?: TradeLedgerEvaluation,
+  sideOrder?: [string, string],
 ) {
   const winners = evaluation?.winners || (row.winners?.length ? row.winners : [row.winner]);
   const isTeamAWinner = winners.includes(row.team_a);
@@ -638,48 +694,452 @@ function getTradeDisplaySides(
   const loserName = isMutualWin
     ? 'Both Win'
     : winnerSide === 'team_a' ? row.team_b : row.team_a;
-  const leftSide = isMutualWin
-      ? {
-        manager: row.team_a,
-        items: row.team_a_items,
-        total: teamATotal,
-        isWinner: true,
-      }
+
+  const teamASide: TradeDisplaySide = {
+    manager: row.team_a,
+    items: row.team_a_items,
+    total: teamATotal,
+    isWinner: isTeamAWinner,
+  };
+  const teamBSide: TradeDisplaySide = {
+    manager: row.team_b,
+    items: row.team_b_items,
+    total: teamBTotal,
+    isWinner: isTeamBWinner,
+  };
+  const sideByManager = new Map<string, TradeDisplaySide>([
+    [row.team_a, teamASide],
+    [row.team_b, teamBSide],
+  ]);
+  const requestedSides = sideOrder
+    ?.map((manager) => sideByManager.get(manager))
+    .filter((side): side is TradeDisplaySide => Boolean(side));
+  const defaultSides = isMutualWin
+    ? [teamASide, teamBSide]
     : winnerSide === 'team_a'
-    ? {
-        manager: row.team_a,
-        items: row.team_a_items,
-        total: teamATotal,
-        isWinner: true,
-      }
-    : {
-        manager: row.team_b,
-        items: row.team_b_items,
-        total: teamBTotal,
-        isWinner: true,
-      };
-  const rightSide = isMutualWin
-    ? {
-        manager: row.team_b,
-        items: row.team_b_items,
-        total: teamBTotal,
-        isWinner: true,
-      }
-    : winnerSide === 'team_a'
-    ? {
-        manager: row.team_b,
-        items: row.team_b_items,
-        total: teamBTotal,
-        isWinner: false,
-      }
-    : {
-        manager: row.team_a,
-        items: row.team_a_items,
-        total: teamATotal,
-        isWinner: false,
-      };
+      ? [teamASide, teamBSide]
+      : [teamBSide, teamASide];
+  const [leftSide, rightSide] = requestedSides?.length === 2
+    ? requestedSides
+    : defaultSides;
 
   return { winners, loserName, leftSide, rightSide };
+}
+
+type TradeOutcomeAsset = {
+  id: string;
+  label: string;
+  name: string;
+  kind: 'player' | 'pick';
+  value: number;
+  basisValue: number;
+  valueDelta: number;
+  seasonValue: number;
+  rank?: string | null;
+  detail?: string | null;
+  status?: string | null;
+  playerId?: string;
+  children?: TradeOutcomeAsset[];
+};
+
+type TradeOutcomeSide = {
+  manager: string;
+  side: TradeDisplaySide;
+  evaluation: TradeLedgerSideEvaluation;
+  assets: TradeOutcomeAsset[];
+  assetValue: number;
+  basisValue: number;
+  valueDelta: number;
+  seasonValue: number;
+};
+
+type TradeOutcomeRecord = {
+  manager: string;
+  seasons: string[];
+  wins: number;
+  losses: number;
+  ties: number;
+  pointsFor: number;
+  latestRank: number | null;
+};
+
+type TradeOutcomeReview = {
+  statusLabel: string;
+  windowLabel: string;
+  observedThroughLabel: string;
+  verdict: string;
+  metrics: Array<{ label: string; value: string; note: string; tone: 'good' | 'bad' | 'neutral' }>;
+  notes: string[];
+  sides: TradeOutcomeSide[];
+  records: TradeOutcomeRecord[];
+};
+
+function parseTradeOutcomeDate(date: string): Date {
+  return new Date(`${date}T00:00:00Z`);
+}
+
+function addYears(date: Date, years: number): Date {
+  const next = new Date(date);
+  next.setUTCFullYear(next.getUTCFullYear() + years);
+  return next;
+}
+
+function formatOutcomeDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
+function getOutcomePlayerSeasonValue(details?: PlayerDetails): number {
+  return getTradeLensNumber(details?.valueProfile?.seasonValue ?? details?.valueProfile?.fantasyProsSeasonValue)
+    ?? getTradeLensNumber(details?.lastSeasonFantasyPoints)
+    ?? 0;
+}
+
+function getOutcomeAssetStatus(details?: PlayerDetails): string | null {
+  const status = getPlayerAvailability(details).label;
+  if (status && !/^(active|healthy)$/i.test(status)) return status;
+  const avgMissed = getTradeLensNumber(details?.avgGamesMissed);
+  if (avgMissed && avgMissed >= 3) return `${avgMissed} avg missed games`;
+  return null;
+}
+
+function getOutcomeAssetsFromItems(
+  items: string,
+  mode: TradeWarMode,
+  playerDetailsById?: PlayerDetailsById,
+  currentPositionRankById?: CurrentPositionRankById,
+  draftPicks: DraftPick[] = [],
+  depth = 0,
+): TradeOutcomeAsset[] {
+  return splitTradeItems(items)
+    .filter((item) => parseValueAdjustmentItem(item.trim()) === null)
+    .flatMap((item, index): TradeOutcomeAsset[] => {
+      const trimmed = item.trim();
+      const playerItem = parseTradePlayerItem(trimmed);
+      if (playerItem) {
+        const details = playerDetailsById?.[playerItem.playerId];
+        const value = getTradeLedgerPlayerValue(playerItem, details, mode) ?? playerItem.value ?? 0;
+        const basisValue = getTradeLensNumber(playerItem.tradeDateValue) ?? getTradeLensNumber(playerItem.value) ?? value;
+        const rank = getTradeLedgerPlayerRank(playerItem.playerId, details, currentPositionRankById, mode);
+        const points = getTradeLensNumber(details?.lastSeasonFantasyPoints);
+        const detail = points
+          ? `${points.toLocaleString()} last-season pts${details?.lastSeasonYear ? ` (${details.lastSeasonYear})` : ''}`
+          : details?.valueProfile?.seasonPositionRank
+            ? `${details.valueProfile.seasonPositionRank} season lens`
+            : null;
+        return [{
+          id: `${depth}-${index}-${playerItem.playerId}`,
+          label: playerItem.playerName,
+          name: playerItem.playerName,
+          kind: 'player',
+          value,
+          basisValue,
+          valueDelta: value - basisValue,
+          seasonValue: getOutcomePlayerSeasonValue(details),
+          rank,
+          detail,
+          status: getOutcomeAssetStatus(details),
+          playerId: playerItem.playerId,
+        }];
+      }
+
+      const pickItem = parseTradePickItem(trimmed);
+      if (!pickItem) return [];
+
+      const landedPick = findLandedPick(pickItem, draftPicks);
+      const displayedPickLabel = landedPick?.draftSlot && pickItem.draftYear && pickItem.round
+        ? `${pickItem.draftYear} ${formatPickRound(pickItem.round)} (${pickItem.round}.${String(landedPick.draftSlot).padStart(2, '0')})`
+        : pickItem.displayLabel;
+      const basisValue = getTradeLensNumber(pickItem.value) ?? 0;
+      const flippedAssets = depth < 3 && pickItem.flipOutcome?.assets?.length
+        ? pickItem.flipOutcome.assets.flatMap((asset) => getOutcomeAssetsFromItems(
+          asset,
+          mode,
+          playerDetailsById,
+          currentPositionRankById,
+          draftPicks,
+          depth + 1,
+        ))
+        : [];
+
+      if (flippedAssets.length) {
+        const value = flippedAssets.reduce((sum, asset) => sum + asset.value, 0);
+        const seasonValue = flippedAssets.reduce((sum, asset) => sum + asset.seasonValue, 0);
+        return [{
+          id: `${depth}-${index}-${displayedPickLabel}`,
+          label: displayedPickLabel,
+          name: displayedPickLabel,
+          kind: 'pick',
+          value,
+          basisValue,
+          valueDelta: value - basisValue,
+          seasonValue,
+          detail: `Flipped${pickItem.flipOutcome?.date ? ` on ${pickItem.flipOutcome.date}` : ''} for ${flippedAssets.map((asset) => asset.name).join(' + ')}`,
+          children: flippedAssets,
+        }];
+      }
+
+      if (landedPick) {
+        const details = landedPick.player_id ? playerDetailsById?.[landedPick.player_id] || landedPick.playerDetails : landedPick.playerDetails;
+        const value = getTradeLensNumber(landedPick.currentKtcValue ?? landedPick.ktcValue) ?? basisValue;
+        const rank = landedPick.currentPositionRank
+          || (landedPick.player_id ? currentPositionRankById?.[landedPick.player_id] : null)
+          || landedPick.playerPos;
+        return [{
+          id: `${depth}-${index}-${displayedPickLabel}`,
+          label: displayedPickLabel,
+          name: landedPick.playerName,
+          kind: 'pick',
+          value,
+          basisValue,
+          valueDelta: value - basisValue,
+          seasonValue: getOutcomePlayerSeasonValue(details),
+          rank,
+          detail: `${displayedPickLabel} selected by ${landedPick.manager || 'unknown'}`,
+          status: getOutcomeAssetStatus(details),
+          playerId: landedPick.player_id,
+        }];
+      }
+
+      return [{
+        id: `${depth}-${index}-${displayedPickLabel}`,
+        label: displayedPickLabel,
+        name: displayedPickLabel,
+        kind: 'pick',
+        value: basisValue,
+        basisValue,
+        valueDelta: 0,
+        seasonValue: 0,
+        detail: 'Still unresolved draft capital',
+      }];
+    });
+}
+
+function buildOutcomeRecords(
+  row: ReportData['tradeHistory'][number],
+  managers: string[],
+  observedThrough: Date,
+  standingsHistory?: ReportData['standingsHistory'],
+  currentStandings?: ReportData['currentStandings'],
+): TradeOutcomeRecord[] {
+  const tradeYear = Number(row.date.slice(0, 4));
+  const maxYear = observedThrough.getUTCFullYear();
+  const historicalRows = (standingsHistory || []).filter((standing) => {
+    const seasonYear = Number(standing.season);
+    return managers.includes(standing.manager)
+      && Number.isFinite(seasonYear)
+      && seasonYear >= tradeYear
+      && seasonYear <= maxYear
+      && (standing.wins > 0 || standing.losses > 0 || standing.ties > 0 || standing.pointsFor > 0);
+  });
+
+  const fallbackRows = historicalRows.length
+    ? historicalRows
+    : (currentStandings || [])
+      .filter((standing) => managers.includes(standing.manager) && (standing.wins > 0 || standing.losses > 0 || standing.ties > 0 || standing.pointsFor > 0))
+      .map((standing) => ({ ...standing, season: String(observedThrough.getUTCFullYear()) }));
+
+  return managers.map((manager) => {
+    const rows = fallbackRows.filter((standing) => standing.manager === manager);
+    return {
+      manager,
+      seasons: rows.map((standing) => standing.season),
+      wins: rows.reduce((sum, standing) => sum + standing.wins, 0),
+      losses: rows.reduce((sum, standing) => sum + standing.losses, 0),
+      ties: rows.reduce((sum, standing) => sum + standing.ties, 0),
+      pointsFor: rows.reduce((sum, standing) => sum + standing.pointsFor, 0),
+      latestRank: rows.length ? rows[rows.length - 1].rank : null,
+    };
+  }).filter((record) => record.seasons.length > 0);
+}
+
+function buildTradeOutcomeReview({
+  row,
+  tradeEvaluation,
+  sides,
+  draftPicks,
+  playerDetailsById,
+  currentPositionRankById,
+  standingsHistory,
+  currentStandings,
+}: {
+  row: ReportData['tradeHistory'][number];
+  tradeEvaluation: TradeLedgerEvaluation;
+  sides: [TradeDisplaySide, TradeDisplaySide];
+  draftPicks: DraftPick[];
+  playerDetailsById?: PlayerDetailsById;
+  currentPositionRankById?: CurrentPositionRankById;
+  standingsHistory?: ReportData['standingsHistory'];
+  currentStandings?: ReportData['currentStandings'];
+}): TradeOutcomeReview {
+  const tradeDate = parseTradeOutcomeDate(row.date);
+  const finalDate = addYears(tradeDate, 2);
+  const today = new Date();
+  const observedThrough = today > finalDate ? finalDate : today;
+  const isFinal = today >= finalDate;
+  const outcomeSides = sides.map((side) => {
+    const sideEvaluation = getTradeSideEvaluation(side.manager, tradeEvaluation);
+    const assets = getOutcomeAssetsFromItems(
+      side.items,
+      sideEvaluation.lens.mode,
+      playerDetailsById,
+      currentPositionRankById,
+      draftPicks,
+    );
+    const assetValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+    const basisValue = assets.reduce((sum, asset) => sum + asset.basisValue, 0);
+    const valueDelta = assets.reduce((sum, asset) => sum + asset.valueDelta, 0);
+    const seasonValue = assets.reduce((sum, asset) => sum + asset.seasonValue, 0);
+
+    return {
+      manager: side.manager,
+      side,
+      evaluation: sideEvaluation,
+      assets,
+      assetValue,
+      basisValue,
+      valueDelta,
+      seasonValue,
+    };
+  });
+  const [firstOutcome, secondOutcome] = outcomeSides;
+  const leadingSide = firstOutcome.evaluation.total >= secondOutcome.evaluation.total ? firstOutcome : secondOutcome;
+  const trailingSide = leadingSide === firstOutcome ? secondOutcome : firstOutcome;
+  const valueGap = Math.abs(firstOutcome.evaluation.total - secondOutcome.evaluation.total);
+  const seasonGap = Math.abs(firstOutcome.seasonValue - secondOutcome.seasonValue);
+  const seasonLeader = firstOutcome.seasonValue >= secondOutcome.seasonValue ? firstOutcome : secondOutcome;
+  const estimatedGames = seasonGap >= 450 ? Math.min(3, Math.round((seasonGap / 1600) * 10) / 10) : 0;
+  const records = buildOutcomeRecords(
+    row,
+    outcomeSides.map((side) => side.manager),
+    observedThrough,
+    standingsHistory,
+    currentStandings,
+  );
+  const recordDelta = records.length === 2
+    ? {
+        wins: records[0].wins - records[1].wins,
+        points: Math.round(records[0].pointsFor - records[1].pointsFor),
+      }
+    : null;
+  const recordNote = records.length === 2
+    ? `${records[0].manager} went ${records[0].wins}-${records[0].losses}${records[0].ties ? `-${records[0].ties}` : ''}; ${records[1].manager} went ${records[1].wins}-${records[1].losses}${records[1].ties ? `-${records[1].ties}` : ''}. That is a ${Math.abs(recordDelta!.wins)} win and ${formatCompactValue(Math.abs(recordDelta!.points))} points-for spread in the tracked window, context rather than direct causality.`
+    : 'No completed-season win/loss record is available inside this outcome window yet, so the game-impact read is a lineup-value estimate.';
+  const flippedNotes = outcomeSides.flatMap((side) => side.assets
+    .filter((asset) => asset.children?.length)
+    .map((asset) => `${side.manager} did not hold ${asset.label}; it became ${asset.children!.map((child) => child.name).join(' + ')}.`));
+  const availabilityNotes = outcomeSides.flatMap((side) => side.assets
+    .flatMap((asset) => [asset, ...(asset.children || [])])
+    .filter((asset) => asset.status)
+    .slice(0, 2)
+    .map((asset) => `${asset.name} carries ${asset.status} risk/status on ${side.manager}'s outcome side.`));
+  const verdict = `${leadingSide.manager} is ahead by ${valueGap.toLocaleString()} in realized ledger value through ${formatOutcomeDate(observedThrough)}. ${estimatedGames > 0
+    ? `${seasonLeader.manager} also owns the stronger weekly-lineup signal by roughly ${formatCompactValue(seasonGap)} season-value points, about a ${estimatedGames.toFixed(1)} game pressure estimate.`
+    : 'The weekly-lineup signal is not strong enough to call this a clear extra-win trade yet.'}`;
+
+  return {
+    statusLabel: isFinal ? 'Final Outcome' : 'Outcome So Far',
+    windowLabel: `${formatOutcomeDate(tradeDate)} - ${formatOutcomeDate(finalDate)}`,
+    observedThroughLabel: formatOutcomeDate(observedThrough),
+    verdict,
+    metrics: [
+      {
+        label: 'Realized Edge',
+        value: valueGap.toLocaleString(),
+        note: `${leadingSide.manager} over ${trailingSide.manager}`,
+        tone: valueGap >= 1000 ? 'good' : valueGap >= 300 ? 'neutral' : 'bad',
+      },
+      {
+        label: 'Value Momentum',
+        value: `${leadingSide.valueDelta >= 0 ? '+' : ''}${leadingSide.valueDelta.toLocaleString()}`,
+        note: `${leadingSide.manager}'s asset gain/loss from trade basis`,
+        tone: leadingSide.valueDelta > 0 ? 'good' : leadingSide.valueDelta < 0 ? 'bad' : 'neutral',
+      },
+      {
+        label: 'Game Impact',
+        value: estimatedGames > 0 ? `~${estimatedGames.toFixed(1)}` : 'TBD',
+        note: estimatedGames > 0 ? `estimated games of lineup pressure toward ${seasonLeader.manager}` : 'no clean record or lineup edge yet',
+        tone: estimatedGames > 0 ? 'good' : 'neutral',
+      },
+      {
+        label: 'Record Signal',
+        value: records.length === 2 ? `${recordDelta!.wins > 0 ? '+' : ''}${recordDelta!.wins} W` : 'No record',
+        note: records.length === 2 ? `${records[0].manager} vs ${records[1].manager} after trade` : 'current league standings are not meaningful yet',
+        tone: 'neutral',
+      },
+    ],
+    notes: [
+      recordNote,
+      ...flippedNotes,
+      ...(availabilityNotes.length ? availabilityNotes : ['No major injury/status drag is visible on the primary outcome assets.']),
+    ].slice(0, 5),
+    sides: outcomeSides,
+    records,
+  };
+}
+
+function renderOutcomeAssetLine(asset: TradeOutcomeAsset) {
+  const resolvedText = asset.kind === 'pick' && asset.name && asset.name !== asset.label
+    ? ` -> ${asset.name}`
+    : '';
+  const childText = asset.children?.length
+    ? ` -> ${asset.children.map((child) => child.name).join(' + ')}`
+    : resolvedText;
+  return (
+    <li key={asset.id}>
+      <span>{asset.label}{childText}</span>
+      <strong className={asset.valueDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+        {asset.valueDelta >= 0 ? '+' : ''}{asset.valueDelta.toLocaleString()}
+      </strong>
+    </li>
+  );
+}
+
+function TradeOutcomePanel({ outcome }: { outcome: TradeOutcomeReview }) {
+  return (
+    <div className="trade-outcome-card">
+      <div className="trade-outcome-header">
+        <div>
+          <span className="trade-outcome-kicker">{outcome.statusLabel}</span>
+          <h4>True Trade Outcome</h4>
+          <p>Window: {outcome.windowLabel}. Observed through {outcome.observedThroughLabel}.</p>
+        </div>
+        <span className="trade-outcome-status">{outcome.statusLabel}</span>
+      </div>
+      <p className="trade-outcome-verdict">{outcome.verdict}</p>
+      <div className="trade-outcome-metrics">
+        {outcome.metrics.map((metric) => (
+          <div key={metric.label} className={`trade-outcome-metric trade-outcome-metric-${metric.tone}`}>
+            <span>{metric.label}</span>
+            <strong>{metric.value}</strong>
+            <small>{metric.note}</small>
+          </div>
+        ))}
+      </div>
+      <div className="trade-outcome-sides">
+        {outcome.sides.map((side) => (
+          <div key={side.manager} className="trade-outcome-side">
+            <div className="trade-outcome-side-top">
+              <span>{side.manager}</span>
+              <strong>{side.evaluation.total.toLocaleString()}</strong>
+            </div>
+            <ul>
+              {side.assets.slice(0, 4).map(renderOutcomeAssetLine)}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <ul className="trade-outcome-notes">
+        {outcome.notes.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function TradeDetailPanel({
@@ -691,6 +1151,10 @@ function TradeDetailPanel({
   managerRosterIntelligence,
   dynastyTimelines,
   leagueOverview,
+  sideOrder,
+  standingsHistory,
+  currentStandings,
+  leagueValueMode = 'dynasty',
   onPlayerClick,
 }: {
   row: ReportData['tradeHistory'][number];
@@ -701,16 +1165,31 @@ function TradeDetailPanel({
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
   dynastyTimelines?: DynastyTimelineRows;
   leagueOverview?: LeagueOverviewRows;
+  sideOrder?: [string, string];
+  standingsHistory?: ReportData['standingsHistory'];
+  currentStandings?: ReportData['currentStandings'];
+  leagueValueMode?: ReportData['leagueValueMode'];
   onPlayerClick?: (player: PlayerModalData) => void;
 }) {
-  const tradeEvaluation = buildTradeLedgerEvaluation(row, dynastyTimelines, managerRosterIntelligence, playerDetailsById);
-  const { leftSide, rightSide } = getTradeDisplaySides(row, tradeEvaluation);
+  const tradeEvaluation = buildTradeLedgerEvaluation(row, dynastyTimelines, managerRosterIntelligence, playerDetailsById, draftPicks);
+  const { leftSide, rightSide } = getTradeDisplaySides(row, tradeEvaluation, sideOrder);
   const tradeFitReads = buildTradeFitReads(row, managerRosterIntelligence, playerDetailsById);
   const tradeFitReadsByManager = new Map(
     tradeFitReads.map((read) => [read.manager, read])
   );
   const intelByManager = new Map((managerRosterIntelligence || []).map((intel) => [intel.manager, intel]));
   const tradeLensNote = getTradeLensSourceNote(row);
+  const fairnessSuggestion = buildTradeFairnessSuggestion(row, tradeEvaluation, leagueValueMode);
+  const outcomeReview = buildTradeOutcomeReview({
+    row,
+    tradeEvaluation,
+    sides: [leftSide, rightSide],
+    draftPicks,
+    playerDetailsById,
+    currentPositionRankById,
+    standingsHistory,
+    currentStandings,
+  });
 
   return (
     <div className="trade-detail-panel">
@@ -728,6 +1207,45 @@ function TradeDetailPanel({
           <strong>{tradeEvaluation.pointGap.toLocaleString()}</strong>
         </div>
       </div>
+      {fairnessSuggestion && (
+        <div className="trade-fairness-card">
+          <div>
+            <span>Balancing Piece</span>
+          </div>
+          <button
+            type="button"
+            className="trade-fairness-player"
+            style={getTeamTileStyle(playerDetailsById?.[fairnessSuggestion.player.player_id]?.team || fairnessSuggestion.player.playerDetails?.team)}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (!onPlayerClick) return;
+              onPlayerClick(buildPlayerModalData({
+                playerId: fairnessSuggestion.player.player_id,
+                playerName: fairnessSuggestion.player.name,
+                playerPos: fairnessSuggestion.player.pos,
+                value: fairnessSuggestion.player.value,
+                playerDetails: fairnessSuggestion.player.playerDetails || playerDetailsById?.[fairnessSuggestion.player.player_id],
+                playerDetailsById,
+                manager: fairnessSuggestion.player.owner || fairnessSuggestion.fromManager,
+                managerAvatarUrl: managerAvatars?.[fairnessSuggestion.fromManager],
+                currentPositionRank: fairnessSuggestion.player.currentPositionRank || fairnessSuggestion.player.seasonPositionRank,
+              }));
+            }}
+          >
+            <PlayerNameWithHeadshot
+              playerId={fairnessSuggestion.player.player_id}
+              playerName={fairnessSuggestion.player.name}
+            />
+            {leagueValueMode === 'redraft' ? (
+              <span className="trade-fairness-value">{formatCompactValue(fairnessSuggestion.displayValue)}</span>
+            ) : (
+              <PositionRankPill rank={fairnessSuggestion.displayRank || fairnessSuggestion.player.pos} />
+            )}
+          </button>
+        </div>
+      )}
+      <TradeOutcomePanel outcome={outcomeReview} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         {[leftSide, rightSide].map((side) => {
           const sideEvaluation = getTradeSideEvaluation(side.manager, tradeEvaluation);
@@ -828,13 +1346,45 @@ function parseValueAdjustmentItem(trimmed: string) {
   return Number.isFinite(value) ? value : null;
 }
 
+type TradePickFlipOutcome = {
+  date: string | null;
+  fromRosterId: number | null;
+  toRosterId: number | null;
+  assets: string[];
+};
+
+function parseTradePickFlipOutcome(rawValue: string | undefined): TradePickFlipOutcome | null {
+  if (!rawValue?.startsWith('FLIP:')) return null;
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(rawValue.replace(/^FLIP:/, '')));
+    const assets = Array.isArray(parsed?.assets)
+      ? parsed.assets.filter((asset: unknown): asset is string => typeof asset === 'string' && asset.trim().length > 0)
+      : [];
+    if (!assets.length) return null;
+
+    const fromRosterId = Number(parsed?.fromRosterId);
+    const toRosterId = Number(parsed?.toRosterId);
+    return {
+      date: typeof parsed?.date === 'string' ? parsed.date : null,
+      fromRosterId: Number.isFinite(fromRosterId) ? fromRosterId : null,
+      toRosterId: Number.isFinite(toRosterId) ? toRosterId : null,
+      assets,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function parseTradePickItem(trimmed: string) {
   if (!trimmed.startsWith('PICK:')) return null;
   const payload = trimmed.replace('PICK:', '');
-  const [label, value] = payload.split('|');
+  const [label, value, metadataDraftYear, metadataRound, metadataOriginalRosterId, metadataFinalOwnerRosterId, metadataFlipOutcome] = payload.split('|');
   const match = label.match(/^(\d{4}) (.+) (\d+)(?:st|nd|rd|th)(?: \((\d+\.\d+)\))?$/);
-  const draftYear = match?.[1] ?? null;
-  const round = match?.[3] ? Number(match[3]) : null;
+  const draftYear = metadataDraftYear || match?.[1] || null;
+  const round = metadataRound ? Number(metadataRound) : match?.[3] ? Number(match[3]) : null;
+  const originalRosterId = metadataOriginalRosterId ? Number(metadataOriginalRosterId) : null;
+  const finalOwnerRosterId = metadataFinalOwnerRosterId ? Number(metadataFinalOwnerRosterId) : null;
   const pickNumber = match?.[4] ?? null;
 
   return {
@@ -845,6 +1395,9 @@ function parseTradePickItem(trimmed: string) {
     value: value ? Number(value) : null,
     draftYear,
     originalOwner: match?.[2] ?? null,
+    originalRosterId: Number.isFinite(originalRosterId) ? originalRosterId : null,
+    finalOwnerRosterId: Number.isFinite(finalOwnerRosterId) ? finalOwnerRosterId : null,
+    flipOutcome: parseTradePickFlipOutcome(metadataFlipOutcome),
     round,
     pickNumber,
   };
@@ -861,32 +1414,58 @@ function findLandedPick(
   parsedPick: ReturnType<typeof parseTradePickItem>,
   draftPicks: DraftPick[]
 ) {
-  if (!parsedPick?.draftYear || !parsedPick.originalOwner || !parsedPick.round) {
+  if (!parsedPick?.draftYear || !parsedPick.round) {
     return null;
   }
 
-  const normalizeOwner = (value: string | null | undefined) => String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '')
-    .replace(/\d+$/g, '');
-  const parsedOwner = normalizeOwner(parsedPick.originalOwner);
+  const byOriginalRosterId = parsedPick.originalRosterId
+    ? draftPicks.find((pick) => (
+      pick.draftYear === parsedPick.draftYear &&
+      pick.round === parsedPick.round &&
+      pick.originalRosterId === parsedPick.originalRosterId
+    ))
+    : null;
+  const byFinalOwnerRosterId = parsedPick.finalOwnerRosterId
+    ? draftPicks.filter((pick) => (
+      pick.draftYear === parsedPick.draftYear &&
+      pick.round === parsedPick.round &&
+      pick.managerRosterId === parsedPick.finalOwnerRosterId
+    ))
+    : [];
+  if (byFinalOwnerRosterId.length === 1) return byFinalOwnerRosterId[0];
+
   const parsedDraftSlot = parsedPick.pickNumber
     ? Number(parsedPick.pickNumber.split('.')[1])
     : null;
+  const byFinalOwnerAndSlot = byFinalOwnerRosterId.find((pick) => (
+    Number.isFinite(parsedDraftSlot) && pick.draftSlot === parsedDraftSlot
+  ));
+  if (byFinalOwnerAndSlot) return byFinalOwnerAndSlot;
+  if (byOriginalRosterId) return byOriginalRosterId;
+  if (!parsedPick.originalOwner) return null;
+
+  const parsedOwner = normalizeManagerKey(parsedPick.originalOwner);
 
   const candidates = draftPicks.filter((pick) => {
     const baseMatch =
       pick.draftYear === parsedPick.draftYear &&
       pick.round === parsedPick.round &&
-      normalizeOwner(pick.originalOwner) === parsedOwner;
+      normalizeManagerKey(pick.originalOwner) === parsedOwner;
 
     if (!baseMatch) return false;
     if (!Number.isFinite(parsedDraftSlot)) return true;
     return pick.draftSlot === parsedDraftSlot;
   });
 
-  return candidates[0] || null;
+  if (candidates[0]) return candidates[0];
+
+  const ownerRoundCandidates = draftPicks.filter((pick) => (
+    pick.draftYear === parsedPick.draftYear &&
+    pick.round === parsedPick.round &&
+    normalizeManagerKey(pick.originalOwner) === parsedOwner
+  ));
+
+  return ownerRoundCandidates.length === 1 ? ownerRoundCandidates[0] : null;
 }
 
 function renderTradeItem(
@@ -999,23 +1578,68 @@ function renderTradeItem(
   if (pickItem) {
     const landedPick = findLandedPick(pickItem, draftPicks);
     const landedValue = landedPick?.currentKtcValue ?? landedPick?.ktcValue ?? null;
+    const displayedPickValue = pickItem.value;
+    const flippedAssets = pickItem.flipOutcome?.assets || [];
+    const wasFlipped = flippedAssets.length > 0;
+    const displayedPickLabel = landedPick?.draftSlot && pickItem.draftYear && pickItem.round
+      ? `${pickItem.draftYear} ${formatPickRound(pickItem.round)} (${pickItem.round}.${String(landedPick.draftSlot).padStart(2, '0')})`
+      : pickItem.displayLabel;
+    const landedManager = landedPick?.manager || null;
+    const selectedByDifferentManager = Boolean(
+      manager &&
+      landedManager &&
+      normalizeManagerKey(manager) !== normalizeManagerKey(landedManager)
+    );
+    const landedLabel = selectedByDifferentManager
+      ? `Selected by ${landedManager}`
+      : 'Landed';
 
     return (
       <div key={key} className="trade-asset-block">
-        <div className="trade-asset">
+        <div
+          className={`trade-asset ${wasFlipped ? 'trade-asset-flipped' : ''}`}
+          title={wasFlipped && pickItem.flipOutcome?.date ? `This pick was traded again on ${pickItem.flipOutcome.date}.` : undefined}
+        >
+          {wasFlipped && (
+            <span className="trade-asset-flip-icon" aria-hidden="true">
+              <XIcon size={14} strokeWidth={3} />
+            </span>
+          )}
           <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-orange-500/15 px-2 text-xs font-black text-orange-300">
             PICK
           </span>
-          <span className="min-w-0 flex-1 truncate" title={pickItem.label}>{pickItem.displayLabel}</span>
-          {pickItem.value !== null && (
-            <span className="value-pill">
-              {pickItem.value.toLocaleString()}
+          <span className="trade-asset-pick-label min-w-0 flex-1 truncate" title={pickItem.label}>{displayedPickLabel}</span>
+          {displayedPickValue !== null && (
+            <span className="value-pill" title="Pick value at the time of the trade">
+              {displayedPickValue.toLocaleString()}
             </span>
           )}
         </div>
-        {landedPick && (
-          <div className="ml-2 mt-2 flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-950/45 px-3 py-2 text-xs text-slate-400 sm:ml-10">
-            <span className="font-bold uppercase tracking-[0.12em] text-cyan-300/80">Landed</span>
+        {wasFlipped ? (
+          <div className="trade-asset-flip-return">
+            <span className="trade-asset-flip-label">
+              Traded for
+            </span>
+            <div className="trade-asset-flip-assets">
+              {flippedAssets.map((asset, assetIndex) => renderTradeItem(asset, assetIndex, {
+                draftPicks,
+                playerDetailsById,
+                currentPositionRankById,
+                onPlayerClick,
+                manager,
+                managerAvatarUrl,
+                valueMode,
+              }))}
+            </div>
+          </div>
+        ) : landedPick && (
+          <div className="trade-asset-landed ml-2 mt-2 flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-950/45 px-3 py-2 text-xs text-slate-400 sm:ml-10">
+            <span
+              className="shrink-0 font-bold uppercase tracking-[0.12em] text-cyan-300/80"
+              title={selectedByDifferentManager ? `This pick was later moved again and selected by ${landedManager}.` : undefined}
+            >
+              {landedLabel}
+            </span>
             {onPlayerClick ? (
               <button
                 type="button"
@@ -1050,7 +1674,7 @@ function renderTradeItem(
               }
             />
             {landedValue !== null && (
-              <span className="text-slate-500">
+              <span className="text-slate-500" title="Landed player value used in the trade ledger total">
                 {landedValue.toLocaleString()}
               </span>
             )}
@@ -1083,6 +1707,26 @@ function getCommandPlayerValueLens(player: Pick<ManagerIntelPlayer, 'seasonValue
   };
 }
 
+function getCommandPlayerDynastyLens(player: CommandPlayer) {
+  const profile = player.playerDetails?.valueProfile;
+  return {
+    value: profile?.dynastyValue ?? profile?.balancedValue ?? player.value ?? null,
+    rank: profile?.dynastyPositionRank || profile?.balancedPositionRank || player.currentPositionRank || null,
+  };
+}
+
+function getCommandPlayerSeasonLens(player: CommandPlayer) {
+  const profile = player.playerDetails?.valueProfile;
+  return {
+    value: player.seasonValue ?? profile?.seasonValue ?? profile?.fantasyProsSeasonValue ?? null,
+    rank: player.seasonPositionRank || profile?.seasonPositionRank || profile?.fantasyProsPositionRank || null,
+  };
+}
+
+function getTaxiActionClassName(action?: string | null) {
+  return String(action || 'default').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'default';
+}
+
 function splitTradeItems(items: string): string[] {
   return items
     .split(',')
@@ -1092,6 +1736,7 @@ function splitTradeItems(items: string): string[] {
 
 function getTradeItemSignal(items: string, playerDetailsById?: PlayerDetailsById) {
   const positions = new Set<string>();
+  const positionValue: Partial<Record<'QB' | 'RB' | 'WR' | 'TE', number>> = {};
   let hasPick = false;
   const playerNames: string[] = [];
 
@@ -1100,7 +1745,12 @@ function getTradeItemSignal(items: string, playerDetailsById?: PlayerDetailsById
     if (player) {
       playerNames.push(player.playerName);
       const position = playerDetailsById?.[player.playerId]?.position;
-      if (position && ['QB', 'RB', 'WR', 'TE'].includes(position)) positions.add(position);
+      if (position && ['QB', 'RB', 'WR', 'TE'].includes(position)) {
+        const corePosition = position as 'QB' | 'RB' | 'WR' | 'TE';
+        positions.add(corePosition);
+        const value = getTradeLensNumber(player.tradeDateValue) ?? getTradeLensNumber(player.value) ?? 0;
+        positionValue[corePosition] = (positionValue[corePosition] || 0) + value;
+      }
       return;
     }
 
@@ -1109,7 +1759,167 @@ function getTradeItemSignal(items: string, playerDetailsById?: PlayerDetailsById
     }
   });
 
-  return { positions, hasPick, playerNames };
+  return { positions, positionValue, hasPick, playerNames };
+}
+
+function getTradePositionNet(
+  incoming: ReturnType<typeof getTradeItemSignal>,
+  outgoing: ReturnType<typeof getTradeItemSignal>,
+  position: string | null | undefined,
+): number {
+  if (!position || !['QB', 'RB', 'WR', 'TE'].includes(position)) return 0;
+  const key = position as 'QB' | 'RB' | 'WR' | 'TE';
+  return (incoming.positionValue[key] || 0) - (outgoing.positionValue[key] || 0);
+}
+
+function getTradeContextForManager(
+  row: ReportData['tradeHistory'][number],
+  manager: string,
+) {
+  if (row.team_a === manager) return row.team_a_context || null;
+  if (row.team_b === manager) return row.team_b_context || null;
+  return null;
+}
+
+function getTradePartnerManager(row: ReportData['tradeHistory'][number], manager: string): string | null {
+  if (row.team_a === manager) return row.team_b;
+  if (row.team_b === manager) return row.team_a;
+  return null;
+}
+
+function getTradeItemPlayerIds(items: string): Set<string> {
+  const ids = new Set<string>();
+  splitTradeItems(items).forEach((item) => {
+    const player = parseTradePlayerItem(item.trim());
+    if (player?.playerId) ids.add(player.playerId);
+  });
+  return ids;
+}
+
+function getTradeItemTotalValue(
+  items: string,
+  mode: TradeWarMode,
+  playerDetailsById?: PlayerDetailsById,
+  draftPicks: DraftPick[] = [],
+): number {
+  return getTradeLedgerItemValues(items, mode, playerDetailsById, draftPicks)
+    .reduce((sum, value) => sum + value, 0);
+}
+
+function chooseTradeDateTarget({
+  row,
+  manager,
+  need,
+  outgoingItems,
+  incomingItems,
+  playerDetailsById,
+}: {
+  row: ReportData['tradeHistory'][number];
+  manager: string;
+  need: string | null;
+  outgoingItems: string;
+  incomingItems: string;
+  playerDetailsById?: PlayerDetailsById;
+}): ManagerIntelPlayer | null {
+  if (!need) return null;
+
+  const partner = getTradePartnerManager(row, manager);
+  if (!partner) return null;
+
+  const partnerContext = getTradeContextForManager(row, partner);
+  const partnerPlayers = partnerContext?.source === 'historical-roster'
+    ? partnerContext.rosterPlayers || []
+    : [];
+  if (!partnerPlayers.length) return null;
+
+  const tradedPlayerIds = new Set([
+    ...Array.from(getTradeItemPlayerIds(incomingItems)),
+    ...Array.from(getTradeItemPlayerIds(outgoingItems)),
+  ]);
+  const outgoingBudget = getTradeItemTotalValue(outgoingItems, 'dynasty', playerDetailsById);
+  const targetBudget = outgoingBudget > 0 ? outgoingBudget : null;
+
+  return partnerPlayers
+    .filter((player) => (
+      player.pos === need &&
+      player.value > 0 &&
+      !tradedPlayerIds.has(player.player_id)
+    ))
+    .sort((a, b) => {
+      if (targetBudget) {
+        const distanceA = Math.abs(a.value - targetBudget);
+        const distanceB = Math.abs(b.value - targetBudget);
+        if (distanceA !== distanceB) return distanceA - distanceB;
+      }
+      return b.value - a.value;
+    })[0] || null;
+}
+
+type TradeFairnessSuggestion = {
+  fromManager: string;
+  toManager: string;
+  gap: number;
+  player: ManagerIntelPlayer;
+  displayRank?: string | null;
+  displayValue?: number | null;
+};
+
+function getFairnessPlayerValue(player: ManagerIntelPlayer, leagueValueMode: ReportData['leagueValueMode'] = 'dynasty'): number {
+  if (leagueValueMode === 'redraft') {
+    const seasonValue = getTradeLensNumber(player.seasonValue);
+    if (seasonValue !== null) return seasonValue;
+  }
+  return getTradeLensNumber(player.value) ?? 0;
+}
+
+function getFairnessPlayerRank(player: ManagerIntelPlayer, leagueValueMode: ReportData['leagueValueMode'] = 'dynasty'): string | null {
+  if (leagueValueMode === 'redraft') return null;
+  return player.currentPositionRank || player.seasonPositionRank || player.pos || null;
+}
+
+function buildTradeFairnessSuggestion(
+  row: ReportData['tradeHistory'][number],
+  evaluation: TradeLedgerEvaluation,
+  leagueValueMode: ReportData['leagueValueMode'] = 'dynasty',
+): TradeFairnessSuggestion | null {
+  if (evaluation.winners.length !== 1 || evaluation.pointGap < 500) return null;
+
+  const winner = evaluation.winners[0];
+  const loser = winner === row.team_a ? row.team_b : row.team_a;
+  const winnerContext = getTradeContextForManager(row, winner);
+  if (winnerContext?.source !== 'historical-roster' || !winnerContext.rosterPlayers?.length) return null;
+
+  const tradedPlayerIds = new Set([
+    ...Array.from(getTradeItemPlayerIds(row.team_a_items)),
+    ...Array.from(getTradeItemPlayerIds(row.team_b_items)),
+  ]);
+  const candidates = winnerContext.rosterPlayers
+    .filter((player) => (
+      getFairnessPlayerValue(player, leagueValueMode) > 0 &&
+      !tradedPlayerIds.has(player.player_id) &&
+      (!player.owner || normalizeManagerKey(player.owner) === normalizeManagerKey(winner))
+    ))
+    .sort((a, b) => {
+      const valueA = getFairnessPlayerValue(a, leagueValueMode);
+      const valueB = getFairnessPlayerValue(b, leagueValueMode);
+      const distanceA = Math.abs(valueA - evaluation.pointGap);
+      const distanceB = Math.abs(valueB - evaluation.pointGap);
+      if (distanceA !== distanceB) return distanceA - distanceB;
+      return valueB - valueA;
+    });
+  const player = candidates.find((candidate) => getFairnessPlayerValue(candidate, leagueValueMode) <= evaluation.pointGap + 450)
+    || candidates[0]
+    || null;
+  if (!player) return null;
+
+  return {
+    fromManager: winner,
+    toManager: loser,
+    gap: evaluation.pointGap,
+    player,
+    displayRank: getFairnessPlayerRank(player, leagueValueMode),
+    displayValue: leagueValueMode === 'redraft' ? getFairnessPlayerValue(player, leagueValueMode) : null,
+  };
 }
 
 function buildTradeFitReads(
@@ -1139,8 +1949,50 @@ function buildTradeFitReads(
     const soldSurplus = Boolean(surplus && outgoing.positions.has(surplus));
     const boughtSurplus = Boolean(surplus && incoming.positions.has(surplus));
     const soldNeed = Boolean(need && outgoing.positions.has(need));
-    const target = need && intel.buyTarget && !boughtNeed ? intel.buyTarget : null;
+    const needNet = getTradePositionNet(incoming, outgoing, need);
+    const target = !boughtNeed
+      ? chooseTradeDateTarget({
+        row,
+        manager: side.manager,
+        need,
+        outgoingItems: side.outgoing,
+        incomingItems: side.incoming,
+        playerDetailsById,
+      })
+      : null;
     const targetRank = target?.seasonPositionRank || target?.currentPositionRank || target?.pos;
+
+    if (need && boughtNeed && soldNeed) {
+      if (needNet >= 700) {
+        reads.push({
+          manager: side.manager,
+          label: `${need} Upgrade`,
+          tone: 'good',
+          note: `${side.manager} improved the ${need} room, but this was an upgrade, not a clean need solve, because ${need} value also went out.`,
+        });
+        return;
+      }
+
+      if (needNet <= -700) {
+        reads.push({
+          manager: side.manager,
+          label: `${need} Step Back`,
+          tone: 'warn',
+          note: `${side.manager} added a ${need}, but the outgoing ${need} value was stronger. The deal leans more like value extraction than a roster fix.`,
+          target,
+        });
+        return;
+      }
+
+      reads.push({
+        manager: side.manager,
+        label: `${need} Shuffle`,
+        tone: 'neutral',
+        note: `${side.manager} moved ${need} value both ways, so this does not materially change the roster's biggest positional pressure point.`,
+        target,
+      });
+      return;
+    }
 
     if (boughtNeed && soldSurplus) {
       reads.push({
@@ -1155,9 +2007,9 @@ function buildTradeFitReads(
     if (boughtNeed) {
       reads.push({
         manager: side.manager,
-        label: 'Solved A Need',
+        label: `${need} Buy`,
         tone: 'good',
-        note: `This trade makes sense for ${side.manager}: the incoming side attacks the ${need} need directly.`,
+        note: `${side.manager} added ${need} value without sending the same position back. That is a clearer positional fit than a same-room swap.`,
       });
       return;
     }
@@ -1207,9 +2059,9 @@ function buildTradeFitReads(
     if (target) {
       reads.push({
         manager: side.manager,
-        label: 'Better Target',
+        label: 'Alternative Target',
         tone: 'neutral',
-        note: `The value path was not terrible, but ${side.manager}'s roster need points more toward ${target.name}${targetRank ? ` (${targetRank})` : ''}.`,
+        note: `${target.name}${targetRank ? ` (${targetRank})` : ''} was on the other roster at the time and lined up more directly with ${side.manager}'s stated need.`,
         target,
       });
       return;
@@ -1249,12 +2101,31 @@ function renderTradeOverviewImpact({
   const soldNeed = Boolean(need && outgoing.positions.has(need));
   const soldSurplus = Boolean(surplus && outgoing.positions.has(surplus));
   const boughtSurplus = Boolean(surplus && incoming.positions.has(surplus));
+  const needNet = getTradePositionNet(incoming, outgoing, need);
 
   const impactPills: Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'info' }> = [];
   if (need) {
+    const needLabel = boughtNeed && soldNeed
+      ? needNet >= 700
+        ? `Upgraded ${need}`
+        : needNet <= -700
+          ? `${need} Step Back`
+          : `${need} Shuffle`
+      : boughtNeed
+        ? `Added ${need}`
+        : `${need} Still Thin`;
+    const needTone = boughtNeed && soldNeed
+      ? needNet >= 700
+        ? 'good'
+        : needNet <= -700
+          ? 'danger'
+          : 'neutral'
+      : boughtNeed
+        ? 'good'
+        : 'warn';
     impactPills.push({
-      label: boughtNeed ? `Fixed ${need}` : `${need} Still Thin`,
-      tone: boughtNeed ? 'good' : 'warn',
+      label: needLabel,
+      tone: needTone,
     });
   }
   if (surplus && soldSurplus) impactPills.push({ label: `Moved ${surplus} Surplus`, tone: 'info' });
@@ -1262,14 +2133,22 @@ function renderTradeOverviewImpact({
   if (surplus && boughtSurplus) impactPills.push({ label: `Added More ${surplus}`, tone: 'warn' });
 
   const notes: string[] = [];
-  if (boughtNeed && soldSurplus) {
+  if (need && boughtNeed && soldNeed) {
+    if (needNet >= 700) {
+      notes.push(`${manager} upgraded the ${need} room, but still spent from that same position group.`);
+    } else if (needNet <= -700) {
+      notes.push(`${manager} took a step back at ${need}; the extra value has to justify worsening the pressure point.`);
+    } else {
+      notes.push(`${manager} mostly shuffled ${need} value around instead of clearly fixing the need.`);
+    }
+  } else if (boughtNeed && soldSurplus) {
     notes.push(`${manager} converted ${surplus} depth into ${need} help.`);
   } else if (boughtNeed && need) {
-    notes.push(`${manager} used this deal to patch the ${need} need.`);
+    notes.push(`${manager} added ${need} help without sending the same position out.`);
   } else if (need) {
     notes.push(`${manager} still came out of this trade without solving ${need}.`);
   }
-  if (soldNeed && need) {
+  if (soldNeed && need && !boughtNeed) {
     notes.push(`They also moved pieces from the same ${need} room.`);
   }
   if (!notes.length && intel?.holes.summary) {
@@ -1501,16 +2380,79 @@ function dedupeIntelNotes(notes: Array<string | null | undefined>, suppress: Arr
     });
 }
 
+function normalizeIntelPlayerName(value: string | null | undefined): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+function noteMentionsPlayerName(note: string, name: string): boolean {
+  const normalizedName = normalizeIntelPlayerName(name);
+  return normalizedName.length >= 3 && note.toLowerCase().includes(normalizedName);
+}
+
+function getDynastyTradeTrackedNames(row: OwnerIntelRow): string[] {
+  const names = [
+    row.buyTarget?.name,
+    row.sellCandidate?.name,
+    row.tradeChip?.name,
+    row.oldestPlayer?.name,
+  ].filter((name): name is string => Boolean(name));
+  return Array.from(new Set(names.map((name) => name.trim()).filter(Boolean)));
+}
+
+function filterByPlayerNameMentionBudget<T>(
+  items: T[],
+  getCopy: (item: T) => string,
+  trackedNames: string[],
+  seededCopies: string[] = [],
+  maxMentions = 2,
+): T[] {
+  if (!trackedNames.length) return items;
+
+  const counts = new Map<string, number>();
+  seededCopies.forEach((copy) => {
+    trackedNames.forEach((name) => {
+      if (copy && noteMentionsPlayerName(copy, name)) {
+        counts.set(name, (counts.get(name) || 0) + 1);
+      }
+    });
+  });
+
+  return items.filter((item) => {
+    const copy = getCopy(item);
+    const mentionedNames = trackedNames.filter((name) => noteMentionsPlayerName(copy, name));
+    if (mentionedNames.some((name) => (counts.get(name) || 0) >= maxMentions)) return false;
+    mentionedNames.forEach((name) => counts.set(name, (counts.get(name) || 0) + 1));
+    return true;
+  });
+}
+
 type OwnerIntelRow = NonNullable<ReportData['managerRosterIntelligence']>[number];
 type OwnerTradeRow = NonNullable<ReportData['tradeTendencies']>[number];
 type OwnerPickRow = NonNullable<ReportData['pickPortfolios']>[number];
 type OwnerTimelineRow = NonNullable<ReportData['dynastyTimelines']>[number];
 type OwnerPowerRow = NonNullable<ReportData['powerRankings']>[number];
 type OwnerGrowthRow = NonNullable<ReportData['managerRosterValueGrowth']>[number];
+type OwnerNeedPosition = 'QB' | 'RB' | 'WR' | 'TE';
+type OwnerSignalTone = 'neutral' | 'good' | 'warn' | 'danger' | 'future';
+type OwnerSignalTag = { label: string; tone?: OwnerSignalTone };
+type OwnerBuildLabel = 'Strong Contender' | 'Contender' | 'Soft Rebuilder' | 'Strong Rebuilder';
+type OwnerScoreLens = {
+  dynastyScore: number | null;
+  contenderScore: number | null;
+  rebuilderScore: number | null;
+  buildLabel: OwnerBuildLabel;
+  buildTone: OwnerSignalTone;
+};
+type DynastyAiSuggestion = {
+  title: string;
+  copy: string;
+  tone: OwnerSignalTone;
+  wide?: boolean;
+};
 
-const STARTING_ROSTER_STRENGTH_TITLE = 'Starting Roster Strength';
-const STARTING_ROSTER_STRENGTH_COMPARISON = 'vs all managers';
-const STARTING_ROSTER_STRENGTH_NOTE = 'League rank for this manager’s projected starters in each starting slot group, using this league’s lineup settings. In superflex leagues, QB/SF includes the superflex QB path.';
+const STARTING_ROSTER_STRENGTH_TITLE = 'Starter Slot Strength';
+const STARTING_ROSTER_STRENGTH_COMPARISON = 'league ranks by slot';
+const STARTING_ROSTER_STRENGTH_NOTE = 'Ranks this manager’s projected starters against every roster using this league’s actual starting slots. QB/SF includes the superflex QB path; K and DEF appear only when the league starts them.';
 const BENCH_BASELINE_NOTE = 'Compares the best non-starting QB, RB, WR, and TE using season value and season position rank after projected starters are already filled.';
 const TRADEABLE_DEPTH_NOTE = 'Shows active bench trade chips by season value and season rank only. Taxi and IR players are left out.';
 
@@ -1696,17 +2638,23 @@ function buildDynastyOwnerTags({
   overviewRow,
   growthRow,
   pickRow,
+  allGrowthRows = [],
+  allPickRows = [],
+  leagueSize = 0,
 }: {
   row: OwnerIntelRow;
   overviewRow?: LeagueOverviewRows[number] | null;
   growthRow?: OwnerGrowthRow | null;
   pickRow?: OwnerPickRow | null;
-}): Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> {
-  const tags: Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> = [
-    overviewRow ? { label: `Value #${overviewRow.rank_value}`, tone: overviewRow.rank_value <= 3 ? 'good' : overviewRow.rank_value >= 8 ? 'warn' : 'neutral' } : null,
-    { label: titleCasePill(row.identity), tone: getPillToneClass(row.identity).includes('future') ? 'future' : getPillToneClass(row.identity).includes('danger') ? 'danger' : 'good' },
-    growthRow ? { label: `${growthRow.growth >= 0 ? '+' : ''}${growthRow.growth.toFixed(1)}% dynasty growth`, tone: growthRow.growth >= 0 ? 'good' : 'danger' } : null,
-    pickRow && pickRow.count2026 + pickRow.count2027 >= 15 ? { label: 'Pick War Chest', tone: 'future' } : null,
+  allGrowthRows?: OwnerGrowthRow[];
+  allPickRows?: OwnerPickRow[];
+  leagueSize?: number;
+}): OwnerSignalTag[] {
+  const tags: Array<OwnerSignalTag | null> = [
+    buildOwnerValueTag(overviewRow, leagueSize),
+    buildOwnerPickTag(pickRow, allPickRows),
+    buildOwnerGrowthTag(growthRow, allGrowthRows),
+    buildOwnerRosterShapeTag(row, overviewRow, leagueSize),
     ...row.ageFlags
       .filter((flag) => !/availability|durable/i.test(flag))
       .slice(0, 2)
@@ -1714,12 +2662,383 @@ function buildDynastyOwnerTags({
         label: titleCasePill(flag),
         tone: flag.toLowerCase().includes('old') || flag.toLowerCase().includes('aging') ? 'danger' as const : 'future' as const,
       })),
-  ].filter(Boolean) as Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }>;
+  ];
 
-  return tags.slice(0, 6);
+  const seen = new Set<string>();
+  return tags
+    .filter((tag): tag is OwnerSignalTag => Boolean(tag))
+    .filter((tag) => {
+      const key = tag.label.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 5);
 }
 
-function buildDynastyRosterRead(row: OwnerIntelRow, overviewRow?: LeagueOverviewRows[number] | null): string {
+function buildOwnerValueTag(
+  overviewRow?: LeagueOverviewRows[number] | null,
+  leagueSize = 0,
+): OwnerSignalTag | null {
+  if (!overviewRow) return null;
+  const rank = overviewRow.rank_value;
+  const bottomCutoff = leagueSize > 0 ? Math.max(leagueSize - 1, 8) : 8;
+
+  if (rank <= 3) return { label: `Elite Value #${rank}`, tone: 'good' };
+  if (rank >= bottomCutoff) return { label: `Value Hole #${rank}`, tone: 'warn' };
+  return { label: `Value #${rank}`, tone: 'neutral' };
+}
+
+function getFuturePickCount(pickRow?: OwnerPickRow | null): number {
+  return (pickRow?.count2026 || 0) + (pickRow?.count2027 || 0);
+}
+
+function averageFinite(values: number[]): number {
+  const finite = values.filter((value) => Number.isFinite(value));
+  if (!finite.length) return 0;
+  return finite.reduce((sum, value) => sum + value, 0) / finite.length;
+}
+
+function rankScoreWithinLeague<T>(
+  rows: T[],
+  target: T | null | undefined,
+  getScore: (row: T) => number | null | undefined,
+  direction: 'asc' | 'desc' = 'desc',
+): number | null {
+  if (!target) return null;
+  const targetScore = getScore(target);
+  if (targetScore === null || targetScore === undefined || !Number.isFinite(targetScore)) return null;
+  const scores = rows
+    .map(getScore)
+    .filter((score): score is number => score !== null && score !== undefined && Number.isFinite(score));
+  if (!scores.length) return null;
+  const betterScores = scores.filter((score) => direction === 'desc' ? score > targetScore : score < targetScore);
+  return betterScores.length + 1;
+}
+
+function getLeagueSignalWindow(rowCount: number): number {
+  return Math.max(1, Math.ceil(rowCount * 0.2));
+}
+
+function buildOwnerPickTag(
+  pickRow?: OwnerPickRow | null,
+  allPickRows: OwnerPickRow[] = [],
+): OwnerSignalTag | null {
+  if (!pickRow || !allPickRows.length) return null;
+
+  const pickCount = getFuturePickCount(pickRow);
+  const pickCounts = allPickRows.map(getFuturePickCount);
+  const pickValues = allPickRows.map((row) => row.totalValue || 0);
+  const acquiredCounts = allPickRows.map((row) => row.acquiredPicks || 0);
+  const averagePickCount = averageFinite(pickCounts);
+  const averagePickValue = averageFinite(pickValues);
+  const averageAcquired = averageFinite(acquiredCounts);
+  const valueRank = rankScoreWithinLeague(allPickRows, pickRow, (row) => row.totalValue || 0);
+  const countRank = rankScoreWithinLeague(allPickRows, pickRow, getFuturePickCount);
+  const acquiredRank = rankScoreWithinLeague(allPickRows, pickRow, (row) => row.acquiredPicks || 0);
+  const topWindow = getLeagueSignalWindow(allPickRows.length);
+  const bottomWindowStart = Math.max(1, allPickRows.length - topWindow + 1);
+  const clearlyAboveLeague =
+    pickCount >= averagePickCount + 2
+    || (pickRow.totalValue || 0) >= averagePickValue * 1.18
+    || (pickRow.acquiredPicks || 0) >= Math.max(2, averageAcquired + 1);
+  const clearlyBelowLeague =
+    pickCount <= averagePickCount - 2
+    || (pickRow.totalValue || 0) <= averagePickValue * 0.82;
+
+  if (valueRank !== null && valueRank <= topWindow && clearlyAboveLeague) {
+    return { label: `Pick War Chest #${valueRank}`, tone: 'future' };
+  }
+
+  if (countRank !== null && countRank <= topWindow && clearlyAboveLeague) {
+    return { label: `${pickCount} Future Picks`, tone: 'future' };
+  }
+
+  if (
+    acquiredRank !== null
+    && acquiredRank <= topWindow
+    && (pickRow.acquiredPicks || 0) >= Math.max(2, averageAcquired + 1)
+  ) {
+    return { label: `${pickRow.acquiredPicks} Extra Picks`, tone: 'future' };
+  }
+
+  if (valueRank !== null && valueRank >= bottomWindowStart && clearlyBelowLeague) {
+    return { label: `Pick Light #${valueRank}`, tone: 'warn' };
+  }
+
+  return null;
+}
+
+function buildOwnerGrowthTag(
+  growthRow?: OwnerGrowthRow | null,
+  allGrowthRows: OwnerGrowthRow[] = [],
+): OwnerSignalTag | null {
+  if (!growthRow || !allGrowthRows.length) return null;
+  const rank = rankScoreWithinLeague(allGrowthRows, growthRow, (row) => row.growth);
+  const topWindow = getLeagueSignalWindow(allGrowthRows.length);
+  const bottomWindowStart = Math.max(1, allGrowthRows.length - topWindow + 1);
+  const averageGrowth = averageFinite(allGrowthRows.map((row) => row.growth));
+  const growthCopy = `${growthRow.growth >= 0 ? '+' : ''}${growthRow.growth.toFixed(1)}%`;
+
+  if (rank !== null && rank <= topWindow && growthRow.growth >= Math.max(5, averageGrowth + 2)) {
+    return { label: `Growth Rocket ${growthCopy}`, tone: 'good' };
+  }
+
+  if (rank !== null && rank >= bottomWindowStart && growthRow.growth <= Math.min(-2, averageGrowth - 2)) {
+    return { label: `Value Slide ${growthCopy}`, tone: 'danger' };
+  }
+
+  return null;
+}
+
+function getOwnerPositionRank(overviewRow: LeagueOverviewRows[number] | null | undefined, position?: string | null): number | null {
+  if (!overviewRow || !position) return null;
+  if (position === 'QB') return overviewRow.rank_qb ?? null;
+  if (position === 'RB') return overviewRow.rank_rb ?? null;
+  if (position === 'WR') return overviewRow.rank_wr ?? null;
+  if (position === 'TE') return overviewRow.rank_te ?? null;
+  return null;
+}
+
+function isOwnerNeedPosition(position?: string | null): position is OwnerNeedPosition {
+  return position === 'QB' || position === 'RB' || position === 'WR' || position === 'TE';
+}
+
+function getOwnerSlotGrade(row: OwnerIntelRow, position?: string | null): string {
+  if (!position) return '';
+  const slotKey = position === 'QB' ? 'QB_SF' : position;
+  const slotGrade = row.startingRosterStrength?.find((slot) => slot.key === slotKey)?.grade;
+  return slotGrade || row.positionGrades?.[position as 'QB' | 'RB' | 'WR' | 'TE']?.grade || '';
+}
+
+function getOwnerPositionGrade(row: OwnerIntelRow, position?: string | null): string {
+  if (!isOwnerNeedPosition(position)) return '';
+  return row.positionGrades?.[position]?.grade || '';
+}
+
+function getOwnerRosterPositionCount(row: OwnerIntelRow, position: OwnerNeedPosition): number {
+  return row.rosterPlayers?.filter((player) => player.pos === position).length || 0;
+}
+
+function hasOwnerPositionDepthCover(row: OwnerIntelRow, position?: string | null): boolean {
+  if (position !== 'WR' && position !== 'RB') return false;
+
+  const positionGrade = getOwnerPositionGrade(row, position).toLowerCase();
+  const tradePlanCopy = row.tradePlan?.summary?.toLowerCase() || '';
+  const hasTradeableDepth = Boolean(row.tradeableDepth?.some((tile) => tile.position === position && tile.player));
+  const rosterCount = getOwnerRosterPositionCount(row, position);
+  const depthCountThreshold = position === 'WR' ? 7 : 6;
+
+  return row.holes.flexDepth >= 8
+    && (
+      /elite|strong/.test(positionGrade)
+      || hasTradeableDepth
+      || rosterCount >= depthCountThreshold
+      || new RegExp(`\\b${position}\\b.*\\b(surplus|depth)\\b|\\b(surplus|depth)\\b.*\\b${position}\\b`, 'i').test(tradePlanCopy)
+    );
+}
+
+function isOwnerCredibleNeed(
+  row: OwnerIntelRow,
+  position?: string | null,
+  overviewRow?: LeagueOverviewRows[number] | null,
+  leagueSize = 0,
+): boolean {
+  if (!position) return false;
+  const slotGrade = getOwnerSlotGrade(row, position).toLowerCase();
+  const positionGrade = getOwnerPositionGrade(row, position).toLowerCase();
+  const grade = `${slotGrade} ${positionGrade}`.trim();
+  const summary = row.holes?.summary || '';
+  const hasExplicitHole = new RegExp(`\\b${position}\\b`, 'i').test(summary);
+  const positionRank = getOwnerPositionRank(overviewRow, position);
+  const bottomWindowStart = leagueSize > 0 ? Math.max(1, Math.floor(leagueSize * 0.7)) : 8;
+  const isBottomRoom = positionRank !== null && positionRank >= bottomWindowStart;
+  const hasDepthCover = hasOwnerPositionDepthCover(row, position);
+  const hasWeakPositionGrade = /problem|weak/i.test(positionGrade);
+  const hasWeakStarterGrade = /problem|weak/i.test(slotGrade);
+
+  if (hasDepthCover && !hasWeakPositionGrade) return false;
+  if (/elite|strong/i.test(grade) && !hasExplicitHole && !isBottomRoom) return false;
+  if (hasWeakPositionGrade || (hasWeakStarterGrade && !hasDepthCover)) return true;
+  if (hasExplicitHole && !/elite|strong/i.test(grade)) return true;
+  if (hasExplicitHole && isBottomRoom && !hasDepthCover) return true;
+  return isBottomRoom && /playable/i.test(grade) && !hasDepthCover;
+}
+
+function getOwnerEffectiveNeedPosition(
+  row: OwnerIntelRow,
+  overviewRow?: LeagueOverviewRows[number] | null,
+  leagueSize = 0,
+): string | null {
+  const plannedNeed = row.tradePlan?.needPosition || null;
+  if (isOwnerCredibleNeed(row, plannedNeed, overviewRow, leagueSize)) return plannedNeed;
+
+  const fallbackNeeds = (['QB', 'RB', 'WR', 'TE'] as const)
+    .filter((position) => isOwnerCredibleNeed(row, position, overviewRow, leagueSize))
+    .sort((a, b) => (getOwnerPositionRank(overviewRow, b) || 0) - (getOwnerPositionRank(overviewRow, a) || 0));
+
+  return fallbackNeeds[0] || null;
+}
+
+function buildOwnerRosterShapeTag(
+  row: OwnerIntelRow,
+  overviewRow?: LeagueOverviewRows[number] | null,
+  leagueSize = 0,
+): OwnerSignalTag | null {
+  const surplus = row.tradePlan?.surplusPosition;
+  const effectiveNeed = getOwnerEffectiveNeedPosition(row, overviewRow, leagueSize);
+
+  if (effectiveNeed) return { label: `Needs ${effectiveNeed}`, tone: 'warn' };
+  if (surplus) return { label: `${surplus} Surplus`, tone: 'good' };
+  if (row.starterAvailability?.riskLevel === 'high') return { label: 'Injury Watch', tone: 'danger' };
+  return null;
+}
+
+function toOwnerScore(value?: number | null): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null;
+}
+
+function formatOwnerScore(value?: number | null): string {
+  const score = toOwnerScore(value);
+  return score === null ? '-' : String(score);
+}
+
+function normalizeOwnerValueScore(value?: number | null, maxValue = 0): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || maxValue <= 0) return null;
+  return Math.round(Math.max(0, Math.min(100, (value / maxValue) * 100)));
+}
+
+function isOwnerRebuildLane(label?: string | null): boolean {
+  return Boolean(label && label.toLowerCase().includes('rebuild'));
+}
+
+function isOwnerStrongRebuildLane(label?: string | null): boolean {
+  return Boolean(label && label.toLowerCase().includes('strong') && label.toLowerCase().includes('rebuild'));
+}
+
+function isOwnerContenderLane(label?: string | null): boolean {
+  return Boolean(label && label.toLowerCase().includes('contender'));
+}
+
+function isOwnerStrongContenderLane(label?: string | null): boolean {
+  return Boolean(label && label.toLowerCase().includes('strong') && label.toLowerCase().includes('contender'));
+}
+
+function getOwnerTeamTypeLabel({
+  row,
+  timelineRow,
+  powerRow,
+  overviewRow,
+  leagueSize = 0,
+  dynastyScore,
+}: {
+  row: OwnerIntelRow;
+  timelineRow?: OwnerTimelineRow | null;
+  powerRow?: OwnerPowerRow | null;
+  overviewRow?: LeagueOverviewRows[number] | null;
+  leagueSize?: number;
+  dynastyScore?: number | null;
+}): OwnerBuildLabel {
+  const contenderScore = toOwnerScore(timelineRow?.contenderScore);
+  const rebuilderScore = toOwnerScore(timelineRow?.rebuildScore);
+  const rosterValueScore = toOwnerScore(powerRow?.rosterValue) ?? toOwnerScore(dynastyScore);
+  const valueRank = overviewRow?.rank_value ?? null;
+  const titleWindow = leagueSize > 0 ? Math.max(3, Math.ceil(leagueSize * 0.42)) : 5;
+  const strongTitleWindow = leagueSize > 0 ? Math.max(2, Math.ceil(leagueSize * 0.2)) : 3;
+  const lowerThirdStart = leagueSize > 0 ? Math.max(1, Math.floor(leagueSize * 0.67)) : 8;
+  const hasTitleValue = valueRank !== null ? valueRank <= titleWindow : (rosterValueScore ?? 0) >= 86;
+  const hasEliteTitleValue = valueRank !== null ? valueRank <= strongTitleWindow : (rosterValueScore ?? 0) >= 94;
+  const isBottomValue = valueRank !== null ? valueRank >= lowerThirdStart : (rosterValueScore ?? 100) <= 72;
+  const olderRoster = (row.avgAge ?? 0) >= 27.3 || (row.avgAgeByPosition.RB ?? 0) >= 26.8;
+  const titleScore = contenderScore ?? (/win|contender/i.test(row.identity || row.timeline || '') ? 78 : 0);
+  const rebuildScore = rebuilderScore ?? (/rebuild|future|youth/i.test(row.identity || row.timeline || '') ? 70 : 0);
+
+  const canRealisticallyWin =
+    titleScore >= 78
+    && titleScore >= rebuildScore + 10
+    && (hasTitleValue || titleScore >= 88 || (rosterValueScore ?? 0) >= 90);
+  const isStrongContender =
+    titleScore >= 88
+    && titleScore >= rebuildScore + 20
+    && (hasEliteTitleValue || titleScore >= 95 || (rosterValueScore ?? 0) >= 96);
+
+  if (canRealisticallyWin) {
+    return isStrongContender ? 'Strong Contender' : 'Contender';
+  }
+
+  const source = `${row.identity || ''} ${timelineRow?.label || ''} ${row.timeline || ''}`;
+  const strongRebuild =
+    rebuildScore >= 74
+    || titleScore <= 62
+    || (isBottomValue && (titleScore < 70 || olderRoster))
+    || (/rebuild|future|youth/i.test(source) && rebuildScore >= 68 && titleScore < 75);
+
+  return strongRebuild ? 'Strong Rebuilder' : 'Soft Rebuilder';
+}
+
+function getOwnerTeamTypeTone(label: string): OwnerSignalTone {
+  if (label.toLowerCase().includes('soft')) return 'warn';
+  return isOwnerRebuildLane(label) ? 'future' : 'good';
+}
+
+function buildOwnerScoreLens({
+  row,
+  timelineRow,
+  powerRow,
+  overviewRow,
+  growthRow,
+  maxGrowthValue,
+  leagueSize = 0,
+}: {
+  row: OwnerIntelRow;
+  timelineRow?: OwnerTimelineRow | null;
+  powerRow?: OwnerPowerRow | null;
+  overviewRow?: LeagueOverviewRows[number] | null;
+  growthRow?: OwnerGrowthRow | null;
+  maxGrowthValue: number;
+  leagueSize?: number;
+}): OwnerScoreLens {
+  const dynastyScore = toOwnerScore(powerRow?.rosterValue) ?? normalizeOwnerValueScore(growthRow?.total_val, maxGrowthValue);
+  const contenderScore = toOwnerScore(timelineRow?.contenderScore);
+  const rebuilderScore = toOwnerScore(timelineRow?.rebuildScore);
+  const buildLabel = getOwnerTeamTypeLabel({
+    row,
+    timelineRow,
+    powerRow,
+    overviewRow,
+    leagueSize,
+    dynastyScore,
+  });
+
+  return {
+    dynastyScore,
+    contenderScore,
+    rebuilderScore,
+    buildLabel,
+    buildTone: getOwnerTeamTypeTone(buildLabel),
+  };
+}
+
+function OwnerScoreStrip({ scores, compact = false }: { scores: OwnerScoreLens; compact?: boolean }) {
+  return (
+    <span className={`owner-intel-score-strip${compact ? ' owner-intel-score-strip-compact' : ''}`} aria-label="Manager score lenses">
+      <span>
+        <strong>Dynasty</strong>
+        <em>{formatOwnerScore(scores.dynastyScore)}</em>
+      </span>
+      <span>
+        <strong>Contender</strong>
+        <em>{formatOwnerScore(scores.contenderScore)}</em>
+      </span>
+      <span>
+        <strong>Rebuilder</strong>
+        <em>{formatOwnerScore(scores.rebuilderScore)}</em>
+      </span>
+    </span>
+  );
+}
+
+function buildDynastyRosterRead(row: OwnerIntelRow, overviewRow?: LeagueOverviewRows[number] | null, buildLabel?: OwnerBuildLabel): string {
   const valueRank = overviewRow ? `#${overviewRow.rank_value}` : 'unranked';
   const ageCopy = row.avgAge !== null
     ? `Average roster age is ${row.avgAge}, with ${row.avgAgeByPosition.RB ?? '-'} RB age and ${row.avgAgeByPosition.WR ?? '-'} WR age.`
@@ -1735,27 +3054,48 @@ function buildDynastyRosterRead(row: OwnerIntelRow, overviewRow?: LeagueOverview
       ? `${row.sellCandidate.name} is the cleanest dynasty sell candidate if market value can be turned into younger value.`
       : 'There is no forced age/liquidity sell from the current blend.';
 
-  return `${titleCasePill(row.identity)} dynasty profile with roster value ${valueRank}. ${ageCopy} ${core} ${risk}`;
+  return `${buildLabel || 'Contender'} dynasty profile with roster value ${valueRank}. ${ageCopy} ${core} ${risk}`;
 }
 
-function buildDynastyBestMove(row: OwnerIntelRow, pickRow?: OwnerPickRow | null): string {
+function buildDynastyBestMove(
+  row: OwnerIntelRow,
+  pickRow?: OwnerPickRow | null,
+  buildLabel?: OwnerBuildLabel | null,
+  overviewRow?: LeagueOverviewRows[number] | null,
+  leagueSize = 0,
+): string {
   const buy = row.buyTarget;
   const sell = row.sellCandidate || row.oldestPlayer;
   const tradeChip = row.tradeChip || row.bestBenchStash;
+  const effectiveNeed = getOwnerEffectiveNeedPosition(row, overviewRow, leagueSize);
+  const buyPosition = isOwnerNeedPosition(buy?.pos) ? buy.pos : null;
+  const buyIsCoveredDepth =
+    Boolean(buyPosition)
+    && (!effectiveNeed || buyPosition !== effectiveNeed)
+    && hasOwnerPositionDepthCover(row, buyPosition);
   const hasPickWarChest = Boolean(pickRow && pickRow.count2026 + pickRow.count2027 >= 15);
+  const pickAsk = hasPickWarChest ? 'future firsts or younger insulated players' : 'future firsts, seconds, or young players who can gain market value';
 
-  if (/rebuild/i.test(row.identity) || /rebuild/i.test(row.timeline)) {
+  if (isOwnerRebuildLane(buildLabel) || /rebuild/i.test(row.identity) || /rebuild/i.test(row.timeline)) {
     if (sell) {
-      return `Rebuild lens: shop ${sell.name} only for younger dynasty value or picks. Do not spend liquidity on short-term starters unless the player can still gain dynasty value.`;
+      return `${isOwnerStrongRebuildLane(buildLabel) ? 'Strong rebuild' : 'Soft rebuild'} lens: shop ${sell.name} for ${pickAsk}. This roster is not being treated like a title team, so do not buy short-window points unless the player can still gain dynasty value.`;
     }
-    return `Rebuild lens: keep collecting liquid assets. ${hasPickWarChest ? 'The pick bank is already useful, so wait for a manager to overpay for a veteran.' : 'Add picks or young insulated players before chasing points.'}`;
+    return `${isOwnerStrongRebuildLane(buildLabel) ? 'Strong rebuild' : 'Soft rebuild'} lens: keep collecting liquid assets. ${hasPickWarChest ? 'The pick bank is already useful, so wait for a manager to overpay for a veteran.' : 'Add picks or young insulated players before chasing points.'}`;
   }
 
-  if (/contend|win/i.test(row.identity) && tradeChip && buy) {
-    return `Contender dynasty lens: use movable value like ${tradeChip.name} to chase a stable long-term asset such as ${buy.name}. The goal is not just this season’s points; it is keeping the contender window liquid.`;
+  if (isOwnerContenderLane(buildLabel) && tradeChip && buy && !buyIsCoveredDepth) {
+    return `${isOwnerStrongContenderLane(buildLabel) ? 'Strong contender' : 'Contender'} dynasty lens: use movable value like ${tradeChip.name} to chase a stable long-term asset such as ${buy.name}. ${isOwnerStrongContenderLane(buildLabel) ? 'This roster can justify paying from depth for a real title-edge upgrade.' : 'The goal is not just this season’s points; it is keeping the contender window liquid.'}`;
   }
 
-  if (buy && sell) {
+  if (isOwnerContenderLane(buildLabel) && tradeChip) {
+    return `${isOwnerStrongContenderLane(buildLabel) ? 'Strong contender' : 'Contender'} dynasty lens: no forced buy from a covered room. Use ${tradeChip.name} only when the return creates a clear weekly starter edge${effectiveNeed ? ` at ${effectiveNeed}` : ''}, otherwise preserve the depth advantage and make the room overpay.`;
+  }
+
+  if (/contend|win/i.test(row.identity) && tradeChip && buy && !buyIsCoveredDepth) {
+    return `Contender dynasty lens: use movable value like ${tradeChip.name} to chase a stable long-term asset such as ${buy.name}. The goal is not just this season's points; it is keeping the contender window liquid.`;
+  }
+
+  if (buy && sell && !buyIsCoveredDepth) {
     return `Value arbitrage: compare ${sell.name} against younger or safer market profiles like ${buy.name}. If the room prices them similarly, take the side with better dynasty insulation.`;
   }
 
@@ -1772,6 +3112,262 @@ function buildDynastyActionNotes(row: OwnerIntelRow, pickRow?: OwnerPickRow | nu
   ].filter(Boolean) as string[];
 
   return notes.slice(0, 4);
+}
+
+function getPlayerRankCopy(player?: ManagerIntelPlayer | null): string {
+  if (!player) return '';
+  return player.currentPositionRank || player.seasonPositionRank || player.pos || 'asset';
+}
+
+function buildDynastyTradeBuilder(
+  row: OwnerIntelRow,
+  pickRow?: OwnerPickRow | null,
+  buildLabel?: OwnerBuildLabel | null,
+  overviewRow?: LeagueOverviewRows[number] | null,
+  leagueSize = 0,
+): string {
+  const need = getOwnerEffectiveNeedPosition(row, overviewRow, leagueSize);
+  const surplus = row.tradePlan?.surplusPosition;
+  const buy = row.buyTarget;
+  const sell = row.sellCandidate || row.tradeChip || row.bestBenchStash;
+  const buyPosition = isOwnerNeedPosition(buy?.pos) ? buy.pos : null;
+  const buyFitsNeed = Boolean(buy && (!need || !buyPosition || buyPosition === need));
+  const buyIsCoveredDepth =
+    Boolean(buyPosition)
+    && (!need || buyPosition !== need)
+    && hasOwnerPositionDepthCover(row, buyPosition);
+  const pickCount = (pickRow?.count2026 || 0) + (pickRow?.count2027 || 0);
+
+  if (isOwnerRebuildLane(buildLabel)) {
+    const olderSell = row.oldestPlayer || row.sellCandidate || sell;
+    if (olderSell) {
+      return `${isOwnerStrongRebuildLane(buildLabel) ? 'Hard reset path' : 'Soft pivot path'}: start with ${olderSell.name} (${getPlayerRankCopy(olderSell)}) and ask for future draft leverage or a younger insulated asset. The model is prioritizing future draft position and market liquidity over this season's points.`;
+    }
+    return `${isOwnerStrongRebuildLane(buildLabel) ? 'Hard reset path' : 'Soft pivot path'}: do not spend picks into the current lineup. Float veterans first and use every deal to improve future draft capital, youth, or liquidity.`;
+  }
+
+  if (isOwnerStrongContenderLane(buildLabel) && buy && sell && !buyIsCoveredDepth) {
+    return `Title push path: start with ${sell.name} (${getPlayerRankCopy(sell)}) as movable depth and target ${buy.name} only if the deal creates a clear weekly edge. Strong contenders can spend, but the core should stay intact.`;
+  }
+
+  if (need && surplus && buyFitsNeed && buy && sell) {
+    return `Build offers from the roster shape, not the player name. Start with ${sell.name} (${getPlayerRankCopy(sell)}) as the movable ${surplus} piece, then price up only if ${buy.name} fixes ${need} without draining the core.`;
+  }
+
+  if (need && buyFitsNeed && buy) {
+    return `The model sees ${need} as the cleanest outside add. Use ${buy.name} as the market anchor, then search one value tier below if the ask includes premium picks.`;
+  }
+
+  if (surplus && sell) {
+    return `This roster has extra ${surplus} value. Float ${sell.name} as the first name in packages and ask for youth, picks, or a cleaner starter fit before accepting lateral points.`;
+  }
+
+  if (pickCount >= 15 && buy && !buyIsCoveredDepth) {
+    return `The pick bank creates optionality. Open with a future pick before touching the core, then walk away if ${buy.name} costs a cornerstone player plus draft capital.`;
+  }
+
+  return 'No clean package is forced. Let the room create the overpay, then use the roster read to decide whether the return improves age, liquidity, or weekly lineup leverage.';
+}
+
+function buildDynastyWindowGuardrail(row: OwnerIntelRow, pickRow?: OwnerPickRow | null, buildLabel?: OwnerBuildLabel | null): DynastyAiSuggestion {
+  const pickCount = (pickRow?.count2026 || 0) + (pickRow?.count2027 || 0);
+  const core = row.untouchablePlayers?.[0] || row.youngCorePlayer;
+  const olderRisk = row.oldestPlayer && (row.oldestPlayer.playerDetails?.age || 0) >= 28 ? row.oldestPlayer : null;
+  const isRebuild = isOwnerRebuildLane(buildLabel) || /rebuild/i.test(row.identity) || /rebuild/i.test(row.timeline);
+  const isStrongRebuild = isOwnerStrongRebuildLane(buildLabel);
+  const isStrongContender = isOwnerStrongContenderLane(buildLabel);
+  const isContender = isOwnerContenderLane(buildLabel) || /contend|win/i.test(row.identity) || /contend|win/i.test(row.timeline);
+
+  if (isRebuild) {
+    return {
+      title: 'AI Window Guardrail',
+      tone: isStrongRebuild ? 'future' : 'warn',
+      copy: `${isStrongRebuild ? 'Strong rebuild rule' : 'Soft rebuild rule'}: every accepted deal should improve future draft position, add a younger insulated asset, or create more liquid draft capital. ${core ? `Keep ${core.name} as the core reference point.` : 'Do not sell young value just to make the current lineup look cleaner.'} ${pickCount >= 15 ? 'The pick base is strong enough to wait for distressed sellers.' : 'Add picks before buying short-window production.'}`,
+    };
+  }
+
+  if (isContender) {
+    return {
+      title: 'AI Window Guardrail',
+      tone: 'good',
+      copy: `${isStrongContender ? 'Strong contender rule' : 'Contender rule'}: spend from depth, not the spine of the roster. ${isStrongContender ? 'You can pay for a title-edge starter, but do not turn the elite core into a one-week rental bet.' : olderRisk ? `${olderRisk.name} is the veteran value to keep liquid.` : 'Avoid converting young value into aging points unless the weekly lineup clearly jumps a tier.'}`,
+    };
+  }
+
+  return {
+    title: 'AI Window Guardrail',
+    tone: 'warn',
+    copy: `Soft rebuild rule: do not let one trade pick the direction by accident. Only buy points if the upgrade is a clear starter, and sell veterans when the return adds youth or picks without making the lineup collapse.`,
+  };
+}
+
+function buildDynastyRosterChurn(row: OwnerIntelRow): DynastyAiSuggestion {
+  const cutNames = row.droppablePlayers?.slice(0, 2).map((player) => player.name) || [];
+  const stash = row.bestBenchStash || row.breakoutCandidate || row.youngCorePlayer;
+  const upside = row.breakoutCandidate;
+
+  if (cutNames.length && stash) {
+    return {
+      title: 'AI Roster Churn',
+      tone: 'warn',
+      copy: `First churn path: protect ${stash.name} and use ${cutNames.join(', ')} as the first cut candidate${cutNames.length === 1 ? '' : 's'} when a better stash appears. The back of the roster should create upside, not hold low-liquidity names.`,
+    };
+  }
+
+  if (upside) {
+    return {
+      title: 'AI Roster Churn',
+      tone: 'future',
+      copy: `${upside.name} is the upside hold. Do not cash that profile out for a flat value return unless the deal adds a safer young asset or a meaningful pick upgrade.`,
+    };
+  }
+
+  return {
+    title: 'AI Roster Churn',
+    tone: 'neutral',
+    copy: 'No obvious dynasty cut pressure is showing. Keep the last roster spots flexible and make waivers beat the current stash value before churning.',
+  };
+}
+
+function buildDynastyPickLeverage(pickRow?: OwnerPickRow | null): DynastyAiSuggestion {
+  const pickCount = (pickRow?.count2026 || 0) + (pickRow?.count2027 || 0);
+  const draftValue = pickRow ? formatCompactValue(pickRow.totalValue) : null;
+
+  if (!pickRow) {
+    return {
+      title: 'AI Pick Leverage',
+      tone: 'neutral',
+      copy: 'Draft-capital data is thin for this manager, so the model should price trades through player liquidity first and avoid assuming picks can solve the roster shape.',
+    };
+  }
+
+  if (pickCount >= 15) {
+    return {
+      title: 'AI Pick Leverage',
+      tone: 'future',
+      copy: `${pickCount} future picks and ${draftValue} of draft capital gives this roster leverage. Use picks as the first sweetener before attaching core players. A pick-rich team should make other managers solve their lineup urgency.`,
+    };
+  }
+
+  if (pickCount <= 12) {
+    return {
+      title: 'AI Pick Leverage',
+      tone: 'warn',
+      copy: `${pickCount} future picks is light enough that draft capital should be protected. If a veteran is moved, ask for at least one liquid pick or a younger player who can gain market value.`,
+    };
+  }
+
+  return {
+    title: 'AI Pick Leverage',
+    tone: 'neutral',
+    copy: `${pickCount} future picks and ${draftValue} of draft capital is a workable bank. Spend one pick only when it turns a bench asset into a true starter or a safer dynasty profile.`,
+  };
+}
+
+function buildDynastyRiskRadar(row: OwnerIntelRow): DynastyAiSuggestion {
+  const riskStarter = row.starterAvailability?.riskiestStarter;
+  const insurance = row.injuryInsurance;
+  const oldest = row.oldestPlayer;
+  const missed = row.starterAvailability?.avgGamesMissed;
+
+  if (riskStarter && insurance) {
+    return {
+      title: 'AI Risk Radar',
+      tone: 'danger',
+      copy: `${riskStarter.name} is the availability flag. Keep ${insurance.name} as internal cover unless the trade return materially improves age, role security, or pick liquidity.`,
+    };
+  }
+
+  if (missed !== null && missed !== undefined && missed >= 2) {
+    return {
+      title: 'AI Risk Radar',
+      tone: 'warn',
+      copy: `Projected starters averaged ${missed} missed games, so depth is not just decoration here. Consolidate only when the incoming player is durable enough to reduce weekly fragility.`,
+    };
+  }
+
+  if (oldest && (oldest.playerDetails?.age || 0) >= 28 && oldest.value >= 1200) {
+    return {
+      title: 'AI Risk Radar',
+      tone: 'warn',
+      copy: `${oldest.name} is the age/liquidity monitor. Keep him if the lineup needs points, but set the sell line before the market starts treating the profile like declining value.`,
+    };
+  }
+
+  return {
+    title: 'AI Risk Radar',
+    tone: 'good',
+    copy: 'No severe health or age flag is forcing action. That gives this roster permission to be selective instead of accepting discounts for safer but lower-upside assets.',
+  };
+}
+
+function buildDynastyOfferFilter(row: OwnerIntelRow, overviewRow?: LeagueOverviewRows[number] | null): DynastyAiSuggestion {
+  const buy = row.buyTarget;
+  const sell = row.sellCandidate || row.tradeChip || row.bestBenchStash;
+  const valueRank = overviewRow?.rank_value;
+  const rankCopy = valueRank ? `roster value rank #${valueRank}` : 'the current roster value';
+
+  if (buy && sell) {
+    return {
+      title: 'AI Offer Filter',
+      tone: 'good',
+      copy: `Auto-compare every offer to this baseline: would you rather hold ${sell.name}, or reset that value into ${buy.name} plus better age, liquidity, or lineup fit? If the answer is not obvious, make the other manager add.`,
+    };
+  }
+
+  return {
+    title: 'AI Offer Filter',
+    tone: 'neutral',
+    copy: `Use ${rankCopy} as the floor. Decline trades that make the roster older, thinner, and less liquid unless the weekly starter upgrade is immediate and measurable.`,
+  };
+}
+
+function buildDynastyAiSuggestions({
+  row,
+  pickRow,
+  overviewRow,
+  buildLabel,
+  leagueSize = 0,
+  seededTradeCopies = [],
+  suppress = [],
+}: {
+  row: OwnerIntelRow;
+  pickRow?: OwnerPickRow | null;
+  overviewRow?: LeagueOverviewRows[number] | null;
+  buildLabel?: OwnerBuildLabel | null;
+  leagueSize?: number;
+  seededTradeCopies?: string[];
+  suppress?: Array<string | null | undefined>;
+}): DynastyAiSuggestion[] {
+  const effectiveNeed = getOwnerEffectiveNeedPosition(row, overviewRow, leagueSize);
+  const baseCards: DynastyAiSuggestion[] = [
+    {
+      title: 'AI Trade Builder',
+      tone: isOwnerRebuildLane(buildLabel) ? (isOwnerStrongRebuildLane(buildLabel) ? 'future' : 'warn') : effectiveNeed ? 'good' : 'neutral',
+      copy: buildDynastyTradeBuilder(row, pickRow, buildLabel, overviewRow, leagueSize),
+    },
+    buildDynastyWindowGuardrail(row, pickRow, buildLabel),
+    buildDynastyPickLeverage(pickRow),
+    buildDynastyRosterChurn(row),
+    buildDynastyRiskRadar(row),
+    buildDynastyOfferFilter(row, overviewRow),
+  ];
+  const actionCards = buildDynastyActionNotes(row, pickRow).map((copy, index) => ({
+    title: ['AI Watchlist', 'AI Sell Line', 'AI Upside Hold', 'AI Cut List'][index] || 'AI Note',
+    tone: index === 1 ? 'warn' as const : index === 3 ? 'danger' as const : 'future' as const,
+    copy,
+  }));
+  const dedupedCopy = dedupeIntelNotes([...baseCards, ...actionCards].map((card) => card.copy), suppress);
+  const candidateCards = dedupedCopy
+    .map((copy) => [...baseCards, ...actionCards].find((card) => card.copy === copy))
+    .filter((card): card is DynastyAiSuggestion => Boolean(card))
+
+  return filterByPlayerNameMentionBudget(
+    candidateCards,
+    (card) => card.copy,
+    getDynastyTradeTrackedNames(row),
+    seededTradeCopies,
+  ).slice(0, 6);
 }
 
 function buildSeasonRosterRead({
@@ -1841,6 +3437,96 @@ function FullRosterRankTiles({ overviewRow }: { overviewRow: LeagueOverviewRows[
           <span key={tile.key} className={`owner-intel-heat-pill owner-intel-full-rank-tile ${tile.className}`}>
             <strong>{tile.label}</strong>
             <em>#{tile.rank}</em>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type StartingRosterRankPosition = 'QB' | 'RB' | 'WR' | 'TE';
+type StartingRosterPlayer = NonNullable<ReportData['managerPositionCounts'][number]['starterPlayers']>[number];
+
+const STARTING_ROSTER_RANK_POSITIONS: StartingRosterRankPosition[] = ['QB', 'RB', 'WR', 'TE'];
+
+function getStartingRosterSeasonValue(player: Pick<StartingRosterPlayer, 'seasonValue' | 'value'>): number {
+  const value = Number(player.seasonValue ?? player.value ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function getStartingRosterPlayers(row?: ReportData['managerPositionCounts'][number] | null): StartingRosterPlayer[] {
+  const players = row?.starterPlayers?.length
+    ? row.starterPlayers
+    : row?.starterGroups?.flatMap((group) => group.players || []) || [];
+  const uniquePlayers = new Map<string, StartingRosterPlayer>();
+
+  players.forEach((player, index) => {
+    const key = player.player_id || `${player.name}-${player.pos}-${index}`;
+    if (!uniquePlayers.has(key)) uniquePlayers.set(key, player);
+  });
+
+  return Array.from(uniquePlayers.values());
+}
+
+function getStartingRosterPositionScore(
+  row: ReportData['managerPositionCounts'][number] | null | undefined,
+  position: StartingRosterRankPosition
+): number {
+  return getStartingRosterPlayers(row)
+    .filter((player) => player.pos === position)
+    .reduce((sum, player) => sum + getStartingRosterSeasonValue(player), 0);
+}
+
+function getStartingRosterTotalScore(row: ReportData['managerPositionCounts'][number] | null | undefined): number {
+  return getStartingRosterPlayers(row).reduce((sum, player) => sum + getStartingRosterSeasonValue(player), 0);
+}
+
+function getRankFromDescendingScores(score: number, scores: number[]): number | null {
+  if (!Number.isFinite(score) || score <= 0) return null;
+  return scores.filter((value) => Number.isFinite(value) && value > score).length + 1;
+}
+
+function StartingRosterRankTiles({
+  manager,
+  managerPositionCounts,
+}: {
+  manager: string;
+  managerPositionCounts: ReportData['managerPositionCounts'];
+}) {
+  const selectedRow = managerPositionCounts.find((row) => row.manager === manager);
+  if (!selectedRow) return null;
+
+  const positionTiles = STARTING_ROSTER_RANK_POSITIONS.map((position) => {
+    const score = getStartingRosterPositionScore(selectedRow, position);
+    const scores = managerPositionCounts.map((row) => getStartingRosterPositionScore(row, position));
+
+    return {
+      key: position,
+      label: position,
+      rank: getRankFromDescendingScores(score, scores),
+      className: `owner-intel-heat-position-${position.toLowerCase()}`,
+    };
+  });
+  const valueScore = getStartingRosterTotalScore(selectedRow);
+  const valueScores = managerPositionCounts.map(getStartingRosterTotalScore);
+  const tiles = [
+    ...positionTiles,
+    {
+      key: 'VALUE',
+      label: 'Value',
+      rank: getRankFromDescendingScores(valueScore, valueScores),
+      className: 'owner-intel-heat-position-value',
+    },
+  ];
+
+  return (
+    <div className="owner-intel-full-rank-panel manager-command-starting-rank-panel">
+      <h4>Starting Roster Rankings</h4>
+      <div className="owner-intel-heat-grid owner-intel-full-rank-grid">
+        {tiles.map((tile) => (
+          <span key={tile.key} className={`owner-intel-heat-pill owner-intel-full-rank-tile ${tile.className}`}>
+            <strong>{tile.label}</strong>
+            <em>{tile.rank ? `#${tile.rank}` : '-'}</em>
           </span>
         ))}
       </div>
@@ -2605,14 +4291,18 @@ function CommandPlayerTile({
   onClick,
   variant = 'default',
   label,
+  showValueStack = false,
 }: {
   player: CommandPlayer;
   onClick: () => void;
   variant?: 'default' | 'step';
   label?: string;
+  showValueStack?: boolean;
 }) {
   const valueLens = getCommandPlayerValueLens(player);
   const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
+  const dynastyLens = getCommandPlayerDynastyLens(player);
+  const seasonLens = getCommandPlayerSeasonLens(player);
 
   return (
     <button
@@ -2621,17 +4311,38 @@ function CommandPlayerTile({
       style={getTeamTileStyle(player.playerDetails?.team)}
       onClick={onClick}
     >
-      {label && <div className="manager-intel-player-kicker">{label}</div>}
+      {label && (
+        <div className={`manager-intel-player-kicker manager-command-action-pill manager-command-action-${getTaxiActionClassName(label)}`}>
+          {label}
+        </div>
+      )}
       <div className="manager-command-player-tile-main">
         <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
       </div>
       <div className="manager-command-player-tile-pills">
         <TeamLogoPill team={player.playerDetails?.team} />
-        <span className={valueLens.className}>
-          <em>{valueLens.label}</em>
-          {formatCompactValue(valueLens.value)}
-        </span>
-        <PositionRankPill rank={seasonRank} />
+        {showValueStack ? (
+          <>
+            <span className="manager-command-season-value manager-command-dynasty-value">
+              <em>Dynasty</em>
+              {formatCompactValue(dynastyLens.value)}
+            </span>
+            <PositionRankPill rank={dynastyLens.rank} />
+            <span className="manager-command-season-value">
+              <em>Season</em>
+              {formatCompactValue(seasonLens.value)}
+            </span>
+            <PositionRankPill rank={seasonLens.rank} />
+          </>
+        ) : (
+          <>
+            <span className={valueLens.className}>
+              <em>{valueLens.label}</em>
+              {formatCompactValue(valueLens.value)}
+            </span>
+            <PositionRankPill rank={seasonRank} />
+          </>
+        )}
         <span className={`manager-command-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
           {getPlayerStatusLabel(player.playerDetails)}
         </span>
@@ -2689,12 +4400,18 @@ function ManagerDepthTile({
   manager,
   avatarUrl,
   badges,
+  subtitle,
+  subtitleTone = 'neutral',
+  scoreStrip,
   onClick,
   className = '',
 }: {
   manager: string;
   avatarUrl?: string | null;
-  badges: Array<{ label: string; tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }>;
+  badges: OwnerSignalTag[];
+  subtitle?: string | null;
+  subtitleTone?: OwnerSignalTone;
+  scoreStrip?: React.ReactNode;
   onClick: () => void;
   className?: string;
 }) {
@@ -2717,8 +4434,20 @@ function ManagerDepthTile({
             <span className="command-depth-avatar">{manager[0]?.toUpperCase() || '?'}</span>
           )}
         </ChampionAvatarFrame>
-        <span className="command-depth-name">{manager}</span>
+        <span className="command-depth-copy">
+          <span className="command-depth-name">{manager}</span>
+          {subtitle && (
+            <span className={`command-depth-subtitle command-depth-subtitle-${subtitleTone}`}>
+              {subtitle}
+            </span>
+          )}
+        </span>
       </span>
+      {scoreStrip && (
+        <span className="command-depth-score-row">
+          {scoreStrip}
+        </span>
+      )}
       <span className="command-depth-badges">
         {badges.map((badge) => (
           <span key={badge.label} className={`command-mini-badge command-mini-badge-${badge.tone || 'neutral'}`}>
@@ -2948,6 +4677,7 @@ export function LeagueCommandCenter({
     const rank = valueLens.kind === 'season'
       ? player.seasonPositionRank || player.currentPositionRank || player.pos
       : player.currentPositionRank || player.seasonPositionRank || player.pos;
+    const taxiRead = player as Partial<TaxiTriageItem>;
     setSelectedPlayer(buildPlayerModalData({
       playerId: player.player_id,
       playerName: player.name,
@@ -2959,6 +4689,8 @@ export function LeagueCommandCenter({
       managerAvatarUrl: managerAvatars?.[player.owner || selectedManager],
       currentPositionRank: rank,
       valueMode: valueLens.kind === 'season' ? 'redraft' : 'dynasty',
+      taxiAction: taxiRead.taxiAction,
+      taxiReason: taxiRead.taxiReason,
     }));
   };
   const selectedStarters = selectedCounts?.starterPlayers || [];
@@ -2993,6 +4725,8 @@ export function LeagueCommandCenter({
     ? selectedCounts.starterGroups.map((group) => ({ label: group.label, count: group.count, players: group.players || [] }))
     : fallbackStarterGroups(selectedStarters);
   const projectedLineupIds = new Set((selectedStarters.length ? selectedStarters : lineupGroups.flatMap((group) => group.players)).map((player) => player.player_id));
+  const hasKickerSlot = lineupGroups.some((group) => group.players.some((player) => player.pos === 'K') || /^K\b/i.test(group.label));
+  const hasDefenseSlot = lineupGroups.some((group) => group.players.some((player) => player.pos === 'DEF') || /^DEF\b/i.test(group.label));
   const canStepInGroups = [
     {
       label: 'QB',
@@ -3006,10 +4740,23 @@ export function LeagueCommandCenter({
         .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos) && !projectedLineupIds.has(player.player_id))
         .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
     },
-  ].filter((group) => group.players.length);
+    hasKickerSlot ? {
+      label: 'K',
+      players: selectedLineupPlayers
+        .filter((player) => player.pos === 'K' && !projectedLineupIds.has(player.player_id))
+        .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
+    } : null,
+    hasDefenseSlot ? {
+      label: 'DEF',
+      players: selectedLineupPlayers
+        .filter((player) => player.pos === 'DEF' && !projectedLineupIds.has(player.player_id))
+        .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
+    } : null,
+  ].filter((group): group is { label: string; players: typeof selectedLineupPlayers } => Boolean(group && group.players.length));
   const selectedStarterSeasonValue = selectedStarters.reduce((sum, player) => sum + (player.seasonValue || player.value || 0), 0);
   const selectedTaxiCount = selectedIntel?.taxiTriage?.items.length || 0;
   const selectedTaxiPromoteCount = selectedIntel?.taxiTriage?.counts['Promote Now'] || 0;
+  const selectedTaxiParkedCount = selectedIntel?.taxiTriage?.counts['Keep Parked'] || 0;
   const selectedTaxiCutCount = selectedIntel?.taxiTriage?.counts.Cuttable || 0;
   const selectedSeasonTags = (() => {
     if (!selectedIntel) return [];
@@ -3037,6 +4784,8 @@ export function LeagueCommandCenter({
     canStepInGroups,
   });
   const seasonInsuranceRead = buildSeasonInsuranceRead(selectedIntel);
+  const startingRosterStrengthTiles = selectedIntel?.startingRosterStrength || [];
+  const hasStartingRosterStrength = startingRosterStrengthTiles.length > 0 || Boolean(selectedIntel?.positionGrades);
 
   return (
     <>
@@ -3140,12 +4889,13 @@ export function LeagueCommandCenter({
                 <ManagerChampionshipPills managerName={selectedManager} className="manager-command-championships" />
               </div>
               </div>
-              <div className="manager-command-hero-metrics">
+              <div className={`manager-command-hero-metrics ${section === 'taxi' ? 'manager-command-hero-metrics-taxi' : ''}`}>
                 {section === 'taxi' ? (
                   <>
                     <IntelligenceMetric label="Taxi" value={selectedTaxiCount || '-'} />
-                    <IntelligenceMetric label="Promote" value={selectedTaxiPromoteCount || 0} />
-                    <IntelligenceMetric label="Cuttable" value={selectedTaxiCutCount || 0} />
+                    <IntelligenceMetric label="Promote" value={selectedTaxiPromoteCount || 0} tone={selectedTaxiPromoteCount ? 'positive' : 'neutral'} />
+                    <IntelligenceMetric label="Parked" value={selectedTaxiParkedCount || 0} />
+                    <IntelligenceMetric label="Cuttable" value={selectedTaxiCutCount || 0} tone={selectedTaxiCutCount ? 'negative' : 'neutral'} />
                   </>
                 ) : (
                   <>
@@ -3165,21 +4915,22 @@ export function LeagueCommandCenter({
                     <p className="manager-command-taxi-note">
                       Activation calls use current-season values and ranks against active starters and injury fill-ins. Cards marked Dynasty are stash value only, not a season projection.
                     </p>
+                    <div className="manager-command-taxi-reasons manager-command-taxi-reasons-high">
+                      {selectedIntel.taxiTriage.items.slice(0, 3).map((player) => (
+                        <p key={`${player.player_id}-reason`}>
+                          <strong>{player.name}:</strong> {player.taxiReason}
+                        </p>
+                      ))}
+                    </div>
                     <div className="manager-command-tile-grid">
                       {selectedIntel.taxiTriage.items.map((player) => (
                         <CommandPlayerTile
                           key={player.player_id}
                           label={player.taxiAction}
                           player={player}
+                          showValueStack
                           onClick={() => openCommandPlayer(player)}
                         />
-                      ))}
-                    </div>
-                    <div className="manager-command-taxi-reasons">
-                      {selectedIntel.taxiTriage.items.slice(0, 4).map((player) => (
-                        <p key={`${player.player_id}-reason`}>
-                          <strong>{player.name}:</strong> {player.taxiReason}
-                        </p>
                       ))}
                     </div>
                   </div>
@@ -3191,6 +4942,39 @@ export function LeagueCommandCenter({
                 )
               ) : (
                 <>
+              <StartingRosterRankTiles
+                manager={selectedManager}
+                managerPositionCounts={data.managerPositionCounts}
+              />
+              {hasStartingRosterStrength ? (
+                <div className="manager-command-section">
+                  <h4 className="owner-intel-comparison-heading">
+                    <span>{STARTING_ROSTER_STRENGTH_TITLE}</span>
+                    <small>{STARTING_ROSTER_STRENGTH_COMPARISON}</small>
+                  </h4>
+                  <p className="owner-intel-section-note">{STARTING_ROSTER_STRENGTH_NOTE}</p>
+                  <div className="owner-intel-heat-grid">
+                    {startingRosterStrengthTiles.length
+                      ? startingRosterStrengthTiles.map((tile) => (
+                        <span key={tile.key} className={getHeatPillClass(tile.key, tile.grade)} title={tile.note}>
+                          <strong>{tile.label}</strong>
+                          <em>{tile.leagueRank ? `#${tile.leagueRank}` : '-'}</em>
+                          <small>{tile.grade || 'Empty'}</small>
+                        </span>
+                      ))
+                      : (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
+                        const grade = selectedIntel?.positionGrades?.[pos];
+                        return (
+                          <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
+                            <strong>{pos}</strong>
+                            <em>{grade?.rank ? `#${grade.rank}` : '-'}</em>
+                            <small>{grade?.grade || 'Empty'}</small>
+                          </span>
+                        );
+                      })}
+                  </div>
+                </div>
+              ) : null}
               {selectedSeasonTags.length ? (
                 <div className="manager-command-tag-row" aria-label="Season roster tags">
                   {selectedSeasonTags.map((tag) => (
@@ -3255,35 +5039,6 @@ export function LeagueCommandCenter({
                   </div>
                 ) : null}
               </div>
-              {(selectedIntel?.startingRosterStrength?.length || selectedIntel?.positionGrades) ? (
-                <div className="manager-command-section">
-                  <h4 className="owner-intel-comparison-heading">
-                    <span>{STARTING_ROSTER_STRENGTH_TITLE}</span>
-                    <small>{STARTING_ROSTER_STRENGTH_COMPARISON}</small>
-                  </h4>
-                  <p className="owner-intel-section-note">{STARTING_ROSTER_STRENGTH_NOTE}</p>
-                  <div className="owner-intel-heat-grid">
-                    {selectedIntel.startingRosterStrength?.length
-                      ? selectedIntel.startingRosterStrength.map((tile) => (
-                        <span key={tile.key} className={getHeatPillClass(tile.key, tile.grade)} title={tile.note}>
-                          <strong>{tile.label}</strong>
-                          <em>{tile.leagueRank ? `#${tile.leagueRank}` : '-'}</em>
-                          <small>{tile.grade || 'Empty'}</small>
-                        </span>
-                      ))
-                      : (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
-                        const grade = selectedIntel.positionGrades?.[pos];
-                        return (
-                          <span key={pos} className={getHeatPillClass(pos, grade?.grade)}>
-                            <strong>{pos}</strong>
-                            <em>{grade?.rank ? `#${grade.rank}` : '-'}</em>
-                            <small>{grade?.grade || 'Empty'}</small>
-                          </span>
-                        );
-                      })}
-                  </div>
-                </div>
-              ) : null}
               {selectedIntel?.pressurePoints?.length ? (
                 <div className="manager-command-section">
                   <h4>Pressure Points</h4>
@@ -3516,10 +5271,16 @@ export function OwnerIntelMatrix({
   const intelRows = data.managerRosterIntelligence || [];
   if (!intelRows.length) return null;
 
+  const pickRows = data.pickPortfolios || [];
+  const growthRows = data.managerRosterValueGrowth || [];
+  const powerRows = data.powerRankings || [];
+  const maxGrowthValue = Math.max(0, ...growthRows.map((row) => row.total_val || 0));
   const getTradeRow = (manager: string) => data.tradeTendencies?.find((row) => row.manager === manager);
-  const getPickRow = (manager: string) => data.pickPortfolios?.find((row) => row.manager === manager);
+  const getPickRow = (manager: string) => pickRows.find((row) => row.manager === manager);
   const getOverviewRow = (manager: string) => data.leagueOverview.find((row) => row.manager === manager);
-  const getGrowthRow = (manager: string) => data.managerRosterValueGrowth.find((row) => row.manager === manager);
+  const getGrowthRow = (manager: string) => growthRows.find((row) => row.manager === manager);
+  const getPowerRow = (manager: string) => powerRows.find((row) => row.manager === manager);
+  const getTimelineRow = (manager: string) => data.dynastyTimelines?.find((row) => row.manager === manager);
   const orderedIntelRows = [...intelRows].sort((a, b) => {
     if (viewerManager && a.manager === viewerManager && b.manager !== viewerManager) return -1;
     if (viewerManager && b.manager === viewerManager && a.manager !== viewerManager) return 1;
@@ -3533,11 +5294,26 @@ export function OwnerIntelMatrix({
   const selectedPickRow = selectedRow ? getPickRow(selectedRow.manager) : null;
   const selectedOverviewRow = selectedRow ? getOverviewRow(selectedRow.manager) : null;
   const selectedGrowthRow = selectedRow ? getGrowthRow(selectedRow.manager) : null;
+  const selectedPowerRow = selectedRow ? getPowerRow(selectedRow.manager) : null;
+  const selectedTimelineRow = selectedRow ? getTimelineRow(selectedRow.manager) : null;
+  const selectedScoreLens = selectedRow ? buildOwnerScoreLens({
+    row: selectedRow,
+    timelineRow: selectedTimelineRow,
+    powerRow: selectedPowerRow,
+    overviewRow: selectedOverviewRow,
+    growthRow: selectedGrowthRow,
+    maxGrowthValue,
+    leagueSize: orderedIntelRows.length,
+  }) : null;
+  const selectedTeamType = selectedScoreLens?.buildLabel || null;
   const selectedOwnerTags = selectedRow ? buildDynastyOwnerTags({
     row: selectedRow,
     overviewRow: selectedOverviewRow,
     growthRow: selectedGrowthRow,
     pickRow: selectedPickRow,
+    allGrowthRows: growthRows,
+    allPickRows: pickRows,
+    leagueSize: orderedIntelRows.length,
   }) : [];
   const selectedPlayerSectionsBase: Array<{
     label: string;
@@ -3559,14 +5335,39 @@ export function OwnerIntelMatrix({
     if (!item.player) return false;
     return rows.findIndex((candidate) => candidate.player?.player_id === item.player?.player_id) === index;
   });
-  const selectedRosterRead = selectedRow ? buildDynastyRosterRead(selectedRow, selectedOverviewRow) : '';
-  const selectedBestMove = selectedRow ? buildDynastyBestMove(selectedRow, selectedPickRow) : '';
+  const selectedRosterRead = selectedRow ? buildDynastyRosterRead(selectedRow, selectedOverviewRow, selectedScoreLens?.buildLabel) : '';
+  const selectedBestMove = selectedRow ? buildDynastyBestMove(
+    selectedRow,
+    selectedPickRow,
+    selectedScoreLens?.buildLabel,
+    selectedOverviewRow,
+    orderedIntelRows.length,
+  ) : '';
   const selectedTradeDraftProfile = selectedRow ? buildOwnerTradeDraftProfile(selectedTradeRow, selectedPickRow) : '';
-  const selectedActionNotes = selectedRow ? dedupeIntelNotes(buildDynastyActionNotes(selectedRow, selectedPickRow), [
-    selectedRosterRead,
-    selectedBestMove,
-    selectedTradeDraftProfile,
-  ]).slice(0, 4) : [];
+  const selectedAiSuggestions = selectedRow ? buildDynastyAiSuggestions({
+    row: selectedRow,
+    pickRow: selectedPickRow,
+    overviewRow: selectedOverviewRow,
+    buildLabel: selectedScoreLens?.buildLabel,
+    leagueSize: orderedIntelRows.length,
+    seededTradeCopies: [selectedBestMove],
+    suppress: [
+      selectedRosterRead,
+      selectedBestMove,
+      selectedTradeDraftProfile,
+    ],
+  }) : [];
+  const selectedActionNotes = selectedRow ? filterByPlayerNameMentionBudget(
+    dedupeIntelNotes(buildDynastyActionNotes(selectedRow, selectedPickRow), [
+      selectedRosterRead,
+      selectedBestMove,
+      selectedTradeDraftProfile,
+      ...selectedAiSuggestions.map((card) => card.copy),
+    ]),
+    (note) => note,
+    getDynastyTradeTrackedNames(selectedRow),
+    [selectedBestMove, ...selectedAiSuggestions.map((card) => card.copy)],
+  ).slice(0, 4) : [];
 
   return (
     <>
@@ -3575,13 +5376,35 @@ export function OwnerIntelMatrix({
           const pickRow = getPickRow(row.manager);
           const overviewRow = getOverviewRow(row.manager);
           const growthRow = getGrowthRow(row.manager);
+          const powerRow = getPowerRow(row.manager);
+          const timelineRow = getTimelineRow(row.manager);
+          const scoreLens = buildOwnerScoreLens({
+            row,
+            timelineRow,
+            powerRow,
+            overviewRow,
+            growthRow,
+            maxGrowthValue,
+            leagueSize: orderedIntelRows.length,
+          });
           return (
             <ManagerDepthTile
               key={row.manager}
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
               className={viewerOwnedHighlightClass(row.manager, viewerManager)}
-              badges={buildDynastyOwnerTags({ row, overviewRow, growthRow, pickRow })}
+              subtitle={scoreLens.buildLabel}
+              subtitleTone={scoreLens.buildTone}
+              scoreStrip={<OwnerScoreStrip scores={scoreLens} compact />}
+              badges={buildDynastyOwnerTags({
+                row,
+                overviewRow,
+                growthRow,
+                pickRow,
+                allGrowthRows: growthRows,
+                allPickRows: pickRows,
+                leagueSize: orderedIntelRows.length,
+              })}
               onClick={() => setSelectedOwner(row.manager)}
             />
           );
@@ -3618,13 +5441,18 @@ export function OwnerIntelMatrix({
                   <div className="min-w-0">
                     <p>Owner Intel Lab</p>
                     <h3 className={getManagerHeadingClassName(selectedRow.manager)}>{selectedRow.manager}</h3>
+                    {selectedTeamType && (
+                      <span className={`manager-command-team-type manager-command-team-type-${selectedScoreLens?.buildTone || getOwnerTeamTypeTone(selectedTeamType)}`}>
+                        {selectedTeamType}
+                      </span>
+                    )}
                     <ManagerChampionshipPills managerName={selectedRow.manager} className="manager-command-championships" />
                   </div>
                 </div>
-                <div className="manager-command-hero-metrics">
-                  <IntelligenceMetric label="Dynasty Value" value={selectedGrowthRow ? formatCompactValue(selectedGrowthRow.total_val) : '-'} />
-                  <IntelligenceMetric label="Value Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_value}` : '-'} />
-                  <IntelligenceMetric label="Avg Age" value={selectedRow.avgAge ?? '-'} />
+                <div className="manager-command-hero-metrics owner-intel-hero-metrics">
+                  <IntelligenceMetric label="Dynasty" value={formatOwnerScore(selectedScoreLens?.dynastyScore)} />
+                  <IntelligenceMetric label="Contender" value={formatOwnerScore(selectedScoreLens?.contenderScore)} tone={isOwnerContenderLane(selectedScoreLens?.buildLabel) ? 'positive' : 'neutral'} />
+                  <IntelligenceMetric label="Rebuilder" value={formatOwnerScore(selectedScoreLens?.rebuilderScore)} tone={isOwnerRebuildLane(selectedScoreLens?.buildLabel) ? 'positive' : 'neutral'} />
                 </div>
               </div>
 
@@ -3635,15 +5463,6 @@ export function OwnerIntelMatrix({
                       {tag.label}
                     </span>
                   ))}
-                </div>
-
-                <div className="owner-intel-stat-grid">
-                  <IntelligenceMetric label="Dynasty Value" value={selectedGrowthRow ? formatCompactValue(selectedGrowthRow.total_val) : '-'} />
-                  <IntelligenceMetric label="Future Picks" value={selectedPickRow ? `${selectedPickRow.count2026 + selectedPickRow.count2027}` : '-'} />
-                  <IntelligenceMetric label="QB Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_qb}` : '-'} />
-                  <IntelligenceMetric label="RB Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_rb}` : '-'} />
-                  <IntelligenceMetric label="WR Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_wr}` : '-'} />
-                  <IntelligenceMetric label="TE Rank" value={selectedOverviewRow ? `#${selectedOverviewRow.rank_te}` : '-'} />
                 </div>
 
                 {selectedOverviewRow ? <FullRosterRankTiles overviewRow={selectedOverviewRow} /> : null}
@@ -3677,6 +5496,12 @@ export function OwnerIntelMatrix({
                     <h4>Market / Picks</h4>
                     <p>{selectedTradeDraftProfile}</p>
                   </div>
+                  {selectedAiSuggestions.map((card) => (
+                    <div key={card.title} className={`owner-intel-ai-card owner-intel-ai-card-${card.tone} ${card.wide ? 'owner-intel-read-wide' : ''}`}>
+                      <h4>{card.title}</h4>
+                      <p>{card.copy}</p>
+                    </div>
+                  ))}
                   {selectedActionNotes.length ? (
                     <div className="owner-intel-wild-notes">
                       <h4>Dynasty AI Notes</h4>
@@ -4673,6 +6498,8 @@ export function TradeProfitLeaderboardTable({
   leagueLogo,
   viewerManager,
   currentStandings,
+  standingsHistory,
+  leagueValueMode = 'dynasty',
 }: {
   data: ReportData['tradeProfitLeaderboard'];
   managerAvatars?: ManagerAvatars;
@@ -4688,29 +6515,58 @@ export function TradeProfitLeaderboardTable({
   leagueLogo?: string | null;
   viewerManager?: string | null;
   currentStandings?: ReportData['currentStandings'];
+  standingsHistory?: ReportData['standingsHistory'];
+  leagueValueMode?: ReportData['leagueValueMode'];
 }) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedManagerTradeKey, setSelectedManagerTradeKey] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const evaluatedProfitRows = React.useMemo(() => {
+    if (!tradeHistory.length) return data;
+
+    const summary = new Map<string, { profit: number; wins: number; trade_count: number }>();
+    data.forEach((row) => {
+      summary.set(row.manager, { profit: 0, wins: 0, trade_count: 0 });
+    });
+
+    tradeHistory.forEach((trade) => {
+      const evaluation = buildTradeLedgerEvaluation(trade, dynastyTimelines, managerRosterIntelligence, playerDetailsById, draftPicks);
+      [trade.team_a, trade.team_b].forEach((manager) => {
+        const current = summary.get(manager) || { profit: 0, wins: 0, trade_count: 0 };
+        current.profit += getManagerTradeEvaluationSwing(evaluation, manager);
+        current.wins += evaluation.winners.includes(manager) ? 1 : 0;
+        current.trade_count += 1;
+        summary.set(manager, current);
+      });
+    });
+
+    return data
+      .map((row) => {
+        const next = summary.get(row.manager);
+        return next ? { ...row, ...next } : row;
+      })
+      .sort((a, b) => b.profit - a.profit)
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+  }, [data, draftPicks, dynastyTimelines, managerRosterIntelligence, playerDetailsById, tradeHistory]);
   const selectedManagerTrades = selectedManager
     ? [...tradeHistory]
         .filter((trade) => trade.team_a === selectedManager || trade.team_b === selectedManager)
         .reverse()
     : [];
   const selectedManagerSummary = selectedManager
-    ? data.find((row) => row.manager === selectedManager)
+    ? evaluatedProfitRows.find((row) => row.manager === selectedManager)
     : undefined;
   const selectedManagerTendency = selectedManager
     ? tradeTendencies?.find((row) => row.manager === selectedManager)
     : undefined;
 
   const orderedRows = React.useMemo(
-    () => sortRowsByViewerAndStanding(data, (row) => row.manager, {
+    () => sortRowsByViewerAndStanding(evaluatedProfitRows, (row) => row.manager, {
       viewerManager,
       standings: currentStandings,
       leagueOverview,
     }),
-    [currentStandings, data, leagueOverview, viewerManager]
+    [currentStandings, evaluatedProfitRows, leagueOverview, viewerManager]
   );
 
   return (
@@ -4805,6 +6661,9 @@ export function TradeProfitLeaderboardTable({
                       <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400">
                         {selectedManager}
                       </DialogTitle>
+                      <DialogDescription className="sr-only">
+                        Trade portfolio detail with manager trade totals, profit, partner history, and player-level trade context.
+                      </DialogDescription>
                       <ManagerChampionshipPills managerName={selectedManager} className="mt-2 justify-center" />
                     </div>
                   </div>
@@ -4859,8 +6718,9 @@ export function TradeProfitLeaderboardTable({
               )}
               <div className="trade-manager-list">
                 {selectedManagerTrades.map((trade) => {
-                  const swing = getManagerTradeSwing(trade, selectedManager);
-                  const result = getManagerTradeResult(trade, selectedManager);
+                  const tradeEvaluation = buildTradeLedgerEvaluation(trade, dynastyTimelines, managerRosterIntelligence, playerDetailsById, draftPicks);
+                  const swing = getManagerTradeEvaluationSwing(tradeEvaluation, selectedManager);
+                  const result = getManagerTradeEvaluationResult(tradeEvaluation, selectedManager);
                   const opponent = getTradeOpponent(trade, selectedManager);
                   const tradeKey = `${trade.date}-${trade.team_a}-${trade.team_b}`;
                   const isTradeOpen = selectedManagerTradeKey === tradeKey;
@@ -4898,6 +6758,9 @@ export function TradeProfitLeaderboardTable({
                             managerRosterIntelligence={managerRosterIntelligence}
                             dynastyTimelines={dynastyTimelines}
                             leagueOverview={leagueOverview}
+                            standingsHistory={standingsHistory}
+                            currentStandings={currentStandings}
+                            leagueValueMode={leagueValueMode}
                             onPlayerClick={setSelectedPlayer}
                           />
                         </div>
@@ -4935,6 +6798,8 @@ export function TradeHistoryTable({
   leagueLogo,
   viewerManager: _viewerManager,
   currentStandings: _currentStandings,
+  standingsHistory,
+  leagueValueMode = 'dynasty',
 }: {
   data: ReportData['tradeHistory'];
   draftPicks?: DraftPick[];
@@ -4948,6 +6813,8 @@ export function TradeHistoryTable({
   leagueLogo?: string | null;
   viewerManager?: string | null;
   currentStandings?: ReportData['currentStandings'];
+  standingsHistory?: ReportData['standingsHistory'];
+  leagueValueMode?: ReportData['leagueValueMode'];
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [collapsedTradeYears, setCollapsedTradeYears] = useState<Set<string>>(new Set());
@@ -5012,11 +6879,11 @@ export function TradeHistoryTable({
                   {!isYearCollapsed && yearTrades.map((row) => {
               const idx = orderedTrades.indexOf(row);
               const isExpanded = expandedIdx === idx;
-              const tradeEvaluation = buildTradeLedgerEvaluation(row, dynastyTimelines, managerRosterIntelligence, playerDetailsById);
+              const tradeEvaluation = buildTradeLedgerEvaluation(row, dynastyTimelines, managerRosterIntelligence, playerDetailsById, draftPicks);
               const { winners, loserName } = getTradeDisplaySides(row, tradeEvaluation);
               const tradeKey = `${row.date}-${row.team_a}-${row.team_b}-${idx}`;
               const shouldSwapSummary = stableTradeSeed(tradeKey) % 2 === 1;
-              const summaryManagers = shouldSwapSummary
+              const summaryManagers: [string, string] = shouldSwapSummary
                 ? [row.team_b, row.team_a]
                 : [row.team_a, row.team_b];
               const gapVerdict = getTradeGapVerdict(tradeEvaluation.pointGap);
@@ -5088,6 +6955,10 @@ export function TradeHistoryTable({
                           managerRosterIntelligence={managerRosterIntelligence}
                           dynastyTimelines={dynastyTimelines}
                           leagueOverview={leagueOverview}
+                          sideOrder={summaryManagers}
+                          standingsHistory={standingsHistory}
+                          currentStandings={_currentStandings}
+                          leagueValueMode={leagueValueMode}
                           onPlayerClick={setSelectedPlayer}
                         />
                       </TableCell>
@@ -5290,6 +7161,9 @@ export function TradeTendenciesTable({
                       <DialogTitle className="athletic-headline mt-1 truncate text-3xl font-black leading-none text-orange-400">
                         {selectedManager}
                       </DialogTitle>
+                      <DialogDescription className="sr-only">
+                        Trade tendency detail with manager deal volume, win rate, partner patterns, and trade behavior signals.
+                      </DialogDescription>
                       <ManagerChampionshipPills managerName={selectedManager} className="mt-2 justify-center" />
                     </div>
                   </div>
@@ -5385,6 +7259,9 @@ export function TradeTheftDetector({
   leagueOverview,
   leagueId,
   leagueLogo,
+  currentStandings,
+  standingsHistory,
+  leagueValueMode = 'dynasty',
 }: {
   data: ReportData['tradeHistory'];
   managerAvatars?: ManagerAvatars;
@@ -5396,54 +7273,61 @@ export function TradeTheftDetector({
   leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
+  currentStandings?: ReportData['currentStandings'];
+  standingsHistory?: ReportData['standingsHistory'];
+  leagueValueMode?: ReportData['leagueValueMode'];
 }) {
   const [selectedTrade, setSelectedTrade] = useState<ReportData['tradeHistory'][number] | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   if (!data.length) return null;
 
-  const ordered = [...data].sort((a, b) => b.point_gap - a.point_gap);
-  const managerSwings = data.flatMap((trade) => [
+  const evaluatedTrades = data.map((trade) => ({
+    trade,
+    evaluation: buildTradeLedgerEvaluation(trade, dynastyTimelines, managerRosterIntelligence, playerDetailsById, draftPicks),
+  }));
+  const ordered = [...evaluatedTrades].sort((a, b) => b.evaluation.pointGap - a.evaluation.pointGap);
+  const managerSwings = evaluatedTrades.flatMap(({ trade, evaluation }) => [
     {
       trade,
       manager: trade.team_a,
       opponent: trade.team_b,
-      swing: getManagerTradeSwing(trade, trade.team_a),
-      result: getManagerTradeResult(trade, trade.team_a),
+      swing: getManagerTradeEvaluationSwing(evaluation, trade.team_a),
+      result: getManagerTradeEvaluationResult(evaluation, trade.team_a),
     },
     {
       trade,
       manager: trade.team_b,
       opponent: trade.team_a,
-      swing: getManagerTradeSwing(trade, trade.team_b),
-      result: getManagerTradeResult(trade, trade.team_b),
+      swing: getManagerTradeEvaluationSwing(evaluation, trade.team_b),
+      result: getManagerTradeEvaluationResult(evaluation, trade.team_b),
     },
   ]);
   const biggestGap = ordered[0];
-  const cleanestDeal = [...data].sort((a, b) => a.point_gap - b.point_gap)[0];
+  const cleanestDeal = [...evaluatedTrades].sort((a, b) => a.evaluation.pointGap - b.evaluation.pointGap)[0];
   const bestSwing = [...managerSwings].sort((a, b) => b.swing - a.swing)[0];
   const worstSwing = [...managerSwings].sort((a, b) => a.swing - b.swing)[0];
-  const robberyCount = data.filter((trade) => trade.point_gap >= 1000).length;
-  const fairCount = data.filter((trade) => trade.point_gap <= 300).length;
-  const avgGap = Math.round(data.reduce((sum, trade) => sum + trade.point_gap, 0) / data.length);
+  const robberyCount = evaluatedTrades.filter(({ evaluation }) => evaluation.pointGap >= 1000).length;
+  const fairCount = evaluatedTrades.filter(({ evaluation }) => evaluation.pointGap <= 300).length;
+  const avgGap = Math.round(evaluatedTrades.reduce((sum, { evaluation }) => sum + evaluation.pointGap, 0) / data.length);
   const fairRate = Math.round((fairCount / data.length) * 100);
 
   const cards = [
     biggestGap && {
       key: 'biggest-gap',
       eyebrow: 'Trade Theft Detector',
-      title: getTradeGapVerdict(biggestGap.point_gap).label,
-      value: biggestGap.point_gap.toLocaleString(),
-      copy: `${biggestGap.date}: ${getTradeDisplaySides(biggestGap).winners.join(' + ')} got the biggest value gap.`,
-      trade: biggestGap,
+      title: getTradeGapVerdict(biggestGap.evaluation.pointGap).label,
+      value: biggestGap.evaluation.pointGap.toLocaleString(),
+      copy: `${biggestGap.trade.date}: ${getTradeDisplaySides(biggestGap.trade, biggestGap.evaluation).winners.join(' + ')} got the biggest value gap.`,
+      trade: biggestGap.trade,
       tone: 'fire' as const,
     },
     cleanestDeal && {
       key: 'cleanest-deal',
       eyebrow: 'Cleanest Deal',
-      title: getTradeGapVerdict(cleanestDeal.point_gap).label,
-      value: cleanestDeal.point_gap.toLocaleString(),
-      copy: `${cleanestDeal.date}: ${cleanestDeal.team_a} and ${cleanestDeal.team_b} were closest to even.`,
-      trade: cleanestDeal,
+      title: getTradeGapVerdict(cleanestDeal.evaluation.pointGap).label,
+      value: cleanestDeal.evaluation.pointGap.toLocaleString(),
+      copy: `${cleanestDeal.trade.date}: ${cleanestDeal.trade.team_a} and ${cleanestDeal.trade.team_b} were closest to even.`,
+      trade: cleanestDeal.trade,
       tone: 'fair' as const,
     },
     bestSwing && {
@@ -5470,7 +7354,7 @@ export function TradeTheftDetector({
       title: `${robberyCount} spicy gaps`,
       value: avgGap.toLocaleString(),
       copy: `${robberyCount} of ${data.length} trades crossed a 1,000-point gap. Average gap is ${avgGap.toLocaleString()}.`,
-      trade: biggestGap,
+      trade: biggestGap?.trade,
       tone: robberyCount >= Math.max(2, data.length * 0.25) ? 'fire' as const : 'fair' as const,
     },
     {
@@ -5479,7 +7363,7 @@ export function TradeTheftDetector({
       title: `${fairRate}% fair-ish`,
       value: `${fairCount}/${data.length}`,
       copy: `${fairCount} trades landed within 300 points, which is our current "nobody got smoked" range.`,
-      trade: cleanestDeal,
+      trade: cleanestDeal?.trade,
       tone: 'fair' as const,
     },
   ].filter(Boolean) as Array<{
@@ -5528,6 +7412,9 @@ export function TradeTheftDetector({
               managerRosterIntelligence={managerRosterIntelligence}
               dynastyTimelines={dynastyTimelines}
               leagueOverview={leagueOverview}
+              standingsHistory={standingsHistory}
+              currentStandings={currentStandings}
+              leagueValueMode={leagueValueMode}
               onPlayerClick={setSelectedPlayer}
             />
           )}
@@ -5614,9 +7501,19 @@ type WaiverRecommendationContext = {
 };
 
 const WAIVER_POSITIONS: WaiverPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+const WAIVER_SPECIAL_TEAMS_POSITIONS = ['K', 'DEF'] as const;
 const WAIVER_RECOMMENDATION_LIMIT = 4;
+const WAIVER_RECOMMENDATION_MINIMUM = 2;
 const VALUE_BLEND_HISTORY_START_LABEL = 'May 5, 2026';
 const FIRST_FULL_BLEND_WEEK_LABEL = 'May 12, 2026 after the 6 PM scrape';
+
+type WaiverSpecialTeamsPosition = typeof WAIVER_SPECIAL_TEAMS_POSITIONS[number];
+type WaiverManagerPlayer = NonNullable<ReportData['managerPositionCounts'][number]['lineupPlayers']>[number];
+type WaiverSpecialTeamsUpgradeRead = {
+  position: WaiverSpecialTeamsPosition;
+  playerId: string;
+  reason: string;
+};
 
 function isWaiverPosition(position: string | null | undefined): position is WaiverPosition {
   return WAIVER_POSITIONS.includes(position as WaiverPosition);
@@ -5782,18 +7679,114 @@ function getWaiverNeedWeights(
   return weights;
 }
 
+function normalizeWaiverRosterSlot(slot: string | null | undefined): WaiverPosition | null {
+  const normalized = String(slot || '').trim().toUpperCase();
+  if (normalized === 'D' || normalized === 'DEF' || normalized === 'DST' || normalized === 'D/ST') return 'DEF';
+  return isWaiverPosition(normalized) ? normalized : null;
+}
+
+function waiverLeagueUsesPosition(
+  leagueDiagnostics: ReportData['leagueDiagnostics'] | undefined,
+  position: WaiverSpecialTeamsPosition
+): boolean {
+  return (leagueDiagnostics?.rosterSlots || []).some((slot) => normalizeWaiverRosterSlot(slot) === position);
+}
+
+function getWaiverSpecialTeamsLabel(position: WaiverSpecialTeamsPosition): string {
+  return position === 'DEF' ? 'Defense' : 'Kicker';
+}
+
+function compareWaiverManagerPlayers(a: WaiverManagerPlayer, b: WaiverManagerPlayer): number {
+  const aRank = parsePositionRankValue(a.seasonPositionRank || a.currentPositionRank) || 999;
+  const bRank = parsePositionRankValue(b.seasonPositionRank || b.currentPositionRank) || 999;
+  const rankDelta = aRank - bRank;
+  if (rankDelta !== 0) return rankDelta;
+  return (b.seasonValue || b.value || 0) - (a.seasonValue || a.value || 0);
+}
+
+function getWaiverManagerPositionPlayers(
+  row: ReportData['managerPositionCounts'][number] | null,
+  position: WaiverSpecialTeamsPosition
+): WaiverManagerPlayer[] {
+  const byId = new Map<string, WaiverManagerPlayer>();
+  [
+    ...(row?.starterPlayers || []),
+    ...(row?.lineupPlayers || []),
+    ...(row?.rosterPlayers || []),
+  ].forEach((player) => {
+    if (player.pos === position && !byId.has(player.player_id)) {
+      byId.set(player.player_id, player);
+    }
+  });
+  return Array.from(byId.values()).sort(compareWaiverManagerPlayers);
+}
+
+function buildWaiverSpecialTeamsUpgradeReads({
+  data,
+  viewerPositionCounts,
+  leagueDiagnostics,
+  playerDetailsById,
+}: {
+  data: NonNullable<ReportData['waiverIntelligence']>;
+  viewerPositionCounts: ReportData['managerPositionCounts'][number] | null;
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
+  playerDetailsById?: PlayerDetailsById;
+}): Partial<Record<WaiverSpecialTeamsPosition, WaiverSpecialTeamsUpgradeRead>> {
+  const upgrades: Partial<Record<WaiverSpecialTeamsPosition, WaiverSpecialTeamsUpgradeRead>> = {};
+
+  WAIVER_SPECIAL_TEAMS_POSITIONS.forEach((position) => {
+    if (!waiverLeagueUsesPosition(leagueDiagnostics, position)) return;
+    const available = data.bestAvailableByPosition[position]
+      || (data.highestKtcAvailable?.pos === position ? data.highestKtcAvailable : null);
+    if (!available || available.owner) return;
+
+    const current = getWaiverManagerPositionPlayers(viewerPositionCounts, position)[0] || null;
+    const availableRank = getWaiverSeasonRank(available, playerDetailsById) || available.currentPositionRank || null;
+    const currentRank = current?.seasonPositionRank || current?.currentPositionRank || null;
+    const availableRankNumber = parsePositionRankValue(availableRank);
+    const currentRankNumber = parsePositionRankValue(currentRank);
+    const availableValue = getWaiverSeasonValue(available, playerDetailsById) || getWaiverPlayerValue(available, playerDetailsById);
+    const currentValue = current ? Number(current.seasonValue || current.value || 0) : 0;
+    const rankUpgrade = current
+      ? availableRankNumber !== null && currentRankNumber !== null && availableRankNumber < currentRankNumber
+      : availableRankNumber !== null;
+    const valueUpgrade = current
+      ? (availableRankNumber === null || currentRankNumber === null) && availableValue > currentValue + 50
+      : availableValue > 0;
+    if (!rankUpgrade && !valueUpgrade) return;
+
+    const label = getWaiverSpecialTeamsLabel(position);
+    const rankCopy = availableRank ? ` at ${availableRank}` : '';
+    const currentCopy = current
+      ? `${current.name}${currentRank ? ` (${currentRank})` : ''}`
+      : `your empty ${label.toLowerCase()} slot`;
+
+    upgrades[position] = {
+      position,
+      playerId: available.player_id,
+      reason: current
+        ? `${label} upgrade over ${currentCopy}${rankCopy}`
+        : `${label} fills an empty starter slot${rankCopy}`,
+    };
+  });
+
+  return upgrades;
+}
+
 function buildWaiverRecommendationReason({
   player,
   playerDetailsById,
   targetPosition,
   needWeight,
   openRosterSpots,
+  specialTeamsUpgradeReason,
 }: {
   player: TrendingPlayer;
   playerDetailsById?: PlayerDetailsById;
   targetPosition: WaiverPosition | null;
   needWeight: number;
   openRosterSpots: number;
+  specialTeamsUpgradeReason?: string | null;
 }): string {
   const details = getWaiverPlayerDetails(player, playerDetailsById);
   const dynastyRank = getWaiverDynastyRank(player, playerDetailsById);
@@ -5802,11 +7795,13 @@ function buildWaiverRecommendationReason({
   const depthOrder = details?.depthChartOrder;
   const rookieYear = Number(details?.rookieYear || 0);
   const currentYear = new Date().getFullYear();
-  const positionCopy = targetPosition && needWeight > 0
+  const positionCopy = specialTeamsUpgradeReason
+    ? specialTeamsUpgradeReason
+    : targetPosition && needWeight > 0
     ? `${targetPosition} matches your roster-depth need`
     : `${player.pos} is the best dynasty/role shot available`;
   const ageCopy = age ? `${age} years old` : null;
-  const rankCopy = [
+  const rankCopy = specialTeamsUpgradeReason ? null : [
     dynastyRank ? `Dynasty ${dynastyRank}` : null,
     seasonRank ? `Season ${seasonRank}` : null,
   ].filter(Boolean).join(' / ') || null;
@@ -5880,11 +7875,24 @@ function buildWaiverRecommendationContext({
     viewerPositionCounts
   );
   const needWeights = getWaiverNeedWeights(viewerIntel, positionDepth, viewerManager);
+  const specialTeamsUpgrades = buildWaiverSpecialTeamsUpgradeReads({
+    data,
+    viewerPositionCounts,
+    leagueDiagnostics,
+    playerDetailsById,
+  });
+  Object.values(specialTeamsUpgrades).forEach((upgrade) => {
+    if (upgrade) needWeights[upgrade.position] += 920;
+  });
   const isDynastyLeague = (leagueDiagnostics?.valueMode || 'dynasty') === 'dynasty';
   const targetPositions = WAIVER_POSITIONS
     .filter((position) => needWeights[position] > 0)
     .sort((a, b) => needWeights[b] - needWeights[a]);
-  const recommendationLimit = Math.max(1, Math.min(WAIVER_RECOMMENDATION_LIMIT, openRosterSpots || 2));
+  const desiredRecommendationCount = Math.max(
+    WAIVER_RECOMMENDATION_MINIMUM,
+    openRosterSpots > 0 ? openRosterSpots + 1 : WAIVER_RECOMMENDATION_MINIMUM
+  );
+  const recommendationLimit = Math.min(WAIVER_RECOMMENDATION_LIMIT, desiredRecommendationCount);
   const recommendations = collectWaiverCandidates(data)
     .map((player) => {
       const pos = isWaiverPosition(player.pos) ? player.pos : null;
@@ -5899,6 +7907,10 @@ function buildWaiverRecommendationContext({
       const depthOrder = Number(details?.depthChartOrder || 0);
       const needWeight = pos ? needWeights[pos] : 0;
       const isSpecialTeams = pos === 'K' || pos === 'DEF';
+      const specialTeamsUpgrade = pos === 'K' || pos === 'DEF'
+        ? specialTeamsUpgrades[pos]
+        : null;
+      const isSpecialTeamsUpgrade = specialTeamsUpgrade?.playerId === player.player_id;
       const youthScore = age && age <= 22 ? 560 : age && age <= 25 ? 320 : age && age >= 29 ? -260 : 0;
       const dynastyRankScore = dynastyRankNumber ? Math.max(0, 760 - dynastyRankNumber * 5.4) : 0;
       const seasonRankScore = seasonRankNumber ? Math.max(0, 360 - seasonRankNumber * 3.1) : 0;
@@ -5907,7 +7919,8 @@ function buildWaiverRecommendationContext({
       const trendScore = Math.min(player.count || 0, 360);
       const dynastyValueScore = Math.min(dynastyValue / 3.8, 1400);
       const seasonValueScore = Math.min(seasonValue / 9, 520);
-      const specialTeamsDynastyPenalty = isDynastyLeague && isSpecialTeams ? -2400 : 0;
+      const specialTeamsUpgradeScore = isSpecialTeamsUpgrade ? 2100 : 0;
+      const specialTeamsDynastyPenalty = isDynastyLeague && isSpecialTeams && !isSpecialTeamsUpgrade ? -2400 : 0;
       const score = needWeight
         + dynastyValueScore
         + seasonValueScore
@@ -5917,6 +7930,7 @@ function buildWaiverRecommendationContext({
         + rookieScore
         + rolePathScore
         + trendScore
+        + specialTeamsUpgradeScore
         + specialTeamsDynastyPenalty;
 
       return {
@@ -5930,6 +7944,7 @@ function buildWaiverRecommendationContext({
           targetPosition: pos,
           needWeight,
           openRosterSpots,
+          specialTeamsUpgradeReason: isSpecialTeamsUpgrade ? specialTeamsUpgrade?.reason : null,
         }),
       };
     })
@@ -5946,8 +7961,13 @@ function buildWaiverRecommendationContext({
   const targetCopy = targetPositions.length
     ? `Priority lean: ${targetPositions.slice(0, 3).join(', ')} based on roster depth.`
     : 'Priority lean: best available dynasty stash because no single position is screaming for depth.';
+  const featuredRecommendationCount = Math.min(WAIVER_RECOMMENDATION_MINIMUM, recommendations.length);
+  const featuredRecommendationCopy = recommendations
+    .slice(0, featuredRecommendationCount)
+    .map((recommendation) => `${recommendation.player.name}: ${recommendation.reason}`)
+    .join(' Next: ');
   const summary = recommendations.length
-    ? `${openSpotCopy}${irSpotCopy} Highlighted cards prioritize young dynasty value, useful season-rank paths, trend volume, and depth-chart clues. ${targetCopy}`
+    ? `${openSpotCopy}${irSpotCopy} Suggested pickup${featuredRecommendationCount > 1 ? 's' : ''}: ${featuredRecommendationCopy}. ${targetCopy}`
     : null;
 
   return {
@@ -6000,7 +8020,7 @@ export function WaiverIntelligencePanel({
   const baseCards = [
     { label: 'Highest Available', player: data.highestKtcAvailable },
     ...Object.entries(data.bestAvailableByPosition).map(([pos, player]) => ({ label: `Best ${pos}`, player })),
-    ...data.bestTaxiStashes.map((player, index) => ({ label: `Taxi Stash ${index + 1}`, player })),
+    ...data.bestTaxiStashes.slice(0, 2).map((player, index) => ({ label: `Taxi Stash ${index + 1}`, player })),
   ].filter((card): card is { label: string; player: TrendingPlayer } => Boolean(card.player));
   const basePlayerIds = new Set(baseCards.map((card) => card.player.player_id));
   const suggestedCards = recommendationContext.recommendations
@@ -6069,9 +8089,6 @@ export function WaiverIntelligencePanel({
                 {recommendation && recommendationContext.openRosterSpots > 0 && <span>Active Spot Fit</span>}
                 {value > 0 && <span className="waiver-intel-value-pill">{formatCompactValue(value)}</span>}
               </div>
-              {recommendation && (
-                <p className="waiver-intel-recommendation-note">{recommendation.reason}</p>
-              )}
             </button>
           );
         })}
@@ -6090,21 +8107,29 @@ export function WaiverIntelligencePanel({
 
 export function RecentTransactionsPanel({
   data,
+  waiverIntelligence,
   managerAvatars,
   playerDetailsById,
   leagueId,
   leagueLogo,
+  leagueValueMode = 'dynasty',
 }: {
   data?: ReportData['recentTransactions'];
+  waiverIntelligence?: ReportData['waiverIntelligence'];
   managerAvatars?: ManagerAvatars;
   playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
+  leagueValueMode?: ReportData['leagueValueMode'];
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
   const [transactionSort, setTransactionSort] = useState<RecentTransactionSort>('add');
   const transactionGroups = useMemo(() => buildRecentTransactionGroups(data || [], transactionSort), [data, transactionSort]);
+  const waiverCandidates = useMemo(
+    () => waiverIntelligence ? collectWaiverCandidates(waiverIntelligence) : [],
+    [waiverIntelligence]
+  );
   if (!data?.length) return null;
 
   const openTransactionPlayer = (player: NonNullable<ReportData['recentTransactions']>[number]['addedPlayer']) => {
@@ -6117,6 +8142,24 @@ export function RecentTransactionsPanel({
       playerDetails: player.playerDetails,
       playerDetailsById,
       currentPositionRank: player.currentPositionRank,
+      valueMode: leagueValueMode,
+    }));
+  };
+
+  const openSuggestedAddPlayer = (player: TrendingPlayer) => {
+    const details = getWaiverPlayerDetails(player, playerDetailsById);
+    const leagueRank = getTransactionPlayerRank({ ...player, playerDetails: details || player.playerDetails }, leagueValueMode);
+    setSelectedPlayer(buildPlayerModalData({
+      playerId: player.player_id,
+      playerName: player.name,
+      playerPos: player.pos,
+      value: getWaiverPlayerValue(player, playerDetailsById),
+      playerDetails: details,
+      playerDetailsById,
+      currentPositionRank: leagueRank,
+      manager: player.owner || null,
+      managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
+      valueMode: leagueValueMode,
     }));
   };
 
@@ -6147,6 +8190,71 @@ export function RecentTransactionsPanel({
           <span>{formatCompactValue(player.ktcValue)}</span>
         </div>
       </button>
+    );
+  };
+
+  const renderSuggestedAdd = (player: TrendingPlayer, transaction: RecentTransactionRow) => {
+    const details = getWaiverPlayerDetails(player, playerDetailsById);
+    const value = getWaiverPlayerValue(player, playerDetailsById);
+    const rank = getTransactionPlayerRank({ ...player, playerDetails: details || player.playerDetails }, leagueValueMode);
+
+    return (
+      <button
+        type="button"
+        className="player-team-tile recent-transaction-player recent-transaction-player-suggestion"
+        style={getTeamTileStyle(details?.team || player.team)}
+        onClick={() => openSuggestedAddPlayer(player)}
+      >
+        <div className="recent-transaction-player-head">
+          <span className="recent-transaction-player-label recent-transaction-player-label-suggestion">
+            Better Add
+          </span>
+        </div>
+        <div className="recent-transaction-player-main">
+          <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
+        </div>
+        <div className="recent-transaction-player-pills">
+          <TeamLogoPill team={details?.team || player.team} />
+          <PositionRankPill rank={rank || player.pos} />
+          <span>{formatCompactValue(value)}</span>
+        </div>
+        <p className="recent-transaction-player-note">
+          {buildSuggestedBetterAddReason(transaction, player, leagueValueMode)}
+        </p>
+      </button>
+    );
+  };
+
+  const renderBetterCutReason = (transaction: RecentTransactionRow) => {
+    if (!transaction.droppedPlayer || !transaction.alternativeDrop) return null;
+    const insight = buildBetterCutInsight(transaction, leagueValueMode);
+    return (
+      <div className="recent-transaction-insight-card recent-transaction-insight-card-alt">
+        <div className="recent-transaction-insight-head">
+          <span className="recent-transaction-insight-title">Why Better Cut</span>
+          <span className="recent-transaction-insight-lens">{insight.lensLabel}</span>
+        </div>
+        <div className="recent-transaction-insight-matchup">
+          <span className="recent-transaction-insight-chip recent-transaction-insight-chip-keep">
+            <ShieldCheck aria-hidden="true" />
+            <span>
+              <em>Keep</em>
+              <strong>{insight.keepName}</strong>
+            </span>
+            <b>{insight.keepRank}</b>
+          </span>
+          <ArrowRight className="recent-transaction-insight-arrow" aria-hidden="true" />
+          <span className="recent-transaction-insight-chip recent-transaction-insight-chip-cut">
+            <Scissors aria-hidden="true" />
+            <span>
+              <em>Cut</em>
+              <strong>{insight.cutName}</strong>
+            </span>
+            <b>{insight.cutRank}</b>
+          </span>
+        </div>
+        <p>{insight.reason}</p>
+      </div>
     );
   };
 
@@ -6196,26 +8304,34 @@ export function RecentTransactionsPanel({
 
             {isExpanded && (
               <div className="recent-transaction-day-panel">
-                {group.transactions.map((transaction) => (
-                  <div key={transaction.id} className="report-card recent-transaction-card">
-                    <div className="recent-transaction-top">
-                      <div className="recent-transaction-manager">
-                        <ManagerNameWithAvatar avatarUrl={managerAvatars?.[transaction.manager]} managerName={transaction.manager} />
+                {group.transactions.map((transaction) => {
+                  const suggestedBetterAdd = transaction.addedPlayer && !transaction.droppedPlayer
+                    ? getRecentTransactionSuggestedBetterAdd(transaction, waiverCandidates, playerDetailsById)
+                    : null;
+
+                  return (
+                    <div key={transaction.id} className="report-card recent-transaction-card">
+                      <div className="recent-transaction-top">
+                        <div className="recent-transaction-manager">
+                          <ManagerNameWithAvatar avatarUrl={managerAvatars?.[transaction.manager]} managerName={transaction.manager} />
+                        </div>
+                        <div className="recent-transaction-meta">
+                          <span className={`recent-transaction-type-pill ${transaction.type === 'Free Agent' ? 'recent-transaction-type-fa' : 'recent-transaction-type-waiver'}`}>
+                            {transaction.type === 'Free Agent' ? 'FA' : 'Waiver'}
+                          </span>
+                          {transaction.bidAmount !== null && <strong>${transaction.bidAmount}</strong>}
+                        </div>
                       </div>
-                      <div className="recent-transaction-meta">
-                        <span className={`recent-transaction-type-pill ${transaction.type === 'Free Agent' ? 'recent-transaction-type-fa' : 'recent-transaction-type-waiver'}`}>
-                          {transaction.type === 'Free Agent' ? 'FA' : 'Waiver'}
-                        </span>
-                        {transaction.bidAmount !== null && <strong>${transaction.bidAmount}</strong>}
+                      <div className="recent-transaction-player-grid">
+                        {renderPlayerRow('Added', transaction.addedPlayer, 'add')}
+                        {renderPlayerRow('Dropped', transaction.droppedPlayer, 'drop')}
+                        {renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt')}
+                        {transaction.alternativeDrop && renderBetterCutReason(transaction)}
+                        {suggestedBetterAdd && renderSuggestedAdd(suggestedBetterAdd, transaction)}
                       </div>
                     </div>
-                    <div className="recent-transaction-player-grid">
-                      {renderPlayerRow('Added', transaction.addedPlayer, 'add')}
-                      {renderPlayerRow('Dropped', transaction.droppedPlayer, 'drop')}
-                      {transaction.droppedPlayer && renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt')}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -6235,6 +8351,162 @@ export function RecentTransactionsPanel({
 
 type RecentTransactionRow = NonNullable<ReportData['recentTransactions']>[number];
 type RecentTransactionSort = 'add' | 'drop';
+
+function getRecentTransactionSuggestedBetterAdd(
+  transaction: RecentTransactionRow,
+  candidates: TrendingPlayer[],
+  playerDetailsById?: PlayerDetailsById,
+): TrendingPlayer | null {
+  const addedPlayer = transaction.addedPlayer;
+  if (!addedPlayer || !candidates.length) return null;
+
+  const ignoredPlayerIds = new Set([
+    addedPlayer.player_id,
+    transaction.droppedPlayer?.player_id,
+    transaction.alternativeDrop?.player_id,
+  ].filter(Boolean));
+  const addedValue = addedPlayer.ktcValue || 0;
+  const sortedCandidates = candidates
+    .filter((player) => player.player_id && !ignoredPlayerIds.has(player.player_id))
+    .map((player) => ({
+      player,
+      value: getWaiverPlayerValue(player, playerDetailsById),
+      samePosition: player.pos === addedPlayer.pos,
+    }))
+    .filter(({ value }) => value > 0)
+    .sort((a, b) => {
+      const valueDiff = b.value - a.value;
+      if (valueDiff !== 0) return valueDiff;
+      return Number(b.samePosition) - Number(a.samePosition);
+    });
+
+  return sortedCandidates.find(({ value }) => value > addedValue + 100)?.player
+    || sortedCandidates[0]?.player
+    || null;
+}
+
+type TransactionInsightPlayer = {
+  name: string;
+  pos?: string | null;
+  currentPositionRank?: string | null;
+  playerDetails?: PlayerDetails;
+};
+
+function getLeagueValueLensLabel(leagueValueMode: ReportData['leagueValueMode'] = 'dynasty'): string {
+  if (leagueValueMode === 'redraft') return 'Redraft Value';
+  if (leagueValueMode === 'keeper') return 'Keeper Value';
+  return 'Dynasty Value';
+}
+
+function getLeagueValueLensCopy(leagueValueMode: ReportData['leagueValueMode'] = 'dynasty'): string {
+  if (leagueValueMode === 'redraft') return 'redraft';
+  if (leagueValueMode === 'keeper') return 'keeper';
+  return 'dynasty';
+}
+
+function getTransactionPlayerRank(
+  player: TransactionInsightPlayer | null | undefined,
+  leagueValueMode: ReportData['leagueValueMode'] = 'dynasty',
+): string {
+  if (!player) return '-';
+  const profile = player.playerDetails?.valueProfile;
+  if (leagueValueMode === 'redraft') {
+    return player.currentPositionRank
+      || profile?.seasonPositionRank
+      || profile?.fantasyProsPositionRank
+      || profile?.dynastyPositionRank
+      || player.pos
+      || '-';
+  }
+  if (leagueValueMode === 'keeper') {
+    return player.currentPositionRank
+      || profile?.balancedPositionRank
+      || profile?.dynastyPositionRank
+      || profile?.seasonPositionRank
+      || player.pos
+      || '-';
+  }
+  return player.currentPositionRank
+    || profile?.dynastyPositionRank
+    || profile?.balancedPositionRank
+    || profile?.seasonPositionRank
+    || player.pos
+    || '-';
+}
+
+function buildBetterCutInsight(
+  transaction: RecentTransactionRow,
+  leagueValueMode: ReportData['leagueValueMode'] = 'dynasty',
+) {
+  const droppedPlayer = transaction.droppedPlayer;
+  const alternativeDrop = transaction.alternativeDrop;
+  const keepRank = getTransactionPlayerRank(droppedPlayer, leagueValueMode);
+  const cutRank = getTransactionPlayerRank(alternativeDrop, leagueValueMode);
+  const lensCopy = getLeagueValueLensCopy(leagueValueMode);
+  const droppedRankNumber = parsePositionRankValue(keepRank);
+  const cutRankNumber = parsePositionRankValue(cutRank);
+  const samePosition = Boolean(
+    droppedPlayer?.pos
+    && alternativeDrop?.pos
+    && droppedPlayer.pos === alternativeDrop.pos
+  );
+
+  let reason = `${alternativeDrop?.name || 'The alternate cut'} was the cleaner churn piece than ${droppedPlayer?.name || 'the logged drop'} by ${lensCopy} roster fit.`;
+
+  if (droppedPlayer && alternativeDrop && cutRankNumber && droppedRankNumber) {
+    if (samePosition && cutRankNumber > droppedRankNumber) {
+      reason = `${alternativeDrop.name} sits behind ${droppedPlayer.name} in the ${lensCopy} position stack, making the lower-ranked ${alternativeDrop.pos} the cleaner churn.`;
+    } else if (samePosition && cutRankNumber < droppedRankNumber) {
+      reason = `${alternativeDrop.name} is actually ahead by ${lensCopy} positional rank, so this cut only works if ${droppedPlayer.name}'s roster role was easier to replace.`;
+    } else if (!samePosition && cutRankNumber > droppedRankNumber) {
+      reason = `${alternativeDrop.name}'s ${cutRank} profile was the softer roster hold than ${droppedPlayer.name}'s ${keepRank} profile.`;
+    } else {
+      reason = `${alternativeDrop.name} was the better churn target only if the roster needed ${droppedPlayer.pos} depth more than another ${alternativeDrop.pos} stash.`;
+    }
+  } else if (droppedPlayer && alternativeDrop && cutRank !== '-' && keepRank !== '-') {
+    reason = `${alternativeDrop.name} carried the cleaner ${lensCopy} cut profile at ${cutRank}; ${droppedPlayer.name} still showed as ${keepRank}.`;
+  } else if (droppedPlayer && alternativeDrop && alternativeDrop.pos !== droppedPlayer.pos) {
+    reason = `This is a roster-shape call: keep the harder-to-replace ${droppedPlayer.pos} depth and churn the extra ${alternativeDrop.pos} stash.`;
+  }
+
+  return {
+    lensLabel: getLeagueValueLensLabel(leagueValueMode),
+    keepName: droppedPlayer?.name || 'Logged drop',
+    keepRank,
+    cutName: alternativeDrop?.name || 'Alt cut',
+    cutRank,
+    reason,
+  };
+}
+
+function buildSuggestedBetterAddReason(
+  transaction: RecentTransactionRow,
+  suggestedPlayer: TrendingPlayer,
+  leagueValueMode: ReportData['leagueValueMode'] = 'dynasty',
+): string {
+  const addedPlayer = transaction.addedPlayer;
+  const lensCopy = getLeagueValueLensCopy(leagueValueMode);
+  const suggestedRank = getTransactionPlayerRank(suggestedPlayer, leagueValueMode);
+  const addedRank = getTransactionPlayerRank(addedPlayer, leagueValueMode);
+  const suggestedRankNumber = parsePositionRankValue(suggestedRank);
+  const addedRankNumber = parsePositionRankValue(addedRank);
+
+  if (addedPlayer && suggestedRankNumber && addedRankNumber) {
+    if (suggestedPlayer.pos === addedPlayer.pos && suggestedRankNumber < addedRankNumber) {
+      return `${suggestedPlayer.name} is the cleaner ${lensCopy} stash at ${suggestedRank}; ${addedPlayer.name} sits at ${addedRank}.`;
+    }
+    if (suggestedRankNumber < addedRankNumber) {
+      return `Better ${lensCopy} positional profile: ${suggestedRank} versus ${addedPlayer.name} at ${addedRank}.`;
+    }
+  }
+  if (addedPlayer && suggestedPlayer.pos === addedPlayer.pos && suggestedRank !== '-') {
+    return `Cleaner same-position stash by ${lensCopy} rank at ${suggestedRank}.`;
+  }
+  if (suggestedRank !== '-') {
+    return `Best remaining waiver option by ${lensCopy} positional profile at ${suggestedRank}.`;
+  }
+  return `Best remaining waiver option by current roster profile.`;
+}
 
 function buildRecentTransactionGroups(data: RecentTransactionRow[], sortMode: RecentTransactionSort) {
   const groups = new Map<string, {

@@ -88,6 +88,124 @@ export const COLLEGE_TEAM_COLORS: Record<string, { primary: string; secondary: s
   WISCONSIN: { primary: '#C5050C', secondary: '#111111', accent: '#FFFFFF' },
 };
 
+const COLLEGE_NFL_DRAFT_BUZZ_LOGO_SLUGS: Record<string, string> = {
+  ALABAMA: 'alabama-crimson-tide',
+  'ARIZONA STATE': 'arizona-state-sun-devils',
+  CALIFORNIA: 'california-golden-bears',
+  CLEMSON: 'clemson-tigers',
+  FLORIDA: 'florida-gators',
+  GEORGIA: 'georgia-bulldogs',
+  INDIANA: 'indiana-hoosiers',
+  LOUISVILLE: 'louisville-cardinals',
+  LSU: 'lsu-tigers',
+  MIAMI: 'miami-hurricanes',
+  MICHIGAN: 'michigan-wolverines',
+  MISSISSIPPI: 'ole-miss-rebels',
+  MISSOURI: 'missouri-tigers',
+  'OHIO STATE': 'ohio-state-buckeyes',
+  TENNESSEE: 'tennessee-volunteers',
+  TEXAS: 'texas-longhorns',
+  'TEXAS A&M': 'texas-aandm-aggies',
+  'TEXAS TECH': 'texas-tech-red-raiders',
+};
+
+const COLLEGE_ESPN_LOGO_IDS: Record<string, string> = {
+  ALABAMA: '333',
+  ARIZONA: '12',
+  'ARIZONA STATE': '9',
+  ARKANSAS: '8',
+  AUBURN: '2',
+  BAYLOR: '239',
+  'BOISE STATE': '68',
+  'BOSTON COLLEGE': '103',
+  'BOWLING GREEN': '189',
+  BYU: '252',
+  CALIFORNIA: '25',
+  CINCINNATI: '2132',
+  'COASTAL CAROLINA': '324',
+  'COLORADO STATE': '36',
+  CLEMSON: '228',
+  COLORADO: '38',
+  CONNECTICUT: '41',
+  DUKE: '150',
+  'EAST CAROLINA': '151',
+  'FLORIDA ATLANTIC': '2226',
+  'FLORIDA INTERNATIONAL': '2229',
+  FLORIDA: '57',
+  'FLORIDA STATE': '52',
+  'FRESNO STATE': '278',
+  GEORGIA: '61',
+  'GEORGIA STATE': '2247',
+  'GEORGIA TECH': '59',
+  HOUSTON: '248',
+  ILLINOIS: '356',
+  INDIANA: '84',
+  IOWA: '2294',
+  'IOWA STATE': '66',
+  KANSAS: '2305',
+  'KANSAS STATE': '2306',
+  KENTUCKY: '96',
+  LIBERTY: '2335',
+  LSU: '99',
+  LOUISVILLE: '97',
+  MARYLAND: '120',
+  MEMPHIS: '235',
+  MIAMI: '2390',
+  MICHIGAN: '130',
+  'MICHIGAN STATE': '127',
+  MINNESOTA: '135',
+  MISSISSIPPI: '145',
+  'MISSISSIPPI STATE': '344',
+  MISSOURI: '142',
+  NEBRASKA: '158',
+  NEVADA: '2440',
+  'NORTH CAROLINA': '153',
+  'NORTH CAROLINA STATE': '152',
+  'NORTH DAKOTA STATE': '2449',
+  'NORTH TEXAS': '249',
+  'NOTRE DAME': '87',
+  'OHIO STATE': '194',
+  OKLAHOMA: '201',
+  'OKLAHOMA STATE': '197',
+  OREGON: '2483',
+  'PENN STATE': '213',
+  PITTSBURGH: '221',
+  PURDUE: '2509',
+  RICE: '242',
+  RUTGERS: '164',
+  'SAN DIEGO STATE': '21',
+  'SAN JOSE STATE': '23',
+  SMU: '2567',
+  'SOUTH DAKOTA STATE': '2571',
+  'SOUTH CAROLINA': '2579',
+  STANFORD: '24',
+  SYRACUSE: '183',
+  TCU: '2628',
+  TENNESSEE: '2633',
+  TEXAS: '251',
+  'TEXAS A&M': '245',
+  'TEXAS TECH': '2641',
+  TROY: '2653',
+  TULANE: '2655',
+  UCLA: '26',
+  UCF: '2116',
+  UCONN: '41',
+  USC: '30',
+  UTAH: '254',
+  'UTAH STATE': '328',
+  UTEP: '2638',
+  UTSA: '2636',
+  VANDERBILT: '238',
+  VIRGINIA: '258',
+  'VIRGINIA TECH': '259',
+  'WAKE FOREST': '154',
+  WASHINGTON: '264',
+  'WASHINGTON STATE': '265',
+  'WEST VIRGINIA': '277',
+  WISCONSIN: '275',
+  WYOMING: '2751',
+};
+
 export function getTeamTileStyle(team?: string | null): CSSProperties | undefined {
   const teamColors = NFL_TEAM_COLORS[normalizeNflTeamAbbr(team) || ''];
   if (!teamColors) return undefined;
@@ -141,6 +259,9 @@ export function normalizeCollegeName(college?: string | null): string | null {
     UGA: 'GEORGIA',
     LSU: 'LSU',
     MIA: 'MIAMI',
+    'MIAMI (FL)': 'MIAMI',
+    'MIAMI FL': 'MIAMI',
+    MIAMI_FL: 'MIAMI',
     MICH: 'MICHIGAN',
     'MICHIGAN ST': 'MICHIGAN STATE',
     MICHIGAN_ST: 'MICHIGAN STATE',
@@ -153,6 +274,9 @@ export function normalizeCollegeName(college?: string | null): string | null {
     MISSISSIPPI_ST: 'MISSISSIPPI STATE',
     MISSISSIPPI_STATE: 'MISSISSIPPI STATE',
     UNC: 'NORTH CAROLINA',
+    'NC STATE': 'NORTH CAROLINA STATE',
+    NC_STATE: 'NORTH CAROLINA STATE',
+    NCSU: 'NORTH CAROLINA STATE',
     ND: 'NOTRE DAME',
     'OHIO ST': 'OHIO STATE',
     OHIO_ST: 'OHIO STATE',
@@ -177,12 +301,43 @@ export function normalizeCollegeName(college?: string | null): string | null {
     TEXAS_AM: 'TEXAS A&M',
     TEXAS_TECH: 'TEXAS TECH',
     TTU: 'TEXAS TECH',
+    UCONN: 'UCONN',
+    UCF: 'UCF',
+    'CENTRAL FLORIDA': 'UCF',
+    CENTRAL_FLORIDA: 'UCF',
+    FIU: 'FLORIDA INTERNATIONAL',
+    FAU: 'FLORIDA ATLANTIC',
     WASH: 'WASHINGTON',
     WISC: 'WISCONSIN',
   };
 
   const compactAliasKey = normalized.replace(/&/g, 'AND').replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
   return aliases[normalized] || aliases[compactAliasKey] || normalized;
+}
+
+export function getCollegeInitials(college?: string | null): string {
+  const words = String(college || '')
+    .replace(/&/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+  const initials = words.slice(0, 2).map((word) => word[0]).join('').toUpperCase();
+  return initials || 'C';
+}
+
+export function getCollegeLogoUrl(college?: string | null, preferredLogoUrl?: string | null): string | null {
+  const preferred = preferredLogoUrl?.trim();
+  if (preferred) return preferred;
+
+  const normalized = normalizeCollegeName(college);
+  if (!normalized) return null;
+
+  const draftBuzzSlug = COLLEGE_NFL_DRAFT_BUZZ_LOGO_SLUGS[normalized];
+  if (draftBuzzSlug) {
+    return `https://www.nfldraftbuzz.com/Content/collmascots/${draftBuzzSlug}.png`;
+  }
+
+  const espnId = COLLEGE_ESPN_LOGO_IDS[normalized];
+  return espnId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${espnId}.png` : null;
 }
 
 export function getNflTeamLogoUrl(team?: string | null): string | null {

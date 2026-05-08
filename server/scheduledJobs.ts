@@ -2,7 +2,7 @@ import { storeKtcSnapshot } from './ktcSnapshotJob';
 import { shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from './prospectSource';
 
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
-const SNAPSHOT_HOURS = [6, 18];
+const SNAPSHOT_HOURS = [6, 12, 18];
 const PROSPECT_SNAPSHOT_HOUR = 7;
 
 function getPacificDateParts(date: Date) {
@@ -27,7 +27,7 @@ function getPacificDateParts(date: Date) {
 
 /**
  * Initialize scheduled jobs
- * Runs KTC snapshot storage every day at 6 AM and 6 PM Pacific.
+ * Runs KTC snapshot storage every day at 6 AM, noon, and 6 PM Pacific.
  */
 export function initializeScheduledJobs() {
   let lastSnapshotRunKey: string | null = null;
