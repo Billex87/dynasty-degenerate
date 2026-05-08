@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,25 +17,24 @@ import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { SupportButton } from '@/components/SupportButton';
 import { FeedbackButton } from '@/components/FeedbackButton';
-import {
-  WeeklyMomentumTable,
-  TradeWarRoom,
-  TradeProfitLeaderboardTable,
-  TradeHistoryTable,
-  ManagerPositionCountsTable,
-  OwnerIntelMatrix,
-  LeagueCommandCenter,
-  TradeMarketRadar,
-  TradeTheftDetector,
-  TrendingPlayersTable,
-  WaiverIntelligencePanel,
-  RecentTransactionsPanel,
-} from '@/components/ReportTables';
-import { DraftAnalysis } from '@/components/DraftAnalysis';
-import { RankingsBoard } from '@/components/RankingsBoard';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import { ReportSectionHeader } from '@/components/reportPrimitives';
 import type { ReportData } from '@shared/types';
+
+const DraftAnalysis = lazy(() => import('@/components/DraftAnalysis').then((module) => ({ default: module.DraftAnalysis })));
+const RankingsBoard = lazy(() => import('@/components/RankingsBoard').then((module) => ({ default: module.RankingsBoard })));
+const WeeklyMomentumTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.WeeklyMomentumTable })));
+const TradeWarRoom = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeWarRoom })));
+const TradeProfitLeaderboardTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeProfitLeaderboardTable })));
+const TradeHistoryTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeHistoryTable })));
+const ManagerPositionCountsTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.ManagerPositionCountsTable })));
+const OwnerIntelMatrix = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.OwnerIntelMatrix })));
+const LeagueCommandCenter = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.LeagueCommandCenter })));
+const TradeMarketRadar = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeMarketRadar })));
+const TradeTheftDetector = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeTheftDetector })));
+const TrendingPlayersTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TrendingPlayersTable })));
+const WaiverIntelligencePanel = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.WaiverIntelligencePanel })));
+const RecentTransactionsPanel = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.RecentTransactionsPanel })));
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
 const REPORT_CACHE_DATA_VERSION = 'draftbuzz-history-v1';
@@ -80,6 +79,14 @@ function isPrivilegedReportViewer(...identifiers: Array<string | null | undefine
   return identifiers
     .map(normalizeViewerIdentifier)
     .some((value) => value && PRIVILEGED_REPORT_VIEWERS.has(value));
+}
+
+function ReportSectionLoadingFallback() {
+  return (
+    <div className="rankings-empty-state" role="status" aria-live="polite">
+      Loading report section...
+    </div>
+  );
 }
 
 function normalizeAdminViewMode(value: unknown): AdminViewMode | null {
@@ -1853,6 +1860,7 @@ export default function Home() {
               </TabsTrigger>
             </TabsList>
 
+            <Suspense fallback={<ReportSectionLoadingFallback />}>
             <TabsContent value="overview" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
                 {(() => {
@@ -2139,6 +2147,7 @@ export default function Home() {
                 leagueOverview={reportData.leagueOverview}
               />
             </TabsContent>
+            </Suspense>
           </Tabs>
         </div>
 
