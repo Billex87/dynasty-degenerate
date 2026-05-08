@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TeamLogoPill } from './TeamLogoPill';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
-import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
+import { EmptyState, ManagerBadge } from './reportPrimitives';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle, getTeamTileStyle, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
@@ -218,13 +218,11 @@ function RankingOwnerChip({
   managerAvatars?: ReportData['managerAvatars'];
 }) {
   if (!owner) {
-    return <span className="ranking-owner-pill ranking-owner-pill-fa">FA</span>;
+    return <ManagerBadge className="ranking-owner-chip ranking-owner-pill-fa" emptyLabel="FA" />;
   }
 
   return (
-    <span className="ranking-owner-chip">
-      <ManagerNameWithAvatar avatarUrl={managerAvatars?.[owner]} managerName={owner} />
-    </span>
+    <ManagerBadge className="ranking-owner-chip" avatarUrl={managerAvatars?.[owner]} managerName={owner} />
   );
 }
 
@@ -235,7 +233,7 @@ function RankingOwnerAvatar({
   owner?: string | null;
   managerAvatars?: ReportData['managerAvatars'];
 }) {
-  if (!owner) return <span className="ranking-owner-avatar-fallback">FA</span>;
+  if (!owner) return <span className="ranking-owner-avatar-fallback" aria-hidden="true">FA</span>;
   const avatarUrl = managerAvatars?.[owner];
   if (avatarUrl) {
     return <img src={avatarUrl} alt="" className="ranking-owner-avatar-only" loading="lazy" aria-hidden="true" />;
@@ -481,10 +479,10 @@ function DraftBuzzScoreboard({
     }
 
     return Array.from(deduped.values()).sort((a, b) => (
-      b.rating - a.rating
-      || a.draftYear - b.draftYear
-      || (a.overallRank || 9999) - (b.overallRank || 9999)
+      a.draftYear - b.draftYear
       || a.position.localeCompare(b.position)
+      || (a.overallRank || 9999) - (b.overallRank || 9999)
+      || b.rating - a.rating
       || a.name.localeCompare(b.name)
     ));
   }, [entries]);
@@ -493,6 +491,9 @@ function DraftBuzzScoreboard({
     Array.from(new Set(allRows.map((row) => row.draftYear).filter((year): year is number => Boolean(year))))
       .sort((a, b) => a - b)
   ), [allRows]);
+  const coverageLabel = draftClassOptions.length
+    ? `${draftClassOptions[0]}-${draftClassOptions[draftClassOptions.length - 1]} classes`
+    : null;
 
   useEffect(() => {
     if (selectedDraftClass && !draftClassOptions.includes(selectedDraftClass)) {
@@ -560,7 +561,10 @@ function DraftBuzzScoreboard({
           <div className="rankings-kicker">NFL Draft Buzz data archive</div>
           <h4>DraftBuzz Scores By Draft Year</h4>
         </div>
-        <span>{allRows.length.toLocaleString()} scored players</span>
+        <div className="draftbuzz-scoreboard__badges">
+          {coverageLabel ? <span>{coverageLabel}</span> : null}
+          <span>{allRows.length.toLocaleString()} scored players</span>
+        </div>
       </div>
 
       <div className="draftbuzz-year-summary" aria-label="Draft class totals">
@@ -579,7 +583,7 @@ function DraftBuzzScoreboard({
 
       <div className="draftbuzz-controls value-board__toolbar">
         <div className="rankings-search-wrap value-board__search">
-          <Search className="h-4 w-4" />
+          <Search className="h-4 w-4" aria-hidden="true" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -589,12 +593,13 @@ function DraftBuzzScoreboard({
         </div>
 
         <div className="rankings-control-group rankings-class-toggle" aria-label="Draft class filter">
-          <button type="button" className={!selectedDraftClass ? 'active' : ''} onClick={() => setSelectedDraftClass(null)}>All</button>
+          <button type="button" className={!selectedDraftClass ? 'active' : ''} aria-pressed={!selectedDraftClass} onClick={() => setSelectedDraftClass(null)}>All</button>
           {draftClassOptions.map((draftClass) => (
             <button
               key={draftClass}
               type="button"
               className={selectedDraftClass === draftClass ? 'active' : ''}
+              aria-pressed={selectedDraftClass === draftClass}
               onClick={() => setSelectedDraftClass(draftClass)}
             >
               {draftClass}
@@ -606,16 +611,19 @@ function DraftBuzzScoreboard({
           <button
             type="button"
             className={getPositionButtonClass('OVERALL', selectedPositions.length === 0)}
+            aria-label="Overall"
+            aria-pressed={selectedPositions.length === 0}
             onClick={() => setSelectedPositions([])}
           >
-            <span className="ranking-filter-label-full">Overall</span>
-            <span className="ranking-filter-label-compact">OVR</span>
+            <span className="ranking-filter-label-full" aria-hidden="true">Overall</span>
+            <span className="ranking-filter-label-compact" aria-hidden="true">OVR</span>
           </button>
           {DRAFT_BUZZ_POSITIONS.map((position) => (
             <button
               key={position}
               type="button"
               className={getPositionButtonClass(position, selectedPositions.includes(position))}
+              aria-pressed={selectedPositions.includes(position)}
               onClick={() => togglePosition(position)}
             >
               {position}
@@ -669,7 +677,7 @@ function DraftBuzzScoreboard({
       </div>
 
       {filteredRows.length === 0 ? (
-        <div className="rankings-empty-state">No Draft Buzz players match those filters.</div>
+        <EmptyState className="rankings-empty-state" title="No Draft Buzz players match those filters." />
       ) : (
         <div className="rankings-pagination" aria-label="Draft Buzz archive pagination">
           <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage <= 1}>
@@ -837,11 +845,14 @@ function RankingsTable({
           <h3>{config.title}</h3>
           <p>{config.description}</p>
           {activeProfileLabel ? (
-            <span className="rankings-active-profile">
-              <span className="rankings-active-profile-label">
+            <span
+              className="rankings-active-profile"
+              aria-label={`${isLeagueMatchedProfile ? 'League-matched type' : 'Selected type'}: ${activeProfileLabel}`}
+            >
+              <span className="rankings-active-profile-label" aria-hidden="true">
                 {isLeagueMatchedProfile ? 'League-matched type' : 'Selected type'}
               </span>
-              <span className="rankings-active-profile-label-mobile">
+              <span className="rankings-active-profile-label-mobile" aria-hidden="true">
                 {isLeagueMatchedProfile ? 'Matched' : 'Type'}
               </span>
               : {activeProfileLabel}
@@ -870,7 +881,7 @@ function RankingsTable({
         </div>
 
         <div className="rankings-search-wrap value-board__search">
-          <Search className="h-4 w-4" />
+          <Search className="h-4 w-4" aria-hidden="true" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -881,20 +892,21 @@ function RankingsTable({
 
         {config.board !== 'devy' ? (
           <div className="rankings-control-group rankings-sort-toggle value-board__sort">
-            <button type="button" className={sortMode === 'rank' ? 'active' : ''} onClick={() => setSortMode('rank')}>Rank</button>
-            <button type="button" className={sortMode === 'value' ? 'active' : ''} onClick={() => setSortMode('value')}>Value</button>
-            <button type="button" className={sortMode === 'movement' ? 'active' : ''} onClick={() => setSortMode('movement')}>7-Day</button>
+            <button type="button" className={sortMode === 'rank' ? 'active' : ''} aria-pressed={sortMode === 'rank'} onClick={() => setSortMode('rank')}>Rank</button>
+            <button type="button" className={sortMode === 'value' ? 'active' : ''} aria-pressed={sortMode === 'value'} onClick={() => setSortMode('value')}>Value</button>
+            <button type="button" className={sortMode === 'movement' ? 'active' : ''} aria-pressed={sortMode === 'movement'} onClick={() => setSortMode('movement')}>7-Day</button>
           </div>
         ) : null}
 
         {config.board === 'devy' && draftClassOptions.length ? (
           <div className="rankings-control-group rankings-class-toggle value-board__class" aria-label="Draft class filter">
-            <button type="button" className={!selectedDraftClass ? 'active' : ''} onClick={() => setSelectedDraftClass(null)}>All</button>
+            <button type="button" className={!selectedDraftClass ? 'active' : ''} aria-pressed={!selectedDraftClass} onClick={() => setSelectedDraftClass(null)}>All</button>
             {draftClassOptions.map((draftClass) => (
               <button
                 key={draftClass}
                 type="button"
                 className={selectedDraftClass === draftClass ? 'active' : ''}
+                aria-pressed={selectedDraftClass === draftClass}
                 onClick={() => setSelectedDraftClass(draftClass)}
               >
                 {draftClass}
@@ -907,22 +919,26 @@ function RankingsTable({
           <button
             type="button"
             className={getPositionButtonClass('OVERALL', selectedPositions.length === 0)}
+            aria-label="Overall"
+            aria-pressed={selectedPositions.length === 0}
             onClick={selectOverall}
           >
-            <span className="ranking-filter-label-full">Overall</span>
-            <span className="ranking-filter-label-compact">OVR</span>
+            <span className="ranking-filter-label-full" aria-hidden="true">Overall</span>
+            <span className="ranking-filter-label-compact" aria-hidden="true">OVR</span>
           </button>
           {POSITION_FILTERS.filter((filter) => !config.hidePicks || filter.key !== 'PICK').map((filter) => (
             <button
               key={filter.key}
               type="button"
               className={getPositionButtonClass(filter.key, selectedPositions.includes(filter.key) || (filter.key === 'PICK' && includePicksWithOverall && selectedPositions.length === 0))}
+              aria-label={filter.label}
+              aria-pressed={selectedPositions.includes(filter.key) || (filter.key === 'PICK' && includePicksWithOverall && selectedPositions.length === 0)}
               onClick={() => togglePosition(filter.key)}
             >
               {filter.compactLabel && filter.compactLabel !== filter.label ? (
                 <>
-                  <span className="ranking-filter-label-full">{filter.label}</span>
-                  <span className="ranking-filter-label-compact">{filter.compactLabel}</span>
+                  <span className="ranking-filter-label-full" aria-hidden="true">{filter.label}</span>
+                  <span className="ranking-filter-label-compact" aria-hidden="true">{filter.compactLabel}</span>
                 </>
               ) : filter.label}
             </button>
@@ -959,7 +975,7 @@ function RankingsTable({
       </div>
 
       {filteredRows.length === 0 ? (
-        <div className="rankings-empty-state">No rankings match those filters.</div>
+        <EmptyState className="rankings-empty-state" title="No rankings match those filters." />
       ) : (
         <div className="rankings-pagination" aria-label={`${config.title} pagination`}>
           <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage <= 1}>
@@ -1087,9 +1103,7 @@ export function RankingsBoard({
 
   if (!rankings || !rankings.profileOptions?.length) {
     return (
-      <div className="rankings-empty-state">
-        Rankings are not available for this report yet.
-      </div>
+      <EmptyState className="rankings-empty-state" title="Rankings are not available for this report yet." />
     );
   }
 
@@ -1132,7 +1146,7 @@ export function RankingsBoard({
         rankings.draftBuzzScoreboard?.length ? (
           <DraftBuzzScoreboard entries={rankings.draftBuzzScoreboard} onSelectEntry={handleSelectDraftBuzzEntry} />
         ) : (
-          <div className="rankings-empty-state">NFL Draft Buzz archive is not available for this report yet.</div>
+          <EmptyState className="rankings-empty-state" title="NFL Draft Buzz archive is not available for this report yet." />
         )
       ) : null}
 

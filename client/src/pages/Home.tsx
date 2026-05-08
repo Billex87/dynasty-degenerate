@@ -34,11 +34,12 @@ import {
 import { DraftAnalysis } from '@/components/DraftAnalysis';
 import { RankingsBoard } from '@/components/RankingsBoard';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
+import { ReportSectionHeader } from '@/components/reportPrimitives';
 import type { ReportData } from '@shared/types';
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_DATA_VERSION = 'trade-ledger-outcomes-v4';
-const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v17';
+const REPORT_CACHE_DATA_VERSION = 'draftbuzz-history-v1';
+const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v18';
 const STALE_REPORT_CACHE_KEYS = [
   'dynasty-degenerates:last-report:v10',
   'dynasty-degenerates:last-report:v11',
@@ -47,6 +48,7 @@ const STALE_REPORT_CACHE_KEYS = [
   'dynasty-degenerates:last-report:v14',
   'dynasty-degenerates:last-report:v15',
   'dynasty-degenerates:last-report:v16',
+  'dynasty-degenerates:last-report:v17',
 ];
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
@@ -1815,32 +1817,32 @@ export default function Home() {
               className={`report-tabs ${canViewMomentumTab ? 'report-tabs-five' : 'report-tabs-four'}`}
               data-active-tab={resolvedActiveTab}
             >
-              <TabsTrigger value="overview" className="report-tab">
-                <BarChart3 className="h-4 w-4" />
+              <TabsTrigger value="overview" className="report-tab" aria-label="Overview">
+                <BarChart3 className="h-4 w-4" aria-hidden="true" />
                 <span>Overview</span>
               </TabsTrigger>
 
               {canViewMomentumTab && (
-                <TabsTrigger value="momentum" className="report-tab">
-                  <TrendingUp className="h-4 w-4" />
-                  <span className="report-tab-label-full">Weekly Momentum</span>
-                  <span className="report-tab-label-short">Momentum</span>
+                <TabsTrigger value="momentum" className="report-tab" aria-label="Weekly Momentum">
+                  <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                  <span className="report-tab-label-full" aria-hidden="true">Weekly Momentum</span>
+                  <span className="report-tab-label-short" aria-hidden="true">Trend</span>
                 </TabsTrigger>
               )}
-              <TabsTrigger value="rankings" className="report-tab">
-                <ListOrdered className="h-4 w-4" />
+              <TabsTrigger value="rankings" className="report-tab" aria-label="Rankings">
+                <ListOrdered className="h-4 w-4" aria-hidden="true" />
                 <span>Rankings</span>
               </TabsTrigger>
-              <TabsTrigger value="trades" className="report-tab">
-                <Repeat2 className="h-4 w-4" />
-                <span className="report-tab-label-full">Trade History</span>
-                <span className="report-tab-label-short">Trades</span>
+              <TabsTrigger value="trades" className="report-tab" aria-label="Trade History">
+                <Repeat2 className="h-4 w-4" aria-hidden="true" />
+                <span className="report-tab-label-full" aria-hidden="true">Trade History</span>
+                <span className="report-tab-label-short" aria-hidden="true">Trades</span>
               </TabsTrigger>
 
-              <TabsTrigger value="draft" className="report-tab">
-                <ClipboardList className="h-4 w-4" />
-                <span className="report-tab-label-full">Draft History</span>
-                <span className="report-tab-label-short">Draft</span>
+              <TabsTrigger value="draft" className="report-tab" aria-label="Draft History">
+                <ClipboardList className="h-4 w-4" aria-hidden="true" />
+                <span className="report-tab-label-full" aria-hidden="true">Draft History</span>
+                <span className="report-tab-label-short" aria-hidden="true">Draft</span>
               </TabsTrigger>
             </TabsList>
 
@@ -2016,7 +2018,7 @@ export default function Home() {
                   </CollapsibleReportSection>
                 )}
                 {!isRedraftReport && (
-                  <CollapsibleReportSection title="NFL Draft Buzz Archive" kicker="Scouting data archive">
+                  <CollapsibleReportSection title="NFL Draft Buzz Archive" kicker="Scouting data archive" defaultOpen>
                     {rankingsQuery.isLoading && !rankingsForReport ? (
                       <div className="rankings-empty-state">Loading NFL Draft Buzz archive...</div>
                     ) : (
@@ -2424,40 +2426,21 @@ export default function Home() {
   );
 }
 
-function SectionTitle({
-  title,
-  kicker,
-}: {
-  title: string;
-  kicker?: string;
-}) {
-  return (
-    <div className="mb-4 text-center sm:mb-5">
-      {kicker && (
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">
-          {kicker}
-        </p>
-      )}
-      <h3 className="athletic-headline mt-1 text-xl font-black text-orange-400 sm:text-2xl">
-        {title}
-      </h3>
-    </div>
-  );
-}
-
 function CollapsibleReportSection({
   title,
   kicker,
+  defaultOpen = false,
   children,
 }: {
   title: string;
   kicker?: string;
+  defaultOpen?: boolean;
   children: ReactNode;
 }) {
   return (
-    <details className="report-section report-disclosure">
+    <details className="report-section report-disclosure" open={defaultOpen}>
       <summary className="report-disclosure-summary">
-        <SectionTitle title={title} kicker={kicker} />
+        <ReportSectionHeader title={title} kicker={kicker} />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </summary>
       <div className="report-disclosure-body">

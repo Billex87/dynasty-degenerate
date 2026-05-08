@@ -231,8 +231,8 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v32';
-const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v9';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v33';
+const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v10';
 const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
 const RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP = 250;
 const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');

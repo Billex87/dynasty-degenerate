@@ -7,6 +7,7 @@ import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame } from './ManagerChampionships';
 import { TeamLogoPill } from './TeamLogoPill';
+import { EmptyState, MetricPill, ReportSectionHeader } from './reportPrimitives';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
@@ -152,9 +153,11 @@ export function DraftAnalysis({
 
   if (!draftPicks || draftPicks.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-slate-400">No draft data available</p>
-      </div>
+      <EmptyState
+        className="draft-empty-state"
+        title="No draft data available"
+        description="Draft history will appear here after the league report includes completed rookie draft picks."
+      />
     );
   }
 
@@ -194,14 +197,15 @@ export function DraftAnalysis({
                     </span>
                   </span>
                   <span className="owner-summary-metrics">
-                    <span className="owner-metric-pill owner-metric-pill-info"><span>Picks</span><strong>{stat.totalPicks}</strong></span>
-                    <span className="owner-metric-pill owner-metric-pill-good"><span>Hits</span><strong>{stat.hits}</strong></span>
-                    <span className="owner-metric-pill owner-metric-pill-danger"><span>Misses</span><strong>{stat.misses}</strong></span>
-                    <span className="owner-metric-pill owner-metric-pill-info"><span>Starters</span><strong>{stat.starters}</strong></span>
-                    <span className={`owner-metric-pill ${stat.avgKtcGain >= 0 ? 'owner-metric-pill-good' : 'owner-metric-pill-danger'}`}>
-                      <span>Avg Change</span>
-                      <strong>{stat.avgKtcGain >= 0 ? '+' : ''}{stat.avgKtcGain.toLocaleString()}</strong>
-                    </span>
+                    <MetricPill label="Picks" value={stat.totalPicks} tone="info" />
+                    <MetricPill label="Hits" value={stat.hits} tone="good" />
+                    <MetricPill label="Misses" value={stat.misses} tone="danger" />
+                    <MetricPill label="Starters" value={stat.starters} tone="info" />
+                    <MetricPill
+                      label="Avg Change"
+                      value={`${stat.avgKtcGain >= 0 ? '+' : ''}${stat.avgKtcGain.toLocaleString()}`}
+                      tone={stat.avgKtcGain >= 0 ? 'good' : 'danger'}
+                    />
                   </span>
                 </button>
               );
@@ -247,13 +251,15 @@ export function DraftAnalysis({
                       </span>
                     </span>
                     <span className="owner-summary-metrics">
-                      <span className="owner-metric-pill owner-metric-pill-info"><span>Picks</span><strong>{audit.totalPicks}</strong></span>
-                      <span className="owner-metric-pill owner-metric-pill-good"><span>Hits</span><strong>{audit.hits}</strong></span>
-                      <span className={`owner-metric-pill ${audit.misses ? 'owner-metric-pill-danger' : 'owner-metric-pill-good'}`}><span>Misses</span><strong>{audit.misses}</strong></span>
-                      <span className="owner-metric-pill owner-metric-pill-info"><span>Starters</span><strong>{audit.starters}</strong></span>
-                      <span className={`owner-metric-pill ${audit.avgChange >= 0 ? 'owner-metric-pill-good' : 'owner-metric-pill-danger'}`}>
-                        <span>Avg Change</span><strong>{audit.avgChange >= 0 ? '+' : ''}{audit.avgChange.toLocaleString()}</strong>
-                      </span>
+                      <MetricPill label="Picks" value={audit.totalPicks} tone="info" />
+                      <MetricPill label="Hits" value={audit.hits} tone="good" />
+                      <MetricPill label="Misses" value={audit.misses} tone={audit.misses ? 'danger' : 'good'} />
+                      <MetricPill label="Starters" value={audit.starters} tone="info" />
+                      <MetricPill
+                        label="Avg Change"
+                        value={`${audit.avgChange >= 0 ? '+' : ''}${audit.avgChange.toLocaleString()}`}
+                        tone={audit.avgChange >= 0 ? 'good' : 'danger'}
+                      />
                     </span>
                     <span className="draft-decision-manager-read">{audit.readout}</span>
                   </button>
@@ -338,7 +344,7 @@ export function DraftAnalysis({
                           <button
                             key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
                             type="button"
-                            className={`player-team-tile rookie-draft-row ${viewerOwnedHighlightClass(pick.manager, viewerManager)}`}
+                            className={`player-team-tile rookie-draft-row mobile-stacked-row ${viewerOwnedHighlightClass(pick.manager, viewerManager)}`}
                             style={getTeamTileStyle(details?.team)}
                             onClick={() => openDraftPlayer(pick)}
                           >
@@ -949,27 +955,6 @@ function enrichDraftPickDetails(
   };
 }
 
-function DraftSectionTitle({
-  title,
-  kicker,
-}: {
-  title: string;
-  kicker?: string;
-}) {
-  return (
-    <div className="mb-4 text-center sm:mb-5">
-      {kicker && (
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">
-          {kicker}
-        </p>
-      )}
-      <h3 className="athletic-headline mt-1 text-xl font-black text-orange-400 sm:text-2xl">
-        {title}
-      </h3>
-    </div>
-  );
-}
-
 function DraftCollapsibleSection({
   title,
   kicker,
@@ -982,7 +967,7 @@ function DraftCollapsibleSection({
   return (
     <details className="report-section report-disclosure">
       <summary className="report-disclosure-summary">
-        <DraftSectionTitle title={title} kicker={kicker} />
+        <ReportSectionHeader title={title} kicker={kicker} />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </summary>
       <div className="report-disclosure-body">

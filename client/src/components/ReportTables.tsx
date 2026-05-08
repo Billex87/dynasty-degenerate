@@ -23,6 +23,7 @@ import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { TeamLogoPill } from './TeamLogoPill';
+import { EmptyState, MetricPill, PlayerIdentityRow, ReportCard } from './reportPrimitives';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { getPlayerAvailability, getPlayerAvailabilityClass } from '@/lib/playerStatus';
@@ -4617,12 +4618,7 @@ function OwnerMetricPill({
   value: React.ReactNode;
   tone?: 'neutral' | 'good' | 'warn' | 'danger' | 'info';
 }) {
-  return (
-    <div className={`owner-metric-pill owner-metric-pill-${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+  return <MetricPill label={label} value={value} tone={tone} />;
 }
 
 function OwnerSummaryTile({
@@ -5837,9 +5833,11 @@ export function WeeklyMomentumTable({
                   </strong>
                 </div>
                 <div className="weekly-momentum-identity">
-                  <div className="weekly-momentum-player">
-                    <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
-                  </div>
+                  <PlayerIdentityRow
+                    className="weekly-momentum-player"
+                    playerId={row.player_id}
+                    playerName={row.name}
+                  />
                 </div>
                 <div
                   className="weekly-momentum-value-change"
@@ -5854,7 +5852,6 @@ export function WeeklyMomentumTable({
                   <div className="weekly-momentum-pills">
                     <TeamLogoPill team={playerDetails?.team} />
                     <PositionRankPill rank={row.currentPositionRank || row.pos} />
-                    <span>{formatCompactValue(row.val_now)}</span>
                   </div>
                   {renderActivityManagerAvatar(row.owner, managerAvatars)}
                 </div>
@@ -5863,9 +5860,10 @@ export function WeeklyMomentumTable({
           })}
         </div>
       ) : (
-        <Card className="report-card-polished weekly-momentum-empty border-slate-800 bg-slate-900">
-          No {isRiserList ? 'risers' : title.toLowerCase()} found for the current 7-day window.
-        </Card>
+        <EmptyState
+          className="weekly-momentum-empty"
+          title={`No ${isRiserList ? 'risers' : title.toLowerCase()} found for the current 7-day window.`}
+        />
       )}
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
@@ -5958,9 +5956,11 @@ export function TrendingPlayersTable({
                   <strong>{row.count.toLocaleString()}</strong>
                 </div>
                 <div className="trending-player-card-identity">
-                  <div className="trending-player-card-main">
-                    <PlayerNameWithHeadshot playerId={row.player_id} playerName={row.name} />
-                  </div>
+                  <PlayerIdentityRow
+                    className="trending-player-card-main"
+                    playerId={row.player_id}
+                    playerName={row.name}
+                  />
                 </div>
                 <div className="activity-card-meta-row">
                   <div className="trending-player-card-pills">
@@ -5975,9 +5975,7 @@ export function TrendingPlayersTable({
           })}
         </div>
       ) : (
-        <Card className="report-card-polished trending-empty-card border-slate-800 bg-slate-900">
-          No {title.toLowerCase()} available
-        </Card>
+        <EmptyState className="trending-empty-card" title={`No ${title.toLowerCase()} available`} />
       )}
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
@@ -8221,9 +8219,11 @@ export function WaiverIntelligencePanel({
                   {recommendation ? 'Suggested Add' : 'Available'}
                 </span>
               </div>
-              <div className="waiver-intel-main">
-                <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-              </div>
+              <PlayerIdentityRow
+                className="waiver-intel-main"
+                playerId={player.player_id}
+                playerName={player.name}
+              />
               <div className="waiver-intel-pills" aria-label={`${player.name} waiver profile`}>
                 <div className="waiver-intel-pill-row waiver-intel-pill-row-primary">
                   <TeamLogoPill team={details?.team || player.team} />
@@ -8344,9 +8344,11 @@ export function RecentTransactionsPanel({
             {label}
           </span>
         </div>
-        <div className="recent-transaction-player-main">
-          <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-        </div>
+        <PlayerIdentityRow
+          className="recent-transaction-player-main"
+          playerId={player.player_id}
+          playerName={player.name}
+        />
         <div className="recent-transaction-player-pills">
           <TeamLogoPill team={player.playerDetails?.team || player.team} />
           <PositionRankPill rank={player.currentPositionRank || player.pos} />
@@ -8374,9 +8376,11 @@ export function RecentTransactionsPanel({
             Better Add
           </span>
         </div>
-        <div className="recent-transaction-player-main">
-          <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-        </div>
+        <PlayerIdentityRow
+          className="recent-transaction-player-main"
+          playerId={player.player_id}
+          playerName={player.name}
+        />
         <div className="recent-transaction-player-pills">
           <TeamLogoPill team={details?.team || player.team} />
           <PositionRankPill rank={rank || player.pos} />
@@ -8479,7 +8483,7 @@ export function RecentTransactionsPanel({
                   const validBetterCutInsight = betterCutInsight?.isBetterCut ? betterCutInsight : null;
 
                   return (
-                    <div key={transaction.id} className="report-card recent-transaction-card">
+                    <ReportCard key={transaction.id} className="recent-transaction-card mobile-stacked-row">
                       <div className="recent-transaction-top">
                         <div className="recent-transaction-manager">
                           <ManagerNameWithAvatar avatarUrl={managerAvatars?.[transaction.manager]} managerName={transaction.manager} />
@@ -8495,10 +8499,9 @@ export function RecentTransactionsPanel({
                         {renderPlayerRow('Added', transaction.addedPlayer, 'add')}
                         {renderPlayerRow('Dropped', transaction.droppedPlayer, 'drop')}
                         {validBetterCutInsight && renderPlayerRow('Better Cut', transaction.alternativeDrop, 'alt', validBetterCutInsight)}
-                        {validBetterCutInsight && renderBetterCutInsight(validBetterCutInsight)}
                         {suggestedBetterAdd && renderSuggestedAdd(suggestedBetterAdd, transaction)}
                       </div>
-                    </div>
+                    </ReportCard>
                   );
                 })}
               </div>
@@ -8810,9 +8813,11 @@ export function TradeMarketRadar({
             </span>
           </div>
           <div className="trade-market-main">
-            <div className="trade-market-player">
-              <PlayerNameWithHeadshot playerId={player.player_id} playerName={player.name} />
-            </div>
+            <PlayerIdentityRow
+              className="trade-market-player"
+              playerId={player.player_id}
+              playerName={player.name}
+            />
             <div className="trade-market-manager">
               {renderManagerName(player.owner, managerAvatars)}
             </div>
@@ -8928,6 +8933,19 @@ function getPositionRosterCount(row: ManagerCountRow, position: CountPosition): 
   return Number(row[position] || 0);
 }
 
+function getVisibleCountPositions(
+  data: ReportData['managerPositionCounts'],
+  positionDepth: ReportData['positionDepth'] = []
+): CountPosition[] {
+  return COUNT_POSITIONS.filter((position) => {
+    if (position !== 'K' && position !== 'DEF') return true;
+    return (
+      data.some((row) => getPositionRosterCount(row, position) > 0 || getPositionStarterNeed(row, position) > 0)
+      || positionDepth.some((signal) => signal.position === position)
+    );
+  });
+}
+
 function getPositionStarterNeed(row: ManagerCountRow, position: CountPosition): number {
   const starterKey = `${position}_starters` as `${CountPosition}_starters`;
   return Number(row[starterKey] || 0);
@@ -9019,11 +9037,17 @@ function getPositionDepthRead(signal: PositionDepthSignal, row?: ManagerCountRow
   return `${signal.manager} has the league-${signal.status === 'shortage' ? 'low' : 'high'} ${signal.position} count: ${rosterCount}/${starterNeed} rostered-to-start, including taxi and reserve players. ${startingCaliberCount} ${signal.position} player${startingCaliberCount === 1 ? '' : 's'} clear the ${Math.max(leagueSize, 1)}-team starter-caliber cutoff for this lineup format.${playerCopy}`;
 }
 
-function buildManagerPositionCountAiRead(row: ManagerCountRow, data: ReportData['managerPositionCounts'], signals: PositionDepthSignal[]): string {
+function buildManagerPositionCountAiRead(
+  row: ManagerCountRow,
+  data: ReportData['managerPositionCounts'],
+  signals: PositionDepthSignal[],
+  visiblePositions: CountPosition[] = COUNT_POSITIONS
+): string {
   const leagueSize = Math.max(data.length, 1);
-  const shortageSignals = signals.filter((signal) => signal.status === 'shortage' && isCountPosition(signal.position));
-  const excessSignals = signals.filter((signal) => signal.status === 'excess' && isCountPosition(signal.position));
-  const countReads = COUNT_POSITIONS
+  const visiblePositionSet = new Set(visiblePositions);
+  const shortageSignals = signals.filter((signal) => signal.status === 'shortage' && isCountPosition(signal.position) && visiblePositionSet.has(signal.position));
+  const excessSignals = signals.filter((signal) => signal.status === 'excess' && isCountPosition(signal.position) && visiblePositionSet.has(signal.position));
+  const countReads = visiblePositions
     .map((position) => {
       const count = getPositionRosterCount(row, position);
       if (!count) return null;
@@ -9058,8 +9082,8 @@ function getManagerRosterPlayersByPosition(row: ManagerCountRow): Record<CountPo
   ) as Record<CountPosition, ManagerCountPlayer[]>;
 }
 
-function getManagerRosterPlayerCount(row: ManagerCountRow): number {
-  return COUNT_POSITIONS.reduce((sum, position) => sum + getPositionRosterCount(row, position), 0);
+function getManagerRosterPlayerCount(row: ManagerCountRow, positions: CountPosition[] = COUNT_POSITIONS): number {
+  return positions.reduce((sum, position) => sum + getPositionRosterCount(row, position), 0);
 }
 
 function StarterDepthSignalPlayerTile({
@@ -9136,8 +9160,12 @@ export function ManagerPositionCountsTable({
   const [selectedManager, setSelectedManager] = useState<ReportData['managerPositionCounts'][number] | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const selectedAvatar = selectedManager ? managerAvatars?.[selectedManager.manager] : null;
+  const visibleCountPositions = useMemo(
+    () => getVisibleCountPositions(data, positionDepth),
+    [data, positionDepth]
+  );
   const selectedRosterPlayersByPosition = selectedManager ? getManagerRosterPlayersByPosition(selectedManager) : null;
-  const selectedRosterPlayerCount = selectedManager ? getManagerRosterPlayerCount(selectedManager) : 0;
+  const selectedRosterPlayerCount = selectedManager ? getManagerRosterPlayerCount(selectedManager, visibleCountPositions) : 0;
   const positionDepthByManager = useMemo(() => {
     const signalsByManager = new Map<string, PositionDepthSignal[]>();
 
@@ -9150,13 +9178,17 @@ export function ManagerPositionCountsTable({
     signalsByManager.forEach((signals) => signals.sort(sortPositionDepthSignals));
     return signalsByManager;
   }, [positionDepth]);
-  const selectedDepthSignals = selectedManager ? positionDepthByManager.get(selectedManager.manager) || [] : [];
+  const selectedDepthSignals = selectedManager
+    ? (positionDepthByManager.get(selectedManager.manager) || []).filter((signal) => isCountPosition(signal.position) && visibleCountPositions.includes(signal.position))
+    : [];
 
   return (
     <div className="owner-tile-shell">
       <div className="owner-tile-grid position-counts-tile-grid">
         {data.map((row, idx) => {
-          const depthSignals = positionDepthByManager.get(row.manager) || [];
+          const depthSignals = (positionDepthByManager.get(row.manager) || []).filter(
+            (signal) => isCountPosition(signal.position) && visibleCountPositions.includes(signal.position)
+          );
 
           return (
             <OwnerSummaryTile
@@ -9166,7 +9198,7 @@ export function ManagerPositionCountsTable({
               className={viewerOwnedHighlightClass(row.manager, viewerManager)}
               onClick={() => setSelectedManager(row)}
             >
-              {COUNT_POSITIONS.map((position) => {
+              {visibleCountPositions.map((position) => {
                 const delta = getPositionCountDelta(row, data, position);
                 return (
                   <OwnerMetricPill
@@ -9245,7 +9277,7 @@ export function ManagerPositionCountsTable({
                   </div>
                 </div>
                 <div className="manager-command-hero-metrics starter-modal-metrics">
-                  {COUNT_POSITIONS.map((position) => {
+                  {visibleCountPositions.map((position) => {
                     const delta = getPositionCountDelta(selectedManager, data, position);
                     return (
                       <IntelligenceMetric
@@ -9281,11 +9313,11 @@ export function ManagerPositionCountsTable({
                 )}
                 <div className="manager-command-section manager-command-read manager-command-ai-read starter-depth-count-read">
                   <h4>Roster Count AI Read</h4>
-                  <p>{buildManagerPositionCountAiRead(selectedManager, data, selectedDepthSignals)}</p>
+                  <p>{buildManagerPositionCountAiRead(selectedManager, data, selectedDepthSignals, visibleCountPositions)}</p>
                 </div>
                 {selectedRosterPlayersByPosition && selectedRosterPlayerCount > 0 ? (
                   <div className="starter-roster-position-list">
-                    {COUNT_POSITIONS.map((position) => {
+                    {visibleCountPositions.map((position) => {
                       const players = selectedRosterPlayersByPosition[position] || [];
                       if (!players.length) return null;
 
