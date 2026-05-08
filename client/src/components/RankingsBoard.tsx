@@ -1021,6 +1021,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       playerImageUrl: entry.playerImageUrl || null,
       collegeLogoUrl: entry.collegeLogoUrl || null,
       isCollegeProspect: draftYear > currentYear,
+      preferProspectImage: true,
       playerDetails: details ? { ...details, prospectProfile: entry.prospectProfile } : prospectDetails,
     });
   };

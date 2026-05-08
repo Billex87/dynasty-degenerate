@@ -75,6 +75,7 @@ export type PlayerModalData = Partial<DraftPick> & {
   playerImageUrl?: string | null;
   collegeLogoUrl?: string | null;
   isCollegeProspect?: boolean;
+  preferProspectImage?: boolean;
   valueMode?: LeagueValueMode;
   taxiAction?: string;
   taxiReason?: string;
@@ -135,7 +136,7 @@ export function PlayerDetailModal({
     setHeadshot(null);
     setDirectImageFailed(false);
     setFallbackImageFailed(false);
-  }, [pick?.player_id, pick?.playerImageUrl]);
+  }, [pick?.player_id, pick?.playerImageUrl, pick?.preferProspectImage]);
 
   useEffect(() => {
     setFocusedPeerPick(null);
@@ -151,6 +152,7 @@ export function PlayerDetailModal({
   const details = pick.playerDetails;
   const prospectProfile = details?.prospectProfile || null;
   const isCollegeProspect = isCollegeOnlyModalPick(pick, details);
+  const preferProspectImage = Boolean(pick.preferProspectImage);
   const prospectCollege = prospectProfile?.college || details?.college || null;
   const directHeadshot = !isCollegeProspect && pick.player_id && !directImageFailed
     ? `https://sleepercdn.com/content/nfl/players/${pick.player_id}.jpg`
@@ -158,9 +160,9 @@ export function PlayerDetailModal({
   const fallbackDraftBuzzImage = !fallbackImageFailed
     ? getCachedDraftBuzzImageUrl(pick.playerImageUrl || prospectProfile?.playerImageUrl || null)
     : null;
-  const playerImageSrc = isCollegeProspect
-    ? fallbackDraftBuzzImage || getCachedDraftBuzzImageUrl(prospectProfile?.collegeLogoUrl || null)
-    : headshot || directHeadshot || fallbackDraftBuzzImage;
+  const prospectImageSrc = fallbackDraftBuzzImage || getCachedDraftBuzzImageUrl(prospectProfile?.collegeLogoUrl || null);
+  const nflImageSrc = headshot || directHeadshot || fallbackDraftBuzzImage;
+  const playerImageSrc = isCollegeProspect ? prospectImageSrc : preferProspectImage ? prospectImageSrc || nflImageSrc : nflImageSrc;
   const valueProfile = details?.valueProfile;
   const valueMode = pick.valueMode || 'dynasty';
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
