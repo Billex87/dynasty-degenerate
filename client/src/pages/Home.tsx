@@ -1846,7 +1846,7 @@ export default function Home() {
     loadingTransitionPhase === 'kick' ? 'loading-success-card-kick' : '',
   ].filter(Boolean).join(' ');
   const loadingDialog = (
-    <Dialog open={isLoading} onOpenChange={() => undefined}>
+    <Dialog key="analysis-loading-dialog" open={isLoading} onOpenChange={() => undefined}>
       <DialogContent
         className={`analysis-loading-dialog analysis-loading-dialog-${loadingTransitionPhase} border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg`}
         overlayClassName={`analysis-loading-overlay analysis-loading-overlay-${loadingTransitionPhase}`}
@@ -1872,8 +1872,12 @@ export default function Home() {
               aria-live="polite"
             >
               <span className="loading-success-impact-core" aria-hidden="true" />
+              <span className="loading-success-scanline" aria-hidden="true" />
               <div className="loading-success-copy">
-                <p className="loading-success-kicker">Report Generated</p>
+                <p className="loading-success-kicker">
+                  <CheckCircle2 aria-hidden="true" />
+                  Report Generated
+                </p>
                 <div className="loading-success-icon">
                   {analysisCompleteMessage.leagueLogo ? (
                     <img
@@ -1888,6 +1892,9 @@ export default function Home() {
                 <h2 className={`${getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || 'League report')} loading-success-league-name loading-gradient-text`}>
                   {analysisCompleteMessage.leagueName || 'League report'}
                 </h2>
+                <div className="loading-success-bar" aria-hidden="true">
+                  <span />
+                </div>
               </div>
             </div>
           )}
@@ -1900,6 +1907,7 @@ export default function Home() {
     const isRedraftReport = (reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode) === 'redraft';
     const displayReportData = reportDataWithRankings || reportData;
     return (
+      <>
       <ManagerChampionshipProvider championships={reportData.managerChampionships}>
       <div className={`report-shell min-h-screen flex flex-col ${isLoadingRevealPhase ? 'report-shell-entering' : ''}`}>
         {/* Premium Header */}
@@ -2406,15 +2414,17 @@ export default function Home() {
           </DialogContent>
         </Dialog>
 
-        {loadingDialog}
         {clownEasterEggDialog}
         {adminPermissionsDialog}
       </div>
       </ManagerChampionshipProvider>
+      {loadingDialog}
+      </>
     );
   }
 
   return (
+    <>
     <div className="home-shell min-h-screen flex flex-col">
       <div className="home-header px-4 py-4 sm:py-5">
         <HomeLogoChrome />
@@ -2606,10 +2616,11 @@ export default function Home() {
           <HomeFooterChrome showBrand={!isLoading} />
         </div>
       )}
-      {loadingDialog}
       {clownEasterEggDialog}
       {adminPermissionsDialog}
     </div>
+    {loadingDialog}
+    </>
   );
 }
 

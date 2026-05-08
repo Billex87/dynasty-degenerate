@@ -1,6 +1,8 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import NotFound from "@/pages/NotFound";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -32,6 +34,8 @@ function App() {
         <TooltipProvider>
           <Router />
           <Toaster position="top-center" richColors />
+          <Analytics />
+          <SpeedInsights />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
