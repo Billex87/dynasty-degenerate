@@ -11,8 +11,9 @@ import { TrendingUp, TrendingDown, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getPlayerAvailability } from '@/lib/playerStatus';
-import { getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle } from '@/lib/teamTileStyle';
+import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle } from '@/lib/teamTileStyle';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
+import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
 
 const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
@@ -101,11 +102,13 @@ function isCollegeOnlyModalPick(pick?: PlayerModalData | null, details?: PlayerD
 export function PlayerDetailModal({
   isOpen,
   onClose,
-  pick,
+  pick: selectedPick,
   leagueId,
   leagueLogo,
   managerAvatars,
 }: PlayerDetailModalProps) {
+  const [focusedPeerPick, setFocusedPeerPick] = useState<PlayerModalData | null>(null);
+  const pick = focusedPeerPick || selectedPick;
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
   const queryDetails = pick?.playerDetails;
@@ -133,6 +136,10 @@ export function PlayerDetailModal({
   }, [pick?.player_id]);
 
   useEffect(() => {
+    setFocusedPeerPick(null);
+  }, [selectedPick?.player_id, selectedPick?.playerName, isOpen]);
+
+  useEffect(() => {
     if (headshotData?.success && headshotData?.data) {
       setHeadshot(`data:${headshotData.contentType};base64,${headshotData.data}`);
     }
@@ -147,7 +154,7 @@ export function PlayerDetailModal({
     ? `https://sleepercdn.com/content/nfl/players/${pick.player_id}.jpg`
     : null;
   const playerImageSrc = isCollegeProspect
-    ? pick.playerImageUrl || prospectProfile?.playerImageUrl || prospectProfile?.collegeLogoUrl || null
+    ? getCachedDraftBuzzImageUrl(pick.playerImageUrl || prospectProfile?.playerImageUrl || prospectProfile?.collegeLogoUrl || null)
     : headshot || directHeadshot;
   const valueProfile = details?.valueProfile;
   const valueMode = pick.valueMode || 'dynasty';
@@ -308,6 +315,29 @@ export function PlayerDetailModal({
     pick.draftDecisionBoardRankLabel ? ['Board Read', pick.draftDecisionBoardRankLabel] : null,
     pick.draftDecisionPrimaryNeed ? ['Roster Need', pick.draftDecisionPrimaryNeed] : null,
   ].filter((row): row is [string, string] => Boolean(row));
+  const openTradeCompPeer = (peer: NonNullable<PlayerDetails['similarTradeValues']>[number]) => {
+    setFocusedPeerPick({
+      player_id: peer.playerId,
+      playerName: peer.name,
+      playerPos: peer.position,
+      currentPositionRank: peer.rank || peer.position,
+      currentKtcValue: peer.value,
+      valueGain: peer.difference,
+      valueChangeNote: `Value difference versus ${pick.playerName}.`,
+      valueMode,
+      playerDetails: {
+        playerId: peer.playerId,
+        fullName: peer.name,
+        position: peer.position,
+        team: peer.team || null,
+        valueProfile: {
+          dynastyValue: peer.value,
+          dynastyPositionRank: peer.rank || peer.position,
+          sources: [],
+        },
+      },
+    });
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -535,22 +565,38 @@ export function PlayerDetailModal({
             )}
 
             {!isCollegeProspect && details?.similarTradeValues?.length ? (
-              <div className="mx-auto max-w-xl space-y-2">
-                <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
+              <div className="player-trade-comps mx-auto max-w-xl space-y-2">
+                <p className="player-modal-section-kicker text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
                   Cross-Position Trade Comps
                 </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="player-trade-comp-grid grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {details.similarTradeValues.map((peer) => (
-                    <div key={peer.playerId} className="rounded-xl border border-cyan-300/15 bg-slate-950/45 p-2 text-center">
-                      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">{peer.label || peer.position}</div>
-                      <div className="mt-1 truncate text-sm font-black text-slate-100">{peer.name}</div>
-                      <div className="mt-1 flex items-center justify-center gap-1 text-[0.68rem] font-black">
+                    <button
+                      key={peer.playerId}
+                      type="button"
+                      className="player-trade-comp-card"
+                      onClick={() => openTradeCompPeer(peer)}
+                      aria-label={`Open ${peer.name} trade comparison details`}
+                    >
+                      <span className="player-trade-comp-context">{peer.label || `Nearest ${peer.position}`}</span>
+                      <span className="player-trade-comp-identity">
+                        <PlayerNameWithHeadshot playerId={peer.playerId} playerName={peer.name} />
+                      </span>
+                      <span className="player-trade-comp-meta">
+                        <TeamLogoPill team={peer.team} />
                         <span className={getPositionRankPillClass(peer.rank || peer.position)}>{peer.rank || peer.position}</span>
-                        <span className={peer.difference > 0 ? 'text-emerald-300' : peer.difference < 0 ? 'text-rose-300' : 'text-slate-300'}>
-                          {peer.difference > 0 ? '+' : ''}{peer.difference.toLocaleString()}
+                      </span>
+                      <div className="player-trade-comp-values">
+                        <span>
+                          <em>Value</em>
+                          <strong>{peer.value.toLocaleString()}</strong>
+                        </span>
+                        <span className={peer.difference > 0 ? 'player-trade-comp-delta-positive' : peer.difference < 0 ? 'player-trade-comp-delta-negative' : 'player-trade-comp-delta-neutral'}>
+                          <em>Delta</em>
+                          <strong>{peer.difference > 0 ? '+' : ''}{peer.difference.toLocaleString()}</strong>
                         </span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>

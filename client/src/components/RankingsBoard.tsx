@@ -7,7 +7,7 @@ import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { EmptyState, ManagerBadge } from './reportPrimitives';
 import { getPositionRankPillClass } from '@/lib/positionRank';
-import { getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle, getTeamTileStyle, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
+import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle, getTeamTileStyle, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import type { DraftBuzzScoreboardEntry, PlayerDetails, RankingPlayer, RankingProfileOption, ReportData } from '@shared/types';
 
@@ -180,7 +180,7 @@ function getProfileButtonLabel(option: RankingProfileOption): string {
 }
 
 function RankingPlayerIdentity({ player }: { player: RankingPlayer }) {
-  const preferredImageUrl = player.imageUrl || player.prospectProfile?.playerImageUrl || null;
+  const preferredImageUrl = getCachedDraftBuzzImageUrl(player.imageUrl || player.prospectProfile?.playerImageUrl || null);
   const shouldUseRankingImage = Boolean(preferredImageUrl && (player.isDevy || !player.player_id));
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -409,7 +409,7 @@ function RankingValueRow({
 
 function DraftBuzzEntryIdentity({ entry }: { entry: DraftBuzzScoreboardEntry }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const imageUrl = entry.playerImageUrl || null;
+  const imageUrl = getCachedDraftBuzzImageUrl(entry.playerImageUrl);
 
   useEffect(() => {
     setImageFailed(false);
@@ -561,7 +561,19 @@ function DraftBuzzScoreboard({
     ));
   };
 
-  if (!allRows.length) return null;
+  if (!allRows.length) {
+    return (
+      <section className="draftbuzz-scoreboard" aria-label="Prospect score archive">
+        <div className="draftbuzz-scoreboard__header">
+          <div>
+            <div className="rankings-kicker">Scouting data archive</div>
+            <h4>Prospect Scores By Draft Year</h4>
+          </div>
+        </div>
+        <EmptyState className="rankings-empty-state" title="No prospect scores are available yet." />
+      </section>
+    );
+  }
 
   return (
     <section className="draftbuzz-scoreboard" aria-label="Prospect score archive">

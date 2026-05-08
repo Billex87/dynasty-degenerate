@@ -1694,7 +1694,7 @@ export default function Home() {
         onPointerDownOutside={(event) => event.preventDefault()}
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>{analysisCompleteMessage ? 'Report Generated' : 'Analyzing League'}</DialogTitle>
+          <DialogTitle>{analysisCompleteMessage ? 'League Report Ready' : 'Analyzing League'}</DialogTitle>
           <DialogDescription>{analysisCompleteMessage ? 'The league report is ready.' : 'Generating the selected league report.'}</DialogDescription>
         </DialogHeader>
         <div className="analysis-loading-modal-body">
@@ -1710,6 +1710,7 @@ export default function Home() {
               role="status"
               aria-live="polite"
             >
+              <span className="loading-success-impact-core" aria-hidden="true" />
               <div className="loading-success-copy">
                 <p className="loading-success-kicker">Report Generated</p>
                 <div className="loading-success-icon">

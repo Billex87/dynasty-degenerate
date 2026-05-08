@@ -17,8 +17,8 @@ export function ManagerNameWithAvatar({
   const initial = visibleName.trim()[0]?.toUpperCase() || '?';
 
   return (
-    <div className="manager-chip flex min-w-0 items-center gap-2">
-      <ChampionAvatarFrame managerName={managerName}>
+    <div className="interactive-identity manager-chip flex min-w-0 items-center gap-2">
+      <ChampionAvatarFrame managerName={managerName} className="interactive-identity-avatar">
         {avatarUrl ? (
           <img
             src={avatarUrl}
@@ -34,7 +34,7 @@ export function ManagerNameWithAvatar({
           </span>
         )}
       </ChampionAvatarFrame>
-      <span className="min-w-0 truncate">{visibleName}</span>
+      <span className="interactive-identity-name min-w-0 truncate">{visibleName}</span>
       {showAccoladePills && <ManagerChampionshipPills managerName={managerName} />}
     </div>
   );

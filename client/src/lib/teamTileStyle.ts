@@ -206,6 +206,91 @@ const COLLEGE_ESPN_LOGO_IDS: Record<string, string> = {
   WYOMING: '2751',
 };
 
+const DRAFT_BUZZ_ASSET_BASE = '/assets/draftbuzz-cache';
+const MISSING_CACHED_DRAFT_BUZZ_ASSETS = new Set([
+  'player-headshots/Andrew-Ogletree-TE-YoungstownState.png',
+  'player-headshots/Aqeel-Glass-QB-AlabamaAANDM.png',
+  'player-headshots/Briley-Moore-TE-KansasState.png',
+  'player-headshots/Calvin-Turner-RB-Hawai-i.png',
+  'player-headshots/Changa-Hodge-WR-VirginiaTech.png',
+  'player-headshots/Da-Quan-Felton-WR-NorfolkState.png',
+  'player-headshots/Dai-Jean-Dixon-WR-Nicholls.png',
+  'player-headshots/Daniel-Smith-QB-Villanova.png',
+  'player-headshots/Davis-Cheek-QB-Elon.png',
+  'player-headshots/Devin-Wynn-RB-Furman.png',
+  'player-headshots/Ej-Jenkins-WR-StFrancis-PA-.png',
+  'player-headshots/Felix-Harper-QB-AlcornState.png',
+  'player-headshots/Isaiah-Weston-WR-NorthernIowa.png',
+  'player-headshots/Jadakis-Bonds-WR-Hampton.png',
+  'player-headshots/Jah-Maine-Martin-RB-NorthCarolinaAANDT.png',
+  'player-headshots/Jalen-Brooks-WR-SouthCarolina.png',
+  'player-headshots/Jequez-Ezzard-WR-SamHoustonState.png',
+  'player-headshots/Khalan-Laborn-RB-FloridaState.png',
+  'player-headshots/Quentin-Harrison-WR-CalPoly.png',
+  'player-headshots/Shaquan-Davis-WR-SouthCarolinaState.png',
+  'player-headshots/Sincere-McCormick-RB-UTSA.png',
+  'player-headshots/Tanner-Conner-WR-IdahoState.png',
+  'player-headshots/Tyshaun-James-WR-CentralConnecticut.png',
+  'player-headshots/Zerrick-Cooper-QB-JacksonvilleState.png',
+]);
+
+function sanitizeCachedAssetFileName(value?: string | null): string | null {
+  const sanitized = String(value || '')
+    .replace(/%20/g, '-')
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return sanitized || null;
+}
+
+function decodeAssetHtmlEntities(value?: string | null): string {
+  return String(value || '')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(Number.parseInt(code, 16)))
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"');
+}
+
+function fileNameFromAssetUrl(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(decodeAssetHtmlEntities(url));
+    return sanitizeCachedAssetFileName(decodeURIComponent(parsed.pathname.split('/').pop() || ''));
+  } catch {
+    return null;
+  }
+}
+
+export function getCachedDraftBuzzImageUrl(url?: string | null): string | null {
+  const trimmed = decodeAssetHtmlEntities(url).trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith(DRAFT_BUZZ_ASSET_BASE)) return trimmed;
+
+  const fileName = fileNameFromAssetUrl(trimmed);
+  if (!fileName) return trimmed;
+
+  if (/\/Content\/PlayerHeadShots\//i.test(trimmed)) {
+    const localPath = `player-headshots/${fileName}`;
+    return MISSING_CACHED_DRAFT_BUZZ_ASSETS.has(localPath) ? null : `${DRAFT_BUZZ_ASSET_BASE}/${localPath}`;
+  }
+  if (/\/Content\/collmascots\//i.test(trimmed)) {
+    return `${DRAFT_BUZZ_ASSET_BASE}/college-logos/${fileName}`;
+  }
+  if (/\/Content\/NFLLogos\//i.test(trimmed)) {
+    return `${DRAFT_BUZZ_ASSET_BASE}/nfl-logos/${fileName.toLowerCase()}`;
+  }
+
+  const espnCollegeId = trimmed.match(/\/i\/teamlogos\/ncaa\/500\/(\d+)\.png/i)?.[1];
+  if (espnCollegeId) return `${DRAFT_BUZZ_ASSET_BASE}/college-logos/espn-${espnCollegeId}.png`;
+
+  const sleeperTeam = trimmed.match(/sleepercdn\.com\/images\/team_logos\/nfl\/([a-z]{2,3})\.png/i)?.[1];
+  if (sleeperTeam) return `${DRAFT_BUZZ_ASSET_BASE}/nfl-logos/${sleeperTeam.toLowerCase()}.png`;
+
+  return trimmed;
+}
+
 export function getTeamTileStyle(team?: string | null): CSSProperties | undefined {
   const teamColors = NFL_TEAM_COLORS[normalizeNflTeamAbbr(team) || ''];
   if (!teamColors) return undefined;
@@ -326,22 +411,22 @@ export function getCollegeInitials(college?: string | null): string {
 
 export function getCollegeLogoUrl(college?: string | null, preferredLogoUrl?: string | null): string | null {
   const preferred = preferredLogoUrl?.trim();
-  if (preferred && !/\/NFLLogos\//i.test(preferred)) return preferred;
+  if (preferred && !/\/NFLLogos\//i.test(preferred)) return getCachedDraftBuzzImageUrl(preferred);
 
   const normalized = normalizeCollegeName(college);
   if (!normalized) return null;
 
   const draftBuzzSlug = COLLEGE_NFL_DRAFT_BUZZ_LOGO_SLUGS[normalized];
   if (draftBuzzSlug) {
-    return `https://www.nfldraftbuzz.com/Content/collmascots/${draftBuzzSlug}.png`;
+    return `${DRAFT_BUZZ_ASSET_BASE}/college-logos/${sanitizeCachedAssetFileName(`${draftBuzzSlug}.png`)}`;
   }
 
   const espnId = COLLEGE_ESPN_LOGO_IDS[normalized];
-  return espnId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${espnId}.png` : null;
+  return espnId ? `${DRAFT_BUZZ_ASSET_BASE}/college-logos/espn-${espnId}.png` : null;
 }
 
 export function getNflTeamLogoUrl(team?: string | null): string | null {
   const normalized = normalizeNflTeamAbbr(team);
   if (!normalized) return null;
-  return `https://sleepercdn.com/images/team_logos/nfl/${normalized.toLowerCase()}.png`;
+  return `${DRAFT_BUZZ_ASSET_BASE}/nfl-logos/${normalized.toLowerCase()}.png`;
 }

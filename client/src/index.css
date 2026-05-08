@@ -2452,6 +2452,8 @@
   padding: clamp(0.85rem, 3vw, 1.15rem);
   perspective: 960px;
   perspective-origin: 50% 42%;
+  transform-style: preserve-3d;
+  isolation: isolate;
 }
 
 .analysis-loading-panel {
@@ -2738,26 +2740,29 @@
   top: 50%;
   z-index: 20;
   display: block;
-  width: min(calc(100% - 1.45rem), 20rem);
+  width: min(calc(100% - 1.3rem), 20.25rem);
   min-height: 14.8rem;
   overflow: visible;
-  border: 1px solid rgba(34, 211, 238, 0.28);
+  border: 1px solid rgba(34, 211, 238, 0.32);
   border-radius: 1.15rem;
   background:
-    radial-gradient(circle at 14% 0%, rgba(249, 115, 22, 0.22), transparent 42%),
-    radial-gradient(circle at 86% 0%, rgba(34, 211, 238, 0.2), transparent 42%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.84), rgba(2, 6, 23, 0.78));
+    radial-gradient(circle at 16% 4%, rgba(249, 115, 22, 0.26), transparent 38%),
+    radial-gradient(circle at 88% 2%, rgba(34, 211, 238, 0.22), transparent 40%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.82));
   padding: 1.25rem 1.1rem 1.2rem;
   text-align: center;
   transform: translate(-50%, -50%);
   transform-origin: 50% 50%;
   transform-style: preserve-3d;
   box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.62),
+    0 28px 90px rgba(0, 0, 0, 0.68),
     0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-    0 0 42px rgba(34, 211, 238, 0.16);
+    0 0 0 0.42rem rgba(2, 6, 23, 0.26) inset,
+    0 0 46px rgba(34, 211, 238, 0.17),
+    0 0 34px rgba(251, 146, 60, 0.1);
   backdrop-filter: blur(18px) saturate(1.22);
   backface-visibility: hidden;
+  isolation: isolate;
   will-change: transform, opacity, filter;
   animation: loading-success-pane-stamp 1040ms cubic-bezier(0.14, 0.84, 0.14, 1) both;
 }
@@ -2767,11 +2772,11 @@
 }
 
 .loading-success-card-reveal {
-  animation: loading-success-readable-float 2200ms ease-in-out infinite;
+  animation: loading-success-readable-settle 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .loading-success-card-kick {
-  animation: loading-success-kicked-through 900ms cubic-bezier(0.3, 0, 0.12, 1) both !important;
+  animation: loading-success-kicked-through 900ms cubic-bezier(0.28, 0, 0.1, 1) both !important;
 }
 
 .loading-success-card::before {
@@ -2807,10 +2812,11 @@
 
 .loading-success-card-kick::before {
   background:
-    linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.38) 28%, rgba(103, 232, 249, 0.32) 44%, transparent 64%);
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.5), transparent 0.5rem),
+    linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.34) 34%, rgba(103, 232, 249, 0.24) 48%, transparent 64%);
   opacity: 0;
-  transform: translateX(-45%);
-  animation: loading-success-kick-streak 900ms cubic-bezier(0.3, 0, 0.12, 1) both;
+  transform: translateX(-50%) scale(0.35);
+  animation: loading-success-kick-streak 900ms cubic-bezier(0.28, 0, 0.1, 1) both;
 }
 
 .loading-success-card-kick::after {
@@ -2820,7 +2826,7 @@
     0 0 28px rgba(251, 146, 60, 0.34),
     0 0 42px rgba(34, 211, 238, 0.22),
     inset 0 0 24px rgba(251, 191, 36, 0.12);
-  animation: loading-success-kick-impact 900ms cubic-bezier(0.3, 0, 0.12, 1) both;
+  animation: loading-success-kick-impact 900ms cubic-bezier(0.28, 0, 0.1, 1) both;
 }
 
 .loading-success-card-logo .loading-success-copy::before {
@@ -2830,6 +2836,27 @@
 .loading-success-card > * {
   position: relative;
   z-index: 1;
+}
+
+.loading-success-card > .loading-success-impact-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: min(11.75rem, 68%);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.46) 0 0.1rem, rgba(251, 146, 60, 0.4) 0.12rem 12%, rgba(34, 211, 238, 0.18) 36%, transparent 66%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) translateZ(18px) scale(0.35);
+  filter: blur(0.2px) saturate(1.15);
+  animation: loading-success-center-impact 1040ms cubic-bezier(0.14, 0.84, 0.14, 1) both;
+}
+
+.loading-success-card-kick > .loading-success-impact-core {
+  animation: loading-success-center-kick 900ms cubic-bezier(0.28, 0, 0.1, 1) both;
 }
 
 .loading-success-backdrop-logo {
@@ -2851,6 +2878,12 @@
   text-shadow:
     0 2px 14px rgba(0, 0, 0, 0.95),
     0 0 16px rgba(2, 6, 23, 0.9);
+  transform: translateZ(30px);
+  backface-visibility: hidden;
+}
+
+.loading-success-card-kick .loading-success-copy {
+  animation: loading-success-copy-center-kick 900ms cubic-bezier(0.28, 0, 0.1, 1) both;
 }
 
 .loading-success-icon {
@@ -2874,6 +2907,8 @@
     0 0 18px rgba(251, 146, 60, 0.14),
     0 0 18px rgba(34, 211, 238, 0.1);
   transform-origin: 50% 70%;
+  transform: translateZ(42px);
+  backface-visibility: hidden;
 }
 
 .loading-success-icon::before,
@@ -2926,7 +2961,17 @@
 }
 
 .loading-success-kicker {
+  display: inline-flex;
+  min-height: 1.94rem;
+  align-items: center;
+  justify-content: center;
   margin: 0;
+  border: 1px solid rgba(251, 146, 60, 0.5);
+  border-radius: 0.46rem;
+  background:
+    linear-gradient(135deg, rgba(249, 115, 22, 0.16), rgba(34, 211, 238, 0.08)),
+    rgba(2, 6, 23, 0.36);
+  padding: 0.28rem 0.72rem 0.34rem;
   color: #fdba74;
   font-family: Oswald, sans-serif;
   font-size: clamp(0.9rem, 3vw, 1.08rem);
@@ -2934,9 +2979,14 @@
   letter-spacing: 0;
   line-height: 0.95;
   text-transform: uppercase;
+  box-shadow:
+    0 0 0 1px rgba(251, 191, 36, 0.08) inset,
+    0 0 18px rgba(251, 146, 60, 0.13);
   text-shadow:
     0 2px 5px rgba(0, 0, 0, 1),
     0 0 13px rgba(251, 146, 60, 0.28);
+  transform: translateZ(36px) rotateZ(-0.65deg);
+  backface-visibility: hidden;
 }
 
 .loading-success-card h2,
@@ -2956,6 +3006,8 @@
   filter:
     drop-shadow(0 3px 4px rgba(0, 0, 0, 1))
     drop-shadow(0 0 13px rgba(0, 0, 0, 0.96));
+  transform: translateZ(34px);
+  backface-visibility: hidden;
 }
 
 .loading-success-title-long {
@@ -3010,46 +3062,46 @@
 @keyframes loading-success-pane-stamp {
   0% {
     opacity: 0;
-    transform: translate(-50%, -218%) translateZ(220px) rotateX(66deg) rotateY(-8deg) rotateZ(-6deg) scale(0.78);
+    transform: translate(-50%, -52%) translateZ(360px) rotateX(54deg) rotateY(-10deg) rotateZ(-7deg) scale3d(1.24, 1.2, 1);
     filter:
-      blur(2.2px)
-      saturate(0.88)
-      drop-shadow(0 0.4rem 0.6rem rgba(0, 0, 0, 0.14));
+      blur(2.4px)
+      saturate(0.92)
+      drop-shadow(0 0.45rem 0.75rem rgba(0, 0, 0, 0.18));
   }
-  18% {
+  16% {
     opacity: 1;
   }
-  44% {
+  34% {
     opacity: 1;
-    transform: translate(-50%, -66%) translateZ(64px) rotateX(24deg) rotateY(3deg) rotateZ(2.4deg) scale(1.02);
+    transform: translate(-50%, -51%) translateZ(92px) rotateX(20deg) rotateY(4deg) rotateZ(2.4deg) scale3d(1.08, 1.06, 1);
     filter:
       blur(0.2px)
       saturate(1.02)
       drop-shadow(0 1.2rem 1.1rem rgba(0, 0, 0, 0.34));
   }
-  54% {
+  48% {
     opacity: 1;
-    transform: translate(-50%, -47.8%) translateZ(-8px) rotateX(0deg) rotateY(0deg) rotateZ(-0.8deg) scale(1.06, 0.88);
+    transform: translate(-50%, -49.6%) translateZ(-34px) rotateX(-3deg) rotateY(0deg) rotateZ(-1.15deg) scale3d(1.085, 0.78, 1);
     filter:
       blur(0)
-      saturate(1.18)
-      brightness(1.09)
-      drop-shadow(0 1.85rem 1rem rgba(0, 0, 0, 0.62));
+      saturate(1.2)
+      brightness(1.1)
+      drop-shadow(0 2rem 1rem rgba(0, 0, 0, 0.68));
   }
-  64% {
-    transform: translate(-50%, -51.4%) translateZ(18px) rotateX(7deg) rotateY(-1deg) rotateZ(0.6deg) scale(0.98, 1.045);
+  60% {
+    transform: translate(-50%, -50.8%) translateZ(30px) rotateX(7deg) rotateY(-1deg) rotateZ(0.55deg) scale3d(0.965, 1.055, 1);
     filter:
       blur(0)
       saturate(1.05)
       brightness(1.02)
       drop-shadow(0 1.2rem 1rem rgba(0, 0, 0, 0.38));
   }
-  78% {
-    transform: translate(-50%, -49.6%) translateZ(5px) rotateX(-1.2deg) rotateY(0deg) rotateZ(-0.22deg) scale(1.01, 0.992);
+  76% {
+    transform: translate(-50%, -50%) translateZ(8px) rotateX(-1.2deg) rotateY(0deg) rotateZ(-0.88deg) scale3d(1.01, 0.992, 1);
   }
   100% {
     opacity: 1;
-    transform: translate(-50%, -50%) translateZ(0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
+    transform: translate(-50%, -50%) translateZ(0) rotateX(0deg) rotateY(0deg) rotateZ(-0.65deg) scale3d(1, 1, 1);
     filter:
       blur(0)
       saturate(1)
@@ -3059,17 +3111,42 @@
 
 @keyframes loading-success-pane-impact-ring {
   0%,
-  40% {
+  34% {
     opacity: 0;
-    transform: scale(0.68, 0.38);
+    transform: scale(0.54, 0.34);
   }
-  54% {
-    opacity: 0.72;
-    transform: scale(1.02, 0.7);
+  48% {
+    opacity: 0.8;
+    transform: scale(0.94, 0.62);
+  }
+  68% {
+    opacity: 0.22;
+    transform: scale(1.12, 0.9);
   }
   100% {
     opacity: 0;
-    transform: scale(1.24, 1);
+    transform: scale(1.28, 1.05);
+  }
+}
+
+@keyframes loading-success-center-impact {
+  0%,
+  34% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateZ(26px) scale(0.2, 0.16);
+  }
+  48% {
+    opacity: 0.88;
+    transform: translate(-50%, -50%) translateZ(38px) scale(0.46, 0.2);
+    filter: blur(0) saturate(1.28) brightness(1.16);
+  }
+  62% {
+    opacity: 0.42;
+    transform: translate(-50%, -50%) translateZ(24px) scale(0.94, 0.58);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateZ(18px) scale(1.42, 1);
   }
 }
 
@@ -3099,76 +3176,151 @@
   }
 }
 
-@keyframes loading-success-readable-float {
-  0%,
-  100% {
-    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+@keyframes loading-success-readable-settle {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateZ(0) rotateX(0deg) rotateY(0deg) rotateZ(-0.65deg) scale3d(1, 1, 1);
+    filter:
+      blur(0)
+      saturate(1)
+      drop-shadow(0 1.2rem 1rem rgba(0, 0, 0, 0.28));
   }
-  50% {
-    transform: translate(-50%, calc(-50% - 0.22rem)) rotate(-0.45deg) scale(1.012);
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateZ(0) rotateX(0deg) rotateY(0deg) rotateZ(-0.45deg) scale3d(1, 1, 1);
+    filter:
+      blur(0)
+      saturate(1)
+      drop-shadow(0 1.18rem 1rem rgba(0, 0, 0, 0.26));
   }
 }
 
 @keyframes loading-success-kicked-through {
   0% {
     opacity: 1;
-    transform: translate(-50%, -50%) translate3d(0, 0, 0) rotate(0deg) scale(1);
+    transform: translate(-50%, -50%) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) rotateZ(-0.45deg) scale3d(1, 1, 1);
     filter:
       blur(0)
       drop-shadow(0 20px 18px rgba(0, 0, 0, 0.28));
   }
-  16% {
+  12% {
     opacity: 1;
-    transform: translate(-50%, -50%) translate3d(-1.1rem, 0.72rem, 0) rotate(-5.5deg) scale(0.96, 1.04);
+    transform: translate(-50%, -50%) translate3d(0, 0, -78px) rotateX(7deg) rotateY(0deg) rotateZ(-0.45deg) scale3d(0.76, 0.64, 1);
     filter:
       blur(0)
-      drop-shadow(0 26px 22px rgba(0, 0, 0, 0.34));
+      brightness(1.06)
+      drop-shadow(0 30px 22px rgba(0, 0, 0, 0.38));
   }
-  31% {
+  27% {
     opacity: 1;
-    transform: translate(-50%, -50%) translate3d(0.62rem, -0.48rem, 0) rotate(7deg) scale(1.08, 0.92);
+    transform: translate(-50%, -50%) translate3d(0, -0.18rem, 44px) rotateX(-8deg) rotateY(2.4deg) rotateZ(-1.2deg) scale3d(1.075, 0.9, 1);
     filter:
       blur(0)
-      drop-shadow(-16px 24px 24px rgba(251, 146, 60, 0.18));
+      brightness(1.04)
+      drop-shadow(0 24px 24px rgba(251, 146, 60, 0.18));
+  }
+  46% {
+    opacity: 0.94;
+    transform: translate(-50%, -50%) translate3d(0, -1.1rem, -220px) rotateX(18deg) rotateY(-4deg) rotateZ(1.4deg) scale3d(0.72, 0.74, 1);
+    filter:
+      blur(1.2px)
+      brightness(0.98)
+      drop-shadow(0 20px 22px rgba(34, 211, 238, 0.12));
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) translate3d(min(72vw, 43rem), -42vh, 0) rotate(34deg) scale(0.34);
+    transform: translate(-50%, -50%) translate3d(0, -12vh, -760px) rotateX(42deg) rotateY(-10deg) rotateZ(4deg) scale3d(0.18, 0.2, 1);
     filter:
-      blur(7px)
-      drop-shadow(-34px 28px 28px rgba(34, 211, 238, 0.1));
+      blur(8px)
+      brightness(0.86)
+      drop-shadow(0 16px 24px rgba(34, 211, 238, 0.1));
   }
 }
 
 @keyframes loading-success-kick-streak {
   0%,
-  18% {
+  8% {
     opacity: 0;
-    transform: translateX(-42%) skewX(-18deg);
+    transform: translateX(-50%) scale(0.28, 0.18);
   }
-  32% {
-    opacity: 0.8;
-    transform: translateX(8%) skewX(-18deg);
+  16% {
+    opacity: 0.72;
+    transform: translateX(-50%) scale(0.64, 0.28);
+  }
+  34% {
+    opacity: 0.42;
+    transform: translateX(-50%) scale(1.2, 0.82);
   }
   100% {
     opacity: 0;
-    transform: translateX(148%) skewX(-18deg);
+    transform: translateX(-50%) scale(1.85, 1.2);
   }
 }
 
 @keyframes loading-success-kick-impact {
   0%,
-  16% {
+  9% {
     opacity: 0;
-    transform: scale(0.92);
+    transform: scale(0.6, 0.42);
   }
-  31% {
-    opacity: 0.76;
-    transform: scale(1.04);
+  18% {
+    opacity: 0.82;
+    transform: scale(0.82, 0.48);
+  }
+  36% {
+    opacity: 0.42;
+    transform: scale(1.16, 0.86);
   }
   100% {
     opacity: 0;
-    transform: scale(1.62);
+    transform: scale(1.76, 1.28);
+  }
+}
+
+@keyframes loading-success-center-kick {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateZ(28px) scale(0.18, 0.14);
+  }
+  10% {
+    opacity: 0.94;
+    transform: translate(-50%, -50%) translateZ(44px) scale(0.18, 0.12);
+    filter: blur(0) saturate(1.35) brightness(1.18);
+  }
+  22% {
+    opacity: 0.74;
+    transform: translate(-50%, -50%) translateZ(18px) scale(0.82, 0.36);
+  }
+  46% {
+    opacity: 0.28;
+    transform: translate(-50%, -50%) translateZ(-80px) scale(1.26, 0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateZ(-180px) scale(1.95, 1.45);
+  }
+}
+
+@keyframes loading-success-copy-center-kick {
+  0% {
+    opacity: 1;
+    transform: translateZ(30px) scale3d(1, 1, 1);
+  }
+  12% {
+    opacity: 1;
+    transform: translateZ(6px) scale3d(0.97, 0.92, 1);
+  }
+  27% {
+    opacity: 1;
+    transform: translateZ(46px) scale3d(1.018, 0.97, 1);
+  }
+  54% {
+    opacity: 0.86;
+    transform: translateZ(-74px) scale3d(0.84, 0.86, 1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateZ(-140px) scale3d(0.72, 0.74, 1);
   }
 }
 
@@ -3333,10 +3485,14 @@
   .loading-success-card,
   .loading-success-card::before,
   .loading-success-card::after,
+  .loading-success-impact-core,
   .loading-success-card h2,
   .loading-success-title,
   .loading-success-backdrop-logo,
   .loading-success-copy,
+  .analysis-loading-dialog-reveal .analysis-loading-panel,
+  .analysis-loading-dialog-kick .analysis-loading-panel,
+  .report-shell-entering,
   .loading-football,
   .loading-football-shadow,
   .loading-step-spark,
@@ -3350,6 +3506,34 @@
     opacity: 1;
     transform: translate(-50%, -50%) !important;
     filter: none !important;
+  }
+
+  .analysis-loading-dialog-reveal .analysis-loading-panel,
+  .analysis-loading-dialog-kick .analysis-loading-panel {
+    opacity: 0;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .analysis-loading-dialog-kick .loading-success-card {
+    opacity: 0 !important;
+    transition: opacity 180ms ease-out !important;
+  }
+
+  .report-shell-entering {
+    opacity: 1;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .loading-success-impact-core {
+    display: none;
+  }
+
+  .loading-success-copy,
+  .loading-success-kicker {
+    transform: none !important;
+    filter: none;
   }
 
   .loading-success-icon,
@@ -6874,6 +7058,139 @@
       grid-template-columns: minmax(0, 1fr);
       text-align: center;
     }
+  }
+
+  .player-trade-comps {
+    --trade-comp-chip-height: 1.34rem;
+  }
+
+  .player-modal-section-kicker {
+    line-height: 1;
+  }
+
+  .player-trade-comp-grid {
+    align-items: stretch;
+  }
+
+  .player-trade-comp-card {
+    display: grid;
+    min-width: 0;
+    gap: 0.45rem;
+    border: 1px solid rgba(34, 211, 238, 0.17);
+    border-radius: 0.9rem;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.08), transparent 36%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.78));
+    padding: 0.58rem;
+    text-align: left;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  .player-trade-comp-card:hover,
+  .player-trade-comp-card:focus-visible {
+    border-color: rgba(34, 211, 238, 0.36);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+    transform: translateY(-1px);
+  }
+
+  .player-trade-comp-context {
+    overflow: hidden;
+    color: rgba(103, 232, 249, 0.84);
+    font-size: 0.56rem;
+    font-weight: 1000;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .player-trade-comp-identity .player-chip {
+    width: 100%;
+    gap: 0.46rem;
+  }
+
+  .player-trade-comp-identity .player-chip img,
+  .player-trade-comp-identity .player-chip > span[aria-hidden="true"] {
+    height: 2rem;
+    width: 2rem;
+  }
+
+  .player-trade-comp-identity .player-chip > span:last-child {
+    color: #f8fafc;
+    font-size: 0.8rem;
+    font-weight: 1000;
+    line-height: 1.05;
+  }
+
+  .player-trade-comp-meta,
+  .player-trade-comp-values {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.36rem;
+  }
+
+  .player-trade-comp-meta {
+    justify-content: flex-start;
+  }
+
+  .player-trade-comp-meta .team-logo-pill {
+    height: var(--trade-comp-chip-height) !important;
+    min-height: var(--trade-comp-chip-height) !important;
+    min-width: var(--trade-comp-chip-height) !important;
+    width: var(--trade-comp-chip-height) !important;
+  }
+
+  .player-trade-comp-meta .team-logo-pill img {
+    height: var(--trade-comp-chip-height);
+    width: var(--trade-comp-chip-height);
+  }
+
+  .player-trade-comp-values {
+    justify-content: space-between;
+  }
+
+  .player-trade-comp-values span {
+    display: inline-grid;
+    min-height: 1.72rem;
+    min-width: 4.05rem;
+    align-content: center;
+    gap: 0.12rem;
+    border: 1px solid rgba(34, 211, 238, 0.16);
+    border-radius: 0.56rem;
+    background: rgba(2, 6, 23, 0.62);
+    padding: 0.24rem 0.42rem;
+  }
+
+  .player-trade-comp-values em {
+    color: rgba(148, 163, 184, 0.88);
+    font-size: 0.5rem;
+    font-style: normal;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .player-trade-comp-values strong {
+    color: #e2e8f0;
+    font-size: 0.7rem;
+    font-weight: 1000;
+    line-height: 1;
+  }
+
+  .player-trade-comp-delta-positive strong {
+    color: #86efac;
+  }
+
+  .player-trade-comp-delta-negative strong {
+    color: #fda4af;
+  }
+
+  .player-trade-comp-delta-neutral strong {
+    color: #cbd5e1;
   }
 
   .player-intelligence-panel {
@@ -15914,6 +16231,81 @@ button.trade-manager-trade {
   max-width: 100%;
 }
 
+/* 2026 consistency pass: shared report type, pill, alignment, and stacked-row rhythm. */
+.report-shell :is(
+  .report-section-kicker,
+  .rankings-kicker,
+  .draftbuzz-scoreboard__header .rankings-kicker,
+  .report-disclosure-summary p,
+  .player-modal-section-kicker,
+  .recent-transaction-player-label,
+  .trade-market-signal,
+  .waiver-intel-label
+) {
+  font-size: var(--report-kicker-font-size) !important;
+  font-weight: 1000 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.report-shell :is(
+  .report-metric-pill,
+  .owner-metric-pill,
+  .command-mini-badge,
+  .trade-habit-pill,
+  .manager-intel-pill,
+  .weekly-momentum-pills span,
+  .weekly-momentum-values span,
+  .trending-player-card-pills span,
+  .trade-market-pills span,
+  .waiver-intel-pills span,
+  .player-tile-pills span,
+  .recent-transaction-player-pills span,
+  .rankings-active-profile,
+  .ranking-card-rank-pill,
+  .ranking-trend-pill,
+  .position-rank-pill,
+  .value-pill
+) {
+  min-height: 1.42rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.report-shell :is(
+  .weekly-momentum-delta,
+  .trade-market-change,
+  .draftbuzz-table__score,
+  .value-board__value,
+  .value-board__movement,
+  .recent-transaction-meta strong,
+  .rookie-draft-value-cell,
+  .rookie-draft-gain-cell
+) {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.report-shell :is(
+  .report-player-identity-row,
+  .player-chip,
+  .manager-chip,
+  .report-manager-badge,
+  .recent-transaction-manager,
+  .trade-market-manager
+) {
+  min-width: 0;
+}
+
+.report-shell :is(.mobile-stacked-row, .value-board__mobile-card) {
+  max-width: 100%;
+  overflow: hidden;
+}
+
 @media (min-width: 1024px) {
   .report-shell :is(.manager-command-title-lockup, .trade-manager-title-lockup) {
     justify-content: flex-start;
@@ -22964,4 +23356,304 @@ body,
     transition: none !important;
   }
 
+}
+
+/* Shared interaction primitives: subtle, transform-only polish for identities and controls. */
+:root {
+  --dd-motion-fast: 180ms;
+  --dd-motion-medium: 220ms;
+  --dd-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dd-identity-avatar-scale: 1.06;
+  --dd-identity-name-scale: 1.025;
+  --dd-card-hover-y: -1px;
+  --dd-pill-hover-y: -1px;
+}
+
+.interactive-identity,
+.manager-chip,
+.player-chip {
+  transform-origin: center;
+}
+
+.interactive-identity-avatar,
+.player-chip > img,
+.player-chip > span[aria-hidden="true"],
+.manager-chip .manager-champion-avatar,
+.ranking-player-image,
+.trade-mobile-avatar-wrap,
+.trade-fit-read-manager .manager-champion-avatar,
+.partner-chip-reverse .manager-champion-avatar,
+.trade-side-manager .manager-champion-avatar,
+.activity-manager-avatar .manager-champion-avatar,
+.owner-summary-avatar,
+.command-depth-avatar {
+  transform-origin: center;
+  transition:
+    transform var(--dd-motion-fast) var(--dd-motion-ease-out),
+    border-color var(--dd-motion-fast) var(--dd-motion-ease-out),
+    filter var(--dd-motion-fast) var(--dd-motion-ease-out);
+}
+
+.interactive-identity-name,
+.player-chip > span:last-child,
+.manager-chip > .interactive-identity-name,
+.manager-chip:not(:has(.interactive-identity-name)) > span:last-child,
+.ranking-player-identity > span:last-child,
+.trade-side-manager-name,
+.trade-fit-read-manager > span:first-child,
+.partner-chip-reverse > span:first-child,
+.owner-summary-name,
+.command-depth-name {
+  display: inline-block;
+  transform-origin: left center;
+  transition:
+    transform var(--dd-motion-fast) var(--dd-motion-ease-out),
+    color var(--dd-motion-fast) var(--dd-motion-ease-out);
+}
+
+.weekly-momentum-manager .interactive-identity-name,
+.trending-player-card-owner .interactive-identity-name,
+.player-tile-owner .interactive-identity-name,
+.trade-market-manager .interactive-identity-name {
+  transform-origin: right center;
+}
+
+.interactive-card,
+.report-shell :is(
+  button.player-team-tile,
+  button.ranking-player-card,
+  button.value-board__row,
+  button.draftbuzz-table__row,
+  button.trade-asset-clickable,
+  button.player-trade-comp-card,
+  button.recent-transaction-player,
+  button.owner-summary-tile,
+  button.command-depth-tile
+) {
+  transition:
+    border-color var(--dd-motion-fast) var(--dd-motion-ease-out),
+    background-color var(--dd-motion-fast) var(--dd-motion-ease-out),
+    box-shadow var(--dd-motion-fast) var(--dd-motion-ease-out),
+    filter var(--dd-motion-fast) var(--dd-motion-ease-out),
+    transform var(--dd-motion-fast) var(--dd-motion-ease-out);
+}
+
+.interactive-pill,
+.report-shell :is(
+  .rankings-control-group button,
+  .trade-war-mode-tabs button,
+  button.recent-transaction-day-pill,
+  .league-shortcut-button
+) {
+  transition:
+    border-color var(--dd-motion-fast) var(--dd-motion-ease-out),
+    background-color var(--dd-motion-fast) var(--dd-motion-ease-out),
+    box-shadow var(--dd-motion-fast) var(--dd-motion-ease-out),
+    color var(--dd-motion-fast) var(--dd-motion-ease-out),
+    transform var(--dd-motion-fast) var(--dd-motion-ease-out);
+}
+
+.interactive-tab {
+  transform-origin: center;
+  transition-duration: var(--dd-motion-medium);
+  transition-timing-function: var(--dd-motion-ease-out);
+}
+
+.interactive-collapsible-content {
+  overflow: hidden;
+  transform-origin: 50% 0;
+}
+
+.interactive-collapsible-content[data-state="open"] {
+  animation: dd-collapsible-reveal 220ms var(--dd-motion-ease-out) both;
+}
+
+.report-shell [data-slot="table-row"] {
+  transition:
+    background-color var(--dd-motion-fast) var(--dd-motion-ease-out),
+    border-color var(--dd-motion-fast) var(--dd-motion-ease-out);
+}
+
+.report-shell .report-tabs::before {
+  transition:
+    left var(--dd-motion-medium) var(--dd-motion-ease-out),
+    width var(--dd-motion-fast) var(--dd-motion-ease-out),
+    transform var(--dd-motion-fast) var(--dd-motion-ease-out);
+}
+
+@keyframes dd-collapsible-reveal {
+  from {
+    opacity: 0.72;
+    transform: translateY(-0.18rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .interactive-identity:hover .interactive-identity-avatar,
+  .interactive-identity:focus-within .interactive-identity-avatar,
+  .player-chip:hover > img,
+  .player-chip:hover > span[aria-hidden="true"],
+  .player-chip:focus-within > img,
+  .player-chip:focus-within > span[aria-hidden="true"],
+  .manager-chip:hover .manager-champion-avatar,
+  .manager-chip:focus-within .manager-champion-avatar {
+    transform: scale(var(--dd-identity-avatar-scale));
+  }
+
+  .interactive-identity:hover .interactive-identity-name,
+  .interactive-identity:focus-within .interactive-identity-name,
+  .player-chip:hover > span:last-child,
+  .player-chip:focus-within > span:last-child,
+  .manager-chip:not(:has(.interactive-identity-name)):hover > span:last-child,
+  .manager-chip:not(:has(.interactive-identity-name)):focus-within > span:last-child {
+    transform: scale(var(--dd-identity-name-scale));
+  }
+
+  .report-shell :is(
+    button.player-team-tile,
+    button.ranking-player-card,
+    button.value-board__row,
+    button.draftbuzz-table__row,
+    button.trade-asset-clickable,
+    button.player-trade-comp-card,
+    button.recent-transaction-player
+  ):is(:hover, :focus-visible) .player-chip > :is(img, span[aria-hidden="true"], .interactive-identity-avatar),
+  .report-shell :is(button.value-board__row, button.draftbuzz-table__row):is(:hover, :focus-visible) .ranking-player-image {
+    transform: scale(var(--dd-identity-avatar-scale));
+  }
+
+  .report-shell :is(
+    button.player-team-tile,
+    button.ranking-player-card,
+    button.value-board__row,
+    button.draftbuzz-table__row,
+    button.trade-asset-clickable,
+    button.player-trade-comp-card,
+    button.recent-transaction-player
+  ):is(:hover, :focus-visible) .player-chip > span:last-child,
+  .report-shell :is(button.value-board__row, button.draftbuzz-table__row):is(:hover, :focus-visible) .ranking-player-identity > span:last-child {
+    transform: scale(var(--dd-identity-name-scale));
+  }
+
+  .report-shell :is(
+    button.owner-summary-tile,
+    button.command-depth-tile
+  ):is(:hover, :focus-visible) :is(.owner-summary-avatar, .command-depth-avatar),
+  :is(.trade-side-manager, .trade-fit-read-manager, .partner-chip-reverse, .activity-manager-avatar):hover .manager-champion-avatar,
+  :is(.trade-side-manager, .trade-fit-read-manager, .partner-chip-reverse, .activity-manager-avatar):focus-within .manager-champion-avatar {
+    transform: scale(1.05);
+  }
+
+  .report-shell :is(
+    button.owner-summary-tile,
+    button.command-depth-tile
+  ):is(:hover, :focus-visible) :is(.owner-summary-name, .command-depth-name),
+  .trade-side-manager:hover .trade-side-manager-name,
+  .trade-side-manager:focus-within .trade-side-manager-name,
+  .trade-fit-read-manager:hover > span:first-child,
+  .trade-fit-read-manager:focus-within > span:first-child,
+  .partner-chip-reverse:hover > span:first-child,
+  .partner-chip-reverse:focus-within > span:first-child {
+    transform: scale(var(--dd-identity-name-scale));
+  }
+
+  .interactive-card:hover,
+  .interactive-card:focus-visible,
+  .report-shell :is(button.player-trade-comp-card, button.trade-asset-clickable):is(:hover, :focus-visible) {
+    transform: translateY(var(--dd-card-hover-y));
+  }
+
+  .interactive-pill:hover,
+  .interactive-pill:focus-visible,
+  .report-shell :is(
+    .rankings-control-group button,
+    .trade-war-mode-tabs button,
+    button.recent-transaction-day-pill
+  ):is(:hover, :focus-visible) {
+    transform: translateY(var(--dd-pill-hover-y));
+  }
+
+  .report-shell :is(.rankings-control-group button, .trade-war-mode-tabs button, button.recent-transaction-day-pill).active,
+  .report-shell button.recent-transaction-day-pill.is-active {
+    transform: translateY(0);
+  }
+}
+
+@media (hover: none) {
+  .interactive-identity:active .interactive-identity-avatar,
+  .player-chip:active > :is(img, span[aria-hidden="true"]),
+  .manager-chip:active .manager-champion-avatar {
+    transform: scale(1.025);
+  }
+
+  .interactive-card:active,
+  .report-shell :is(button.player-team-tile, button.player-trade-comp-card, button.trade-asset-clickable):active {
+    transform: translateY(-0.5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interactive-identity,
+  .interactive-identity *,
+  .interactive-card,
+  .interactive-pill,
+  .interactive-tab,
+  .interactive-collapsible-content,
+  .manager-chip,
+  .manager-chip *,
+  .player-chip,
+  .player-chip *,
+  .ranking-player-image,
+  .owner-summary-avatar,
+  .owner-summary-name,
+  .command-depth-avatar,
+  .command-depth-name {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+
+  .report-shell .report-tabs::before {
+    transition: none !important;
+  }
+
+  .interactive-card,
+  .interactive-pill,
+  .report-shell :is(
+    button.player-team-tile,
+    button.ranking-player-card,
+    button.value-board__row,
+    button.draftbuzz-table__row,
+    button.trade-asset-clickable,
+    button.player-trade-comp-card,
+    button.recent-transaction-player,
+    button.owner-summary-tile,
+    button.command-depth-tile,
+    .rankings-control-group button,
+    .trade-war-mode-tabs button,
+    button.recent-transaction-day-pill
+  ) {
+    transform: none !important;
+    transition-duration: 1ms !important;
+  }
+
+  .interactive-identity-avatar,
+  .interactive-identity-name,
+  .player-chip > img,
+  .player-chip > span[aria-hidden="true"],
+  .player-chip > span:last-child,
+  .manager-chip .manager-champion-avatar,
+  .manager-chip > span:last-child,
+  .ranking-player-image,
+  .ranking-player-identity > span:last-child,
+  .owner-summary-avatar,
+  .owner-summary-name,
+  .command-depth-avatar,
+  .command-depth-name {
+    transform: none !important;
+  }
 }

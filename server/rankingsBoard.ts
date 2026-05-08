@@ -261,10 +261,10 @@ function buildDraftBuzzScoreboardEntries(
   }
 
   return Array.from(byKey.values()).sort((a, b) => (
-    a.draftYear - b.draftYear
-    || a.position.localeCompare(b.position)
-    || b.rating - a.rating
+    b.rating - a.rating
     || (a.overallRank || 9999) - (b.overallRank || 9999)
+    || a.draftYear - b.draftYear
+    || a.position.localeCompare(b.position)
     || a.name.localeCompare(b.name)
   ));
 }
