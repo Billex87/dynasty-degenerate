@@ -232,7 +232,7 @@ type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
 const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v33';
-const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v10';
+const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
 const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
 const RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP = 250;
 const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');
@@ -247,10 +247,22 @@ function getLeagueReportCacheKey(leagueId: string, viewerUserId?: string | null)
   ].join(':');
 }
 
-function getLeagueRankingsCacheKey(leagueId: string): string {
+function getProspectRankingsCacheSegment(diagnostics: any): string {
+  return [
+    'prospects',
+    diagnostics?.scrapeMonth || 'none',
+    diagnostics?.generatedAt || 'none',
+    Number(diagnostics?.playerCount || 0),
+    Array.isArray(diagnostics?.yearsTracked) ? diagnostics.yearsTracked.join('-') : 'none',
+    Array.isArray(diagnostics?.errors) ? diagnostics.errors.length : 0,
+  ].join(':');
+}
+
+function getLeagueRankingsCacheKey(leagueId: string, prospectCacheSegment = 'prospects:none'): string {
   return [
     LEAGUE_RANKINGS_CACHE_VERSION,
     String(leagueId || '').trim(),
+    prospectCacheSegment,
     'league',
   ].join(':');
 }
@@ -1911,7 +1923,8 @@ async function fetchDraftSlotsBySeason(
 }
 
 async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false) {
-  const rankingsCacheKey = getLeagueRankingsCacheKey(leagueId);
+  const prospectContext = await loadProspectContext();
+  const rankingsCacheKey = getLeagueRankingsCacheKey(leagueId, getProspectRankingsCacheSegment(prospectContext.diagnostics));
   const cachedRankings = forceRefresh ? null : await readCachedLeagueReport(rankingsCacheKey);
   if (!forceRefresh && cachedRankings && typeof cachedRankings === 'object') {
     return cachedRankings as { rankings: Awaited<ReturnType<typeof buildRankingsBoard>> };
@@ -1953,7 +1966,6 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
     }
   }
 
-  const prospectContext = await loadProspectContext();
   const rankings = await buildRankingsBoard({
     players: safePlayers,
     ktcValues,
