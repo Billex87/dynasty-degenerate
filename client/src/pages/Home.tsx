@@ -88,6 +88,26 @@ function ReportSectionLoadingFallback() {
   );
 }
 
+function ProspectArchiveLoadingState() {
+  return (
+    <div className="prospect-archive-loading" role="status" aria-live="polite">
+      <div className="prospect-archive-loading__logo" aria-hidden="true">
+        <img src="/assets/ncaa-logo.svg" alt="" />
+      </div>
+      <div className="prospect-archive-loading__copy">
+        <span>Scouting Data Archive</span>
+        <strong>Getting college prospects</strong>
+        <p>Loading Draft Buzz scores, class filters, position ranks, and verified combine measurables.</p>
+      </div>
+      <div className="prospect-archive-loading__badges" aria-hidden="true">
+        <span>NCAA</span>
+        <span>Draft Buzz</span>
+        <span>Prospect Scores</span>
+      </div>
+    </div>
+  );
+}
+
 function normalizeAdminViewMode(value: unknown): AdminViewMode | null {
   return value === 'admin' || value === 'regular' ? value : null;
 }
@@ -2036,7 +2056,7 @@ export default function Home() {
                 {!isRedraftReport && (
                   <CollapsibleReportSection title="Prospect Score Archive" kicker="Scouting data archive" defaultOpen>
                     {rankingsQuery.isLoading && !rankingsForReport ? (
-                      <div className="rankings-empty-state">Loading prospect score archive...</div>
+                      <ProspectArchiveLoadingState />
                     ) : (
                       <RankingsBoard
                         rankings={rankingsForReport}

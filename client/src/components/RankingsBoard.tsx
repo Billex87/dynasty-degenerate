@@ -14,6 +14,7 @@ import type { DraftBuzzScoreboardEntry, PlayerDetails, RankingPlayer, RankingPro
 type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'PICK';
 type SortMode = 'rank' | 'value' | 'movement';
 type DraftBuzzPosition = Exclude<PositionFilter, 'PICK'>;
+type DraftBuzzSortMode = 'score' | 'forty' | 'height' | 'weight';
 
 type RankingsTableConfig = {
   board: 'dynasty' | 'devy';
@@ -167,6 +168,46 @@ function getDraftBuzzPositionRankLabel(player: DraftBuzzScoreboardEntry): string
 
 function formatDraftBuzzTrait(value?: string | number | null): string {
   return value === null || value === undefined || value === '' ? '-' : String(value);
+}
+
+function parseDraftBuzzHeight(value?: string | null): number | null {
+  const match = String(value || '').match(/(\d+)\s*[-']\s*(\d+)/);
+  if (!match) return null;
+  const feet = Number(match[1]);
+  const inches = Number(match[2]);
+  if (!Number.isFinite(feet) || !Number.isFinite(inches)) return null;
+  return feet * 12 + inches;
+}
+
+function parseDraftBuzzWeight(value?: string | null): number | null {
+  const parsed = Number(String(value || '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function compareNullableMetric(a: number | null, b: number | null, direction: 'asc' | 'desc') {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return direction === 'asc' ? a - b : b - a;
+}
+
+function compareDraftBuzzRows(a: DraftBuzzScoreboardEntry, b: DraftBuzzScoreboardEntry, sortMode: DraftBuzzSortMode) {
+  if (sortMode === 'forty') {
+    const metricSort = compareNullableMetric(a.fortyYardDash ?? null, b.fortyYardDash ?? null, 'asc');
+    if (metricSort) return metricSort;
+  }
+
+  if (sortMode === 'height') {
+    const metricSort = compareNullableMetric(parseDraftBuzzHeight(a.height), parseDraftBuzzHeight(b.height), 'desc');
+    if (metricSort) return metricSort;
+  }
+
+  if (sortMode === 'weight') {
+    const metricSort = compareNullableMetric(parseDraftBuzzWeight(a.weight), parseDraftBuzzWeight(b.weight), 'desc');
+    if (metricSort) return metricSort;
+  }
+
+  return b.rating - a.rating || (a.overallRank || 9999) - (b.overallRank || 9999) || a.draftYear - b.draftYear || a.position.localeCompare(b.position) || a.name.localeCompare(b.name);
 }
 
 function getProfileFallback(options: RankingProfileOption[], board: 'dynasty' | 'devy'): string {
@@ -445,6 +486,7 @@ function DraftBuzzSchoolLogo({ entry }: { entry: DraftBuzzScoreboardEntry }) {
 function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzScoreboardEntry[]; onSelectEntry: (entry: DraftBuzzScoreboardEntry) => void }) {
   const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(null);
   const [selectedPositions, setSelectedPositions] = useState<DraftBuzzPosition[]>([]);
+  const [sortMode, setSortMode] = useState<DraftBuzzSortMode>('score');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
 
@@ -474,30 +516,22 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
     }
   }, [draftClassOptions, selectedDraftClass]);
 
-  const classSummaries = useMemo(() => {
-    const byClass = new Map<number, number>();
-    for (const row of allRows) {
-      byClass.set(row.draftYear, (byClass.get(row.draftYear) || 0) + 1);
-    }
-    return Array.from(byClass.entries())
-      .sort(([classA], [classB]) => classA - classB)
-      .map(([draftClass, count]) => ({ draftClass, count }));
-  }, [allRows]);
-
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return allRows.filter(row => {
-      if (selectedDraftClass && row.draftYear !== selectedDraftClass) return false;
-      if (selectedPositions.length && !selectedPositions.includes(row.position as DraftBuzzPosition)) return false;
-      if (!normalizedQuery) return true;
+    return allRows
+      .filter(row => {
+        if (selectedDraftClass && row.draftYear !== selectedDraftClass) return false;
+        if (selectedPositions.length && !selectedPositions.includes(row.position as DraftBuzzPosition)) return false;
+        if (!normalizedQuery) return true;
 
-      return [row.name, row.college, row.nflTeam, row.team, row.position, row.draftYear, row.rating, row.fortyYardDash, row.height, row.weight, getDraftBuzzPositionRankLabel(row)].some(value =>
-        String(value || '')
-          .toLowerCase()
-          .includes(normalizedQuery)
-      );
-    });
-  }, [allRows, query, selectedDraftClass, selectedPositions]);
+        return [row.name, row.college, row.nflTeam, row.team, row.position, row.draftYear, row.rating, row.fortyYardDash, row.height, row.weight, getDraftBuzzPositionRankLabel(row)].some(value =>
+          String(value || '')
+            .toLowerCase()
+            .includes(normalizedQuery)
+        );
+      })
+      .sort((a, b) => compareDraftBuzzRows(a, b, sortMode));
+  }, [allRows, query, selectedDraftClass, selectedPositions, sortMode]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / DRAFT_BUZZ_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -505,7 +539,7 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
 
   useEffect(() => {
     setPage(1);
-  }, [query, selectedDraftClass, selectedPositions]);
+  }, [query, selectedDraftClass, selectedPositions, sortMode]);
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
@@ -538,15 +572,6 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
         </div>
       </div>
 
-      <div className="draftbuzz-year-summary" aria-label="Draft class totals">
-        {classSummaries.map(summary => (
-          <button key={summary.draftClass} type="button" className={selectedDraftClass === summary.draftClass ? 'active' : ''} onClick={() => setSelectedDraftClass(current => (current === summary.draftClass ? null : summary.draftClass))}>
-            <strong>{summary.draftClass}</strong>
-            <span>{summary.count.toLocaleString()}</span>
-          </button>
-        ))}
-      </div>
-
       <div className="draftbuzz-controls value-board__toolbar">
         <div className="rankings-search-wrap value-board__search">
           <Search className="h-4 w-4" aria-hidden="true" />
@@ -562,6 +587,21 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
               {draftClass}
             </button>
           ))}
+        </div>
+
+        <div className="rankings-control-group draftbuzz-sort-toggle value-board__draftbuzz-sort" aria-label="Prospect archive sort">
+          <button type="button" className={sortMode === 'score' ? 'active' : ''} aria-pressed={sortMode === 'score'} onClick={() => setSortMode('score')}>
+            Score
+          </button>
+          <button type="button" className={sortMode === 'forty' ? 'active' : ''} aria-pressed={sortMode === 'forty'} onClick={() => setSortMode('forty')}>
+            40
+          </button>
+          <button type="button" className={sortMode === 'height' ? 'active' : ''} aria-pressed={sortMode === 'height'} onClick={() => setSortMode('height')}>
+            Height
+          </button>
+          <button type="button" className={sortMode === 'weight' ? 'active' : ''} aria-pressed={sortMode === 'weight'} onClick={() => setSortMode('weight')}>
+            Weight
+          </button>
         </div>
 
         <div className="rankings-control-group rankings-position-toggle" aria-label="Prospect position filter">
