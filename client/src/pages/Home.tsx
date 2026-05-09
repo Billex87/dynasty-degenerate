@@ -12,14 +12,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CheckCircle2, ChevronDown, Zap, TrendingUp, TrendingDown, BarChart3, Repeat2, ClipboardList, ListOrdered } from 'lucide-react';
+import { Bot, CheckCircle2, ChevronDown, Zap, TrendingUp, TrendingDown, BarChart3, Repeat2, ClipboardList, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { SupportButton } from '@/components/SupportButton';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
 import { PlayerPill, PreviewMetricChips, ReportSectionHeader, type PreviewMetric } from '@/components/reportPrimitives';
-import { getLeagueModeCopy, normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
+import { getLeagueModeCopy, getPlayerRankForMode, normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
+import { getPositionRankClass } from '@/lib/positionRank';
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import type { ReportData } from '@shared/types';
 
@@ -47,6 +48,7 @@ const LeagueExploits = lazy(() => import('@/components/CommandCenterExpansion').
 const RankingsMarketRead = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.RankingsMarketRead })));
 const TradeBrowserRead = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.TradeBrowserRead })));
 const AssistantFeatureShells = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.AssistantFeatureShells })));
+const AITeamAutopilot = lazy(() => import('@/components/AITeamAutopilot'));
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
 const REPORT_CACHE_DATA_VERSION = 'draftbuzz-history-v1';
@@ -134,7 +136,7 @@ function ProspectArchiveLoadingState() {
   );
 }
 
-const REPORT_TAB_VALUES = ['overview', 'momentum', 'rankings', 'trades', 'draft'] as const;
+const REPORT_TAB_VALUES = ['overview', 'autopilot', 'momentum', 'rankings', 'trades', 'draft'] as const;
 
 function normalizeReportTab(value?: string | null): string | null {
   const normalized = String(value || '').replace(/^#/, '').replace(/^tab=/, '').trim().toLowerCase();
@@ -476,16 +478,23 @@ function renderTrendingPreviewPlayer(player: NonNullable<ReportData['trendingAdd
   );
 }
 
-function renderPreviewPlayerMetric(player: ReactNode, metric?: string | null) {
+type RecentTransactionPreviewPlayer = NonNullable<ReportData['recentTransactions']>[number]['addedPlayer'];
+
+function renderPreviewPlayerMetric(player: ReactNode, metric?: string | null, metricClassName?: string) {
+  const metricClass = [
+    'analysis-preview-player-count',
+    metricClassName,
+  ].filter(Boolean).join(' ');
+
   return (
     <span className="analysis-preview-player-with-meta">
       {player}
-      {metric && <span className="analysis-preview-player-count">{metric}</span>}
+      {metric && <span className={metricClass}>{metric}</span>}
     </span>
   );
 }
 
-function renderRecentTransactionPreviewPlayer(player: NonNullable<ReportData['recentTransactions']>[number]['addedPlayer']) {
+function renderRecentTransactionPreviewPlayer(player: RecentTransactionPreviewPlayer) {
   if (!player) return null;
   return (
     <PlayerPill
@@ -496,6 +505,16 @@ function renderRecentTransactionPreviewPlayer(player: NonNullable<ReportData['re
       className="analysis-preview-player"
     />
   );
+}
+
+function getRecentTransactionPreviewRank(player: RecentTransactionPreviewPlayer, leagueValueMode: LeagueValueMode): string | null {
+  if (!player) return null;
+  return getPlayerRankForMode({
+    valueProfile: player.playerDetails?.valueProfile,
+    fallbackRank: player.currentPositionRank || player.pos,
+    mode: leagueValueMode,
+    context: 'rankings',
+  }) || player.currentPositionRank || player.pos || null;
 }
 
 function formatPreviewPercent(value?: number | null): string | null {
@@ -562,7 +581,7 @@ function buildTrendingPreviewMetrics(
     }));
 }
 
-function buildRecentTransactionPreviewMetrics(transactions?: ReportData['recentTransactions']): PreviewMetric[] {
+function buildRecentTransactionPreviewMetrics(transactions?: ReportData['recentTransactions'], leagueValueMode: LeagueValueMode = 'dynasty'): PreviewMetric[] {
   const now = Date.now();
   const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
 
@@ -580,12 +599,19 @@ function buildRecentTransactionPreviewMetrics(transactions?: ReportData['recentT
     }))
     .filter((item) => item.player)
     .slice(0, 4)
-    .map((item, index): PreviewMetric => ({
-      label: `${item.label} ${index + 1}`,
-      value: renderRecentTransactionPreviewPlayer(item.player),
-      tone: item.tone,
-      hideLabel: true,
-    }));
+    .map((item, index): PreviewMetric => {
+      const rank = getRecentTransactionPreviewRank(item.player, leagueValueMode);
+      return {
+        label: `${item.label} ${index + 1}`,
+        value: renderPreviewPlayerMetric(
+          renderRecentTransactionPreviewPlayer(item.player),
+          rank,
+          rank ? `analysis-preview-player-count-rank ${getPositionRankClass(rank)}` : undefined,
+        ),
+        tone: item.tone,
+        hideLabel: true,
+      };
+    });
 }
 
 function normalizeAdminViewMode(value: unknown): AdminViewMode | null {
@@ -2353,7 +2379,10 @@ export default function Home() {
   };
 
   const migratedActiveTab = activeTab === 'projections' ? 'rankings' : activeTab;
-  const resolvedActiveTab = migratedActiveTab;
+  const canViewAutopilotTab = canViewAdminFeatureExpansion;
+  const shouldDeferAutopilotUrlSync = migratedActiveTab === 'autopilot' && !canViewAutopilotTab && authQuery.isLoading;
+  const resolvedActiveTab = migratedActiveTab === 'autopilot' && !canViewAutopilotTab ? 'overview' : migratedActiveTab;
+  const reportTabsClassName = `report-tabs ${canViewAutopilotTab ? 'report-tabs-six' : 'report-tabs-five'}`;
   const rankingsQuery = trpc.league.rankings.useQuery(
     { leagueId },
     {
@@ -2369,21 +2398,29 @@ export default function Home() {
     ? { ...reportData, rankings: rankingsForReport }
     : reportData;
   const handleReportTabChange = (nextTab: string) => {
-    setActiveTab(nextTab);
-    updateReportTabUrl(nextTab, leagueId);
+    const allowedNextTab = nextTab === 'autopilot' && !canViewAutopilotTab ? 'overview' : nextTab;
+    setActiveTab(allowedNextTab);
+    updateReportTabUrl(allowedNextTab, leagueId);
   };
 
   useEffect(() => {
+    if (activeTab === 'autopilot' && !canViewAutopilotTab && !authQuery.isLoading) {
+      setActiveTab('overview');
+      updateReportTabUrl('overview', leagueId);
+      return;
+    }
+
     if (activeTab === 'projections') {
       setActiveTab('rankings');
       updateReportTabUrl('rankings', leagueId);
     }
-  }, [activeTab, leagueId]);
+  }, [activeTab, authQuery.isLoading, canViewAutopilotTab, leagueId]);
 
   useEffect(() => {
     if (!reportData || !leagueId) return;
+    if (shouldDeferAutopilotUrlSync) return;
     updateReportTabUrl(resolvedActiveTab, leagueId);
-  }, [leagueId, reportData, resolvedActiveTab]);
+  }, [leagueId, reportData, resolvedActiveTab, shouldDeferAutopilotUrlSync]);
 
   useEffect(() => {
     if (!reportData) return;
@@ -2670,13 +2707,22 @@ export default function Home() {
         <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
           <Tabs value={resolvedActiveTab} onValueChange={handleReportTabChange} className="w-full">
             <TabsList
-              className="report-tabs report-tabs-five"
+              className={reportTabsClassName}
               data-active-tab={resolvedActiveTab}
             >
               <TabsTrigger value="overview" className="report-tab" aria-label="Overview">
                 <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                <span>Overview</span>
+                <span className="report-tab-label-full" aria-hidden="true">Overview</span>
+                <span className="report-tab-label-short" aria-hidden="true">View</span>
               </TabsTrigger>
+
+              {canViewAutopilotTab && (
+                <TabsTrigger value="autopilot" className="report-tab" aria-label="AI Autopilot">
+                  <Bot className="h-4 w-4" aria-hidden="true" />
+                  <span className="report-tab-label-full" aria-hidden="true">AI Autopilot</span>
+                  <span className="report-tab-label-short" aria-hidden="true">Auto</span>
+                </TabsTrigger>
+              )}
 
               <TabsTrigger value="momentum" className="report-tab" aria-label="Weekly Momentum">
                 <TrendingUp className="h-4 w-4" aria-hidden="true" />
@@ -2685,7 +2731,8 @@ export default function Home() {
               </TabsTrigger>
               <TabsTrigger value="rankings" className="report-tab" aria-label="Rankings">
                 <ListOrdered className="h-4 w-4" aria-hidden="true" />
-                <span>Rankings</span>
+                <span className="report-tab-label-full" aria-hidden="true">Rankings</span>
+                <span className="report-tab-label-short" aria-hidden="true">Ranks</span>
               </TabsTrigger>
               <TabsTrigger value="trades" className="report-tab" aria-label="Trade History">
                 <Repeat2 className="h-4 w-4" aria-hidden="true" />
@@ -2869,6 +2916,17 @@ export default function Home() {
               </div>
             </TabsContent>
 
+            {canViewAutopilotTab && (
+              <TabsContent value="autopilot" className="report-tab-content">
+                <AITeamAutopilot
+                  reportData={displayReportData}
+                  leagueName={leagueName}
+                  leagueFormat={leagueFormat}
+                  leagueValueMode={leagueValueMode}
+                />
+              </TabsContent>
+            )}
+
             <TabsContent value="momentum" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
                 {showTradeMarketRadar && (
@@ -2914,7 +2972,7 @@ export default function Home() {
                 <CollapsibleReportSection
                   title="Recent Transactions"
                   kicker={isRedraftReport ? 'Claims, drops, and weekly churn' : 'Claims, drops, and churn'}
-                  previewMetrics={buildRecentTransactionPreviewMetrics(reportData.recentTransactions)}
+                  previewMetrics={buildRecentTransactionPreviewMetrics(reportData.recentTransactions, leagueValueMode)}
                 >
                   <RecentTransactionsPanel
                     data={reportData.recentTransactions}

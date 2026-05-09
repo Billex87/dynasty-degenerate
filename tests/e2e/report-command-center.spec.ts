@@ -110,6 +110,33 @@ test.describe('command center feature surfaces', () => {
     await expect(page.getByText('Trade Finder, Partners & League Exploits')).toHaveCount(0);
   });
 
+  test('shows live-data AI Autopilot only for admin view', async ({ page }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport, '#autopilot');
+
+    await expect(page.getByRole('tab', { name: 'AI Autopilot' })).toBeVisible();
+    await expect(page.getByText('Tester dynasty cockpit')).toBeVisible();
+    await expect(page.getByText('Live report data')).toBeVisible();
+    await expect(page.getByText('Team Direction')).toBeVisible();
+    await expect(page.getByText('Depth Receiver').first()).toBeVisible();
+    await expect(page.getByText('Sample Runner').first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Redraft' }).click();
+    await expect(page.getByText('Tester win-now cockpit')).toBeVisible();
+    await expect(page.getByText('Weekly ceiling')).toBeVisible();
+    await expect(page.getByText('current-season profile from the waiver data').first()).toBeVisible();
+  });
+
+  test('does not expose AI Autopilot to regular report viewers', async ({ page }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport, '#autopilot', { admin: false });
+
+    await expect(page.getByRole('tab', { name: 'AI Autopilot' })).toHaveCount(0);
+    await expect(page.getByText('AI Team Autopilot')).toHaveCount(0);
+    await expect(page.getByText('Tester dynasty cockpit')).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`leagueId=${cachedReport.leagueId}(#overview)?$`));
+  });
+
   test('keeps weekly momentum public while hiding waiver intelligence from regular viewers', async ({ page }) => {
     const cachedReport = createCachedCommandCenterReport();
     await loadCachedReport(page, cachedReport, '#momentum', { admin: false });

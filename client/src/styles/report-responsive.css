@@ -5455,6 +5455,11 @@
   justify-content: center;
 }
 
+.analysis-preview-chip-row:has(.analysis-preview-player-with-meta) {
+  width: min(100%, 58rem);
+  gap: 0.52rem;
+}
+
 .analysis-preview-chip {
   display: inline-flex;
   min-width: min(100%, 7rem);
@@ -5470,8 +5475,20 @@
   line-height: 1.1;
 }
 
+.analysis-preview-chip-row:has(.analysis-preview-player-with-meta) .analysis-preview-chip {
+  min-width: min(100%, 12.75rem);
+  max-width: 18.5rem;
+  flex: 1 1 12.75rem;
+  padding: 0.42rem 0.72rem;
+}
+
 .analysis-preview-chip-row-single .analysis-preview-chip {
   flex: 0 1 min(100%, 14rem);
+}
+
+.analysis-preview-chip-row-single:has(.analysis-preview-player-with-meta) .analysis-preview-chip {
+  max-width: 20rem;
+  flex-basis: min(100%, 20rem);
 }
 
 .analysis-preview-chip > .analysis-preview-chip-label {
@@ -5526,6 +5543,8 @@
 }
 
 .analysis-preview-player {
+  display: inline-flex;
+  min-width: 0;
   max-width: min(100%, 10.5rem);
   padding: 0;
   border: 0;
@@ -5533,26 +5552,32 @@
 }
 
 .analysis-preview-player .interactive-identity {
+  width: 100%;
+  min-width: 0;
   gap: 0.34rem;
 }
 
 .analysis-preview-player-with-meta {
   display: inline-flex;
+  width: 100%;
   min-width: 0;
-  max-width: min(100%, 13rem);
+  max-width: 100%;
   align-items: center;
+  justify-content: space-between;
   gap: 0.38rem;
 }
 
 .analysis-preview-player-with-meta .analysis-preview-player {
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: min(100%, 10.25rem);
+  max-width: none;
 }
 
 .analysis-preview-player-count {
   display: inline-flex;
   min-width: 2.1rem;
   flex: 0 0 auto;
+  margin-left: auto;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(251, 191, 36, 0.24);
@@ -5565,7 +5590,13 @@
   line-height: 1;
 }
 
+.analysis-preview-player-count-rank {
+  min-width: 2.3rem;
+  border-color: currentColor;
+}
+
 .analysis-preview-chip > strong:has(.analysis-preview-player-with-meta) {
+  width: 100%;
   min-width: 0;
 }
 
@@ -5737,12 +5768,29 @@
     flex: 1 1 calc(50% - 0.42rem);
   }
 
+  .analysis-preview-chip-row:has(.analysis-preview-player-with-meta) {
+    width: 100%;
+    gap: 0.42rem;
+  }
+
+  .analysis-preview-chip-row:has(.analysis-preview-player-with-meta) .analysis-preview-chip {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 calc(50% - 0.42rem);
+    padding: 0.38rem 0.58rem;
+  }
+
   .analysis-preview-chip-row-single {
     justify-content: center;
   }
 
   .analysis-preview-chip-row-single .analysis-preview-chip {
     flex: 0 1 min(100%, 14rem);
+  }
+
+  .analysis-preview-chip-row-single:has(.analysis-preview-player-with-meta) .analysis-preview-chip {
+    max-width: 16rem;
+    flex: 0 1 min(100%, 16rem);
   }
 
   .analysis-preview-chip-has-icon .analysis-preview-chip-label-text {

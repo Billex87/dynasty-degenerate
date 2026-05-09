@@ -8095,6 +8095,7 @@ export function RecentTransactionsPanel({
 
   const openTransactionPlayer = (player: NonNullable<ReportData['recentTransactions']>[number]['addedPlayer']) => {
     if (!player) return;
+    const leagueRank = getTransactionPlayerRank(player, leagueValueMode);
     setSelectedPlayer(buildPlayerModalData({
       playerId: player.player_id,
       playerName: player.name,
@@ -8102,7 +8103,7 @@ export function RecentTransactionsPanel({
       value: player.ktcValue,
       playerDetails: player.playerDetails,
       playerDetailsById,
-      currentPositionRank: player.currentPositionRank,
+      currentPositionRank: leagueRank,
       valueMode: leagueValueMode,
     }));
   };
@@ -8131,6 +8132,7 @@ export function RecentTransactionsPanel({
     embeddedInsight?: BetterCutInsight | null,
   ) => {
     if (!player) return null;
+    const leagueRank = getTransactionPlayerRank(player, leagueValueMode);
     return (
       <button
         type="button"
@@ -8153,7 +8155,7 @@ export function RecentTransactionsPanel({
         />
         <div className="recent-transaction-player-pills">
           <TeamLogoPill team={player.playerDetails?.team || player.team} />
-          <PositionRankPill rank={player.currentPositionRank || player.pos} />
+          <PositionRankPill rank={leagueRank || player.pos} />
           <span>{formatCompactValue(player.ktcValue)}</span>
         </div>
         {embeddedInsight ? renderBetterCutInsight(embeddedInsight, 'embedded') : null}
@@ -8388,29 +8390,12 @@ function getTransactionPlayerRank(
   leagueValueMode: ReportData['leagueValueMode'] = 'dynasty',
 ): string {
   if (!player) return '-';
-  const profile = player.playerDetails?.valueProfile;
-  if (leagueValueMode === 'redraft') {
-    return player.currentPositionRank
-      || profile?.seasonPositionRank
-      || profile?.fantasyProsPositionRank
-      || profile?.dynastyPositionRank
-      || player.pos
-      || '-';
-  }
-  if (leagueValueMode === 'keeper') {
-    return player.currentPositionRank
-      || profile?.balancedPositionRank
-      || profile?.dynastyPositionRank
-      || profile?.seasonPositionRank
-      || player.pos
-      || '-';
-  }
-  return player.currentPositionRank
-    || profile?.dynastyPositionRank
-    || profile?.balancedPositionRank
-    || profile?.seasonPositionRank
-    || player.pos
-    || '-';
+  return getPlayerRankForMode({
+    valueProfile: player.playerDetails?.valueProfile,
+    fallbackRank: player.currentPositionRank || player.pos,
+    mode: leagueValueMode,
+    context: 'rankings',
+  }) || player.currentPositionRank || player.pos || '-';
 }
 
 function buildBetterCutInsight(
