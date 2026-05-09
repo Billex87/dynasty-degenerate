@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { trpc } from '@/lib/trpc';
+import { getLoginUrl } from '@/const';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -18,24 +19,35 @@ import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { SupportButton } from '@/components/SupportButton';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
-import { ReportSectionHeader } from '@/components/reportPrimitives';
-import { PRIVILEGED_REPORT_VIEWERS, UNAUTHED_ERR_MSG } from '@shared/const';
+import { LeagueTypeBadge, PreviewMetricChips, ReportSectionHeader, type PreviewMetric } from '@/components/reportPrimitives';
+import { getLeagueModeCopy, normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
+import { UNAUTHED_ERR_MSG } from '@shared/const';
 import type { ReportData } from '@shared/types';
 
 const DraftAnalysis = lazy(() => import('@/components/DraftAnalysis').then((module) => ({ default: module.DraftAnalysis })));
 const RankingsBoard = lazy(() => import('@/components/RankingsBoard').then((module) => ({ default: module.RankingsBoard })));
-const WeeklyMomentumTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.WeeklyMomentumTable })));
-const TradeWarRoom = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeWarRoom })));
-const TradeProfitLeaderboardTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeProfitLeaderboardTable })));
-const TradeHistoryTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeHistoryTable })));
-const ManagerPositionCountsTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.ManagerPositionCountsTable })));
-const OwnerIntelMatrix = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.OwnerIntelMatrix })));
-const LeagueCommandCenter = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.LeagueCommandCenter })));
-const TradeMarketRadar = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeMarketRadar })));
-const TradeTheftDetector = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TradeTheftDetector })));
-const TrendingPlayersTable = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.TrendingPlayersTable })));
-const WaiverIntelligencePanel = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.WaiverIntelligencePanel })));
-const RecentTransactionsPanel = lazy(() => import('@/components/ReportTables').then((module) => ({ default: module.RecentTransactionsPanel })));
+const WeeklyMomentumTable = lazy(() => import('@/components/reportTables/WeeklyMomentumTable'));
+const TradeWarRoom = lazy(() => import('@/components/reportTables/TradeWarRoom'));
+const TradeProfitLeaderboardTable = lazy(() => import('@/components/reportTables/TradeProfitLeaderboardTable'));
+const TradeHistoryTable = lazy(() => import('@/components/reportTables/TradeHistoryTable'));
+const ManagerPositionCountsTable = lazy(() => import('@/components/reportTables/ManagerPositionCountsTable'));
+const OwnerIntelMatrix = lazy(() => import('@/components/reportTables/OwnerIntelMatrix'));
+const LeagueCommandCenter = lazy(() => import('@/components/reportTables/LeagueCommandCenter'));
+const TradeMarketRadar = lazy(() => import('@/components/reportTables/TradeMarketRadar'));
+const TradeTheftDetector = lazy(() => import('@/components/reportTables/TradeTheftDetector'));
+const TrendingPlayersTable = lazy(() => import('@/components/reportTables/TrendingPlayersTable'));
+const WaiverIntelligencePanel = lazy(() => import('@/components/reportTables/WaiverIntelligencePanel'));
+const RecentTransactionsPanel = lazy(() => import('@/components/reportTables/RecentTransactionsPanel'));
+const OverviewAIPulse = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.OverviewAIPulse })));
+const MonthlyTeamBlueprint = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.MonthlyTeamBlueprint })));
+const LeaguePowerRankings = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.LeaguePowerRankings })));
+const TeamBreakdownRecon = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.TeamBreakdownRecon })));
+const TradeFinderGenerator = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.TradeFinderGenerator })));
+const TradePartnerFinder = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.TradePartnerFinder })));
+const LeagueExploits = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.LeagueExploits })));
+const RankingsMarketRead = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.RankingsMarketRead })));
+const TradeBrowserRead = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.TradeBrowserRead })));
+const AssistantFeatureShells = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.AssistantFeatureShells })));
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
 const REPORT_CACHE_DATA_VERSION = 'draftbuzz-history-v1';
@@ -60,10 +72,10 @@ const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-05-05';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
-const PRIVILEGED_REPORT_VIEWER_SET = new Set<string>(PRIVILEGED_REPORT_VIEWERS);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
 const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 1850;
 const REPORT_SUCCESS_KICK_MS = 900;
+const SHOW_ASSISTANT_FEATURE_RADAR = String(import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || 'true').toLowerCase() !== 'false';
 
 type LoadingTransitionPhase = 'loading' | 'success' | 'reveal' | 'kick' | 'done';
 
@@ -75,10 +87,17 @@ function normalizeViewerIdentifier(value?: string | null): string {
   return value?.trim().toLowerCase() || '';
 }
 
-function isPrivilegedReportViewer(...identifiers: Array<string | null | undefined>): boolean {
-  return identifiers
-    .map(normalizeViewerIdentifier)
-    .some((value) => value && PRIVILEGED_REPORT_VIEWER_SET.has(value));
+type AdminAuthUser = {
+  role?: string | null;
+  openId?: string | null;
+  name?: string | null;
+  email?: string | null;
+  isPrivilegedAdmin?: boolean | null;
+};
+
+function canViewAdminTelemetryForUser(user?: AdminAuthUser | null): boolean {
+  if (!user) return false;
+  return user.role === 'admin' || Boolean(user.isPrivilegedAdmin);
 }
 
 function showMutationErrorToast(error: { message: string }) {
@@ -114,6 +133,148 @@ function ProspectArchiveLoadingState() {
   );
 }
 
+const REPORT_TAB_VALUES = ['overview', 'momentum', 'rankings', 'trades', 'draft'] as const;
+
+function normalizeReportTab(value?: string | null): string | null {
+  const normalized = String(value || '').replace(/^#/, '').replace(/^tab=/, '').trim().toLowerCase();
+  return REPORT_TAB_VALUES.includes(normalized as typeof REPORT_TAB_VALUES[number]) ? normalized : null;
+}
+
+function getInitialReportTabFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const hashTab = normalizeReportTab(window.location.hash);
+  if (hashTab) return hashTab;
+  return normalizeReportTab(new URLSearchParams(window.location.search).get('tab'));
+}
+
+function getInitialReportLeagueIdFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const value = params.get('leagueId') || params.get('league');
+  const normalized = String(value || '').trim();
+  return normalized || null;
+}
+
+function updateReportTabUrl(tab: string, leagueId?: string | null) {
+  if (typeof window === 'undefined') return;
+  const normalizedTab = normalizeReportTab(tab) || 'overview';
+  const params = new URLSearchParams(window.location.search);
+  params.delete('tab');
+  if (leagueId !== undefined) {
+    const normalizedLeagueId = String(leagueId || '').trim();
+    if (normalizedLeagueId) {
+      params.set('leagueId', normalizedLeagueId);
+    } else {
+      params.delete('leagueId');
+      params.delete('league');
+    }
+  }
+  const nextSearch = params.toString();
+  const nextHash = normalizedTab === 'overview' ? '' : `#${normalizedTab}`;
+  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${nextHash}`;
+  window.history.replaceState(null, '', nextUrl);
+}
+
+function formatPreviewNumber(value?: number | null): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '-';
+  if (Math.abs(numeric) >= 1000) return `${Math.round(numeric / 100) / 10}K`;
+  return numeric.toLocaleString();
+}
+
+function getBestManagerByValue(data: ReportData): string | null {
+  return [...(data.leagueOverview || [])].sort((a, b) => a.rank_value - b.rank_value)[0]?.manager || null;
+}
+
+function getUserRankPreview(data: ReportData): string | null {
+  if (!data.viewerManager) return null;
+  const row = data.leagueOverview?.find((item) => item.manager === data.viewerManager);
+  return row ? `#${row.rank_value}` : null;
+}
+
+function buildOwnerPreviewMetrics(data: ReportData, mode: LeagueValueMode): PreviewMetric[] {
+  const valueLeader = getBestManagerByValue(data);
+  const starterLeader = [...(data.powerRankings || [])].sort((a, b) => b.starterStrength - a.starterStrength)[0]?.manager;
+  const pressureCount = (data.managerRosterIntelligence || []).reduce((sum, row) => sum + (row.pressurePoints?.length || 0), 0);
+  const rank = getUserRankPreview(data);
+
+  return mode === 'redraft'
+    ? [
+        { label: 'Starter Leader', value: starterLeader || valueLeader || '-', tone: 'good' },
+        rank ? { label: 'Your Rank', value: rank, tone: 'info' } : null,
+        { label: 'Managers', value: data.managerRosterIntelligence?.length || data.leagueOverview?.length || 0, tone: 'neutral' },
+        pressureCount ? { label: 'Position Flags', value: pressureCount, tone: 'warn' } : null,
+      ].filter(Boolean) as PreviewMetric[]
+    : [
+        { label: 'Value Leader', value: valueLeader || '-', tone: 'good' },
+        rank ? { label: 'Your Rank', value: rank, tone: 'info' } : null,
+        { label: 'Managers', value: data.managerRosterIntelligence?.length || data.leagueOverview?.length || 0, tone: 'neutral' },
+        pressureCount ? { label: 'Roster Flags', value: pressureCount, tone: 'warn' } : null,
+      ].filter(Boolean) as PreviewMetric[];
+}
+
+function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
+  const starterLeader = [...(data.managerRosterIntelligence || [])].sort((a, b) => (b.starterSeasonValue || b.starterValue || 0) - (a.starterSeasonValue || a.starterValue || 0))[0];
+  const injuryFlags = (data.managerRosterIntelligence || []).filter((row) => row.starterAvailability?.riskLevel === 'high').length;
+  const pressureCount = (data.managerRosterIntelligence || []).reduce((sum, row) => sum + (row.pressurePoints?.length || 0), 0);
+  return [
+    { label: 'Starter Leader', value: starterLeader?.manager || '-', tone: 'good' },
+    { label: 'Starter Value', value: formatPreviewNumber(starterLeader?.starterSeasonValue || starterLeader?.starterValue), tone: 'info' },
+    injuryFlags ? { label: 'Injury Flags', value: injuryFlags, tone: 'danger' } : null,
+    pressureCount ? { label: 'Depth Flags', value: pressureCount, tone: 'warn' } : null,
+  ].filter(Boolean) as PreviewMetric[];
+}
+
+function buildRankingsPreviewMetrics(rankings?: ReportData['rankings'], mode: LeagueValueMode = 'dynasty'): PreviewMetric[] {
+  const profileKey = mode === 'redraft'
+    ? rankings?.defaultProfileKey
+    : rankings?.defaultProfileKey;
+  const rows = profileKey ? rankings?.profiles?.[profileKey] || [] : [];
+  const playerRows = rows.filter((row) => !row.isPick);
+  return [
+    { label: 'Players', value: playerRows.length || rows.length || 0, tone: 'info' },
+    { label: 'Primary Lens', value: mode === 'redraft' ? 'Season' : 'Dynasty', tone: mode === 'redraft' ? 'good' : 'neutral' },
+    rankings?.profileOptions?.length ? { label: 'Profiles', value: rankings.profileOptions.length, tone: 'neutral' } : null,
+  ].filter(Boolean) as PreviewMetric[];
+}
+
+function buildTradePreviewMetrics(data: ReportData, mode: LeagueValueMode): PreviewMetric[] {
+  const tradeCount = data.tradeHistory?.length || 0;
+  const bestProfit = [...(data.tradeProfitLeaderboard || [])].sort((a, b) => b.profit - a.profit)[0];
+  const biggestGap = [...(data.tradeHistory || [])].sort((a, b) => Math.abs(b.point_gap || 0) - Math.abs(a.point_gap || 0))[0];
+  return [
+    { label: 'Trades', value: tradeCount, tone: tradeCount ? 'info' : 'warn' },
+    bestProfit ? { label: 'Top Edge', value: bestProfit.manager, tone: bestProfit.profit >= 0 ? 'good' : 'danger' } : null,
+    biggestGap ? { label: 'Largest Gap', value: formatPreviewNumber(Math.abs(biggestGap.point_gap || 0)), tone: 'warn' } : null,
+    { label: 'Lens', value: mode === 'redraft' ? 'Season' : 'Dynasty', tone: 'neutral' },
+  ].filter(Boolean) as PreviewMetric[];
+}
+
+function buildDraftPreviewMetrics(data: ReportData, mode: LeagueValueMode): PreviewMetric[] {
+  const picks = data.draftPicks || [];
+  const topGain = [...picks].sort((a, b) => (b.valueGain || 0) - (a.valueGain || 0))[0];
+  const totalSwing = picks.reduce((sum, pick) => sum + (pick.valueGain || 0), 0);
+  const hitCount = picks.filter((pick) => pick.draftOutcome === 'hit' || pick.isStarter).length;
+  const hitRate = picks.length ? `${Math.round((hitCount / picks.length) * 100)}%` : '-';
+  return [
+    { label: 'Picks', value: picks.length, tone: picks.length ? 'info' : 'warn' },
+    topGain ? { label: mode === 'redraft' ? 'Best Current Gain' : 'Top Value Gain', value: topGain.playerName, tone: 'good' } : null,
+    picks.length ? { label: mode === 'redraft' ? 'Starter Hit Rate' : 'Hit Rate', value: hitRate, tone: 'info' } : null,
+    picks.length ? { label: 'Total Swing', value: `${totalSwing > 0 ? '+' : ''}${formatPreviewNumber(totalSwing)}`, tone: totalSwing >= 0 ? 'good' : 'danger' } : null,
+  ].filter(Boolean) as PreviewMetric[];
+}
+
+function buildMomentumPreviewMetrics(data: ReportData, mode: LeagueValueMode): PreviewMetric[] {
+  const topRiser = [...(data.weeklyRisers || [])].sort((a, b) => b.pct_change - a.pct_change)[0];
+  const topFaller = [...(data.weeklyFallers || [])].sort((a, b) => a.pct_change - b.pct_change)[0];
+  const available = data.waiverIntelligence?.availableTrendingAdds?.length || 0;
+  return [
+    topRiser ? { label: 'Biggest Riser', value: topRiser.name, tone: 'good' } : null,
+    topFaller ? { label: 'Biggest Faller', value: topFaller.name, tone: 'danger' } : null,
+    { label: mode === 'redraft' ? 'Waiver Adds' : 'Available Adds', value: available, tone: available ? 'info' : 'neutral' },
+  ].filter(Boolean) as PreviewMetric[];
+}
+
 function normalizeAdminViewMode(value: unknown): AdminViewMode | null {
   return value === 'admin' || value === 'regular' ? value : null;
 }
@@ -143,6 +304,8 @@ type SleeperUserSession = {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  hasAdminPermissions?: boolean;
+  isPrivilegedReportViewer?: boolean;
 };
 
 type AdminViewMode = 'admin' | 'regular';
@@ -173,6 +336,8 @@ type CachedSleeperUser = {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  hasAdminPermissions: boolean;
+  isPrivilegedReportViewer?: boolean;
   leagues: SleeperLeagueOption[];
   recentLeagueIds: string[];
   savedAt: number;
@@ -215,12 +380,18 @@ function normalizeCachedSleeperUser(value: unknown): CachedSleeperUser | null {
       .filter((leagueId) => validLeagueIds.has(leagueId))
       .slice(0, MAX_RECENT_LEAGUES_PER_USER)
     : [];
+  const userId = typeof value.userId === 'string' && value.userId.trim() ? value.userId : username;
+  const displayName = typeof value.displayName === 'string' && value.displayName.trim() ? value.displayName : username;
+  const hasAdminPermissions = value.hasAdminPermissions === true
+    || value.isPrivilegedReportViewer === true;
 
   return {
-    userId: typeof value.userId === 'string' && value.userId.trim() ? value.userId : username,
+    userId,
     username,
-    displayName: typeof value.displayName === 'string' && value.displayName.trim() ? value.displayName : username,
+    displayName,
     avatarUrl: typeof value.avatarUrl === 'string' && value.avatarUrl.trim() ? value.avatarUrl : null,
+    hasAdminPermissions,
+    isPrivilegedReportViewer: hasAdminPermissions,
     leagues,
     recentLeagueIds,
     savedAt: typeof value.savedAt === 'number' ? value.savedAt : 0,
@@ -283,11 +454,17 @@ function buildCachedSleeperUser(
   user: SleeperUserSession | null | undefined,
   leagues: SleeperLeagueOption[]
 ): CachedSleeperUser {
+  const userId = user?.userId || username;
+  const displayName = user?.displayName || user?.username || username;
+  const hasAdminPermissions = user?.hasAdminPermissions === true
+    || user?.isPrivilegedReportViewer === true;
   return {
-    userId: user?.userId || username,
+    userId,
     username: user?.username || username,
-    displayName: user?.displayName || user?.username || username,
+    displayName,
     avatarUrl: user?.avatarUrl || null,
+    hasAdminPermissions,
+    isPrivilegedReportViewer: hasAdminPermissions,
     leagues,
     recentLeagueIds: [],
     savedAt: Date.now(),
@@ -402,6 +579,14 @@ function rememberCachedSleeperLeagueShortcut({
     username: user?.username || base.username || username,
     displayName: user?.displayName || base.displayName || username,
     avatarUrl: user?.avatarUrl || base.avatarUrl || null,
+    hasAdminPermissions: user?.hasAdminPermissions === true
+      || user?.isPrivilegedReportViewer === true
+      || base.hasAdminPermissions === true
+      || base.isPrivilegedReportViewer === true,
+    isPrivilegedReportViewer: user?.hasAdminPermissions === true
+      || user?.isPrivilegedReportViewer === true
+      || base.hasAdminPermissions === true
+      || base.isPrivilegedReportViewer === true,
     leagues,
     recentLeagueIds: nextRecentLeagueIds,
     savedAt: Date.now(),
@@ -422,6 +607,8 @@ function cachedSleeperUserToSessionUser(user: CachedSleeperUser): SleeperUserSes
     username: user.username,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
+    hasAdminPermissions: user.hasAdminPermissions,
+    isPrivilegedReportViewer: user.hasAdminPermissions,
   };
 }
 
@@ -702,6 +889,7 @@ function LeaguePickerCard({
     <button
       type="button"
       className="home-league-card"
+      aria-label={`${league.name} ${desktopFormat}`}
       onClick={() => onSelect(league.leagueId)}
     >
       {league.avatarUrl ? (
@@ -815,6 +1003,7 @@ function addUniqueDiagnosticRow(
 function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: string[]): AdminValueDiagnosticRow[] {
   const rows: AdminValueDiagnosticRow[] = [];
   const seen = new Set<string>();
+  const isRedraftValueMode = normalizeLeagueValueMode(reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode) === 'redraft';
   const currentSnapshotGaps = missingDateKeys
     .filter((dateKey) => dateKey >= ADMIN_VALUE_DIAGNOSTIC_START_DATE)
     .sort();
@@ -836,7 +1025,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
     });
   }
 
-  if (reportData.prospectSourceDiagnostics) {
+  if (!isRedraftValueMode && reportData.prospectSourceDiagnostics) {
     const diagnostic = reportData.prospectSourceDiagnostics;
     const tone = diagnostic.status === 'stored' ? 'good' : diagnostic.status === 'partial' ? 'warn' : 'warn';
     if (isActionableDiagnosticTone(tone)) {
@@ -897,7 +1086,9 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
     if (!profile) return;
 
     const sources = profile.sources || [];
-    const hasCoreMarketSource = Boolean(profile.flockFantasy || profile.dynastyNerds || profile.marketKtc || profile.fantasyCalcDynasty || profile.dynastyProcess);
+    const hasCoreMarketSource = isRedraftValueMode
+      ? Boolean(profile.fantasyCalcRedraft || profile.fantasyProsSeasonValue || profile.seasonValue)
+      : Boolean(profile.flockFantasy || profile.dynastyNerds || profile.marketKtc || profile.fantasyCalcDynasty || profile.dynastyProcess);
     if (hasCoreMarketSource) return;
 
     addUniqueDiagnosticRow(rows, seen, {
@@ -906,7 +1097,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       item: player.name,
       status: sources.length ? 'Non-primary source' : 'No source list',
       tone: 'warn',
-      note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found, but none are one of the primary dynasty blend sources. The card can render, but admin should verify the player mapping/value source.`,
+      note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found, but none are one of the primary ${isRedraftValueMode ? 'redraft/current-season' : 'dynasty'} blend sources. The card can render, but admin should verify the player mapping/value source.`,
     });
   });
 
@@ -942,6 +1133,25 @@ function getAdminBlendProfileLabel(reportData: ReportData, profileKey?: string |
   return profileOption?.label || 'League-matched profile';
 }
 
+function formatAdminBlendSources(
+  sources: AdminBlendSummary['sources'],
+  isRedraft: boolean,
+): AdminBlendSummary['sources'] {
+  if (!isRedraft) return sources;
+  const redraftSources = sources.filter((source) => {
+    const text = `${source.key} ${source.source} ${source.note || ''}`;
+    return /(redraft|season|fantasypros|current)/i.test(text)
+      && !/(dynasty|devy|college|rookie)/i.test(text);
+  });
+
+  return redraftSources.length ? redraftSources : [{
+    key: 'current-season-model',
+    source: 'Current-season model',
+    percent: 100,
+    note: 'Redraft reports expose the current-season value lens by default.',
+  }];
+}
+
 function formatScoutingArchiveCopy(value?: string | null): string {
   return String(value || '')
     .replace(/NFL Draft Buzz/g, 'archived scouting data')
@@ -954,27 +1164,31 @@ function buildAdminBlendSummaries(reportData: ReportData): AdminBlendSummary[] {
   if (!rankings || !sourceWeightProfiles) return [];
 
   const summaries: AdminBlendSummary[] = [];
+  const leagueValueMode = normalizeLeagueValueMode(reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode);
+  const isRedraft = leagueValueMode === 'redraft';
   const dynastyProfileKey = rankings.defaultProfileKey;
   const devyProfileKey = rankings.defaultDevyProfileKey;
 
   if (dynastyProfileKey && sourceWeightProfiles[dynastyProfileKey]) {
     summaries.push({
-      id: 'current-league-dynasty-blend',
-      title: 'Current League Dynasty Blend',
-      profileLabel: getAdminBlendProfileLabel(reportData, dynastyProfileKey),
-      note: 'Primary dynasty market blend for rankings, roster values, trades, and non-lineup dynasty reads in this league.',
-      sources: sourceWeightProfiles[dynastyProfileKey].sources
+      id: isRedraft ? 'current-league-redraft-blend' : 'current-league-dynasty-blend',
+      title: isRedraft ? 'Current League Redraft Blend' : 'Current League Dynasty Blend',
+      profileLabel: isRedraft ? 'Current-season value blend' : getAdminBlendProfileLabel(reportData, dynastyProfileKey),
+      note: isRedraft
+        ? 'Primary current-season blend for rankings, roster values, trades, and redraft owner reads in this league.'
+        : 'Primary dynasty market blend for rankings, roster values, trades, and non-lineup dynasty reads in this league.',
+      sources: formatAdminBlendSources(sourceWeightProfiles[dynastyProfileKey].sources
         .filter((source) => source.percent > 0)
         .map((source) => ({
           key: source.key,
           source: formatScoutingArchiveCopy(source.source),
           percent: source.percent,
           note: formatScoutingArchiveCopy(source.note),
-        })),
+        })), isRedraft),
     });
   }
 
-  if (devyProfileKey && sourceWeightProfiles[devyProfileKey]) {
+  if (!isRedraft && devyProfileKey && sourceWeightProfiles[devyProfileKey]) {
     summaries.push({
       id: 'current-league-college-blend',
       title: 'College Prospect Blend',
@@ -1041,8 +1255,9 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
               <strong>Weights normalize when sources are missing</strong>
             </div>
             <p>
-              If a player is missing one of the sources above, the available weights normalize across only the sources present. Players only get flagged below when no primary blend source is attached.
-              Season and projection data is only for lineup and redraft-style reads, not dynasty market value.
+              {normalizeLeagueValueMode(reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode) === 'redraft'
+                ? 'If a player is missing one of the current-season sources above, the available weights normalize across only the sources present. Long-term market inputs stay hidden in this report.'
+                : 'If a player is missing one of the sources above, the available weights normalize across only the sources present. Players only get flagged below when no primary blend source is attached. Season and projection data is only for lineup and redraft-style reads, not dynasty market value.'}
             </p>
             {reportData.leagueDiagnostics && (
               <p>
@@ -1083,14 +1298,47 @@ function formatAdminTelemetryDate(value?: string | null): string {
 }
 
 function AdminAbuseTelemetryPanel() {
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
+  const canViewTelemetry = canViewAdminTelemetryForUser(authQuery.data);
   const { data, error, isLoading, isFetching, refetch } = trpc.system.abuseTelemetry.useQuery(
     { lookbackDays: 7 },
     {
+      enabled: canViewTelemetry,
       refetchOnWindowFocus: false,
       retry: false,
       staleTime: 1000 * 60,
     }
   );
+  const loginUrl = typeof window !== 'undefined' ? getLoginUrl() : null;
+
+  if (authQuery.isLoading) {
+    return <div className="rankings-empty-state">Checking admin telemetry access...</div>;
+  }
+
+  if (!canViewTelemetry) {
+    return (
+      <div className="admin-traffic-panel admin-traffic-panel-error">
+        <p>Traffic telemetry requires an authenticated app admin session.</p>
+        <span>The Sleeper admin view unlocks report diagnostics, but request abuse logs stay behind app auth.</span>
+        {loginUrl ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="admin-traffic-refresh"
+            onClick={() => {
+              window.location.href = loginUrl;
+            }}
+          >
+            Sign in as admin
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <div className="rankings-empty-state">Loading traffic telemetry...</div>;
@@ -1202,7 +1450,7 @@ export default function Home() {
   const [adminViewMode, setAdminViewMode] = useState<AdminViewMode | null>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportDataCacheVersion, setReportDataCacheVersion] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => getInitialReportTabFromUrl() || 'overview');
   const [leagueName, setLeagueName] = useState('');
   const [leagueLogo, setLeagueLogo] = useState<string | null>(null);
   const [leagueFormat, setLeagueFormat] = useState('');
@@ -1216,7 +1464,6 @@ export default function Home() {
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
-  const [isAdminPermissionsModalOpen, setIsAdminPermissionsModalOpen] = useState(false);
   const [loadingTransitionPhase, setLoadingTransitionPhase] = useState<LoadingTransitionPhase>('loading');
   const [prospectArchiveOpenedWhileLoading, setProspectArchiveOpenedWhileLoading] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
@@ -1252,6 +1499,8 @@ export default function Home() {
       username: cachedUser?.username || viewerUsername || username,
       displayName: cachedUser?.displayName || viewerUsername || username,
       avatarUrl: cachedUser?.avatarUrl || null,
+      hasAdminPermissions: cachedUser?.hasAdminPermissions === true || cachedUser?.isPrivilegedReportViewer === true,
+      isPrivilegedReportViewer: cachedUser?.hasAdminPermissions === true || cachedUser?.isPrivilegedReportViewer === true,
     };
   };
 
@@ -1271,10 +1520,10 @@ export default function Home() {
     setCachedSleeperUsers(nextUsers);
   };
 
-  const analyzeMutation = trpc.league.analyze.useMutation({
-    onSuccess: (data) => {
-      clearSuccessTransitionTimers();
-      setLeagueId(data.leagueId);
+	  const analyzeMutation = trpc.league.analyze.useMutation({
+	    onSuccess: (data) => {
+	      clearSuccessTransitionTimers();
+	      setLeagueId(data.leagueId);
       setLeagueName(data.leagueName);
       setLeagueLogo(data.leagueLogo);
       setLeagueFormat(data.leagueFormat);
@@ -1289,8 +1538,9 @@ export default function Home() {
         leagueFormat: data.leagueFormat,
         leagueLogo: data.leagueLogo,
       });
-      setLoadingTransitionPhase('success');
-      queueSuccessTransitionTimer(() => {
+	      setLoadingTransitionPhase('success');
+	      updateReportTabUrl(activeTab, data.leagueId);
+	      queueSuccessTransitionTimer(() => {
         setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
         setReportData(data.reportData);
         setLoadingTransitionPhase('reveal');
@@ -1330,12 +1580,11 @@ export default function Home() {
       const username = variables.username.trim();
       const nextViewerUserId = data.user?.userId || null;
       const nextViewerIdentity = getKtcAdminIdentity(data.user, username);
-      const nextIsPrivilegedViewer = isPrivilegedReportViewer(nextViewerUserId, nextViewerIdentity, username);
+      const nextHasAdminPermissions = data.user?.hasAdminPermissions === true || data.user?.isPrivilegedReportViewer === true;
       setUserLeagues(data.leagues);
       setViewerUserId(nextViewerUserId);
       setViewerUsername(nextViewerIdentity);
       setAdminViewMode(null);
-      setIsAdminPermissionsModalOpen(false);
       if (data.leagues.length === 0) {
         toast.error('No Sleeper leagues found for this username');
         return;
@@ -1356,8 +1605,9 @@ export default function Home() {
       } catch {
         // Losing this cache only affects the league switcher, not the report itself.
       }
-      if (nextIsPrivilegedViewer) {
-        setIsAdminPermissionsModalOpen(true);
+      if (nextHasAdminPermissions) {
+        setAdminViewMode('regular');
+        persistAdminViewMode('regular');
       }
       if (data.user?.userId && data.leagues.length > 0) {
         userLeagueRanksMutation.mutate({
@@ -1374,26 +1624,25 @@ export default function Home() {
     },
   });
 
-  useEffect(() => {
-    let restoredViewerUserId: string | null = null;
-    try {
+	  useEffect(() => {
+	    let restoredViewerUserId: string | null = null;
+	    let restoredLeagues: SleeperLeagueOption[] = [];
+	    const urlLeagueId = getInitialReportLeagueIdFromUrl();
+	    const urlTab = getInitialReportTabFromUrl();
+	    try {
       const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
       if (sleeperSession) {
-        const parsed = JSON.parse(sleeperSession) as SleeperSession;
-        const parsedLeagues = Array.isArray(parsed.leagues) ? parsed.leagues : [];
+	        const parsed = JSON.parse(sleeperSession) as SleeperSession;
+	        const parsedLeagues = Array.isArray(parsed.leagues) ? parsed.leagues : [];
+	        restoredLeagues = parsedLeagues;
         const restoredViewerIdentity = getKtcAdminIdentity(parsed.user, parsed.username);
         const restoredAdminViewMode = normalizeAdminViewMode(parsed.adminViewMode);
-        const restoredIsPrivilegedViewer = isPrivilegedReportViewer(
-          parsed.user?.userId || null,
-          restoredViewerIdentity,
-          parsed.username
-        );
+        const restoredHasAdminPermissions = parsed.user?.hasAdminPermissions === true || parsed.user?.isPrivilegedReportViewer === true;
         setSleeperUsername(parsed.username || '');
         restoredViewerUserId = parsed.user?.userId || null;
         setViewerUserId(restoredViewerUserId);
         setViewerUsername(restoredViewerIdentity);
-        setAdminViewMode(restoredIsPrivilegedViewer ? restoredAdminViewMode : null);
-        setIsAdminPermissionsModalOpen(restoredIsPrivilegedViewer && !restoredAdminViewMode);
+        setAdminViewMode(restoredHasAdminPermissions ? restoredAdminViewMode || 'regular' : null);
         if (parsed.username) {
           setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, parsed.username));
         }
@@ -1408,31 +1657,47 @@ export default function Home() {
 
     try {
       STALE_REPORT_CACHE_KEYS.forEach((key) => localStorage.removeItem(key));
-      const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
-      if (cachedReport) {
-        const parsed = JSON.parse(cachedReport) as CachedReport;
-        if (parsed.cacheVersion === REPORT_CACHE_DATA_VERSION) {
-          setLeagueId(parsed.leagueId);
-          setLeagueName(parsed.leagueName);
-          setLeagueLogo(parsed.leagueLogo);
-          setLeagueFormat(parsed.leagueFormat);
-          setActiveTab(parsed.activeTab || 'overview');
-          setReportDataCacheVersion(parsed.cacheVersion);
-          setReportData(parsed.reportData);
-          setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
-          return;
-        }
-        localStorage.removeItem(REPORT_CACHE_KEY);
-      }
+	      const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
+	      if (cachedReport) {
+	        const parsed = JSON.parse(cachedReport) as CachedReport;
+	        if (parsed.cacheVersion === REPORT_CACHE_DATA_VERSION && (!urlLeagueId || parsed.leagueId === urlLeagueId)) {
+	          setLeagueId(parsed.leagueId);
+	          setLeagueName(parsed.leagueName);
+	          setLeagueLogo(parsed.leagueLogo);
+	          setLeagueFormat(parsed.leagueFormat);
+	          setActiveTab(urlTab || parsed.activeTab || 'overview');
+	          setReportDataCacheVersion(parsed.cacheVersion);
+	          setReportData(parsed.reportData);
+	          setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
+	          return;
+	        }
+	        localStorage.removeItem(REPORT_CACHE_KEY);
+	      }
 
-      const lastLeague = localStorage.getItem(LAST_LEAGUE_KEY);
-      if (lastLeague) {
+	      if (urlLeagueId) {
+	        setLeagueId(urlLeagueId);
+	        setActiveTab(urlTab || 'overview');
+	        setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, urlLeagueId));
+	        const pendingLeague = restoredLeagues.find((league) => league.leagueId === urlLeagueId);
+	        setPendingAnalysisLeague(pendingLeague ? {
+	          leagueName: pendingLeague.name,
+	          leagueFormat: pendingLeague.format || pendingLeague.mobileFormat || `${pendingLeague.totalRosters || '?'}-Team League`,
+	          leagueLogo: pendingLeague.avatarUrl,
+	        } : null);
+	        setLoadingTransitionPhase('loading');
+	        setIsLoading(true);
+	        analyzeMutation.mutate({ leagueId: urlLeagueId, viewerUserId: restoredViewerUserId || undefined });
+	        return;
+	      }
+
+	      const lastLeague = localStorage.getItem(LAST_LEAGUE_KEY);
+	      if (lastLeague) {
         const parsed = JSON.parse(lastLeague) as LastLeague;
         setLeagueId(parsed.leagueId);
         setLeagueName(parsed.leagueName);
         setLeagueLogo(parsed.leagueLogo);
         setLeagueFormat(parsed.leagueFormat);
-        setActiveTab(parsed.activeTab || 'overview');
+	        setActiveTab(urlTab || parsed.activeTab || 'overview');
         setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
         setPendingAnalysisLeague({
           leagueName: parsed.leagueName,
@@ -1537,14 +1802,13 @@ export default function Home() {
   const handleCachedSleeperUserSelect = (cachedUser: CachedSleeperUser) => {
     const sessionUser = cachedSleeperUserToSessionUser(cachedUser);
     const nextViewerIdentity = getKtcAdminIdentity(sessionUser, cachedUser.username);
-    const nextIsPrivilegedViewer = isPrivilegedReportViewer(cachedUser.userId, nextViewerIdentity, cachedUser.username);
+    const nextHasAdminPermissions = sessionUser.hasAdminPermissions === true || sessionUser.isPrivilegedReportViewer === true;
     setSleeperUsername(cachedUser.username);
     setFocusedAutocomplete(null);
     setUserLeagues(cachedUser.leagues);
     setViewerUserId(cachedUser.userId);
     setViewerUsername(nextViewerIdentity);
-    setAdminViewMode(null);
-    setIsAdminPermissionsModalOpen(nextIsPrivilegedViewer);
+    setAdminViewMode(nextHasAdminPermissions ? 'regular' : null);
     setIsLeaguePickerOpen(false);
     setIsChangeLeagueModalOpen(false);
     rememberSleeperUsername(cachedUser.username);
@@ -1557,7 +1821,7 @@ export default function Home() {
           username: cachedUser.username,
           user: sessionUser,
           leagues: cachedUser.leagues,
-          adminViewMode: null,
+          adminViewMode: nextHasAdminPermissions ? 'regular' : null,
           savedAt: Date.now(),
         } satisfies SleeperSession)
       );
@@ -1576,7 +1840,6 @@ export default function Home() {
     setUserLeagues([]);
     setFocusedAutocomplete(null);
     setAdminViewMode(null);
-    setIsAdminPermissionsModalOpen(false);
   };
 
   const persistAdminViewMode = (mode: AdminViewMode) => {
@@ -1599,18 +1862,22 @@ export default function Home() {
 
   const handleAdminViewModeChoice = (mode: AdminViewMode) => {
     setAdminViewMode(mode);
-    setIsAdminPermissionsModalOpen(false);
     persistAdminViewMode(mode);
     if (mode === 'regular') {
       setActiveTab('overview');
     }
   };
 
-  const handleStartOver = () => {
-    localStorage.removeItem(REPORT_CACHE_KEY);
-    localStorage.removeItem(LAST_LEAGUE_KEY);
-    localStorage.removeItem(SLEEPER_SESSION_KEY);
-    clearSuccessTransitionTimers();
+  const handleAdminModeToggle = () => {
+    handleAdminViewModeChoice(adminViewMode === 'admin' ? 'regular' : 'admin');
+  };
+
+	  const handleStartOver = () => {
+	    localStorage.removeItem(REPORT_CACHE_KEY);
+	    localStorage.removeItem(LAST_LEAGUE_KEY);
+	    localStorage.removeItem(SLEEPER_SESSION_KEY);
+	    updateReportTabUrl('overview', '');
+	    clearSuccessTransitionTimers();
     setIsLeaguePickerOpen(false);
     setIsChangeLeagueModalOpen(false);
     setAnalysisCompleteMessage(null);
@@ -1626,7 +1893,6 @@ export default function Home() {
     setViewerUserId(null);
     setViewerUsername(null);
     setAdminViewMode(null);
-    setIsAdminPermissionsModalOpen(false);
     setActiveTab('overview');
   };
 
@@ -1655,16 +1921,16 @@ export default function Home() {
 
   const handleCachedLeagueShortcutSelect = (nextLeagueId: string) => {
     const cachedUser = findCachedSleeperUser(cachedSleeperUsers, viewerUserId, sleeperUsername);
-    const sessionUser = cachedUser ? cachedSleeperUserToSessionUser(cachedUser) : null;
+      const sessionUser = cachedUser ? cachedSleeperUserToSessionUser(cachedUser) : null;
     if (cachedUser && sessionUser) {
       const nextViewerIdentity = getKtcAdminIdentity(sessionUser, cachedUser.username);
-      const nextIsPrivilegedViewer = isPrivilegedReportViewer(cachedUser.userId, nextViewerIdentity, cachedUser.username);
+      const nextHasAdminPermissions = sessionUser.hasAdminPermissions === true || sessionUser.isPrivilegedReportViewer === true;
       setSleeperUsername(cachedUser.username);
       setFocusedAutocomplete(null);
       setUserLeagues(cachedUser.leagues);
       setViewerUserId(cachedUser.userId);
       setViewerUsername(nextViewerIdentity);
-      setAdminViewMode(nextIsPrivilegedViewer ? adminViewMode : null);
+      setAdminViewMode(nextHasAdminPermissions ? adminViewMode : null);
       rememberSleeperUsername(cachedUser.username);
       setCachedSleeperUsers(rememberCachedSleeperLeagueShortcut({
         users: readCachedSleeperUsers(),
@@ -1681,7 +1947,7 @@ export default function Home() {
             username: cachedUser.username,
             user: sessionUser,
             leagues: cachedUser.leagues,
-            adminViewMode: nextIsPrivilegedViewer ? adminViewMode : null,
+            adminViewMode: nextHasAdminPermissions ? adminViewMode : null,
             savedAt: Date.now(),
           } satisfies SleeperSession)
         );
@@ -1718,8 +1984,10 @@ export default function Home() {
     userLeagues,
     reportData ? leagueId : null
   );
-  const isPrivilegedViewer = isPrivilegedReportViewer(viewerUserId, viewerUsername, sleeperUsername);
-  const canViewMomentumTab = isPrivilegedViewer && adminViewMode === 'admin';
+  const hasAdminPermissions = activeCachedSleeperUser?.hasAdminPermissions === true
+    || activeCachedSleeperUser?.isPrivilegedReportViewer === true;
+  const canViewAdminFeatureExpansion = hasAdminPermissions && adminViewMode === 'admin';
+  const canViewMomentumTab = canViewAdminFeatureExpansion;
   const migratedActiveTab = activeTab === 'projections' ? 'rankings' : activeTab;
   const resolvedActiveTab = !canViewMomentumTab && migratedActiveTab === 'momentum' ? 'overview' : migratedActiveTab;
   const rankingsQuery = trpc.league.rankings.useQuery(
@@ -1736,21 +2004,46 @@ export default function Home() {
   const reportDataWithRankings = reportData && rankingsForReport
     ? { ...reportData, rankings: rankingsForReport }
     : reportData;
-  const handleReportTabChange = (nextTab: string) => {
-    if (nextTab === 'momentum' && !canViewMomentumTab) {
-      setActiveTab('overview');
-      return;
-    }
-    setActiveTab(nextTab);
-  };
+	  const handleReportTabChange = (nextTab: string) => {
+	    if (nextTab === 'momentum' && !canViewMomentumTab) {
+	      setActiveTab('overview');
+	      updateReportTabUrl('overview', leagueId);
+	      return;
+	    }
+	    setActiveTab(nextTab);
+	    updateReportTabUrl(nextTab, leagueId);
+	  };
+
+	  useEffect(() => {
+	    if (!canViewMomentumTab && activeTab === 'momentum') {
+	      setActiveTab('overview');
+	      updateReportTabUrl('overview', leagueId);
+	    } else if (activeTab === 'projections') {
+	      setActiveTab('rankings');
+	      updateReportTabUrl('rankings', leagueId);
+	    }
+	  }, [activeTab, canViewMomentumTab, leagueId]);
+
+	  useEffect(() => {
+	    if (!reportData || !leagueId) return;
+	    updateReportTabUrl(resolvedActiveTab, leagueId);
+	  }, [leagueId, reportData, resolvedActiveTab]);
 
   useEffect(() => {
-    if (!canViewMomentumTab && activeTab === 'momentum') {
-      setActiveTab('overview');
-    } else if (activeTab === 'projections') {
-      setActiveTab('rankings');
-    }
-  }, [activeTab, canViewMomentumTab]);
+    if (!reportData) return;
+    const syncTabFromUrl = () => {
+      const tabFromUrl = getInitialReportTabFromUrl();
+      if (!tabFromUrl) return;
+      if (tabFromUrl === 'momentum' && !canViewMomentumTab) {
+        setActiveTab('overview');
+        return;
+      }
+      setActiveTab(tabFromUrl);
+    };
+    syncTabFromUrl();
+    window.addEventListener('hashchange', syncTabFromUrl);
+    return () => window.removeEventListener('hashchange', syncTabFromUrl);
+  }, [canViewMomentumTab, reportData]);
 
   useEffect(() => {
     if (!isProspectArchiveLoading) {
@@ -1782,51 +2075,6 @@ export default function Home() {
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
           >
             Back To Login
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-
-  const adminPermissionsDialog = (
-    <Dialog
-      open={isPrivilegedViewer && isAdminPermissionsModalOpen}
-      onOpenChange={(open) => {
-        if (open) setIsAdminPermissionsModalOpen(true);
-      }}
-    >
-      <DialogContent
-        showCloseButton={false}
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onInteractOutside={(event) => event.preventDefault()}
-        className="admin-permissions-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg"
-      >
-        <DialogHeader className="text-center sm:text-center">
-          <DialogTitle className="athletic-headline text-3xl text-orange-400">
-            Admin Permissions
-          </DialogTitle>
-          <DialogDescription className="text-cyan-100/75">
-            Unlock advanced dynasty analytics, hidden momentum grades, and blended-value diagnostics not shown in the standard report.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="admin-permissions-copy rounded-xl border border-cyan-400/15 bg-cyan-400/5 px-4 py-4 text-center text-sm font-semibold text-slate-200">
-          Choose regular mode to see what everyone else sees, or unlock the full degenerate toolkit for the extra diagnostics.
-        </div>
-        <DialogFooter className="sm:justify-center">
-          <Button
-            type="button"
-            onClick={() => handleAdminViewModeChoice('regular')}
-            variant="outline"
-            className="w-full border-slate-500/40 text-slate-100 hover:bg-slate-800 sm:w-auto"
-          >
-            View Like Regular Person
-          </Button>
-          <Button
-            type="button"
-            onClick={() => handleAdminViewModeChoice('admin')}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
-          >
-            Unlock Admin Tools
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1904,7 +2152,9 @@ export default function Home() {
   );
 
   if (reportData) {
-    const isRedraftReport = (reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode) === 'redraft';
+    const leagueValueMode = normalizeLeagueValueMode(reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode);
+    const isRedraftReport = leagueValueMode === 'redraft';
+    const modeCopy = getLeagueModeCopy(leagueValueMode);
     const displayReportData = reportDataWithRankings || reportData;
     return (
       <>
@@ -1937,6 +2187,20 @@ export default function Home() {
                   <span aria-hidden="true" />
                   League scan complete
                 </span>
+                {hasAdminPermissions && (
+                  <Button
+                    type="button"
+                    onClick={handleAdminModeToggle}
+                    variant="outline"
+                    className={`report-header-action report-header-admin-toggle hidden md:inline-flex ${adminViewMode === 'admin' ? 'report-header-admin-toggle-active' : ''}`}
+                    aria-pressed={adminViewMode === 'admin'}
+                    aria-label={adminViewMode === 'admin' ? 'Switch to regular report view' : 'Unlock admin report tools'}
+                  >
+                    <span className="report-header-action-label">
+                      {adminViewMode === 'admin' ? 'Regular View' : 'Admin Tools'}
+                    </span>
+                  </Button>
+                )}
               </div>
 
               {/* Center: Logo */}
@@ -1959,8 +2223,9 @@ export default function Home() {
                   <div className="min-w-0 text-right">
                     <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">{leagueName}</p>
                     {leagueFormat && (
-                      <p className="truncate text-[11px] font-medium text-cyan-200/70 sm:text-xs">
-                        {leagueFormat}
+                      <p className="report-league-format-row truncate text-[11px] font-medium text-cyan-200/70 sm:text-xs">
+                        <span>{leagueFormat}</span>
+                        <LeagueTypeBadge mode={leagueValueMode} />
                       </p>
                     )}
                   </div>
@@ -1999,7 +2264,7 @@ export default function Home() {
               </TabsTrigger>
 
               {canViewMomentumTab && (
-                <TabsTrigger value="momentum" className="report-tab" aria-label="Weekly Momentum">
+                <TabsTrigger value="momentum" className="report-tab admin-premium-tab" aria-label="Weekly Momentum">
                   <TrendingUp className="h-4 w-4" aria-hidden="true" />
                   <span className="report-tab-label-full" aria-hidden="true">Weekly Momentum</span>
                   <span className="report-tab-label-short" aria-hidden="true">Trend</span>
@@ -2025,11 +2290,103 @@ export default function Home() {
             <Suspense fallback={<ReportSectionLoadingFallback />}>
             <TabsContent value="overview" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
+                {canViewAdminFeatureExpansion && (
+                  <>
+                <OverviewAIPulse data={reportData} />
+                <CollapsibleReportSection
+                  title="Monthly Team Blueprint"
+                  kicker="Roster blueprint report"
+                  defaultOpen
+                  premium
+                  previewMetrics={[
+                    { label: 'Managers', value: reportData.managerRosterIntelligence?.length || 0, tone: 'info' },
+                    { label: 'Format', value: leagueValueMode === 'redraft' ? 'Season' : 'Dynasty', tone: 'neutral' },
+                    { label: 'History', value: reportData.weeklyRisers?.length ? 'Partial' : 'Current', tone: reportData.weeklyRisers?.length ? 'warn' : 'neutral' },
+                  ]}
+                >
+                  <MonthlyTeamBlueprint
+                    data={reportData}
+                    leagueName={leagueName}
+                    leagueFormat={leagueFormat}
+                    managerAvatars={reportData.managerAvatars}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection
+                  title="League Power Rankings"
+                  kicker={isRedraftReport ? 'Weekly power, starter strength, depth, and roster flaws' : 'Power, roster value, starters, age, and flaws'}
+                  premium
+                  previewMetrics={[
+                    { label: 'Teams', value: reportData.powerRankings?.length || 0, tone: reportData.powerRankings?.length ? 'info' : 'warn' },
+                    { label: 'Top Team', value: reportData.powerRankings?.[0]?.manager || '-', tone: 'good' },
+                    { label: 'Lens', value: isRedraftReport ? 'Weekly' : 'Dynasty', tone: 'neutral' },
+                  ]}
+                >
+                  <LeaguePowerRankings
+                    data={reportData}
+                    managerAvatars={reportData.managerAvatars}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection
+                  title="Team Breakdown & Roster Recon"
+                  kicker="Strengths, leaks, surplus, and next move"
+                  premium
+                  previewMetrics={[
+                    { label: 'Recon Teams', value: reportData.managerRosterIntelligence?.length || 0, tone: 'info' },
+                    { label: 'Depth Flags', value: reportData.positionDepth?.length || 0, tone: reportData.positionDepth?.length ? 'warn' : 'neutral' },
+                  ]}
+                >
+                  <TeamBreakdownRecon
+                    data={reportData}
+                    managerAvatars={reportData.managerAvatars}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection
+                  title="Trade Finder, Partners & League Exploits"
+                  kicker={isRedraftReport ? 'Starter upgrades, roster need matching, and weekly pressure points' : 'Fair packages, roster need matching, and league-wide pressure points'}
+                  premium
+                  previewMetrics={[
+                    { label: 'Managers', value: reportData.managerRosterIntelligence?.length || 0, tone: 'info' },
+                    { label: 'Position Signals', value: reportData.positionDepth?.length || 0, tone: reportData.positionDepth?.length ? 'warn' : 'neutral' },
+                    { label: isRedraftReport ? 'Roster Fits' : 'Pick Portfolios', value: isRedraftReport ? reportData.managerRosterIntelligence?.length || 0 : reportData.pickPortfolios?.length || 0, tone: (isRedraftReport ? reportData.managerRosterIntelligence?.length : reportData.pickPortfolios?.length) ? 'info' : 'warn' },
+                  ]}
+                >
+                  <div className="command-expansion-stack">
+                    <TradeFinderGenerator data={reportData} />
+                    <TradePartnerFinder
+                      data={reportData}
+                      managerAvatars={reportData.managerAvatars}
+                    />
+                    <LeagueExploits
+                      data={reportData}
+                      managerAvatars={reportData.managerAvatars}
+                    />
+                  </div>
+                </CollapsibleReportSection>
+                {SHOW_ASSISTANT_FEATURE_RADAR && (
+                  <CollapsibleReportSection
+                    title="Assistant Feature Radar"
+                    kicker="Useful shells without fake data"
+                    premium
+                    previewMetrics={[
+                      { label: 'Waiver Adds', value: reportData.waiverIntelligence?.availableTrendingAdds?.length || 0, tone: reportData.waiverIntelligence?.availableTrendingAdds?.length ? 'good' : 'warn' },
+                      { label: 'Lineup Maps', value: reportData.managerPositionCounts?.length || 0, tone: 'info' },
+                      { label: 'News Flags', value: Object.values(reportData.playerDetailsById || {}).filter((details) => details.latestNews).length, tone: 'neutral' },
+                    ]}
+                  >
+                    <AssistantFeatureShells data={reportData} />
+                  </CollapsibleReportSection>
+                )}
+                  </>
+                )}
                 {(() => {
                   const hasTaxiTriage = !isRedraftReport && reportData.managerRosterIntelligence?.some((row) => (row.taxiTriage?.items.length || 0) > 0);
                   return (
                     <>
-                <CollapsibleReportSection title="Owner Intel Lab" kicker="Dynasty owner reads">
+                <CollapsibleReportSection
+                  title={modeCopy.ownerTitle}
+                  kicker={modeCopy.ownerKicker}
+                  previewMetrics={buildOwnerPreviewMetrics(reportData, leagueValueMode)}
+                >
                   <OwnerIntelMatrix
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}
@@ -2037,9 +2394,14 @@ export default function Home() {
                     leagueLogo={leagueLogo}
                     viewerManager={reportData.viewerManager}
                     currentStandings={reportData.currentStandings}
+                    leagueValueMode={leagueValueMode}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Projected Roster Board" kicker="Season starter room">
+                <CollapsibleReportSection
+                  title={modeCopy.rosterTitle}
+                  kicker={modeCopy.rosterKicker}
+                  previewMetrics={buildRosterPreviewMetrics(reportData)}
+                >
                   <LeagueCommandCenter
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}
@@ -2048,6 +2410,7 @@ export default function Home() {
                     section="roster"
                     viewerManager={reportData.viewerManager}
                     currentStandings={reportData.currentStandings}
+                    leagueValueMode={leagueValueMode}
                   />
                 </CollapsibleReportSection>
                 {hasTaxiTriage && (
@@ -2064,7 +2427,14 @@ export default function Home() {
                 </CollapsibleReportSection>
                 )}
                 {reportData.managerPositionCounts.length > 0 && (
-                  <CollapsibleReportSection title="Manager Position Counts" kicker="Full roster depth map">
+                  <CollapsibleReportSection
+                    title="Manager Position Counts"
+                    kicker={isRedraftReport ? 'Starter depth and position gaps' : 'Full roster depth map'}
+                    previewMetrics={[
+                      { label: 'Managers', value: reportData.managerPositionCounts.length, tone: 'info' },
+                      { label: 'Depth Flags', value: reportData.positionDepth.length, tone: reportData.positionDepth.length ? 'warn' : 'neutral' },
+                    ]}
+                  >
                     <ManagerPositionCountsTable
                       data={reportData.managerPositionCounts}
                       positionDepth={reportData.positionDepth}
@@ -2073,6 +2443,7 @@ export default function Home() {
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
                       viewerManager={reportData.viewerManager}
+                      leagueValueMode={leagueValueMode}
                     />
                   </CollapsibleReportSection>
                 )}
@@ -2087,7 +2458,12 @@ export default function Home() {
                 <div className="space-y-6 sm:space-y-8">
                   {(reportData.weeklyRisers.some((player) => player.val_now >= 2500) ||
                     reportData.weeklyFallers.some((player) => player.val_now >= 1800)) && (
-                    <CollapsibleReportSection title="Trade Market Radar" kicker="Buy and sell signals">
+	                    <CollapsibleReportSection
+	                      title="Trade Market Radar"
+	                      kicker={isRedraftReport ? 'Current-season buy and sell signals' : 'Buy and sell signals'}
+	                      previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}
+	                      premium
+	                    >
                       <TradeMarketRadar
                         risers={reportData.weeklyRisers}
                         fallers={reportData.weeklyFallers}
@@ -2096,10 +2472,16 @@ export default function Home() {
                         leagueId={leagueId}
                         leagueLogo={leagueLogo}
                         viewerManager={reportData.viewerManager}
+                        leagueValueMode={leagueValueMode}
                       />
                     </CollapsibleReportSection>
                   )}
-                  <CollapsibleReportSection title="Waiver Intelligence" kicker="Available value">
+	                  <CollapsibleReportSection
+	                    title="Waiver Intelligence"
+	                    kicker={isRedraftReport ? 'Opportunity, usage, and roster need' : 'Available value'}
+	                    previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}
+	                    premium
+	                  >
                     <WaiverIntelligencePanel
                       data={reportData.waiverIntelligence}
                       managerAvatars={reportData.managerAvatars}
@@ -2111,9 +2493,18 @@ export default function Home() {
                       managerPositionCounts={reportData.managerPositionCounts}
                       positionDepth={reportData.positionDepth}
                       leagueDiagnostics={reportData.leagueDiagnostics}
+                      leagueValueMode={leagueValueMode}
                     />
                   </CollapsibleReportSection>
-                  <CollapsibleReportSection title="Recent Transactions" kicker="Claims, drops, and churn">
+	                  <CollapsibleReportSection
+	                    title="Recent Transactions"
+	                    kicker={isRedraftReport ? 'Claims, drops, and weekly churn' : 'Claims, drops, and churn'}
+                    previewMetrics={[
+                      { label: 'Transactions', value: reportData.recentTransactions?.length || 0, tone: reportData.recentTransactions?.length ? 'info' : 'warn' },
+                      { label: 'Lens', value: isRedraftReport ? 'Season' : 'Dynasty', tone: 'neutral' },
+	                    ]}
+	                    premium
+	                  >
                     <RecentTransactionsPanel
                       data={reportData.recentTransactions}
                       waiverIntelligence={reportData.waiverIntelligence}
@@ -2121,16 +2512,16 @@ export default function Home() {
                       playerDetailsById={reportData.playerDetailsById}
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
-                      leagueValueMode={reportData.leagueValueMode}
+                      leagueValueMode={leagueValueMode}
                     />
                   </CollapsibleReportSection>
-                  <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers">
-                    <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} />
+	                  <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers" previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)} premium>
+                    <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
                   </CollapsibleReportSection>
-                  <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops">
-                    <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} />
+	                  <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops" previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)} premium>
+                    <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
                   </CollapsibleReportSection>
-                  <CollapsibleReportSection title="Trending Adds" kicker="Sleeper activity">
+	                  <CollapsibleReportSection title="Trending Adds" kicker={isRedraftReport ? "Sleeper add activity" : "Sleeper activity"} previewMetrics={[{ label: 'Adds', value: reportData.trendingAdds?.length || 0, tone: 'info' }]} premium>
                     <TrendingPlayersTable
                       data={reportData.trendingAdds || []}
                       title="Trending Adds"
@@ -2140,9 +2531,10 @@ export default function Home() {
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
                       viewerManager={reportData.viewerManager}
+                      leagueValueMode={leagueValueMode}
                     />
                   </CollapsibleReportSection>
-                  <CollapsibleReportSection title="Trending Drops" kicker="Sleeper activity">
+	                  <CollapsibleReportSection title="Trending Drops" kicker={isRedraftReport ? "Sleeper drop activity" : "Sleeper activity"} previewMetrics={[{ label: 'Drops', value: reportData.trendingDrops?.length || 0, tone: 'info' }]} premium>
                     <TrendingPlayersTable
                       data={reportData.trendingDrops || []}
                       title="Trending Drops"
@@ -2152,6 +2544,7 @@ export default function Home() {
                       leagueId={leagueId}
                       leagueLogo={leagueLogo}
                       viewerManager={reportData.viewerManager}
+                      leagueValueMode={leagueValueMode}
                     />
                   </CollapsibleReportSection>
                 </div>
@@ -2160,24 +2553,33 @@ export default function Home() {
 
             <TabsContent value="rankings" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">
-                <CollapsibleReportSection title="Full Roster Rankings" kicker="League-matched player values">
+                <CollapsibleReportSection
+                  title="Full Roster Rankings"
+                  kicker={isRedraftReport ? 'Current-season player values' : 'League-matched player values'}
+                  previewMetrics={buildRankingsPreviewMetrics(rankingsForReport, leagueValueMode)}
+                >
                   {rankingsQuery.isLoading && !rankingsForReport ? (
                     <div className="rankings-empty-state">Loading league-matched rankings...</div>
                   ) : (
-                    <RankingsBoard
-                      rankings={rankingsForReport}
-                      playerDetailsById={reportData.playerDetailsById}
-                      managerAvatars={reportData.managerAvatars}
-                      leagueId={leagueId}
-                      leagueLogo={leagueLogo}
-                      viewerManager={reportData.viewerManager}
-                      board="dynasty"
-                      hidePicks={isRedraftReport}
-                    />
+                    <div className="space-y-4 sm:space-y-5">
+                      {canViewAdminFeatureExpansion && <RankingsMarketRead data={displayReportData} />}
+                      <RankingsBoard
+                        rankings={rankingsForReport}
+                        playerDetailsById={reportData.playerDetailsById}
+                        managerAvatars={reportData.managerAvatars}
+                        leagueId={leagueId}
+                        leagueLogo={leagueLogo}
+                        viewerManager={reportData.viewerManager}
+                        board="dynasty"
+                        hidePicks={isRedraftReport}
+                        leagueValueMode={leagueValueMode}
+                        showAIReads={canViewAdminFeatureExpansion}
+                      />
+                    </div>
                   )}
                 </CollapsibleReportSection>
                 {canViewMomentumTab && !isRedraftReport && (
-                  <CollapsibleReportSection title="College Rankings" kicker="Future rookie pipeline">
+	                  <CollapsibleReportSection title="College Rankings" kicker="Future rookie pipeline" premium>
                     {rankingsQuery.isLoading && !rankingsForReport ? (
                       <div className="rankings-empty-state">Loading college prospect rankings...</div>
                     ) : (
@@ -2190,15 +2592,18 @@ export default function Home() {
                         viewerManager={reportData.viewerManager}
                         board="devy"
                         hidePicks
+                        leagueValueMode={leagueValueMode}
+                        showAIReads={canViewAdminFeatureExpansion}
                       />
                     )}
                   </CollapsibleReportSection>
                 )}
                 {canViewMomentumTab && !isRedraftReport && (
-                  <CollapsibleReportSection
-                    title="Prospect Score Archive"
-                    kicker="Scouting data archive"
-                    defaultOpen={!isProspectArchiveLoading}
+	                  <CollapsibleReportSection
+	                    title="Prospect Score Archive"
+	                    kicker="Scouting data archive"
+	                    defaultOpen={!isProspectArchiveLoading}
+	                    premium
                     onOpenChange={(open) => {
                       if (open && isProspectArchiveLoading) {
                         setProspectArchiveOpenedWhileLoading(true);
@@ -2217,27 +2622,39 @@ export default function Home() {
                         viewerManager={reportData.viewerManager}
                         board="draftbuzz"
                         hidePicks
+                        leagueValueMode={leagueValueMode}
+                        showAIReads={canViewAdminFeatureExpansion}
                       />
                     )}
                   </CollapsibleReportSection>
                 )}
-                {canViewMomentumTab && (
-                  <>
-                    <CollapsibleReportSection title="Admin Eyes Only: Traffic & Abuse" kicker="Request telemetry">
-                      <AdminAbuseTelemetryPanel />
-                    </CollapsibleReportSection>
-                    <CollapsibleReportSection title="Admin Eyes Only: Value Assumptions" kicker="Hidden diagnostics">
-                      <AdminValueDiagnosticsTable reportData={displayReportData} />
-                    </CollapsibleReportSection>
-                  </>
-                )}
+	                {canViewMomentumTab && (
+	                  <section className="admin-diagnostics-shell" aria-label="Admin diagnostics">
+	                    <div className="admin-diagnostics-shell-header">
+	                      <span>Admin Diagnostics</span>
+	                      <p>Operational checks separated from the league report so normal owner analysis stays focused.</p>
+	                    </div>
+		                    <CollapsibleReportSection title="Admin Eyes Only: Traffic & Abuse" kicker="Request telemetry" premium>
+	                      <AdminAbuseTelemetryPanel />
+	                    </CollapsibleReportSection>
+		                    <CollapsibleReportSection title="Admin Eyes Only: Value Assumptions" kicker="Hidden diagnostics" premium>
+	                      <AdminValueDiagnosticsTable reportData={displayReportData} />
+	                    </CollapsibleReportSection>
+	                  </section>
+	                )}
               </div>
             </TabsContent>
 
             <TabsContent value="trades" className="report-tab-content">
               <div className="trade-sections space-y-6 sm:space-y-8">
+                {canViewAdminFeatureExpansion && <TradeBrowserRead data={reportData} />}
                 {canViewMomentumTab && (
-                  <CollapsibleReportSection title="Trade War Room" kicker="Context-aware calculator">
+	                  <CollapsibleReportSection
+	                    title="Trade War Room"
+	                    kicker={modeCopy.tradeWarKicker}
+	                    previewMetrics={buildTradePreviewMetrics(reportData, leagueValueMode)}
+	                    premium
+	                  >
                     <TradeWarRoom
                       data={reportData.managerRosterIntelligence}
                       managerAvatars={reportData.managerAvatars}
@@ -2249,10 +2666,15 @@ export default function Home() {
                       leagueLogo={leagueLogo}
                       viewerManager={reportData.viewerManager}
                       currentStandings={reportData.currentStandings}
+                      leagueValueMode={leagueValueMode}
                     />
                   </CollapsibleReportSection>
                 )}
-                <CollapsibleReportSection title="All-Time Trade Profit Leaderboard" kicker="Net trade edge">
+                <CollapsibleReportSection
+                  title={isRedraftReport ? 'Trade Value Leaderboard' : 'All-Time Trade Profit Leaderboard'}
+                  kicker={isRedraftReport ? 'Current-season trade edge' : 'Net trade edge'}
+                  previewMetrics={buildTradePreviewMetrics(reportData, leagueValueMode)}
+                >
                   <TradeProfitLeaderboardTable
                     data={reportData.tradeProfitLeaderboard}
                     managerAvatars={reportData.managerAvatars}
@@ -2269,10 +2691,14 @@ export default function Home() {
                     viewerManager={reportData.viewerManager}
                     currentStandings={reportData.currentStandings}
                     standingsHistory={reportData.standingsHistory}
-                    leagueValueMode={reportData.leagueValueMode}
+                    leagueValueMode={leagueValueMode}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Trade Theft Detector" kicker="Who got cooked">
+                <CollapsibleReportSection
+                  title={isRedraftReport ? 'Trade Balance Review' : 'Trade Theft Detector'}
+                  kicker={isRedraftReport ? 'Largest current-season gaps' : 'Who got cooked'}
+                  previewMetrics={buildTradePreviewMetrics(reportData, leagueValueMode)}
+                >
                   <TradeTheftDetector
                     data={reportData.tradeHistory}
                     managerAvatars={reportData.managerAvatars}
@@ -2286,10 +2712,10 @@ export default function Home() {
                     leagueLogo={leagueLogo}
                     currentStandings={reportData.currentStandings}
                     standingsHistory={reportData.standingsHistory}
-                    leagueValueMode={reportData.leagueValueMode}
+                    leagueValueMode={leagueValueMode}
                   />
                 </CollapsibleReportSection>
-                <ModalReportSection title="Full Trade Ledger" kicker="Every completed deal">
+                <ModalReportSection title="Full Trade Ledger" kicker="Every completed deal" previewMetrics={buildTradePreviewMetrics(reportData, leagueValueMode)}>
                   <TradeHistoryTable
                     data={reportData.tradeHistory}
                     draftPicks={reportData.draftPicks || []}
@@ -2303,7 +2729,7 @@ export default function Home() {
                     leagueLogo={leagueLogo}
                     currentStandings={reportData.currentStandings}
                     standingsHistory={reportData.standingsHistory}
-                    leagueValueMode={reportData.leagueValueMode}
+                    leagueValueMode={leagueValueMode}
                     variant="modal"
                   />
                 </ModalReportSection>
@@ -2324,6 +2750,8 @@ export default function Home() {
                 viewerManager={reportData.viewerManager}
                 currentStandings={reportData.currentStandings}
                 leagueOverview={reportData.leagueOverview}
+                leagueValueMode={leagueValueMode}
+                showAIReads={canViewAdminFeatureExpansion}
               />
             </TabsContent>
             </Suspense>
@@ -2415,7 +2843,6 @@ export default function Home() {
         </Dialog>
 
         {clownEasterEggDialog}
-        {adminPermissionsDialog}
       </div>
       </ManagerChampionshipProvider>
       {loadingDialog}
@@ -2444,8 +2871,8 @@ export default function Home() {
                 <span>Obliterate Your</span>
                 <span>Competition</span>
               </h2>
-              <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
-                Stop guessing. Start dominating. <span className="home-subtitle-name">Dynasty Degenerates</span> blends dynasty market data, season outlooks, roster context, and AI-driven reads to give you an unfair advantage over the rest of your league.
+	              <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
+	                Stop guessing. Start dominating. <span className="home-subtitle-name">Dynasty Degenerates</span> blends dynasty market data, redraft season value, roster context, and AI-driven reads to give you an unfair advantage in every Sleeper league.
               </p>
             </div>
 
@@ -2579,8 +3006,8 @@ export default function Home() {
                   </div>
                   <h3 className="font-semibold text-white">League Overview</h3>
                 </div>
-                <p className="text-sm text-slate-400">
-                  See every manager's total blended value with position-aware roster context. No bullshit, just the numbers.
+	                <p className="text-sm text-slate-400">
+	                  See every manager's format-aware value with position strength, starter depth, and roster context. No bullshit, just the numbers.
                 </p>
               </div>
 
@@ -2591,8 +3018,8 @@ export default function Home() {
                   </div>
                   <h3 className="font-semibold text-white">Trade History</h3>
                 </div>
-                <p className="text-sm text-slate-400">
-                  Track how your trades are valued today compared to when you made them. See who's winning and who's getting fleeced.
+	                <p className="text-sm text-slate-400">
+	                  Track dynasty market swings or redraft current-season trade gaps with the correct value lens for the league.
                 </p>
               </div>
 
@@ -2603,8 +3030,8 @@ export default function Home() {
                   </div>
                   <h3 className="font-semibold text-white">Player Rankings</h3>
                 </div>
-                <p className="text-sm text-slate-400">
-                  Browse league-matched dynasty and college prospect boards across SuperFlex, Standard, and TE-premium formats.
+	                <p className="text-sm text-slate-400">
+	                  Browse league-matched dynasty, redraft, and prospect boards across SuperFlex, Standard, PPR, and TE-premium formats.
                 </p>
               </div>
             </div>
@@ -2617,7 +3044,6 @@ export default function Home() {
         </div>
       )}
       {clownEasterEggDialog}
-      {adminPermissionsDialog}
     </div>
     {loadingDialog}
     </>
@@ -2627,38 +3053,53 @@ export default function Home() {
 function CollapsibleReportSection({
   title,
   kicker,
+  previewMetrics,
   defaultOpen = false,
+  premium = false,
   onOpenChange,
   children,
 }: {
   title: string;
   kicker?: string;
+  previewMetrics?: PreviewMetric[];
   defaultOpen?: boolean;
+  premium?: boolean;
   onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [hasRenderedContent, setHasRenderedContent] = useState(defaultOpen);
 
   useEffect(() => {
     setIsOpen(defaultOpen);
+    if (defaultOpen) {
+      setHasRenderedContent(true);
+    }
   }, [defaultOpen]);
 
   const handleToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
     const nextOpen = event.currentTarget.open;
     setIsOpen(nextOpen);
+    if (nextOpen) {
+      setHasRenderedContent(true);
+    }
     onOpenChange?.(nextOpen);
   };
 
   return (
-    <details className="report-section report-disclosure" open={isOpen} onToggle={handleToggle}>
+    <details className={`report-section report-disclosure${premium ? ' admin-premium-flare admin-premium-section' : ''}`} open={isOpen} onToggle={handleToggle}>
       <summary className="report-disclosure-summary">
+        {premium ? <span className="admin-premium-solar-flare" aria-hidden="true" /> : null}
         <ReportSectionHeader title={title} kicker={kicker} />
+        <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </summary>
       <div className="report-disclosure-body">
-        <div className="report-disclosure-body-inner">
-          {children}
-        </div>
+        {hasRenderedContent ? (
+          <div className="report-disclosure-body-inner">
+            {children}
+          </div>
+        ) : null}
       </div>
     </details>
   );
@@ -2667,10 +3108,12 @@ function CollapsibleReportSection({
 function ModalReportSection({
   title,
   kicker,
+  previewMetrics,
   children,
 }: {
   title: string;
   kicker?: string;
+  previewMetrics?: PreviewMetric[];
   children: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -2685,6 +3128,7 @@ function ModalReportSection({
         aria-expanded={isOpen}
       >
         <ReportSectionHeader title={title} kicker={kicker} />
+        <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </button>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>

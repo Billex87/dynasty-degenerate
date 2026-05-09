@@ -660,6 +660,13 @@ export interface LeagueDiagnostics {
 export interface ReportData {
   leagueValueMode?: LeagueValueMode;
   leagueDiagnostics?: LeagueDiagnostics;
+  monthlyBlueprintSnapshot?: {
+    month: string;
+    status: 'stored' | 'local' | 'unavailable';
+    managerCount: number;
+    source: 'database' | 'file' | 'none';
+    warning?: string | null;
+  };
   prospectSourceDiagnostics?: ProspectSourceDiagnostics;
   viewerManager?: string | null;
   viewerManagerByUserId?: Record<string, string>;

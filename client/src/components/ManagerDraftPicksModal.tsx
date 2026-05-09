@@ -6,15 +6,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { DraftPick, PlayerDetails } from '@shared/types';
+import type { DraftPick, PlayerDetails, ReportData } from '@shared/types';
 import { TrendingUp, TrendingDown, X } from 'lucide-react';
-import { PlayerDetailModal } from './PlayerDetailModal';
+import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
+import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 
 interface ManagerDraftPicksModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ interface ManagerDraftPicksModalProps {
   mode?: 'portfolio' | 'audit';
   leagueId?: string;
   leagueLogo?: string | null;
+  leagueValueMode?: ReportData['leagueValueMode'];
 }
 
 export function ManagerDraftPicksModal({
@@ -40,10 +42,13 @@ export function ManagerDraftPicksModal({
   mode = 'portfolio',
   leagueId,
   leagueLogo,
+  leagueValueMode: leagueValueModeInput = 'dynasty',
 }: ManagerDraftPicksModalProps) {
-  const [selectedPlayer, setSelectedPlayer] = useState<DraftPick | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
 
   const isAuditMode = mode === 'audit';
+  const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
+  const isRedraft = leagueValueMode === 'redraft';
   const managerPicks = draftPicks
     .filter((pick) => pick.manager === managerName)
     .sort((a, b) => {
@@ -110,7 +115,7 @@ export function ManagerDraftPicksModal({
                   </ChampionAvatarFrame>
                   <div className="min-w-0 text-center">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/90">
-                      {isAuditMode ? 'Draft Decision Audit' : 'Draft Portfolio'}
+                      {isRedraft ? (isAuditMode ? 'Draft-Day vs Current Value' : 'Draft Recap') : (isAuditMode ? 'Draft Decision Audit' : 'Draft Portfolio')}
                     </p>
                     <DialogTitle className={`manager-modal-name ${managerNameSizeClass} athletic-headline mt-1 font-black leading-none text-orange-400`}>
                       {displayManagerName}
@@ -131,7 +136,7 @@ export function ManagerDraftPicksModal({
                     <ManagerDraftStat label="Misses" value={missCount.toLocaleString()} tone={missCount ? 'negative' : 'positive'} />
                     <ManagerDraftStat label="Starters" value={starterCount.toLocaleString()} tone={starterCount ? 'positive' : 'neutral'} />
                     <ManagerDraftStat
-                      label="Avg Change"
+                      label={isRedraft ? 'Avg Swing' : 'Avg Change'}
                       value={`${Math.round(totalValueGain / Math.max(managerPicks.length, 1)) > 0 ? '+' : ''}${Math.round(totalValueGain / Math.max(managerPicks.length, 1)).toLocaleString()}`}
                       tone={totalValueGain > 0 ? 'positive' : totalValueGain < 0 ? 'negative' : 'neutral'}
                     />
@@ -139,7 +144,7 @@ export function ManagerDraftPicksModal({
                 ) : (
                   <>
                     <ManagerDraftStat label="Picks" value={managerPicks.length.toLocaleString()} />
-                    <ManagerDraftStat label="Current Value" value={totalCurrentValue.toLocaleString()} />
+                    <ManagerDraftStat label={isRedraft ? 'Current Value' : 'Current Value'} value={totalCurrentValue.toLocaleString()} />
                     <ManagerDraftStat
                       label="Value Change"
                       value={`${totalValueGain > 0 ? '+' : ''}${totalValueGain.toLocaleString()}`}
@@ -165,7 +170,8 @@ export function ManagerDraftPicksModal({
                       style={getTeamTileStyle(pick.playerDetails?.team)}
                       onClick={() => setSelectedPlayer(enrichDraftPickDetails(
                         pick,
-                        playerDetailsById
+                        playerDetailsById,
+                        leagueValueMode,
                       ))}
                     >
                       {isStarter && <span className="draft-starter-corner">Starter</span>}
@@ -301,13 +307,23 @@ function formatDraftGain(valueGain: number | null | undefined): string {
 
 function enrichDraftPickDetails(
   pick: DraftPick,
-  playerDetailsById?: Record<string, PlayerDetails>
-): DraftPick {
+  playerDetailsById?: Record<string, PlayerDetails>,
+  leagueValueMode: ReportData['leagueValueMode'] = 'dynasty',
+): PlayerModalData {
   const mappedDetails = pick.player_id ? playerDetailsById?.[pick.player_id] : undefined;
-  if (!mappedDetails) return pick;
+  const normalizedMode = normalizeLeagueValueMode(leagueValueMode);
+  const profile = pick.playerDetails?.valueProfile || mappedDetails?.valueProfile;
+  const basePick = {
+    ...pick,
+    currentKtcValue: normalizedMode === 'redraft'
+      ? Math.round(profile?.seasonValue ?? profile?.fantasyProsSeasonValue ?? profile?.fantasyCalcRedraft ?? pick.currentKtcValue ?? 0)
+      : pick.currentKtcValue,
+    valueMode: normalizedMode,
+  };
+  if (!mappedDetails) return basePick;
 
   return {
-    ...pick,
+    ...basePick,
     playerDetails: {
       ...mappedDetails,
       ...pick.playerDetails,

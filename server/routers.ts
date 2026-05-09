@@ -1,5 +1,6 @@
 import { COOKIE_NAME, UNAUTHED_ERR_MSG } from "@shared/const";
 import { TRPCError } from "@trpc/server";
+import { hasAdminPermissionIdentifier, hasAdminPermissionsForUser } from "./_core/adminAccess";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
@@ -27,9 +28,9 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { findLeagueReportCache, insertLoginAttempt, upsertLeagueReportCache } from "./db";
+import { findLeagueReportCache, insertLoginAttempt, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, TrendingPlayer, WaiverIntelligence } from "../shared/types";
+import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -312,6 +313,7 @@ const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
 const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
 const RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP = 250;
 const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');
+const MONTHLY_BLUEPRINT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'monthly-blueprints');
 const leagueReportMemoryCache = new Map<string, { loadedAt: number; payload: unknown }>();
 const ktcValueProfileLookupCache = new WeakMap<KTCValues, Map<string, KtcValueProfileCandidate>>();
 
@@ -416,6 +418,145 @@ async function writeFileCachedLeagueReport(cacheKey: string, payload: unknown): 
     await fs.writeFile(getLeagueReportFileCachePath(cacheKey), JSON.stringify(payload));
   } catch (error) {
     console.warn('Failed to write file league report cache:', error);
+  }
+}
+
+function getBlueprintSnapshotMonth(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Vancouver',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === 'year')?.value || String(date.getUTCFullYear());
+  const month = parts.find((part) => part.type === 'month')?.value || String(date.getUTCMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function buildMonthlyBlueprintSnapshots(input: {
+  leagueId: string;
+  leagueName: string;
+  leagueFormat: string;
+  snapshotMonth: string;
+  reportData: any;
+}) {
+  const reportData = input.reportData || {};
+  const positionCountsByManager = new Map((reportData.managerPositionCounts || []).map((row: any) => [row.manager, row]));
+  const overviewByManager = new Map((reportData.leagueOverview || []).map((row: any) => [row.manager, row]));
+  const powerByManager = new Map((reportData.powerRankings || []).map((row: any) => [row.manager, row]));
+  const picksByManager = new Map((reportData.pickPortfolios || []).map((row: any) => [row.manager, row]));
+  const tradesByManager = new Map((reportData.tradeTendencies || []).map((row: any) => [row.manager, row]));
+
+  return (reportData.managerRosterIntelligence || []).map((row: any) => ({
+    manager: row.manager,
+    payload: {
+      leagueId: input.leagueId,
+      leagueName: input.leagueName,
+      leagueFormat: input.leagueFormat,
+      snapshotMonth: input.snapshotMonth,
+      manager: row.manager,
+      capturedAt: new Date().toISOString(),
+      rosterIdentity: row.identity,
+      timeline: row.timeline,
+      summary: row.summary,
+      strategySummary: row.strategySummary || row.tradePlan?.summary || null,
+      starterValue: row.starterValue,
+      starterSeasonValue: row.starterSeasonValue ?? null,
+      benchValue: row.benchValue,
+      starterValuePct: row.starterValuePct,
+      avgAge: row.avgAge,
+      positionGrades: row.positionGrades || null,
+      pressurePoints: row.pressurePoints || [],
+      ageFlags: row.ageFlags || [],
+      holes: row.holes || null,
+      starterAvailability: row.starterAvailability || null,
+      keyPlayers: {
+        buyTarget: row.buyTarget || null,
+        sellCandidate: row.sellCandidate || null,
+        tradeChip: row.tradeChip || null,
+        youngCorePlayer: row.youngCorePlayer || null,
+        oldestPlayer: row.oldestPlayer || null,
+      },
+      positionCounts: positionCountsByManager.get(row.manager) || null,
+      leagueOverview: overviewByManager.get(row.manager) || null,
+      powerRanking: powerByManager.get(row.manager) || null,
+      pickPortfolio: picksByManager.get(row.manager) || null,
+      tradeTendency: tradesByManager.get(row.manager) || null,
+    },
+  }));
+}
+
+async function persistMonthlyBlueprintSnapshots(input: {
+  leagueId: string;
+  leagueName: string;
+  leagueFormat: string;
+  reportData: any;
+}): Promise<NonNullable<ReportData['monthlyBlueprintSnapshot']>> {
+  const snapshotMonth = getBlueprintSnapshotMonth();
+  const snapshots = buildMonthlyBlueprintSnapshots({
+    leagueId: input.leagueId,
+    leagueName: input.leagueName,
+    leagueFormat: input.leagueFormat,
+    snapshotMonth,
+    reportData: input.reportData,
+  });
+
+  if (!snapshots.length) {
+    return {
+      month: snapshotMonth,
+      status: 'unavailable',
+      managerCount: 0,
+      source: 'none',
+      warning: 'No manager roster intelligence was returned, so no monthly blueprint snapshot was stored.',
+    };
+  }
+
+  try {
+    const stored = await upsertMonthlyRosterBlueprintSnapshots({
+      leagueId: input.leagueId,
+      snapshotMonth,
+      snapshots,
+    });
+    if (stored) {
+      return {
+        month: snapshotMonth,
+        status: 'stored',
+        managerCount: snapshots.length,
+        source: 'database',
+        warning: null,
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to store monthly blueprint snapshots in database:', error);
+  }
+
+  try {
+    await fs.mkdir(MONTHLY_BLUEPRINT_FILE_CACHE_DIR, { recursive: true });
+    await fs.writeFile(
+      path.join(MONTHLY_BLUEPRINT_FILE_CACHE_DIR, `${input.leagueId}-${snapshotMonth}.json`),
+      JSON.stringify({
+        leagueId: input.leagueId,
+        leagueName: input.leagueName,
+        leagueFormat: input.leagueFormat,
+        snapshotMonth,
+        snapshots,
+      })
+    );
+    return {
+      month: snapshotMonth,
+      status: 'local',
+      managerCount: snapshots.length,
+      source: 'file',
+      warning: 'Database was unavailable, so this monthly blueprint snapshot was saved to the local file cache.',
+    };
+  } catch (error) {
+    console.warn('Failed to store monthly blueprint snapshots locally:', error);
+    return {
+      month: snapshotMonth,
+      status: 'unavailable',
+      managerCount: snapshots.length,
+      source: 'none',
+      warning: 'Monthly blueprint snapshot persistence failed; the in-app report still uses the current returned data.',
+    };
   }
 }
 
@@ -2062,7 +2203,9 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(opts => opts.ctx.user
+      ? { ...opts.ctx.user, isPrivilegedAdmin: hasAdminPermissionsForUser(opts.ctx.user) }
+      : null),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -2146,12 +2289,21 @@ export const appRouter = router({
             note: `${leagues.length} current-season leagues found`,
           });
 
+          const hasAdminPermissions = hasAdminPermissionIdentifier(
+            String(user.user_id),
+            user.username || username,
+            user.display_name || null,
+            username
+          );
+
           return {
             user: {
               userId: String(user.user_id),
               username: user.username || username,
               displayName: user.display_name || user.username || username,
               avatarUrl: getSleeperAvatarUrl(user.avatar),
+              hasAdminPermissions,
+              isPrivilegedReportViewer: hasAdminPermissions,
             },
             leagues: leagues.sort((a, b) => Number(b.season) - Number(a.season) || a.name.localeCompare(b.name)),
           };
@@ -2697,47 +2849,59 @@ export const appRouter = router({
           const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, prospectLookup);
           markAnalyzeStep('player detail assembly');
 
+          const reportPayloadData = {
+            ...reportData,
+            prospectSourceDiagnostics: prospectContext.diagnostics,
+            viewerManager,
+            viewerManagerByUserId: userIdToManagerMap,
+            currentStandings,
+            managerAvatars: buildManagerAvatarMap(users),
+            managerChampionships,
+            playerDetailsById: Object.fromEntries(
+              Object.entries(playerDetailsById).map(([playerId, details]) => [
+                playerId,
+                {
+                  ...details,
+                  valueProfile: valueProfilesById[playerId],
+                  lastSeasonPositionRank: lastSeasonPositionRanks[playerId]?.positionRank || null,
+                  lastSeasonFantasyPoints: lastSeasonPositionRanks[playerId]?.fantasyPoints ?? null,
+                  lastSeasonGames: lastSeasonPositionRanks[playerId]?.games ?? null,
+                  lastSeasonPointsPerGame: lastSeasonPositionRanks[playerId]?.pointsPerGame ?? null,
+                  lastSeasonYear: lastSeasonPositionRanks[playerId]?.season || null,
+                  availabilityHistory: availabilityHistoryById[playerId]?.availabilityHistory || [],
+                  latestNews: latestNewsByPlayerId[playerId] || null,
+                  avgGamesMissed: availabilityHistoryById[playerId]?.avgGamesMissed ?? null,
+                  availabilitySeasons: availabilityHistoryById[playerId]?.availabilitySeasons ?? 0,
+                  similarTradeValues: similarTradeValuesById[playerId] || [],
+                },
+              ])
+            ),
+            currentPositionRankById: buildPrimaryPositionRankMap(detailPlayerIds, players, ktcValues, valueProfilesById, leagueValueMode),
+            trendingAdds,
+            trendingDrops,
+            pickPortfolios,
+            powerRankings,
+            waiverIntelligence,
+            recentTransactions,
+            draftPicks: draftAnalysis.draftPicks,
+            draftStats: draftAnalysis.draftStats,
+          };
+          const monthlyBlueprintSnapshot = await persistMonthlyBlueprintSnapshots({
+            leagueId: input.leagueId,
+            leagueName: leagueInfo.name,
+            leagueFormat: formatLeagueFormat(leagueInfo),
+            reportData: reportPayloadData,
+          });
+          markAnalyzeStep('monthly blueprint snapshot');
+
           const analyzePayload = {
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
             leagueLogo: getSleeperAvatarUrl(leagueInfo.avatar),
             leagueFormat: formatLeagueFormat(leagueInfo),
             reportData: {
-              ...reportData,
-              prospectSourceDiagnostics: prospectContext.diagnostics,
-              viewerManager,
-              viewerManagerByUserId: userIdToManagerMap,
-              currentStandings,
-              managerAvatars: buildManagerAvatarMap(users),
-              managerChampionships,
-              playerDetailsById: Object.fromEntries(
-                Object.entries(playerDetailsById).map(([playerId, details]) => [
-                  playerId,
-                  {
-                    ...details,
-                    valueProfile: valueProfilesById[playerId],
-                    lastSeasonPositionRank: lastSeasonPositionRanks[playerId]?.positionRank || null,
-                    lastSeasonFantasyPoints: lastSeasonPositionRanks[playerId]?.fantasyPoints ?? null,
-                    lastSeasonGames: lastSeasonPositionRanks[playerId]?.games ?? null,
-                    lastSeasonPointsPerGame: lastSeasonPositionRanks[playerId]?.pointsPerGame ?? null,
-                    lastSeasonYear: lastSeasonPositionRanks[playerId]?.season || null,
-                    availabilityHistory: availabilityHistoryById[playerId]?.availabilityHistory || [],
-                    latestNews: latestNewsByPlayerId[playerId] || null,
-                    avgGamesMissed: availabilityHistoryById[playerId]?.avgGamesMissed ?? null,
-                    availabilitySeasons: availabilityHistoryById[playerId]?.availabilitySeasons ?? 0,
-                    similarTradeValues: similarTradeValuesById[playerId] || [],
-                  },
-                ])
-              ),
-              currentPositionRankById: buildPrimaryPositionRankMap(detailPlayerIds, players, ktcValues, valueProfilesById, leagueValueMode),
-              trendingAdds,
-              trendingDrops,
-              pickPortfolios,
-              powerRankings,
-              waiverIntelligence,
-              recentTransactions,
-              draftPicks: draftAnalysis.draftPicks,
-              draftStats: draftAnalysis.draftStats,
+              ...reportPayloadData,
+              monthlyBlueprintSnapshot,
             },
           };
           markAnalyzeStep('payload assembly');
@@ -2800,7 +2964,11 @@ export const appRouter = router({
 
   images: router({
     playerHeadshot: publicProcedure
-      .input(z.object({ playerId: z.string() }))
+      .input(z.object({
+        playerId: z.string(),
+        playerName: z.string().optional().nullable(),
+        position: z.string().optional().nullable(),
+      }))
       .query(async ({ input }) => {
         // Try to get from cache first
         const cached = getCachedImage(input.playerId);
@@ -2810,20 +2978,52 @@ export const appRouter = router({
             cached: true,
             data: cached.data.toString('base64'),
             contentType: cached.contentType,
+            imageUrl: null,
+            source: 'sleeper' as const,
           };
         }
 
         // Fetch and cache
         const imageBuffer = await fetchPlayerHeadshot(input.playerId);
-        if (!imageBuffer) {
-          return { success: false, cached: false };
+        if (imageBuffer) {
+          return {
+            success: true,
+            cached: false,
+            data: imageBuffer.toString('base64'),
+            contentType: 'image/jpeg',
+            imageUrl: null,
+            source: 'sleeper' as const,
+          };
+        }
+
+        if (input.playerName) {
+          const prospectContext = await loadProspectContext();
+          const prospectProfile = findProspectProfile(
+            buildProspectLookup(prospectContext.profiles),
+            input.playerName,
+            input.position,
+            null,
+            null
+          );
+          if (prospectProfile?.playerImageUrl) {
+            return {
+              success: true,
+              cached: false,
+              data: null,
+              contentType: null,
+              imageUrl: prospectProfile.playerImageUrl,
+              source: 'prospect' as const,
+            };
+          }
         }
 
         return {
-          success: true,
+          success: false,
           cached: false,
-          data: imageBuffer.toString('base64'),
-          contentType: 'image/jpeg',
+          data: null,
+          contentType: null,
+          imageUrl: null,
+          source: null,
         };
       }),
   }),

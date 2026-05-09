@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('homepage smoke', () => {
   test('renders the league analyzer without horizontal overflow', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByRole('heading', { name: 'Obliterate Your Competition' })).toBeVisible();
     await expect(page.getByPlaceholder('Sleeper username')).toBeVisible();

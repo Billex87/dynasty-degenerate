@@ -23,6 +23,7 @@ You must configure the following environment variables in your deployment platfo
 - `DATABASE_URL`: Your MySQL connection string (e.g., `mysql://user:pass@host:port/db`).
 - `JWT_SECRET`: A secure random string for session signing.
 - `OWNER_OPEN_ID`: Your Manus OpenID (to grant admin access).
+- `ADMIN_PERMISSIONS`: Optional comma-, space-, or newline-separated server-only allowlist for report/admin operators. Accepts Sleeper usernames/display names/user IDs for report-only tools and app auth identifiers such as OpenID, name, email, or email prefix for telemetry. This value must stay server-side; the client only receives boolean permission flags from API responses.
 - `FANTASYPROS_API_KEY`: FantasyPros API key for rankings, points, and injury data.
 - `CRON_SECRET`: A random secret used by Vercel Cron when calling `/api/cron/ktc-snapshot`.
 - `LEAGUE_REPORT_WARM_LEAGUE_IDS`: Optional comma- or space-separated Sleeper league IDs to prebuild into the shared server cache after value snapshots.
@@ -54,7 +55,7 @@ Ensure your OAuth portal is configured with the following callback URL:
 
 The app has in-process throttles on public tRPC procedures, no-store/noindex headers for API responses, and server-only storage for KTC seed value JSON. Keep `REQUIRE_AUTH_FOR_REPORTS` unset on the public production app; use rate limits, cache warmers, and targeted Vercel Firewall rules for abuse control instead of forcing visitors through Manus OAuth. Keep `CRON_SECRET` configured in production so cache warmers bypass public throttles without exposing force refresh to visitors.
 
-Admin traffic telemetry is exposed only through the admin tRPC guard, which allows app admins plus authenticated identities matching `PRIVILEGED_REPORT_VIEWERS` in `shared/const.ts`. Keep that list limited to trusted operators and prefer app-level admin roles for permanent access.
+Admin traffic telemetry is exposed only through the admin tRPC guard, which allows app admins plus authenticated identities matching server env `ADMIN_PERMISSIONS` or `OWNER_OPEN_ID`. Keep that allowlist limited to trusted operators and prefer app-level admin roles for permanent access.
 
 For edge protection, enable Vercel Firewall managed rules for bot protection in `log` mode first, then move abusive `/api/trpc/league.analyze` and `/api/trpc/league.rankings` traffic to `challenge` or `deny` once logs confirm the pattern. Do not challenge the whole site by default; keep the public landing page crawlable and apply strict rules to API/report paths.
 
@@ -71,5 +72,6 @@ Production env rollout:
 ```bash
 vercel env ls production
 printf '%s' "$CRON_SECRET" | vercel env add CRON_SECRET production preview development --sensitive
+printf '%s' "$ADMIN_PERMISSIONS" | vercel env add ADMIN_PERMISSIONS production preview development --sensitive
 # Do not set REQUIRE_AUTH_FOR_REPORTS on the public production app.
 ```

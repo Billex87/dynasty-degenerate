@@ -6,6 +6,13 @@ type SqlClient = ReturnType<typeof neon>;
 
 let sqlClient: SqlClient | null = null;
 let schemaReady: Promise<void> | null = null;
+const shouldQuietDevLogs = () =>
+  process.env.QUIET_DEV_LOGS === "true" ||
+  process.env.NODE_ENV === "test" ||
+  process.env.VITEST === "true";
+const warnWhenDatabaseUnavailable = (...args: Parameters<typeof console.warn>) => {
+  if (!shouldQuietDevLogs()) console.warn(...args);
+};
 
 export type LoginAttemptEvent = {
   eventType: "find_leagues" | "analyze_league" | "rate_limit";
@@ -116,6 +123,28 @@ async function ensureSchema(sql: SqlClient) {
         CREATE INDEX IF NOT EXISTS "leagueReportCache_leagueId_updatedAt_idx"
         ON "leagueReportCache" ("leagueId", "updatedAt" DESC)
       `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "monthlyRosterBlueprintSnapshots" (
+          id SERIAL PRIMARY KEY,
+          "leagueId" TEXT NOT NULL,
+          manager TEXT NOT NULL,
+          "snapshotMonth" VARCHAR(7) NOT NULL,
+          payload TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "monthlyRosterBlueprintSnapshots_league_manager_month_uidx"
+        ON "monthlyRosterBlueprintSnapshots" ("leagueId", manager, "snapshotMonth")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "monthlyRosterBlueprintSnapshots_league_month_idx"
+        ON "monthlyRosterBlueprintSnapshots" ("leagueId", "snapshotMonth" DESC)
+      `;
     })();
   }
 
@@ -156,7 +185,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const sql = await getDb();
   if (!sql) {
-    console.warn("[Database] Cannot upsert user: database not available");
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert user: database not available");
     return;
   }
 
@@ -195,7 +224,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string): Promise<User | undefined> {
   const sql = await getDb();
   if (!sql) {
-    console.warn("[Database] Cannot get user: database not available");
+    warnWhenDatabaseUnavailable("[Database] Cannot get user: database not available");
     return undefined;
   }
 
@@ -314,7 +343,7 @@ function normalizeLoginAttempt(row: any): StoredLoginAttempt {
 export async function insertLoginAttempt(event: LoginAttemptEvent): Promise<void> {
   const sql = await getDb();
   if (!sql) {
-    console.warn("[Database] Cannot insert login attempt: database not available");
+    warnWhenDatabaseUnavailable("[Database] Cannot insert login attempt: database not available");
     return;
   }
 
@@ -343,7 +372,7 @@ export async function insertLoginAttempt(event: LoginAttemptEvent): Promise<void
 export async function getLoginAttemptsSince(targetDate: Date): Promise<StoredLoginAttempt[]> {
   const sql = await getDb();
   if (!sql) {
-    console.warn("[Database] Cannot read login attempts: database not available");
+    warnWhenDatabaseUnavailable("[Database] Cannot read login attempts: database not available");
     return [];
   }
 
@@ -421,4 +450,40 @@ export async function upsertLeagueReportCache(input: {
       payload = EXCLUDED.payload,
       "updatedAt" = NOW()
   `;
+}
+
+export async function upsertMonthlyRosterBlueprintSnapshots(input: {
+  leagueId: string;
+  snapshotMonth: string;
+  snapshots: Array<{
+    manager: string;
+    payload: unknown;
+  }>;
+}): Promise<boolean> {
+  const sql = await getDb();
+  if (!sql || !input.snapshots.length) return false;
+
+  for (const snapshot of input.snapshots) {
+    await sql`
+      INSERT INTO "monthlyRosterBlueprintSnapshots" (
+        "leagueId",
+        manager,
+        "snapshotMonth",
+        payload,
+        "updatedAt"
+      )
+      VALUES (
+        ${input.leagueId},
+        ${snapshot.manager},
+        ${input.snapshotMonth},
+        ${JSON.stringify(snapshot.payload)},
+        NOW()
+      )
+      ON CONFLICT ("leagueId", manager, "snapshotMonth") DO UPDATE SET
+        payload = EXCLUDED.payload,
+        "updatedAt" = NOW()
+    `;
+  }
+
+  return true;
 }

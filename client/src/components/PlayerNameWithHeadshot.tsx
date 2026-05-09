@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getNflTeamLogoUrl, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
+import { getCachedDraftBuzzImageUrl, getNflTeamLogoUrl, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
 import { trpc } from '@/lib/trpc';
 
 interface PlayerNameWithHeadshotProps {
@@ -28,7 +28,11 @@ export function PlayerNameWithHeadshot({
     ? getNflTeamLogoUrl(normalizedTeam)
     : null;
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
-    { playerId: playerId || '' },
+    {
+      playerId: playerId || '',
+      playerName,
+      position: normalizedPosition || null,
+    },
     { enabled: !!playerId && !isDefense && directImageFailed }
   );
 
@@ -40,8 +44,10 @@ export function PlayerNameWithHeadshot({
   }, [playerId, fallbackImageUrl, normalizedTeam, normalizedPosition]);
 
   useEffect(() => {
-    if (headshotData?.success && headshotData?.data) {
+    if (headshotData?.success && headshotData?.data && headshotData.contentType) {
       setHeadshot(`data:${headshotData.contentType};base64,${headshotData.data}`);
+    } else if (headshotData?.success && headshotData.imageUrl) {
+      setHeadshot(getCachedDraftBuzzImageUrl(headshotData.imageUrl) || headshotData.imageUrl);
     } else if (headshotData && !headshotData.success) {
       setHeadshot(null);
     }
@@ -56,7 +62,9 @@ export function PlayerNameWithHeadshot({
   const directHeadshot = playerId
     ? `https://sleepercdn.com/content/nfl/players/${playerId}.jpg`
     : null;
-  const fallbackImage = fallbackImageUrl && !fallbackImageFailed ? fallbackImageUrl : null;
+  const fallbackImage = fallbackImageUrl && !fallbackImageFailed
+    ? getCachedDraftBuzzImageUrl(fallbackImageUrl) || fallbackImageUrl
+    : null;
   const imageSrc = defenseLogo || headshot || (!isDefense && !directImageFailed ? directHeadshot : null) || fallbackImage;
 
   return (

@@ -7,7 +7,9 @@
 // Using built-in fetch (Node 18+)
 
 const IMAGE_CACHE = new Map<string, { data: Buffer; contentType: string; timestamp: number }>();
+const IMAGE_MISS_CACHE = new Map<string, { status?: number; timestamp: number }>();
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MISS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // Sleeper player image URL pattern
 // Format: https://sleepercdn.com/content/nfl/players/{player_id}.jpg
@@ -25,6 +27,11 @@ export async function fetchPlayerHeadshot(playerId: string): Promise<Buffer | nu
   const cached = IMAGE_CACHE.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data;
+  }
+
+  const cachedMiss = IMAGE_MISS_CACHE.get(cacheKey);
+  if (cachedMiss && Date.now() - cachedMiss.timestamp < MISS_CACHE_TTL) {
+    return null;
   }
 
   try {
@@ -51,7 +58,10 @@ export async function fetchPlayerHeadshot(playerId: string): Promise<Buffer | nu
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.warn(`Failed to fetch image for player ${playerId}: ${response.status}`);
+      IMAGE_MISS_CACHE.set(cacheKey, { status: response.status, timestamp: Date.now() });
+      if (response.status !== 403 && response.status !== 404) {
+        console.warn(`Failed to fetch image for player ${playerId}: ${response.status}`);
+      }
       return null;
     }
 
@@ -65,10 +75,14 @@ export async function fetchPlayerHeadshot(playerId: string): Promise<Buffer | nu
       contentType,
       timestamp: Date.now(),
     });
+    IMAGE_MISS_CACHE.delete(cacheKey);
 
     return buffer;
   } catch (error) {
-    console.error(`Error fetching headshot for player ${playerId}:`, error);
+    IMAGE_MISS_CACHE.set(cacheKey, { timestamp: Date.now() });
+    if (!(error instanceof Error && error.name === 'AbortError')) {
+      console.warn(`Error fetching headshot for player ${playerId}:`, error);
+    }
     return null;
   }
 }
@@ -92,14 +106,16 @@ export function getCachedImage(playerId: string): { data: Buffer; contentType: s
  */
 export function clearImageCache(): void {
   IMAGE_CACHE.clear();
+  IMAGE_MISS_CACHE.clear();
 }
 
 /**
  * Get cache statistics
  */
-export function getImageCacheStats(): { size: number; items: number } {
+export function getImageCacheStats(): { size: number; items: number; misses: number } {
   return {
     size: Array.from(IMAGE_CACHE.values()).reduce((sum, item) => sum + item.data.length, 0),
     items: IMAGE_CACHE.size,
+    misses: IMAGE_MISS_CACHE.size,
   };
 }

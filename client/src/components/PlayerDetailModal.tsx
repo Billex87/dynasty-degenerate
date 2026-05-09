@@ -12,9 +12,11 @@ import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getPlayerAvailability } from '@/lib/playerStatus';
 import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle } from '@/lib/teamTileStyle';
+import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
+import { AIReadPanel, type AIReadChip } from './AIReadPanel';
 
 const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
   ARI: { primary: '#97233F', secondary: '#000000', accent: '#FFB612' },
@@ -64,6 +66,7 @@ interface PlayerDetailModalProps {
   leagueLogo?: string | null;
   managerAvatars?: Record<string, string | null>;
   playerDetailsById?: Record<string, PlayerDetails>;
+  showAIRead?: boolean;
 }
 
 export type PlayerModalData = Partial<DraftPick> & {
@@ -109,6 +112,7 @@ export function PlayerDetailModal({
   leagueLogo,
   managerAvatars,
   playerDetailsById,
+  showAIRead = false,
 }: PlayerDetailModalProps) {
   const [focusedPeerPick, setFocusedPeerPick] = useState<PlayerModalData | null>(null);
   const pick = focusedPeerPick || selectedPick;
@@ -118,7 +122,11 @@ export function PlayerDetailModal({
   const queryDetails = pick?.playerDetails;
   const queryIsCollegeProspect = isCollegeOnlyModalPick(pick, queryDetails);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
-    { playerId: pick?.player_id || '' },
+    {
+      playerId: pick?.player_id || '',
+      playerName: pick?.playerName || null,
+      position: pick?.playerPos || pick?.playerDetails?.position || null,
+    },
     { enabled: !!pick?.player_id && isOpen && directImageFailed }
   );
   const { data: playerNewsData } = trpc.players.latestNews.useQuery(
@@ -145,8 +153,12 @@ export function PlayerDetailModal({
   }, [selectedPick?.player_id, selectedPick?.playerName, isOpen]);
 
   useEffect(() => {
-    if (headshotData?.success && headshotData?.data) {
+    if (headshotData?.success && headshotData?.data && headshotData.contentType) {
       setHeadshot(`data:${headshotData.contentType};base64,${headshotData.data}`);
+    } else if (headshotData?.success && headshotData.imageUrl) {
+      setHeadshot(getCachedDraftBuzzImageUrl(headshotData.imageUrl) || headshotData.imageUrl);
+    } else if (headshotData && !headshotData.success) {
+      setHeadshot(null);
     }
   }, [headshotData]);
 
@@ -166,7 +178,8 @@ export function PlayerDetailModal({
   const nflImageSrc = headshot || directHeadshot || fallbackDraftBuzzImage;
   const playerImageSrc = isCollegeProspect ? prospectImageSrc : preferProspectImage ? prospectImageSrc || nflImageSrc : nflImageSrc;
   const valueProfile = details?.valueProfile;
-  const valueMode = pick.valueMode || 'dynasty';
+  const valueMode = normalizeLeagueValueMode(pick.valueMode || 'dynasty');
+  const isRedraftValueMode = valueMode === 'redraft';
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
   const currentValue = pick.currentKtcValue;
   const draftValue = pick.ktcValue;
@@ -282,23 +295,38 @@ export function PlayerDetailModal({
   const seasonValue = valueProfile?.seasonValue
     ?? valueProfile?.fantasyProsSeasonValue
     ?? (valueMode === 'redraft' ? currentValue : null);
-  const marketRankRows = valueProfile ? [
-    ['Dynasty', dynastyRank],
-    ['Season', seasonRank],
-    ['Balanced', balancedRank],
-    ['Contender', contenderRank],
-    ['Rebuilder', rebuilderRank],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
-  const sourceValueRows = valueProfile ? [
-    ['Flock Fantasy', valueProfile.flockFantasy],
-    ['Market Consensus', valueProfile.marketKtc],
-    ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
-    ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
-    ['DynastyProcess', valueProfile.dynastyProcess],
-    ['Dynasty Nerds', valueProfile.dynastyNerds],
-    ['Dynasty Dealer Benchmark', valueProfile.dynastyDealerBenchmark],
-    ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const marketRankRows = valueProfile ? (
+    isRedraftValueMode
+      ? [
+          ['Season', seasonRank],
+          ['Last Season', details?.lastSeasonPositionRank ? `${details.lastSeasonYear || 'Last'} ${details.lastSeasonPositionRank}` : null],
+        ]
+      : [
+          ['Dynasty', dynastyRank],
+          ['Season', seasonRank],
+          ['Balanced', balancedRank],
+          ['Contender', contenderRank],
+          ['Rebuilder', rebuilderRank],
+        ]
+  ).filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const sourceValueRows = valueProfile ? (
+    isRedraftValueMode
+      ? [
+          ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
+          ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
+          ['Season Value', valueProfile.seasonValue],
+        ]
+      : [
+          ['Flock Fantasy', valueProfile.flockFantasy],
+          ['Market Consensus', valueProfile.marketKtc],
+          ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
+          ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
+          ['DynastyProcess', valueProfile.dynastyProcess],
+          ['Dynasty Nerds', valueProfile.dynastyNerds],
+          ['Dynasty Dealer Benchmark', valueProfile.dynastyDealerBenchmark],
+          ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
+        ]
+  ).filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const latestNews = playerNewsData?.latestNews ?? details?.latestNews ?? null;
   const hasMeaningfulNews = Boolean(latestNews?.title || latestNews?.summary);
   const latestNewsRows = hasMeaningfulNews && latestNews ? [
@@ -314,6 +342,7 @@ export function PlayerDetailModal({
     currentValue,
     position,
     valueProfile,
+    valueMode,
   });
   const decisionLabels = buildPlayerDecisionLabels({
     details,
@@ -321,6 +350,20 @@ export function PlayerDetailModal({
     valueGain,
     position,
     valueProfile,
+    valueMode,
+  });
+  const playerAiRead = buildPlayerAiRead({
+    playerName: pick.playerName,
+    position,
+    currentRank,
+    currentValue,
+    valueGain,
+    details,
+    valueProfile,
+    valueMode,
+    isCollegeProspect,
+    prospectProfile,
+    latestNews,
   });
   const draftAuditRows = [
     pick.draftDecisionVerdict ? ['Draft Read', pick.draftDecisionVerdict] : null,
@@ -543,15 +586,6 @@ export function PlayerDetailModal({
             ) : (
               <div className="player-modal-metric-grid mx-auto grid max-w-xl gap-2 sm:gap-3">
                 <MetricTile
-                  label="Dynasty Value"
-                  mobileLabel="Dynasty"
-                  value={dynastyValue ? dynastyValue.toLocaleString() : '-'}
-                  teamColors={teamColors}
-                  tileAccent={tileAccent}
-                  className="player-modal-metric-dynasty-value"
-                />
-                <MetricTile label="Dynasty Rank" mobileLabel="D-Rank" value={topDynastyRank || '-'} valueClassName={`${getPositionRankPillClass(topDynastyRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-dynasty-rank" />
-                <MetricTile
                   label="Season Value"
                   mobileLabel="Season"
                   value={seasonValue ? seasonValue.toLocaleString() : '-'}
@@ -560,6 +594,19 @@ export function PlayerDetailModal({
                   className="player-modal-metric-season-value"
                 />
                 <MetricTile label="Season Rank" mobileLabel="S-Rank" value={topSeasonRank || '-'} valueClassName={`${getPositionRankPillClass(topSeasonRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-season-rank" />
+                {!isRedraftValueMode && (
+                  <>
+                    <MetricTile
+                      label="Dynasty Value"
+                      mobileLabel="Dynasty"
+                      value={dynastyValue ? dynastyValue.toLocaleString() : '-'}
+                      teamColors={teamColors}
+                      tileAccent={tileAccent}
+                      className="player-modal-metric-dynasty-value"
+                    />
+                    <MetricTile label="Dynasty Rank" mobileLabel="D-Rank" value={topDynastyRank || '-'} valueClassName={`${getPositionRankPillClass(topDynastyRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-dynasty-rank" />
+                  </>
+                )}
                 {lastSeasonRank && (
                 <MetricTile
                   label="Last Season Rank"
@@ -610,9 +657,9 @@ export function PlayerDetailModal({
                   Cross-Position Trade Comps
                 </p>
                 <div className="player-trade-comp-grid grid grid-cols-1 gap-2 sm:grid-cols-4">
-                  {details.similarTradeValues.map((peer) => (
+                  {details.similarTradeValues.map((peer, index) => (
                     <button
-                      key={peer.playerId}
+                      key={`${peer.playerId}-${index}`}
                       type="button"
                       className="player-trade-comp-card"
                       onClick={() => openTradeCompPeer(peer)}
@@ -654,7 +701,7 @@ export function PlayerDetailModal({
             {(pick.draftDecisionSummary || pick.draftDecisionAltPlayerName) && (
               <div className="mx-auto max-w-xl rounded-2xl border border-cyan-300/18 bg-slate-950/45 p-3 shadow-inner shadow-white/[0.02] sm:p-4">
                 <p className="text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/85">
-                  Draft Decision Audit
+                  {isRedraftValueMode ? 'Draft-Day vs Current Value' : 'Draft Decision Audit'}
                 </p>
                 {draftAuditRows.length > 0 && (
                   <div className="mt-3 grid grid-cols-3 gap-2">
@@ -694,6 +741,20 @@ export function PlayerDetailModal({
                   </span>
                 ))}
               </div>
+            )}
+
+            {showAIRead && (
+              <AIReadPanel
+                title={playerAiRead.title}
+                subtitle={playerAiRead.subtitle}
+                readType={playerAiRead.readType}
+                confidence={playerAiRead.confidence}
+                severity={playerAiRead.severity}
+                chips={playerAiRead.chips}
+                body={playerAiRead.body}
+                backgroundVariant={playerAiRead.backgroundVariant}
+                className="player-modal-ai-read mx-auto max-w-xl"
+              />
             )}
 
             {isCollegeProspect && prospectProfile?.summary ? (
@@ -748,14 +809,26 @@ export function PlayerDetailModal({
             {!isCollegeProspect && valueProfile && (
               <div className="mx-auto max-w-xl space-y-2">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-                  <InfoTile label="Dynasty" value={dynastyRank || '-'} valueClassName={getPositionRankPillClass(dynastyRank)} teamColors={teamColors} tileAccent={tileAccent} />
                   <InfoTile label="Season" value={seasonRank || '-'} valueClassName={getPositionRankPillClass(seasonRank)} teamColors={teamColors} tileAccent={tileAccent} />
-                  <InfoTile label="Contender" value={contenderRank || '-'} valueClassName={getPositionRankPillClass(contenderRank)} teamColors={teamColors} tileAccent={tileAccent} />
-                  <InfoTile label="Rebuilder" value={rebuilderRank || '-'} valueClassName={getPositionRankPillClass(rebuilderRank)} teamColors={teamColors} tileAccent={tileAccent} />
+                  {isRedraftValueMode ? (
+                    <>
+                      <InfoTile label="Position Rank" value={topSeasonRank || currentRank || '-'} valueClassName={getPositionRankPillClass(topSeasonRank || currentRank)} teamColors={teamColors} tileAccent={tileAccent} />
+                      <InfoTile label="Team Role" value={formatDepthChart(details?.depthChartPosition, details?.depthChartOrder) || availability.label} teamColors={teamColors} tileAccent={tileAccent} />
+                      <InfoTile label="Trend" value={valueGain !== undefined && valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'} teamColors={teamColors} tileAccent={tileAccent} />
+                    </>
+                  ) : (
+                    <>
+                      <InfoTile label="Dynasty" value={dynastyRank || '-'} valueClassName={getPositionRankPillClass(dynastyRank)} teamColors={teamColors} tileAccent={tileAccent} />
+                      <InfoTile label="Contender" value={contenderRank || '-'} valueClassName={getPositionRankPillClass(contenderRank)} teamColors={teamColors} tileAccent={tileAccent} />
+                      <InfoTile label="Rebuilder" value={rebuilderRank || '-'} valueClassName={getPositionRankPillClass(rebuilderRank)} teamColors={teamColors} tileAccent={tileAccent} />
+                    </>
+                  )}
                 </div>
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
                   <p className="text-center text-[0.68rem] font-bold leading-relaxed uppercase tracking-[0.16em] text-cyan-200/70">
-                    Our rank score weighs dynasty market, current-season outlook, expert baselines, and team-window fit.
+                    {isRedraftValueMode
+                      ? 'Season rank uses current-season outlook, expert baselines, team role, and league format.'
+                      : 'Our rank score weighs dynasty market, current-season outlook, expert baselines, and team-window fit.'}
                     {valueProfile.fantasyProsPositionRank ? ` Expert season baseline: ${valueProfile.fantasyProsPositionRank}.` : ''}
                   </p>
                 )}
@@ -998,20 +1071,133 @@ function parseHexColor(hex: string) {
   };
 }
 
+function buildPlayerAiRead({
+  playerName,
+  position,
+  currentRank,
+  currentValue,
+  valueGain,
+  details,
+  valueProfile,
+  valueMode = 'dynasty',
+  isCollegeProspect,
+  prospectProfile,
+  latestNews,
+}: {
+  playerName: string;
+  position?: string | null;
+  currentRank?: string | null;
+  currentValue?: number | null;
+  valueGain?: number | null;
+  details?: PlayerDetails;
+  valueProfile?: PlayerDetails['valueProfile'];
+  valueMode?: LeagueValueMode;
+  isCollegeProspect?: boolean;
+  prospectProfile?: PlayerDetails['prospectProfile'];
+  latestNews?: PlayerDetails['latestNews'];
+}) {
+  const rankNumber = parseRankNumber(currentRank);
+  const age = details?.age;
+  const avgMissed = details?.avgGamesMissed;
+  const seasonRank = valueProfile?.seasonPositionRank || valueProfile?.fantasyProsPositionRank || null;
+  const dynastyRank = valueProfile?.dynastyPositionRank || valueProfile?.balancedPositionRank || currentRank || null;
+  const seasonRankNumber = parseRankNumber(seasonRank);
+  const dynastyRankNumber = parseRankNumber(dynastyRank);
+  const rankSplit = seasonRankNumber && dynastyRankNumber ? seasonRankNumber - dynastyRankNumber : null;
+  const chips: AIReadChip[] = [
+    currentRank || position || 'No rank',
+    currentValue ? `Value ${formatValueLens(currentValue)}` : { label: 'No value', tone: 'warn' },
+  ];
+
+  if (isCollegeProspect) {
+    const score = prospectProfile?.rating ? `Prospect score ${prospectProfile.rating}` : 'Prospect file';
+    const draftCapital = prospectProfile?.projectedRookiePick || prospectProfile?.draftYear || 'No draft slot';
+    return {
+      title: `${playerName} prospect read`,
+      subtitle: 'Prospect traits are context only unless a returned market value exists.',
+      readType: 'Player Trend',
+      confidence: prospectProfile ? 76 : 48,
+      severity: prospectProfile ? 'info' as const : 'warn' as const,
+      chips: [score, String(draftCapital), prospectProfile?.college || 'College N/A'],
+      body: prospectProfile?.summary
+        ? `${prospectProfile.summary} This is a scouting-context read, not a proprietary film grade.`
+        : `${playerName} has limited prospect context in this report payload, so the read is intentionally conservative.`,
+      backgroundVariant: 'draft' as const,
+    };
+  }
+
+  if (valueGain !== null && valueGain !== undefined) {
+    chips.push(valueGain > 0 ? `Trend +${formatValueLens(valueGain)}` : valueGain < 0 ? `Trend ${formatValueLens(valueGain)}` : 'Stable trend');
+  }
+  if (age !== null && age !== undefined) chips.push(`${age} yrs`);
+  if (latestNews?.title) chips.push('News attached');
+
+  const isRedraft = valueMode === 'redraft';
+  const veteranAge = position === 'RB' ? 27 : position === 'WR' ? 29 : position === 'TE' ? 30 : position === 'QB' ? 33 : 30;
+  const youngAge = position === 'RB' ? 24 : position === 'WR' ? 25 : position === 'TE' ? 26 : position === 'QB' ? 27 : 25;
+  let readType = 'Player Trend';
+  let severity: 'neutral' | 'good' | 'info' | 'warn' | 'danger' = 'info';
+  let body = `${playerName} is best evaluated through roster context, not raw value alone.`;
+
+  if (rankNumber && rankNumber <= (position === 'TE' ? 5 : position === 'QB' ? 8 : 12)) {
+    readType = isRedraft ? 'Lineup Leak' : 'Market Signal';
+    severity = 'good';
+    body = `${playerName} is carrying a strong ${currentRank} profile. Do not move this asset unless the return solves a larger roster construction problem or creates a clear tier-up.`;
+  } else if (rankSplit !== null && rankSplit >= 12) {
+    readType = 'Rebuild Path';
+    severity = 'info';
+    body = `${playerName}'s dynasty rank (${dynastyRank}) is ahead of the season profile (${seasonRank}), which reads more like a value-insulation or youth-window asset than a pure lineup scorer.`;
+  } else if (rankSplit !== null && rankSplit <= -10) {
+    readType = 'Contender Path';
+    severity = 'good';
+    body = `${playerName}'s season profile (${seasonRank}) is ahead of the dynasty market (${dynastyRank}), making this a cleaner contender target than a rebuild anchor.`;
+  } else if (valueGain !== null && valueGain !== undefined && valueGain >= 350 && age !== null && age !== undefined && age >= veteranAge) {
+    readType = 'Trade Window';
+    severity = 'warn';
+    body = `${playerName} has a positive market move while the age curve is getting tighter. That is a sell-window check, not an automatic sell command.`;
+  } else if (age !== null && age !== undefined && age <= youngAge && (rankNumber || 999) <= 30) {
+    readType = 'Market Signal';
+    severity = 'good';
+    body = `${playerName} combines youth with usable rank strength. That profile is harder to replace than a single value number suggests.`;
+  } else if (avgMissed !== null && avgMissed !== undefined && avgMissed >= 4) {
+    readType = 'Lineup Leak';
+    severity = 'warn';
+    body = `${playerName} carries an availability tax after averaging ${avgMissed} missed games per year. Price that risk into trades and lineup reliance.`;
+  } else if (latestNews?.summary || latestNews?.title) {
+    readType = 'Player Trend';
+    severity = 'info';
+    body = `${latestNews.title || 'Latest player news'} is attached to this player. Treat news as context, then verify whether the value or role signal actually changed.`;
+  }
+
+  return {
+    title: `${playerName} AI read`,
+    subtitle: isRedraft ? 'Current-season and lineup-context lens.' : 'Dynasty market, season profile, age curve, and availability lens.',
+    readType,
+    confidence: valueProfile ? 82 : 62,
+    severity,
+    chips,
+    body,
+    backgroundVariant: severity === 'warn' ? 'market' as const : 'blueprint' as const,
+  };
+}
+
 function buildPlayerDecisionLabels({
   details,
   currentRank,
   valueGain,
   position,
   valueProfile,
+  valueMode = 'dynasty',
 }: {
   details?: PlayerDetails;
   currentRank?: string | null;
   valueGain?: number | null;
   position?: string | null;
   valueProfile?: PlayerDetails['valueProfile'];
+  valueMode?: LeagueValueMode;
 }) {
   const labels: Array<{ label: string; copy: string; tone: 'buy' | 'hold' | 'shop' | 'risk' | 'core' }> = [];
+  const isRedraftValueMode = valueMode === 'redraft';
   const rankNumber = parseRankNumber(currentRank);
   const seasonRankNumber = parseRankNumber(valueProfile?.seasonPositionRank || valueProfile?.fantasyProsPositionRank);
   const dynastyRankNumber = parseRankNumber(valueProfile?.dynastyPositionRank || valueProfile?.balancedPositionRank || currentRank);
@@ -1032,7 +1218,7 @@ function buildPlayerDecisionLabels({
     });
   }
 
-  if (age !== null && age !== undefined && age <= youngAge && (rebuilderRankNumber || rankNumber || 999) <= 24) {
+  if (!isRedraftValueMode && age !== null && age !== undefined && age <= youngAge && (rebuilderRankNumber || rankNumber || 999) <= 24) {
     labels.push({
       label: 'Rebuilder Hold',
       copy: `${age} with a strong position profile fits a longer roster window.`,
@@ -1042,8 +1228,10 @@ function buildPlayerDecisionLabels({
 
   if (contenderEdge !== null && contenderEdge >= 6) {
     labels.push({
-      label: 'Contender Buy',
-      copy: `Season rank is ahead of dynasty rank by ${contenderEdge} spots.`,
+      label: isRedraftValueMode ? 'Lineup Upgrade' : 'Contender Buy',
+      copy: isRedraftValueMode
+        ? `Season rank is ahead of long-term market by ${contenderEdge} spots.`
+        : `Season rank is ahead of dynasty rank by ${contenderEdge} spots.`,
       tone: 'buy',
     });
   }
@@ -1062,7 +1250,7 @@ function buildPlayerDecisionLabels({
       copy: `Market is up while the age curve is getting tighter.`,
       tone: 'shop',
     });
-  } else if (contenderEdge !== null && contenderEdge <= -8) {
+  } else if (!isRedraftValueMode && contenderEdge !== null && contenderEdge <= -8) {
     labels.push({
       label: 'Dynasty Premium',
       copy: `Long-term price is stronger than current-season profile.`,
@@ -1095,14 +1283,17 @@ function buildPlayerIntelligenceNotes({
   currentValue,
   position,
   valueProfile,
+  valueMode = 'dynasty',
 }: {
   details?: PlayerDetails;
   currentRank?: string | null;
   currentValue?: number | null;
   position?: string | null;
   valueProfile?: PlayerDetails['valueProfile'];
+  valueMode?: LeagueValueMode;
 }) {
   const notes: Array<{ label: string; value: string; copy?: string; tone?: 'risk' | 'upside' | 'market' | 'neutral'; fullWidth?: boolean }> = [];
+  const isRedraftValueMode = valueMode === 'redraft';
   const avgMissed = details?.avgGamesMissed;
   const seasons = details?.availabilitySeasons || 0;
   const lastRank = details?.lastSeasonPositionRank;
@@ -1150,7 +1341,7 @@ function buildPlayerIntelligenceNotes({
     if (age >= veteranAge && rankNumber <= 24) {
       notes.push({
         label: 'Window',
-        value: 'Contender Lean',
+        value: isRedraftValueMode ? 'Weekly Helper' : 'Contender Lean',
         copy: `${age} years old but still holding ${currentRank}; useful if the roster is trying to win now.`,
         tone: 'market',
       });
@@ -1176,7 +1367,7 @@ function buildPlayerIntelligenceNotes({
     });
   }
 
-  if (dynastyRank && seasonRank && dynastyRankNumber && seasonRankNumber) {
+  if (!isRedraftValueMode && dynastyRank && seasonRank && dynastyRankNumber && seasonRankNumber) {
     const rankGap = seasonRankNumber - dynastyRankNumber;
     const value = Math.abs(rankGap) >= 8
       ? `${dynastyRank} / ${seasonRank}`
@@ -1193,7 +1384,7 @@ function buildPlayerIntelligenceNotes({
     });
   }
 
-  if (seasonValue && dynastyValue) {
+  if (!isRedraftValueMode && seasonValue && dynastyValue) {
     const gap = Math.round(seasonValue - dynastyValue);
     if (gap >= 900) {
       notes.push({

@@ -3,6 +3,12 @@ import { cn } from '@/lib/utils';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { TeamLogoPill } from './TeamLogoPill';
+import {
+  getPrimaryValueLabel,
+  normalizeLeagueValueMode,
+  type LeagueValueMode,
+  type ValueContext,
+} from '@/lib/leagueValueMode';
 
 export type ReportTone = 'neutral' | 'good' | 'warn' | 'danger' | 'info' | 'positive' | 'negative';
 
@@ -79,6 +85,138 @@ export function MetricPill({
   );
 }
 
+export function ValuePill({
+  value,
+  mode,
+  context,
+  source,
+  delta,
+  hideWhenUnsupported = false,
+  allowDynastyInRedraft = false,
+  className,
+}: {
+  value?: number | string | null;
+  mode?: LeagueValueMode | string | null;
+  context: ValueContext;
+  source?: string;
+  delta?: number | null;
+  hideWhenUnsupported?: boolean;
+  allowDynastyInRedraft?: boolean;
+  className?: string;
+}) {
+  const normalizedMode = normalizeLeagueValueMode(mode);
+  const isUnsupportedDynasty = normalizedMode === 'redraft' && /dynasty/i.test(source || '') && !allowDynastyInRedraft;
+  if (hideWhenUnsupported && isUnsupportedDynasty) return null;
+
+  const numericValue = typeof value === 'number' ? value : Number(value);
+  const formattedValue = value === null || value === undefined || value === ''
+    ? '-'
+    : typeof value === 'number' || Number.isFinite(numericValue)
+      ? Number(value).toLocaleString()
+      : String(value);
+  const label = source || getPrimaryValueLabel(normalizedMode, context);
+  const deltaLabel = delta !== null && delta !== undefined
+    ? `${delta > 0 ? '+' : ''}${delta.toLocaleString()}`
+    : null;
+
+  return (
+    <span
+      className={cn(
+        'value-pill value-pill-mode-aware',
+        `value-pill-${normalizedMode}`,
+        delta !== null && delta !== undefined && (delta > 0 ? 'value-pill-positive' : delta < 0 ? 'value-pill-negative' : 'value-pill-neutral'),
+        className,
+      )}
+      title={label}
+    >
+      <em>{label}</em>
+      <strong>{formattedValue}</strong>
+      {deltaLabel && <small>{deltaLabel}</small>}
+    </span>
+  );
+}
+
+export function LeagueTypeBadge({
+  mode,
+  className,
+}: {
+  mode?: LeagueValueMode | string | null;
+  className?: string;
+}) {
+  const normalizedMode = normalizeLeagueValueMode(mode);
+  return (
+    <span className={cn('league-type-badge', `league-type-badge-${normalizedMode}`, className)}>
+      {normalizedMode === 'redraft' ? 'Redraft' : 'Dynasty'}
+    </span>
+  );
+}
+
+export type PreviewMetric = {
+  label: string;
+  value: ReactNode;
+  tone?: ReportTone;
+};
+
+export function PreviewMetricChips({
+  metrics,
+  className,
+}: {
+  metrics?: PreviewMetric[];
+  className?: string;
+}) {
+  const visibleMetrics = (metrics || []).filter((metric) => metric.value !== null && metric.value !== undefined && metric.value !== '');
+  if (!visibleMetrics.length) return null;
+
+  return (
+    <span className={cn('analysis-preview-chip-row', className)}>
+      {visibleMetrics.slice(0, 6).map((metric) => (
+        <span key={`${metric.label}-${String(metric.value)}`} className={cn('analysis-preview-chip', metric.tone && `analysis-preview-chip-${metric.tone}`)}>
+          <span>{metric.label}</span>
+          <strong>{metric.value}</strong>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export function CollapsibleAnalysisCard({
+  title,
+  subtitle,
+  previewMetrics,
+  chips,
+  children,
+  className,
+}: {
+  title: string;
+  subtitle?: string;
+  previewMetrics?: PreviewMetric[];
+  chips?: Array<{ label: string; tone?: ReportTone }>;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <details className={cn('collapsible-analysis-card', className)}>
+      <summary className="collapsible-analysis-card-summary">
+        <span>
+          <span className="collapsible-analysis-card-title">{title}</span>
+          {subtitle && <span className="collapsible-analysis-card-subtitle">{subtitle}</span>}
+        </span>
+        <PreviewMetricChips metrics={previewMetrics} />
+        {chips?.length ? (
+          <span className="analysis-insight-chip-row">
+            {chips.map((chip) => (
+              <span key={chip.label} className={cn('analysis-insight-chip', chip.tone && `analysis-insight-chip-${chip.tone}`)}>
+                {chip.label}
+              </span>
+            ))}
+          </span>
+        ) : null}
+      </summary>
+      <div className="collapsible-analysis-card-body">{children}</div>
+    </details>
+  );
+}
+
 export function PlayerIdentityRow({
   playerId,
   playerName,
@@ -107,6 +245,62 @@ export function PlayerIdentityRow({
         </span>
       )}
     </div>
+  );
+}
+
+export function PlayerPill({
+  playerId,
+  playerName,
+  team,
+  position,
+  className,
+}: {
+  playerId?: string;
+  playerName: string;
+  team?: string | null;
+  position?: string | null;
+  className?: string;
+}) {
+  return (
+    <span className={cn('player-pill', className)}>
+      <PlayerNameWithHeadshot playerId={playerId} playerName={playerName} team={team} position={position} />
+    </span>
+  );
+}
+
+export function PositionBadge({
+  position,
+  className,
+}: {
+  position?: string | null;
+  className?: string;
+}) {
+  return (
+    <span className={cn('position-badge', className)}>
+      {position || 'N/A'}
+    </span>
+  );
+}
+
+export function DraftPickBadge({
+  year,
+  round,
+  owner,
+  mode,
+  className,
+}: {
+  year?: string | number | null;
+  round?: string | number | null;
+  owner?: string | null;
+  mode?: LeagueValueMode | string | null;
+  className?: string;
+}) {
+  const normalizedMode = normalizeLeagueValueMode(mode);
+  return (
+    <span className={cn('draft-pick-badge', `draft-pick-badge-${normalizedMode}`, className)}>
+      <strong>{[year, round ? `R${round}` : null].filter(Boolean).join(' ') || 'Draft Pick'}</strong>
+      {owner && <em>{owner}</em>}
+    </span>
   );
 }
 
@@ -141,16 +335,63 @@ export function ManagerBadge({
 export function EmptyState({
   title,
   description,
+  action,
   className,
 }: {
   title: string;
   description?: string;
+  action?: ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn('report-empty-state', className)}>
       <strong>{title}</strong>
       {description && <p>{description}</p>}
+      {action && <div className="report-empty-state-action">{action}</div>}
+    </div>
+  );
+}
+
+export function ResponsiveDataTable<T>({
+  rows,
+  columns,
+  getRowKey,
+  emptyState,
+  className,
+}: {
+  rows: T[];
+  columns: Array<{
+    key: string;
+    label: string;
+    render: (row: T) => ReactNode;
+    mobilePrimary?: boolean;
+  }>;
+  getRowKey: (row: T, index: number) => string;
+  emptyState?: ReactNode;
+  className?: string;
+}) {
+  if (!rows.length) {
+    return emptyState ? <>{emptyState}</> : null;
+  }
+
+  return (
+    <div className={cn('responsive-data-table', className)}>
+      <div className="responsive-data-table-header" role="row">
+        {columns.map((column) => (
+          <span key={column.key} role="columnheader">{column.label}</span>
+        ))}
+      </div>
+      <div className="responsive-data-table-body">
+        {rows.map((row, rowIndex) => (
+          <div key={getRowKey(row, rowIndex)} className="responsive-data-table-row" role="row">
+            {columns.map((column) => (
+              <span key={column.key} className={column.mobilePrimary ? 'responsive-data-table-cell-primary' : undefined} data-label={column.label}>
+                {column.render(row)}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

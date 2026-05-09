@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowDownUp, ArrowUp, ChevronLeft, ChevronRight, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +10,15 @@ import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle, getTeamTileStyle, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import type { DraftBuzzScoreboardEntry, PlayerDetails, RankingPlayer, RankingProfileOption, ReportData } from '@shared/types';
+import {
+  getLeagueModeCopy,
+  getPlayerRankForMode,
+  getPlayerValueForMode,
+  getPrimaryValueLabel,
+  normalizeLeagueValueMode,
+  type LeagueValueMode,
+} from '@/lib/leagueValueMode';
+import { readBooleanParam, readCsvParam, readEnumParam, readNumberParam, getUrlSearchParam, replaceUrlSearchParams } from '@/lib/reportUrlState';
 
 type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'PICK';
 type SortMode = 'rank' | 'value' | 'movement';
@@ -20,6 +29,11 @@ type DraftBuzzSort = {
   key: DraftBuzzSortKey;
   direction: SortDirection;
 };
+type ProspectTraitKind = 'role' | 'height' | 'weight' | 'forty';
+type ProspectTrait = {
+  kind: ProspectTraitKind;
+  label: string;
+};
 
 type RankingsTableConfig = {
   board: 'dynasty' | 'devy';
@@ -28,11 +42,17 @@ type RankingsTableConfig = {
   description: string;
   defaultProfileKey?: string | null;
   hidePicks?: boolean;
+  leagueValueMode: LeagueValueMode;
+  valueLabel: string;
 };
 
 const PAGE_SIZE = 25;
 const DRAFT_BUZZ_PAGE_SIZE = 100;
+const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement'];
+const SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
+const POSITION_FILTER_KEYS = ['QB', 'RB', 'WR', 'TE', 'PICK'] as const;
 const DRAFT_BUZZ_POSITIONS: DraftBuzzPosition[] = ['QB', 'RB', 'WR', 'TE'];
+const DRAFT_BUZZ_SORT_KEYS: readonly DraftBuzzSortKey[] = ['class', 'rank', 'player', 'team', 'school', 'position', 'score', 'forty', 'height', 'weight'];
 const DRAFT_BUZZ_SORT_COLUMNS: Array<{ key: DraftBuzzSortKey; label: string }> = [
   { key: 'class', label: 'Class' },
   { key: 'rank', label: 'Rank' },
@@ -56,6 +76,21 @@ const POSITION_FILTERS: Array<{
   { key: 'TE', label: 'TE' },
   { key: 'PICK', label: 'Pick', compactLabel: 'Pick' },
 ];
+
+function getRankingsUrlPrefix(board: RankingsTableConfig['board']) {
+  return board === 'devy' ? 'devy' : 'rank';
+}
+
+function readPositionFiltersParam(paramName: string, hidePicks = false): PositionFilter[] {
+  return readCsvParam(paramName).filter((value): value is PositionFilter => {
+    if (!POSITION_FILTER_KEYS.includes(value as PositionFilter)) return false;
+    return !(hidePicks && value === 'PICK');
+  });
+}
+
+function readDraftBuzzPositionsParam(paramName: string): DraftBuzzPosition[] {
+  return readCsvParam(paramName).filter((value): value is DraftBuzzPosition => DRAFT_BUZZ_POSITIONS.includes(value as DraftBuzzPosition));
+}
 
 const NFL_TEAM_SEARCH_TERMS: Record<string, string[]> = {
   ARI: ['Arizona Cardinals', 'Cardinals', 'Arizona'],
@@ -387,9 +422,15 @@ function CollegeTeamPill({ college, logoUrl }: { college?: string | null; logoUr
   );
 }
 
-function RankingValueRow({ player, playerDetailsById, managerAvatars, viewerManager, onSelect }: { player: RankingPlayer; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelect: (player: RankingPlayer) => void }) {
+function RankingValueRow({ player, config, playerDetailsById, managerAvatars, viewerManager, onSelect, showAIReads }: { player: RankingPlayer; config: RankingsTableConfig; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelect: (player: RankingPlayer) => void; showAIReads?: boolean }) {
   const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
-  const prospectPills = player.isDevy && player.prospectProfile ? ([player.prospectProfile.role || null, player.prospectProfile.fortyYardDash ? `40 ${player.prospectProfile.fortyYardDash}s` : null, player.prospectProfile.height ? `Ht ${player.prospectProfile.height}` : null, player.prospectProfile.weight ? `Wt ${player.prospectProfile.weight}` : null, player.prospectProfile.rating ? `Score ${player.prospectProfile.rating}` : null].filter(Boolean) as string[]) : [];
+  const prospectPills = player.isDevy && player.prospectProfile ? ([
+    player.prospectProfile.role ? { kind: 'role', label: player.prospectProfile.role } : null,
+    player.prospectProfile.height ? { kind: 'height', label: `HT ${player.prospectProfile.height}` } : null,
+    player.prospectProfile.weight ? { kind: 'weight', label: `WT ${player.prospectProfile.weight}` } : null,
+    player.prospectProfile.fortyYardDash ? { kind: 'forty', label: `40 ${player.prospectProfile.fortyYardDash}s` } : null,
+  ].filter(Boolean) as ProspectTrait[]) : [];
+  const prospectScore = player.isDevy ? getDraftBuzzScore(player) : null;
   const showMovement = Boolean(player.movementLabel) || !player.isDevy;
   const movementClass = player.movementDirection === 'up' ? 'ranking-move-up' : player.movementDirection === 'down' ? 'ranking-move-down' : 'ranking-move-flat';
   const movementIcon = player.movementDirection === 'up' ? <TrendingUp className="h-3.5 w-3.5" /> : player.movementDirection === 'down' ? <TrendingDown className="h-3.5 w-3.5" /> : null;
@@ -398,9 +439,23 @@ function RankingValueRow({ player, playerDetailsById, managerAvatars, viewerMana
   const hasRankMovement = Boolean(player.rankMovementLabel);
   const displayTeam = details?.team || player.team;
   const rankLabel = `#${player.overallRank}`;
-  const valueLabel = player.isDevy ? getProspectPositionRank(player) : formatValue(player.value);
+  const fallbackValue = config.leagueValueMode === 'redraft'
+    ? player.seasonValue ?? player.fantasyProsValue ?? player.value
+    : player.value;
+  const primaryValue = getPlayerValueForMode({
+    valueProfile: details?.valueProfile,
+    fallbackValue,
+    mode: config.leagueValueMode,
+    context: 'rankings',
+  });
+  const valueLabel = player.isDevy ? getProspectPositionRank(player) : formatValue(primaryValue);
   const prospectProjection = player.isDevy ? getProspectProjection(player) : null;
-  const positionLabel = player.isPick ? 'PICK' : player.isDevy ? player.pos : player.positionRank || player.pos;
+  const positionLabel = player.isPick ? 'PICK' : player.isDevy ? player.pos : getPlayerRankForMode({
+    valueProfile: details?.valueProfile,
+    fallbackRank: player.positionRank || player.pos,
+    mode: config.leagueValueMode,
+    context: 'rankings',
+  }) || player.pos;
   const previousSeasonRankPill = !player.isDevy && !player.isPick ? getPreviousSeasonRankPill(details) : null;
   const previousSeasonPointsPill = !player.isDevy && !player.isPick ? getPreviousSeasonPointsPill(details) : null;
 
@@ -409,17 +464,34 @@ function RankingValueRow({ player, playerDetailsById, managerAvatars, viewerMana
       <div className="value-board__score">
         <span className="ranking-overall-rank value-board__rank">{rankLabel}</span>
         <span className="ranking-inline-value value-board__value">
-          <span className="value-board__value-label">Value</span>
+          <span className="value-board__value-label">{config.board === 'devy' ? 'Rank' : config.valueLabel}</span>
           <strong>{valueLabel}</strong>
         </span>
       </div>
+
+      {player.isDevy && prospectScore ? (
+        <strong className="value-board__prospect-score" aria-label={`${player.name} buzz score ${formatDraftBuzzScore(prospectScore)}`}>
+          {formatDraftBuzzScore(prospectScore)}
+        </strong>
+      ) : null}
 
       <div className="value-board__player">
         <RankingPlayerIdentity player={player} team={displayTeam} />
       </div>
 
       <div className="value-board__mobile-meta">
-        <div className="value-board__team">{player.isPick ? <span className="ranking-owner-pill value-board__pick-team">Pick</span> : player.isDevy && player.college ? <CollegeTeamPill college={player.college} logoUrl={player.collegeLogoUrl || player.prospectProfile?.collegeLogoUrl} /> : <TeamLogoPill team={displayTeam} />}</div>
+        <div className="value-board__team">
+          {player.isPick ? (
+            <span className="ranking-owner-pill value-board__pick-team">Pick</span>
+          ) : player.isDevy && player.college ? (
+            <>
+              <CollegeTeamPill college={player.college} logoUrl={player.collegeLogoUrl || player.prospectProfile?.collegeLogoUrl} />
+              <span className="value-board__team-label">{player.college}</span>
+            </>
+          ) : (
+            <TeamLogoPill team={displayTeam} />
+          )}
+        </div>
 
         <div className="ranking-card-pills value-board__meta">
           <span className={getRankClass(positionLabel)}>{positionLabel}</span>
@@ -478,25 +550,26 @@ function RankingValueRow({ player, playerDetailsById, managerAvatars, viewerMana
         )}
       </div>
 
-      {player.isDevy ? (
-        <div className="value-board__movement">
-          <span className="ranking-source-count-pill">
-            {player.sourceCount} input{player.sourceCount === 1 ? '' : 's'}
-          </span>
-        </div>
-      ) : showMovement ? (
+      {!player.isDevy && showMovement ? (
         <div className="value-board__movement">
           <span className={`ranking-movement-pill ${movementClass}`}>
             {player.movementLabel || 'Stable'}
             {movementIcon}
           </span>
+          {showAIReads ? (
+            <span className="ranking-ai-read-chip" title="Open the player card for the full AI read">
+              AI Read
+            </span>
+          ) : null}
         </div>
       ) : null}
 
       {player.isDevy && prospectPills.length ? (
         <div className="ranking-devy-line">
           {prospectPills.map(pill => (
-            <span key={pill}>{pill}</span>
+            <span key={`${pill.kind}:${pill.label}`} className={`ranking-devy-line__${pill.kind}`}>
+              {pill.label}
+            </span>
           ))}
         </div>
       ) : null}
@@ -549,6 +622,7 @@ function DraftBuzzTeamLogo({ entry }: { entry: DraftBuzzScoreboardEntry }) {
   return (
     <span className="draftbuzz-table__logo-cell" title={team} aria-label={team}>
       <TeamLogoPill team={team} className="draftbuzz-team-school__team" />
+      <span className="draftbuzz-table__logo-label">{team}</span>
     </span>
   );
 }
@@ -567,15 +641,23 @@ function DraftBuzzSchoolLogo({ entry }: { entry: DraftBuzzScoreboardEntry }) {
   return (
     <span className="draftbuzz-table__logo-cell" title={school} aria-label={school}>
       <CollegeTeamPill college={school} logoUrl={entry.collegeLogoUrl} />
+      <span className="draftbuzz-table__logo-label">{school}</span>
     </span>
   );
 }
 
 function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzScoreboardEntry[]; onSelectEntry: (entry: DraftBuzzScoreboardEntry) => void }) {
-  const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(null);
-  const [selectedPositions, setSelectedPositions] = useState<DraftBuzzPosition[]>([]);
-  const [sort, setSort] = useState<DraftBuzzSort>({ key: 'score', direction: 'desc' });
-  const [query, setQuery] = useState('');
+  const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(() => readNumberParam('buzzClass'));
+  const [selectedPositions, setSelectedPositions] = useState<DraftBuzzPosition[]>(() => readDraftBuzzPositionsParam('buzzPositions'));
+  const [sort, setSort] = useState<DraftBuzzSort>(() => {
+    const key = readEnumParam('buzzSort', DRAFT_BUZZ_SORT_KEYS, 'score');
+    return {
+      key,
+      direction: readEnumParam('buzzDir', SORT_DIRECTIONS, getDefaultDraftBuzzSortDirection(key)),
+    };
+  });
+  const [query, setQuery] = useState(() => getUrlSearchParam('buzzSearch') || '');
+  const deferredQuery = useDeferredValue(query);
   const [page, setPage] = useState(1);
 
   const allRows = useMemo(() => {
@@ -605,7 +687,7 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
   }, [draftClassOptions, selectedDraftClass]);
 
   const filteredRows = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = deferredQuery.trim().toLowerCase();
     return allRows
       .filter(row => {
         if (selectedDraftClass && row.draftYear !== selectedDraftClass) return false;
@@ -619,7 +701,7 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
         );
       })
       .sort((a, b) => compareDraftBuzzRows(a, b, sort));
-  }, [allRows, query, selectedDraftClass, selectedPositions, sort]);
+  }, [allRows, deferredQuery, selectedDraftClass, selectedPositions, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / DRAFT_BUZZ_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -632,6 +714,19 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
+
+  useEffect(() => {
+    replaceUrlSearchParams(
+      {
+        buzzSearch: query.trim() || null,
+        buzzClass: selectedDraftClass,
+        buzzPositions: selectedPositions.length ? selectedPositions.join(',') : null,
+        buzzSort: sort.key === 'score' ? null : sort.key,
+        buzzDir: sort.direction === getDefaultDraftBuzzSortDirection(sort.key) ? null : sort.direction,
+      },
+      { onlyForHash: '#rankings' },
+    );
+  }, [query, selectedDraftClass, selectedPositions, sort]);
 
   const togglePosition = (position: DraftBuzzPosition) => {
     setSelectedPositions(current => (current.includes(position) ? current.filter(item => item !== position) : [...current, position]));
@@ -726,8 +821,8 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
             );
           })}
         </div>
-        {pageRows.map(player => (
-          <button type="button" key={player.id} className="draftbuzz-table__row" style={getTeamTileStyle(player.nflTeam || player.team) || getCollegeTileStyle(player.college)} onClick={() => onSelectEntry(player)}>
+        {pageRows.map((player, index) => (
+          <button type="button" key={`${player.id}-${index}`} className="draftbuzz-table__row" style={getTeamTileStyle(player.nflTeam || player.team) || getCollegeTileStyle(player.college)} onClick={() => onSelectEntry(player)}>
             <span className="draftbuzz-table__class">{player.draftYear}</span>
             <span className="draftbuzz-table__rank">{formatDraftBuzzRank(player.overallRank)}</span>
             <span className="draftbuzz-table__player">
@@ -744,6 +839,11 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
             <span className="draftbuzz-table__forty">{formatDraftBuzzForty(player.fortyYardDash)}</span>
             <span className="draftbuzz-table__height">{formatDraftBuzzTrait(player.height)}</span>
             <span className="draftbuzz-table__weight">{formatDraftBuzzTrait(player.weight)}</span>
+            <span className="draftbuzz-table__mobile-measurables" aria-label={`${player.name} measurables`}>
+              <span>HT {formatDraftBuzzTrait(player.height)}</span>
+              <span>WT {formatDraftBuzzTrait(player.weight)}</span>
+              <span>40 {formatDraftBuzzForty(player.fortyYardDash)}</span>
+            </span>
           </button>
         ))}
       </div>
@@ -769,35 +869,44 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
   );
 }
 
-function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, viewerManager, onSelectPlayer, onSelectDraftBuzzEntry }: { config: RankingsTableConfig; rankings: NonNullable<ReportData['rankings']>; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelectPlayer: (player: RankingPlayer) => void; onSelectDraftBuzzEntry: (entry: DraftBuzzScoreboardEntry) => void }) {
+function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, viewerManager, onSelectPlayer, onSelectDraftBuzzEntry, showAIReads }: { config: RankingsTableConfig; rankings: NonNullable<ReportData['rankings']>; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelectPlayer: (player: RankingPlayer) => void; onSelectDraftBuzzEntry: (entry: DraftBuzzScoreboardEntry) => void; showAIReads?: boolean }) {
   const profileOptions = rankings.profileOptions || [];
   const boardOptions = profileOptions.filter(option => option.board === config.board);
-  const [selectedProfileKey, setSelectedProfileKey] = useState(config.defaultProfileKey || getProfileFallback(profileOptions, config.board));
-  const [selectedPositions, setSelectedPositions] = useState<PositionFilter[]>([]);
-  const [includePicksWithOverall, setIncludePicksWithOverall] = useState(false);
-  const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(null);
-  const [sortMode, setSortMode] = useState<SortMode>('rank');
-  const [query, setQuery] = useState('');
+  const urlPrefix = getRankingsUrlPrefix(config.board);
+  const canIncludePicksWithOverall = config.board === 'dynasty' && !config.hidePicks;
+  const getInitialProfileKey = () => {
+    const urlProfileKey = getUrlSearchParam(`${urlPrefix}Profile`);
+    const hasUrlProfile = urlProfileKey && boardOptions.some(option => option.key === urlProfileKey);
+    return (hasUrlProfile ? urlProfileKey : null) || config.defaultProfileKey || getProfileFallback(profileOptions, config.board);
+  };
+  const [selectedProfileKey, setSelectedProfileKey] = useState(getInitialProfileKey);
+  const [selectedPositions, setSelectedPositions] = useState<PositionFilter[]>(() => readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks));
+  const [includePicksWithOverall, setIncludePicksWithOverall] = useState(() => canIncludePicksWithOverall && readBooleanParam(`${urlPrefix}Picks`));
+  const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(() => readNumberParam(`${urlPrefix}Class`));
+  const [sortMode, setSortMode] = useState<SortMode>(() => readEnumParam(`${urlPrefix}Sort`, SORT_MODES, 'rank'));
+  const [query, setQuery] = useState(() => getUrlSearchParam(`${urlPrefix}Search`) || '');
+  const deferredQuery = useDeferredValue(query);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    const nextProfileKey = config.defaultProfileKey || getProfileFallback(profileOptions, config.board);
+    const urlProfileKey = getUrlSearchParam(`${urlPrefix}Profile`);
+    const hasUrlProfile = urlProfileKey && boardOptions.some(option => option.key === urlProfileKey);
+    const nextProfileKey = (hasUrlProfile ? urlProfileKey : null) || config.defaultProfileKey || getProfileFallback(profileOptions, config.board);
     if (nextProfileKey) {
       setSelectedProfileKey(nextProfileKey);
-      setSelectedPositions([]);
-      setIncludePicksWithOverall(false);
-      setSelectedDraftClass(null);
-      setSortMode('rank');
-      setQuery('');
+      setSelectedPositions(readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks));
+      setIncludePicksWithOverall(canIncludePicksWithOverall && readBooleanParam(`${urlPrefix}Picks`));
+      setSelectedDraftClass(readNumberParam(`${urlPrefix}Class`));
+      setSortMode(readEnumParam(`${urlPrefix}Sort`, SORT_MODES, 'rank'));
+      setQuery(getUrlSearchParam(`${urlPrefix}Search`) || '');
       setPage(1);
     }
-  }, [config.board, config.defaultProfileKey, profileOptions, rankings.generatedAt]);
+  }, [canIncludePicksWithOverall, config.board, config.defaultProfileKey, config.hidePicks, profileOptions, rankings.generatedAt, urlPrefix]);
 
   const rows = rankings.profiles?.[selectedProfileKey] || [];
   const activeProfile = profileOptions.find(option => option.key === selectedProfileKey);
   const activeProfileLabel = activeProfile ? getProfileButtonLabel(activeProfile) : null;
   const isLeagueMatchedProfile = Boolean(config.defaultProfileKey && selectedProfileKey === config.defaultProfileKey);
-  const canIncludePicksWithOverall = config.board === 'dynasty' && !config.hidePicks;
   const draftClassOptions = useMemo(() => {
     if (config.board !== 'devy') return [];
     return Array.from(new Set(rows.map(getDraftClassValue).filter((year): year is number => Boolean(year)))).sort((a, b) => a - b);
@@ -810,7 +919,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   }, [draftClassOptions, selectedDraftClass]);
 
   const filteredRows = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = deferredQuery.trim().toLowerCase();
     return rows
       .filter(player => {
         if (config.hidePicks && player.isPick) return false;
@@ -833,11 +942,15 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
       })
       .sort((a, b) => {
         if (config.board === 'devy') return a.overallRank - b.overallRank;
-        if (sortMode === 'value') return b.value - a.value || a.overallRank - b.overallRank;
+        if (sortMode === 'value') {
+          const aValue = config.leagueValueMode === 'redraft' ? a.seasonValue ?? a.fantasyProsValue ?? a.value : a.value;
+          const bValue = config.leagueValueMode === 'redraft' ? b.seasonValue ?? b.fantasyProsValue ?? b.value : b.value;
+          return bValue - aValue || a.overallRank - b.overallRank;
+        }
         if (sortMode === 'movement') return Math.abs(b.movement || 0) - Math.abs(a.movement || 0) || a.overallRank - b.overallRank;
         return a.overallRank - b.overallRank;
       });
-  }, [canIncludePicksWithOverall, config.board, config.hidePicks, includePicksWithOverall, playerDetailsById, query, rows, selectedDraftClass, selectedPositions, sortMode]);
+  }, [canIncludePicksWithOverall, config.board, config.hidePicks, config.leagueValueMode, deferredQuery, includePicksWithOverall, playerDetailsById, rows, selectedDraftClass, selectedPositions, sortMode]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -850,6 +963,20 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
+
+  useEffect(() => {
+    replaceUrlSearchParams(
+      {
+        [`${urlPrefix}Profile`]: selectedProfileKey || null,
+        [`${urlPrefix}Search`]: query.trim() || null,
+        [`${urlPrefix}Positions`]: selectedPositions.length ? selectedPositions.join(',') : null,
+        [`${urlPrefix}Picks`]: includePicksWithOverall && selectedPositions.length === 0,
+        [`${urlPrefix}Class`]: selectedDraftClass,
+        [`${urlPrefix}Sort`]: sortMode === 'rank' ? null : sortMode,
+      },
+      { onlyForHash: '#rankings' },
+    );
+  }, [includePicksWithOverall, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode, urlPrefix]);
 
   const togglePosition = (position: PositionFilter) => {
     if (position === 'PICK') {
@@ -929,7 +1056,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
               Rank
             </button>
             <button type="button" className={sortMode === 'value' ? 'active' : ''} aria-pressed={sortMode === 'value'} onClick={() => setSortMode('value')}>
-              Value
+              {config.leagueValueMode === 'redraft' ? 'Season' : 'Value'}
             </button>
             <button type="button" className={sortMode === 'movement' ? 'active' : ''} aria-pressed={sortMode === 'movement'} onClick={() => setSortMode('movement')}>
               7-Day
@@ -993,16 +1120,20 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
           <span>{config.board === 'devy' ? 'Class' : 'Age'}</span>
           <span>{config.board === 'devy' ? 'Projection' : 'Manager'}</span>
           <span>Rank +/-</span>
-          <span>{config.board === 'devy' ? 'Inputs' : '7-Day'}</span>
-          <span>{config.board === 'devy' ? 'Pos Rank' : 'Value'}</span>
+          <span>{config.board === 'devy' ? 'Buzz' : '7-Day'}</span>
+          <span>{config.board === 'devy' ? 'Pos Rank' : config.valueLabel}</span>
         </div>
-        {pageRows.map(player => (
-          <RankingValueRow key={player.id} player={player} playerDetailsById={playerDetailsById} managerAvatars={managerAvatars} viewerManager={viewerManager} onSelect={onSelectPlayer} />
+        {pageRows.map((player, index) => (
+          <RankingValueRow key={`${player.id}-${index}`} player={player} config={config} playerDetailsById={playerDetailsById} managerAvatars={managerAvatars} viewerManager={viewerManager} onSelect={onSelectPlayer} showAIReads={showAIReads} />
         ))}
       </div>
 
       {filteredRows.length === 0 ? (
-        <EmptyState className="rankings-empty-state" title="No rankings match those filters." />
+        <EmptyState
+          className="rankings-empty-state"
+          title="No rankings match those filters."
+          description="Try clearing the search, switching positions, or returning to the league-matched profile."
+        />
       ) : (
         <div className="rankings-pagination" aria-label={`${config.title} pagination`}>
           <button type="button" onClick={() => setPage(value => Math.max(1, value - 1))} disabled={currentPage <= 1}>
@@ -1022,11 +1153,27 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   );
 }
 
-export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, leagueId, leagueLogo, viewerManager, board = 'all', hidePicks = false }: { rankings?: ReportData['rankings']; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; leagueId?: string; leagueLogo?: string | null; viewerManager?: string | null; board?: 'all' | 'dynasty' | 'devy' | 'draftbuzz'; hidePicks?: boolean }) {
+export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, leagueId, leagueLogo, viewerManager, board = 'all', hidePicks = false, leagueValueMode: leagueValueModeInput = 'dynasty', showAIReads = false }: { rankings?: ReportData['rankings']; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; leagueId?: string; leagueLogo?: string | null; viewerManager?: string | null; board?: 'all' | 'dynasty' | 'devy' | 'draftbuzz'; hidePicks?: boolean; leagueValueMode?: ReportData['leagueValueMode']; showAIReads?: boolean }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
 
   const handleSelectPlayer = (player: RankingPlayer) => {
     const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
+    const fallbackValue = leagueValueMode === 'redraft'
+      ? player.seasonValue ?? player.fantasyProsValue ?? player.value
+      : player.value;
+    const modalValue = getPlayerValueForMode({
+      valueProfile: details?.valueProfile,
+      fallbackValue,
+      mode: leagueValueMode,
+      context: 'rankings',
+    });
+    const modalRank = getPlayerRankForMode({
+      valueProfile: details?.valueProfile,
+      fallbackRank: player.positionRank || player.pos,
+      mode: leagueValueMode,
+      context: 'rankings',
+    });
     const prospectPositionRank = player.positionRank || player.fantasyProsDevyPositionRank || player.prospectProfile?.fantasyProsDevyPositionRank || (player.prospectProfile?.positionRank ? `${player.pos}${player.prospectProfile.positionRank}` : null) || player.pos;
     const prospectOnlyDetails = player.prospectProfile
       ? {
@@ -1050,7 +1197,9 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
             age: player.age || null,
             valueProfile: {
               dynastyValue: player.value,
+              seasonValue: player.seasonValue ?? player.fantasyProsValue ?? null,
               dynastyPositionRank: player.positionRank || player.pos,
+              seasonPositionRank: player.seasonValue ? player.positionRank || player.pos : null,
               marketKtc: player.ktcValue || null,
               flockFantasy: player.flockValue || null,
               fantasyCalcDynasty: player.fantasyCalcValue || null,
@@ -1066,10 +1215,11 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       player_id: player.player_id,
       playerName: player.name,
       playerPos: player.pos,
-      currentPositionRank: player.isDevy ? prospectPositionRank : player.positionRank || player.pos,
-      currentKtcValue: player.isDevy ? undefined : player.value,
+      currentPositionRank: player.isDevy ? prospectPositionRank : modalRank || player.positionRank || player.pos,
+      currentKtcValue: player.isDevy ? undefined : modalValue ?? player.value,
       valueGain: player.movement || undefined,
       valueChangeNote: player.movementLabel ? 'Blended value change over the last 7 days.' : undefined,
+      valueMode: leagueValueMode,
       manager: player.owner || undefined,
       managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
       playerImageUrl: player.imageUrl || player.prospectProfile?.playerImageUrl || null,
@@ -1115,18 +1265,28 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
   };
 
   if (!rankings || !rankings.profileOptions?.length) {
-    return <EmptyState className="rankings-empty-state" title="Rankings are not available for this report yet." />;
+    return (
+      <EmptyState
+        className="rankings-empty-state"
+        title="Rankings are not available for this report yet."
+        description="The report did not include a matching player-value board. Re-run the league analysis after rankings finish loading."
+      />
+    );
   }
 
+  const modeCopy = getLeagueModeCopy(leagueValueMode);
+  const valueLabel = getPrimaryValueLabel(leagueValueMode, 'rankings');
   const tableConfigs = (
     [
       {
         board: 'dynasty',
-        title: 'Dynasty Value Board',
-        kicker: 'League-matched values',
-        description: 'Format-aware dynasty player and pick values matched to this league type. Use the selector to compare how the board shifts across SuperFlex, Standard, and TE-premium rooms.',
+        title: modeCopy.rankingsTitle,
+        kicker: modeCopy.rankingsKicker,
+        description: modeCopy.rankingsDescription,
         defaultProfileKey: rankings.defaultProfileKey,
         hidePicks,
+        leagueValueMode,
+        valueLabel,
       },
       {
         board: 'devy',
@@ -1135,6 +1295,8 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
         description: 'College-only rankings use the same QB and TE-premium profile as this league, with verified prospect measurables layered in where available.',
         defaultProfileKey: rankings.defaultDevyProfileKey,
         hidePicks: true,
+        leagueValueMode,
+        valueLabel: 'Prospect Rank',
       },
     ] satisfies RankingsTableConfig[]
   ).filter(config => board === 'all' || config.board === board);
@@ -1143,12 +1305,12 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
   return (
     <div className="rankings-board">
       {tableConfigs.map(config => (
-        <RankingsTable key={config.board} config={config} rankings={rankings} playerDetailsById={playerDetailsById} managerAvatars={managerAvatars} viewerManager={viewerManager} onSelectPlayer={handleSelectPlayer} onSelectDraftBuzzEntry={handleSelectDraftBuzzEntry} />
+        <RankingsTable key={config.board} config={config} rankings={rankings} playerDetailsById={playerDetailsById} managerAvatars={managerAvatars} viewerManager={viewerManager} onSelectPlayer={handleSelectPlayer} onSelectDraftBuzzEntry={handleSelectDraftBuzzEntry} showAIReads={showAIReads} />
       ))}
 
-      {showDraftBuzzScoreboard ? rankings.draftBuzzScoreboard?.length ? <DraftBuzzScoreboard entries={rankings.draftBuzzScoreboard} onSelectEntry={handleSelectDraftBuzzEntry} /> : <EmptyState className="rankings-empty-state" title="Prospect score archive is not available for this report yet." /> : null}
+      {showDraftBuzzScoreboard ? rankings.draftBuzzScoreboard?.length ? <DraftBuzzScoreboard entries={rankings.draftBuzzScoreboard} onSelectEntry={handleSelectDraftBuzzEntry} /> : <EmptyState className="rankings-empty-state" title="Prospect score archive is not available for this report yet." description="Prospect archive data was not returned with this report." /> : null}
 
-      <PlayerDetailModal isOpen={selectedPlayer !== null} onClose={() => setSelectedPlayer(null)} pick={selectedPlayer} leagueId={leagueId} leagueLogo={leagueLogo} managerAvatars={managerAvatars} playerDetailsById={playerDetailsById} />
+      <PlayerDetailModal isOpen={selectedPlayer !== null} onClose={() => setSelectedPlayer(null)} pick={selectedPlayer} leagueId={leagueId} leagueLogo={leagueLogo} managerAvatars={managerAvatars} playerDetailsById={playerDetailsById} showAIRead={showAIReads} />
     </div>
   );
 }

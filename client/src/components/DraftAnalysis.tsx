@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode } from 'react';
+import { useEffect, useState, useMemo, type ReactNode } from 'react';
 import type { DraftPick, ManagerDraftStats, ManagerRosterIntelligence, PlayerDetails, ReportData } from '@shared/types';
 import { TrendingUp, TrendingDown, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
@@ -7,11 +7,14 @@ import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame } from './ManagerChampionships';
 import { TeamLogoPill } from './TeamLogoPill';
-import { EmptyState, MetricPill, ReportSectionHeader } from './reportPrimitives';
+import { EmptyState, MetricPill, PreviewMetricChips, ReportSectionHeader, type PreviewMetric } from './reportPrimitives';
+import { AIReadPanel } from './AIReadPanel';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
+import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
+import { readCsvParam, readEnumParam, readOptionalEnumParam, replaceUrlSearchParams } from '@/lib/reportUrlState';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -24,16 +27,74 @@ interface DraftAnalysisProps {
   viewerManager?: string | null;
   currentStandings?: ReportData['currentStandings'];
   leagueOverview?: ReportData['leagueOverview'];
+  leagueValueMode?: ReportData['leagueValueMode'];
+  showAIReads?: boolean;
 }
 
 type ManagerDraftModalMode = 'portfolio' | 'audit';
 type SortColumn = 'pick' | 'currentValue' | 'valueChange' | null;
 type SortDirection = 'asc' | 'desc';
+const DRAFT_SORT_COLUMNS: readonly Exclude<SortColumn, null>[] = ['pick', 'currentValue', 'valueChange'];
+const DRAFT_SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 
 function formatDraftAge(age?: number | string | null): string {
   const numericAge = Number(age);
   if (!Number.isFinite(numericAge) || numericAge <= 0) return '-';
   return `${Number.isInteger(numericAge) ? numericAge : numericAge.toFixed(1)} yrs`;
+}
+
+function getDraftCurrentValue(pick: DraftPick, leagueValueMode: LeagueValueMode): number {
+  if (leagueValueMode === 'redraft') {
+    const seasonValue = pick.playerDetails?.valueProfile?.seasonValue
+      ?? pick.playerDetails?.valueProfile?.fantasyProsSeasonValue
+      ?? pick.currentKtcValue
+      ?? 0;
+    return Math.round(seasonValue || 0);
+  }
+  return Math.round(pick.currentKtcValue || 0);
+}
+
+function formatDraftPreviewValue(value?: number | null): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '-';
+  if (Math.abs(numeric) >= 1000) return `${Math.round(numeric / 100) / 10}K`;
+  return numeric.toLocaleString();
+}
+
+function buildDraftStatsPreviewMetrics(stats: ManagerDraftStats[], leagueValueMode: LeagueValueMode): PreviewMetric[] {
+  const leader = stats[0];
+  if (!leader) return [];
+  const hitRate = leader.totalPicks ? `${Math.round((leader.hits / leader.totalPicks) * 100)}%` : '-';
+  return [
+    { label: 'Leader', value: leader.managerDisplayName || leader.manager, tone: 'good' },
+    { label: leagueValueMode === 'redraft' ? 'Starter Hit Rate' : 'Hit Rate', value: hitRate, tone: 'info' },
+    { label: 'Picks', value: leader.totalPicks, tone: 'neutral' },
+    { label: 'Avg Swing', value: `${leader.avgKtcGain >= 0 ? '+' : ''}${formatDraftPreviewValue(leader.avgKtcGain)}`, tone: leader.avgKtcGain >= 0 ? 'good' : 'danger' },
+  ];
+}
+
+function buildDraftDecisionPreviewMetrics(audits: ManagerDraftDecisionAudit[], leagueValueMode: LeagueValueMode): PreviewMetric[] {
+  const leader = audits[0];
+  const totalFlags = audits.reduce((sum, audit) => sum + audit.watchFlags, 0);
+  return [
+    leader ? { label: 'Most Picks', value: leader.managerDisplayName || leader.manager, tone: 'info' } : null,
+    { label: leagueValueMode === 'redraft' ? 'Value Checks' : 'Board Flags', value: totalFlags, tone: totalFlags ? 'warn' : 'good' },
+    leader ? { label: 'Avg Swing', value: `${leader.avgChange >= 0 ? '+' : ''}${formatDraftPreviewValue(leader.avgChange)}`, tone: leader.avgChange >= 0 ? 'good' : 'danger' } : null,
+  ].filter(Boolean) as PreviewMetric[];
+}
+
+function buildDraftYearPreviewMetrics(picks: DraftPick[], leagueValueMode: LeagueValueMode): PreviewMetric[] {
+  const topGain = [...picks].sort((a, b) => (b.valueGain || 0) - (a.valueGain || 0))[0];
+  const biggestMiss = [...picks].sort((a, b) => (a.valueGain || 0) - (b.valueGain || 0))[0];
+  const hitCount = picks.filter((pick) => pick.draftOutcome === 'hit' || pick.isStarter).length;
+  const totalSwing = picks.reduce((sum, pick) => sum + (pick.valueGain || 0), 0);
+  return [
+    { label: 'Pick Count', value: picks.length, tone: 'info' },
+    topGain ? { label: leagueValueMode === 'redraft' ? 'Top Current Gain' : 'Top Gain', value: topGain.playerName, tone: 'good' } : null,
+    biggestMiss && (biggestMiss.valueGain || 0) < 0 ? { label: 'Biggest Miss', value: biggestMiss.playerName, tone: 'danger' } : null,
+    picks.length ? { label: leagueValueMode === 'redraft' ? 'Starter Hit Rate' : 'Hit Rate', value: `${Math.round((hitCount / picks.length) * 100)}%`, tone: 'info' } : null,
+    picks.length ? { label: 'Total Swing', value: `${totalSwing > 0 ? '+' : ''}${formatDraftPreviewValue(totalSwing)}`, tone: totalSwing >= 0 ? 'good' : 'danger' } : null,
+  ].filter(Boolean) as PreviewMetric[];
 }
 
 export function DraftAnalysis({
@@ -47,13 +108,17 @@ export function DraftAnalysis({
   viewerManager,
   currentStandings,
   leagueOverview,
+  leagueValueMode: leagueValueModeInput = 'dynasty',
+  showAIReads = false,
 }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedManagerMode, setSelectedManagerMode] = useState<ManagerDraftModalMode>('portfolio');
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
-  const [sortColumn, setSortColumn] = useState<SortColumn>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [openDraftYears, setOpenDraftYears] = useState<Set<string>>(new Set());
+  const [sortColumn, setSortColumn] = useState<SortColumn>(() => readOptionalEnumParam('draftSort', DRAFT_SORT_COLUMNS));
+  const [sortDirection, setSortDirection] = useState<SortDirection>(() => readEnumParam('draftDir', DRAFT_SORT_DIRECTIONS, 'desc'));
+  const [openDraftYears, setOpenDraftYears] = useState<Set<string>>(() => new Set(readCsvParam('draftOpen')));
+  const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
+  const isRedraft = leagueValueMode === 'redraft';
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -80,8 +145,8 @@ export function DraftAnalysis({
       let bVal = 0;
 
       if (sortColumn === 'currentValue') {
-        aVal = a.currentKtcValue || 0;
-        bVal = b.currentKtcValue || 0;
+        aVal = getDraftCurrentValue(a, leagueValueMode);
+        bVal = getDraftCurrentValue(b, leagueValueMode);
       } else if (sortColumn === 'valueChange') {
         aVal = a.valueGain ?? 0;
         bVal = b.valueGain ?? 0;
@@ -92,7 +157,7 @@ export function DraftAnalysis({
 
       return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
     });
-  }, [draftPicks, sortColumn, sortDirection]);
+  }, [draftPicks, leagueValueMode, sortColumn, sortDirection]);
 
   const draftPicksByYear = useMemo(() => {
     return sortedDraftPicks.reduce<Record<string, DraftPick[]>>((groups, pick) => {
@@ -107,10 +172,31 @@ export function DraftAnalysis({
     [draftPicks, managerRosterIntelligence]
   );
   const orderedDraftStats = useMemo(() => sortManagerDraftStatsByEfficiency(draftStats), [draftStats]);
-  const draftYears = Object.keys(draftPicksByYear).sort((a, b) => Number(b) - Number(a));
+  const draftYears = useMemo(() => Object.keys(draftPicksByYear).sort((a, b) => Number(b) - Number(a)), [draftPicksByYear]);
+  useEffect(() => {
+    const invalidYears = Array.from(openDraftYears).filter((year) => !draftYears.includes(year));
+    if (invalidYears.length === 0) return;
+    setOpenDraftYears((current) => {
+      const next = new Set(current);
+      invalidYears.forEach((year) => next.delete(year));
+      return next;
+    });
+  }, [draftYears, openDraftYears]);
+
+  useEffect(() => {
+    replaceUrlSearchParams(
+      {
+        draftSort: sortColumn,
+        draftDir: sortColumn ? sortDirection : null,
+        draftOpen: openDraftYears.size ? Array.from(openDraftYears).sort((a, b) => Number(b) - Number(a)).join(',') : null,
+      },
+      { onlyForHash: '#draft' },
+    );
+  }, [openDraftYears, sortColumn, sortDirection]);
+
   const draftDecisionAudits = useMemo(() => {
-    return buildDraftDecisionAudits(sortedDraftPicks, managerRosterIntelligence || []);
-  }, [sortedDraftPicks, managerRosterIntelligence]);
+    return buildDraftDecisionAudits(sortedDraftPicks, managerRosterIntelligence || [], leagueValueMode);
+  }, [sortedDraftPicks, managerRosterIntelligence, leagueValueMode]);
   const draftDecisionAuditByPick = useMemo(() => {
     const map = new Map<string, DraftDecisionAudit>();
     draftDecisionAudits.forEach((audit) => {
@@ -148,7 +234,8 @@ export function DraftAnalysis({
     setSelectedPlayer(enrichDraftPickDetails(
       pick,
       playerDetailsById,
-      draftDecisionAuditByPick.get(getDraftPickKey(pick))
+      draftDecisionAuditByPick.get(getDraftPickKey(pick)),
+      leagueValueMode,
     ));
   };
 
@@ -157,15 +244,46 @@ export function DraftAnalysis({
       <EmptyState
         className="draft-empty-state"
         title="No draft data available"
-        description="Draft history will appear here after the league report includes completed rookie draft picks."
+        description={isRedraft
+          ? 'Draft recap will appear here after the league report includes completed draft picks.'
+          : 'Draft history will appear here after the league report includes completed rookie draft picks.'}
       />
     );
   }
 
+  const topDraftGain = [...sortedDraftPicks].sort((a, b) => (b.valueGain || 0) - (a.valueGain || 0))[0];
+  const biggestDraftLeak = [...sortedDraftPicks].sort((a, b) => (a.valueGain || 0) - (b.valueGain || 0))[0];
+  const viewerDraftPicks = viewerManager ? sortedDraftPicks.filter((pick) => pick.manager === viewerManager) : [];
+  const draftReadBody = isRedraft
+    ? `${topDraftGain?.playerName || 'No player'} is the strongest current starter-value result in the returned draft data. ${biggestDraftLeak && (biggestDraftLeak.valueGain || 0) < 0 ? `${biggestDraftLeak.playerName} is the cleanest review point because the current value trails the draft slot.` : 'No obvious draft leak is severe enough to flag from returned value data.'}`
+    : `${topDraftGain?.playerName || 'No player'} is the biggest rookie-draft value gain in the returned data. ${biggestDraftLeak && (biggestDraftLeak.valueGain || 0) < 0 ? `${biggestDraftLeak.playerName} is the draft-capital leak to audit before repeating that profile.` : 'No major negative value swing was returned.'}`;
+
   return (
     <div className="space-y-6 sm:space-y-8">
+      {showAIReads && (
+        <AIReadPanel
+          title={isRedraft ? 'Draft recap AI read' : 'Draft capital AI read'}
+          subtitle="Uses only returned draft picks, current player values, and roster-context audit notes."
+          readType="Draft Capital Read"
+          confidence={sortedDraftPicks.length ? 82 : 50}
+          severity={biggestDraftLeak && (biggestDraftLeak.valueGain || 0) < -500 ? 'warn' : 'info'}
+          chips={[
+            `${sortedDraftPicks.length} picks`,
+            topDraftGain ? `Top gain: ${topDraftGain.playerName}` : 'No gains',
+            viewerManager ? `${viewerDraftPicks.length} viewer picks` : 'League view',
+          ]}
+          body={draftReadBody}
+          backgroundVariant="draft"
+          className="draft-ai-read"
+        />
+      )}
+      <div className="draft-analysis-section-grid">
       {/* Draft Capital Efficiency Leaderboard */}
-      <DraftCollapsibleSection title="Draft Capital Efficiency" kicker="Hit rate first">
+      <DraftCollapsibleSection
+        title={isRedraft ? 'Draft Recap Efficiency' : 'Draft Capital Efficiency'}
+        kicker={isRedraft ? 'Starter hit rate first' : 'Hit rate first'}
+        previewMetrics={buildDraftStatsPreviewMetrics(orderedDraftStats, leagueValueMode)}
+      >
         <div className="owner-tile-shell">
           <div className="owner-tile-grid draft-efficiency-tile-grid balanced-tile-grid" style={getBalancedGridStyle(orderedDraftStats.length)}>
             {orderedDraftStats.map((stat, idx) => {
@@ -203,7 +321,7 @@ export function DraftAnalysis({
                     <MetricPill label="Misses" value={stat.misses} tone="danger" />
                     <MetricPill label="Starters" value={stat.starters} tone="info" />
                     <MetricPill
-                      label="Avg Change"
+                      label={isRedraft ? 'Avg Swing' : 'Avg Change'}
                       value={`${stat.avgKtcGain >= 0 ? '+' : ''}${stat.avgKtcGain.toLocaleString()}`}
                       tone={stat.avgKtcGain >= 0 ? 'good' : 'danger'}
                     />
@@ -216,9 +334,15 @@ export function DraftAnalysis({
       </DraftCollapsibleSection>
 
       {managerDraftDecisionAudits.length > 0 && (
-        <DraftCollapsibleSection title="Draft Decision Audit" kicker="Most picks first">
+        <DraftCollapsibleSection
+          title={isRedraft ? 'Draft-Day vs Current Value' : 'Draft Decision Audit'}
+          kicker={isRedraft ? 'Current value checks' : 'Most picks first'}
+          previewMetrics={buildDraftDecisionPreviewMetrics(managerDraftDecisionAudits, leagueValueMode)}
+        >
           <div className="draft-decision-audit-note">
-            Manager-level read on whether each draft stayed near the best dynasty values available. Roster need is only used as a tiebreaker after board value.
+            {isRedraft
+              ? 'Manager-level read on whether each draft generated current-season value, starter hits, bench depth, and position-need help.'
+              : 'Manager-level read on whether each draft stayed near the best dynasty values available. Roster need is only used as a tiebreaker after board value.'}
           </div>
           <div className="owner-tile-shell">
             <div className="owner-tile-grid draft-efficiency-tile-grid draft-decision-manager-grid balanced-tile-grid" style={getBalancedGridStyle(managerDraftDecisionAudits.length)}>
@@ -257,7 +381,7 @@ export function DraftAnalysis({
                       <MetricPill label="Misses" value={audit.misses} tone={audit.misses ? 'danger' : 'good'} />
                       <MetricPill label="Starters" value={audit.starters} tone="info" />
                       <MetricPill
-                        label="Avg Change"
+                        label={isRedraft ? 'Avg Swing' : 'Avg Change'}
                         value={`${audit.avgChange >= 0 ? '+' : ''}${audit.avgChange.toLocaleString()}`}
                         tone={audit.avgChange >= 0 ? 'good' : 'danger'}
                       />
@@ -270,13 +394,15 @@ export function DraftAnalysis({
           </div>
         </DraftCollapsibleSection>
       )}
+      </div>
 
       {/* Full Draft Board */}
       <section className="report-section">
-        <div className="space-y-4">
+        <div className="draft-year-card-grid">
           {draftYears.map((draftYear) => {
             const yearPicks = draftPicksByYear[draftYear] || [];
             const isDraftBoardOpen = openDraftYears.has(draftYear);
+            const yearPreviewMetrics = buildDraftYearPreviewMetrics(yearPicks, leagueValueMode);
 
             return (
               <div key={draftYear}>
@@ -291,8 +417,9 @@ export function DraftAnalysis({
                       Picked players
                     </span>
                     <span className="athletic-headline mt-1 block truncate text-xl font-black text-orange-400 sm:text-2xl">
-                      {draftYear} Rookie Draft
+                      {draftYear} {isRedraft ? 'Draft Recap' : 'Rookie Draft'}
                     </span>
+                    <PreviewMetricChips metrics={yearPreviewMetrics} className="draft-year-preview-chips" />
                   </span>
                   <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-300">
                     {isDraftBoardOpen ? 'Hide' : `${yearPicks.length} Picks`}
@@ -308,7 +435,7 @@ export function DraftAnalysis({
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => handleSort('currentValue')}>
-                        Current Value
+                        {isRedraft ? 'Current Season' : 'Current Value'}
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => handleSort('valueChange')}>
@@ -326,9 +453,9 @@ export function DraftAnalysis({
                         <span className="rookie-draft-header-short">Mgr</span>
                       </span>
                       <span>Draft</span>
-                      <span>Draft Value</span>
+                      <span>{isRedraft ? 'Draft-Day Value' : 'Draft Value'}</span>
                       <span>Now</span>
-                      <span>Now Value</span>
+                      <span>{isRedraft ? 'Current Value' : 'Now Value'}</span>
                       <span>Change</span>
                     </div>
                     <div className="rookie-draft-row-list">
@@ -341,6 +468,7 @@ export function DraftAnalysis({
                         const ageLabel = formatDraftAge(details?.age);
                         const draftRankLabel = pick.positionRankMay2025 || pick.playerPos || 'N/A';
                         const currentRankLabel = pick.currentPositionRank || pick.playerPos || 'N/A';
+                        const currentValue = getDraftCurrentValue(pick, leagueValueMode);
                         return (
                           <button
                             key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
@@ -373,7 +501,7 @@ export function DraftAnalysis({
                             <span className="rookie-draft-rank-cell rookie-draft-rank-cell-draft" data-label="Draft">{draftRankLabel}</span>
                             <span className="rookie-draft-value-cell" data-label="Draft">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
                             <span className="rookie-draft-rank-cell rookie-draft-rank-cell-current" data-label="Now">{currentRankLabel}</span>
-                            <span className="rookie-draft-value-cell" data-label="Now">{pick.currentKtcValue ? pick.currentKtcValue.toLocaleString() : 'N/A'}</span>
+                            <span className="rookie-draft-value-cell" data-label="Now">{currentValue ? currentValue.toLocaleString() : 'N/A'}</span>
                             <span className="rookie-draft-change-cell" aria-label={`${pick.playerName} value change`}>
                               <span className="rookie-draft-age-mobile" data-label="Age">{ageLabel}</span>
                               {details?.team ? (
@@ -413,6 +541,7 @@ export function DraftAnalysis({
         mode={selectedManagerMode}
         leagueId={leagueId}
         leagueLogo={leagueLogo}
+        leagueValueMode={leagueValueMode}
       />
 
       {/* Player Detail Modal */}
@@ -424,6 +553,7 @@ export function DraftAnalysis({
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
         playerDetailsById={playerDetailsById}
+        showAIRead={showAIReads}
       />
     </div>
   );
@@ -601,7 +731,8 @@ function getDraftDecisionSeverity(audit: DraftDecisionAudit): number {
 
 function buildDraftDecisionAudits(
   draftPicks: DraftPick[],
-  managerRosterIntelligence: ManagerRosterIntelligence[]
+  managerRosterIntelligence: ManagerRosterIntelligence[],
+  leagueValueMode: LeagueValueMode = 'dynasty',
 ): DraftDecisionAudit[] {
   const intelByManager = new Map(managerRosterIntelligence.map((row) => [row.manager, row]));
   const byYear = draftPicks
@@ -617,14 +748,15 @@ function buildDraftDecisionAudits(
     .sort(([a], [b]) => Number(b) - Number(a))
     .flatMap(([, yearPicks]) => {
       const orderedPicks = [...yearPicks].sort((a, b) => a.pick - b.pick);
-      return orderedPicks.map((pick) => buildDraftDecisionAudit(pick, orderedPicks, intelByManager.get(pick.manager) || null));
+      return orderedPicks.map((pick) => buildDraftDecisionAudit(pick, orderedPicks, intelByManager.get(pick.manager) || null, leagueValueMode));
     });
 }
 
 function buildDraftDecisionAudit(
   pick: DraftPick,
   yearPicks: DraftPick[],
-  intel: ManagerRosterIntelligence | null
+  intel: ManagerRosterIntelligence | null,
+  leagueValueMode: LeagueValueMode = 'dynasty',
 ): DraftDecisionAudit {
   const needPositions = getDraftNeedPositions(intel);
   const primaryNeed = needPositions[0] || null;
@@ -686,6 +818,7 @@ function buildDraftDecisionAudit(
     bestAvailable,
     bestSamePositionAvailable,
     needReason,
+    leagueValueMode,
   });
 
   const alternative = buildDraftAlternative(
@@ -723,6 +856,7 @@ function buildDraftDecisionSummary({
   bestAvailable,
   bestSamePositionAvailable,
   needReason,
+  leagueValueMode = 'dynasty',
 }: {
   verdict: string;
   pick: DraftPick;
@@ -735,13 +869,17 @@ function buildDraftDecisionSummary({
   bestAvailable: DraftPick | null;
   bestSamePositionAvailable: DraftPick | null;
   needReason: string;
+  leagueValueMode?: LeagueValueMode;
 }) {
+  const isRedraft = leagueValueMode === 'redraft';
   const draftedLabel = pick.positionRankMay2025 || pick.currentPositionRank || pick.playerPos;
   const boardPocket = boardRank <= 3 ? 'top board pocket' : boardRank <= 8 ? 'strong board pocket' : 'thin value pocket';
   const altValueGap = bestAvailableDelta > 0 ? `${bestAvailableDelta.toLocaleString()} value points` : 'roughly even value';
 
   if (verdict === 'Board + Fit') {
-    return `${pick.playerName} was the clean kind of dynasty pick: board value first, roster fit second. ${draftedLabel} landed inside the ${boardPocket}, and ${needReason}`;
+    return isRedraft
+      ? `${pick.playerName} was a clean redraft pick: draft-day price, current value, and roster fit all lined up. ${draftedLabel} landed inside the ${boardPocket}, and ${needReason}`
+      : `${pick.playerName} was the clean kind of dynasty pick: board value first, roster fit second. ${draftedLabel} landed inside the ${boardPocket}, and ${needReason}`;
   }
 
   if (verdict === 'Fit Tiebreaker') {
@@ -754,7 +892,9 @@ function buildDraftDecisionSummary({
 
   if (verdict === 'Board Pick') {
     if (primaryNeed && !needMatch) {
-      return `${pick.playerName} was the right kind of dynasty bet: take the value, then solve ${primaryNeed} later by trade. ${draftedLabel} still sat in the ${boardPocket}.`;
+      return isRedraft
+        ? `${pick.playerName} was the right kind of redraft value: take the best current-season profile, then solve ${primaryNeed} with waivers or trades. ${draftedLabel} still sat in the ${boardPocket}.`
+        : `${pick.playerName} was the right kind of dynasty bet: take the value, then solve ${primaryNeed} later by trade. ${draftedLabel} still sat in the ${boardPocket}.`;
     }
     return `${pick.playerName} was mostly a value call. The roster did not need to force a position here, and ${draftedLabel} still sat in the ${boardPocket} when this pick came up.`;
   }
@@ -936,10 +1076,15 @@ function getResolvedDraftStarter(pick: DraftPick): boolean {
 function enrichDraftPickDetails(
   pick: DraftPick,
   playerDetailsById?: Record<string, PlayerDetails>,
-  audit?: DraftDecisionAudit
+  audit?: DraftDecisionAudit,
+  leagueValueMode: LeagueValueMode = 'dynasty',
 ): PlayerModalData {
   const mappedDetails = pick.player_id ? playerDetailsById?.[pick.player_id] : undefined;
-  const basePick = attachDraftDecisionAudit(pick, audit);
+  const basePick = {
+    ...attachDraftDecisionAudit(pick, audit),
+    currentKtcValue: getDraftCurrentValue(pick, leagueValueMode),
+    valueMode: leagueValueMode,
+  };
   if (!mappedDetails) return basePick;
 
   return {
@@ -965,16 +1110,19 @@ function enrichDraftPickDetails(
 function DraftCollapsibleSection({
   title,
   kicker,
+  previewMetrics,
   children,
 }: {
   title: string;
   kicker?: string;
+  previewMetrics?: PreviewMetric[];
   children: ReactNode;
 }) {
   return (
     <details className="report-section report-disclosure">
       <summary className="report-disclosure-summary">
         <ReportSectionHeader title={title} kicker={kicker} />
+        <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </summary>
       <div className="report-disclosure-body">

@@ -1,0 +1,6994 @@
+/* Shared player and owner tile system. */
+.player-tile-shell,
+.owner-tile-shell {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
+.player-tile-grid,
+.owner-tile-grid,
+.weekly-momentum-grid,
+.trending-card-grid,
+.manager-intel-player-grid,
+.owner-intel-player-grid,
+.manager-command-tile-grid,
+.starter-grid {
+  display: grid;
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: clamp(0.55rem, 2.2vw, 0.85rem);
+}
+
+.player-team-tile {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--team-accent, #22d3ee) 28%, rgba(34, 211, 238, 0.15)) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #0f172a) 34%, rgba(15, 23, 42, 0.84)), rgba(2, 6, 23, 0.72) 58%, color-mix(in srgb, var(--team-secondary, #020617) 30%, rgba(2, 6, 23, 0.72))), radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--team-accent, #22d3ee) 18%, transparent), transparent 42%), radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--team-primary, #0f172a) 22%, transparent), transparent 44%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 14px 30px rgba(0, 0, 0, 0.18);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+button.player-team-tile:hover,
+button.player-team-tile:focus-visible {
+  border-color: color-mix(in srgb, var(--team-accent, #22d3ee) 54%, rgba(255, 255, 255, 0.16)) !important;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+  transform: translateY(-1px);
+}
+
+.viewer-owned-highlight {
+  position: relative;
+  border-color: rgba(250, 204, 21, 0.72) !important;
+  box-shadow:
+    0 0 0 1px rgba(250, 204, 21, 0.34),
+    0 0 20px rgba(250, 204, 21, 0.22),
+    0 0 30px rgba(34, 211, 238, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  animation: viewer-owned-border-pulse 7.5s ease-in-out infinite;
+}
+
+.viewer-owned-highlight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.12) 38%, transparent 56%);
+  opacity: 0.58;
+  pointer-events: none;
+  transform: translateX(-120%);
+  animation: viewer-owned-sheen 11s ease-in-out infinite;
+}
+
+@keyframes viewer-owned-border-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(250, 204, 21, 0.3),
+      0 0 18px rgba(250, 204, 21, 0.18),
+      0 0 26px rgba(34, 211, 238, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(250, 204, 21, 0.55),
+      0 0 24px rgba(250, 204, 21, 0.28),
+      0 0 36px rgba(34, 211, 238, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+}
+
+@keyframes viewer-owned-sheen {
+  0%,
+  66% {
+    transform: translateX(-120%);
+  }
+
+  84%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer-owned-highlight,
+  .viewer-owned-highlight::after {
+    animation: none;
+  }
+}
+
+.trade-war-room {
+  width: min(100%, 82rem);
+  margin-inline: auto;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 1.35rem;
+  background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.18), transparent 34%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.13), transparent 32%), rgba(2, 6, 23, 0.82);
+  padding: clamp(0.8rem, 2vw, 1.15rem);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+}
+
+.trade-war-top,
+.trade-war-manager-selects,
+.trade-war-scoreboard,
+.trade-war-side-grid,
+.trade-war-read-grid {
+  display: grid;
+  gap: clamp(0.65rem, 1.4vw, 0.95rem);
+}
+
+.trade-war-top {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+
+.trade-war-top p,
+.trade-war-side-header span,
+.trade-war-search span,
+.trade-war-note-panel > span {
+  color: #67e8f9;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.trade-war-top h3 {
+  margin-top: 0.15rem;
+  color: #fb923c;
+  font-family: var(--font-athletic);
+  font-size: clamp(1.65rem, 3vw, 2.65rem);
+  font-weight: 950;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.trade-war-mode-tabs {
+  display: inline-flex;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.62);
+}
+
+.trade-war-mode-tabs button {
+  min-height: 2rem;
+  border-radius: 999px;
+  padding: 0 0.8rem;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+}
+
+.trade-war-mode-tabs button.active {
+  color: #06101b;
+  background: linear-gradient(135deg, #67e8f9, #fb923c);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.22);
+}
+
+.trade-war-manager-selects {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0.8rem;
+}
+
+.trade-war-manager-selects label,
+.trade-war-search {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.trade-war-manager-selects span {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.trade-war-manager-selects select,
+.trade-war-search input {
+  width: 100%;
+  min-height: 2.6rem;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 0.8rem;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  font-weight: 850;
+}
+
+.trade-war-manager-selects select {
+  padding: 0 0.75rem;
+}
+
+.trade-war-scoreboard {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.75fr) minmax(0, 1fr);
+  align-items: stretch;
+  margin-bottom: 0.9rem;
+}
+
+.trade-war-scoreboard > div,
+.trade-war-side,
+.trade-war-note-panel {
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.trade-war-scoreboard > div {
+  display: grid;
+  gap: 0.25rem;
+  align-content: center;
+  min-height: 4.4rem;
+  padding: 0.8rem 1rem;
+}
+
+.trade-war-scoreboard span {
+  color: #94a3b8;
+  font-size: 0.65rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.trade-war-scoreboard strong {
+  color: #f8fafc;
+  font-size: clamp(1.55rem, 2.8vw, 2.25rem);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.trade-war-gap {
+  text-align: center;
+}
+
+.trade-war-gap small {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.trade-war-gap-even strong,
+.trade-war-gap-even span {
+  color: #34d399;
+}
+
+.trade-war-gap-close strong,
+.trade-war-gap-close span {
+  color: #67e8f9;
+}
+
+.trade-war-gap-warn strong,
+.trade-war-gap-warn span {
+  color: #fbbf24;
+}
+
+.trade-war-gap-danger strong,
+.trade-war-gap-danger span {
+  color: #fb7185;
+}
+
+.trade-war-side-grid,
+.trade-war-read-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.trade-war-side {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  padding: clamp(0.7rem, 1.5vw, 1rem);
+}
+
+.trade-war-side-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.trade-war-manager-lockup {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.trade-war-manager-avatar,
+.trade-war-owner-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.trade-war-manager-avatar,
+.trade-war-manager-avatar img,
+.trade-war-manager-avatar > span {
+  width: 2.65rem;
+  height: 2.65rem;
+}
+
+.trade-war-owner-avatar,
+.trade-war-owner-avatar img,
+.trade-war-owner-avatar > span {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.trade-war-manager-lockup strong {
+  display: block;
+  max-width: 16rem;
+  overflow: hidden;
+  color: #f8fafc;
+  font-family: var(--font-athletic);
+  font-size: clamp(1.05rem, 1.8vw, 1.45rem);
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-side-total {
+  display: grid;
+  justify-items: end;
+  flex: 0 0 auto;
+}
+
+.trade-war-side-total strong {
+  color: #fb923c;
+  font-size: 1.25rem;
+  font-weight: 950;
+}
+
+.trade-war-selected-assets,
+.trade-war-player-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.trade-war-picker {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.trade-war-picker-toggle {
+  display: none;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.8rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 0.9rem;
+  background: rgba(8, 15, 31, 0.82);
+  color: #67e8f9;
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.trade-war-picker-body {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.trade-war-empty {
+  min-height: 3.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(148, 163, 184, 0.2);
+  border-radius: 0.85rem;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.trade-war-selected-asset,
+.trade-war-player-card {
+  position: relative;
+  display: grid;
+  gap: 0.45rem;
+  border-radius: 0.95rem;
+  padding: 0.55rem;
+}
+
+.trade-war-selected-asset {
+  padding-right: 2.25rem;
+}
+
+.trade-war-player-muted {
+  filter: saturate(0.58);
+  opacity: 0.62;
+}
+
+.trade-war-player-add,
+.trade-war-selected-main {
+  display: grid;
+  min-width: 0;
+  width: 100%;
+  gap: 0.45rem;
+  text-align: left;
+}
+
+.trade-war-player-name .player-chip,
+.trade-war-selected-main .player-chip {
+  min-width: 0;
+  width: 100%;
+}
+
+.trade-war-player-name .player-chip > span:last-child,
+.trade-war-selected-main .player-chip > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #f8fafc;
+  font-weight: 950;
+}
+
+.trade-war-owner {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.trade-war-owner > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-player-pills {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.trade-war-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  border: 1px solid rgba(20, 184, 166, 0.35);
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.12);
+  padding: 0 0.5rem;
+  color: #5eead4;
+  font-size: 0.68rem;
+  font-weight: 950;
+}
+
+.trade-war-off-roster-pill {
+  border-color: rgba(251, 191, 36, 0.36) !important;
+  background: rgba(251, 191, 36, 0.12) !important;
+  color: #fcd34d !important;
+}
+
+.trade-war-detail-button {
+  justify-self: start;
+  color: #67e8f9;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trade-war-remove {
+  position: absolute;
+  top: 0.42rem;
+  right: 0.42rem;
+  z-index: 3;
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border: 1px solid rgba(251, 113, 133, 0.5);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fecdd3;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.trade-war-remove:hover,
+.trade-war-remove:focus-visible {
+  border-color: rgba(251, 113, 133, 0.9);
+  background: rgba(127, 29, 29, 0.72);
+  color: #fff1f2;
+  transform: scale(1.04);
+}
+
+.trade-war-note-panel {
+  min-height: 8rem;
+  padding: 0.85rem;
+}
+
+.trade-war-note-panel p {
+  margin-top: 0.55rem;
+  color: #dbeafe;
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.trade-war-rank-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.trade-war-rank-pills > span,
+.trade-war-suggestion-block > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 999px;
+  background: rgba(8, 15, 31, 0.78);
+  padding: 0 0.55rem;
+  color: #8cecff;
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+}
+
+.trade-war-suggestion-block + .trade-war-suggestion-block {
+  margin-top: 0.9rem;
+}
+
+.trade-war-suggested-asset {
+  width: 100%;
+  margin-top: 0.45rem;
+  text-align: left;
+}
+
+.trade-war-suggested-main {
+  display: grid;
+  gap: 0.45rem;
+}
+
+@media (max-width: 760px) {
+  .trade-war-top,
+  .trade-war-manager-selects,
+  .trade-war-scoreboard,
+  .trade-war-side-grid,
+  .trade-war-read-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trade-war-mode-tabs {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .trade-war-top p {
+    display: none;
+  }
+
+  .trade-war-top h3 {
+    margin-top: 0;
+  }
+
+  .trade-war-mode-tabs button {
+    flex: 1 1 0;
+    padding-inline: 0.45rem;
+  }
+
+  .trade-war-selected-assets,
+  .trade-war-player-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trade-war-picker-toggle {
+    display: inline-flex;
+  }
+
+  .trade-war-picker-body {
+    display: none;
+  }
+
+  .trade-war-picker.trade-war-picker-open .trade-war-picker-body {
+    display: grid;
+  }
+}
+
+.projected-mover-tile,
+.rookie-player-tile {
+  display: grid;
+  align-content: start;
+  gap: 0.58rem;
+  border-radius: 1rem;
+  padding: clamp(0.68rem, 2.4vw, 0.9rem);
+  text-align: left;
+}
+
+.player-tile-topline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.player-tile-main .player-chip {
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.player-tile-main .player-chip img,
+.player-tile-main .player-chip > span[aria-hidden="true"] {
+  height: clamp(2.4rem, 9vw, 3.1rem);
+  width: clamp(2.4rem, 9vw, 3.1rem);
+  border: 2px solid color-mix(in srgb, var(--team-accent, #fb923c) 62%, rgba(255, 255, 255, 0.18));
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.26);
+}
+
+.player-tile-main .player-chip > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: clamp(0.78rem, 2.7vw, 1rem);
+  font-weight: 950;
+  line-height: 1.02;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-tile-owner .manager-chip {
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  gap: 0.35rem;
+}
+
+.player-tile-owner .manager-chip img,
+.player-tile-owner .manager-chip > span[aria-hidden="true"] {
+  height: 1.55rem;
+  width: 1.55rem;
+  border-width: 2px;
+}
+
+.player-tile-owner .manager-chip > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  color: #cbd5e1;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-tile-pills,
+.player-tile-value-strip {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.34rem;
+}
+
+.rookie-player-tile {
+  position: relative;
+}
+
+.player-tile-pills span,
+.player-tile-value-strip span {
+  display: inline-flex;
+  min-height: 1.4rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.52);
+  padding: 0.18rem 0.46rem;
+  color: #67e8f9;
+  font-size: 0.64rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.player-tile-value-strip {
+  align-items: center;
+}
+
+.player-tile-value-strip span:first-child,
+.player-tile-value-strip span:last-child {
+  border-color: rgba(251, 146, 60, 0.22);
+  color: #fdba74;
+}
+
+.player-tile-pills .draft-outcome-pill-hit {
+  border-color: rgba(16, 185, 129, 0.34);
+  background: rgba(6, 78, 59, 0.46);
+  color: #6ee7b7;
+}
+
+.player-tile-pills .draft-outcome-pill-miss {
+  border-color: rgba(244, 63, 94, 0.38);
+  background: rgba(76, 5, 25, 0.46);
+  color: #fda4af;
+}
+
+.player-tile-pills .draft-outcome-pill-neutral {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.58);
+  color: #cbd5e1;
+}
+
+.player-tile-pills .draft-starter-pill {
+  border-color: rgba(250, 204, 21, 0.38);
+  background: rgba(113, 63, 18, 0.44);
+  color: #fde68a;
+}
+
+.draft-starter-corner {
+  position: absolute;
+  top: 0.14rem;
+  right: 0.14rem;
+  z-index: 3;
+  display: inline-flex;
+  min-height: 1.12rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(250, 204, 21, 0.42);
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 20%, rgba(250, 204, 21, 0.24), transparent 50%), rgba(2, 6, 23, 0.74);
+  padding: 0.12rem 0.42rem;
+  color: #fde68a;
+  font-size: 0.55rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.14);
+}
+
+.player-tile-pills .draft-gain-pill {
+  min-width: 4.1rem;
+  border-color: rgba(148, 163, 184, 0.22);
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-tile-pills .draft-gain-pill-positive {
+  border-color: rgba(16, 185, 129, 0.34);
+  background: rgba(6, 78, 59, 0.32);
+  color: #34d399;
+}
+
+.player-tile-pills .draft-gain-pill-negative {
+  border-color: rgba(244, 63, 94, 0.38);
+  background: rgba(76, 5, 25, 0.34);
+  color: #fb7185;
+}
+
+.player-tile-pills .draft-gain-pill-neutral {
+  border-color: rgba(148, 163, 184, 0.28);
+  color: #cbd5e1;
+}
+
+.manager-draft-decision-pills .is-positive {
+  border-color: rgba(16, 185, 129, 0.34);
+  background: rgba(6, 78, 59, 0.34);
+  color: #6ee7b7;
+}
+
+.manager-draft-decision-pills .is-negative {
+  border-color: rgba(244, 63, 94, 0.38);
+  background: rgba(76, 5, 25, 0.34);
+  color: #fda4af;
+}
+
+.draft-sort-strip {
+  display: flex;
+  width: min(100%, 72rem);
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.draft-sort-strip button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.35);
+  padding: 0.45rem 0.75rem;
+  color: #67e8f9;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rookie-draft-row-shell {
+  container-type: inline-size;
+  container-name: rookie-draft-board;
+  display: grid;
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  gap: 0.42rem;
+  padding-inline: clamp(0.2rem, 1.5vw, 0.75rem);
+}
+
+.rookie-draft-row-header,
+.rookie-draft-row {
+  display: grid;
+  grid-template-columns:
+    minmax(2.75rem, 0.32fr) minmax(10.2rem, 1.62fr) minmax(2.35rem, 0.22fr)
+    minmax(3.25rem, 0.3fr) minmax(6rem, 0.62fr) minmax(3.55rem, 0.42fr)
+    minmax(3.55rem, 0.42fr) minmax(4.1rem, 0.48fr) minmax(4.1rem, 0.48fr)
+    minmax(4.55rem, 0.52fr);
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.rookie-draft-row-header {
+  padding: 0.18rem 0.58rem 0.28rem;
+  color: #67e8f9;
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.rookie-draft-row-header span:nth-child(1),
+.rookie-draft-row-header span:nth-child(3),
+.rookie-draft-row-header span:nth-child(4) {
+  text-align: center;
+}
+
+.rookie-draft-row-header span:nth-child(n + 6) {
+  text-align: center;
+}
+
+.rookie-draft-row-header span:last-child {
+  text-align: right;
+}
+
+.rookie-draft-header-short {
+  display: none;
+}
+
+.rookie-draft-row-list {
+  display: grid;
+  gap: 0.34rem;
+}
+
+.rookie-draft-row {
+  width: 100%;
+  min-height: 3.25rem;
+  border-radius: 0.9rem;
+  padding: 0.42rem 0.56rem;
+  text-align: left;
+}
+
+.rookie-draft-pick-cell,
+.rookie-draft-player-cell,
+.rookie-draft-team-cell,
+.rookie-draft-age-cell,
+.rookie-draft-manager-cell {
+  min-width: 0;
+}
+
+.rookie-draft-pick-cell,
+.rookie-draft-age-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  color: #cbd5e1;
+  font-size: clamp(0.72rem, 1.28cqw, 0.86rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rookie-draft-pick-cell {
+  color: #67e8f9;
+}
+
+.rookie-draft-age-mobile {
+  display: none;
+}
+
+.rookie-draft-team-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+}
+
+.rookie-draft-manager-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  justify-self: start;
+  width: max-content;
+  max-width: 100%;
+  min-height: 1.72rem;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.54);
+  padding: 0.12rem 0.42rem 0.12rem 0.2rem;
+  color: #c4f1ff;
+}
+
+.rookie-draft-player-cell .player-chip,
+.rookie-draft-manager-cell .manager-chip {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rookie-draft-player-cell .player-chip {
+  gap: 0.48rem;
+}
+
+.rookie-draft-player-cell .player-chip img,
+.rookie-draft-player-cell .player-chip > span[aria-hidden="true"] {
+  width: 2.05rem;
+  height: 2.05rem;
+  border: 2px solid color-mix(in srgb, var(--team-accent, #fb923c) 62%, rgba(255, 255, 255, 0.2));
+}
+
+.rookie-draft-player-cell .player-chip > span:last-child,
+.rookie-draft-manager-cell .manager-chip > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rookie-draft-player-cell .player-chip > span:last-child {
+  color: #f8fafc;
+  font-size: clamp(0.82rem, 1.7vw, 0.96rem);
+  font-weight: 950;
+}
+
+.rookie-draft-player-cell .draft-opportunity-note {
+  width: calc(100% - 2.53rem);
+  margin-top: 0.02rem;
+  margin-left: 2.53rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rookie-draft-manager-cell .manager-chip {
+  gap: 0.36rem;
+  max-width: 100%;
+  font-size: 0.66rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.rookie-draft-team-cell .team-logo-pill,
+.rookie-draft-team-cell .team-logo-pill img {
+  width: 2.05rem !important;
+  min-width: 2.05rem !important;
+  height: 2.05rem !important;
+  min-height: 2.05rem !important;
+  border-width: 2px;
+}
+
+.rookie-draft-manager-cell .manager-chip img,
+.rookie-draft-manager-cell .manager-chip > span[aria-hidden="true"] {
+  width: 1.24rem !important;
+  min-width: 1.24rem !important;
+  height: 1.24rem !important;
+  min-height: 1.24rem !important;
+  border-width: 1px;
+  font-size: 0.55rem;
+}
+
+.rookie-draft-team-empty {
+  display: inline-flex;
+  height: 2.05rem;
+  width: 2.05rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.54);
+  color: #cbd5e1;
+  font-size: 0.62rem;
+  font-weight: 950;
+}
+
+.rookie-draft-manager-cell .manager-chip > span:last-child {
+  color: #c4f1ff;
+  font-size: 0.66rem;
+  font-weight: 1000;
+  letter-spacing: 0;
+}
+
+.rookie-draft-pill,
+.rookie-draft-rank-cell,
+.rookie-draft-value-cell,
+.rookie-draft-gain-cell {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 1.7rem;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  gap: 0.2rem;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.52);
+  padding: 0.22rem 0.44rem;
+  color: #cbd5e1;
+  font-size: clamp(0.74rem, 1.35cqw, 0.96rem);
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rookie-draft-change-cell {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 0.34rem;
+}
+
+.rookie-draft-change-cell .rookie-draft-gain-cell {
+  justify-self: auto;
+}
+
+.rookie-draft-pill {
+  min-width: 2.35rem;
+  min-height: 1.82rem;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  padding-inline: 0.58rem;
+  color: #67e8f9;
+  font-size: clamp(0.74rem, 1.55vw, 0.86rem);
+}
+
+.rookie-draft-rank-cell {
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  background: transparent !important;
+  color: #67e8f9;
+}
+
+.rookie-draft-rank-cell-draft {
+  border-color: rgba(251, 146, 60, 0.24);
+  color: #fdba74;
+}
+
+.rookie-draft-rank-cell-current {
+  border-color: rgba(96, 165, 250, 0.28);
+  color: #93c5fd;
+}
+
+.rookie-draft-value-cell {
+  min-width: 4.1rem;
+  border: 1px solid rgba(251, 146, 60, 0.22);
+  color: #fdba74;
+}
+
+.rookie-draft-gain-cell {
+  min-width: 4.2rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.rookie-draft-gain-cell.is-positive {
+  border-color: rgba(16, 185, 129, 0.32);
+  color: #34d399;
+}
+
+.rookie-draft-gain-cell.is-negative {
+  border-color: rgba(244, 63, 94, 0.32);
+  color: #fb7185;
+}
+
+@container rookie-draft-board (max-width: 64rem) {
+  .rookie-draft-row-header,
+  .rookie-draft-row {
+    grid-template-columns:
+      minmax(2.55rem, 0.3fr) minmax(10.5rem, 1.86fr)
+      minmax(2.25rem, 0.22fr) minmax(2.8rem, 0.28fr) minmax(2.25rem, 0.22fr)
+      minmax(3.3rem, 0.4fr) minmax(3.3rem, 0.4fr) minmax(3.8rem, 0.46fr)
+      minmax(3.8rem, 0.46fr) minmax(4.25rem, 0.5fr);
+    gap: 0.34rem;
+  }
+
+  .rookie-draft-row-header {
+    font-size: 0.5rem;
+    letter-spacing: 0.1em;
+  }
+
+  .rookie-draft-header-full {
+    display: none;
+  }
+
+  .rookie-draft-header-short {
+    display: inline;
+  }
+
+  .rookie-draft-manager-cell {
+    justify-content: center;
+    justify-self: center;
+  }
+
+  .rookie-draft-manager-cell .manager-chip {
+    max-width: 2.05rem;
+    gap: 0;
+  }
+
+  .rookie-draft-manager-cell .manager-chip > span:last-child {
+    display: none;
+  }
+
+  .rookie-draft-player-cell .player-chip > span:last-child {
+    font-size: clamp(0.8rem, 1.45vw, 0.92rem);
+  }
+
+  .rookie-draft-pick-cell,
+  .rookie-draft-rank-cell,
+  .rookie-draft-value-cell,
+  .rookie-draft-gain-cell {
+    min-height: 1.68rem;
+    padding: 0.22rem 0.44rem;
+    font-size: clamp(0.66rem, 1.3vw, 0.78rem);
+  }
+
+  .rookie-draft-value-cell {
+    min-width: 4.25rem;
+  }
+
+  .rookie-draft-gain-cell {
+    min-width: 4.35rem;
+  }
+}
+
+.owner-summary-tile {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  align-content: space-between;
+  gap: 0.75rem;
+  min-height: clamp(8.4rem, 24vw, 10.5rem);
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 1rem;
+  background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.18), transparent 36%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.15), transparent 38%), linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86));
+  padding: clamp(0.65rem, 2.5vw, 0.9rem);
+  text-align: left;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 14px 28px rgba(0, 0, 0, 0.2);
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+button.owner-summary-tile:hover,
+button.owner-summary-tile:focus-visible {
+  border-color: rgba(34, 211, 238, 0.34);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.26);
+  transform: translateY(-1px);
+}
+
+.owner-summary-wash {
+  position: absolute;
+  inset: -35% auto auto -14%;
+  width: 58%;
+  max-width: 15rem;
+  opacity: 0.28;
+  filter: blur(24px) saturate(1.35);
+  transform: scale(1.25);
+}
+
+.owner-summary-mark {
+  position: absolute;
+  right: -0.8rem;
+  top: -1.3rem;
+  width: 8.5rem;
+  max-width: 42%;
+  opacity: 0.12;
+  filter: blur(1px) saturate(1.2);
+  transform: rotate(-8deg);
+}
+
+.owner-summary-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(2, 6, 23, 0.16), rgba(2, 6, 23, 0.64)), linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.22));
+}
+
+.owner-summary-main,
+.owner-summary-metrics {
+  position: relative;
+  z-index: 1;
+}
+
+.owner-summary-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: clamp(0.42rem, 2vw, 0.7rem);
+}
+
+.owner-summary-avatar-frame,
+.command-depth-champion,
+.manager-command-champion-frame,
+.manager-draft-champion-frame {
+  flex: 0 0 auto;
+}
+
+.owner-summary-avatar {
+  display: inline-flex;
+  height: clamp(2.2rem, 10vw, 2.9rem);
+  width: clamp(2.2rem, 10vw, 2.9rem);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.34);
+  border-radius: 0.85rem;
+  background: rgba(2, 6, 23, 0.66);
+  color: #fb923c;
+  font-size: 1rem;
+  font-weight: 950;
+  object-fit: cover;
+}
+
+.owner-summary-name-lockup {
+  display: grid;
+  min-width: 0;
+  gap: 0.28rem;
+}
+
+.owner-summary-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: clamp(0.82rem, 3.2vw, 1.08rem);
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owner-summary-championships .manager-championship-pill,
+.command-depth-championships .manager-championship-pill,
+.manager-command-championships .manager-championship-pill {
+  max-width: 6.8rem;
+  font-size: 0.5rem;
+}
+
+.owner-summary-metrics {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  gap: 0.38rem;
+}
+
+.owner-metric-pill {
+  display: inline-grid;
+  max-width: 100%;
+  min-height: 1.48rem;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid rgba(34, 211, 238, 0.17);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.5);
+  padding: 0.2rem 0.5rem;
+  color: #cbd5e1;
+  font-size: 0.64rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.owner-metric-pill > span {
+  color: #67e8f9;
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.owner-metric-pill > strong {
+  min-width: 0;
+  color: #f8fafc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owner-metric-pill-good {
+  border-color: rgba(52, 211, 153, 0.24);
+  background: rgba(6, 78, 59, 0.36);
+}
+
+.owner-metric-pill-good > strong {
+  color: #5eead4;
+}
+
+.owner-metric-pill-warn {
+  border-color: rgba(251, 146, 60, 0.26);
+  background: rgba(124, 45, 18, 0.32);
+}
+
+.owner-metric-pill-warn > strong {
+  color: #fdba74;
+}
+
+.owner-metric-pill-danger {
+  border-color: rgba(251, 113, 133, 0.28);
+  background: rgba(136, 19, 55, 0.26);
+}
+
+.owner-metric-pill-danger > strong {
+  color: #fb7185;
+}
+
+.owner-metric-pill-info > strong {
+  color: #67e8f9;
+}
+
+.owner-summary-tile .trade-habit-pill {
+  position: relative;
+  z-index: 1;
+  align-self: start;
+  font-size: 0.58rem;
+}
+
+.owner-summary-tile .partner-chip-reverse {
+  gap: 0.25rem;
+}
+
+.owner-summary-tile .partner-chip-reverse img,
+.owner-summary-tile .partner-chip-fallback {
+  height: 1.1rem;
+  width: 1.1rem;
+}
+
+@media (max-width: 520px) {
+  .player-tile-grid,
+  .owner-tile-grid,
+  .weekly-momentum-grid,
+  .trending-card-grid,
+  .manager-intel-player-grid,
+  .owner-intel-player-grid,
+  .manager-command-tile-grid,
+  .starter-grid {
+    gap: 0.52rem;
+  }
+
+  .owner-summary-tile {
+    min-height: 8.1rem;
+    border-radius: 0.9rem;
+    padding: 0.62rem;
+  }
+
+  .owner-summary-name {
+    font-size: clamp(0.72rem, 3.8vw, 0.95rem);
+  }
+
+  .owner-metric-pill {
+    padding-inline: 0.42rem;
+  }
+
+  .owner-metric-pill > span {
+    font-size: 0.5rem;
+  }
+
+  .recent-transaction-date-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.4rem;
+    padding-inline: 0.72rem;
+  }
+
+  .recent-transaction-day-pills {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 0.25rem;
+  }
+
+  .recent-transaction-day-pill {
+    min-height: 1.34rem;
+    padding-inline: 0.42rem;
+    font-size: 0.58rem;
+  }
+}
+
+/* Final table normalization overrides: keep the custom trade ledger aligned with the rest of the report tables. */
+.trade-ledger-card,
+.trade-profit-card,
+.report-card-polished {
+  max-width: 100%;
+}
+
+.trade-ledger-card [data-slot="table-container"],
+.trade-profit-card [data-slot="table-container"],
+.report-card-polished [data-slot="table-container"] {
+  max-width: 100%;
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+.trade-ledger-card [data-slot="table-container"]::-webkit-scrollbar,
+.trade-profit-card [data-slot="table-container"]::-webkit-scrollbar,
+.report-card-polished [data-slot="table-container"]::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+.trade-ledger-table,
+.trade-profit-table,
+.report-table-polished {
+  width: 100%;
+  max-width: 100%;
+}
+
+.trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
+.trade-profit-table [data-slot="table-header"] [data-slot="table-head"],
+.report-table-polished [data-slot="table-header"] [data-slot="table-head"] {
+  color: rgba(103, 232, 249, 0.86) !important;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+@media (min-width: 640px) {
+  .trade-ledger-table [data-slot="table-header"] {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"] {
+    grid-template-columns: minmax(0, 1fr) max-content !important;
+    gap: 0.75rem !important;
+    padding: 0.2rem 1rem 0.2rem !important;
+  }
+
+  .trade-ledger-table [data-slot="table-body"] {
+    margin-top: 0 !important;
+  }
+
+  .trade-year-row {
+    margin-top: 0 !important;
+  }
+
+  .trade-year-cell {
+    padding: 0.12rem 1rem 0.12rem !important;
+  }
+
+  .trade-year-toggle,
+  .trade-ledger-row {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .trade-ledger-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, max-content) !important;
+    margin-inline: 1rem !important;
+    width: calc(100% - 2rem) !important;
+  }
+
+  .trade-gap-cell {
+    max-width: 100%;
+  }
+
+  .trade-gap-cell .trade-gap-verdict {
+    max-width: clamp(4.8rem, 12vw, 7rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 639px) {
+  .trade-ledger-card [data-slot="table-container"],
+  .trade-profit-card [data-slot="table-container"],
+  .report-card-polished [data-slot="table-container"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overscroll-behavior-x: auto;
+    touch-action: auto;
+  }
+
+  .pick-portfolio-table,
+  .draft-efficiency-table,
+  .rookie-draft-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    padding-inline: 0 !important;
+  }
+
+  .pick-portfolio-table [data-slot="table-head"],
+  .pick-portfolio-table [data-slot="table-cell"],
+  .draft-efficiency-table [data-slot="table-head"],
+  .draft-efficiency-table [data-slot="table-cell"],
+  .rookie-draft-table [data-slot="table-head"],
+  .rookie-draft-table [data-slot="table-cell"] {
+    min-width: 0 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pick-portfolio-table [data-slot="table-head"]:nth-child(1),
+  .pick-portfolio-table [data-slot="table-cell"]:nth-child(1) {
+    width: 30%;
+  }
+
+  .pick-portfolio-table [data-slot="table-head"]:nth-child(2),
+  .pick-portfolio-table [data-slot="table-cell"]:nth-child(2),
+  .pick-portfolio-table [data-slot="table-head"]:nth-child(3),
+  .pick-portfolio-table [data-slot="table-cell"]:nth-child(3),
+  .pick-portfolio-table [data-slot="table-head"]:nth-child(4),
+  .pick-portfolio-table [data-slot="table-cell"]:nth-child(4) {
+    width: 13%;
+  }
+
+  .pick-portfolio-table [data-slot="table-head"]:nth-child(5),
+  .pick-portfolio-table [data-slot="table-cell"]:nth-child(5) {
+    width: 14%;
+  }
+
+  .pick-portfolio-table [data-slot="table-head"]:nth-child(6),
+  .pick-portfolio-table [data-slot="table-cell"]:nth-child(6) {
+    width: 17%;
+  }
+
+  .pick-portfolio-table [data-slot="table-cell"],
+  .draft-efficiency-table [data-slot="table-cell"],
+  .rookie-draft-table [data-slot="table-cell"] {
+    vertical-align: middle;
+  }
+
+  .pick-portfolio-table .manager-chip {
+    gap: 0.32rem;
+    min-width: 0;
+  }
+
+  .pick-portfolio-table .manager-chip img,
+  .pick-portfolio-table .manager-chip > span[aria-hidden="true"] {
+    height: 1.55rem;
+    width: 1.55rem;
+  }
+
+  .pick-portfolio-table .manager-chip > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    font-size: clamp(0.58rem, 2.4vw, 0.72rem);
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pick-portfolio-table [data-slot="table-cell"]:nth-child(n + 2),
+  .draft-efficiency-table [data-slot="table-cell"]:nth-child(n + 2),
+  .rookie-draft-table [data-slot="table-cell"]:nth-child(n + 4) {
+    white-space: nowrap;
+  }
+
+  .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"] {
+    padding: 0.12rem 0.12rem 0.18rem !important;
+  }
+
+  .trade-year-cell {
+    padding: 0.08rem 0 0.1rem !important;
+  }
+
+  .trade-ledger-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, max-content) !important;
+    margin-inline: 0 !important;
+    width: 100% !important;
+  }
+
+  .rookie-draft-row-shell {
+    width: 100%;
+    padding-inline: 0;
+  }
+
+  .rookie-draft-row-header {
+    display: none;
+  }
+
+  .rookie-draft-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: flex-start;
+    position: relative;
+    gap: 0.28rem 0.28rem;
+    min-height: auto;
+    overflow: hidden;
+    padding: 0.54rem 3rem 0.58rem 0.62rem;
+  }
+
+  .rookie-draft-player-cell {
+    grid-column: 1 / -1;
+    min-width: 0;
+    padding-right: min(12rem, 52vw);
+  }
+
+  .rookie-draft-team-cell {
+    display: none;
+  }
+
+  .rookie-draft-manager-cell {
+    position: absolute;
+    right: 0.48rem;
+    bottom: 0.5rem;
+    min-width: 0;
+    z-index: 2;
+  }
+
+  .rookie-draft-pick-cell {
+    position: absolute;
+    top: 0.52rem;
+    right: 0.55rem;
+    z-index: 3;
+    min-width: 2rem;
+    min-height: 1.38rem;
+  }
+
+  .rookie-draft-rank-cell-draft {
+    grid-column: 1;
+  }
+
+  .rookie-draft-rank-cell-current {
+    grid-column: 3;
+  }
+
+  .rookie-draft-value-cell[data-label="Draft"] {
+    grid-column: 2;
+  }
+
+  .rookie-draft-value-cell[data-label="Now"] {
+    grid-column: 4;
+  }
+
+  .rookie-draft-change-cell {
+    position: absolute;
+    top: 0.36rem;
+    right: 3.08rem;
+    z-index: 3;
+    max-width: min(10.9rem, calc(100% - 4rem));
+    align-items: center;
+    gap: 0.42rem;
+  }
+
+  .rookie-draft-pick-cell,
+  .rookie-draft-rank-cell,
+  .rookie-draft-value-cell,
+  .rookie-draft-gain-cell {
+    justify-content: center;
+    width: max-content;
+    max-width: 100%;
+    min-height: 1.32rem;
+    padding: 0.16rem 0.36rem;
+    font-size: clamp(0.5rem, 2.08vw, 0.64rem);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.035em;
+  }
+
+  .rookie-draft-rank-cell,
+  .rookie-draft-value-cell {
+    min-width: 0;
+    justify-self: start;
+  }
+
+  .rookie-draft-rank-cell {
+    background: rgba(2, 6, 23, 0.72) !important;
+  }
+
+  .rookie-draft-value-cell {
+    justify-content: center;
+  }
+
+  .rookie-draft-pick-cell {
+    min-width: 0;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent !important;
+    padding: 0;
+    color: #67e8f9;
+    font-size: clamp(0.72rem, 2.9vw, 0.84rem);
+    letter-spacing: 0;
+    box-shadow: none;
+  }
+
+  .rookie-draft-age-cell {
+    display: none;
+  }
+
+  .rookie-draft-age-mobile {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5e1;
+    font-size: clamp(0.5rem, 2.08vw, 0.64rem);
+    font-variant-numeric: tabular-nums;
+    font-weight: 950;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .rookie-draft-value-cell::before,
+  .rookie-draft-rank-cell::before,
+  .rookie-draft-gain-cell::before {
+    content: attr(data-label);
+    margin-right: 0.16rem;
+    color: #67e8f9;
+    font-size: clamp(0.38rem, 1.65vw, 0.46rem);
+    font-weight: 950;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+  }
+
+  .rookie-draft-rank-cell-current::before {
+    content: "Now";
+  }
+
+  .rookie-draft-gain-cell::before {
+    content: none;
+    margin-right: 0;
+  }
+
+  .rookie-draft-player-cell .player-chip img,
+  .rookie-draft-player-cell .player-chip > span[aria-hidden="true"] {
+    width: 1.72rem;
+    height: 1.72rem;
+  }
+
+  .rookie-draft-player-cell .player-chip > span:last-child {
+    font-size: clamp(0.72rem, 3vw, 0.84rem);
+    line-height: 1.04;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rookie-draft-player-cell .draft-opportunity-note {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    width: calc(100% - 2.2rem);
+    margin-top: 0.02rem;
+    margin-left: 2.2rem;
+    line-height: 1.18;
+    white-space: normal;
+  }
+
+  .rookie-draft-manager-cell .manager-chip {
+    display: inline-flex;
+    width: auto;
+    max-width: 1.95rem;
+    gap: 0;
+  }
+
+  .rookie-draft-manager-cell .manager-chip img,
+  .rookie-draft-manager-cell .manager-chip > span[aria-hidden="true"] {
+    height: 1.85rem;
+    width: 1.85rem;
+    border-width: 2px;
+    box-shadow:
+      0 0 16px rgba(34, 211, 238, 0.24),
+      0 10px 18px rgba(0, 0, 0, 0.28);
+  }
+
+  .rookie-draft-manager-cell .manager-chip > span:last-child {
+    display: none;
+  }
+}
+
+/* Final report table header normalization: every tab gets the same compact header spacing. */
+.report-shell .report-card-polished,
+.report-shell .trade-tendencies-card,
+.report-shell .trade-ledger-card,
+.report-shell .trade-profit-card {
+  gap: 0 !important;
+}
+
+.report-shell .trade-tendencies-card,
+.report-shell .trade-ledger-card,
+.report-shell .trade-profit-card {
+  padding: 0.62rem !important;
+}
+
+.report-shell .report-table-polished,
+.report-shell .trending-players-table,
+.report-shell .trade-tendencies-table,
+.report-shell .trade-ledger-table,
+.report-shell .trade-profit-table {
+  border-spacing: 0 0.24rem !important;
+  margin-block: -0.24rem !important;
+}
+
+.report-shell .report-table-polished [data-slot="table-header"],
+.report-shell .trending-players-table [data-slot="table-header"],
+.report-shell .trade-tendencies-table [data-slot="table-header"],
+.report-shell .trade-ledger-table [data-slot="table-header"],
+.report-shell .trade-profit-table [data-slot="table-header"] {
+  border: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-row"],
+.report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-row"],
+.report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-row"],
+.report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"],
+.report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-row"] {
+  border: 0 !important;
+  margin: 0 !important;
+}
+
+.report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
+  height: auto !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0.18rem 0.38rem 0.24rem !important;
+  color: rgba(103, 232, 249, 0.9) !important;
+  font-size: 0.56rem !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase !important;
+  vertical-align: middle !important;
+  white-space: normal !important;
+}
+
+.report-shell .trade-ledger-table [data-slot="table-body"],
+.report-shell .trade-profit-table [data-slot="table-body"] {
+  margin-top: 0 !important;
+}
+
+.report-shell .trade-year-row {
+  margin-top: 0 !important;
+}
+
+.report-shell .trade-year-cell {
+  padding-top: 0.05rem !important;
+}
+
+@media (min-width: 640px) {
+  .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"],
+  .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-row"] {
+    padding: 0.14rem 0.38rem 0.2rem !important;
+  }
+
+  .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
+    padding: 0 !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell .trade-tendencies-card,
+  .report-shell .trade-ledger-card,
+  .report-shell .trade-profit-card {
+    padding: 0.5rem !important;
+  }
+
+  .report-shell .report-table-polished,
+  .report-shell .trending-players-table,
+  .report-shell .trade-tendencies-table,
+  .report-shell .trade-ledger-table,
+  .report-shell .trade-profit-table {
+    border-spacing: 0 0.22rem !important;
+    margin-block: -0.22rem !important;
+  }
+
+  .report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
+  .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
+    padding: 0.14rem 0.24rem 0.2rem !important;
+    font-size: 0.5rem !important;
+    letter-spacing: 0.13em !important;
+  }
+
+  .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"],
+  .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-row"] {
+    padding: 0.1rem 0.18rem 0.16rem !important;
+  }
+
+  .report-shell .trade-detail-panel .trade-side-header {
+    gap: 0.55rem !important;
+    grid-template-columns: minmax(4.7rem, 1fr) minmax(0, 1.1fr) minmax(4.7rem, 1fr);
+  }
+
+  .report-shell .trade-detail-panel .trade-side-header .trade-side-manager {
+    display: inline-flex !important;
+    font-size: clamp(0.66rem, 2.7vw, 0.78rem);
+  }
+
+  .report-shell .trade-detail-panel .trade-side-manager img,
+  .report-shell .trade-detail-panel .trade-side-manager > .trade-mobile-avatar-wrap > span[aria-hidden="true"] {
+    height: 1.55rem;
+    width: 1.55rem;
+  }
+
+  .report-shell .trade-detail-panel .trade-side-manager-lockup {
+    gap: 0.16rem;
+  }
+}
+
+/* 2026-05-01 audit pass: one layout contract for report tabs, owner tiles, player tiles, and table headers. */
+.report-shell > .flex-1 {
+  width: min(100%, 90rem);
+  max-width: min(100%, 90rem) !important;
+  padding-inline: clamp(0.75rem, 2.4vw, 2.4rem) !important;
+}
+
+.report-shell .report-tabs {
+  width: min(100%, 72rem);
+  gap: clamp(0.32rem, 0.7vw, 0.5rem);
+  margin-bottom: clamp(1.25rem, 2.2vw, 2rem);
+}
+
+@media (min-width: 640px) {
+  .report-shell > .flex-1 {
+    padding-top: clamp(0.55rem, 1vw, 0.85rem) !important;
+  }
+
+  .report-shell .report-tabs {
+    margin-top: 0 !important;
+    position: relative !important;
+    top: auto !important;
+  }
+}
+
+.report-shell .report-tabs.report-tabs-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.report-shell .report-tabs.report-tabs-five {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+.report-shell .report-tab {
+  min-height: clamp(2.35rem, 4.2vw, 2.8rem);
+  gap: 0.42rem;
+  padding-inline: clamp(0.45rem, 1.1vw, 0.85rem);
+  font-size: clamp(0.72rem, 0.95vw, 0.92rem);
+  white-space: nowrap;
+}
+
+.report-shell .report-disclosure-summary {
+  max-width: min(100%, 42rem);
+  margin-bottom: clamp(0.35rem, 0.9vw, 0.7rem);
+}
+
+.report-shell .report-disclosure-summary p,
+.report-shell .command-feature-top p,
+.report-shell .manager-command-hero p,
+.report-shell .owner-intel-read-grid h4,
+.report-shell .manager-command-section h4,
+.report-shell .manager-command-grid h4 {
+  color: #67e8f9 !important;
+}
+
+.report-shell .report-disclosure-body {
+  margin-top: 0 !important;
+}
+
+.report-shell .report-disclosure-body-inner {
+  padding: var(--dd-report-content-y) var(--dd-report-content-x) clamp(0.72rem, 1.1vw, 1rem);
+}
+
+.report-shell .player-tile-grid,
+.report-shell .owner-tile-grid,
+.report-shell .weekly-momentum-grid,
+.report-shell .trending-card-grid,
+.report-shell .manager-intel-player-grid,
+.report-shell .owner-intel-player-grid,
+.report-shell .manager-command-tile-grid,
+.report-shell .starter-grid,
+.report-shell .command-depth-grid,
+.report-shell .rookie-draft-row-shell {
+  width: min(100%, 82rem);
+  gap: clamp(0.58rem, 1.25vw, 0.95rem);
+}
+
+.report-shell .command-depth-grid {
+  margin-inline: auto;
+}
+
+button.owner-summary-tile,
+button.command-depth-tile,
+button.player-team-tile,
+button.trade-theft-card,
+button.trade-manager-trade {
+  cursor: pointer;
+}
+
+.report-shell .owner-summary-tile,
+.report-shell .command-depth-tile {
+  min-height: clamp(8.5rem, 14vw, 10.35rem);
+  padding: clamp(0.78rem, 1.25vw, 1.05rem);
+}
+
+.report-shell .owner-summary-name,
+.report-shell .command-depth-name {
+  font-size: clamp(0.92rem, 1.35vw, 1.2rem);
+}
+
+.report-shell .owner-summary-avatar,
+.report-shell .command-depth-avatar {
+  height: clamp(2.55rem, 4.2vw, 3.35rem);
+  width: clamp(2.55rem, 4.2vw, 3.35rem);
+}
+
+.report-shell .owner-summary-metrics,
+.report-shell .command-depth-badges {
+  gap: clamp(0.32rem, 0.7vw, 0.48rem);
+}
+
+.report-shell .owner-metric-pill,
+.report-shell .command-mini-badge,
+.report-shell .trade-habit-pill,
+.report-shell .manager-intel-pill {
+  min-height: 1.55rem;
+  padding-inline: clamp(0.46rem, 0.75vw, 0.66rem);
+}
+
+.report-shell .player-team-tile,
+.report-shell .trade-theft-card {
+  min-width: 0;
+  touch-action: manipulation;
+}
+
+.report-shell .weekly-momentum-tile,
+.report-shell .trending-player-card,
+.report-shell .trade-market-card,
+.report-shell .waiver-intel-card,
+.report-shell .projected-mover-tile,
+.report-shell .rookie-player-tile {
+  min-height: clamp(8.35rem, 12vw, 10.2rem);
+  padding: clamp(0.72rem, 1.2vw, 1rem);
+}
+
+.report-shell .weekly-momentum-player .player-chip > span:last-child,
+.report-shell .trending-player-card-main .player-chip > span:last-child,
+.report-shell .trade-market-main .player-chip > span:last-child,
+.report-shell .player-tile-main .player-chip > span:last-child {
+  font-family: var(--font-athletic);
+  letter-spacing: 0;
+}
+
+.report-shell .trade-ledger-card,
+.report-shell .report-card-polished,
+.report-shell .command-feature-card {
+  border-color: rgba(34, 211, 238, 0.16) !important;
+  background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.08), transparent 34%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.09), transparent 36%), linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.82)) !important;
+}
+
+.report-shell .command-feature-card {
+  padding: var(--dd-report-panel-y) var(--dd-report-panel-x) !important;
+}
+
+.report-shell [data-slot="table-container"],
+.report-shell .overflow-x-auto,
+.report-shell .overflow-x-hidden {
+  max-height: none !important;
+  overflow: visible !important;
+  overscroll-behavior: auto !important;
+}
+
+.report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .rookie-draft-row-header span {
+  color: rgba(103, 232, 249, 0.94) !important;
+  font-size: clamp(0.54rem, 0.72vw, 0.66rem) !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.16em !important;
+}
+
+.report-shell .trade-ledger-card {
+  width: min(100%, 82rem);
+}
+
+.report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"] {
+  padding-inline: clamp(0.25rem, 1vw, 0.75rem) !important;
+}
+
+.report-shell .trade-ledger-row,
+.report-shell .trade-year-toggle,
+.report-shell .trade-detail-panel,
+.report-shell .trade-side,
+.report-shell .trade-asset,
+.report-shell .trade-asset-block {
+  max-width: 100%;
+}
+
+.report-shell .trade-asset-clickable {
+  cursor: pointer;
+}
+
+.owner-quick-modal .manager-command-hero {
+  padding-bottom: clamp(1.1rem, 2vw, 1.7rem);
+}
+
+.owner-quick-modal .owner-quick-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.owner-quick-modal .owner-quick-body {
+  padding-top: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .report-shell .owner-tile-grid,
+  .report-shell .command-depth-grid,
+  .report-shell .player-tile-grid,
+  .report-shell .weekly-momentum-grid,
+  .report-shell .trending-card-grid,
+  .report-shell .trade-market-grid,
+  .report-shell .waiver-intel-grid,
+  .report-shell .projected-movers-grid,
+  .report-shell .draft-efficiency-tile-grid,
+  .report-shell .trade-profit-tile-grid,
+  .report-shell .trade-tendency-tile-grid,
+  .report-shell .position-counts-tile-grid,
+  .report-shell .pick-portfolio-tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .report-shell .report-header .max-w-7xl {
+    max-width: min(100%, 90rem) !important;
+  }
+
+  .report-shell .report-tabs {
+    margin-top: 0.25rem;
+  }
+
+  .report-shell .trade-ledger-row {
+    min-height: 4.45rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell > .flex-1 {
+    padding-inline: 0.5rem !important;
+  }
+
+  .report-shell .report-tabs {
+    width: 100%;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 0.22rem;
+    padding: 0.25rem;
+  }
+
+  .report-shell .report-tab {
+    min-height: 2.15rem;
+    padding-inline: 0.18rem;
+    font-size: clamp(0.56rem, 2.58vw, 0.68rem);
+  }
+
+  .report-shell .owner-summary-tile,
+  .report-shell .command-depth-tile {
+    min-height: 8.35rem;
+    padding: 0.64rem;
+  }
+
+  .report-shell .owner-summary-name,
+  .report-shell .command-depth-name {
+    font-size: clamp(0.72rem, 3.45vw, 0.95rem);
+  }
+
+  .report-shell .owner-metric-pill > span,
+  .report-shell .command-mini-badge {
+    letter-spacing: 0.05em;
+  }
+
+  .report-shell .weekly-momentum-tile,
+  .report-shell .trending-player-card,
+  .report-shell .trade-market-card,
+  .report-shell .waiver-intel-card,
+  .report-shell .projected-mover-tile {
+    min-height: 8rem;
+    padding: 0.58rem;
+  }
+
+  .report-shell .weekly-momentum-player .player-chip img,
+  .report-shell .weekly-momentum-player .player-chip > span[aria-hidden="true"],
+  .report-shell .trending-player-card-main .player-chip img,
+  .report-shell .trending-player-card-main .player-chip > span[aria-hidden="true"],
+  .report-shell .trade-market-main .player-chip img,
+  .report-shell .trade-market-main .player-chip > span[aria-hidden="true"],
+  .report-shell .player-tile-main .player-chip img,
+  .report-shell .player-tile-main .player-chip > span[aria-hidden="true"] {
+    height: 2.1rem;
+    width: 2.1rem;
+  }
+
+  .report-shell .command-feature-top,
+  .report-shell .trade-manager-header,
+  .report-shell .manager-draft-title-lockup,
+  .report-shell .starter-modal-hero {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .report-shell .command-feature-top > div,
+  .report-shell .manager-command-title-lockup > div,
+  .report-shell .trade-manager-title-lockup > div {
+    text-align: center;
+  }
+
+  .report-shell .owner-intel-read-grid h4,
+  .report-shell .manager-command-section h4,
+  .report-shell .manager-command-grid h4,
+  .report-shell .manager-command-inline-read h4,
+  .report-shell .command-feature-top p,
+  .report-shell .command-feature-top h3,
+  .report-shell .owner-intel-section-note {
+    text-align: center;
+  }
+
+  .report-shell .owner-intel-read-grid p:not(.owner-intel-section-note),
+  .report-shell .manager-command-section > p:not(.owner-intel-section-note),
+  .report-shell .manager-command-grid p {
+    text-align: left;
+  }
+
+  .owner-quick-modal .owner-quick-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Desktop modal pass: use the full report canvas for click-through detail views. */
+[data-slot="dialog-overlay"] {
+  background: rgba(0, 0, 0, 0.72) !important;
+  z-index: 1000 !important;
+}
+
+.player-detail-modal-overlay {
+  background: rgba(0, 0, 0, 0.84) !important;
+  backdrop-filter: blur(3px);
+}
+
+[data-slot="dialog-content"] {
+  z-index: 1001 !important;
+}
+
+@media (min-width: 1024px) {
+  [data-slot="dialog-content"].manager-command-dialog,
+  [data-slot="dialog-content"].manager-draft-modal,
+  [data-slot="dialog-content"].trade-manager-modal,
+  [data-slot="dialog-content"].trade-detail-modal,
+  [data-slot="dialog-content"].full-trade-ledger-modal,
+  [data-slot="dialog-content"].starter-modal,
+  [data-slot="dialog-content"].player-detail-modal {
+    width: min(94vw, 82rem) !important;
+    max-width: min(94vw, 82rem) !important;
+  }
+
+  [data-slot="dialog-content"].owner-quick-modal {
+    width: min(90vw, 64rem) !important;
+    max-width: min(90vw, 64rem) !important;
+  }
+
+  [data-slot="dialog-content"].player-detail-modal {
+    max-height: min(90vh, 58rem) !important;
+  }
+
+  [data-slot="dialog-content"].player-detail-modal > div {
+    max-height: min(90vh, 58rem) !important;
+  }
+
+  [data-slot="dialog-content"].manager-command-dialog {
+    max-height: min(90vh, 58rem) !important;
+  }
+
+  .manager-command-modal-inner {
+    background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.1), transparent 34%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.1), transparent 34%), linear-gradient(135deg, #0f172a 0%, #020617 68%, #020617 100%) !important;
+    max-height: min(90vh, 58rem);
+  }
+
+  .manager-command-hero,
+  .trade-manager-modal-hero,
+  .manager-draft-hero {
+    background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.18), transparent 36%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.14), transparent 38%), linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98)) !important;
+    padding-inline: clamp(1.35rem, 2.4vw, 2rem);
+  }
+
+  .manager-command-hero {
+    grid-template-columns: minmax(24rem, 0.92fr) minmax(30rem, 1fr);
+    align-items: center;
+  }
+
+  .manager-command-title-lockup {
+    width: 100%;
+    max-width: 100%;
+    justify-content: start;
+    margin-inline: 0;
+    text-align: left;
+  }
+
+  .manager-command-hero h3 {
+    max-width: min(100%, 28rem);
+    font-size: clamp(2rem, 2.75vw, 3.05rem);
+  }
+
+  .manager-command-avatar {
+    height: 4.6rem;
+    width: 4.6rem;
+  }
+
+  .manager-command-hero-metrics {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .manager-command-hero-metrics > div {
+    min-height: 4.85rem;
+    padding: 0.85rem 0.95rem;
+  }
+
+  .manager-command-body {
+    background: radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.05), transparent 34%), linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+    gap: 1rem;
+    padding: 1.15rem 1.35rem 1.35rem;
+  }
+
+  .manager-command-tag-row,
+  .owner-intel-tags {
+    justify-content: center;
+  }
+
+  .manager-command-rank-summary,
+  .owner-intel-ranks {
+    justify-content: center;
+  }
+
+  .manager-command-score-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .manager-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .manager-command-section,
+  .manager-command-grid > div {
+    padding: 1rem;
+  }
+
+  .manager-command-tile-grid,
+  .owner-intel-player-grid,
+  .manager-intel-player-grid {
+    gap: 0.72rem;
+  }
+
+  .manager-command-grid .manager-command-tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .manager-command-player-tile,
+  .manager-command-empty-tile {
+    min-height: 8.25rem;
+    padding: 0.78rem;
+  }
+
+  .manager-command-player-tile-main .player-chip img,
+  .manager-command-player-tile-main .player-chip > span[aria-hidden="true"] {
+    height: 3.25rem;
+    width: 3.25rem;
+  }
+
+  .owner-intel-stat-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .owner-intel-player-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    width: 100%;
+  }
+
+  .owner-intel-player-grid .manager-intel-player {
+    min-height: 8.2rem;
+  }
+
+  .owner-intel-read-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.72rem;
+  }
+
+  .owner-intel-read-grid > .owner-intel-read-wide,
+  .owner-intel-read-grid > .owner-intel-roster-heat {
+    grid-column: span 2;
+  }
+
+  .owner-intel-wild-notes ul {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .trade-manager-modal .trade-manager-list {
+    max-height: min(58vh, 32rem);
+  }
+
+  .trade-manager-modal-inner,
+  [data-slot="dialog-content"].manager-draft-modal {
+    background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.1), transparent 34%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.1), transparent 34%), linear-gradient(135deg, #0f172a 0%, #020617 68%, #020617 100%) !important;
+  }
+
+  .trade-tendency-modal-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 1.1rem 1.25rem 1.25rem;
+  }
+
+  .trade-tendency-modal-body .trade-manager-stats,
+  .trade-tendency-modal-body .trade-tendency-swing-grid {
+    grid-column: 1 / -1;
+  }
+
+  .trade-manager-stats {
+    padding: 0;
+  }
+
+  .trade-tendency-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trade-detail-modal {
+    padding: 1.1rem !important;
+  }
+
+  .trade-detail-modal .manager-modal-close {
+    top: max(0.66rem, env(safe-area-inset-top));
+    right: max(0.66rem, env(safe-area-inset-right));
+  }
+
+  .trade-detail-modal .trade-detail-header {
+    padding-right: 3rem;
+  }
+
+  .trade-detail-modal .trade-detail-panel {
+    width: 100%;
+    max-width: none;
+  }
+
+  .manager-draft-modal > div {
+    max-height: min(88vh, 56rem) !important;
+  }
+
+  .manager-draft-title-lockup,
+  .trade-manager-title-lockup {
+    max-width: min(100%, 36rem);
+  }
+
+  .manager-draft-player-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100%;
+    max-width: none;
+  }
+
+  .starter-modal {
+    max-height: min(88vh, 56rem) !important;
+  }
+
+  .starter-modal-body {
+    overflow-y: auto;
+  }
+
+  .starter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100%;
+    max-width: none;
+  }
+
+  .player-detail-modal .max-w-xl {
+    max-width: min(100%, 74rem) !important;
+  }
+
+  .player-detail-modal .player-complete-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .player-detail-modal .player-complete-section-wide {
+    grid-column: 1 / -1;
+  }
+}
+
+/* 2026-05-02 mobile audit: keep owner/player names from fighting for the same line. */
+@media (max-width: 639px) {
+  .report-shell .trade-market-card {
+    display: grid;
+    min-height: 8.35rem;
+    grid-template-rows: auto 1fr auto;
+    gap: 0.42rem;
+  }
+
+  .report-shell .trade-market-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.4rem;
+  }
+
+  .report-shell .trade-market-signal {
+    min-height: 1.18rem;
+    padding: 0.18rem 0.34rem;
+    font-size: 0.52rem;
+    letter-spacing: 0.08em;
+  }
+
+  .report-shell .trade-market-change {
+    justify-self: end;
+    font-size: 0.86rem;
+    text-align: right;
+  }
+
+  .report-shell .trade-market-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 0.36rem;
+    margin-top: 0;
+  }
+
+  .report-shell .trade-market-player {
+    min-width: 0;
+  }
+
+  .report-shell .trade-market-player .player-chip {
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+  }
+
+  .report-shell .trade-market-player .player-chip > span:last-child {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 0.82rem;
+    line-height: 1.05;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .report-shell .trade-market-manager {
+    width: auto;
+    min-width: 0;
+    justify-self: end;
+    gap: 0;
+    max-width: min(100%, 9.2rem);
+    padding: 0;
+  }
+
+  .report-shell .trade-market-manager .manager-chip {
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+    align-items: center;
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+    gap: 0.28rem;
+  }
+
+  .report-shell .trade-market-manager .manager-chip img,
+  .report-shell .trade-market-manager .manager-chip > span[aria-hidden="true"] {
+    height: 1.28rem;
+    width: 1.28rem;
+  }
+
+  .report-shell .trade-market-manager .manager-chip > span:last-child {
+    max-width: 100%;
+    color: #e2e8f0;
+    font-size: 0.6rem;
+    font-weight: 900;
+    line-height: 1.08;
+    text-align: right;
+  }
+
+  .report-shell .trade-market-pills {
+    margin-top: 0.08rem;
+  }
+
+  .report-shell .trending-player-card-owner .manager-chip,
+  .report-shell .player-tile-owner .manager-chip {
+    max-width: 100%;
+  }
+
+  .report-shell .trending-player-card-owner .manager-chip > span:last-child,
+  .report-shell .player-tile-owner .manager-chip > span:last-child {
+    font-size: clamp(0.55rem, 2.25vw, 0.68rem);
+  }
+}
+
+/* 2026-05-02 audit cleanup: keep decorative art and nested card chrome inside their lanes. */
+.report-shell .command-depth-tile,
+.report-shell .owner-summary-tile {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  overflow: clip;
+  contain: paint;
+}
+
+.report-shell .command-depth-tile-wash,
+.report-shell .command-depth-tile-mark,
+.report-shell .owner-summary-wash,
+.report-shell .owner-summary-mark {
+  pointer-events: none;
+}
+
+.report-shell .command-depth-tile-wash,
+.report-shell .owner-summary-wash {
+  inset: 0 auto auto 0;
+  width: 45%;
+  transform: none;
+}
+
+.report-shell .command-depth-tile-mark,
+.report-shell .owner-summary-mark {
+  right: 0;
+  top: 0;
+  width: 38%;
+  transform: none;
+}
+
+.report-shell .manager-sacko-dunce {
+  right: 0;
+  top: 0;
+  transform: translate(26%, -30%) rotate(14deg);
+}
+
+.report-shell .trade-war-player-card,
+.report-shell .trade-war-selected-asset,
+.report-shell .trade-war-player-add,
+.report-shell .trade-war-selected-main,
+.report-shell .trade-war-player-name,
+.report-shell .trade-war-owner {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.report-shell .trade-war-player-add,
+.report-shell .trade-war-selected-main {
+  box-sizing: border-box;
+}
+
+@media (max-width: 639px) {
+  .report-shell .trade-war-player-add,
+  .report-shell .trade-war-selected-main {
+    gap: 0.35rem;
+  }
+
+  .report-shell .trade-war-player-pills {
+    gap: 0.24rem;
+  }
+
+  .report-shell .trade-war-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]) {
+    min-height: 1.18rem;
+    padding-inline: 0.34rem;
+    font-size: 0.58rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .admin-value-diagnostics {
+    border-radius: 0.85rem;
+  }
+
+  .admin-value-diagnostics-intro {
+    padding: 0.8rem 0.85rem;
+    font-size: 0.73rem;
+  }
+
+  .admin-blend-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 0.58rem;
+    padding: 0.7rem;
+  }
+
+  .admin-blend-summary-card {
+    padding: 0.76rem;
+    text-align: center;
+  }
+
+  .admin-blend-source-list {
+    justify-content: center;
+    gap: 0.32rem;
+  }
+
+  .admin-blend-source-pill {
+    padding-inline: 0.42rem;
+    font-size: 0.61rem;
+  }
+
+  .admin-blend-summary-card p {
+    font-size: 0.72rem;
+    text-align: center;
+  }
+
+  .admin-value-diagnostics-grid {
+    grid-template-columns: 1fr;
+    gap: 0.58rem;
+    padding: 0.7rem;
+  }
+
+  .admin-value-diagnostics-card {
+    padding: 0.72rem;
+  }
+
+  .admin-value-diagnostics-card-top {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .admin-value-diagnostics-card p {
+    font-size: 0.72rem;
+    text-align: center;
+  }
+}
+
+/* Non-desktop report alignment: mobile and tablet use one centered contract. */
+@media (max-width: 1023px) {
+  .report-shell .report-disclosure-summary,
+  .report-shell .report-disclosure-summary .mb-4,
+  .report-shell .report-disclosure-summary p,
+  .report-shell .report-disclosure-summary h3,
+  .report-shell .report-card-polished [data-slot="table-head"],
+  .report-shell .report-card-polished [data-slot="table-cell"],
+  .report-shell .trade-tendencies-table [data-slot="table-head"],
+  .report-shell .trade-tendencies-table [data-slot="table-cell"],
+  .report-shell .trade-profit-table [data-slot="table-head"],
+  .report-shell .trade-profit-table [data-slot="table-cell"],
+  .report-shell .position-counts-table [data-slot="table-head"],
+  .report-shell .position-counts-table [data-slot="table-cell"],
+  .report-shell .manager-command-hero,
+  .report-shell .manager-command-body,
+  .report-shell .owner-intel-card,
+  .report-shell .owner-summary-tile,
+  .report-shell .command-depth-tile,
+  .report-shell .manager-intel-player,
+  .report-shell .starter-player-tile,
+  .report-shell .starter-depth-signal-card,
+  .report-shell .starter-depth-read,
+  .report-shell .owner-intel-read-grid > div,
+  .report-shell .manager-command-section,
+  .report-shell .manager-command-grid > div {
+    text-align: center !important;
+  }
+
+  .report-shell .manager-command-title-lockup,
+  .report-shell .trade-manager-title-lockup,
+  .report-shell .manager-draft-title-lockup {
+    grid-template-columns: minmax(0, 1fr) !important;
+    justify-items: center !important;
+    width: min(100%, 38rem) !important;
+    max-width: calc(100% - 2.75rem) !important;
+    margin-inline: auto !important;
+    text-align: center !important;
+  }
+
+  .report-shell .manager-command-title-lockup > div,
+  .report-shell .trade-manager-title-lockup > div,
+  .report-shell .manager-draft-title-lockup > div {
+    text-align: center !important;
+  }
+
+  .report-shell .manager-command-hero h3,
+  .report-shell .trade-manager-title-lockup h3,
+  .report-shell .manager-draft-title-lockup h3 {
+    margin-inline: auto !important;
+    text-align: center !important;
+  }
+
+  .report-shell .manager-command-championships,
+  .report-shell .manager-championship-pills,
+  .report-shell .owner-intel-tags,
+  .report-shell .owner-intel-ranks,
+  .report-shell .owner-summary-main,
+  .report-shell .owner-summary-metrics,
+  .report-shell .command-depth-tile-main,
+  .report-shell .command-depth-badges,
+  .report-shell .manager-intel-player-pills,
+  .report-shell .starter-player-meta,
+  .report-shell .player-tile-pills,
+  .report-shell .trade-market-pills,
+  .report-shell .waiver-intel-pills,
+  .report-shell .recent-transaction-player-pills,
+  .report-shell .owner-intel-attack-list span,
+  .report-shell .owner-intel-value-map-grid button {
+    justify-content: center !important;
+    justify-items: center !important;
+    text-align: center !important;
+  }
+
+  .report-shell .owner-intel-header {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .report-shell .owner-summary-main,
+  .report-shell .command-depth-tile-main {
+    flex-direction: column;
+  }
+
+  .report-shell .owner-summary-name-lockup,
+  .report-shell .command-depth-name,
+  .report-shell .manager-intel-player-main,
+  .report-shell .starter-player-main {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .report-shell .manager-intel-player-main .player-chip,
+  .report-shell .starter-player-main .player-chip,
+  .report-shell .player-tile-main .player-chip,
+  .report-shell .trade-market-player .player-chip,
+  .report-shell .waiver-intel-main .player-chip,
+  .report-shell .recent-transaction-player-main .player-chip,
+  .report-shell .report-card-polished .manager-chip,
+  .report-shell .report-card-polished .player-chip {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .report-shell .manager-intel-player-main .player-chip > span:last-child,
+  .report-shell .starter-player-main .player-chip > span:last-child,
+  .report-shell .player-tile-main .player-chip > span:last-child {
+    text-align: center;
+  }
+
+  .report-shell .starter-player-meta strong {
+    margin-left: 0;
+  }
+
+  .report-shell .owner-intel-read-grid p:not(.owner-intel-section-note),
+  .report-shell .manager-command-section > p:not(.owner-intel-section-note),
+  .report-shell .manager-command-grid p,
+  .report-shell .starter-depth-read p,
+  .report-shell .owner-intel-wild-notes li {
+    text-align: center !important;
+  }
+
+  .report-shell .owner-intel-value-map-grid button {
+    grid-template-columns: minmax(0, 1fr);
+    border-radius: 0.85rem;
+  }
+
+  .manager-command-hero,
+  .trade-manager-header,
+  .manager-draft-hero,
+  .starter-modal-hero {
+    justify-content: center !important;
+    justify-items: center !important;
+    text-align: center !important;
+  }
+
+  .report-shell .starter-modal .starter-modal-hero {
+    justify-content: stretch !important;
+  }
+
+  .manager-command-title-lockup {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    justify-items: center !important;
+    gap: 0.85rem !important;
+    width: min(calc(100% - 2.75rem), 40rem) !important;
+    max-width: min(calc(100% - 2.75rem), 40rem) !important;
+    margin-inline: auto !important;
+    text-align: center !important;
+  }
+
+  .trade-manager-title-lockup,
+  .manager-draft-title-lockup {
+    justify-content: center !important;
+    justify-items: center !important;
+    margin-inline: auto !important;
+    max-width: calc(100% - 2.75rem) !important;
+    text-align: center !important;
+  }
+
+  .manager-command-title-lockup > div,
+  .trade-manager-title-lockup > div,
+  .manager-draft-title-lockup > div {
+    min-width: 0;
+    width: min(100%, calc(100vw - 7rem));
+    max-width: min(24rem, calc(100vw - 7rem));
+    justify-items: center !important;
+    text-align: center !important;
+  }
+
+  .manager-command-hero h3,
+  .trade-manager-title-lockup h3,
+  .manager-draft-title-lockup h3 {
+    margin-inline: auto !important;
+    text-align: center !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name {
+    max-width: min(100%, calc(100vw - 7rem)) !important;
+    overflow: visible !important;
+    font-size: clamp(1.02rem, 4.35vw, 1.56rem) !important;
+    letter-spacing: 0 !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-long {
+    font-size: clamp(0.82rem, 3.25vw, 1.12rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-xlong {
+    font-size: clamp(0.72rem, 2.72vw, 0.98rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-xxlong {
+    font-size: clamp(0.64rem, 2.32vw, 0.84rem) !important;
+  }
+
+  .report-shell .starter-modal .manager-command-hero-metrics.starter-modal-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: clamp(0.24rem, 1vw, 0.42rem) !important;
+    width: min(100%, 32rem) !important;
+    justify-self: center !important;
+  }
+
+  .report-shell .starter-modal .starter-modal-metrics > div {
+    min-height: 3.25rem !important;
+    border-radius: 0.72rem !important;
+    padding: clamp(0.4rem, 1.25vw, 0.55rem) clamp(0.24rem, 1vw, 0.45rem) !important;
+  }
+
+  .report-shell .starter-modal .starter-modal-metrics > div > div:first-child {
+    font-size: clamp(0.43rem, 1.45vw, 0.56rem) !important;
+    letter-spacing: 0.08em !important;
+    line-height: 1 !important;
+  }
+
+  .report-shell .starter-modal .starter-modal-metrics > div > div:last-child {
+    margin-top: 0.28rem !important;
+    font-size: clamp(0.86rem, 3vw, 1.12rem) !important;
+    line-height: 1 !important;
+  }
+
+  .report-shell .owner-intel-roster-heat {
+    text-align: center !important;
+  }
+
+  .report-shell .owner-intel-section-note,
+  .report-shell .manager-command-section .owner-intel-section-note {
+    max-width: 42rem;
+    margin-inline: auto;
+    text-align: center !important;
+  }
+
+  .report-shell .owner-intel-heat-grid,
+  .manager-command-section .owner-intel-heat-grid {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+    justify-content: center;
+    gap: clamp(0.25rem, 1.35vw, 0.55rem);
+    overflow: hidden;
+  }
+
+  .report-shell .owner-intel-heat-pill,
+  .manager-command-section .owner-intel-heat-pill {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 7.3rem;
+    justify-content: center;
+    padding: clamp(0.42rem, 1.4vw, 0.62rem) clamp(0.25rem, 1.1vw, 0.52rem);
+  }
+
+  .report-shell .owner-intel-heat-pill strong,
+  .manager-command-section .owner-intel-heat-pill strong {
+    font-size: clamp(0.5rem, 1.75vw, 0.66rem);
+    letter-spacing: 0.08em;
+    line-height: 1.05;
+    white-space: nowrap;
+  }
+
+  .report-shell .owner-intel-heat-pill em,
+  .manager-command-section .owner-intel-heat-pill em {
+    font-size: clamp(0.67rem, 2.1vw, 0.82rem);
+    line-height: 1.05;
+  }
+
+  .report-shell .owner-intel-heat-pill small,
+  .manager-command-section .owner-intel-heat-pill small {
+    font-size: clamp(0.52rem, 1.65vw, 0.66rem);
+    line-height: 1.05;
+    white-space: nowrap;
+  }
+
+  .report-shell .owner-intel-bench-player .player-chip {
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+
+  .report-shell .owner-intel-bench-player .player-chip > span:last-child {
+    text-align: left;
+  }
+
+  .report-shell .owner-intel-bench-player {
+    gap: 0.28rem;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.38rem 0.4rem;
+  }
+
+  .report-shell .owner-intel-bench-player .player-chip {
+    gap: 0.26rem;
+  }
+
+  .report-shell .owner-intel-bench-player .player-chip img,
+  .report-shell .owner-intel-bench-player .player-chip > span[aria-hidden="true"] {
+    height: 1.35rem;
+    width: 1.35rem;
+  }
+
+  .report-shell .owner-intel-bench-player .player-chip > span:last-child {
+    font-size: clamp(0.61rem, 1.8vw, 0.68rem);
+  }
+
+  .report-shell .owner-intel-bench-player-meta {
+    justify-content: flex-start;
+    gap: 0.24rem;
+  }
+
+  .report-shell .owner-intel-bench-player-value {
+    padding-inline: 0.34rem;
+    font-size: 0.58rem;
+  }
+
+  .report-shell .owner-intel-bench-player .position-rank-pill {
+    padding-inline: 0.34rem;
+    font-size: 0.58rem;
+  }
+
+  .report-shell .starter-depth-player-tile {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 0.34rem;
+    padding: 0.52rem 0.44rem;
+    text-align: center !important;
+  }
+
+  .report-shell .starter-depth-player-main .player-chip {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .report-shell .starter-depth-player-main .player-chip > span:last-child {
+    text-align: center;
+  }
+
+  .report-shell .starter-depth-player-meta {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  [data-slot="dialog-content"].manager-command-dialog,
+  [data-slot="dialog-content"].owner-quick-modal,
+  [data-slot="dialog-content"].manager-draft-modal,
+  [data-slot="dialog-content"].trade-manager-modal,
+  [data-slot="dialog-content"].trade-detail-modal,
+  [data-slot="dialog-content"].full-trade-ledger-modal,
+  [data-slot="dialog-content"].starter-modal,
+  [data-slot="dialog-content"].player-detail-modal {
+    width: min(calc(100vw - 1.5rem), 60rem) !important;
+    max-width: min(calc(100vw - 1.5rem), 60rem) !important;
+  }
+
+  .manager-command-body,
+  .owner-quick-modal .owner-quick-body,
+  .starter-modal-body,
+  .trade-tendency-modal-body {
+    padding-inline: clamp(1rem, 2.8vw, 1.45rem);
+  }
+
+  .owner-intel-read-grid {
+    gap: clamp(0.55rem, 1.5vw, 0.78rem);
+  }
+
+  .manager-command-hero h3.manager-modal-name {
+    max-width: min(100%, calc(100vw - 10rem)) !important;
+    font-size: clamp(1.25rem, 3.15vw, 1.86rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-long {
+    font-size: clamp(1.08rem, 2.55vw, 1.55rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-xlong {
+    font-size: clamp(0.98rem, 2.15vw, 1.34rem) !important;
+  }
+
+  .manager-command-hero h3.manager-modal-name-xxlong {
+    font-size: clamp(0.9rem, 1.9vw, 1.16rem) !important;
+  }
+}
+
+[data-slot="dialog-content"].owner-intel-dialog {
+  width: min(calc(100vw - 0.75rem), 82rem) !important;
+  max-width: min(calc(100vw - 0.75rem), 82rem) !important;
+  overflow: hidden !important;
+}
+
+.owner-intel-dialog,
+.owner-intel-dialog .manager-command-modal-inner,
+.owner-intel-dialog .manager-command-hero,
+.owner-intel-dialog .manager-command-body,
+.owner-intel-dialog .owner-intel-stat-grid,
+.owner-intel-dialog .owner-intel-full-rank-panel,
+.owner-intel-dialog .owner-intel-full-rank-grid,
+.owner-intel-dialog .owner-intel-player-grid,
+.owner-intel-dialog .owner-intel-read-grid,
+.owner-intel-dialog .owner-intel-heat-grid,
+.owner-intel-dialog .owner-intel-value-map-grid,
+.owner-intel-dialog .owner-intel-bench-list,
+.owner-intel-dialog .owner-intel-wild-notes ul {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.owner-intel-dialog .manager-command-modal-inner,
+.owner-intel-dialog .manager-command-hero,
+.owner-intel-dialog .manager-command-body,
+.owner-intel-dialog .owner-intel-full-rank-panel,
+.owner-intel-dialog .owner-intel-player-grid,
+.owner-intel-dialog .owner-intel-read-grid,
+.owner-intel-dialog .owner-intel-heat-grid {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+.owner-intel-dialog .manager-command-body {
+  overflow-y: auto;
+}
+
+.owner-intel-dialog .owner-intel-heat-grid,
+.owner-intel-dialog .owner-intel-full-rank-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(0.22rem, 1.15vw, 0.48rem);
+}
+
+.owner-intel-dialog .owner-intel-heat-pill {
+  min-width: 0;
+  max-width: none;
+  gap: 0.12rem;
+  padding: clamp(0.44rem, 1.35vw, 0.64rem) clamp(0.22rem, 1vw, 0.48rem);
+}
+
+.owner-intel-dialog .owner-intel-heat-pill strong,
+.owner-intel-dialog .owner-intel-heat-pill small {
+  min-width: 0;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.owner-intel-dialog .owner-intel-heat-pill strong {
+  font-size: clamp(0.48rem, 1.65vw, 0.66rem);
+  letter-spacing: 0.07em;
+}
+
+.owner-intel-dialog .owner-intel-heat-pill em {
+  font-size: clamp(0.78rem, 2.25vw, 0.96rem);
+  line-height: 1;
+}
+
+.owner-intel-dialog .owner-intel-heat-pill small {
+  font-size: clamp(0.52rem, 1.7vw, 0.66rem);
+}
+
+.owner-intel-dialog .owner-intel-comparison-heading {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+}
+
+.owner-intel-dialog .owner-intel-comparison-heading small {
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.34);
+  padding: 0.16rem 0.42rem;
+  color: rgba(103, 232, 249, 0.78);
+  font-size: clamp(0.48rem, 1.5vw, 0.56rem);
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.owner-intel-dialog .owner-intel-tags,
+.owner-intel-dialog .owner-intel-player-grid > *,
+.owner-intel-dialog .owner-intel-read-grid > *,
+.owner-intel-dialog .owner-intel-wild-notes li,
+.owner-intel-dialog .owner-intel-value-map-grid button,
+.owner-intel-dialog .owner-intel-bench-row,
+.owner-intel-dialog .owner-intel-bench-player-stack,
+.owner-intel-dialog .owner-intel-bench-player {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.owner-intel-dialog .owner-intel-value-map-grid span:not(.position-rank-pill) small,
+.owner-intel-dialog .owner-intel-value-map-grid span:not(.position-rank-pill) em {
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* Shared report component system: manager headers, disclosure headers, and player tiles use one contract. */
+.report-shell,
+.manager-command-dialog,
+.owner-quick-modal,
+.manager-draft-modal,
+.starter-modal,
+.trade-manager-modal,
+.full-trade-ledger-modal {
+  --report-panel-radius: 0.95rem;
+  --report-tile-radius: 0.95rem;
+  --report-tile-padding: 0.78rem;
+  --report-tile-gap: 0.56rem;
+  --report-chip-font-size: 0.62rem;
+  --report-kicker-font-size: 0.62rem;
+  --report-manager-avatar-size: 4rem;
+  --report-manager-title-size: 2.35rem;
+  --report-manager-title-long-size: 2rem;
+  --report-manager-title-xlong-size: 1.72rem;
+  --report-manager-title-xxlong-size: 1.5rem;
+  --report-owner-card-name-size: 1.04rem;
+  --report-player-name-size: 0.96rem;
+}
+
+.report-shell :is(.report-card-polished, .trade-ledger-card, .trade-profit-card, .trade-tendencies-card, .command-feature-card),
+[data-slot="dialog-content"]:is(.manager-command-dialog, .owner-quick-modal, .manager-draft-modal, .starter-modal, .trade-manager-modal, .full-trade-ledger-modal) {
+  border-radius: var(--report-panel-radius);
+}
+
+.report-shell :is(.report-disclosure-summary, .command-feature-top) {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.report-shell :is(.report-disclosure-summary p, .command-feature-top p, .manager-command-hero p, .manager-draft-title-lockup p, .trade-manager-title-lockup p),
+.report-shell :is(.manager-command-section h4, .manager-command-grid h4, .owner-intel-read-grid h4) {
+  font-size: var(--report-kicker-font-size) !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase !important;
+}
+
+.report-shell :is(.report-disclosure-summary h3, .command-feature-top h3) {
+  font-family: var(--font-athletic);
+  letter-spacing: 0;
+  line-height: 0.96;
+  text-align: center;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) > div {
+  display: grid;
+  min-width: 0;
+  justify-items: inherit;
+  gap: 0.16rem;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name, h3, [data-slot="dialog-title"]) {
+  max-width: 100%;
+  overflow: visible !important;
+  color: #fb923c;
+  font-family: var(--font-athletic);
+  font-size: var(--report-manager-title-size) !important;
+  font-weight: 950;
+  letter-spacing: 0 !important;
+  line-height: 0.94;
+  text-overflow: clip !important;
+  text-transform: uppercase;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  white-space: normal !important;
+}
+
+.manager-command-hero .manager-command-title-lockup h3.manager-modal-name,
+.manager-draft-title-lockup [data-slot="dialog-title"].manager-modal-name,
+.trade-manager-title-lockup h3.manager-modal-name {
+  font-size: var(--report-manager-title-size) !important;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name-long),
+.manager-command-hero .manager-command-title-lockup h3.manager-modal-name-long,
+.manager-draft-title-lockup [data-slot="dialog-title"].manager-modal-name-long,
+.trade-manager-title-lockup h3.manager-modal-name-long {
+  font-size: var(--report-manager-title-long-size) !important;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name-xlong),
+.manager-command-hero .manager-command-title-lockup h3.manager-modal-name-xlong,
+.manager-draft-title-lockup [data-slot="dialog-title"].manager-modal-name-xlong,
+.trade-manager-title-lockup h3.manager-modal-name-xlong {
+  font-size: var(--report-manager-title-xlong-size) !important;
+}
+
+:is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name-xxlong),
+.manager-command-hero .manager-command-title-lockup h3.manager-modal-name-xxlong,
+.manager-draft-title-lockup [data-slot="dialog-title"].manager-modal-name-xxlong,
+.trade-manager-title-lockup h3.manager-modal-name-xxlong {
+  font-size: var(--report-manager-title-xxlong-size) !important;
+}
+
+:is(.manager-command-avatar, .manager-draft-champion-frame, .manager-draft-champion-avatar) {
+  height: var(--report-manager-avatar-size);
+  width: var(--report-manager-avatar-size);
+}
+
+.report-shell :is(.owner-summary-name, .command-depth-name),
+.report-shell :is(.manager-intel-player-main, .starter-player-main, .starter-depth-player-main, .weekly-momentum-player, .trending-player-card-main, .waiver-intel-main, .trade-market-player, .recent-transaction-player-main, .player-tile-main) .player-chip > span:last-child {
+  min-width: 0;
+  overflow: visible;
+  font-family: var(--font-athletic);
+  letter-spacing: 0;
+  line-height: 1.04;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.report-shell :is(.owner-summary-name, .command-depth-name) {
+  font-size: var(--report-owner-card-name-size);
+  text-align: inherit;
+}
+
+.report-shell :is(.manager-intel-player-main, .starter-player-main, .starter-depth-player-main, .weekly-momentum-player, .trending-player-card-main, .waiver-intel-main, .trade-market-player, .recent-transaction-player-main, .player-tile-main) .player-chip > span:last-child {
+  font-size: var(--report-player-name-size);
+}
+
+.report-shell :is(.player-team-tile, .owner-summary-tile, .command-depth-tile, .weekly-momentum-tile, .trending-player-card, .trade-market-card, .waiver-intel-card, .projected-mover-tile, .rookie-player-tile, .recent-transaction-player, .manager-intel-player, .starter-player-tile, .starter-depth-player-tile, .manager-command-player-tile) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: var(--report-tile-radius);
+}
+
+.report-shell :is(.weekly-momentum-tile, .trending-player-card, .trade-market-card, .waiver-intel-card, .projected-mover-tile, .rookie-player-tile, .recent-transaction-player, .manager-intel-player, .starter-player-tile, .starter-depth-player-tile, .manager-command-player-tile) {
+  gap: var(--report-tile-gap);
+  padding: var(--report-tile-padding);
+}
+
+.report-shell :is(.owner-metric-pill, .command-mini-badge, .trade-habit-pill, .manager-intel-pill, .weekly-momentum-pills span, .weekly-momentum-values span, .trending-player-card-pills span, .waiver-intel-pills span, .player-tile-pills span, .recent-transaction-player-pills span, .position-rank-pill, .value-pill) {
+  font-size: var(--report-chip-font-size);
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.report-shell :is([data-slot="table-container"], .overflow-x-auto, .overflow-x-hidden, .report-card-polished, .trade-ledger-card, .trade-profit-card, .trade-tendencies-card) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 2026 consistency pass: shared report type, pill, alignment, and stacked-row rhythm. */
+.report-shell :is(.report-section-kicker, .rankings-kicker, .draftbuzz-scoreboard__header .rankings-kicker, .report-disclosure-summary p, .player-modal-section-kicker, .recent-transaction-player-label, .trade-market-signal, .waiver-intel-label) {
+  font-size: var(--report-kicker-font-size) !important;
+  font-weight: 1000 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.report-shell :is(.report-metric-pill, .owner-metric-pill, .command-mini-badge, .trade-habit-pill, .manager-intel-pill, .weekly-momentum-pills span, .weekly-momentum-values span, .trending-player-card-pills span, .trade-market-pills span, .waiver-intel-pills span, .player-tile-pills span, .recent-transaction-player-pills span, .rankings-active-profile, .ranking-card-rank-pill, .ranking-trend-pill, .position-rank-pill, .value-pill) {
+  min-height: 1.42rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.report-shell :is(.weekly-momentum-delta, .trade-market-change, .draftbuzz-table__score, .value-board__value, .value-board__movement, .recent-transaction-meta strong, .rookie-draft-value-cell, .rookie-draft-gain-cell) {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.report-shell :is(.report-player-identity-row, .player-chip, .manager-chip, .report-manager-badge, .recent-transaction-manager, .trade-market-manager) {
+  min-width: 0;
+}
+
+.report-shell :is(.mobile-stacked-row, .value-board__mobile-card) {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .report-shell :is(.manager-command-title-lockup, .trade-manager-title-lockup) {
+    justify-content: flex-start;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .report-shell .manager-draft-title-lockup {
+    justify-content: center;
+    justify-items: center;
+    text-align: center;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .report-shell,
+  .manager-command-dialog,
+  .owner-quick-modal,
+  .manager-draft-modal,
+  .starter-modal,
+  .trade-manager-modal {
+    --report-manager-avatar-size: 3.6rem;
+    --report-manager-title-size: 1.9rem;
+    --report-manager-title-long-size: 1.58rem;
+    --report-manager-title-xlong-size: 1.36rem;
+    --report-manager-title-xxlong-size: 1.12rem;
+    --report-owner-card-name-size: 1rem;
+    --report-player-name-size: 0.92rem;
+  }
+
+  :is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) {
+    justify-content: center !important;
+    justify-items: center !important;
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell,
+  .manager-command-dialog,
+  .owner-quick-modal,
+  .manager-draft-modal,
+  .starter-modal,
+  .trade-manager-modal {
+    --report-tile-padding: 0.58rem;
+    --report-tile-gap: 0.42rem;
+    --report-chip-font-size: 0.58rem;
+    --report-kicker-font-size: 0.56rem;
+    --report-manager-avatar-size: 3.15rem;
+    --report-manager-title-size: 1.54rem;
+    --report-manager-title-long-size: 1.2rem;
+    --report-manager-title-xlong-size: 1rem;
+    --report-manager-title-xxlong-size: 0.84rem;
+    --report-owner-card-name-size: 0.96rem;
+    --report-player-name-size: 0.84rem;
+  }
+
+  :is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) {
+    width: min(100%, calc(100vw - 1.5rem)) !important;
+    max-width: min(100%, calc(100vw - 1.5rem)) !important;
+    justify-content: center !important;
+    justify-items: center !important;
+    gap: 0.62rem !important;
+    text-align: center !important;
+  }
+
+  :is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) > div {
+    width: min(100%, calc(100vw - 6.25rem)) !important;
+    max-width: min(100%, calc(100vw - 6.25rem)) !important;
+    justify-items: center !important;
+    text-align: center !important;
+  }
+
+  :is(.manager-command-title-lockup, .manager-draft-title-lockup, .trade-manager-title-lockup) :is(.manager-modal-name, h3, [data-slot="dialog-title"]) {
+    overflow-wrap: anywhere;
+    text-align: center !important;
+  }
+}
+
+/* Rankings tab */
+.rankings-board {
+  display: grid;
+  width: 100%;
+  gap: clamp(1.2rem, 3vw, 1.8rem);
+  overflow-x: hidden;
+}
+
+.rankings-table-section {
+  display: grid;
+  min-width: 0;
+  gap: clamp(0.75rem, 2vw, 1rem);
+}
+
+.rankings-table-section + .rankings-table-section {
+  margin-top: clamp(0.5rem, 2vw, 1rem);
+  border-top: 1px solid rgba(34, 211, 238, 0.12);
+  padding-top: clamp(1rem, 3vw, 1.45rem);
+}
+
+.rankings-hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 1rem;
+  background: radial-gradient(circle at 0 0, rgba(249, 115, 22, 0.13), transparent 34%), radial-gradient(circle at 100% 0, rgba(34, 211, 238, 0.16), transparent 36%), rgba(2, 6, 23, 0.72);
+  padding: clamp(0.82rem, 2.2vw, 1.1rem);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.rankings-kicker,
+.rankings-result-count {
+  color: #67e8f9;
+  font-size: 0.68rem;
+  font-weight: 1000;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rankings-hero-panel h3 {
+  margin-top: 0.34rem;
+  color: #fb923c;
+  font-family: var(--font-heading);
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-weight: 1000;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.rankings-hero-panel p {
+  max-width: 54rem;
+  margin-top: 0.52rem;
+  color: #cbd5e1;
+  font-size: clamp(0.78rem, 1.7vw, 0.94rem);
+  font-weight: 780;
+  line-height: 1.42;
+}
+
+.rankings-active-profile {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.58rem;
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.34);
+  padding: 0.3rem 0.62rem;
+  color: #a5f3fc;
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rankings-source-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.42rem;
+}
+
+.rankings-source-summary span,
+.ranking-source-row span,
+.ranking-card-pills span,
+.ranking-owner-pill,
+.ranking-owner-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.54);
+  color: #c4f1ff;
+  font-size: 0.62rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rankings-source-summary span {
+  padding: 0.28rem 0.55rem;
+}
+
+.rankings-controls {
+  display: grid;
+  grid-template-columns:
+    minmax(11rem, 0.62fr) minmax(0, 1.28fr) minmax(13rem, 0.9fr)
+    auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.rankings-controls-devy {
+  grid-template-columns:
+    minmax(11rem, 0.56fr) minmax(0, 1.05fr) minmax(13rem, 0.86fr)
+    auto auto;
+}
+
+.rankings-league-type-control {
+  display: grid;
+  min-width: 0;
+  gap: 0.28rem;
+}
+
+.rankings-league-type-label {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 1000;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rankings-league-type-trigger {
+  width: 100% !important;
+  min-height: 2.18rem !important;
+  border: 1px solid rgba(251, 146, 60, 0.32) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(8, 47, 73, 0.62)), rgba(2, 6, 23, 0.82) !important;
+  padding-inline: 0.72rem !important;
+  color: #fed7aa !important;
+  font-size: 0.72rem !important;
+  font-weight: 1000 !important;
+  letter-spacing: 0.06em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 24px rgba(8, 47, 73, 0.14) !important;
+}
+
+.rankings-league-type-trigger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rankings-league-type-trigger:hover,
+.rankings-league-type-trigger:focus-visible {
+  border-color: rgba(251, 146, 60, 0.58) !important;
+  box-shadow:
+    0 0 0 3px rgba(34, 211, 238, 0.12),
+    0 12px 26px rgba(249, 115, 22, 0.12) !important;
+}
+
+.rankings-league-type-menu {
+  border-color: rgba(34, 211, 238, 0.24) !important;
+  background: radial-gradient(circle at 100% 0, rgba(34, 211, 238, 0.16), transparent 36%), rgba(2, 6, 23, 0.98) !important;
+  color: #e2e8f0 !important;
+}
+
+.rankings-league-type-option {
+  color: #e2e8f0 !important;
+  font-size: 0.74rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+}
+
+.rankings-control-group {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.34rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.rankings-class-toggle {
+  justify-content: flex-start;
+}
+
+.rankings-control-group button {
+  min-height: 2rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.68);
+  padding: 0.32rem 0.62rem;
+  color: #cbd5e1;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.rankings-control-group button:hover,
+.rankings-control-group button:focus-visible {
+  border-color: rgba(251, 146, 60, 0.42);
+  color: #fed7aa;
+}
+
+.rankings-control-group button.active {
+  border-color: rgba(251, 146, 60, 0.52);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.92), rgba(194, 65, 12, 0.82));
+  color: #fff7ed;
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.2);
+}
+
+.rankings-control-group .ranking-position-button {
+  min-width: 3.35rem;
+}
+
+.ranking-filter-label-compact {
+  display: none;
+}
+
+.rankings-control-group .ranking-position-button-overall:not(.active) {
+  border-color: rgba(251, 146, 60, 0.38);
+  background: rgba(251, 146, 60, 0.14);
+  color: #fdba74;
+}
+
+.rankings-control-group .ranking-position-button-qb:not(.active) {
+  border-color: rgba(244, 63, 94, 0.38);
+  background: rgba(244, 63, 94, 0.16);
+  color: #fb7185;
+}
+
+.rankings-control-group .ranking-position-button-rb:not(.active) {
+  border-color: rgba(52, 211, 153, 0.38);
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.rankings-control-group .ranking-position-button-wr:not(.active) {
+  border-color: rgba(96, 165, 250, 0.4);
+  background: rgba(59, 130, 246, 0.16);
+  color: #60a5fa;
+}
+
+.rankings-control-group .ranking-position-button-te:not(.active) {
+  border-color: rgba(251, 146, 60, 0.42);
+  background: rgba(251, 146, 60, 0.16);
+  color: #fdba74;
+}
+
+.rankings-control-group .ranking-position-button-qb.active {
+  border-color: rgba(244, 63, 94, 0.62);
+  background: linear-gradient(135deg, rgba(159, 18, 57, 0.92), rgba(76, 5, 25, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-rb.active {
+  border-color: rgba(16, 185, 129, 0.62);
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.9), rgba(6, 78, 59, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-wr.active {
+  border-color: rgba(59, 130, 246, 0.62);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(30, 58, 138, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-te.active {
+  border-color: rgba(251, 146, 60, 0.68);
+  background: linear-gradient(135deg, rgba(194, 65, 12, 0.92), rgba(67, 20, 7, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-pick.active {
+  border-color: rgba(168, 85, 247, 0.62);
+  background: linear-gradient(135deg, rgba(126, 34, 206, 0.9), rgba(59, 7, 100, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-pick.ranking-position-button-optional:not(.active) {
+  border-color: rgba(168, 85, 247, 0.42);
+  border-style: dashed;
+  color: #d8b4fe;
+}
+
+.rankings-search-wrap {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.42rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.56);
+  padding: 0.14rem 0.62rem;
+  color: #67e8f9;
+}
+
+.rankings-search-input {
+  height: 2rem;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: #e2e8f0 !important;
+  font-size: 0.78rem !important;
+  font-weight: 800;
+  box-shadow: none !important;
+}
+
+.rankings-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.rankings-podium-item {
+  display: grid;
+  gap: 0.22rem;
+  border: 1px solid rgba(251, 146, 60, 0.18);
+  border-radius: 0.9rem;
+  background: radial-gradient(circle at 0 0, rgba(251, 146, 60, 0.13), transparent 38%), rgba(2, 6, 23, 0.58);
+  padding: 0.68rem;
+  text-align: center;
+}
+
+.rankings-podium-item span {
+  color: #67e8f9;
+  font-size: 0.64rem;
+  font-weight: 1000;
+  letter-spacing: 0.12em;
+}
+
+.rankings-podium-item strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: clamp(0.8rem, 1.8vw, 1rem);
+  font-weight: 1000;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rankings-podium-item em {
+  color: #fb923c;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.rankings-result-count {
+  text-align: center;
+}
+
+.rankings-player-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.42rem;
+}
+
+.ranking-player-card {
+  display: flex;
+  min-height: 4.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.42rem clamp(0.42rem, 0.9vw, 0.78rem);
+  overflow: hidden;
+  padding: clamp(0.52rem, 1.15vw, 0.72rem) clamp(0.65rem, 1.4vw, 0.92rem);
+  text-align: left;
+}
+
+.ranking-player-card-devy {
+  border-color: color-mix(in srgb, var(--team-accent, #f59e0b) 42%, rgba(34, 211, 238, 0.2)) !important;
+}
+
+.ranking-card-meta-row-devy {
+  justify-content: flex-end;
+}
+
+.ranking-player-topline {
+  flex: 0 0 auto;
+}
+
+.ranking-player-main {
+  flex: 0 1 auto;
+}
+
+.ranking-card-meta-row {
+  flex: 0 0 auto;
+}
+
+.ranking-card-movement {
+  flex: 0 0 auto;
+}
+
+.ranking-source-row {
+  flex: 1 1 18rem;
+}
+
+.ranking-college-avatar-only {
+  display: inline-flex;
+  height: 2.15rem;
+  width: 2.15rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--team-accent, #f59e0b) 46%, rgba(34, 211, 238, 0.22));
+  background: rgba(2, 6, 23, 0.62);
+  object-fit: contain;
+  padding: 0.18rem;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--team-accent, #f59e0b) 18%, transparent);
+}
+
+.ranking-devy-class-pill {
+  min-height: 1.42rem;
+  border: 1px solid color-mix(in srgb, var(--team-accent, #f59e0b) 34%, rgba(251, 146, 60, 0.18));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--team-primary, #0f172a) 20%, rgba(2, 6, 23, 0.6));
+  padding: 0.18rem 0.48rem;
+  color: #fed7aa;
+  font-size: 0.6rem;
+  font-weight: 1000;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.ranking-player-topline,
+.ranking-card-meta-row,
+.ranking-card-movement {
+  display: flex;
+  width: max-content;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem;
+}
+
+.ranking-source-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.ranking-player-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: clamp(0.42rem, 0.9vw, 0.7rem);
+}
+
+.ranking-player-primary {
+  display: flex;
+  min-width: 8.5rem;
+  max-width: clamp(11rem, 24vw, 22rem);
+  align-items: center;
+  flex: 0 1 auto;
+  gap: 0.48rem;
+}
+
+.ranking-inline-value {
+  min-height: 1.42rem;
+  flex: 0 0 auto;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.72);
+  padding: 0.18rem 0.48rem;
+  color: #a5f3fc;
+  font-size: 0.62rem;
+  font-weight: 1000;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.ranking-overall-rank {
+  color: #67e8f9;
+  font-size: 0.86rem;
+  font-weight: 1000;
+  letter-spacing: 0.04em;
+}
+
+.ranking-movement-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0.16rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  padding: 0.22rem 0.5rem;
+  font-size: 0.64rem;
+  font-weight: 1000;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ranking-movement-pill svg {
+  flex: 0 0 auto;
+}
+
+.ranking-move-up {
+  border-color: rgba(52, 211, 153, 0.32);
+  background: rgba(16, 185, 129, 0.13);
+  color: #6ee7b7;
+}
+
+.ranking-move-down {
+  border-color: rgba(251, 113, 133, 0.32);
+  background: rgba(190, 18, 60, 0.13);
+  color: #fda4af;
+}
+
+.ranking-move-flat {
+  color: #94a3b8;
+}
+
+.ranking-player-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.ranking-player-primary .ranking-player-identity {
+  flex: 1 1 auto;
+}
+
+.ranking-player-identity .player-chip,
+.ranking-player-identity > span {
+  min-width: 0;
+  color: #f8fafc;
+  font-size: clamp(0.9rem, 2vw, 1.08rem);
+  font-weight: 1000;
+  line-height: 1.06;
+}
+
+.ranking-player-identity .player-chip > span:last-child,
+.ranking-player-identity > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-player-image {
+  height: 2rem;
+  width: 2rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 146, 60, 0.34);
+  object-fit: cover;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
+}
+
+.ranking-card-pills {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ranking-card-pills span,
+.ranking-owner-pill {
+  min-height: 1.42rem;
+  padding: 0.18rem 0.48rem;
+}
+
+.ranking-college-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  max-width: min(10rem, 45vw);
+  border-color: color-mix(in srgb, var(--team-accent, #f59e0b) 34%, rgba(251, 146, 60, 0.22)) !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #111827) 42%, rgba(2, 6, 23, 0.8)), color-mix(in srgb, var(--team-secondary, #0f172a) 30%, rgba(2, 6, 23, 0.84))) !important;
+  color: #fff7ed !important;
+  overflow: hidden;
+  padding-inline: 0.55rem !important;
+  text-overflow: ellipsis;
+}
+
+.ranking-college-pill img {
+  height: 1rem;
+  width: 1rem;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.ranking-college-pill-icon-only {
+  width: 2rem;
+  max-width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  justify-content: center;
+  gap: 0;
+  border-radius: 999px;
+  padding: 0 !important;
+}
+
+.ranking-college-pill-icon-only img {
+  height: 1.28rem;
+  width: 1.28rem;
+}
+
+.ranking-college-fallback-icon {
+  display: inline-flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  color: #fed7aa;
+  font-size: 0.58rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.ranking-owner-pill {
+  max-width: 8.5rem;
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: #fed7aa;
+  text-overflow: ellipsis;
+}
+
+.ranking-owner-chip {
+  max-width: 100%;
+  min-height: 1.72rem;
+  padding: 0.12rem 0.42rem 0.12rem 0.2rem;
+  color: #fed7aa;
+}
+
+.ranking-owner-chip .manager-chip {
+  gap: 0.36rem;
+  font-size: 0.66rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.ranking-owner-chip .manager-chip img,
+.ranking-owner-chip .manager-chip > span[aria-hidden="true"] {
+  height: 1.24rem !important;
+  width: 1.24rem !important;
+  font-size: 0.55rem;
+}
+
+.ranking-owner-chip .manager-chip > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-owner-avatar-only,
+.ranking-owner-avatar-fallback {
+  display: none;
+}
+
+.ranking-owner-pill-fa {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(6, 78, 59, 0.35);
+  color: #6ee7b7;
+}
+
+.ranking-source-row {
+  width: 100%;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  border-top: 0;
+  padding-top: 0;
+  opacity: 0.82;
+  overflow: visible;
+  row-gap: 0.24rem;
+}
+
+.ranking-source-row span {
+  min-height: 1.28rem;
+  flex: 0 0 auto;
+  padding: 0.16rem 0.42rem;
+  color: #a5f3fc;
+  font-size: 0.58rem;
+  white-space: nowrap;
+}
+
+.ranking-devy-line {
+  display: flex;
+  flex: 1 0 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.3rem;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--team-accent, #fed7aa) 54%, #e2e8f0);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ranking-devy-line span {
+  min-width: 0;
+  max-width: 16rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--team-accent, #f59e0b) 28%, rgba(34, 211, 238, 0.12));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--team-primary, #0f172a) 18%, rgba(2, 6, 23, 0.5));
+  padding: 0.22rem 0.52rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rankings-empty-state {
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 1rem;
+  background: rgba(2, 6, 23, 0.62);
+  padding: 1rem;
+  color: #cbd5e1;
+  font-weight: 850;
+  text-align: center;
+}
+
+.prospect-archive-loading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.9rem;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 0.8rem;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(14, 165, 233, 0.22), transparent 30%),
+    linear-gradient(135deg, rgba(2, 6, 23, 0.92), rgba(8, 47, 73, 0.62)),
+    rgba(2, 6, 23, 0.82);
+  padding: 0.9rem 1rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 40px rgba(2, 6, 23, 0.2);
+}
+
+.prospect-archive-loading__logo {
+  display: grid;
+  width: 3.4rem;
+  height: 3.4rem;
+  place-items: center;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.98);
+  box-shadow: 0 0 24px rgba(14, 165, 233, 0.22);
+}
+
+.prospect-archive-loading__logo img {
+  width: 2.65rem;
+  height: 2.65rem;
+  object-fit: contain;
+}
+
+.prospect-archive-loading__copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.prospect-archive-loading__copy span,
+.prospect-archive-loading__badges span {
+  color: #67e8f9;
+  font-size: 0.58rem;
+  font-weight: 1000;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.prospect-archive-loading__copy strong {
+  color: #fb923c;
+  font-size: clamp(1.15rem, 2.6vw, 1.72rem);
+  font-weight: 1000;
+  letter-spacing: 0;
+  line-height: 0.98;
+  text-transform: uppercase;
+}
+
+.prospect-archive-loading__copy p {
+  max-width: 44rem;
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.prospect-archive-loading__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.34rem;
+}
+
+.prospect-archive-loading__badges span {
+  min-height: 1.42rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.58);
+  padding: 0.14rem 0.5rem;
+  color: #a5f3fc;
+  font-size: 0.52rem;
+}
+
+.rankings-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.rankings-pagination button,
+.rankings-pagination span {
+  display: inline-flex;
+  min-height: 2.15rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.62);
+  padding: 0.28rem 0.72rem;
+  color: #c4f1ff;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rankings-pagination button:not(:disabled):hover,
+.rankings-pagination button:not(:disabled):focus-visible {
+  border-color: rgba(251, 146, 60, 0.42);
+  color: #fed7aa;
+}
+
+.rankings-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+@media (max-width: 1180px) {
+  .rankings-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rankings-search-wrap {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 767px) {
+  .prospect-archive-loading {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 0.62rem;
+    padding: 0.9rem 0.78rem;
+    text-align: center;
+  }
+
+  .prospect-archive-loading__logo {
+    width: 3.05rem;
+    height: 3.05rem;
+  }
+
+  .prospect-archive-loading__logo img {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+
+  .prospect-archive-loading__copy p {
+    font-size: 0.72rem;
+  }
+
+  .prospect-archive-loading__badges {
+    justify-content: center;
+  }
+
+  .rankings-hero-panel {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+
+  .rankings-source-summary {
+    justify-content: center;
+  }
+
+  .rankings-active-profile {
+    margin-inline: auto;
+  }
+
+  .rankings-controls {
+    grid-template-columns: minmax(6.6rem, 0.76fr) minmax(0, 1.24fr);
+    gap: 0.5rem 0.42rem;
+    align-items: end;
+  }
+
+  .rankings-search-wrap {
+    grid-column: 1 / -1;
+  }
+
+  .rankings-sort-toggle {
+    grid-column: 1 / -1;
+  }
+
+  .rankings-class-toggle {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  .rankings-league-type-control {
+    gap: 0;
+  }
+
+  .rankings-league-type-label {
+    position: absolute;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .rankings-league-type-trigger {
+    min-height: 2rem !important;
+    padding-inline: 0.62rem !important;
+    font-size: 0.64rem !important;
+  }
+
+  .rankings-control-group {
+    justify-content: center;
+  }
+
+  .rankings-position-toggle {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 0.26rem;
+  }
+
+  .rankings-controls-with-picks {
+    grid-template-columns: minmax(5.85rem, 0.68fr) minmax(0, 1.32fr);
+  }
+
+  .rankings-control-group button {
+    min-height: 1.82rem;
+    padding-inline: 0.46rem;
+    font-size: 0.58rem;
+  }
+
+  .rankings-control-group .ranking-position-button {
+    min-width: 2.35rem;
+  }
+
+  .rankings-controls-with-picks .rankings-control-group .ranking-position-button {
+    min-width: 2.02rem;
+  }
+
+  .ranking-filter-label-full {
+    display: none;
+  }
+
+  .ranking-filter-label-compact {
+    display: inline;
+  }
+
+  @media (max-width: 390px) {
+    .rankings-controls {
+      grid-template-columns: minmax(5.7rem, 0.68fr) minmax(0, 1.32fr);
+      gap: 0.46rem 0.34rem;
+    }
+
+    .rankings-league-type-trigger {
+      padding-inline: 0.5rem !important;
+      font-size: 0.58rem !important;
+    }
+
+    .rankings-position-toggle {
+      gap: 0.2rem;
+    }
+
+    .rankings-control-group .ranking-position-button {
+      min-width: 2.05rem;
+    }
+
+    .rankings-controls-with-picks .rankings-control-group .ranking-position-button {
+      min-width: 1.78rem;
+    }
+
+    .rankings-control-group button {
+      padding-inline: 0.34rem;
+      font-size: 0.54rem;
+    }
+  }
+
+  .rankings-podium,
+  .rankings-player-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ranking-player-card {
+    display: grid;
+    min-height: 4.95rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto 1fr;
+    gap: 0.22rem 0.48rem;
+    padding: 0.5rem 0.55rem;
+    text-align: left;
+  }
+
+  .ranking-player-topline {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    align-self: start;
+    justify-items: end;
+    justify-content: flex-end;
+    gap: 0.24rem;
+  }
+
+  .ranking-player-main {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 1 / 3;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.28rem;
+    padding-right: 3.9rem;
+  }
+
+  .ranking-player-primary {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ranking-card-movement {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    justify-content: flex-end;
+  }
+
+  .ranking-card-meta-row {
+    grid-column: 2;
+    grid-row: 3;
+    align-self: end;
+    justify-content: flex-end;
+  }
+
+  .ranking-source-row {
+    display: none;
+  }
+
+  .ranking-player-identity,
+  .ranking-card-pills {
+    justify-content: flex-start;
+  }
+
+  .ranking-card-pills,
+  .ranking-devy-line {
+    gap: 0.25rem;
+  }
+
+  .ranking-overall-rank {
+    font-size: 0.82rem;
+  }
+
+  .ranking-movement-pill {
+    padding: 0.18rem 0.42rem;
+    font-size: 0.58rem;
+  }
+
+  .ranking-player-identity .player-chip,
+  .ranking-player-identity > span {
+    font-size: 0.95rem;
+  }
+
+  .ranking-card-pills span,
+  .ranking-owner-pill {
+    min-height: 1.22rem;
+    padding: 0.14rem 0.38rem;
+    font-size: 0.55rem;
+  }
+
+  .ranking-owner-chip {
+    display: none;
+  }
+
+  .ranking-owner-avatar-only,
+  .ranking-owner-avatar-fallback {
+    display: inline-flex;
+    height: 2rem;
+    width: 2rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.66);
+    color: #fed7aa;
+    font-size: 0.58rem;
+    font-weight: 1000;
+    line-height: 1;
+    object-fit: cover;
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.16);
+  }
+
+  .ranking-card-meta-row-devy {
+    display: inline-flex;
+  }
+
+  .ranking-college-avatar-only {
+    height: 2rem;
+    width: 2rem;
+  }
+
+  .ranking-devy-class-pill {
+    display: none;
+  }
+
+  .ranking-owner-pill {
+    max-width: 100%;
+  }
+
+  .ranking-owner-chip {
+    max-width: 100%;
+  }
+
+  .ranking-college-pill {
+    max-width: 100%;
+  }
+
+  .ranking-player-identity .player-chip > span:last-child,
+  .ranking-player-identity > span {
+    white-space: nowrap;
+  }
+
+  .ranking-devy-line {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    overflow: hidden;
+    font-size: 0.55rem;
+  }
+
+  .ranking-devy-line span {
+    max-width: 100%;
+    padding: 0.16rem 0.36rem;
+  }
+}
+
+/* Premium report polish pass: keep the degenerate identity, tighten hierarchy, and never allow page-level horizontal scroll. */
+:root {
+  --dd-space-1: 0.5rem;
+  --dd-space-2: 0.75rem;
+  --dd-space-3: 1rem;
+  --dd-space-4: 1.5rem;
+  --dd-space-5: 2rem;
+  --dd-space-6: 3rem;
+  --dd-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dd-cyan: #67e8f9;
+  --dd-orange: #fb923c;
+  --dd-gold: #fbbf24;
+  --dd-good: #34d399;
+  --dd-danger: #fb7185;
+  --dd-panel: rgba(2, 6, 23, 0.72);
+}
+
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body {
+  width: 100%;
+}
+
+.report-shell,
+.report-shell > *,
+[data-slot="dialog-content"] {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.report-shell :is(button, a, input, select, textarea, summary):focus-visible,
+[data-slot="dialog-content"] :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.9);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 4px rgba(34, 211, 238, 0.16),
+    0 0 28px rgba(34, 211, 238, 0.22) !important;
+}
+
+.report-header {
+  border-bottom-color: rgba(34, 211, 238, 0.16) !important;
+  background: linear-gradient(90deg, rgba(2, 6, 23, 0.98), rgba(9, 15, 30, 0.95), rgba(2, 6, 23, 0.98)), radial-gradient(circle at 18% 0%, rgba(249, 115, 22, 0.16), transparent 30%), radial-gradient(circle at 86% 0%, rgba(34, 211, 238, 0.12), transparent 32%) !important;
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(34, 211, 238, 0.08),
+    0 12px 42px rgba(34, 211, 238, 0.06) !important;
+}
+
+.report-header-logo,
+.report-header-mobile-logo,
+.report-league-icon,
+.league-shortcut-button {
+  transition:
+    transform 180ms var(--dd-ease),
+    filter 180ms var(--dd-ease),
+    border-color 180ms var(--dd-ease);
+}
+
+.report-header-logo:hover,
+.report-header-mobile-logo:hover,
+.report-league-lockup:hover .report-league-icon,
+.league-shortcut-button:hover {
+  filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.28));
+  transform: translateY(-1px) scale(1.025);
+}
+
+.report-header-action {
+  min-height: 1.45rem !important;
+  border-color: rgba(251, 146, 60, 0.38) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 22px rgba(0, 0, 0, 0.22) !important;
+}
+
+.report-live-indicator {
+  min-height: 1.2rem;
+  align-items: center;
+  gap: 0.34rem;
+  color: rgba(103, 232, 249, 0.74);
+  font-size: clamp(0.56rem, 0.66vw, 0.68rem);
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.report-live-indicator > span {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: var(--dd-good);
+  box-shadow:
+    0 0 0 0 rgba(52, 211, 153, 0.34),
+    0 0 14px rgba(52, 211, 153, 0.5);
+  animation: dd-live-pulse 2.2s var(--dd-ease) infinite;
+}
+
+@keyframes dd-live-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(52, 211, 153, 0.34),
+      0 0 14px rgba(52, 211, 153, 0.46);
+  }
+  50% {
+    box-shadow:
+      0 0 0 0.35rem rgba(52, 211, 153, 0),
+      0 0 20px rgba(52, 211, 153, 0.6);
+  }
+}
+
+@keyframes dd-line-glint {
+  0%,
+  64% {
+    background-position: -180% 0;
+    opacity: 0.32;
+  }
+  78% {
+    opacity: 0.9;
+  }
+  100% {
+    background-position: 180% 0;
+    opacity: 0.38;
+  }
+}
+
+.report-shell .report-header {
+  position: relative;
+  overflow: hidden;
+}
+
+.report-shell .report-header::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(251, 146, 60, 0.18) 28%, rgba(103, 232, 249, 0.72) 50%, rgba(251, 146, 60, 0.2) 72%, transparent 100%), linear-gradient(90deg, rgba(251, 146, 60, 0.14), rgba(34, 211, 238, 0.2), rgba(251, 146, 60, 0.14));
+  background-size:
+    44% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  animation: dd-line-glint 12s ease-in-out infinite;
+}
+
+.report-shell .report-tabs {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(34, 211, 238, 0.2) !important;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.86)), radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.12), transparent 34%), radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.1), transparent 34%) !important;
+}
+
+.report-shell .report-tabs::after {
+  content: "";
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.18rem;
+  left: 0.55rem;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.55), rgba(251, 146, 60, 0.55), transparent);
+  background-size: 38% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.4;
+  pointer-events: none;
+  animation: dd-line-glint 13.5s ease-in-out infinite;
+}
+
+.report-shell .report-tab {
+  position: relative;
+  overflow: hidden;
+  transition:
+    color 180ms var(--dd-ease),
+    border-color 180ms var(--dd-ease),
+    background 180ms var(--dd-ease),
+    transform 180ms var(--dd-ease);
+}
+
+.report-shell .report-tab::after {
+  content: "";
+  position: absolute;
+  inset: auto 18% 0.25rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.96), rgba(34, 211, 238, 0.86), transparent);
+  background-size: 52% 100%;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: scaleX(0.55);
+  transition:
+    opacity 180ms var(--dd-ease),
+    transform 180ms var(--dd-ease);
+}
+
+.report-shell .report-tab:hover {
+  color: #f8fafc;
+  background: rgba(8, 47, 73, 0.28);
+  transform: translateY(-1px);
+}
+
+.report-shell .report-tab[data-state="active"]::after {
+  opacity: 1;
+  transform: scaleX(1);
+  animation: dd-line-glint 10.5s ease-in-out infinite;
+}
+
+.report-disclosure-summary {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.report-disclosure-summary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(rgba(34, 211, 238, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.025) 1px, transparent 1px), radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.08), transparent 45%);
+  background-size:
+    24px 24px,
+    24px 24px,
+    auto;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.report-disclosure-summary::after {
+  content: "";
+  position: absolute;
+  right: 14%;
+  bottom: 0.28rem;
+  left: 14%;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.52), rgba(103, 232, 249, 0.58), transparent);
+  background-size: 44% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.36;
+  pointer-events: none;
+  animation: dd-line-glint 14s ease-in-out infinite;
+}
+
+.report-disclosure[open] .report-disclosure-summary {
+  border-color: rgba(34, 211, 238, 0.16);
+  background: rgba(2, 6, 23, 0.22);
+}
+
+.report-shell :is(.owner-summary-tile, .command-depth-tile, .player-team-tile, .manager-intel-player, .ranking-player-card) {
+  transition:
+    border-color 180ms var(--dd-ease),
+    box-shadow 180ms var(--dd-ease),
+    transform 180ms var(--dd-ease),
+    filter 180ms var(--dd-ease);
+}
+
+.report-shell :is(button.owner-summary-tile, button.command-depth-tile, button.player-team-tile, button.ranking-player-card):hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(34, 211, 238, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.report-shell :is(.owner-summary-tile, .command-depth-tile):hover :is(.owner-summary-avatar, .command-depth-avatar),
+.report-shell :is(.manager-intel-player, .manager-command-player-tile):hover .player-chip img {
+  transform: scale(1.035);
+}
+
+.active-owner-badge {
+  position: absolute;
+  z-index: 4;
+  top: 0.14rem;
+  right: 0.14rem;
+  display: inline-flex;
+  min-height: 1.14rem;
+  min-width: 4.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.16rem;
+  border: 1px solid rgba(250, 204, 21, 0.42);
+  border-radius: 999px;
+  background: radial-gradient(circle at 0% 0%, rgba(250, 204, 21, 0.2), transparent 48%), rgba(2, 6, 23, 0.72);
+  padding: 0.12rem 0.4rem;
+  color: #fde68a;
+  font-size: 0.52rem;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+}
+
+.active-owner-badge span {
+  display: inline;
+}
+
+.viewer-owned-highlight {
+  border-color: rgba(250, 204, 21, 0.82) !important;
+}
+
+.owner-metric-pill,
+.manager-intel-pill,
+.command-mini-badge,
+.trade-habit-pill,
+.weekly-momentum-status-pill,
+.position-rank-pill,
+.value-pill {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.command-mini-badge-good,
+.manager-intel-pill-good,
+.owner-metric-pill-good {
+  border-color: rgba(52, 211, 153, 0.34) !important;
+  background: rgba(6, 78, 59, 0.42) !important;
+}
+
+.command-mini-badge-warn,
+.owner-metric-pill-warn {
+  border-color: rgba(251, 146, 60, 0.38) !important;
+  background: rgba(124, 45, 18, 0.38) !important;
+}
+
+.command-mini-badge-danger,
+.manager-intel-pill-danger,
+.owner-metric-pill-danger {
+  border-color: rgba(251, 113, 133, 0.38) !important;
+  background: rgba(136, 19, 55, 0.36) !important;
+}
+
+.command-mini-badge-future,
+.manager-intel-pill-future,
+.owner-metric-pill-info {
+  border-color: rgba(34, 211, 238, 0.32) !important;
+  background: rgba(8, 47, 73, 0.42) !important;
+}
+
+[data-slot="dialog-content"].manager-command-dialog,
+[data-slot="dialog-content"].owner-quick-modal,
+[data-slot="dialog-content"].starter-modal,
+[data-slot="dialog-content"].manager-draft-modal,
+[data-slot="dialog-content"].trade-manager-modal {
+  border-color: rgba(34, 211, 238, 0.24) !important;
+  background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.16), transparent 34%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.14), transparent 34%), linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.94)) !important;
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 0 48px rgba(34, 211, 238, 0.1) !important;
+}
+
+.manager-command-hero {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.24),
+    inset 0 -1px 0 rgba(34, 211, 238, 0.12);
+}
+
+.manager-command-body,
+.owner-intel-read-grid p,
+.manager-command-grid p,
+.manager-command-section p {
+  line-height: 1.5;
+}
+
+.intelligence-metric {
+  border-color: rgba(34, 211, 238, 0.18) !important;
+  background: radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.08), transparent 40%), rgba(2, 6, 23, 0.56) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.intelligence-metric-positive {
+  border-color: rgba(52, 211, 153, 0.28) !important;
+}
+
+.intelligence-metric-negative {
+  border-color: rgba(251, 113, 133, 0.28) !important;
+}
+
+.owner-intel-stat-grid,
+.manager-command-hero-metrics {
+  gap: clamp(0.5rem, 1.35vw, 0.8rem) !important;
+}
+
+.owner-intel-read-grid > div,
+.manager-command-section,
+.manager-command-grid > div {
+  background: radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.055), transparent 34%), rgba(2, 6, 23, 0.48) !important;
+}
+
+.owner-intel-read-grid > .owner-intel-read-wide,
+.manager-command-read {
+  border-color: rgba(251, 146, 60, 0.2) !important;
+  background: radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.1), transparent 34%), rgba(2, 6, 23, 0.5) !important;
+}
+
+@layer components {
+  .owner-intel-ai-card,
+  .owner-intel-read-grid > .owner-intel-wild-notes,
+  .manager-command-ai-read,
+  .waiver-intel-card-suggested {
+    --ai-tron-accent: #22d3ee;
+    --ai-tron-border: rgba(34, 211, 238, 0.26);
+    --ai-tron-glow: rgba(34, 211, 238, 0.06);
+    --ai-tron-grid: rgba(45, 212, 191, 0.055);
+    --ai-tron-grid-strong: rgba(103, 232, 249, 0.1);
+    --ai-tron-core: rgba(103, 232, 249, 0.82);
+    --ai-tron-pulse-soft: rgba(103, 232, 249, 0.46);
+    --ai-tron-pulse-muted: rgba(45, 212, 191, 0.4);
+    --ai-tron-halo: rgba(45, 212, 191, 0.018);
+    --ai-tron-pulse-duration: 17s;
+    --ai-tron-pulse-delay: -1s;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-color: var(--ai-tron-border) !important;
+    background: linear-gradient(var(--ai-tron-grid) 1px, transparent 1px), linear-gradient(90deg, var(--ai-tron-grid) 1px, transparent 1px), linear-gradient(var(--ai-tron-grid-strong) 1px, transparent 1px), linear-gradient(90deg, var(--ai-tron-grid-strong) 1px, transparent 1px), radial-gradient(circle at 12% 0%, var(--ai-tron-glow), transparent 38%), radial-gradient(circle at 100% 8%, var(--ai-tron-glow), transparent 34%), linear-gradient(135deg, rgba(1, 5, 14, 0.99), rgba(2, 10, 22, 0.96) 48%, rgba(1, 5, 14, 0.99)) !important;
+    background-size:
+      20px 20px,
+      20px 20px,
+      60px 60px,
+      60px 60px,
+      auto,
+      auto,
+      auto !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(103, 232, 249, 0.032),
+      inset 0 0 24px var(--ai-tron-halo),
+      0 0 18px var(--ai-tron-halo);
+  }
+
+  .owner-intel-ai-card-good {
+    --ai-tron-accent: #34d399;
+    --ai-tron-border: rgba(52, 211, 153, 0.27);
+    --ai-tron-glow: rgba(16, 185, 129, 0.07);
+    --ai-tron-grid: rgba(52, 211, 153, 0.055);
+    --ai-tron-grid-strong: rgba(134, 239, 172, 0.1);
+    --ai-tron-core: rgba(134, 239, 172, 0.76);
+    --ai-tron-pulse-soft: rgba(134, 239, 172, 0.42);
+    --ai-tron-pulse-muted: rgba(52, 211, 153, 0.34);
+    --ai-tron-halo: rgba(52, 211, 153, 0.018);
+    --ai-tron-pulse-delay: -3.2s;
+  }
+
+  .owner-intel-ai-card-warn {
+    --ai-tron-accent: #c27a32;
+    --ai-tron-border: rgba(194, 122, 50, 0.3);
+    --ai-tron-glow: rgba(194, 122, 50, 0.065);
+    --ai-tron-grid: rgba(194, 122, 50, 0.06);
+    --ai-tron-grid-strong: rgba(251, 146, 60, 0.11);
+    --ai-tron-core: rgba(251, 146, 60, 0.76);
+    --ai-tron-pulse-soft: rgba(251, 146, 60, 0.42);
+    --ai-tron-pulse-muted: rgba(194, 122, 50, 0.34);
+    --ai-tron-halo: rgba(194, 122, 50, 0.02);
+    --ai-tron-pulse-delay: -7.6s;
+  }
+
+  .owner-intel-ai-card-danger {
+    --ai-tron-accent: #fb7185;
+    --ai-tron-border: rgba(251, 113, 133, 0.28);
+    --ai-tron-glow: rgba(244, 63, 94, 0.06);
+    --ai-tron-grid: rgba(251, 113, 133, 0.055);
+    --ai-tron-grid-strong: rgba(253, 164, 175, 0.1);
+    --ai-tron-core: rgba(253, 164, 175, 0.74);
+    --ai-tron-pulse-soft: rgba(253, 164, 175, 0.42);
+    --ai-tron-pulse-muted: rgba(251, 113, 133, 0.34);
+    --ai-tron-halo: rgba(251, 113, 133, 0.018);
+    --ai-tron-pulse-delay: -11.4s;
+  }
+
+  .owner-intel-ai-card-future,
+  .owner-intel-read-grid > .owner-intel-wild-notes,
+  .manager-command-ai-read {
+    --ai-tron-accent: #2dd4bf;
+    --ai-tron-border: rgba(45, 212, 191, 0.28);
+    --ai-tron-glow: rgba(20, 184, 166, 0.07);
+    --ai-tron-grid: rgba(45, 212, 191, 0.055);
+    --ai-tron-grid-strong: rgba(94, 234, 212, 0.1);
+    --ai-tron-core: rgba(94, 234, 212, 0.76);
+    --ai-tron-pulse-soft: rgba(94, 234, 212, 0.42);
+    --ai-tron-pulse-muted: rgba(45, 212, 191, 0.34);
+    --ai-tron-halo: rgba(45, 212, 191, 0.018);
+    --ai-tron-pulse-delay: -5.1s;
+  }
+
+  .owner-intel-ai-theme-trade,
+  .waiver-intel-card-suggested {
+    --ai-tron-accent: #34d399;
+    --ai-tron-border: rgba(52, 211, 153, 0.29);
+    --ai-tron-glow: rgba(16, 185, 129, 0.07);
+    --ai-tron-grid: rgba(52, 211, 153, 0.055);
+    --ai-tron-grid-strong: rgba(134, 239, 172, 0.1);
+    --ai-tron-core: rgba(134, 239, 172, 0.76);
+    --ai-tron-pulse-soft: rgba(134, 239, 172, 0.42);
+    --ai-tron-pulse-muted: rgba(52, 211, 153, 0.34);
+    --ai-tron-halo: rgba(52, 211, 153, 0.018);
+    --ai-tron-pulse-delay: -2.8s;
+  }
+
+  .owner-intel-ai-theme-window {
+    --ai-tron-accent: #2dd4bf;
+    --ai-tron-border: rgba(45, 212, 191, 0.28);
+    --ai-tron-glow: rgba(20, 184, 166, 0.07);
+    --ai-tron-grid: rgba(45, 212, 191, 0.055);
+    --ai-tron-grid-strong: rgba(94, 234, 212, 0.1);
+    --ai-tron-core: rgba(94, 234, 212, 0.76);
+    --ai-tron-pulse-soft: rgba(94, 234, 212, 0.42);
+    --ai-tron-pulse-muted: rgba(45, 212, 191, 0.34);
+    --ai-tron-halo: rgba(45, 212, 191, 0.018);
+    --ai-tron-pulse-delay: -6.1s;
+  }
+
+  .owner-intel-ai-theme-draft {
+    --ai-tron-accent: #facc15;
+    --ai-tron-border: rgba(250, 204, 21, 0.28);
+    --ai-tron-glow: rgba(250, 204, 21, 0.06);
+    --ai-tron-grid: rgba(250, 204, 21, 0.052);
+    --ai-tron-grid-strong: rgba(253, 224, 71, 0.1);
+    --ai-tron-core: rgba(253, 224, 71, 0.74);
+    --ai-tron-pulse-soft: rgba(253, 224, 71, 0.38);
+    --ai-tron-pulse-muted: rgba(250, 204, 21, 0.3);
+    --ai-tron-halo: rgba(250, 204, 21, 0.016);
+    --ai-tron-pulse-delay: -9.4s;
+  }
+
+  .owner-intel-ai-theme-churn {
+    --ai-tron-accent: #c27a32;
+    --ai-tron-border: rgba(194, 122, 50, 0.3);
+    --ai-tron-glow: rgba(194, 122, 50, 0.065);
+    --ai-tron-grid: rgba(194, 122, 50, 0.06);
+    --ai-tron-grid-strong: rgba(251, 146, 60, 0.11);
+    --ai-tron-core: rgba(251, 146, 60, 0.76);
+    --ai-tron-pulse-soft: rgba(251, 146, 60, 0.42);
+    --ai-tron-pulse-muted: rgba(194, 122, 50, 0.34);
+    --ai-tron-halo: rgba(194, 122, 50, 0.02);
+    --ai-tron-pulse-delay: -12.8s;
+  }
+
+  .owner-intel-ai-theme-risk {
+    --ai-tron-accent: #fb7185;
+    --ai-tron-border: rgba(251, 113, 133, 0.28);
+    --ai-tron-glow: rgba(244, 63, 94, 0.06);
+    --ai-tron-grid: rgba(251, 113, 133, 0.055);
+    --ai-tron-grid-strong: rgba(253, 164, 175, 0.1);
+    --ai-tron-core: rgba(253, 164, 175, 0.74);
+    --ai-tron-pulse-soft: rgba(253, 164, 175, 0.42);
+    --ai-tron-pulse-muted: rgba(251, 113, 133, 0.34);
+    --ai-tron-halo: rgba(251, 113, 133, 0.018);
+    --ai-tron-pulse-delay: -4.7s;
+  }
+
+  .owner-intel-ai-theme-upside {
+    --ai-tron-accent: #c084fc;
+    --ai-tron-border: rgba(192, 132, 252, 0.28);
+    --ai-tron-glow: rgba(168, 85, 247, 0.06);
+    --ai-tron-grid: rgba(192, 132, 252, 0.052);
+    --ai-tron-grid-strong: rgba(216, 180, 254, 0.1);
+    --ai-tron-core: rgba(216, 180, 254, 0.74);
+    --ai-tron-pulse-soft: rgba(216, 180, 254, 0.38);
+    --ai-tron-pulse-muted: rgba(192, 132, 252, 0.3);
+    --ai-tron-halo: rgba(192, 132, 252, 0.016);
+    --ai-tron-pulse-delay: -14.2s;
+  }
+
+  .owner-intel-ai-theme-sell {
+    --ai-tron-accent: #fb923c;
+    --ai-tron-border: rgba(251, 146, 60, 0.3);
+    --ai-tron-glow: rgba(249, 115, 22, 0.065);
+    --ai-tron-grid: rgba(251, 146, 60, 0.058);
+    --ai-tron-grid-strong: rgba(253, 186, 116, 0.11);
+    --ai-tron-core: rgba(253, 186, 116, 0.76);
+    --ai-tron-pulse-soft: rgba(253, 186, 116, 0.42);
+    --ai-tron-pulse-muted: rgba(251, 146, 60, 0.34);
+    --ai-tron-halo: rgba(251, 146, 60, 0.02);
+    --ai-tron-pulse-delay: -8.3s;
+  }
+
+  .owner-intel-ai-theme-core {
+    --ai-tron-accent: #7dd3fc;
+    --ai-tron-border: rgba(125, 211, 252, 0.3);
+    --ai-tron-glow: rgba(56, 189, 248, 0.065);
+    --ai-tron-grid: rgba(125, 211, 252, 0.055);
+    --ai-tron-grid-strong: rgba(186, 230, 253, 0.1);
+    --ai-tron-core: rgba(186, 230, 253, 0.74);
+    --ai-tron-pulse-soft: rgba(186, 230, 253, 0.4);
+    --ai-tron-pulse-muted: rgba(125, 211, 252, 0.32);
+    --ai-tron-halo: rgba(125, 211, 252, 0.018);
+    --ai-tron-pulse-delay: -11.6s;
+  }
+
+  .owner-intel-ai-theme-neutral {
+    --ai-tron-accent: #22d3ee;
+    --ai-tron-border: rgba(34, 211, 238, 0.26);
+    --ai-tron-glow: rgba(34, 211, 238, 0.06);
+    --ai-tron-grid: rgba(45, 212, 191, 0.055);
+    --ai-tron-grid-strong: rgba(103, 232, 249, 0.1);
+    --ai-tron-core: rgba(103, 232, 249, 0.82);
+    --ai-tron-pulse-soft: rgba(103, 232, 249, 0.46);
+    --ai-tron-pulse-muted: rgba(45, 212, 191, 0.4);
+    --ai-tron-halo: rgba(45, 212, 191, 0.018);
+    --ai-tron-pulse-delay: -1.5s;
+  }
+
+  .owner-intel-ai-card::before,
+  .owner-intel-read-grid > .owner-intel-wild-notes::before,
+  .manager-command-ai-read::before,
+  .waiver-intel-card-suggested::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    border-radius: inherit;
+    background: linear-gradient(180deg, transparent 0%, var(--ai-tron-accent) 16%, var(--ai-tron-core) 48%, var(--ai-tron-accent) 82%, transparent 100%);
+    box-shadow: 0 0 10px var(--ai-tron-accent);
+    opacity: 0.72;
+    z-index: 0;
+  }
+
+  .owner-intel-ai-card::after,
+  .owner-intel-read-grid > .owner-intel-wild-notes::after,
+  .manager-command-ai-read::after,
+  .waiver-intel-card-suggested::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle, var(--ai-tron-core) 0 1px, var(--ai-tron-pulse-soft) 2px, transparent 18px), linear-gradient(90deg, transparent, var(--ai-tron-pulse-soft) 28%, var(--ai-tron-core) 50%, var(--ai-tron-pulse-soft) 72%, transparent), linear-gradient(0deg, transparent, var(--ai-tron-pulse-soft) 28%, var(--ai-tron-core) 50%, var(--ai-tron-pulse-soft) 72%, transparent), radial-gradient(circle, var(--ai-tron-core) 0 1px, var(--ai-tron-pulse-muted) 2px, transparent 15px), linear-gradient(90deg, transparent, var(--ai-tron-pulse-muted) 28%, var(--ai-tron-pulse-soft) 50%, var(--ai-tron-pulse-muted) 72%, transparent), linear-gradient(0deg, transparent, var(--ai-tron-pulse-muted) 28%, var(--ai-tron-pulse-soft) 50%, var(--ai-tron-pulse-muted) 72%, transparent), radial-gradient(circle, var(--ai-tron-core) 0 1px, var(--ai-tron-pulse-soft) 2px, transparent 20px), linear-gradient(90deg, transparent, var(--ai-tron-pulse-muted) 24%, var(--ai-tron-core) 50%, var(--ai-tron-pulse-muted) 76%, transparent), linear-gradient(0deg, transparent, var(--ai-tron-pulse-muted) 24%, var(--ai-tron-core) 50%, var(--ai-tron-pulse-muted) 76%, transparent);
+    background-position:
+      calc(18% - 23px) calc(32% - 23px),
+      calc(18% - 44px) calc(32% - 1px),
+      calc(18% - 1px) calc(32% - 29px),
+      calc(58% - 18px) calc(68% - 18px),
+      calc(58% - 33px) calc(68% - 1px),
+      calc(58% - 1px) calc(68% - 22px),
+      calc(84% - 27px) calc(30% - 27px),
+      calc(84% - 55px) calc(30% - 1px),
+      calc(84% - 1px) calc(30% - 36px);
+    background-repeat: no-repeat;
+    background-size:
+      46px 46px,
+      88px 2px,
+      2px 58px,
+      36px 36px,
+      66px 2px,
+      2px 44px,
+      54px 54px,
+      110px 2px,
+      2px 72px;
+    filter: drop-shadow(0 0 4px var(--ai-tron-accent));
+    mix-blend-mode: screen;
+    opacity: 0.03;
+    pointer-events: none;
+    animation: ai-tron-neural-pulse var(--ai-tron-pulse-duration) ease-in-out infinite;
+    animation-delay: var(--ai-tron-pulse-delay);
+  }
+
+  .owner-intel-read-grid > .owner-intel-wild-notes,
+  .manager-command-ai-read {
+    --ai-tron-pulse-duration: 22s;
+  }
+
+  .owner-intel-ai-card > *,
+  .owner-intel-read-grid > .owner-intel-wild-notes > *,
+  .manager-command-ai-read > *,
+  .waiver-intel-card-suggested > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .manager-command-ai-read .manager-command-inline-read {
+    border-top-color: rgba(45, 212, 191, 0.22);
+  }
+
+  @keyframes ai-tron-neural-pulse {
+    0%,
+    100% {
+      background-position:
+        calc(18% - 23px) calc(32% - 23px),
+        calc(18% - 44px) calc(32% - 1px),
+        calc(18% - 1px) calc(32% - 29px),
+        calc(58% - 18px) calc(68% - 18px),
+        calc(58% - 33px) calc(68% - 1px),
+        calc(58% - 1px) calc(68% - 22px),
+        calc(84% - 27px) calc(30% - 27px),
+        calc(84% - 55px) calc(30% - 1px),
+        calc(84% - 1px) calc(30% - 36px);
+      opacity: 0.025;
+    }
+
+    7% {
+      opacity: 0.17;
+    }
+
+    15% {
+      opacity: 0.038;
+    }
+
+    31% {
+      background-position:
+        calc(28% - 23px) calc(74% - 23px),
+        calc(28% - 44px) calc(74% - 1px),
+        calc(28% - 1px) calc(74% - 29px),
+        calc(46% - 18px) calc(24% - 18px),
+        calc(46% - 33px) calc(24% - 1px),
+        calc(46% - 1px) calc(24% - 22px),
+        calc(76% - 27px) calc(56% - 27px),
+        calc(76% - 55px) calc(56% - 1px),
+        calc(76% - 1px) calc(56% - 36px);
+      opacity: 0.025;
+    }
+
+    39% {
+      opacity: 0.19;
+    }
+
+    48% {
+      opacity: 0.04;
+    }
+
+    64% {
+      background-position:
+        calc(14% - 23px) calc(58% - 23px),
+        calc(14% - 44px) calc(58% - 1px),
+        calc(14% - 1px) calc(58% - 29px),
+        calc(64% - 18px) calc(38% - 18px),
+        calc(64% - 33px) calc(38% - 1px),
+        calc(64% - 1px) calc(38% - 22px),
+        calc(90% - 27px) calc(78% - 27px),
+        calc(90% - 55px) calc(78% - 1px),
+        calc(90% - 1px) calc(78% - 36px);
+      opacity: 0.025;
+    }
+
+    72% {
+      opacity: 0.16;
+    }
+
+    84% {
+      opacity: 0.04;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .owner-intel-ai-card::after,
+    .owner-intel-read-grid > .owner-intel-wild-notes::after,
+    .manager-command-ai-read::after,
+    .waiver-intel-card-suggested::after {
+      animation: none;
+      opacity: 0.08;
+    }
+  }
+}
+
+.owner-intel-full-rank-panel,
+.owner-intel-roster-heat {
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: var(--report-panel-radius, 0.95rem);
+  background: linear-gradient(rgba(34, 211, 238, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.025) 1px, transparent 1px), rgba(2, 6, 23, 0.36);
+  background-size:
+    26px 26px,
+    26px 26px,
+    auto;
+  padding: clamp(0.7rem, 1.6vw, 1rem);
+}
+
+.owner-intel-dialog .owner-intel-full-rank-grid,
+.owner-intel-dialog .owner-intel-heat-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+.owner-intel-heat-pill {
+  position: relative;
+  overflow: hidden;
+}
+
+.owner-intel-heat-pill::after {
+  content: "";
+  position: absolute;
+  inset: auto 10% 0.35rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.72), rgba(103, 232, 249, 0.86), transparent), linear-gradient(90deg, transparent, currentColor, transparent);
+  background-size:
+    48% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+  animation: dd-line-glint 12.5s ease-in-out infinite;
+}
+
+.manager-intel-player[data-insight-label="untouchable"] {
+  border-color: rgba(251, 191, 36, 0.42) !important;
+}
+
+.manager-intel-player[data-insight-label="buy-idea"] {
+  border-color: rgba(52, 211, 153, 0.38) !important;
+}
+
+.manager-intel-player[data-insight-label="sell-idea"],
+.manager-intel-player[data-insight-label="droppable"] {
+  border-color: rgba(251, 113, 133, 0.4) !important;
+}
+
+.manager-intel-player[data-insight-label="trade-chip"] {
+  border-color: rgba(96, 165, 250, 0.42) !important;
+}
+
+.manager-intel-player[data-insight-label="insurance"],
+.manager-intel-player[data-insight-label="last-year-stud"] {
+  border-color: rgba(251, 191, 36, 0.34) !important;
+}
+
+.manager-intel-player[data-insight-label="weak-link"],
+.manager-intel-player[data-insight-label="injury-flag"] {
+  border-color: rgba(251, 146, 60, 0.42) !important;
+}
+
+.manager-intel-player[data-insight-label="bench-stash"] {
+  border-color: rgba(168, 85, 247, 0.38) !important;
+}
+
+.manager-intel-player-kicker::before {
+  content: "";
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-right: 0.38rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+  vertical-align: 0.05em;
+}
+
+.home-analyze-button {
+  box-shadow:
+    0 14px 34px rgba(249, 115, 22, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+.home-analyze-button:hover {
+  transform: translateY(-1px);
+}
+
+/* Homepage audit polish: keep the landing page readable and touch-safe on every viewport. */
+.home-feature-grid {
+  width: min(100%, 76rem);
+  margin-inline: auto;
+  align-items: stretch;
+}
+
+.home-feature-card {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+}
+
+.home-feature-card > div:first-child {
+  width: auto !important;
+  height: auto !important;
+  margin-inline: 0 !important;
+}
+
+.home-feature-heading > div {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+}
+
+.home-feature-card p {
+  color: rgba(226, 232, 240, 0.78) !important;
+  line-height: 1.52;
+}
+
+@media (min-width: 1024px) {
+  .home-hero {
+    gap: 1.55rem;
+  }
+
+  .home-analyze-card {
+    padding: 1.25rem 2rem !important;
+  }
+}
+
+.home-find-leagues-button:focus-visible,
+.home-analyze-button:focus-visible,
+.home-league-card:focus-visible,
+.support-button:focus-visible,
+.home-user-button:focus-visible,
+.league-shortcut-button:focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.9);
+  outline-offset: 3px;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .home-main {
+    padding: 2.4rem 2rem 3rem !important;
+  }
+
+  .home-hero {
+    width: min(100%, 58rem);
+    max-width: min(100%, 58rem) !important;
+    gap: 1.85rem;
+  }
+
+  .home-title {
+    font-size: 3.85rem !important;
+  }
+
+  .home-analyze-card {
+    width: min(100%, 50rem);
+    padding: 1.65rem !important;
+  }
+
+  .home-feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 1rem !important;
+  }
+
+  .home-feature-card {
+    padding: 1.1rem !important;
+  }
+
+  .home-feature-heading {
+    align-items: center;
+    gap: 0.65rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .home-header {
+    padding: 0.78rem 0.9rem !important;
+  }
+
+  .home-main {
+    justify-content: flex-start;
+    padding: 1.35rem 0.9rem 2rem !important;
+  }
+
+  .home-hero {
+    width: min(100%, 31rem);
+    max-width: min(100%, 31rem) !important;
+    gap: 1.35rem;
+  }
+
+  .home-title {
+    max-width: min(100%, 21rem);
+    font-size: 2.25rem !important;
+    line-height: 0.92;
+    letter-spacing: 0;
+    text-wrap: balance;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  .home-title span {
+    white-space: nowrap;
+  }
+
+  .home-subtitle {
+    max-width: 26rem;
+    font-size: 0.94rem !important;
+    line-height: 1.42;
+  }
+
+  .home-analyze-card {
+    width: 100%;
+    gap: 0.95rem;
+    padding: 0.95rem !important;
+  }
+
+  .home-username-row {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 0.65rem !important;
+  }
+
+  .home-analyze-card input,
+  .home-find-leagues-button,
+  .home-analyze-button {
+    min-height: 2.75rem;
+    width: 100% !important;
+    text-align: center;
+  }
+
+  .home-field-label {
+    margin-bottom: 0.55rem !important;
+  }
+
+  .home-field-helper {
+    margin-top: 0.52rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .home-id-divider {
+    margin-block: 0.1rem;
+  }
+
+  .home-feature-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.8rem !important;
+  }
+
+  .home-feature-card {
+    min-height: auto;
+    padding: 1rem !important;
+  }
+
+  .home-feature-heading {
+    flex-direction: row !important;
+    justify-content: center;
+  }
+
+  .home-footer {
+    padding: 1.1rem 0.9rem !important;
+  }
+
+  .home-header-tagline {
+    max-width: 18rem;
+    margin-inline: auto;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 360px) {
+  .home-title {
+    max-width: 18.5rem;
+    font-size: 1.98rem !important;
+  }
+
+  .home-subtitle {
+    font-size: 0.88rem !important;
+  }
+
+  .home-action-row .support-button {
+    font-size: 0.64rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .home-main {
+    max-width: 92rem;
+  }
+
+  .home-hero {
+    width: min(100%, 78rem);
+    max-width: min(100%, 78rem) !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .manager-command-hero {
+    position: sticky;
+  }
+
+  .active-owner-badge {
+    top: 0.12rem;
+    right: 0.12rem;
+    display: grid;
+    min-height: 1.42rem;
+    min-width: 2.75rem;
+    align-content: center;
+    justify-items: center;
+    padding: 0.12rem 0.28rem;
+    font-size: 0.48rem;
+    line-height: 0.92;
+    text-align: center;
+    white-space: normal;
+    gap: 0.08rem;
+  }
+
+  .active-owner-badge span {
+    display: block;
+  }
+
+  .owner-intel-dialog .owner-intel-full-rank-grid,
+  .owner-intel-dialog .owner-intel-heat-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell .report-tabs {
+    overflow: hidden !important;
+  }
+
+  .report-shell .report-tab svg {
+    width: 0.88rem;
+    height: 0.88rem;
+  }
+
+  .owner-intel-dialog .owner-intel-full-rank-grid,
+  .owner-intel-dialog .owner-intel-heat-grid {
+    gap: 0.24rem !important;
+  }
+
+  .owner-intel-dialog .owner-intel-heat-pill {
+    min-height: 4.35rem;
+  }
+
+  .manager-command-hero {
+    padding-top: calc(0.88rem + env(safe-area-inset-top));
+  }
+}
+
+/* Dynamic report density pass: repeated cards should use the room they have instead of locking to two columns. */
+.report-shell {
+  --dd-report-grid-gap: clamp(0.55rem, 1vw, 0.95rem);
+  --dd-report-content-x: clamp(0.78rem, 1.65vw, 1.35rem);
+  --dd-report-content-y: clamp(0.32rem, 0.8vw, 0.62rem);
+  --dd-report-panel-x: clamp(0.9rem, 1.45vw, 1.35rem);
+  --dd-report-panel-y: clamp(0.62rem, 1vw, 0.9rem);
+  --dd-report-player-min: 15rem;
+  --dd-report-owner-min: 16rem;
+  --dd-report-detail-min: 14rem;
+  --dd-report-grid-max: 112rem;
+  --dd-report-modal-max: 112rem;
+  --dd-report-six-col-min: calc((100% - 4.75rem) / 6);
+  --dd-report-player-track-min: min(100%, max(var(--dd-report-player-min), var(--dd-report-six-col-min)));
+  --dd-report-owner-track-min: min(100%, max(var(--dd-report-owner-min), var(--dd-report-six-col-min)));
+  --dd-report-detail-track-min: min(100%, max(var(--dd-report-detail-min), var(--dd-report-six-col-min)));
+}
+
+[data-slot="dialog-content"]:is(.manager-command-dialog, .owner-intel-dialog, .starter-modal, .manager-draft-modal, .trade-manager-modal) {
+  --dd-report-grid-gap: clamp(0.55rem, 1vw, 0.95rem);
+  --dd-report-player-min: 15rem;
+  --dd-report-owner-min: 16rem;
+  --dd-report-detail-min: 14rem;
+  --dd-report-modal-max: 112rem;
+  --dd-report-six-col-min: calc((100% - 4.75rem) / 6);
+  --dd-report-player-track-min: min(100%, max(var(--dd-report-player-min), var(--dd-report-six-col-min)));
+  --dd-report-owner-track-min: min(100%, max(var(--dd-report-owner-min), var(--dd-report-six-col-min)));
+  --dd-report-detail-track-min: min(100%, max(var(--dd-report-detail-min), var(--dd-report-six-col-min)));
+}
+
+.report-shell > .flex-1,
+.report-shell .report-header .max-w-7xl {
+  width: min(100%, var(--dd-report-modal-max)) !important;
+  max-width: min(100%, var(--dd-report-modal-max)) !important;
+}
+
+.report-shell :is(.player-tile-grid, .weekly-momentum-grid, .trending-card-grid, .trade-market-grid, .waiver-intel-grid, .projected-movers-grid, .manager-intel-player-grid, .owner-intel-player-grid, .manager-command-player-grid, .manager-command-tile-grid, .starter-grid, .starter-compact-grid, .manager-draft-player-grid, .trade-war-player-grid) {
+  width: min(100%, var(--dd-report-grid-max)) !important;
+  max-width: min(100%, var(--dd-report-grid-max)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(var(--dd-report-player-track-min), 1fr)) !important;
+  gap: var(--dd-report-grid-gap) !important;
+}
+
+.report-shell .waiver-intel-grid {
+  grid-template-columns: repeat(auto-fill, minmax(var(--dd-report-player-track-min), 1fr)) !important;
+  grid-auto-rows: minmax(clamp(9.4rem, 10vw, 10.65rem), 1fr);
+  align-items: stretch;
+}
+
+.report-shell .waiver-intel-card {
+  min-height: clamp(9.4rem, 10vw, 10.65rem);
+}
+
+.report-shell .waiver-intel-pills {
+  justify-items: stretch !important;
+}
+
+.report-shell .waiver-intel-pill-row {
+  width: 100%;
+}
+
+.report-shell .waiver-intel-rank-pill .position-rank-pill {
+  font-size: 0.6rem;
+  letter-spacing: 0.01em;
+}
+
+.report-shell :is(.owner-tile-grid, .command-depth-grid, .draft-efficiency-tile-grid, .draft-decision-manager-grid, .trade-profit-tile-grid, .trade-tendency-tile-grid, .position-counts-tile-grid, .pick-portfolio-tile-grid) {
+  width: min(100%, var(--dd-report-grid-max)) !important;
+  max-width: min(100%, var(--dd-report-grid-max)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(var(--dd-report-owner-track-min), 1fr)) !important;
+  gap: var(--dd-report-grid-gap) !important;
+}
+
+.report-shell .recent-transaction-player-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)) !important;
+}
+
+@media (min-width: 1280px) {
+  .report-shell .balanced-tile-grid {
+    grid-template-columns: repeat(var(--dd-balanced-grid-columns), minmax(0, 1fr)) !important;
+  }
+}
+
+@media (min-width: 1180px) {
+  .report-shell .recent-transaction-player-grid-with-insight {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)) !important;
+  }
+
+  .report-shell .recent-transaction-player-grid-with-insight > .recent-transaction-insight-card {
+    display: flex;
+    min-height: 7.65rem;
+    grid-column: auto !important;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0.58rem;
+  }
+
+  .report-shell .recent-transaction-player-grid-with-insight .recent-transaction-insight-head {
+    grid-column: auto;
+  }
+
+  .report-shell .recent-transaction-player-grid-with-insight .recent-transaction-insight-matchup {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .report-shell .recent-transaction-player-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.5rem !important;
+  }
+
+  .report-shell .recent-transaction-card {
+    padding: 0.62rem;
+  }
+
+  .report-shell .recent-transaction-player,
+  .report-shell .recent-transaction-insight-card {
+    min-height: 7.9rem;
+    border-radius: 0.82rem;
+    padding: 0.62rem;
+  }
+
+  .report-shell .recent-transaction-player-grid-with-insight > .recent-transaction-insight-card {
+    display: none !important;
+  }
+
+  .report-shell .recent-transaction-player-has-insight {
+    min-height: auto;
+    grid-column: 1 / -1;
+  }
+
+  .report-shell .recent-transaction-inline-insight {
+    display: grid;
+    gap: 0.52rem;
+    margin-top: 0.68rem;
+    border-top: 1px solid color-mix(in srgb, var(--team-accent, #22d3ee) 26%, rgba(148, 163, 184, 0.18));
+    padding-top: 0.66rem;
+  }
+
+  .report-shell .recent-transaction-insight-card {
+    gap: 0.48rem;
+  }
+
+  .report-shell .recent-transaction-insight-head {
+    display: grid;
+    gap: 0.28rem;
+    justify-content: flex-start;
+  }
+
+  .report-shell .recent-transaction-inline-insight .recent-transaction-insight-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+  }
+
+  .report-shell .recent-transaction-insight-title {
+    overflow: visible;
+    font-size: 0.56rem;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  .report-shell .recent-transaction-insight-lens {
+    min-height: 1rem;
+    padding-inline: 0.32rem;
+    font-size: 0.46rem;
+  }
+
+  .report-shell .recent-transaction-insight-matchup {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.24rem;
+  }
+
+  .report-shell .recent-transaction-inline-insight .recent-transaction-insight-matchup {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    gap: 0.28rem;
+  }
+
+  .report-shell .recent-transaction-insight-chip {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.22rem;
+    border-radius: 0.62rem;
+    padding: 0.36rem;
+  }
+
+  .report-shell .recent-transaction-inline-insight .recent-transaction-insight-chip {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.28rem;
+    padding: 0.42rem;
+  }
+
+  .report-shell .recent-transaction-insight-arrow {
+    justify-self: center;
+    transform: rotate(90deg);
+  }
+
+  .report-shell .recent-transaction-inline-insight .recent-transaction-insight-arrow {
+    align-self: center;
+    transform: none;
+  }
+
+  .report-shell .recent-transaction-insight-chip svg {
+    display: none;
+  }
+
+  .report-shell .recent-transaction-inline-insight .recent-transaction-insight-chip svg {
+    display: block;
+  }
+
+  .report-shell .recent-transaction-insight-chip em {
+    font-size: 0.46rem;
+  }
+
+  .report-shell .recent-transaction-insight-chip strong {
+    font-size: 0.58rem;
+  }
+
+  .report-shell .recent-transaction-insight-chip b {
+    padding-inline: 0.3rem;
+    font-size: 0.5rem;
+  }
+
+  .report-shell .recent-transaction-inline-insight .recent-transaction-insight-chip b {
+    grid-column: 1 / -1;
+    justify-self: flex-start;
+  }
+
+  .report-shell .recent-transaction-player-main {
+    margin-top: 0.55rem;
+  }
+
+  .report-shell .recent-transaction-player-main .player-chip {
+    gap: 0.24rem;
+  }
+
+  .report-shell .recent-transaction-player-main .player-chip img,
+  .report-shell .recent-transaction-player-main .player-chip > span[aria-hidden="true"] {
+    height: 1.72rem;
+    width: 1.72rem;
+  }
+
+  .report-shell .recent-transaction-player-main .player-chip > span:last-child {
+    font-size: 0.74rem;
+    line-height: 1.08;
+  }
+
+  .report-shell .recent-transaction-player-pills {
+    gap: 0.24rem;
+    padding-top: 0.52rem;
+  }
+
+  .report-shell .recent-transaction-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]),
+  .report-shell .recent-transaction-player-pills .position-rank-pill,
+  .report-shell .recent-transaction-player-pills .team-logo-pill {
+    min-height: 1.18rem;
+    padding-inline: 0.34rem;
+    font-size: 0.56rem;
+  }
+
+  .report-shell .recent-transaction-player-note,
+  .report-shell .recent-transaction-insight-card p {
+    font-size: 0.64rem;
+    line-height: 1.24;
+  }
+
+  .report-shell .recent-transaction-inline-insight p {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 0.64rem;
+    font-weight: 850;
+    line-height: 1.25;
+  }
+}
+
+@media (max-width: 380px) {
+  .report-shell .recent-transaction-inline-insight .recent-transaction-insight-matchup {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .report-shell .recent-transaction-inline-insight .recent-transaction-insight-arrow {
+    transform: rotate(90deg);
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-slot="dialog-content"].manager-command-dialog,
+  [data-slot="dialog-content"].manager-draft-modal,
+  [data-slot="dialog-content"].trade-manager-modal,
+  [data-slot="dialog-content"].starter-modal {
+    width: min(96vw, var(--dd-report-modal-max, 112rem)) !important;
+    max-width: min(96vw, var(--dd-report-modal-max, 112rem)) !important;
+  }
+
+  :is(.owner-intel-dialog, .manager-command-dialog) .owner-intel-player-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(13.5rem, var(--dd-report-six-col-min))), 1fr)) !important;
+  }
+
+  :is(.manager-command-dialog, .owner-intel-dialog) .manager-command-tile-grid,
+  .starter-modal .starter-grid,
+  .starter-modal .starter-compact-grid,
+  .manager-draft-modal .manager-draft-player-grid {
+    grid-template-columns: repeat(auto-fit, minmax(var(--dd-report-detail-track-min), 1fr)) !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  .report-shell {
+    --dd-report-grid-max: 112rem;
+    --dd-report-player-min: 16rem;
+    --dd-report-owner-min: 17rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .report-shell {
+    --dd-report-grid-max: 100%;
+    --dd-report-player-min: 13rem;
+    --dd-report-owner-min: 14rem;
+    --dd-report-detail-min: 12.5rem;
+  }
+
+  [data-slot="dialog-content"]:is(.manager-command-dialog, .owner-intel-dialog, .starter-modal, .manager-draft-modal, .trade-manager-modal) {
+    --dd-report-player-min: 13rem;
+    --dd-report-owner-min: 14rem;
+    --dd-report-detail-min: 12.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell {
+    --dd-report-player-min: 10.8rem;
+    --dd-report-owner-min: 11.8rem;
+    --dd-report-detail-min: 10.8rem;
+  }
+
+  [data-slot="dialog-content"]:is(.manager-command-dialog, .owner-intel-dialog, .starter-modal, .manager-draft-modal, .trade-manager-modal) {
+    --dd-report-player-min: 10.8rem;
+    --dd-report-owner-min: 11.8rem;
+    --dd-report-detail-min: 10.8rem;
+  }
+}
+
+@media (max-width: 399px) {
+  .report-shell {
+    --dd-report-player-min: 100%;
+    --dd-report-owner-min: 100%;
+    --dd-report-detail-min: 100%;
+  }
+
+  [data-slot="dialog-content"]:is(.manager-command-dialog, .owner-intel-dialog, .starter-modal, .manager-draft-modal, .trade-manager-modal) {
+    --dd-report-player-min: 100%;
+    --dd-report-owner-min: 100%;
+    --dd-report-detail-min: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-shell *,
+  [data-slot="dialog-content"] *,
+  .report-live-indicator > span {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* Final report layout guardrails: keep the nav directly under the header and prevent page-wide horizontal drag. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.report-shell,
+.report-shell * {
+  box-sizing: border-box;
+}
+
+.report-shell {
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+.report-shell > .flex-1 {
+  padding-top: clamp(0.35rem, 0.8vw, 0.75rem) !important;
+  overflow-x: clip;
+}
+
+.report-shell .report-tabs {
+  position: relative !important;
+  top: auto !important;
+  z-index: 20;
+  width: min(100%, 72rem) !important;
+  max-width: 100%;
+  margin-top: 0 !important;
+  margin-bottom: clamp(0.75rem, 1.35vw, 1.15rem) !important;
+  overflow: hidden !important;
+}
+
+.report-shell .report-tab {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.report-shell .report-tab span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-shell .report-tab-content {
+  max-width: 100%;
+  padding-top: 0 !important;
+  overflow-x: clip;
+}
+
+.report-shell .report-disclosure-summary {
+  max-width: min(100%, 42rem);
+  padding-right: 3rem;
+}
+
+.report-shell .report-disclosure-icon {
+  z-index: 2;
+  display: block !important;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+@media (max-width: 639px) {
+  .report-shell {
+    overflow-x: hidden;
+  }
+
+  .report-shell > .flex-1 {
+    width: 100% !important;
+    padding-top: 0.45rem !important;
+    padding-inline: 0.5rem !important;
+  }
+
+  .report-shell .report-tabs {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 0.18rem !important;
+    padding: 0.22rem !important;
+  }
+
+  .report-shell .report-tab {
+    gap: 0.16rem;
+    padding-inline: 0.12rem !important;
+    white-space: nowrap;
+  }
+
+  .report-shell .report-disclosure-summary {
+    padding-right: 2.35rem !important;
+    padding-left: 0.65rem !important;
+  }
+
+  .report-shell .report-disclosure-icon {
+    right: 0.75rem !important;
+  }
+}
+
+/* Dynasty Value Board: table rhythm on desktop, drafted-player style cards on mobile. */
+.rankings-table-section {
+  gap: 0.72rem;
+}
+
+.rankings-hero-panel {
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  align-items: center;
+  padding: 0.82rem 0.95rem;
+}
+
+.rankings-hero-panel h3 {
+  margin-top: 0.26rem;
+  font-size: 2.1rem;
+  letter-spacing: 0;
+}
+
+.rankings-hero-panel p {
+  max-width: 48rem;
+  margin-top: 0.36rem;
+  font-size: 0.84rem;
+}
+
+.rankings-kicker,
+.rankings-result-count,
+.rankings-league-type-label {
+  letter-spacing: 0;
+}
+
+.rankings-active-profile {
+  margin-top: 0.46rem;
+  letter-spacing: 0;
+}
+
+.value-board__toolbar {
+  display: grid !important;
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  grid-template-columns: minmax(12rem, 0.72fr) minmax(20rem, 1.18fr) minmax(20rem, 1.1fr) !important;
+  align-items: end;
+  gap: 0.58rem;
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: 0.95rem;
+  background: radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.08), transparent 34%), rgba(2, 6, 23, 0.42);
+  padding: 0.62rem;
+}
+
+.value-board__filters {
+  justify-content: flex-start;
+}
+
+.value-board__toolbar-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.42rem;
+}
+
+.value-board__search {
+  flex: 1 1 14rem;
+  max-width: 22rem;
+}
+
+.rankings-control-group button,
+.rankings-league-type-trigger,
+.rankings-search-input,
+.rankings-pagination button,
+.rankings-pagination span {
+  letter-spacing: 0 !important;
+}
+
+.rankings-result-count {
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  color: rgba(165, 243, 252, 0.72);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-align: left;
+  text-transform: none;
+}
+
+.value-board__rows {
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  gap: 0.34rem;
+}
+
+.value-board__row-header,
+.value-board__row {
+  display: grid !important;
+  grid-template-columns:
+    minmax(2.85rem, 2.85rem)
+    minmax(11.75rem, 1.9fr)
+    minmax(3rem, 0.34fr)
+    minmax(5.15rem, 0.52fr)
+    minmax(6.4rem, 0.68fr)
+    minmax(5.25rem, 0.54fr)
+    minmax(4.75rem, 0.46fr)
+    minmax(14rem, 1.42fr);
+  align-items: center;
+  gap: 0.48rem;
+}
+
+.value-board__row-header {
+  padding: 0.12rem 0.72rem 0.18rem;
+  color: rgba(103, 232, 249, 0.86);
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.value-board__row-header span:nth-child(n + 6) {
+  text-align: right;
+}
+
+.value-board__row {
+  position: relative;
+  width: 100%;
+  min-height: 4.35rem;
+  border-radius: 0.9rem !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #0f172a) 25%, rgba(15, 23, 42, 0.9)), rgba(2, 6, 23, 0.76) 58%, color-mix(in srgb, var(--team-secondary, #020617) 22%, rgba(2, 6, 23, 0.8))), radial-gradient(circle at 5% 0%, color-mix(in srgb, var(--team-accent, #22d3ee) 10%, transparent), transparent 38%), radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--team-primary, #0f172a) 12%, transparent), transparent 42%) !important;
+  padding: 0.44rem 0.7rem !important;
+  text-align: left;
+}
+
+.value-board__row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent 36%, rgba(34, 211, 238, 0.025));
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.value-board__row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.value-board__score,
+.value-board__mobile-meta {
+  display: contents;
+}
+
+.value-board__rank {
+  grid-column: 1;
+  grid-row: 1;
+  width: 3rem;
+  justify-self: start;
+  align-self: center;
+  color: #67e8f9;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.value-board__player {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  align-self: center;
+}
+
+.value-board__player > .ranking-player-identity,
+.value-board__player .player-chip {
+  width: 100%;
+}
+
+.value-board__player .ranking-player-identity,
+.value-board__player .player-chip {
+  gap: 0.5rem;
+}
+
+.value-board__player .player-chip img,
+.value-board__player .player-chip > span[aria-hidden="true"],
+.value-board__player .ranking-player-image {
+  height: 2.08rem;
+  width: 2.08rem;
+  border-width: 2px;
+}
+
+.value-board__player .player-chip > span:last-child,
+.value-board__player .ranking-player-identity > span {
+  min-width: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-family: var(--font-athletic);
+  font-size: 0.98rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 1.02;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value-board__team {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.value-board__team .ranking-college-pill {
+  max-width: 100%;
+}
+
+.value-board__pick-team {
+  min-height: 1.42rem;
+  padding: 0.18rem 0.48rem;
+  color: #d8b4fe;
+}
+
+.value-board__meta {
+  grid-column: 4;
+  grid-row: 1;
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.28rem;
+}
+
+.value-board__age-pill {
+  color: #cbd5e1 !important;
+}
+
+.value-board__manager {
+  grid-column: 5;
+  grid-row: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.value-board__manager .ranking-owner-chip {
+  max-width: 100%;
+  justify-content: flex-start;
+}
+
+.value-board__manager .manager-chip {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.value-board__manager .manager-chip > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.value-board__value {
+  grid-column: 6;
+  grid-row: 1;
+  display: inline-grid;
+  width: max-content;
+  min-width: 5.1rem;
+  justify-self: end;
+  align-self: center;
+  gap: 0.1rem;
+  padding: 0.2rem 0.58rem;
+  text-align: center;
+}
+
+.value-board__value-label {
+  display: none;
+}
+
+.value-board__value strong {
+  color: #fff7ed;
+  font-size: 0.94rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.value-board__movement {
+  grid-column: 7;
+  grid-row: 1;
+  display: flex;
+  min-width: 0;
+  align-self: center;
+  justify-content: flex-end;
+}
+
+.value-board__market-values {
+  grid-column: 8;
+  grid-row: 1;
+  display: flex !important;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.18rem;
+  opacity: 1;
+}
+
+.value-board__market-values span {
+  display: inline-flex;
+  width: max-content;
+  min-height: 1.22rem;
+  align-items: center;
+  gap: 0.18rem;
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.5);
+  padding: 0.14rem 0.32rem;
+  color: #c4f1ff;
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.value-board__market-values em {
+  color: rgba(103, 232, 249, 0.82);
+  font-style: normal;
+  font-weight: 950;
+}
+
+.value-board__market-values strong {
+  color: #fdba74;
+  font-weight: 1000;
+}
+
+.value-board__row .ranking-devy-line {
+  grid-column: 2 / -1;
+  grid-row: 2;
+}
+
+@media (max-width: 1180px) {
+  .value-board__toolbar {
+    grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.3fr) !important;
+  }
+
+  .value-board__toolbar-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .value-board__search {
+    max-width: none;
+  }
+
+  .value-board__row-header,
+  .value-board__row {
+    grid-template-columns:
+      minmax(2.85rem, 2.85rem)
+      minmax(10.4rem, 1.62fr)
+      minmax(2.45rem, 0.28fr)
+      minmax(4.75rem, 0.48fr)
+      minmax(5.6rem, 0.58fr)
+      minmax(5.05rem, 0.5fr)
+      minmax(4.45rem, 0.44fr)
+      minmax(12.6rem, 1.18fr);
+    gap: 0.42rem;
+  }
+}
+
+@media (max-width: 980px) and (min-width: 768px) {
+  .value-board__row-header,
+  .value-board__row {
+    grid-template-columns:
+      minmax(2.7rem, 2.7rem)
+      minmax(10rem, 1.7fr)
+      minmax(2.4rem, 0.28fr)
+      minmax(4.9rem, 0.52fr)
+      minmax(2.2rem, 0.28fr)
+      minmax(4.25rem, 0.42fr)
+      minmax(4.35rem, 0.44fr)
+      minmax(8rem, 0.78fr);
+  }
+
+  .value-board__market-values {
+    flex-wrap: wrap;
+    gap: 0.2rem;
+  }
+
+  .value-board__manager .ranking-owner-chip {
+    display: none;
+  }
+
+  .value-board__manager .ranking-owner-avatar-only,
+  .value-board__manager .ranking-owner-avatar-fallback {
+    display: inline-flex;
+    height: 1.85rem;
+    width: 1.85rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.66);
+    color: #fed7aa;
+    font-size: 0.58rem;
+    font-weight: 1000;
+    line-height: 1;
+    object-fit: cover;
+  }
+
+  .value-board__market-values span {
+    padding-inline: 0.34rem;
+    font-size: 0.52rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .rankings-table-section {
+    gap: 0.62rem;
+  }
+
+  .rankings-hero-panel {
+    justify-items: start;
+    padding: 0.72rem;
+    text-align: left;
+  }
+
+  .rankings-hero-panel h3 {
+    font-size: 1.48rem;
+    line-height: 0.96;
+  }
+
+  .rankings-hero-panel p {
+    font-size: 0.76rem;
+    line-height: 1.34;
+  }
+
+  .rankings-source-summary {
+    justify-content: flex-start;
+  }
+
+  .rankings-active-profile {
+    margin-inline: 0;
+  }
+
+  .value-board__toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0.52rem;
+    padding: 0.58rem;
+  }
+
+  .value-board__filters,
+  .rankings-position-toggle {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.28rem;
+  }
+
+  .value-board__toolbar-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+  }
+
+  .value-board__search {
+    width: 100%;
+    max-width: none;
+  }
+
+  .rankings-sort-toggle,
+  .rankings-class-toggle {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .rankings-control-group button {
+    min-height: 1.86rem;
+    padding-inline: 0.52rem;
+    font-size: 0.62rem;
+  }
+
+  .rankings-control-group .ranking-position-button,
+  .rankings-controls-with-picks .rankings-control-group .ranking-position-button {
+    min-width: 2.38rem;
+  }
+
+  .rankings-result-count {
+    font-size: 0.62rem;
+  }
+
+  .value-board__row-header {
+    display: none !important;
+  }
+
+  .value-board__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "player score"
+      "meta meta"
+      "movement movement"
+      "markets markets";
+    min-height: 6.15rem;
+    align-items: start;
+    gap: 0.36rem 0.5rem;
+    padding: 0.56rem 0.62rem !important;
+  }
+
+  .value-board__score {
+    display: flex;
+    grid-area: score;
+    min-width: 4.5rem;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.22rem;
+  }
+
+  .value-board__rank,
+  .value-board__value,
+  .value-board__player,
+  .value-board__team,
+  .value-board__meta,
+  .value-board__manager,
+  .value-board__movement,
+  .value-board__market-values {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .value-board__rank {
+    width: auto;
+    font-size: 0.78rem;
+  }
+
+  .value-board__value {
+    min-width: 0;
+    padding: 0.22rem 0.48rem;
+  }
+
+  .value-board__value strong {
+    font-size: 0.86rem;
+  }
+
+  .value-board__player {
+    grid-area: player;
+    align-self: start;
+  }
+
+  .value-board__player .player-chip,
+  .value-board__player .ranking-player-identity {
+    align-items: center;
+  }
+
+  .value-board__player .player-chip img,
+  .value-board__player .player-chip > span[aria-hidden="true"],
+  .value-board__player .ranking-player-image {
+    height: 2rem;
+    width: 2rem;
+  }
+
+  .value-board__player .player-chip > span:last-child,
+  .value-board__player .ranking-player-identity > span {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 0.94rem;
+    line-height: 1.04;
+    text-overflow: clip;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .value-board__mobile-meta {
+    display: flex;
+    grid-area: meta;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.28rem;
+  }
+
+  .value-board__team,
+  .value-board__meta,
+  .value-board__manager {
+    grid-column: auto;
+  }
+
+  .value-board__meta {
+    flex: 0 1 auto;
+  }
+
+  .value-board__manager {
+    flex: 1 1 7rem;
+    justify-content: flex-start;
+  }
+
+  .value-board__manager .ranking-owner-chip {
+    display: inline-flex;
+    max-width: 100%;
+    min-height: 1.54rem;
+  }
+
+  .value-board__manager .ranking-owner-avatar-only,
+  .value-board__manager .ranking-owner-avatar-fallback {
+    display: none;
+  }
+
+  .value-board__manager .manager-chip {
+    max-width: 100%;
+    gap: 0.28rem;
+  }
+
+  .value-board__manager .manager-chip img,
+  .value-board__manager .manager-chip > span[aria-hidden="true"] {
+    height: 1.18rem !important;
+    width: 1.18rem !important;
+  }
+
+  .value-board__manager .manager-chip > span:last-child {
+    font-size: 0.58rem;
+  }
+
+  .ranking-card-pills span,
+  .ranking-owner-pill,
+  .value-board__market-values span {
+    min-height: 1.26rem;
+    padding: 0.16rem 0.38rem;
+    font-size: 0.54rem;
+  }
+
+  .value-board__movement {
+    grid-area: movement;
+    justify-content: flex-start;
+  }
+
+  .ranking-movement-pill {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.58rem;
+    letter-spacing: 0;
+  }
+
+  .value-board__market-values {
+    grid-area: markets;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 0.22rem;
+  }
+
+  .value-board__market-values span {
+    justify-content: center;
+    min-width: 0;
+    gap: 0.16rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .value-board__row .ranking-devy-line {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 430px) {
+  .value-board__row {
+    grid-template-columns: minmax(0, 1fr) minmax(3.85rem, auto);
+    gap: 0.42rem 0.4rem;
+    padding-inline: 0.58rem !important;
+  }
+
+  .value-board__score {
+    min-width: 3.85rem;
+  }
+
+  .value-board__value {
+    padding-inline: 0.4rem;
+  }
+
+  .value-board__manager {
+    flex-basis: 6rem;
+  }
+
+  .value-board__market-values span {
+    padding-inline: 0.26rem;
+    font-size: 0.49rem;
+  }
+}

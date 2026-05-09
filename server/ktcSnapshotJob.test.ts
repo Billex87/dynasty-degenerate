@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { storeKtcSnapshot, getKtcSnapshotFromDaysAgo } from './ktcSnapshotJob';
 
 // Mock the database and KTC loader
@@ -64,6 +64,11 @@ vi.mock('./valueBlend', () => ({
 describe('KTC Snapshot Job', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should handle missing database gracefully', async () => {
@@ -75,10 +80,10 @@ describe('KTC Snapshot Job', () => {
       '[KTC Snapshot] Database not available; saved local snapshot only'
     );
     
-    consoleSpy.mockRestore();
   });
 
   it('should return null when no snapshot found from 14 days ago', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await getKtcSnapshotFromDaysAgo(14);
     
     // When database is not available, should return null
@@ -95,6 +100,5 @@ describe('KTC Snapshot Job', () => {
       '[KTC Snapshot] Database not available; saved local snapshot only'
     );
     
-    consoleWarnSpy.mockRestore();
   });
 });

@@ -1,5 +1,4 @@
-import { describe, expect, it } from "vitest";
-import { PRIVILEGED_REPORT_VIEWERS } from "../shared/const";
+import { afterEach, describe, expect, it } from "vitest";
 import type { TrpcContext } from "./_core/context";
 import { appRouter } from "./routers";
 
@@ -28,10 +27,15 @@ function createContext(user: Partial<AuthenticatedUser> = {}): TrpcContext {
 }
 
 describe("system.abuseTelemetry", () => {
-  it("allows users listed in PRIVILEGED_REPORT_VIEWERS", async () => {
+  afterEach(() => {
+    delete process.env.ADMIN_PERMISSIONS;
+  });
+
+  it("allows users configured with admin permissions", async () => {
+    process.env.ADMIN_PERMISSIONS = "mynameisbillex";
     const caller = appRouter.createCaller(createContext({
-      openId: PRIVILEGED_REPORT_VIEWERS[0],
-      name: PRIVILEGED_REPORT_VIEWERS[0],
+      openId: "mynameisbillex",
+      name: "mynameisbillex",
     }));
 
     const result = await caller.system.abuseTelemetry({ lookbackDays: 1 });
@@ -40,7 +44,7 @@ describe("system.abuseTelemetry", () => {
     expect(result.totals.events).toBeGreaterThanOrEqual(0);
   });
 
-  it("blocks authenticated users outside the privileged report viewer list", async () => {
+  it("blocks authenticated users outside the admin permission list", async () => {
     const caller = appRouter.createCaller(createContext({
       openId: "regular-user",
       email: "regular@example.com",
