@@ -140,7 +140,7 @@ function formatFantasyPointTotal(value?: number | null): string | null {
   });
 }
 
-function getPreviousSeasonPill(details?: PlayerDetails): { label: string; title: string } | null {
+function getPreviousSeasonPill(details?: PlayerDetails): { label: string; compactLabel: string; title: string } | null {
   const rank = details?.lastSeasonPositionRank;
   const points = formatFantasyPointTotal(details?.lastSeasonFantasyPoints);
   if (!rank && !points) return null;
@@ -156,6 +156,7 @@ function getPreviousSeasonPill(details?: PlayerDetails): { label: string; title:
 
   return {
     label: `Last year: ${labelParts.join(', ')}`,
+    compactLabel: [rank, points].filter(Boolean).join(', '),
     title: titleParts.join(' • '),
   };
 }
@@ -193,7 +194,7 @@ function formatDraftBuzzScore(value?: number | null): string {
 function formatDraftBuzzForty(value?: number | null): string {
   const forty = Number(value);
   if (!Number.isFinite(forty) || forty <= 0) return '-';
-  return `${forty.toFixed(2).replace(/0$/, '')}s`;
+  return `${(Math.floor((forty + Number.EPSILON) * 100) / 100).toFixed(2)}s`;
 }
 
 function formatDraftBuzzRank(value?: number | null, prefix = '#'): string {
@@ -417,9 +418,9 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
   const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
   const prospectPills = player.isDevy && player.prospectProfile ? ([
     player.prospectProfile.role ? { kind: 'role', label: player.prospectProfile.role } : null,
+    player.prospectProfile.fortyYardDash ? { kind: 'forty', label: `40 Yd: ${formatDraftBuzzForty(player.prospectProfile.fortyYardDash)}` } : null,
     player.prospectProfile.height ? { kind: 'height', label: `HT ${player.prospectProfile.height}` } : null,
     player.prospectProfile.weight ? { kind: 'weight', label: `WT ${player.prospectProfile.weight}` } : null,
-    player.prospectProfile.fortyYardDash ? { kind: 'forty', label: `40 ${player.prospectProfile.fortyYardDash}s` } : null,
   ].filter(Boolean) as ProspectTrait[]) : [];
   const prospectScore = player.isDevy ? getDraftBuzzScore(player) : null;
   const showMovement = Boolean(player.movementLabel) || !player.isDevy;
@@ -499,7 +500,10 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
           ) : player.isDevy ? (
             <span className="ranking-devy-class-pill ranking-devy-class-pill-empty">-</span>
           ) : player.age ? (
-            <span className="value-board__age-pill">{player.age} Year Old</span>
+            <span className="value-board__age-pill">
+              <span className="value-board__age-full">{player.age} Year Old</span>
+              <span className="value-board__age-short">{player.age} YO</span>
+            </span>
           ) : (
             <span className="value-board__age-empty">-</span>
           )}
@@ -509,7 +513,8 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
           <div className="ranking-card-pills value-board__previous-season">
             {previousSeasonPill ? (
               <span className="ranking-last-season-summary-pill" title={previousSeasonPill.title}>
-                {previousSeasonPill.label}
+                <span className="ranking-last-season-summary-full">{previousSeasonPill.label}</span>
+                <span className="ranking-last-season-summary-compact">{previousSeasonPill.compactLabel}</span>
               </span>
             ) : (
               <span className="ranking-last-season-empty">Last year: -</span>
@@ -821,9 +826,9 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
             <span className="draftbuzz-table__height">{formatDraftBuzzTrait(player.height)}</span>
             <span className="draftbuzz-table__weight">{formatDraftBuzzTrait(player.weight)}</span>
             <span className="draftbuzz-table__mobile-measurables" aria-label={`${player.name} measurables`}>
+              <span>40 Yd: {formatDraftBuzzForty(player.fortyYardDash)}</span>
               <span>HT {formatDraftBuzzTrait(player.height)}</span>
               <span>WT {formatDraftBuzzTrait(player.weight)}</span>
-              <span>40 {formatDraftBuzzForty(player.fortyYardDash)}</span>
             </span>
           </button>
         ))}

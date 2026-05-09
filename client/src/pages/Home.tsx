@@ -304,6 +304,40 @@ function renderPreviewManagerIdentity(
   );
 }
 
+function getOwnerIntelPreviewScore(data: ReportData, manager: string, sortMode: OwnerIntelSortMode): number | null {
+  const powerRow = data.powerRankings?.find((row) => row.manager === manager);
+  const timelineRow = data.dynastyTimelines?.find((row) => row.manager === manager);
+
+  const score = sortMode === 'contender'
+    ? timelineRow?.contenderScore ?? powerRow?.starterStrength
+    : sortMode === 'rebuilder'
+      ? timelineRow?.rebuildScore ?? powerRow?.draftCapital
+      : powerRow?.rosterValue;
+
+  const numericScore = Number(score);
+  return Number.isFinite(numericScore) ? numericScore : null;
+}
+
+function getOwnerIntelPreviewManagers(data: ReportData, sortMode: OwnerIntelSortMode): {
+  leader: string | null;
+  weakest: string | null;
+} {
+  const managers = Array.from(new Set([
+    ...(data.managerRosterIntelligence || []).map((row) => row.manager),
+    ...(data.leagueOverview || []).map((row) => row.manager),
+  ].filter(Boolean)));
+
+  const scoredManagers = managers
+    .map((manager) => ({ manager, score: getOwnerIntelPreviewScore(data, manager, sortMode) }))
+    .filter((item): item is { manager: string; score: number } => item.score !== null)
+    .sort((a, b) => b.score - a.score || a.manager.localeCompare(b.manager));
+
+  return {
+    leader: scoredManagers[0]?.manager || null,
+    weakest: scoredManagers.length > 1 ? scoredManagers[scoredManagers.length - 1].manager : null,
+  };
+}
+
 function OwnerIntelSortControls({
   value,
   onChange,
@@ -334,16 +368,20 @@ function OwnerIntelSortControls({
   );
 }
 
-function buildOwnerPreviewMetrics(data: ReportData, mode: LeagueValueMode): PreviewMetric[] {
+function buildOwnerPreviewMetrics(data: ReportData, mode: LeagueValueMode, sortMode: OwnerIntelSortMode = 'dynasty'): PreviewMetric[] {
   const valueLeader = getBestManagerByValue(data);
   const starterLeader = [...(data.powerRankings || [])].sort((a, b) => b.starterStrength - a.starterStrength)[0]?.manager;
+  const starterWeakest = [...(data.powerRankings || [])].sort((a, b) => a.starterStrength - b.starterStrength)[0]?.manager;
+  const ownerPreviewManagers = getOwnerIntelPreviewManagers(data, sortMode);
 
   return mode === 'redraft'
     ? [
         { label: 'Starter Leader', value: renderPreviewManagerIcon(starterLeader || valueLeader, data.managerAvatars), tone: 'good' },
+        starterWeakest ? { label: 'Weakest', value: renderPreviewManagerIcon(starterWeakest, data.managerAvatars), tone: 'warn' } : null,
       ].filter(Boolean) as PreviewMetric[]
     : [
-        { label: 'Value Leader', value: renderPreviewManagerIcon(valueLeader, data.managerAvatars), tone: 'good' },
+        { label: 'Leader', value: renderPreviewManagerIcon(ownerPreviewManagers.leader || valueLeader, data.managerAvatars), tone: 'good' },
+        ownerPreviewManagers.weakest ? { label: 'Weakest', value: renderPreviewManagerIcon(ownerPreviewManagers.weakest, data.managerAvatars), tone: 'warn' } : null,
       ].filter(Boolean) as PreviewMetric[];
 }
 
@@ -361,8 +399,6 @@ function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
   const weakestStarterManager = orderedStarterRows.length > 1
     ? orderedStarterRows[orderedStarterRows.length - 1]?.manager || null
     : null;
-  const injuryFlags = (data.managerRosterIntelligence || []).filter((row) => row.starterAvailability?.riskLevel === 'high').length;
-  const pressureCount = (data.managerRosterIntelligence || []).reduce((sum, row) => sum + (row.pressurePoints?.length || 0), 0);
   return [
     {
       label: 'Stronger Starters',
@@ -374,8 +410,6 @@ function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
       value: renderPreviewManagerIdentity(weakestStarterManager, data.managerAvatars, 'analysis-preview-manager-value-collapsible'),
       tone: 'warn',
     } : null,
-    injuryFlags ? { label: 'Injury Flags', value: injuryFlags, tone: 'danger' } : null,
-    pressureCount ? { label: 'Depth Flags', value: pressureCount, tone: 'warn' } : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
@@ -442,12 +476,50 @@ function renderTrendingPreviewPlayer(player: NonNullable<ReportData['trendingAdd
   );
 }
 
+function renderPreviewPlayerMetric(player: ReactNode, metric?: string | null) {
+  return (
+    <span className="analysis-preview-player-with-meta">
+      {player}
+      {metric && <span className="analysis-preview-player-count">{metric}</span>}
+    </span>
+  );
+}
+
+function renderRecentTransactionPreviewPlayer(player: NonNullable<ReportData['recentTransactions']>[number]['addedPlayer']) {
+  if (!player) return null;
+  return (
+    <PlayerPill
+      playerId={player.player_id}
+      playerName={player.name}
+      team={player.playerDetails?.team || player.team}
+      position={player.pos}
+      className="analysis-preview-player"
+    />
+  );
+}
+
+function formatPreviewPercent(value?: number | null): string | null {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  const rounded = Math.abs(numeric) >= 10 ? Math.round(numeric) : Math.round(numeric * 10) / 10;
+  return `${rounded > 0 ? '+' : ''}${rounded}%`;
+}
+
+function formatPreviewCount(value?: number | null): string | null {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  const absolute = Math.abs(numeric);
+  if (absolute >= 1000000) return `${Math.round(numeric / 100000) / 10}M`;
+  if (absolute >= 1000) return `${Math.round(numeric / 100) / 10}K`;
+  return Math.round(numeric).toLocaleString();
+}
+
 function buildMomentumPreviewMetrics(data: ReportData): PreviewMetric[] {
   const topRiser = [...(data.weeklyRisers || [])].sort((a, b) => b.pct_change - a.pct_change)[0];
   const topFaller = [...(data.weeklyFallers || [])].sort((a, b) => a.pct_change - b.pct_change)[0];
   return [
-    topRiser ? { label: 'Biggest Riser', value: renderMomentumPreviewPlayer(topRiser), tone: 'good', icon: <TrendingUp />, hideLabel: true } : null,
-    topFaller ? { label: 'Biggest Faller', value: renderMomentumPreviewPlayer(topFaller), tone: 'danger', icon: <TrendingDown />, hideLabel: true } : null,
+    topRiser ? { label: 'Biggest Riser', value: renderPreviewPlayerMetric(renderMomentumPreviewPlayer(topRiser), formatPreviewPercent(topRiser.pct_change)), tone: 'good', hideLabel: true } : null,
+    topFaller ? { label: 'Biggest Faller', value: renderPreviewPlayerMetric(renderMomentumPreviewPlayer(topFaller), formatPreviewPercent(topFaller.pct_change)), tone: 'danger', hideLabel: true } : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
@@ -457,9 +529,8 @@ function buildWeeklyRiserPreviewMetrics(data: ReportData): PreviewMetric[] {
     .slice(0, 2)
     .map((player, index): PreviewMetric => ({
       label: `Riser ${index + 1}`,
-      value: renderMomentumPreviewPlayer(player),
+      value: renderPreviewPlayerMetric(renderMomentumPreviewPlayer(player), formatPreviewPercent(player.pct_change)),
       tone: 'good',
-      icon: <TrendingUp />,
       hideLabel: true,
     }));
 }
@@ -470,9 +541,8 @@ function buildWeeklyFallerPreviewMetrics(data: ReportData): PreviewMetric[] {
     .slice(0, 2)
     .map((player, index): PreviewMetric => ({
       label: `Faller ${index + 1}`,
-      value: renderMomentumPreviewPlayer(player),
+      value: renderPreviewPlayerMetric(renderMomentumPreviewPlayer(player), formatPreviewPercent(player.pct_change)),
       tone: 'danger',
-      icon: <TrendingDown />,
       hideLabel: true,
     }));
 }
@@ -486,9 +556,34 @@ function buildTrendingPreviewMetrics(
     .slice(0, 4)
     .map((player, index): PreviewMetric => ({
       label: `${direction === 'up' ? 'Add' : 'Drop'} ${index + 1}`,
-      value: renderTrendingPreviewPlayer(player),
+      value: renderPreviewPlayerMetric(renderTrendingPreviewPlayer(player), formatPreviewCount(player.count)),
       tone: direction === 'up' ? 'good' : 'danger',
-      icon: direction === 'up' ? <TrendingUp /> : <TrendingDown />,
+      hideLabel: true,
+    }));
+}
+
+function buildRecentTransactionPreviewMetrics(transactions?: ReportData['recentTransactions']): PreviewMetric[] {
+  const now = Date.now();
+  const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+
+  return [...(transactions || [])]
+    .filter((transaction) => {
+      const timestamp = Date.parse(transaction.date);
+      return Number.isFinite(timestamp) && timestamp >= sevenDaysAgo && timestamp <= now;
+    })
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
+    .map((transaction) => ({
+      transaction,
+      player: transaction.addedPlayer || transaction.droppedPlayer,
+      tone: transaction.addedPlayer ? 'good' as const : 'danger' as const,
+      label: transaction.addedPlayer ? 'Added' : 'Dropped',
+    }))
+    .filter((item) => item.player)
+    .slice(0, 4)
+    .map((item, index): PreviewMetric => ({
+      label: `${item.label} ${index + 1}`,
+      value: renderRecentTransactionPreviewPlayer(item.player),
+      tone: item.tone,
       hideLabel: true,
     }));
 }
@@ -2703,7 +2798,7 @@ export default function Home() {
                 <CollapsibleReportSection
                   title={modeCopy.ownerTitle}
                   kicker={modeCopy.ownerKicker}
-                  previewMetrics={buildOwnerPreviewMetrics(reportData, leagueValueMode)}
+                  previewMetrics={buildOwnerPreviewMetrics(reportData, leagueValueMode, ownerIntelSortMode)}
                   previewAccessory={!isRedraftReport ? (
                     <OwnerIntelSortControls
                       value={ownerIntelSortMode}
@@ -2819,9 +2914,7 @@ export default function Home() {
                 <CollapsibleReportSection
                   title="Recent Transactions"
                   kicker={isRedraftReport ? 'Claims, drops, and weekly churn' : 'Claims, drops, and churn'}
-                  previewMetrics={[
-                    { label: 'Transactions', value: reportData.recentTransactions?.length || 0, tone: reportData.recentTransactions?.length ? 'info' : 'warn' },
-                  ]}
+                  previewMetrics={buildRecentTransactionPreviewMetrics(reportData.recentTransactions)}
                 >
                   <RecentTransactionsPanel
                     data={reportData.recentTransactions}
