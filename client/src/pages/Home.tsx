@@ -2018,7 +2018,6 @@ export default function Home() {
     || activeCachedSleeperUser?.isPrivilegedReportViewer === true;
   const hasAdminPermissions = hasAuthenticatedAdminPermissions || hasSleeperAdminPermissions;
   const canViewAdminFeatureExpansion = hasAuthenticatedAdminPermissions || (hasSleeperAdminPermissions && adminViewMode === 'admin');
-  const canViewMomentumTab = canViewAdminFeatureExpansion;
 
   useEffect(() => {
     if (!hasAuthenticatedAdminPermissions || !reportData) return;
@@ -2040,7 +2039,7 @@ export default function Home() {
   };
 
   const migratedActiveTab = activeTab === 'projections' ? 'rankings' : activeTab;
-  const resolvedActiveTab = !canViewMomentumTab && migratedActiveTab === 'momentum' ? 'overview' : migratedActiveTab;
+  const resolvedActiveTab = migratedActiveTab;
   const rankingsQuery = trpc.league.rankings.useQuery(
     { leagueId },
     {
@@ -2055,46 +2054,34 @@ export default function Home() {
   const reportDataWithRankings = reportData && rankingsForReport
     ? { ...reportData, rankings: rankingsForReport }
     : reportData;
-	  const handleReportTabChange = (nextTab: string) => {
-	    if (nextTab === 'momentum' && !canViewMomentumTab) {
-	      setActiveTab('overview');
-	      updateReportTabUrl('overview', leagueId);
-	      return;
-	    }
-	    setActiveTab(nextTab);
-	    updateReportTabUrl(nextTab, leagueId);
-	  };
+  const handleReportTabChange = (nextTab: string) => {
+    setActiveTab(nextTab);
+    updateReportTabUrl(nextTab, leagueId);
+  };
 
-	  useEffect(() => {
-	    if (!canViewMomentumTab && activeTab === 'momentum') {
-	      setActiveTab('overview');
-	      updateReportTabUrl('overview', leagueId);
-	    } else if (activeTab === 'projections') {
-	      setActiveTab('rankings');
-	      updateReportTabUrl('rankings', leagueId);
-	    }
-	  }, [activeTab, canViewMomentumTab, leagueId]);
+  useEffect(() => {
+    if (activeTab === 'projections') {
+      setActiveTab('rankings');
+      updateReportTabUrl('rankings', leagueId);
+    }
+  }, [activeTab, leagueId]);
 
-	  useEffect(() => {
-	    if (!reportData || !leagueId) return;
-	    updateReportTabUrl(resolvedActiveTab, leagueId);
-	  }, [leagueId, reportData, resolvedActiveTab]);
+  useEffect(() => {
+    if (!reportData || !leagueId) return;
+    updateReportTabUrl(resolvedActiveTab, leagueId);
+  }, [leagueId, reportData, resolvedActiveTab]);
 
   useEffect(() => {
     if (!reportData) return;
     const syncTabFromUrl = () => {
       const tabFromUrl = getInitialReportTabFromUrl();
       if (!tabFromUrl) return;
-      if (tabFromUrl === 'momentum' && !canViewMomentumTab) {
-        setActiveTab('overview');
-        return;
-      }
       setActiveTab(tabFromUrl);
     };
     syncTabFromUrl();
     window.addEventListener('hashchange', syncTabFromUrl);
     return () => window.removeEventListener('hashchange', syncTabFromUrl);
-  }, [canViewMomentumTab, reportData]);
+  }, [reportData]);
 
   useEffect(() => {
     if (!isProspectArchiveLoading) {
@@ -2244,77 +2231,6 @@ export default function Home() {
     const displayReportData = reportDataWithRankings || reportData;
     const showTradeMarketRadar = reportData.weeklyRisers.some((player) => player.val_now >= 2500)
       || reportData.weeklyFallers.some((player) => player.val_now >= 1800);
-    const publicMomentumSections = (
-      <>
-        {showTradeMarketRadar && (
-          <CollapsibleReportSection
-            title="Trade Market Radar"
-            kicker={isRedraftReport ? 'Current-season buy and sell signals' : 'Buy and sell signals'}
-            previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}
-          >
-            <TradeMarketRadar
-              risers={reportData.weeklyRisers}
-              fallers={reportData.weeklyFallers}
-              managerAvatars={reportData.managerAvatars}
-              playerDetailsById={reportData.playerDetailsById}
-              leagueId={leagueId}
-              leagueLogo={leagueLogo}
-              viewerManager={reportData.viewerManager}
-              leagueValueMode={leagueValueMode}
-            />
-          </CollapsibleReportSection>
-        )}
-        <CollapsibleReportSection
-          title="Recent Transactions"
-          kicker={isRedraftReport ? 'Claims, drops, and weekly churn' : 'Claims, drops, and churn'}
-          previewMetrics={[
-            { label: 'Transactions', value: reportData.recentTransactions?.length || 0, tone: reportData.recentTransactions?.length ? 'info' : 'warn' },
-            { label: 'Lens', value: isRedraftReport ? 'Season' : 'Dynasty', tone: 'neutral' },
-          ]}
-        >
-          <RecentTransactionsPanel
-            data={reportData.recentTransactions}
-            managerAvatars={reportData.managerAvatars}
-            playerDetailsById={reportData.playerDetailsById}
-            leagueId={leagueId}
-            leagueLogo={leagueLogo}
-            leagueValueMode={leagueValueMode}
-          />
-        </CollapsibleReportSection>
-        <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers" previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}>
-          <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
-        </CollapsibleReportSection>
-        <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops" previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}>
-          <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
-        </CollapsibleReportSection>
-        <CollapsibleReportSection title="Trending Adds" kicker={isRedraftReport ? "Sleeper add activity" : "Sleeper activity"} previewMetrics={[{ label: 'Adds', value: reportData.trendingAdds?.length || 0, tone: 'info' }]}>
-          <TrendingPlayersTable
-            data={reportData.trendingAdds || []}
-            title="Trending Adds"
-            countLabel="Adds"
-            managerAvatars={reportData.managerAvatars}
-            playerDetailsById={reportData.playerDetailsById}
-            leagueId={leagueId}
-            leagueLogo={leagueLogo}
-            viewerManager={reportData.viewerManager}
-            leagueValueMode={leagueValueMode}
-          />
-        </CollapsibleReportSection>
-        <CollapsibleReportSection title="Trending Drops" kicker={isRedraftReport ? "Sleeper drop activity" : "Sleeper activity"} previewMetrics={[{ label: 'Drops', value: reportData.trendingDrops?.length || 0, tone: 'info' }]}>
-          <TrendingPlayersTable
-            data={reportData.trendingDrops || []}
-            title="Trending Drops"
-            countLabel="Drops"
-            managerAvatars={reportData.managerAvatars}
-            playerDetailsById={reportData.playerDetailsById}
-            leagueId={leagueId}
-            leagueLogo={leagueLogo}
-            viewerManager={reportData.viewerManager}
-            leagueValueMode={leagueValueMode}
-          />
-        </CollapsibleReportSection>
-      </>
-    );
     return (
       <>
       <ManagerChampionshipProvider championships={reportData.managerChampionships}>
@@ -2415,7 +2331,7 @@ export default function Home() {
         <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
           <Tabs value={resolvedActiveTab} onValueChange={handleReportTabChange} className="w-full">
             <TabsList
-              className={`report-tabs ${canViewMomentumTab ? 'report-tabs-five' : 'report-tabs-four'}`}
+              className="report-tabs report-tabs-five"
               data-active-tab={resolvedActiveTab}
             >
               <TabsTrigger value="overview" className="report-tab" aria-label="Overview">
@@ -2423,13 +2339,11 @@ export default function Home() {
                 <span>Overview</span>
               </TabsTrigger>
 
-              {canViewMomentumTab && (
-                <TabsTrigger value="momentum" className="report-tab admin-premium-tab" aria-label="Weekly Momentum">
-                  <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                  <span className="report-tab-label-full" aria-hidden="true">Weekly Momentum</span>
-                  <span className="report-tab-label-short" aria-hidden="true">Trend</span>
-                </TabsTrigger>
-              )}
+              <TabsTrigger value="momentum" className="report-tab" aria-label="Weekly Momentum">
+                <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                <span className="report-tab-label-full" aria-hidden="true">Weekly Momentum</span>
+                <span className="report-tab-label-short" aria-hidden="true">Trend</span>
+              </TabsTrigger>
               <TabsTrigger value="rankings" className="report-tab" aria-label="Rankings">
                 <ListOrdered className="h-4 w-4" aria-hidden="true" />
                 <span>Rankings</span>
@@ -2607,22 +2521,39 @@ export default function Home() {
                     />
                   </CollapsibleReportSection>
                 )}
-                {publicMomentumSections}
                     </>
                   );
                 })()}
               </div>
             </TabsContent>
 
-            {canViewMomentumTab && (
-              <TabsContent value="momentum" className="report-tab-content">
-                <div className="space-y-6 sm:space-y-8">
-	                  <CollapsibleReportSection
-	                    title="Waiver Intelligence"
-	                    kicker={isRedraftReport ? 'Opportunity, usage, and roster need' : 'Available value'}
-	                    previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}
-	                    premium
-	                  >
+            <TabsContent value="momentum" className="report-tab-content">
+              <div className="space-y-6 sm:space-y-8">
+                {showTradeMarketRadar && (
+                  <CollapsibleReportSection
+                    title="Trade Market Radar"
+                    kicker={isRedraftReport ? 'Current-season buy and sell signals' : 'Buy and sell signals'}
+                    previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}
+                  >
+                    <TradeMarketRadar
+                      risers={reportData.weeklyRisers}
+                      fallers={reportData.weeklyFallers}
+                      managerAvatars={reportData.managerAvatars}
+                      playerDetailsById={reportData.playerDetailsById}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                      viewerManager={reportData.viewerManager}
+                      leagueValueMode={leagueValueMode}
+                    />
+                  </CollapsibleReportSection>
+                )}
+                {canViewAdminFeatureExpansion && (
+                  <CollapsibleReportSection
+                    title="Waiver Intelligence"
+                    kicker={isRedraftReport ? 'Opportunity, usage, and roster need' : 'Available value'}
+                    previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}
+                    premium
+                  >
                     <WaiverIntelligencePanel
                       data={reportData.waiverIntelligence}
                       managerAvatars={reportData.managerAvatars}
@@ -2637,9 +2568,58 @@ export default function Home() {
                       leagueValueMode={leagueValueMode}
                     />
                   </CollapsibleReportSection>
-                </div>
-              </TabsContent>
-            )}
+                )}
+                <CollapsibleReportSection
+                  title="Recent Transactions"
+                  kicker={isRedraftReport ? 'Claims, drops, and weekly churn' : 'Claims, drops, and churn'}
+                  previewMetrics={[
+                    { label: 'Transactions', value: reportData.recentTransactions?.length || 0, tone: reportData.recentTransactions?.length ? 'info' : 'warn' },
+                    { label: 'Lens', value: isRedraftReport ? 'Season' : 'Dynasty', tone: 'neutral' },
+                  ]}
+                >
+                  <RecentTransactionsPanel
+                    data={reportData.recentTransactions}
+                    managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                    leagueValueMode={leagueValueMode}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers" previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}>
+                  <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops" previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}>
+                  <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Trending Adds" kicker={isRedraftReport ? "Sleeper add activity" : "Sleeper activity"} previewMetrics={[{ label: 'Adds', value: reportData.trendingAdds?.length || 0, tone: 'info' }]}>
+                  <TrendingPlayersTable
+                    data={reportData.trendingAdds || []}
+                    title="Trending Adds"
+                    countLabel="Adds"
+                    managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                    viewerManager={reportData.viewerManager}
+                    leagueValueMode={leagueValueMode}
+                  />
+                </CollapsibleReportSection>
+                <CollapsibleReportSection title="Trending Drops" kicker={isRedraftReport ? "Sleeper drop activity" : "Sleeper activity"} previewMetrics={[{ label: 'Drops', value: reportData.trendingDrops?.length || 0, tone: 'info' }]}>
+                  <TrendingPlayersTable
+                    data={reportData.trendingDrops || []}
+                    title="Trending Drops"
+                    countLabel="Drops"
+                    managerAvatars={reportData.managerAvatars}
+                    playerDetailsById={reportData.playerDetailsById}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                    viewerManager={reportData.viewerManager}
+                    leagueValueMode={leagueValueMode}
+                  />
+                </CollapsibleReportSection>
+              </div>
+            </TabsContent>
 
             <TabsContent value="rankings" className="report-tab-content">
               <div className="space-y-6 sm:space-y-8">

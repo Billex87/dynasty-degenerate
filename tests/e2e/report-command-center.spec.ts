@@ -68,11 +68,9 @@ test.describe('command center feature surfaces', () => {
     await loadCachedReport(page, cachedReport);
 
     await expect(page.locator('.overview-ai-pulse')).toBeVisible();
-    await expect(page.locator('.admin-premium-tab')).toHaveCount(1);
+    await expect(page.locator('.admin-premium-tab')).toHaveCount(0);
     await expect(page.locator('.admin-premium-section')).toHaveCount(5);
-    const premiumTabFlare = await page.locator('.admin-premium-tab').evaluate((node) => getComputedStyle(node, '::before').content);
-    const premiumSectionFlare = await page.locator('.admin-premium-section').first().evaluate((node) => getComputedStyle(node, '::before').content);
-    expect(premiumTabFlare).toBe('""');
+    const premiumSectionFlare = await page.locator('.admin-premium-section > .report-disclosure-summary').first().evaluate((node) => getComputedStyle(node, '::before').content);
     expect(premiumSectionFlare).toBe('""');
     await expect(page.getByText('Monthly Team Blueprint').first()).toBeVisible();
     await page.locator('button.command-primary-action').click();
@@ -110,6 +108,33 @@ test.describe('command center feature surfaces', () => {
     await expect(page.getByText('Monthly Team Blueprint')).toHaveCount(0);
     await expect(page.getByText('League Power Rankings')).toHaveCount(0);
     await expect(page.getByText('Trade Finder, Partners & League Exploits')).toHaveCount(0);
+  });
+
+  test('keeps weekly momentum public while hiding waiver intelligence from regular viewers', async ({ page }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport, '#momentum', { admin: false });
+
+    await expect(page.getByRole('tab', { name: 'Weekly Momentum' })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`leagueId=${cachedReport.leagueId}#momentum$`));
+    await expect(page.getByText('Recent Transactions')).toBeVisible();
+    await expect(page.getByText('Top 10 Weekly Risers')).toBeVisible();
+    await expect(page.getByText('Top 10 Weekly Fallers')).toBeVisible();
+    await expect(page.getByText('Trending Adds')).toBeVisible();
+    await expect(page.getByText('Trending Drops')).toBeVisible();
+    await expect(page.getByText('Waiver Intelligence')).toHaveCount(0);
+  });
+
+  test('shows waiver intelligence with the other weekly momentum sections for admins', async ({ page }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport, '#momentum');
+
+    await expect(page.getByRole('tab', { name: 'Weekly Momentum' })).toBeVisible();
+    await expect(page.getByText('Waiver Intelligence')).toBeVisible();
+    await expect(page.getByText('Recent Transactions')).toBeVisible();
+    await expect(page.getByText('Top 10 Weekly Risers')).toBeVisible();
+    await expect(page.getByText('Top 10 Weekly Fallers')).toBeVisible();
+    await expect(page.getByText('Trending Adds')).toBeVisible();
+    await expect(page.getByText('Trending Drops')).toBeVisible();
   });
 
   test('trade browser explains an empty redraft ledger without inventing trades', async ({ page }) => {
