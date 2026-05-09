@@ -5206,7 +5206,7 @@
     gap: 0.32rem;
   }
 
-  .owner-intel-score-strip span {
+  .owner-intel-score-strip > span {
     display: grid;
     min-width: 0;
     min-height: 2.18rem;

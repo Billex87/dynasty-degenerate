@@ -78,6 +78,7 @@ const REPORT_SUCCESS_KICK_MS = 900;
 const SHOW_ASSISTANT_FEATURE_RADAR = String(import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || 'true').toLowerCase() !== 'false';
 
 type LoadingTransitionPhase = 'loading' | 'success' | 'reveal' | 'kick' | 'done';
+type OwnerIntelSortMode = 'dynasty' | 'contender' | 'rebuilder';
 
 function getKtcAdminIdentity(user?: SleeperUserSession | null, fallbackUsername?: string): string | null {
   return user?.username || user?.displayName || fallbackUsername || null;
@@ -197,7 +198,11 @@ function formatTepChip(value?: number | null): string | null {
   return numeric >= 1 ? 'TEP+' : 'TEP';
 }
 
-function buildLeagueFormatPills(leagueFormat: string, diagnostics?: ReportData['leagueDiagnostics']): string[] {
+function buildLeagueFormatPills(
+  leagueFormat: string,
+  diagnostics?: ReportData['leagueDiagnostics'],
+  mode?: LeagueValueMode | string | null,
+): string[] {
   const chips: string[] = [];
   const normalizedFormat = leagueFormat || '';
   const addChip = (value?: string | null) => {
@@ -207,6 +212,9 @@ function buildLeagueFormatPills(leagueFormat: string, diagnostics?: ReportData['
 
   const teamCount = diagnostics?.teamCount || Number(normalizedFormat.match(/\b(\d{1,2})\s*-?\s*team\b/i)?.[1]);
   if (Number.isFinite(teamCount) && teamCount > 0) addChip(`${teamCount}-Team`);
+
+  const normalizedMode = normalizeLeagueValueMode(mode || diagnostics?.valueMode);
+  addChip(normalizedMode === 'redraft' ? 'Redraft' : 'Dynasty');
 
   const slotText = [
     normalizedFormat,
@@ -246,40 +254,126 @@ function getBestManagerByValue(data: ReportData): string | null {
   return [...(data.leagueOverview || [])].sort((a, b) => a.rank_value - b.rank_value)[0]?.manager || null;
 }
 
-function getUserRankPreview(data: ReportData): string | null {
-  if (!data.viewerManager) return null;
-  const row = data.leagueOverview?.find((item) => item.manager === data.viewerManager);
-  return row ? `#${row.rank_value}` : null;
+const OWNER_INTEL_SORT_OPTIONS: Array<{
+  key: OwnerIntelSortMode;
+  label: string;
+  shortLabel: string;
+}> = [
+  { key: 'dynasty', label: 'Dynasty', shortLabel: 'DYN' },
+  { key: 'contender', label: 'Contender', shortLabel: 'CON' },
+  { key: 'rebuilder', label: 'Rebuilder', shortLabel: 'REB' },
+];
+
+function renderPreviewManagerIcon(manager: string | null | undefined, managerAvatars?: ReportData['managerAvatars']): ReactNode {
+  if (!manager) return '-';
+  const avatarUrl = managerAvatars?.[manager];
+  return (
+    <span className="analysis-preview-manager-avatar" title={manager} aria-label={manager}>
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="" />
+      ) : (
+        <span aria-hidden="true">{manager[0]?.toUpperCase() || '?'}</span>
+      )}
+    </span>
+  );
+}
+
+function renderPreviewManagerIdentity(
+  manager: string | null | undefined,
+  managerAvatars?: ReportData['managerAvatars'],
+  className = '',
+): ReactNode {
+  if (!manager) return '-';
+  const avatarUrl = managerAvatars?.[manager];
+
+  return (
+    <span
+      className={`analysis-preview-manager-value ${className}`.trim()}
+      title={manager}
+      aria-label={manager}
+    >
+      <span className="analysis-preview-manager-avatar" aria-hidden="true">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" />
+        ) : (
+          <span>{manager[0]?.toUpperCase() || '?'}</span>
+        )}
+      </span>
+      <span className="analysis-preview-manager-name">{manager}</span>
+    </span>
+  );
+}
+
+function OwnerIntelSortControls({
+  value,
+  onChange,
+}: {
+  value: OwnerIntelSortMode;
+  onChange: (nextValue: OwnerIntelSortMode) => void;
+}) {
+  return (
+    <span className="owner-intel-sort-controls" aria-label="Sort managers">
+      {OWNER_INTEL_SORT_OPTIONS.map((option) => (
+        <button
+          key={option.key}
+          type="button"
+          className={`owner-intel-sort-button${value === option.key ? ' owner-intel-sort-button-active' : ''}`}
+          aria-pressed={value === option.key}
+          data-owner-intel-sort={option.key}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onChange(option.key);
+          }}
+        >
+          <span className="owner-intel-sort-label-full">{option.label}</span>
+          <span className="owner-intel-sort-label-short">{option.shortLabel}</span>
+        </button>
+      ))}
+    </span>
+  );
 }
 
 function buildOwnerPreviewMetrics(data: ReportData, mode: LeagueValueMode): PreviewMetric[] {
   const valueLeader = getBestManagerByValue(data);
   const starterLeader = [...(data.powerRankings || [])].sort((a, b) => b.starterStrength - a.starterStrength)[0]?.manager;
-  const pressureCount = (data.managerRosterIntelligence || []).reduce((sum, row) => sum + (row.pressurePoints?.length || 0), 0);
-  const rank = getUserRankPreview(data);
 
   return mode === 'redraft'
     ? [
-        { label: 'Starter Leader', value: starterLeader || valueLeader || '-', tone: 'good' },
-        rank ? { label: 'Your Rank', value: rank, tone: 'info' } : null,
-        { label: 'Managers', value: data.managerRosterIntelligence?.length || data.leagueOverview?.length || 0, tone: 'neutral' },
-        pressureCount ? { label: 'Position Flags', value: pressureCount, tone: 'warn' } : null,
+        { label: 'Starter Leader', value: renderPreviewManagerIcon(starterLeader || valueLeader, data.managerAvatars), tone: 'good' },
       ].filter(Boolean) as PreviewMetric[]
     : [
-        { label: 'Value Leader', value: valueLeader || '-', tone: 'good' },
-        rank ? { label: 'Your Rank', value: rank, tone: 'info' } : null,
-        { label: 'Managers', value: data.managerRosterIntelligence?.length || data.leagueOverview?.length || 0, tone: 'neutral' },
-        pressureCount ? { label: 'Roster Flags', value: pressureCount, tone: 'warn' } : null,
+        { label: 'Value Leader', value: renderPreviewManagerIcon(valueLeader, data.managerAvatars), tone: 'good' },
       ].filter(Boolean) as PreviewMetric[];
 }
 
 function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
-  const starterLeader = [...(data.managerRosterIntelligence || [])].sort((a, b) => (b.starterSeasonValue || b.starterValue || 0) - (a.starterSeasonValue || a.starterValue || 0))[0];
+  const starterRows = [...(data.managerRosterIntelligence || [])].filter((row) => row.manager);
+  const starterScoreByManager = new Map((data.powerRankings || []).map((row) => [row.manager, row.starterStrength || 0]));
+  const getStarterPreviewScore = (row: NonNullable<ReportData['managerRosterIntelligence']>[number]) => (
+    row.starterSeasonValue
+    || row.starterValue
+    || starterScoreByManager.get(row.manager)
+    || 0
+  );
+  const orderedStarterRows = starterRows.sort((a, b) => getStarterPreviewScore(b) - getStarterPreviewScore(a));
+  const strongestStarterManager = orderedStarterRows[0]?.manager || null;
+  const weakestStarterManager = orderedStarterRows.length > 1
+    ? orderedStarterRows[orderedStarterRows.length - 1]?.manager || null
+    : null;
   const injuryFlags = (data.managerRosterIntelligence || []).filter((row) => row.starterAvailability?.riskLevel === 'high').length;
   const pressureCount = (data.managerRosterIntelligence || []).reduce((sum, row) => sum + (row.pressurePoints?.length || 0), 0);
   return [
-    { label: 'Starter Leader', value: starterLeader?.manager || '-', tone: 'good' },
-    { label: 'Starter Value', value: formatPreviewNumber(starterLeader?.starterSeasonValue || starterLeader?.starterValue), tone: 'info' },
+    {
+      label: 'Stronger Starters',
+      value: renderPreviewManagerIdentity(strongestStarterManager, data.managerAvatars, 'analysis-preview-manager-value-collapsible'),
+      tone: 'good',
+    },
+    weakestStarterManager ? {
+      label: 'Weakest Starters',
+      value: renderPreviewManagerIdentity(weakestStarterManager, data.managerAvatars, 'analysis-preview-manager-value-collapsible'),
+      tone: 'warn',
+    } : null,
     injuryFlags ? { label: 'Injury Flags', value: injuryFlags, tone: 'danger' } : null,
     pressureCount ? { label: 'Depth Flags', value: pressureCount, tone: 'warn' } : null,
   ].filter(Boolean) as PreviewMetric[];
@@ -336,13 +430,67 @@ function renderMomentumPreviewPlayer(player: ReportData['weeklyRisers'][number])
   );
 }
 
+function renderTrendingPreviewPlayer(player: NonNullable<ReportData['trendingAdds']>[number]) {
+  return (
+    <PlayerPill
+      playerId={player.player_id}
+      playerName={player.name}
+      team={player.playerDetails?.team || player.team}
+      position={player.pos}
+      className="analysis-preview-player"
+    />
+  );
+}
+
 function buildMomentumPreviewMetrics(data: ReportData): PreviewMetric[] {
   const topRiser = [...(data.weeklyRisers || [])].sort((a, b) => b.pct_change - a.pct_change)[0];
   const topFaller = [...(data.weeklyFallers || [])].sort((a, b) => a.pct_change - b.pct_change)[0];
   return [
-    topRiser ? { label: 'Biggest Riser', value: renderMomentumPreviewPlayer(topRiser), tone: 'good', icon: <TrendingUp /> } : null,
-    topFaller ? { label: 'Biggest Faller', value: renderMomentumPreviewPlayer(topFaller), tone: 'danger', icon: <TrendingDown /> } : null,
+    topRiser ? { label: 'Biggest Riser', value: renderMomentumPreviewPlayer(topRiser), tone: 'good', icon: <TrendingUp />, hideLabel: true } : null,
+    topFaller ? { label: 'Biggest Faller', value: renderMomentumPreviewPlayer(topFaller), tone: 'danger', icon: <TrendingDown />, hideLabel: true } : null,
   ].filter(Boolean) as PreviewMetric[];
+}
+
+function buildWeeklyRiserPreviewMetrics(data: ReportData): PreviewMetric[] {
+  return [...(data.weeklyRisers || [])]
+    .sort((a, b) => b.pct_change - a.pct_change)
+    .slice(0, 2)
+    .map((player, index): PreviewMetric => ({
+      label: `Riser ${index + 1}`,
+      value: renderMomentumPreviewPlayer(player),
+      tone: 'good',
+      icon: <TrendingUp />,
+      hideLabel: true,
+    }));
+}
+
+function buildWeeklyFallerPreviewMetrics(data: ReportData): PreviewMetric[] {
+  return [...(data.weeklyFallers || [])]
+    .sort((a, b) => a.pct_change - b.pct_change)
+    .slice(0, 2)
+    .map((player, index): PreviewMetric => ({
+      label: `Faller ${index + 1}`,
+      value: renderMomentumPreviewPlayer(player),
+      tone: 'danger',
+      icon: <TrendingDown />,
+      hideLabel: true,
+    }));
+}
+
+function buildTrendingPreviewMetrics(
+  players: NonNullable<ReportData['trendingAdds']>,
+  direction: 'up' | 'down',
+): PreviewMetric[] {
+  return [...players]
+    .sort((a, b) => b.count - a.count || (b.ktcValue || 0) - (a.ktcValue || 0))
+    .slice(0, 4)
+    .map((player, index): PreviewMetric => ({
+      label: `${direction === 'up' ? 'Add' : 'Drop'} ${index + 1}`,
+      value: renderTrendingPreviewPlayer(player),
+      tone: direction === 'up' ? 'good' : 'danger',
+      icon: direction === 'up' ? <TrendingUp /> : <TrendingDown />,
+      hideLabel: true,
+    }));
 }
 
 function normalizeAdminViewMode(value: unknown): AdminViewMode | null {
@@ -1552,6 +1700,7 @@ export default function Home() {
   const [leagueName, setLeagueName] = useState('');
   const [leagueLogo, setLeagueLogo] = useState<string | null>(null);
   const [leagueFormat, setLeagueFormat] = useState('');
+  const [ownerIntelSortMode, setOwnerIntelSortMode] = useState<OwnerIntelSortMode>('dynasty');
   const [isLoading, setIsLoading] = useState(false);
   const [analysisCompleteMessage, setAnalysisCompleteMessage] = useState<{
     leagueName: string;
@@ -2195,7 +2344,11 @@ export default function Home() {
       : null
   );
   const isLoadingRevealPhase = loadingTransitionPhase === 'reveal' || loadingTransitionPhase === 'kick';
-  const leagueFormatPills = buildLeagueFormatPills(leagueFormat, reportData?.leagueDiagnostics);
+  const leagueFormatPills = buildLeagueFormatPills(
+    leagueFormat,
+    reportData?.leagueDiagnostics,
+    reportData?.leagueDiagnostics?.valueMode || reportData?.leagueValueMode,
+  );
   const loadingSuccessCardClassName = [
     'loading-success-card',
     analysisCompleteMessage?.leagueLogo ? 'loading-success-card-logo' : '',
@@ -2313,11 +2466,28 @@ export default function Home() {
               {/* Left: Brand */}
               <div className="report-header-brand min-w-0">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <img
-                    src={DYNASTY_LOGO_SRC}
-                    alt="Dynasty Degenerates"
-                    className="report-header-mobile-logo md:hidden"
-                  />
+                  <div className={`report-header-mobile-brand-lockup md:hidden ${hasAdminPermissions ? 'report-header-mobile-brand-lockup-admin' : ''}`}>
+                    <img
+                      src={DYNASTY_LOGO_SRC}
+                      alt="Dynasty Degenerates"
+                      className="report-header-mobile-logo"
+                    />
+                    {hasAdminPermissions && (
+                      <Button
+                        type="button"
+                        onClick={hasAuthenticatedAdminPermissions ? undefined : handleAdminModeToggle}
+                        variant="outline"
+                        disabled={hasAuthenticatedAdminPermissions}
+                        className={`report-header-action report-header-admin-toggle report-header-admin-toggle-mobile ${canViewAdminFeatureExpansion ? 'report-header-admin-toggle-active' : ''}`}
+                        aria-pressed={canViewAdminFeatureExpansion}
+                        aria-label={hasAuthenticatedAdminPermissions ? 'Admin report tools unlocked by app admin session' : canViewAdminFeatureExpansion ? 'Switch to regular report view' : 'Unlock admin report tools'}
+                      >
+                        <span className="report-header-action-label">
+                          {hasAuthenticatedAdminPermissions ? 'Admin Tools' : canViewAdminFeatureExpansion ? 'Regular View' : 'Admin Tools'}
+                        </span>
+                      </Button>
+                    )}
+                  </div>
                   <h2 className="report-header-wordmark athletic-headline hidden truncate text-base sm:text-xl md:block">
                     <span>Dynasty</span> <span>Degenerates</span>
                   </h2>
@@ -2534,6 +2704,12 @@ export default function Home() {
                   title={modeCopy.ownerTitle}
                   kicker={modeCopy.ownerKicker}
                   previewMetrics={buildOwnerPreviewMetrics(reportData, leagueValueMode)}
+                  previewAccessory={!isRedraftReport ? (
+                    <OwnerIntelSortControls
+                      value={ownerIntelSortMode}
+                      onChange={setOwnerIntelSortMode}
+                    />
+                  ) : undefined}
                 >
                   <OwnerIntelMatrix
                     data={reportData}
@@ -2543,6 +2719,7 @@ export default function Home() {
                     viewerManager={reportData.viewerManager}
                     currentStandings={reportData.currentStandings}
                     leagueValueMode={leagueValueMode}
+                    ownerIntelSortMode={ownerIntelSortMode}
                   />
                 </CollapsibleReportSection>
                 <CollapsibleReportSection
@@ -2578,10 +2755,6 @@ export default function Home() {
                   <CollapsibleReportSection
                     title="Manager Position Counts"
                     kicker={isRedraftReport ? 'Starter depth and position gaps' : 'Full roster depth map'}
-                    previewMetrics={[
-                      { label: 'Managers', value: reportData.managerPositionCounts.length, tone: 'info' },
-                      { label: 'Depth Flags', value: reportData.positionDepth.length, tone: reportData.positionDepth.length ? 'warn' : 'neutral' },
-                    ]}
                   >
                     <ManagerPositionCountsTable
                       data={reportData.managerPositionCounts}
@@ -2659,13 +2832,17 @@ export default function Home() {
                     leagueValueMode={leagueValueMode}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers" previewMetrics={buildMomentumPreviewMetrics(reportData)}>
+                <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers" previewMetrics={buildWeeklyRiserPreviewMetrics(reportData)}>
                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops" previewMetrics={buildMomentumPreviewMetrics(reportData)}>
+                <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops" previewMetrics={buildWeeklyFallerPreviewMetrics(reportData)}>
                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Trending Adds" kicker={isRedraftReport ? "Sleeper add activity" : "Sleeper activity"}>
+                <CollapsibleReportSection
+                  title="Trending Adds"
+                  kicker={isRedraftReport ? "Sleeper add activity" : "Sleeper activity"}
+                  previewMetrics={buildTrendingPreviewMetrics(reportData.trendingAdds || [], 'up')}
+                >
                   <TrendingPlayersTable
                     data={reportData.trendingAdds || []}
                     title="Trending Adds"
@@ -2678,7 +2855,11 @@ export default function Home() {
                     leagueValueMode={leagueValueMode}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Trending Drops" kicker={isRedraftReport ? "Sleeper drop activity" : "Sleeper activity"}>
+                <CollapsibleReportSection
+                  title="Trending Drops"
+                  kicker={isRedraftReport ? "Sleeper drop activity" : "Sleeper activity"}
+                  previewMetrics={buildTrendingPreviewMetrics(reportData.trendingDrops || [], 'down')}
+                >
                   <TrendingPlayersTable
                     data={reportData.trendingDrops || []}
                     title="Trending Drops"
@@ -3195,6 +3376,7 @@ function CollapsibleReportSection({
   title,
   kicker,
   previewMetrics,
+  previewAccessory,
   defaultOpen = false,
   premium = false,
   onOpenChange,
@@ -3203,6 +3385,7 @@ function CollapsibleReportSection({
   title: string;
   kicker?: string;
   previewMetrics?: PreviewMetric[];
+  previewAccessory?: ReactNode;
   defaultOpen?: boolean;
   premium?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -3231,7 +3414,16 @@ function CollapsibleReportSection({
     <details className={`report-section report-disclosure${premium ? ' admin-premium-flare admin-premium-section' : ''}`} open={isOpen} onToggle={handleToggle}>
       <summary className="report-disclosure-summary">
         <ReportSectionHeader title={title} kicker={kicker} />
-        <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
+        {previewAccessory ? (
+          <span className="report-disclosure-preview-row">
+            <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
+            <span className="report-disclosure-preview-accessory">
+              {previewAccessory}
+            </span>
+          </span>
+        ) : (
+          <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
+        )}
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </summary>
       <div className="report-disclosure-body">

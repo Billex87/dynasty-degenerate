@@ -54,46 +54,102 @@ function getDraftCurrentValue(pick: DraftPick, leagueValueMode: LeagueValueMode)
   return Math.round(pick.currentKtcValue || 0);
 }
 
-function formatDraftPreviewValue(value?: number | null): string {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return '-';
-  if (Math.abs(numeric) >= 1000) return `${Math.round(numeric / 100) / 10}K`;
-  return numeric.toLocaleString();
+function renderPreviewManagerIdentity(
+  manager?: string | null,
+  displayName?: string | null,
+  managerAvatars?: Record<string, string | null>,
+): ReactNode {
+  if (!manager && !displayName) return '-';
+  const label = displayName || manager || '-';
+  const avatarUrl = manager ? managerAvatars?.[manager] : null;
+
+  return (
+    <span className="analysis-preview-manager-value" title={label}>
+      <span className="analysis-preview-manager-avatar" aria-hidden="true">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" />
+        ) : (
+          <span>{label[0]?.toUpperCase() || '?'}</span>
+        )}
+      </span>
+      <span className="analysis-preview-manager-name">{label}</span>
+    </span>
+  );
 }
 
-function buildDraftStatsPreviewMetrics(stats: ManagerDraftStats[], leagueValueMode: LeagueValueMode): PreviewMetric[] {
+function buildDraftStatsPreviewMetrics(
+  stats: ManagerDraftStats[],
+  leagueValueMode: LeagueValueMode,
+  managerAvatars?: Record<string, string | null>,
+): PreviewMetric[] {
   const leader = stats[0];
   if (!leader) return [];
   const hitRate = leader.totalPicks ? `${Math.round((leader.hits / leader.totalPicks) * 100)}%` : '-';
   return [
-    { label: 'Leader', value: leader.managerDisplayName || leader.manager, tone: 'good' },
+    {
+      label: 'Leader',
+      value: renderPreviewManagerIdentity(leader.manager, leader.managerDisplayName, managerAvatars),
+      tone: 'good',
+    },
     { label: leagueValueMode === 'redraft' ? 'Starter Hit Rate' : 'Hit Rate', value: hitRate, tone: 'info' },
-    { label: 'Picks', value: leader.totalPicks, tone: 'neutral' },
-    { label: 'Avg Swing', value: `${leader.avgKtcGain >= 0 ? '+' : ''}${formatDraftPreviewValue(leader.avgKtcGain)}`, tone: leader.avgKtcGain >= 0 ? 'good' : 'danger' },
   ];
 }
 
-function buildDraftDecisionPreviewMetrics(audits: ManagerDraftDecisionAudit[], leagueValueMode: LeagueValueMode): PreviewMetric[] {
-  const leader = audits[0];
-  const totalFlags = audits.reduce((sum, audit) => sum + audit.watchFlags, 0);
+function buildDraftDecisionPreviewMetrics(
+  audits: ManagerDraftDecisionAudit[],
+  managerAvatars?: Record<string, string | null>,
+): PreviewMetric[] {
+  const bestDecisionMaker = getBestDecisionMaker(audits);
+  const worstDecisionMaker = getWorstDecisionMaker(audits);
   return [
-    leader ? { label: 'Most Picks', value: leader.managerDisplayName || leader.manager, tone: 'info' } : null,
-    { label: leagueValueMode === 'redraft' ? 'Value Checks' : 'Board Flags', value: totalFlags, tone: totalFlags ? 'warn' : 'good' },
-    leader ? { label: 'Avg Swing', value: `${leader.avgChange >= 0 ? '+' : ''}${formatDraftPreviewValue(leader.avgChange)}`, tone: leader.avgChange >= 0 ? 'good' : 'danger' } : null,
+    bestDecisionMaker ? {
+      label: 'Best Decision Maker',
+      value: renderPreviewManagerIdentity(bestDecisionMaker.manager, bestDecisionMaker.managerDisplayName, managerAvatars),
+      tone: 'good',
+    } : null,
+    worstDecisionMaker ? {
+      label: 'Worst Decision Maker',
+      value: renderPreviewManagerIdentity(worstDecisionMaker.manager, worstDecisionMaker.managerDisplayName, managerAvatars),
+      tone: worstDecisionMaker.watchFlags ? 'danger' : 'warn',
+    } : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
-function buildDraftYearPreviewMetrics(picks: DraftPick[], leagueValueMode: LeagueValueMode): PreviewMetric[] {
+function buildDraftYearPreviewMetrics(
+  picks: DraftPick[],
+  leagueValueMode: LeagueValueMode,
+  draftDecisionAudits: DraftDecisionAudit[],
+  managerAvatars?: Record<string, string | null>,
+): PreviewMetric[] {
   const topGain = [...picks].sort((a, b) => (b.valueGain || 0) - (a.valueGain || 0))[0];
   const biggestMiss = [...picks].sort((a, b) => (a.valueGain || 0) - (b.valueGain || 0))[0];
   const hitCount = picks.filter((pick) => pick.draftOutcome === 'hit' || pick.isStarter).length;
-  const totalSwing = picks.reduce((sum, pick) => sum + (pick.valueGain || 0), 0);
+  const yearPickKeys = new Set(picks.map(getDraftPickKey));
+  const yearDecisionRows = buildManagerDraftDecisionAudits(
+    draftDecisionAudits.filter((audit) => yearPickKeys.has(getDraftPickKey(audit.pick))),
+  );
+  const bestDecisionMaker = getBestDecisionMaker(yearDecisionRows);
+  const worstDecisionMaker = getWorstDecisionMaker(yearDecisionRows);
+  const cleanDecisionCount = draftDecisionAudits.filter((audit) => (
+    yearPickKeys.has(getDraftPickKey(audit.pick)) && audit.tone !== 'watch'
+  )).length;
+  const cleanDecisionRate = picks.length ? `${Math.round((cleanDecisionCount / picks.length) * 100)}%` : '-';
+
   return [
-    { label: 'Pick Count', value: picks.length, tone: 'info' },
     topGain ? { label: leagueValueMode === 'redraft' ? 'Top Current Gain' : 'Top Gain', value: topGain.playerName, tone: 'good' } : null,
     biggestMiss && (biggestMiss.valueGain || 0) < 0 ? { label: 'Biggest Miss', value: biggestMiss.playerName, tone: 'danger' } : null,
     picks.length ? { label: leagueValueMode === 'redraft' ? 'Starter Hit Rate' : 'Hit Rate', value: `${Math.round((hitCount / picks.length) * 100)}%`, tone: 'info' } : null,
-    picks.length ? { label: 'Total Swing', value: `${totalSwing > 0 ? '+' : ''}${formatDraftPreviewValue(totalSwing)}`, tone: totalSwing >= 0 ? 'good' : 'danger' } : null,
+    bestDecisionMaker ? {
+      label: 'Best Decisions',
+      value: renderPreviewManagerIdentity(bestDecisionMaker.manager, bestDecisionMaker.managerDisplayName, managerAvatars),
+      tone: 'good',
+    } : null,
+    worstDecisionMaker ? {
+      label: 'Worst Decisions',
+      value: renderPreviewManagerIdentity(worstDecisionMaker.manager, worstDecisionMaker.managerDisplayName, managerAvatars),
+      tone: worstDecisionMaker.watchFlags ? 'danger' : 'warn',
+    } : null,
+    picks.length ? { label: 'Clean Reads', value: cleanDecisionRate, tone: cleanDecisionCount === picks.length ? 'good' : 'info' } : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
@@ -282,7 +338,7 @@ export function DraftAnalysis({
       <DraftCollapsibleSection
         title={isRedraft ? 'Draft Recap Efficiency' : 'Draft Capital Efficiency'}
         kicker={isRedraft ? 'Starter hit rate first' : 'Hit rate first'}
-        previewMetrics={buildDraftStatsPreviewMetrics(orderedDraftStats, leagueValueMode)}
+        previewMetrics={buildDraftStatsPreviewMetrics(orderedDraftStats, leagueValueMode, managerAvatars)}
       >
         <div className="owner-tile-shell">
           <div className="owner-tile-grid draft-efficiency-tile-grid balanced-tile-grid" style={getBalancedGridStyle(orderedDraftStats.length)}>
@@ -336,8 +392,8 @@ export function DraftAnalysis({
       {managerDraftDecisionAudits.length > 0 && (
         <DraftCollapsibleSection
           title={isRedraft ? 'Draft-Day vs Current Value' : 'Draft Decision Audit'}
-          kicker={isRedraft ? 'Current value checks' : 'Most picks first'}
-          previewMetrics={buildDraftDecisionPreviewMetrics(managerDraftDecisionAudits, leagueValueMode)}
+          kicker={isRedraft ? 'Decision quality' : 'Decision makers'}
+          previewMetrics={buildDraftDecisionPreviewMetrics(managerDraftDecisionAudits, managerAvatars)}
         >
           <div className="draft-decision-audit-note">
             {isRedraft
@@ -402,7 +458,7 @@ export function DraftAnalysis({
           {draftYears.map((draftYear) => {
             const yearPicks = draftPicksByYear[draftYear] || [];
             const isDraftBoardOpen = openDraftYears.has(draftYear);
-            const yearPreviewMetrics = buildDraftYearPreviewMetrics(yearPicks, leagueValueMode);
+            const yearPreviewMetrics = buildDraftYearPreviewMetrics(yearPicks, leagueValueMode, draftDecisionAudits, managerAvatars);
 
             return (
               <div key={draftYear}>
@@ -414,7 +470,7 @@ export function DraftAnalysis({
                 >
                   <span className="min-w-0">
                     <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/80">
-                      Picked players
+                      {yearPicks.length} players picked
                     </span>
                     <span className="athletic-headline mt-1 block truncate text-xl font-black text-orange-400 sm:text-2xl">
                       {draftYear} {isRedraft ? 'Draft Recap' : 'Rookie Draft'}
@@ -422,7 +478,7 @@ export function DraftAnalysis({
                     <PreviewMetricChips metrics={yearPreviewMetrics} className="draft-year-preview-chips" />
                   </span>
                   <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-300">
-                    {isDraftBoardOpen ? 'Hide' : `${yearPicks.length} Picks`}
+                    {isDraftBoardOpen ? 'Hide' : 'Show'}
                     <ChevronDown className={`h-5 w-5 text-orange-300 transition-transform ${isDraftBoardOpen ? 'rotate-180' : ''}`} />
                   </span>
                 </button>
@@ -674,6 +730,60 @@ function sortManagerDraftDecisionAuditsByPickVolume(rows: ManagerDraftDecisionAu
       || compareManagerLabels(a.managerDisplayName || a.manager, b.managerDisplayName || b.manager)
     );
   });
+}
+
+function getBestDecisionMaker(rows: ManagerDraftDecisionAudit[]): ManagerDraftDecisionAudit | null {
+  if (!rows.length) return null;
+  return [...rows].sort((a, b) => {
+    return (
+      compareNumbersDesc(getDecisionQualityScore(a), getDecisionQualityScore(b))
+      || compareNumbersAsc(getWatchFlagRate(a), getWatchFlagRate(b))
+      || compareNumbersDesc(a.avgChange, b.avgChange)
+      || compareNumbersDesc(a.totalPicks, b.totalPicks)
+      || compareManagerLabels(a.managerDisplayName || a.manager, b.managerDisplayName || b.manager)
+    );
+  })[0] || null;
+}
+
+function getWorstDecisionMaker(rows: ManagerDraftDecisionAudit[]): ManagerDraftDecisionAudit | null {
+  if (!rows.length) return null;
+  return [...rows].sort((a, b) => {
+    return (
+      compareNumbersDesc(getDecisionConcernScore(a), getDecisionConcernScore(b))
+      || compareNumbersDesc(getWatchFlagRate(a), getWatchFlagRate(b))
+      || compareNumbersDesc(a.watchFlags, b.watchFlags)
+      || compareNumbersAsc(a.avgChange, b.avgChange)
+      || compareNumbersDesc(a.totalPicks, b.totalPicks)
+      || compareManagerLabels(a.managerDisplayName || a.manager, b.managerDisplayName || b.manager)
+    );
+  })[0] || null;
+}
+
+function getDecisionQualityScore(row: ManagerDraftDecisionAudit): number {
+  const totalPicks = Math.max(row.totalPicks, 1);
+  const cleanRate = row.cleanReads / totalPicks;
+  const boardRate = row.boardReads / totalPicks;
+  const hitRate = row.hits / totalPicks;
+  const missRate = row.misses / totalPicks;
+  const valueScore = clampNumber(row.avgChange / 300, -14, 14);
+
+  return (cleanRate * 100) + (boardRate * 26) + (hitRate * 12) + valueScore - (getWatchFlagRate(row) * 56) - (missRate * 10);
+}
+
+function getDecisionConcernScore(row: ManagerDraftDecisionAudit): number {
+  const totalPicks = Math.max(row.totalPicks, 1);
+  const missRate = row.misses / totalPicks;
+  const valueConcern = clampNumber(-row.avgChange / 260, -12, 18);
+
+  return (getWatchFlagRate(row) * 100) + (missRate * 28) + valueConcern - ((row.cleanReads / totalPicks) * 12);
+}
+
+function getWatchFlagRate(row: ManagerDraftDecisionAudit): number {
+  return row.totalPicks > 0 ? row.watchFlags / row.totalPicks : 0;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function getHitRate(stat: Pick<ManagerDraftStats, 'hits' | 'totalPicks'>): number {

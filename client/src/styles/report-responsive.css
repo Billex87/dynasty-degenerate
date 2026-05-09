@@ -5485,6 +5485,15 @@
   text-transform: uppercase;
 }
 
+.analysis-preview-chip-label-hidden .analysis-preview-chip-label-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .analysis-preview-chip-icon {
   display: inline-flex;
   width: 0.9rem;
@@ -5809,13 +5818,48 @@
 
   .report-league-format-row {
     display: flex;
-    gap: 0.22rem;
+    gap: 0.18rem;
   }
 
   .report-league-format-pill {
     min-height: 1rem;
-    padding: 0.13rem 0.34rem;
-    font-size: 0.52rem;
+    padding: 0.12rem 0.28rem;
+    font-size: 0.49rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-header-mobile-brand-lockup {
+    display: inline-flex;
+    min-width: max-content;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.06rem;
+  }
+
+  .report-header-mobile-brand-lockup-admin {
+    gap: 0;
+  }
+
+  .report-header-mobile-brand-lockup-admin .report-header-mobile-logo {
+    transform: translateY(-0.14rem);
+  }
+
+  .report-header-mobile-brand-lockup-admin .report-header-mobile-logo:hover {
+    transform: translateY(-0.2rem) scale(1.025);
+  }
+
+  .report-header-admin-toggle-mobile {
+    display: inline-flex !important;
+    min-height: 1.12rem !important;
+    height: 1.12rem !important;
+    align-self: center;
+    margin-top: -0.2rem;
+    padding-inline: 0.38rem !important;
+    font-size: clamp(0.49rem, 2.1vw, 0.58rem) !important;
+    line-height: 1;
+    white-space: nowrap;
   }
 }
 
@@ -7985,5 +8029,309 @@
   .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-pill,
   .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-empty {
     max-width: 7.65rem;
+  }
+}
+
+.report-disclosure-preview-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+}
+
+.report-disclosure-preview-row .analysis-preview-chip-row {
+  width: auto;
+  min-width: 0;
+  flex: 0 1 auto;
+  justify-content: center;
+}
+
+.report-disclosure-preview-row .analysis-preview-chip {
+  min-width: 0;
+}
+
+.report-disclosure-preview-row .analysis-preview-chip-row-single .analysis-preview-chip {
+  flex: 0 1 auto;
+  min-width: min(100%, 7.7rem);
+}
+
+.report-disclosure-preview-accessory {
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.analysis-preview-manager-avatar {
+  display: inline-flex;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 1.35rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.42);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.72);
+  color: #fed7aa;
+  font-size: 0.58rem;
+  font-weight: 1000;
+  line-height: 1;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.14);
+}
+
+.analysis-preview-manager-value {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(15rem, 44vw);
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.34rem;
+}
+
+.analysis-preview-manager-value-collapsible {
+  max-width: min(10.5rem, 36vw);
+}
+
+.analysis-preview-manager-name {
+  display: inline-block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysis-preview-manager-avatar img,
+.analysis-preview-manager-avatar > span {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  object-fit: cover;
+}
+
+.owner-intel-sort-controls {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.24rem;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 0 0, rgba(34, 211, 238, 0.12), transparent 52%),
+    rgba(2, 6, 23, 0.62);
+  padding: 0.18rem;
+}
+
+.owner-intel-sort-button {
+  display: inline-flex;
+  min-height: 1.55rem;
+  min-width: 4.7rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.64);
+  padding: 0.22rem 0.62rem;
+  color: rgba(226, 232, 240, 0.82);
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  transition:
+    border-color var(--dd-motion-fast, 180ms) var(--dd-motion-ease-out, ease),
+    background-color var(--dd-motion-fast, 180ms) var(--dd-motion-ease-out, ease),
+    box-shadow var(--dd-motion-fast, 180ms) var(--dd-motion-ease-out, ease),
+    color var(--dd-motion-fast, 180ms) var(--dd-motion-ease-out, ease),
+    transform var(--dd-motion-fast, 180ms) var(--dd-motion-ease-out, ease);
+}
+
+.owner-intel-sort-button:hover,
+.owner-intel-sort-button:focus-visible {
+  border-color: rgba(34, 211, 238, 0.42);
+  color: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.owner-intel-sort-button-active {
+  border-color: rgba(251, 146, 60, 0.74);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.88), rgba(234, 179, 8, 0.84));
+  color: #020617;
+  box-shadow: 0 0 18px rgba(249, 115, 22, 0.22);
+}
+
+.owner-intel-sort-label-short,
+.owner-intel-score-label-short {
+  display: none;
+}
+
+.owner-intel-score-label-full,
+.owner-intel-score-label-short {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-shell .command-depth-copy {
+  width: 100%;
+  justify-items: center;
+  text-align: center;
+}
+
+.report-shell .command-depth-name {
+  max-width: 100%;
+  text-align: center;
+  transform-origin: center;
+}
+
+@media (max-width: 767px) {
+  .report-disclosure-preview-row {
+    flex-wrap: nowrap;
+    gap: 0.34rem;
+  }
+
+  .report-disclosure-preview-row .analysis-preview-chip-row {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .report-disclosure-preview-row .analysis-preview-chip-row-single .analysis-preview-chip {
+    min-width: 6.65rem;
+    padding: 0.3rem 0.46rem;
+  }
+
+  .report-disclosure-preview-row .analysis-preview-chip > .analysis-preview-chip-label {
+    gap: 0.24rem;
+  }
+
+  .report-disclosure-preview-accessory {
+    flex: 0 1 auto;
+  }
+
+  .owner-intel-sort-controls {
+    gap: 0.18rem;
+    padding: 0.14rem;
+  }
+
+  .owner-intel-sort-button {
+    min-height: 1.48rem;
+    min-width: 2.08rem;
+    padding: 0.18rem 0.3rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.07em;
+  }
+
+  .owner-intel-sort-label-full,
+  .owner-intel-score-label-full {
+    display: none;
+  }
+
+  .owner-intel-sort-label-short,
+  .owner-intel-score-label-short {
+    display: inline-block;
+  }
+
+  .owner-intel-score-strip {
+    gap: 0.16rem;
+  }
+
+  .owner-intel-score-strip > span {
+    min-height: 2rem;
+    border-radius: 0.58rem;
+    padding: 0.22rem 0.12rem;
+  }
+
+  .owner-intel-score-strip strong {
+    font-size: clamp(0.42rem, 1.9vw, 0.5rem);
+    letter-spacing: 0.01em;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .owner-intel-score-label-short {
+    overflow: visible;
+    text-overflow: clip;
+    transform: scaleX(0.62);
+    transform-origin: center;
+  }
+
+  .owner-intel-score-strip em {
+    font-size: clamp(0.74rem, 2.9vw, 0.9rem);
+  }
+
+  .analysis-preview-manager-value-collapsible {
+    max-width: 1.35rem;
+    gap: 0;
+    justify-content: center;
+  }
+
+  .analysis-preview-manager-value-collapsible .analysis-preview-manager-name {
+    display: none;
+  }
+
+  .draft-board-toggle {
+    flex-direction: column;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.72rem;
+    text-align: center !important;
+  }
+
+  .draft-board-toggle > span:first-child {
+    display: grid;
+    width: 100%;
+    justify-items: center;
+  }
+
+  .draft-board-toggle > span:last-child {
+    justify-content: center;
+  }
+
+  .draft-year-preview-chips {
+    justify-content: center;
+  }
+
+  .draft-year-preview-chips .analysis-preview-chip {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .draft-year-preview-chips .analysis-preview-chip > strong {
+    justify-content: center;
+  }
+
+  .draft-year-preview-chips .analysis-preview-manager-value {
+    max-width: min(10.5rem, 56vw);
+    justify-content: center;
+  }
+}
+
+@media (max-width: 360px) {
+  .report-disclosure-preview-row {
+    gap: 0.24rem;
+  }
+
+  .report-disclosure-preview-row .analysis-preview-chip-row-single .analysis-preview-chip {
+    min-width: 6.25rem;
+    padding-inline: 0.38rem;
+  }
+
+  .owner-intel-sort-button {
+    min-width: 1.9rem;
+    padding-inline: 0.24rem;
+    font-size: 0.5rem;
+  }
+
+  .analysis-preview-manager-name {
+    max-width: 6.7rem;
   }
 }

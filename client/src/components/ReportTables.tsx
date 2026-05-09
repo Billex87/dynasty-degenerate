@@ -2603,6 +2603,7 @@ type OwnerScoreLens = {
   buildLabel: OwnerBuildLabel;
   buildTone: OwnerSignalTone;
 };
+type OwnerIntelSortMode = 'dynasty' | 'contender' | 'rebuilder';
 type DynastyAiSuggestion = {
   title: string;
   copy: string;
@@ -3236,18 +3237,25 @@ function buildOwnerScoreLens({
 
 function OwnerScoreStrip({ scores, compact = false, leagueValueMode = 'dynasty' }: { scores: OwnerScoreLens; compact?: boolean; leagueValueMode?: LeagueValueMode }) {
   const isRedraft = leagueValueMode === 'redraft';
+  const renderLabel = (fullLabel: string, shortLabel: string) => (
+    <strong>
+      <span className="owner-intel-score-label-full">{fullLabel}</span>
+      <span className="owner-intel-score-label-short">{shortLabel}</span>
+    </strong>
+  );
+
   return (
     <span className={`owner-intel-score-strip${compact ? ' owner-intel-score-strip-compact' : ''}`} aria-label="Manager score lenses">
       <span>
-        <strong>{isRedraft ? 'Current' : 'Dynasty'}</strong>
+        {renderLabel(isRedraft ? 'Current' : 'Dynasty', isRedraft ? 'Current' : 'Dynasty')}
         <em>{formatOwnerScore(scores.dynastyScore)}</em>
       </span>
       <span>
-        <strong>{isRedraft ? 'Starters' : 'Contender'}</strong>
+        {renderLabel(isRedraft ? 'Starters' : 'Contender', isRedraft ? 'Start' : 'Contend')}
         <em>{formatOwnerScore(scores.contenderScore)}</em>
       </span>
       <span>
-        <strong>{isRedraft ? 'Bench' : 'Rebuilder'}</strong>
+        {renderLabel(isRedraft ? 'Bench' : 'Rebuilder', isRedraft ? 'Bench' : 'Rebuild')}
         <em>{formatOwnerScore(scores.rebuilderScore)}</em>
       </span>
     </span>
@@ -5722,6 +5730,7 @@ export function OwnerIntelMatrix({
   viewerManager,
   currentStandings: _currentStandings,
   leagueValueMode: leagueValueModeInput = 'dynasty',
+  ownerIntelSortMode = 'dynasty',
 }: {
   data: ReportData;
   managerAvatars?: ManagerAvatars;
@@ -5730,6 +5739,7 @@ export function OwnerIntelMatrix({
   viewerManager?: string | null;
   currentStandings?: ReportData['currentStandings'];
   leagueValueMode?: ReportData['leagueValueMode'];
+  ownerIntelSortMode?: OwnerIntelSortMode;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const [selectedOwner, setSelectedOwner] = useState<string | null>(null);
@@ -5748,12 +5758,29 @@ export function OwnerIntelMatrix({
   const getGrowthRow = (manager: string) => growthRows.find((row) => row.manager === manager);
   const getPowerRow = (manager: string) => powerRows.find((row) => row.manager === manager);
   const getTimelineRow = (manager: string) => data.dynastyTimelines?.find((row) => row.manager === manager);
+  const getScoreLensForRow = (row: OwnerIntelRow) => buildOwnerScoreLens({
+    row,
+    timelineRow: getTimelineRow(row.manager),
+    powerRow: getPowerRow(row.manager),
+    overviewRow: getOverviewRow(row.manager),
+    growthRow: getGrowthRow(row.manager),
+    maxGrowthValue,
+    leagueSize: intelRows.length,
+  });
+  const getSortScoreForRow = (row: OwnerIntelRow) => {
+    const scoreLens = getScoreLensForRow(row);
+    if (ownerIntelSortMode === 'contender') return scoreLens.contenderScore ?? -1;
+    if (ownerIntelSortMode === 'rebuilder') return scoreLens.rebuilderScore ?? -1;
+    return scoreLens.dynastyScore ?? -1;
+  };
   const orderedIntelRows = [...intelRows].sort((a, b) => {
-    if (viewerManager && a.manager === viewerManager && b.manager !== viewerManager) return -1;
-    if (viewerManager && b.manager === viewerManager && a.manager !== viewerManager) return 1;
+    const scoreDiff = getSortScoreForRow(b) - getSortScoreForRow(a);
+    if (scoreDiff !== 0) return scoreDiff;
     const aRank = getOverviewRow(a.manager)?.rank_value ?? Number.MAX_SAFE_INTEGER;
     const bRank = getOverviewRow(b.manager)?.rank_value ?? Number.MAX_SAFE_INTEGER;
     if (aRank !== bRank) return aRank - bRank;
+    if (viewerManager && a.manager === viewerManager && b.manager !== viewerManager) return -1;
+    if (viewerManager && b.manager === viewerManager && a.manager !== viewerManager) return 1;
     return a.manager.localeCompare(b.manager);
   });
   const selectedRow = selectedOwner ? orderedIntelRows.find((row) => row.manager === selectedOwner) : null;
@@ -5762,16 +5789,7 @@ export function OwnerIntelMatrix({
   const selectedOverviewRow = selectedRow ? getOverviewRow(selectedRow.manager) : null;
   const selectedGrowthRow = selectedRow ? getGrowthRow(selectedRow.manager) : null;
   const selectedPowerRow = selectedRow ? getPowerRow(selectedRow.manager) : null;
-  const selectedTimelineRow = selectedRow ? getTimelineRow(selectedRow.manager) : null;
-  const selectedScoreLens = selectedRow ? buildOwnerScoreLens({
-    row: selectedRow,
-    timelineRow: selectedTimelineRow,
-    powerRow: selectedPowerRow,
-    overviewRow: selectedOverviewRow,
-    growthRow: selectedGrowthRow,
-    maxGrowthValue,
-    leagueSize: orderedIntelRows.length,
-  }) : null;
+  const selectedScoreLens = selectedRow ? getScoreLensForRow(selectedRow) : null;
   const selectedTeamType = selectedRow && isRedraft
     ? buildRedraftOwnerProfileLabel(selectedRow, selectedPowerRow, selectedOverviewRow, orderedIntelRows.length)
     : selectedScoreLens?.buildLabel || null;
@@ -5874,16 +5892,7 @@ export function OwnerIntelMatrix({
           const overviewRow = getOverviewRow(row.manager);
           const growthRow = getGrowthRow(row.manager);
           const powerRow = getPowerRow(row.manager);
-          const timelineRow = getTimelineRow(row.manager);
-          const scoreLens = buildOwnerScoreLens({
-            row,
-            timelineRow,
-            powerRow,
-            overviewRow,
-            growthRow,
-            maxGrowthValue,
-            leagueSize: orderedIntelRows.length,
-          });
+          const scoreLens = getScoreLensForRow(row);
           return (
             <ManagerDepthTile
               key={row.manager}
