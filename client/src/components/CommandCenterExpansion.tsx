@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BadgeDollarSign,
   Bell,
   CalendarDays,
   ClipboardList,
+  Copy,
   Crosshair,
   FileText,
   Gauge,
@@ -12,6 +13,7 @@ import {
   Newspaper,
   PackageSearch,
   Radar,
+  Save,
   ShieldCheck,
   Sparkles,
   Swords,
@@ -35,6 +37,42 @@ type PowerRow = NonNullable<ReportData['powerRankings']>[number];
 type Position = 'QB' | 'RB' | 'WR' | 'TE';
 
 const POSITIONS: Position[] = ['QB', 'RB', 'WR', 'TE'];
+const WATCH_ALERT_PREFERENCES_KEY = 'dynasty-degenerates:watch-alert-preferences:v1';
+const PORTFOLIO_SNAPSHOT_KEY = 'dynasty-degenerates:portfolio-snapshots:v1';
+
+type WatchAlertPreferences = {
+  riseThresholdPct: number;
+  fallThresholdPct: number;
+  trackedPlayerIds: string[];
+  savedAt?: number;
+};
+
+type PortfolioSnapshotPlayer = {
+  playerId: string;
+  name: string;
+  position?: string | null;
+  team?: string | null;
+  value: number;
+};
+
+type PortfolioSnapshot = {
+  id: string;
+  leagueKey: string;
+  leagueName: string;
+  manager: string;
+  savedAt: number;
+  totalValue: number;
+  playerCount: number;
+  topThreeShare: number | null;
+  positionRows: Array<{ position: Position; count: number; value: number }>;
+  players: PortfolioSnapshotPlayer[];
+};
+
+const DEFAULT_WATCH_ALERT_PREFERENCES: WatchAlertPreferences = {
+  riseThresholdPct: 12,
+  fallThresholdPct: 10,
+  trackedPlayerIds: [],
+};
 
 function formatCompactValue(value?: number | null): string {
   const numeric = Number(value);
@@ -51,6 +89,48 @@ function formatPercent(value?: number | null): string {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function readWatchAlertPreferences(): WatchAlertPreferences {
+  if (typeof window === 'undefined') return DEFAULT_WATCH_ALERT_PREFERENCES;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(WATCH_ALERT_PREFERENCES_KEY) || 'null') as Partial<WatchAlertPreferences> | null;
+    if (!parsed || typeof parsed !== 'object') return DEFAULT_WATCH_ALERT_PREFERENCES;
+    return {
+      riseThresholdPct: clamp(Number(parsed.riseThresholdPct) || DEFAULT_WATCH_ALERT_PREFERENCES.riseThresholdPct, 1, 100),
+      fallThresholdPct: clamp(Number(parsed.fallThresholdPct) || DEFAULT_WATCH_ALERT_PREFERENCES.fallThresholdPct, 1, 100),
+      trackedPlayerIds: Array.isArray(parsed.trackedPlayerIds) ? parsed.trackedPlayerIds.filter(Boolean).map(String).slice(0, 80) : [],
+      savedAt: Number(parsed.savedAt) || undefined,
+    };
+  } catch {
+    return DEFAULT_WATCH_ALERT_PREFERENCES;
+  }
+}
+
+function writeWatchAlertPreferences(preferences: WatchAlertPreferences) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(WATCH_ALERT_PREFERENCES_KEY, JSON.stringify({
+    ...preferences,
+    savedAt: Date.now(),
+  }));
+}
+
+function readPortfolioSnapshots(): PortfolioSnapshot[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PORTFOLIO_SNAPSHOT_KEY) || '[]') as PortfolioSnapshot[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((snapshot) => snapshot && snapshot.id && snapshot.manager && Array.isArray(snapshot.players))
+      .slice(0, 30);
+  } catch {
+    return [];
+  }
+}
+
+function writePortfolioSnapshots(snapshots: PortfolioSnapshot[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(PORTFOLIO_SNAPSHOT_KEY, JSON.stringify(snapshots.slice(0, 30)));
 }
 
 function getManagerOptions(data: ReportData): string[] {
@@ -363,6 +443,8 @@ export function MonthlyTeamBlueprint({
   const managerOptions = getManagerOptions(data);
   const [selectedManager, setSelectedManager] = useState(getDefaultManager(data));
   const [generated, setGenerated] = useState(false);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const reportRef = useRef<HTMLElement | null>(null);
   const manager = selectedManager || managerOptions[0] || '';
   const intel = getIntel(data, manager);
   const overview = getOverview(data, manager);
@@ -404,6 +486,35 @@ export function MonthlyTeamBlueprint({
     ...((intel.pressurePoints || []).slice(0, 3)),
     intel.holes.summary !== 'No major roster hole flagged' ? intel.holes.summary : null,
   ].filter(Boolean) as string[];
+  const blueprintShareText = [
+    `${manager} ${monthLabel} Team Blueprint`,
+    `${leagueName || 'Sleeper League'}${leagueFormat ? ` · ${leagueFormat}` : ''}`,
+    `Roster archetype: ${intel.identity || '-'}`,
+    `Value tier: ${getValueTier(overview?.rank_value, leagueSize)}`,
+    `Overall grade: ${overallGrade}`,
+    `Top strength: ${getTopStrength(power, overview)}`,
+    `Priority: ${topPriorities[0] || intel.tradePlan?.summary || 'No priority flag returned'}`,
+    hasPartialHistory ? 'History note: partial returned history only.' : 'History note: returned history loaded.',
+  ].join('\n');
+
+  const handleCopyBlueprint = async () => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      setShareStatus('Clipboard unavailable');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(blueprintShareText);
+      setShareStatus('Share text copied');
+    } catch {
+      setShareStatus('Clipboard blocked');
+    }
+  };
+
+  const handlePrintBlueprint = () => {
+    if (typeof window === 'undefined') return;
+    setShareStatus('Opening print dialog');
+    window.print();
+  };
 
   return (
     <div className="team-blueprint-lab">
@@ -420,6 +531,19 @@ export function MonthlyTeamBlueprint({
           <FileText className="h-4 w-4" aria-hidden="true" />
           {generated ? 'Regenerate Team Blueprint' : 'Generate Team Blueprint'}
         </button>
+        {generated && (
+          <div className="team-blueprint-export-actions">
+            <button type="button" className="command-secondary-action" onClick={handleCopyBlueprint}>
+              <Copy className="h-4 w-4" aria-hidden="true" />
+              Copy Share Text
+            </button>
+            <button type="button" className="command-secondary-action" onClick={handlePrintBlueprint}>
+              <FileText className="h-4 w-4" aria-hidden="true" />
+              Print / Save PDF
+            </button>
+            {shareStatus && <span>{shareStatus}</span>}
+          </div>
+        )}
       </div>
 
       {!generated ? (
@@ -443,7 +567,7 @@ export function MonthlyTeamBlueprint({
           backgroundVariant="monthly"
         />
       ) : (
-        <article className="team-blueprint-report">
+        <article className="team-blueprint-report" ref={reportRef}>
           <div className="team-blueprint-report-header">
             <div className="team-blueprint-lockup">
               <ChampionAvatarFrame managerName={manager} className="team-blueprint-avatar">
@@ -1436,17 +1560,108 @@ function buildPortfolioExposure(data: ReportData, selectedManager: string) {
   };
 }
 
-function buildFeatureCoverageRows(data: ReportData, selectedManager: string) {
+function buildPortfolioSnapshot(data: ReportData, selectedManager: string, leagueName?: string, leagueId?: string): PortfolioSnapshot | null {
+  const players = getManagerPlayerPool(getIntel(data, selectedManager));
+  if (!selectedManager || !players.length) return null;
+  const portfolio = buildPortfolioExposure(data, selectedManager);
+  const leagueKey = leagueId || leagueName || data.leagueDiagnostics?.scoringSummary || 'current-league';
+  return {
+    id: `${leagueKey}:${selectedManager}`,
+    leagueKey,
+    leagueName: leagueName || 'Sleeper League',
+    manager: selectedManager,
+    savedAt: Date.now(),
+    totalValue: portfolio.totalValue,
+    playerCount: players.length,
+    topThreeShare: portfolio.topThreeShare,
+    positionRows: portfolio.positionRows,
+    players: players.map((player) => ({
+      playerId: player.player_id || `${player.name}-${player.pos}`,
+      name: player.name,
+      position: player.pos,
+      team: player.playerDetails?.team || null,
+      value: getTradePlayerValue(player, data),
+    })),
+  };
+}
+
+function upsertPortfolioSnapshot(snapshots: PortfolioSnapshot[], snapshot: PortfolioSnapshot): PortfolioSnapshot[] {
+  return [
+    snapshot,
+    ...snapshots.filter((item) => item.id !== snapshot.id),
+  ].slice(0, 30);
+}
+
+function buildSavedPortfolioSummary(snapshots: PortfolioSnapshot[]) {
+  const exposure = new Map<string, {
+    playerId: string;
+    name: string;
+    position?: string | null;
+    team?: string | null;
+    value: number;
+    count: number;
+    leagues: Set<string>;
+  }>();
+
+  snapshots.forEach((snapshot) => {
+    snapshot.players.forEach((player) => {
+      const key = player.playerId || `${player.name}-${player.position || ''}`;
+      const existing = exposure.get(key) || {
+        playerId: player.playerId,
+        name: player.name,
+        position: player.position,
+        team: player.team,
+        value: 0,
+        count: 0,
+        leagues: new Set<string>(),
+      };
+      existing.value += player.value || 0;
+      existing.count += 1;
+      existing.leagues.add(snapshot.leagueName);
+      exposure.set(key, existing);
+    });
+  });
+
+  const overexposedPlayers = Array.from(exposure.values())
+    .filter((player) => player.count > 1)
+    .sort((a, b) => b.count - a.count || b.value - a.value)
+    .slice(0, 5)
+    .map((player) => ({
+      ...player,
+      leagueCount: player.leagues.size,
+      leagueNames: Array.from(player.leagues),
+    }));
+
+  return {
+    leagueCount: new Set(snapshots.map((snapshot) => snapshot.leagueKey)).size,
+    snapshotCount: snapshots.length,
+    totalValue: snapshots.reduce((sum, snapshot) => sum + snapshot.totalValue, 0),
+    overexposedPlayers,
+  };
+}
+
+function getMatchupPreview(data: ReportData, selectedManager: string) {
+  return data.matchupPreviews?.find((preview) => preview.manager === selectedManager) || data.matchupPreviews?.[0] || null;
+}
+
+function buildFeatureCoverageRows(data: ReportData, selectedManager: string, options?: {
+  hasWatchPreferences?: boolean;
+  savedPortfolioLeagueCount?: number;
+  matchupPreviewAvailable?: boolean;
+}) {
   const selectedIds = getManagerPlayerIds(data, selectedManager);
   const selectedPlayerCount = selectedIds.size;
   const newsCount = Object.values(data.playerDetailsById || {}).filter((details) => details.latestNews || details.injuryStatus).length;
   const prospectCount = getRankingRows(data).filter((row) => row.isDevy || row.prospectProfile).length;
+  const hasMatchupPreview = Boolean(options?.matchupPreviewAvailable);
 
   return [
     {
       label: 'Watch Alerts',
       status: (data.weeklyRisers?.length || data.weeklyFallers?.length) ? 'Backed' : 'Missing',
-      note: 'Uses returned weekly riser/faller movement. Saved thresholds need user preference storage.',
+      note: options?.hasWatchPreferences
+        ? 'Uses returned weekly movement plus browser-saved alert thresholds and watchlist players.'
+        : 'Uses returned weekly riser/faller movement. Save thresholds to turn this into a local alert board.',
       tone: (data.weeklyRisers?.length || data.weeklyFallers?.length) ? 'good' : 'warn',
     },
     {
@@ -1463,9 +1678,11 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string) {
     },
     {
       label: 'Portfolio View',
-      status: selectedPlayerCount ? 'Partial' : 'Missing',
-      note: 'Single-league exposure is real. Cross-league shares need persisted multi-league reports.',
-      tone: selectedPlayerCount ? 'info' : 'warn',
+      status: (options?.savedPortfolioLeagueCount || 0) > 1 ? 'Backed' : selectedPlayerCount ? 'Partial' : 'Missing',
+      note: (options?.savedPortfolioLeagueCount || 0) > 1
+        ? `Uses ${options?.savedPortfolioLeagueCount} browser-saved league snapshots for cross-league exposure.`
+        : 'Single-league exposure is real. Load/save more leagues to build player shares.',
+      tone: (options?.savedPortfolioLeagueCount || 0) > 1 ? 'good' : selectedPlayerCount ? 'info' : 'warn',
     },
     {
       label: 'Rookie Signal',
@@ -1481,9 +1698,11 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string) {
     },
     {
       label: 'Matchup Preview',
-      status: 'Missing',
-      note: 'Current report does not include weekly matchup projections or submitted lineups.',
-      tone: 'warn',
+      status: hasMatchupPreview ? 'Backed' : 'Pending',
+      note: hasMatchupPreview
+        ? 'Uses returned weekly matchup projection rows and submitted lineup context.'
+        : 'Ready for schedule-week payloads. Until the NFL schedule and Sleeper matchups exist, it stays projection-free.',
+      tone: hasMatchupPreview ? 'good' : 'warn',
     },
   ] satisfies Array<{ label: string; status: string; note: string; tone: AssistantTone }>;
 }
@@ -1519,17 +1738,27 @@ function renderAssistantPlayerRows(players: Array<{
 
 export function AssistantFeatureShells({
   data,
+  leagueName,
+  leagueId,
 }: {
   data: ReportData;
+  leagueName?: string;
+  leagueId?: string;
 }) {
   const managerOptions = getManagerOptions(data);
   const [selectedManager, setSelectedManager] = useState(getDefaultManager(data));
+  const [watchPreferences, setWatchPreferences] = useState<WatchAlertPreferences>(() => readWatchAlertPreferences());
+  const [watchStatus, setWatchStatus] = useState<string | null>(null);
+  const [portfolioSnapshots, setPortfolioSnapshots] = useState<PortfolioSnapshot[]>(() => readPortfolioSnapshots());
+  const [portfolioStatus, setPortfolioStatus] = useState<string | null>(null);
   const manager = selectedManager || managerOptions[0] || '';
   const leagueValueMode = normalizeLeagueValueMode(data.leagueDiagnostics?.valueMode || data.leagueValueMode);
   const watchSignals = useMemo(() => buildWatchSignals(data, manager), [data, manager]);
   const rookieSignals = useMemo(() => buildRookieSignals(data), [data]);
   const newsRows = useMemo(() => buildNewsRows(data, manager), [data, manager]);
   const portfolio = useMemo(() => buildPortfolioExposure(data, manager), [data, manager]);
+  const portfolioSnapshot = useMemo(() => buildPortfolioSnapshot(data, manager, leagueName, leagueId), [data, manager, leagueName, leagueId]);
+  const savedPortfolio = useMemo(() => buildSavedPortfolioSummary(portfolioSnapshots), [portfolioSnapshots]);
   const counts = data.managerPositionCounts?.find((row) => row.manager === manager) || null;
   const intel = getIntel(data, manager);
   const power = getPower(data, manager);
@@ -1541,8 +1770,71 @@ export function AssistantFeatureShells({
     .sort((a, b) => getStarterValue(b) - getStarterValue(a))
     .slice(0, 4);
   const bestWaiver = waiverAdds[0] || data.waiverIntelligence?.highestKtcAvailable || null;
-  const matchupDataAvailable = false;
-  const coverageRows = useMemo(() => buildFeatureCoverageRows(data, manager), [data, manager]);
+  const matchupPreview = getMatchupPreview(data, manager);
+  const matchupDataAvailable = Boolean(matchupPreview);
+  const alertingWatchSignals = watchSignals.filter((signal) => {
+    if (signal.playerId && watchPreferences.trackedPlayerIds.includes(signal.playerId)) return true;
+    if (signal.pctChange >= 0) return signal.pctChange >= watchPreferences.riseThresholdPct;
+    return Math.abs(signal.pctChange) >= watchPreferences.fallThresholdPct;
+  });
+  const coverageRows = useMemo(() => buildFeatureCoverageRows(data, manager, {
+    hasWatchPreferences: Boolean(watchPreferences.savedAt || watchPreferences.trackedPlayerIds.length),
+    savedPortfolioLeagueCount: savedPortfolio.leagueCount,
+    matchupPreviewAvailable: matchupDataAvailable,
+  }), [data, manager, matchupDataAvailable, savedPortfolio.leagueCount, watchPreferences.savedAt, watchPreferences.trackedPlayerIds.length]);
+
+  useEffect(() => {
+    if (!portfolioSnapshot) return;
+    setPortfolioSnapshots((current) => {
+      const existing = current.find((snapshot) => snapshot.id === portfolioSnapshot.id);
+      if (existing && existing.totalValue === portfolioSnapshot.totalValue && existing.playerCount === portfolioSnapshot.playerCount) {
+        return current;
+      }
+      const next = upsertPortfolioSnapshot(current, portfolioSnapshot);
+      writePortfolioSnapshots(next);
+      return next;
+    });
+  }, [portfolioSnapshot]);
+
+  const updateWatchPreferences = (updater: (current: WatchAlertPreferences) => WatchAlertPreferences) => {
+    setWatchPreferences((current) => {
+      const next = updater(current);
+      writeWatchAlertPreferences(next);
+      return { ...next, savedAt: Date.now() };
+    });
+    setWatchStatus('Saved locally');
+  };
+
+  const handleWatchThresholdChange = (field: 'riseThresholdPct' | 'fallThresholdPct', value: string) => {
+    const numeric = clamp(Number(value) || DEFAULT_WATCH_ALERT_PREFERENCES[field], 1, 100);
+    updateWatchPreferences((current) => ({ ...current, [field]: numeric }));
+  };
+
+  const toggleWatchedPlayer = (playerId?: string) => {
+    if (!playerId) return;
+    updateWatchPreferences((current) => {
+      const exists = current.trackedPlayerIds.includes(playerId);
+      return {
+        ...current,
+        trackedPlayerIds: exists
+          ? current.trackedPlayerIds.filter((id) => id !== playerId)
+          : [playerId, ...current.trackedPlayerIds].slice(0, 80),
+      };
+    });
+  };
+
+  const saveCurrentPortfolioSnapshot = () => {
+    if (!portfolioSnapshot) {
+      setPortfolioStatus('No roster snapshot available');
+      return;
+    }
+    setPortfolioSnapshots((current) => {
+      const next = upsertPortfolioSnapshot(current, { ...portfolioSnapshot, savedAt: Date.now() });
+      writePortfolioSnapshots(next);
+      return next;
+    });
+    setPortfolioStatus('Portfolio snapshot saved');
+  };
 
   return (
     <div className="assistant-feature-stack">
@@ -1575,26 +1867,64 @@ export function AssistantFeatureShells({
         <section className="assistant-feature-card">
           <div className="assistant-feature-card-head">
             <span><Bell className="h-4 w-4" aria-hidden="true" /> Watch Alerts</span>
-            <strong>{watchSignals.length ? 'Live movement' : 'No movement'}</strong>
+            <strong>{alertingWatchSignals.length ? `${alertingWatchSignals.length} alerts` : watchSignals.length ? 'Live movement' : 'No movement'}</strong>
           </div>
-          {renderAssistantPlayerRows(watchSignals.map((signal) => ({
-            id: signal.id,
-            name: signal.name,
-            position: signal.position,
-            team: signal.team,
-            playerId: signal.playerId,
-            meta: `${signal.pctChange >= 0 ? '+' : ''}${signal.pctChange.toFixed(1)}% · ${signal.label}`,
-            value: formatCompactValue(signal.value),
-            tone: signal.tone,
-          })))}
+          <div className="assistant-watch-controls">
+            <label>
+              <span>Rise alert</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={watchPreferences.riseThresholdPct}
+                onChange={(event) => handleWatchThresholdChange('riseThresholdPct', event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Fall alert</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={watchPreferences.fallThresholdPct}
+                onChange={(event) => handleWatchThresholdChange('fallThresholdPct', event.target.value)}
+              />
+            </label>
+            <em>{watchStatus || `${watchPreferences.trackedPlayerIds.length} watched`}</em>
+          </div>
+          {watchSignals.length ? (
+            <div className="assistant-feature-list">
+              {watchSignals.map((signal) => {
+                const watched = Boolean(signal.playerId && watchPreferences.trackedPlayerIds.includes(signal.playerId));
+                const alerted = alertingWatchSignals.some((item) => item.id === signal.id);
+                return (
+                  <span key={signal.id} className={`assistant-feature-list-row assistant-feature-list-row-action assistant-feature-list-row-${alerted ? signal.tone : 'neutral'}`}>
+                    <PlayerIdentityRow
+                      playerId={signal.playerId}
+                      playerName={signal.name}
+                      team={signal.team || undefined}
+                      position={signal.position || undefined}
+                    />
+                    <em>{signal.pctChange >= 0 ? '+' : ''}{signal.pctChange.toFixed(1)}% · {signal.label}</em>
+                    <strong>{formatCompactValue(signal.value)}</strong>
+                    <button type="button" className="assistant-watch-button" onClick={() => toggleWatchedPlayer(signal.playerId)}>
+                      {watched ? 'Watching' : 'Watch'}
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="command-module-empty-copy">No returned player data for this module.</p>
+          )}
           <AIReadPanel
             title="Market signal read"
             readType="Market Signal"
             confidence={watchSignals.length ? 82 : 52}
             severity={watchSignals.length ? 'info' : 'warn'}
-            chips={[`${data.weeklyRisers?.length || 0} risers`, `${data.weeklyFallers?.length || 0} fallers`, 'Manual thresholds']}
+            chips={[`${data.weeklyRisers?.length || 0} risers`, `${data.weeklyFallers?.length || 0} fallers`, `${watchPreferences.trackedPlayerIds.length} watched`]}
             body={watchSignals.length
-              ? `${watchSignals[0].name} is the loudest returned movement signal. Saved alert thresholds still need user preference storage, so this module only reads live report data.`
+              ? `${watchSignals[0].name} is the loudest returned movement signal. Alert thresholds and watchlist players are saved locally in this browser; server-side notifications can come later.`
               : 'No weekly movement payload was returned, so the watch alert module is intentionally quiet.'}
             backgroundVariant="market"
             compact
@@ -1672,12 +2002,19 @@ export function AssistantFeatureShells({
         <section className="assistant-feature-card">
           <div className="assistant-feature-card-head">
             <span><Radar className="h-4 w-4" aria-hidden="true" /> Portfolio View</span>
-            <strong>Single league</strong>
+            <strong>{savedPortfolio.leagueCount > 1 ? `${savedPortfolio.leagueCount} leagues` : 'Single league'}</strong>
           </div>
           <div className="assistant-feature-metrics">
             <MetricPill label="Tracked value" value={formatCompactValue(portfolio.totalValue)} tone="info" />
             <MetricPill label="Top-3 share" value={formatPercent(portfolio.topThreeShare)} tone={(portfolio.topThreeShare || 0) >= 55 ? 'warn' : 'good'} />
-            <MetricPill label="Risk flags" value={portfolio.newsRiskCount} tone={portfolio.newsRiskCount ? 'warn' : 'neutral'} />
+            <MetricPill label="Saved leagues" value={savedPortfolio.leagueCount || 1} tone={savedPortfolio.leagueCount > 1 ? 'good' : 'neutral'} />
+          </div>
+          <div className="assistant-portfolio-actions">
+            <button type="button" className="command-secondary-action" onClick={saveCurrentPortfolioSnapshot}>
+              <Save className="h-4 w-4" aria-hidden="true" />
+              Save Snapshot
+            </button>
+            <span>{portfolioStatus || `${portfolioSnapshots.length} saved team snapshot${portfolioSnapshots.length === 1 ? '' : 's'}`}</span>
           </div>
           <div className="assistant-position-exposure">
             {portfolio.positionRows.map((row) => (
@@ -1688,14 +2025,31 @@ export function AssistantFeatureShells({
               </span>
             ))}
           </div>
+          {savedPortfolio.overexposedPlayers.length ? (
+            <div className="assistant-saved-exposure">
+              <span>Cross-league exposure</span>
+              {savedPortfolio.overexposedPlayers.map((player) => (
+                <p key={player.playerId}>
+                  <strong>{player.name}</strong>
+                  <em>{player.leagueCount} leagues · {formatCompactValue(player.value)}</em>
+                </p>
+              ))}
+            </div>
+          ) : null}
           <AIReadPanel
             title="Exposure read"
             readType="Monthly Blueprint"
             confidence={portfolio.totalValue ? 74 : 44}
             severity={(portfolio.topThreeShare || 0) >= 55 ? 'warn' : portfolio.totalValue ? 'info' : 'warn'}
-            chips={['Single-league exposure', `${portfolio.topAssets.length} top assets`, { label: 'Multi-league shares pending', tone: 'warn' }]}
-            body={portfolio.totalValue
-              ? `${manager}'s largest position exposure is ${portfolio.positionRows[0]?.position || '-'}. This is a real single-league portfolio read; cross-league player shares still require persisted multi-league data.`
+            chips={[
+              savedPortfolio.leagueCount > 1 ? `${savedPortfolio.leagueCount} saved leagues` : 'Single-league exposure',
+              `${portfolio.topAssets.length} top assets`,
+              savedPortfolio.overexposedPlayers.length ? `${savedPortfolio.overexposedPlayers.length} repeated assets` : { label: 'No repeated shares yet', tone: 'warn' },
+            ]}
+            body={savedPortfolio.leagueCount > 1
+              ? `${manager}'s current largest position exposure is ${portfolio.positionRows[0]?.position || '-'}. Across saved browser snapshots, ${savedPortfolio.overexposedPlayers[0]?.name || 'no player'} is the highest repeated player-share signal.`
+              : portfolio.totalValue
+                ? `${manager}'s largest position exposure is ${portfolio.positionRows[0]?.position || '-'}. Load and save another league to turn this into a true cross-league shares view.`
               : 'No roster player pool was returned for portfolio exposure.'}
             backgroundVariant="blueprint"
             compact
@@ -1763,15 +2117,44 @@ export function AssistantFeatureShells({
         <section className="assistant-feature-card assistant-feature-card-wide">
           <div className="assistant-feature-card-head">
             <span><Swords className="h-4 w-4" aria-hidden="true" /> Matchup Preview</span>
-            <strong>{matchupDataAvailable ? 'Ready' : 'Data missing'}</strong>
+            <strong>{matchupDataAvailable ? `Week ${matchupPreview?.week}` : 'Schedule pending'}</strong>
           </div>
+          {matchupPreview ? (
+            <>
+              <div className="assistant-feature-metrics">
+                <MetricPill label="Opponent" value={matchupPreview.opponentManager || '-'} tone="info" />
+                <MetricPill label="Your projection" value={matchupPreview.projectedPoints?.toFixed?.(1) || '-'} tone="good" />
+                <MetricPill label="Win odds" value={matchupPreview.winProbability ? formatPercent(matchupPreview.winProbability <= 1 ? matchupPreview.winProbability * 100 : matchupPreview.winProbability) : '-'} tone="warn" />
+              </div>
+              {renderAssistantPlayerRows((matchupPreview.vulnerableSpots || matchupPreview.mustStarts || []).slice(0, 4).map((player) => ({
+                id: player.player_id,
+                name: player.name,
+                position: player.pos,
+                team: player.playerDetails?.team || null,
+                playerId: player.player_id,
+                meta: matchupPreview.vulnerableSpots?.some((spot) => spot.player_id === player.player_id) ? 'Vulnerable spot' : 'Must start',
+                value: formatCompactValue(getStarterValue(player)),
+                tone: matchupPreview.vulnerableSpots?.some((spot) => spot.player_id === player.player_id) ? 'warn' : 'good',
+              })))}
+            </>
+          ) : (
+            <div className="assistant-matchup-pending">
+              <CalendarDays className="h-5 w-5" aria-hidden="true" />
+              <div>
+                <strong>NFL schedule dependent</strong>
+                <p>Once schedule-week matchups and submitted lineup/projection payloads are returned, this panel will switch from readiness mode to opponent edge, boom/bust, must-start, and how-you-win analysis.</p>
+              </div>
+            </div>
+          )}
           <AIReadPanel
             title="Weekly matchup availability"
             readType="Lineup Leak"
             confidence={matchupDataAvailable ? 80 : 38}
             severity={matchupDataAvailable ? 'info' : 'warn'}
-            chips={[matchupDataAvailable ? 'Matchups loaded' : { label: 'No matchup payload', tone: 'warn' }, data.leagueDiagnostics?.starterCountSummary || 'Starter slots loaded']}
-            body="Sleeper matchup projections, current submitted lineups, and opponent matchup rows are not part of the current report payload. This module stays honest: it can show starter strength and bench pressure, but not a fake weekly opponent edge."
+            chips={[matchupDataAvailable ? 'Matchups loaded' : { label: 'Schedule pending', tone: 'warn' }, data.leagueDiagnostics?.starterCountSummary || 'Starter slots loaded']}
+            body={matchupPreview
+              ? (matchupPreview.howToWin || `This matchup preview uses returned ${matchupPreview.source || 'matchup'} data. Position edge rows are shown only when the payload includes them.`)
+              : 'Sleeper matchup projections, current submitted lineups, and opponent matchup rows are not part of the current report payload yet. This module stays honest until schedule-week data exists.'}
             backgroundVariant="lineup"
             compact
           />

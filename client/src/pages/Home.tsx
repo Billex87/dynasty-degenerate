@@ -2438,7 +2438,7 @@ export default function Home() {
                       { label: 'News Flags', value: Object.values(reportData.playerDetailsById || {}).filter((details) => details.latestNews).length, tone: 'neutral' },
                     ]}
                   >
-                    <AssistantFeatureShells data={reportData} />
+                    <AssistantFeatureShells data={reportData} leagueName={leagueName} leagueId={leagueId} />
                   </CollapsibleReportSection>
                 )}
                   </>

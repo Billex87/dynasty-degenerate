@@ -463,6 +463,30 @@ export interface WaiverIntelligence {
   recentlyDroppedValuable: TrendingPlayer[];
 }
 
+export interface MatchupPositionEdge {
+  position: 'QB' | 'RB' | 'WR' | 'TE' | 'FLEX' | 'K' | 'DEF' | string;
+  managerProjected?: number | null;
+  opponentProjected?: number | null;
+  edge?: number | null;
+  note?: string | null;
+}
+
+export interface MatchupPreview {
+  week: number;
+  manager: string;
+  opponentManager?: string | null;
+  projectedPoints?: number | null;
+  opponentProjectedPoints?: number | null;
+  winProbability?: number | null;
+  positionEdges?: MatchupPositionEdge[];
+  mustStarts?: ManagerStarterPlayer[];
+  vulnerableSpots?: ManagerStarterPlayer[];
+  boomBustRisks?: ManagerStarterPlayer[];
+  howToWin?: string | null;
+  source?: 'Sleeper' | 'FantasyPros' | 'manual' | string;
+  updatedAt?: string | null;
+}
+
 export interface DraftPick {
   round: number;
   pick: number;
@@ -755,6 +779,7 @@ export interface ReportData {
   dynastyTimelines?: DynastyTimeline[];
   pickPortfolios?: PickPortfolio[];
   waiverIntelligence?: WaiverIntelligence;
+  matchupPreviews?: MatchupPreview[];
   recentTransactions?: RecentTransaction[];
   draftPicks?: DraftPick[];
   draftStats?: ManagerDraftStats[];
