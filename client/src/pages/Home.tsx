@@ -67,6 +67,7 @@ const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
 const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
 const CACHED_SLEEPER_USERS_KEY = 'dynasty-degenerates:sleeper-user-history:v1';
+const ADMIN_UNLOCK_MODAL_DISMISSED_KEY = 'dynasty-degenerates:admin-unlock-dismissed:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
@@ -1469,6 +1470,7 @@ export default function Home() {
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
+  const [isAdminUnlockModalOpen, setIsAdminUnlockModalOpen] = useState(false);
   const [loadingTransitionPhase, setLoadingTransitionPhase] = useState<LoadingTransitionPhase>('loading');
   const [prospectArchiveOpenedWhileLoading, setProspectArchiveOpenedWhileLoading] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
@@ -1995,6 +1997,26 @@ export default function Home() {
   const hasAdminPermissions = hasAuthenticatedAdminPermissions || hasSleeperAdminPermissions;
   const canViewAdminFeatureExpansion = hasAuthenticatedAdminPermissions || (hasSleeperAdminPermissions && adminViewMode === 'admin');
   const canViewMomentumTab = canViewAdminFeatureExpansion;
+
+  useEffect(() => {
+    if (!hasAuthenticatedAdminPermissions || !reportData) return;
+    try {
+      if (sessionStorage.getItem(ADMIN_UNLOCK_MODAL_DISMISSED_KEY) === 'true') return;
+    } catch {
+      // Session storage only prevents repeating this prompt.
+    }
+    setIsAdminUnlockModalOpen(true);
+  }, [hasAuthenticatedAdminPermissions, reportData]);
+
+  const handleAdminUnlockModalDismiss = () => {
+    setIsAdminUnlockModalOpen(false);
+    try {
+      sessionStorage.setItem(ADMIN_UNLOCK_MODAL_DISMISSED_KEY, 'true');
+    } catch {
+      // Non-critical preference.
+    }
+  };
+
   const migratedActiveTab = activeTab === 'projections' ? 'rankings' : activeTab;
   const resolvedActiveTab = !canViewMomentumTab && migratedActiveTab === 'momentum' ? 'overview' : migratedActiveTab;
   const rankingsQuery = trpc.league.rankings.useQuery(
@@ -2154,6 +2176,41 @@ export default function Home() {
             </div>
           )}
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const adminUnlockDialog = (
+    <Dialog
+      open={hasAuthenticatedAdminPermissions && isAdminUnlockModalOpen}
+      onOpenChange={(open) => {
+        if (!open) handleAdminUnlockModalDismiss();
+      }}
+    >
+      <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="athletic-headline text-3xl text-orange-300">
+            Admin Command Center Unlocked
+          </DialogTitle>
+          <DialogDescription className="text-slate-300">
+            Your signed-in admin session has premium AI reads, blueprint reports, league power tools, market signals, and admin-only diagnostics turned on.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="admin-unlock-dialog-grid">
+          <span>Premium AI Reads</span>
+          <span>Monthly Blueprints</span>
+          <span>Power Rankings</span>
+          <span>Trade Intel</span>
+        </div>
+        <DialogFooter className="sm:justify-end">
+          <Button
+            type="button"
+            onClick={handleAdminUnlockModalDismiss}
+            className="w-full bg-gradient-to-r from-orange-500 to-cyan-400 font-black text-slate-950 hover:from-orange-400 hover:to-cyan-300 sm:w-auto"
+          >
+            Enter Command Center
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -2850,11 +2907,12 @@ export default function Home() {
           </DialogContent>
         </Dialog>
 
-        {clownEasterEggDialog}
-      </div>
-      </ManagerChampionshipProvider>
-      {loadingDialog}
-      </>
+	        {clownEasterEggDialog}
+	      </div>
+	      </ManagerChampionshipProvider>
+	      {adminUnlockDialog}
+	      {loadingDialog}
+	      </>
     );
   }
 
@@ -3053,6 +3111,7 @@ export default function Home() {
       )}
       {clownEasterEggDialog}
     </div>
+    {adminUnlockDialog}
     {loadingDialog}
     </>
   );

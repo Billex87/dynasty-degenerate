@@ -6862,6 +6862,28 @@
   text-align: right;
 }
 
+.admin-unlock-dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.admin-unlock-dialog-grid span {
+  border: 1px solid rgba(251, 146, 60, 0.2);
+  border-radius: 0.75rem;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(251, 191, 36, 0.18), transparent 42%),
+    rgba(15, 23, 42, 0.72);
+  padding: 0.72rem 0.78rem;
+  color: #fed7aa;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 @media (max-width: 760px) {
   .ai-read-panel-head,
   .team-blueprint-report-header,
@@ -6913,5 +6935,9 @@
 
   .admin-diagnostics-shell-header p {
     text-align: left;
+  }
+
+  .admin-unlock-dialog-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
