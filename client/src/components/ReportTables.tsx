@@ -8013,6 +8013,7 @@ export function WaiverIntelligencePanel({
                 playerName={player.name}
                 team={details?.team || player.team}
                 position={player.pos}
+                hideMeta
               />
               <div className="waiver-intel-pills" aria-label={`${player.name} waiver profile`}>
                 <div className="waiver-intel-pill-row waiver-intel-pill-row-primary">
@@ -8139,6 +8140,7 @@ export function RecentTransactionsPanel({
           playerName={player.name}
           team={player.playerDetails?.team || player.team}
           position={player.pos}
+          hideMeta
         />
         <div className="recent-transaction-player-pills">
           <TeamLogoPill team={player.playerDetails?.team || player.team} />
@@ -8173,6 +8175,7 @@ export function RecentTransactionsPanel({
           playerName={player.name}
           team={details?.team || player.team}
           position={player.pos}
+          hideMeta
         />
         <div className="recent-transaction-player-pills">
           <TeamLogoPill team={details?.team || player.team} />
@@ -8623,6 +8626,7 @@ export function TradeMarketRadar({
               playerName={player.name}
               team={player.playerDetails?.team}
               position={player.pos}
+              hideMeta
             />
             <div className="trade-market-manager">
               {renderManagerName(player.owner, managerAvatars)}

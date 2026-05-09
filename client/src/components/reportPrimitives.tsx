@@ -223,6 +223,7 @@ export function PlayerIdentityRow({
   team,
   position,
   age,
+  hideMeta = false,
   className,
 }: {
   playerId?: string;
@@ -230,9 +231,10 @@ export function PlayerIdentityRow({
   team?: string | null;
   position?: string | null;
   age?: number | string | null;
+  hideMeta?: boolean;
   className?: string;
 }) {
-  const hasMeta = Boolean(team || position || age);
+  const hasMeta = !hideMeta && Boolean(team || position || age);
 
   return (
     <div className={cn('report-player-identity-row', className)}>

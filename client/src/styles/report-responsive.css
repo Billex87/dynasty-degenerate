@@ -5712,7 +5712,9 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.035),
     0 0 32px rgba(34, 211, 238, 0.08),
     0 18px 44px rgba(0, 0, 0, 0.24);
-  padding: clamp(0.9rem, 2vw, 1.15rem);
+  width: min(100%, 64rem);
+  margin-inline: auto;
+  padding: clamp(0.82rem, 1.7vw, 1.05rem);
 }
 
 .ai-read-panel::before {
@@ -6020,7 +6022,7 @@
 .rankings-ai-read,
 .trade-browser-ai-read,
 .draft-ai-read {
-  width: min(100%, 76rem);
+  width: min(100%, 62rem);
   margin-inline: auto;
 }
 
@@ -7342,14 +7344,96 @@
 }
 
 @media (max-width: 760px) {
-  .ai-read-panel-head,
+  .ai-read-panel {
+    width: min(100%, 34rem);
+    border-radius: 0.82rem;
+    padding: 0.78rem 0.72rem;
+  }
+
+  .ai-read-panel-head {
+    align-items: center;
+    flex-direction: column;
+    gap: 0.62rem;
+    text-align: center;
+  }
+
   .team-blueprint-report-header,
   .team-breakdown-hero {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .ai-read-confidence,
+  .ai-read-panel-title-lockup {
+    justify-items: center;
+    gap: 0.28rem;
+  }
+
+  .ai-read-badge,
+  .ai-read-type {
+    gap: 0.26rem;
+    padding: 0.22rem 0.42rem;
+    font-size: 0.54rem;
+    letter-spacing: 0.12em;
+  }
+
+  .ai-read-badge svg {
+    width: 0.72rem;
+    height: 0.72rem;
+  }
+
+  .ai-read-panel h4 {
+    font-size: clamp(0.98rem, 4vw, 1.12rem);
+    line-height: 1.08;
+    text-align: center;
+  }
+
+  .ai-read-panel-title-lockup p,
+  .ai-read-body p {
+    font-size: 0.77rem;
+    line-height: 1.38;
+    text-align: center;
+  }
+
+  .ai-read-confidence {
+    width: min(100%, 22rem);
+    justify-items: center;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .ai-read-confidence em {
+    width: 100%;
+    height: 0.24rem;
+  }
+
+  .ai-read-chip-row,
+  .ai-read-actions {
+    justify-content: center;
+    gap: 0.34rem;
+  }
+
+  .ai-read-chip-row {
+    margin-top: 0.55rem;
+  }
+
+  .ai-read-body {
+    gap: 0.42rem;
+    margin-top: 0.58rem;
+  }
+
+  .ai-read-chip {
+    justify-content: center;
+    padding: 0.22rem 0.42rem;
+    font-size: 0.58rem;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  .ai-read-corner {
+    width: 0.86rem;
+    height: 0.86rem;
+  }
+
   .team-breakdown-hero > div:last-child {
     width: 100%;
     text-align: left;

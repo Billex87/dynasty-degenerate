@@ -103,6 +103,7 @@ export default function WeeklyMomentumTable({
                     playerName={row.name}
                     team={playerDetails?.team}
                     position={row.pos}
+                    hideMeta
                   />
                 </div>
                 <div

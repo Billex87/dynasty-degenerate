@@ -81,6 +81,7 @@ export default function TrendingPlayersTable({
                     playerName={row.name}
                     team={playerDetails?.team || row.team}
                     position={row.pos}
+                    hideMeta
                   />
                 </div>
                 <div className="activity-card-meta-row">

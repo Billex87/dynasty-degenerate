@@ -3164,7 +3164,9 @@ function CollapsibleReportSection({
       <div className="report-disclosure-body">
         {hasRenderedContent ? (
           <div className="report-disclosure-body-inner">
-            {children}
+            <Suspense fallback={<ReportSectionLoadingFallback />}>
+              {children}
+            </Suspense>
           </div>
         ) : null}
       </div>
@@ -3211,7 +3213,9 @@ function ModalReportSection({
             )}
           </DialogHeader>
           <div className="trade-ledger-modal-body">
-            {children}
+            <Suspense fallback={<ReportSectionLoadingFallback />}>
+              {children}
+            </Suspense>
           </div>
         </DialogContent>
       </Dialog>
