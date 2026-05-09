@@ -1438,6 +1438,11 @@ function AdminAbuseTelemetryPanel() {
 }
 
 export default function Home() {
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
   const [leagueId, setLeagueId] = useState('');
   const [sleeperUsername, setSleeperUsername] = useState('');
   const [leagueIdHistory, setLeagueIdHistory] = useState<string[]>(() => readAutocompleteHistory(LEAGUE_ID_HISTORY_KEY));
@@ -1984,9 +1989,11 @@ export default function Home() {
     userLeagues,
     reportData ? leagueId : null
   );
-  const hasAdminPermissions = activeCachedSleeperUser?.hasAdminPermissions === true
+  const hasAuthenticatedAdminPermissions = canViewAdminTelemetryForUser(authQuery.data);
+  const hasSleeperAdminPermissions = activeCachedSleeperUser?.hasAdminPermissions === true
     || activeCachedSleeperUser?.isPrivilegedReportViewer === true;
-  const canViewAdminFeatureExpansion = hasAdminPermissions && adminViewMode === 'admin';
+  const hasAdminPermissions = hasAuthenticatedAdminPermissions || hasSleeperAdminPermissions;
+  const canViewAdminFeatureExpansion = hasAuthenticatedAdminPermissions || (hasSleeperAdminPermissions && adminViewMode === 'admin');
   const canViewMomentumTab = canViewAdminFeatureExpansion;
   const migratedActiveTab = activeTab === 'projections' ? 'rankings' : activeTab;
   const resolvedActiveTab = !canViewMomentumTab && migratedActiveTab === 'momentum' ? 'overview' : migratedActiveTab;
@@ -2190,14 +2197,15 @@ export default function Home() {
                 {hasAdminPermissions && (
                   <Button
                     type="button"
-                    onClick={handleAdminModeToggle}
+                    onClick={hasAuthenticatedAdminPermissions ? undefined : handleAdminModeToggle}
                     variant="outline"
-                    className={`report-header-action report-header-admin-toggle hidden md:inline-flex ${adminViewMode === 'admin' ? 'report-header-admin-toggle-active' : ''}`}
-                    aria-pressed={adminViewMode === 'admin'}
-                    aria-label={adminViewMode === 'admin' ? 'Switch to regular report view' : 'Unlock admin report tools'}
+                    disabled={hasAuthenticatedAdminPermissions}
+                    className={`report-header-action report-header-admin-toggle hidden md:inline-flex ${canViewAdminFeatureExpansion ? 'report-header-admin-toggle-active' : ''}`}
+                    aria-pressed={canViewAdminFeatureExpansion}
+                    aria-label={hasAuthenticatedAdminPermissions ? 'Admin report tools unlocked by app admin session' : canViewAdminFeatureExpansion ? 'Switch to regular report view' : 'Unlock admin report tools'}
                   >
                     <span className="report-header-action-label">
-                      {adminViewMode === 'admin' ? 'Regular View' : 'Admin Tools'}
+                      {hasAuthenticatedAdminPermissions ? 'Admin Tools' : canViewAdminFeatureExpansion ? 'Regular View' : 'Admin Tools'}
                     </span>
                   </Button>
                 )}
