@@ -3156,7 +3156,6 @@ function CollapsibleReportSection({
   return (
     <details className={`report-section report-disclosure${premium ? ' admin-premium-flare admin-premium-section' : ''}`} open={isOpen} onToggle={handleToggle}>
       <summary className="report-disclosure-summary">
-        {premium ? <span className="admin-premium-solar-flare" aria-hidden="true" /> : null}
         <ReportSectionHeader title={title} kicker={kicker} />
         <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />

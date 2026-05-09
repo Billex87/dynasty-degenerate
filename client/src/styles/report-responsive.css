@@ -224,14 +224,6 @@
     grid-row: auto;
   }
 
-  .value-board__team .team-logo-pill,
-  .value-board__team .team-logo-pill img {
-    height: 1.14rem !important;
-    min-height: 1.14rem !important;
-    width: 1.14rem !important;
-    min-width: 1.14rem !important;
-  }
-
   .value-board__meta {
     flex: 0 1 auto;
     flex-wrap: nowrap;
@@ -245,31 +237,6 @@
     z-index: 3;
     width: auto;
     min-width: 0;
-  }
-
-  .value-board__manager .ranking-owner-chip {
-    display: none;
-  }
-
-  .value-board__manager .ranking-owner-avatar-only,
-  .value-board__manager .ranking-owner-avatar-fallback,
-  .value-board__manager .ranking-college-avatar-only {
-    display: inline-flex;
-    height: 1.52rem;
-    width: 1.52rem;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(34, 211, 238, 0.3);
-    border-radius: 999px;
-    background: rgba(2, 6, 23, 0.68);
-    color: #fed7aa;
-    font-size: 0.5rem;
-    font-weight: 1000;
-    line-height: 1;
-    object-fit: cover;
-    box-shadow:
-      0 0 16px rgba(34, 211, 238, 0.22),
-      0 10px 18px rgba(0, 0, 0, 0.28);
   }
 
   .value-board__market-values {
@@ -475,10 +442,6 @@
   text-align: center;
 }
 
-.value-board__row-header span:nth-child(n + 7) {
-  text-align: right;
-}
-
 .value-board__team {
   grid-column: 3;
   justify-content: center;
@@ -527,10 +490,6 @@
 
 .value-board__value {
   grid-column: 7;
-}
-
-.value-board__movement {
-  grid-column: 8;
 }
 
 .value-board__market-values {
@@ -592,10 +551,6 @@
       minmax(3.95rem, 0.4fr)
       minmax(5.1rem, 0.52fr) !important;
     gap: 0.3rem;
-  }
-
-  .value-board__manager {
-    justify-content: center;
   }
 
   .value-board__market-values {
@@ -666,10 +621,6 @@
     z-index: 3;
     width: auto;
     min-width: 0;
-  }
-
-  .value-board__manager .ranking-owner-chip {
-    display: none;
   }
 
   .value-board__manager .ranking-owner-avatar-only,
@@ -877,11 +828,6 @@
     gap: 0.06rem;
     padding: 0.08rem 0.2rem;
     font-size: 0.42rem;
-  }
-
-  .ranking-trend-pill svg {
-    height: 0.72rem;
-    width: 0.72rem;
   }
 
   .value-board__movement {
@@ -3739,14 +3685,6 @@
   background: radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.06), transparent 42%), linear-gradient(135deg, rgba(2, 6, 23, 0.9), rgba(15, 23, 42, 0.84)) !important;
 }
 
-.report-shell :is(.report-card-polished, .trade-ledger-card, .trade-profit-card, .trade-tendencies-card, .command-feature-card, .rankings-hero-panel, .report-empty-state, .recent-transaction-card, .recent-transaction-date-group, .value-board__toolbar) {
-  background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.055), transparent 34%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.06), transparent 36%), linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.92)) !important;
-}
-
-.report-shell :is(.weekly-momentum-tile, .trending-player-card, .trade-market-card, .waiver-intel-card, .projected-mover-tile, .rookie-player-tile, .recent-transaction-player, .manager-intel-player, .starter-player-tile, .starter-depth-player-tile, .manager-command-player-tile, .value-board__row, .rookie-draft-row, .draftbuzz-table__row) {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #0f172a) 22%, var(--dd-solid-surface-soft)), var(--dd-solid-surface) 58%, color-mix(in srgb, var(--team-secondary, #020617) 16%, var(--dd-solid-surface-deep))), radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--team-accent, #22d3ee) 10%, transparent), transparent 38%), radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--team-primary, #0f172a) 10%, transparent), transparent 40%) !important;
-}
-
 .report-shell :is(.owner-summary-tile, .command-depth-tile) {
   background: linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #0f172a) 20%, rgba(15, 23, 42, 0.96)), rgba(2, 6, 23, 0.92) 62%, color-mix(in srgb, var(--team-secondary, #020617) 16%, rgba(2, 6, 23, 0.9))) !important;
 }
@@ -3809,10 +3747,6 @@
     animation: none !important;
     transform: none !important;
     filter: none !important;
-  }
-
-  .report-shell .report-tabs::before {
-    transition: none !important;
   }
 }
 
@@ -6450,6 +6384,11 @@
   gap: 0.85rem;
 }
 
+.assistant-feature-stack {
+  display: grid;
+  gap: 0.95rem;
+}
+
 .league-power-card,
 .trade-finder-package-card,
 .trade-partner-card,
@@ -6663,6 +6602,223 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
 }
 
+.assistant-feature-card {
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 0.95rem;
+  background:
+    linear-gradient(rgba(34, 211, 238, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at 0 0, rgba(34, 211, 238, 0.1), transparent 34%),
+    radial-gradient(circle at 100% 0, rgba(251, 146, 60, 0.08), transparent 32%),
+    rgba(2, 6, 23, 0.58);
+  background-size: 22px 22px, 22px 22px, auto, auto, auto;
+  padding: 0.85rem;
+}
+
+.assistant-feature-coverage {
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(251, 146, 60, 0.22);
+  border-radius: 0.95rem;
+  background:
+    linear-gradient(rgba(251, 191, 36, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.04) 1px, transparent 1px),
+    radial-gradient(ellipse at 10% 0%, rgba(251, 146, 60, 0.12), transparent 34%),
+    radial-gradient(ellipse at 100% 20%, rgba(34, 211, 238, 0.1), transparent 36%),
+    rgba(2, 6, 23, 0.62);
+  background-size: 22px 22px, 22px 22px, auto, auto, auto;
+  padding: 0.85rem;
+}
+
+.assistant-feature-coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
+  gap: 0.55rem;
+}
+
+.assistant-feature-coverage-row {
+  display: grid;
+  min-width: 0;
+  gap: 0.24rem;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 0.78rem;
+  background: rgba(15, 23, 42, 0.56);
+  padding: 0.62rem;
+}
+
+.assistant-feature-coverage-row strong,
+.assistant-feature-coverage-row em,
+.assistant-feature-coverage-row small {
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.assistant-feature-coverage-row strong {
+  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.assistant-feature-coverage-row em {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.assistant-feature-coverage-row small {
+  color: #94a3b8;
+  font-size: 0.66rem;
+  font-weight: 760;
+}
+
+.assistant-feature-coverage-row-good {
+  border-color: rgba(52, 211, 153, 0.22);
+}
+
+.assistant-feature-coverage-row-info {
+  border-color: rgba(34, 211, 238, 0.2);
+}
+
+.assistant-feature-coverage-row-warn {
+  border-color: rgba(251, 146, 60, 0.24);
+}
+
+.assistant-feature-card-wide {
+  grid-column: 1 / -1;
+}
+
+.assistant-feature-card-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.assistant-feature-card-head span,
+.assistant-feature-card-head strong {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.42rem;
+  color: #67e8f9;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.assistant-feature-card-head span {
+  overflow-wrap: anywhere;
+}
+
+.assistant-feature-card-head strong {
+  flex: 0 0 auto;
+  border: 1px solid rgba(251, 146, 60, 0.26);
+  border-radius: 999px;
+  background: rgba(124, 45, 18, 0.26);
+  padding: 0.35rem 0.5rem;
+  color: #fed7aa;
+}
+
+.assistant-feature-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.assistant-feature-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.assistant-feature-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(6rem, auto) minmax(4rem, auto);
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.54);
+  padding: 0.52rem;
+}
+
+.assistant-feature-list-row em,
+.assistant-feature-list-row strong {
+  color: #cbd5e1;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.24;
+  overflow-wrap: anywhere;
+}
+
+.assistant-feature-list-row strong {
+  justify-self: end;
+  color: #fbbf24;
+  font-weight: 950;
+  text-align: right;
+}
+
+.assistant-feature-list-row-good {
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+.assistant-feature-list-row-warn {
+  border-color: rgba(251, 146, 60, 0.24);
+}
+
+.assistant-feature-list-row-danger {
+  border-color: rgba(251, 113, 133, 0.24);
+}
+
+.assistant-position-exposure {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.48rem;
+}
+
+.assistant-position-exposure span {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 0.72rem;
+  background: rgba(8, 47, 73, 0.28);
+  padding: 0.55rem;
+  text-align: center;
+}
+
+.assistant-position-exposure strong {
+  color: #f8fafc;
+  font-size: 0.8rem;
+  font-weight: 950;
+}
+
+.assistant-position-exposure em,
+.assistant-position-exposure small {
+  color: #94a3b8;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.assistant-position-exposure small {
+  color: #fbbf24;
+}
+
 .ranking-ai-read-chip {
   margin-top: 0.32rem;
   border-color: rgba(34, 211, 238, 0.22);
@@ -6681,29 +6837,36 @@
 }
 
 .report-shell .admin-premium-tab {
+  isolation: isolate;
   border-color: rgba(251, 146, 60, 0.24) !important;
+  background:
+    radial-gradient(ellipse at 72% 50%, rgba(251, 146, 60, 0.16), transparent 62%),
+    linear-gradient(135deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.82)) !important;
   box-shadow:
     inset 0 0 0 1px rgba(251, 191, 36, 0.12),
-    0 0 18px rgba(249, 115, 22, 0.08);
-  overflow: visible;
+    0 0 22px rgba(249, 115, 22, 0.1);
+  overflow: hidden;
 }
 
 .report-shell .admin-premium-tab::before {
   content: "";
   position: absolute;
-  top: -0.48rem;
-  right: 8%;
-  width: 2.9rem;
-  height: 1.15rem;
-  border-radius: 999px;
+  inset: -1px;
+  z-index: 0;
+  border-radius: inherit;
   background:
-    radial-gradient(ellipse at 50% 100%, rgba(254, 240, 138, 0.9), rgba(251, 146, 60, 0.42) 44%, transparent 72%),
-    conic-gradient(from 260deg, transparent 0 19%, rgba(251, 191, 36, 0.7) 24%, transparent 32% 47%, rgba(249, 115, 22, 0.5) 54%, transparent 64% 100%);
-  filter: blur(0.2px) drop-shadow(0 0 9px rgba(251, 146, 60, 0.42));
-  opacity: 0.78;
+    radial-gradient(ellipse at 72% 45%, rgba(254, 240, 138, 0.34), rgba(251, 146, 60, 0.16) 42%, transparent 68%),
+    radial-gradient(ellipse at 18% 50%, rgba(34, 211, 238, 0.12), transparent 58%),
+    linear-gradient(105deg, rgba(251, 146, 60, 0.1), rgba(34, 211, 238, 0.05) 48%, rgba(15, 23, 42, 0.18));
+  background-size: 170% 100%, 140% 100%, 100% 100%;
+  opacity: 0.9;
   pointer-events: none;
-  transform-origin: 50% 100%;
-  animation: dd-admin-solar-flare 4.8s ease-in-out infinite;
+  animation: dd-admin-solar-field 7.2s ease-in-out infinite;
+}
+
+.report-shell .admin-premium-tab > * {
+  position: relative;
+  z-index: 1;
 }
 
 .report-shell .admin-premium-tab[data-state="active"] {
@@ -6713,79 +6876,123 @@
 
 .report-shell .admin-premium-tab[data-state="active"]::before {
   opacity: 1;
-  animation-duration: 3.7s;
+  animation-duration: 5.2s;
 }
 
 .report-disclosure.admin-premium-section {
   position: relative;
   isolation: isolate;
+  border-radius: 1rem;
   overflow: visible;
 }
 
 .report-disclosure.admin-premium-section > .report-disclosure-summary {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   border-color: rgba(251, 146, 60, 0.26);
+  background:
+    radial-gradient(ellipse at 76% 48%, rgba(251, 146, 60, 0.18), transparent 64%),
+    radial-gradient(ellipse at 24% 55%, rgba(34, 211, 238, 0.08), transparent 56%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(8, 47, 73, 0.42) 54%, rgba(15, 23, 42, 0.8));
   box-shadow:
     inset 0 0 0 1px rgba(251, 191, 36, 0.08),
-    0 0 28px rgba(249, 115, 22, 0.08);
+    0 0 28px rgba(249, 115, 22, 0.1),
+    0 0 54px rgba(251, 146, 60, 0.06);
+}
+
+.report-disclosure.admin-premium-section > .report-disclosure-summary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(rgba(251, 191, 36, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(251, 191, 36, 0.05) 1px, transparent 1px),
+    radial-gradient(ellipse at 74% 48%, rgba(254, 240, 138, 0.24), rgba(251, 146, 60, 0.12) 44%, transparent 70%),
+    radial-gradient(ellipse at 20% 54%, rgba(34, 211, 238, 0.08), transparent 58%),
+    linear-gradient(112deg, rgba(251, 146, 60, 0.08), rgba(34, 211, 238, 0.04) 48%, rgba(15, 23, 42, 0.14));
+  background-size: 22px 22px, 22px 22px, 180% 100%, 150% 100%, 100% 100%;
+  opacity: 0.9;
+  pointer-events: none;
+  animation: dd-admin-solar-field 7.8s ease-in-out infinite;
+}
+
+.report-disclosure.admin-premium-section > .report-disclosure-summary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: linear-gradient(110deg, transparent 0 30%, rgba(254, 240, 138, 0.14) 42%, rgba(251, 146, 60, 0.1) 49%, rgba(34, 211, 238, 0.06) 55%, transparent 70% 100%);
+  background-size: 220% 100%;
+  opacity: 0.52;
+  pointer-events: none;
+  animation: dd-admin-solar-sweep 8.8s ease-in-out infinite;
+}
+
+.report-disclosure.admin-premium-section > .report-disclosure-summary > * {
+  position: relative;
+  z-index: 1;
+}
+
+.report-disclosure.admin-premium-section > .report-disclosure-body {
+  position: relative;
+  z-index: 1;
 }
 
 .report-disclosure.admin-premium-section::before,
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::before {
   content: "";
   position: absolute;
-  top: -0.72rem;
-  right: clamp(0.75rem, 5vw, 3.2rem);
-  z-index: 2;
-  width: clamp(3.4rem, 11vw, 7.5rem);
-  height: clamp(1.2rem, 3.4vw, 2.3rem);
-  border-radius: 999px;
+  inset: -0.16rem;
+  z-index: 0;
+  border-radius: inherit;
   background:
-    radial-gradient(ellipse at 48% 100%, rgba(255, 247, 237, 0.88), rgba(251, 191, 36, 0.66) 28%, rgba(249, 115, 22, 0.26) 54%, transparent 76%),
-    repeating-conic-gradient(from 250deg at 50% 100%, transparent 0 10deg, rgba(251, 146, 60, 0.55) 12deg 16deg, transparent 19deg 34deg);
-  filter: blur(0.15px) drop-shadow(0 0 14px rgba(251, 146, 60, 0.42));
-  opacity: 0.76;
+    linear-gradient(rgba(251, 191, 36, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(251, 191, 36, 0.06) 1px, transparent 1px),
+    radial-gradient(ellipse at 76% 42%, rgba(254, 240, 138, 0.24), rgba(251, 146, 60, 0.15) 42%, transparent 72%),
+    radial-gradient(ellipse at 14% 50%, rgba(34, 211, 238, 0.1), transparent 58%),
+    linear-gradient(112deg, rgba(251, 146, 60, 0.08), rgba(15, 23, 42, 0.02) 44%, rgba(34, 211, 238, 0.05));
+  background-position: 0 0, 0 0, 50% 50%, 50% 50%, 0 0;
+  background-size: 22px 22px, 22px 22px, 180% 100%, 150% 100%, 100% 100%;
+  opacity: 0.88;
   pointer-events: none;
-  transform-origin: 50% 100%;
-  animation: dd-admin-solar-flare 5.6s ease-in-out infinite;
+  animation: dd-admin-solar-field 7.8s ease-in-out infinite;
 }
 
 .report-disclosure.admin-premium-section::after,
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::after {
   content: "";
   position: absolute;
-  top: -0.18rem;
-  right: clamp(1rem, 6vw, 4.6rem);
-  z-index: 1;
-  width: clamp(4rem, 13vw, 9rem);
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.8), rgba(34, 211, 238, 0.38), transparent);
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(110deg, transparent 0 30%, rgba(254, 240, 138, 0.16) 42%, rgba(251, 146, 60, 0.1) 49%, rgba(34, 211, 238, 0.07) 55%, transparent 70% 100%);
+  background-size: 220% 100%;
   box-shadow:
-    0 0 14px rgba(251, 146, 60, 0.34),
-    0 0 24px rgba(34, 211, 238, 0.16);
-  opacity: 0.75;
+    0 0 34px rgba(251, 146, 60, 0.13),
+    0 0 34px rgba(34, 211, 238, 0.08);
+  opacity: 0.72;
   pointer-events: none;
-  animation: dd-admin-solar-scan 7.5s ease-in-out infinite;
+  animation: dd-admin-solar-sweep 8.8s ease-in-out infinite;
 }
 
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell) {
   position: relative;
-  overflow: visible;
+  border-color: rgba(251, 146, 60, 0.28);
+  overflow: hidden;
+}
+
+.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell) > * {
+  position: relative;
+  z-index: 1;
 }
 
 .admin-premium-solar-flare {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.85rem;
-  z-index: 2;
-  width: 2.45rem;
-  height: 0.85rem;
-  border-radius: 999px;
-  background:
-    radial-gradient(ellipse at 50% 100%, rgba(254, 240, 138, 0.88), rgba(249, 115, 22, 0.36) 50%, transparent 76%),
-    linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.64), transparent);
-  filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.4));
-  pointer-events: none;
-  animation: dd-admin-solar-flare 4.9s ease-in-out infinite;
+  display: none;
 }
 
 .ranking-ai-read-chip {
@@ -6794,34 +7001,34 @@
     0 0 13px rgba(249, 115, 22, 0.16);
 }
 
-@keyframes dd-admin-solar-flare {
+@keyframes dd-admin-solar-field {
   0%,
   100% {
-    opacity: 0.48;
-    transform: scaleX(0.82) scaleY(0.72) rotate(-2deg);
-  }
-
-  38% {
-    opacity: 0.98;
-    transform: scaleX(1.08) scaleY(1.04) rotate(1deg);
-  }
-
-  58% {
-    opacity: 0.66;
-    transform: scaleX(0.94) scaleY(0.86) rotate(-0.5deg);
-  }
-}
-
-@keyframes dd-admin-solar-scan {
-  0%,
-  100% {
-    opacity: 0.24;
-    transform: translateX(-0.8rem) scaleX(0.72);
+    opacity: 0.62;
+    background-position: 0 0, 0 0, 84% 50%, 18% 50%, 0 0;
   }
 
   45% {
-    opacity: 0.86;
-    transform: translateX(0.7rem) scaleX(1.05);
+    opacity: 0.98;
+    background-position: 0.6rem 0.35rem, 0.35rem 0, 66% 50%, 26% 52%, 0 0;
+  }
+
+  68% {
+    opacity: 0.78;
+    background-position: 0.15rem 0.2rem, 0.15rem 0.25rem, 74% 48%, 20% 50%, 0 0;
+  }
+}
+
+@keyframes dd-admin-solar-sweep {
+  0%,
+  100% {
+    opacity: 0.16;
+    background-position: 145% 0;
+  }
+
+  48% {
+    opacity: 0.72;
+    background-position: 36% 0;
   }
 }
 
@@ -6906,6 +7113,24 @@
 
   .team-blueprint-split-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .assistant-feature-card-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .assistant-feature-list-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .assistant-feature-list-row strong {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .assistant-position-exposure {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .command-module-toolbar {

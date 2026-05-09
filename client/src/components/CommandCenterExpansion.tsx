@@ -2,19 +2,23 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   BadgeDollarSign,
+  Bell,
   CalendarDays,
   ClipboardList,
   Crosshair,
   FileText,
   Gauge,
   LineChart,
+  Newspaper,
+  PackageSearch,
   Radar,
   ShieldCheck,
+  Sparkles,
   Swords,
   Target,
   Users,
 } from 'lucide-react';
-import type { ManagerIntelPlayer, PlayerInfo, ReportData, WeeklyMomentum } from '@shared/types';
+import type { DraftPick, ManagerIntelPlayer, ManagerStarterPlayer, PlayerDetails, PlayerInfo, RankingPlayer, ReportData, TrendingPlayer, WeeklyMomentum } from '@shared/types';
 import { AIReadPanel, type AIReadChip } from './AIReadPanel';
 import { EmptyState, MetricPill, PlayerIdentityRow } from './reportPrimitives';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
@@ -1241,75 +1245,538 @@ export function TradeBrowserRead({
   );
 }
 
+type AssistantTone = 'good' | 'info' | 'warn' | 'danger' | 'neutral';
+
+function getStarterValue(player: ManagerStarterPlayer | ManagerIntelPlayer | TrendingPlayer | null | undefined): number {
+  if (!player) return 0;
+  return Math.round(
+    ('seasonValue' in player ? player.seasonValue || 0 : 0)
+    || ('value' in player ? player.value || 0 : 0)
+    || ('ktcValue' in player ? player.ktcValue || 0 : 0)
+  );
+}
+
+function getPlayerDetailsValue(details?: PlayerDetails | null): number {
+  const profile = details?.valueProfile;
+  return Math.round(
+    profile?.dynastyValue
+    || profile?.seasonValue
+    || profile?.balancedValue
+    || profile?.marketKtc
+    || 0
+  );
+}
+
+function getManagerPlayerIds(data: ReportData, manager: string): Set<string> {
+  const intel = getIntel(data, manager);
+  const counts = data.managerPositionCounts?.find((row) => row.manager === manager);
+  return new Set([
+    ...getManagerPlayerPool(intel).map((player) => player.player_id),
+    ...((counts?.rosterPlayers || counts?.lineupPlayers || []) as ManagerStarterPlayer[]).map((player) => player.player_id),
+  ].filter(Boolean));
+}
+
+function getRankingRows(data: ReportData): RankingPlayer[] {
+  const profiles = data.rankings?.profiles || {};
+  const defaultRows = data.rankings?.defaultProfileKey ? profiles[data.rankings.defaultProfileKey] || [] : [];
+  if (defaultRows.length) return defaultRows;
+  return Object.values(profiles).flat();
+}
+
+function getMarketSignalLabel(input: {
+  direction: 'up' | 'down';
+  pctChange: number;
+  owner?: string | null;
+  selectedManager: string;
+  value: number;
+}): { label: string; tone: AssistantTone } {
+  if (input.direction === 'up') {
+    if (input.owner === input.selectedManager && input.pctChange >= 12) return { label: 'Peak Value Warning', tone: 'warn' };
+    if (input.pctChange >= 18) return { label: 'Hard Buy', tone: 'good' };
+    return { label: 'Soft Buy', tone: 'info' };
+  }
+  if (input.value >= 3500 && input.pctChange <= -8) return { label: 'Discount Window', tone: 'good' };
+  if (input.pctChange <= -18) return { label: 'Panic Avoid', tone: 'danger' };
+  return { label: 'Soft Sell', tone: 'warn' };
+}
+
+function buildWatchSignals(data: ReportData, selectedManager: string) {
+  const selectedIds = getManagerPlayerIds(data, selectedManager);
+  const weeklySignals = [
+    ...(data.weeklyRisers || []).map((row) => ({ row, direction: 'up' as const })),
+    ...(data.weeklyFallers || []).map((row) => ({ row, direction: 'down' as const })),
+  ];
+  const rosterSignals = weeklySignals.filter(({ row }) => row.owner === selectedManager || (row.player_id && selectedIds.has(row.player_id)));
+  const source = rosterSignals.length ? rosterSignals : weeklySignals;
+
+  return source
+    .map(({ row, direction }) => {
+      const value = Math.round(row.val_now || getPlayerDetailsValue(row.playerDetails));
+      const pctChange = Number(row.pct_change || 0);
+      const signal = getMarketSignalLabel({ direction, pctChange, owner: row.owner, selectedManager, value });
+      return {
+        id: row.player_id || `${row.name}-${direction}`,
+        name: row.name,
+        position: row.pos,
+        team: row.playerDetails?.team || null,
+        playerId: row.player_id,
+        owner: row.owner,
+        value,
+        movement: row.diff,
+        pctChange,
+        label: signal.label,
+        tone: signal.tone,
+      };
+    })
+    .sort((a, b) => Math.abs(b.pctChange) - Math.abs(a.pctChange) || Math.abs(b.movement) - Math.abs(a.movement))
+    .slice(0, 6);
+}
+
+function getDraftCapitalScore(pick: DraftPick): number {
+  if (!pick.round) return 44;
+  const pickNumber = pick.pick || 99;
+  if (pick.round === 1) return clamp(92 - Math.max(0, pickNumber - 1) * 2, 72, 94);
+  if (pick.round === 2) return clamp(70 - Math.max(0, pickNumber - 13), 54, 72);
+  if (pick.round === 3) return clamp(52 - Math.max(0, pickNumber - 25), 38, 54);
+  return 34;
+}
+
+function buildRookieSignals(data: ReportData) {
+  const draftSignals = (data.draftPicks || [])
+    .filter((pick) => pick.playerName && !/pick/i.test(pick.playerName))
+    .map((pick) => {
+      const currentValue = Math.round(pick.currentKtcValue || pick.ktcValue || getPlayerDetailsValue(pick.playerDetails));
+      const valueGain = Math.round(pick.valueGain ?? ((pick.currentKtcValue || 0) - (pick.ktcValue || 0)));
+      const prospectRank = pick.playerDetails?.prospectProfile?.overallRank || null;
+      const prospectBoost = prospectRank ? clamp(18 - Math.floor(prospectRank / 12), 0, 18) : 0;
+      const valueScore = clamp(Math.round(currentValue / 115), 0, 34);
+      const gainScore = clamp(Math.round(valueGain / 85), -12, 18);
+      const score = clamp(getDraftCapitalScore(pick) + valueScore + gainScore + prospectBoost - 28, 1, 99);
+      return {
+        id: pick.player_id || `${pick.manager}-${pick.round}-${pick.pick}-${pick.playerName}`,
+        name: pick.playerName,
+        position: pick.playerPos,
+        playerId: pick.player_id,
+        team: pick.playerDetails?.team || null,
+        manager: pick.manager,
+        score,
+        signal: valueGain > 450 ? 'Rookie Heat' : score >= 76 ? 'Draft Capital Signal' : valueGain < -450 ? 'Cooling Asset' : 'Hold Signal',
+        context: `${pick.round}.${String(pick.pick || 0).padStart(2, '0')} pick${currentValue ? ` · ${formatCompactValue(currentValue)} current value` : ''}${Number.isFinite(valueGain) ? ` · ${valueGain >= 0 ? '+' : ''}${formatCompactValue(valueGain)} since draft` : ''}`,
+      };
+    });
+
+  const prospectSignals = getRankingRows(data)
+    .filter((row) => row.isDevy || row.prospectProfile)
+    .slice(0, 6)
+    .map((row) => ({
+      id: row.player_id || row.id,
+      name: row.name,
+      position: row.pos,
+      playerId: row.player_id,
+      team: row.team || null,
+      manager: row.owner || 'Unrostered',
+      score: clamp(Math.round(92 - (row.overallRank || 60) / 2 + (row.value || 0) / 160), 1, 99),
+      signal: row.projectedRookiePick || 'Prospect Signal',
+      context: `${row.positionRank || `Rank #${row.overallRank}`}${row.prospectProfile?.source ? ` · ${row.prospectProfile.source}` : ''}`,
+    }));
+
+  return (draftSignals.length ? draftSignals : prospectSignals)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+}
+
+function buildNewsRows(data: ReportData, selectedManager: string) {
+  const selectedIds = getManagerPlayerIds(data, selectedManager);
+  const rosterNews = getManagerPlayerPool(getIntel(data, selectedManager))
+    .filter((player) => player.playerDetails?.latestNews || player.playerDetails?.injuryStatus)
+    .map((player) => ({
+      id: player.player_id,
+      name: player.name,
+      position: player.pos,
+      team: player.playerDetails?.team || null,
+      title: player.playerDetails?.latestNews?.title || player.playerDetails?.injuryStatus || 'Roster status flag',
+      source: player.playerDetails?.latestNews?.source || player.playerDetails?.displayStatus || player.playerDetails?.status || 'Sleeper',
+      publishedAt: player.playerDetails?.latestNews?.publishedAt || null,
+      isRostered: true,
+    }));
+
+  const globalNews = Object.entries(data.playerDetailsById || {})
+    .filter(([playerId, details]) => details.latestNews && !selectedIds.has(playerId))
+    .map(([playerId, details]) => ({
+      id: playerId,
+      name: details.fullName || playerId,
+      position: details.position || '-',
+      team: details.team || null,
+      title: details.latestNews?.title || 'News flag',
+      source: details.latestNews?.source || 'FantasyPros',
+      publishedAt: details.latestNews?.publishedAt || null,
+      isRostered: false,
+    }));
+
+  return [...rosterNews, ...globalNews].slice(0, 6);
+}
+
+function buildPortfolioExposure(data: ReportData, selectedManager: string) {
+  const players = getManagerPlayerPool(getIntel(data, selectedManager));
+  const positionRows = POSITIONS.map((position) => {
+    const positionPlayers = players.filter((player) => player.pos === position);
+    const value = positionPlayers.reduce((sum, player) => sum + getTradePlayerValue(player, data), 0);
+    return { position, count: positionPlayers.length, value };
+  }).sort((a, b) => b.value - a.value);
+  const totalValue = positionRows.reduce((sum, row) => sum + row.value, 0);
+  const topAssets = [...players].sort((a, b) => getTradePlayerValue(b, data) - getTradePlayerValue(a, data)).slice(0, 5);
+  const topThreeValue = topAssets.slice(0, 3).reduce((sum, player) => sum + getTradePlayerValue(player, data), 0);
+  const newsRiskCount = players.filter((player) => player.playerDetails?.latestNews || player.playerDetails?.injuryStatus).length;
+  return {
+    positionRows,
+    topAssets,
+    totalValue,
+    topThreeShare: totalValue ? (topThreeValue / totalValue) * 100 : null,
+    newsRiskCount,
+  };
+}
+
+function buildFeatureCoverageRows(data: ReportData, selectedManager: string) {
+  const selectedIds = getManagerPlayerIds(data, selectedManager);
+  const selectedPlayerCount = selectedIds.size;
+  const newsCount = Object.values(data.playerDetailsById || {}).filter((details) => details.latestNews || details.injuryStatus).length;
+  const prospectCount = getRankingRows(data).filter((row) => row.isDevy || row.prospectProfile).length;
+
+  return [
+    {
+      label: 'Watch Alerts',
+      status: (data.weeklyRisers?.length || data.weeklyFallers?.length) ? 'Backed' : 'Missing',
+      note: 'Uses returned weekly riser/faller movement. Saved thresholds need user preference storage.',
+      tone: (data.weeklyRisers?.length || data.weeklyFallers?.length) ? 'good' : 'warn',
+    },
+    {
+      label: 'Lineup Optimizer',
+      status: data.managerPositionCounts?.length ? 'Partial' : 'Missing',
+      note: 'Uses projected starter maps. Submitted Sleeper lineup comparison needs matchup/lineup payloads.',
+      tone: data.managerPositionCounts?.length ? 'info' : 'warn',
+    },
+    {
+      label: 'Waiver Assistant',
+      status: data.waiverIntelligence ? 'Backed' : 'Missing',
+      note: 'Uses Sleeper trending, free-agent ownership checks, and returned roster need context.',
+      tone: data.waiverIntelligence ? 'good' : 'warn',
+    },
+    {
+      label: 'Portfolio View',
+      status: selectedPlayerCount ? 'Partial' : 'Missing',
+      note: 'Single-league exposure is real. Cross-league shares need persisted multi-league reports.',
+      tone: selectedPlayerCount ? 'info' : 'warn',
+    },
+    {
+      label: 'Rookie Signal',
+      status: (data.draftPicks?.length || prospectCount) ? 'Backed' : 'Missing',
+      note: 'Uses draft slots, current value, value movement, and returned prospect ranks only.',
+      tone: (data.draftPicks?.length || prospectCount) ? 'good' : 'warn',
+    },
+    {
+      label: 'Research Assistant',
+      status: newsCount ? 'Backed' : 'Missing',
+      note: 'Uses returned FantasyPros/Sleeper news and status flags when available.',
+      tone: newsCount ? 'good' : 'warn',
+    },
+    {
+      label: 'Matchup Preview',
+      status: 'Missing',
+      note: 'Current report does not include weekly matchup projections or submitted lineups.',
+      tone: 'warn',
+    },
+  ] satisfies Array<{ label: string; status: string; note: string; tone: AssistantTone }>;
+}
+
+function renderAssistantPlayerRows(players: Array<{
+  id: string;
+  name: string;
+  position?: string | null;
+  team?: string | null;
+  playerId?: string;
+  meta: string;
+  value?: string | number;
+  tone?: AssistantTone;
+}>) {
+  if (!players.length) return <p className="command-module-empty-copy">No returned player data for this module.</p>;
+  return (
+    <div className="assistant-feature-list">
+      {players.map((player) => (
+        <span key={player.id} className={player.tone ? `assistant-feature-list-row assistant-feature-list-row-${player.tone}` : 'assistant-feature-list-row'}>
+          <PlayerIdentityRow
+            playerId={player.playerId}
+            playerName={player.name}
+            team={player.team || undefined}
+            position={player.position || undefined}
+          />
+          <em>{player.meta}</em>
+          {player.value !== undefined ? <strong>{player.value}</strong> : null}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function AssistantFeatureShells({
   data,
 }: {
   data: ReportData;
 }) {
-  const waiverAdds = data.waiverIntelligence?.availableTrendingAdds?.length || 0;
-  const newsCount = Object.values(data.playerDetailsById || {}).filter((details) => details.latestNews).length;
-  const hasMultiLeagueData = false;
+  const managerOptions = getManagerOptions(data);
+  const [selectedManager, setSelectedManager] = useState(getDefaultManager(data));
+  const manager = selectedManager || managerOptions[0] || '';
+  const leagueValueMode = normalizeLeagueValueMode(data.leagueDiagnostics?.valueMode || data.leagueValueMode);
+  const watchSignals = useMemo(() => buildWatchSignals(data, manager), [data, manager]);
+  const rookieSignals = useMemo(() => buildRookieSignals(data), [data]);
+  const newsRows = useMemo(() => buildNewsRows(data, manager), [data, manager]);
+  const portfolio = useMemo(() => buildPortfolioExposure(data, manager), [data, manager]);
+  const counts = data.managerPositionCounts?.find((row) => row.manager === manager) || null;
+  const intel = getIntel(data, manager);
+  const power = getPower(data, manager);
+  const waiverAdds = data.waiverIntelligence?.availableTrendingAdds || [];
+  const starterPlayers = ((counts?.starterPlayers || []) as ManagerStarterPlayer[]).slice(0, 8);
+  const starterIds = new Set(starterPlayers.map((player) => player.player_id));
+  const benchPressure = ((counts?.lineupPlayers || counts?.rosterPlayers || []) as ManagerStarterPlayer[])
+    .filter((player) => !starterIds.has(player.player_id))
+    .sort((a, b) => getStarterValue(b) - getStarterValue(a))
+    .slice(0, 4);
+  const bestWaiver = waiverAdds[0] || data.waiverIntelligence?.highestKtcAvailable || null;
+  const matchupDataAvailable = false;
+  const coverageRows = useMemo(() => buildFeatureCoverageRows(data, manager), [data, manager]);
 
   return (
-    <div className="assistant-shell-grid">
-      <AIReadPanel
-        title="Watch alerts / market signals"
-        readType="Market Signal"
-        confidence={data.weeklyRisers?.length ? 78 : 52}
-        severity={data.weeklyRisers?.length ? 'info' : 'warn'}
-        chips={[
-          `${data.weeklyRisers?.length || 0} risers`,
-          `${data.weeklyFallers?.length || 0} fallers`,
-          'Watchlist shell',
-        ]}
-        body="Player watch alerts are scaffolded around returned 7-day movement. Threshold persistence is intentionally not wired until user accounts or saved preferences exist."
-        backgroundVariant="market"
-        compact
-      />
-      <AIReadPanel
-        title="Waiver / free-agent assistant"
-        readType="Waiver Opportunity"
-        confidence={waiverAdds ? 80 : 54}
-        severity={waiverAdds ? 'good' : 'warn'}
-        chips={[`${waiverAdds} available adds`, data.waiverIntelligence ? 'Sleeper data loaded' : { label: 'No waiver payload', tone: 'warn' }]}
-        body={waiverAdds
-          ? 'Available-player recommendations are driven by Sleeper trending adds, roster need, and bench upgrade checks already returned in the report.'
-          : 'No waiver intelligence was returned for this league; the existing EmptyState will explain the missing data.'}
-        backgroundVariant="waiver"
-        compact
-      />
-      <AIReadPanel
-        title="Lineup optimizer / starter strength"
-        readType="Lineup Leak"
-        confidence={data.managerPositionCounts?.length ? 82 : 50}
-        severity={data.managerPositionCounts?.length ? 'info' : 'warn'}
-        chips={[`${data.managerPositionCounts?.length || 0} lineup maps`, data.leagueDiagnostics?.lineupSlotSummary || 'No slot summary']}
-        body="Starter strength uses returned league starter slots and current-season player values. Current Sleeper starting lineup comparison is left as a future hook unless matchup/lineup data is returned."
-        backgroundVariant="lineup"
-        compact
-      />
-      <AIReadPanel
-        title="Portfolio view"
-        readType="Monthly Blueprint"
-        confidence={hasMultiLeagueData ? 80 : 42}
-        severity={hasMultiLeagueData ? 'info' : 'warn'}
-        chips={[hasMultiLeagueData ? 'Multi-league ready' : { label: 'Future multi-league', tone: 'warn' }]}
-        body="Portfolio exposure is scaffolded but intentionally not populated from a single league. Once multi-league reports are persisted, this can show player shares, overexposure, and risk concentration."
-        backgroundVariant="blueprint"
-        compact
-      />
-      <AIReadPanel
-        title="News / research assistant"
-        readType="Player Trend"
-        confidence={newsCount ? 72 : 46}
-        severity={newsCount ? 'info' : 'warn'}
-        chips={[`${newsCount} player news flags`, newsCount ? 'News payload loaded' : { label: 'No news API payload', tone: 'warn' }]}
-        body={newsCount
-          ? 'Player detail modals surface returned latest-news payloads and can support a broader research assistant panel.'
-          : 'No broad news feed is connected in this report payload, so this remains a clean shell instead of fake headlines.'}
-        backgroundVariant="market"
-        compact
-      />
+    <div className="assistant-feature-stack">
+      <div className="command-module-toolbar">
+        <label>
+          <span>Assistant focus</span>
+          <select value={manager} onChange={(event) => setSelectedManager(event.target.value)}>
+            {managerOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <section className="assistant-feature-coverage">
+        <div className="assistant-feature-card-head">
+          <span><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Feature Coverage</span>
+          <strong>No fake data</strong>
+        </div>
+        <div className="assistant-feature-coverage-grid">
+          {coverageRows.map((row) => (
+            <span key={row.label} className={`assistant-feature-coverage-row assistant-feature-coverage-row-${row.tone}`}>
+              <strong>{row.label}</strong>
+              <em>{row.status}</em>
+              <small>{row.note}</small>
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <div className="assistant-shell-grid">
+        <section className="assistant-feature-card">
+          <div className="assistant-feature-card-head">
+            <span><Bell className="h-4 w-4" aria-hidden="true" /> Watch Alerts</span>
+            <strong>{watchSignals.length ? 'Live movement' : 'No movement'}</strong>
+          </div>
+          {renderAssistantPlayerRows(watchSignals.map((signal) => ({
+            id: signal.id,
+            name: signal.name,
+            position: signal.position,
+            team: signal.team,
+            playerId: signal.playerId,
+            meta: `${signal.pctChange >= 0 ? '+' : ''}${signal.pctChange.toFixed(1)}% · ${signal.label}`,
+            value: formatCompactValue(signal.value),
+            tone: signal.tone,
+          })))}
+          <AIReadPanel
+            title="Market signal read"
+            readType="Market Signal"
+            confidence={watchSignals.length ? 82 : 52}
+            severity={watchSignals.length ? 'info' : 'warn'}
+            chips={[`${data.weeklyRisers?.length || 0} risers`, `${data.weeklyFallers?.length || 0} fallers`, 'Manual thresholds']}
+            body={watchSignals.length
+              ? `${watchSignals[0].name} is the loudest returned movement signal. Saved alert thresholds still need user preference storage, so this module only reads live report data.`
+              : 'No weekly movement payload was returned, so the watch alert module is intentionally quiet.'}
+            backgroundVariant="market"
+            compact
+          />
+        </section>
+
+        <section className="assistant-feature-card">
+          <div className="assistant-feature-card-head">
+            <span><Gauge className="h-4 w-4" aria-hidden="true" /> Lineup Optimizer</span>
+            <strong>{power ? `Power #${power.rank}` : 'Projected'}</strong>
+          </div>
+          <div className="assistant-feature-metrics">
+            <MetricPill label="Starter rank" value={power?.starterStrength || '-'} tone="good" />
+            <MetricPill label="Bench pressure" value={benchPressure.length} tone={benchPressure.length ? 'warn' : 'neutral'} />
+            <MetricPill label="Slots" value={data.leagueDiagnostics?.lineupSlotSummary || '-'} tone="info" />
+          </div>
+          {renderAssistantPlayerRows((benchPressure.length ? benchPressure : starterPlayers.slice(0, 4)).map((player) => ({
+            id: player.player_id,
+            name: player.name,
+            position: player.pos,
+            team: player.playerDetails?.team || null,
+            playerId: player.player_id,
+            meta: benchPressure.length ? 'Flex pressure' : 'Projected starter',
+            value: formatCompactValue(getStarterValue(player)),
+            tone: benchPressure.length ? 'warn' : 'good',
+          })))}
+          <AIReadPanel
+            title="Starter strength read"
+            readType="Lineup Leak"
+            confidence={counts ? 84 : 48}
+            severity={benchPressure.length ? 'warn' : counts ? 'info' : 'warn'}
+            chips={[counts ? 'Lineup map loaded' : { label: 'No lineup map', tone: 'warn' }, data.leagueDiagnostics?.starterCalculation ? 'Slot-aware' : 'Current roster only']}
+            body={counts
+              ? `Projected starters use this league's returned lineup slots. Current submitted Sleeper lineup data is not in the payload, so missed-starter value is limited to bench pressure, not confirmed lineup mistakes.`
+              : 'No manager lineup map was returned for this report.'}
+            backgroundVariant="lineup"
+            compact
+          />
+        </section>
+
+        <section className="assistant-feature-card">
+          <div className="assistant-feature-card-head">
+            <span><PackageSearch className="h-4 w-4" aria-hidden="true" /> Waiver Assistant</span>
+            <strong>{waiverAdds.length} adds</strong>
+          </div>
+          <div className="assistant-feature-metrics">
+            <MetricPill label="Best add" value={bestWaiver?.name || '-'} tone={bestWaiver ? 'good' : 'neutral'} />
+            <MetricPill label="Drop candidates" value={intel?.droppablePlayers?.length || 0} tone={intel?.droppablePlayers?.length ? 'warn' : 'neutral'} />
+            <MetricPill label="Lens" value={leagueValueMode === 'redraft' ? 'Season' : 'Dynasty'} tone="info" />
+          </div>
+          {renderAssistantPlayerRows(waiverAdds.slice(0, 4).map((player) => ({
+            id: player.player_id,
+            name: player.name,
+            position: player.pos,
+            team: player.team || player.playerDetails?.team || null,
+            playerId: player.player_id,
+            meta: `${player.count.toLocaleString()} adds`,
+            value: formatCompactValue(player.ktcValue || getPlayerDetailsValue(player.playerDetails)),
+            tone: 'good',
+          })))}
+          <AIReadPanel
+            title="Waiver fit read"
+            readType="Waiver Opportunity"
+            confidence={waiverAdds.length ? 82 : 54}
+            severity={waiverAdds.length ? 'good' : 'warn'}
+            chips={[data.waiverIntelligence ? 'Sleeper waiver data' : { label: 'No waiver payload', tone: 'warn' }, leagueValueMode === 'redraft' ? 'Weekly usage lens' : 'Dynasty stash lens']}
+            body={bestWaiver
+              ? `${bestWaiver.name} is the highest-priority available signal from returned trending and value data. Use the full waiver panel for add/drop context.`
+              : 'No available waiver targets were returned, so no add/drop recommendation is shown here.'}
+            backgroundVariant="waiver"
+            compact
+          />
+        </section>
+
+        <section className="assistant-feature-card">
+          <div className="assistant-feature-card-head">
+            <span><Radar className="h-4 w-4" aria-hidden="true" /> Portfolio View</span>
+            <strong>Single league</strong>
+          </div>
+          <div className="assistant-feature-metrics">
+            <MetricPill label="Tracked value" value={formatCompactValue(portfolio.totalValue)} tone="info" />
+            <MetricPill label="Top-3 share" value={formatPercent(portfolio.topThreeShare)} tone={(portfolio.topThreeShare || 0) >= 55 ? 'warn' : 'good'} />
+            <MetricPill label="Risk flags" value={portfolio.newsRiskCount} tone={portfolio.newsRiskCount ? 'warn' : 'neutral'} />
+          </div>
+          <div className="assistant-position-exposure">
+            {portfolio.positionRows.map((row) => (
+              <span key={row.position}>
+                <strong>{row.position}</strong>
+                <em>{row.count} assets</em>
+                <small>{formatCompactValue(row.value)}</small>
+              </span>
+            ))}
+          </div>
+          <AIReadPanel
+            title="Exposure read"
+            readType="Monthly Blueprint"
+            confidence={portfolio.totalValue ? 74 : 44}
+            severity={(portfolio.topThreeShare || 0) >= 55 ? 'warn' : portfolio.totalValue ? 'info' : 'warn'}
+            chips={['Single-league exposure', `${portfolio.topAssets.length} top assets`, { label: 'Multi-league shares pending', tone: 'warn' }]}
+            body={portfolio.totalValue
+              ? `${manager}'s largest position exposure is ${portfolio.positionRows[0]?.position || '-'}. This is a real single-league portfolio read; cross-league player shares still require persisted multi-league data.`
+              : 'No roster player pool was returned for portfolio exposure.'}
+            backgroundVariant="blueprint"
+            compact
+          />
+        </section>
+
+        <section className="assistant-feature-card">
+          <div className="assistant-feature-card-head">
+            <span><Sparkles className="h-4 w-4" aria-hidden="true" /> Rookie Signal</span>
+            <strong>{rookieSignals.length} graded</strong>
+          </div>
+          {renderAssistantPlayerRows(rookieSignals.map((row) => ({
+            id: row.id,
+            name: row.name,
+            position: row.position,
+            team: row.team,
+            playerId: row.playerId,
+            meta: `${row.signal} · ${row.context}`,
+            value: row.score,
+            tone: row.score >= 75 ? 'good' : row.score <= 42 ? 'warn' : 'info',
+          })))}
+          <AIReadPanel
+            title="Degen prospect score"
+            readType="Draft Capital Read"
+            confidence={rookieSignals.length ? 78 : 44}
+            severity={rookieSignals.length ? 'info' : 'warn'}
+            chips={[data.draftPicks?.length ? 'Draft data loaded' : { label: 'No draft picks', tone: 'warn' }, data.prospectSourceDiagnostics?.status || 'Prospect source unknown']}
+            body={rookieSignals.length
+              ? `${rookieSignals[0].name} has the top returned rookie/prospect signal. The score uses draft slot, returned value, value movement, and available prospect ranks only. It does not claim film grades.`
+              : 'No rookie draft or prospect rows were returned for scoring.'}
+            backgroundVariant="draft"
+            compact
+          />
+        </section>
+
+        <section className="assistant-feature-card">
+          <div className="assistant-feature-card-head">
+            <span><Newspaper className="h-4 w-4" aria-hidden="true" /> Research Assistant</span>
+            <strong>{newsRows.length} flags</strong>
+          </div>
+          {renderAssistantPlayerRows(newsRows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            position: row.position,
+            team: row.team,
+            playerId: row.id,
+            meta: `${row.isRostered ? 'Roster' : 'League'} · ${row.source}`,
+            value: row.title,
+            tone: row.isRostered ? 'warn' : 'info',
+          })))}
+          <AIReadPanel
+            title="Research read"
+            readType="Player Trend"
+            confidence={newsRows.length ? 72 : 46}
+            severity={newsRows.length ? 'info' : 'warn'}
+            chips={[`${newsRows.length} news/status flags`, newsRows.length ? 'News payload loaded' : { label: 'No news payload', tone: 'warn' }]}
+            body={newsRows.length
+              ? `${newsRows[0].name} is the first returned research flag. Player detail modals can show the article context when a URL/source is present.`
+              : 'No FantasyPros or Sleeper news/status payload was returned for this report.'}
+            backgroundVariant="market"
+            compact
+          />
+        </section>
+
+        <section className="assistant-feature-card assistant-feature-card-wide">
+          <div className="assistant-feature-card-head">
+            <span><Swords className="h-4 w-4" aria-hidden="true" /> Matchup Preview</span>
+            <strong>{matchupDataAvailable ? 'Ready' : 'Data missing'}</strong>
+          </div>
+          <AIReadPanel
+            title="Weekly matchup availability"
+            readType="Lineup Leak"
+            confidence={matchupDataAvailable ? 80 : 38}
+            severity={matchupDataAvailable ? 'info' : 'warn'}
+            chips={[matchupDataAvailable ? 'Matchups loaded' : { label: 'No matchup payload', tone: 'warn' }, data.leagueDiagnostics?.starterCountSummary || 'Starter slots loaded']}
+            body="Sleeper matchup projections, current submitted lineups, and opponent matchup rows are not part of the current report payload. This module stays honest: it can show starter strength and bench pressure, but not a fake weekly opponent edge."
+            backgroundVariant="lineup"
+            compact
+          />
+        </section>
+      </div>
     </div>
   );
 }
