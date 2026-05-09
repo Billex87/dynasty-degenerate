@@ -155,6 +155,7 @@ export type PreviewMetric = {
   label: string;
   value: ReactNode;
   tone?: ReportTone;
+  icon?: ReactNode;
 };
 
 export function PreviewMetricChips({
@@ -168,10 +169,27 @@ export function PreviewMetricChips({
   if (!visibleMetrics.length) return null;
 
   return (
-    <span className={cn('analysis-preview-chip-row', className)}>
+    <span
+      className={cn(
+        'analysis-preview-chip-row',
+        visibleMetrics.length === 1 && 'analysis-preview-chip-row-single',
+        visibleMetrics.some((metric) => metric.icon) && 'analysis-preview-chip-row-has-icons',
+        className,
+      )}
+    >
       {visibleMetrics.slice(0, 6).map((metric) => (
-        <span key={`${metric.label}-${String(metric.value)}`} className={cn('analysis-preview-chip', metric.tone && `analysis-preview-chip-${metric.tone}`)}>
-          <span>{metric.label}</span>
+        <span
+          key={`${metric.label}-${String(metric.value)}`}
+          className={cn(
+            'analysis-preview-chip',
+            metric.icon && 'analysis-preview-chip-has-icon',
+            metric.tone && `analysis-preview-chip-${metric.tone}`,
+          )}
+        >
+          <span className="analysis-preview-chip-label">
+            {metric.icon && <span className="analysis-preview-chip-icon" aria-hidden="true">{metric.icon}</span>}
+            <span className="analysis-preview-chip-label-text">{metric.label}</span>
+          </span>
           <strong>{metric.value}</strong>
         </span>
       ))}

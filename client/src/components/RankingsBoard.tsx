@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { ArrowDown, ArrowDownUp, ArrowUp, ChevronLeft, ChevronRight, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,7 +6,7 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { EmptyState, ManagerBadge } from './reportPrimitives';
-import { getPositionRankPillClass } from '@/lib/positionRank';
+import { getPositionRankClass, getPositionRankPillClass } from '@/lib/positionRank';
 import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle, getTeamTileStyle, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import type { DraftBuzzScoreboardEntry, PlayerDetails, RankingPlayer, RankingProfileOption, ReportData } from '@shared/types';
@@ -140,31 +140,22 @@ function formatFantasyPointTotal(value?: number | null): string | null {
   });
 }
 
-function getPreviousSeasonRankPill(details?: PlayerDetails): { label: string; title: string } | null {
+function getPreviousSeasonPill(details?: PlayerDetails): { label: string; title: string } | null {
   const rank = details?.lastSeasonPositionRank;
-  if (!rank) return null;
-
-  const season = details.lastSeasonYear || 'Prev';
-  const points = formatFantasyPointTotal(details.lastSeasonFantasyPoints);
-  const pointsPerGame = formatFantasyPointTotal(details.lastSeasonPointsPerGame);
-  const titleParts = [`${season} fantasy points rank: ${rank}`, points ? `${points} total points` : null, pointsPerGame ? `${pointsPerGame} PPG` : null].filter(Boolean);
-
-  return {
-    label: `${season} ${rank}`,
-    title: titleParts.join(' • '),
-  };
-}
-
-function getPreviousSeasonPointsPill(details?: PlayerDetails): { label: string; title: string } | null {
   const points = formatFantasyPointTotal(details?.lastSeasonFantasyPoints);
-  if (!points) return null;
+  if (!rank && !points) return null;
 
   const season = details?.lastSeasonYear || 'Previous season';
   const pointsPerGame = formatFantasyPointTotal(details?.lastSeasonPointsPerGame);
-  const titleParts = [`${season} league-scoring fantasy points: ${points}`, pointsPerGame ? `${pointsPerGame} PPG` : null].filter(Boolean);
+  const titleParts = [
+    rank ? `${season} fantasy points rank: ${rank}` : null,
+    points ? `${points} league-scoring fantasy points` : null,
+    pointsPerGame ? `${pointsPerGame} PPG` : null,
+  ].filter(Boolean);
+  const labelParts = [rank, points ? `${points} pts` : null].filter(Boolean);
 
   return {
-    label: `${points} pts`,
+    label: `Last year: ${labelParts.join(', ')}`,
     title: titleParts.join(' • '),
   };
 }
@@ -449,6 +440,12 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     context: 'rankings',
   });
   const valueLabel = player.isDevy ? getProspectPositionRank(player) : formatValue(primaryValue);
+  const valueClassName = [
+    'ranking-inline-value',
+    'value-board__value',
+    player.isDevy ? 'value-board__value-position' : '',
+    player.isDevy ? getPositionRankClass(valueLabel) : '',
+  ].filter(Boolean).join(' ');
   const prospectProjection = player.isDevy ? getProspectProjection(player) : null;
   const positionLabel = player.isPick ? 'PICK' : player.isDevy ? player.pos : getPlayerRankForMode({
     valueProfile: details?.valueProfile,
@@ -456,21 +453,20 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     mode: config.leagueValueMode,
     context: 'rankings',
   }) || player.pos;
-  const previousSeasonRankPill = !player.isDevy && !player.isPick ? getPreviousSeasonRankPill(details) : null;
-  const previousSeasonPointsPill = !player.isDevy && !player.isPick ? getPreviousSeasonPointsPill(details) : null;
+  const previousSeasonPill = !player.isDevy && !player.isPick ? getPreviousSeasonPill(details) : null;
 
   return (
     <button type="button" className={`player-team-tile ranking-player-card value-board__row value-board__mobile-card ${player.isDevy ? 'ranking-player-card-devy value-board__row-devy' : ''} ${viewerOwnedHighlightClass(player.owner, viewerManager)}`} style={player.isDevy ? getCollegeTileStyle(player.college) : getTeamTileStyle(details?.team || player.team)} onClick={() => onSelect(player)}>
       <div className="value-board__score">
         <span className="ranking-overall-rank value-board__rank">{rankLabel}</span>
-        <span className="ranking-inline-value value-board__value">
+        <span className={valueClassName}>
           <span className="value-board__value-label">{config.board === 'devy' ? 'Rank' : config.valueLabel}</span>
           <strong>{valueLabel}</strong>
         </span>
       </div>
 
-      {player.isDevy && prospectScore ? (
-        <strong className="value-board__prospect-score" aria-label={`${player.name} buzz score ${formatDraftBuzzScore(prospectScore)}`}>
+      {player.isDevy ? (
+        <strong className={`value-board__prospect-score ${prospectScore ? '' : 'value-board__prospect-score-empty'}`} aria-label={prospectScore ? `${player.name} buzz score ${formatDraftBuzzScore(prospectScore)}` : `${player.name} buzz score unavailable`}>
           {formatDraftBuzzScore(prospectScore)}
         </strong>
       ) : null}
@@ -497,44 +493,29 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
           <span className={getRankClass(positionLabel)}>{positionLabel}</span>
         </div>
 
-        {!player.isDevy && !player.isPick ? (
-          <>
-            <div className="ranking-card-pills value-board__previous-rank">
-              {previousSeasonRankPill ? (
-                <span className="ranking-last-season-rank-pill" title={previousSeasonRankPill.title}>
-                  {previousSeasonRankPill.label}
-                </span>
-              ) : (
-                <span className="ranking-last-season-empty">-</span>
-              )}
-            </div>
-
-            <div className="ranking-card-pills value-board__previous-points">
-              {previousSeasonPointsPill ? (
-                <span className="ranking-last-season-points-pill" title={previousSeasonPointsPill.title}>
-                  {previousSeasonPointsPill.label}
-                </span>
-              ) : (
-                <span className="ranking-last-season-empty">-</span>
-              )}
-            </div>
-          </>
-        ) : null}
-
         <div className="ranking-card-pills value-board__age">
           {player.isDevy && player.draftYear ? (
             <span className="ranking-devy-class-pill">{player.draftYear}</span>
+          ) : player.isDevy ? (
+            <span className="ranking-devy-class-pill ranking-devy-class-pill-empty">-</span>
           ) : player.age ? (
-            <span className="value-board__age-pill">
-              <span className="value-board__age-short" aria-hidden="true">
-                {player.age} yrs
-              </span>
-              <span className="value-board__age-full">{player.age} Year Old</span>
-            </span>
+            <span className="value-board__age-pill">{player.age} Year Old</span>
           ) : (
             <span className="value-board__age-empty">-</span>
           )}
         </div>
+
+        {!player.isDevy && !player.isPick ? (
+          <div className="ranking-card-pills value-board__previous-season">
+            {previousSeasonPill ? (
+              <span className="ranking-last-season-summary-pill" title={previousSeasonPill.title}>
+                {previousSeasonPill.label}
+              </span>
+            ) : (
+              <span className="ranking-last-season-empty">Last year: -</span>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <div className="value-board__manager">
@@ -906,6 +887,9 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   const rows = rankings.profiles?.[selectedProfileKey] || [];
   const activeProfile = profileOptions.find(option => option.key === selectedProfileKey);
   const activeProfileLabel = activeProfile ? getProfileButtonLabel(activeProfile) : null;
+  const leagueTypeControlStyle = {
+    '--rankings-league-type-width': `calc(${Math.max(9, ...boardOptions.map(option => getProfileButtonLabel(option).length))}ch + 2.35rem)`,
+  } as CSSProperties;
   const isLeagueMatchedProfile = Boolean(config.defaultProfileKey && selectedProfileKey === config.defaultProfileKey);
   const draftClassOptions = useMemo(() => {
     if (config.board !== 'devy') return [];
@@ -1026,7 +1010,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         </div>
       </div>
 
-      <div className={`rankings-controls value-board__toolbar ${!config.hidePicks && config.board === 'dynasty' ? 'rankings-controls-with-picks' : ''} ${config.board === 'devy' ? 'rankings-controls-devy' : ''}`}>
+      <div className={`rankings-controls value-board__toolbar ${!config.hidePicks && config.board === 'dynasty' ? 'rankings-controls-with-picks' : ''} ${config.board === 'devy' ? 'rankings-controls-devy' : ''}`} style={leagueTypeControlStyle}>
         <div className="rankings-league-type-control">
           <label className="rankings-league-type-label" htmlFor={`${config.board}-league-type`}>
             League Type
@@ -1047,7 +1031,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
 
         <div className="rankings-search-wrap value-board__search">
           <Search className="h-4 w-4" aria-hidden="true" />
-          <Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search player, manager, team" className="rankings-search-input" />
+          <Input value={query} onChange={event => setQuery(event.target.value)} placeholder={config.board === 'devy' ? 'Player or team' : 'Search player'} className="rankings-search-input" />
         </div>
 
         {config.board !== 'devy' ? (
@@ -1115,9 +1099,8 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
           <span>Player</span>
           <span>{config.board === 'devy' ? 'School' : 'Team'}</span>
           <span>{config.board === 'devy' ? 'Pos Rank' : 'Pos Rank'}</span>
-          {config.board !== 'devy' ? <span>Prev Finish</span> : null}
-          {config.board !== 'devy' ? <span>Last Yr Pts</span> : null}
           <span>{config.board === 'devy' ? 'Class' : 'Age'}</span>
+          {config.board !== 'devy' ? <span>Last Year</span> : null}
           <span>{config.board === 'devy' ? 'Projection' : 'Manager'}</span>
           <span>Rank +/-</span>
           <span>{config.board === 'devy' ? 'Buzz' : '7-Day'}</span>

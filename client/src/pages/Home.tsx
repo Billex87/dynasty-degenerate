@@ -12,13 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CheckCircle2, ChevronDown, Zap, TrendingUp, BarChart3, Repeat2, ClipboardList, ListOrdered } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Zap, TrendingUp, TrendingDown, BarChart3, Repeat2, ClipboardList, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
 import { SupportButton } from '@/components/SupportButton';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
-import { LeagueTypeBadge, PreviewMetricChips, ReportSectionHeader, type PreviewMetric } from '@/components/reportPrimitives';
+import { PlayerPill, PreviewMetricChips, ReportSectionHeader, type PreviewMetric } from '@/components/reportPrimitives';
 import { getLeagueModeCopy, normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import type { ReportData } from '@shared/types';
@@ -182,6 +182,66 @@ function formatPreviewNumber(value?: number | null): string {
   return numeric.toLocaleString();
 }
 
+function formatReceptionChip(value?: number | null): string | null {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric === 0) return 'Standard';
+  if (numeric === 0.5) return 'Half PPR';
+  if (numeric === 1) return 'PPR';
+  return `${numeric} PPR`;
+}
+
+function formatTepChip(value?: number | null): string | null {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric >= 1 ? 'TEP+' : 'TEP';
+}
+
+function buildLeagueFormatPills(leagueFormat: string, diagnostics?: ReportData['leagueDiagnostics']): string[] {
+  const chips: string[] = [];
+  const normalizedFormat = leagueFormat || '';
+  const addChip = (value?: string | null) => {
+    const normalized = value?.trim();
+    if (normalized && !chips.includes(normalized)) chips.push(normalized);
+  };
+
+  const teamCount = diagnostics?.teamCount || Number(normalizedFormat.match(/\b(\d{1,2})\s*-?\s*team\b/i)?.[1]);
+  if (Number.isFinite(teamCount) && teamCount > 0) addChip(`${teamCount}-Team`);
+
+  const slotText = [
+    normalizedFormat,
+    ...(diagnostics?.starterSlots || []),
+    ...(diagnostics?.rosterSlots || []),
+  ].join(' ');
+  if (/\b(super[_\s-]?flex|sflex|sf)\b/i.test(slotText) || /\bOP\b/.test(slotText)) {
+    addChip('SF');
+  } else if (/\b(1\s*QB|one\s*QB|1QB)\b/i.test(slotText)) {
+    addChip('1QB');
+  }
+
+  const scoringChip = diagnostics
+    ? formatReceptionChip(diagnostics.receptionScoring)
+    : /\b(half[-\s]?ppr)\b/i.test(normalizedFormat)
+      ? 'Half PPR'
+      : /\b(non[-\s]?ppr|standard|std)\b/i.test(normalizedFormat)
+        ? 'Standard'
+        : /\bppr\b/i.test(normalizedFormat)
+          ? 'PPR'
+          : null;
+  addChip(scoringChip);
+
+  const tepChip = diagnostics
+    ? formatTepChip(diagnostics.tightEndPremium)
+    : /\b(tep\+|1(?:\.0)?\s*tep|1\.5\s*tep|2(?:\.0)?\s*tep|te\s*premium\+)\b/i.test(normalizedFormat)
+      ? 'TEP+'
+      : /\b(tep|te\s*premium)\b/i.test(normalizedFormat)
+        ? 'TEP'
+        : null;
+  addChip(tepChip);
+
+  return chips;
+}
+
 function getBestManagerByValue(data: ReportData): string | null {
   return [...(data.leagueOverview || [])].sort((a, b) => a.rank_value - b.rank_value)[0]?.manager || null;
 }
@@ -264,14 +324,24 @@ function buildDraftPreviewMetrics(data: ReportData, mode: LeagueValueMode): Prev
   ].filter(Boolean) as PreviewMetric[];
 }
 
-function buildMomentumPreviewMetrics(data: ReportData, mode: LeagueValueMode): PreviewMetric[] {
+function renderMomentumPreviewPlayer(player: ReportData['weeklyRisers'][number]) {
+  return (
+    <PlayerPill
+      playerId={player.player_id}
+      playerName={player.name}
+      team={player.playerDetails?.team}
+      position={player.pos}
+      className="analysis-preview-player"
+    />
+  );
+}
+
+function buildMomentumPreviewMetrics(data: ReportData): PreviewMetric[] {
   const topRiser = [...(data.weeklyRisers || [])].sort((a, b) => b.pct_change - a.pct_change)[0];
   const topFaller = [...(data.weeklyFallers || [])].sort((a, b) => a.pct_change - b.pct_change)[0];
-  const available = data.waiverIntelligence?.availableTrendingAdds?.length || 0;
   return [
-    topRiser ? { label: 'Biggest Riser', value: topRiser.name, tone: 'good' } : null,
-    topFaller ? { label: 'Biggest Faller', value: topFaller.name, tone: 'danger' } : null,
-    { label: mode === 'redraft' ? 'Waiver Adds' : 'Available Adds', value: available, tone: available ? 'info' : 'neutral' },
+    topRiser ? { label: 'Biggest Riser', value: renderMomentumPreviewPlayer(topRiser), tone: 'good', icon: <TrendingUp /> } : null,
+    topFaller ? { label: 'Biggest Faller', value: renderMomentumPreviewPlayer(topFaller), tone: 'danger', icon: <TrendingDown /> } : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
@@ -2125,6 +2195,7 @@ export default function Home() {
       : null
   );
   const isLoadingRevealPhase = loadingTransitionPhase === 'reveal' || loadingTransitionPhase === 'kick';
+  const leagueFormatPills = buildLeagueFormatPills(leagueFormat, reportData?.leagueDiagnostics);
   const loadingSuccessCardClassName = [
     'loading-success-card',
     analysisCompleteMessage?.leagueLogo ? 'loading-success-card-logo' : '',
@@ -2298,10 +2369,13 @@ export default function Home() {
                 >
                   <div className="min-w-0 text-right">
                     <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">{leagueName}</p>
-                    {leagueFormat && (
-                      <p className="report-league-format-row truncate text-[11px] font-medium text-cyan-200/70 sm:text-xs">
-                        <span>{leagueFormat}</span>
-                        <LeagueTypeBadge mode={leagueValueMode} />
+                    {leagueFormatPills.length > 0 && (
+                      <p className="report-league-format-row text-[11px] font-medium text-cyan-200/70 sm:text-xs" aria-label={`League format: ${leagueFormatPills.join(', ')}`}>
+                        {leagueFormatPills.map((chip) => (
+                          <span key={chip} className="report-league-format-pill">
+                            {chip}
+                          </span>
+                        ))}
                       </p>
                     )}
                   </div>
@@ -2533,7 +2607,7 @@ export default function Home() {
                   <CollapsibleReportSection
                     title="Trade Market Radar"
                     kicker={isRedraftReport ? 'Current-season buy and sell signals' : 'Buy and sell signals'}
-                    previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}
+                    previewMetrics={buildMomentumPreviewMetrics(reportData)}
                   >
                     <TradeMarketRadar
                       risers={reportData.weeklyRisers}
@@ -2551,7 +2625,7 @@ export default function Home() {
                   <CollapsibleReportSection
                     title="Waiver Intelligence"
                     kicker={isRedraftReport ? 'Opportunity, usage, and roster need' : 'Available value'}
-                    previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}
+                    previewMetrics={buildMomentumPreviewMetrics(reportData)}
                     premium
                   >
                     <WaiverIntelligencePanel
@@ -2574,7 +2648,6 @@ export default function Home() {
                   kicker={isRedraftReport ? 'Claims, drops, and weekly churn' : 'Claims, drops, and churn'}
                   previewMetrics={[
                     { label: 'Transactions', value: reportData.recentTransactions?.length || 0, tone: reportData.recentTransactions?.length ? 'info' : 'warn' },
-                    { label: 'Lens', value: isRedraftReport ? 'Season' : 'Dynasty', tone: 'neutral' },
                   ]}
                 >
                   <RecentTransactionsPanel
@@ -2586,13 +2659,13 @@ export default function Home() {
                     leagueValueMode={leagueValueMode}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers" previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}>
+                <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers" previewMetrics={buildMomentumPreviewMetrics(reportData)}>
                   <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops" previewMetrics={buildMomentumPreviewMetrics(reportData, leagueValueMode)}>
+                <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops" previewMetrics={buildMomentumPreviewMetrics(reportData)}>
                   <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Trending Adds" kicker={isRedraftReport ? "Sleeper add activity" : "Sleeper activity"} previewMetrics={[{ label: 'Adds', value: reportData.trendingAdds?.length || 0, tone: 'info' }]}>
+                <CollapsibleReportSection title="Trending Adds" kicker={isRedraftReport ? "Sleeper add activity" : "Sleeper activity"}>
                   <TrendingPlayersTable
                     data={reportData.trendingAdds || []}
                     title="Trending Adds"
@@ -2605,7 +2678,7 @@ export default function Home() {
                     leagueValueMode={leagueValueMode}
                   />
                 </CollapsibleReportSection>
-                <CollapsibleReportSection title="Trending Drops" kicker={isRedraftReport ? "Sleeper drop activity" : "Sleeper activity"} previewMetrics={[{ label: 'Drops', value: reportData.trendingDrops?.length || 0, tone: 'info' }]}>
+                <CollapsibleReportSection title="Trending Drops" kicker={isRedraftReport ? "Sleeper drop activity" : "Sleeper activity"}>
                   <TrendingPlayersTable
                     data={reportData.trendingDrops || []}
                     title="Trending Drops"
