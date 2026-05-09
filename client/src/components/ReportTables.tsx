@@ -37,14 +37,18 @@ import { compareManagersByViewerAndStanding, sortRowsByViewerAndStanding } from 
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 
-type ManagerAvatars = ReportData['managerAvatars'];
-type PlayerDetailsById = ReportData['playerDetailsById'];
+export type ManagerAvatars = ReportData['managerAvatars'];
+export type PlayerDetailsById = ReportData['playerDetailsById'];
 type CurrentPositionRankById = ReportData['currentPositionRankById'];
 type LeagueOverviewRows = ReportData['leagueOverview'];
 type ManagerRosterIntelRows = NonNullable<ReportData['managerRosterIntelligence']>;
 type DynastyTimelineRows = NonNullable<ReportData['dynastyTimelines']>;
+type ManagerCountRow = ReportData['managerPositionCounts'][number];
+type CountPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
 
-function buildPlayerModalData({
+const COUNT_POSITIONS: CountPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+
+export function buildPlayerModalData({
   playerId,
   playerName,
   playerPos,
@@ -124,7 +128,7 @@ function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
   );
 }
 
-function getManagerHeadingClassName(manager: string | null | undefined): string {
+export function getManagerHeadingClassName(manager: string | null | undefined): string {
   const length = (manager || '').replace(/\s+/g, '').length;
   if (length >= 20) return 'manager-modal-name manager-modal-name-xxlong';
   if (length >= 15) return 'manager-modal-name manager-modal-name-xlong';
@@ -132,7 +136,7 @@ function getManagerHeadingClassName(manager: string | null | undefined): string 
   return 'manager-modal-name';
 }
 
-function renderActivityManagerAvatar(manager: string | null | undefined, managerAvatars?: ManagerAvatars) {
+export function renderActivityManagerAvatar(manager: string | null | undefined, managerAvatars?: ManagerAvatars) {
   if (!manager) {
     return (
       <span className="activity-manager-avatar activity-manager-avatar-empty" aria-label="Available player" title="Available">
@@ -177,11 +181,11 @@ function renderPartnerName(manager: string, managerAvatars?: ManagerAvatars) {
   );
 }
 
-function getPlayerStatusLabel(details?: PlayerDetails | null): string {
+export function getPlayerStatusLabel(details?: PlayerDetails | null): string {
   return getPlayerAvailability(details).label;
 }
 
-function getPlayerStatusClass(details?: PlayerDetails | null): string {
+export function getPlayerStatusClass(details?: PlayerDetails | null): string {
   return getPlayerAvailabilityClass(details);
 }
 
@@ -1836,7 +1840,7 @@ function renderTradeItem(
   );
 }
 
-function formatCompactValue(value: number | null | undefined): string {
+export function formatCompactValue(value: number | null | undefined): string {
   if (!value) return '-';
   if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}K`;
   return value.toLocaleString();
@@ -2578,10 +2582,20 @@ type OwnerTimelineRow = NonNullable<ReportData['dynastyTimelines']>[number];
 type OwnerPowerRow = NonNullable<ReportData['powerRankings']>[number];
 type OwnerGrowthRow = NonNullable<ReportData['managerRosterValueGrowth']>[number];
 type OwnerNeedPosition = 'QB' | 'RB' | 'WR' | 'TE';
-type OwnerSignalTone = 'neutral' | 'good' | 'warn' | 'danger' | 'future';
+type OwnerSignalTone = 'neutral' | 'good' | 'warn' | 'danger' | 'future' | 'elite' | 'balanced' | 'weak-contender' | 'weak-rebuilder' | 'squeak';
 type DynastyAiTheme = 'trade' | 'window' | 'draft' | 'churn' | 'risk' | 'upside' | 'sell' | 'core' | 'neutral';
 type OwnerSignalTag = { label: string; tone?: OwnerSignalTone };
-type OwnerBuildLabel = 'Strong Contender' | 'Contender' | 'Middle Class' | 'Soft Rebuilder' | 'Strong Rebuilder' | 'Playoff Push' | 'Starter Need' | 'Depth Build';
+type OwnerBuildLabel =
+  | 'Juggernaut'
+  | 'Strong Contender'
+  | 'Weak Contender'
+  | 'Balanced'
+  | 'Strong Rebuilder'
+  | 'Weak Rebuilder'
+  | 'Pip Squeak'
+  | 'Playoff Push'
+  | 'Starter Need'
+  | 'Depth Build';
 type OwnerScoreLens = {
   dynastyScore: number | null;
   contenderScore: number | null;
@@ -2601,7 +2615,7 @@ const AI_RECOMMENDATION_BADGE_LABEL = 'AI TARGET';
 const AI_RECOMMENDATION_BANNER_LABEL = 'AI PICKUP SIGNAL';
 const AI_NEURAL_SURFACE_CLASS = 'ai-neural-surface';
 
-function getAiNeuralSurfaceClass(theme: DynastyAiTheme = 'neutral', extraClassName = '') {
+export function getAiNeuralSurfaceClass(theme: DynastyAiTheme = 'neutral', extraClassName = '') {
   return [
     AI_NEURAL_SURFACE_CLASS,
     `${AI_NEURAL_SURFACE_CLASS}-${theme}`,
@@ -2628,7 +2642,7 @@ type TradeFitRead = {
   target?: ManagerIntelPlayer | null;
 };
 
-function parsePositionRankValue(rank: string | null | undefined): number | null {
+export function parsePositionRankValue(rank: string | null | undefined): number | null {
   const match = String(rank || '').match(/\d+/);
   if (!match) return null;
   const value = Number(match[0]);
@@ -3068,7 +3082,7 @@ function normalizeOwnerValueScore(value?: number | null, maxValue = 0): number |
 }
 
 function isOwnerRebuildLane(label?: string | null): boolean {
-  return Boolean(label && label.toLowerCase().includes('rebuild'));
+  return Boolean(label && /rebuild|pip squeak/i.test(label));
 }
 
 function isOwnerStrongRebuildLane(label?: string | null): boolean {
@@ -3076,7 +3090,7 @@ function isOwnerStrongRebuildLane(label?: string | null): boolean {
 }
 
 function isOwnerContenderLane(label?: string | null): boolean {
-  return Boolean(label && label.toLowerCase().includes('contender'));
+  return Boolean(label && /contender|juggernaut/i.test(label));
 }
 
 function isOwnerStrongContenderLane(label?: string | null): boolean {
@@ -3104,39 +3118,81 @@ function getOwnerTeamTypeLabel({
   const valueRank = overviewRow?.rank_value ?? null;
   const titleWindow = leagueSize > 0 ? Math.max(3, Math.ceil(leagueSize * 0.42)) : 5;
   const strongTitleWindow = leagueSize > 0 ? Math.max(2, Math.ceil(leagueSize * 0.2)) : 3;
+  const bottomWindowStart = leagueSize > 0 ? Math.max(leagueSize - Math.max(2, Math.ceil(leagueSize * 0.24)) + 1, 1) : 9;
   const lowerThirdStart = leagueSize > 0 ? Math.max(1, Math.floor(leagueSize * 0.67)) : 8;
   const hasTitleValue = valueRank !== null ? valueRank <= titleWindow : (rosterValueScore ?? 0) >= 86;
   const hasEliteTitleValue = valueRank !== null ? valueRank <= strongTitleWindow : (rosterValueScore ?? 0) >= 94;
   const isBottomValue = valueRank !== null ? valueRank >= lowerThirdStart : (rosterValueScore ?? 100) <= 72;
+  const isBasementValue = valueRank !== null ? valueRank >= bottomWindowStart : (rosterValueScore ?? 100) <= 42;
   const olderRoster = (row.avgAge ?? 0) >= 27.3 || (row.avgAgeByPosition.RB ?? 0) >= 26.8;
   const titleScore = contenderScore ?? (/win|contender/i.test(row.identity || row.timeline || '') ? 78 : 0);
   const rebuildScore = rebuilderScore ?? (/rebuild|future|youth/i.test(row.identity || row.timeline || '') ? 70 : 0);
+  const scoreGap = titleScore - rebuildScore;
+  const starterShare = Number.isFinite(row.starterValuePct) ? row.starterValuePct : 0;
+  const source = `${row.identity || ''} ${timelineRow?.label || ''} ${row.timeline || ''}`;
 
-  const canRealisticallyWin =
-    titleScore >= 78
-    && titleScore >= rebuildScore + 10
-    && (hasTitleValue || titleScore >= 88 || (rosterValueScore ?? 0) >= 90);
-  const isStrongContender =
+  if (
     titleScore >= 88
-    && titleScore >= rebuildScore + 20
-    && (hasEliteTitleValue || titleScore >= 95 || (rosterValueScore ?? 0) >= 96);
-
-  if (canRealisticallyWin) {
-    return isStrongContender ? 'Strong Contender' : 'Contender';
+    && scoreGap >= 18
+    && (hasEliteTitleValue || titleScore >= 95 || (rosterValueScore ?? 0) >= 96)
+    && starterShare >= 48
+  ) {
+    return 'Juggernaut';
   }
 
-  const source = `${row.identity || ''} ${timelineRow?.label || ''} ${row.timeline || ''}`;
+  if (
+    titleScore >= 78
+    && scoreGap >= 10
+    && (hasTitleValue || titleScore >= 88 || (rosterValueScore ?? 0) >= 90)
+  ) {
+    return 'Strong Contender';
+  }
+
+  if (
+    titleScore >= 66
+    && scoreGap >= -4
+    && !isBasementValue
+    && (/contender|win|playoff/i.test(source) || hasTitleValue || starterShare >= 52)
+  ) {
+    return 'Weak Contender';
+  }
+
   const strongRebuild =
     rebuildScore >= 74
     || titleScore <= 62
     || (isBottomValue && (titleScore < 70 || olderRoster))
     || (/rebuild|future|youth/i.test(source) && rebuildScore >= 68 && titleScore < 75);
 
-  return strongRebuild ? 'Strong Rebuilder' : 'Soft Rebuilder';
+  if (
+    isBasementValue
+    && titleScore <= 46
+    && rebuildScore <= 55
+    && starterShare <= 42
+  ) {
+    return 'Pip Squeak';
+  }
+
+  if (strongRebuild) return 'Strong Rebuilder';
+
+  if (
+    rebuildScore >= 58
+    || isBottomValue
+    || /rebuild|future|youth/i.test(source)
+  ) {
+    return 'Weak Rebuilder';
+  }
+
+  return 'Balanced';
 }
 
 function getOwnerTeamTypeTone(label: string): OwnerSignalTone {
-  if (label.toLowerCase().includes('soft')) return 'warn';
+  if (/juggernaut/i.test(label)) return 'elite';
+  if (/strong contender|playoff/i.test(label)) return 'good';
+  if (/weak contender/i.test(label)) return 'weak-contender';
+  if (/balanced|starter need|depth build/i.test(label)) return 'balanced';
+  if (/strong rebuild/i.test(label)) return 'future';
+  if (/weak rebuild/i.test(label)) return 'weak-rebuilder';
+  if (/pip squeak/i.test(label)) return 'squeak';
   return isOwnerRebuildLane(label) ? 'future' : 'good';
 }
 
@@ -4078,7 +4134,7 @@ function PlayerInsightTile({
   );
 }
 
-function IntelligenceMetric({ label, value, tone = 'neutral' }: { label: string; value: React.ReactNode; tone?: 'neutral' | 'positive' | 'negative' }) {
+export function IntelligenceMetric({ label, value, tone = 'neutral' }: { label: string; value: React.ReactNode; tone?: 'neutral' | 'positive' | 'negative' }) {
   const toneClass = tone === 'positive' ? 'text-emerald-300' : tone === 'negative' ? 'text-rose-300' : 'text-slate-100';
   return (
     <div className={`intelligence-metric intelligence-metric-${tone} rounded-xl border border-cyan-300/15 bg-slate-950/45 px-3 py-2`}>
@@ -4150,12 +4206,12 @@ function PlayerMiniLine({
   );
 }
 
-function PositionRankPill({ rank }: { rank?: string | null }) {
+export function PositionRankPill({ rank }: { rank?: string | null }) {
   const displayRank = rank || '-';
   return <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>;
 }
 
-function ValueTrendIcon({
+export function ValueTrendIcon({
   value,
   className = 'h-3.5 w-3.5',
 }: {
@@ -4851,7 +4907,7 @@ function ManagerDepthTile({
   );
 }
 
-function OwnerMetricPill({
+export function OwnerMetricPill({
   label,
   value,
   tone = 'neutral',
@@ -4863,7 +4919,7 @@ function OwnerMetricPill({
   return <MetricPill label={label} value={value} tone={tone} />;
 }
 
-function OwnerSummaryTile({
+export function OwnerSummaryTile({
   manager,
   avatarUrl,
   children,
@@ -5982,230 +6038,6 @@ export function OwnerIntelMatrix({
   );
 }
 
-export function WeeklyMomentumTable({
-  data,
-  title,
-  managerAvatars,
-  playerDetailsById,
-  leagueId,
-  leagueLogo,
-  viewerManager,
-  leagueValueMode: leagueValueModeInput = 'dynasty',
-}: {
-  data: ReportData['weeklyRisers'];
-  title: string;
-  managerAvatars?: ManagerAvatars;
-  playerDetailsById?: PlayerDetailsById;
-  leagueId?: string;
-  leagueLogo?: string | null;
-  viewerManager?: string | null;
-  leagueValueMode?: ReportData['leagueValueMode'];
-}) {
-  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
-  const isRiserList = data.some((row) => row.pct_change > 0);
-  const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
-
-  return (
-    <div className="weekly-momentum-wrap">
-      <div className="weekly-momentum-baseline-note">
-        <span>7-day baseline</span>
-        <p>
-          Movement compares today&apos;s league-matched blended value to the closest stored snapshot from at least seven days back.
-          The first clean same-blend window starts {FIRST_FULL_BLEND_WEEK_LABEL}.
-        </p>
-      </div>
-      {data.length > 0 ? (
-        <div className="weekly-momentum-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
-          {data.map((row) => {
-            const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
-            const isPositive = row.pct_change >= 0;
-            return (
-              <button
-                key={`${row.player_id || row.name}-${row.owner}`}
-                type="button"
-                className={`player-team-tile weekly-momentum-tile ${isPositive ? 'weekly-momentum-tile-up' : 'weekly-momentum-tile-down'} ${viewerOwnedHighlightClass(row.owner, viewerManager)}`}
-                style={getTeamTileStyle(playerDetails?.team)}
-                onClick={() => setSelectedPlayer(buildPlayerModalData({
-                  playerId: row.player_id,
-                  playerName: row.name,
-                  playerPos: row.pos,
-                  value: getPlayerValueForMode({
-                    valueProfile: playerDetails?.valueProfile,
-                    fallbackValue: leagueValueMode === 'redraft' ? playerDetails?.valueProfile?.seasonValue ?? row.val_now : row.val_now,
-                    mode: leagueValueMode,
-                    context: 'waiver',
-                  }),
-                  valueGain: row.diff,
-                  playerDetails,
-                  playerDetailsById,
-                  manager: row.owner,
-                  managerAvatarUrl: managerAvatars?.[row.owner],
-                  currentPositionRank: row.currentPositionRank,
-                  valueMode: leagueValueMode,
-                  valueChangeNote: `7-day movement compares the current league-matched blend with the closest stored snapshot from at least seven days back. Same-blend history starts ${VALUE_BLEND_HISTORY_START_LABEL}.`,
-                }))}
-              >
-                <div className="weekly-momentum-tile-top">
-                  <span
-                    className={`weekly-momentum-status-pill ${
-                      isPositive ? 'weekly-momentum-status-riser' : 'weekly-momentum-status-faller'
-                    }`}
-                  >
-                    {isPositive ? 'Riser' : 'Faller'}
-                  </span>
-                  <strong className={isPositive ? 'text-emerald-300' : 'text-rose-300'}>
-                    {row.pct_change >= 0 ? '+' : ''}
-                    {row.pct_change.toFixed(1)}%
-                    <ValueTrendIcon value={row.pct_change} />
-                  </strong>
-                </div>
-                <div className="weekly-momentum-identity">
-                  <PlayerIdentityRow
-                    className="weekly-momentum-player"
-                    playerId={row.player_id}
-                    playerName={row.name}
-                    team={playerDetails?.team}
-                    position={row.pos}
-                  />
-                </div>
-                <div
-                  className="weekly-momentum-value-change"
-                  aria-label={`Value moved from ${formatCompactValue(row.val_last)} to ${formatCompactValue(row.val_now)}`}
-                >
-                  <span className="weekly-momentum-value-label">{leagueValueMode === 'redraft' ? 'Season:' : 'Value:'}</span>
-                  <span>{formatCompactValue(row.val_last)}</span>
-                  <span className="weekly-momentum-value-arrow" aria-hidden="true">→</span>
-                  <span>{formatCompactValue(row.val_now)}</span>
-                </div>
-                <div className="activity-card-meta-row">
-                  <div className="weekly-momentum-pills">
-                    <TeamLogoPill team={playerDetails?.team} />
-                    <PositionRankPill rank={row.currentPositionRank || row.pos} />
-                  </div>
-                  {renderActivityManagerAvatar(row.owner, managerAvatars)}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <EmptyState
-          className="weekly-momentum-empty"
-          title={`No ${isRiserList ? 'risers' : title.toLowerCase()} found for the current 7-day window.`}
-        />
-      )}
-      <PlayerDetailModal
-        isOpen={selectedPlayer !== null}
-        onClose={() => setSelectedPlayer(null)}
-        pick={selectedPlayer}
-        leagueId={leagueId}
-        leagueLogo={leagueLogo}
-        managerAvatars={managerAvatars}
-        playerDetailsById={playerDetailsById}
-      />
-    </div>
-  );
-}
-
-export function TrendingPlayersTable({
-  data,
-  title,
-  countLabel,
-  managerAvatars,
-  playerDetailsById,
-  leagueId,
-  leagueLogo,
-  viewerManager,
-  leagueValueMode: leagueValueModeInput = 'dynasty',
-}: {
-  data: TrendingPlayer[];
-  title: string;
-  countLabel: 'Adds' | 'Drops';
-  managerAvatars?: ManagerAvatars;
-  playerDetailsById?: PlayerDetailsById;
-  leagueId?: string;
-  leagueLogo?: string | null;
-  viewerManager?: string | null;
-  leagueValueMode?: ReportData['leagueValueMode'];
-}) {
-  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
-  const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
-
-  return (
-    <div className="trending-card-wrap">
-      {data.length > 0 ? (
-        <div className="trending-card-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
-          {data.map((row) => {
-            const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
-            return (
-              <button
-                key={row.player_id}
-                type="button"
-                className={`player-team-tile trending-player-card ${viewerOwnedHighlightClass(row.owner, viewerManager)}`}
-                style={getTeamTileStyle(playerDetails?.team || row.team)}
-                onClick={() => setSelectedPlayer(buildPlayerModalData({
-                    playerId: row.player_id,
-                    playerName: row.name,
-                    playerPos: row.pos,
-                    value: getPlayerValueForMode({
-                      valueProfile: playerDetails?.valueProfile,
-                      fallbackValue: row.ktcValue,
-                      mode: leagueValueMode,
-                      context: 'waiver',
-                    }),
-                    playerDetails,
-                    playerDetailsById,
-                    currentPositionRank: row.currentPositionRank,
-                    valueMode: leagueValueMode,
-                    manager: row.owner || null,
-                    managerAvatarUrl: row.owner ? managerAvatars?.[row.owner] : null,
-                  }))}
-              >
-                <div className="trending-player-card-top">
-                  <span>{countLabel}</span>
-                  <strong>{row.count.toLocaleString()}</strong>
-                </div>
-                <div className="trending-player-card-identity">
-                  <PlayerIdentityRow
-                    className="trending-player-card-main"
-                    playerId={row.player_id}
-                    playerName={row.name}
-                    team={playerDetails?.team || row.team}
-                    position={row.pos}
-                  />
-                </div>
-                <div className="activity-card-meta-row">
-                  <div className="trending-player-card-pills">
-                    <TeamLogoPill team={playerDetails?.team || row.team} />
-                    <PositionRankPill rank={row.currentPositionRank || row.pos} />
-                    <span>{formatCompactValue(getPlayerValueForMode({
-                      valueProfile: playerDetails?.valueProfile,
-                      fallbackValue: row.ktcValue,
-                      mode: leagueValueMode,
-                      context: 'waiver',
-                    }))}</span>
-                  </div>
-                  {renderActivityManagerAvatar(row.owner, managerAvatars)}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <EmptyState className="trending-empty-card" title={`No ${title.toLowerCase()} available`} />
-      )}
-      <PlayerDetailModal
-        isOpen={selectedPlayer !== null}
-        onClose={() => setSelectedPlayer(null)}
-        pick={selectedPlayer}
-        leagueId={leagueId}
-        leagueLogo={leagueLogo}
-        managerAvatars={managerAvatars}
-        playerDetailsById={playerDetailsById}
-      />
-    </div>
-  );
-}
 
 export function TradeWarRoom({
   data,
@@ -7574,8 +7406,8 @@ const WAIVER_POSITIONS: WaiverPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 const WAIVER_SPECIAL_TEAMS_POSITIONS = ['K', 'DEF'] as const;
 const WAIVER_RECOMMENDATION_LIMIT = 4;
 const WAIVER_RECOMMENDATION_MINIMUM = 2;
-const VALUE_BLEND_HISTORY_START_LABEL = 'May 5, 2026';
-const FIRST_FULL_BLEND_WEEK_LABEL = 'May 12, 2026 after the 6 PM scrape';
+export const VALUE_BLEND_HISTORY_START_LABEL = 'May 5, 2026';
+export const FIRST_FULL_BLEND_WEEK_LABEL = 'May 12, 2026 after the 6 PM scrape';
 
 type WaiverSpecialTeamsPosition = typeof WAIVER_SPECIAL_TEAMS_POSITIONS[number];
 type WaiverManagerPlayer = NonNullable<ReportData['managerPositionCounts'][number]['lineupPlayers']>[number];
@@ -8808,527 +8640,6 @@ export function TradeMarketRadar({
           </div>
         </button>
       ))}
-      <PlayerDetailModal
-        isOpen={selectedPlayer !== null}
-        onClose={() => setSelectedPlayer(null)}
-        pick={selectedPlayer}
-        leagueId={leagueId}
-        leagueLogo={leagueLogo}
-        managerAvatars={managerAvatars}
-        playerDetailsById={playerDetailsById}
-      />
-    </div>
-  );
-}
-
-type PositionDepthSignal = ReportData['positionDepth'][number];
-type ManagerCountRow = ReportData['managerPositionCounts'][number];
-type ManagerCountPlayer = NonNullable<ManagerCountRow['lineupPlayers']>[number];
-type CountPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
-
-const COUNT_POSITIONS: CountPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
-
-const POSITION_DEPTH_ORDER: Record<string, number> = {
-  QB: 0,
-  RB: 1,
-  WR: 2,
-  TE: 3,
-  K: 4,
-  DEF: 5,
-};
-
-function sortPositionDepthSignals(a: PositionDepthSignal, b: PositionDepthSignal) {
-  const statusOrder = (signal: PositionDepthSignal) => (signal.status === 'shortage' ? 0 : 1);
-  return (
-    statusOrder(a) - statusOrder(b) ||
-    (POSITION_DEPTH_ORDER[a.position] ?? 99) - (POSITION_DEPTH_ORDER[b.position] ?? 99)
-  );
-}
-
-function getPositionDepthSignalLabel(status: PositionDepthSignal['status']) {
-  return status === 'shortage' ? 'Shortage' : 'Excess';
-}
-
-function getPositionDepthNeedLabel(status: PositionDepthSignal['status']) {
-  return status === 'shortage' ? 'Need' : 'Extra';
-}
-
-function isCountPosition(position: string): position is CountPosition {
-  return COUNT_POSITIONS.includes(position as CountPosition);
-}
-
-function getPositionRosterCount(row: ManagerCountRow, position: CountPosition): number {
-  return Number(row[position] || 0);
-}
-
-function getVisibleCountPositions(
-  data: ReportData['managerPositionCounts'],
-  positionDepth: ReportData['positionDepth'] = []
-): CountPosition[] {
-  return COUNT_POSITIONS.filter((position) => {
-    if (position !== 'K' && position !== 'DEF') return true;
-    return (
-      data.some((row) => getPositionRosterCount(row, position) > 0 || getPositionStarterNeed(row, position) > 0)
-      || positionDepth.some((signal) => signal.position === position)
-    );
-  });
-}
-
-function getPositionStarterNeed(row: ManagerCountRow, position: CountPosition): number {
-  const starterKey = `${position}_starters` as `${CountPosition}_starters`;
-  return Number(row[starterKey] || 0);
-}
-
-function getLeagueAveragePositionCount(data: ReportData['managerPositionCounts'], position: CountPosition): number {
-  if (!data.length) return 0;
-  const total = data.reduce((sum, row) => sum + getPositionRosterCount(row, position), 0);
-  return total / data.length;
-}
-
-function getPositionCountDelta(row: ManagerCountRow, data: ReportData['managerPositionCounts'], position: CountPosition): number {
-  return getPositionRosterCount(row, position) - getLeagueAveragePositionCount(data, position);
-}
-
-function getPositionCountTone(delta: number): 'neutral' | 'positive' | 'negative' {
-  if (delta >= 0.75) return 'positive';
-  if (delta <= -0.75) return 'negative';
-  return 'neutral';
-}
-
-function getPositionCountPillTone(delta: number): 'neutral' | 'good' | 'danger' {
-  if (delta >= 0.75) return 'good';
-  if (delta <= -0.75) return 'danger';
-  return 'neutral';
-}
-
-function formatPositionCountDelta(delta: number): string {
-  if (Math.abs(delta) < 0.75) return 'Avg';
-  const rounded = Math.round(delta);
-  return `${rounded > 0 ? '+' : ''}${rounded} vs avg`;
-}
-
-function compareManagerCountPlayers(a: ManagerCountPlayer, b: ManagerCountPlayer): number {
-  const aRank = parsePositionRankValue(a.seasonPositionRank || a.currentPositionRank) || 999;
-  const bRank = parsePositionRankValue(b.seasonPositionRank || b.currentPositionRank) || 999;
-  const rankDelta = aRank - bRank;
-  if (rankDelta !== 0) return rankDelta;
-  return (b.seasonValue || b.value || 0) - (a.seasonValue || a.value || 0);
-}
-
-function getStartingCaliberCount(row: ManagerCountRow, position: CountPosition, leagueSize: number): number {
-  const starterNeed = Math.max(1, getPositionStarterNeed(row, position));
-  const starterCaliberCutoff = Math.max(1, leagueSize) * starterNeed;
-
-  return (row.rosterPlayers || row.lineupPlayers || [])
-    .filter((player) => player.pos === position)
-    .filter((player) => {
-      const rank = parsePositionRankValue(player.seasonPositionRank || player.currentPositionRank);
-      return rank !== null && rank <= starterCaliberCutoff;
-    })
-    .length;
-}
-
-function getPositionDepthSignalPlayers(row: ManagerCountRow, signal: PositionDepthSignal): ManagerCountPlayer[] {
-  if (!isCountPosition(signal.position)) return [];
-
-  const positionPlayers = [...(row.rosterPlayers || row.lineupPlayers || [])]
-    .filter((player) => player.pos === signal.position)
-    .sort(compareManagerCountPlayers);
-
-  if (signal.status === 'excess') {
-    const starterIds = new Set(
-      (row.starterPlayers || [])
-        .filter((player) => player.pos === signal.position)
-        .map((player) => player.player_id),
-    );
-    return positionPlayers.filter((player) => !starterIds.has(player.player_id)).slice(0, 3);
-  }
-
-  return positionPlayers.slice(0, 3);
-}
-
-function getPositionDepthRead(signal: PositionDepthSignal, row?: ManagerCountRow | null, leagueSize = 0, leagueValueMode: LeagueValueMode = 'dynasty') {
-  const rosterScope = leagueValueMode === 'redraft' ? 'bench and reserve players' : 'taxi and reserve players';
-  if (!row || !isCountPosition(signal.position)) {
-    return `${signal.manager} is flagged for ${signal.status === 'shortage' ? 'the league-low count' : 'the league-high count'} at ${signal.position}. This compares full roster counts for that position across the league, including ${rosterScope}.`;
-  }
-
-  const rosterCount = getPositionRosterCount(row, signal.position);
-  const starterNeed = getPositionStarterNeed(row, signal.position);
-  const startingCaliberCount = getStartingCaliberCount(row, signal.position, leagueSize);
-  const displayedPlayers = getPositionDepthSignalPlayers(row, signal).map((player) => player.name);
-  const playerCopy = displayedPlayers.length
-    ? signal.status === 'excess'
-      ? ` Best non-starting ${signal.position} options shown: ${displayedPlayers.join(', ')}.`
-      : ` Thin ${signal.position} room shown: ${displayedPlayers.join(', ')}.`
-    : '';
-
-  return `${signal.manager} has the league-${signal.status === 'shortage' ? 'low' : 'high'} ${signal.position} count: ${rosterCount}/${starterNeed} rostered-to-start, including ${rosterScope}. ${startingCaliberCount} ${signal.position} player${startingCaliberCount === 1 ? '' : 's'} clear the ${Math.max(leagueSize, 1)}-team starter-caliber cutoff for this lineup format.${playerCopy}`;
-}
-
-function buildManagerPositionCountAiRead(
-  row: ManagerCountRow,
-  data: ReportData['managerPositionCounts'],
-  signals: PositionDepthSignal[],
-  visiblePositions: CountPosition[] = COUNT_POSITIONS,
-  leagueValueMode: LeagueValueMode = 'dynasty',
-): string {
-  const leagueSize = Math.max(data.length, 1);
-  const visiblePositionSet = new Set(visiblePositions);
-  const shortageSignals = signals.filter((signal) => signal.status === 'shortage' && isCountPosition(signal.position) && visiblePositionSet.has(signal.position));
-  const excessSignals = signals.filter((signal) => signal.status === 'excess' && isCountPosition(signal.position) && visiblePositionSet.has(signal.position));
-  const countReads = visiblePositions
-    .map((position) => {
-      const count = getPositionRosterCount(row, position);
-      if (!count) return null;
-      const delta = getPositionCountDelta(row, data, position);
-      const starterNeed = getPositionStarterNeed(row, position);
-      const starterCaliberCount = getStartingCaliberCount(row, position, leagueSize);
-      const deltaCopy = Math.abs(delta) < 0.75 ? 'near league average' : `${delta > 0 ? '+' : ''}${Math.round(delta)} vs average`;
-      return `${position}: ${count} rostered, ${starterNeed} projected starter slot${starterNeed === 1 ? '' : 's'}, ${starterCaliberCount} starter-caliber by season rank, ${deltaCopy}`;
-    })
-    .filter(Boolean) as string[];
-  const excessPlayerCopy = excessSignals
-    .flatMap((signal) => getPositionDepthSignalPlayers(row, signal).slice(0, 2).map((player) => `${player.name} (${player.seasonPositionRank || player.currentPositionRank || player.pos})`))
-    .slice(0, 4);
-  const shortageCopy = shortageSignals.length
-    ? `Shortage watch: ${shortageSignals.map((signal) => signal.position).join(', ')}.`
-    : 'No position is meaningfully below league count average.';
-  const excessCopy = excessSignals.length
-    ? `Overage leverage: ${excessSignals.map((signal) => signal.position).join(', ')}${excessPlayerCopy.length ? `, led by ${excessPlayerCopy.join(', ')}` : ''}.`
-    : 'No position is meaningfully over league count average.';
-
-  const rosterScope = leagueValueMode === 'redraft' ? 'starters, bench, and IR' : 'starters, bench, IR, and taxi';
-  return `${shortageCopy} ${excessCopy} This count board includes ${rosterScope}, then compares the full room against the league. ${countReads.slice(0, 4).join(' ')}${countReads.length > 4 ? ' Extra K/DEF rooms are included when this league uses them.' : ''}`;
-}
-
-function getManagerRosterPlayersByPosition(row: ManagerCountRow): Record<CountPosition, ManagerCountPlayer[]> {
-  return Object.fromEntries(
-    COUNT_POSITIONS.map((position) => [
-      position,
-      [...(row.rosterPlayers || row.lineupPlayers || [])]
-        .filter((player) => player.pos === position)
-        .sort(compareManagerCountPlayers),
-    ])
-  ) as Record<CountPosition, ManagerCountPlayer[]>;
-}
-
-function getManagerRosterPlayerCount(row: ManagerCountRow, positions: CountPosition[] = COUNT_POSITIONS): number {
-  return positions.reduce((sum, position) => sum + getPositionRosterCount(row, position), 0);
-}
-
-function StarterDepthSignalPlayerTile({
-  player,
-  signal,
-  manager,
-  managerAvatarUrl,
-  playerDetailsById,
-  onSelect,
-}: {
-  player: ManagerCountPlayer;
-  signal: PositionDepthSignal;
-  manager: string;
-  managerAvatarUrl?: string | null;
-  playerDetailsById?: PlayerDetailsById;
-  onSelect: (player: PlayerModalData) => void;
-}) {
-  const signalLabel = getPositionDepthSignalLabel(signal.status);
-
-  return (
-    <button
-      type="button"
-      className="starter-depth-player-tile player-team-tile"
-      style={getTeamTileStyle(player.playerDetails?.team)}
-      onClick={() => {
-        const seasonValue = player.seasonValue || player.value;
-        const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
-        onSelect(buildPlayerModalData({
-          playerId: player.player_id,
-          playerName: player.name,
-          playerPos: player.pos,
-          value: seasonValue,
-          playerDetails: player.playerDetails,
-          playerDetailsById,
-          currentPositionRank: seasonRank,
-          valueMode: 'redraft',
-          manager,
-          managerAvatarUrl,
-        }));
-      }}
-    >
-      <span className="starter-depth-player-main">
-        <PlayerNameWithHeadshot
-          playerId={player.player_id}
-          playerName={player.name}
-          team={player.playerDetails?.team}
-          position={player.pos}
-        />
-      </span>
-      <span className="starter-depth-player-meta">
-        <TeamLogoPill team={player.playerDetails?.team} />
-        <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
-        <span className={`starter-depth-player-signal starter-depth-player-signal-${signal.status}`}>
-          {signalLabel}
-        </span>
-      </span>
-    </button>
-  );
-}
-
-
-export function ManagerPositionCountsTable({
-  data,
-  positionDepth = [],
-  managerAvatars,
-  playerDetailsById,
-  leagueId,
-  leagueLogo,
-  viewerManager,
-  leagueValueMode: leagueValueModeInput = 'dynasty',
-}: {
-  data: ReportData['managerPositionCounts'];
-  positionDepth?: ReportData['positionDepth'];
-  managerAvatars?: ManagerAvatars;
-  playerDetailsById?: PlayerDetailsById;
-  leagueId?: string;
-  leagueLogo?: string | null;
-  viewerManager?: string | null;
-  leagueValueMode?: ReportData['leagueValueMode'];
-}) {
-  const [selectedManager, setSelectedManager] = useState<ReportData['managerPositionCounts'][number] | null>(null);
-  const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
-  const selectedAvatar = selectedManager ? managerAvatars?.[selectedManager.manager] : null;
-  const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
-  const visibleCountPositions = useMemo(
-    () => getVisibleCountPositions(data, positionDepth),
-    [data, positionDepth]
-  );
-  const selectedRosterPlayersByPosition = selectedManager ? getManagerRosterPlayersByPosition(selectedManager) : null;
-  const selectedRosterPlayerCount = selectedManager ? getManagerRosterPlayerCount(selectedManager, visibleCountPositions) : 0;
-  const positionDepthByManager = useMemo(() => {
-    const signalsByManager = new Map<string, PositionDepthSignal[]>();
-
-    positionDepth.forEach((signal) => {
-      const managerSignals = signalsByManager.get(signal.manager) || [];
-      managerSignals.push(signal);
-      signalsByManager.set(signal.manager, managerSignals);
-    });
-
-    signalsByManager.forEach((signals) => signals.sort(sortPositionDepthSignals));
-    return signalsByManager;
-  }, [positionDepth]);
-  const selectedDepthSignals = selectedManager
-    ? (positionDepthByManager.get(selectedManager.manager) || []).filter((signal) => isCountPosition(signal.position) && visibleCountPositions.includes(signal.position))
-    : [];
-
-  return (
-    <div className="owner-tile-shell">
-      <div className="owner-tile-grid position-counts-tile-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
-        {data.map((row, idx) => {
-          const depthSignals = (positionDepthByManager.get(row.manager) || []).filter(
-            (signal) => isCountPosition(signal.position) && visibleCountPositions.includes(signal.position)
-          );
-
-          return (
-            <OwnerSummaryTile
-              key={`${row.manager}-${idx}`}
-              manager={row.manager}
-              avatarUrl={managerAvatars?.[row.manager]}
-              className={viewerOwnedHighlightClass(row.manager, viewerManager)}
-              onClick={() => setSelectedManager(row)}
-            >
-              {visibleCountPositions.map((position) => {
-                const delta = getPositionCountDelta(row, data, position);
-                return (
-                  <OwnerMetricPill
-                    key={position}
-                    label={position}
-                    value={getPositionRosterCount(row, position)}
-                    tone={getPositionCountPillTone(delta)}
-                  />
-                );
-              })}
-              {depthSignals.slice(0, 2).map((signal) => (
-                <OwnerMetricPill
-                  key={`${signal.position}-${signal.status}`}
-                  label={getPositionDepthNeedLabel(signal.status)}
-                  value={signal.position}
-                  tone={signal.status === 'shortage' ? 'danger' : 'good'}
-                />
-              ))}
-              {depthSignals.length > 2 && (
-                <OwnerMetricPill label="Depth" value={`+${depthSignals.length - 2}`} tone="info" />
-              )}
-            </OwnerSummaryTile>
-          );
-        })}
-      </div>
-      <Dialog open={selectedManager !== null} onOpenChange={(open) => !open && setSelectedManager(null)}>
-        <DialogContent showCloseButton={false} className="starter-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{selectedManager?.manager} Roster Counts</DialogTitle>
-            <DialogDescription>
-              Roster players grouped by position and sorted by value. Select a player to open the player detail modal.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedManager && (
-            <div className="manager-command-modal-inner starter-modal-inner max-h-[calc(100dvh-1rem)] min-h-0 sm:max-h-[86vh]">
-              <div className="manager-command-hero starter-modal-hero">
-                {selectedAvatar && (
-                  <>
-                    <img
-                      src={selectedAvatar}
-                      alt=""
-                      className="manager-hero-wash"
-                    />
-                    <img
-                      src={selectedAvatar}
-                      alt=""
-                      className="manager-hero-watermark"
-                    />
-                  </>
-                )}
-                <div className="manager-hero-scrim" />
-                <button type="button" className="manager-modal-close" onClick={() => setSelectedManager(null)} aria-label={`Close ${selectedManager.manager} details`}>
-                  <XIcon aria-hidden="true" />
-                </button>
-                <div className="manager-command-title-lockup">
-                  <ChampionAvatarFrame managerName={selectedManager.manager} className="manager-command-champion-frame">
-                    {selectedAvatar ? (
-                      <img
-                        src={selectedAvatar}
-                        alt={selectedManager.manager}
-                        className="manager-command-avatar"
-                      />
-                    ) : (
-                      <span className="manager-command-avatar">
-                        {selectedManager.manager[0]?.toUpperCase() || '?'}
-                      </span>
-                    )}
-                  </ChampionAvatarFrame>
-                  <div className="min-w-0">
-                    <p>Roster Room</p>
-                    <h3 className={getManagerHeadingClassName(selectedManager.manager)}>{selectedManager.manager}</h3>
-                    <ManagerChampionshipPills managerName={selectedManager.manager} className="manager-command-championships" />
-                    <p className="starter-modal-subtitle">
-                      {selectedRosterPlayerCount} rostered lineup player{selectedRosterPlayerCount === 1 ? '' : 's'} by season rank, including bench and IR{leagueValueMode === 'dynasty' ? ', plus taxi where available' : ''}
-                    </p>
-                  </div>
-                </div>
-                <div className="manager-command-hero-metrics starter-modal-metrics">
-                  {visibleCountPositions.map((position) => {
-                    const delta = getPositionCountDelta(selectedManager, data, position);
-                    return (
-                      <IntelligenceMetric
-                        key={position}
-                        label={position}
-                        tone={getPositionCountTone(delta)}
-                        value={(
-                          <span className="starter-modal-count-value">
-                            <span>{getPositionRosterCount(selectedManager, position)}</span>
-                            <small>{formatPositionCountDelta(delta)}</small>
-                          </span>
-                        )}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="starter-modal-body min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-5">
-                {selectedDepthSignals.length > 0 && (
-                  <div className="starter-depth-signal-strip" aria-label="Position depth signals">
-                    {selectedDepthSignals.map((signal) => {
-                      return (
-                        <span
-                          key={`${signal.position}-${signal.status}`}
-                          className={`starter-depth-signal-chip starter-depth-signal-chip-${signal.status}`}
-                        >
-                          <strong>{signal.status === 'shortage' ? 'Shortage' : 'Overage'}</strong>
-                          <span>{signal.position}</span>
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className={getAiNeuralSurfaceClass('window', 'manager-command-section manager-command-read manager-command-ai-read starter-depth-count-read')}>
-                  <h4>Roster Count AI Read</h4>
-                  <p>{buildManagerPositionCountAiRead(selectedManager, data, selectedDepthSignals, visibleCountPositions, leagueValueMode)}</p>
-                </div>
-                {selectedRosterPlayersByPosition && selectedRosterPlayerCount > 0 ? (
-                  <div className="starter-roster-position-list">
-                    {visibleCountPositions.map((position) => {
-                      const players = selectedRosterPlayersByPosition[position] || [];
-                      if (!players.length) return null;
-
-                      return (
-                        <section key={position} className="starter-roster-position-section">
-                          <div className="starter-roster-position-heading">
-                            <span>{position}</span>
-                            <strong>{players.length}</strong>
-                          </div>
-                          <div className="starter-grid starter-compact-grid balanced-tile-grid" style={getBalancedGridStyle(players.length)}>
-                            {players.map((player) => (
-                              <button
-                                key={player.player_id}
-                                type="button"
-                                className="player-team-tile starter-player-tile starter-player-tile-compact"
-                                style={getTeamTileStyle(player.playerDetails?.team)}
-                                onClick={() => {
-                                  const seasonValue = player.seasonValue || player.value;
-                                  const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
-                                  setSelectedPlayer(buildPlayerModalData({
-                                    playerId: player.player_id,
-                                    playerName: player.name,
-                                    playerPos: player.pos,
-                                    value: seasonValue,
-                                    playerDetails: player.playerDetails,
-                                    playerDetailsById,
-                                    currentPositionRank: seasonRank,
-                                    valueMode: 'redraft',
-                                    manager: selectedManager.manager,
-                                    managerAvatarUrl: selectedAvatar,
-                                  }));
-                                }}
-                              >
-                                <div className="starter-player-main">
-                                  <PlayerNameWithHeadshot
-                                    playerId={player.player_id}
-                                    playerName={player.name}
-                                    team={player.playerDetails?.team}
-                                    position={player.pos}
-                                  />
-                                </div>
-                                <div className="starter-player-meta">
-                                  <div className="starter-player-meta-main">
-                                    <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
-                                    <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
-                                    {(player.seasonValue || player.value) > 0 && (
-                                      <strong>{(player.seasonValue || player.value).toLocaleString()}</strong>
-                                    )}
-                                  </div>
-                                  <div className="starter-player-status-row">
-                                    <span className={`starter-player-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
-                                      {getPlayerStatusLabel(player.playerDetails)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        </section>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-cyan-300/15 bg-slate-950/45 px-4 py-8 text-center text-sm font-bold text-slate-400">
-                    No lineup-position players found for this manager.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}

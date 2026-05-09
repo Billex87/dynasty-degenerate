@@ -6,7 +6,6 @@ import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
 import superjson from "superjson";
 import App from "./App";
-import { getLoginUrl } from "./const";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -19,13 +18,7 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  const loginUrl = getLoginUrl();
-  if (loginUrl) {
-    window.location.href = loginUrl;
-    return;
-  }
-
-  toast.error("Login is required, but OAuth is not configured for this environment.", {
+  toast.error("Admin sign-in is required for this action.", {
     id: "auth-required",
   });
 };

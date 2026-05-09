@@ -4949,10 +4949,40 @@ body {
   background: rgba(6, 78, 59, 0.42) !important;
 }
 
+.command-mini-badge-elite,
+.manager-intel-pill-elite {
+  border-color: rgba(132, 204, 22, 0.34) !important;
+  background: rgba(63, 98, 18, 0.42) !important;
+}
+
 .command-mini-badge-warn,
 .owner-metric-pill-warn {
   border-color: rgba(251, 146, 60, 0.38) !important;
   background: rgba(124, 45, 18, 0.38) !important;
+}
+
+.command-mini-badge-balanced,
+.manager-intel-pill-balanced {
+  border-color: rgba(250, 204, 21, 0.34) !important;
+  background: rgba(113, 63, 18, 0.36) !important;
+}
+
+.command-mini-badge-weak-contender,
+.manager-intel-pill-weak-contender {
+  border-color: rgba(248, 113, 113, 0.36) !important;
+  background: rgba(127, 29, 29, 0.34) !important;
+}
+
+.command-mini-badge-weak-rebuilder,
+.manager-intel-pill-weak-rebuilder {
+  border-color: rgba(251, 146, 60, 0.34) !important;
+  background: rgba(154, 52, 18, 0.3) !important;
+}
+
+.command-mini-badge-squeak,
+.manager-intel-pill-squeak {
+  border-color: rgba(244, 114, 182, 0.36) !important;
+  background: rgba(131, 24, 67, 0.34) !important;
 }
 
 .command-mini-badge-danger,

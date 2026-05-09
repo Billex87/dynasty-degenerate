@@ -1,7 +1,8 @@
-import { COOKIE_NAME, UNAUTHED_ERR_MSG } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS, UNAUTHED_ERR_MSG } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { hasAdminPermissionIdentifier, hasAdminPermissionsForUser } from "./_core/adminAccess";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import crypto from "crypto";
@@ -28,7 +29,7 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { findLeagueReportCache, insertLoginAttempt, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots } from "./db";
+import { findLeagueReportCache, insertLoginAttempt, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertUser } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
@@ -87,6 +88,24 @@ function isTrustedAutomationRequest(req: RequestLike): boolean {
 
 function canForceRefreshLeagueCache(req: { headers?: Record<string, any> }): boolean {
   return isTrustedAutomationRequest(req);
+}
+
+function getAdminLoginPassword(): string {
+  return process.env.ADMIN_LOGIN_PASSWORD || process.env.ADMIN_PASSWORD || "";
+}
+
+function hashAdminLoginValue(value: string): Buffer {
+  return crypto.createHash("sha256").update(value, "utf8").digest();
+}
+
+function isValidAdminLoginPassword(input: string): boolean {
+  const configuredPassword = getAdminLoginPassword();
+  if (!configuredPassword) return false;
+
+  return crypto.timingSafeEqual(
+    hashAdminLoginValue(input),
+    hashAdminLoginValue(configuredPassword)
+  );
 }
 
 function sweepRateLimitBuckets(now = Date.now()) {
@@ -2206,6 +2225,51 @@ export const appRouter = router({
     me: publicProcedure.query(opts => opts.ctx.user
       ? { ...opts.ctx.user, isPrivilegedAdmin: hasAdminPermissionsForUser(opts.ctx.user) }
       : null),
+    adminLogin: publicProcedure
+      .input(z.object({ passphrase: z.string().min(1).max(256) }))
+      .mutation(async ({ input, ctx }) => {
+        if (!process.env.JWT_SECRET) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Admin login requires JWT_SECRET to be configured.",
+          });
+        }
+
+        if (!getAdminLoginPassword()) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Admin login requires ADMIN_LOGIN_PASSWORD to be configured.",
+          });
+        }
+
+        if (!isValidAdminLoginPassword(input.passphrase)) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid admin passphrase.",
+          });
+        }
+
+        const signedInAt = new Date();
+        await upsertUser({
+          openId: LOCAL_ADMIN_OPEN_ID,
+          name: "Admin",
+          email: null,
+          loginMethod: "admin-passphrase",
+          role: "admin",
+          lastSignedIn: signedInAt,
+        });
+
+        const sessionToken = await sdk.createAdminSessionToken({
+          name: "Admin",
+          expiresInMs: ONE_YEAR_MS,
+        });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+        return {
+          success: true,
+        } as const;
+      }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

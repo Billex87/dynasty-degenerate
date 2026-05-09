@@ -1,0 +1,39 @@
+name: Production Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      production_base_url:
+        description: Production URL to verify
+        required: true
+        default: https://dynastydegens.com
+
+jobs:
+  smoke:
+    name: Responsive production smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ inputs.production_base_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run production smoke tests
+        run: pnpm run test:e2e:production:responsive

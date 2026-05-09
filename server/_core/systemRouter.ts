@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
 import { getLoginAttemptsSince, listKtcSnapshotDateKeysSince, type StoredLoginAttempt } from "../db";
 import { getSnapshotDateKey, listLocalKtcSnapshotDateKeysSince } from "../ktcLoader";
@@ -203,20 +202,6 @@ export const systemRouter = router({
           note: attempt.note,
           userAgent: attempt.userAgent,
         })),
-      } as const;
-    }),
-
-  notifyOwner: adminProcedure
-    .input(
-      z.object({
-        title: z.string().min(1, "title is required"),
-        content: z.string().min(1, "content is required"),
-      })
-    )
-    .mutation(async ({ input }) => {
-      const delivered = await notifyOwner(input);
-      return {
-        success: delivered,
       } as const;
     }),
 });

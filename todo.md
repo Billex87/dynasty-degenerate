@@ -245,3 +245,130 @@
 - [x] Improve feature cards visibility/interaction on mobile (consider carousel or better stacking)
 - [x] Add subtle hover states and transitions for interactive elements
 - [x] Verify accessibility contrast for all text elements on dark backgrounds
+
+## Admin Premium Command Center Expansion
+
+### Completed Admin/Premium Access
+- [x] Rename privileged access constant from `PRIVILEGED_REPORT_VIEWERS` to `ADMIN_PERMISSIONS`
+- [x] Gate new premium command-center features behind admin permissions
+- [x] Add admin unlock modal / regular-view mode
+- [x] Make admin-only tabs and tiles visually identifiable with a subtle premium glow
+- [x] Tone down premium glow so it stays behind/inside admin feature tiles instead of washing over the whole report
+- [x] Verify `ADMIN_PERMISSIONS` is configured for production/preview/dev
+
+### Completed AI Read System
+- [x] Add reusable `AIReadPanel` component
+- [x] Support AI Read props for title, subtitle, read type, confidence, severity, chips, body, actions, compact mode, and background variant
+- [x] Add AI Read visual language with dark Tron/blueprint styling, glowing border, schematic details, confidence meter, and neon chips
+- [x] Add AI Read placements across overview, manager/team cards, player detail modal, rankings, draft history, trade history, and premium command-center modules
+- [x] Add AI Read action language such as roster read, market signal, trade window, lineup leak, waiver opportunity, league exploit, and monthly blueprint
+
+### Completed Premium Feature Modules
+- [x] Monthly Team Blueprint report
+- [x] Blueprint report partial-history warning so missing history is never silently invented
+- [x] Blueprint copy/share text action
+- [x] Blueprint print / save-PDF path
+- [x] League Power Rankings
+- [x] Team Breakdown and Roster Recon
+- [x] Trade Finder / Fair Trade Generator
+- [x] Trade Partner Finder
+- [x] League Exploits module
+- [x] Watch Alerts / Market Signals module
+- [x] Local browser-saved watch thresholds
+- [x] Local browser-saved watched players
+- [x] Waiver / Free Agent Assistant
+- [x] Lineup Optimizer / Starter Strength module
+- [x] Portfolio View module
+- [x] Local browser-saved portfolio snapshots
+- [x] Cross-league exposure read when multiple league snapshots are saved locally
+- [x] Rookie / Prospect Signal Score module
+- [x] Research Assistant using returned FantasyPros/Sleeper news and status payloads
+- [x] Matchup Preview shell with typed future `matchupPreviews` payload support
+- [x] Matchup Preview schedule-pending state until real weekly matchup/projection data exists
+- [x] Feature Coverage diagnostic showing Backed / Partial / Pending / Missing states
+- [x] Expanded owner/team type taxonomy beyond contender/rebuilder
+- [x] Add score-driven team type labels: Juggernaut, Strong Contender, Weak Contender, Balanced, Strong Rebuilder, Weak Rebuilder, and Pip Squeak
+- [x] Add color-coordinated pills for expanded team type labels on owner cards and manager detail views
+
+### Completed Data Honesty Rules
+- [x] Do not fake historical snapshots when missing
+- [x] Do not fake player news when no news/status payload exists
+- [x] Do not fake weekly matchup projections before schedule-week matchup data exists
+- [x] Mark local-only features clearly when server persistence is not available yet
+- [x] Mark partial-data modules clearly in Feature Coverage
+
+### Verification Completed
+- [x] Typecheck passes with `corepack pnpm check`
+- [x] Production build passes with `corepack pnpm build`
+- [x] Local browser smoke verified admin feature radar renders
+- [x] Local browser smoke verified watch preferences save
+- [x] Local browser smoke verified portfolio snapshot saves
+- [x] Local browser smoke verified no horizontal overflow
+- [x] Production smoke passed for dynasty and redraft leagues
+
+## Remaining Premium/Data Backlog
+
+### Matchup Preview - Waiting on Real Schedule Data
+- [ ] After NFL schedule release, confirm Sleeper exposes current-week matchup IDs, opponent rosters, submitted lineups, and projection context for the target leagues
+- [ ] Add server-side matchup ingestion to populate `ReportData.matchupPreviews`
+- [ ] Show weekly matchup projection, opponent, win odds, and position-by-position edge when real data exists
+- [ ] Add boom/bust risks, must-start players, vulnerable spots, and "How you win this week" from real matchup payloads
+- [ ] Keep schedule-pending empty state for offseason/pre-schedule periods
+
+### Watch Alerts - Server Persistence
+- [ ] Move watch thresholds from browser-local storage to user/server persistence
+- [ ] Add account-level watchlist persistence
+- [ ] Add alert delivery options later, such as in-app notifications, email, or scheduled reminders
+- [ ] Add threshold controls per watched player instead of only global rise/fall thresholds
+
+### Portfolio View - True Multi-League
+- [ ] Persist multi-league snapshots server-side instead of relying only on browser-local snapshots
+- [ ] Add account-level player shares across all synced leagues
+- [ ] Add overexposure, underexposure, injury/news risk concentration, and total portfolio value across leagues
+- [ ] Add league-by-league portfolio comparison and exposure filters
+
+### Blueprint Export / Sharing
+- [ ] Add true rendered image export for Team Blueprint
+- [ ] Add polished PDF export beyond browser print
+- [ ] Add shareable report link or saved blueprint artifact
+- [ ] Add team branding and league branding to exported artifact
+
+### News / Research Assistant
+- [ ] Confirm production FantasyPros/news API coverage and rate limits
+- [ ] Add source/status diagnostics when news payloads are unavailable
+- [ ] Add value-movement-after-news analysis when news timestamps and value snapshots overlap
+- [ ] Add role/depth-chart change detection when reliable source data exists
+
+### Command Center Polish
+- [ ] Add deeper mobile QA for all premium cards after real matchup data lands
+- [ ] Add E2E coverage for admin-only feature visibility
+- [ ] Add E2E coverage for local watch preference persistence
+- [ ] Add E2E coverage for portfolio snapshot persistence
+- [ ] Add E2E coverage for blueprint print/share controls where practical
+
+## Report UX / Tooling Follow-Up Backlog
+
+### ReportTables Split - Remaining Work
+- [ ] Split `TradeWarRoom` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module
+- [ ] Split `TradeHistoryTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module
+- [ ] Split `TradeProfitLeaderboardTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module
+- [ ] Keep shared trade/value helpers centralized so split modules do not duplicate logic
+- [ ] Run typecheck, unit tests, build, and focused e2e after each split
+
+### Dirty Worktree Reconciliation
+- [ ] Separate report UX/tooling changes from unrelated auth/OAuth/server cleanup changes before committing
+- [ ] Review deleted auth/server files and confirm each deletion is intentional
+- [ ] Review docs/todo changes separately from runtime code changes
+- [ ] Stage the final commit in logical groups instead of one mixed worktree commit
+
+### Production Smoke After Deploy
+- [ ] After deployment, run the manual `Production Smoke` GitHub workflow against `https://dynastydegens.com`
+- [ ] Verify dynasty league `Skids Get Beat` still renders dynasty copy, draft capital, rookie draft, and trade-value context correctly
+- [ ] Verify redraft league `test league` still avoids dynasty-first copy and prioritizes current-season values
+- [ ] Confirm deployed console logs do not show app errors on desktop and mobile
+
+### Bundle Cleanup
+- [ ] Use `pnpm run build:analyze` to inspect `dist/bundle-stats.html` before the next performance pass
+- [ ] Reduce the remaining large `RecentTransactionsPanel` lazy chunk
+- [ ] Check whether shared helpers pulled from `ReportTables.tsx` keep too much code in downstream chunks
+- [ ] Consider extracting trade-ledger helpers into a non-React utility module once `TradeHistoryTable` and `TradeWarRoom` are split

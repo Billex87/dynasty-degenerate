@@ -10,6 +10,12 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 
 const ReportComponentShowcase = lazy(() => import("./pages/ReportComponentShowcase"));
+const LOCAL_TELEMETRY_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+function shouldRenderVercelTelemetry() {
+  if (!import.meta.env.PROD || typeof window === "undefined") return false;
+  return !LOCAL_TELEMETRY_HOSTS.has(window.location.hostname);
+}
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -34,6 +40,8 @@ function Router() {
 // - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function App() {
+  const renderVercelTelemetry = shouldRenderVercelTelemetry();
+
   return (
     <ErrorBoundary>
       <ThemeProvider
@@ -42,8 +50,12 @@ function App() {
         <TooltipProvider>
           <Router />
           <Toaster position="top-center" richColors />
-          <Analytics />
-          <SpeedInsights />
+          {renderVercelTelemetry && (
+            <>
+              <Analytics />
+              <SpeedInsights />
+            </>
+          )}
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

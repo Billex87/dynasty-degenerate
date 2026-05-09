@@ -1,4 +1,3 @@
-import { ENV } from "./env";
 import type { TrpcContext } from "./context";
 
 const ADMIN_PERMISSION_ENV_KEYS = [
@@ -21,11 +20,7 @@ function getAdminPermissionSet(): Set<string> {
   const configuredAdmins = ADMIN_PERMISSION_ENV_KEYS.flatMap((key) =>
     parseAdminPermissionList(process.env[key])
   );
-  const ownerOpenId = normalizeAdminIdentifier(ENV.ownerOpenId);
-  return new Set([
-    ...configuredAdmins,
-    ...(ownerOpenId ? [ownerOpenId] : []),
-  ]);
+  return new Set(configuredAdmins);
 }
 
 export function hasAdminPermissionIdentifier(

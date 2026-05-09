@@ -1,6 +1,6 @@
 # Dynasty Degenerates - App Reference
 
-## Current State (from dynasuite-9xfaf66s.manus.space)
+## Historical Reference
 
 ### Title
 - Current: "Dynasty Suite"

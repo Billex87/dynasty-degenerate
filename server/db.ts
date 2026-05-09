@@ -1,6 +1,5 @@
 import { neon } from "@neondatabase/serverless";
 import type { InsertUser, User } from "../drizzle/schema";
-import { ENV } from "./_core/env";
 
 type SqlClient = ReturnType<typeof neon>;
 
@@ -189,7 +188,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     return;
   }
 
-  const role = user.role ?? (user.openId === ENV.ownerOpenId ? "admin" : "user");
+  const role = user.role ?? "user";
   const lastSignedIn = user.lastSignedIn ?? new Date();
 
   await sql`

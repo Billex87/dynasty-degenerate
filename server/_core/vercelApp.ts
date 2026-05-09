@@ -1,6 +1,5 @@
 import express from 'express';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
-import { registerOAuthRoutes } from './oauth';
 import { appRouter } from '../routers';
 import { createContext } from './context';
 import { apiErrorHandler, apiNotFoundHandler, configureSecurity } from './security';
@@ -51,8 +50,6 @@ function isCronAuthorized(req: express.Request): { ok: true; configuredSecret?: 
 configureSecurity(app);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true, parameterLimit: 100 }));
-
-registerOAuthRoutes(app);
 
 app.get('/api/cron/ktc-snapshot', async (req, res) => {
   const auth = isCronAuthorized(req);

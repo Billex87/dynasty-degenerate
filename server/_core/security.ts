@@ -9,8 +9,8 @@ const PRODUCTION_CSP = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "script-src 'self' 'unsafe-inline' https://forge.butterfly-effect.dev https://maps.googleapis.com https://maps.gstatic.com",
-  "connect-src 'self' https://formspree.io https://forge.butterfly-effect.dev https://*.googleapis.com https://*.gstatic.com",
+  "script-src 'self' 'unsafe-inline'",
+  "connect-src 'self' https://formspree.io",
   "upgrade-insecure-requests",
 ].join("; ");
 
