@@ -5691,32 +5691,6 @@
     text-align: center;
   }
 
-  .owner-intel-heat-position-qb,
-  .owner-intel-heat-position-qb-sf {
-    border-color: rgba(244, 63, 94, 0.38);
-    background: radial-gradient(circle at 0 0, rgba(244, 63, 94, 0.18), transparent 42%), rgba(2, 6, 23, 0.52);
-  }
-
-  .owner-intel-heat-position-rb {
-    border-color: rgba(52, 211, 153, 0.38);
-    background: radial-gradient(circle at 0 0, rgba(16, 185, 129, 0.18), transparent 42%), rgba(2, 6, 23, 0.52);
-  }
-
-  .owner-intel-heat-position-wr {
-    border-color: rgba(96, 165, 250, 0.4);
-    background: radial-gradient(circle at 0 0, rgba(59, 130, 246, 0.18), transparent 42%), rgba(2, 6, 23, 0.52);
-  }
-
-  .owner-intel-heat-position-te {
-    border-color: rgba(251, 146, 60, 0.42);
-    background: radial-gradient(circle at 0 0, rgba(251, 146, 60, 0.18), transparent 42%), rgba(2, 6, 23, 0.52);
-  }
-
-  .owner-intel-heat-position-flex {
-    border-color: rgba(168, 85, 247, 0.38);
-    background: radial-gradient(circle at 0 0, rgba(168, 85, 247, 0.18), transparent 42%), rgba(2, 6, 23, 0.52);
-  }
-
   .owner-intel-heat-pill strong {
     color: #67e8f9;
     font-size: 0.68rem;
@@ -8842,114 +8816,6 @@
     color: #cbd5e1;
   }
 
-  .trade-tendencies-card {
-    width: min(100%, 54rem);
-  }
-
-  .trade-tendencies-table {
-    table-layout: fixed !important;
-  }
-
-  .trade-tendencies-table [data-slot="table-head"]:nth-child(1),
-  .trade-tendencies-table [data-slot="table-cell"]:nth-child(1) {
-    width: 24%;
-  }
-
-  .trade-tendencies-table [data-slot="table-head"]:nth-child(2),
-  .trade-tendencies-table [data-slot="table-cell"]:nth-child(2) {
-    width: 10%;
-  }
-
-  .trade-tendencies-table [data-slot="table-head"]:nth-child(3),
-  .trade-tendencies-table [data-slot="table-cell"]:nth-child(3) {
-    width: 14%;
-  }
-
-  .trade-tendencies-table [data-slot="table-head"]:nth-child(4),
-  .trade-tendencies-table [data-slot="table-cell"]:nth-child(4) {
-    width: 27%;
-  }
-
-  .trade-tendencies-table [data-slot="table-head"]:nth-child(5),
-  .trade-tendencies-table [data-slot="table-cell"]:nth-child(5) {
-    width: 25%;
-  }
-
-  .trade-tendencies-manager,
-  .trade-tendencies-partner,
-  .trade-tendencies-habit {
-    min-width: 0;
-  }
-
-  .trade-tendencies-table .manager-chip {
-    min-width: 0;
-    max-width: 100%;
-    gap: 0.42rem;
-  }
-
-  .trade-tendencies-table .manager-chip > span:last-child {
-    min-width: 0;
-    overflow: hidden;
-    font-size: clamp(0.68rem, 1.3vw, 0.86rem);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .trade-tendency-modal-body {
-    display: grid;
-    gap: 0.85rem;
-    padding: 1rem;
-  }
-
-  .trade-tendency-detail-grid,
-  .trade-tendency-swing-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
-  }
-
-  .trade-tendency-detail-grid > div,
-  .trade-tendency-swing-grid > div {
-    min-width: 0;
-    border: 1px solid rgba(34, 211, 238, 0.14);
-    border-radius: 0.9rem;
-    background: radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.08), transparent 34%), rgba(2, 6, 23, 0.48);
-    padding: 0.75rem;
-  }
-
-  .trade-tendency-detail-grid span,
-  .trade-tendency-swing-grid span {
-    display: block;
-    color: #67e8f9;
-    font-size: 0.58rem;
-    font-weight: 950;
-    letter-spacing: 0.14em;
-    line-height: 1;
-    text-transform: uppercase;
-  }
-
-  .trade-tendency-detail-grid strong,
-  .trade-tendency-swing-grid strong {
-    display: block;
-    margin-top: 0.35rem;
-    overflow: hidden;
-    color: #f8fafc;
-    font-size: 1rem;
-    font-weight: 950;
-    line-height: 1.1;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .trade-tendency-detail-grid p,
-  .trade-tendency-swing-grid p {
-    margin-top: 0.4rem;
-    color: #94a3b8;
-    font-size: 0.68rem;
-    font-weight: 750;
-    line-height: 1.3;
-  }
-
   .partner-chip-reverse {
     display: flex;
     min-width: 0;
@@ -11919,66 +11785,6 @@
       border-width: 2px;
     }
 
-    .trade-tendencies-card [data-slot="table-container"] {
-      overflow-x: clip;
-    }
-
-    .trade-tendencies-table {
-      min-width: 100% !important;
-      padding-inline: 0.24rem;
-      table-layout: fixed !important;
-    }
-
-    .trade-tendencies-table [data-slot="table-head"],
-    .trade-tendencies-table [data-slot="table-cell"] {
-      padding-inline: 0.24rem !important;
-    }
-
-    .trade-tendencies-table [data-slot="table-head"]:nth-child(1),
-    .trade-tendencies-table [data-slot="table-cell"]:nth-child(1) {
-      width: 25%;
-    }
-
-    .trade-tendencies-table [data-slot="table-head"]:nth-child(2),
-    .trade-tendencies-table [data-slot="table-cell"]:nth-child(2) {
-      width: 10%;
-    }
-
-    .trade-tendencies-table [data-slot="table-head"]:nth-child(3),
-    .trade-tendencies-table [data-slot="table-cell"]:nth-child(3) {
-      width: 12%;
-    }
-
-    .trade-tendencies-table [data-slot="table-head"]:nth-child(4),
-    .trade-tendencies-table [data-slot="table-cell"]:nth-child(4) {
-      width: 27%;
-    }
-
-    .trade-tendencies-table [data-slot="table-head"]:nth-child(5),
-    .trade-tendencies-table [data-slot="table-cell"]:nth-child(5) {
-      width: 26%;
-    }
-
-    .trade-tendencies-table .manager-chip {
-      gap: 0.3rem;
-    }
-
-    .trade-tendencies-table .manager-chip img,
-    .trade-tendencies-table .manager-chip > span[aria-hidden="true"] {
-      height: 1.55rem;
-      width: 1.55rem;
-    }
-
-    .trade-tendencies-table .manager-chip > span:last-child {
-      font-size: clamp(0.56rem, 2vw, 0.74rem);
-      line-height: 1;
-    }
-
-    .trade-tendencies-table [data-slot="table-header"] [data-slot="table-head"] {
-      font-size: clamp(0.48rem, 1.7vw, 0.58rem) !important;
-      letter-spacing: 0.14em !important;
-    }
-
     .partner-chip-reverse {
       gap: 0.24rem;
     }
@@ -11992,11 +11798,6 @@
     .partner-chip-fallback {
       height: 1.45rem;
       width: 1.45rem;
-    }
-
-    .trade-tendencies-count,
-    .trade-tendencies-gap {
-      font-size: clamp(0.6rem, 2vw, 0.72rem) !important;
     }
 
     .trade-habit-pill {

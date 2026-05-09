@@ -36,6 +36,22 @@ You must configure the following environment variables in your deployment platfo
 - **Build**: `pnpm build`
 - **Start**: `pnpm start`
 
+### Production Verification
+
+After each production deploy, run the live smoke checks against the deployed domain:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm test:e2e:production
+```
+
+For a fuller responsive pass across desktop, tablet, and mobile projects:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm test:e2e:production:responsive
+```
+
+These tests load the real Sleeper-backed dynasty and redraft example leagues and verify that redraft views do not regress into dynasty-first copy.
+
 ### Database Setup
 Run the following command to push the schema to your database:
 ```bash

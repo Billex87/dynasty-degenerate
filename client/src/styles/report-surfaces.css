@@ -615,7 +615,6 @@ button.player-team-tile:focus-visible {
   }
 }
 
-.projected-mover-tile,
 .rookie-player-tile {
   display: grid;
   align-content: start;
@@ -1539,9 +1538,8 @@ button.owner-summary-tile:focus-visible {
     touch-action: auto;
   }
 
-  .pick-portfolio-table,
   .draft-efficiency-table,
-  .rookie-draft-table {
+.rookie-draft-table {
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
@@ -1549,70 +1547,22 @@ button.owner-summary-tile:focus-visible {
     padding-inline: 0 !important;
   }
 
-  .pick-portfolio-table [data-slot="table-head"],
-  .pick-portfolio-table [data-slot="table-cell"],
   .draft-efficiency-table [data-slot="table-head"],
-  .draft-efficiency-table [data-slot="table-cell"],
-  .rookie-draft-table [data-slot="table-head"],
-  .rookie-draft-table [data-slot="table-cell"] {
+.draft-efficiency-table [data-slot="table-cell"],
+.rookie-draft-table [data-slot="table-head"],
+.rookie-draft-table [data-slot="table-cell"] {
     min-width: 0 !important;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .pick-portfolio-table [data-slot="table-head"]:nth-child(1),
-  .pick-portfolio-table [data-slot="table-cell"]:nth-child(1) {
-    width: 30%;
-  }
-
-  .pick-portfolio-table [data-slot="table-head"]:nth-child(2),
-  .pick-portfolio-table [data-slot="table-cell"]:nth-child(2),
-  .pick-portfolio-table [data-slot="table-head"]:nth-child(3),
-  .pick-portfolio-table [data-slot="table-cell"]:nth-child(3),
-  .pick-portfolio-table [data-slot="table-head"]:nth-child(4),
-  .pick-portfolio-table [data-slot="table-cell"]:nth-child(4) {
-    width: 13%;
-  }
-
-  .pick-portfolio-table [data-slot="table-head"]:nth-child(5),
-  .pick-portfolio-table [data-slot="table-cell"]:nth-child(5) {
-    width: 14%;
-  }
-
-  .pick-portfolio-table [data-slot="table-head"]:nth-child(6),
-  .pick-portfolio-table [data-slot="table-cell"]:nth-child(6) {
-    width: 17%;
-  }
-
-  .pick-portfolio-table [data-slot="table-cell"],
   .draft-efficiency-table [data-slot="table-cell"],
-  .rookie-draft-table [data-slot="table-cell"] {
+.rookie-draft-table [data-slot="table-cell"] {
     vertical-align: middle;
   }
 
-  .pick-portfolio-table .manager-chip {
-    gap: 0.32rem;
-    min-width: 0;
-  }
-
-  .pick-portfolio-table .manager-chip img,
-  .pick-portfolio-table .manager-chip > span[aria-hidden="true"] {
-    height: 1.55rem;
-    width: 1.55rem;
-  }
-
-  .pick-portfolio-table .manager-chip > span:last-child {
-    min-width: 0;
-    overflow: hidden;
-    font-size: clamp(0.58rem, 2.4vw, 0.72rem);
-    line-height: 1;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .pick-portfolio-table [data-slot="table-cell"]:nth-child(n + 2),
   .draft-efficiency-table [data-slot="table-cell"]:nth-child(n + 2),
-  .rookie-draft-table [data-slot="table-cell"]:nth-child(n + 4) {
+.rookie-draft-table [data-slot="table-cell"]:nth-child(n + 4) {
     white-space: nowrap;
   }
 
@@ -1832,13 +1782,11 @@ button.owner-summary-tile:focus-visible {
 
 /* Final report table header normalization: every tab gets the same compact header spacing. */
 .report-shell .report-card-polished,
-.report-shell .trade-tendencies-card,
 .report-shell .trade-ledger-card,
 .report-shell .trade-profit-card {
   gap: 0 !important;
 }
 
-.report-shell .trade-tendencies-card,
 .report-shell .trade-ledger-card,
 .report-shell .trade-profit-card {
   padding: 0.62rem !important;
@@ -1846,7 +1794,6 @@ button.owner-summary-tile:focus-visible {
 
 .report-shell .report-table-polished,
 .report-shell .trending-players-table,
-.report-shell .trade-tendencies-table,
 .report-shell .trade-ledger-table,
 .report-shell .trade-profit-table {
   border-spacing: 0 0.24rem !important;
@@ -1855,7 +1802,6 @@ button.owner-summary-tile:focus-visible {
 
 .report-shell .report-table-polished [data-slot="table-header"],
 .report-shell .trending-players-table [data-slot="table-header"],
-.report-shell .trade-tendencies-table [data-slot="table-header"],
 .report-shell .trade-ledger-table [data-slot="table-header"],
 .report-shell .trade-profit-table [data-slot="table-header"] {
   border: 0 !important;
@@ -1865,7 +1811,6 @@ button.owner-summary-tile:focus-visible {
 
 .report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-row"],
 .report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-row"],
-.report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-row"],
 .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-row"],
 .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-row"] {
   border: 0 !important;
@@ -1874,7 +1819,6 @@ button.owner-summary-tile:focus-visible {
 
 .report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-head"],
 .report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-head"],
-.report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-head"],
 .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
 .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
   height: auto !important;
@@ -1918,26 +1862,23 @@ button.owner-summary-tile:focus-visible {
 }
 
 @media (max-width: 639px) {
-  .report-shell .trade-tendencies-card,
   .report-shell .trade-ledger-card,
-  .report-shell .trade-profit-card {
+.report-shell .trade-profit-card {
     padding: 0.5rem !important;
   }
 
   .report-shell .report-table-polished,
-  .report-shell .trending-players-table,
-  .report-shell .trade-tendencies-table,
-  .report-shell .trade-ledger-table,
-  .report-shell .trade-profit-table {
+.report-shell .trending-players-table,
+.report-shell .trade-ledger-table,
+.report-shell .trade-profit-table {
     border-spacing: 0 0.22rem !important;
     margin-block: -0.22rem !important;
   }
 
   .report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-head"],
-  .report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-head"],
-  .report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-head"],
-  .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
-  .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
+.report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
+.report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"] {
     padding: 0.14rem 0.24rem 0.2rem !important;
     font-size: 0.5rem !important;
     letter-spacing: 0.13em !important;
@@ -2098,7 +2039,6 @@ button.trade-manager-trade {
 .report-shell .trending-player-card,
 .report-shell .trade-market-card,
 .report-shell .waiver-intel-card,
-.report-shell .projected-mover-tile,
 .report-shell .rookie-player-tile {
   min-height: clamp(8.35rem, 12vw, 10.2rem);
   padding: clamp(0.72rem, 1.2vw, 1rem);
@@ -2133,7 +2073,6 @@ button.trade-manager-trade {
 
 .report-shell .report-table-polished [data-slot="table-header"] [data-slot="table-head"],
 .report-shell .trending-players-table [data-slot="table-header"] [data-slot="table-head"],
-.report-shell .trade-tendencies-table [data-slot="table-header"] [data-slot="table-head"],
 .report-shell .trade-ledger-table [data-slot="table-header"] [data-slot="table-head"],
 .report-shell .trade-profit-table [data-slot="table-header"] [data-slot="table-head"],
 .report-shell .rookie-draft-row-header span {
@@ -2178,18 +2117,15 @@ button.trade-manager-trade {
 
 @media (min-width: 1024px) {
   .report-shell .owner-tile-grid,
-  .report-shell .command-depth-grid,
-  .report-shell .player-tile-grid,
-  .report-shell .weekly-momentum-grid,
-  .report-shell .trending-card-grid,
-  .report-shell .trade-market-grid,
-  .report-shell .waiver-intel-grid,
-  .report-shell .projected-movers-grid,
-  .report-shell .draft-efficiency-tile-grid,
-  .report-shell .trade-profit-tile-grid,
-  .report-shell .trade-tendency-tile-grid,
-  .report-shell .position-counts-tile-grid,
-  .report-shell .pick-portfolio-tile-grid {
+.report-shell .command-depth-grid,
+.report-shell .player-tile-grid,
+.report-shell .weekly-momentum-grid,
+.report-shell .trending-card-grid,
+.report-shell .trade-market-grid,
+.report-shell .waiver-intel-grid,
+.report-shell .draft-efficiency-tile-grid,
+.report-shell .trade-profit-tile-grid,
+.report-shell .position-counts-tile-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
@@ -2241,10 +2177,9 @@ button.trade-manager-trade {
   }
 
   .report-shell .weekly-momentum-tile,
-  .report-shell .trending-player-card,
-  .report-shell .trade-market-card,
-  .report-shell .waiver-intel-card,
-  .report-shell .projected-mover-tile {
+.report-shell .trending-player-card,
+.report-shell .trade-market-card,
+.report-shell .waiver-intel-card {
     min-height: 8rem;
     padding: 0.58rem;
   }
@@ -2474,24 +2409,8 @@ button.trade-manager-trade {
     background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.1), transparent 34%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.1), transparent 34%), linear-gradient(135deg, #0f172a 0%, #020617 68%, #020617 100%) !important;
   }
 
-  .trade-tendency-modal-body {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    padding: 1.1rem 1.25rem 1.25rem;
-  }
-
-  .trade-tendency-modal-body .trade-manager-stats,
-  .trade-tendency-modal-body .trade-tendency-swing-grid {
-    grid-column: 1 / -1;
-  }
-
   .trade-manager-stats {
     padding: 0;
-  }
-
-  .trade-tendency-detail-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .trade-detail-modal {
@@ -2793,29 +2712,27 @@ button.trade-manager-trade {
 /* Non-desktop report alignment: mobile and tablet use one centered contract. */
 @media (max-width: 1023px) {
   .report-shell .report-disclosure-summary,
-  .report-shell .report-disclosure-summary .mb-4,
-  .report-shell .report-disclosure-summary p,
-  .report-shell .report-disclosure-summary h3,
-  .report-shell .report-card-polished [data-slot="table-head"],
-  .report-shell .report-card-polished [data-slot="table-cell"],
-  .report-shell .trade-tendencies-table [data-slot="table-head"],
-  .report-shell .trade-tendencies-table [data-slot="table-cell"],
-  .report-shell .trade-profit-table [data-slot="table-head"],
-  .report-shell .trade-profit-table [data-slot="table-cell"],
-  .report-shell .position-counts-table [data-slot="table-head"],
-  .report-shell .position-counts-table [data-slot="table-cell"],
-  .report-shell .manager-command-hero,
-  .report-shell .manager-command-body,
-  .report-shell .owner-intel-card,
-  .report-shell .owner-summary-tile,
-  .report-shell .command-depth-tile,
-  .report-shell .manager-intel-player,
-  .report-shell .starter-player-tile,
-  .report-shell .starter-depth-signal-card,
-  .report-shell .starter-depth-read,
-  .report-shell .owner-intel-read-grid > div,
-  .report-shell .manager-command-section,
-  .report-shell .manager-command-grid > div {
+.report-shell .report-disclosure-summary .mb-4,
+.report-shell .report-disclosure-summary p,
+.report-shell .report-disclosure-summary h3,
+.report-shell .report-card-polished [data-slot="table-head"],
+.report-shell .report-card-polished [data-slot="table-cell"],
+.report-shell .trade-profit-table [data-slot="table-head"],
+.report-shell .trade-profit-table [data-slot="table-cell"],
+.report-shell .position-counts-table [data-slot="table-head"],
+.report-shell .position-counts-table [data-slot="table-cell"],
+.report-shell .manager-command-hero,
+.report-shell .manager-command-body,
+.report-shell .owner-intel-card,
+.report-shell .owner-summary-tile,
+.report-shell .command-depth-tile,
+.report-shell .manager-intel-player,
+.report-shell .starter-player-tile,
+.report-shell .starter-depth-signal-card,
+.report-shell .starter-depth-read,
+.report-shell .owner-intel-read-grid > div,
+.report-shell .manager-command-section,
+.report-shell .manager-command-grid > div {
     text-align: center !important;
   }
 
@@ -3147,9 +3064,8 @@ button.trade-manager-trade {
   }
 
   .manager-command-body,
-  .owner-quick-modal .owner-quick-body,
-  .starter-modal-body,
-  .trade-tendency-modal-body {
+.owner-quick-modal .owner-quick-body,
+.starter-modal-body {
     padding-inline: clamp(1rem, 2.8vw, 1.45rem);
   }
 
@@ -3313,7 +3229,7 @@ button.trade-manager-trade {
   --report-player-name-size: 0.96rem;
 }
 
-.report-shell :is(.report-card-polished, .trade-ledger-card, .trade-profit-card, .trade-tendencies-card, .command-feature-card),
+.report-shell :is(.report-card-polished, .trade-ledger-card, .trade-profit-card, .command-feature-card),
 [data-slot="dialog-content"]:is(.manager-command-dialog, .owner-quick-modal, .manager-draft-modal, .starter-modal, .trade-manager-modal, .full-trade-ledger-modal) {
   border-radius: var(--report-panel-radius);
 }
@@ -3423,27 +3339,10 @@ button.trade-manager-trade {
   font-size: var(--report-player-name-size);
 }
 
-.report-shell :is(.player-team-tile, .owner-summary-tile, .command-depth-tile, .weekly-momentum-tile, .trending-player-card, .trade-market-card, .waiver-intel-card, .projected-mover-tile, .rookie-player-tile, .recent-transaction-player, .manager-intel-player, .starter-player-tile, .starter-depth-player-tile, .manager-command-player-tile) {
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: 100%;
-  border-radius: var(--report-tile-radius);
-}
-
-.report-shell :is(.weekly-momentum-tile, .trending-player-card, .trade-market-card, .waiver-intel-card, .projected-mover-tile, .rookie-player-tile, .recent-transaction-player, .manager-intel-player, .starter-player-tile, .starter-depth-player-tile, .manager-command-player-tile) {
-  gap: var(--report-tile-gap);
-  padding: var(--report-tile-padding);
-}
-
 .report-shell :is(.owner-metric-pill, .command-mini-badge, .trade-habit-pill, .manager-intel-pill, .weekly-momentum-pills span, .weekly-momentum-values span, .trending-player-card-pills span, .waiver-intel-pills span, .player-tile-pills span, .recent-transaction-player-pills span, .position-rank-pill, .value-pill) {
   font-size: var(--report-chip-font-size);
   letter-spacing: 0.06em;
   line-height: 1;
-}
-
-.report-shell :is([data-slot="table-container"], .overflow-x-auto, .overflow-x-hidden, .report-card-polished, .trade-ledger-card, .trade-profit-card, .trade-tendencies-card) {
-  min-width: 0;
-  max-width: 100%;
 }
 
 /* 2026 consistency pass: shared report type, pill, alignment, and stacked-row rhythm. */
@@ -5878,13 +5777,6 @@ body {
   max-width: min(100%, var(--dd-report-modal-max)) !important;
 }
 
-.report-shell :is(.player-tile-grid, .weekly-momentum-grid, .trending-card-grid, .trade-market-grid, .waiver-intel-grid, .projected-movers-grid, .manager-intel-player-grid, .owner-intel-player-grid, .manager-command-player-grid, .manager-command-tile-grid, .starter-grid, .starter-compact-grid, .manager-draft-player-grid, .trade-war-player-grid) {
-  width: min(100%, var(--dd-report-grid-max)) !important;
-  max-width: min(100%, var(--dd-report-grid-max)) !important;
-  grid-template-columns: repeat(auto-fit, minmax(var(--dd-report-player-track-min), 1fr)) !important;
-  gap: var(--dd-report-grid-gap) !important;
-}
-
 .report-shell .waiver-intel-grid {
   grid-template-columns: repeat(auto-fill, minmax(var(--dd-report-player-track-min), 1fr)) !important;
   grid-auto-rows: minmax(clamp(9.4rem, 10vw, 10.65rem), 1fr);
@@ -5906,13 +5798,6 @@ body {
 .report-shell .waiver-intel-rank-pill .position-rank-pill {
   font-size: 0.6rem;
   letter-spacing: 0.01em;
-}
-
-.report-shell :is(.owner-tile-grid, .command-depth-grid, .draft-efficiency-tile-grid, .draft-decision-manager-grid, .trade-profit-tile-grid, .trade-tendency-tile-grid, .position-counts-tile-grid, .pick-portfolio-tile-grid) {
-  width: min(100%, var(--dd-report-grid-max)) !important;
-  max-width: min(100%, var(--dd-report-grid-max)) !important;
-  grid-template-columns: repeat(auto-fit, minmax(var(--dd-report-owner-track-min), 1fr)) !important;
-  gap: var(--dd-report-grid-gap) !important;
 }
 
 .report-shell .recent-transaction-player-grid {

@@ -18,4 +18,13 @@ test.describe('homepage smoke', () => {
 
     expect(overflow).toBeLessThanOrEqual(1);
   });
+
+  test('renders the internal report component reference', async ({ page }) => {
+    await page.goto('/components', { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByText('Fantasy Report Primitives')).toBeVisible();
+    await expect(page.getByText('Dynasty Value')).toBeVisible();
+    await expect(page.getByText('Season Value')).toBeVisible();
+    await expect(page.getByText('Collapsed Preview Contract')).toBeVisible();
+  });
 });

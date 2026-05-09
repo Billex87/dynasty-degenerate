@@ -3,16 +3,24 @@ import { Toaster } from "@/components/ui/sonner";
 import NotFound from "@/pages/NotFound";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { lazy, Suspense } from "react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+
+const ReportComponentShowcase = lazy(() => import("./pages/ReportComponentShowcase"));
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/components"}>
+        <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100" />}>
+          <ReportComponentShowcase />
+        </Suspense>
+      </Route>
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
