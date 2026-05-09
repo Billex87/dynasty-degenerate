@@ -120,6 +120,8 @@ test.describe('command center feature surfaces', () => {
     await expect(page.getByText('Team Direction')).toBeVisible();
     await expect(page.getByText('Depth Receiver').first()).toBeVisible();
     await expect(page.getByText('Sample Runner').first()).toBeVisible();
+    await expect(page.getByText('Manager Tendency Model')).toBeVisible();
+    await expect(page.getByText('Thin history')).toBeVisible();
 
     await page.getByRole('button', { name: 'Redraft' }).click();
     await expect(page.getByText('Tester win-now cockpit')).toBeVisible();

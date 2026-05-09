@@ -606,6 +606,20 @@
   gap: 0.58rem;
 }
 
+.autopilot-tendency-summary {
+  margin: 0 0 0.78rem;
+  color: var(--autopilot-muted);
+  font-size: 0.84rem;
+  font-weight: 780;
+  line-height: 1.42;
+}
+
+.autopilot-tendency-scores {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.54rem;
+}
+
 .autopilot-projection-row,
 .autopilot-power-row {
   min-width: 0;
@@ -895,7 +909,8 @@
 
   .autopilot-status-grid,
   .autopilot-command-strip,
-  .autopilot-card-grid {
+  .autopilot-card-grid,
+  .autopilot-tendency-scores {
     grid-template-columns: minmax(0, 1fr);
   }
 
