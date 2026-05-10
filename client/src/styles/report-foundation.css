@@ -1204,9 +1204,14 @@
     display: none !important;
   }
 
-  .home-shell {
+  .home-shell,
+  .report-shell {
     position: relative;
     overflow-x: hidden;
+    isolation: isolate;
+  }
+
+  .home-shell {
     background: radial-gradient(circle at 10% 0%, rgba(249, 115, 22, 0.16), transparent 30%), radial-gradient(circle at 88% 12%, rgba(34, 211, 238, 0.12), transparent 32%), linear-gradient(135deg, #020617 0%, #101b3f 48%, #020617 100%);
     color: #e5e7eb;
   }
@@ -1220,6 +1225,129 @@
     background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.08), transparent), radial-gradient(circle, rgba(249, 115, 22, 0.12), transparent 58%);
     filter: blur(8px);
     opacity: 0.9;
+  }
+
+  .neural-signal-background {
+    --neural-signal-line: rgba(94, 234, 212, 0.18);
+    --neural-signal-line-strong: rgba(103, 232, 249, 0.28);
+    --neural-signal-node: rgba(186, 230, 253, 0.48);
+    --neural-signal-core: rgba(255, 255, 255, 0.96);
+    --neural-signal-halo: rgba(103, 232, 249, 0.18);
+    --neural-signal-trail: rgba(103, 232, 249, 0.5);
+    --neural-signal-opacity: 0.62;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: var(--neural-signal-opacity);
+    mix-blend-mode: screen;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.62) 58%, rgba(0, 0, 0, 0.24));
+  }
+
+  .neural-signal-background::before {
+    content: "";
+    position: absolute;
+    inset: -12%;
+    background:
+      radial-gradient(circle at 18% 28%, rgba(34, 211, 238, 0.12), transparent 30%),
+      radial-gradient(circle at 78% 62%, rgba(251, 146, 60, 0.08), transparent 34%),
+      radial-gradient(circle at 48% 44%, rgba(94, 234, 212, 0.08), transparent 38%);
+    filter: blur(22px);
+    opacity: 0.86;
+    animation: neural-signal-ambient-shift 28s ease-in-out infinite;
+  }
+
+  .neural-signal-background-report {
+    --neural-signal-line: rgba(94, 234, 212, 0.13);
+    --neural-signal-line-strong: rgba(103, 232, 249, 0.2);
+    --neural-signal-node: rgba(186, 230, 253, 0.34);
+    --neural-signal-halo: rgba(103, 232, 249, 0.14);
+    --neural-signal-trail: rgba(103, 232, 249, 0.38);
+    --neural-signal-opacity: 0.46;
+  }
+
+  .neural-signal-background__svg {
+    position: absolute;
+    inset: -4% -3%;
+    width: 106%;
+    height: 108%;
+    display: block;
+  }
+
+  .neural-signal-background__route {
+    fill: none;
+    stroke: var(--neural-signal-line);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 0.62;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.54;
+  }
+
+  .neural-signal-background__route-emphasis {
+    stroke: var(--neural-signal-line-strong);
+    stroke-width: 0.78;
+    opacity: 0.74;
+  }
+
+  .neural-signal-background__node {
+    fill: var(--neural-signal-node);
+    opacity: 0.74;
+  }
+
+  .neural-signal-background__pulse {
+    mix-blend-mode: screen;
+  }
+
+  .neural-signal-background__pulse-trail {
+    fill: var(--neural-signal-trail);
+    opacity: 0.62;
+  }
+
+  .neural-signal-background__pulse-halo {
+    fill: var(--neural-signal-halo);
+    opacity: 0.9;
+  }
+
+  .neural-signal-background__pulse-core {
+    fill: var(--neural-signal-core);
+    opacity: 0.96;
+  }
+
+  .report-shell > .flex-1,
+  .report-footer {
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes neural-signal-ambient-shift {
+    0%,
+    100% {
+      opacity: 0.72;
+      transform: translate3d(-1.5%, -1%, 0) scale(1);
+    }
+
+    42% {
+      opacity: 0.92;
+      transform: translate3d(1.8%, 1.2%, 0) scale(1.04);
+    }
+
+    68% {
+      opacity: 0.78;
+      transform: translate3d(-0.8%, 1.6%, 0) scale(1.02);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .neural-signal-background::before {
+      animation: none;
+      transform: none;
+    }
+
+    .neural-signal-background__pulse {
+      display: none;
+    }
   }
 
   .home-header,

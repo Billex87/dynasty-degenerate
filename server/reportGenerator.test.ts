@@ -740,6 +740,52 @@ describe('generateReport trade ledger', () => {
     });
   });
 
+  it('uses submitted Sleeper starters before projected lineup picks', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterPositions: ['QB', 'RB', 'WR', 'TE', 'BN'],
+        rosterMap: { 1: 'Manager A' },
+        rosters: [
+          {
+            roster_id: 1,
+            owner_id: 'u1',
+            players: ['qbTop', 'qbLow', 'rbTop', 'wrTop', 'teTop'],
+            starters: ['qbLow', 'rbTop', 'wrTop', 'teTop'],
+          },
+        ],
+      },
+      null,
+      {
+        qbTop: { first_name: 'Top', last_name: 'QB', position: 'QB', age: 25 },
+        qbLow: { first_name: 'Low', last_name: 'QB', position: 'QB', age: 25 },
+        rbTop: { first_name: 'Top', last_name: 'RB', position: 'RB', age: 25 },
+        wrTop: { first_name: 'Top', last_name: 'WR', position: 'WR', age: 25 },
+        teTop: { first_name: 'Top', last_name: 'TE', position: 'TE', age: 25 },
+      },
+      {
+        topqb: { name: 'Top QB', ktc_value: 9000, redraft_value: 9000, position_rank: 'QB1' },
+        lowqb: { name: 'Low QB', ktc_value: 1000, redraft_value: 1000, position_rank: 'QB40' },
+        toprb: { name: 'Top RB', ktc_value: 7000, redraft_value: 7000, position_rank: 'RB3' },
+        topwr: { name: 'Top WR', ktc_value: 7000, redraft_value: 7000, position_rank: 'WR3' },
+        topte: { name: 'Top TE', ktc_value: 5000, redraft_value: 5000, position_rank: 'TE3' },
+      },
+      {}
+    );
+
+    const countRow = report.managerPositionCounts.find((row) => row.manager === 'Manager A');
+    const intelRow = report.managerRosterIntelligence.find((row) => row.manager === 'Manager A');
+
+    expect(countRow?.starterSource).toBe('Sleeper');
+    expect(countRow?.starterPlayers?.map((player) => player.name)).toContain('Low QB');
+    expect(countRow?.starterPlayers?.map((player) => player.name)).not.toContain('Top QB');
+    expect(countRow?.lineupPlayers?.map((player) => player.name)).toContain('Top QB');
+    expect(countRow?.starterGroups?.find((group) => group.key === 'QB')?.players[0]?.name).toBe('Low QB');
+    expect(intelRow?.weakestStarter?.name).toBe('Low QB');
+    expect(report.leagueDiagnostics?.starterCalculation).toContain('Submitted Sleeper starters');
+  });
+
   it('counts reserve players as roster assets without projecting them as active starters', async () => {
     const report = await generateReport(
       {

@@ -56,6 +56,32 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
         tone: 'info',
       },
     ],
+    weeklyPlan: {
+      starterToReview: {
+        player: 'Calvin Ridley',
+        position: 'FLEX',
+        confidence: 69,
+        note: 'Current starter to pressure-test before lock.',
+        tone: 'warn',
+      },
+      options: [
+        {
+          player: 'Jayden Reed',
+          position: 'WR',
+          confidence: 78,
+          note: 'Best blend of weekly ceiling and dynasty value growth.',
+          tone: 'good',
+        },
+        {
+          player: 'High-upside WR flex',
+          position: 'FLEX',
+          confidence: 69,
+          note: 'Use if role news confirms routes and target share.',
+          tone: 'info',
+        },
+      ],
+      summary: 'Treat Calvin Ridley as the first lineup spot to re-check. Reed is the preferred swap if role news stays clean.',
+    },
     waivers: [
       {
         id: 'dynasty-waiver-corum',
@@ -187,6 +213,32 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
         tone: 'info',
       },
     ],
+    weeklyPlan: {
+      starterToReview: {
+        player: 'Touchdown-only flex',
+        position: 'FLEX',
+        confidence: 72,
+        note: 'Usage floor is too thin unless touchdown odds spike.',
+        tone: 'warn',
+      },
+      options: [
+        {
+          player: 'High-route WR',
+          position: 'WR',
+          confidence: 81,
+          note: 'Clearer weekly target floor.',
+          tone: 'good',
+        },
+        {
+          player: 'Rushing QB',
+          position: 'QB',
+          confidence: 76,
+          note: 'Ceiling lift if the matchup projects close.',
+          tone: 'info',
+        },
+      ],
+      summary: 'Redraft mode wants the safer weekly usage profile. Start the high-route WR over the touchdown-dependent flex unless injury news changes volume.',
+    },
     waivers: [
       {
         id: 'redraft-waiver-workload',

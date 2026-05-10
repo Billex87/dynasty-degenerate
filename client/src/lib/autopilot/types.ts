@@ -54,6 +54,26 @@ export type ManagerTendencyProfile = {
   signals: string[];
 };
 
+export type WeeklyStartOption = {
+  player: string;
+  position: string;
+  confidence: number;
+  note: string;
+  tone: AutopilotTone;
+};
+
+export type WeeklyActionPlan = {
+  starterToReview: {
+    player: string;
+    position: string;
+    confidence: number;
+    note: string;
+    tone: AutopilotTone;
+  } | null;
+  options: WeeklyStartOption[];
+  summary: string;
+};
+
 export type AutopilotData = {
   mode: AutopilotMode;
   focusManager?: string;
@@ -69,6 +89,7 @@ export type AutopilotData = {
   };
   systemRead: AutopilotScore[];
   lineup: AutopilotRecommendation[];
+  weeklyPlan?: WeeklyActionPlan;
   waivers: AutopilotRecommendation[];
   trades: AutopilotRecommendation[];
   projections: PlayerProjection[];

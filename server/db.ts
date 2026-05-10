@@ -28,6 +28,16 @@ export type StoredLoginAttempt = LoginAttemptEvent & {
   createdAt: Date;
 };
 
+export type MonthlyReportGenerationReservation = {
+  allowed: boolean;
+  userKey: string;
+  snapshotMonth: string;
+  existing?: {
+    leagueId: string | null;
+    createdAt: Date;
+  } | null;
+};
+
 function getSql() {
   if (!process.env.DATABASE_URL) return null;
   if (!sqlClient) {
@@ -143,6 +153,27 @@ async function ensureSchema(sql: SqlClient) {
       await sql`
         CREATE INDEX IF NOT EXISTS "monthlyRosterBlueprintSnapshots_league_month_idx"
         ON "monthlyRosterBlueprintSnapshots" ("leagueId", "snapshotMonth" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "monthlyReportGenerations" (
+          id SERIAL PRIMARY KEY,
+          "userKey" TEXT NOT NULL,
+          "userLabel" TEXT,
+          "snapshotMonth" VARCHAR(7) NOT NULL,
+          "leagueId" TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "monthlyReportGenerations_user_month_uidx"
+        ON "monthlyReportGenerations" ("userKey", "snapshotMonth")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "monthlyReportGenerations_month_createdAt_idx"
+        ON "monthlyReportGenerations" ("snapshotMonth", "createdAt" DESC)
       `;
     })();
   }
@@ -394,6 +425,68 @@ export async function getLoginAttemptsSince(targetDate: Date): Promise<StoredLog
   return result.map(normalizeLoginAttempt);
 }
 
+export async function reserveMonthlyReportGeneration(input: {
+  userKey: string;
+  userLabel?: string | null;
+  snapshotMonth: string;
+  leagueId?: string | null;
+}): Promise<MonthlyReportGenerationReservation | null> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot reserve monthly report generation: database not available");
+    return null;
+  }
+
+  const inserted = await sql`
+    INSERT INTO "monthlyReportGenerations" (
+      "userKey",
+      "userLabel",
+      "snapshotMonth",
+      "leagueId"
+    )
+    VALUES (
+      ${input.userKey},
+      ${input.userLabel ?? null},
+      ${input.snapshotMonth},
+      ${input.leagueId ?? null}
+    )
+    ON CONFLICT ("userKey", "snapshotMonth") DO NOTHING
+    RETURNING "leagueId", "createdAt"
+  ` as Array<{ leagueId?: string | null; createdAt: Date | string }>;
+
+  if (inserted[0]) {
+    return {
+      allowed: true,
+      userKey: input.userKey,
+      snapshotMonth: input.snapshotMonth,
+      existing: {
+        leagueId: inserted[0].leagueId ?? null,
+        createdAt: new Date(inserted[0].createdAt),
+      },
+    };
+  }
+
+  const existing = await sql`
+    SELECT "leagueId", "createdAt"
+    FROM "monthlyReportGenerations"
+    WHERE "userKey" = ${input.userKey}
+      AND "snapshotMonth" = ${input.snapshotMonth}
+    LIMIT 1
+  ` as Array<{ leagueId?: string | null; createdAt: Date | string }>;
+
+  return {
+    allowed: false,
+    userKey: input.userKey,
+    snapshotMonth: input.snapshotMonth,
+    existing: existing[0]
+      ? {
+          leagueId: existing[0].leagueId ?? null,
+          createdAt: new Date(existing[0].createdAt),
+        }
+      : null,
+  };
+}
+
 export async function findLeagueReportCache(cacheKey: string, maxAgeMs: number): Promise<unknown | null> {
   const sql = await getDb();
   if (!sql) return null;
@@ -485,4 +578,33 @@ export async function upsertMonthlyRosterBlueprintSnapshots(input: {
   }
 
   return true;
+}
+
+export async function listMonthlyRosterBlueprintSnapshots(input: {
+  leagueId: string;
+  months?: number;
+}): Promise<unknown[]> {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const limit = Math.max(1, Math.min(Number(input.months) || 6, 24)) * 32;
+  const result = await sql`
+    SELECT payload
+    FROM "monthlyRosterBlueprintSnapshots"
+    WHERE "leagueId" = ${input.leagueId}
+    ORDER BY "snapshotMonth" DESC, manager ASC
+    LIMIT ${limit}
+  ` as Array<{ payload?: string | null }>;
+
+  return result
+    .map((row) => {
+      if (!row.payload) return null;
+      try {
+        return JSON.parse(row.payload);
+      } catch (error) {
+        console.warn("[Database] Failed to parse monthly blueprint snapshot:", error);
+        return null;
+      }
+    })
+    .filter(Boolean);
 }

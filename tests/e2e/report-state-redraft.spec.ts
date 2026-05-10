@@ -20,7 +20,7 @@ test.describe('shareable report control state', () => {
     const cachedReport = await loadCachedReport(page, 'rank-state-redraft-league', '#rankings');
     await openFullRosterRankings(page);
 
-    const search = page.getByPlaceholder('Search player, manager, team');
+    const search = page.getByPlaceholder('Search player');
     await expect(search).toBeVisible();
     await search.fill('Depth');
     await page.getByRole('button', { name: 'Season' }).click();

@@ -6103,15 +6103,15 @@ body {
 
 @media (max-width: 399px) {
   .report-shell {
-    --dd-report-player-min: 100%;
+    --dd-report-player-min: 9.25rem;
     --dd-report-owner-min: 100%;
-    --dd-report-detail-min: 100%;
+    --dd-report-detail-min: 9.25rem;
   }
 
   [data-slot="dialog-content"]:is(.manager-command-dialog, .owner-intel-dialog, .starter-modal, .manager-draft-modal, .trade-manager-modal) {
-    --dd-report-player-min: 100%;
+    --dd-report-player-min: 9.25rem;
     --dd-report-owner-min: 100%;
-    --dd-report-detail-min: 100%;
+    --dd-report-detail-min: 9.25rem;
   }
 }
 

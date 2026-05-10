@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import {
   AlertTriangle,
   BadgeDollarSign,
@@ -7,6 +8,7 @@ import {
   ClipboardList,
   Copy,
   Crosshair,
+  ExternalLink,
   FileText,
   Gauge,
   LineChart,
@@ -35,8 +37,28 @@ type ManagerIntelRow = NonNullable<ReportData['managerRosterIntelligence']>[numb
 type OverviewRow = ReportData['leagueOverview'][number];
 type PowerRow = NonNullable<ReportData['powerRankings']>[number];
 type Position = 'QB' | 'RB' | 'WR' | 'TE';
+type BlueprintSignal = 'buy' | 'hold' | 'sell';
+type BlueprintActionRow = {
+  player: ManagerIntelPlayer;
+  label: string;
+  signal: BlueprintSignal;
+  reason: string;
+};
+type BlueprintSignalRead = {
+  signal: BlueprintSignal;
+  label: string;
+  reason: string;
+  weeklyChange: number | null;
+};
+type BlueprintTrendPoint = {
+  month: string;
+  value: number;
+  x: number;
+  y: number;
+};
 
 const POSITIONS: Position[] = ['QB', 'RB', 'WR', 'TE'];
+const BLUEPRINT_TIERS = ['Elite', 'Championship', 'Contending', 'Reload', 'Rebuild'];
 const WATCH_ALERT_PREFERENCES_KEY = 'dynasty-degenerates:watch-alert-preferences:v1';
 const PORTFOLIO_SNAPSHOT_KEY = 'dynasty-degenerates:portfolio-snapshots:v1';
 
@@ -89,6 +111,39 @@ function formatPercent(value?: number | null): string {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function getShortMonthLabel(month: string): string {
+  const [, rawMonth] = month.split('-');
+  const monthIndex = Number(rawMonth) - 1;
+  if (!Number.isFinite(monthIndex) || monthIndex < 0 || monthIndex > 11) return month;
+  return new Intl.DateTimeFormat('en-US', { month: 'short' }).format(new Date(2026, monthIndex, 1));
+}
+
+function buildTrendPoints(values: Array<{ month: string; value: number | null }>): BlueprintTrendPoint[] {
+  const finiteValues = values.filter((row): row is { month: string; value: number } => Number.isFinite(row.value));
+  if (!finiteValues.length) return [];
+
+  const minValue = Math.min(...finiteValues.map((row) => row.value));
+  const maxValue = Math.max(...finiteValues.map((row) => row.value));
+  const spread = Math.max(0.1, maxValue - minValue);
+  const divisor = Math.max(1, finiteValues.length - 1);
+
+  return finiteValues.map((row, index) => ({
+    ...row,
+    x: finiteValues.length === 1 ? 50 : clamp((index / divisor) * 100, 5, 95),
+    y: clamp(100 - ((row.value - minValue) / spread) * 100, 12, 88),
+  }));
+}
+
+function getTrendDelta(points: BlueprintTrendPoint[]): number | null {
+  if (points.length < 2) return null;
+  return points[points.length - 1].value - points[0].value;
 }
 
 function readWatchAlertPreferences(): WatchAlertPreferences {
@@ -226,6 +281,124 @@ function getMonthLabel() {
 function getPlayerLabel(player?: ManagerIntelPlayer | PlayerInfo | WeeklyMomentum | null): string {
   if (!player) return '-';
   return 'name' in player ? player.name : '-';
+}
+
+function getPlayerKey(player?: { player_id?: string | null; name?: string | null } | null): string {
+  if (!player) return '';
+  return player.player_id || player.name || '';
+}
+
+function isSamePlayer(a?: { player_id?: string | null; name?: string | null } | null, b?: { player_id?: string | null; name?: string | null } | null): boolean {
+  if (!a || !b) return false;
+  const aKey = getPlayerKey(a);
+  const bKey = getPlayerKey(b);
+  return Boolean(aKey && bKey && aKey === bKey);
+}
+
+function matchesAnyPlayer(player: ManagerIntelPlayer, players: Array<ManagerIntelPlayer | null | undefined>): boolean {
+  return players.some((candidate) => isSamePlayer(player, candidate));
+}
+
+function uniqueBlueprintPlayers(players: Array<ManagerIntelPlayer | ManagerStarterPlayer | null | undefined>): ManagerIntelPlayer[] {
+  const seen = new Set<string>();
+  const normalized: ManagerIntelPlayer[] = [];
+  players.filter(Boolean).forEach((player) => {
+    const row = player as ManagerIntelPlayer;
+    const key = getPlayerKey(row);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    normalized.push(row);
+  });
+  return normalized.sort((a, b) => (b.seasonValue || b.value || 0) - (a.seasonValue || a.value || 0));
+}
+
+function getWeeklyChange(player: ManagerIntelPlayer, risers: WeeklyMomentum[], fallers: WeeklyMomentum[]): number | null {
+  const row = [...risers, ...fallers].find((item) => isSamePlayer(player, item));
+  return row ? row.pct_change : null;
+}
+
+export function getBlueprintSignal(player: ManagerIntelPlayer, intel: ManagerIntelRow, risers: WeeklyMomentum[], fallers: WeeklyMomentum[]): BlueprintSignalRead {
+  const weeklyChange = getWeeklyChange(player, risers, fallers);
+  const buyMatches = [
+    intel.buyTarget,
+    intel.breakoutCandidate,
+    intel.bestBenchStash,
+    ...(intel.tradeBlueprints || []).map((blueprint) => blueprint.getPlayer),
+  ];
+  const sellMatches = [
+    intel.sellCandidate,
+    intel.oldestPlayer,
+    intel.weakestStarter,
+    ...(intel.tradeBlueprints || []).map((blueprint) => blueprint.givePlayer),
+  ];
+
+  if (matchesAnyPlayer(player, sellMatches) || (weeklyChange !== null && weeklyChange <= -8)) {
+    const explicitSell = matchesAnyPlayer(player, sellMatches);
+    return {
+      signal: 'sell',
+      label: explicitSell ? 'Sell' : 'Faller',
+      reason: explicitSell ? 'Shop window' : 'Falling market',
+      weeklyChange,
+    };
+  }
+
+  if (matchesAnyPlayer(player, [intel.youngCorePlayer, intel.lastSeasonStud, ...(intel.untouchablePlayers || [])])) {
+    return {
+      signal: 'hold',
+      label: 'Core Hold',
+      reason: 'Insulated core',
+      weeklyChange,
+    };
+  }
+
+  if (matchesAnyPlayer(player, buyMatches) || (weeklyChange !== null && weeklyChange >= 8)) {
+    const explicitBuy = matchesAnyPlayer(player, buyMatches);
+    return {
+      signal: 'buy',
+      label: explicitBuy ? 'Buy' : 'Riser',
+      reason: explicitBuy ? 'Value target' : 'Rising market',
+      weeklyChange,
+    };
+  }
+
+  return {
+    signal: 'hold',
+    label: 'Hold',
+    reason: matchesAnyPlayer(player, intel.untouchablePlayers || []) ? 'Core hold' : 'No forced move',
+    weeklyChange,
+  };
+}
+
+function buildBlueprintActions(intel: ManagerIntelRow): Record<BlueprintSignal, BlueprintActionRow[]> {
+  const rows: BlueprintActionRow[] = [];
+  const used = new Set<string>();
+  const add = (player: ManagerIntelPlayer | null | undefined, signal: BlueprintSignal, label: string, reason: string) => {
+    const key = getPlayerKey(player);
+    if (!player || !key || used.has(key)) return;
+    used.add(key);
+    rows.push({ player, label, signal, reason });
+  };
+
+  add(intel.sellCandidate, 'sell', 'Hard sell', 'Primary sell candidate');
+  add(intel.oldestPlayer, 'sell', 'Soft sell', 'Age/value window');
+  add(intel.weakestStarter, 'sell', 'Soft sell', 'Starter pressure point');
+  (intel.tradeBlueprints || []).forEach((blueprint) => add(blueprint.givePlayer, 'sell', blueprint.tone === 'risk' ? 'Hard sell' : 'Soft sell', blueprint.label || blueprint.summary));
+
+  add(intel.buyTarget, 'buy', 'Hard buy', 'Primary buy target');
+  add(intel.breakoutCandidate, 'buy', 'Soft buy', 'Breakout profile');
+  add(intel.bestBenchStash, 'buy', 'Soft buy', 'Bench stash');
+  (intel.tradeBlueprints || []).forEach((blueprint) => add(blueprint.getPlayer, 'buy', blueprint.tone === 'buy' ? 'Hard buy' : 'Soft buy', blueprint.label || blueprint.summary));
+
+  (intel.untouchablePlayers || []).slice(0, 4).forEach((player) => add(player, 'hold', 'Core hold', 'Do not move without an overpay'));
+  add(intel.youngCorePlayer, 'hold', 'Core hold', 'Insulated core');
+  add(intel.lastSeasonStud, 'hold', 'Hold', 'Production proof');
+  add(intel.tradeChip, 'hold', 'Flexible', 'Trade chip, not a dump');
+
+  return {
+    buy: rows.filter((row) => row.signal === 'buy').slice(0, 4),
+    hold: rows.filter((row) => row.signal === 'hold').slice(0, 3),
+    sell: rows.filter((row) => row.signal === 'sell').slice(0, 4),
+  };
 }
 
 function renderPlayerList(players: ManagerIntelPlayer[] | undefined, empty = 'No player data returned', limit = 6) {
@@ -473,11 +646,55 @@ export function MonthlyTeamBlueprint({
     );
   }
 
-  const positionGrades = POSITIONS.map((position) => ({
+  const starterPlayers = ((counts?.starterPlayers || []) as ManagerIntelPlayer[]);
+  const rosterPool = uniqueBlueprintPlayers([
+    ...starterPlayers,
+    ...getManagerPlayerPool(intel),
+  ]);
+  const starterKeys = new Set(starterPlayers.map((player) => getPlayerKey(player)).filter(Boolean));
+  const depthPlayers = uniqueBlueprintPlayers([
+    ...(intel.benchPlayers || []),
+    ...rosterPool.filter((player) => !starterKeys.has(getPlayerKey(player))),
+  ]).slice(0, 14);
+  const valueTier = getValueTier(overview?.rank_value, leagueSize);
+  const marketRows = rosterPool.map((player) => ({
+    player,
+    read: getBlueprintSignal(player, intel, risers, fallers),
+  }));
+  const marketCounts = marketRows.reduce<Record<BlueprintSignal, number>>((countsBySignal, row) => {
+    countsBySignal[row.read.signal] += 1;
+    return countsBySignal;
+  }, { buy: 0, hold: 0, sell: 0 });
+  const marketTotal = Math.max(1, marketRows.length);
+  const buyPct = Math.round((marketCounts.buy / marketTotal) * 100);
+  const holdPct = Math.round((marketCounts.hold / marketTotal) * 100);
+  const sellPct = Math.max(0, 100 - buyPct - holdPct);
+  const marketScore = clamp(50 + buyPct * 0.7 - sellPct * 0.9, 0, 100);
+  const marketGaugeStyle = { '--team-blueprint-gauge-angle': `${-68 + marketScore * 1.36}deg` } as CSSProperties;
+  const marketPosture = buyPct >= sellPct + 12
+    ? 'Buyer lean'
+    : sellPct >= buyPct + 12
+      ? 'Seller lean'
+      : 'Hold-heavy';
+  const managerHistory = (data.monthlyBlueprintHistory || [])
+    .filter((snapshot) => snapshot.manager === manager)
+    .sort((a, b) => a.snapshotMonth.localeCompare(b.snapshotMonth));
+  const hasStoredTrendHistory = managerHistory.length >= 2;
+  const actionRows = buildBlueprintActions(intel);
+  const positionRooms = POSITIONS.map((position) => ({
     position,
     grade: getPositionGrade(data, intel, overview, position),
-    rank: getPositionRank(overview, position),
+    players: rosterPool.filter((player) => player.pos === position).slice(0, 6),
   }));
+  const positionGrades = POSITIONS.map((position) => {
+    const rank = getPositionRank(overview, position);
+    return {
+      position,
+      grade: getPositionGrade(data, intel, overview, position),
+      rank,
+      note: intel.positionGrades?.[position]?.note || `${position} room ranks ${rank ? `#${rank}` : 'outside the returned rank set'}.`,
+    };
+  });
   const overallGrade = power?.score
     ? Math.round(power.score / 10)
     : Math.round(positionGrades.reduce((sum, item) => sum + Number(item.grade || 5), 0) / positionGrades.length);
@@ -486,13 +703,100 @@ export function MonthlyTeamBlueprint({
     ...((intel.pressurePoints || []).slice(0, 3)),
     intel.holes.summary !== 'No major roster hole flagged' ? intel.holes.summary : null,
   ].filter(Boolean) as string[];
+  const topStrength = getTopStrength(power, overview);
+  const biggestWeakness = getBiggestWeakness(power, overview);
+  const needPosition = getNeedPosition(data, manager);
+  const surplusPosition = getSurplusPosition(data, manager);
+  const bestTradePartner = tradePartners[0];
+  const priorityText = topPriorities[0] || intel.tradePlan?.summary || 'No urgent roster action was returned.';
+  const pressureTitle = needPosition ? `${needPosition} depth` : biggestWeakness;
+  const ageRows = POSITIONS.map((position) => {
+    const age = intel.avgAgeByPosition?.[position] ?? null;
+    const points = buildTrendPoints(managerHistory.map((snapshot) => ({
+      month: snapshot.snapshotMonth,
+      value: toFiniteNumber(snapshot.avgAgeByPosition?.[position]),
+    })));
+    const delta = getTrendDelta(points);
+    return {
+      position,
+      age,
+      left: age === null ? 0 : clamp(((age - 22) / 10) * 100, 0, 100),
+      points,
+      delta,
+    };
+  });
+  const productionTrendPoints = buildTrendPoints(managerHistory.map((snapshot) => ({
+    month: snapshot.snapshotMonth,
+    value: toFiniteNumber(snapshot.starterValuePct),
+  })));
+  const valueRankTrendPoints = buildTrendPoints(managerHistory.map((snapshot) => ({
+    month: snapshot.snapshotMonth,
+    value: toFiniteNumber(snapshot.leagueOverview?.rank_value),
+  })));
+  const overallGradeTrendPoints = buildTrendPoints(managerHistory.map((snapshot) => ({
+    month: snapshot.snapshotMonth,
+    value: toFiniteNumber(snapshot.powerRanking?.score) !== null
+      ? Math.round((toFiniteNumber(snapshot.powerRanking?.score) || 0) / 10)
+      : null,
+  })));
+  const trendCards = [
+    {
+      label: 'Production Share',
+      value: formatPercent(intel.starterValuePct),
+      points: productionTrendPoints,
+      delta: getTrendDelta(productionTrendPoints),
+      suffix: ' pts',
+      invert: false,
+    },
+    {
+      label: 'Value Rank',
+      value: overview?.rank_value ? `#${overview.rank_value}` : '-',
+      points: valueRankTrendPoints,
+      delta: getTrendDelta(valueRankTrendPoints),
+      suffix: ' spots',
+      invert: true,
+    },
+    {
+      label: 'Overall Grade',
+      value: String(overallGrade),
+      points: overallGradeTrendPoints,
+      delta: getTrendDelta(overallGradeTrendPoints),
+      suffix: '',
+      invert: false,
+    },
+  ];
+  const tradePlayCards = tradePartners.slice(0, 2).map((partner) => ({
+    partner,
+    give: partner.youOffer || intel.tradeChip || intel.sellCandidate,
+    ask: partner.theyOffer || intel.buyTarget || intel.breakoutCandidate,
+  }));
+  const monthlyReadItems = [
+    {
+      label: 'Edge',
+      title: topStrength,
+      body: `${valueTier} value profile, ${formatPercent(intel.starterValuePct)} production share, and ${overview?.rank_value ? `#${overview.rank_value} roster value` : 'returned roster value context'}.`,
+    },
+    {
+      label: 'Pressure',
+      title: pressureTitle,
+      body: needPosition
+        ? `${needPosition} is the cleanest need signal. Use ${surplusPosition ? `${surplusPosition} depth` : 'bench value'} before touching the core starters.`
+        : priorityText,
+    },
+    {
+      label: 'This month',
+      title: bestTradePartner ? `Talk to ${bestTradePartner.manager}` : 'Hold the line',
+      body: bestTradePartner ? bestTradePartner.angle : priorityText,
+    },
+  ];
   const blueprintShareText = [
     `${manager} ${monthLabel} Team Blueprint`,
     `${leagueName || 'Sleeper League'}${leagueFormat ? ` · ${leagueFormat}` : ''}`,
     `Roster archetype: ${intel.identity || '-'}`,
-    `Value tier: ${getValueTier(overview?.rank_value, leagueSize)}`,
+    `Value tier: ${valueTier}`,
     `Overall grade: ${overallGrade}`,
-    `Top strength: ${getTopStrength(power, overview)}`,
+    `Top strength: ${topStrength}`,
+    `Market posture: ${marketPosture} (${buyPct}% buy, ${holdPct}% hold, ${sellPct}% sell)`,
     `Priority: ${topPriorities[0] || intel.tradePlan?.summary || 'No priority flag returned'}`,
     hasPartialHistory ? 'History note: partial returned history only.' : 'History note: returned history loaded.',
   ].join('\n');
@@ -514,6 +818,34 @@ export function MonthlyTeamBlueprint({
     if (typeof window === 'undefined') return;
     setShareStatus('Opening print dialog');
     window.print();
+  };
+
+  const handleOpenPosterView = () => {
+    if (typeof window === 'undefined' || !reportRef.current) return;
+    const posterWindow = window.open('', '_blank', 'noopener,noreferrer');
+    if (!posterWindow) {
+      setShareStatus('Poster popup blocked');
+      return;
+    }
+
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map((node) => node.outerHTML)
+      .join('\n');
+    posterWindow.document.write(`<!doctype html>
+      <html>
+        <head>
+          <title>${manager} Monthly Blueprint</title>
+          ${styles}
+          <style>
+            body { margin: 0; min-height: 100vh; background: #020617; padding: 24px; }
+            .team-blueprint-report { max-width: 1440px; margin: 0 auto; }
+            @media print { body { padding: 0; } .team-blueprint-report { max-width: none; } }
+          </style>
+        </head>
+        <body>${reportRef.current.outerHTML}</body>
+      </html>`);
+    posterWindow.document.close();
+    setShareStatus('Poster view opened');
   };
 
   return (
@@ -540,6 +872,10 @@ export function MonthlyTeamBlueprint({
             <button type="button" className="command-secondary-action" onClick={handlePrintBlueprint}>
               <FileText className="h-4 w-4" aria-hidden="true" />
               Print / Save PDF
+            </button>
+            <button type="button" className="command-secondary-action" onClick={handleOpenPosterView}>
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              Poster View
             </button>
             {shareStatus && <span>{shareStatus}</span>}
           </div>
@@ -609,20 +945,87 @@ export function MonthlyTeamBlueprint({
           )}
 
           <div className="team-blueprint-grid">
-            <section className="team-blueprint-panel team-blueprint-panel-wide">
-              <h4>Roster Identity</h4>
-              <div className="team-blueprint-metric-grid">
-                <MetricPill label="Roster archetype" value={intel.identity || '-'} tone="info" />
-                <MetricPill label="Value archetype" value={power?.tier || timeline?.label || intel.timeline || '-'} tone="warn" />
-                <MetricPill label="Value tier" value={getValueTier(overview?.rank_value, leagueSize)} tone="good" />
-                <MetricPill label="Overall grade" value={overallGrade} tone={overallGrade >= 7 ? 'good' : overallGrade <= 4 ? 'danger' : 'warn'} />
-                <MetricPill label="Production share" value={formatPercent(intel.starterValuePct)} tone="info" />
-                <MetricPill label="Value share" value={formatPercent(valueShare)} tone="neutral" />
-                <MetricPill label="2-year outlook" value={timeline ? timeline.label : intel.timeline || '-'} tone="info" />
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-dashboard-panel">
+              <div>
+                <h4>Roster Identity</h4>
+                <div className="team-blueprint-metric-grid">
+                  <MetricPill label="Roster archetype" value={intel.identity || '-'} tone="info" />
+                  <MetricPill label="Value archetype" value={power?.tier || timeline?.label || intel.timeline || '-'} tone="warn" />
+                  <MetricPill label="Value tier" value={valueTier} tone="good" />
+                  <MetricPill label="Overall grade" value={overallGrade} tone={overallGrade >= 7 ? 'good' : overallGrade <= 4 ? 'danger' : 'warn'} />
+                  <MetricPill label="Production share" value={formatPercent(intel.starterValuePct)} tone="info" />
+                  <MetricPill label="Value share" value={formatPercent(valueShare)} tone="neutral" />
+                  <MetricPill label="2-year outlook" value={timeline ? timeline.label : intel.timeline || '-'} tone="info" />
+                </div>
+              </div>
+              <div className="team-blueprint-tier-ladder" aria-label={`Roster value tier ${valueTier}`}>
+                <span>Roster Value Tier</span>
+                {BLUEPRINT_TIERS.map((tier) => (
+                  <strong key={tier} className={tier === valueTier ? 'team-blueprint-tier-active' : undefined}>
+                    {tier}
+                  </strong>
+                ))}
+              </div>
+              <div className="team-blueprint-stat-stack">
+                <span>
+                  <em>Production Share</em>
+                  <strong>{formatPercent(intel.starterValuePct)}</strong>
+                  <small>{power?.starterStrength ? `Starter score ${power.starterStrength}` : 'Starter value share'}</small>
+                </span>
+                <span>
+                  <em>Value Share</em>
+                  <strong>{formatPercent(valueShare)}</strong>
+                  <small>{overview?.rank_value ? `League rank #${overview.rank_value}` : 'League value share'}</small>
+                </span>
               </div>
             </section>
 
-            <section className="team-blueprint-panel">
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-read-panel">
+              <h4>What This Blueprint Is Telling You</h4>
+              <div className="team-blueprint-read-grid">
+                {monthlyReadItems.map((item) => (
+                  <div key={item.label}>
+                    <span>{item.label}</span>
+                    <strong>{item.title}</strong>
+                    <p>{item.body}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-room-board">
+              <h4>Position Room Board</h4>
+              <div className="team-blueprint-room-grid">
+                {positionRooms.map((room) => (
+                  <div key={room.position} className={`team-blueprint-room-card team-blueprint-position-${room.position.toLowerCase()}`}>
+                    <div className="team-blueprint-room-card-head">
+                      <strong>{room.position}</strong>
+                      <em>Grade {room.grade}</em>
+                    </div>
+                    <div className="team-blueprint-room-list">
+                      {room.players.map((player) => {
+                        const signal = getBlueprintSignal(player, intel, risers, fallers);
+                        return (
+                          <span key={getPlayerKey(player)}>
+                            <PlayerIdentityRow
+                              playerId={player.player_id}
+                              playerName={player.name}
+                              team={player.playerDetails?.team}
+                              position={player.pos}
+                              hideMeta
+                            />
+                            <em className={`team-blueprint-signal-dot team-blueprint-signal-${signal.signal}`}>{signal.label}</em>
+                          </span>
+                        );
+                      })}
+                      {!room.players.length && <p>No {room.position} players returned.</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-grades-panel">
               <h4>Positional Grades</h4>
               <div className="team-blueprint-grade-grid">
                 {positionGrades.map((item) => (
@@ -630,6 +1033,7 @@ export function MonthlyTeamBlueprint({
                     <strong>{item.grade}</strong>
                     <em>{item.position}</em>
                     <small>{item.rank ? `Rank #${item.rank}` : 'No rank'}</small>
+                    <small className="team-blueprint-grade-note">{item.note}</small>
                   </span>
                 ))}
                 <span>
@@ -646,26 +1050,67 @@ export function MonthlyTeamBlueprint({
             </section>
 
             <section className="team-blueprint-panel">
-              <h4>Starting Lineup</h4>
-              {renderPlayerList((counts?.starterPlayers || []) as ManagerIntelPlayer[], 'Projected starters were not returned.', 8)}
+              <h4>Starting Lineup Signals</h4>
+              {starterPlayers.length ? (
+                <div className="team-blueprint-lineup-list">
+                  {starterPlayers.slice(0, 9).map((player) => {
+                    const signal = getBlueprintSignal(player, intel, risers, fallers);
+                    return (
+                      <span key={getPlayerKey(player)} className={`team-blueprint-lineup-row team-blueprint-lineup-${signal.signal}`}>
+                        <PlayerIdentityRow
+                          playerId={player.player_id}
+                          playerName={player.name}
+                          team={player.playerDetails?.team}
+                          position={player.pos}
+                          hideMeta
+                        />
+                        <em>{player.pos}</em>
+                        <strong>{signal.weeklyChange !== null ? `${signal.weeklyChange > 0 ? '+' : ''}${signal.weeklyChange.toFixed(1)}%` : signal.label}</strong>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="command-module-empty-copy">Starter players were not returned.</p>
+              )}
             </section>
 
             <section className="team-blueprint-panel">
               <h4>Team Depth</h4>
-              {renderPlayerList((intel.benchPlayers || intel.rosterPlayers || []) as ManagerIntelPlayer[], 'Bench/depth player data was not returned.', 8)}
+              {depthPlayers.length ? (
+                <div className="team-blueprint-depth-cloud">
+                  {depthPlayers.map((player) => (
+                    <span key={getPlayerKey(player)} className={`team-blueprint-position-${player.pos.toLowerCase()}`}>
+                      {player.name} <em>{player.pos}</em>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="command-module-empty-copy">Bench/depth player data was not returned.</p>
+              )}
             </section>
 
             <section className="team-blueprint-panel">
               <h4>Risers / Fallers</h4>
-              <div className="team-blueprint-split-list">
-                <div>
+              <div className="team-blueprint-move-board">
+                <div className="team-blueprint-move-column team-blueprint-move-risers">
                   <span>Risers</span>
-                  {(risers.length ? risers : []).map((player, index) => <p key={`${player.player_id || player.name}-riser-${index}`}>{player.name} +{player.pct_change.toFixed(1)}%</p>)}
+                  {risers.map((player, index) => (
+                    <p key={`${player.player_id || player.name}-riser-${index}`}>
+                      <strong>{player.name}</strong>
+                      <em>+{player.pct_change.toFixed(1)}%</em>
+                    </p>
+                  ))}
                   {!risers.length && <p>No roster risers returned.</p>}
                 </div>
-                <div>
+                <div className="team-blueprint-move-column team-blueprint-move-fallers">
                   <span>Fallers</span>
-                  {fallers.map((player, index) => <p key={`${player.player_id || player.name}-faller-${index}`}>{player.name} {player.pct_change.toFixed(1)}%</p>)}
+                  {fallers.map((player, index) => (
+                    <p key={`${player.player_id || player.name}-faller-${index}`}>
+                      <strong>{player.name}</strong>
+                      <em>{player.pct_change.toFixed(1)}%</em>
+                    </p>
+                  ))}
                   {!fallers.length && <p>No roster fallers returned.</p>}
                 </div>
               </div>
@@ -673,27 +1118,125 @@ export function MonthlyTeamBlueprint({
 
             <section className="team-blueprint-panel">
               <h4>Market Value Analysis</h4>
-              <div className="team-blueprint-split-list">
-                <div>
-                  <span>Buys</span>
-                  <p>{getPlayerLabel(intel.buyTarget)}</p>
-                  <p>{getPlayerLabel(intel.breakoutCandidate)}</p>
+              <div className="team-blueprint-market-gauge" style={marketGaugeStyle}>
+                <div className="team-blueprint-gauge-arc" aria-hidden="true">
+                  <span className="team-blueprint-gauge-needle" />
                 </div>
-                <div>
-                  <span>Sells</span>
-                  <p>{getPlayerLabel(intel.sellCandidate)}</p>
-                  <p>{getPlayerLabel(intel.oldestPlayer)}</p>
+                <strong>{marketPosture}</strong>
+                <div className="team-blueprint-market-pills">
+                  <span className="team-blueprint-signal-buy">Buys: {buyPct}%</span>
+                  <span className="team-blueprint-signal-hold">Holds: {holdPct}%</span>
+                  <span className="team-blueprint-signal-sell">Sells: {sellPct}%</span>
                 </div>
+                <p>Derived from returned buy/sell candidates, untouchables, and weekly roster movement.</p>
+              </div>
+            </section>
+
+            <section className="team-blueprint-panel">
+              <h4>Positional Age Tracker</h4>
+              <div className="team-blueprint-age-chart">
+                {ageRows.map((row) => (
+                  <span key={row.position} className={`team-blueprint-position-${row.position.toLowerCase()}`}>
+                    <em>{row.position}</em>
+                    <i aria-label={`${row.position} age trend`}>
+                      {hasStoredTrendHistory && row.points.length >= 2
+                        ? row.points.map((point) => (
+                            <b
+                              key={`${row.position}-${point.month}`}
+                              title={`${getShortMonthLabel(point.month)} ${point.value.toFixed(1)}`}
+                              style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                            />
+                          ))
+                        : row.age !== null && <b style={{ left: `${row.left}%` }} />}
+                    </i>
+                    <strong>{row.age !== null ? row.age.toFixed(1) : '-'}</strong>
+                    <small>{row.delta === null ? 'Snapshot' : `${row.delta >= 0 ? '+' : ''}${row.delta.toFixed(1)} age`}</small>
+                  </span>
+                ))}
+              </div>
+              <p className="team-blueprint-panel-note">
+                {hasStoredTrendHistory
+                  ? `${managerHistory.length} stored monthly snapshots loaded. Dots are real saved blueprint history.`
+                  : 'Current roster snapshot only; monthly trends appear after this manager has at least two stored snapshots.'}
+              </p>
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-trend-tape">
+              <h4>Monthly Trend Tape</h4>
+              <div className="team-blueprint-trend-grid">
+                {trendCards.map((card) => {
+                  const deltaIsGood = card.delta === null
+                    ? false
+                    : card.invert
+                      ? card.delta < 0
+                      : card.delta > 0;
+                  return (
+                    <span key={card.label} className={deltaIsGood ? 'team-blueprint-trend-good' : card.delta ? 'team-blueprint-trend-warn' : undefined}>
+                      <em>{card.label}</em>
+                      <strong>{card.value}</strong>
+                      <i aria-hidden="true">
+                        {card.points.length >= 2
+                          ? card.points.map((point) => (
+                              <b key={`${card.label}-${point.month}`} style={{ left: `${point.x}%`, top: `${point.y}%` }} />
+                            ))
+                          : <b style={{ left: '50%', top: '50%' }} />}
+                      </i>
+                      <small>
+                        {card.delta === null
+                          ? 'Needs 2 stored months'
+                          : `${card.delta > 0 ? '+' : ''}${card.delta.toFixed(card.label === 'Production Share' ? 1 : 0)}${card.suffix}`}
+                      </small>
+                    </span>
+                  );
+                })}
+              </div>
+              <p className="team-blueprint-panel-note">
+                {hasStoredTrendHistory
+                  ? `History window: ${managerHistory.map((snapshot) => getShortMonthLabel(snapshot.snapshotMonth)).join(' -> ')}.`
+                  : 'This stays empty until stored monthly blueprints exist for this manager.'}
+              </p>
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-action-board">
+              <h4>Buys / Holds / Sells</h4>
+              <div className="team-blueprint-action-columns">
+                {(['buy', 'hold', 'sell'] as BlueprintSignal[]).map((signal) => (
+                  <div key={signal} className={`team-blueprint-action-column team-blueprint-action-${signal}`}>
+                    <span>{signal === 'buy' ? 'Buys [$]' : signal === 'sell' ? 'Sells [-]' : 'Holds [=]'}</span>
+                    {actionRows[signal].map((row) => (
+                      <div key={`${signal}-${getPlayerKey(row.player)}`}>
+                        <em>{row.label}</em>
+                        <PlayerIdentityRow
+                          playerId={row.player.player_id}
+                          playerName={row.player.name}
+                          team={row.player.playerDetails?.team}
+                          position={row.player.pos}
+                          hideMeta
+                        />
+                        <small>{row.reason}</small>
+                      </div>
+                    ))}
+                    {!actionRows[signal].length && <p>No {signal} actions returned.</p>}
+                  </div>
+                ))}
               </div>
             </section>
 
             <section className="team-blueprint-panel">
               <h4>Draft Capital</h4>
               {pickPortfolio ? (
-                <div className="team-blueprint-pick-stack">
-                  <span>2026: {pickPortfolio.count2026} picks · {formatCompactValue(pickPortfolio.value2026)}</span>
-                  <span>2027: {pickPortfolio.count2027} picks · {formatCompactValue(pickPortfolio.value2027)}</span>
-                  <span>Total: {formatCompactValue(pickPortfolio.totalValue)}</span>
+                <div className="team-blueprint-draft-box">
+                  <span>
+                    <strong>2026</strong>
+                    <em>{pickPortfolio.count2026} picks</em>
+                    <small>{formatCompactValue(pickPortfolio.value2026)}</small>
+                  </span>
+                  <span>
+                    <strong>2027</strong>
+                    <em>{pickPortfolio.count2027} picks</em>
+                    <small>{formatCompactValue(pickPortfolio.value2027)}</small>
+                  </span>
+                  <p>Total capital: {formatCompactValue(pickPortfolio.totalValue)}{pickPortfolio.projectedSlots?.length ? ` · ${pickPortfolio.projectedSlots.slice(0, 3).join(', ')}` : ''}</p>
                 </div>
               ) : (
                 <p className="command-module-empty-copy">Draft-pick portfolio was not returned.</p>
@@ -701,20 +1244,62 @@ export function MonthlyTeamBlueprint({
             </section>
 
             <section className="team-blueprint-panel">
-              <h4>Trade Strategy</h4>
-              <p>{intel.tradePlan?.summary || intel.strategySummary || intel.summary}</p>
-              {tradeTendency && <p>{tradeTendency.tradeCount} completed trades · {tradeTendency.winPct}% win rate · {formatCompactValue(tradeTendency.profit)} profit.</p>}
-            </section>
-
-            <section className="team-blueprint-panel">
               <h4>Top Priorities</h4>
               {topPriorities.length ? (
-                <ul>
-                  {topPriorities.slice(0, 4).map((priority) => <li key={priority}>{priority}</li>)}
-                </ul>
+                <div className="team-blueprint-priority-stack">
+                  {topPriorities.slice(0, 4).map((priority, index) => (
+                    <span key={priority}>
+                      {index === 0 ? <Target className="h-4 w-4" aria-hidden="true" /> : index === 1 ? <ShieldCheck className="h-4 w-4" aria-hidden="true" /> : <Gauge className="h-4 w-4" aria-hidden="true" />}
+                      <strong>{priority}</strong>
+                    </span>
+                  ))}
+                </div>
               ) : (
                 <p className="command-module-empty-copy">No priority flags returned.</p>
               )}
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-trade-playbook">
+              <h4>Trade Strategy Enhanced</h4>
+              <p>{intel.tradePlan?.summary || intel.strategySummary || intel.summary}</p>
+              {tradeTendency && <p>{tradeTendency.tradeCount} completed trades · {tradeTendency.winPct}% win rate · {formatCompactValue(tradeTendency.profit)} profit.</p>}
+              <div className="team-blueprint-trade-grid">
+                {tradePlayCards.map((card) => (
+                  <div key={card.partner.manager} className="team-blueprint-trade-card">
+                    <span>{card.partner.manager}</span>
+                    <div>
+                      <strong>Pivot from</strong>
+                      {card.give ? (
+                        <PlayerIdentityRow
+                          playerId={card.give.player_id}
+                          playerName={card.give.name}
+                          team={card.give.playerDetails?.team}
+                          position={card.give.pos}
+                          hideMeta
+                        />
+                      ) : (
+                        <p>No offer piece returned.</p>
+                      )}
+                    </div>
+                    <div>
+                      <strong>Ask about</strong>
+                      {card.ask ? (
+                        <PlayerIdentityRow
+                          playerId={card.ask.player_id}
+                          playerName={card.ask.name}
+                          team={card.ask.playerDetails?.team}
+                          position={card.ask.pos}
+                          hideMeta
+                        />
+                      ) : (
+                        <p>No target piece returned.</p>
+                      )}
+                    </div>
+                    <em>{card.partner.confidence}% fit</em>
+                  </div>
+                ))}
+                {!tradePlayCards.length && <p>No trade play cards could be built from returned roster data.</p>}
+              </div>
             </section>
 
             <section className="team-blueprint-panel">
@@ -723,10 +1308,20 @@ export function MonthlyTeamBlueprint({
                 {tradePartners.map((partner) => (
                   <span key={partner.manager}>
                     <strong>{partner.manager}</strong>
-                    <em>{partner.label}</em>
+                    <em>{partner.label} · {partner.confidence}%</em>
+                    <small>{partner.youOffer ? `Offer ${partner.youOffer.name}` : 'Offer value'} / {partner.theyOffer ? `Ask ${partner.theyOffer.name}` : 'Ask fit'}</small>
                   </span>
                 ))}
                 {!tradePartners.length && <p>No clean trade partners found from returned roster data.</p>}
+              </div>
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-legend">
+              <h4>Legend / Data Rules</h4>
+              <div>
+                <span><strong className="team-blueprint-signal-buy">Buy</strong> Returned buy target, breakout/stash, or strong weekly riser.</span>
+                <span><strong className="team-blueprint-signal-hold">Hold</strong> Core player or no forced action from returned data.</span>
+                <span><strong className="team-blueprint-signal-sell">Sell</strong> Returned sell candidate, weak starter, age/value window, or sharp faller.</span>
               </div>
             </section>
 
@@ -740,7 +1335,7 @@ export function MonthlyTeamBlueprint({
                 `${formatPercent(intel.starterValuePct)} starter share`,
                 hasPartialHistory ? { label: 'Partial history', tone: 'warn' } : { label: 'History loaded', tone: 'good' },
               ]}
-              body={`${manager} profiles as ${intel.identity} with ${getTopStrength(power, overview).toLowerCase()} as the cleanest advantage. The priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
+              body={`${manager} profiles as ${intel.identity} with ${topStrength.toLowerCase()} as the cleanest advantage. The priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
               backgroundVariant="monthly"
               className="team-blueprint-ai"
             />
@@ -1654,6 +2249,7 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
   const newsCount = Object.values(data.playerDetailsById || {}).filter((details) => details.latestNews || details.injuryStatus).length;
   const prospectCount = getRankingRows(data).filter((row) => row.isDevy || row.prospectProfile).length;
   const hasMatchupPreview = Boolean(options?.matchupPreviewAvailable);
+  const hasSleeperStarterMap = Boolean(data.managerPositionCounts?.some((row) => row.starterSource === 'Sleeper'));
 
   return [
     {
@@ -1666,9 +2262,11 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
     },
     {
       label: 'Lineup Optimizer',
-      status: data.managerPositionCounts?.length ? 'Partial' : 'Missing',
-      note: 'Uses projected starter maps. Submitted Sleeper lineup comparison needs matchup/lineup payloads.',
-      tone: data.managerPositionCounts?.length ? 'info' : 'warn',
+      status: hasSleeperStarterMap ? 'Backed' : data.managerPositionCounts?.length ? 'Partial' : 'Missing',
+      note: hasSleeperStarterMap
+        ? 'Uses submitted Sleeper starters first, then falls back to projected starters only when no starters array is returned.'
+        : 'Uses slot-aware projected starters because no submitted Sleeper starters were returned in this report.',
+      tone: hasSleeperStarterMap ? 'good' : data.managerPositionCounts?.length ? 'info' : 'warn',
     },
     {
       label: 'Waiver Assistant',
@@ -1760,6 +2358,7 @@ export function AssistantFeatureShells({
   const portfolioSnapshot = useMemo(() => buildPortfolioSnapshot(data, manager, leagueName, leagueId), [data, manager, leagueName, leagueId]);
   const savedPortfolio = useMemo(() => buildSavedPortfolioSummary(portfolioSnapshots), [portfolioSnapshots]);
   const counts = data.managerPositionCounts?.find((row) => row.manager === manager) || null;
+  const usesSleeperStarterMap = counts?.starterSource === 'Sleeper';
   const intel = getIntel(data, manager);
   const power = getPower(data, manager);
   const waiverAdds = data.waiverIntelligence?.availableTrendingAdds || [];
@@ -1947,7 +2546,7 @@ export function AssistantFeatureShells({
             position: player.pos,
             team: player.playerDetails?.team || null,
             playerId: player.player_id,
-            meta: benchPressure.length ? 'Flex pressure' : 'Projected starter',
+            meta: benchPressure.length ? 'Bench pressure' : usesSleeperStarterMap ? 'Sleeper starter' : 'Projected starter',
             value: formatCompactValue(getStarterValue(player)),
             tone: benchPressure.length ? 'warn' : 'good',
           })))}
@@ -1956,9 +2555,11 @@ export function AssistantFeatureShells({
             readType="Lineup Leak"
             confidence={counts ? 84 : 48}
             severity={benchPressure.length ? 'warn' : counts ? 'info' : 'warn'}
-            chips={[counts ? 'Lineup map loaded' : { label: 'No lineup map', tone: 'warn' }, data.leagueDiagnostics?.starterCalculation ? 'Slot-aware' : 'Current roster only']}
+            chips={[counts ? (usesSleeperStarterMap ? 'Sleeper starters' : 'Projected starters') : { label: 'No lineup map', tone: 'warn' }, data.leagueDiagnostics?.starterCalculation ? 'Slot-aware' : 'Current roster only']}
             body={counts
-              ? `Projected starters use this league's returned lineup slots. Current submitted Sleeper lineup data is not in the payload, so missed-starter value is limited to bench pressure, not confirmed lineup mistakes.`
+              ? (usesSleeperStarterMap
+                ? 'Starter reads use the actual submitted Sleeper starter IDs returned for this roster. Bench pressure compares the best non-starters against that submitted lineup.'
+                : 'No submitted Sleeper starters were returned for this roster, so this module falls back to projected starters from league slots and player values.')
               : 'No manager lineup map was returned for this report.'}
             backgroundVariant="lineup"
             compact
@@ -2142,7 +2743,7 @@ export function AssistantFeatureShells({
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
               <div>
                 <strong>NFL schedule dependent</strong>
-                <p>Once schedule-week matchups and submitted lineup/projection payloads are returned, this panel will switch from readiness mode to opponent edge, boom/bust, must-start, and how-you-win analysis.</p>
+                <p>Once schedule-week matchup projections are returned, this panel will add opponent edge, boom/bust, must-start, and how-you-win analysis on top of the submitted Sleeper lineup when available.</p>
               </div>
             </div>
           )}
@@ -2154,7 +2755,7 @@ export function AssistantFeatureShells({
             chips={[matchupDataAvailable ? 'Matchups loaded' : { label: 'Schedule pending', tone: 'warn' }, data.leagueDiagnostics?.starterCountSummary || 'Starter slots loaded']}
             body={matchupPreview
               ? (matchupPreview.howToWin || `This matchup preview uses returned ${matchupPreview.source || 'matchup'} data. Position edge rows are shown only when the payload includes them.`)
-              : 'Sleeper matchup projections, current submitted lineups, and opponent matchup rows are not part of the current report payload yet. This module stays honest until schedule-week data exists.'}
+              : 'Sleeper starter IDs can be used from roster data, but matchup projections and opponent edge rows are still schedule-week dependent. This module stays honest until that data exists.'}
             backgroundVariant="lineup"
             compact
           />

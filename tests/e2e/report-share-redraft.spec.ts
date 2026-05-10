@@ -12,7 +12,7 @@ test.describe('shareable report URLs and redraft copy', () => {
     await page.goto(`/?leagueId=${cachedReport.leagueId}#trades`, { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByText('test league')).toBeVisible();
-    await expect(page.locator('.league-type-badge-redraft').first()).toBeVisible();
+    await expect(page.locator('.report-league-format-row')).toContainText('Redraft');
     await expect(page.getByRole('tab', { name: 'Trade History' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText('Trade Value Leaderboard')).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`leagueId=${cachedReport.leagueId}#trades$`));

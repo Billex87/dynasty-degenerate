@@ -36,6 +36,8 @@ describe('buildAutopilotData', () => {
     expect(data.lineup[0]?.player).toBe('Sample Quarterback');
     expect(data.waivers[0]?.player).toBe('Depth Receiver');
     expect(data.trades.some((recommendation) => recommendation.player === 'Sample Runner')).toBe(true);
+    expect(data.weeklyPlan?.starterToReview?.player).toBe('Sample Tight End');
+    expect(data.weeklyPlan?.options.map((option) => option.player)).toEqual(expect.arrayContaining(['Sample Quarterback', 'Sample Receiver']));
     expect(data.managerTendency?.label).toBe('Thin history');
     expect(data.managerTendency?.tradeActivityScore).toBeGreaterThan(50);
     expect(data.projections.map((projection) => projection.player)).toEqual(

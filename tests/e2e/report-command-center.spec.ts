@@ -120,6 +120,12 @@ test.describe('command center feature surfaces', () => {
     await expect(page.getByText('Team Direction')).toBeVisible();
     await expect(page.getByText('Depth Receiver').first()).toBeVisible();
     await expect(page.getByText('Sample Runner').first()).toBeVisible();
+    await expect(page.getByText('Weekly Action Plan')).toBeVisible();
+    await expect(page.getByText('Take me out')).toBeVisible();
+    await expect(page.getByText('Sample Tight End').first()).toBeVisible();
+    await expect(page.getByText('Trade screenshot view').first()).toBeVisible();
+    await page.getByRole('button', { name: /Trade screenshot view/i }).first().click();
+    await expect(page.getByLabel(/Screenshot-ready trade card/i).first()).toBeVisible();
     await expect(page.getByText('Manager Tendency Model')).toBeVisible();
     await expect(page.getByText('Thin history')).toBeVisible();
 

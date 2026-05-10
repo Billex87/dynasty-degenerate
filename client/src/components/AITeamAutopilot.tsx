@@ -5,10 +5,13 @@ import {
   BadgeCheck,
   BrainCircuit,
   CalendarClock,
+  Camera,
   ChevronRight,
+  CircleOff,
   Crosshair,
   LineChart,
   ListChecks,
+  MoveRight,
   Radar,
   Repeat2,
   ShieldAlert,
@@ -22,7 +25,7 @@ import { cn } from '@/lib/utils';
 import type { LeagueValueMode } from '@/lib/leagueValueMode';
 import { buildAutopilotData, clampPercent, getDirectionTone, getRiskTone } from '@/lib/autopilot/buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from '@/lib/autopilot/mockData';
-import type { AutopilotMode, AutopilotRecommendation, AutopilotScore, AutopilotTone, LeaguePowerRow, PlayerProjection } from '@/lib/autopilot/types';
+import type { AutopilotMode, AutopilotRecommendation, AutopilotScore, AutopilotTone, LeaguePowerRow, PlayerProjection, WeeklyActionPlan } from '@/lib/autopilot/types';
 import type { ReportData } from '@shared/types';
 
 function ConfidenceMeter({
@@ -100,15 +103,15 @@ function ScoreTile({ score }: { score: AutopilotScore }) {
 
 function RecommendationCard({
   recommendation,
-  queued,
-  onToggleQueue,
+  allowTradeScreenshot = false,
 }: {
   recommendation: AutopilotRecommendation;
-  queued: boolean;
-  onToggleQueue: (id: string) => void;
+  allowTradeScreenshot?: boolean;
 }) {
+  const [screenshotReady, setScreenshotReady] = useState(false);
+
   return (
-    <article className={cn('autopilot-recommendation-card', `autopilot-tone-${recommendation.tone}`)}>
+    <article className={cn('autopilot-recommendation-card', screenshotReady && 'is-screenshot-ready', `autopilot-tone-${recommendation.tone}`)}>
       <div className="autopilot-card-topline">
         <span>{recommendation.type}</span>
         <ConfidenceMeter value={recommendation.confidence} tone={recommendation.tone} compact />
@@ -137,15 +140,73 @@ function RecommendationCard({
         </ul>
         <SignalPills signals={recommendation.signals} />
       </details>
-      <button
-        type="button"
-        className={cn('autopilot-action-button', queued && 'is-queued')}
-        aria-pressed={queued}
-        onClick={() => onToggleQueue(recommendation.id)}
-      >
-        {queued ? 'Queued' : 'Queue action'}
-      </button>
+      {allowTradeScreenshot && (
+        <>
+          <button
+            type="button"
+            className="autopilot-screenshot-button"
+            aria-pressed={screenshotReady}
+            onClick={() => setScreenshotReady((current) => !current)}
+          >
+            <Camera className="h-4 w-4" aria-hidden="true" />
+            {screenshotReady ? 'Hide screenshot view' : 'Trade screenshot view'}
+          </button>
+          {screenshotReady && (
+            <div className="autopilot-trade-shot" aria-label={`Screenshot-ready trade card for ${recommendation.player}`}>
+              <span>{recommendation.action}</span>
+              <strong>{recommendation.player}</strong>
+              {recommendation.secondary && <p>{recommendation.secondary}</p>}
+              <div>
+                <em>{recommendation.confidence}% confidence</em>
+                <em>Risk {recommendation.risk}</em>
+                <em>Upside {recommendation.upside}</em>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </article>
+  );
+}
+
+function WeeklyActionPlanCard({ plan }: { plan?: WeeklyActionPlan }) {
+  if (!plan) return null;
+  const starter = plan.starterToReview;
+
+  return (
+    <div className="autopilot-weekly-plan">
+      <div className={cn('autopilot-pull-card', starter && `autopilot-tone-${starter.tone}`)}>
+        <span className="autopilot-pull-label">
+          <CircleOff className="h-4 w-4" aria-hidden="true" />
+          {starter ? 'Take me out' : 'No forced pull'}
+        </span>
+        <strong>{starter?.player || 'No starter flagged'}</strong>
+        <p>{starter?.note || 'The current data does not force a lineup swap yet.'}</p>
+        {starter && <ConfidenceMeter value={starter.confidence} label="Swap pressure" tone={starter.tone} compact />}
+      </div>
+
+      <div className="autopilot-start-options">
+        <span>Start-over options</span>
+        <div>
+          {plan.options.map((option) => (
+            <article key={`${option.player}-${option.confidence}`} className={cn('autopilot-start-option', `autopilot-tone-${option.tone}`)}>
+              <div>
+                <span>{option.position}</span>
+                <strong>{option.player}</strong>
+                <p>{option.note}</p>
+              </div>
+              <MoveRight className="h-4 w-4" aria-hidden="true" />
+              <strong>{option.confidence}%</strong>
+              <em aria-hidden="true">
+                <i style={{ width: `${clampPercent(option.confidence)}%` }} />
+              </em>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <p className="autopilot-weekly-summary">{plan.summary}</p>
+    </div>
   );
 }
 
@@ -223,28 +284,14 @@ export default function AITeamAutopilot({
 }) {
   const initialMode = leagueValueMode === 'redraft' ? 'redraft' : 'dynasty';
   const [mode, setMode] = useState<AutopilotMode>(initialMode);
-  const [queuedIds, setQueuedIds] = useState<Set<string>>(() => new Set());
   const data = useMemo(
     () => buildAutopilotData({ reportData, mode, fallback: AUTOPILOT_MOCK_DATA[mode] }),
     [mode, reportData]
   );
-  const queuedCount = queuedIds.size;
   const allRecommendations = useMemo(
     () => [...data.lineup, ...data.waivers, ...data.trades],
     [data]
   );
-
-  const toggleQueue = (id: string) => {
-    setQueuedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
 
   return (
     <section className="autopilot-dashboard" data-mode={mode}>
@@ -297,12 +344,16 @@ export default function AITeamAutopilot({
 
       <div className="autopilot-command-strip">
         <div>
-          <span>Action plan</span>
-          <strong>{queuedCount ? `${queuedCount} queued` : 'Nothing queued'}</strong>
+          <span>Weekly plan</span>
+          <strong>{data.weeklyPlan?.options.length ? `${data.weeklyPlan.options.length} start-over options` : 'No forced swap'}</strong>
         </div>
         <div>
           <span>Recommendation set</span>
           <strong>{allRecommendations.length} cards</strong>
+        </div>
+        <div>
+          <span>Trade screenshots</span>
+          <strong>{data.trades.length ? `${data.trades.length} offers ready` : 'No trade cards'}</strong>
         </div>
         <div>
           <span>Backend phase</span>
@@ -311,14 +362,13 @@ export default function AITeamAutopilot({
       </div>
 
       <div className="autopilot-main-grid">
-        <SectionShell eyebrow="Weekly Lineup Assistant" title="Start, bench, and flex calls" icon={ListChecks}>
+        <SectionShell eyebrow="Weekly Action Plan" title="Start-over calls" icon={ListChecks}>
+          <WeeklyActionPlanCard plan={data.weeklyPlan} />
           <div className="autopilot-card-grid">
             {data.lineup.map((recommendation) => (
               <RecommendationCard
                 key={recommendation.id}
                 recommendation={recommendation}
-                queued={queuedIds.has(recommendation.id)}
-                onToggleQueue={toggleQueue}
               />
             ))}
           </div>
@@ -330,8 +380,6 @@ export default function AITeamAutopilot({
               <RecommendationCard
                 key={recommendation.id}
                 recommendation={recommendation}
-                queued={queuedIds.has(recommendation.id)}
-                onToggleQueue={toggleQueue}
               />
             ))}
           </div>
@@ -343,8 +391,7 @@ export default function AITeamAutopilot({
               <RecommendationCard
                 key={recommendation.id}
                 recommendation={recommendation}
-                queued={queuedIds.has(recommendation.id)}
-                onToggleQueue={toggleQueue}
+                allowTradeScreenshot
               />
             ))}
           </div>

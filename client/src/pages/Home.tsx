@@ -15,6 +15,7 @@ import {
 import { Bot, CheckCircle2, ChevronDown, Zap, TrendingUp, TrendingDown, BarChart3, Repeat2, ClipboardList, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
+import { NeuralSignalBackground } from '@/components/NeuralSignalBackground';
 import { SupportButton } from '@/components/SupportButton';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
@@ -2591,6 +2592,7 @@ export default function Home() {
       <>
       <ManagerChampionshipProvider championships={reportData.managerChampionships}>
       <div className={`report-shell min-h-screen flex flex-col ${isLoadingRevealPhase ? 'report-shell-entering' : ''}`}>
+        <NeuralSignalBackground variant="report" />
         {/* Premium Header */}
         <div className="report-header sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-2">
@@ -3325,6 +3327,7 @@ export default function Home() {
   return (
     <>
     <div className="home-shell min-h-screen flex flex-col">
+      <NeuralSignalBackground variant="home" />
       <div className="home-header px-4 py-4 sm:py-5">
         <HomeLogoChrome />
         <HomeHeaderShortcuts

@@ -117,6 +117,7 @@ interface Roster {
   roster_id: number;
   owner_id: string;
   players: string[];
+  starters?: Array<string | number | null | undefined>;
   taxi?: string[];
   reserve?: string[];
   settings?: {
@@ -217,6 +218,26 @@ function getRosterPlayerIds(roster: Pick<Roster, 'players' | 'taxi' | 'reserve'>
     ...(roster?.taxi || []),
     ...(roster?.reserve || []),
   ]);
+}
+
+function getSubmittedStarterIds(roster: Pick<Roster, 'starters'> | undefined): string[] {
+  return normalizePlayerIds(roster?.starters).filter((pid) => pid !== '0');
+}
+
+function getSubmittedStarterSlotIds(roster: Pick<Roster, 'starters'> | undefined): Array<string | null> {
+  return (roster?.starters || []).map((id) => {
+    if (id === null || id === undefined) return null;
+    const key = String(id);
+    return key && key !== '0' ? key : null;
+  });
+}
+
+function getSubmittedStarterPlayers<T extends { player_id: string }>(players: T[], starterIds: string[]): T[] {
+  if (!starterIds.length) return [];
+  const playersById = new Map(players.map((player) => [player.player_id, player]));
+  return starterIds
+    .map((pid) => playersById.get(pid))
+    .filter((player): player is T => Boolean(player));
 }
 
 function getInactivePlayerIdSet(roster: Pick<Roster, 'taxi' | 'reserve'> | undefined): Set<string> {
@@ -959,6 +980,7 @@ function buildLeagueDiagnostics(
   const starterSlots = getStarterRosterSlots(currentSeasonData.rosterPositions);
   const lineupProfile = getLineupSlotProfile(currentSeasonData.rosterPositions);
   const starterCounts = getPositionStarterCounts(currentSeasonData.rosterPositions, teamCount);
+  const submittedStarterRosterCount = currentSeasonData.rosters.filter((roster) => getSubmittedStarterIds(roster).length > 0).length;
   const receptionScoring = getScoringNumber(currentSeasonData.scoringSettings, 'rec');
   const tightEndPremium = getTightEndPremium(currentSeasonData.scoringSettings);
   const sourceWeightOptions = {
@@ -991,8 +1013,12 @@ function buildLeagueDiagnostics(
     starterSlots,
     lineupSlotSummary: formatLineupSlotSummary(lineupProfile),
     starterCountSummary: formatStarterCountSummary(starterCounts),
-    starterCalculation: `Projected starters are selected from active non-IR roster players only, using this league's starter slots: ${formatLineupSlotSummary(lineupProfile)}. Fixed QB/RB/WR/TE slots fill first by position rank, Superflex tries QB first, then flex slots take the best remaining RB/WR/TE options.`,
-    benchCalculation: `Bench baseline uses season rank and season value to find the best non-starting QB, RB, WR, and TE after projected starters are removed. Taxi players are included only for bench baseline visibility because they can be future depth, and IR players are retained as roster assets without counting as active starters.`,
+    starterCalculation: submittedStarterRosterCount
+      ? `Submitted Sleeper starters are used for ${submittedStarterRosterCount}/${teamCount} rosters. Rosters without a returned starters array fall back to slot-aware projected starters using ${formatLineupSlotSummary(lineupProfile)}.`
+      : `Projected starters are selected from active non-IR roster players only, using this league's starter slots: ${formatLineupSlotSummary(lineupProfile)}. Fixed QB/RB/WR/TE slots fill first by position rank, Superflex tries QB first, then flex slots take the best remaining RB/WR/TE options.`,
+    benchCalculation: submittedStarterRosterCount
+      ? 'Bench baseline removes the actual submitted Sleeper starters first, then ranks the best non-starting QB, RB, WR, and TE. Taxi players are included only for bench baseline visibility, and IR players stay roster assets without counting as active starters.'
+      : 'Bench baseline uses season rank and season value to find the best non-starting QB, RB, WR, and TE after projected starters are removed. Taxi players are included only for bench baseline visibility because they can be future depth, and IR players are retained as roster assets without counting as active starters.',
     tradeableDepthCalculation: 'Tradeable depth uses season rank and season value for active bench players only. Taxi and IR players are retained as roster assets, but not counted as immediate tradeable depth in that tile.',
     scoringSummary: formatScoringSummary(currentSeasonData.scoringSettings),
     receptionScoring,
@@ -1220,6 +1246,52 @@ function getLineupGroups<T extends ManagerIntelPlayer>(players: T[], rosterPosit
   return groups;
 }
 
+function getSubmittedStarterSlotGroup(slot: string, playerPosition?: string | null): { key: string; label: string } {
+  const normalizedSlot = normalizeRosterSlot(slot);
+  if (normalizedSlot === 'SUPER_FLEX') return { key: 'QB_SF', label: 'QB/SF' };
+  if (FLEX_ELIGIBILITY[normalizedSlot]) return { key: 'FLEX', label: 'Flex' };
+  const slotPosition = normalizeSeasonLineupPosition(normalizedSlot);
+  if (slotPosition) return { key: slotPosition, label: slotPosition };
+  const playerSlot = normalizeSeasonLineupPosition(playerPosition);
+  return playerSlot ? { key: playerSlot, label: playerSlot } : { key: 'FLEX', label: 'Flex' };
+}
+
+function getSubmittedStarterGroups<T extends ManagerIntelPlayer>(
+  players: T[],
+  starterSlotIds: Array<string | null>,
+  rosterPositions?: string[]
+): LineupGroup<T>[] {
+  if (!starterSlotIds.some(Boolean)) return [];
+  const playersById = new Map(players.map((player) => [player.player_id, player]));
+  const starterSlots = getStarterRosterSlots(rosterPositions);
+  const slotGroupCounts = new Map<string, number>();
+
+  starterSlots.forEach((slot) => {
+    const group = getSubmittedStarterSlotGroup(slot);
+    slotGroupCounts.set(group.key, (slotGroupCounts.get(group.key) || 0) + 1);
+  });
+
+  const groups = new Map<string, LineupGroup<T>>();
+  starterSlotIds.forEach((pid, index) => {
+    if (!pid) return;
+    const player = playersById.get(pid);
+    if (!player) return;
+    const slot = starterSlots[index] || player.pos;
+    const groupInfo = getSubmittedStarterSlotGroup(slot, player.pos);
+    if (!groups.has(groupInfo.key)) {
+      groups.set(groupInfo.key, {
+        key: groupInfo.key,
+        label: `${groupInfo.label} x${Math.max(1, slotGroupCounts.get(groupInfo.key) || 1)}`,
+        count: Math.max(1, slotGroupCounts.get(groupInfo.key) || 1),
+        players: [],
+      });
+    }
+    groups.get(groupInfo.key)?.players.push(player);
+  });
+
+  return Array.from(groups.values());
+}
+
 function buildStartingRosterStrengthTiles(
   manager: string,
   leagueGroups: Array<{ manager: string; groups: LineupGroup[] }>,
@@ -1234,8 +1306,8 @@ function buildStartingRosterStrengthTiles(
     const grade = gradeLeagueRank(leagueRank, teamCount);
     const playerNames = group.players.map((player) => player.name);
     const note = playerNames.length
-      ? `${group.label} compares ${playerNames.join(', ')} against every roster's projected starters in that same slot group.`
-      : `${group.label} has no ranked projected starter for this league's lineup settings.`;
+      ? `${group.label} compares ${playerNames.join(', ')} against every roster's starter group for that same slot.`
+      : `${group.label} has no ranked starter for this league's lineup settings.`;
 
     return {
       key: group.key,
@@ -1492,7 +1564,10 @@ function buildHistoricalTradeContextsForSeason(
         })
         .filter((player): player is NonNullable<typeof player> => Boolean(player));
 
-      const lineup = selectProjectedLineup(players, season.rosterPositions);
+      const submittedLineup = getSubmittedStarterPlayers(players, getSubmittedStarterIds(roster));
+      const lineup = submittedLineup.length
+        ? submittedLineup
+        : selectProjectedLineup(players, season.rosterPositions);
       const starterSeasonValue = lineup.reduce((sum, player) => sum + (player.seasonValue || player.value), 0);
       const totalValue = players.reduce((sum, player) => sum + player.value, 0);
       const avgAge = roundOne(average(players.map((player) => player.playerDetails?.age ?? null)));
@@ -1814,12 +1889,12 @@ function describeAvailability(riskiestStarter: ManagerIntelPlayer | null, avgGam
   if (!riskiestStarter || avgGamesMissed === null) return 'Availability data is still light, so this roster should be judged mostly by current positional rank.';
   const missed = getPlayerGamesMissed(riskiestStarter);
   if (avgGamesMissed >= 3) {
-    return `Availability is a real concern: projected starters averaged ${avgGamesMissed.toFixed(1)} missed games last season, led by ${riskiestStarter.name}${missed !== null ? ` at ${missed} missed games` : ''}.`;
+    return `Availability is a real concern: starters averaged ${avgGamesMissed.toFixed(1)} missed games last season, led by ${riskiestStarter.name}${missed !== null ? ` at ${missed} missed games` : ''}.`;
   }
   if (avgGamesMissed >= 1.5) {
     return `Availability is manageable but not clean: starters averaged ${avgGamesMissed.toFixed(1)} missed games, so bench insurance matters.`;
   }
-  return `Availability looks stable: projected starters averaged only ${avgGamesMissed.toFixed(1)} missed games last season.`;
+  return `Availability looks stable: starters averaged only ${avgGamesMissed.toFixed(1)} missed games last season.`;
 }
 
 function compactPlayerBlurb(player?: ManagerIntelPlayer | null): string | null {
@@ -2864,6 +2939,7 @@ export async function generateReport(
     K_starters: number;
     DEF: number;
     DEF_starters: number;
+    starterSource: 'Sleeper' | 'Projected';
     starterPlayers: Array<{
       player_id: string;
       name: string;
@@ -2986,9 +3062,15 @@ export async function generateReport(
       if (lineupPlayer) lineupPlayers.push(lineupPlayer);
     }
 
-    const starterGroups = getLineupGroups(lineupPlayers, currentSeasonData.rosterPositions);
-    const projectedStarters = starterGroups.flatMap((group) => group.players);
-    for (const player of projectedStarters) {
+    const submittedStarterSlotIds = getSubmittedStarterSlotIds(r);
+    const submittedStarterIds = getSubmittedStarterIds(r);
+    const submittedStarterPlayers = getSubmittedStarterPlayers(lineupPlayers, submittedStarterIds);
+    const usesSubmittedStarters = submittedStarterPlayers.length > 0;
+    const starterGroups = usesSubmittedStarters
+      ? getSubmittedStarterGroups(lineupPlayers, submittedStarterSlotIds, currentSeasonData.rosterPositions)
+      : getLineupGroups(lineupPlayers, currentSeasonData.rosterPositions);
+    const selectedStarters = starterGroups.flatMap((group) => group.players);
+    for (const player of selectedStarters) {
       const starterPosition = normalizeSeasonLineupPosition(player.pos);
       if (starterPosition) {
         posStarterCounts[starterPosition]++;
@@ -3014,6 +3096,7 @@ export async function generateReport(
       K_starters: posStarterCounts.K,
       DEF: posCounts.DEF,
       DEF_starters: posStarterCounts.DEF,
+      starterSource: usesSubmittedStarters ? 'Sleeper' : 'Projected',
       starterPlayers: starterPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
       lineupPlayers: lineupPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
       rosterPlayers: rosterPlayers.sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
@@ -3102,10 +3185,14 @@ export async function generateReport(
       })
       .filter((player): player is BuiltIntelPlayer => Boolean(player));
 
-    const projectedStarters = selectProjectedLineup(rosterPlayers, currentSeasonData.rosterPositions);
-    const projectedStarterIds = new Set(projectedStarters.map((player) => player.player_id));
+    const submittedStarterIds = getSubmittedStarterIds(r);
+    const submittedStarters = getSubmittedStarterPlayers(rosterPlayers, submittedStarterIds);
+    const selectedStarters = submittedStarters.length
+      ? submittedStarters
+      : selectProjectedLineup(rosterPlayers, currentSeasonData.rosterPositions);
+    const selectedStarterIds = new Set(selectedStarters.map((player) => player.player_id));
     rosterPlayers.forEach((player) => {
-      player.isStarter = projectedStarterIds.has(player.player_id);
+      player.isStarter = selectedStarterIds.has(player.player_id);
     });
     reservePlayers.forEach((player) => {
       player.isStarter = false;
@@ -3114,7 +3201,7 @@ export async function generateReport(
       player.isStarter = false;
     });
     const movableRosterPlayers = [...rosterPlayers, ...reservePlayers];
-    const starters = projectedStarters
+    const starters = selectedStarters
       .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value));
     const bench = rosterPlayers.filter((player) => !player.isStarter).sort((a, b) => b.value - a.value);
     const benchBaselineRows = currentSeasonData.rosters.map((otherRoster) => {
@@ -3129,7 +3216,10 @@ export async function generateReport(
         : getTaxiPlayerIds(otherRoster)
           .map((pid) => buildIntelPlayer(pid, owner, otherRoster))
           .filter((player): player is BuiltIntelPlayer => Boolean(player));
-      const lineup = selectProjectedLineup(activePlayers, currentSeasonData.rosterPositions);
+      const submittedLineup = getSubmittedStarterPlayers(activePlayers, getSubmittedStarterIds(otherRoster));
+      const lineup = submittedLineup.length
+        ? submittedLineup
+        : selectProjectedLineup(activePlayers, currentSeasonData.rosterPositions);
       const lineupIds = new Set(lineup.map((player) => player.player_id));
 
       return {
@@ -3505,7 +3595,7 @@ export async function generateReport(
       tradePlan.summary,
       buyTarget ? `Buy target profile: ${compactPlayerBlurb(buyTarget)} from ${buyTarget.owner || 'another roster'}` : null,
       sellCandidate ? `Sell candidate: ${compactPlayerBlurb(sellCandidate)} from ${surplusPosition || 'surplus'} depth only if it buys the needed position` : null,
-      tradeChip ? `Trade chip: ${compactPlayerBlurb(tradeChip)} can be moved without cracking the projected lineup` : null,
+      tradeChip ? `Trade chip: ${compactPlayerBlurb(tradeChip)} can be moved without cracking the starting lineup` : null,
       describeAvailability(riskiestStarter, avgStarterGamesMissed),
     ].filter(Boolean).join('. ');
 

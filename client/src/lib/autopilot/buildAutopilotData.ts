@@ -19,6 +19,7 @@ import type {
   ManagerTendencyProfile,
   PlayerProjection,
   ValueDirection,
+  WeeklyActionPlan,
 } from './types';
 
 type AutopilotPlayerLike = {
@@ -551,6 +552,119 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
   return cards.length ? cards.slice(0, 2) : fallback;
 }
 
+function inferStarterToReview(lineup: AutopilotRecommendation[]) {
+  const benchCall = lineup.find((recommendation) => {
+    const label = `${recommendation.type} ${recommendation.action}`.toLowerCase();
+    return label.includes('bench') || label.includes('review');
+  });
+  if (benchCall) {
+    return {
+      player: benchCall.player,
+      position: 'FLEX',
+      confidence: benchCall.confidence,
+      note: benchCall.summary,
+      tone: benchCall.tone,
+    };
+  }
+
+  const startOver = lineup.find((recommendation) => /\bover\s+/i.test(recommendation.secondary || ''));
+  const starterName = startOver?.secondary?.match(/\bover\s+([^|;,]+)/i)?.[1]?.trim();
+  if (!starterName) return null;
+
+  return {
+    player: starterName,
+    position: 'FLEX',
+    confidence: Math.max(52, (startOver?.confidence || 66) - 8),
+    note: 'Current starter to pressure-test before lock.',
+    tone: 'warn' as AutopilotTone,
+  };
+}
+
+function buildWeeklyActionPlan(
+  data: ReportData,
+  mode: AutopilotMode,
+  manager: string,
+  lineup: AutopilotRecommendation[],
+  fallback?: WeeklyActionPlan,
+): WeeklyActionPlan | undefined {
+  const intel = findManagerIntel(data, manager);
+  const managerPositionRow = findManagerPositionRow(data, manager);
+  const matchup = getMatchupPreview(data, manager);
+  const vulnerable = matchup?.vulnerableSpots?.[0] || matchup?.boomBustRisks?.[0] || intel?.weakestStarter || null;
+  const inferredStarter = inferStarterToReview(lineup);
+  const starterToReview = vulnerable
+    ? {
+      player: getPlayerName(vulnerable),
+      position: getPlayerPosition(vulnerable),
+      confidence: recommendationConfidence(matchup?.vulnerableSpots?.length ? 72 : 62, [vulnerable, matchup, intel?.weakestStarter]),
+      note: matchup?.vulnerableSpots?.some((spot) => spot.player_id === vulnerable.player_id)
+        ? 'Matchup preview marks this as the starter to re-check.'
+        : 'Roster intel marks this as the first starter slot to upgrade.',
+      tone: 'warn' as AutopilotTone,
+    }
+    : inferredStarter;
+
+  const options: WeeklyActionPlan['options'] = [];
+  const seen = new Set<string>();
+  const starterKey = normalizeManagerName(starterToReview?.player);
+
+  const pushOption = (
+    player: AutopilotPlayerLike | AutopilotRecommendation | null | undefined,
+    baseConfidence: number,
+    note: string,
+    tone: AutopilotTone = 'good',
+  ) => {
+    if (!player) return;
+    const isRecommendation = 'confidence' in player && 'summary' in player && 'action' in player;
+    const playerName = isRecommendation ? player.player : getPlayerName(player);
+    const key = normalizeManagerName(playerName);
+    if (!playerName || seen.has(key) || key === starterKey) return;
+    seen.add(key);
+    const confidence = isRecommendation
+      ? clampPercent(player.confidence)
+      : recommendationConfidence(baseConfidence, [player, getAutopilotPlayerRank(player, mode), getAutopilotPlayerValue(player, mode), matchup]);
+    options.push({
+      player: playerName,
+      position: isRecommendation ? 'FLEX' : getPlayerPosition(player),
+      confidence,
+      note: isRecommendation ? shortenText(player.summary, 96) || note : note,
+      tone,
+    });
+  };
+
+  (matchup?.mustStarts || []).slice(0, 3).forEach((player) => pushOption(player, 74, 'Matchup model marks this as a must-start.', 'good'));
+  lineup
+    .filter((recommendation) => recommendation.action.toLowerCase().includes('start'))
+    .forEach((recommendation) => pushOption(recommendation, recommendation.confidence, 'Lineup recommendation from the current read.', recommendation.tone));
+
+  pushOption(getBestStarter(managerPositionRow, mode), 70, 'Highest starter value on this roster read.', 'good');
+  pushOption(intel?.youngCorePlayer, mode === 'dynasty' ? 68 : 58, mode === 'dynasty' ? 'Young core profile keeps value and upside live.' : 'Start only if the weekly role is strong.', mode === 'dynasty' ? 'good' : 'info');
+  pushOption(intel?.breakoutCandidate, 66, 'Breakout profile worth starting over a low-ceiling slot.', 'info');
+  pushOption(intel?.injuryInsurance, 62, 'Insurance option if injury news opens touches.', 'warn');
+
+  if (options.length < 2) {
+    [...(managerPositionRow?.starterPlayers || [])]
+      .sort((a, b) => (getAutopilotPlayerValue(b, mode) || 0) - (getAutopilotPlayerValue(a, mode) || 0))
+      .slice(0, 4)
+      .forEach((player) => pushOption(player, 60, 'Starter value keeps this player above the current risk slot.', 'info'));
+  }
+
+  const trimmedOptions = options
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 3);
+
+  if (!starterToReview && !trimmedOptions.length) return fallback;
+
+  const topOption = trimmedOptions[0];
+  return {
+    starterToReview,
+    options: trimmedOptions,
+    summary: starterToReview && topOption
+      ? `${starterToReview.player} is the lineup spot to pressure-test. ${topOption.player} is the preferred start-over option at ${topOption.confidence}% confidence.`
+      : fallback?.summary || 'The weekly action plan will get sharper once matchup and usage data are available.',
+  };
+}
+
 function collectWaiverCandidates(data: ReportData, mode: AutopilotMode, intel?: ManagerRosterIntelligence | null): TrendingPlayer[] {
   const waiver = data.waiverIntelligence;
   if (!waiver) return [];
@@ -868,6 +982,7 @@ export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuil
   const focusManager = getFocusManager(reportData, fallback);
   const managerTendency = buildManagerTendencyProfile(reportData, focusManager);
   const direction = buildDirection(reportData, mode, focusManager, fallback.direction, managerTendency);
+  const lineup = buildLineupRecommendations(reportData, mode, focusManager, fallback.lineup);
 
   return {
     mode,
@@ -878,7 +993,8 @@ export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuil
       : `${focusManager} dynasty cockpit`,
     direction,
     systemRead: buildSystemRead(reportData),
-    lineup: buildLineupRecommendations(reportData, mode, focusManager, fallback.lineup),
+    lineup,
+    weeklyPlan: buildWeeklyActionPlan(reportData, mode, focusManager, lineup, fallback.weeklyPlan),
     waivers: buildWaiverRecommendations(reportData, mode, focusManager, fallback.waivers),
     trades: buildTradeRecommendations(reportData, mode, focusManager, fallback.trades),
     projections: buildPlayerProjections(reportData, mode, focusManager, fallback.projections),

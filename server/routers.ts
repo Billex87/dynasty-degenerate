@@ -1,6 +1,7 @@
 import { COOKIE_NAME, ONE_YEAR_MS, UNAUTHED_ERR_MSG } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { hasAdminPermissionIdentifier, hasAdminPermissionsForUser } from "./_core/adminAccess";
+import type { TrpcContext } from "./_core/context";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
@@ -29,7 +30,7 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { findLeagueReportCache, insertLoginAttempt, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertUser } from "./db";
+import { findLeagueReportCache, insertLoginAttempt, listMonthlyRosterBlueprintSnapshots, reserveMonthlyReportGeneration, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertUser } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, TrendingPlayer, WaiverIntelligence } from "../shared/types";
 
@@ -451,6 +452,73 @@ function getBlueprintSnapshotMonth(date = new Date()): string {
   return `${year}-${month}`;
 }
 
+function getMonthlyReportGenerationIdentity(input: {
+  user?: TrpcContext["user"];
+  viewerUserId?: string | null;
+  ipAddress?: string | null;
+}) {
+  const user = input.user;
+  if (user) {
+    const stableIdentifier = user.openId || user.email || user.name || String(user.id);
+    return {
+      userKey: `auth:${stableIdentifier}`.trim().toLowerCase(),
+      userLabel: user.email || user.name || user.openId || String(user.id),
+    };
+  }
+
+  if (input.viewerUserId) {
+    return {
+      userKey: `sleeper:${input.viewerUserId}`,
+      userLabel: input.viewerUserId,
+    };
+  }
+
+  const ipAddress = input.ipAddress?.trim();
+  return {
+    userKey: `ip:${ipAddress || 'anonymous'}`,
+    userLabel: ipAddress || 'anonymous',
+  };
+}
+
+export async function assertMonthlyReportGenerationAllowed(input: {
+  ctx: TrpcContext;
+  leagueId: string;
+  viewerUserId?: string | null;
+  ipAddress?: string | null;
+}) {
+  if (input.ctx.user && hasAdminPermissionsForUser(input.ctx.user)) return;
+  if (isTrustedAutomationRequest(input.ctx.req as any)) return;
+
+  const snapshotMonth = getBlueprintSnapshotMonth();
+  const identity = getMonthlyReportGenerationIdentity({
+    user: input.ctx.user,
+    viewerUserId: input.viewerUserId,
+    ipAddress: input.ipAddress,
+  });
+  const reservation = await reserveMonthlyReportGeneration({
+    ...identity,
+    snapshotMonth,
+    leagueId: input.leagueId,
+  });
+
+  if (!reservation) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new TRPCError({
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'Monthly report generation quota is temporarily unavailable. Please try again shortly.',
+      });
+    }
+    return;
+  }
+
+  if (reservation.allowed) return;
+
+  throw new TRPCError({
+    code: 'TOO_MANY_REQUESTS',
+    message: `Monthly report generation limit reached for ${snapshotMonth}. You can view cached reports now, or generate another fresh blueprint next month.`,
+  });
+}
+
 function buildMonthlyBlueprintSnapshots(input: {
   leagueId: string;
   leagueName: string;
@@ -483,6 +551,7 @@ function buildMonthlyBlueprintSnapshots(input: {
       benchValue: row.benchValue,
       starterValuePct: row.starterValuePct,
       avgAge: row.avgAge,
+      avgAgeByPosition: row.avgAgeByPosition || null,
       positionGrades: row.positionGrades || null,
       pressurePoints: row.pressurePoints || [],
       ageFlags: row.ageFlags || [],
@@ -502,6 +571,53 @@ function buildMonthlyBlueprintSnapshots(input: {
       tradeTendency: tradesByManager.get(row.manager) || null,
     },
   }));
+}
+
+async function readMonthlyBlueprintHistory(leagueId: string): Promise<ReportData['monthlyBlueprintHistory']> {
+  try {
+    const snapshots = await listMonthlyRosterBlueprintSnapshots({ leagueId, months: 6 });
+    return snapshots
+      .map((snapshot: any) => {
+        if (!snapshot || typeof snapshot !== 'object') return null;
+        const snapshotMonth = typeof snapshot.snapshotMonth === 'string' ? snapshot.snapshotMonth : '';
+        const manager = typeof snapshot.manager === 'string' ? snapshot.manager : '';
+        if (!snapshotMonth || !manager) return null;
+
+        return {
+          leagueId: typeof snapshot.leagueId === 'string' ? snapshot.leagueId : leagueId,
+          leagueName: typeof snapshot.leagueName === 'string' ? snapshot.leagueName : undefined,
+          leagueFormat: typeof snapshot.leagueFormat === 'string' ? snapshot.leagueFormat : undefined,
+          snapshotMonth,
+          manager,
+          capturedAt: typeof snapshot.capturedAt === 'string' ? snapshot.capturedAt : null,
+          rosterIdentity: typeof snapshot.rosterIdentity === 'string' ? snapshot.rosterIdentity : null,
+          timeline: typeof snapshot.timeline === 'string' ? snapshot.timeline : null,
+          strategySummary: typeof snapshot.strategySummary === 'string' ? snapshot.strategySummary : null,
+          starterValue: Number.isFinite(Number(snapshot.starterValue)) ? Number(snapshot.starterValue) : null,
+          starterSeasonValue: Number.isFinite(Number(snapshot.starterSeasonValue)) ? Number(snapshot.starterSeasonValue) : null,
+          benchValue: Number.isFinite(Number(snapshot.benchValue)) ? Number(snapshot.benchValue) : null,
+          starterValuePct: Number.isFinite(Number(snapshot.starterValuePct)) ? Number(snapshot.starterValuePct) : null,
+          avgAge: Number.isFinite(Number(snapshot.avgAge)) ? Number(snapshot.avgAge) : null,
+          avgAgeByPosition: snapshot.avgAgeByPosition || undefined,
+          positionGrades: snapshot.positionGrades || null,
+          pressurePoints: Array.isArray(snapshot.pressurePoints) ? snapshot.pressurePoints.slice(0, 8) : [],
+          ageFlags: Array.isArray(snapshot.ageFlags) ? snapshot.ageFlags.slice(0, 8) : [],
+          leagueOverview: snapshot.leagueOverview || null,
+          powerRanking: snapshot.powerRanking || null,
+          pickPortfolio: snapshot.pickPortfolio || null,
+          tradeTendency: snapshot.tradeTendency || null,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (!a || !b) return 0;
+        if (a.manager !== b.manager) return a.manager.localeCompare(b.manager);
+        return a.snapshotMonth.localeCompare(b.snapshotMonth);
+      }) as ReportData['monthlyBlueprintHistory'];
+  } catch (error) {
+    console.warn('Failed to read monthly blueprint history:', error);
+    return [];
+  }
 }
 
 async function persistMonthlyBlueprintSnapshots(input: {
@@ -2500,6 +2616,14 @@ export const appRouter = router({
             return cloneReportWithViewerManager(cachedReport, input.viewerUserId) as any;
           }
 
+          await assertMonthlyReportGenerationAllowed({
+            ctx,
+            leagueId: input.leagueId,
+            viewerUserId: input.viewerUserId,
+            ipAddress,
+          });
+          markAnalyzeStep('monthly generation quota');
+
           assertRateLimit(ctx.req as any, {
             id: 'league.analyze.generate.ip',
             max: 6,
@@ -2956,6 +3080,9 @@ export const appRouter = router({
             leagueFormat: formatLeagueFormat(leagueInfo),
             reportData: reportPayloadData,
           });
+          const monthlyBlueprintHistory = monthlyBlueprintSnapshot.source === 'database'
+            ? await readMonthlyBlueprintHistory(input.leagueId)
+            : [];
           markAnalyzeStep('monthly blueprint snapshot');
 
           const analyzePayload = {
@@ -2966,6 +3093,7 @@ export const appRouter = router({
             reportData: {
               ...reportPayloadData,
               monthlyBlueprintSnapshot,
+              monthlyBlueprintHistory,
             },
           };
           markAnalyzeStep('payload assembly');

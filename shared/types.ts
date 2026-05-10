@@ -681,6 +681,58 @@ export interface LeagueDiagnostics {
   valueLimitations: string[];
 }
 
+export interface MonthlyBlueprintHistorySnapshot {
+  leagueId?: string;
+  leagueName?: string;
+  leagueFormat?: string;
+  snapshotMonth: string;
+  manager: string;
+  capturedAt?: string | null;
+  rosterIdentity?: string | null;
+  timeline?: string | null;
+  strategySummary?: string | null;
+  starterValue?: number | null;
+  starterSeasonValue?: number | null;
+  benchValue?: number | null;
+  starterValuePct?: number | null;
+  avgAge?: number | null;
+  avgAgeByPosition?: Record<'QB' | 'RB' | 'WR' | 'TE', number | null>;
+  positionGrades?: Record<'QB' | 'RB' | 'WR' | 'TE', {
+    rank: number | null;
+    grade: string;
+    note: string;
+  }> | null;
+  pressurePoints?: string[];
+  ageFlags?: string[];
+  leagueOverview?: {
+    rank_value?: number | null;
+    total_value?: number | null;
+    [key: string]: unknown;
+  } | null;
+  powerRanking?: {
+    rank?: number | null;
+    score?: number | null;
+    tier?: string | null;
+    rosterValue?: number | null;
+    starterStrength?: number | null;
+    [key: string]: unknown;
+  } | null;
+  pickPortfolio?: {
+    totalValue?: number | null;
+    value2026?: number | null;
+    value2027?: number | null;
+    count2026?: number | null;
+    count2027?: number | null;
+    [key: string]: unknown;
+  } | null;
+  tradeTendency?: {
+    tradeCount?: number | null;
+    winPct?: number | null;
+    profit?: number | null;
+    [key: string]: unknown;
+  } | null;
+}
+
 export interface ReportData {
   leagueValueMode?: LeagueValueMode;
   leagueDiagnostics?: LeagueDiagnostics;
@@ -691,6 +743,7 @@ export interface ReportData {
     source: 'database' | 'file' | 'none';
     warning?: string | null;
   };
+  monthlyBlueprintHistory?: MonthlyBlueprintHistorySnapshot[];
   prospectSourceDiagnostics?: ProspectSourceDiagnostics;
   viewerManager?: string | null;
   viewerManagerByUserId?: Record<string, string>;
@@ -768,6 +821,7 @@ export interface ReportData {
     K_starters?: number;
     DEF?: number;
     DEF_starters?: number;
+    starterSource?: 'Sleeper' | 'Projected';
     starterPlayers?: ManagerStarterPlayer[];
     lineupPlayers?: ManagerStarterPlayer[];
     rosterPlayers?: ManagerStarterPlayer[];

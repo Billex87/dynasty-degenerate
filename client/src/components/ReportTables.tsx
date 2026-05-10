@@ -2624,10 +2624,10 @@ export function getAiNeuralSurfaceClass(theme: DynastyAiTheme = 'neutral', extra
   ].filter(Boolean).join(' ');
 }
 
-const STARTING_ROSTER_STRENGTH_TITLE = 'Projected Lineup Slot Ranks';
+const STARTING_ROSTER_STRENGTH_TITLE = 'Starting Lineup Slot Ranks';
 const STARTING_ROSTER_STRENGTH_COMPARISON = 'league rank by required lineup slot';
-const STARTING_ROSTER_STRENGTH_NOTE = 'Ranks this manager’s projected lineup against every roster using this league’s actual required slots. QB/SF includes the superflex QB path; K and DEF appear only when the league starts them.';
-const BENCH_BASELINE_NOTE = 'Compares the best non-starting QB, RB, WR, and TE using season value and season position rank after projected starters are already filled.';
+const STARTING_ROSTER_STRENGTH_NOTE = 'Ranks this manager’s submitted Sleeper starters when returned, otherwise the slot-aware projected lineup, against every roster using this league’s actual required slots. QB/SF includes the superflex QB path; K and DEF appear only when the league starts them.';
+const BENCH_BASELINE_NOTE = 'Compares the best non-starting QB, RB, WR, and TE using season value and season position rank after the submitted or projected starters are removed.';
 const TRADEABLE_DEPTH_NOTE = 'Shows active bench trade chips by season value and season rank only. Taxi and IR players are left out.';
 
 type TradeWarMode = 'dynasty' | 'contender' | 'rebuilder' | 'starter-upgrade' | 'depth-fix' | 'positional-need' | 'playoff-push' | 'waiver-leverage';
@@ -3625,7 +3625,7 @@ function buildDynastyRiskRadar(row: OwnerIntelRow): DynastyAiSuggestion {
       title: 'AI Risk Radar',
       tone: 'warn',
       theme: 'risk',
-      copy: `Projected starters averaged ${missed} missed games, so depth is not just decoration here. Consolidate only when the incoming player is durable enough to reduce weekly fragility.`,
+      copy: `Starters averaged ${missed} missed games, so depth is not just decoration here. Consolidate only when the incoming player is durable enough to reduce weekly fragility.`,
     };
   }
 
@@ -3745,18 +3745,19 @@ function buildSeasonRosterRead({
   const depthNames = canStepInGroups.flatMap((group) => group.players.slice(0, 2).map((player) => `${player.name} (${player.seasonPositionRank || player.currentPositionRank || player.pos})`));
   const weakStarter = selectedIntel?.weakestStarter;
   const riskStarter = selectedIntel?.starterAvailability?.riskiestStarter;
+  const starterSourceLabel = selectedCounts?.starterSource === 'Sleeper' ? 'submitted Sleeper starters' : 'projected starters';
   const riskCopy = selectedIntel?.starterAvailability?.avgGamesMissed !== null && selectedIntel?.starterAvailability?.avgGamesMissed !== undefined
-    ? `Availability risk is ${selectedIntel.starterAvailability.riskLevel}; projected starters averaged ${selectedIntel.starterAvailability.avgGamesMissed} missed games.`
+    ? `Availability risk is ${selectedIntel.starterAvailability.riskLevel}; ${starterSourceLabel} averaged ${selectedIntel.starterAvailability.avgGamesMissed} missed games.`
     : 'Availability history is limited, so current season rank and role carry more weight.';
   const weakCopy = weakStarter
-    ? `${weakStarter.name} (${weakStarter.seasonPositionRank || weakStarter.currentPositionRank || weakStarter.pos}) is the first projected starter to upgrade.`
-    : 'No projected starter is clearly below the league line.';
+    ? `${weakStarter.name} (${weakStarter.seasonPositionRank || weakStarter.currentPositionRank || weakStarter.pos}) is the first starter to upgrade.`
+    : 'No starter is clearly below the league line.';
   const depthCopy = depthNames.length
     ? `Best next-man-up options: ${depthNames.slice(0, 4).join(', ')}.`
-    : 'There is not much starter-grade depth behind the projected lineup.';
+    : `There is not much starter-grade depth behind the ${starterSourceLabel}.`;
   const missingCopy = missingGroups.length
     ? `Lineup fill warning: ${missingGroups.map((group) => group.label).join(', ')} needs a better season-rank option.`
-    : `${starterCount} projected starters fill from ranked active players.`;
+    : `${starterCount} ${starterSourceLabel} fill from ranked active players.`;
 
   return `${missingCopy} ${weakCopy} ${riskCopy} ${depthCopy}`;
 }
@@ -5219,7 +5220,7 @@ export function LeagueCommandCenter({
       ? selectedCounts.QB_starters + selectedCounts.RB_starters + selectedCounts.WR_starters + selectedCounts.TE_starters + (selectedCounts.K_starters || 0) + (selectedCounts.DEF_starters || 0)
       : 0;
     const tags: Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }> = [
-      starterCount ? { label: `${starterCount} projected starters`, tone: 'neutral' } : null,
+      starterCount ? { label: `${starterCount} ${selectedCounts?.starterSource === 'Sleeper' ? 'Sleeper starters' : 'projected starters'}`, tone: 'neutral' } : null,
       selectedStarterSeasonValue ? { label: `Season value ${formatCompactValue(selectedStarterSeasonValue)}`, tone: 'good' } : null,
       selectedIntel.rosterHealthScore !== null && selectedIntel.rosterHealthScore !== undefined
         ? { label: `Health ${selectedIntel.rosterHealthScore}`, tone: selectedIntel.rosterHealthScore >= 75 ? 'good' : selectedIntel.rosterHealthScore <= 45 ? 'danger' : 'warn' }
