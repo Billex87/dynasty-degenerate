@@ -266,20 +266,6 @@ const OWNER_INTEL_SORT_OPTIONS: Array<{
   { key: 'rebuilder', label: 'Rebuilder', shortLabel: 'REB' },
 ];
 
-function renderPreviewManagerIcon(manager: string | null | undefined, managerAvatars?: ReportData['managerAvatars']): ReactNode {
-  if (!manager) return '-';
-  const avatarUrl = managerAvatars?.[manager];
-  return (
-    <span className="analysis-preview-manager-avatar" title={manager} aria-label={manager}>
-      {avatarUrl ? (
-        <img src={avatarUrl} alt="" />
-      ) : (
-        <span aria-hidden="true">{manager[0]?.toUpperCase() || '?'}</span>
-      )}
-    </span>
-  );
-}
-
 function renderPreviewManagerIdentity(
   manager: string | null | undefined,
   managerAvatars?: ReportData['managerAvatars'],
@@ -378,12 +364,12 @@ function buildOwnerPreviewMetrics(data: ReportData, mode: LeagueValueMode, sortM
 
   return mode === 'redraft'
     ? [
-        { label: 'Starter Leader', value: renderPreviewManagerIcon(starterLeader || valueLeader, data.managerAvatars), tone: 'good' },
-        starterWeakest ? { label: 'Weakest', value: renderPreviewManagerIcon(starterWeakest, data.managerAvatars), tone: 'warn' } : null,
+        { label: 'Starter Leader', value: renderPreviewManagerIdentity(starterLeader || valueLeader, data.managerAvatars), tone: 'good', className: 'analysis-preview-chip-manager-preview' },
+        starterWeakest ? { label: 'Weakest', value: renderPreviewManagerIdentity(starterWeakest, data.managerAvatars), tone: 'warn', className: 'analysis-preview-chip-manager-preview' } : null,
       ].filter(Boolean) as PreviewMetric[]
     : [
-        { label: 'Leader', value: renderPreviewManagerIcon(ownerPreviewManagers.leader || valueLeader, data.managerAvatars), tone: 'good' },
-        ownerPreviewManagers.weakest ? { label: 'Weakest', value: renderPreviewManagerIcon(ownerPreviewManagers.weakest, data.managerAvatars), tone: 'warn' } : null,
+        { label: 'Leader', value: renderPreviewManagerIdentity(ownerPreviewManagers.leader || valueLeader, data.managerAvatars), tone: 'good', className: 'analysis-preview-chip-manager-preview' },
+        ownerPreviewManagers.weakest ? { label: 'Weakest', value: renderPreviewManagerIdentity(ownerPreviewManagers.weakest, data.managerAvatars), tone: 'warn', className: 'analysis-preview-chip-manager-preview' } : null,
       ].filter(Boolean) as PreviewMetric[];
 }
 
@@ -404,13 +390,15 @@ function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
   return [
     {
       label: 'Stronger Starters',
-      value: renderPreviewManagerIdentity(strongestStarterManager, data.managerAvatars, 'analysis-preview-manager-value-collapsible'),
+      value: renderPreviewManagerIdentity(strongestStarterManager, data.managerAvatars),
       tone: 'good',
+      className: 'analysis-preview-chip-starter-room',
     },
     weakestStarterManager ? {
       label: 'Weakest Starters',
-      value: renderPreviewManagerIdentity(weakestStarterManager, data.managerAvatars, 'analysis-preview-manager-value-collapsible'),
+      value: renderPreviewManagerIdentity(weakestStarterManager, data.managerAvatars),
       tone: 'warn',
+      className: 'analysis-preview-chip-starter-room',
     } : null,
   ].filter(Boolean) as PreviewMetric[];
 }

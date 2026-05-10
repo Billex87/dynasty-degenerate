@@ -157,6 +157,7 @@ export type PreviewMetric = {
   tone?: ReportTone;
   icon?: ReactNode;
   hideLabel?: boolean;
+  className?: string;
 };
 
 export function PreviewMetricChips({
@@ -186,6 +187,7 @@ export function PreviewMetricChips({
             metric.icon && 'analysis-preview-chip-has-icon',
             metric.hideLabel && 'analysis-preview-chip-label-hidden',
             metric.tone && `analysis-preview-chip-${metric.tone}`,
+            metric.className,
           )}
         >
           <span className="analysis-preview-chip-label">
