@@ -3895,6 +3895,7 @@ export default function Home() {
                     kicker="Pending, declined, rejected, and cancelled Sleeper transactions"
                     previewMetrics={buildTradeProposalPreviewMetrics(reportData)}
                     premium
+                    defaultOpen
                   >
                     <TradeProposalSignalsTable
                       data={reportData.adminTradeProposalSignals || reportData.tradeProposalSignals || []}
