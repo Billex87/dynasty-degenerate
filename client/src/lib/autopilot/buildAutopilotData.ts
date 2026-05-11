@@ -41,6 +41,8 @@ type AutopilotPlayerLike = {
   playerDetails?: PlayerDetails;
 };
 
+type ScheduleStreamerCandidate = NonNullable<NonNullable<ReportData['schedulePlanning']>['streamerCandidates']>[number];
+
 type AutopilotBuildInput = {
   reportData?: ReportData;
   mode: AutopilotMode;
@@ -87,6 +89,18 @@ function confidenceFromSignals(base: number, signals: Array<unknown>, missingPen
   return clampPercent(base + signalCount * 6 - missingPenalty);
 }
 
+function getLeagueAiConfidenceScore(data: ReportData): number | null {
+  const score = safeNumber(data.leagueDiagnostics?.aiConfidence?.score);
+  return score === null ? null : clampPercent(score);
+}
+
+function getManagerAiConfidenceScore(data: ReportData, manager: string): number | null {
+  const confidence = data.leagueDiagnostics?.aiConfidence?.managerConfidence
+    ?.find((row) => sameManager(row.manager, manager));
+  const score = safeNumber(confidence?.score);
+  return score === null ? null : clampPercent(score);
+}
+
 function getLeagueSize(data: ReportData): number {
   return Math.max(
     data.managerRosterIntelligence?.length || 0,
@@ -115,6 +129,14 @@ function dedupeStrings(values: Array<string | null | undefined>, limit = 4): str
     result.push(clean);
   });
   return result.slice(0, limit);
+}
+
+function formatWeekList(weeks?: number[] | null): string | null {
+  const uniqueWeeks = Array.from(new Set((weeks || []).filter((week): week is number => Number.isFinite(week) && week > 0)))
+    .sort((a, b) => a - b);
+  if (!uniqueWeeks.length) return null;
+  if (uniqueWeeks.length <= 3) return uniqueWeeks.map((week) => `W${week}`).join(' · ');
+  return `${uniqueWeeks.slice(0, 3).map((week) => `W${week}`).join(' · ')} +${uniqueWeeks.length - 3}`;
 }
 
 function formatCompactValue(value?: number | null): string {
@@ -372,6 +394,7 @@ function getDirectionLabel(
 
 function buildSystemRead(data: ReportData): AutopilotScore[] {
   const leagueSize = getLeagueSize(data);
+  const leagueConfidence = data.leagueDiagnostics?.aiConfidence || null;
   const rosterRows = data.managerRosterIntelligence?.length || 0;
   const profileCount = Object.values(data.playerDetailsById || {}).filter((player) => player.valueProfile).length;
   const historySeasons = new Set((data.standingsHistory || []).map((row) => row.season)).size;
@@ -383,7 +406,14 @@ function buildSystemRead(data: ReportData): AutopilotScore[] {
     profileCount > 20,
   ].filter(Boolean).length;
 
+  const rows: AutopilotScore[] = leagueConfidence ? [{
+    label: 'League AI confidence',
+    value: clampPercent(leagueConfidence.score),
+    tone: scoreTone(leagueConfidence.score),
+  }] : [];
+
   return [
+    ...rows,
     {
       label: 'Roster data',
       value: clampPercent(42 + Math.min(46, (rosterRows / leagueSize) * 46) + (data.managerPositionCounts?.length ? 10 : 0)),
@@ -482,9 +512,11 @@ function buildDirection(
     ...fallback.actionPlan,
   ], 3);
 
+  const rawConfidence = confidenceFromSignals(50, [intel, power, standing, timeline, tradeTendency, portfolio, data.waiverIntelligence, tendencyProfile.historyDepthScore >= 55], data.matchupPreviews?.length ? 0 : 4);
+
   return {
     label,
-    confidence: confidenceFromSignals(50, [intel, power, standing, timeline, tradeTendency, portfolio, data.waiverIntelligence, tendencyProfile.historyDepthScore >= 55], data.matchupPreviews?.length ? 0 : 4),
+    confidence: capConfidence(data, manager, rawConfidence),
     summary,
     strategy,
     scores: directionScores,
@@ -494,6 +526,85 @@ function buildDirection(
 
 function recommendationConfidence(base: number, recommendationSignals: Array<unknown>) {
   return confidenceFromSignals(base, recommendationSignals, recommendationSignals.includes(null) ? 4 : 0);
+}
+
+function getManagerEvidenceConfidenceFloor(data: ReportData, manager: string): number | null {
+  const tendencyProfile = buildManagerTendencyProfile(data, manager);
+  if (tendencyProfile.historyDepthScore < 70 || tendencyProfile.competitiveConsistencyScore < 68) {
+    return null;
+  }
+
+  const evidenceScore = averageNumbers([
+    tendencyProfile.historyDepthScore,
+    tendencyProfile.competitiveConsistencyScore,
+    tendencyProfile.tradeActivityScore,
+  ]);
+
+  return evidenceScore === null ? null : clampPercent(evidenceScore + 14);
+}
+
+function getAiConfidenceCap(data: ReportData, manager: string): number {
+  const caps: number[] = [];
+  const leagueConfidence = getLeagueAiConfidenceScore(data);
+  const managerConfidence = getManagerAiConfidenceScore(data, manager);
+  if (leagueConfidence !== null) caps.push(clampPercent(leagueConfidence + 18));
+  if (managerConfidence !== null) caps.push(clampPercent(managerConfidence + 16));
+  const confidenceCap = caps.length ? Math.max(38, Math.min(...caps)) : 100;
+  const evidenceFloor = leagueConfidence === null || leagueConfidence >= 55
+    ? getManagerEvidenceConfidenceFloor(data, manager)
+    : null;
+
+  return evidenceFloor === null ? confidenceCap : Math.max(confidenceCap, evidenceFloor);
+}
+
+function capConfidence(data: ReportData, manager: string, confidence: number): number {
+  return Math.min(clampPercent(confidence), getAiConfidenceCap(data, manager));
+}
+
+function capRecommendationCards(data: ReportData, manager: string, cards: AutopilotRecommendation[]): AutopilotRecommendation[] {
+  return cards.map((card) => {
+    const cappedConfidence = capConfidence(data, manager, card.confidence);
+    const wasCapped = cappedConfidence < clampPercent(card.confidence);
+    return {
+      ...card,
+      confidence: cappedConfidence,
+      risk: wasCapped && cappedConfidence < 58 ? 'High' : card.risk,
+      signals: wasCapped
+        ? dedupeStrings([...card.signals, 'Confidence capped by league evidence'], 5)
+        : card.signals,
+    };
+  });
+}
+
+function capWeeklyActionPlan(data: ReportData, manager: string, plan?: WeeklyActionPlan): WeeklyActionPlan | undefined {
+  if (!plan) return plan;
+  return {
+    ...plan,
+    starterToReview: plan.starterToReview
+      ? {
+        ...plan.starterToReview,
+        confidence: capConfidence(data, manager, plan.starterToReview.confidence),
+      }
+      : null,
+    options: plan.options.map((option) => ({
+      ...option,
+      confidence: capConfidence(data, manager, option.confidence),
+    })),
+  };
+}
+
+function capPlayerProjections(data: ReportData, manager: string, projections: PlayerProjection[]): PlayerProjection[] {
+  return projections.map((projection) => {
+    const cappedConfidence = capConfidence(data, manager, projection.confidence);
+    const wasCapped = cappedConfidence < clampPercent(projection.confidence);
+    return {
+      ...projection,
+      confidence: cappedConfidence,
+      signals: wasCapped
+        ? dedupeStrings([...projection.signals, 'Confidence capped by league evidence'], 5)
+        : projection.signals,
+    };
+  });
 }
 
 function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manager: string, fallback: AutopilotRecommendation[]): AutopilotRecommendation[] {
@@ -606,6 +717,7 @@ function buildWeeklyActionPlan(
 
   const options: WeeklyActionPlan['options'] = [];
   const seen = new Set<string>();
+  const scheduleStreamerKeys = new Set<string>();
   const starterKey = normalizeManagerName(starterToReview?.player);
 
   const pushOption = (
@@ -642,6 +754,34 @@ function buildWeeklyActionPlan(
   pushOption(intel?.breakoutCandidate, 66, 'Breakout profile worth starting over a low-ceiling slot.', 'info');
   pushOption(intel?.injuryInsurance, 62, 'Insurance option if injury news opens touches.', 'warn');
 
+  (data.schedulePlanning?.streamerCandidates || [])
+    .slice(0, 3)
+    .forEach((candidate: ScheduleStreamerCandidate) => {
+      const candidateWeeks = formatWeekList(candidate.targetWeeks);
+      scheduleStreamerKeys.add(normalizeManagerName(candidate.name));
+      pushOption({
+        player_id: candidate.playerId,
+        name: candidate.name,
+        pos: candidate.position,
+        playerDetails: {
+          team: candidate.team || null,
+          schedule: {
+            byeWeek: candidate.byeWeek ?? null,
+            seasonSOS: candidate.seasonSOS ?? null,
+            scheduleTier: candidate.scheduleTier ?? null,
+            streamerWeeks: candidate.targetWeeks || [],
+            avoidWeeks: [],
+            source: data.schedulePlanning?.source || null,
+            updatedAt: data.schedulePlanning?.updatedAt || null,
+          },
+        } as PlayerDetails,
+      }, candidate.seasonSOS !== null && candidate.seasonSOS !== undefined
+        ? clampPercent(68 + Math.max(-12, Math.min(12, 50 - candidate.seasonSOS)))
+        : 64,
+      candidate.note || (candidateWeeks ? `Streamer target for ${candidateWeeks}.` : 'Schedule planner streamer target.'),
+      candidate.scheduleTier === 'easy' ? 'good' : candidate.scheduleTier === 'hard' ? 'warn' : 'info');
+    });
+
   if (options.length < 2) {
     [...(managerPositionRow?.starterPlayers || [])]
       .sort((a, b) => (getAutopilotPlayerValue(b, mode) || 0) - (getAutopilotPlayerValue(a, mode) || 0))
@@ -652,6 +792,23 @@ function buildWeeklyActionPlan(
   const trimmedOptions = options
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, 3);
+
+  if (scheduleStreamerKeys.size) {
+    const hasScheduleStreamer = trimmedOptions.some((option) => scheduleStreamerKeys.has(normalizeManagerName(option.player)));
+    if (!hasScheduleStreamer) {
+      const bestScheduleStreamer = [...options]
+        .filter((option) => scheduleStreamerKeys.has(normalizeManagerName(option.player)))
+        .sort((a, b) => b.confidence - a.confidence)[0] || null;
+      if (bestScheduleStreamer) {
+        if (trimmedOptions.length < 3) {
+          trimmedOptions.push(bestScheduleStreamer);
+        } else {
+          trimmedOptions[trimmedOptions.length - 1] = bestScheduleStreamer;
+        }
+        trimmedOptions.sort((a, b) => b.confidence - a.confidence);
+      }
+    }
+  }
 
   if (!starterToReview && !trimmedOptions.length) return fallback;
 
@@ -957,6 +1114,32 @@ function buildPowerRows(data: ReportData, mode: AutopilotMode, fallback: LeagueP
 }
 
 function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
+  const schedulePlanning = data.schedulePlanning;
+  const rosterGaps = [...(schedulePlanning?.rosterGaps || [])].sort((a, b) => {
+    const severityRank: Record<'low' | 'medium' | 'high', number> = { low: 0, medium: 1, high: 2 };
+    return (severityRank[b.severity] || 0) - (severityRank[a.severity] || 0);
+  });
+  const streamerCandidate = schedulePlanning?.streamerCandidates?.[0] || null;
+  const firstByeWeek = [...(schedulePlanning?.byeWeekNotes || [])].sort((a, b) => a.week - b.week)[0] || null;
+
+  if (schedulePlanning?.status === 'ready' || rosterGaps.length || streamerCandidate || firstByeWeek) {
+    return [
+      schedulePlanning?.status === 'ready'
+        ? `Schedule planning is live${schedulePlanning.source ? ` from ${schedulePlanning.source}` : ''}; use it to drive bye-week coverage.`
+        : 'Schedule planning is partial; keep the bye-week and streamer lanes ready for the next data pass.',
+      rosterGaps[0]
+        ? `${rosterGaps[0].manager} has ${rosterGaps[0].position} depth pressure in ${formatWeekList(rosterGaps[0].weeks) || 'key bye weeks'}.`
+        : 'Map roster gaps to the toughest bye-week stretches once the schedule is live.',
+      streamerCandidate
+        ? `${streamerCandidate.name} is a schedule-driven streamer target${formatWeekList(streamerCandidate.targetWeeks) ? ` for ${formatWeekList(streamerCandidate.targetWeeks)}` : ''}.${firstByeWeek ? ` Week ${firstByeWeek.week} is the first bye-week checkpoint${firstByeWeek.teams?.length ? ` for ${firstByeWeek.teams.join(', ')}` : ''}.` : ''}`
+        : firstByeWeek
+          ? `Week ${firstByeWeek.week} is the first bye-week checkpoint${firstByeWeek.teams?.length ? ` for ${firstByeWeek.teams.join(', ')}` : ''}.`
+          : mode === 'redraft'
+            ? 'Use SOS to separate streamers and same-tier flex plays.'
+            : 'Use SOS for playoff-window planning without overpowering long-term player value.',
+    ];
+  }
+
   if (data.matchupPreviews?.length) {
     return [
       `${data.matchupPreviews.length} matchup preview${data.matchupPreviews.length === 1 ? '' : 's'} are available for weekly lineup context.`,
@@ -982,7 +1165,11 @@ export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuil
   const focusManager = getFocusManager(reportData, fallback);
   const managerTendency = buildManagerTendencyProfile(reportData, focusManager);
   const direction = buildDirection(reportData, mode, focusManager, fallback.direction, managerTendency);
-  const lineup = buildLineupRecommendations(reportData, mode, focusManager, fallback.lineup);
+  const lineup = capRecommendationCards(reportData, focusManager, buildLineupRecommendations(reportData, mode, focusManager, fallback.lineup));
+  const weeklyPlan = capWeeklyActionPlan(reportData, focusManager, buildWeeklyActionPlan(reportData, mode, focusManager, lineup, fallback.weeklyPlan));
+  const waivers = capRecommendationCards(reportData, focusManager, buildWaiverRecommendations(reportData, mode, focusManager, fallback.waivers));
+  const trades = capRecommendationCards(reportData, focusManager, buildTradeRecommendations(reportData, mode, focusManager, fallback.trades));
+  const projections = capPlayerProjections(reportData, focusManager, buildPlayerProjections(reportData, mode, focusManager, fallback.projections));
 
   return {
     mode,
@@ -994,10 +1181,10 @@ export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuil
     direction,
     systemRead: buildSystemRead(reportData),
     lineup,
-    weeklyPlan: buildWeeklyActionPlan(reportData, mode, focusManager, lineup, fallback.weeklyPlan),
-    waivers: buildWaiverRecommendations(reportData, mode, focusManager, fallback.waivers),
-    trades: buildTradeRecommendations(reportData, mode, focusManager, fallback.trades),
-    projections: buildPlayerProjections(reportData, mode, focusManager, fallback.projections),
+    weeklyPlan,
+    waivers,
+    trades,
+    projections,
     power: buildPowerRows(reportData, mode, fallback.power),
     managerTendency,
     scheduleTodo: buildScheduleTodo(reportData, mode),

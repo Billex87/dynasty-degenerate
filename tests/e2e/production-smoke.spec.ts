@@ -3,8 +3,22 @@ import { expect, test } from '@playwright/test';
 const runProductionSmoke = process.env.PRODUCTION_SMOKE === 'true';
 const hasProductionBaseUrl = Boolean(process.env.PLAYWRIGHT_BASE_URL);
 const sleeperUsername = process.env.PRODUCTION_SMOKE_SLEEPER_USERNAME || 'mynameisbillex';
-const dynastyLeagueName = process.env.PRODUCTION_SMOKE_DYNASTY_LEAGUE || 'Skids Get Beat';
-const redraftLeagueName = process.env.PRODUCTION_SMOKE_REDRAFT_LEAGUE || 'test league';
+const dynastyLeagueNames = parseLeagueNames(
+  process.env.PRODUCTION_SMOKE_DYNASTY_LEAGUES || process.env.PRODUCTION_SMOKE_DYNASTY_LEAGUE,
+  ['Skids Get Beat', 'The Fantasy Degenerates'],
+);
+const redraftLeagueNames = parseLeagueNames(
+  process.env.PRODUCTION_SMOKE_REDRAFT_LEAGUES || process.env.PRODUCTION_SMOKE_REDRAFT_LEAGUE,
+  ['test league', 'Gov Tech Grid Iron'],
+);
+
+function parseLeagueNames(value: string | undefined, fallback: string[]) {
+  const parsed = String(value || '')
+    .split(',')
+    .map((leagueName) => leagueName.trim())
+    .filter(Boolean);
+  return parsed.length ? parsed : fallback;
+}
 
 test.describe('production smoke', () => {
   test.skip(!runProductionSmoke || !hasProductionBaseUrl, 'Set PRODUCTION_SMOKE=true and PLAYWRIGHT_BASE_URL to run deployed-site smoke checks.');
@@ -35,22 +49,50 @@ test.describe('production smoke', () => {
     await expect(page.getByRole('tab', { name: 'Rankings' })).toBeVisible({ timeout: 120_000 });
   }
 
-  test('homepage and live dynasty league load', async ({ page }) => {
-    await loadLiveLeague(page, dynastyLeagueName);
-    await page.getByRole('tab', { name: 'Draft History' }).click();
-    await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
-    await expect(page.getByText('Rookie Draft', { exact: false }).or(page.getByText('Draft Capital', { exact: false })).first()).toBeVisible();
-  });
+  for (const leagueName of dynastyLeagueNames) {
+    test(`homepage and live dynasty league load: ${leagueName}`, async ({ page }) => {
+      await loadLiveLeague(page, leagueName);
+      await page.getByRole('tab', { name: 'Rankings' }).click();
+      await expect(page.getByText('League-matched player values', { exact: false })).toBeVisible();
 
-  test('live redraft league avoids dynasty-first copy', async ({ page }) => {
-    await loadLiveLeague(page, redraftLeagueName);
-    await page.getByRole('tab', { name: 'Rankings' }).click();
-    await expect(page.getByText('Current-season player values', { exact: false })).toBeVisible();
+      await page.getByRole('tab', { name: 'Draft History' }).click();
+      await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
+      await expect(
+        page.getByText('Rookie Draft', { exact: false })
+          .or(page.getByText('Startup Draft', { exact: false }))
+          .or(page.getByText('Main Draft', { exact: false }))
+          .or(page.getByText('Draft Capital', { exact: false }))
+          .first(),
+      ).toBeVisible();
 
-    const bodyText = await page.locator('body').innerText();
-    expect(bodyText).not.toContain('DYNASTY OWNER READS');
-    expect(bodyText).not.toContain('DYNASTY VALUE BOARD');
-    expect(bodyText).not.toContain('Taxi Stash');
-    expect(bodyText).not.toContain('Draft Capital Efficiency');
-  });
+      const bodyText = await page.locator('body').innerText();
+      expect(bodyText).not.toContain('2026-05-07');
+      expect(bodyText).not.toContain('May 7, 2026');
+    });
+  }
+
+  for (const leagueName of redraftLeagueNames) {
+    test(`live redraft league avoids dynasty-first copy: ${leagueName}`, async ({ page }) => {
+      await loadLiveLeague(page, leagueName);
+      await page.getByRole('tab', { name: 'Rankings' }).click();
+      await expect(page.getByText('Current-season player values', { exact: false })).toBeVisible();
+
+      await page.getByRole('tab', { name: 'Draft History' }).click();
+      await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
+      await expect(
+        page.getByText('Draft Recap', { exact: false })
+          .or(page.getByText('Main Draft', { exact: false }))
+          .or(page.getByText('Season value window', { exact: false }))
+          .first(),
+      ).toBeVisible();
+
+      const bodyText = await page.locator('body').innerText();
+      expect(bodyText).not.toContain('DYNASTY OWNER READS');
+      expect(bodyText).not.toContain('DYNASTY VALUE BOARD');
+      expect(bodyText).not.toContain('Taxi Stash');
+      expect(bodyText).not.toContain('Draft Capital Efficiency');
+      expect(bodyText).not.toContain('2026-05-07');
+      expect(bodyText).not.toContain('May 7, 2026');
+    });
+  }
 });

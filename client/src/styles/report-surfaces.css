@@ -747,6 +747,18 @@ button.player-team-tile:focus-visible {
   color: #cbd5e1;
 }
 
+.player-tile-pills .draft-outcome-pill-riser {
+  border-color: rgba(34, 211, 238, 0.36);
+  background: rgba(8, 47, 73, 0.44);
+  color: #67e8f9;
+}
+
+.player-tile-pills .draft-outcome-pill-faller {
+  border-color: rgba(251, 146, 60, 0.38);
+  background: rgba(67, 20, 7, 0.42);
+  color: #fdba74;
+}
+
 .player-tile-pills .draft-starter-pill {
   border-color: rgba(250, 204, 21, 0.38);
   background: rgba(113, 63, 18, 0.44);
@@ -988,6 +1000,32 @@ button.player-team-tile:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rookie-draft-player-cell .draft-market-move-note {
+  display: inline-flex;
+  width: fit-content;
+  max-width: calc(100% - 2.53rem);
+  border-radius: 999px;
+  padding: 0.14rem 0.45rem;
+}
+
+.rookie-draft-player-cell .draft-market-move-riser {
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: rgba(8, 47, 73, 0.38);
+  color: #67e8f9;
+}
+
+.rookie-draft-player-cell .draft-market-move-faller {
+  border: 1px solid rgba(251, 146, 60, 0.32);
+  background: rgba(67, 20, 7, 0.36);
+  color: #fdba74;
+}
+
+.rookie-draft-player-cell .draft-market-move-neutral {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.5);
+  color: #cbd5e1;
 }
 
 .rookie-draft-manager-cell .manager-chip {
@@ -1520,9 +1558,9 @@ button.owner-summary-tile:focus-visible {
   }
 
   .trade-gap-cell .trade-gap-verdict {
-    max-width: clamp(4.8rem, 12vw, 7rem);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
   }
 }
 
@@ -5809,12 +5847,12 @@ body {
 
 .report-shell .waiver-intel-grid {
   grid-template-columns: repeat(auto-fill, minmax(var(--dd-report-player-track-min), 1fr)) !important;
-  grid-auto-rows: minmax(clamp(9.4rem, 10vw, 10.65rem), 1fr);
+  grid-auto-rows: minmax(clamp(13.2rem, 14vw, 15rem), 1fr);
   align-items: stretch;
 }
 
 .report-shell .waiver-intel-card {
-  min-height: clamp(9.4rem, 10vw, 10.65rem);
+  min-height: clamp(13.2rem, 14vw, 15rem);
 }
 
 .report-shell .waiver-intel-pills {

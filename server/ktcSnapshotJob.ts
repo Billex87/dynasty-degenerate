@@ -1,5 +1,6 @@
-import { findKtcSnapshotOnOrBefore, getDb, insertKtcSnapshot } from './db';
+import { findKtcSnapshotBetween, findKtcSnapshotOnOrBefore, getDb, insertKtcSnapshot } from './db';
 import { loadKTCValues, loadLiveKTCValueProfiles, loadLiveKTCValues, saveLocalKtcSnapshot } from './ktcLoader';
+import { getWeeklyMomentumBaselineFloorStartDate, getWeeklyMomentumBaselineTargetDate } from './valueBaselinePolicy';
 import {
   DEFAULT_VALUE_SOURCE_PROFILE_KEY,
   KTC_SNAPSHOT_PROFILES,
@@ -23,9 +24,15 @@ type KTCValueMap = Record<string, {
   flock_position_rank?: string | null;
   flock_tier?: number | null;
   flock_format?: string | null;
+  expert_value_fantasypros?: number;
+  fantasypros_dynasty_rank?: number;
+  fantasypros_dynasty_position_rank?: string | null;
   market_value_fantasycalc?: number;
   expert_value_dynastyprocess?: number;
   expert_value_dynastynerds?: number;
+  expert_value_fantasynerds?: number;
+  fantasynerds_rank?: number;
+  fantasynerds_position_rank?: string | null;
   dynastynerds_rank?: number;
   dynastynerds_position_rank?: string | null;
   dynastynerds_format?: string | null;
@@ -41,7 +48,7 @@ type KTCValueMap = Record<string, {
 }>;
 
 type KtcSnapshotPayload = {
-  schemaVersion: 4;
+  schemaVersion: 5;
   generatedAt: string;
   defaultProfile: string;
   profilesTracked: Array<{
@@ -69,6 +76,7 @@ type KtcSnapshotPayload = {
   ktcProfiles: Record<string, KTCValueMap>;
   sourceProfiles: {
     fantasyCalc: Record<string, KTCValueMap>;
+    fantasyNerds: KTCValueMap;
     flockFantasy: Record<string, KTCValueMap>;
     dynastyNerds: Record<string, KTCValueMap>;
     dynastyProcess: Record<string, KTCValueMap>;
@@ -95,7 +103,9 @@ function normalizeSnapshotData(data: unknown): KTCValueMap {
           const rawFormat = typeof raw.format === 'string' ? raw.format : undefined;
           const isFlockSource = Boolean(rawFormat && ['SUPERFLEX', 'ONEQB', 'PROSPECTS_SF', 'PROSPECTS'].includes(rawFormat));
           const isDynastyNerdsSource = Boolean(rawFormat && ['PPR', 'SFLEX', 'STD', 'SFLEXTEP'].includes(rawFormat));
-          const isFantasyProsSource = numberField('seasonValue') !== undefined || numberField('rankOverall') !== undefined;
+          const isFantasyProsSource = raw.rankingType === 'DYNASTY' || raw.rankingType === 'DRAFT' || numberField('seasonValue') !== undefined || numberField('rankOverall') !== undefined;
+          const isFantasyProsDynastySource = raw.rankingType === 'DYNASTY' || (isFantasyProsSource && numberField('dynastyValue') !== undefined);
+          const isFantasyNerdsSource = numberField('dynastyValue') !== undefined && numberField('overallRank') !== undefined && !isDynastyNerdsSource && !isFlockSource && !isFantasyProsSource;
           const isDynastyDealerSource = numberField('currentValue') !== undefined || numberField('baseValue') !== undefined;
           const fallbackPositionRank = typeof raw.positionRank === 'string'
             ? raw.positionRank
@@ -136,11 +146,25 @@ function normalizeSnapshotData(data: unknown): KTCValueMap {
                   : isFlockSource ? fallbackPositionRank : undefined,
                 flock_tier: numberField('flock_tier') ?? (isFlockSource ? numberField('tier') : undefined),
                 flock_format: typeof raw.flock_format === 'string' ? raw.flock_format : isFlockSource ? rawFormat : undefined,
+                expert_value_fantasypros: numberField('expert_value_fantasypros')
+                  ?? (isFantasyProsDynastySource ? numberField('dynastyValue') ?? numberField('value') : undefined),
+                fantasypros_dynasty_rank: numberField('fantasypros_dynasty_rank')
+                  ?? (isFantasyProsDynastySource ? numberField('overallRank') : undefined),
+                fantasypros_dynasty_position_rank: typeof raw.fantasypros_dynasty_position_rank === 'string'
+                  ? raw.fantasypros_dynasty_position_rank
+                  : isFantasyProsDynastySource ? fallbackPositionRank : undefined,
                 market_value_fantasycalc: numberField('market_value_fantasycalc')
-                  ?? (!isFlockSource && !isDynastyNerdsSource && !isFantasyProsSource && !isDynastyDealerSource ? numberField('dynastyValue') : undefined),
+                  ?? (!isFlockSource && !isDynastyNerdsSource && !isFantasyNerdsSource && !isFantasyProsSource && !isDynastyDealerSource ? numberField('dynastyValue') : undefined),
                 expert_value_dynastyprocess: numberField('expert_value_dynastyprocess'),
                 expert_value_dynastynerds: numberField('expert_value_dynastynerds')
                   ?? (isDynastyNerdsSource ? numberField('dynastyValue') : undefined),
+                expert_value_fantasynerds: numberField('expert_value_fantasynerds')
+                  ?? (isFantasyNerdsSource ? numberField('dynastyValue') : undefined),
+                fantasynerds_rank: numberField('fantasynerds_rank')
+                  ?? (isFantasyNerdsSource ? numberField('overallRank') : undefined),
+                fantasynerds_position_rank: typeof raw.fantasynerds_position_rank === 'string'
+                  ? raw.fantasynerds_position_rank
+                  : isFantasyNerdsSource ? fallbackPositionRank : undefined,
                 dynastynerds_rank: numberField('dynastynerds_rank')
                   ?? (isDynastyNerdsSource ? numberField('overallRank') : undefined),
                 dynastynerds_position_rank: typeof raw.dynastynerds_position_rank === 'string'
@@ -193,9 +217,15 @@ function compactSnapshotData(data: KTCValueMap): KTCValueMap {
         flock_position_rank: value.flock_position_rank,
         flock_tier: value.flock_tier,
         flock_format: value.flock_format,
+        expert_value_fantasypros: value.expert_value_fantasypros,
+        fantasypros_dynasty_rank: value.fantasypros_dynasty_rank,
+        fantasypros_dynasty_position_rank: value.fantasypros_dynasty_position_rank,
         market_value_fantasycalc: value.market_value_fantasycalc,
         expert_value_dynastyprocess: value.expert_value_dynastyprocess,
         expert_value_dynastynerds: value.expert_value_dynastynerds,
+        expert_value_fantasynerds: value.expert_value_fantasynerds,
+        fantasynerds_rank: value.fantasynerds_rank,
+        fantasynerds_position_rank: value.fantasynerds_position_rank,
         dynastynerds_rank: value.dynastynerds_rank,
         dynastynerds_position_rank: value.dynastynerds_position_rank,
         dynastynerds_format: value.dynastynerds_format,
@@ -252,6 +282,7 @@ export async function storeKtcSnapshot() {
       fantasyCalc: Object.fromEntries(
         Object.entries(rawSourceProfiles.fantasyCalc).map(([profileKey, values]) => [profileKey, normalizeSnapshotData(values)])
       ),
+      fantasyNerds: normalizeSnapshotData(rawSourceProfiles.fantasyNerds),
       flockFantasy: Object.fromEntries(
         Object.entries(rawSourceProfiles.flockFantasy).map(([profileKey, values]) => [profileKey, normalizeSnapshotData(values)])
       ),
@@ -275,7 +306,7 @@ export async function storeKtcSnapshot() {
       ? blendedProfiles[DEFAULT_VALUE_SOURCE_PROFILE_KEY]
       : compactSnapshotData(normalizeSnapshotData(ktcData));
     const snapshotPayload: KtcSnapshotPayload = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       generatedAt: snapshotDate.toISOString(),
       defaultProfile: DEFAULT_VALUE_SOURCE_PROFILE_KEY,
       profilesTracked: KTC_SNAPSHOT_PROFILES.map((profile) => {
@@ -344,11 +375,17 @@ export async function getKtcSnapshotFromDaysAgo(daysAgo: number = 14, valueProfi
       return null;
     }
 
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() - daysAgo + 1);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = daysAgo === 7
+      ? getWeeklyMomentumBaselineTargetDate(daysAgo)
+      : new Date();
+    if (daysAgo !== 7) {
+      targetDate.setDate(targetDate.getDate() - daysAgo + 1);
+      targetDate.setHours(0, 0, 0, 0);
+    }
 
-    const data = await findKtcSnapshotOnOrBefore(targetDate);
+    const data = daysAgo === 7
+      ? await findKtcSnapshotBetween(getWeeklyMomentumBaselineFloorStartDate(), targetDate)
+      : await findKtcSnapshotOnOrBefore(targetDate);
 
     if (!data) {
       console.warn(`[KTC Snapshot] No snapshot found from at least ${daysAgo} days ago`);
@@ -369,6 +406,32 @@ export async function getKtcSnapshotFromDaysAgo(daysAgo: number = 14, valueProfi
     return normalizeSnapshotData(parsed?.values && typeof parsed.values === 'object' ? parsed.values : parsed);
   } catch (error) {
     console.error('[KTC Snapshot] Error retrieving snapshot:', error);
+    return null;
+  }
+}
+
+export async function getKtcSnapshotOnOrBeforeDate(targetDate: Date, valueProfileKey?: string) {
+  try {
+    const data = await findKtcSnapshotOnOrBefore(targetDate);
+
+    if (!data) {
+      return null;
+    }
+
+    const parsed = JSON.parse(data);
+    if (
+      valueProfileKey &&
+      parsed?.blendedProfiles &&
+      typeof parsed.blendedProfiles === 'object' &&
+      parsed.blendedProfiles[valueProfileKey] &&
+      typeof parsed.blendedProfiles[valueProfileKey] === 'object'
+    ) {
+      return normalizeSnapshotData(parsed.blendedProfiles[valueProfileKey]);
+    }
+
+    return normalizeSnapshotData(parsed?.values && typeof parsed.values === 'object' ? parsed.values : parsed);
+  } catch (error) {
+    console.error('[KTC Snapshot] Error retrieving dated snapshot:', error);
     return null;
   }
 }

@@ -5,14 +5,14 @@ import type { TrpcContext } from "./_core/context";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import { z } from "zod";
-import { loadBlendedKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshotDaysAgo } from "./ktcLoader";
+import { loadBlendedKTCValues, loadKTCValuesLastWeek, loadLatestLocalKtcSnapshotBefore, loadLatestLocalWeeklyMomentumSnapshot } from "./ktcLoader";
 import type { KTCValues, LastSeasonPlayerRank } from "./reportGenerator";
-import { getKtcSnapshotFromDaysAgo } from "./ktcSnapshotJob";
+import { getKtcSnapshotFromDaysAgo, getKtcSnapshotOnOrBeforeDate } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
@@ -20,6 +20,8 @@ import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
 import { fetchFantasyProsLatestPlayerNews, fetchFantasyProsNews, fetchFantasyProsPlayerPoints, findLatestFantasyProsNewsForPlayer } from "./fantasyPros";
 import { buildRankingsBoard } from "./rankingsBoard";
+import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persistLeagueAiConfidenceSnapshot } from "./leagueAiConfidence";
+import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import {
   getFantasyProsScoringForPpr,
@@ -30,13 +32,17 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { findLeagueReportCache, insertLoginAttempt, listMonthlyRosterBlueprintSnapshots, reserveMonthlyReportGeneration, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertUser } from "./db";
+import { findLeagueReportCache, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, reserveMonthlyReportGeneration, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertUser, upsertWaiverBidHistory } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, TrendingPlayer, WaiverIntelligence } from "../shared/types";
+import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
   return fallback.replace(/\d+$/, '') || fallback;
+}
+
+function getActionPlanUserKey(user: NonNullable<TrpcContext["user"]>): string {
+  return user.openId || String(user.id);
 }
 
 function getManagerDisplayName(name: string | undefined): string {
@@ -47,6 +53,34 @@ const SLEEPER_ID_PATTERN = /^\d{8,24}$/;
 const sleeperLeagueIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a valid Sleeper league ID');
 const sleeperUserIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a valid Sleeper user ID');
 const sleeperUsernameSchema = z.string().trim().min(1).max(64);
+const actionPlanSchema = z.object({
+  id: z.string().min(1).max(256),
+  kind: z.enum(["lineup", "waiver", "trade"]),
+  leagueId: z.string().max(64).optional(),
+  manager: z.string().max(160).nullable().optional(),
+  playerId: z.string().max(64).optional(),
+  replacementPlayerId: z.string().max(64).optional(),
+  createdAt: z.number().finite(),
+  updatedAt: z.number().finite().optional(),
+  title: z.string().min(1).max(240),
+  summary: z.string().max(1200),
+  status: z.enum(["saved", "submitted", "copied", "opened", "tracked", "won", "lost", "acted", "blocked"]),
+  payload: z.record(z.string(), z.unknown()),
+}) satisfies z.ZodType<ActionPlanRecord>;
+const waiverBidHistorySchema = z.object({
+  id: z.string().min(1).max(256),
+  leagueId: z.string().max(64).optional(),
+  manager: z.string().max(160).nullable().optional(),
+  playerId: z.string().min(1).max(64),
+  playerName: z.string().min(1).max(160),
+  position: z.string().min(1).max(8),
+  bidMin: z.number().int().min(0).max(1000),
+  bidMax: z.number().int().min(0).max(1000),
+  bidLabel: z.string().min(1).max(64),
+  source: z.enum(["league-history", "model", "submitted-plan"]),
+  createdAt: z.number().finite(),
+  updatedAt: z.number().finite().optional(),
+}) satisfies z.ZodType<WaiverBidHistoryRecord>;
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 let lastRateLimitSweepAt = 0;
 
@@ -283,6 +317,206 @@ function getLeagueValueProfileKey(leagueInfo: any): string {
   return getValueSourceProfileKey(getLeagueValueBlendOptions(leagueInfo));
 }
 
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addYears(date: Date, years: number): Date {
+  const next = new Date(date);
+  next.setFullYear(next.getFullYear() + years);
+  return next;
+}
+
+function endOfDay(date: Date): Date {
+  const next = new Date(date);
+  next.setHours(23, 59, 59, 999);
+  return next;
+}
+
+function formatDateKey(date?: Date | null): string | null {
+  if (!date || Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Vancouver',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function parseSleeperTimestamp(value: unknown): Date | null {
+  if (value === null || value === undefined || value === '') return null;
+
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue) && numericValue > 0) {
+    const millis = numericValue < 10_000_000_000 ? numericValue * 1000 : numericValue;
+    const date = new Date(millis);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof value === 'string') {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+}
+
+function getDraftWindowDate(pick: any): Date | null {
+  return parseSleeperTimestamp(pick?.draft_start_time)
+    || parseSleeperTimestamp(pick?.draft_created)
+    || parseSleeperTimestamp(pick?.draft_last_picked);
+}
+
+function getLaborDay(season: number): Date {
+  const septemberFirst = new Date(Date.UTC(season, 8, 1, 12, 0, 0, 0));
+  const daysUntilMonday = (1 - septemberFirst.getUTCDay() + 7) % 7;
+  return addDays(septemberFirst, daysUntilMonday);
+}
+
+function getNflWeekStartDate(season: number, week: number): Date {
+  const boundedWeek = Math.max(1, Math.floor(week || 1));
+  return addDays(getLaborDay(season), 3 + ((boundedWeek - 1) * 7));
+}
+
+function getRedraftRegularSeasonEndValueDate(season: number, playoffWeekStart?: number): Date {
+  const boundedPlayoffWeekStart = Math.max(2, Math.floor(playoffWeekStart || 15));
+  return addDays(getNflWeekStartDate(season, boundedPlayoffWeekStart), -1);
+}
+
+function isMainDraftPick(pick: any): boolean {
+  const pickCount = Number(pick?.draft_pick_count || 0);
+  const round = Number(pick?.round || 0);
+  return pickCount >= 100 || round > 10;
+}
+
+async function loadKtcSnapshotForDate(
+  targetDate: Date | null,
+  valueProfileKey: string,
+  fallbackValues: KTCValues,
+): Promise<KTCValues> {
+  if (!targetDate) return fallbackValues;
+
+  const targetEndOfDay = endOfDay(targetDate);
+  const dbSnapshot = await getKtcSnapshotOnOrBeforeDate(targetEndOfDay, valueProfileKey);
+  if (dbSnapshot && Object.keys(dbSnapshot).length > 0) {
+    return dbSnapshot as KTCValues;
+  }
+
+  const localSnapshot = loadLatestLocalKtcSnapshotBefore(addDays(targetEndOfDay, 1), valueProfileKey);
+  return Object.keys(localSnapshot).length > 0 ? localSnapshot : fallbackValues;
+}
+
+async function buildRedraftValueWindowsBySeason(
+  draftPicks: any[],
+  fallbackValues: KTCValues,
+  valueProfileKey: string,
+  playoffWeekStartBySeason: Record<string, number>,
+): Promise<Record<string, {
+  draftValues: KTCValues;
+  currentValues: KTCValues;
+  draftValueDate: string | null;
+  currentValueDate: string | null;
+}>> {
+  const seasons = new Set<string>();
+  const draftDateBySeason = new Map<string, Date>();
+
+  for (const pick of draftPicks) {
+    const season = pick?.season ? String(pick.season) : null;
+    if (!season) continue;
+    seasons.add(season);
+
+    const draftDate = getDraftWindowDate(pick);
+    const existingDate = draftDateBySeason.get(season);
+    if (draftDate && (!existingDate || draftDate < existingDate)) {
+      draftDateBySeason.set(season, draftDate);
+    }
+  }
+
+  const windows: Record<string, {
+    draftValues: KTCValues;
+    currentValues: KTCValues;
+    draftValueDate: string | null;
+    currentValueDate: string | null;
+  }> = {};
+
+  await Promise.all(Array.from(seasons).map(async (season) => {
+    const numericSeason = Number(season);
+    const regularSeasonEndDate = Number.isFinite(numericSeason)
+      ? getRedraftRegularSeasonEndValueDate(numericSeason, playoffWeekStartBySeason[season])
+      : null;
+    const now = new Date();
+    const currentValueDate = regularSeasonEndDate && now > regularSeasonEndDate ? regularSeasonEndDate : now;
+    const draftValueDate = draftDateBySeason.get(season) || null;
+
+    const [draftValues, currentValues] = await Promise.all([
+      loadKtcSnapshotForDate(draftValueDate, valueProfileKey, fallbackValues),
+      loadKtcSnapshotForDate(currentValueDate, valueProfileKey, fallbackValues),
+    ]);
+
+    windows[season] = {
+      draftValues,
+      currentValues,
+      draftValueDate: formatDateKey(draftValueDate),
+      currentValueDate: formatDateKey(currentValueDate),
+    };
+  }));
+
+  return windows;
+}
+
+async function buildDynastyMainDraftValueWindowsByDraftId(
+  draftPicks: any[],
+  fallbackValues: KTCValues,
+  valueProfileKey: string,
+): Promise<Record<string, {
+  draftValues: KTCValues;
+  currentValues: KTCValues;
+  draftValueDate: string | null;
+  currentValueDate: string | null;
+}>> {
+  const draftDateByDraftId = new Map<string, Date>();
+
+  for (const pick of draftPicks) {
+    const draftId = pick?.draft_id ? String(pick.draft_id) : '';
+    if (!draftId || !isMainDraftPick(pick)) continue;
+
+    const draftDate = getDraftWindowDate(pick);
+    const existingDate = draftDateByDraftId.get(draftId);
+    if (draftDate && (!existingDate || draftDate < existingDate)) {
+      draftDateByDraftId.set(draftId, draftDate);
+    }
+  }
+
+  const windows: Record<string, {
+    draftValues: KTCValues;
+    currentValues: KTCValues;
+    draftValueDate: string | null;
+    currentValueDate: string | null;
+  }> = {};
+
+  await Promise.all(Array.from(draftDateByDraftId.entries()).map(async ([draftId, draftDate]) => {
+    const threeYearEndDate = addYears(draftDate, 3);
+    const now = new Date();
+    const currentValueDate = now > threeYearEndDate ? threeYearEndDate : now;
+
+    const [draftValues, currentValues] = await Promise.all([
+      loadKtcSnapshotForDate(draftDate, valueProfileKey, fallbackValues),
+      loadKtcSnapshotForDate(currentValueDate, valueProfileKey, fallbackValues),
+    ]);
+
+    windows[draftId] = {
+      draftValues,
+      currentValues,
+      draftValueDate: formatDateKey(draftDate),
+      currentValueDate: formatDateKey(currentValueDate),
+    };
+  }));
+
+  return windows;
+}
+
 function formatLeagueFormat(leagueInfo: any): string {
   const totalTeams = leagueInfo.total_rosters ? `${leagueInfo.total_rosters}-Team` : null;
   const valueMode = getLeagueValueMode(leagueInfo);
@@ -328,7 +562,7 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v33';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v35';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
 const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
 const RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP = 250;
@@ -778,6 +1012,80 @@ async function fetchLeagueTransactions(leagueId: string): Promise<any[]> {
   return weeks.flat();
 }
 
+type HistoricalTransactionContext = {
+  leagueId: string;
+  season: string;
+  transactions: any[];
+  rosterUserMap: Record<string, string>;
+  rosterUserDisplayMap: Record<string, string>;
+};
+
+async function fetchHistoricalTransactionContexts(
+  startLeagueId?: string | null,
+  seenLeagueIds = new Set<string>(),
+  maxDepth = 3
+): Promise<HistoricalTransactionContext[]> {
+  const contexts: HistoricalTransactionContext[] = [];
+  let leagueId = startLeagueId ? String(startLeagueId) : '';
+
+  for (let depth = 0; leagueId && depth < maxDepth && !seenLeagueIds.has(leagueId); depth += 1) {
+    seenLeagueIds.add(leagueId);
+    try {
+      const [leagueInfo, users, rosters] = await Promise.all([
+        fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${leagueId}`),
+        fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
+        fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
+      ]);
+      if (!leagueInfo || !Array.isArray(users) || !Array.isArray(rosters)) break;
+      const userMap = Object.fromEntries(users.map((user: any) => [user.user_id, user]));
+      const rosterUserMap = Object.fromEntries(
+        rosters.map((roster: any) => [
+          roster.roster_id,
+          normalizeManagerName(userMap[roster.owner_id]?.display_name),
+        ])
+      );
+      const rosterUserDisplayMap = Object.fromEntries(
+        rosters.map((roster: any) => [
+          roster.roster_id,
+          getManagerDisplayName(userMap[roster.owner_id]?.display_name),
+        ])
+      );
+      const transactions = await fetchLeagueTransactions(leagueId);
+      contexts.push({
+        leagueId,
+        season: String(leagueInfo.season || ''),
+        transactions,
+        rosterUserMap,
+        rosterUserDisplayMap,
+      });
+      leagueId = leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : '';
+    } catch (error) {
+      console.warn(`Failed to fetch historical Sleeper transactions for league ${leagueId}:`, error);
+      break;
+    }
+  }
+
+  return contexts;
+}
+
+function buildTransactionBackfillDiagnostics(contexts: HistoricalTransactionContext[]): NonNullable<ReportData['transactionBackfillDiagnostics']> {
+  const transactions = contexts.flatMap((context) => context.transactions);
+  return {
+    checkedLeagueCount: contexts.length,
+    seasonCount: new Set(contexts.map((context) => context.season).filter(Boolean)).size,
+    transactionCount: transactions.length,
+    waiverOrFreeAgentCount: transactions.filter((transaction) => transaction?.status === 'complete' && ['waiver', 'free_agent'].includes(transaction?.type)).length,
+    tradeProposalCount: transactions.filter((transaction) => transaction?.type === 'trade' && transaction?.status !== 'complete').length,
+    completedTradeCount: transactions.filter((transaction) => transaction?.type === 'trade' && transaction?.status === 'complete').length,
+    leagues: contexts.map((context) => ({
+      leagueId: context.leagueId,
+      season: context.season,
+      transactionCount: context.transactions.length,
+    })),
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 function buildLeagueRosterValueRankings(
   rosters: any[] = [],
   players: Record<string, any>,
@@ -789,7 +1097,7 @@ function buildLeagueRosterValueRankings(
     ...(Array.isArray(roster?.taxi) ? roster.taxi : []),
     ...(Array.isArray(roster?.reserve) ? roster.reserve : []),
   ]);
-  const valueProfilesById = buildPlayerValueProfileMap(playerIds, players, ktcValues);
+  const valueProfilesById = buildPlayerValueProfileMap(playerIds, players, ktcValues, leagueValueMode);
 
   return rosters
     .map((roster: any) => {
@@ -1153,8 +1461,37 @@ async function buildManagerChampionships(
   );
 }
 
-function getPlayerDetails(playerId: string, player: Record<string, any> | undefined, rosterStatus?: string | null): PlayerDetails | undefined {
+function normalizeDepthChartPositionForCompare(position: unknown): string | null {
+  if (typeof position !== 'string' || !position.trim()) return null;
+  const normalized = position.trim().toUpperCase();
+  if (['SWR', 'LWR', 'RWR'].includes(normalized)) return 'WR';
+  if (normalized === 'PK') return 'K';
+  if (normalized === 'HB') return 'RB';
+  return normalized;
+}
+
+function normalizeDepthChartOrderForCompare(order: unknown): number | null {
+  const numeric = Number(order);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function getPlayerDetails(
+  playerId: string,
+  player: Record<string, any> | undefined,
+  rosterStatus?: string | null,
+  actualDepthChart?: EspnDepthChartEntry
+): PlayerDetails | undefined {
   if (!player) return undefined;
+
+  const sleeperDepthChartPosition = player.depth_chart_position ?? null;
+  const sleeperDepthChartOrder = player.depth_chart_order ?? null;
+  const actualDepthChartPosition = actualDepthChart?.position ?? null;
+  const actualDepthChartOrder = actualDepthChart?.order ?? null;
+  const hasActualDepthChart = Boolean(actualDepthChartPosition && actualDepthChartOrder);
+  const depthChartMismatch = hasActualDepthChart && (
+    normalizeDepthChartPositionForCompare(sleeperDepthChartPosition) !== normalizeDepthChartPositionForCompare(actualDepthChartPosition)
+    || normalizeDepthChartOrderForCompare(sleeperDepthChartOrder) !== normalizeDepthChartOrderForCompare(actualDepthChartOrder)
+  );
 
   return {
     playerId,
@@ -1175,8 +1512,12 @@ function getPlayerDetails(playerId: string, player: Record<string, any> | undefi
     injuryStatus: player.injury_status ?? null,
     rosterStatus: rosterStatus ?? null,
     displayStatus: getDisplayStatus(player, rosterStatus),
-    depthChartPosition: player.depth_chart_position ?? null,
-    depthChartOrder: player.depth_chart_order ?? null,
+    depthChartPosition: actualDepthChartPosition ?? sleeperDepthChartPosition,
+    depthChartOrder: actualDepthChartOrder ?? sleeperDepthChartOrder,
+    sleeperDepthChartPosition,
+    sleeperDepthChartOrder,
+    depthChartVerified: hasActualDepthChart,
+    depthChartMismatch,
     yearsExp: player.years_exp ?? null,
     status: player.status ?? null,
     sleeperNewsUpdated: player.news_updated ?? null,
@@ -1246,12 +1587,13 @@ function buildPlayerDetailsMap(
   playerIds: Iterable<string>,
   players: Record<string, any>,
   rosterStatusByPlayerId: Record<string, string> = {},
-  prospectLookup?: ReturnType<typeof buildProspectLookup>
+  prospectLookup?: ReturnType<typeof buildProspectLookup>,
+  actualDepthChartsByPlayerId: Record<string, EspnDepthChartEntry> = {}
 ): Record<string, PlayerDetails> {
   return Object.fromEntries(
     Array.from(new Set(Array.from(playerIds).filter(Boolean)))
       .map((playerId) => {
-        const details = getPlayerDetails(playerId, players[playerId], rosterStatusByPlayerId[playerId]);
+        const details = getPlayerDetails(playerId, players[playerId], rosterStatusByPlayerId[playerId], actualDepthChartsByPlayerId[playerId]);
         return [
           playerId,
           details && prospectLookup
@@ -1324,7 +1666,7 @@ function getValueProfileValueForMode(
 ): number | null {
   if (!profile) return null;
   if (leagueValueMode === 'redraft') {
-    return profile.seasonValue ?? profile.fantasyProsSeasonValue ?? profile.dynastyValue ?? null;
+    return profile.seasonValue ?? profile.fantasyProsSeasonValue ?? profile.fantasyCalcRedraft ?? null;
   }
   if (leagueValueMode === 'keeper') {
     return profile.balancedValue ?? profile.dynastyValue ?? profile.seasonValue ?? null;
@@ -1338,7 +1680,7 @@ function getValueProfileRankForMode(
 ): string | null {
   if (!profile) return null;
   if (leagueValueMode === 'redraft') {
-    return profile.seasonPositionRank ?? profile.fantasyProsPositionRank ?? profile.dynastyPositionRank ?? null;
+    return profile.seasonPositionRank ?? profile.fantasyProsPositionRank ?? null;
   }
   if (leagueValueMode === 'keeper') {
     return profile.balancedPositionRank ?? profile.dynastyPositionRank ?? profile.seasonPositionRank ?? null;
@@ -1350,7 +1692,8 @@ function getPlayerValueProfile(
   playerId: string,
   players: Record<string, any>,
   ktcValues: KTCValues,
-  rankLookups?: Record<string, Partial<Record<'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank', string>>>
+  rankLookups?: Record<string, Partial<Record<'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank', string>>>,
+  leagueValueMode: LeagueValueMode = 'dynasty'
 ): PlayerDetails['valueProfile'] | undefined {
   const player = players[playerId];
   if (!player) return undefined;
@@ -1362,17 +1705,20 @@ function getPlayerValueProfile(
 
   if (!data) return undefined;
 
-  const dynastyValue = data.dynasty_value ?? data.ktc_value ?? null;
-  const seasonValue = data.redraft_value ?? data.true_value ?? data.ktc_value ?? null;
-  const contenderValue = dynastyValue && seasonValue
+  const isRedraftProfile = leagueValueMode === 'redraft';
+  const dynastyValue = isRedraftProfile ? null : data.dynasty_value ?? data.ktc_value ?? null;
+  const seasonValue = isRedraftProfile
+    ? data.redraft_value ?? data.fantasypros_season_value ?? null
+    : data.redraft_value ?? data.true_value ?? data.ktc_value ?? null;
+  const contenderValue = !isRedraftProfile && dynastyValue && seasonValue
     ? Math.round((seasonValue * 0.6) + (dynastyValue * 0.4))
-    : seasonValue ?? dynastyValue;
-  const rebuilderValue = dynastyValue && seasonValue
+    : isRedraftProfile ? null : seasonValue ?? dynastyValue;
+  const rebuilderValue = !isRedraftProfile && dynastyValue && seasonValue
     ? Math.round((dynastyValue * 0.8) + (seasonValue * 0.2))
-    : dynastyValue ?? seasonValue;
-  const balancedValue = dynastyValue && seasonValue
+    : isRedraftProfile ? null : dynastyValue ?? seasonValue;
+  const balancedValue = !isRedraftProfile && dynastyValue && seasonValue
     ? Math.round((dynastyValue * 0.55) + (seasonValue * 0.45))
-    : dynastyValue ?? seasonValue;
+    : isRedraftProfile ? null : dynastyValue ?? seasonValue;
 
   return {
     dynastyValue,
@@ -1380,27 +1726,33 @@ function getPlayerValueProfile(
     contenderValue,
     rebuilderValue,
     balancedValue,
-    dynastyPositionRank: rankLookups?.[dataKey]?.dynastyPositionRank || data.position_rank || null,
+    dynastyPositionRank: isRedraftProfile ? null : rankLookups?.[dataKey]?.dynastyPositionRank || data.position_rank || null,
     seasonPositionRank: rankLookups?.[dataKey]?.seasonPositionRank || data.fantasypros_position_rank || null,
-    contenderPositionRank: rankLookups?.[dataKey]?.contenderPositionRank || null,
-    rebuilderPositionRank: rankLookups?.[dataKey]?.rebuilderPositionRank || null,
-    balancedPositionRank: rankLookups?.[dataKey]?.balancedPositionRank || data.position_rank || null,
-    marketKtc: data.market_value_ktc ?? null,
-    flockFantasy: data.expert_value_flock ?? null,
-    flockRank: data.flock_rank ?? null,
-    flockPositionRank: data.flock_position_rank ?? null,
-    flockTier: data.flock_tier ?? null,
-    flockFormat: data.flock_format ?? null,
-    fantasyCalcDynasty: data.market_value_fantasycalc ?? null,
+    contenderPositionRank: isRedraftProfile ? null : rankLookups?.[dataKey]?.contenderPositionRank || null,
+    rebuilderPositionRank: isRedraftProfile ? null : rankLookups?.[dataKey]?.rebuilderPositionRank || null,
+    balancedPositionRank: isRedraftProfile ? null : rankLookups?.[dataKey]?.balancedPositionRank || data.position_rank || null,
+    marketKtc: isRedraftProfile ? null : data.market_value_ktc ?? null,
+    flockFantasy: isRedraftProfile ? null : data.expert_value_flock ?? null,
+    flockRank: isRedraftProfile ? null : data.flock_rank ?? null,
+    flockPositionRank: isRedraftProfile ? null : data.flock_position_rank ?? null,
+    flockTier: isRedraftProfile ? null : data.flock_tier ?? null,
+    flockFormat: isRedraftProfile ? null : data.flock_format ?? null,
+    fantasyProsDynasty: isRedraftProfile ? null : data.expert_value_fantasypros ?? null,
+    fantasyProsDynastyRank: isRedraftProfile ? null : data.fantasypros_dynasty_rank ?? null,
+    fantasyProsDynastyPositionRank: isRedraftProfile ? null : data.fantasypros_dynasty_position_rank ?? null,
+    fantasyCalcDynasty: isRedraftProfile ? null : data.market_value_fantasycalc ?? null,
     fantasyCalcRedraft: data.redraft_value ?? null,
-    dynastyProcess: data.expert_value_dynastyprocess ?? null,
-    dynastyNerds: data.expert_value_dynastynerds ?? null,
-    dynastyNerdsRank: data.dynastynerds_rank ?? null,
-    dynastyNerdsPositionRank: data.dynastynerds_position_rank ?? null,
-    dynastyNerdsFormat: data.dynastynerds_format ?? null,
-    dynastyDealerBenchmark: data.benchmark_value_dynastydealer ?? null,
-    dynastyDealerVoteRating: data.dynastydealer_vote_rating ?? null,
-    dynastyDealerUpdatedAt: data.dynastydealer_updated_at ?? null,
+    dynastyProcess: isRedraftProfile ? null : data.expert_value_dynastyprocess ?? null,
+    dynastyNerds: isRedraftProfile ? null : data.expert_value_dynastynerds ?? null,
+    fantasyNerds: isRedraftProfile ? null : data.expert_value_fantasynerds ?? null,
+    fantasyNerdsRank: isRedraftProfile ? null : data.fantasynerds_rank ?? null,
+    fantasyNerdsPositionRank: isRedraftProfile ? null : data.fantasynerds_position_rank ?? null,
+    dynastyNerdsRank: isRedraftProfile ? null : data.dynastynerds_rank ?? null,
+    dynastyNerdsPositionRank: isRedraftProfile ? null : data.dynastynerds_position_rank ?? null,
+    dynastyNerdsFormat: isRedraftProfile ? null : data.dynastynerds_format ?? null,
+    dynastyDealerBenchmark: isRedraftProfile ? null : data.benchmark_value_dynastydealer ?? null,
+    dynastyDealerVoteRating: isRedraftProfile ? null : data.dynastydealer_vote_rating ?? null,
+    dynastyDealerUpdatedAt: isRedraftProfile ? null : data.dynastydealer_updated_at ?? null,
     fantasyProsRank: data.fantasypros_rank ?? null,
     fantasyProsPositionRank: data.fantasypros_position_rank ?? null,
     fantasyProsTier: data.fantasypros_tier ?? null,
@@ -1416,9 +1768,10 @@ function getPlayerValueForLeagueMode(
   leagueValueMode: LeagueValueMode,
   valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
 ): number {
-  const profile = valueProfilesById?.[playerId] || getPlayerValueProfile(playerId, players, ktcValues);
+  const profile = valueProfilesById?.[playerId] || getPlayerValueProfile(playerId, players, ktcValues, undefined, leagueValueMode);
   const modeValue = getValueProfileValueForMode(profile, leagueValueMode);
   if (typeof modeValue === 'number' && Number.isFinite(modeValue)) return modeValue;
+  if (leagueValueMode === 'redraft') return 0;
   return getPlayerValue(playerId, players, ktcValues);
 }
 
@@ -1429,8 +1782,11 @@ function getPlayerPositionRankForLeagueMode(
   leagueValueMode: LeagueValueMode,
   valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
 ): string | null {
-  const profile = valueProfilesById?.[playerId] || getPlayerValueProfile(playerId, players, ktcValues);
-  return getValueProfileRankForMode(profile, leagueValueMode) || getPlayerCurrentPositionRank(playerId, players, ktcValues);
+  const profile = valueProfilesById?.[playerId] || getPlayerValueProfile(playerId, players, ktcValues, undefined, leagueValueMode);
+  const modeRank = getValueProfileRankForMode(profile, leagueValueMode);
+  if (modeRank) return modeRank;
+  if (leagueValueMode === 'redraft') return null;
+  return getPlayerCurrentPositionRank(playerId, players, ktcValues);
 }
 
 type WaiverLineupPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
@@ -1571,7 +1927,8 @@ function getKtcPosition(data: KTCValues[string]): 'QB' | 'RB' | 'WR' | 'TE' | 'K
 }
 
 function buildValueProfileRankLookups(
-  ktcValues: KTCValues
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode = 'dynasty'
 ): Record<string, Partial<Record<'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank', string>>> {
   type LensKey = 'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank';
   const lensValues: Record<LensKey, Array<{ key: string; position: 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF'; value: number }>> = {
@@ -1581,21 +1938,24 @@ function buildValueProfileRankLookups(
     rebuilderPositionRank: [],
     balancedPositionRank: [],
   };
+  const isRedraftProfile = leagueValueMode === 'redraft';
 
   for (const [key, data] of Object.entries(ktcValues)) {
     const position = getKtcPosition(data);
     if (!position) continue;
-    const dynastyValue = data.dynasty_value ?? data.ktc_value ?? null;
-    const seasonValue = data.redraft_value ?? data.true_value ?? data.ktc_value ?? null;
-    const contenderValue = dynastyValue && seasonValue
+    const dynastyValue = isRedraftProfile ? null : data.dynasty_value ?? data.ktc_value ?? null;
+    const seasonValue = isRedraftProfile
+      ? data.redraft_value ?? data.fantasypros_season_value ?? null
+      : data.redraft_value ?? data.true_value ?? data.ktc_value ?? null;
+    const contenderValue = !isRedraftProfile && dynastyValue && seasonValue
       ? Math.round((seasonValue * 0.6) + (dynastyValue * 0.4))
-      : seasonValue ?? dynastyValue;
-    const rebuilderValue = dynastyValue && seasonValue
+      : isRedraftProfile ? null : seasonValue ?? dynastyValue;
+    const rebuilderValue = !isRedraftProfile && dynastyValue && seasonValue
       ? Math.round((dynastyValue * 0.8) + (seasonValue * 0.2))
-      : dynastyValue ?? seasonValue;
-    const balancedValue = dynastyValue && seasonValue
+      : isRedraftProfile ? null : dynastyValue ?? seasonValue;
+    const balancedValue = !isRedraftProfile && dynastyValue && seasonValue
       ? Math.round((dynastyValue * 0.55) + (seasonValue * 0.45))
-      : dynastyValue ?? seasonValue;
+      : isRedraftProfile ? null : dynastyValue ?? seasonValue;
     const values: Record<LensKey, number | null | undefined> = {
       dynastyPositionRank: dynastyValue,
       seasonPositionRank: seasonValue,
@@ -1659,12 +2019,13 @@ function buildPrimaryPositionRankMap(
 function buildPlayerValueProfileMap(
   playerIds: Iterable<string>,
   players: Record<string, any>,
-  ktcValues: KTCValues
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode = 'dynasty'
 ): Record<string, PlayerDetails['valueProfile']> {
-  const rankLookups = buildValueProfileRankLookups(ktcValues);
+  const rankLookups = buildValueProfileRankLookups(ktcValues, leagueValueMode);
   return Object.fromEntries(
     Array.from(new Set(Array.from(playerIds).filter(Boolean)))
-      .map((playerId) => [playerId, getPlayerValueProfile(playerId, players, ktcValues, rankLookups)])
+      .map((playerId) => [playerId, getPlayerValueProfile(playerId, players, ktcValues, rankLookups, leagueValueMode)])
       .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
   );
 }
@@ -2168,6 +2529,38 @@ function buildRecentTransactions(
     });
 }
 
+function buildTradeProposalSignals(
+  transactions: any[],
+  rosterUserMap: Record<string, string>,
+  players: Record<string, any>
+): NonNullable<ReportData['tradeProposalSignals']> {
+  return [...transactions]
+    .filter((transaction) => transaction?.type === 'trade' && transaction?.status !== 'complete')
+    .sort((a, b) => Number(b?.status_updated || b?.created || 0) - Number(a?.status_updated || a?.created || 0))
+    .slice(0, 24)
+    .map((transaction) => {
+      const rosterIds = Array.isArray(transaction.roster_ids)
+        ? transaction.roster_ids
+        : [transaction.roster_id].filter(Boolean);
+      const managers = rosterIds
+        .map((rosterId: unknown) => rosterUserMap[String(rosterId)])
+        .filter((manager: string | undefined): manager is string => Boolean(manager));
+      const playerIds = Array.from(new Set(Object.keys(transaction.adds || {}).filter(Boolean)));
+      const playerNames = playerIds.map((playerId) => getPlayerName(playerId, players));
+      const status = String(transaction.status || 'unknown');
+
+      return {
+        id: String(transaction.transaction_id || `${transaction.created || transaction.status_updated}-${status}`),
+        date: new Date(Number(transaction.status_updated || transaction.created || Date.now())).toISOString(),
+        status,
+        managers,
+        playerIds,
+        playerNames,
+        note: `Sleeper returned a ${status} trade transaction${playerNames.length ? ` involving ${playerNames.slice(0, 3).join(', ')}` : ''}.`,
+      };
+    });
+}
+
 function getScoringFamily(scoringSettings: Record<string, any> | undefined): 'std' | 'half_ppr' | 'ppr' | 'custom' {
   const rec = Number(scoringSettings?.rec ?? 0);
   if (rec === 1) return 'ppr';
@@ -2308,6 +2701,80 @@ async function fetchDraftSlotsBySeason(
   return slotsBySeason;
 }
 
+async function fetchAdditionalDraftLeagueContexts(
+  startLeagueId: string | null | undefined,
+  alreadyLoadedLeagueIds: Set<string>,
+  maxDepth = 4,
+): Promise<{
+  contexts: Array<{
+    leagueId: string;
+    rosterMap: Record<string, string>;
+    rosterDisplayMap: Record<string, string>;
+    userIdToManagerMap: Record<string, string>;
+    userIdToManagerDisplayMap: Record<string, string>;
+  }>;
+  draftSlotsBySeason: Record<string, Record<number, number>>;
+}> {
+  const contexts: Array<{
+    leagueId: string;
+    rosterMap: Record<string, string>;
+    rosterDisplayMap: Record<string, string>;
+    userIdToManagerMap: Record<string, string>;
+    userIdToManagerDisplayMap: Record<string, string>;
+  }> = [];
+  let draftSlotsBySeason: Record<string, Record<number, number>> = {};
+  let nextLeagueId = startLeagueId ? String(startLeagueId) : '';
+
+  for (let depth = 0; depth < maxDepth && nextLeagueId; depth += 1) {
+    const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${nextLeagueId}`);
+    if (!leagueInfo?.league_id) break;
+
+    const leagueId = String(leagueInfo.league_id);
+    if (!alreadyLoadedLeagueIds.has(leagueId)) {
+      const [users, rosters] = await Promise.all([
+        fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`).then((value) => value || []),
+        fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`).then((value) => value || []),
+      ]);
+      const userById = Object.fromEntries(users.map((user: any) => [user.user_id, user]));
+      const rosterMap = Object.fromEntries(
+        rosters.map((roster: any) => [
+          roster.roster_id,
+          normalizeManagerName(userById[roster.owner_id]?.display_name),
+        ])
+      );
+      const rosterDisplayMap = Object.fromEntries(
+        rosters.map((roster: any) => [
+          roster.roster_id,
+          getManagerDisplayName(userById[roster.owner_id]?.display_name),
+        ])
+      );
+      const userIdToManagerMap = Object.fromEntries(
+        users.map((user: any) => [user.user_id, normalizeManagerName(user.display_name)])
+      );
+      const userIdToManagerDisplayMap = Object.fromEntries(
+        users.map((user: any) => [user.user_id, getManagerDisplayName(user.display_name)])
+      );
+
+      contexts.push({
+        leagueId,
+        rosterMap,
+        rosterDisplayMap,
+        userIdToManagerMap,
+        userIdToManagerDisplayMap,
+      });
+      draftSlotsBySeason = {
+        ...(await fetchDraftSlotsBySeason(leagueId, rosters)),
+        ...draftSlotsBySeason,
+      };
+      alreadyLoadedLeagueIds.add(leagueId);
+    }
+
+    nextLeagueId = leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : '';
+  }
+
+  return { contexts, draftSlotsBySeason };
+}
+
 async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false) {
   const prospectContext = await loadProspectContext();
   const rankingsCacheKey = getLeagueRankingsCacheKey(leagueId, getProspectRankingsCacheSegment(prospectContext.diagnostics));
@@ -2346,7 +2813,7 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
   let ktcValuesLastWeek = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);
 
   if (!ktcValuesLastWeek || Object.keys(ktcValuesLastWeek).length === 0) {
-    ktcValuesLastWeek = loadLatestLocalKtcSnapshotDaysAgo(7, leagueValueProfileKey);
+    ktcValuesLastWeek = loadLatestLocalWeeklyMomentumSnapshot(leagueValueProfileKey);
     if (Object.keys(ktcValuesLastWeek).length === 0) {
       ktcValuesLastWeek = await loadKTCValuesLastWeek();
     }
@@ -2427,6 +2894,57 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+  }),
+
+  actionPlans: router({
+    list: protectedProcedure
+      .input(z.object({
+        leagueId: z.string().max(64).optional(),
+        limit: z.number().int().min(1).max(100).optional(),
+      }).optional())
+      .query(async ({ input, ctx }) => {
+        const plans = await listActionPlans({
+          userKey: getActionPlanUserKey(ctx.user),
+          leagueId: input?.leagueId || null,
+          limit: input?.limit,
+        });
+
+        return { plans };
+      }),
+    upsert: protectedProcedure
+      .input(z.object({ plan: actionPlanSchema }))
+      .mutation(async ({ input, ctx }) => {
+        const persisted = await upsertActionPlan({
+          userKey: getActionPlanUserKey(ctx.user),
+          plan: input.plan,
+        });
+
+        return { persisted, plan: input.plan };
+      }),
+    listWaiverBidHistory: protectedProcedure
+      .input(z.object({
+        leagueId: z.string().max(64).optional(),
+        limit: z.number().int().min(1).max(150).optional(),
+      }).optional())
+      .query(async ({ input, ctx }) => {
+        const bidHistory = await listWaiverBidHistory({
+          userKey: getActionPlanUserKey(ctx.user),
+          leagueId: input?.leagueId || null,
+          limit: input?.limit,
+        });
+
+        return { bidHistory };
+      }),
+    upsertWaiverBidHistory: protectedProcedure
+      .input(z.object({ item: waiverBidHistorySchema }))
+      .mutation(async ({ input, ctx }) => {
+        const persisted = await upsertWaiverBidHistory({
+          userKey: getActionPlanUserKey(ctx.user),
+          item: input.item,
+        });
+
+        return { persisted, item: input.item };
+      }),
   }),
 
   league: router({
@@ -2534,6 +3052,32 @@ export const appRouter = router({
           }
           throw error;
         }
+      }),
+
+    getLeaguePreview: publicProcedure
+      .input(z.object({ leagueId: sleeperLeagueIdSchema }))
+      .mutation(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.getLeaguePreview',
+          max: 30,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId,
+          message: 'Too many league lookups. Please wait a few minutes and try again.',
+        });
+
+        const leagueInfo = await fetchSleeperJson<any>(
+          `https://api.sleeper.app/v1/league/${input.leagueId}`
+        );
+
+        if (!leagueInfo?.league_id) {
+          throw new Error('Invalid league ID');
+        }
+
+        return toSleeperLeagueOption(
+          leagueInfo,
+          String(leagueInfo.season || new Date().getFullYear())
+        );
       }),
 
     getUserLeagueRanks: publicProcedure
@@ -2741,16 +3285,30 @@ export const appRouter = router({
           if (ktcValuesLastWeekRaw && Object.keys(ktcValuesLastWeekRaw).length > 0) {
             ktcValuesLastWeek = ktcValuesLastWeekRaw;
           } else {
-            ktcValuesLastWeek = loadLatestLocalKtcSnapshotDaysAgo(7, leagueValueProfileKey);
+            ktcValuesLastWeek = loadLatestLocalWeeklyMomentumSnapshot(leagueValueProfileKey);
             if (Object.keys(ktcValuesLastWeek).length === 0) {
               ktcValuesLastWeek = await loadKTCValuesLastWeek();
             }
           }
           markAnalyzeStep('weekly baseline values');
 
+          const leagueValueMode = getLeagueValueMode(leagueInfo);
           const prevLeagueId = leagueInfo.previous_league_id;
+          const currentSeasonLabel = String(leagueInfo.season || new Date().getFullYear());
+          const previousSeasonFallbackLabel = String(Number(currentSeasonLabel) - 1);
+          const playoffWeekStartBySeason: Record<string, number> = {
+            [currentSeasonLabel]: Number(leagueInfo.settings?.playoff_week_start || 15),
+          };
           let pastSeasonData = null;
           let pastRosterDisplayMap: Record<string, string> = {};
+          let historicalTransactionContexts: HistoricalTransactionContext[] = [];
+          let additionalDraftLeagueContexts: Array<{
+            leagueId: string;
+            rosterMap: Record<string, string>;
+            rosterDisplayMap: Record<string, string>;
+            userIdToManagerMap: Record<string, string>;
+            userIdToManagerDisplayMap: Record<string, string>;
+          }> = [];
           let draftSlotsBySeason = await fetchDraftSlotsBySeason(input.leagueId, rosters);
           let tradedPicks: Array<{ season: string; round: number; roster_id: number; owner_id: number }> = [];
           try {
@@ -2773,6 +3331,8 @@ export const appRouter = router({
               const pastRosters = await fetch(
                 `https://api.sleeper.app/v1/league/${prevLeagueId}/rosters`
               ).then((r) => r.json());
+              const pastSeasonLabel = String(pastLeagueInfo.season || previousSeasonFallbackLabel);
+              playoffWeekStartBySeason[pastSeasonLabel] = Number(pastLeagueInfo.settings?.playoff_week_start || 15);
               const pastUserMap = Object.fromEntries(
                 pastUsers.map((u: any) => [u.user_id, u])
               );
@@ -2801,7 +3361,7 @@ export const appRouter = router({
               };
 
               pastSeasonData = {
-                label: '2025',
+                label: pastSeasonLabel,
                 trades: pastTrades,
                 rosterMap: pastRosterUserMap,
                 rosters: pastRosters,
@@ -2814,6 +3374,31 @@ export const appRouter = router({
             }
           }
           markAnalyzeStep('previous season');
+
+          historicalTransactionContexts = await fetchHistoricalTransactionContexts(
+            prevLeagueId,
+            new Set([String(input.leagueId)]),
+            3
+          );
+          markAnalyzeStep('historical transactions');
+
+          if (leagueValueMode === 'dynasty' && prevLeagueId) {
+            try {
+              const draftHistory = await fetchAdditionalDraftLeagueContexts(
+                String(prevLeagueId),
+                new Set([String(input.leagueId), String(prevLeagueId)]),
+                4,
+              );
+              additionalDraftLeagueContexts = draftHistory.contexts;
+              draftSlotsBySeason = {
+                ...draftHistory.draftSlotsBySeason,
+                ...draftSlotsBySeason,
+              };
+            } catch (error) {
+              console.warn('Failed to fetch extended dynasty draft history:', error);
+            }
+          }
+          markAnalyzeStep('extended draft history');
 
           // Create user_id to manager name map for draft analysis
           const userIdToManagerMap = Object.fromEntries(
@@ -2829,7 +3414,7 @@ export const appRouter = router({
           const currentStandings = buildCurrentStandings(rosters, rosterUserMap);
 
           const currentSeasonData = {
-            label: '2026',
+            label: currentSeasonLabel,
             trades,
             rosterMap: rosterUserMap,
             rosters,
@@ -2837,6 +3422,7 @@ export const appRouter = router({
             draftSlotsBySeason,
             rosterPositions: Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [],
             scoringSettings: leagueInfo.scoring_settings || {},
+            playoffWeekStart: Number(leagueInfo.settings?.playoff_week_start || 15),
             valueBlendProfileKey: leagueValueProfileKey,
             valueBlendProfileLabel: leagueValueProfileLabel,
           };
@@ -2866,8 +3452,7 @@ export const appRouter = router({
           }
           markAnalyzeStep('last season ranks');
 
-          const leagueValueMode = getLeagueValueMode(leagueInfo);
-          const allValueProfilesById = buildPlayerValueProfileMap(Object.keys(players), players, ktcValues);
+          const allValueProfilesById = buildPlayerValueProfileMap(Object.keys(players), players, ktcValues, leagueValueMode);
           const reportData = await generateReport(
             currentSeasonData,
             pastSeasonData,
@@ -2923,12 +3508,21 @@ export const appRouter = router({
               pastUserIdToManagerDisplayMap: pastUserDisplayMap,
               prevLeagueId,
               draftSlotsBySeason,
+              additionalDraftLeagueContexts,
+            }, {
+              leagueValueMode,
             });
             // Calculate ADP from the draft picks themselves
             const adpData = calculateADPFromPicks(draftPicks);
             if (draftPicks.length > 0) {
               const rookieValues2025 = getRookieValueBaseline('2025');
               const rookieValuesByDraftYear = getRookieValueBaselines();
+              const redraftValueWindowsBySeason = leagueValueMode === 'redraft'
+                ? await buildRedraftValueWindowsBySeason(draftPicks, ktcValues, leagueValueProfileKey, playoffWeekStartBySeason)
+                : undefined;
+              const dynastyMainDraftValueWindowsByDraftId = leagueValueMode === 'dynasty'
+                ? await buildDynastyMainDraftValueWindowsByDraftId(draftPicks, ktcValues, leagueValueProfileKey)
+                : undefined;
               draftAnalysis = await analyzeDraftPicks(
                 draftPicks,
                 players,
@@ -2943,7 +3537,12 @@ export const appRouter = router({
                   ...pastManagerDisplayNameByManager,
                   ...managerDisplayNameByManager,
                 },
-                leagueValueOptions
+                {
+                  ...leagueValueOptions,
+                  leagueValueMode,
+                  redraftValueWindowsBySeason,
+                  dynastyMainDraftValueWindowsByDraftId,
+                }
               );
             }
           } catch (e) {
@@ -3022,6 +3621,25 @@ export const appRouter = router({
             leagueValueMode,
             allValueProfilesById
           );
+          const historicalRecentTransactions = historicalTransactionContexts.flatMap((context) => buildRecentTransactions(
+            context.transactions,
+            context.rosterUserMap,
+            players,
+            ktcValues,
+            rosterStatusByPlayerId,
+            managerIntelByName,
+            context.season || currentSeason,
+            leagueValueMode,
+            allValueProfilesById
+          ));
+          const allRecentTransactions = [...recentTransactions, ...historicalRecentTransactions]
+            .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
+            .slice(0, 160);
+          const tradeProposalSignals = [
+            ...buildTradeProposalSignals(allTransactions, rosterUserMap, players),
+            ...historicalTransactionContexts.flatMap((context) => buildTradeProposalSignals(context.transactions, context.rosterUserMap, players)),
+          ].slice(0, 80);
+          const transactionBackfillDiagnostics = buildTransactionBackfillDiagnostics(historicalTransactionContexts);
           markAnalyzeStep('derived report tables');
           const prospectContext = await loadProspectContext();
           const prospectLookup = buildProspectLookup(prospectContext.profiles);
@@ -3060,11 +3678,14 @@ export const appRouter = router({
             players,
             await fetchFantasyProsNews()
           );
-          const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, prospectLookup);
+          const depthChartResult = await fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players);
+          const actualDepthChartsByPlayerId = depthChartResult.playerDepthCharts;
+          const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, prospectLookup, actualDepthChartsByPlayerId);
           markAnalyzeStep('player detail assembly');
 
           const reportPayloadData = {
             ...reportData,
+            depthChartDiagnostics: depthChartResult.diagnostics,
             prospectSourceDiagnostics: prospectContext.diagnostics,
             viewerManager,
             viewerManagerByUserId: userIdToManagerMap,
@@ -3096,7 +3717,9 @@ export const appRouter = router({
             pickPortfolios,
             powerRankings,
             waiverIntelligence,
-            recentTransactions,
+            recentTransactions: allRecentTransactions,
+            transactionBackfillDiagnostics,
+            tradeProposalSignals,
             draftPicks: draftAnalysis.draftPicks,
             draftStats: draftAnalysis.draftStats,
           };
@@ -3117,16 +3740,24 @@ export const appRouter = router({
             : [];
           markAnalyzeStep('monthly blueprint snapshot');
 
+          const leagueAiConfidenceHistory = await loadRecentLeagueAiConfidenceSnapshots(input.leagueId);
+          const reportDataWithConfidence = attachLeagueAiConfidence({
+            ...reportPayloadData,
+            monthlyBlueprintSnapshot,
+            monthlyBlueprintHistory,
+          }, leagueAiConfidenceHistory);
+          await persistLeagueAiConfidenceSnapshot({
+            leagueId: input.leagueId,
+            confidence: reportDataWithConfidence.leagueDiagnostics?.aiConfidence,
+          });
+          markAnalyzeStep('league AI confidence snapshot');
+
           const analyzePayload = {
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
             leagueLogo: getSleeperAvatarUrl(leagueInfo.avatar),
             leagueFormat: formatLeagueFormat(leagueInfo),
-            reportData: {
-              ...reportPayloadData,
-              monthlyBlueprintSnapshot,
-              monthlyBlueprintHistory,
-            },
+            reportData: reportDataWithConfidence,
           };
           markAnalyzeStep('payload assembly');
 

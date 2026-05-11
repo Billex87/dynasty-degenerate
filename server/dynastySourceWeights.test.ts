@@ -11,11 +11,13 @@ describe('dynasty source weights', () => {
 
     expect(totalWeight(weights)).toBeCloseTo(1);
     expect(weights).toMatchObject({
-      flock: 0.40,
-      dynastyNerds: 0.25,
-      ktc: 0.20,
-      fantasyCalc: 0.12,
-      dynastyProcess: 0.03,
+      flock: 0.32,
+      fantasyPros: 0.12,
+      dynastyNerds: 0.21,
+      fantasyNerds: 0.07,
+      ktc: 0.16,
+      fantasyCalc: 0.10,
+      dynastyProcess: 0.02,
     });
   });
 
@@ -24,11 +26,13 @@ describe('dynasty source weights', () => {
 
     expect(totalWeight(weights)).toBeCloseTo(1);
     expect(weights).toMatchObject({
-      flock: 0.35,
-      dynastyNerds: 0.30,
-      ktc: 0.22,
-      fantasyCalc: 0.10,
-      dynastyProcess: 0.03,
+      flock: 0.29,
+      fantasyPros: 0.12,
+      dynastyNerds: 0.25,
+      fantasyNerds: 0.07,
+      ktc: 0.17,
+      fantasyCalc: 0.08,
+      dynastyProcess: 0.02,
     });
   });
 
@@ -37,14 +41,16 @@ describe('dynasty source weights', () => {
 
     expect(totalWeight(weights)).toBeCloseTo(1);
     expect(weights.flock).toBe(0.45);
+    expect(weights.fantasyPros).toBe(0);
     expect(weights.ktc).toBe(0.35);
     expect(weights.dynastyNerds).toBe(0.20);
+    expect(weights.fantasyNerds).toBe(0);
     expect(weights.fantasyCalc).toBe(0);
     expect(weights.dynastyProcess).toBe(0);
   });
 
   it('formats weights for admin diagnostics and the rankings board', () => {
     expect(formatDynastySourceWeights(getDynastySourceWeights({ numQbs: 1, ppr: 0, tep: 0 })))
-      .toBe('Flock Fantasy 34%, Dynasty Nerds 30%, KTC 16%, FantasyCalc 17%, DynastyProcess 3%');
+      .toBe('Flock Fantasy 28%, FantasyPros Dynasty 12%, Dynasty Nerds 25%, Fantasy Nerds 7%, KTC 14%, FantasyCalc 12%, DynastyProcess 2%');
   });
 });

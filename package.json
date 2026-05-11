@@ -20,6 +20,7 @@
     "test:e2e:ui": "env -u NO_COLOR playwright test --ui",
     "test:e2e:production": "env -u NO_COLOR PRODUCTION_SMOKE=true playwright test tests/e2e/production-smoke.spec.ts --project=desktop-chrome",
     "test:e2e:production:responsive": "env -u NO_COLOR PRODUCTION_SMOKE=true playwright test tests/e2e/production-smoke.spec.ts",
+    "check:fantasypros": "node scripts/check-fantasypros.mjs",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {

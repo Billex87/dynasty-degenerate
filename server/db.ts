@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import type { InsertUser, User } from "../drizzle/schema";
+import type { ActionPlanRecord, WaiverBidHistoryRecord } from "../shared/types";
 
 type SqlClient = ReturnType<typeof neon>;
 
@@ -36,6 +37,24 @@ export type MonthlyReportGenerationReservation = {
     leagueId: string | null;
     createdAt: Date;
   } | null;
+};
+
+export type SourceHealthEventInput = {
+  job: string;
+  board?: string | null;
+  sourceKey: string;
+  source: string;
+  level: "info" | "warn" | "danger";
+  status: string;
+  rowCount?: number | null;
+  message: string;
+  payload?: unknown;
+  createdAt?: Date | string | null;
+};
+
+export type StoredSourceHealthEvent = SourceHealthEventInput & {
+  id: number;
+  createdAt: Date;
 };
 
 function getSql() {
@@ -98,6 +117,69 @@ async function ensureSchema(sql: SqlClient) {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS "redraftSourceSnapshots" (
+          id SERIAL PRIMARY KEY,
+          "snapshotKey" VARCHAR(10) NOT NULL,
+          season VARCHAR(4) NOT NULL,
+          payload TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "redraftSourceSnapshots_season_key_uidx"
+        ON "redraftSourceSnapshots" (season, "snapshotKey")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "redraftSourceSnapshots_season_key_idx"
+        ON "redraftSourceSnapshots" (season, "snapshotKey" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "devySourceSnapshots" (
+          id SERIAL PRIMARY KEY,
+          "snapshotKey" VARCHAR(10) NOT NULL,
+          "profileKey" VARCHAR(64) NOT NULL,
+          payload TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "devySourceSnapshots_profile_key_uidx"
+        ON "devySourceSnapshots" ("profileKey", "snapshotKey")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "devySourceSnapshots_profile_key_idx"
+        ON "devySourceSnapshots" ("profileKey", "snapshotKey" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "leagueAiConfidenceSnapshots" (
+          id SERIAL PRIMARY KEY,
+          "snapshotKey" VARCHAR(10) NOT NULL,
+          "leagueId" TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "leagueAiConfidenceSnapshots_league_key_uidx"
+        ON "leagueAiConfidenceSnapshots" ("leagueId", "snapshotKey")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "leagueAiConfidenceSnapshots_league_key_idx"
+        ON "leagueAiConfidenceSnapshots" ("leagueId", "snapshotKey" DESC)
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS "loginAttempts" (
           id SERIAL PRIMARY KEY,
           "eventType" VARCHAR(32) NOT NULL,
@@ -131,6 +213,32 @@ async function ensureSchema(sql: SqlClient) {
       await sql`
         CREATE INDEX IF NOT EXISTS "leagueReportCache_leagueId_updatedAt_idx"
         ON "leagueReportCache" ("leagueId", "updatedAt" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "sourceHealthEvents" (
+          id SERIAL PRIMARY KEY,
+          job TEXT NOT NULL,
+          board VARCHAR(16),
+          "sourceKey" TEXT NOT NULL,
+          source TEXT NOT NULL,
+          level VARCHAR(16) NOT NULL,
+          status VARCHAR(16) NOT NULL,
+          "rowCount" INTEGER,
+          message TEXT NOT NULL,
+          payload TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "sourceHealthEvents_createdAt_idx"
+        ON "sourceHealthEvents" ("createdAt" DESC)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "sourceHealthEvents_source_createdAt_idx"
+        ON "sourceHealthEvents" ("sourceKey", "createdAt" DESC)
       `;
 
       await sql`
@@ -174,6 +282,64 @@ async function ensureSchema(sql: SqlClient) {
       await sql`
         CREATE INDEX IF NOT EXISTS "monthlyReportGenerations_month_createdAt_idx"
         ON "monthlyReportGenerations" ("snapshotMonth", "createdAt" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "actionPlans" (
+          id SERIAL PRIMARY KEY,
+          "userKey" TEXT NOT NULL,
+          "planId" TEXT NOT NULL,
+          kind VARCHAR(16) NOT NULL,
+          "leagueId" TEXT,
+          manager TEXT,
+          "playerId" TEXT,
+          "replacementPlayerId" TEXT,
+          title TEXT NOT NULL,
+          summary TEXT,
+          status VARCHAR(16) NOT NULL,
+          payload TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "actionPlans_user_plan_uidx"
+        ON "actionPlans" ("userKey", "planId")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "actionPlans_user_league_updatedAt_idx"
+        ON "actionPlans" ("userKey", "leagueId", "updatedAt" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "waiverBidHistory" (
+          id SERIAL PRIMARY KEY,
+          "userKey" TEXT NOT NULL,
+          "historyId" TEXT NOT NULL,
+          "leagueId" TEXT,
+          manager TEXT,
+          "playerId" TEXT NOT NULL,
+          "playerName" TEXT NOT NULL,
+          position VARCHAR(8) NOT NULL,
+          "bidMin" INTEGER NOT NULL,
+          "bidMax" INTEGER NOT NULL,
+          "bidLabel" TEXT NOT NULL,
+          source VARCHAR(32) NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "waiverBidHistory_user_history_uidx"
+        ON "waiverBidHistory" ("userKey", "historyId")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "waiverBidHistory_user_league_updatedAt_idx"
+        ON "waiverBidHistory" ("userKey", "leagueId", "updatedAt" DESC)
       `;
     })();
   }
@@ -304,6 +470,22 @@ export async function findKtcSnapshotOnOrBefore(targetDate: Date) {
   return result[0]?.ktcData ?? null;
 }
 
+export async function findKtcSnapshotBetween(startDate: Date, targetDate: Date) {
+  const sql = await getDb();
+  if (!sql) return null;
+
+  const result = await sql`
+    SELECT "ktcData"
+    FROM "ktcSnapshots"
+    WHERE "snapshotDate" >= ${startDate}
+      AND "snapshotDate" <= ${targetDate}
+    ORDER BY "snapshotDate" DESC
+    LIMIT 1
+  ` as Record<string, any>[];
+
+  return result[0]?.ktcData ?? null;
+}
+
 export async function listKtcSnapshotDateKeysSince(targetDate: Date): Promise<string[]> {
   const sql = await getDb();
   if (!sql) return [];
@@ -348,6 +530,231 @@ export async function findLatestProspectSnapshot(source: string) {
   ` as Record<string, any>[];
 
   return result[0]?.prospectData ?? null;
+}
+
+export async function upsertRedraftSourceSnapshot(input: {
+  snapshotKey: string;
+  season: string;
+  payload: string;
+}) {
+  const sql = await getDb();
+  if (!sql) return false;
+
+  await sql`
+    INSERT INTO "redraftSourceSnapshots" ("snapshotKey", season, payload)
+    VALUES (${input.snapshotKey}, ${input.season}, ${input.payload})
+    ON CONFLICT (season, "snapshotKey") DO UPDATE SET
+      payload = EXCLUDED.payload,
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function findLatestRedraftSourceSnapshot(season: string) {
+  const sql = await getDb();
+  if (!sql) return null;
+
+  const result = await sql`
+    SELECT payload
+    FROM "redraftSourceSnapshots"
+    WHERE season = ${season}
+    ORDER BY "snapshotKey" DESC
+    LIMIT 1
+  ` as Record<string, any>[];
+
+  return result[0]?.payload ?? null;
+}
+
+export async function listRedraftSourceSnapshots(season: string, limit = 14) {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const boundedLimit = Math.max(1, Math.min(60, Math.floor(limit)));
+  const result = await sql`
+    SELECT "snapshotKey", payload, "updatedAt"
+    FROM "redraftSourceSnapshots"
+    WHERE season = ${season}
+    ORDER BY "snapshotKey" DESC
+    LIMIT ${boundedLimit}
+  ` as Array<{ snapshotKey?: string | null; payload?: string | null; updatedAt?: Date | string | null }>;
+
+  return result
+    .filter((row) => row.snapshotKey && row.payload)
+    .map((row) => ({
+      snapshotKey: String(row.snapshotKey),
+      payload: String(row.payload),
+      updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
+    }));
+}
+
+export async function upsertDevySourceSnapshot(input: {
+  snapshotKey: string;
+  profileKey: string;
+  payload: string;
+}) {
+  const sql = await getDb();
+  if (!sql) return false;
+
+  await sql`
+    INSERT INTO "devySourceSnapshots" ("snapshotKey", "profileKey", payload)
+    VALUES (${input.snapshotKey}, ${input.profileKey}, ${input.payload})
+    ON CONFLICT ("profileKey", "snapshotKey") DO UPDATE SET
+      payload = EXCLUDED.payload,
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function listDevySourceSnapshots(profileKey: string, limit = 14) {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const boundedLimit = Math.max(1, Math.min(60, Math.floor(limit)));
+  const result = await sql`
+    SELECT "snapshotKey", payload, "updatedAt"
+    FROM "devySourceSnapshots"
+    WHERE "profileKey" = ${profileKey}
+    ORDER BY "snapshotKey" DESC
+    LIMIT ${boundedLimit}
+  ` as Array<{ snapshotKey?: string | null; payload?: string | null; updatedAt?: Date | string | null }>;
+
+  return result
+    .filter((row) => row.snapshotKey && row.payload)
+    .map((row) => ({
+      snapshotKey: String(row.snapshotKey),
+      payload: String(row.payload),
+      updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
+    }));
+}
+
+export async function upsertLeagueAiConfidenceSnapshot(input: {
+  snapshotKey: string;
+  leagueId: string;
+  payload: string;
+}) {
+  const sql = await getDb();
+  if (!sql) return false;
+
+  await sql`
+    INSERT INTO "leagueAiConfidenceSnapshots" ("snapshotKey", "leagueId", payload)
+    VALUES (${input.snapshotKey}, ${input.leagueId}, ${input.payload})
+    ON CONFLICT ("leagueId", "snapshotKey") DO UPDATE SET
+      payload = EXCLUDED.payload,
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function listLeagueAiConfidenceSnapshots(leagueId: string, limit = 14) {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const boundedLimit = Math.max(1, Math.min(60, Math.floor(limit)));
+  const result = await sql`
+    SELECT "snapshotKey", payload, "updatedAt"
+    FROM "leagueAiConfidenceSnapshots"
+    WHERE "leagueId" = ${leagueId}
+    ORDER BY "snapshotKey" DESC
+    LIMIT ${boundedLimit}
+  ` as Array<{ snapshotKey?: string | null; payload?: string | null; updatedAt?: Date | string | null }>;
+
+  return result
+    .filter((row) => row.snapshotKey && row.payload)
+    .map((row) => ({
+      snapshotKey: String(row.snapshotKey),
+      payload: String(row.payload),
+      updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
+    }));
+}
+
+export async function insertSourceHealthEvents(events: SourceHealthEventInput[]): Promise<boolean> {
+  const sql = await getDb();
+  if (!sql || events.length === 0) return false;
+
+  for (const event of events) {
+    await sql`
+      INSERT INTO "sourceHealthEvents" (
+        job,
+        board,
+        "sourceKey",
+        source,
+        level,
+        status,
+        "rowCount",
+        message,
+        payload,
+        "createdAt"
+      )
+      VALUES (
+        ${event.job},
+        ${event.board ?? null},
+        ${event.sourceKey},
+        ${event.source},
+        ${event.level},
+        ${event.status},
+        ${event.rowCount ?? null},
+        ${event.message},
+        ${event.payload === undefined ? null : JSON.stringify(event.payload)},
+        ${event.createdAt ? new Date(event.createdAt) : new Date()}
+      )
+    `;
+  }
+
+  return true;
+}
+
+export async function listSourceHealthEventsSince(since: Date, limit = 100): Promise<StoredSourceHealthEvent[]> {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const boundedLimit = Math.max(1, Math.min(500, Math.floor(limit)));
+  const result = await sql`
+    SELECT id, job, board, "sourceKey", source, level, status, "rowCount", message, payload, "createdAt"
+    FROM "sourceHealthEvents"
+    WHERE "createdAt" >= ${since}
+    ORDER BY "createdAt" DESC
+    LIMIT ${boundedLimit}
+  ` as Array<{
+    id?: number | string | null;
+    job?: string | null;
+    board?: string | null;
+    sourceKey?: string | null;
+    source?: string | null;
+    level?: string | null;
+    status?: string | null;
+    rowCount?: number | string | null;
+    message?: string | null;
+    payload?: string | null;
+    createdAt?: Date | string | null;
+  }>;
+
+  return result.map((row) => {
+    let payload: unknown = undefined;
+    if (row.payload) {
+      try {
+        payload = JSON.parse(row.payload);
+      } catch {
+        payload = { raw: row.payload };
+      }
+    }
+
+    return {
+      id: Number(row.id),
+      job: String(row.job || 'unknown'),
+      board: row.board || null,
+      sourceKey: String(row.sourceKey || 'unknown'),
+      source: String(row.source || row.sourceKey || 'Unknown source'),
+      level: row.level === 'danger' ? 'danger' : row.level === 'warn' ? 'warn' : 'info',
+      status: String(row.status || 'unknown'),
+      rowCount: row.rowCount === null || row.rowCount === undefined ? null : Number(row.rowCount),
+      message: String(row.message || ''),
+      payload,
+      createdAt: row.createdAt ? new Date(row.createdAt) : new Date(),
+    };
+  });
 }
 
 function normalizeLoginAttempt(row: any): StoredLoginAttempt {
@@ -544,6 +951,51 @@ export async function upsertLeagueReportCache(input: {
   `;
 }
 
+export async function listLeagueReportCacheEntries(limit = 100): Promise<Array<{
+  cacheKey: string;
+  leagueId: string;
+  viewerUserId: string | null;
+  payload: unknown;
+  updatedAt: Date;
+}>> {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const boundedLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
+  const result = await sql`
+    SELECT "cacheKey", "leagueId", "viewerUserId", payload, "updatedAt"
+    FROM "leagueReportCache"
+    ORDER BY "updatedAt" DESC
+    LIMIT ${boundedLimit}
+  ` as Array<{
+    cacheKey?: string | null;
+    leagueId?: string | null;
+    viewerUserId?: string | null;
+    payload?: string | null;
+    updatedAt?: Date | string | null;
+  }>;
+
+  return result
+    .filter((row) => row.cacheKey && row.leagueId && row.payload)
+    .map((row) => {
+      let payload: unknown = null;
+      try {
+        payload = JSON.parse(String(row.payload || 'null'));
+      } catch (error) {
+        console.warn("[Database] Failed to parse cached league report during list:", error);
+      }
+
+      return {
+        cacheKey: String(row.cacheKey),
+        leagueId: String(row.leagueId),
+        viewerUserId: row.viewerUserId ? String(row.viewerUserId) : null,
+        payload,
+        updatedAt: row.updatedAt ? new Date(row.updatedAt) : new Date(),
+      };
+    })
+    .filter((entry) => Boolean(entry.payload));
+}
+
 export async function upsertMonthlyRosterBlueprintSnapshots(input: {
   leagueId: string;
   snapshotMonth: string;
@@ -607,4 +1059,275 @@ export async function listMonthlyRosterBlueprintSnapshots(input: {
       }
     })
     .filter(Boolean);
+}
+
+function normalizeActionPlanRow(row: any): ActionPlanRecord | null {
+  try {
+    const kind = row.kind === "waiver" || row.kind === "trade" ? row.kind : "lineup";
+    const status = ["submitted", "copied", "opened", "tracked", "won", "lost", "acted", "blocked"].includes(row.status)
+      ? row.status
+      : "saved";
+    return {
+      id: String(row.planId),
+      kind,
+      leagueId: row.leagueId ?? undefined,
+      manager: row.manager ?? null,
+      playerId: row.playerId ?? undefined,
+      replacementPlayerId: row.replacementPlayerId ?? undefined,
+      createdAt: new Date(row.createdAt).getTime(),
+      updatedAt: new Date(row.updatedAt).getTime(),
+      title: String(row.title || "Saved plan"),
+      summary: String(row.summary || ""),
+      status,
+      payload: row.payload ? JSON.parse(row.payload) : {},
+    };
+  } catch (error) {
+    console.warn("[Database] Failed to parse action plan:", error);
+    return null;
+  }
+}
+
+function normalizeWaiverBidHistoryRow(row: any): WaiverBidHistoryRecord {
+  return {
+    id: String(row.historyId),
+    leagueId: row.leagueId ?? undefined,
+    manager: row.manager ?? null,
+    playerId: String(row.playerId),
+    playerName: String(row.playerName || "Unknown Player"),
+    position: String(row.position || ""),
+    bidMin: Number(row.bidMin || 0),
+    bidMax: Number(row.bidMax || 0),
+    bidLabel: String(row.bidLabel || ""),
+    source: row.source === "league-history" || row.source === "model" ? row.source : "submitted-plan",
+    createdAt: new Date(row.createdAt).getTime(),
+    updatedAt: new Date(row.updatedAt).getTime(),
+  };
+}
+
+export async function upsertActionPlan(input: {
+  userKey: string;
+  plan: ActionPlanRecord;
+}): Promise<boolean> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert action plan: database not available");
+    return false;
+  }
+
+  await sql`
+    INSERT INTO "actionPlans" (
+      "userKey",
+      "planId",
+      kind,
+      "leagueId",
+      manager,
+      "playerId",
+      "replacementPlayerId",
+      title,
+      summary,
+      status,
+      payload,
+      "createdAt",
+      "updatedAt"
+    )
+    VALUES (
+      ${input.userKey},
+      ${input.plan.id},
+      ${input.plan.kind},
+      ${input.plan.leagueId ?? null},
+      ${input.plan.manager ?? null},
+      ${input.plan.playerId ?? null},
+      ${input.plan.replacementPlayerId ?? null},
+      ${input.plan.title},
+      ${input.plan.summary},
+      ${input.plan.status},
+      ${JSON.stringify(input.plan.payload || {})},
+      ${new Date(input.plan.createdAt || Date.now())},
+      NOW()
+    )
+    ON CONFLICT ("userKey", "planId") DO UPDATE SET
+      kind = EXCLUDED.kind,
+      "leagueId" = EXCLUDED."leagueId",
+      manager = EXCLUDED.manager,
+      "playerId" = EXCLUDED."playerId",
+      "replacementPlayerId" = EXCLUDED."replacementPlayerId",
+      title = EXCLUDED.title,
+      summary = EXCLUDED.summary,
+      status = EXCLUDED.status,
+      payload = EXCLUDED.payload,
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function listActionPlans(input: {
+  userKey: string;
+  leagueId?: string | null;
+  limit?: number;
+}): Promise<ActionPlanRecord[]> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list action plans: database not available");
+    return [];
+  }
+
+  const limit = Math.max(1, Math.min(Number(input.limit) || 50, 100));
+  const result = input.leagueId
+    ? await sql`
+        SELECT
+          "planId",
+          kind,
+          "leagueId",
+          manager,
+          "playerId",
+          "replacementPlayerId",
+          title,
+          summary,
+          status,
+          payload,
+          "createdAt",
+          "updatedAt"
+        FROM "actionPlans"
+        WHERE "userKey" = ${input.userKey}
+          AND "leagueId" = ${input.leagueId}
+        ORDER BY "updatedAt" DESC
+        LIMIT ${limit}
+      `
+    : await sql`
+        SELECT
+          "planId",
+          kind,
+          "leagueId",
+          manager,
+          "playerId",
+          "replacementPlayerId",
+          title,
+          summary,
+          status,
+          payload,
+          "createdAt",
+          "updatedAt"
+        FROM "actionPlans"
+        WHERE "userKey" = ${input.userKey}
+        ORDER BY "updatedAt" DESC
+        LIMIT ${limit}
+      `;
+
+  return (result as Record<string, any>[])
+    .map(normalizeActionPlanRow)
+    .filter((plan): plan is ActionPlanRecord => Boolean(plan));
+}
+
+export async function upsertWaiverBidHistory(input: {
+  userKey: string;
+  item: WaiverBidHistoryRecord;
+}): Promise<boolean> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert waiver bid history: database not available");
+    return false;
+  }
+
+  await sql`
+    INSERT INTO "waiverBidHistory" (
+      "userKey",
+      "historyId",
+      "leagueId",
+      manager,
+      "playerId",
+      "playerName",
+      position,
+      "bidMin",
+      "bidMax",
+      "bidLabel",
+      source,
+      "createdAt",
+      "updatedAt"
+    )
+    VALUES (
+      ${input.userKey},
+      ${input.item.id},
+      ${input.item.leagueId ?? null},
+      ${input.item.manager ?? null},
+      ${input.item.playerId},
+      ${input.item.playerName},
+      ${input.item.position},
+      ${input.item.bidMin},
+      ${input.item.bidMax},
+      ${input.item.bidLabel},
+      ${input.item.source},
+      ${new Date(input.item.createdAt || Date.now())},
+      NOW()
+    )
+    ON CONFLICT ("userKey", "historyId") DO UPDATE SET
+      "leagueId" = EXCLUDED."leagueId",
+      manager = EXCLUDED.manager,
+      "playerId" = EXCLUDED."playerId",
+      "playerName" = EXCLUDED."playerName",
+      position = EXCLUDED.position,
+      "bidMin" = EXCLUDED."bidMin",
+      "bidMax" = EXCLUDED."bidMax",
+      "bidLabel" = EXCLUDED."bidLabel",
+      source = EXCLUDED.source,
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function listWaiverBidHistory(input: {
+  userKey: string;
+  leagueId?: string | null;
+  limit?: number;
+}): Promise<WaiverBidHistoryRecord[]> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list waiver bid history: database not available");
+    return [];
+  }
+
+  const limit = Math.max(1, Math.min(Number(input.limit) || 80, 150));
+  const result = input.leagueId
+    ? await sql`
+        SELECT
+          "historyId",
+          "leagueId",
+          manager,
+          "playerId",
+          "playerName",
+          position,
+          "bidMin",
+          "bidMax",
+          "bidLabel",
+          source,
+          "createdAt",
+          "updatedAt"
+        FROM "waiverBidHistory"
+        WHERE "userKey" = ${input.userKey}
+          AND "leagueId" = ${input.leagueId}
+        ORDER BY "updatedAt" DESC
+        LIMIT ${limit}
+      `
+    : await sql`
+        SELECT
+          "historyId",
+          "leagueId",
+          manager,
+          "playerId",
+          "playerName",
+          position,
+          "bidMin",
+          "bidMax",
+          "bidLabel",
+          source,
+          "createdAt",
+          "updatedAt"
+        FROM "waiverBidHistory"
+        WHERE "userKey" = ${input.userKey}
+        ORDER BY "updatedAt" DESC
+        LIMIT ${limit}
+      `;
+
+  return (result as Record<string, any>[]).map(normalizeWaiverBidHistoryRow);
 }

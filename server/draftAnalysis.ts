@@ -1,4 +1,4 @@
-import { PlayerDetails, SleeperDraftPick } from '../shared/types';
+import { LeagueValueMode, PlayerDetails, SleeperDraftPick } from '../shared/types';
 import { getDynastySourceWeights } from './dynastySourceWeights';
 
 
@@ -34,10 +34,25 @@ interface RosterMappingData {
   pastUserIdToManagerDisplayMap?: Record<string, string>;
   prevLeagueId?: string;
   draftSlotsBySeason?: Record<string, Record<number, number>>;
+  additionalDraftLeagueContexts?: DraftLeagueContext[];
+}
+
+interface DraftLeagueContext {
+  leagueId: string;
+  rosterMap: Record<string, string>;
+  rosterDisplayMap?: Record<string, string>;
+  userIdToManagerMap?: Record<string, string>;
+  userIdToManagerDisplayMap?: Record<string, string>;
 }
 
 interface DraftPickWithMetadata extends SleeperDraftPick {
   draft_id?: string;
+  draft_pick_count?: number | null;
+  draft_type?: string | null;
+  draft_status?: string | null;
+  draft_created?: number | string | null;
+  draft_start_time?: number | string | null;
+  draft_last_picked?: number | string | null;
   roster_map?: Record<string, string>;
   roster_display_map?: Record<string, string>;
   user_id_to_manager_map?: Record<string, string>;
@@ -56,12 +71,36 @@ interface PositionRankData {
   redraft_value?: number;
   market_value_ktc?: number;
   expert_value_flock?: number;
+  expert_value_fantasypros?: number;
   expert_value_dynastynerds?: number;
+  expert_value_fantasynerds?: number;
   market_value_fantasycalc?: number;
   expert_value_dynastyprocess?: number;
   fantasypros_season_value?: number;
+  fantasypros_position_rank?: string | null;
+  fantasypros_rank?: number | null;
   value_sources?: string[];
   [key: string]: any;
+}
+
+interface DraftValueWindow {
+  draftValues?: Record<string, PositionRankData>;
+  currentValues?: Record<string, PositionRankData>;
+  draftValueDate?: string | null;
+  currentValueDate?: string | null;
+}
+
+interface DraftAnalysisOptions {
+  numQbs?: number;
+  ppr?: number;
+  tep?: number;
+  leagueValueMode?: LeagueValueMode;
+  redraftValueWindowsBySeason?: Record<string, DraftValueWindow>;
+  dynastyMainDraftValueWindowsByDraftId?: Record<string, DraftValueWindow>;
+}
+
+interface FetchDraftDataOptions {
+  leagueValueMode?: LeagueValueMode;
 }
 
 function isCompletedDraftPick(pick: SleeperDraftPick): boolean {
@@ -72,6 +111,16 @@ function isCompletedDraftPick(pick: SleeperDraftPick): boolean {
     String(pick.picked_by).trim() &&
     typeof pick.pick_no === 'number'
   );
+}
+
+function getDraftAdpKey(pick: Pick<SleeperDraftPick, 'player_id'> & { season?: string | number | null }): string {
+  return pick.season ? `${pick.season}:${pick.player_id}` : pick.player_id;
+}
+
+function isMainDraftPick(pick: { draft_pick_count?: number | null; round?: number | null }): boolean {
+  const pickCount = Number(pick.draft_pick_count || 0);
+  const round = Number(pick.round || 0);
+  return pickCount >= 100 || round > 10;
 }
 
 function getPlayerDetails(playerId: string, player: Record<string, any> | undefined): PlayerDetails | undefined {
@@ -125,10 +174,11 @@ export function calculateADPFromPicks(
   const playerPickPositions: Record<string, number[]> = {};
 
   allPicks.forEach((pick) => {
-    if (!playerPickPositions[pick.player_id]) {
-      playerPickPositions[pick.player_id] = [];
+    const key = getDraftAdpKey(pick);
+    if (!playerPickPositions[key]) {
+      playerPickPositions[key] = [];
     }
-    playerPickPositions[pick.player_id].push(pick.pick_no);
+    playerPickPositions[key].push(pick.pick_no);
   });
 
   const adpData: ADPData = {};
@@ -157,10 +207,12 @@ export async function analyzeDraftPicks(
   currentKTCRanks?: Record<string, { name: string; ktc_value: number; position_rank?: string }>,
   ktcValuesByDraftYear?: Record<string, Record<string, PositionRankData>>,
   managerDisplayNameByManager: Record<string, string> = {},
-  valueBlendOptions: { numQbs?: number; ppr?: number; tep?: number } = {}
+  valueBlendOptions: DraftAnalysisOptions = {}
 ): Promise<{ draftPicks: any[]; draftStats: any[] }> {
   const processedPicks: any[] = [];
   const managerStats: Map<string, any> = new Map();
+  const leagueValueMode = valueBlendOptions.leagueValueMode || 'dynasty';
+  const isRedraftAnalysis = leagueValueMode === 'redraft';
   const sourceWeights = getDynastySourceWeights({
     board: 'dynasty',
     numQbs: valueBlendOptions.numQbs ?? 2,
@@ -222,6 +274,16 @@ export async function analyzeDraftPicks(
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
   };
 
+  const getRedraftValue = (record: PositionRankData | null | undefined): number | null => {
+    if (!record) return null;
+    const value = record.redraft_value ?? record.fantasypros_season_value ?? record.ktc_value ?? record.true_value ?? record.dynasty_value;
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  };
+
+  const getRedraftPositionRank = (record: PositionRankData | null | undefined): string | null => {
+    return record?.fantasypros_position_rank || record?.position_rank || record?.position_rank_may2025 || null;
+  };
+
   const getNumberValue = (record: PositionRankData | null | undefined, field: keyof PositionRankData): number | null => {
     const value = record?.[field];
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -253,9 +315,19 @@ export async function analyzeDraftPicks(
         weight: sourceWeights.flock,
       },
       {
+        baseline: getNumberValue(baseline, 'expert_value_fantasypros'),
+        current: getNumberValue(current, 'expert_value_fantasypros'),
+        weight: sourceWeights.fantasyPros,
+      },
+      {
         baseline: getNumberValue(baseline, 'expert_value_dynastynerds'),
         current: getNumberValue(current, 'expert_value_dynastynerds'),
         weight: sourceWeights.dynastyNerds,
+      },
+      {
+        baseline: getNumberValue(baseline, 'expert_value_fantasynerds'),
+        current: getNumberValue(current, 'expert_value_fantasynerds'),
+        weight: sourceWeights.fantasyNerds,
       },
       {
         baseline: getKtcSourceValue(baseline),
@@ -288,6 +360,8 @@ export async function analyzeDraftPicks(
     RB: Math.max(1, Math.round(teamCount * 3)),
     WR: Math.max(1, Math.round(teamCount * 4)),
     TE: Math.max(1, Math.round(teamCount * 1.5)),
+    K: Math.max(1, teamCount),
+    DEF: Math.max(1, teamCount),
   });
 
   const isStarterByRank = (position: string, rank: string | null): boolean => {
@@ -325,6 +399,14 @@ export async function analyzeDraftPicks(
     if (isHit) return 'hit';
     if (isMiss) return 'miss';
     return 'neutral';
+  };
+
+  const isBeforeFreshRookieOutcomeWindow = (draftYear: string, draftKind: 'rookie' | 'startup' | 'main' | null): boolean => {
+    if (draftKind !== 'rookie') return false;
+    const draftYearNumber = Number(draftYear);
+    if (!Number.isFinite(draftYearNumber)) return false;
+    const seasonEvaluationStart = new Date(draftYearNumber, 8, 1);
+    return new Date() < seasonEvaluationStart;
   };
 
   // Initialize manager stats
@@ -372,30 +454,57 @@ export async function analyzeDraftPicks(
     const playerName = player?.full_name || 'Unknown';
     const playerPos = player?.position || 'N/A';
 
-    const adp = adpData[pick.player_id]?.adp || null;
+    const adp = adpData[getDraftAdpKey(pick)]?.adp || adpData[pick.player_id]?.adp || null;
     
     // Create slug to match KTC data
     const playerSlug = createSlug(playerName);
-    const ktcData = findPlayerData(playerName, ktcValues) || ktcValues[playerSlug];
-    let currentKtcValue = ktcData?.ktc_value || null;
-
     // Detect draft year based on season field from draft metadata
     // The season field contains the year (e.g., 2025, 2026)
     // If not available, default to 2025
     const draftYear = pick.season ? String(pick.season) : '2025';
+    const redraftValueWindow = valueBlendOptions.redraftValueWindowsBySeason?.[draftYear];
+    const dynastyMainDraftValueWindow = !isRedraftAnalysis && pick.draft_id && isMainDraftPick(pick)
+      ? valueBlendOptions.dynastyMainDraftValueWindowsByDraftId?.[pick.draft_id]
+      : undefined;
+    const currentValueRows = isRedraftAnalysis && redraftValueWindow?.currentValues
+      ? redraftValueWindow.currentValues
+      : dynastyMainDraftValueWindow?.currentValues || ktcValues;
+    const ktcData = findPlayerData(playerName, currentValueRows)
+      || findPlayerData(playerName, ktcValues)
+      || currentValueRows[playerSlug]
+      || ktcValues[playerSlug];
+    let currentKtcValue = isRedraftAnalysis
+      ? getRedraftValue(ktcData)
+      : ktcData?.ktc_value || null;
     
     
-    // Calculate value gain using the fixed draft-year rookie baseline when available.
-    // 2025 drafts use "2025 Rookie Values"; 2026 drafts use "2026 Rookie Values".
+    // Calculate value gain using the correct draft-window baseline.
+    // Dynasty keeps the fixed rookie baselines; redraft uses season-scoped draft-day
+    // and regular-season-end value windows so each redraft year resets cleanly.
     let valueGain: number | null = null;
     let draftKtcValue: number | null = null;
     let baselineRank: string | null = null;
     if (currentKtcValue !== null) {
       let baselineValue = currentKtcValue; // default to current if no baseline
-      const draftYearBaseline = ktcValuesByDraftYear?.[draftYear];
-      
-      if (draftYearBaseline) {
-        const draftYearData = findPlayerData(playerName, draftYearBaseline);
+      if (isRedraftAnalysis) {
+        const draftValueRows = redraftValueWindow?.draftValues || ktcValues;
+        const draftYearData = findPlayerData(playerName, draftValueRows)
+          || findPlayerData(playerName, ktcValues)
+          || draftValueRows[playerSlug]
+          || ktcValues[playerSlug]
+          || null;
+        const draftYearValue = getRedraftValue(draftYearData);
+        if (draftYearValue !== null) {
+          baselineValue = draftYearValue;
+          baselineRank = getRedraftPositionRank(draftYearData);
+        }
+      } else if (dynastyMainDraftValueWindow) {
+        const draftValueRows = dynastyMainDraftValueWindow.draftValues || ktcValues;
+        const draftYearData = findPlayerData(playerName, draftValueRows)
+          || findPlayerData(playerName, ktcValues)
+          || draftValueRows[playerSlug]
+          || ktcValues[playerSlug]
+          || null;
         const sourceMatchedValues = getSourceMatchedValues(draftYearData, ktcData);
         const draftYearValue = sourceMatchedValues?.baselineValue ?? getBaselineValue(draftYearData);
         if (draftYearValue) {
@@ -405,23 +514,38 @@ export async function analyzeDraftPicks(
           }
           baselineRank = draftYearData.position_rank || draftYearData.position_rank_may2025 || null;
         }
-      } else if (ktcValuesMay2025) {
-        // Prefer May 2025 baseline for accurate 2025 draft-day comparison
-        const may2025Data = findPlayerData(playerName, ktcValuesMay2025);
-        const sourceMatchedValues = getSourceMatchedValues(may2025Data, ktcData);
-        const may2025Value = sourceMatchedValues?.baselineValue ?? getBaselineValue(may2025Data);
-        if (may2025Value) {
-          baselineValue = may2025Value;
-          if (sourceMatchedValues?.currentValue) {
-            currentKtcValue = sourceMatchedValues.currentValue;
+      } else {
+        const draftYearBaseline = ktcValuesByDraftYear?.[draftYear];
+
+        if (draftYearBaseline) {
+          const draftYearData = findPlayerData(playerName, draftYearBaseline);
+          const sourceMatchedValues = getSourceMatchedValues(draftYearData, ktcData);
+          const draftYearValue = sourceMatchedValues?.baselineValue ?? getBaselineValue(draftYearData);
+          if (draftYearValue) {
+            baselineValue = draftYearValue;
+            if (sourceMatchedValues?.currentValue) {
+              currentKtcValue = sourceMatchedValues.currentValue;
+            }
+            baselineRank = draftYearData.position_rank || draftYearData.position_rank_may2025 || null;
           }
-          baselineRank = may2025Data.position_rank_may2025 || null;
-        }
-      } else if (ktcValuesLastWeek) {
-        // Fall back to last week's KTC as approximation
-        const lastWeekKtcData = findPlayerData(playerName, ktcValuesLastWeek) || ktcValuesLastWeek[playerSlug];
-        if (lastWeekKtcData?.ktc_value) {
-          baselineValue = lastWeekKtcData.ktc_value;
+        } else if (ktcValuesMay2025) {
+          // Prefer May 2025 baseline for accurate 2025 draft-day comparison
+          const may2025Data = findPlayerData(playerName, ktcValuesMay2025);
+          const sourceMatchedValues = getSourceMatchedValues(may2025Data, ktcData);
+          const may2025Value = sourceMatchedValues?.baselineValue ?? getBaselineValue(may2025Data);
+          if (may2025Value) {
+            baselineValue = may2025Value;
+            if (sourceMatchedValues?.currentValue) {
+              currentKtcValue = sourceMatchedValues.currentValue;
+            }
+            baselineRank = may2025Data.position_rank_may2025 || null;
+          }
+        } else if (ktcValuesLastWeek) {
+          // Fall back to last week's KTC as approximation
+          const lastWeekKtcData = findPlayerData(playerName, ktcValuesLastWeek) || ktcValuesLastWeek[playerSlug];
+          if (lastWeekKtcData?.ktc_value) {
+            baselineValue = lastWeekKtcData.ktc_value;
+          }
         }
       }
       draftKtcValue = baselineValue;
@@ -432,7 +556,7 @@ export async function analyzeDraftPicks(
     let positionRankMay2025: string | null = null;
     if (baselineRank) {
       positionRankMay2025 = baselineRank;
-    } else if (ktcValuesMay2025) {
+    } else if (!isRedraftAnalysis && !dynastyMainDraftValueWindow && ktcValuesMay2025) {
       const may2025Data = findPlayerData(playerName, ktcValuesMay2025);
       positionRankMay2025 = may2025Data?.position_rank_may2025 || null;
       
@@ -444,7 +568,11 @@ export async function analyzeDraftPicks(
     let currentPositionRank: string | null = null;
     
     // Get current position rank from KTC data
-    if (currentKTCRanks) {
+    if (isRedraftAnalysis) {
+      currentPositionRank = getRedraftPositionRank(ktcData);
+    } else if (dynastyMainDraftValueWindow) {
+      currentPositionRank = ktcData?.position_rank || null;
+    } else if (currentKTCRanks) {
       const currentRankData = findPlayerData(playerName, currentKTCRanks);
       currentPositionRank = currentRankData?.position_rank || null;
     }
@@ -465,8 +593,16 @@ export async function analyzeDraftPicks(
     // Headshot URLs removed - was causing TLS connection errors
     // Can be re-enabled with a more reliable image source in the future
 
+    const mainDraftPick = isMainDraftPick(pick);
+    const draftKind = isRedraftAnalysis
+      ? 'main'
+      : mainDraftPick
+        ? 'startup'
+        : 'rookie';
     const isStarter = isStarterOutcome(playerPos, currentPositionRank, currentKtcValue);
-    const draftOutcome = getDraftOutcome(positionRankChange, valueGain, draftYear);
+    const draftOutcome = isBeforeFreshRookieOutcomeWindow(draftYear, draftKind)
+      ? 'neutral'
+      : getDraftOutcome(positionRankChange, valueGain, draftYear);
 
     const processedPick: any = {
       round: pick.round,
@@ -489,6 +625,15 @@ export async function analyzeDraftPicks(
       currentPositionRank,
       positionRankChange,
       draftYear,
+      draftKind,
+      draftPickCount: pick.draft_pick_count ?? null,
+      draftType: pick.draft_type || null,
+      draftValueDate: isRedraftAnalysis
+        ? redraftValueWindow?.draftValueDate || null
+        : dynastyMainDraftValueWindow?.draftValueDate || null,
+      currentValueDate: isRedraftAnalysis
+        ? redraftValueWindow?.currentValueDate || null
+        : dynastyMainDraftValueWindow?.currentValueDate || null,
       player_id: pick.player_id,
       playerDetails: getPlayerDetails(pick.player_id, player),
     };
@@ -545,7 +690,8 @@ export async function analyzeDraftPicks(
 
 export async function fetchDraftData(
   leagueId: string,
-  rosterMappingData: RosterMappingData
+  rosterMappingData: RosterMappingData,
+  options: FetchDraftDataOptions = {}
 ): Promise<DraftPickWithMetadata[]> {
   const {
     currentRosterMap,
@@ -558,7 +704,9 @@ export async function fetchDraftData(
     pastUserIdToManagerDisplayMap,
     prevLeagueId,
     draftSlotsBySeason,
+    additionalDraftLeagueContexts,
   } = rosterMappingData;
+  const leagueValueMode = options.leagueValueMode || 'dynasty';
   
   const allPicks: DraftPickWithMetadata[] = [];
 
@@ -576,69 +724,70 @@ export async function fetchDraftData(
     return typeof pick.roster_id === 'number' ? pick.roster_id : null;
   };
 
-  try {
-    // Fetch current season drafts
-    const currentDrafts = await fetch(
-      `https://api.sleeper.app/v1/league/${leagueId}/drafts`
+  const appendDraftsForLeague = async (context: DraftLeagueContext) => {
+    const drafts = await fetch(
+      `https://api.sleeper.app/v1/league/${context.leagueId}/drafts`
     ).then((r) => r.json());
 
-    if (Array.isArray(currentDrafts)) {
-      for (const draft of currentDrafts) {
-        const draftPicks = await fetch(
-          `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
-        ).then((r) => r.json());
+    if (!Array.isArray(drafts)) return;
 
-        if (Array.isArray(draftPicks)) {
-          draftPicks.forEach((pick: SleeperDraftPick) => {
-            allPicks.push({
-              ...pick,
-              draft_id: draft.draft_id,
-              roster_map: currentRosterMap,
-              roster_display_map: currentRosterDisplayMap,
-              user_id_to_manager_map: currentUserIdToManagerMap,
-              user_id_to_manager_display_map: currentUserIdToManagerDisplayMap,
-              season: draft.season,
-              original_roster_id: getOriginalRosterId(draft.season, pick),
-            });
+    for (const draft of drafts) {
+      const draftPicks = await fetch(
+        `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
+      ).then((r) => r.json());
+
+      if (Array.isArray(draftPicks)) {
+        draftPicks.forEach((pick: SleeperDraftPick) => {
+          allPicks.push({
+            ...pick,
+            draft_id: draft.draft_id,
+            draft_type: draft.type || null,
+            draft_status: draft.status || null,
+            draft_created: draft.created ?? null,
+            draft_start_time: draft.start_time ?? null,
+            draft_last_picked: draft.last_picked ?? null,
+            roster_map: context.rosterMap,
+            roster_display_map: context.rosterDisplayMap,
+            user_id_to_manager_map: context.userIdToManagerMap,
+            user_id_to_manager_display_map: context.userIdToManagerDisplayMap,
+            season: draft.season,
+            original_roster_id: getOriginalRosterId(draft.season, pick),
           });
-        }
+        });
       }
     }
+  };
+
+  try {
+    await appendDraftsForLeague({
+      leagueId,
+      rosterMap: currentRosterMap,
+      rosterDisplayMap: currentRosterDisplayMap,
+      userIdToManagerMap: currentUserIdToManagerMap,
+      userIdToManagerDisplayMap: currentUserIdToManagerDisplayMap,
+    });
 
     // Fetch past season drafts if available
     if (prevLeagueId) {
-      const pastDrafts = await fetch(
-        `https://api.sleeper.app/v1/league/${prevLeagueId}/drafts`
-      ).then((r) => r.json());
+      await appendDraftsForLeague({
+        leagueId: prevLeagueId,
+        rosterMap: pastRosterMap,
+        rosterDisplayMap: pastRosterDisplayMap,
+        userIdToManagerMap: pastUserIdToManagerMap,
+        userIdToManagerDisplayMap: pastUserIdToManagerDisplayMap,
+      });
+    }
 
-      if (Array.isArray(pastDrafts)) {
-        for (const draft of pastDrafts) {
-          const draftPicks = await fetch(
-            `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
-          ).then((r) => r.json());
-
-          if (Array.isArray(draftPicks)) {
-            draftPicks.forEach((pick: SleeperDraftPick) => {
-              allPicks.push({
-                ...pick,
-                draft_id: draft.draft_id,
-                roster_map: pastRosterMap,
-                roster_display_map: pastRosterDisplayMap,
-                user_id_to_manager_map: pastUserIdToManagerMap,
-                user_id_to_manager_display_map: pastUserIdToManagerDisplayMap,
-                season: draft.season,
-                original_roster_id: getOriginalRosterId(draft.season, pick),
-              });
-            });
-          }
-        }
+    for (const context of additionalDraftLeagueContexts || []) {
+      if (context.leagueId && context.leagueId !== leagueId && context.leagueId !== prevLeagueId) {
+        await appendDraftsForLeague(context);
       }
     }
 
     const completedPicks = allPicks.filter(isCompletedDraftPick);
 
-    // Filter to only include rookie drafts with fewer than 100 picked players
-    // Count picks per draft_id
+    // Count picks per draft_id. Redraft and dynasty reports include the full
+    // main draft; keeper reports keep the legacy rookie-sized draft filter.
     const pickCountByDraft: Record<string, number> = {};
     completedPicks.forEach((pick) => {
       if (pick.draft_id) {
@@ -646,9 +795,14 @@ export async function fetchDraftData(
       }
     });
     
-    // Filter to only include drafts with fewer than 100 picks (rookie drafts)
-    return completedPicks.filter((pick) => {
+    const completedPicksWithCounts = completedPicks.map((pick) => ({
+      ...pick,
+      draft_pick_count: pick.draft_id ? pickCountByDraft[pick.draft_id] || null : null,
+    }));
+
+    return completedPicksWithCounts.filter((pick) => {
       if (!pick.draft_id) return true; // Include picks without draft_id
+      if (leagueValueMode === 'redraft' || leagueValueMode === 'dynasty') return true;
       const pickCount = pickCountByDraft[pick.draft_id] || 0;
       return pickCount < 100; // Only include picks from drafts with fewer than 100 picks
     });

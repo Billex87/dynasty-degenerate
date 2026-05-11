@@ -122,8 +122,8 @@ export function getValueDisplayConfig(
       showDynastyValue: true,
       showSeasonValue: false,
       hideUnsupportedDynasty: false,
-      title: 'Rookie Draft',
-      description: 'Draft-day value, current dynasty value, board decisions, and long-term value gained or lost.',
+      title: 'Draft History',
+      description: 'Rookie and startup draft-day value, current dynasty value, board decisions, and long-term value gained or lost.',
     };
   }
 
@@ -245,7 +245,7 @@ export function getLeagueModeCopy(modeInput: ReportData['leagueValueMode'] | str
         rankingsKicker: 'League-matched values',
         rankingsDescription: 'Format-aware dynasty player and pick values matched to this league type. Use the selector to compare how the board shifts across SuperFlex, Standard, and TE-premium rooms.',
         tradeWarKicker: 'Context-aware calculator',
-        draftTitle: 'Rookie Draft',
-        draftKicker: 'Draft capital and board value',
+        draftTitle: 'Draft History',
+        draftKicker: 'Startup, rookie, and board value',
       };
 }

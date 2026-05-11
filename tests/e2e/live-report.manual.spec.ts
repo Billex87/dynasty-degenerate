@@ -2,8 +2,22 @@ import { expect, test } from '@playwright/test';
 
 const runLiveReportE2E = process.env.RUN_LIVE_REPORT_E2E === 'true';
 const sleeperUsername = process.env.LIVE_SLEEPER_USERNAME || 'mynameisbillex';
-const dynastyLeagueName = process.env.LIVE_DYNASTY_LEAGUE || 'Skids Get Beat';
-const redraftLeagueName = process.env.LIVE_REDRAFT_LEAGUE || 'test league';
+const dynastyLeagueNames = parseLeagueNames(
+  process.env.LIVE_DYNASTY_LEAGUES || process.env.LIVE_DYNASTY_LEAGUE,
+  ['Skids Get Beat', 'The Fantasy Degenerates'],
+);
+const redraftLeagueNames = parseLeagueNames(
+  process.env.LIVE_REDRAFT_LEAGUES || process.env.LIVE_REDRAFT_LEAGUE,
+  ['test league', 'Gov Tech Grid Iron'],
+);
+
+function parseLeagueNames(value: string | undefined, fallback: string[]) {
+  const parsed = String(value || '')
+    .split(',')
+    .map((leagueName) => leagueName.trim())
+    .filter(Boolean);
+  return parsed.length ? parsed : fallback;
+}
 
 test.describe('manual live report regression', () => {
   test.skip(!runLiveReportE2E, 'Set RUN_LIVE_REPORT_E2E=true to run live Sleeper-backed report checks.');
@@ -33,31 +47,56 @@ test.describe('manual live report regression', () => {
     await expect(page.getByRole('tab', { name: 'Rankings' })).toBeVisible({ timeout: 120_000 });
   }
 
-  test('Skids Get Beat live dynasty report keeps dynasty-specific surfaces', async ({ page }) => {
-    await runLeagueReport(page, dynastyLeagueName);
+  for (const leagueName of dynastyLeagueNames) {
+    test(`${leagueName} live dynasty report keeps dynasty-specific surfaces`, async ({ page }) => {
+      await runLeagueReport(page, leagueName);
 
-    await page.getByRole('tab', { name: 'Rankings' }).click();
-    await expect(page.getByText('Full Roster Rankings')).toBeVisible();
-    await expect(page.getByText('League-matched player values')).toBeVisible();
+      await page.getByRole('tab', { name: 'Rankings' }).click();
+      await expect(page.getByText('Full Roster Rankings')).toBeVisible();
+      await expect(page.getByText('League-matched player values')).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Draft History' }).click();
-    await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
-    await expect(page.getByText('Rookie Draft', { exact: false }).or(page.getByText('Draft Capital', { exact: false })).first()).toBeVisible();
-  });
+      await page.getByRole('tab', { name: 'Draft History' }).click();
+      await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
+      await expect(
+        page.getByText('Rookie Draft', { exact: false })
+          .or(page.getByText('Startup Draft', { exact: false }))
+          .or(page.getByText('Main Draft', { exact: false }))
+          .or(page.getByText('Draft Capital', { exact: false }))
+          .first(),
+      ).toBeVisible();
 
-  test('test league live redraft report avoids dynasty-first copy', async ({ page }) => {
-    await runLeagueReport(page, redraftLeagueName);
+      const bodyText = await page.locator('body').innerText();
+      expect(bodyText).not.toContain('2026-05-07');
+      expect(bodyText).not.toContain('May 7, 2026');
+    });
+  }
 
-    await page.getByRole('tab', { name: 'Rankings' }).click();
-    await expect(page.getByText('Current-season player values', { exact: false })).toBeVisible();
+  for (const leagueName of redraftLeagueNames) {
+    test(`${leagueName} live redraft report avoids dynasty-first copy`, async ({ page }) => {
+      await runLeagueReport(page, leagueName);
 
-    await page.getByRole('tab', { name: 'Trade History' }).click();
-    await expect(page.getByText('Trade Value Leaderboard')).toBeVisible();
+      await page.getByRole('tab', { name: 'Rankings' }).click();
+      await expect(page.getByText('Current-season player values', { exact: false })).toBeVisible();
 
-    const bodyText = await page.locator('body').innerText();
-    expect(bodyText).not.toContain('DYNASTY OWNER READS');
-    expect(bodyText).not.toContain('DYNASTY VALUE BOARD');
-    expect(bodyText).not.toContain('Taxi Stash');
-    expect(bodyText).not.toContain('Draft Capital Efficiency');
-  });
+      await page.getByRole('tab', { name: 'Trade History' }).click();
+      await expect(page.getByText('Trade Value Leaderboard')).toBeVisible();
+
+      await page.getByRole('tab', { name: 'Draft History' }).click();
+      await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
+      await expect(
+        page.getByText('Draft Recap', { exact: false })
+          .or(page.getByText('Main Draft', { exact: false }))
+          .or(page.getByText('Season value window', { exact: false }))
+          .first(),
+      ).toBeVisible();
+
+      const bodyText = await page.locator('body').innerText();
+      expect(bodyText).not.toContain('DYNASTY OWNER READS');
+      expect(bodyText).not.toContain('DYNASTY VALUE BOARD');
+      expect(bodyText).not.toContain('Taxi Stash');
+      expect(bodyText).not.toContain('Draft Capital Efficiency');
+      expect(bodyText).not.toContain('2026-05-07');
+      expect(bodyText).not.toContain('May 7, 2026');
+    });
+  }
 });

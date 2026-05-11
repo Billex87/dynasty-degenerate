@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { hasUsableBlendedSnapshotValues, sanitizeKtcSnapshotValues } from './ktcLoader';
+import { hasUsableBlendedSnapshotValues, loadLatestLocalWeeklyMomentumSnapshot, sanitizeKtcSnapshotValues } from './ktcLoader';
+import { getWeeklyMomentumBaselineTargetDateKey, getWeeklyMomentumPctChange, isWeeklyMomentumBaselineFloorActive } from './valueBaselinePolicy';
 
 describe('hasUsableBlendedSnapshotValues', () => {
   it('rejects league-matched blended snapshots without source metadata', () => {
@@ -88,5 +89,24 @@ describe('hasUsableBlendedSnapshotValues', () => {
       expert_value_flock: 949,
       value_sources: ['FlockFantasy', 'DynastyProcess'],
     });
+  });
+});
+
+describe('weekly momentum baseline policy', () => {
+  it('floors the temporary weekly comparison baseline to May 7, 2026', () => {
+    expect(getWeeklyMomentumBaselineTargetDateKey(7, new Date('2026-05-11T12:00:00-07:00'))).toBe('2026-05-07');
+    expect(getWeeklyMomentumBaselineTargetDateKey(7, new Date('2026-05-16T12:00:00-07:00'))).toBe('2026-05-09');
+    expect(isWeeklyMomentumBaselineFloorActive(7, new Date('2026-05-11T12:00:00-07:00'))).toBe(true);
+    expect(isWeeklyMomentumBaselineFloorActive(7, new Date('2026-05-16T12:00:00-07:00'))).toBe(false);
+  });
+
+  it('loads the May 7 local snapshot while the real seven-day target is earlier', () => {
+    const baseline = loadLatestLocalWeeklyMomentumSnapshot('12_sf_ppr_base');
+    expect(baseline.bijanrobinson?.value_sources).toEqual(expect.arrayContaining(['FlockFantasy', 'DynastyNerds']));
+  });
+
+  it('drops movement percentages with tiny denominator baselines', () => {
+    expect(getWeeklyMomentumPctChange(1400, 3)).toBeNull();
+    expect(getWeeklyMomentumPctChange(3500, 3000)).toBeCloseTo(16.666, 2);
   });
 });

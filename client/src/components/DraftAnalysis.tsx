@@ -11,10 +11,11 @@ import { EmptyState, MetricPill, PreviewMetricChips, ReportSectionHeader, type P
 import { AIReadPanel } from './AIReadPanel';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
+import { getDraftKind, getDraftKindLabel, getDraftKindShortLabel, getDraftMarketMovementLabel, getDraftWindowLabel, isFreshRookieMarketRead } from '@/lib/draftDisplay';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
-import { readCsvParam, readEnumParam, readOptionalEnumParam, replaceUrlSearchParams } from '@/lib/reportUrlState';
+import { readEnumParam, readOptionalEnumParam, replaceUrlSearchParams } from '@/lib/reportUrlState';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -45,9 +46,9 @@ function formatDraftAge(age?: number | string | null): string {
 
 function getDraftCurrentValue(pick: DraftPick, leagueValueMode: LeagueValueMode): number {
   if (leagueValueMode === 'redraft') {
-    const seasonValue = pick.playerDetails?.valueProfile?.seasonValue
+    const seasonValue = pick.currentKtcValue
+      ?? pick.playerDetails?.valueProfile?.seasonValue
       ?? pick.playerDetails?.valueProfile?.fantasyProsSeasonValue
-      ?? pick.currentKtcValue
       ?? 0;
     return Math.round(seasonValue || 0);
   }
@@ -77,6 +78,41 @@ function renderPreviewManagerIdentity(
   );
 }
 
+function getDraftGroupKey(pick: DraftPick, leagueValueMode: LeagueValueMode): string {
+  return `${pick.draftYear || 'Draft'}::${getDraftKind(pick, leagueValueMode)}`;
+}
+
+function getDraftGroupYear(groupKey: string): string {
+  return groupKey.split('::')[0] || groupKey;
+}
+
+function getDraftGroupKindOrder(groupKey: string): number {
+  const kind = groupKey.split('::')[1];
+  if (kind === 'main' || kind === 'startup') return 0;
+  if (kind === 'rookie') return 1;
+  return 2;
+}
+
+function compareDraftGroupKeys(a: string, b: string): number {
+  const yearDiff = Number(getDraftGroupYear(b) || 0) - Number(getDraftGroupYear(a) || 0);
+  if (yearDiff !== 0) return yearDiff;
+  const kindDiff = getDraftGroupKindOrder(a) - getDraftGroupKindOrder(b);
+  if (kindDiff !== 0) return kindDiff;
+  return a.localeCompare(b);
+}
+
+function getDraftGroupTitle(groupKey: string, picks: DraftPick[], leagueValueMode: LeagueValueMode): string {
+  const draftYear = getDraftGroupYear(groupKey);
+  const draftKindLabels = Array.from(new Set(
+    picks.map((pick) => getDraftKindLabel(getDraftKind(pick, leagueValueMode)))
+  ));
+  const label = draftKindLabels.length === 1
+    ? draftKindLabels[0]
+    : 'Drafts';
+
+  return /^\d{4}$/.test(draftYear) ? `${draftYear} ${label}` : label;
+}
+
 function buildDraftStatsPreviewMetrics(
   stats: ManagerDraftStats[],
   leagueValueMode: LeagueValueMode,
@@ -103,14 +139,16 @@ function buildDraftDecisionPreviewMetrics(
   const worstDecisionMaker = getWorstDecisionMaker(audits);
   return [
     bestDecisionMaker ? {
-      label: 'Best Decision Maker',
+      label: 'Cleanest Draft Read',
       value: renderPreviewManagerIdentity(bestDecisionMaker.manager, bestDecisionMaker.managerDisplayName, managerAvatars),
       tone: 'good',
+      className: 'analysis-preview-chip-manager-preview',
     } : null,
     worstDecisionMaker ? {
-      label: 'Worst Decision Maker',
+      label: 'Biggest Audit Flag',
       value: renderPreviewManagerIdentity(worstDecisionMaker.manager, worstDecisionMaker.managerDisplayName, managerAvatars),
       tone: worstDecisionMaker.watchFlags ? 'danger' : 'warn',
+      className: 'analysis-preview-chip-manager-preview',
     } : null,
   ].filter(Boolean) as PreviewMetric[];
 }
@@ -123,7 +161,11 @@ function buildDraftYearPreviewMetrics(
 ): PreviewMetric[] {
   const topGain = [...picks].sort((a, b) => (b.valueGain || 0) - (a.valueGain || 0))[0];
   const biggestMiss = [...picks].sort((a, b) => (a.valueGain || 0) - (b.valueGain || 0))[0];
-  const hitCount = picks.filter((pick) => pick.draftOutcome === 'hit' || pick.isStarter).length;
+  const hitCount = picks.filter((pick) => (
+    !isFreshRookieMarketRead(pick, leagueValueMode)
+    && (pick.draftOutcome === 'hit' || pick.isStarter)
+  )).length;
+  const draftWindowLabel = getDraftWindowLabel(picks, leagueValueMode);
   const yearPickKeys = new Set(picks.map(getDraftPickKey));
   const yearDecisionRows = buildManagerDraftDecisionAudits(
     draftDecisionAudits.filter((audit) => yearPickKeys.has(getDraftPickKey(audit.pick))),
@@ -139,15 +181,18 @@ function buildDraftYearPreviewMetrics(
     topGain ? { label: leagueValueMode === 'redraft' ? 'Top Current Gain' : 'Top Gain', value: topGain.playerName, tone: 'good' } : null,
     biggestMiss && (biggestMiss.valueGain || 0) < 0 ? { label: 'Biggest Miss', value: biggestMiss.playerName, tone: 'danger' } : null,
     picks.length ? { label: leagueValueMode === 'redraft' ? 'Starter Hit Rate' : 'Hit Rate', value: `${Math.round((hitCount / picks.length) * 100)}%`, tone: 'info' } : null,
+    draftWindowLabel ? { label: 'Value Basis', value: draftWindowLabel, tone: 'info' } : null,
     bestDecisionMaker ? {
-      label: 'Best Decisions',
+      label: 'Cleanest Read',
       value: renderPreviewManagerIdentity(bestDecisionMaker.manager, bestDecisionMaker.managerDisplayName, managerAvatars),
       tone: 'good',
+      className: 'analysis-preview-chip-manager-preview',
     } : null,
     worstDecisionMaker ? {
-      label: 'Worst Decisions',
+      label: 'Audit Flag',
       value: renderPreviewManagerIdentity(worstDecisionMaker.manager, worstDecisionMaker.managerDisplayName, managerAvatars),
       tone: worstDecisionMaker.watchFlags ? 'danger' : 'warn',
+      className: 'analysis-preview-chip-manager-preview',
     } : null,
     picks.length ? { label: 'Clean Reads', value: cleanDecisionRate, tone: cleanDecisionCount === picks.length ? 'good' : 'info' } : null,
   ].filter(Boolean) as PreviewMetric[];
@@ -172,7 +217,7 @@ export function DraftAnalysis({
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>(() => readOptionalEnumParam('draftSort', DRAFT_SORT_COLUMNS));
   const [sortDirection, setSortDirection] = useState<SortDirection>(() => readEnumParam('draftDir', DRAFT_SORT_DIRECTIONS, 'desc'));
-  const [openDraftYears, setOpenDraftYears] = useState<Set<string>>(() => new Set(readCsvParam('draftOpen')));
+  const [openDraftYears, setOpenDraftYears] = useState<Set<string>>(() => new Set());
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
   const isRedraft = leagueValueMode === 'redraft';
 
@@ -217,18 +262,18 @@ export function DraftAnalysis({
 
   const draftPicksByYear = useMemo(() => {
     return sortedDraftPicks.reduce<Record<string, DraftPick[]>>((groups, pick) => {
-      const year = pick.draftYear || 'Draft';
+      const year = getDraftGroupKey(pick, leagueValueMode);
       groups[year] = groups[year] || [];
       groups[year].push(pick);
       return groups;
     }, {});
-  }, [sortedDraftPicks]);
+  }, [leagueValueMode, sortedDraftPicks]);
   const draftOpportunityByPick = useMemo(
     () => buildDraftOpportunityMap(draftPicks, managerRosterIntelligence || []),
     [draftPicks, managerRosterIntelligence]
   );
   const orderedDraftStats = useMemo(() => sortManagerDraftStatsByEfficiency(draftStats), [draftStats]);
-  const draftYears = useMemo(() => Object.keys(draftPicksByYear).sort((a, b) => Number(b) - Number(a)), [draftPicksByYear]);
+  const draftYears = useMemo(() => Object.keys(draftPicksByYear).sort(compareDraftGroupKeys), [draftPicksByYear]);
   useEffect(() => {
     const invalidYears = Array.from(openDraftYears).filter((year) => !draftYears.includes(year));
     if (invalidYears.length === 0) return;
@@ -244,7 +289,7 @@ export function DraftAnalysis({
       {
         draftSort: sortColumn,
         draftDir: sortColumn ? sortDirection : null,
-        draftOpen: openDraftYears.size ? Array.from(openDraftYears).sort((a, b) => Number(b) - Number(a)).join(',') : null,
+        draftOpen: null,
       },
       { onlyForHash: '#draft' },
     );
@@ -274,13 +319,14 @@ export function DraftAnalysis({
     setSelectedManagerMode('audit');
     setSelectedManager(manager);
   };
-  const toggleDraftYear = (year: string) => {
+  const setDraftYearOpen = (year: string, isOpen: boolean) => {
     setOpenDraftYears((current) => {
+      if (current.has(year) === isOpen) return current;
       const next = new Set(current);
-      if (next.has(year)) {
-        next.delete(year);
-      } else {
+      if (isOpen) {
         next.add(year);
+      } else {
+        next.delete(year);
       }
       return next;
     });
@@ -302,7 +348,7 @@ export function DraftAnalysis({
         title="No draft data available"
         description={isRedraft
           ? 'Draft recap will appear here after the league report includes completed draft picks.'
-          : 'Draft history will appear here after the league report includes completed rookie draft picks.'}
+          : 'Draft history will appear here after the league report includes completed draft picks.'}
       />
     );
   }
@@ -310,9 +356,12 @@ export function DraftAnalysis({
   const topDraftGain = [...sortedDraftPicks].sort((a, b) => (b.valueGain || 0) - (a.valueGain || 0))[0];
   const biggestDraftLeak = [...sortedDraftPicks].sort((a, b) => (a.valueGain || 0) - (b.valueGain || 0))[0];
   const viewerDraftPicks = viewerManager ? sortedDraftPicks.filter((pick) => pick.manager === viewerManager) : [];
+  const topDraftGainKind = topDraftGain
+    ? getDraftKindLabel(getDraftKind(topDraftGain, leagueValueMode)).toLowerCase()
+    : 'draft';
   const draftReadBody = isRedraft
     ? `${topDraftGain?.playerName || 'No player'} is the strongest current starter-value result in the returned draft data. ${biggestDraftLeak && (biggestDraftLeak.valueGain || 0) < 0 ? `${biggestDraftLeak.playerName} is the cleanest review point because the current value trails the draft slot.` : 'No obvious draft leak is severe enough to flag from returned value data.'}`
-    : `${topDraftGain?.playerName || 'No player'} is the biggest rookie-draft value gain in the returned data. ${biggestDraftLeak && (biggestDraftLeak.valueGain || 0) < 0 ? `${biggestDraftLeak.playerName} is the draft-capital leak to audit before repeating that profile.` : 'No major negative value swing was returned.'}`;
+    : `${topDraftGain?.playerName || 'No player'} is the biggest ${topDraftGainKind} value gain in the returned data. ${biggestDraftLeak && (biggestDraftLeak.valueGain || 0) < 0 ? `${biggestDraftLeak.playerName} is the draft-capital leak to audit before repeating that profile.` : 'No major negative value swing was returned.'}`;
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -453,37 +502,24 @@ export function DraftAnalysis({
       </div>
 
       {/* Full Draft Board */}
-      <section className="report-section">
-        <div className="draft-year-card-grid">
-          {draftYears.map((draftYear) => {
-            const yearPicks = draftPicksByYear[draftYear] || [];
-            const isDraftBoardOpen = openDraftYears.has(draftYear);
-            const yearPreviewMetrics = buildDraftYearPreviewMetrics(yearPicks, leagueValueMode, draftDecisionAudits, managerAvatars);
+      <div className="draft-year-card-grid">
+        {draftYears.map((draftYear) => {
+          const yearPicks = draftPicksByYear[draftYear] || [];
+          const isDraftBoardOpen = openDraftYears.has(draftYear);
+          const yearPreviewMetrics = buildDraftYearPreviewMetrics(yearPicks, leagueValueMode, draftDecisionAudits, managerAvatars);
+          const draftWindowLabel = getDraftWindowLabel(yearPicks, leagueValueMode);
 
-            return (
-              <div key={draftYear}>
-                <button
-                  type="button"
-                  className="draft-board-toggle group mx-auto mb-4 flex w-full max-w-xl items-center justify-between gap-4 rounded-xl border border-cyan-300/15 bg-slate-950/55 px-4 py-3 text-left shadow-lg shadow-black/20 transition hover:border-cyan-300/30 sm:px-5"
-                  onClick={() => toggleDraftYear(draftYear)}
-                  aria-expanded={isDraftBoardOpen}
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/80">
-                      {yearPicks.length} players picked
-                    </span>
-                    <span className="athletic-headline mt-1 block truncate text-xl font-black text-orange-400 sm:text-2xl">
-                      {draftYear} {isRedraft ? 'Draft Recap' : 'Rookie Draft'}
-                    </span>
-                    <PreviewMetricChips metrics={yearPreviewMetrics} className="draft-year-preview-chips" />
-                  </span>
-                  <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-300">
-                    {isDraftBoardOpen ? 'Hide' : 'Show'}
-                    <ChevronDown className={`h-5 w-5 text-orange-300 transition-transform ${isDraftBoardOpen ? 'rotate-180' : ''}`} />
-                  </span>
-                </button>
-
-                {isDraftBoardOpen && (
+          return (
+            <DraftCollapsibleSection
+              key={draftYear}
+              title={getDraftGroupTitle(draftYear, yearPicks, leagueValueMode)}
+              kicker={draftWindowLabel
+                ? `${yearPicks.length} players picked - ${draftWindowLabel}`
+                : `${yearPicks.length} players picked`}
+              previewMetrics={yearPreviewMetrics}
+              open={isDraftBoardOpen}
+              onToggle={(open) => setDraftYearOpen(draftYear, open)}
+            >
                   <div className="rookie-draft-row-shell">
                     <div className="draft-sort-strip">
                       <button type="button" onClick={() => handleSort('pick')}>
@@ -542,6 +578,8 @@ export function DraftAnalysis({
                                 position={pick.playerPos}
                               />
                               <DraftOpportunityNote opportunity={opportunity} />
+                              <DraftWindowNote pick={pick} leagueValueMode={leagueValueMode} />
+                              <DraftMarketMovementNote pick={pick} leagueValueMode={leagueValueMode} />
                             </span>
                             <span className="rookie-draft-team-cell">
                               {details?.team ? <TeamLogoPill team={details.team} /> : <span className="rookie-draft-team-empty">FA</span>}
@@ -578,12 +616,10 @@ export function DraftAnalysis({
                       })}
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+            </DraftCollapsibleSection>
+          );
+        })}
+      </div>
 
       {/* Manager Draft Picks Modal */}
       <ManagerDraftPicksModal
@@ -629,6 +665,28 @@ function DraftOpportunityNote({ opportunity }: { opportunity?: DraftOpportunity 
   return (
     <span className="draft-opportunity-note draft-opportunity-missed" title={`${opportunity.label}: ${opportunity.playerName} at ${opportunity.pickLabel}`}>
       {opportunity.label}: {opportunity.playerName}
+    </span>
+  );
+}
+
+function DraftWindowNote({ pick, leagueValueMode }: { pick: DraftPick; leagueValueMode: LeagueValueMode }) {
+  const draftKindLabel = getDraftKindShortLabel(getDraftKind(pick, leagueValueMode));
+  const draftWindowLabel = getDraftWindowLabel(pick, leagueValueMode);
+
+  return (
+    <span className="draft-opportunity-note" title={draftWindowLabel ? `Values compared against ${draftWindowLabel.toLowerCase()}` : undefined}>
+      {draftWindowLabel ? `${draftKindLabel}: ${draftWindowLabel}` : draftKindLabel}
+    </span>
+  );
+}
+
+function DraftMarketMovementNote({ pick, leagueValueMode }: { pick: DraftPick; leagueValueMode: LeagueValueMode }) {
+  const movement = getDraftMarketMovementLabel(pick, leagueValueMode);
+  if (!movement) return null;
+
+  return (
+    <span className={`draft-opportunity-note draft-market-move-note draft-market-move-${movement.tone}`}>
+      {movement.label}
     </span>
   );
 }
@@ -848,14 +906,14 @@ function buildDraftDecisionAudits(
   const byYear = draftPicks
     .filter((pick) => pick.player_id && pick.playerName && pick.playerName !== 'Unknown')
     .reduce<Record<string, DraftPick[]>>((groups, pick) => {
-      const year = pick.draftYear || 'Draft';
+      const year = getDraftGroupKey(pick, leagueValueMode);
       groups[year] = groups[year] || [];
       groups[year].push(pick);
       return groups;
     }, {});
 
   return Object.entries(byYear)
-    .sort(([a], [b]) => Number(b) - Number(a))
+    .sort(([a], [b]) => compareDraftGroupKeys(a, b))
     .flatMap(([, yearPicks]) => {
       const orderedPicks = [...yearPicks].sort((a, b) => a.pick - b.pick);
       return orderedPicks.map((pick) => buildDraftDecisionAudit(pick, orderedPicks, intelByManager.get(pick.manager) || null, leagueValueMode));
@@ -1158,6 +1216,7 @@ function parseRankNumber(rank?: string | null): number | null {
 }
 
 function getResolvedDraftOutcome(pick: DraftPick): NonNullable<DraftPick['draftOutcome']> {
+  if (isFreshRookieMarketRead(pick)) return 'neutral';
   if (pick.draftOutcome) return pick.draftOutcome;
   const rankChange = pick.positionRankChange ? parseInt(pick.positionRankChange, 10) : 0;
   const hasRankChange = Number.isFinite(rankChange) && rankChange !== 0;
@@ -1178,7 +1237,7 @@ function getResolvedDraftStarter(pick: DraftPick): boolean {
   const rank = pick.currentPositionRank || '';
   const position = rank.match(/^[A-Z]+/)?.[0] || pick.playerPos;
   const rankNumber = Number(rank.match(/\d+/)?.[0]);
-  const starterThresholds: Record<string, number> = { QB: 24, RB: 36, WR: 48, TE: 18 };
+  const starterThresholds: Record<string, number> = { QB: 24, RB: 36, WR: 48, TE: 18, K: 12, DEF: 12 };
   if (position && Number.isFinite(rankNumber) && rankNumber <= (starterThresholds[position] || 0)) return true;
   return !rank && pick.currentKtcValue !== null && pick.currentKtcValue !== undefined && pick.currentKtcValue > 4000;
 }
@@ -1213,6 +1272,12 @@ function enrichDraftPickDetails(
       avgGamesMissed: pick.playerDetails?.avgGamesMissed ?? mappedDetails.avgGamesMissed,
       availabilitySeasons: pick.playerDetails?.availabilitySeasons ?? mappedDetails.availabilitySeasons,
       similarTradeValues: pick.playerDetails?.similarTradeValues?.length ? pick.playerDetails.similarTradeValues : mappedDetails.similarTradeValues,
+      depthChartPosition: mappedDetails.depthChartVerified ? mappedDetails.depthChartPosition : pick.playerDetails?.depthChartPosition ?? mappedDetails.depthChartPosition,
+      depthChartOrder: mappedDetails.depthChartVerified ? mappedDetails.depthChartOrder : pick.playerDetails?.depthChartOrder ?? mappedDetails.depthChartOrder,
+      sleeperDepthChartPosition: mappedDetails.sleeperDepthChartPosition ?? pick.playerDetails?.sleeperDepthChartPosition,
+      sleeperDepthChartOrder: mappedDetails.sleeperDepthChartOrder ?? pick.playerDetails?.sleeperDepthChartOrder,
+      depthChartVerified: mappedDetails.depthChartVerified ?? pick.playerDetails?.depthChartVerified,
+      depthChartMismatch: mappedDetails.depthChartMismatch ?? pick.playerDetails?.depthChartMismatch,
     },
   };
 }
@@ -1221,22 +1286,28 @@ function DraftCollapsibleSection({
   title,
   kicker,
   previewMetrics,
+  open,
+  onToggle,
   children,
 }: {
   title: string;
   kicker?: string;
   previewMetrics?: PreviewMetric[];
+  open?: boolean;
+  onToggle?: (open: boolean) => void;
   children: ReactNode;
 }) {
   return (
-    <details className="report-section report-disclosure">
+    <details className="report-section report-disclosure" open={open} onToggle={(event) => onToggle?.(event.currentTarget.open)}>
       <summary className="report-disclosure-summary">
         <ReportSectionHeader title={title} kicker={kicker} />
         <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </summary>
       <div className="report-disclosure-body">
-        {children}
+        <div className="report-disclosure-body-inner">
+          {children}
+        </div>
       </div>
     </details>
   );

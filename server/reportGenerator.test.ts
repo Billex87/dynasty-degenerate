@@ -220,6 +220,24 @@ describe('generateReport trade ledger', () => {
     });
   });
 
+  it('caps redraft trade outcome windows at the championship week boundary', async () => {
+    const report = await generateReport(
+      {
+        ...baseSeason,
+        playoffWeekStart: 15,
+        trades: [],
+      },
+      null,
+      players,
+      ktcValues,
+      {},
+      {},
+      { leagueValueMode: 'redraft' }
+    );
+
+    expect(report.leagueDiagnostics?.redraftTradeWindowEndDate).toBe('2027-01-06');
+  });
+
   it('shows draft picks in the side that received them', async () => {
     const report = await generateReport(
       {
@@ -620,6 +638,39 @@ describe('generateReport trade ledger', () => {
     expect(report.weeklyFallers.map((player) => player.name)).toEqual(['Small Drop', 'Big Drop']);
     expect(report.weeklyFallers.map((player) => player.diff)).toEqual([-500, -600]);
     expect(report.weeklyFallers.map((player) => Math.round(player.pct_change * 10) / 10)).toEqual([-20, -7.9]);
+  });
+
+  it('filters tiny weekly baselines that create misleading percentage spikes', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterMap: { 1: 'Manager A' },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['tinySpike', 'realMove'] },
+        ],
+      },
+      null,
+      {
+        tinySpike: { first_name: 'Tiny', last_name: 'Spike', position: 'WR', age: 24 },
+        realMove: { first_name: 'Real', last_name: 'Move', position: 'RB', age: 24 },
+      },
+      {
+        tinyspike: { name: 'Tiny Spike', ktc_value: 1400, market_value_ktc: 1400 },
+        realmove: { name: 'Real Move', ktc_value: 3500, market_value_ktc: 3500 },
+      },
+      {
+        tinyspike: { name: 'Tiny Spike', ktc_value: 3 },
+        realmove: { name: 'Real Move', ktc_value: 3000 },
+      }
+    );
+
+    expect(report.weeklyRisers.map((player) => player.name)).toEqual(['Real Move']);
+    expect(report.weeklyRisers[0]).toMatchObject({
+      val_last: 3000,
+      val_now: 3500,
+      diff: 500,
+    });
   });
 
   it('scales starter counts by league size and redraft positional rank', async () => {

@@ -15,9 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import React, { useMemo, useState } from 'react';
-import { ArrowRight, ChevronDown, Crown, Scissors, ShieldCheck, TrendingDown, TrendingUp, X as XIcon } from 'lucide-react';
-import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TaxiTriageItem, TrendingPlayer } from '@shared/types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, ChevronDown, Copy, Crown, ExternalLink, LockKeyhole, Save, Scissors, ShieldCheck, TrendingDown, TrendingUp, X as XIcon } from 'lucide-react';
+import type { ActionPlanRecord, ActionPlanStatus, DraftPick, ManagerIntelPlayer, PlayerDetails, RecentTransactionPlayer, ReportData, TaxiTriageItem, TrendingPlayer, WaiverBidHistoryRecord } from '@shared/types';
+import { trpc } from '@/lib/trpc';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
@@ -47,6 +48,173 @@ type ManagerCountRow = ReportData['managerPositionCounts'][number];
 type CountPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
 
 const COUNT_POSITIONS: CountPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+const ACTION_PLAN_STORAGE_KEY = 'dynasty-degenerates:action-plans:v1';
+const WAIVER_BID_HISTORY_STORAGE_KEY = 'dynasty-degenerates:waiver-bid-history:v1';
+
+type StoredActionPlanStatus = ActionPlanStatus;
+type StoredActionPlan = ActionPlanRecord;
+type StoredWaiverBidHistoryItem = WaiverBidHistoryRecord;
+
+function readJsonArrayFromStorage<T>(key: string): T[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed as T[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeJsonArrayToStorage<T>(key: string, value: T[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
+}
+
+function readStoredActionPlans(): StoredActionPlan[] {
+  return readJsonArrayFromStorage<StoredActionPlan>(ACTION_PLAN_STORAGE_KEY);
+}
+
+function upsertStoredActionPlan(plan: StoredActionPlan): StoredActionPlan[] {
+  const next = [plan, ...readStoredActionPlans().filter((item) => item.id !== plan.id)].slice(0, 80);
+  writeJsonArrayToStorage(ACTION_PLAN_STORAGE_KEY, next);
+  return next;
+}
+
+function mergeActionPlans(...groups: StoredActionPlan[][]): StoredActionPlan[] {
+  const byId = new Map<string, StoredActionPlan>();
+  groups.flat().forEach((plan) => {
+    const existing = byId.get(plan.id);
+    if (!existing || (plan.updatedAt || plan.createdAt) >= (existing.updatedAt || existing.createdAt)) {
+      byId.set(plan.id, plan);
+    }
+  });
+  return Array.from(byId.values())
+    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
+    .slice(0, 100);
+}
+
+function useStoredActionPlans({ leagueId }: { leagueId?: string } = {}) {
+  const [storedActionPlans, setStoredActionPlans] = useState<StoredActionPlan[]>(() => readStoredActionPlans());
+  const utils = trpc.useUtils();
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
+  const canUseServerPersistence = Boolean(authQuery.data);
+  const serverActionPlansQuery = trpc.actionPlans.list.useQuery(
+    { leagueId },
+    {
+      enabled: canUseServerPersistence,
+      retry: false,
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 30,
+    }
+  );
+  const upsertActionPlanMutation = trpc.actionPlans.upsert.useMutation({
+    onSuccess: async () => {
+      await utils.actionPlans.list.invalidate({ leagueId });
+    },
+  });
+  const persistStoredActionPlan = (plan: StoredActionPlan) => {
+    const next = upsertStoredActionPlan({ ...plan, updatedAt: Date.now() });
+    setStoredActionPlans(next);
+    if (canUseServerPersistence) {
+      upsertActionPlanMutation.mutate({ plan: { ...plan, updatedAt: Date.now() } });
+    }
+  };
+  return {
+    storedActionPlans: mergeActionPlans(storedActionPlans, serverActionPlansQuery.data?.plans || []),
+    persistStoredActionPlan,
+    isServerPersistenceEnabled: canUseServerPersistence,
+  };
+}
+
+function readStoredWaiverBidHistory(): StoredWaiverBidHistoryItem[] {
+  return readJsonArrayFromStorage<StoredWaiverBidHistoryItem>(WAIVER_BID_HISTORY_STORAGE_KEY);
+}
+
+function upsertStoredWaiverBidHistory(item: StoredWaiverBidHistoryItem): StoredWaiverBidHistoryItem[] {
+  const next = [item, ...readStoredWaiverBidHistory().filter((historyItem) => historyItem.id !== item.id)].slice(0, 120);
+  writeJsonArrayToStorage(WAIVER_BID_HISTORY_STORAGE_KEY, next);
+  return next;
+}
+
+function mergeWaiverBidHistory(...groups: StoredWaiverBidHistoryItem[][]): StoredWaiverBidHistoryItem[] {
+  const byId = new Map<string, StoredWaiverBidHistoryItem>();
+  groups.flat().forEach((item) => {
+    const existing = byId.get(item.id);
+    if (!existing || (item.updatedAt || item.createdAt) >= (existing.updatedAt || existing.createdAt)) {
+      byId.set(item.id, item);
+    }
+  });
+  return Array.from(byId.values())
+    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
+    .slice(0, 150);
+}
+
+function useStoredWaiverBidHistory({ leagueId }: { leagueId?: string } = {}) {
+  const [storedWaiverBidHistory, setStoredWaiverBidHistory] = useState<StoredWaiverBidHistoryItem[]>(() => readStoredWaiverBidHistory());
+  const utils = trpc.useUtils();
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
+  const canUseServerPersistence = Boolean(authQuery.data);
+  const serverBidHistoryQuery = trpc.actionPlans.listWaiverBidHistory.useQuery(
+    { leagueId },
+    {
+      enabled: canUseServerPersistence,
+      retry: false,
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 30,
+    }
+  );
+  const upsertBidHistoryMutation = trpc.actionPlans.upsertWaiverBidHistory.useMutation({
+    onSuccess: async () => {
+      await utils.actionPlans.listWaiverBidHistory.invalidate({ leagueId });
+    },
+  });
+  const persistStoredWaiverBidHistory = (item: StoredWaiverBidHistoryItem) => {
+    const next = upsertStoredWaiverBidHistory({ ...item, updatedAt: Date.now() });
+    setStoredWaiverBidHistory(next);
+    if (canUseServerPersistence) {
+      upsertBidHistoryMutation.mutate({ item: { ...item, updatedAt: Date.now() } });
+    }
+  };
+  return {
+    storedWaiverBidHistory: mergeWaiverBidHistory(storedWaiverBidHistory, serverBidHistoryQuery.data?.bidHistory || []),
+    persistStoredWaiverBidHistory,
+  };
+}
+
+function copyTextToClipboard(value: string): void {
+  if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
+  navigator.clipboard.writeText(value).catch(() => undefined);
+}
+
+function openSleeperLeague(leagueId?: string): void {
+  if (!leagueId || typeof window === 'undefined') return;
+  window.open(`https://sleeper.com/leagues/${encodeURIComponent(leagueId)}`, '_blank', 'noopener,noreferrer');
+}
+
+function parseFaabBidRange(label: string): { min: number; max: number } | null {
+  const values = (label.match(/\d+/g) || [])
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value >= 0);
+  if (!values.length) return null;
+  return {
+    min: values[0],
+    max: values[1] ?? values[0],
+  };
+}
 
 export function buildPlayerModalData({
   playerId,
@@ -79,6 +247,7 @@ export function buildPlayerModalData({
   taxiAction?: string | null;
   taxiReason?: string | null;
 }): PlayerModalData {
+  const normalizedValueMode = normalizeLeagueValueMode(valueMode);
   const mappedDetails = playerId ? playerDetailsById?.[playerId] : undefined;
   const details = playerDetails
     ? {
@@ -97,9 +266,15 @@ export function buildPlayerModalData({
         similarTradeValues: playerDetails.similarTradeValues || mappedDetails?.similarTradeValues,
         rosterStatus: playerDetails.rosterStatus || mappedDetails?.rosterStatus,
         displayStatus: (playerDetails.rosterStatus ? playerDetails.displayStatus : mappedDetails?.displayStatus) || playerDetails.displayStatus,
+        depthChartPosition: mappedDetails?.depthChartVerified ? mappedDetails.depthChartPosition : playerDetails.depthChartPosition ?? mappedDetails?.depthChartPosition,
+        depthChartOrder: mappedDetails?.depthChartVerified ? mappedDetails.depthChartOrder : playerDetails.depthChartOrder ?? mappedDetails?.depthChartOrder,
+        sleeperDepthChartPosition: mappedDetails?.sleeperDepthChartPosition ?? playerDetails.sleeperDepthChartPosition,
+        sleeperDepthChartOrder: mappedDetails?.sleeperDepthChartOrder ?? playerDetails.sleeperDepthChartOrder,
+        depthChartVerified: mappedDetails?.depthChartVerified ?? playerDetails.depthChartVerified,
+        depthChartMismatch: mappedDetails?.depthChartMismatch ?? playerDetails.depthChartMismatch,
       }
     : mappedDetails;
-  const profileRank = valueMode === 'redraft'
+  const profileRank = normalizedValueMode === 'redraft'
     ? details?.valueProfile?.seasonPositionRank || details?.valueProfile?.fantasyProsPositionRank || details?.valueProfile?.dynastyPositionRank
     : details?.valueProfile?.dynastyPositionRank || details?.valueProfile?.balancedPositionRank || details?.valueProfile?.seasonPositionRank;
   return {
@@ -113,7 +288,7 @@ export function buildPlayerModalData({
     valueGain: valueGain ?? undefined,
     playerDetails: details,
     valueChangeNote,
-    valueMode,
+    valueMode: normalizedValueMode,
     taxiAction: taxiAction || undefined,
     taxiReason: taxiReason || undefined,
   };
@@ -831,6 +1006,7 @@ type TradeOutcomeRecord = {
 type TradeOutcomeReview = {
   statusLabel: string;
   windowLabel: string;
+  windowSubtitle: string;
   observedThroughLabel: string;
   verdict: string;
   metrics: Array<{ label: string; value: string; note: string; tone: 'good' | 'bad' | 'neutral' }>;
@@ -999,11 +1175,14 @@ function buildOutcomeRecords(
   row: ReportData['tradeHistory'][number],
   managers: string[],
   observedThrough: Date,
+  leagueValueMode: ReportData['leagueValueMode'] = 'dynasty',
   standingsHistory?: ReportData['standingsHistory'],
   currentStandings?: ReportData['currentStandings'],
 ): TradeOutcomeRecord[] {
   const tradeYear = Number(row.date.slice(0, 4));
-  const maxYear = observedThrough.getUTCFullYear();
+  const maxYear = normalizeLeagueValueMode(leagueValueMode) === 'redraft'
+    ? tradeYear
+    : observedThrough.getUTCFullYear();
   const historicalRows = (standingsHistory || []).filter((standing) => {
     const seasonYear = Number(standing.season);
     return managers.includes(standing.manager)
@@ -1040,8 +1219,10 @@ function buildTradeOutcomeReview({
   draftPicks,
   playerDetailsById,
   currentPositionRankById,
+  leagueDiagnostics,
   standingsHistory,
   currentStandings,
+  leagueValueMode = 'dynasty',
 }: {
   row: ReportData['tradeHistory'][number];
   tradeEvaluation: TradeLedgerEvaluation;
@@ -1049,11 +1230,24 @@ function buildTradeOutcomeReview({
   draftPicks: DraftPick[];
   playerDetailsById?: PlayerDetailsById;
   currentPositionRankById?: CurrentPositionRankById;
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
   standingsHistory?: ReportData['standingsHistory'];
   currentStandings?: ReportData['currentStandings'];
+  leagueValueMode?: ReportData['leagueValueMode'];
 }): TradeOutcomeReview {
   const tradeDate = parseTradeOutcomeDate(row.date);
-  const finalDate = addYears(tradeDate, 2);
+  const redraftWindowEnd = leagueDiagnostics?.redraftTradeWindowEndDate
+    ? new Date(`${leagueDiagnostics.redraftTradeWindowEndDate}T00:00:00Z`)
+    : null;
+  const tradeSeasonNumber = Number(row.season);
+  const fallbackRedraftFinalDate = Number.isFinite(tradeSeasonNumber)
+    ? new Date(Date.UTC(tradeSeasonNumber + 1, 0, 1))
+    : addYears(tradeDate, 1);
+  const finalDate = normalizeLeagueValueMode(leagueValueMode) === 'redraft'
+    ? (redraftWindowEnd && !Number.isNaN(redraftWindowEnd.getTime()) && redraftWindowEnd > tradeDate
+      ? redraftWindowEnd
+      : fallbackRedraftFinalDate)
+    : addYears(tradeDate, 2);
   const today = new Date();
   const observedThrough = today > finalDate ? finalDate : today;
   const isFinal = today >= finalDate;
@@ -1094,6 +1288,7 @@ function buildTradeOutcomeReview({
     row,
     outcomeSides.map((side) => side.manager),
     observedThrough,
+    leagueValueMode,
     standingsHistory,
     currentStandings,
   );
@@ -1126,6 +1321,9 @@ function buildTradeOutcomeReview({
   return {
     statusLabel: isFinal ? 'Final Outcome' : 'Outcome So Far',
     windowLabel: `${formatOutcomeDate(tradeDate)} - ${formatOutcomeDate(finalDate)}`,
+    windowSubtitle: normalizeLeagueValueMode(leagueValueMode) === 'redraft'
+      ? `Redraft window ends at championship week. Window: ${formatOutcomeDate(tradeDate)} - ${formatOutcomeDate(finalDate)}`
+      : `Window: ${formatOutcomeDate(tradeDate)} - ${formatOutcomeDate(finalDate)}`,
     observedThroughLabel: formatOutcomeDate(observedThrough),
     verdict,
     metrics: [
@@ -1197,7 +1395,7 @@ function TradeOutcomePanel({ outcome }: { outcome: TradeOutcomeReview }) {
         <div>
           <span className="trade-outcome-kicker">{outcome.statusLabel}</span>
           <h4>True Trade Outcome</h4>
-          <p>Window: {outcome.windowLabel}. Observed through {outcome.observedThroughLabel}.</p>
+          <p>{outcome.windowSubtitle}. Observed through {outcome.observedThroughLabel}.</p>
         </div>
         <span className="trade-outcome-status">{outcome.statusLabel}</span>
       </div>
@@ -1305,6 +1503,7 @@ function TradeDetailPanel({
   dynastyTimelines,
   leagueOverview,
   sideOrder,
+  leagueDiagnostics,
   standingsHistory,
   currentStandings,
   leagueValueMode = 'dynasty',
@@ -1319,6 +1518,7 @@ function TradeDetailPanel({
   dynastyTimelines?: DynastyTimelineRows;
   leagueOverview?: LeagueOverviewRows;
   sideOrder?: [string, string];
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
   standingsHistory?: ReportData['standingsHistory'];
   currentStandings?: ReportData['currentStandings'];
   leagueValueMode?: ReportData['leagueValueMode'];
@@ -1340,8 +1540,10 @@ function TradeDetailPanel({
     draftPicks,
     playerDetailsById,
     currentPositionRankById,
+    leagueDiagnostics,
     standingsHistory,
     currentStandings,
+    leagueValueMode,
   });
 
   return (
@@ -4726,30 +4928,40 @@ function CommandPlayerTile({
   variant = 'default',
   label,
   showValueStack = false,
+  swapSignal,
 }: {
   player: CommandPlayer;
   onClick: () => void;
   variant?: 'default' | 'step';
   label?: string;
   showValueStack?: boolean;
+  swapSignal?: CommandSwapSignal;
 }) {
   const valueLens = getCommandPlayerValueLens(player);
   const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
   const dynastyLens = getCommandPlayerDynastyLens(player);
   const seasonLens = getCommandPlayerSeasonLens(player);
   const availability = getPlayerAvailability(player.playerDetails);
-  const shouldShowStatusPill = !showValueStack || availability.tone !== 'taxi';
+  const gameLockState = getCommandPlayerGameLockState(player);
+  const shouldShowStatusPill = Boolean(gameLockState.label) || !showValueStack || availability.tone !== 'taxi';
 
   return (
     <button
       type="button"
-      className={`player-team-tile manager-command-player-tile ${variant === 'step' ? 'manager-command-player-tile-step' : ''}`}
+      className={`player-team-tile manager-command-player-tile ${variant === 'step' ? 'manager-command-player-tile-step' : ''} ${swapSignal ? `manager-command-player-tile-swap manager-command-player-tile-swap-${swapSignal.role}` : ''}`}
       style={getTeamTileStyle(player.playerDetails?.team)}
       onClick={onClick}
+      aria-label={swapSignal ? `${player.name}, ${swapSignal.label}, ${swapSignal.confidencePct}% confidence` : undefined}
     >
       {label && (
         <div className={`manager-intel-player-kicker manager-command-action-pill manager-command-action-${getTaxiActionClassName(label)}`}>
           {label}
+        </div>
+      )}
+      {swapSignal && (
+        <div className={`manager-command-swap-corner manager-command-swap-corner-${swapSignal.role}`}>
+          <span>{swapSignal.label}</span>
+          <strong>{swapSignal.confidencePct}%</strong>
         </div>
       )}
       <div className="manager-command-player-tile-main">
@@ -4795,6 +5007,17 @@ function CommandPlayerTile({
             <span className={`manager-command-status-pill is-${availability.tone}`}>
               {availability.label}
             </span>
+            {gameLockState.label && (
+              <span className={`manager-command-status-pill manager-command-lock-status ${gameLockState.isLocked ? 'is-locked' : 'is-locking'}`} title={gameLockState.reason || undefined}>
+                <LockKeyhole aria-hidden="true" />
+                {gameLockState.label}
+              </span>
+            )}
+            {swapSignal?.detail && (
+              <span className={`manager-command-status-pill manager-command-swap-status is-${swapSignal.role === 'out' ? 'risk' : 'active'}`}>
+                {swapSignal.detail}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -4846,6 +5069,496 @@ function FeatureCard({
 }
 
 type CommandPlayer = ManagerIntelPlayer | NonNullable<ReportData['managerPositionCounts'][number]['starterPlayers']>[number];
+
+type LineupSwapSeverity = 'watch' | 'recommended' | 'urgent';
+
+type LineupSwapOption = {
+  player: CommandPlayer;
+  confidencePct: number;
+  scoreEdge: number;
+  projectedPointEdge: number | null;
+  reason: string;
+  reasonBullets: string[];
+};
+
+type LineupSwapRecommendation = {
+  starterOut: CommandPlayer;
+  groupLabel: string;
+  severity: LineupSwapSeverity;
+  summary: string;
+  options: LineupSwapOption[];
+};
+
+type CommandSwapSignal = {
+  role: 'out' | 'in';
+  confidencePct: number;
+  label: string;
+  detail?: string;
+};
+
+function clampPercentValue(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function getFiniteNumber(value: unknown): number | null {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function getFirstFiniteNumber(...values: unknown[]): number | null {
+  for (const value of values) {
+    const numeric = getFiniteNumber(value);
+    if (numeric !== null) return numeric;
+  }
+  return null;
+}
+
+function getFirstTextValue(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function getCommandPlayerProjectionRead(player: CommandPlayer): { projectedPoints: number | null; sourceLabel: string | null } {
+  const playerRecord = player as unknown as Record<string, unknown>;
+  const details = player.playerDetails as (PlayerDetails & Record<string, unknown>) | undefined;
+  const valueProfile = details?.valueProfile as (NonNullable<PlayerDetails['valueProfile']> & Record<string, unknown>) | undefined;
+  const projectedPoints = getFirstFiniteNumber(
+    playerRecord.weeklyProjection,
+    playerRecord.projectedPoints,
+    playerRecord.projectedFantasyPoints,
+    playerRecord.projection,
+    playerRecord.fantasyProjection,
+    details?.weeklyProjection,
+    details?.projectedPoints,
+    details?.projectedFantasyPoints,
+    details?.projection,
+    details?.fantasyProjection,
+    valueProfile?.weeklyProjection,
+    valueProfile?.projectedPoints,
+    valueProfile?.projectedFantasyPoints,
+    valueProfile?.fantasyProsProjection,
+    valueProfile?.fantasyProsProjectedPoints,
+  );
+
+  return {
+    projectedPoints,
+    sourceLabel: projectedPoints !== null ? 'weekly projection' : null,
+  };
+}
+
+function formatLineupLockCountdown(kickoffMs: number, nowMs = Date.now()): string {
+  const remainingMs = Math.max(0, kickoffMs - nowMs);
+  const totalMinutes = Math.max(1, Math.ceil(remainingMs / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `Locks in ${days}d ${hours}h`;
+  if (hours > 0) return `Locks in ${hours}h ${minutes}m`;
+  return `Locks in ${minutes}m`;
+}
+
+function getCommandPlayerGameLockState(player: CommandPlayer): { isLocked: boolean; label: string | null; reason: string | null } {
+  const playerRecord = player as unknown as Record<string, unknown>;
+  const details = player.playerDetails as (PlayerDetails & Record<string, unknown>) | undefined;
+  const explicitLock = [
+    playerRecord.isLocked,
+    playerRecord.locked,
+    playerRecord.gameLocked,
+    playerRecord.lineupLocked,
+    details?.isLocked,
+    details?.locked,
+    details?.gameLocked,
+    details?.lineupLocked,
+  ].some((value) => value === true || value === 'true' || value === 1 || value === '1');
+
+  if (explicitLock) {
+    return { isLocked: true, label: 'Locked', reason: 'The player is marked as lineup locked by the report data.' };
+  }
+
+  const status = getFirstTextValue(
+    playerRecord.gameStatus,
+    playerRecord.status,
+    playerRecord.lineupStatus,
+    details?.gameStatus,
+    details?.status,
+    details?.lineupStatus,
+  );
+  if (status && !/pre|scheduled|upcoming|not[_\s-]?started/i.test(status) && /locked|started|live|in[_\s-]?progress|halftime|final|complete/i.test(status)) {
+    return { isLocked: true, label: 'Locked', reason: `Game status is ${status}.` };
+  }
+
+  const kickoffValue = getFirstTextValue(
+    playerRecord.kickoffAt,
+    playerRecord.gameStartTime,
+    playerRecord.gameStart,
+    playerRecord.startTime,
+    playerRecord.kickoff,
+    details?.kickoffAt,
+    details?.gameStartTime,
+    details?.gameStart,
+    details?.startTime,
+    details?.kickoff,
+  ) ?? getFirstFiniteNumber(
+    playerRecord.kickoffAt,
+    playerRecord.gameStartTime,
+    playerRecord.gameStart,
+    playerRecord.startTime,
+    playerRecord.kickoff,
+    details?.kickoffAt,
+    details?.gameStartTime,
+    details?.gameStart,
+    details?.startTime,
+    details?.kickoff,
+  );
+  if (kickoffValue !== null) {
+    const rawTime = typeof kickoffValue === 'number' ? kickoffValue : Date.parse(kickoffValue);
+    const kickoffMs = rawTime && rawTime < 10_000_000_000 ? rawTime * 1000 : rawTime;
+    if (Number.isFinite(kickoffMs) && kickoffMs <= Date.now()) {
+      return { isLocked: true, label: 'Locked', reason: 'Kickoff time has passed.' };
+    }
+    if (Number.isFinite(kickoffMs)) {
+      return {
+        isLocked: false,
+        label: formatLineupLockCountdown(kickoffMs),
+        reason: 'Projected lineup lock is based on kickoff time in the report data.',
+      };
+    }
+  }
+
+  return { isLocked: false, label: null, reason: null };
+}
+
+function formatProjectedPointEdge(value: number | null): string | null {
+  if (value === null || !Number.isFinite(value)) return null;
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded > 0 ? '+' : ''}${rounded.toFixed(rounded % 1 === 0 ? 0 : 1)} pts`;
+}
+
+function getCommandPlayerSeasonScore(player: CommandPlayer): number {
+  const seasonLens = getCommandPlayerSeasonLens(player);
+  const projectionRead = getCommandPlayerProjectionRead(player);
+  const projectionScore = projectionRead.projectedPoints !== null
+    ? projectionRead.projectedPoints * 420
+    : 0;
+  const value = Number(seasonLens.value ?? player.seasonValue ?? player.value ?? 0);
+  const rank = parsePositionRankValue(seasonLens.rank || player.seasonPositionRank || player.currentPositionRank);
+  const rankScore = rank ? Math.max(0, 2300 - rank * 24) : 0;
+  const availability = getPlayerAvailability(player.playerDetails);
+  const availabilityPenalty = availability.tone === 'risk'
+    ? 420
+    : availability.tone === 'warning'
+      ? 220
+      : 0;
+  return Math.max(projectionScore, value || 0, rankScore) - availabilityPenalty;
+}
+
+function getLineupGroupEligiblePositions(group: { key?: string; label?: string }): CountPosition[] {
+  const key = String(group.key || group.label || '').toUpperCase();
+  if (key.includes('QB_SF') || key.includes('QB/SF') || key.includes('SUPER')) return ['QB', 'RB', 'WR', 'TE'];
+  if (key.includes('FLEX')) return ['RB', 'WR', 'TE'];
+  if (key.includes('QB')) return ['QB'];
+  if (key.includes('RB')) return ['RB'];
+  if (key.includes('WR')) return ['WR'];
+  if (key.includes('TE')) return ['TE'];
+  if (key.includes('DEF')) return ['DEF'];
+  if (key.includes('K')) return ['K'];
+  return ['RB', 'WR', 'TE'];
+}
+
+function isLineupSwapEligible(group: { key?: string; label?: string }, player: CommandPlayer): boolean {
+  return getLineupGroupEligiblePositions(group).includes(player.pos as CountPosition);
+}
+
+function getLineupSwapSeverity(confidencePct: number, scoreEdge: number, projectedPointEdge: number | null): LineupSwapSeverity {
+  if (projectedPointEdge !== null && projectedPointEdge >= 4) return 'urgent';
+  if (projectedPointEdge !== null && projectedPointEdge >= 2.2) return 'recommended';
+  if (confidencePct >= 82 || scoreEdge >= 650) return 'urgent';
+  if (confidencePct >= 70 || scoreEdge >= 360) return 'recommended';
+  return 'watch';
+}
+
+function getLineupSwapSeverityLabel(severity: LineupSwapSeverity): string {
+  if (severity === 'urgent') return 'Swap pressure';
+  if (severity === 'recommended') return 'Recommended';
+  return 'Watch';
+}
+
+function getManagerMatchupPreview(data: ReportData, manager?: string | null) {
+  if (!manager) return null;
+  const normalized = normalizeReportManagerName(manager);
+  return data.matchupPreviews?.find((row) => normalizeReportManagerName(row.manager) === normalized) || null;
+}
+
+function buildLineupSwapRecommendations({
+  data,
+  manager,
+  lineupGroups,
+  stepInGroups,
+  selectedIntel,
+}: {
+  data: ReportData;
+  manager?: string | null;
+  lineupGroups: Array<{ key?: string; label?: string; count?: number; players: CommandPlayer[] }>;
+  stepInGroups: Array<{ label: string; players: CommandPlayer[] }>;
+  selectedIntel?: ManagerRosterIntelRows[number] | null;
+}): LineupSwapRecommendation[] {
+  const benchPlayers = stepInGroups.flatMap((group) => group.players);
+  if (!benchPlayers.length) return [];
+
+  const matchup = getManagerMatchupPreview(data, manager);
+  const vulnerableIds = new Set([
+    ...(matchup?.vulnerableSpots || []),
+    ...(matchup?.boomBustRisks || []),
+    selectedIntel?.weakestStarter,
+    selectedIntel?.starterAvailability?.riskiestStarter,
+  ].filter(Boolean).map((player) => player?.player_id));
+  const mustStartIds = new Set((matchup?.mustStarts || []).map((player) => player.player_id));
+  const recommendations: LineupSwapRecommendation[] = [];
+
+  lineupGroups.forEach((group) => {
+    group.players.forEach((starter) => {
+      if (mustStartIds.has(starter.player_id)) return;
+      if (getCommandPlayerGameLockState(starter).isLocked) return;
+
+      const starterScore = getCommandPlayerSeasonScore(starter);
+      const starterProjection = getCommandPlayerProjectionRead(starter);
+      const starterIsFlagged = vulnerableIds.has(starter.player_id);
+      const options = benchPlayers
+        .filter((candidate) => candidate.player_id !== starter.player_id && isLineupSwapEligible(group, candidate))
+        .filter((candidate) => !getCommandPlayerGameLockState(candidate).isLocked)
+        .map((candidate) => {
+          const candidateScore = getCommandPlayerSeasonScore(candidate);
+          const candidateProjection = getCommandPlayerProjectionRead(candidate);
+          const scoreEdge = candidateScore - starterScore;
+          const projectedPointEdge = candidateProjection.projectedPoints !== null && starterProjection.projectedPoints !== null
+            ? Math.round((candidateProjection.projectedPoints - starterProjection.projectedPoints) * 10) / 10
+            : null;
+          const samePositionBonus = candidate.pos === starter.pos ? 4 : 0;
+          const flaggedBonus = starterIsFlagged ? 8 : 0;
+          const edgePct = starterScore > 0 ? (scoreEdge / Math.max(starterScore, 1)) * 100 : scoreEdge > 0 ? 14 : 0;
+          const projectionBonus = projectedPointEdge !== null ? Math.max(-8, Math.min(18, projectedPointEdge * 4.5)) : 0;
+          const confidencePct = clampPercentValue(58 + edgePct * 1.35 + projectionBonus + samePositionBonus + flaggedBonus);
+          const candidateRank = getCommandPlayerSeasonLens(candidate).rank || candidate.seasonPositionRank || candidate.currentPositionRank || candidate.pos;
+          const starterRank = getCommandPlayerSeasonLens(starter).rank || starter.seasonPositionRank || starter.currentPositionRank || starter.pos;
+          const projectedPointCopy = formatProjectedPointEdge(projectedPointEdge);
+          const reasonBullets = [
+            projectedPointCopy
+              ? `Projected edge: ${candidate.name} is ${projectedPointCopy} ahead of ${starter.name}.`
+              : `Projection feed pending for this matchup; using current-season value, rank, and availability until weekly projections land.`,
+            scoreEdge > 0
+              ? `Starter-score edge: ${formatCompactValue(scoreEdge)} in the current-season model.`
+              : starterIsFlagged
+                ? `${starter.name} is already flagged by the matchup or availability model.`
+                : `${candidate.name} is close enough to monitor before lineup lock.`,
+            candidateRank && starterRank ? `Season ranks: ${candidate.name} ${candidateRank}, ${starter.name} ${starterRank}.` : null,
+            starterIsFlagged ? `${starter.name} appears in the vulnerable starter set for this manager.` : null,
+            candidateProjection.sourceLabel ? `Projection source: ${candidateProjection.sourceLabel}.` : null,
+          ].filter(Boolean) as string[];
+          const reason = scoreEdge > 0
+            ? `${candidate.name} clears ${starter.name} by ${formatCompactValue(scoreEdge)} in current-season starter score.`
+            : starterIsFlagged
+              ? `${starter.name} is already flagged, and ${candidate.name} is the closest eligible cover.`
+              : `${candidate.name} is close enough to monitor against ${starter.name} before lock.`;
+          return {
+            player: candidate,
+            confidencePct,
+            scoreEdge,
+            projectedPointEdge,
+            reason: `${reason} ${projectedPointCopy ? `${projectedPointCopy} weekly projection edge.` : ''} ${candidateRank && starterRank ? `${candidateRank} vs ${starterRank}.` : ''}`.trim(),
+            reasonBullets,
+          };
+        })
+        .filter((option) => option.scoreEdge >= 125 || (option.projectedPointEdge !== null && option.projectedPointEdge >= 0.8) || (starterIsFlagged && option.confidencePct >= 62))
+        .sort((a, b) => b.confidencePct - a.confidencePct || b.scoreEdge - a.scoreEdge)
+        .slice(0, 3);
+
+      if (!options.length) return;
+      const topOption = options[0];
+      const severity = getLineupSwapSeverity(topOption.confidencePct, topOption.scoreEdge, topOption.projectedPointEdge);
+      recommendations.push({
+        starterOut: starter,
+        groupLabel: group.label || group.key || starter.pos,
+        severity,
+        summary: `${starter.name} is the tile to pressure-test. ${topOption.player.name} is the strongest replacement signal at ${topOption.confidencePct}% confidence${formatProjectedPointEdge(topOption.projectedPointEdge) ? ` with a ${formatProjectedPointEdge(topOption.projectedPointEdge)} projection edge` : ''}.`,
+        options,
+      });
+    });
+  });
+
+  return recommendations
+    .sort((a, b) => {
+      const severityRank: Record<LineupSwapSeverity, number> = { urgent: 0, recommended: 1, watch: 2 };
+      return severityRank[a.severity] - severityRank[b.severity]
+        || b.options[0].confidencePct - a.options[0].confidencePct
+        || b.options[0].scoreEdge - a.options[0].scoreEdge;
+    })
+    .slice(0, 4);
+}
+
+function getLineupActionPlanId(
+  leagueId: string | undefined,
+  manager: string | null | undefined,
+  recommendation: LineupSwapRecommendation,
+): string {
+  const topOption = recommendation.options[0];
+  return [
+    'lineup',
+    leagueId || 'unknown-league',
+    normalizeManagerKey(manager),
+    recommendation.starterOut.player_id,
+    topOption?.player.player_id || 'replacement',
+  ].join(':');
+}
+
+function getLineupActionPlanCopy(
+  manager: string | null | undefined,
+  recommendation: LineupSwapRecommendation,
+): string {
+  const topOption = recommendation.options[0];
+  const pointEdge = formatProjectedPointEdge(topOption?.projectedPointEdge ?? null);
+  return [
+    `Lineup plan${manager ? ` for ${manager}` : ''}`,
+    `Replace: ${recommendation.starterOut.name}`,
+    topOption ? `Start: ${topOption.player.name}` : null,
+    `Slot: ${recommendation.groupLabel}`,
+    topOption ? `Confidence: ${topOption.confidencePct}%${pointEdge ? ` (${pointEdge})` : ''}` : null,
+    topOption?.reason ? `Why: ${topOption.reason}` : null,
+  ].filter(Boolean).join('\n');
+}
+
+function createLineupActionPlan({
+  leagueId,
+  manager,
+  recommendation,
+  status,
+}: {
+  leagueId?: string;
+  manager?: string | null;
+  recommendation: LineupSwapRecommendation;
+  status: StoredActionPlanStatus;
+}): StoredActionPlan {
+  const topOption = recommendation.options[0];
+  return {
+    id: getLineupActionPlanId(leagueId, manager, recommendation),
+    kind: 'lineup',
+    leagueId,
+    manager,
+    playerId: recommendation.starterOut.player_id,
+    replacementPlayerId: topOption?.player.player_id,
+    createdAt: Date.now(),
+    title: topOption ? `${recommendation.starterOut.name} -> ${topOption.player.name}` : `${recommendation.starterOut.name} lineup review`,
+    summary: recommendation.summary,
+    status,
+    payload: {
+      starterOut: {
+        playerId: recommendation.starterOut.player_id,
+        name: recommendation.starterOut.name,
+        position: recommendation.starterOut.pos,
+      },
+      replacements: recommendation.options.map((option) => ({
+        playerId: option.player.player_id,
+        name: option.player.name,
+        position: option.player.pos,
+        confidencePct: option.confidencePct,
+        scoreEdge: option.scoreEdge,
+        projectedPointEdge: option.projectedPointEdge,
+        reason: option.reason,
+      })),
+      groupLabel: recommendation.groupLabel,
+      severity: recommendation.severity,
+    },
+  };
+}
+
+function formatActionPlanTimestamp(value?: number): string {
+  if (!value) return 'Saved';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Saved';
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function getActionPlanCopy(plan: StoredActionPlan): string {
+  const planKindLabel = plan.kind === 'lineup' ? 'Lineup' : plan.kind === 'trade' ? 'Trade' : 'Waiver';
+  return [
+    `${planKindLabel} action plan`,
+    plan.title,
+    plan.summary,
+    `Status: ${plan.status}`,
+    plan.manager ? `Manager: ${plan.manager}` : null,
+  ].filter(Boolean).join('\n');
+}
+
+function getActionPlanKindLabel(kind: StoredActionPlan['kind']): string {
+  if (kind === 'lineup') return 'Lineup';
+  if (kind === 'trade') return 'Trade';
+  return 'Waiver';
+}
+
+function getWaiverPlanOutcomeStatus(
+  plan: StoredActionPlan,
+  recentTransactions?: ReportData['recentTransactions'],
+): StoredActionPlanStatus | null {
+  if (plan.kind !== 'waiver' || !plan.playerId || ['won', 'lost'].includes(plan.status)) return null;
+  const matchingAdd = (recentTransactions || [])
+    .filter((transaction) => transaction.addedPlayer?.player_id === plan.playerId)
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0] || null;
+  if (!matchingAdd) return null;
+  return normalizeManagerKey(matchingAdd.manager) === normalizeManagerKey(plan.manager) ? 'won' : 'lost';
+}
+
+function ActionPlanHistoryPanel({
+  plans,
+  leagueId,
+  isServerPersistenceEnabled,
+  title = 'Action History',
+}: {
+  plans: StoredActionPlan[];
+  leagueId?: string;
+  isServerPersistenceEnabled?: boolean;
+  title?: string;
+}) {
+  if (!plans.length) return null;
+
+  return (
+    <div className="action-plan-history-panel">
+      <div className="action-plan-history-head">
+        <div>
+          <span>Saved decisions</span>
+          <h4>{title}</h4>
+        </div>
+        <em>{isServerPersistenceEnabled ? 'Synced' : 'Local'}</em>
+      </div>
+      <div className="action-plan-history-list">
+        {plans.slice(0, 5).map((plan) => (
+          <div key={plan.id} className={`action-plan-history-item action-plan-history-item-${plan.kind}`}>
+            <div className="action-plan-history-copy">
+              <span>{getActionPlanKindLabel(plan.kind)} • {plan.status}</span>
+              <strong>{plan.title}</strong>
+              <p>{plan.summary}</p>
+              <small>{formatActionPlanTimestamp(plan.updatedAt || plan.createdAt)}</small>
+            </div>
+            <div className="action-plan-history-actions">
+              <button type="button" onClick={() => copyTextToClipboard(getActionPlanCopy(plan))} aria-label={`Copy ${plan.title}`}>
+                <Copy aria-hidden="true" />
+              </button>
+              <button type="button" disabled={!leagueId} onClick={() => openSleeperLeague(leagueId)} aria-label={`Open Sleeper for ${plan.title}`}>
+                <ExternalLink aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function ManagerDepthTile({
   manager,
@@ -5086,6 +5799,7 @@ export function LeagueCommandCenter({
 }) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const { storedActionPlans, persistStoredActionPlan, isServerPersistenceEnabled } = useStoredActionPlans({ leagueId });
   const intel = data.managerRosterIntelligence || [];
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput || data.leagueDiagnostics?.valueMode || data.leagueValueMode);
   const starterDepth = (data.managerPositionCounts || [])
@@ -5209,6 +5923,25 @@ export function LeagueCommandCenter({
         .sort((a, b) => (b.seasonValue || b.value) - (a.seasonValue || a.value)),
     } : null,
   ].filter((group): group is { label: string; players: typeof selectedLineupPlayers } => Boolean(group && group.players.length));
+  const lineupSwapRecommendations = buildLineupSwapRecommendations({
+    data,
+    manager: selectedManager,
+    lineupGroups,
+    stepInGroups: canStepInGroups,
+    selectedIntel,
+  });
+  const swapByStarterId = new Map(
+    lineupSwapRecommendations.map((recommendation) => [recommendation.starterOut.player_id, recommendation])
+  );
+  const swapOptionByPlayerId = new Map<string, LineupSwapOption>();
+  lineupSwapRecommendations.forEach((recommendation) => {
+    recommendation.options.forEach((option) => {
+      const existing = swapOptionByPlayerId.get(option.player.player_id);
+      if (!existing || option.confidencePct > existing.confidencePct) {
+        swapOptionByPlayerId.set(option.player.player_id, option);
+      }
+    });
+  });
   const selectedStarterSeasonValue = selectedStarters.reduce((sum, player) => sum + (player.seasonValue || player.value || 0), 0);
   const selectedTaxiCount = selectedIntel?.taxiTriage?.items.length || 0;
   const selectedTaxiPromoteCount = selectedIntel?.taxiTriage?.counts['Promote Now'] || 0;
@@ -5229,10 +5962,15 @@ export function LeagueCommandCenter({
       selectedIntel.holes.summary && selectedIntel.holes.summary !== 'No major roster hole flagged'
         ? { label: titleCasePill(selectedIntel.holes.summary.split(',')[0]?.trim() || 'Lineup Pressure'), tone: 'warn' }
         : null,
+      lineupSwapRecommendations.length ? { label: `${lineupSwapRecommendations.length} start/sit calls`, tone: 'warn' } : null,
       selectedIntel.pressurePoints?.length ? { label: `${selectedIntel.pressurePoints.length} pressure flags`, tone: 'warn' } : null,
     ].filter(Boolean) as Array<{ label: string; tone: 'neutral' | 'good' | 'warn' | 'danger' | 'future' }>;
     return tags.slice(0, 6);
   })();
+  const selectedActionPlans = storedActionPlans
+    .filter((plan) => (!leagueId || !plan.leagueId || plan.leagueId === leagueId))
+    .filter((plan) => !selectedManager || normalizeManagerKey(plan.manager) === normalizeManagerKey(selectedManager))
+    .slice(0, 5);
   const rosterRead = buildSeasonRosterRead({
     selectedIntel,
     selectedCounts,
@@ -5440,6 +6178,107 @@ export function LeagueCommandCenter({
                   ))}
                 </div>
               ) : null}
+              <ActionPlanHistoryPanel
+                plans={selectedActionPlans}
+                leagueId={leagueId}
+                isServerPersistenceEnabled={isServerPersistenceEnabled}
+              />
+              {lineupSwapRecommendations.length ? (
+                <div className="manager-command-section manager-command-swap-read">
+                  <h4>Start/Sit Swap Signals</h4>
+                  <div className="manager-command-swap-grid">
+                    {lineupSwapRecommendations.map((recommendation) => {
+                      const topOption = recommendation.options[0];
+                      const planId = getLineupActionPlanId(leagueId, selectedManager, recommendation);
+                      const planSaved = storedActionPlans.some((plan) => plan.id === planId);
+                      const planCopy = getLineupActionPlanCopy(selectedManager, recommendation);
+                      return (
+                        <div key={recommendation.starterOut.player_id} className={`manager-command-swap-card manager-command-swap-card-${recommendation.severity}`}>
+                          <div className="manager-command-swap-card-head">
+                            <span>{getLineupSwapSeverityLabel(recommendation.severity)}</span>
+                            <strong>{recommendation.groupLabel}</strong>
+                          </div>
+                          <p>{recommendation.summary}</p>
+                          <div className="manager-command-swap-flow">
+                            <span className="manager-command-swap-out-name">
+                              <em>Replace</em>
+                              <strong>{recommendation.starterOut.name}</strong>
+                            </span>
+                            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                            <div className="manager-command-swap-options">
+                              {recommendation.options.map((option) => (
+                                <span key={option.player.player_id} title={option.reason}>
+                                  <strong>{option.player.name}</strong>
+                                  <em>{option.confidencePct}%{formatProjectedPointEdge(option.projectedPointEdge) ? ` • ${formatProjectedPointEdge(option.projectedPointEdge)}` : ''}</em>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          {topOption?.reasonBullets.length ? (
+                            <details className="manager-command-swap-details">
+                              <summary>Why this swap</summary>
+                              <ul>
+                                {topOption.reasonBullets.map((reason) => (
+                                  <li key={reason}>{reason}</li>
+                                ))}
+                              </ul>
+                            </details>
+                          ) : null}
+                          <div className="manager-command-swap-actions">
+                            <button
+                              type="button"
+                              className="manager-command-swap-action manager-command-swap-action-primary"
+                              aria-pressed={planSaved}
+                              onClick={() => persistStoredActionPlan(createLineupActionPlan({
+                                leagueId,
+                                manager: selectedManager,
+                                recommendation,
+                                status: 'saved',
+                              }))}
+                            >
+                              <Save aria-hidden="true" />
+                              {planSaved ? 'Plan saved' : 'Save plan'}
+                            </button>
+                            <button
+                              type="button"
+                              className="manager-command-swap-action"
+                              onClick={() => {
+                                copyTextToClipboard(planCopy);
+                                persistStoredActionPlan(createLineupActionPlan({
+                                  leagueId,
+                                  manager: selectedManager,
+                                  recommendation,
+                                  status: 'copied',
+                                }));
+                              }}
+                            >
+                              <Copy aria-hidden="true" />
+                              Copy swap
+                            </button>
+                            <button
+                              type="button"
+                              className="manager-command-swap-action"
+                              disabled={!leagueId}
+                              onClick={() => {
+                                persistStoredActionPlan(createLineupActionPlan({
+                                  leagueId,
+                                  manager: selectedManager,
+                                  recommendation,
+                                  status: 'opened',
+                                }));
+                                openSleeperLeague(leagueId);
+                              }}
+                            >
+                              <ExternalLink aria-hidden="true" />
+                              Open Sleeper
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <div className="manager-command-grid">
                 <div className="manager-command-lineup-panel">
                   <h4>Projected Starters</h4>
@@ -5452,6 +6291,12 @@ export function LeagueCommandCenter({
                             <CommandPlayerTile
                               key={player.player_id}
                               player={player}
+                              swapSignal={swapByStarterId.has(player.player_id) ? {
+                                role: 'out',
+                                label: 'Review',
+                                confidencePct: swapByStarterId.get(player.player_id)?.options[0]?.confidencePct || 0,
+                                detail: 'Swap watch',
+                              } : undefined}
                               onClick={() => openCommandPlayer(player)}
                             />
                           )) : (
@@ -5474,6 +6319,12 @@ export function LeagueCommandCenter({
                               key={player.player_id}
                               player={player}
                               variant="step"
+                              swapSignal={swapOptionByPlayerId.has(player.player_id) ? {
+                                role: 'in',
+                                label: 'Start',
+                                confidencePct: swapOptionByPlayerId.get(player.player_id)?.confidencePct || 0,
+                                detail: 'Best fit',
+                              } : undefined}
                               onClick={() => openCommandPlayer(player)}
                             />
                           ))}
@@ -5660,14 +6511,14 @@ export function ManagerIntelligenceCards({
                       <PlayerInsightTile label="Trade Chip" player={selectedRow.tradeChip} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} />
                       <PlayerInsightTile label="Insurance" player={selectedRow.injuryInsurance} manager={selectedRow.manager} managerAvatarUrl={managerAvatars?.[selectedRow.manager]} playerDetailsById={playerDetailsById} onSelect={setSelectedPlayer} />
                       <PlayerInsightTile
-                        label="Last Year Stud"
+                        label={selectedRow.lastSeasonStud?.lastSeasonYear ? `${selectedRow.lastSeasonStud.lastSeasonYear} Stud` : 'Previous Stud'}
                         player={selectedRow.lastSeasonStud}
                         manager={selectedRow.manager}
                         managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
                         playerDetailsById={playerDetailsById}
                         onSelect={setSelectedPlayer}
                         crownedRank={selectedRow.lastSeasonStud?.lastSeasonPositionRank
-                          ? `${selectedRow.lastSeasonStud.lastSeasonYear || '2025'} ${selectedRow.lastSeasonStud.lastSeasonPositionRank}`
+                          ? selectedRow.lastSeasonStud.lastSeasonPositionRank
                           : null}
                       />
                     </div>
@@ -6625,6 +7476,7 @@ export function TradeProfitLeaderboardTable({
   leagueId,
   leagueLogo,
   viewerManager,
+  leagueDiagnostics,
   currentStandings,
   standingsHistory,
   leagueValueMode = 'dynasty',
@@ -6642,6 +7494,7 @@ export function TradeProfitLeaderboardTable({
   leagueId?: string;
   leagueLogo?: string | null;
   viewerManager?: string | null;
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
   currentStandings?: ReportData['currentStandings'];
   standingsHistory?: ReportData['standingsHistory'];
   leagueValueMode?: ReportData['leagueValueMode'];
@@ -6898,6 +7751,7 @@ export function TradeProfitLeaderboardTable({
                             managerRosterIntelligence={managerRosterIntelligence}
                             dynastyTimelines={dynastyTimelines}
                             leagueOverview={leagueOverview}
+                            leagueDiagnostics={leagueDiagnostics}
                             standingsHistory={standingsHistory}
                             currentStandings={currentStandings}
                             leagueValueMode={leagueValueMode}
@@ -6938,6 +7792,7 @@ export function TradeHistoryTable({
   leagueId,
   leagueLogo,
   viewerManager: _viewerManager,
+  leagueDiagnostics,
   currentStandings,
   standingsHistory,
   leagueValueMode = 'dynasty',
@@ -6954,6 +7809,7 @@ export function TradeHistoryTable({
   leagueId?: string;
   leagueLogo?: string | null;
   viewerManager?: string | null;
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
   currentStandings?: ReportData['currentStandings'];
   standingsHistory?: ReportData['standingsHistory'];
   leagueValueMode?: ReportData['leagueValueMode'];
@@ -7155,6 +8011,7 @@ export function TradeHistoryTable({
               managerRosterIntelligence={managerRosterIntelligence}
               dynastyTimelines={dynastyTimelines}
               leagueOverview={leagueOverview}
+              leagueDiagnostics={leagueDiagnostics}
               sideOrder={selectedTradeDetail.sideOrder}
               standingsHistory={standingsHistory}
               currentStandings={currentStandings}
@@ -7189,6 +8046,7 @@ export function TradeTheftDetector({
   leagueOverview,
   leagueId,
   leagueLogo,
+  leagueDiagnostics,
   currentStandings,
   standingsHistory,
   leagueValueMode = 'dynasty',
@@ -7203,6 +8061,7 @@ export function TradeTheftDetector({
   leagueOverview?: LeagueOverviewRows;
   leagueId?: string;
   leagueLogo?: string | null;
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
   currentStandings?: ReportData['currentStandings'];
   standingsHistory?: ReportData['standingsHistory'];
   leagueValueMode?: ReportData['leagueValueMode'];
@@ -7353,6 +8212,7 @@ export function TradeTheftDetector({
               managerRosterIntelligence={managerRosterIntelligence}
               dynastyTimelines={dynastyTimelines}
               leagueOverview={leagueOverview}
+              leagueDiagnostics={leagueDiagnostics}
               standingsHistory={standingsHistory}
               currentStandings={currentStandings}
               leagueValueMode={leagueValueMode}
@@ -7402,6 +8262,22 @@ type WaiverRecommendation = {
   reason: string;
   label: string;
   targetPosition: WaiverPosition | null;
+  bidRangeLabel: string;
+  bidConfidencePct: number;
+  bidSource: 'league-history' | 'free-history' | 'model';
+  bidEvidenceLabel: string;
+  competitionRead: WaiverCompetitionRead | null;
+  dropCandidate: ManagerIntelPlayer | null;
+  dropReason: string | null;
+  claimPriority: 'Add' | 'Add/Drop' | 'Watchlist';
+};
+
+type WaiverCompetitionRead = {
+  manager: string;
+  level: 'High' | 'Medium' | 'Low';
+  confidencePct: number;
+  bidHint: string;
+  reason: string;
 };
 
 type WaiverRecommendationContext = {
@@ -7418,6 +8294,114 @@ const WAIVER_RECOMMENDATION_LIMIT = 4;
 const WAIVER_RECOMMENDATION_MINIMUM = 2;
 export const VALUE_BLEND_HISTORY_START_LABEL = 'May 5, 2026';
 export const FIRST_FULL_BLEND_WEEK_LABEL = 'May 12, 2026 after the 6 PM scrape';
+
+function getWaiverActionPlanId(
+  leagueId: string | undefined,
+  manager: string | null | undefined,
+  recommendation: WaiverRecommendation,
+): string {
+  return [
+    'waiver',
+    leagueId || 'unknown-league',
+    normalizeManagerKey(manager),
+    recommendation.player.player_id,
+  ].join(':');
+}
+
+function getWaiverActionPlanCopy(
+  manager: string | null | undefined,
+  recommendation: WaiverRecommendation,
+): string {
+  return [
+    `Waiver plan${manager ? ` for ${manager}` : ''}`,
+    `Add: ${recommendation.player.name}`,
+    `Bid: ${recommendation.bidRangeLabel} (${recommendation.bidConfidencePct}% confidence)`,
+    `Bid evidence: ${recommendation.bidEvidenceLabel}`,
+    recommendation.competitionRead
+      ? `Competition: ${recommendation.competitionRead.manager} ${recommendation.competitionRead.level.toLowerCase()} threat (${recommendation.competitionRead.bidHint}). ${recommendation.competitionRead.reason}`
+      : 'Competition: no strong competing manager signal returned',
+    recommendation.dropCandidate
+      ? `Drop: ${recommendation.dropCandidate.name}`
+      : recommendation.claimPriority === 'Add'
+        ? 'Drop: no drop needed'
+        : 'Drop: manual room needed',
+    `Reason: ${recommendation.reason}`,
+  ].join('\n');
+}
+
+function createWaiverActionPlan({
+  leagueId,
+  manager,
+  recommendation,
+  status,
+}: {
+  leagueId?: string;
+  manager?: string | null;
+  recommendation: WaiverRecommendation;
+  status: StoredActionPlanStatus;
+}): StoredActionPlan {
+  return {
+    id: getWaiverActionPlanId(leagueId, manager, recommendation),
+    kind: 'waiver',
+    leagueId,
+    manager,
+    playerId: recommendation.player.player_id,
+    createdAt: Date.now(),
+    title: `Claim ${recommendation.player.name}`,
+    summary: `${recommendation.bidRangeLabel}; ${recommendation.dropCandidate ? `drop ${recommendation.dropCandidate.name}` : recommendation.claimPriority}.`,
+    status,
+    payload: {
+      player: {
+        playerId: recommendation.player.player_id,
+        name: recommendation.player.name,
+        position: recommendation.player.pos,
+      },
+      bidRangeLabel: recommendation.bidRangeLabel,
+      bidConfidencePct: recommendation.bidConfidencePct,
+      bidSource: recommendation.bidSource,
+      bidEvidenceLabel: recommendation.bidEvidenceLabel,
+      competitionRead: recommendation.competitionRead,
+      claimPriority: recommendation.claimPriority,
+      dropCandidate: recommendation.dropCandidate ? {
+        playerId: recommendation.dropCandidate.player_id,
+        name: recommendation.dropCandidate.name,
+        position: recommendation.dropCandidate.pos,
+      } : null,
+      reason: recommendation.reason,
+    },
+  };
+}
+
+function createWaiverBidHistoryItem({
+  leagueId,
+  manager,
+  recommendation,
+}: {
+  leagueId?: string;
+  manager?: string | null;
+  recommendation: WaiverRecommendation;
+}): StoredWaiverBidHistoryItem | null {
+  const parsedRange = parseFaabBidRange(recommendation.bidRangeLabel);
+  if (!parsedRange) return null;
+  return {
+    id: [
+      'waiver-bid',
+      leagueId || 'unknown-league',
+      normalizeManagerKey(manager),
+      recommendation.player.player_id,
+    ].join(':'),
+    leagueId,
+    manager,
+    playerId: recommendation.player.player_id,
+    playerName: recommendation.player.name,
+    position: recommendation.player.pos,
+    bidMin: parsedRange.min,
+    bidMax: parsedRange.max,
+    bidLabel: recommendation.bidRangeLabel,
+    source: 'submitted-plan',
+    createdAt: Date.now(),
+  };
+}
 
 type WaiverSpecialTeamsPosition = typeof WAIVER_SPECIAL_TEAMS_POSITIONS[number];
 type WaiverManagerPlayer = NonNullable<ReportData['managerPositionCounts'][number]['lineupPlayers']>[number];
@@ -7763,23 +8747,309 @@ function getWaiverRecommendationLabel(
   return 'Upside Add';
 }
 
+function getPercentile(values: number[], percentile: number): number | null {
+  const sorted = values.filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => a - b);
+  if (!sorted.length) return null;
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil((percentile / 100) * sorted.length) - 1));
+  return sorted[index];
+}
+
+function averagePositive(values: number[]): number | null {
+  const finite = values.filter((value) => Number.isFinite(value) && value > 0);
+  if (!finite.length) return null;
+  return finite.reduce((sum, value) => sum + value, 0) / finite.length;
+}
+
+function isWaiverTaxiProfile(player: TrendingPlayer | RecentTransactionPlayer | null | undefined): boolean {
+  if (!player) return false;
+  const rookieYear = Number(player.playerDetails?.rookieYear || 0);
+  const age = Number(player.playerDetails?.age || 0);
+  const currentYear = new Date().getFullYear();
+  return player.playerDetails?.rosterStatus === 'Taxi'
+    || rookieYear === currentYear
+    || (age > 0 && age <= 22);
+}
+
+function getManagerWaiverBidSamples({
+  manager,
+  leagueId,
+  position,
+  recentTransactions,
+  storedWaiverBidHistory,
+}: {
+  manager?: string | null;
+  leagueId?: string;
+  position?: string | null;
+  recentTransactions?: ReportData['recentTransactions'];
+  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
+}) {
+  const managerKey = normalizeManagerKey(manager);
+  const transactionBids = (recentTransactions || [])
+    .filter((transaction) => normalizeManagerKey(transaction.manager) === managerKey)
+    .filter((transaction) => transaction.type === 'Waiver' && Number(transaction.bidAmount || 0) > 0 && transaction.addedPlayer)
+    .map((transaction) => ({
+      bid: Number(transaction.bidAmount || 0),
+      pos: transaction.addedPlayer?.pos || null,
+    }));
+  const persistedBids = (storedWaiverBidHistory || [])
+    .filter((item) => normalizeManagerKey(item.manager) === managerKey)
+    .filter((item) => (!leagueId || !item.leagueId || item.leagueId === leagueId) && item.bidMax > 0)
+    .map((item) => ({
+      bid: Math.max(item.bidMin, item.bidMax),
+      pos: item.position || null,
+    }));
+  const samples = [...transactionBids, ...persistedBids];
+  const positionSamples = samples.filter((sample) => sample.pos === position).map((sample) => sample.bid);
+  const allSamples = samples.map((sample) => sample.bid);
+  return {
+    positionSamples,
+    allSamples,
+    preferredSamples: positionSamples.length >= 2 ? positionSamples : allSamples,
+  };
+}
+
+function buildWaiverCompetitionRead({
+  player,
+  viewerManager,
+  managerRosterIntelligence,
+  managerPositionCounts,
+  positionDepth,
+  recentTransactions,
+  storedWaiverBidHistory,
+  leagueId,
+}: {
+  player: TrendingPlayer;
+  viewerManager?: string | null;
+  managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
+  managerPositionCounts?: ReportData['managerPositionCounts'];
+  positionDepth?: ReportData['positionDepth'];
+  recentTransactions?: ReportData['recentTransactions'];
+  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
+  leagueId?: string;
+}): WaiverCompetitionRead | null {
+  const playerPosition = isWaiverPosition(player.pos) ? player.pos : null;
+  if (!playerPosition) return null;
+  const viewerKey = normalizeManagerKey(viewerManager);
+  const playerIsTaxiProfile = isWaiverTaxiProfile(player);
+
+  const reads = (managerRosterIntelligence || [])
+    .filter((intel) => normalizeManagerKey(intel.manager) !== viewerKey)
+    .map((intel) => {
+      const managerKey = normalizeManagerKey(intel.manager);
+      const managerTransactions = (recentTransactions || [])
+        .filter((transaction) => normalizeManagerKey(transaction.manager) === managerKey);
+      const waiverTransactions = managerTransactions.filter((transaction) => transaction.type === 'Waiver');
+      const samePositionTransactions = managerTransactions.filter((transaction) => (
+        transaction.addedPlayer?.pos === playerPosition || transaction.droppedPlayer?.pos === playerPosition
+      ));
+      const taxiTransactions = managerTransactions.filter((transaction) => (
+        isWaiverTaxiProfile(transaction.addedPlayer) || isWaiverTaxiProfile(transaction.droppedPlayer)
+      ));
+      const needWeights = getWaiverNeedWeights(intel, positionDepth, intel.manager);
+      const positionNeed = needWeights[playerPosition] || 0;
+      const positionCounts = managerPositionCounts?.find((row) => normalizeManagerKey(row.manager) === managerKey) || null;
+      const taxiCount = Number(positionCounts?.taxiPlayerCount || 0);
+      const bidSamples = getManagerWaiverBidSamples({
+        manager: intel.manager,
+        leagueId,
+        position: playerPosition,
+        recentTransactions,
+        storedWaiverBidHistory,
+      });
+      const averageBid = averagePositive(bidSamples.preferredSamples);
+      const activityScore = Math.min(28, managerTransactions.length * 6 + waiverTransactions.length * 3);
+      const needScore = Math.min(30, positionNeed / 34);
+      const positionChurnScore = Math.min(12, samePositionTransactions.length * 4);
+      const bidScore = averageBid ? Math.min(16, averageBid * 1.35) : 0;
+      const taxiScore = playerIsTaxiProfile ? Math.min(12, taxiTransactions.length * 5 + (taxiCount > 0 ? 4 : 0)) : 0;
+      const score = clampPercentValue(28 + activityScore + needScore + positionChurnScore + bidScore + taxiScore);
+      const level: WaiverCompetitionRead['level'] = score >= 76 ? 'High' : score >= 58 ? 'Medium' : 'Low';
+      const median = getPercentile(bidSamples.preferredSamples, 50);
+      const upper = getPercentile(bidSamples.preferredSamples, 75) || median;
+      const bidHint = median
+        ? `Likely FAAB ${Math.max(1, Math.round(median * 0.8))}-${Math.max(Math.round(median), Math.round((upper || median) * 1.15))}`
+        : managerTransactions.length
+          ? 'Could try a free claim'
+          : 'No bid pattern returned';
+      const reasonParts = [
+        managerTransactions.length ? `${managerTransactions.length} recent add/drop move${managerTransactions.length === 1 ? '' : 's'}` : null,
+        positionNeed > 0 ? `${playerPosition} need` : null,
+        samePositionTransactions.length ? `${samePositionTransactions.length} ${playerPosition} churn signal${samePositionTransactions.length === 1 ? '' : 's'}` : null,
+        playerIsTaxiProfile && (taxiTransactions.length || taxiCount) ? 'taxi/rookie appetite' : null,
+        averageBid ? `avg bid ${Math.round(averageBid)}` : null,
+      ].filter(Boolean);
+
+      return {
+        manager: intel.manager,
+        level,
+        confidencePct: score,
+        bidHint,
+        reason: reasonParts.length
+          ? `${intel.manager}: ${reasonParts.join(', ')}.`
+          : `${intel.manager}: no strong competing claim pattern returned.`,
+      };
+    })
+    .filter((read) => read.confidencePct >= 42)
+    .sort((a, b) => b.confidencePct - a.confidencePct);
+
+  return reads[0] || null;
+}
+
+function buildWaiverBidRead({
+  player,
+  score,
+  competitionRead,
+  recentTransactions,
+  storedWaiverBidHistory,
+  leagueId,
+  leagueValueMode,
+}: {
+  player: TrendingPlayer;
+  score: number;
+  competitionRead?: WaiverCompetitionRead | null;
+  recentTransactions?: ReportData['recentTransactions'];
+  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
+  leagueId?: string;
+  leagueValueMode: LeagueValueMode;
+}): Pick<WaiverRecommendation, 'bidRangeLabel' | 'bidConfidencePct' | 'bidSource' | 'bidEvidenceLabel'> {
+  const transactionBids = (recentTransactions || [])
+    .filter((transaction) => transaction.type === 'Waiver' && Number(transaction.bidAmount || 0) > 0 && transaction.addedPlayer)
+    .map((transaction) => ({
+      bid: Number(transaction.bidAmount || 0),
+      pos: transaction.addedPlayer?.pos || null,
+    }));
+  const persistedBids = (storedWaiverBidHistory || [])
+    .filter((item) => (!leagueId || !item.leagueId || item.leagueId === leagueId) && item.bidMax > 0)
+    .map((item) => ({
+      bid: Math.max(item.bidMin, item.bidMax),
+      pos: item.position || null,
+    }));
+  const waiverBids = [...transactionBids, ...persistedBids];
+  const positionBids = waiverBids.filter((transaction) => transaction.pos === player.pos).map((transaction) => transaction.bid);
+  const fallbackBids = waiverBids.map((transaction) => transaction.bid);
+  const historicalBids = positionBids.length >= 2 ? positionBids : fallbackBids;
+  const historicalBidLabel = positionBids.length >= 2
+    ? `${positionBids.length} ${player.pos} bid sample${positionBids.length === 1 ? '' : 's'}`
+    : `${historicalBids.length} league bid sample${historicalBids.length === 1 ? '' : 's'}`;
+  const scoreAdjustment = score >= 3000 ? 4 : score >= 2200 ? 3 : score >= 1500 ? 2 : 0;
+  const competitionAdjustment = competitionRead?.level === 'High' ? 3 : competitionRead?.level === 'Medium' ? 1 : 0;
+
+  if (historicalBids.length) {
+    const median = getPercentile(historicalBids, 50) || 1;
+    const upper = getPercentile(historicalBids, 75) || median;
+    const min = Math.max(1, Math.round(median * 0.78 + scoreAdjustment + competitionAdjustment));
+    const max = Math.max(min, Math.round(upper * 1.15 + scoreAdjustment + competitionAdjustment));
+    return {
+      bidRangeLabel: min === max ? `FAAB ${min}` : `FAAB ${min}-${max}`,
+      bidConfidencePct: clampPercentValue(62 + Math.min(22, historicalBids.length * 3) + Math.min(12, score / 360) + (competitionRead ? 4 : 0)),
+      bidSource: 'league-history',
+      bidEvidenceLabel: `Based on ${historicalBidLabel}; ${competitionRead ? `${competitionRead.manager} pressure included` : 'no strong competing-claim pressure included'}.`,
+    };
+  }
+
+  const freeAddSignals = (recentTransactions || [])
+    .filter((transaction) => transaction.type === 'Free Agent' && transaction.addedPlayer?.pos === player.pos)
+    .length;
+  if (score < 1500 && (competitionRead?.confidencePct || 0) < 58 && freeAddSignals >= 2) {
+    return {
+      bidRangeLabel: 'Free / FAAB 0-1',
+      bidConfidencePct: clampPercentValue(58 + Math.min(14, freeAddSignals * 4)),
+      bidSource: 'free-history',
+      bidEvidenceLabel: `${freeAddSignals} recent free ${player.pos} add${freeAddSignals === 1 ? '' : 's'} and low competing-claim pressure.`,
+    };
+  }
+
+  const isRedraft = leagueValueMode === 'redraft';
+  const minPct = score >= 2600
+    ? isRedraft ? 12 : 8
+    : score >= 1700
+      ? isRedraft ? 7 : 5
+      : (competitionRead?.confidencePct || 0) < 48 ? 0 : isRedraft ? 3 : 1;
+  const maxPct = score >= 2600
+    ? (isRedraft ? 18 : 14) + competitionAdjustment
+    : score >= 1700
+      ? (isRedraft ? 11 : 8) + competitionAdjustment
+      : (isRedraft ? 6 : 4) + competitionAdjustment;
+
+  return {
+    bidRangeLabel: minPct <= 0 ? `Free / FAAB 0-${maxPct}%` : `FAAB ${minPct}-${maxPct}%`,
+    bidConfidencePct: clampPercentValue(54 + Math.min(24, score / 150) + (competitionRead ? 4 : 0)),
+    bidSource: 'model',
+    bidEvidenceLabel: competitionRead
+      ? `No direct bid sample; model range includes ${competitionRead.manager}'s ${competitionRead.level.toLowerCase()} competing-claim read.`
+      : 'No direct league bid sample; model range uses player value, roster need, and available role signals.',
+  };
+}
+
+function getWaiverDropRead({
+  player,
+  viewerIntel,
+  openRosterSpots,
+}: {
+  player: TrendingPlayer;
+  viewerIntel?: OwnerIntelRow | null;
+  openRosterSpots: number;
+}): Pick<WaiverRecommendation, 'dropCandidate' | 'dropReason' | 'claimPriority'> {
+  if (openRosterSpots > 0) {
+    return {
+      dropCandidate: null,
+      dropReason: 'Active roster space is available, so no forced drop is needed.',
+      claimPriority: 'Add',
+    };
+  }
+
+  const candidates = [...(viewerIntel?.droppablePlayers || [])]
+    .filter((candidate) => candidate.player_id !== player.player_id)
+    .filter((candidate) => candidate.playerDetails?.rosterStatus !== 'Taxi')
+    .sort((a, b) => {
+      const samePositionA = a.pos === player.pos ? -120 : 0;
+      const samePositionB = b.pos === player.pos ? -120 : 0;
+      const aRank = parsePositionRankValue(a.seasonPositionRank || a.currentPositionRank) || 999;
+      const bRank = parsePositionRankValue(b.seasonPositionRank || b.currentPositionRank) || 999;
+      return samePositionA - samePositionB
+        || (a.seasonValue || a.value || 0) - (b.seasonValue || b.value || 0)
+        || bRank - aRank;
+    });
+  const dropCandidate = candidates[0] || null;
+
+  if (!dropCandidate) {
+    return {
+      dropCandidate: null,
+      dropReason: 'No clean drop candidate is returned, so keep this as a watchlist claim unless you manually create room.',
+      claimPriority: 'Watchlist',
+    };
+  }
+
+  return {
+    dropCandidate,
+    dropReason: `${dropCandidate.name} is the lowest-friction cut from the returned droppable list${dropCandidate.pos === player.pos ? ` and clears the same ${player.pos} roster lane` : ''}.`,
+    claimPriority: 'Add/Drop',
+  };
+}
+
 function buildWaiverRecommendationContext({
   data,
+  leagueId,
   viewerManager,
   managerRosterIntelligence,
   managerPositionCounts,
   positionDepth,
   leagueDiagnostics,
   playerDetailsById,
+  recentTransactions,
+  storedWaiverBidHistory,
   leagueValueMode: leagueValueModeInput,
 }: {
   data: NonNullable<ReportData['waiverIntelligence']>;
+  leagueId?: string;
   viewerManager?: string | null;
   managerRosterIntelligence?: ReportData['managerRosterIntelligence'];
   managerPositionCounts?: ReportData['managerPositionCounts'];
   positionDepth?: ReportData['positionDepth'];
   leagueDiagnostics?: ReportData['leagueDiagnostics'];
   playerDetailsById?: PlayerDetailsById;
+  recentTransactions?: ReportData['recentTransactions'];
+  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
   leagueValueMode?: ReportData['leagueValueMode'];
 }): WaiverRecommendationContext {
   const normalizedViewer = normalizeReportManagerName(viewerManager);
@@ -7824,9 +9094,9 @@ function buildWaiverRecommendationContext({
     .map((player) => {
       const pos = isWaiverPosition(player.pos) ? player.pos : null;
       const details = getWaiverPlayerDetails(player, playerDetailsById);
-      const dynastyValue = getWaiverDynastyValue(player, playerDetailsById);
+      const dynastyValue = isDynastyLeague ? getWaiverDynastyValue(player, playerDetailsById) : 0;
       const seasonValue = getWaiverSeasonValue(player, playerDetailsById);
-      const dynastyRankNumber = parsePositionRankValue(getWaiverDynastyRank(player, playerDetailsById));
+      const dynastyRankNumber = isDynastyLeague ? parsePositionRankValue(getWaiverDynastyRank(player, playerDetailsById)) : null;
       const seasonRankNumber = parsePositionRankValue(getWaiverSeasonRank(player, playerDetailsById));
       const age = details?.age ?? null;
       const rookieYear = Number(details?.rookieYear || 0);
@@ -7859,12 +9129,39 @@ function buildWaiverRecommendationContext({
         + trendScore
         + specialTeamsUpgradeScore
         + specialTeamsDynastyPenalty;
+      const competitionRead = buildWaiverCompetitionRead({
+        player,
+        viewerManager,
+        managerRosterIntelligence,
+        managerPositionCounts,
+        positionDepth,
+        recentTransactions,
+        storedWaiverBidHistory,
+        leagueId,
+      });
+      const bidRead = buildWaiverBidRead({
+        player,
+        score,
+        competitionRead,
+        recentTransactions,
+        storedWaiverBidHistory,
+        leagueId,
+        leagueValueMode,
+      });
+      const dropRead = getWaiverDropRead({
+        player,
+        viewerIntel,
+        openRosterSpots,
+      });
 
       return {
         player,
         score,
         label: getWaiverRecommendationLabel(player, playerDetailsById, leagueValueMode),
         targetPosition: pos,
+        competitionRead,
+        ...bidRead,
+        ...dropRead,
         reason: buildWaiverRecommendationReason({
           player,
           playerDetailsById,
@@ -7894,7 +9191,15 @@ function buildWaiverRecommendationContext({
   const featuredRecommendationCount = Math.min(WAIVER_RECOMMENDATION_MINIMUM, recommendations.length);
   const featuredRecommendationCopy = recommendations
     .slice(0, featuredRecommendationCount)
-    .map((recommendation) => `${recommendation.player.name}: ${recommendation.reason}`)
+    .map((recommendation) => {
+      const bidCopy = recommendation.bidRangeLabel.toLowerCase().startsWith('free')
+        ? 'likely free/near-free'
+        : recommendation.bidRangeLabel;
+      const competitionCopy = recommendation.competitionRead
+        ? `${recommendation.competitionRead.manager} is the top competing-claim risk`
+        : 'no strong competing-claim risk returned';
+      return `${recommendation.player.name}: ${recommendation.reason} (${bidCopy}; ${competitionCopy})`;
+    })
     .join(' Next: ');
   const summary = recommendations.length
     ? `${openSpotCopy}${irSpotCopy} Signal read: ${featuredRecommendationCopy}. ${targetCopy}`
@@ -7920,6 +9225,7 @@ export function WaiverIntelligencePanel({
   managerPositionCounts,
   positionDepth,
   leagueDiagnostics,
+  recentTransactions,
   leagueValueMode: leagueValueModeInput = 'dynasty',
 }: {
   data?: ReportData['waiverIntelligence'];
@@ -7932,22 +9238,49 @@ export function WaiverIntelligencePanel({
   managerPositionCounts?: ReportData['managerPositionCounts'];
   positionDepth?: ReportData['positionDepth'];
   leagueDiagnostics?: ReportData['leagueDiagnostics'];
+  recentTransactions?: ReportData['recentTransactions'];
   leagueValueMode?: ReportData['leagueValueMode'];
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
+  const { storedActionPlans, persistStoredActionPlan, isServerPersistenceEnabled } = useStoredActionPlans({ leagueId });
+  const { storedWaiverBidHistory, persistStoredWaiverBidHistory } = useStoredWaiverBidHistory({ leagueId });
   if (!data) return null;
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput || leagueDiagnostics?.valueMode);
   const isRedraft = leagueValueMode === 'redraft';
   const recommendationContext = buildWaiverRecommendationContext({
     data,
+    leagueId,
     viewerManager,
     managerRosterIntelligence,
     managerPositionCounts,
     positionDepth,
     leagueDiagnostics,
     playerDetailsById,
+    recentTransactions,
+    storedWaiverBidHistory,
     leagueValueMode,
   });
+  React.useEffect(() => {
+    storedActionPlans
+      .filter((plan) => plan.kind === 'waiver')
+      .filter((plan) => (!leagueId || !plan.leagueId || plan.leagueId === leagueId))
+      .forEach((plan) => {
+        const outcomeStatus = getWaiverPlanOutcomeStatus(plan, recentTransactions);
+        if (!outcomeStatus || outcomeStatus === plan.status) return;
+        persistStoredActionPlan({
+          ...plan,
+          status: outcomeStatus,
+          summary: outcomeStatus === 'won'
+            ? `${plan.summary} Outcome: your roster added this player.`
+            : `${plan.summary} Outcome: another manager added this player first.`,
+          payload: {
+            ...plan.payload,
+            outcomeStatus,
+            outcomeCheckedAt: Date.now(),
+          },
+        });
+      });
+  }, [leagueId, persistStoredActionPlan, recentTransactions, storedActionPlans]);
   const recommendationByPlayerId = new Map(recommendationContext.recommendations.map((recommendation) => [recommendation.player.player_id, recommendation]));
   const recommendationOrderByPlayerId = new Map(
     recommendationContext.recommendations.map((recommendation, index) => [recommendation.player.player_id, index])
@@ -7971,6 +9304,11 @@ export function WaiverIntelligencePanel({
     if (bIsSuggested) return 1;
     return 0;
   });
+  const waiverActionPlans = storedActionPlans
+    .filter((plan) => plan.kind === 'waiver')
+    .filter((plan) => (!leagueId || !plan.leagueId || plan.leagueId === leagueId))
+    .filter((plan) => !viewerManager || normalizeManagerKey(plan.manager) === normalizeManagerKey(viewerManager))
+    .slice(0, 5);
 
   return (
     <div className="waiver-intel-panel">
@@ -7980,6 +9318,12 @@ export function WaiverIntelligencePanel({
           <p>{recommendationContext.summary}</p>
         </div>
       )}
+      <ActionPlanHistoryPanel
+        plans={waiverActionPlans}
+        leagueId={leagueId}
+        isServerPersistenceEnabled={isServerPersistenceEnabled}
+        title="Waiver Plan History"
+      />
       <div className="player-tile-grid waiver-intel-grid balanced-tile-grid" style={getBalancedGridStyle(cards.length)}>
         {cards.map(({ label, player }) => {
           const recommendation = recommendationByPlayerId.get(player.player_id);
@@ -7992,65 +9336,155 @@ export function WaiverIntelligencePanel({
           const value = isRedraft
             ? getWaiverSeasonValue(player, playerDetailsById) || getWaiverPlayerValue(player, playerDetailsById)
             : getWaiverPlayerValue(player, playerDetailsById);
+          const waiverPlanId = recommendation ? getWaiverActionPlanId(leagueId, viewerManager, recommendation) : null;
+          const submittedPlan = waiverPlanId
+            ? storedActionPlans.some((plan) => plan.id === waiverPlanId && plan.kind === 'waiver')
+            : false;
+          const waiverPlanCopy = recommendation ? getWaiverActionPlanCopy(viewerManager, recommendation) : '';
           return (
-            <button
+            <article
               key={`${label}-${player.player_id}`}
-              type="button"
               className={`player-team-tile waiver-intel-card ${recommendation ? getAiNeuralSurfaceClass('trade', 'waiver-intel-card-suggested') : ''}`}
               style={getTeamTileStyle(details?.team || player.team)}
-              onClick={() => setSelectedPlayer(buildPlayerModalData({
-                playerId: player.player_id,
-                playerName: player.name,
-                playerPos: player.pos,
-                value,
-                playerDetails: details,
-                playerDetailsById,
-                currentPositionRank: rank,
-                manager: player.owner || null,
-                managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
-                valueMode: leagueValueMode,
-              }))}
             >
-              <div className="waiver-intel-top">
-                <span className="waiver-intel-label">{label}</span>
-                <span className={recommendation ? 'waiver-intel-suggestion-label ai-recommendation-badge' : 'available-manager-label'}>
-                  {recommendation ? AI_RECOMMENDATION_BADGE_LABEL : 'Available'}
-                </span>
-              </div>
-              <PlayerIdentityRow
-                className="waiver-intel-main"
-                playerId={player.player_id}
-                playerName={player.name}
-                team={details?.team || player.team}
-                position={player.pos}
-                hideMeta
-              />
-              <div className="waiver-intel-pills" aria-label={`${player.name} waiver profile`}>
-                <div className="waiver-intel-pill-row waiver-intel-pill-row-primary">
-                  <TeamLogoPill team={details?.team || player.team} />
-                  {!isRedraft && dynastyRank && (
-                    <WaiverRankPill
-                      label="Dynasty"
-                      rank={dynastyRank}
-                      className="waiver-intel-rank-pill-dynasty"
-                    />
-                  )}
-                  {seasonRank && (
-                    <WaiverRankPill
-                      label="Season"
-                      rank={seasonRank}
-                      className="waiver-intel-rank-pill-season"
-                    />
-                  )}
-                  {!dynastyRank && !seasonRank && <PositionRankPill rank={rank || player.pos || '-'} />}
+              <button
+                type="button"
+                className="waiver-intel-card-open"
+                onClick={() => setSelectedPlayer(buildPlayerModalData({
+                  playerId: player.player_id,
+                  playerName: player.name,
+                  playerPos: player.pos,
+                  value,
+                  playerDetails: details,
+                  playerDetailsById,
+                  currentPositionRank: rank,
+                  manager: player.owner || null,
+                  managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
+                  valueMode: leagueValueMode,
+                }))}
+              >
+                <div className="waiver-intel-top">
+                  <span className="waiver-intel-label">{label}</span>
+                  <span className={recommendation ? 'waiver-intel-suggestion-label ai-recommendation-badge' : 'available-manager-label'}>
+                    {recommendation ? AI_RECOMMENDATION_BADGE_LABEL : 'Available'}
+                  </span>
                 </div>
-                <div className="waiver-intel-pill-row waiver-intel-pill-row-secondary">
-                  {!isRedraft && label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
-                  {recommendation && recommendationContext.openRosterSpots > 0 && <span>Active Spot Fit</span>}
-                  {value > 0 && <span className="waiver-intel-value-pill">{formatCompactValue(value)}</span>}
+                <PlayerIdentityRow
+                  className="waiver-intel-main"
+                  playerId={player.player_id}
+                  playerName={player.name}
+                  team={details?.team || player.team}
+                  position={player.pos}
+                  hideMeta
+                />
+                <div className="waiver-intel-pills" aria-label={`${player.name} waiver profile`}>
+                  <div className="waiver-intel-pill-row waiver-intel-pill-row-primary">
+                    <TeamLogoPill team={details?.team || player.team} />
+                    {!isRedraft && dynastyRank && (
+                      <WaiverRankPill
+                        label="Dynasty"
+                        rank={dynastyRank}
+                        className="waiver-intel-rank-pill-dynasty"
+                      />
+                    )}
+                    {seasonRank && (
+                      <WaiverRankPill
+                        label="Season"
+                        rank={seasonRank}
+                        className="waiver-intel-rank-pill-season"
+                      />
+                    )}
+                    {!dynastyRank && !seasonRank && <PositionRankPill rank={rank || player.pos || '-'} />}
+                  </div>
+                  <div className="waiver-intel-pill-row waiver-intel-pill-row-secondary">
+                    {!isRedraft && label.startsWith('Taxi Stash') && <span>Rookie Stash</span>}
+                    {recommendation && recommendationContext.openRosterSpots > 0 && <span>Active Spot Fit</span>}
+                    {value > 0 && <span className="waiver-intel-value-pill">{formatCompactValue(value)}</span>}
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+              {recommendation && (
+                <div className="waiver-intel-claim-plan" title={recommendation.dropReason || recommendation.reason}>
+                  <span>
+                    <em>{recommendation.bidSource === 'league-history' ? 'League bid range' : recommendation.bidSource === 'free-history' ? 'Free-add history' : 'Model bid range'}</em>
+                    <strong>{recommendation.bidRangeLabel}</strong>
+                  </span>
+                  <span>
+                    <em>{recommendation.claimPriority}</em>
+                    <strong>{recommendation.dropCandidate ? `Drop ${recommendation.dropCandidate.name}` : recommendation.claimPriority === 'Add' ? 'No drop needed' : 'Manual room needed'}</strong>
+                  </span>
+                  <span
+                    className={`waiver-intel-threat waiver-intel-threat-${recommendation.competitionRead?.level.toLowerCase() || 'low'}`}
+                    title={recommendation.competitionRead?.reason || 'No strong competing manager signal returned.'}
+                  >
+                    <em>{recommendation.competitionRead ? `${recommendation.competitionRead.level} threat` : 'Claim threat'}</em>
+                    <strong>{recommendation.competitionRead ? `${recommendation.competitionRead.manager}: ${recommendation.competitionRead.bidHint}` : 'Likely quiet'}</strong>
+                  </span>
+                  <p className="waiver-intel-history-read">
+                    {recommendation.bidEvidenceLabel}
+                    {' '}
+                    {recommendation.competitionRead?.reason || 'No strong competing manager signal returned.'}
+                  </p>
+                  <button
+                    type="button"
+                    className="waiver-intel-submit-plan"
+                    aria-pressed={submittedPlan}
+                    onClick={() => {
+                      persistStoredActionPlan(createWaiverActionPlan({
+                        leagueId,
+                        manager: viewerManager,
+                        recommendation,
+                        status: 'submitted',
+                      }));
+                      const bidHistoryItem = createWaiverBidHistoryItem({
+                        leagueId,
+                        manager: viewerManager,
+                        recommendation,
+                      });
+                      if (bidHistoryItem) persistStoredWaiverBidHistory(bidHistoryItem);
+                    }}
+                  >
+                    {submittedPlan ? 'Plan submitted' : 'Submit plan'}
+                    <span>{recommendation.bidConfidencePct}%</span>
+                  </button>
+                  <div className="waiver-intel-plan-actions">
+                    <button
+                      type="button"
+                      className="waiver-intel-secondary-action"
+                      onClick={() => {
+                        copyTextToClipboard(waiverPlanCopy);
+                        persistStoredActionPlan(createWaiverActionPlan({
+                          leagueId,
+                          manager: viewerManager,
+                          recommendation,
+                          status: 'copied',
+                        }));
+                      }}
+                    >
+                      <Copy aria-hidden="true" />
+                      Copy plan
+                    </button>
+                    <button
+                      type="button"
+                      className="waiver-intel-secondary-action"
+                      disabled={!leagueId}
+                      onClick={() => {
+                        persistStoredActionPlan(createWaiverActionPlan({
+                          leagueId,
+                          manager: viewerManager,
+                          recommendation,
+                          status: 'opened',
+                        }));
+                        openSleeperLeague(leagueId);
+                      }}
+                    >
+                      <ExternalLink aria-hidden="true" />
+                      Open Sleeper
+                    </button>
+                  </div>
+                </div>
+              )}
+            </article>
           );
         })}
       </div>

@@ -45,6 +45,10 @@ pids
 *.seed
 *.pid.lock
 *.bak
+server/redraft-snapshots/*.json
+server/devy-source-snapshots/*.json
+server/league-ai-confidence-snapshots/*.json
+.cache/source-health/*.jsonl
 
 # Coverage directory used by tools like istanbul
 coverage/

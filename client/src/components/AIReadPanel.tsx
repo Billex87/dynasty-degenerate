@@ -30,6 +30,7 @@ export interface AIReadPanelProps {
   subtitle?: string;
   readType?: string;
   confidence?: number | null;
+  confidenceNote?: string | null;
   severity?: AIReadSeverity;
   chips?: AIReadChip[];
   body: ReactNode;
@@ -42,6 +43,20 @@ export interface AIReadPanelProps {
 function normalizeConfidence(value?: number | null) {
   if (value === null || value === undefined || Number.isNaN(value)) return null;
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function getConfidenceLabel(value: number): string {
+  if (value >= 78) return 'Strong evidence';
+  if (value >= 62) return 'Building evidence';
+  if (value >= 46) return 'Thin evidence';
+  return 'Low evidence';
+}
+
+function getDefaultConfidenceNote(value: number): string {
+  if (value >= 78) return 'Strong signal mix, but still dependent on fresh league and source data.';
+  if (value >= 62) return 'Usable read with some source or league-memory gaps.';
+  if (value >= 46) return 'Treat this as directional until more league/source evidence lands.';
+  return 'Low-confidence read; verify before acting on it.';
 }
 
 function renderChip(chip: AIReadChip) {
@@ -60,36 +75,40 @@ function AIReadPanelContent({
   subtitle,
   readType,
   confidence,
+  confidenceNote,
   severity = 'info',
   chips,
   body,
   actions,
 }: Omit<AIReadPanelProps, 'compact' | 'backgroundVariant' | 'className'>) {
   const normalizedConfidence = normalizeConfidence(confidence);
+  const displayedConfidenceNote = normalizedConfidence === null
+    ? null
+    : confidenceNote || getDefaultConfidenceNote(normalizedConfidence);
 
   return (
     <>
-      <span className="ai-read-corner ai-read-corner-top-left" aria-hidden="true" />
-      <span className="ai-read-corner ai-read-corner-top-right" aria-hidden="true" />
-      <span className="ai-read-corner ai-read-corner-bottom-left" aria-hidden="true" />
-      <span className="ai-read-corner ai-read-corner-bottom-right" aria-hidden="true" />
+      <span className="ai-read-status-rail" aria-hidden="true" />
       <div className="ai-read-panel-head">
         <div className="ai-read-panel-title-lockup">
-          <span className="ai-read-badge">
-            <BrainCircuit className="h-3.5 w-3.5" aria-hidden="true" />
-            AI Read
-          </span>
-          {readType && <span className={cn('ai-read-type', `ai-read-type-${severity}`)}>{readType}</span>}
+          <div className="ai-read-label-row">
+            <span className="ai-read-badge">
+              <BrainCircuit className="h-3.5 w-3.5" aria-hidden="true" />
+              AI Read
+            </span>
+            {readType && <span className={cn('ai-read-type', `ai-read-type-${severity}`)}>{readType}</span>}
+          </div>
           <h4>{title}</h4>
           {subtitle && <p>{subtitle}</p>}
         </div>
         {normalizedConfidence !== null && (
-          <div className="ai-read-confidence" aria-label={`Confidence ${normalizedConfidence}%`}>
-            <span>Confidence</span>
+          <div className="ai-read-confidence" aria-label={`AI confidence ${normalizedConfidence}%`}>
+            <span>{getConfidenceLabel(normalizedConfidence)}</span>
             <strong>{normalizedConfidence}%</strong>
             <em>
               <i style={{ width: `${normalizedConfidence}%` }} />
             </em>
+            {displayedConfidenceNote && <small>{displayedConfidenceNote}</small>}
           </div>
         )}
       </div>

@@ -16,6 +16,7 @@ import { getPositionRankPillClass } from '@/lib/positionRank';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampionships';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
+import { getDraftKind, getDraftKindShortLabel, getDraftMarketMovementLabel, getDraftWindowLabel, isFreshRookieMarketRead } from '@/lib/draftDisplay';
 
 interface ManagerDraftPicksModalProps {
   isOpen: boolean;
@@ -58,8 +59,8 @@ export function ManagerDraftPicksModal({
     });
   const totalCurrentValue = managerPicks.reduce((sum, pick) => sum + (pick.currentKtcValue || 0), 0);
   const totalValueGain = managerPicks.reduce((sum, pick) => sum + (pick.valueGain || 0), 0);
-  const hitCount = managerPicks.filter((pick) => getResolvedDraftOutcome(pick) === 'hit').length;
-  const missCount = managerPicks.filter((pick) => getResolvedDraftOutcome(pick) === 'miss').length;
+  const hitCount = managerPicks.filter((pick) => getResolvedDraftOutcome(pick, leagueValueMode) === 'hit').length;
+  const missCount = managerPicks.filter((pick) => getResolvedDraftOutcome(pick, leagueValueMode) === 'miss').length;
   const starterCount = managerPicks.filter(getResolvedDraftStarter).length;
   const displayManagerName = managerDisplayName || managerName;
   const managerInitial = displayManagerName.trim()[0]?.toUpperCase() || '?';
@@ -158,9 +159,12 @@ export function ManagerDraftPicksModal({
             <div className="player-tile-shell w-full overflow-x-hidden p-4 sm:p-6">
               <div className="player-tile-grid manager-draft-player-grid balanced-tile-grid" style={getBalancedGridStyle(managerPicks.length)}>
                 {managerPicks.map((pick, idx) => {
-                  const draftOutcome = getDraftOutcomeLabel(getResolvedDraftOutcome(pick));
+                  const marketMovement = getDraftMarketMovementLabel(pick, leagueValueMode);
+                  const draftOutcome = getDraftOutcomeLabel(getResolvedDraftOutcome(pick, leagueValueMode));
                   const isStarter = getResolvedDraftStarter(pick);
                   const gainTone = getDraftGainTone(pick.valueGain);
+                  const draftKindLabel = getDraftKindShortLabel(getDraftKind(pick, leagueValueMode));
+                  const draftWindowLabel = getDraftWindowLabel(pick, leagueValueMode);
 
                   return (
                     <button
@@ -186,11 +190,18 @@ export function ManagerDraftPicksModal({
                       <div className="player-tile-pills">
                         <TeamLogoPill team={pick.playerDetails?.team} />
                         <span>{pick.draftYear ? `${pick.draftYear} ` : ''}#{pick.pick}</span>
+                        <span>{draftKindLabel}</span>
+                        {draftWindowLabel && <span title={`Values compared against ${draftWindowLabel.toLowerCase()}`}>{draftWindowLabel}</span>}
                         {pick.ktcValue !== null && pick.ktcValue !== undefined && (
                           <span>Day {pick.ktcValue.toLocaleString()}</span>
                         )}
                         {pick.positionRankMay2025 && <span className={getPositionRankPillClass(pick.positionRankMay2025)}>Draft {pick.positionRankMay2025}</span>}
-                        {!isAuditMode && draftOutcome.tone !== 'neutral' && (
+                        {!isAuditMode && marketMovement && (
+                          <span className={`draft-outcome-pill draft-outcome-pill-${marketMovement.tone}`}>
+                            {marketMovement.label}
+                          </span>
+                        )}
+                        {!isAuditMode && !marketMovement && draftOutcome.tone !== 'neutral' && (
                           <span className={`draft-outcome-pill draft-outcome-pill-${draftOutcome.tone}`}>
                             {draftOutcome.label}
                           </span>
@@ -268,7 +279,8 @@ function getDraftOutcomeLabel(outcome: DraftPick['draftOutcome']): { label: stri
   return { label: 'Early Read', tone: 'neutral' };
 }
 
-function getResolvedDraftOutcome(pick: DraftPick): NonNullable<DraftPick['draftOutcome']> {
+function getResolvedDraftOutcome(pick: DraftPick, leagueValueMode: ReportData['leagueValueMode'] = 'dynasty'): NonNullable<DraftPick['draftOutcome']> {
+  if (isFreshRookieMarketRead(pick, leagueValueMode)) return 'neutral';
   if (pick.draftOutcome) return pick.draftOutcome;
   const rankChange = pick.positionRankChange ? parseInt(pick.positionRankChange, 10) : 0;
   const hasRankChange = Number.isFinite(rankChange) && rankChange !== 0;
@@ -289,7 +301,7 @@ function getResolvedDraftStarter(pick: DraftPick): boolean {
   const rank = pick.currentPositionRank || '';
   const position = rank.match(/^[A-Z]+/)?.[0] || pick.playerPos;
   const rankNumber = Number(rank.match(/\d+/)?.[0]);
-  const starterThresholds: Record<string, number> = { QB: 24, RB: 36, WR: 48, TE: 18 };
+  const starterThresholds: Record<string, number> = { QB: 24, RB: 36, WR: 48, TE: 18, K: 12, DEF: 12 };
   if (position && Number.isFinite(rankNumber) && rankNumber <= (starterThresholds[position] || 0)) return true;
   return !rank && pick.currentKtcValue !== null && pick.currentKtcValue !== undefined && pick.currentKtcValue > 4000;
 }
@@ -316,7 +328,7 @@ function enrichDraftPickDetails(
   const basePick = {
     ...pick,
     currentKtcValue: normalizedMode === 'redraft'
-      ? Math.round(profile?.seasonValue ?? profile?.fantasyProsSeasonValue ?? profile?.fantasyCalcRedraft ?? pick.currentKtcValue ?? 0)
+      ? Math.round(pick.currentKtcValue ?? profile?.seasonValue ?? profile?.fantasyProsSeasonValue ?? profile?.fantasyCalcRedraft ?? 0)
       : pick.currentKtcValue,
     valueMode: normalizedMode,
   };
@@ -338,6 +350,12 @@ function enrichDraftPickDetails(
       avgGamesMissed: pick.playerDetails?.avgGamesMissed ?? mappedDetails.avgGamesMissed,
       availabilitySeasons: pick.playerDetails?.availabilitySeasons ?? mappedDetails.availabilitySeasons,
       similarTradeValues: pick.playerDetails?.similarTradeValues?.length ? pick.playerDetails.similarTradeValues : mappedDetails.similarTradeValues,
+      depthChartPosition: mappedDetails.depthChartVerified ? mappedDetails.depthChartPosition : pick.playerDetails?.depthChartPosition ?? mappedDetails.depthChartPosition,
+      depthChartOrder: mappedDetails.depthChartVerified ? mappedDetails.depthChartOrder : pick.playerDetails?.depthChartOrder ?? mappedDetails.depthChartOrder,
+      sleeperDepthChartPosition: mappedDetails.sleeperDepthChartPosition ?? pick.playerDetails?.sleeperDepthChartPosition,
+      sleeperDepthChartOrder: mappedDetails.sleeperDepthChartOrder ?? pick.playerDetails?.sleeperDepthChartOrder,
+      depthChartVerified: mappedDetails.depthChartVerified ?? pick.playerDetails?.depthChartVerified,
+      depthChartMismatch: mappedDetails.depthChartMismatch ?? pick.playerDetails?.depthChartMismatch,
     },
   };
 }

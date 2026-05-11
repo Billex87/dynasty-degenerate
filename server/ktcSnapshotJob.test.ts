@@ -4,6 +4,7 @@ import { storeKtcSnapshot, getKtcSnapshotFromDaysAgo } from './ktcSnapshotJob';
 // Mock the database and KTC loader
 vi.mock('./db', () => ({
   getDb: vi.fn(() => Promise.resolve(null)),
+  findKtcSnapshotBetween: vi.fn(() => Promise.resolve(null)),
 }));
 
 vi.mock('./ktcLoader', () => ({
@@ -56,6 +57,8 @@ vi.mock('./valueBlend', () => ({
       dynastyNerds: { PPR: {}, SFLEX: {}, STD: {}, SFLEXTEP: {} },
       dynastyProcess: { one_qb: {}, superflex: {} },
       fantasyPros: { STD: {}, HALF: {}, PPR: {} },
+      fantasyProsDynasty: {},
+      fantasyNerds: {},
       dynastyDealerBenchmark: {},
     })
   ),

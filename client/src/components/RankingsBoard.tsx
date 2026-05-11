@@ -18,11 +18,12 @@ import {
   normalizeLeagueValueMode,
   type LeagueValueMode,
 } from '@/lib/leagueValueMode';
+import { getPlayerValueConfidence } from '@/lib/playerValueConfidence';
 import { readBooleanParam, readCsvParam, readEnumParam, readNumberParam, getUrlSearchParam, replaceUrlSearchParams } from '@/lib/reportUrlState';
 
-type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'PICK';
+type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | 'PICK';
 type SortMode = 'rank' | 'value' | 'movement';
-type DraftBuzzPosition = Exclude<PositionFilter, 'PICK'>;
+type DraftBuzzPosition = Exclude<PositionFilter, 'K' | 'DEF' | 'PICK'>;
 type SortDirection = 'asc' | 'desc';
 type DraftBuzzSortKey = 'class' | 'rank' | 'player' | 'team' | 'school' | 'position' | 'score' | 'forty' | 'height' | 'weight';
 type DraftBuzzSort = {
@@ -36,7 +37,7 @@ type ProspectTrait = {
 };
 
 type RankingsTableConfig = {
-  board: 'dynasty' | 'devy';
+  board: 'dynasty' | 'redraft' | 'devy';
   title: string;
   kicker: string;
   description: string;
@@ -50,7 +51,7 @@ const PAGE_SIZE = 25;
 const DRAFT_BUZZ_PAGE_SIZE = 100;
 const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement'];
 const SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
-const POSITION_FILTER_KEYS = ['QB', 'RB', 'WR', 'TE', 'PICK'] as const;
+const POSITION_FILTER_KEYS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'PICK'] as const;
 const DRAFT_BUZZ_POSITIONS: DraftBuzzPosition[] = ['QB', 'RB', 'WR', 'TE'];
 const DRAFT_BUZZ_SORT_KEYS: readonly DraftBuzzSortKey[] = ['class', 'rank', 'player', 'team', 'school', 'position', 'score', 'forty', 'height', 'weight'];
 const DRAFT_BUZZ_SORT_COLUMNS: Array<{ key: DraftBuzzSortKey; label: string }> = [
@@ -74,17 +75,30 @@ const POSITION_FILTERS: Array<{
   { key: 'RB', label: 'RB' },
   { key: 'WR', label: 'WR' },
   { key: 'TE', label: 'TE' },
+  { key: 'K', label: 'K' },
+  { key: 'DEF', label: 'DEF' },
   { key: 'PICK', label: 'Pick', compactLabel: 'Pick' },
 ];
 
 function getRankingsUrlPrefix(board: RankingsTableConfig['board']) {
-  return board === 'devy' ? 'devy' : 'rank';
+  if (board === 'devy') return 'devy';
+  if (board === 'redraft') return 'redraft';
+  return 'rank';
 }
 
-function readPositionFiltersParam(paramName: string, hidePicks = false): PositionFilter[] {
+function getPositionFilters(board: RankingsTableConfig['board'], hidePicks = false) {
+  return POSITION_FILTERS.filter((filter) => {
+    if (board === 'redraft') return filter.key !== 'PICK';
+    if (filter.key === 'K' || filter.key === 'DEF') return false;
+    return !hidePicks || filter.key !== 'PICK';
+  });
+}
+
+function readPositionFiltersParam(paramName: string, hidePicks = false, board: RankingsTableConfig['board'] = 'dynasty'): PositionFilter[] {
+  const allowed = new Set(getPositionFilters(board, hidePicks).map((filter) => filter.key));
   return readCsvParam(paramName).filter((value): value is PositionFilter => {
     if (!POSITION_FILTER_KEYS.includes(value as PositionFilter)) return false;
-    return !(hidePicks && value === 'PICK');
+    return allowed.has(value as PositionFilter);
   });
 }
 
@@ -146,18 +160,19 @@ function getPreviousSeasonPill(details?: PlayerDetails): { label: string; compac
   if (!rank && !points) return null;
 
   const season = details?.lastSeasonYear || 'Previous season';
+  const seasonRankLabel = details?.lastSeasonYear ? `${details.lastSeasonYear} Rank` : 'Previous Rank';
   const pointsPerGame = formatFantasyPointTotal(details?.lastSeasonPointsPerGame);
   const titleParts = [
-    rank ? `${season} fantasy points rank: ${rank}` : null,
+    rank ? `${seasonRankLabel}: ${rank}` : null,
     points ? `${points} league-scoring fantasy points` : null,
     pointsPerGame ? `${pointsPerGame} PPG` : null,
   ].filter(Boolean);
   const labelParts = [rank, points ? `${points} pts` : null].filter(Boolean);
 
   return {
-    label: `Last year: ${labelParts.join(', ')}`,
+    label: `${seasonRankLabel}: ${labelParts.join(', ')}`,
     compactLabel: [rank, points].filter(Boolean).join(', '),
-    title: titleParts.join(' • '),
+    title: `${season} production: ${titleParts.join(' • ')}`,
   };
 }
 
@@ -313,7 +328,7 @@ function buildDraftBuzzHeadshotCandidates(entry: DraftBuzzScoreboardEntry): stri
   return Array.from(new Set(candidates));
 }
 
-function getProfileFallback(options: RankingProfileOption[], board: 'dynasty' | 'devy'): string {
+function getProfileFallback(options: RankingProfileOption[], board: RankingsTableConfig['board']): string {
   return options.find(option => option.board === board)?.key || '';
 }
 
@@ -326,6 +341,13 @@ function getPositionButtonClass(position: PositionFilter | 'OVERALL', active: bo
 }
 
 function getProfileButtonLabel(option: RankingProfileOption): string {
+  if (option.board === 'redraft') {
+    if (option.ppr === 1) return 'PPR';
+    if (option.ppr === 0.5) return 'Half PPR';
+    if (option.ppr === 0) return 'Standard';
+    return option.label.replace(/^Redraft\s+/i, '');
+  }
+
   const prefix = option.qbFormat === 'sf' ? 'SuperFlex' : 'Standard';
   if (!option.tep) return prefix;
   if (option.tep === 0.5) return `${prefix} TEP`;
@@ -414,8 +436,31 @@ function CollegeTeamPill({ college, logoUrl }: { college?: string | null; logoUr
   );
 }
 
+function isRedraftSourceLabel(source: string): boolean {
+  return /redraft|season|fantasypros season|fantasypros draft|myfantasyleague|fleaflicker|yahoo|nfl fantasy/i.test(source)
+    || /^fantasypros$/i.test(source.trim());
+}
+
 function RankingValueRow({ player, config, playerDetailsById, managerAvatars, viewerManager, onSelect, showAIReads }: { player: RankingPlayer; config: RankingsTableConfig; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelect: (player: RankingPlayer) => void; showAIReads?: boolean }) {
   const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
+  const isRedraftRankingRow = config.leagueValueMode === 'redraft' || player.sources?.some(isRedraftSourceLabel);
+  const rankingValueProfile: PlayerDetails['valueProfile'] | undefined = details?.valueProfile || (!player.isDevy && !player.isPick ? {
+    dynastyValue: isRedraftRankingRow ? null : player.value,
+    seasonValue: isRedraftRankingRow ? player.seasonValue ?? player.value : player.seasonValue ?? player.fantasyProsValue ?? null,
+    dynastyPositionRank: isRedraftRankingRow ? null : player.positionRank || player.pos,
+    seasonPositionRank: isRedraftRankingRow || player.seasonValue ? player.positionRank || player.pos : null,
+    marketKtc: isRedraftRankingRow ? null : player.ktcValue || null,
+    flockFantasy: isRedraftRankingRow ? null : player.flockValue || null,
+    fantasyProsDynasty: isRedraftRankingRow ? null : player.fantasyProsDynastyValue || null,
+    fantasyCalcDynasty: isRedraftRankingRow ? null : player.fantasyCalcValue || null,
+    fantasyCalcRedraft: isRedraftRankingRow ? player.fantasyCalcValue || null : null,
+    dynastyProcess: isRedraftRankingRow ? null : player.dynastyProcessValue || null,
+    dynastyNerds: isRedraftRankingRow ? null : player.dynastyNerdsValue || null,
+    fantasyNerds: isRedraftRankingRow ? null : player.fantasyNerdsValue || null,
+    dynastyDealerBenchmark: isRedraftRankingRow ? null : player.dynastyDealerBenchmark || null,
+    fantasyProsSeasonValue: player.fantasyProsValue || null,
+    sources: player.sources || [],
+  } : undefined);
   const prospectPills = player.isDevy && player.prospectProfile ? ([
     player.prospectProfile.role ? { kind: 'role', label: player.prospectProfile.role } : null,
     player.prospectProfile.fortyYardDash ? { kind: 'forty', label: `40 Yd: ${formatDraftBuzzForty(player.prospectProfile.fortyYardDash)}` } : null,
@@ -435,7 +480,7 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     ? player.seasonValue ?? player.fantasyProsValue ?? player.value
     : player.value;
   const primaryValue = getPlayerValueForMode({
-    valueProfile: details?.valueProfile,
+    valueProfile: rankingValueProfile,
     fallbackValue,
     mode: config.leagueValueMode,
     context: 'rankings',
@@ -449,12 +494,15 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
   ].filter(Boolean).join(' ');
   const prospectProjection = player.isDevy ? getProspectProjection(player) : null;
   const positionLabel = player.isPick ? 'PICK' : player.isDevy ? player.pos : getPlayerRankForMode({
-    valueProfile: details?.valueProfile,
+    valueProfile: rankingValueProfile,
     fallbackRank: player.positionRank || player.pos,
     mode: config.leagueValueMode,
     context: 'rankings',
   }) || player.pos;
   const previousSeasonPill = !player.isDevy && !player.isPick ? getPreviousSeasonPill(details) : null;
+  const valueConfidence = !player.isDevy && !player.isPick
+    ? getPlayerValueConfidence({ valueProfile: rankingValueProfile, mode: config.leagueValueMode })
+    : null;
 
   return (
     <button type="button" className={`player-team-tile ranking-player-card value-board__row value-board__mobile-card ${player.isDevy ? 'ranking-player-card-devy value-board__row-devy' : ''} ${viewerOwnedHighlightClass(player.owner, viewerManager)}`} style={player.isDevy ? getCollegeTileStyle(player.college) : getTeamTileStyle(details?.team || player.team)} onClick={() => onSelect(player)}>
@@ -517,7 +565,7 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
                 <span className="ranking-last-season-summary-compact">{previousSeasonPill.compactLabel}</span>
               </span>
             ) : (
-              <span className="ranking-last-season-empty">Last year: -</span>
+              <span className="ranking-last-season-empty">Previous Rank: -</span>
             )}
           </div>
         ) : null}
@@ -545,6 +593,14 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
           {showAIReads ? (
             <span className="ranking-ai-read-chip" title="Open the player card for the full AI read">
               AI Read
+            </span>
+          ) : null}
+          {valueConfidence ? (
+            <span
+              className={`ranking-value-confidence-chip ranking-value-confidence-chip-${valueConfidence.tone}`}
+              title={valueConfidence.note}
+            >
+              Value {valueConfidence.score}%
             </span>
           ) : null}
         </div>
@@ -866,7 +922,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
     return (hasUrlProfile ? urlProfileKey : null) || config.defaultProfileKey || getProfileFallback(profileOptions, config.board);
   };
   const [selectedProfileKey, setSelectedProfileKey] = useState(getInitialProfileKey);
-  const [selectedPositions, setSelectedPositions] = useState<PositionFilter[]>(() => readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks));
+  const [selectedPositions, setSelectedPositions] = useState<PositionFilter[]>(() => readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks, config.board));
   const [includePicksWithOverall, setIncludePicksWithOverall] = useState(() => canIncludePicksWithOverall && readBooleanParam(`${urlPrefix}Picks`));
   const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(() => readNumberParam(`${urlPrefix}Class`));
   const [sortMode, setSortMode] = useState<SortMode>(() => readEnumParam(`${urlPrefix}Sort`, SORT_MODES, 'rank'));
@@ -880,7 +936,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
     const nextProfileKey = (hasUrlProfile ? urlProfileKey : null) || config.defaultProfileKey || getProfileFallback(profileOptions, config.board);
     if (nextProfileKey) {
       setSelectedProfileKey(nextProfileKey);
-      setSelectedPositions(readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks));
+      setSelectedPositions(readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks, config.board));
       setIncludePicksWithOverall(canIncludePicksWithOverall && readBooleanParam(`${urlPrefix}Picks`));
       setSelectedDraftClass(readNumberParam(`${urlPrefix}Class`));
       setSortMode(readEnumParam(`${urlPrefix}Sort`, SORT_MODES, 'rank'));
@@ -893,7 +949,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   const activeProfile = profileOptions.find(option => option.key === selectedProfileKey);
   const activeProfileLabel = activeProfile ? getProfileButtonLabel(activeProfile) : null;
   const leagueTypeControlStyle = {
-    '--rankings-league-type-width': `calc(${Math.max(9, ...boardOptions.map(option => getProfileButtonLabel(option).length))}ch + 2.35rem)`,
+    '--rankings-league-type-width': `calc(${Math.max(8.5, ...boardOptions.map(option => getProfileButtonLabel(option).length))}ch + 1.75rem)`,
   } as CSSProperties;
   const isLeagueMatchedProfile = Boolean(config.defaultProfileKey && selectedProfileKey === config.defaultProfileKey);
   const draftClassOptions = useMemo(() => {
@@ -913,6 +969,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
       .filter(player => {
         if (config.hidePicks && player.isPick) return false;
         if (config.board === 'devy' && (player.isPick || !player.isDevy)) return false;
+        if (config.board === 'redraft' && player.isPick) return false;
         if (selectedPositions.length === 0) {
           return includePicksWithOverall && canIncludePicksWithOverall ? true : !player.isPick;
         }
@@ -1075,7 +1132,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
               OVR
             </span>
           </button>
-          {POSITION_FILTERS.filter(filter => !config.hidePicks || filter.key !== 'PICK').map(filter => (
+          {getPositionFilters(config.board, config.hidePicks).map(filter => (
             <button key={filter.key} type="button" className={getPositionButtonClass(filter.key, selectedPositions.includes(filter.key) || (filter.key === 'PICK' && includePicksWithOverall && selectedPositions.length === 0))} aria-label={filter.label} aria-pressed={selectedPositions.includes(filter.key) || (filter.key === 'PICK' && includePicksWithOverall && selectedPositions.length === 0)} onClick={() => togglePosition(filter.key)}>
               {filter.compactLabel && filter.compactLabel !== filter.label ? (
                 <>
@@ -1141,7 +1198,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   );
 }
 
-export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, leagueId, leagueLogo, viewerManager, board = 'all', hidePicks = false, leagueValueMode: leagueValueModeInput = 'dynasty', showAIReads = false }: { rankings?: ReportData['rankings']; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; leagueId?: string; leagueLogo?: string | null; viewerManager?: string | null; board?: 'all' | 'dynasty' | 'devy' | 'draftbuzz'; hidePicks?: boolean; leagueValueMode?: ReportData['leagueValueMode']; showAIReads?: boolean }) {
+export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, leagueId, leagueLogo, viewerManager, board = 'all', hidePicks = false, leagueValueMode: leagueValueModeInput = 'dynasty', showAIReads = false }: { rankings?: ReportData['rankings']; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; leagueId?: string; leagueLogo?: string | null; viewerManager?: string | null; board?: 'all' | 'dynasty' | 'redraft' | 'devy' | 'draftbuzz'; hidePicks?: boolean; leagueValueMode?: ReportData['leagueValueMode']; showAIReads?: boolean }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
 
@@ -1175,6 +1232,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
           prospectProfile: player.prospectProfile,
         }
       : undefined;
+    const isRedraftRankingRow = leagueValueMode === 'redraft' || player.sources?.some(isRedraftSourceLabel);
     const rankingOnlyDetails: PlayerDetails | undefined =
       !player.isDevy && !player.isPick
         ? {
@@ -1184,17 +1242,21 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
             team: player.team || null,
             age: player.age || null,
             valueProfile: {
-              dynastyValue: player.value,
-              seasonValue: player.seasonValue ?? player.fantasyProsValue ?? null,
-              dynastyPositionRank: player.positionRank || player.pos,
-              seasonPositionRank: player.seasonValue ? player.positionRank || player.pos : null,
-              marketKtc: player.ktcValue || null,
-              flockFantasy: player.flockValue || null,
-              fantasyCalcDynasty: player.fantasyCalcValue || null,
-              dynastyProcess: player.dynastyProcessValue || null,
-              dynastyNerds: player.dynastyNerdsValue || null,
-              dynastyDealerBenchmark: player.dynastyDealerBenchmark || null,
-              dynastyDealerVoteRating: player.dynastyDealerVoteRating || null,
+              dynastyValue: isRedraftRankingRow ? null : player.value,
+              seasonValue: isRedraftRankingRow ? player.seasonValue ?? player.value : player.seasonValue ?? player.fantasyProsValue ?? null,
+              dynastyPositionRank: isRedraftRankingRow ? null : player.positionRank || player.pos,
+              seasonPositionRank: isRedraftRankingRow || player.seasonValue ? player.positionRank || player.pos : null,
+              marketKtc: isRedraftRankingRow ? null : player.ktcValue || null,
+              flockFantasy: isRedraftRankingRow ? null : player.flockValue || null,
+              fantasyProsDynasty: isRedraftRankingRow ? null : player.fantasyProsDynastyValue || null,
+              fantasyCalcDynasty: isRedraftRankingRow ? null : player.fantasyCalcValue || null,
+              fantasyCalcRedraft: isRedraftRankingRow ? player.fantasyCalcValue || null : null,
+              dynastyProcess: isRedraftRankingRow ? null : player.dynastyProcessValue || null,
+              dynastyNerds: isRedraftRankingRow ? null : player.dynastyNerdsValue || null,
+              fantasyNerds: isRedraftRankingRow ? null : player.fantasyNerdsValue || null,
+              dynastyDealerBenchmark: isRedraftRankingRow ? null : player.dynastyDealerBenchmark || null,
+              dynastyDealerVoteRating: isRedraftRankingRow ? null : player.dynastyDealerVoteRating || null,
+              fantasyProsSeasonValue: player.fantasyProsValue || null,
               sources: player.sources || [],
             },
           }
@@ -1264,19 +1326,26 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
 
   const modeCopy = getLeagueModeCopy(leagueValueMode);
   const valueLabel = getPrimaryValueLabel(leagueValueMode, 'rankings');
+  const hasRedraftProfiles = rankings.profileOptions?.some((option) => option.board === 'redraft' && (rankings.profiles?.[option.key]?.length || 0) > 0);
+  const primaryBoard: RankingsTableConfig['board'] = board === 'redraft'
+    ? 'redraft'
+    : leagueValueMode === 'redraft' && hasRedraftProfiles
+      ? 'redraft'
+      : 'dynasty';
+  const includeDevyBoard = leagueValueMode !== 'redraft' || board === 'devy';
   const tableConfigs = (
     [
       {
-        board: 'dynasty',
+        board: primaryBoard,
         title: modeCopy.rankingsTitle,
         kicker: modeCopy.rankingsKicker,
         description: modeCopy.rankingsDescription,
-        defaultProfileKey: rankings.defaultProfileKey,
+        defaultProfileKey: primaryBoard === 'redraft' ? rankings.defaultRedraftProfileKey : rankings.defaultProfileKey,
         hidePicks,
         leagueValueMode,
         valueLabel,
       },
-      {
+      includeDevyBoard ? {
         board: 'devy',
         title: 'College Prospect Board',
         kicker: 'Future rookie pipeline',
@@ -1285,10 +1354,10 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
         hidePicks: true,
         leagueValueMode,
         valueLabel: 'Prospect Rank',
-      },
-    ] satisfies RankingsTableConfig[]
+      } : null,
+    ].filter(Boolean) as RankingsTableConfig[]
   ).filter(config => board === 'all' || config.board === board);
-  const showDraftBuzzScoreboard = board === 'all' || board === 'draftbuzz';
+  const showDraftBuzzScoreboard = board === 'draftbuzz' || (board === 'all' && leagueValueMode !== 'redraft');
 
   return (
     <div className="rankings-board">

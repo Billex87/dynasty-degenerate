@@ -8,6 +8,10 @@ import {
   type KtcSnapshotProfileKey,
   type ValueBlendOptions,
 } from './valueBlend';
+import {
+  WEEKLY_MOMENTUM_BASELINE_FLOOR_DATE_KEY,
+  getWeeklyMomentumBaselineTargetDateKey,
+} from './valueBaselinePolicy';
 
 interface KTCValues {
   [key: string]: {
@@ -23,9 +27,15 @@ interface KTCValues {
     flock_position_rank?: string | null;
     flock_tier?: number | null;
     flock_format?: string | null;
+    expert_value_fantasypros?: number;
+    fantasypros_dynasty_rank?: number;
+    fantasypros_dynasty_position_rank?: string | null;
     market_value_fantasycalc?: number;
     expert_value_dynastyprocess?: number;
     expert_value_dynastynerds?: number;
+    expert_value_fantasynerds?: number;
+    fantasynerds_rank?: number;
+    fantasynerds_position_rank?: string | null;
     dynastynerds_rank?: number;
     dynastynerds_position_rank?: string | null;
     dynastynerds_format?: string | null;
@@ -50,7 +60,7 @@ let blendedKtcValuesCache: Record<string, KTCValues> = {};
 const localKtcSnapshotCache = new Map<string, KTCValues>();
 const KTC_SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 const BLENDED_VALUE_PROFILE_KEY_PATTERN = /^(10|12|14)_(one_qb|sf)_(standard|half_ppr|ppr)_(base|tep_0_5|tep_1_0|tep_1_5)$/;
-const PRIMARY_VALUE_SOURCES = new Set(['FlockFantasy', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']);
+const PRIMARY_VALUE_SOURCES = new Set(['FlockFantasy', 'FantasyPros', 'DynastyNerds', 'FantasyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']);
 const LOW_CONFIDENCE_FLOCK_FALLBACK_VALUE_MAX = 25;
 
 export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshots');
@@ -173,7 +183,9 @@ function sanitizeLowConfidenceFlockProspectValue(
   const hasDynastyMarketSupport = Boolean(
     value.market_value_ktc
     || value.market_value_fantasycalc
+    || value.expert_value_fantasypros
     || value.expert_value_dynastynerds
+    || value.expert_value_fantasynerds
   );
   const hasSeasonSupport = Boolean(
     value.redraft_value
@@ -353,11 +365,62 @@ export function loadLatestLocalKtcSnapshotBefore(beforeDate: Date, valueProfileK
   }
 }
 
+function loadLatestLocalKtcSnapshotOnOrBeforeDateKey(
+  maxDateKey: string,
+  valueProfileKey?: string,
+  minDateKey?: string
+): KTCValues {
+  try {
+    if (!fs.existsSync(KTC_SNAPSHOT_DIR)) return {};
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(maxDateKey)) return {};
+    if (minDateKey && !/^\d{4}-\d{2}-\d{2}$/.test(minDateKey)) return {};
+
+    const cacheKey = `on-or-before:${maxDateKey}:${minDateKey || 'none'}:${valueProfileKey || 'default'}`;
+    const cached = localKtcSnapshotCache.get(cacheKey);
+    if (cached) return cached;
+
+    const snapshotFiles = fs
+      .readdirSync(KTC_SNAPSHOT_DIR)
+      .filter(file => /^ktc-snapshot-\d{4}-\d{2}-\d{2}\.json$/.test(file))
+      .filter(file => {
+        const dateKey = file.replace('ktc-snapshot-', '').replace('.json', '');
+        return dateKey <= maxDateKey && (!minDateKey || dateKey >= minDateKey);
+      })
+      .sort();
+
+    for (const snapshotFile of snapshotFiles.reverse()) {
+      const data = fs.readFileSync(path.join(KTC_SNAPSHOT_DIR, snapshotFile), 'utf-8');
+      const values = unwrapSnapshotValues(JSON.parse(data), valueProfileKey);
+      if (!hasUsableBlendedSnapshotValues(values, valueProfileKey)) {
+        console.warn(`[KTC Snapshot] Skipping ${snapshotFile} for ${valueProfileKey || 'default'} because it is missing blended source metadata`);
+        continue;
+      }
+
+      localKtcSnapshotCache.set(cacheKey, values);
+      return values;
+    }
+
+    return {};
+  } catch (error) {
+    console.error('Failed to load local KTC snapshot:', error);
+    return {};
+  }
+}
+
 export function loadLatestLocalKtcSnapshotDaysAgo(daysAgo: number, valueProfileKey?: string): KTCValues {
   const targetDate = new Date();
   targetDate.setDate(targetDate.getDate() - daysAgo);
   targetDate.setDate(targetDate.getDate() + 1);
   return loadLatestLocalKtcSnapshotBefore(targetDate, valueProfileKey);
+}
+
+export function loadLatestLocalWeeklyMomentumSnapshot(valueProfileKey?: string, daysAgo = 7): KTCValues {
+  const targetDateKey = getWeeklyMomentumBaselineTargetDateKey(daysAgo);
+  return loadLatestLocalKtcSnapshotOnOrBeforeDateKey(
+    targetDateKey,
+    valueProfileKey,
+    WEEKLY_MOMENTUM_BASELINE_FLOOR_DATE_KEY
+  );
 }
 
 export function saveLocalKtcSnapshot(date: Date, ktcData: unknown): string | null {

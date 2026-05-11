@@ -1,3 +1,4 @@
+import './env';
 import express from 'express';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { appRouter } from '../routers';
@@ -6,6 +7,7 @@ import { apiErrorHandler, apiNotFoundHandler, configureSecurity } from './securi
 import { storeKtcSnapshot } from '../ktcSnapshotJob';
 import { getSnapshotDateKey } from '../ktcLoader';
 import { getProspectSnapshotMonth, shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from '../prospectSource';
+import { runDynamicDataRefresh } from '../dynamicDataJobs';
 
 const app = express();
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
@@ -198,6 +200,28 @@ app.get('/api/cron/prospect-snapshot', async (req, res) => {
   } catch (error) {
     console.error('[Cron] Prospect snapshot failed', error);
     res.status(500).json({ ok: false, error: 'Prospect snapshot failed' });
+  }
+});
+
+app.get('/api/cron/dynamic-data-refresh', async (req, res) => {
+  const auth = isCronAuthorized(req);
+  if (!auth.ok) {
+    res.status(auth.status).json({ ok: false, error: auth.error });
+    return;
+  }
+
+  const backfillLimit = typeof req.query.backfillLimit === 'string'
+    ? Number(req.query.backfillLimit)
+    : 100;
+
+  try {
+    const result = await runDynamicDataRefresh({
+      backfillLimit: Number.isFinite(backfillLimit) && backfillLimit > 0 ? backfillLimit : 100,
+    });
+    res.status(result.ok ? 200 : 207).json(result);
+  } catch (error) {
+    console.error('[Cron] Dynamic data refresh failed', error);
+    res.status(500).json({ ok: false, error: 'Dynamic data refresh failed' });
   }
 });
 

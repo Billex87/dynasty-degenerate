@@ -3,11 +3,44 @@ import { loadFlockFantasyValueProfiles, type FlockFantasyValue } from './flockFa
 import { getDynastyNerdsFormat, loadDynastyNerdsValueProfiles, type DynastyNerdsValue } from './dynastyNerds';
 import { formatDynastySourceWeights, getDynastySourceWeightEntries, getDynastySourceWeights } from './dynastySourceWeights';
 import { loadFantasyProsDevyRankings, type FantasyProsDevyRanking } from './fantasyProsDevy';
+import {
+  applyDynastySourceTrust,
+  buildDynastySourceDiagnostics,
+  calculatePreviousDynastySourceTrust,
+  calculateDynastySourceTrust,
+  createDynastySourceRows,
+  getDynastySourceRowsFromSnapshotValues,
+  loadRecentDynastySourceRowsFromLocalSnapshots,
+  type DynastySourceRows,
+  type DynastySourceTrustMap,
+} from './dynastySourceTrust';
+import {
+  applyProspectSourceTrust,
+  buildProspectSourceDiagnostics,
+  calculatePreviousProspectSourceTrust,
+  calculateProspectSourceTrust,
+  createProspectSourceRows,
+  formatProspectSourceWeights,
+  getProspectSourceWeightEntries,
+  loadRecentProspectSourceSnapshots,
+  persistProspectSourceSnapshot,
+  prospectRankToValue,
+  type ProspectSourceRows,
+  type ProspectSourceWeights,
+} from './prospectSourceTrust';
+import { getValueSourceProfileKey } from './valueBlend';
+import {
+  formatRedraftSourceWeights,
+  getRedraftSourceWeightEntries,
+  loadRedraftRankingProfiles,
+  type RedraftRankingValue,
+} from './redraftRankings';
 import { findProspectProfile } from './prospectSource';
 import {
   getCurrentKTCDevyRankingProfiles,
 } from './liveKTCScraper';
 import type { DraftBuzzScoreboardEntry, ProspectProfile, RankingIdentityDiagnostic, RankingPlayer, RankingProfileOption, RankingsBoard } from '../shared/types';
+import type { DynastySourceWeights } from './dynastySourceWeights';
 
 type KtcProfileKey =
   | 'sf_ppr'
@@ -39,8 +72,14 @@ type KtcValues = Record<string, {
   dynasty_value?: number;
   redraft_value?: number;
   market_value_ktc?: number;
+  expert_value_fantasypros?: number;
+  fantasypros_dynasty_rank?: number | null;
+  fantasypros_dynasty_position_rank?: string | null;
   market_value_fantasycalc?: number;
   expert_value_dynastynerds?: number;
+  expert_value_fantasynerds?: number;
+  fantasynerds_rank?: number;
+  fantasynerds_position_rank?: string | null;
   expert_value_dynastyprocess?: number;
   benchmark_value_dynastydealer?: number;
   dynastydealer_vote_rating?: number | null;
@@ -48,6 +87,8 @@ type KtcValues = Record<string, {
   dynastynerds_rank?: number;
   dynastynerds_format?: string | null;
   fantasypros_season_value?: number;
+  fantasypros_rank?: number | null;
+  fantasypros_position_rank?: string | null;
   value_sources?: string[];
   rank?: number | null;
   tier?: string | number | null;
@@ -77,6 +118,9 @@ const RANKING_PROFILE_OPTIONS: RankingProfileOption[] = [
   { key: 'dynasty_one_qb_ppr_tep_0_5', label: 'Dynasty 1QB 0.5 TEP', board: 'dynasty', qbFormat: 'one_qb', tep: 0.5 },
   { key: 'dynasty_one_qb_ppr_tep_1_0', label: 'Dynasty 1QB 1.0 TEP', board: 'dynasty', qbFormat: 'one_qb', tep: 1 },
   { key: 'dynasty_one_qb_ppr_tep_1_5', label: 'Dynasty 1QB 1.5 TEP', board: 'dynasty', qbFormat: 'one_qb', tep: 1.5 },
+  { key: 'redraft_ppr', label: 'Redraft PPR', board: 'redraft', qbFormat: 'one_qb', tep: 0, ppr: 1 },
+  { key: 'redraft_half_ppr', label: 'Redraft Half PPR', board: 'redraft', qbFormat: 'one_qb', tep: 0, ppr: 0.5 },
+  { key: 'redraft_standard', label: 'Redraft Standard', board: 'redraft', qbFormat: 'one_qb', tep: 0, ppr: 0 },
   { key: 'devy_sf_ppr', label: 'Devy SF', board: 'devy', qbFormat: 'sf', tep: 0 },
   { key: 'devy_sf_ppr_tep_0_5', label: 'Devy SF 0.5 TEP', board: 'devy', qbFormat: 'sf', tep: 0.5 },
   { key: 'devy_sf_ppr_tep_1_0', label: 'Devy SF 1.0 TEP', board: 'devy', qbFormat: 'sf', tep: 1 },
@@ -109,6 +153,7 @@ const PROFILE_KEY_BY_OPTION: Record<string, KtcProfileKey> = {
 };
 
 function getFlockProfile(option: RankingProfileOption, flockProfiles: Awaited<ReturnType<typeof loadFlockFantasyValueProfiles>>) {
+  if (option.board === 'redraft') return {};
   if (option.board === 'devy') {
     return option.qbFormat === 'sf' ? flockProfiles.PROSPECTS_SF : flockProfiles.PROSPECTS;
   }
@@ -116,12 +161,108 @@ function getFlockProfile(option: RankingProfileOption, flockProfiles: Awaited<Re
 }
 
 function getDynastyNerdsProfile(option: RankingProfileOption, dynastyNerdsProfiles: Awaited<ReturnType<typeof loadDynastyNerdsValueProfiles>>) {
+  if (option.board === 'redraft') return {};
   const format = getDynastyNerdsFormat({
     numQbs: option.qbFormat === 'sf' ? 2 : 1,
     ppr: 1,
     tep: option.tep,
   });
   return dynastyNerdsProfiles[format] || dynastyNerdsProfiles.PPR || {};
+}
+
+function getDynastyValueProfileKey(option: RankingProfileOption): string {
+  return getValueSourceProfileKey({
+    numQbs: option.qbFormat === 'sf' ? 2 : 1,
+    ppr: 1,
+    tep: option.tep,
+  });
+}
+
+function buildDynastySourceRowsForProfile({
+  ktcRows,
+  flockRows,
+  dynastyNerdsRows,
+  ktcValues,
+}: {
+  ktcRows: KtcRankingMap;
+  flockRows: Record<string, FlockFantasyValue>;
+  dynastyNerdsRows: Record<string, DynastyNerdsValue>;
+  ktcValues: KtcValues;
+}): DynastySourceRows {
+  const snapshotRows = getDynastySourceRowsFromSnapshotValues(ktcValues);
+  return {
+    flock: createDynastySourceRows(flockRows, (row, key) => ({
+      name: row.name || key,
+      position: row.position || null,
+      value: row.dynastyValue || null,
+      rank: row.overallRank || null,
+    })),
+    dynastyNerds: createDynastySourceRows(dynastyNerdsRows, (row, key) => ({
+      name: row.name || key,
+      position: row.position || null,
+      value: row.dynastyValue || null,
+      rank: row.overallRank || null,
+    })),
+    fantasyNerds: snapshotRows.fantasyNerds || {},
+    ktc: snapshotRows.ktc && Object.keys(snapshotRows.ktc).length
+      ? snapshotRows.ktc
+      : createDynastySourceRows(ktcRows, (row, key) => ({
+        name: row.name || key,
+        position: row.position || row.position_rank?.match(/^[A-Z]+/)?.[0] || null,
+        value: row.ktc_value || null,
+        rank: row.rank || null,
+      })),
+    fantasyCalc: snapshotRows.fantasyCalc || {},
+    dynastyProcess: snapshotRows.dynastyProcess || {},
+  };
+}
+
+function getProspectArchiveValue(profile?: ProspectProfile | null): number | null {
+  if (!profile) return null;
+  const rankValue = prospectRankToValue(profile.overallRank || profile.averageOverallRank || null);
+  if (rankValue) return rankValue;
+  const rating = Number(profile.rating || 0);
+  return Number.isFinite(rating) && rating > 0 ? Math.max(100, Math.min(9000, Math.round(rating * 90))) : null;
+}
+
+function buildProspectSourceRowsForProfile({
+  ktcRows,
+  flockRows,
+  fantasyProsDevyRows,
+  prospectLookup,
+}: {
+  ktcRows: KtcRankingMap;
+  flockRows: Record<string, FlockFantasyValue>;
+  fantasyProsDevyRows?: Record<string, FantasyProsDevyRanking>;
+  prospectLookup?: Map<string, ProspectProfile>;
+}): ProspectSourceRows {
+  const prospectRows = getProspectRowsFromLookup(prospectLookup);
+  return {
+    fantasyProsDevy: createProspectSourceRows(fantasyProsDevyRows || {}, (row, key) => ({
+      name: row.name || key,
+      position: row.position || null,
+      value: prospectRankToValue(row.rank || null),
+      rank: row.rank || null,
+    })),
+    flock: createProspectSourceRows(flockRows, (row, key) => ({
+      name: row.name || key,
+      position: row.position || null,
+      value: row.dynastyValue || prospectRankToValue(row.overallRank || null),
+      rank: row.overallRank || null,
+    })),
+    ktc: createProspectSourceRows(ktcRows, (row, key) => ({
+      name: row.name || key,
+      position: row.position || row.position_rank?.match(/^[A-Z]+/)?.[0] || null,
+      value: row.ktc_value || prospectRankToValue(row.rank || null),
+      rank: row.rank || null,
+    })),
+    prospectArchive: createProspectSourceRows(prospectRows, (row, key) => ({
+      name: row.name || key,
+      position: row.position || null,
+      value: getProspectArchiveValue(row),
+      rank: row.overallRank || row.averageOverallRank || null,
+    })),
+  };
 }
 
 function getCandidateName(player: any): string {
@@ -133,13 +274,13 @@ function getCandidatePosition(player: any): string | null {
   const fantasyPositions = Array.isArray(player?.fantasy_positions)
     ? player.fantasy_positions.map((item: unknown) => String(item).toUpperCase())
     : [];
-  if (['QB', 'RB', 'WR', 'TE'].includes(position)) return position;
-  return fantasyPositions.find((item: string) => ['QB', 'RB', 'WR', 'TE'].includes(item)) || position || null;
+  if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(position)) return position;
+  return fantasyPositions.find((item: string) => ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(item)) || position || null;
 }
 
 function scorePlayerCandidate(player: any): number {
   const position = getCandidatePosition(player);
-  const isFantasyPosition = ['QB', 'RB', 'WR', 'TE'].includes(position || '');
+  const isFantasyPosition = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(position || '');
   const searchRank = Number(player?.search_rank || 9999);
   return (
     (isFantasyPosition ? 1000 : -1000)
@@ -299,7 +440,7 @@ function resolvePlayerIdentity({
   );
   const sourceTeam = team ? String(team).toUpperCase() : '';
   const sourceCollege = college ? canonicalPlayerNameKey(String(college)) : '';
-  const contextMatchedNearMatches = !uniqueCandidates.length && ['QB', 'RB', 'WR', 'TE'].includes(position)
+  const contextMatchedNearMatches = !uniqueCandidates.length && ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(position)
     ? lookup.candidates
       .filter((candidate) => getCandidatePosition(candidate.player) === position)
       .filter((candidate) => {
@@ -331,7 +472,7 @@ function resolvePlayerIdentity({
     return undefined;
   }
 
-  const positionMatched = ['QB', 'RB', 'WR', 'TE'].includes(position)
+  const positionMatched = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(position)
     ? identityCandidates.filter((candidate) => getCandidatePosition(candidate.player) === position)
     : [];
   const orderedCandidates = (positionMatched.length ? positionMatched : identityCandidates)
@@ -362,15 +503,15 @@ function resolvePlayerIdentity({
   return selected.playerId;
 }
 
-function canonicalizeRankingMap<T extends { name?: string; ktc_value?: number; dynastyValue?: number }>(
+function canonicalizeRankingMap<T extends { name?: string; ktc_value?: number; dynastyValue?: number; value?: number; seasonValue?: number }>(
   rows: Record<string, T>
 ): Record<string, T> {
   const canonicalized: Record<string, T> = {};
   for (const [key, row] of Object.entries(rows || {})) {
     const canonicalKey = canonicalPlayerNameKey(row?.name || key);
     const existing = canonicalized[canonicalKey];
-    const value = Number(row?.ktc_value ?? row?.dynastyValue ?? 0);
-    const existingValue = Number(existing?.ktc_value ?? existing?.dynastyValue ?? 0);
+    const value = Number(row?.ktc_value ?? row?.dynastyValue ?? row?.value ?? row?.seasonValue ?? 0);
+    const existingValue = Number(existing?.ktc_value ?? existing?.dynastyValue ?? existing?.value ?? existing?.seasonValue ?? 0);
     if (!existing || value >= existingValue) {
       canonicalized[canonicalKey] = row;
     }
@@ -388,7 +529,8 @@ function normalizeRankPosition(rank?: string | null, pos?: string | null): strin
 function normalizePosition(pos?: string | null, rank?: string | null): string {
   const normalized = (pos || rank?.match(/^[A-Z]+/)?.[0] || '').toUpperCase();
   if (normalized === 'RDP' || normalized === 'PICK') return 'PICK';
-  return ['QB', 'RB', 'WR', 'TE'].includes(normalized) ? normalized : 'PICK';
+  if (['DST', 'D', 'DEFENSE'].includes(normalized)) return 'DEF';
+  return ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(normalized) ? normalized : 'PICK';
 }
 
 function getProspectRowsFromLookup(prospectLookup?: Map<string, ProspectProfile>): Record<string, ProspectProfile> {
@@ -558,6 +700,10 @@ function compareRankingRows(a: RankingPlayer, b: RankingPlayer, option: RankingP
       || a.name.localeCompare(b.name);
   }
 
+  if (option.board === 'redraft') {
+    return b.value - a.value || a.overallRank - b.overallRank || a.name.localeCompare(b.name);
+  }
+
   return b.value - a.value || a.overallRank - b.overallRank || a.name.localeCompare(b.name);
 }
 
@@ -568,7 +714,7 @@ function applyFinalRanks(rows: RankingPlayer[], option: RankingProfileOption, li
   return sortedRows
     .map((row, index) => {
       const pos = row.pos;
-      const positionRank = !row.isPick && ['QB', 'RB', 'WR', 'TE'].includes(pos)
+      const positionRank = !row.isPick && ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(pos)
         ? `${pos}${(positionCounts[pos] = (positionCounts[pos] || 0) + 1)}`
         : row.isPick
           ? 'PICK'
@@ -646,6 +792,7 @@ function prepareRankingRows(rows: RankingPlayer[], option: RankingProfileOption,
 type RankingRowWithBaseline = RankingPlayer & { baselineRankValue?: number | null };
 
 function buildBaselineRankMap(rows: RankingRowWithBaseline[], option: RankingProfileOption, limit: number): Map<string, number> {
+  if (option.board === 'redraft') return new Map();
   const comparableRows = (option.board === 'devy' ? mergeRankingRows(rows) : rows) as RankingRowWithBaseline[];
   return new Map(
     comparableRows
@@ -684,12 +831,18 @@ function buildRowsForProfile({
   diagnostics,
   prospectLookup,
   fantasyProsDevyRows,
+  redraftRows,
+  dynastySourceWeights,
+  prospectSourceWeights,
   leagueTeamCount,
 }: {
   option: RankingProfileOption;
   ktcRows: KtcRankingMap;
   flockRows: Record<string, FlockFantasyValue>;
   dynastyNerdsRows: Record<string, DynastyNerdsValue>;
+  redraftRows?: Record<string, RedraftRankingValue>;
+  dynastySourceWeights?: DynastySourceWeights | null;
+  prospectSourceWeights?: ProspectSourceWeights | null;
   ktcValues: KtcValues;
   baselineKtcValues?: KtcValues;
   players: PlayerMap;
@@ -707,12 +860,14 @@ function buildRowsForProfile({
   const canonicalKtcValues = canonicalizeRankingMap(ktcValues || {});
   const canonicalBaselineValues = canonicalizeRankingMap(baselineKtcValues || {});
   const canonicalFantasyProsDevyRows = option.board === 'devy' ? canonicalizeRankingMap(fantasyProsDevyRows || {}) : {};
+  const canonicalRedraftRows = option.board === 'redraft' ? canonicalizeRankingMap(redraftRows || {}) : {};
   const canonicalProspectRows = option.board === 'devy' ? getProspectRowsFromLookup(prospectLookup) : {};
   const keys = new Set([
     ...Object.keys(canonicalKtcRows),
     ...Object.keys(canonicalFlockRows),
     ...Object.keys(canonicalDynastyNerdsRows),
     ...Object.keys(canonicalFantasyProsDevyRows),
+    ...Object.keys(canonicalRedraftRows),
     ...Object.keys(canonicalProspectRows),
     ...(option.board === 'dynasty' ? Object.keys(canonicalKtcValues) : []),
   ]);
@@ -723,12 +878,13 @@ function buildRowsForProfile({
     const flock = canonicalFlockRows?.[key];
     const dynastyNerds = canonicalDynastyNerdsRows?.[key];
     const fantasyProsDevy = canonicalFantasyProsDevyRows?.[key];
+    const redraft = canonicalRedraftRows?.[key];
     const prospectRow = canonicalProspectRows?.[key];
     const blended = canonicalKtcValues[key];
-    const name = ktc?.name || fantasyProsDevy?.name || dynastyNerds?.name || flock?.name || prospectRow?.name || blended?.name || key;
-    const rawPos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || prospectRow?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
+    const name = redraft?.name || ktc?.name || fantasyProsDevy?.name || dynastyNerds?.name || flock?.name || prospectRow?.name || blended?.name || key;
+    const rawPos = normalizePosition(redraft?.position || ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || prospectRow?.position, redraft?.positionRank || ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
     const sourceCollege = sanitizeCollegeName(flock?.college || ktc?.college || prospectRow?.college || null);
-    const sourceTeam = dynastyNerds?.team || flock?.team || ktc?.team || null;
+    const sourceTeam = redraft?.team || dynastyNerds?.team || flock?.team || ktc?.team || null;
     const playerId = option.board === 'devy'
       ? undefined
       : resolvePlayerIdentity({
@@ -742,10 +898,13 @@ function buildRowsForProfile({
         diagnostics,
       });
     const sleeperPlayer = playerId ? players[playerId] : null;
-    const pos = normalizePosition(ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || prospectRow?.position || sleeperPlayer?.position, ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
+    const pos = normalizePosition(redraft?.position || ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || prospectRow?.position || sleeperPlayer?.position, redraft?.positionRank || ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
     const hasDraftPickName = isDraftPickName(name);
     const isPick = pos === 'PICK' || hasDraftPickName;
     if (option.board === 'dynasty' && pos === 'PICK' && !hasDraftPickName && !sleeperPlayer) {
+      continue;
+    }
+    if (option.board === 'redraft' && (isPick || !['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(pos))) {
       continue;
     }
     const college = sourceCollege || sanitizeCollegeName(sleeperPlayer?.college) || null;
@@ -762,33 +921,46 @@ function buildRowsForProfile({
     if (option.board === 'devy' && !isCollegeEligibleRankingPlayer({ isPick, prospectProfile, sleeperPlayer, draftYear })) {
       continue;
     }
-    const ktcValue = ktc?.ktc_value || blended?.market_value_ktc || blended?.ktc_value || null;
-    const flockValue = flock?.dynastyValue || null;
-    const dynastyNerdsValue = dynastyNerds?.dynastyValue || blended?.expert_value_dynastynerds || null;
-    const fantasyCalcValue = blended?.market_value_fantasycalc || null;
+    const ktcValue = option.board === 'redraft' ? null : ktc?.ktc_value || blended?.market_value_ktc || blended?.ktc_value || null;
+    const flockValue = option.board === 'redraft' ? null : flock?.dynastyValue || null;
+    const fantasyProsDynastyValue = option.board === 'dynasty' ? blended?.expert_value_fantasypros || null : null;
+    const dynastyNerdsValue = option.board === 'redraft' ? null : dynastyNerds?.dynastyValue || blended?.expert_value_dynastynerds || null;
+    const fantasyNerdsValue = option.board === 'redraft' ? null : blended?.expert_value_fantasynerds || null;
+    const fantasyCalcValue = option.board === 'redraft' ? redraft?.fantasyCalcRedraft || blended?.redraft_value || null : blended?.market_value_fantasycalc || null;
     const dynastyProcessValue = option.board === 'dynasty' ? blended?.expert_value_dynastyprocess || null : null;
     const dynastyDealerBenchmark = option.board === 'dynasty' ? blended?.benchmark_value_dynastydealer || null : null;
     const dynastyDealerVoteRating = option.board === 'dynasty' ? blended?.dynastydealer_vote_rating || null : null;
-    const sourceWeights = getDynastySourceWeights({
-      board: option.board,
-      numQbs: option.qbFormat === 'sf' ? 2 : 1,
-      ppr: 1,
-      tep: option.tep,
-    });
+    const sourceWeights = option.board === 'redraft'
+      ? null
+      : dynastySourceWeights || getDynastySourceWeights({
+        board: option.board,
+        numQbs: option.qbFormat === 'sf' ? 2 : 1,
+        ppr: 1,
+        tep: option.tep,
+      });
     const value = option.board === 'devy'
-      ? Math.max(
+      ? weightedAverage([
+        { value: ktc?.ktc_value || prospectRankToValue(ktc?.rank || null), weight: prospectSourceWeights?.ktc || 0 },
+        { value: flock?.dynastyValue || prospectRankToValue(flock?.overallRank || null), weight: prospectSourceWeights?.flock || 0 },
+        { value: prospectRankToValue(fantasyProsDevy?.rank || null), weight: prospectSourceWeights?.fantasyProsDevy || 0 },
+        { value: getProspectArchiveValue(prospectProfile), weight: prospectSourceWeights?.prospectArchive || 0 },
+      ]) || Math.max(
         1,
         Math.round(
           10000
           - ((fantasyProsDevy?.rank || ktc?.rank || flock?.overallRank || prospectProfile?.overallRank || 9999) - 1) * 30
         )
       )
+      : option.board === 'redraft'
+        ? Math.round(redraft?.value || blended?.redraft_value || blended?.fantasypros_season_value || 0)
       : weightedAverage([
-      { value: flockValue, weight: sourceWeights.flock },
-      { value: dynastyNerdsValue, weight: sourceWeights.dynastyNerds },
-      { value: ktcValue, weight: sourceWeights.ktc },
-      { value: option.board === 'dynasty' ? fantasyCalcValue : null, weight: sourceWeights.fantasyCalc },
-      { value: option.board === 'dynasty' ? dynastyProcessValue : null, weight: sourceWeights.dynastyProcess },
+      { value: flockValue, weight: sourceWeights?.flock || 0 },
+      { value: fantasyProsDynastyValue, weight: sourceWeights?.fantasyPros || 0 },
+      { value: dynastyNerdsValue, weight: sourceWeights?.dynastyNerds || 0 },
+      { value: fantasyNerdsValue, weight: sourceWeights?.fantasyNerds || 0 },
+      { value: ktcValue, weight: sourceWeights?.ktc || 0 },
+      { value: option.board === 'dynasty' ? fantasyCalcValue : null, weight: sourceWeights?.fantasyCalc || 0 },
+      { value: option.board === 'dynasty' ? dynastyProcessValue : null, weight: sourceWeights?.dynastyProcess || 0 },
     ]);
 
     if (!value) continue;
@@ -797,20 +969,26 @@ function buildRowsForProfile({
       ktcValue ? 'KTC' : null,
       flockValue ? 'Flock' : null,
       fantasyProsDevy && option.board === 'devy' ? 'FantasyPros' : null,
+      fantasyProsDynastyValue && option.board === 'dynasty' ? 'FantasyPros Dynasty' : null,
       prospectProfile?.source === 'NFL Draft Buzz' && option.board === 'devy' ? 'NFL Draft Buzz' : null,
       (prospectProfile?.source === 'ESPN' || prospectProfile?.espnId) && option.board === 'devy' ? 'ESPN' : null,
       dynastyNerdsValue ? 'DynastyNerds' : null,
+      fantasyNerdsValue ? 'FantasyNerds' : null,
       fantasyCalcValue && option.board === 'dynasty' ? 'FantasyCalc' : null,
       dynastyProcessValue && option.board === 'dynasty' ? 'DynastyProcess' : null,
+      ...(option.board === 'redraft' ? redraft?.sources || [] : []),
     ].filter(Boolean) as string[];
-    const baselineValue = canonicalBaselineValues[key]?.ktc_value || null;
+    const baselineValue = option.board === 'redraft' ? null : canonicalBaselineValues[key]?.ktc_value || null;
     const movement = baselineValue && value ? value - baselineValue : null;
     const displayCollege = prospectProfile?.college || college;
     const displayImageUrl = getRankingImageUrl({ option, flock, dynastyNerds, prospectProfile });
     const displayPositionRank = normalizeRankPosition(
       fantasyProsDevy?.positionRank
+        || redraft?.positionRank
         || ktc?.position_rank
         || dynastyNerds?.positionRank
+        || blended?.fantasypros_dynasty_position_rank
+        || blended?.fantasynerds_position_rank
         || flock?.positionRank
         || (prospectProfile?.positionRank ? `${pos}${prospectProfile.positionRank}` : null),
       pos
@@ -821,23 +999,29 @@ function buildRowsForProfile({
       player_id: playerId,
       name: getRankingDisplayName(name),
       pos,
-      team: sleeperPlayer?.team || dynastyNerds?.team || flock?.team || ktc?.team || null,
+      team: sleeperPlayer?.team || redraft?.team || dynastyNerds?.team || flock?.team || ktc?.team || null,
       college: displayCollege || null,
       collegeLogoUrl: prospectProfile?.collegeLogoUrl || null,
       age: Number(sleeperPlayer?.age || dynastyNerds?.age || flock?.age || ktc?.age || fantasyProsDevy?.age || 0) || null,
       draftYear: draftYear || prospectProfile?.draftYear || null,
-      overallRank: Number(fantasyProsDevy?.rank || ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || prospectProfile?.overallRank || 9999),
+      overallRank: Number(redraft?.overallRank || fantasyProsDevy?.rank || ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || prospectProfile?.overallRank || 9999),
       positionRank: displayPositionRank,
       value,
       ktcValue,
       ktcRank: ktc?.rank || null,
       flockValue,
       flockRank: flock?.overallRank || null,
+      fantasyProsDynastyValue,
       dynastyNerdsValue,
+      fantasyNerdsValue,
       fantasyCalcValue,
       dynastyProcessValue,
       dynastyDealerBenchmark,
       dynastyDealerVoteRating,
+      fantasyProsValue: option.board === 'redraft' ? redraft?.fantasyProsSeasonValue || blended?.fantasypros_season_value || null : null,
+      redraftAveragePick: redraft?.adp || null,
+      redraftProjectedPoints: redraft?.projectedPoints || null,
+      redraftSourceRanks: redraft?.sourceRanks || undefined,
       fantasyProsDevyRank: fantasyProsDevy?.rank || prospectProfile?.fantasyProsDevyRank || null,
       fantasyProsDevyPositionRank: fantasyProsDevy?.positionRank || prospectProfile?.fantasyProsDevyPositionRank || null,
       fantasyProsDevyAge: fantasyProsDevy?.age || prospectProfile?.fantasyProsDevyAge || null,
@@ -845,6 +1029,7 @@ function buildRowsForProfile({
       fantasyProsDevyWorstRank: fantasyProsDevy?.worstRank || prospectProfile?.fantasyProsDevyWorstRank || null,
       fantasyProsDevyAverageRank: fantasyProsDevy?.averageRank || prospectProfile?.fantasyProsDevyAverageRank || null,
       fantasyProsDevyStdDev: fantasyProsDevy?.stdDev || prospectProfile?.fantasyProsDevyStdDev || null,
+      seasonValue: option.board === 'redraft' ? value : blended?.redraft_value || null,
       tier: ktc?.tier || flock?.tier || null,
       movement,
       movementLabel: getMovementLabel(movement),
@@ -911,7 +1096,14 @@ function buildRowsForProfile({
   });
 }
 
-function getDefaultProfileKey(profileKey: string | null | undefined, board: 'dynasty' | 'devy'): string {
+function getDefaultProfileKey(profileKey: string | null | undefined, board: 'dynasty' | 'redraft' | 'devy'): string {
+  if (board === 'redraft') {
+    const normalizedProfileKey = String(profileKey || '').toLowerCase();
+    if (/(?:half|0_5|0\.5)/.test(normalizedProfileKey)) return 'redraft_half_ppr';
+    if (/(?:standard|std|non[_-]?ppr|zero[_-]?ppr)/.test(normalizedProfileKey)) return 'redraft_standard';
+    return 'redraft_ppr';
+  }
+
   const option = RANKING_PROFILE_OPTIONS.find((item) => item.board === board && profileKey?.includes(item.qbFormat === 'sf' ? '_sf_' : '_one_qb_') && (
     item.tep === 1.5 ? profileKey?.includes('tep_1_5')
       : item.tep === 1 ? profileKey?.includes('tep_1_0')
@@ -945,34 +1137,104 @@ export async function buildRankingsBoard({
   prospectProfiles?: ProspectProfile[];
   leagueTeamCount?: number;
 }): Promise<RankingsBoard> {
-  const [ktcDevyProfiles, flockProfiles, dynastyNerdsProfiles, fantasyProsDevyRows] = await Promise.all([
+  const [ktcDevyProfiles, flockProfiles, dynastyNerdsProfiles, fantasyProsDevyRows, redraftResult] = await Promise.all([
     getCurrentKTCDevyRankingProfiles(false),
     loadFlockFantasyValueProfiles(),
     loadDynastyNerdsValueProfiles(),
     loadFantasyProsDevyRankings(),
+    loadRedraftRankingProfiles({ ktcValues }),
   ]);
+  const redraftProfiles = redraftResult.profiles;
   const playerLookup = buildPlayerIdentityLookup(players);
   const profiles: Record<string, RankingPlayer[]> = {};
   const sourceWeightProfiles: RankingsBoard['sourceWeightProfiles'] = {};
   const identityDiagnostics = new Map<string, RankingIdentityDiagnostic>();
+  const defaultProfileKey = getDefaultProfileKey(selectedProfileKey, 'dynasty');
+  const defaultDevyProfileKey = getDefaultProfileKey(selectedProfileKey, 'devy');
+  const defaultRedraftProfileKey = getDefaultProfileKey(selectedProfileKey, 'redraft');
+  let dynastySourceDiagnostics: RankingsBoard['dynastySourceDiagnostics'] = [];
+  let devySourceDiagnostics: RankingsBoard['devySourceDiagnostics'] = [];
 
   for (const option of RANKING_PROFILE_OPTIONS) {
     const ktcProfileKey = PROFILE_KEY_BY_OPTION[option.key];
-    const sourceWeights = getDynastySourceWeights({
-      board: option.board,
-      numQbs: option.qbFormat === 'sf' ? 2 : 1,
-      ppr: 1,
-      tep: option.tep,
-    });
-    sourceWeightProfiles[option.key] = {
-      label: formatDynastySourceWeights(sourceWeights),
-      sources: getDynastySourceWeightEntries(sourceWeights).filter((entry) => entry.weight > 0),
-    };
+    const flockRows = getFlockProfile(option, flockProfiles);
+    const dynastyNerdsRows = getDynastyNerdsProfile(option, dynastyNerdsProfiles);
+    let effectiveDynastySourceWeights: DynastySourceWeights | null = null;
+    let effectiveProspectSourceWeights: ProspectSourceWeights | null = null;
+    let dynastySourceTrust: DynastySourceTrustMap = {};
+
+    if (option.board === 'redraft') {
+      sourceWeightProfiles[option.key] = {
+        label: formatRedraftSourceWeights(redraftResult.sourceTrust || {}),
+        sources: getRedraftSourceWeightEntries(redraftResult.sourceTrust || {}).filter((entry) => entry.weight > 0),
+      };
+    } else if (option.board === 'devy') {
+      const prospectSourceRows = buildProspectSourceRowsForProfile({
+        ktcRows: ktcDevyProfiles[ktcProfileKey] || {},
+        flockRows,
+        fantasyProsDevyRows,
+        prospectLookup,
+      });
+      const prospectSourceTrust = calculateProspectSourceTrust({
+        sourceMaps: prospectSourceRows,
+      });
+      effectiveProspectSourceWeights = applyProspectSourceTrust(undefined, prospectSourceTrust);
+      if (option.key === defaultDevyProfileKey) {
+        const prospectSourceHistory = await loadRecentProspectSourceSnapshots(option.key);
+        const previousProspectSourceTrust = calculatePreviousProspectSourceTrust(prospectSourceHistory);
+        devySourceDiagnostics = buildProspectSourceDiagnostics(prospectSourceRows, prospectSourceTrust, previousProspectSourceTrust);
+        await persistProspectSourceSnapshot({
+          profileKey: option.key,
+          sources: prospectSourceRows,
+          diagnostics: devySourceDiagnostics,
+        });
+      }
+      sourceWeightProfiles[option.key] = {
+        label: formatProspectSourceWeights(prospectSourceTrust),
+        sources: getProspectSourceWeightEntries(prospectSourceTrust).filter((entry) => entry.weight > 0),
+      };
+    } else {
+      const sourceWeights = getDynastySourceWeights({
+        board: option.board,
+        numQbs: option.qbFormat === 'sf' ? 2 : 1,
+        ppr: 1,
+        tep: option.tep,
+      });
+      if (option.board === 'dynasty') {
+        const dynastySourceRows = buildDynastySourceRowsForProfile({
+          ktcRows: ktcValues,
+          flockRows,
+          dynastyNerdsRows,
+          ktcValues,
+        });
+        const dynastySourceHistory = loadRecentDynastySourceRowsFromLocalSnapshots(getDynastyValueProfileKey(option));
+        dynastySourceTrust = calculateDynastySourceTrust({
+          sourceMaps: dynastySourceRows,
+          baseWeights: sourceWeights,
+          history: dynastySourceHistory,
+        });
+        const previousDynastySourceTrust = calculatePreviousDynastySourceTrust({
+          baseWeights: sourceWeights,
+          history: dynastySourceHistory,
+        });
+        effectiveDynastySourceWeights = applyDynastySourceTrust(sourceWeights, dynastySourceTrust);
+        if (option.key === defaultProfileKey) {
+          dynastySourceDiagnostics = buildDynastySourceDiagnostics(dynastySourceRows, dynastySourceTrust, previousDynastySourceTrust);
+        }
+      }
+      sourceWeightProfiles[option.key] = {
+        label: formatDynastySourceWeights(sourceWeights, dynastySourceTrust),
+        sources: getDynastySourceWeightEntries(sourceWeights, dynastySourceTrust).filter((entry) => entry.weight > 0),
+      };
+    }
     profiles[option.key] = buildRowsForProfile({
       option,
-      ktcRows: option.board === 'devy' ? ktcDevyProfiles[ktcProfileKey] : ktcValues,
-      flockRows: getFlockProfile(option, flockProfiles),
-      dynastyNerdsRows: getDynastyNerdsProfile(option, dynastyNerdsProfiles),
+      ktcRows: option.board === 'devy' ? ktcDevyProfiles[ktcProfileKey] : option.board === 'dynasty' ? ktcValues : {},
+      flockRows,
+      dynastyNerdsRows,
+      redraftRows: option.board === 'redraft' ? redraftProfiles[option.key as keyof typeof redraftProfiles] || {} : {},
+      dynastySourceWeights: effectiveDynastySourceWeights,
+      prospectSourceWeights: effectiveProspectSourceWeights,
       ktcValues,
       baselineKtcValues,
       players,
@@ -986,23 +1248,27 @@ export async function buildRankingsBoard({
     });
   }
 
-  const defaultProfileKey = getDefaultProfileKey(selectedProfileKey, 'dynasty');
-  const defaultDevyProfileKey = getDefaultProfileKey(selectedProfileKey, 'devy');
-
   return {
     generatedAt: new Date().toISOString(),
     selectedProfileKey,
     selectedProfileLabel,
     defaultProfileKey,
     defaultDevyProfileKey,
+    defaultRedraftProfileKey,
     profileOptions: RANKING_PROFILE_OPTIONS,
     sourceWeightProfiles,
     profiles,
     identityDiagnostics: Array.from(identityDiagnostics.values()).slice(0, 80),
+    dynastySourceDiagnostics,
+    redraftSourceDiagnostics: redraftResult.diagnostics,
+    devySourceDiagnostics,
     draftBuzzScoreboard: buildDraftBuzzScoreboardEntries(prospectProfiles, playerLookup),
     dynastySf: profiles.dynasty_sf_ppr || [],
     dynastyOneQb: profiles.dynasty_one_qb_ppr || [],
     devySf: profiles.devy_sf_ppr || [],
     devyOneQb: profiles.devy_one_qb_ppr || [],
+    redraftPpr: profiles.redraft_ppr || [],
+    redraftHalfPpr: profiles.redraft_half_ppr || [],
+    redraftStandard: profiles.redraft_standard || [],
   };
 }

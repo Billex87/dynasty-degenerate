@@ -35,6 +35,22 @@ vi.mock('./fantasyProsDevy', () => ({
   loadFantasyProsDevyRankings: vi.fn(async () => ({})),
 }));
 
+vi.mock('./redraftRankings', () => ({
+  formatRedraftSourceWeights: vi.fn(() => 'FantasyPros 28%, Internal Season Blend 18%, MyFantasyLeague ADP 16%'),
+  getRedraftSourceWeightEntries: vi.fn(() => [
+    { key: 'fantasyPros', source: 'FantasyPros', weight: 0.28, percent: 28, note: 'Current-season ECR.' },
+    { key: 'internalSeasonBlend', source: 'Internal Season Blend', weight: 0.18, percent: 18, note: 'Existing redraft blend.' },
+  ]),
+  loadRedraftRankingProfiles: vi.fn(async () => ({
+    profiles: {
+      redraft_ppr: {},
+      redraft_half_ppr: {},
+      redraft_standard: {},
+    },
+    diagnostics: [],
+  })),
+}));
+
 describe('rankings board prospect fallback', () => {
   it('does not emit Sleeper identity diagnostics for rookie pick rows', async () => {
     const { buildRankingsBoard } = await import('./rankingsBoard');
@@ -114,6 +130,83 @@ describe('rankings board prospect fallback', () => {
     expect(board.dynastySf.find((row) => row.name === 'Gabriel Davis')?.player_id).toBe('6943');
     expect(board.dynastySf.find((row) => row.name === 'Hollywood Brown')?.player_id).toBe('5848');
     expect(board.dynastySf.find((row) => row.name === 'Deion Burks')?.player_id).toBe('13333');
+  });
+
+  it('keeps redraft profile rows separate from dynasty profile rows', async () => {
+    const { loadRedraftRankingProfiles } = await import('./redraftRankings');
+    vi.mocked(loadRedraftRankingProfiles).mockResolvedValueOnce({
+      profiles: {
+        redraft_ppr: {
+          christianmccaffrey: {
+            name: 'Christian McCaffrey',
+            position: 'RB',
+            team: 'SF',
+            overallRank: 1,
+            positionRank: 'RB1',
+            value: 8800,
+            adp: 2.4,
+            fantasyProsSeasonValue: 8700,
+            fantasyCalcRedraft: 8200,
+            sources: ['FantasyPros', 'MyFantasyLeague ADP'],
+            sourceRanks: { fantasyPros: 1, mflAdp: 2.4 },
+            sourceValues: { fantasyPros: 8700, mflAdp: 8600 },
+          },
+        },
+        redraft_half_ppr: {},
+        redraft_standard: {},
+      },
+      diagnostics: [{
+        key: 'mflAdp',
+        source: 'MyFantasyLeague ADP',
+        board: 'redraft',
+        status: 'loaded',
+        rowCount: 1,
+        note: 'Loaded one test row.',
+        error: null,
+        loadedAt: '2026-05-11T00:00:00.000Z',
+      }],
+    });
+    const { buildRankingsBoard } = await import('./rankingsBoard');
+
+    const board = await buildRankingsBoard({
+      players: {
+        '4034': {
+          full_name: 'Christian McCaffrey',
+          first_name: 'Christian',
+          last_name: 'McCaffrey',
+          position: 'RB',
+          team: 'SF',
+          active: true,
+        },
+      },
+      ktcValues: {
+        christianmccaffrey: {
+          name: 'Christian McCaffrey',
+          ktc_value: 1200,
+          redraft_value: 8200,
+          position_rank: 'RB80',
+          value_sources: ['KTC'],
+        },
+      },
+      ownerByPlayerId: { '4034': 'Tester' },
+      rosterStatusByPlayerId: { '4034': 'starter' },
+      selectedProfileKey: 'redraft_ppr',
+    });
+
+    const redraftRow = board.redraftPpr?.find((row) => row.name === 'Christian McCaffrey');
+    const dynastyRow = board.dynastySf.find((row) => row.name === 'Christian McCaffrey');
+
+    expect(board.defaultRedraftProfileKey).toBe('redraft_ppr');
+    expect(board.redraftSourceDiagnostics).toHaveLength(1);
+    expect(redraftRow).toMatchObject({
+      player_id: '4034',
+      value: 8800,
+      seasonValue: 8800,
+      fantasyProsValue: 8700,
+      redraftAveragePick: 2.4,
+      sources: ['FantasyPros', 'MyFantasyLeague ADP'],
+    });
+    expect(dynastyRow?.value).toBe(1200);
   });
 
   it('builds college rows from NFL Draft Buzz without Sleeper players', async () => {

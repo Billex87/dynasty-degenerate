@@ -1,4 +1,5 @@
 import { canonicalPlayerNameKey } from './leagueAnalysis';
+import { fetchFantasyProsDevyRankings, type FantasyProsRanking } from './fantasyPros';
 
 const FANTASYPROS_DEVY_URL = 'https://www.fantasypros.com/nfl/rankings/devy-overall.php';
 const CACHE_TTL_MS = 1000 * 60 * 60 * 12;
@@ -19,6 +20,28 @@ export interface FantasyProsDevyRanking {
 }
 
 let cachedDevyRankings: { loadedAt: number; values: Record<string, FantasyProsDevyRanking> } | null = null;
+
+function rankingsFromApiRows(rows: Record<string, FantasyProsRanking>): Record<string, FantasyProsDevyRanking> {
+  const values: Record<string, FantasyProsDevyRanking> = {};
+  for (const [key, row] of Object.entries(rows || {})) {
+    const rank = Number(row.overallRank || 0);
+    const position = String(row.position || '').toUpperCase();
+    if (!rank || !row.name || !['QB', 'RB', 'WR', 'TE'].includes(position)) continue;
+    values[canonicalPlayerNameKey(row.name || key)] = {
+      name: row.name,
+      rank,
+      position,
+      positionRank: row.positionRank || `${position}${rank}`,
+      age: row.age ?? null,
+      bestRank: row.bestRank ?? null,
+      worstRank: row.worstRank ?? null,
+      averageRank: row.averageRank ?? null,
+      stdDev: row.stdDev ?? null,
+      sourceUrl: 'https://api.fantasypros.com/public/v2/json/NFL/consensus-rankings?type=DEVY',
+    };
+  }
+  return values;
+}
 
 function parseNumber(value?: string | null): number | null {
   if (!value) return null;
@@ -147,6 +170,12 @@ export function parseFantasyProsDevyMarkdown(markdown: string): Record<string, F
 export async function loadFantasyProsDevyRankings(force = false): Promise<Record<string, FantasyProsDevyRanking>> {
   if (!force && cachedDevyRankings && Date.now() - cachedDevyRankings.loadedAt < CACHE_TTL_MS) {
     return cachedDevyRankings.values;
+  }
+
+  const apiValues = rankingsFromApiRows(await fetchFantasyProsDevyRankings());
+  if (Object.keys(apiValues).length) {
+    cachedDevyRankings = { loadedAt: Date.now(), values: apiValues };
+    return apiValues;
   }
 
   let lastError = '';

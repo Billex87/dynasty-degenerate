@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { adminProcedure, publicProcedure, router } from "./trpc";
-import { getLoginAttemptsSince, listKtcSnapshotDateKeysSince, type StoredLoginAttempt } from "../db";
+import { getLoginAttemptsSince, listKtcSnapshotDateKeysSince, listSourceHealthEventsSince, type StoredLoginAttempt, type StoredSourceHealthEvent } from "../db";
 import { getSnapshotDateKey, listLocalKtcSnapshotDateKeysSince } from "../ktcLoader";
 
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
@@ -80,6 +80,46 @@ function serializeTrafficBucket(bucket: ReturnType<typeof createTrafficBucket>) 
   };
 }
 
+function createSourceHealthBucket(label: string) {
+  return {
+    label,
+    count: 0,
+    danger: 0,
+    warn: 0,
+    info: 0,
+    firstSeen: null as Date | null,
+    lastSeen: null as Date | null,
+    lastMessage: null as string | null,
+  };
+}
+
+function addSourceHealthEventToBucket(bucket: ReturnType<typeof createSourceHealthBucket>, event: StoredSourceHealthEvent) {
+  bucket.count += 1;
+  if (event.level === 'danger') bucket.danger += 1;
+  if (event.level === 'warn') bucket.warn += 1;
+  if (event.level === 'info') bucket.info += 1;
+  if (!bucket.firstSeen || event.createdAt < bucket.firstSeen) {
+    bucket.firstSeen = event.createdAt;
+  }
+  if (!bucket.lastSeen || event.createdAt > bucket.lastSeen) {
+    bucket.lastSeen = event.createdAt;
+    bucket.lastMessage = event.message;
+  }
+}
+
+function serializeSourceHealthBucket(bucket: ReturnType<typeof createSourceHealthBucket>) {
+  return {
+    label: bucket.label,
+    count: bucket.count,
+    danger: bucket.danger,
+    warn: bucket.warn,
+    info: bucket.info,
+    firstSeen: bucket.firstSeen ? toIsoString(bucket.firstSeen) : null,
+    lastSeen: bucket.lastSeen ? toIsoString(bucket.lastSeen) : null,
+    lastMessage: bucket.lastMessage,
+  };
+}
+
 function buildTopBuckets(
   attempts: StoredLoginAttempt[],
   getLabel: (attempt: StoredLoginAttempt) => string | null | undefined,
@@ -96,6 +136,25 @@ function buildTopBuckets(
   return Array.from(buckets.values())
     .map(serializeTrafficBucket)
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, limit);
+}
+
+function buildSourceHealthBuckets(
+  events: StoredSourceHealthEvent[],
+  getLabel: (event: StoredSourceHealthEvent) => string | null | undefined,
+  limit: number
+) {
+  const buckets = new Map<string, ReturnType<typeof createSourceHealthBucket>>();
+  for (const event of events) {
+    const label = getLabel(event)?.trim() || 'unknown';
+    const bucket = buckets.get(label) || createSourceHealthBucket(label);
+    addSourceHealthEventToBucket(bucket, event);
+    buckets.set(label, bucket);
+  }
+
+  return Array.from(buckets.values())
+    .map(serializeSourceHealthBucket)
+    .sort((a, b) => b.danger - a.danger || b.warn - a.warn || b.count - a.count || a.label.localeCompare(b.label))
     .slice(0, limit);
 }
 
@@ -201,6 +260,45 @@ export const systemRouter = router({
           ipAddress: attempt.ipAddress,
           note: attempt.note,
           userAgent: attempt.userAgent,
+        })),
+      } as const;
+    }),
+
+  sourceHealth: adminProcedure
+    .input(
+      z.object({
+        lookbackDays: z.number().int().min(1).max(30).default(7),
+      })
+    )
+    .query(async ({ input }) => {
+      const since = new Date(Date.now() - input.lookbackDays * 24 * 60 * 60 * 1000);
+      const events = await listSourceHealthEventsSince(since, 100);
+      const dangerEvents = events.filter((event) => event.level === 'danger');
+      const warnEvents = events.filter((event) => event.level === 'warn');
+
+      return {
+        generatedAt: new Date().toISOString(),
+        lookbackDays: input.lookbackDays,
+        totals: {
+          events: events.length,
+          danger: dangerEvents.length,
+          warn: warnEvents.length,
+          info: events.filter((event) => event.level === 'info').length,
+          uniqueSources: new Set(events.map((event) => event.sourceKey)).size,
+        },
+        bySource: buildSourceHealthBuckets(events, (event) => event.source, 10),
+        byJob: buildSourceHealthBuckets(events, (event) => event.job, 8),
+        recentEvents: events.slice(0, 25).map((event) => ({
+          id: event.id,
+          createdAt: toIsoString(event.createdAt),
+          job: event.job,
+          board: event.board,
+          sourceKey: event.sourceKey,
+          source: event.source,
+          level: event.level,
+          status: event.status,
+          rowCount: event.rowCount ?? null,
+          message: event.message,
         })),
       } as const;
     }),

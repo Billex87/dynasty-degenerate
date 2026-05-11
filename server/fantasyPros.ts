@@ -4,14 +4,53 @@ const FANTASYPROS_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 const SEASON_RANK_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 
+export type FantasyProsScoring = 'STD' | 'HALF' | 'PPR';
+export type FantasyProsRankingType = 'DRAFT' | 'ROS' | 'DYNASTY' | 'DEVY' | 'ROOKIES' | 'ADP' | 'DYNADP' | 'RKADP';
+export type FantasyProsSubSource =
+  | 'draft'
+  | 'ros'
+  | 'dynasty'
+  | 'devy'
+  | 'rookies'
+  | 'adp'
+  | 'projections'
+  | 'injuries'
+  | 'news'
+  | 'playerPoints';
+
+const FANTASYPROS_SUB_SOURCE_FLAGS: Record<FantasyProsSubSource, string> = {
+  draft: 'ENABLE_FANTASYPROS_DRAFT_RANKINGS',
+  ros: 'ENABLE_FANTASYPROS_ROS_RANKINGS',
+  dynasty: 'ENABLE_FANTASYPROS_DYNASTY_RANKINGS',
+  devy: 'ENABLE_FANTASYPROS_DEVY_RANKINGS',
+  rookies: 'ENABLE_FANTASYPROS_ROOKIE_RANKINGS',
+  adp: 'ENABLE_FANTASYPROS_ADP_RANKINGS',
+  projections: 'ENABLE_FANTASYPROS_PROJECTIONS',
+  injuries: 'ENABLE_FANTASYPROS_INJURIES',
+  news: 'ENABLE_FANTASYPROS_NEWS',
+  playerPoints: 'ENABLE_FANTASYPROS_PLAYER_POINTS',
+};
+
 export interface FantasyProsRanking {
   name: string;
   position?: string;
   team?: string | null;
+  season?: string | null;
+  rankingType?: FantasyProsRankingType;
   overallRank?: number;
   positionRank?: string | null;
   tier?: number | null;
+  value?: number;
+  dynastyValue?: number;
+  adpValue?: number;
+  adp?: number | null;
   seasonValue?: number;
+  totalExperts?: number | null;
+  bestRank?: number | null;
+  worstRank?: number | null;
+  averageRank?: number | null;
+  stdDev?: number | null;
+  age?: number | null;
   lastUpdated?: string | null;
 }
 
@@ -42,7 +81,8 @@ interface FantasyProsPlayerReference {
   team: string | null;
 }
 
-let cachedDraftRankings: { loadedAt: number; season: string; scoring: 'STD' | 'HALF' | 'PPR'; values: Record<string, FantasyProsRanking> } | null = null;
+let cachedDraftRankings: { loadedAt: number; season: string; scoring: FantasyProsScoring; values: Record<string, FantasyProsRanking> } | null = null;
+const cachedConsensusRankings = new Map<string, { loadedAt: number; values: Record<string, FantasyProsRanking> }>();
 let cachedPlayerPoints: { loadedAt: number; season: string; scoring: string; values: Record<string, FantasyProsPlayerPoints> } | null = null;
 let cachedNews: { loadedAt: number; values: FantasyProsNewsItem[] } | null = null;
 let cachedPlayers: { loadedAt: number; values: FantasyProsPlayerReference[] } | null = null;
@@ -54,6 +94,18 @@ function isFresh(cache: { loadedAt: number } | null): boolean {
 
 function getFantasyProsApiKey(): string | null {
   return process.env.FANTASYPROS_API_KEY || null;
+}
+
+export function hasFantasyProsApiKey(): boolean {
+  return Boolean(getFantasyProsApiKey());
+}
+
+function isDisabledValue(value?: string | null): boolean {
+  return /^(?:0|false|off|no|disabled)$/i.test(String(value || '').trim());
+}
+
+export function isFantasyProsSubSourceEnabled(source: FantasyProsSubSource): boolean {
+  return !isDisabledValue(process.env[FANTASYPROS_SUB_SOURCE_FLAGS[source]]);
 }
 
 function toNumber(value: unknown): number | undefined {
@@ -104,6 +156,33 @@ function positionRankToValue(positionRank?: string | null, overallRank?: number)
   return value;
 }
 
+function overallRankToValue(overallRank?: number | null, replacement = 320): number | undefined {
+  const rank = toNumber(overallRank);
+  if (!rank) return undefined;
+  return Math.max(100, Math.round(10000 * Math.pow(Math.max(0.025, (replacement - rank + 1) / replacement), 1.22)));
+}
+
+function rankingTypeToSubSource(type: FantasyProsRankingType): FantasyProsSubSource {
+  switch (type) {
+    case 'DRAFT':
+      return 'draft';
+    case 'ROS':
+      return 'ros';
+    case 'DYNASTY':
+      return 'dynasty';
+    case 'DEVY':
+      return 'devy';
+    case 'ROOKIES':
+      return 'rookies';
+    case 'ADP':
+    case 'DYNADP':
+    case 'RKADP':
+      return 'adp';
+    default:
+      return 'draft';
+  }
+}
+
 async function fantasyProsFetch<T>(path: string): Promise<T | null> {
   const apiKey = getFantasyProsApiKey();
   if (!apiKey) return null;
@@ -113,6 +192,104 @@ async function fantasyProsFetch<T>(path: string): Promise<T | null> {
   });
   if (!response.ok) throw new Error(`FantasyPros ${response.status} ${path}`);
   return response.json() as Promise<T>;
+}
+
+export function normalizeFantasyProsRankingsPayload(
+  payload: {
+    year?: string | number | null;
+    last_updated?: string | null;
+    total_experts?: number | string | null;
+    players?: Array<Record<string, unknown>>;
+  } | null | undefined,
+  options: {
+    season?: string;
+    rankingType?: FantasyProsRankingType;
+  } = {},
+): Record<string, FantasyProsRanking> {
+  const rankingType = options.rankingType || 'DRAFT';
+  const totalExperts = toNumber(payload?.total_experts) ?? null;
+  const values: Record<string, FantasyProsRanking> = {};
+
+  for (const player of payload?.players || []) {
+    const name = stringField(player.player_name || player.name);
+    if (!name) continue;
+    const position = normalizeFantasyProsPosition(stringField(player.player_position_id || player.position_id || player.position));
+    const overallRank = toNumber(player.rank_ecr ?? player.rank ?? player.rank_ave ?? player.rank_average ?? player.adp);
+    const positionRank = normalizeFantasyProsPositionRank(stringField(player.pos_rank || player.position_rank), position);
+    const rankValue = overallRankToValue(overallRank);
+    const seasonValue = rankingType === 'DRAFT' || rankingType === 'ROS' || rankingType === 'ADP'
+      ? positionRankToValue(positionRank, overallRank) ?? rankValue
+      : undefined;
+    const dynastyValue = rankingType === 'DYNASTY' ? rankValue : undefined;
+    const adpValue = rankingType === 'ADP' || rankingType === 'DYNADP' || rankingType === 'RKADP'
+      ? rankValue
+      : undefined;
+
+    values[cleanName(name)] = {
+      name,
+      position: position || undefined,
+      team: stringField(player.player_team_id || player.team_id || player.team),
+      season: String(options.season || payload?.year || '') || null,
+      rankingType,
+      overallRank,
+      positionRank,
+      tier: toNumber(player.tier) ?? null,
+      value: dynastyValue ?? seasonValue ?? adpValue ?? rankValue,
+      dynastyValue,
+      adpValue,
+      adp: rankingType === 'ADP' || rankingType === 'DYNADP' || rankingType === 'RKADP' ? overallRank ?? null : null,
+      seasonValue,
+      totalExperts,
+      age: toNumber(player.player_age || player.age) ?? null,
+      bestRank: toNumber(player.rank_min || player.best_rank) ?? null,
+      worstRank: toNumber(player.rank_max || player.worst_rank) ?? null,
+      averageRank: toNumber(player.rank_ave || player.rank_average) ?? null,
+      stdDev: toNumber(player.rank_std || player.std_dev) ?? null,
+      lastUpdated: payload?.last_updated || null,
+    };
+  }
+
+  return values;
+}
+
+export async function fetchFantasyProsConsensusRankings({
+  season = String(new Date().getFullYear()),
+  scoring = 'PPR',
+  rankingType = 'DRAFT',
+  position = 'ALL',
+  week = 0,
+}: {
+  season?: string;
+  scoring?: FantasyProsScoring;
+  rankingType?: FantasyProsRankingType;
+  position?: string;
+  week?: number;
+} = {}): Promise<Record<string, FantasyProsRanking>> {
+  if (!isFantasyProsSubSourceEnabled(rankingTypeToSubSource(rankingType))) return {};
+  const cacheKey = `${season}:${scoring}:${rankingType}:${position}:${week}`;
+  const cached = cachedConsensusRankings.get(cacheKey);
+  if (isFresh(cached || null)) return cached?.values || {};
+
+  try {
+    const params = new URLSearchParams({
+      position,
+      type: rankingType,
+      scoring,
+      week: String(week),
+    });
+    const payload = await fantasyProsFetch<{
+      year?: string | number | null;
+      last_updated?: string | null;
+      total_experts?: number | string | null;
+      players?: Array<Record<string, unknown>>;
+    }>(`/NFL/${season}/consensus-rankings?${params.toString()}`);
+    const values = normalizeFantasyProsRankingsPayload(payload, { season, rankingType });
+    cachedConsensusRankings.set(cacheKey, { loadedAt: Date.now(), values });
+    return values;
+  } catch (error) {
+    console.warn(`[FantasyPros] Failed to load ${rankingType} rankings:`, error);
+    return cached?.values || {};
+  }
 }
 
 function stripHtml(value: unknown): string | null {
@@ -180,55 +357,50 @@ export function findLatestFantasyProsNewsForPlayer(
 
 export async function fetchFantasyProsDraftRankings(
   season = String(new Date().getFullYear()),
-  scoring: 'STD' | 'HALF' | 'PPR' = 'HALF'
+  scoring: FantasyProsScoring = 'HALF'
 ): Promise<Record<string, FantasyProsRanking>> {
   if (cachedDraftRankings?.season === season && cachedDraftRankings.scoring === scoring && isFresh(cachedDraftRankings)) {
     return cachedDraftRankings.values;
   }
 
-  try {
-    const payload = await fantasyProsFetch<{
-      last_updated?: string | null;
-      players?: Array<{
-        player_name?: string;
-        player_position_id?: string;
-        player_team_id?: string | null;
-        rank_ecr?: number | string;
-        pos_rank?: string | null;
-        tier?: number | string | null;
-      }>;
-    }>(`/nfl/${season}/consensus-rankings?position=ALL&type=DRAFT&scoring=${scoring}&week=0`);
+  const values = await fetchFantasyProsConsensusRankings({ season, scoring, rankingType: 'DRAFT' });
+  cachedDraftRankings = { loadedAt: Date.now(), season, scoring, values };
+  return values;
+}
 
-    const values: Record<string, FantasyProsRanking> = {};
-    for (const player of payload?.players || []) {
-      if (!player.player_name) continue;
-      const position = normalizeFantasyProsPosition(player.player_position_id) || player.player_position_id;
-      const overallRank = toNumber(player.rank_ecr);
-      const positionRank = normalizeFantasyProsPositionRank(player.pos_rank || null, position);
-      values[cleanName(player.player_name)] = {
-        name: player.player_name,
-        position: position || undefined,
-        team: player.player_team_id || null,
-        overallRank,
-        positionRank,
-        tier: toNumber(player.tier) ?? null,
-        seasonValue: positionRankToValue(positionRank, overallRank),
-        lastUpdated: payload?.last_updated || null,
-      };
-    }
+export async function fetchFantasyProsDynastyRankings(
+  season = String(new Date().getFullYear()),
+  scoring: FantasyProsScoring = 'PPR'
+): Promise<Record<string, FantasyProsRanking>> {
+  return fetchFantasyProsConsensusRankings({ season, scoring, rankingType: 'DYNASTY' });
+}
 
-    cachedDraftRankings = { loadedAt: Date.now(), season, scoring, values };
-    return values;
-  } catch (error) {
-    console.warn('[FantasyPros] Failed to load draft rankings:', error);
-    return cachedDraftRankings?.values || {};
-  }
+export async function fetchFantasyProsDevyRankings(
+  season = String(new Date().getFullYear()),
+  scoring: FantasyProsScoring = 'PPR'
+): Promise<Record<string, FantasyProsRanking>> {
+  return fetchFantasyProsConsensusRankings({ season, scoring, rankingType: 'DEVY' });
+}
+
+export async function fetchFantasyProsRookieRankings(
+  season = String(new Date().getFullYear()),
+  scoring: FantasyProsScoring = 'PPR'
+): Promise<Record<string, FantasyProsRanking>> {
+  return fetchFantasyProsConsensusRankings({ season, scoring, rankingType: 'ROOKIES' });
+}
+
+export async function fetchFantasyProsAdpRankings(
+  season = String(new Date().getFullYear()),
+  scoring: FantasyProsScoring = 'PPR'
+): Promise<Record<string, FantasyProsRanking>> {
+  return fetchFantasyProsConsensusRankings({ season, scoring, rankingType: 'ADP' });
 }
 
 export async function fetchFantasyProsPlayerPoints(
   season: string,
-  scoring: 'STD' | 'HALF' | 'PPR' = 'HALF'
+  scoring: FantasyProsScoring = 'HALF'
 ): Promise<Record<string, FantasyProsPlayerPoints>> {
+  if (!isFantasyProsSubSourceEnabled('playerPoints')) return {};
   if (cachedPlayerPoints?.season === season && cachedPlayerPoints.scoring === scoring && isFresh(cachedPlayerPoints)) {
     return cachedPlayerPoints.values;
   }
@@ -270,6 +442,7 @@ export async function fetchFantasyProsPlayerPoints(
 }
 
 export async function fetchFantasyProsNews(): Promise<FantasyProsNewsItem[]> {
+  if (!isFantasyProsSubSourceEnabled('news')) return [];
   if (cachedNews && isFresh(cachedNews)) return cachedNews.values;
 
   try {
@@ -277,7 +450,7 @@ export async function fetchFantasyProsNews(): Promise<FantasyProsNewsItem[]> {
       articles?: Array<Record<string, unknown>>;
       news?: Array<Record<string, unknown>>;
       items?: Array<Record<string, unknown>>;
-    }>('/nfl/news?limit=200');
+    }>('/NFL/news?limit=200');
 
     const rows = payload?.articles || payload?.news || payload?.items || [];
     const values = normalizeNewsRows(rows);
@@ -291,10 +464,11 @@ export async function fetchFantasyProsNews(): Promise<FantasyProsNewsItem[]> {
 }
 
 export async function fetchFantasyProsPlayers(): Promise<FantasyProsPlayerReference[]> {
+  if (!hasFantasyProsApiKey()) return [];
   if (cachedPlayers && isFresh(cachedPlayers)) return cachedPlayers.values;
 
   try {
-    const payload = await fantasyProsFetch<{ players?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>>('/nfl/players');
+    const payload = await fantasyProsFetch<{ players?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>>('/NFL/players');
     const rows = Array.isArray(payload) ? payload : payload?.players || [];
     const values = rows
       .map((player) => {
@@ -322,6 +496,7 @@ export async function fetchFantasyProsNewsForPlayer(
   fantasyProsPlayerId: string,
   limit = 5
 ): Promise<FantasyProsNewsItem[]> {
+  if (!isFantasyProsSubSourceEnabled('news')) return [];
   const cacheKey = `${fantasyProsPlayerId}:${limit}`;
   const cached = cachedPlayerNews.get(cacheKey);
   if (isFresh(cached || null)) return cached?.values || [];
@@ -331,7 +506,7 @@ export async function fetchFantasyProsNewsForPlayer(
       articles?: Array<Record<string, unknown>>;
       news?: Array<Record<string, unknown>>;
       items?: Array<Record<string, unknown>>;
-    }>(`/nfl/news?fpid=${encodeURIComponent(fantasyProsPlayerId)}&limit=${limit}`);
+    }>(`/NFL/news?fpid=${encodeURIComponent(fantasyProsPlayerId)}&limit=${limit}`);
 
     const rows = payload?.articles || payload?.news || payload?.items || [];
     const values = normalizeNewsRows(rows);

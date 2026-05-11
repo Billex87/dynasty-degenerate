@@ -24,7 +24,16 @@ export interface WeeklyMomentum {
   pct_change: number;
 }
 
-export type RankingBoardFormat = 'dynastySf' | 'dynastyOneQb' | 'devySf' | 'devyOneQb';
+export type RankingBoardCategory = 'dynasty' | 'redraft' | 'devy';
+
+export type RankingBoardFormat =
+  | 'dynastySf'
+  | 'dynastyOneQb'
+  | 'devySf'
+  | 'devyOneQb'
+  | 'redraftPpr'
+  | 'redraftHalfPpr'
+  | 'redraftStandard';
 
 export interface RankingPlayer {
   id: string;
@@ -43,12 +52,17 @@ export interface RankingPlayer {
   ktcRank?: number | null;
   flockValue?: number | null;
   flockRank?: number | null;
+  fantasyProsDynastyValue?: number | null;
   dynastyNerdsValue?: number | null;
+  fantasyNerdsValue?: number | null;
   fantasyCalcValue?: number | null;
   dynastyProcessValue?: number | null;
   dynastyDealerBenchmark?: number | null;
   dynastyDealerVoteRating?: number | null;
   fantasyProsValue?: number | null;
+  redraftAveragePick?: number | null;
+  redraftProjectedPoints?: number | null;
+  redraftSourceRanks?: Record<string, number | null | undefined>;
   fantasyProsDevyRank?: number | null;
   fantasyProsDevyPositionRank?: string | null;
   fantasyProsDevyAge?: number | null;
@@ -79,7 +93,7 @@ export interface RankingPlayer {
 export interface RankingIdentityDiagnostic {
   id: string;
   profileKey: string;
-  board: 'dynasty' | 'devy';
+  board: RankingBoardCategory;
   playerName: string;
   sourceKey: string;
   status: 'unmatched' | 'resolved-collision';
@@ -97,9 +111,10 @@ export interface RankingIdentityDiagnostic {
 export interface RankingProfileOption {
   key: string;
   label: string;
-  board: 'dynasty' | 'devy';
+  board: RankingBoardCategory;
   qbFormat: 'sf' | 'one_qb';
   tep: 0 | 0.5 | 1 | 1.5;
+  ppr?: 0 | 0.5 | 1;
 }
 
 export interface RankingSourceWeightEntry {
@@ -108,6 +123,42 @@ export interface RankingSourceWeightEntry {
   weight: number;
   percent: number;
   note: string;
+  baseWeight?: number | null;
+  effectiveWeight?: number | null;
+  trustScore?: number | null;
+  trustMultiplier?: number | null;
+}
+
+export interface RankingSourceDiagnostic {
+  key: string;
+  source: string;
+  board: RankingBoardCategory;
+  status: 'loaded' | 'empty' | 'disabled' | 'stale' | 'error';
+  rowCount: number;
+  note: string;
+  error?: string | null;
+  season?: string | null;
+  expectedSeason?: string | null;
+  loadedAt?: string | null;
+  trustScore?: number | null;
+  trustMultiplier?: number | null;
+  baseWeight?: number | null;
+  effectiveWeight?: number | null;
+  trustSampleSize?: number | null;
+  medianConsensusDeltaPct?: number | null;
+  recentSuccessRate?: number | null;
+  rowCountRatio?: number | null;
+  trustNote?: string | null;
+  previousTrustScore?: number | null;
+  trustScoreDelta?: number | null;
+  previousTrustMultiplier?: number | null;
+  trustMultiplierDelta?: number | null;
+  previousEffectiveWeight?: number | null;
+  effectiveWeightDelta?: number | null;
+  trustAlert?: {
+    level: 'info' | 'warn' | 'danger';
+    message: string;
+  } | null;
 }
 
 export interface RankingsBoard {
@@ -116,6 +167,7 @@ export interface RankingsBoard {
   selectedProfileLabel?: string | null;
   defaultProfileKey?: string | null;
   defaultDevyProfileKey?: string | null;
+  defaultRedraftProfileKey?: string | null;
   profileOptions?: RankingProfileOption[];
   sourceWeightProfiles?: Record<string, {
     label: string;
@@ -123,11 +175,17 @@ export interface RankingsBoard {
   }>;
   profiles?: Record<string, RankingPlayer[]>;
   identityDiagnostics?: RankingIdentityDiagnostic[];
+  dynastySourceDiagnostics?: RankingSourceDiagnostic[];
+  redraftSourceDiagnostics?: RankingSourceDiagnostic[];
+  devySourceDiagnostics?: RankingSourceDiagnostic[];
   draftBuzzScoreboard?: DraftBuzzScoreboardEntry[];
   dynastySf: RankingPlayer[];
   dynastyOneQb: RankingPlayer[];
   devySf: RankingPlayer[];
   devyOneQb: RankingPlayer[];
+  redraftPpr?: RankingPlayer[];
+  redraftHalfPpr?: RankingPlayer[];
+  redraftStandard?: RankingPlayer[];
 }
 
 export interface DraftBuzzScoreboardEntry {
@@ -418,6 +476,16 @@ export interface TradeTendency {
   overpaysForVeterans: boolean;
 }
 
+export interface TradeProposalSignal {
+  id: string;
+  date: string;
+  status: string;
+  managers: string[];
+  playerIds: string[];
+  playerNames: string[];
+  note: string;
+}
+
 export interface PowerRanking {
   rank: number;
   manager: string;
@@ -487,6 +555,52 @@ export interface MatchupPreview {
   updatedAt?: string | null;
 }
 
+export type ScheduleTier = 'easy' | 'neutral' | 'hard' | 'elite';
+
+export interface PlayerScheduleProfile {
+  source?: string | null;
+  updatedAt?: string | null;
+  byeWeek?: number | null;
+  seasonSOS?: number | null;
+  scheduleTier?: ScheduleTier | null;
+  streamerWeeks?: number[];
+  avoidWeeks?: number[];
+}
+
+export interface ScheduleRosterGap {
+  manager: string;
+  position: string;
+  weeks: number[];
+  severity: 'low' | 'medium' | 'high';
+  note?: string | null;
+}
+
+export interface ScheduleStreamerCandidate {
+  playerId: string;
+  name: string;
+  position: string;
+  team?: string | null;
+  manager?: string | null;
+  byeWeek?: number | null;
+  seasonSOS?: number | null;
+  scheduleTier?: ScheduleTier | null;
+  targetWeeks?: number[];
+  note?: string | null;
+}
+
+export interface SchedulePlanningSummary {
+  source?: string | null;
+  status?: 'pending' | 'partial' | 'ready';
+  updatedAt?: string | null;
+  rosterGaps?: ScheduleRosterGap[];
+  streamerCandidates?: ScheduleStreamerCandidate[];
+  byeWeekNotes?: Array<{
+    week: number;
+    note?: string | null;
+    teams?: string[];
+  }>;
+}
+
 export interface DraftPick {
   round: number;
   pick: number;
@@ -508,6 +622,11 @@ export interface DraftPick {
   currentPositionRank?: string | null;
   positionRankChange?: string | null;
   draftYear?: string;
+  draftKind?: 'rookie' | 'startup' | 'main' | null;
+  draftPickCount?: number | null;
+  draftType?: string | null;
+  draftValueDate?: string | null;
+  currentValueDate?: string | null;
   player_id?: string;
   playerDetails?: PlayerDetails;
   draftDecisionVerdict?: string | null;
@@ -542,9 +661,14 @@ export interface PlayerDetails {
   displayStatus?: string | null;
   depthChartPosition?: string | null;
   depthChartOrder?: number | null;
+  sleeperDepthChartPosition?: string | null;
+  sleeperDepthChartOrder?: number | null;
+  depthChartVerified?: boolean | null;
+  depthChartMismatch?: boolean | null;
   yearsExp?: number | null;
   status?: string | null;
   sleeperNewsUpdated?: number | string | null;
+  schedule?: PlayerScheduleProfile | null;
   valueProfile?: {
     dynastyValue?: number | null;
     seasonValue?: number | null;
@@ -562,6 +686,9 @@ export interface PlayerDetails {
     flockPositionRank?: string | null;
     flockTier?: number | null;
     flockFormat?: string | null;
+    fantasyProsDynasty?: number | null;
+    fantasyProsDynastyRank?: number | null;
+    fantasyProsDynastyPositionRank?: string | null;
     fantasyCalcDynasty?: number | null;
     fantasyCalcRedraft?: number | null;
     dynastyProcess?: number | null;
@@ -569,6 +696,9 @@ export interface PlayerDetails {
     dynastyNerdsRank?: number | null;
     dynastyNerdsPositionRank?: string | null;
     dynastyNerdsFormat?: string | null;
+    fantasyNerds?: number | null;
+    fantasyNerdsRank?: number | null;
+    fantasyNerdsPositionRank?: string | null;
     dynastyDealerBenchmark?: number | null;
     dynastyDealerVoteRating?: number | null;
     dynastyDealerUpdatedAt?: string | null;
@@ -662,9 +792,60 @@ export interface ManagerDraftStats {
 
 export type LeagueValueMode = 'dynasty' | 'redraft' | 'keeper';
 
+export interface LeagueAiConfidenceSignal {
+  key: string;
+  label: string;
+  score: number;
+  previousScore?: number | null;
+  scoreDelta?: number | null;
+  weight: number;
+  status: 'low' | 'building' | 'strong';
+  note: string;
+}
+
+export interface ManagerAiConfidence {
+  manager: string;
+  score: number;
+  label: string;
+  note: string;
+  previousScore?: number | null;
+  scoreDelta?: number | null;
+  signals: LeagueAiConfidenceSignal[];
+}
+
+export interface LeagueAiConfidenceTrendPoint {
+  snapshotKey: string;
+  generatedAt?: string | null;
+  score: number;
+  label: string;
+}
+
+export interface LeagueAiConfidenceCalibration {
+  phase: 'offseason' | 'preseason' | 'early_season' | 'in_season' | 'playoffs';
+  status: 'pending' | 'collecting' | 'ready';
+  observedSampleSize: number;
+  targetSampleSize: number;
+  seasonStartDate: string;
+  nextReviewDate: string;
+  note: string;
+}
+
+export interface LeagueAiConfidence {
+  score: number;
+  label: string;
+  note: string;
+  previousScore?: number | null;
+  scoreDelta?: number | null;
+  history?: LeagueAiConfidenceTrendPoint[];
+  calibration?: LeagueAiConfidenceCalibration;
+  signals: LeagueAiConfidenceSignal[];
+  managerConfidence?: ManagerAiConfidence[];
+}
+
 export interface LeagueDiagnostics {
   teamCount: number;
   valueMode: LeagueValueMode;
+  redraftTradeWindowEndDate?: string | null;
   rosterSlots: string[];
   starterSlots: string[];
   lineupSlotSummary: string;
@@ -679,6 +860,33 @@ export interface LeagueDiagnostics {
   valueSnapshotProfileCount: number;
   valueSnapshotProfiles: string[];
   valueLimitations: string[];
+  aiConfidence?: LeagueAiConfidence;
+}
+
+export interface DepthChartDiagnostics {
+  checkedPlayerCount: number;
+  matchedPlayerCount: number;
+  mismatchCount: number;
+  requestedTeams: string[];
+  loadedTeams: string[];
+  failedTeams: string[];
+  durationMs: number;
+  generatedAt: string;
+}
+
+export interface TransactionBackfillDiagnostics {
+  checkedLeagueCount: number;
+  seasonCount: number;
+  transactionCount: number;
+  waiverOrFreeAgentCount: number;
+  tradeProposalCount: number;
+  completedTradeCount: number;
+  leagues: Array<{
+    leagueId: string;
+    season: string;
+    transactionCount: number;
+  }>;
+  generatedAt: string;
 }
 
 export interface MonthlyBlueprintHistorySnapshot {
@@ -744,6 +952,8 @@ export interface ReportData {
     warning?: string | null;
   };
   monthlyBlueprintHistory?: MonthlyBlueprintHistorySnapshot[];
+  depthChartDiagnostics?: DepthChartDiagnostics;
+  transactionBackfillDiagnostics?: TransactionBackfillDiagnostics;
   prospectSourceDiagnostics?: ProspectSourceDiagnostics;
   viewerManager?: string | null;
   viewerManagerByUserId?: Record<string, string>;
@@ -802,6 +1012,7 @@ export interface ReportData {
     trade_count: number;
   }>;
   tradeHistory: TradeData[];
+  tradeProposalSignals?: TradeProposalSignal[];
   positionDepth: PositionDepth[];
   managerPositionCounts: Array<{
     manager: string;
@@ -834,6 +1045,7 @@ export interface ReportData {
   pickPortfolios?: PickPortfolio[];
   waiverIntelligence?: WaiverIntelligence;
   matchupPreviews?: MatchupPreview[];
+  schedulePlanning?: SchedulePlanningSummary;
   recentTransactions?: RecentTransaction[];
   draftPicks?: DraftPick[];
   draftStats?: ManagerDraftStats[];
@@ -865,4 +1077,37 @@ export interface SleeperDraftPick {
   roster_id: number;
   round: number;
   roster_map?: Record<string, string>;
+}
+
+export type ActionPlanKind = 'lineup' | 'waiver' | 'trade';
+export type ActionPlanStatus = 'saved' | 'submitted' | 'copied' | 'opened' | 'tracked' | 'won' | 'lost' | 'acted' | 'blocked';
+
+export interface ActionPlanRecord {
+  id: string;
+  kind: ActionPlanKind;
+  leagueId?: string;
+  manager?: string | null;
+  playerId?: string;
+  replacementPlayerId?: string;
+  createdAt: number;
+  updatedAt?: number;
+  title: string;
+  summary: string;
+  status: ActionPlanStatus;
+  payload: Record<string, unknown>;
+}
+
+export interface WaiverBidHistoryRecord {
+  id: string;
+  leagueId?: string;
+  manager?: string | null;
+  playerId: string;
+  playerName: string;
+  position: string;
+  bidMin: number;
+  bidMax: number;
+  bidLabel: string;
+  source: 'league-history' | 'model' | 'submitted-plan';
+  createdAt: number;
+  updatedAt?: number;
 }

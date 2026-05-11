@@ -1,5 +1,107 @@
 # Dynasty Degenerates - Project TODO
 
+- Canonical item-by-item execution prompt: [docs/todo-list-execution-prompt.md](docs/todo-list-execution-prompt.md)
+
+## Data Operations Roadmap
+
+- [ ] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
+- [ ] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
+- [ ] Revisit KeepTradeCut trade-database access later; only integrate it if we can get a stable, approved data path instead of a brittle scrape.
+- [ ] Confirm whether DraftSharks partner REST API/docs require a partner login or API key, and whether access is only available through their affiliate/control-panel workflow.
+- [ ] On May 14, 2026, run the projections/SOS rollout checklist below before wiring any schedule-dependent feature to live data.
+- [ ] Run one-off source-health history backfill with `ENABLE_SOURCE_HEALTH_BACKFILL=true` after production cached reports exist.
+- [ ] Configure `SOURCE_HEALTH_ALERT_WEBHOOK_URL` for Slack/email/webhook alert delivery in production.
+- [ ] Calibrate player value confidence thresholds after enough 2026 source snapshots, trades, waivers, and injury/news events accumulate.
+- [ ] Document a single-key leak response plan for API providers that will not rotate/reissue keys, including immediate disable steps, deploy rollback steps, and local/prod secret audit steps.
+- [ ] Add a production-only API budget and rate-limit dashboard showing call volume, failures, 429s, cache hit rate, and highest-cost jobs by provider.
+- [ ] Add a new-source probation rule: every new API/feed starts at low effective weight until it has enough stable snapshots, healthy row counts, and acceptable source-consensus drift.
+- [ ] Add snapshot replay/regression tests that run old stored snapshots through current blend logic and flag unexpected value, rank, or source-weight changes.
+
+## Source Audit / Feature Roadmap
+
+- [ ] Audit every live API, partner feed, and scrape we use today, including Sleeper, FantasyPros, DraftSharks, KeepTradeCut, Flock Fantasy, FantasyCalc, Dynasty Nerds, Fantasy Nerds, DynastyProcess, Prospect Archive / NFL Draft Buzz, ESPN prospect metadata, and any internal snapshot jobs.
+- [ ] For each source, document exactly what comes back: endpoint or URL, auth model, rate limits, payload shape, unique IDs, timestamps/freshness, row counts, and known gaps or failure modes.
+- [ ] Write down which features each source can power now vs later so we can spot unused data before adding more integrations.
+- [ ] Save a compact sample payload or field map per source so the team can compare feeds without needing a fresh live fetch.
+- [ ] Turn that audit into a source coverage matrix in admin so we can see at a glance what each API or scrape is actually returning.
+- [ ] Use this compact template for each source during the audit: `Source / Returns / Used now / Could power later / Open questions`.
+- [ ] Sleeper - Returns: league settings, rosters, players, matchups, waivers, trades, news/status, and user/player IDs. Used now: league analysis, roster intelligence, matchup preview plumbing, waiver/trade analysis, and identity matching. Could power later: schedule-week matchup reads, exposure views, alerting, and lineup guidance. Open questions: which endpoints reliably expose current-week matchup and projection context.
+- [ ] FantasyPros - Returns: rankings, projections, ADP, injuries, news, compare-players, player-points, and player/external IDs. Used now: dynasty/redraft blends, rookie and devy context, injury/news notes, player modal details, and confidence calibration. Could power later: lineup strength, value movement, matchup preview, and trade explainers. Open questions: rate limits, production terms, and which projection/news endpoints are safe to depend on.
+- [ ] DraftSharks - Returns: rankings, SOS, bye weeks, D/ST, matchup data, and possibly projections. Used now: source research only. Could power later: bye-week navigation, streamer planning, matchup reads, and schedule-strength tooling. Open questions: partner/API access and whether the public pages stay stable enough to trust.
+- [ ] KeepTradeCut - Returns: trade-database rows, market values, and source metadata where available. Used now: trade/value research. Could power later: dynasty trade comps and market trend views. Open questions: whether access is stable without scraping and whether there is a supported data path.
+- [ ] Flock Fantasy - Returns: exposure counts, league-share data, and player ranking rows. Used now: dynasty/rookie source research. Could power later: portfolio exposure and roster concentration. Open questions: whether the exposure feed is stable enough to ingest.
+- [ ] FantasyCalc - Returns: dynasty/redraft value rows and source metadata. Used now: blended-value inputs and confidence support. Could power later: value trend and comparison views. Open questions: refresh cadence and source coverage details.
+- [ ] Dynasty Nerds - Returns: dynasty, rookie, and format-specific ranking rows. Used now: dynasty and rookie blending. Could power later: format-specific rookie draft reads. Open questions: coverage by format and source freshness.
+- [ ] Fantasy Nerds - Returns: rankings, projections, or diagnostic rows if available. Used now: source-coverage checks. Could power later: redraft projections and validation. Open questions: which endpoints are current and supported.
+- [ ] DynastyProcess - Returns: calculator outputs, dynasty values, and trade context. Used now: dynasty value blending. Could power later: trade comparison and roster value explanation. Open questions: which calculator outputs are stable and current.
+- [ ] Prospect Archive / NFL Draft Buzz - Returns: prospect rankings, scouting notes, draft year, college, team, and image/logo fields. Used now: devy and rookie prospect handling. Could power later: scouting detail cards and prospect comparison. Open questions: source freshness and image/logo consistency.
+- [ ] ESPN prospect metadata - Returns: player/team/college/external ID fields. Used now: cross-source identity matching. Could power later: better prospect/player normalization. Open questions: which IDs are reliable enough to treat as canonical.
+- [ ] Internal snapshots/jobs - Returns: historical values, source-health events, league snapshots, and draft records. Used now: trend analysis, backfills, diagnostics, and confidence calibration. Could power later: anomaly detection and source-history dashboards. Open questions: which historical jobs still need backfill or retention tuning.
+- [ ] Add a shortlist of features we already have enough data to build from current sources:
+  - [ ] News-to-value movement analysis using FantasyPros/Sleeper news, injury, and snapshot timing.
+  - [ ] ADP vs value-over-cost views using FantasyPros ADP / DYNADP / RKADP plus current value blends.
+  - [ ] Rookie and devy prospect comparison views using the existing prospect and ranking sources.
+  - [ ] Cross-league exposure, concentration, and roster-share reporting from stored league snapshots.
+  - [ ] Waiver and trade calibration dashboards from historical outcomes and manager-league history.
+  - [ ] Player source trace views that show which feeds are contributing to a player's current value or confidence.
+
+## May 14, 2026 - Projections / SOS Rollout
+
+- [ ] Confirm the approved source blend for projections, strength of schedule, and bye-week data before wiring any feature to live inputs.
+- [ ] Compare DraftSharks and FantasyPros as the long-term rankings/SOS source blend before raising trust weights for either one.
+- [ ] Populate `schedulePlanning` from the schedule-release data so roster gaps, streamer candidates, and bye-window coverage have real source-backed inputs.
+- [ ] Wire schedule-aware inputs into matchup preview so weekly win odds, opponent edge, and "how you win" reads can use projection and SOS context.
+- [ ] Wire schedule-aware inputs into player detail views so bye windows, SOS tiers, and schedule summaries are visible at the player level.
+- [ ] Wire schedule-aware inputs into weekly autopilot planning so streamer suggestions, roster gaps, and priority actions reflect byes and SOS.
+- [ ] Wire schedule-aware inputs into D/ST and matchup-streamer logic so upcoming schedule strength can influence start/sit and pickup decisions.
+- [ ] Wire projections into lineup-strength, redraft valuation, and confidence calculations only after validating source freshness and endpoint stability.
+- [ ] Add source-health checks and freshness checks for every projection/SOS feed we plan to depend on.
+- [ ] Add tests for schedule normalization, bye-window rendering, streamer candidate generation, and planner output from real schedule inputs.
+- [ ] Leave a clear fallback state for pre-schedule and missing-data periods so offseason views remain stable.
+
+## FantasyPros Integration Roadmap
+
+- [ ] Store the FantasyPros key only in server env as `FANTASYPROS_API_KEY`, keep it out of source control/client bundles/logs, and document the production deployment step.
+- [ ] Confirm FantasyPros production terms, rate limits, and non-commercial restrictions before making it a primary valuation source.
+- [x] Add source-health checks for every FantasyPros endpoint we plan to depend on, including row counts, last updated date, expert count, and rate-limit/error status.
+- [x] Add separate feature flags for FantasyPros sub-sources so `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, projections, injuries, news, and player-points can be rolled out or disabled independently.
+- [x] Add a safe FantasyPros smoke/diagnostics command that checks planned endpoints and prints only status, row counts, freshness, expert counts, and errors, never the API key or raw payload.
+- [x] Expand the FantasyPros client to support all useful NFL ranking types: `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, `DYNADP`, and `RKADP` where available.
+- [x] Wire FantasyPros `DYNASTY` rankings into the dynasty valuation blend as a true dynasty source with its own adaptive trust weight, separate from redraft/season values.
+- [x] Wire FantasyPros `DEVY` rankings into the devy/prospect blend and compare against Flock, KTC Devy, and Prospect Archive before raising its weight.
+- [ ] Wire FantasyPros `ROOKIES` rankings into rookie/prospect valuations and rookie draft decision reads.
+- [ ] Wire FantasyPros `ADP`, `DYNADP`, and `RKADP` into draft-cost context, value-over-cost reads, and admin source diagnostics.
+- [ ] Keep FantasyPros `DRAFT` and `ROS` rankings in the redraft/current-season space only, with scoring-aware `PPR`, `HALF`, and `STD` profiles.
+- [ ] Add FantasyPros projections after validating the endpoint under normal rate limits; use weekly, preseason, and rest-of-season projections for lineup strength, matchup preview, and redraft valuation support.
+- [ ] Use FantasyPros player-points history to validate prior-season production, weekly consistency, and value-confidence calibration.
+- [ ] Use FantasyPros injuries and practice-report probabilities in player availability, lineup risk, and AI confidence notes.
+- [ ] Use FantasyPros news categories for player-specific news, injury, transaction, rumor, and breaking-news context, then connect news timestamps to value movement when snapshots overlap.
+- [ ] Normalize or enrich `latestNews.url` from upstream news payloads so the player modal's latest-news card stays clickable whenever the source provides a link.
+- [ ] Use FantasyPros player IDs and external IDs to improve cross-source identity matching for ESPN, Yahoo, MFL, Fleaflicker, Fantrax, NFL, CBS, DraftKings, and other platform IDs.
+- [ ] Add expert metadata and expert publication timestamps to admin diagnostics so stale or thin expert sets lower source trust automatically.
+- [ ] Evaluate the FantasyPros compare-players endpoint for player modal context and trade comparison explainers.
+- [ ] Add cache/rate-limit protection for FantasyPros calls so report generation does not hammer the API during refresh jobs.
+- [x] Add admin-only visibility for FantasyPros endpoint coverage, effective weights, trust movement, stale data, and high-impact valuation changes.
+- [ ] Add FantasyPros to the per-player source trace UI so admins can see exactly whether `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, ADP, news, injuries, or player-points affected a player read.
+- [ ] Add unit tests for each FantasyPros payload normalizer and integration tests for dynasty, redraft, devy, rookie, ADP, injury, news, projection, and player-points diagnostics.
+
+## Draft Baseline / League Mode Roadmap
+
+- [ ] After deployment, run the expanded production smoke checks for all four target leagues: `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`.
+- [ ] Re-check weekly risers and fallers on May 14 or May 15, 2026 after the temporary May 7 baseline floor ages out of the 7-day lookback.
+- [ ] If extreme weekly percentages still appear after the 7-day lookback catches up, investigate source volatility, tiny baseline/current values, and source identity mismatches.
+- [ ] Keep 2026 rookie draft labels as `Early Riser` and `Early Faller` through preseason, then switch to `Hit` and `Miss` when the season evaluation window opens.
+- [ ] Add an admin-only weekly movement anomaly report for extreme movers, low-denominator baselines, and suspicious source swings.
+
+## Waiver / Trade Intelligence Roadmap
+
+- [ ] Review waiver `won/lost` and trade `acted/blocked` outcomes after enough real samples accumulate, then tune confidence weights against actual results.
+- [ ] Add an admin accuracy panel for prediction quality by module: waiver bid range, waiver competition, trade resistance, and depth-chart role confidence.
+- [ ] Add historical Sleeper backfill observability showing scanned league IDs, transaction counts, seasons loaded, failures, and broken `previous_league_id` chains.
+- [ ] Add depth-chart cache health diagnostics showing last warm time, loaded teams, failed teams, retry count, and stale team coverage.
+- [ ] Move recommendation outcome detection into a backend job so confidence can improve even when the user does not reopen the report UI.
+- [ ] Remove the legacy `trade-recommendation-outcomes:v1` localStorage migration read after shared action-plan storage has been live long enough.
+
 ## Completed Features
 
 ### Core Infrastructure
@@ -306,69 +408,74 @@
 - [x] Local browser smoke verified no horizontal overflow
 - [x] Production smoke passed for dynasty and redraft leagues
 
-## Remaining Premium/Data Backlog
+## Premium / Data Roadmap
 
 ### Matchup Preview - Waiting on Real Schedule Data
-- [ ] After NFL schedule release, confirm Sleeper exposes current-week matchup IDs, opponent rosters, submitted lineups, and projection context for the target leagues
-- [ ] Add server-side matchup ingestion to populate `ReportData.matchupPreviews`
-- [ ] Show weekly matchup projection, opponent, win odds, and position-by-position edge when real data exists
-- [ ] Add boom/bust risks, must-start players, vulnerable spots, and "How you win this week" from real matchup payloads
-- [ ] Keep schedule-pending empty state for offseason/pre-schedule periods
+- [ ] After the NFL schedule release, confirm Sleeper exposes current-week matchup IDs, opponent rosters, submitted lineups, and projection context for the target leagues.
+- [ ] Add server-side matchup ingestion to populate `ReportData.matchupPreviews`.
+- [ ] Keep the schedule-pending empty state for offseason and pre-schedule periods.
 
 ### Watch Alerts - Server Persistence
-- [ ] Move watch thresholds from browser-local storage to user/server persistence
-- [ ] Add account-level watchlist persistence
-- [ ] Add alert delivery options later, such as in-app notifications, email, or scheduled reminders
-- [ ] Add threshold controls per watched player instead of only global rise/fall thresholds
+- [ ] Move watch thresholds from browser-local storage to user/server persistence.
+- [ ] Add account-level watchlist persistence.
+- [ ] Add alert delivery options later, such as in-app notifications, email, or scheduled reminders.
+- [ ] Add threshold controls per watched player instead of only global rise/fall thresholds.
 
 ### Portfolio View - True Multi-League
-- [ ] Persist multi-league snapshots server-side instead of relying only on browser-local snapshots
-- [ ] Add account-level player shares across all synced leagues
-- [ ] Add overexposure, underexposure, injury/news risk concentration, and total portfolio value across leagues
-- [ ] Add league-by-league portfolio comparison and exposure filters
+- [ ] Persist multi-league snapshots server-side instead of relying only on browser-local snapshots.
+- [ ] Add account-level player shares across all synced leagues.
+- [ ] Prototype a Flock-style player exposure view that counts each player across synced leagues and shows share/exposure percentage by player.
+- [ ] Add overexposure, underexposure, injury/news risk concentration, and total portfolio value across leagues.
+- [ ] Add league-by-league portfolio comparison and exposure filters.
 
 ### Blueprint Export / Sharing
-- [ ] Add true rendered image export for Team Blueprint
-- [ ] Add polished PDF export beyond browser print
-- [ ] Add shareable report link or saved blueprint artifact
-- [ ] Add team branding and league branding to exported artifact
+- [ ] Add true rendered image export for Team Blueprint.
+- [ ] Add polished PDF export beyond browser print.
+- [ ] Add shareable report link or saved blueprint artifact.
+- [ ] Add team branding and league branding to the exported artifact.
 
 ### News / Research Assistant
-- [ ] Confirm production FantasyPros/news API coverage and rate limits
-- [ ] Add source/status diagnostics when news payloads are unavailable
-- [ ] Add value-movement-after-news analysis when news timestamps and value snapshots overlap
-- [ ] Add role/depth-chart change detection when reliable source data exists
+- [ ] Confirm production FantasyPros news API coverage and rate limits.
+- [ ] Add `FANTASY_NERDS_API_KEY` to production env after confirming the live package returns current-season rows, then verify Fantasy Nerds redraft and dynasty diagnostics load cleanly.
+- [ ] Revisit GridIron Data once a key or package is available and decide whether it belongs in redraft projections, player news, or source health only.
+- [ ] Revisit MySportsFeeds if they approve access, and keep it out of the blend until endpoint coverage and licensing are confirmed.
+- [ ] Add source and status diagnostics when news payloads are unavailable.
+- [ ] Add value-movement-after-news analysis when news timestamps and value snapshots overlap.
+- [ ] Add role and depth-chart change detection when reliable source data exists.
 
 ### Command Center Polish
-- [ ] Add deeper mobile QA for all premium cards after real matchup data lands
-- [ ] Add E2E coverage for admin-only feature visibility
-- [ ] Add E2E coverage for local watch preference persistence
-- [ ] Add E2E coverage for portfolio snapshot persistence
-- [ ] Add E2E coverage for blueprint print/share controls where practical
+- [ ] Add deeper mobile QA for all premium cards after real matchup data lands.
+- [ ] Add E2E coverage for admin-only feature visibility.
+- [ ] Add E2E coverage for local watch preference persistence.
+- [ ] Add E2E coverage for portfolio snapshot persistence.
+- [ ] Add E2E coverage for blueprint print and share controls where practical.
 
-## Report UX / Tooling Follow-Up Backlog
+## Report UX / Tooling Roadmap
 
 ### ReportTables Split - Remaining Work
-- [ ] Split `TradeWarRoom` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module
-- [ ] Split `TradeHistoryTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module
-- [ ] Split `TradeProfitLeaderboardTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module
-- [ ] Keep shared trade/value helpers centralized so split modules do not duplicate logic
-- [ ] Run typecheck, unit tests, build, and focused e2e after each split
+- [ ] Split `TradeWarRoom` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module.
+- [ ] Split `TradeHistoryTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module.
+- [ ] Split `TradeProfitLeaderboardTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module.
+- [ ] Keep shared trade/value helpers centralized so split modules do not duplicate logic.
+- [ ] Run typecheck, unit tests, build, and focused e2e after each split.
 
 ### Dirty Worktree Reconciliation
-- [ ] Separate report UX/tooling changes from unrelated auth/OAuth/server cleanup changes before committing
-- [ ] Review deleted auth/server files and confirm each deletion is intentional
-- [ ] Review docs/todo changes separately from runtime code changes
-- [ ] Stage the final commit in logical groups instead of one mixed worktree commit
+- [ ] Separate report UX and tooling changes from unrelated auth, OAuth, and server cleanup changes before committing.
+- [ ] Review deleted auth and server files and confirm each deletion is intentional.
+- [ ] Review docs and todo changes separately from runtime code changes.
+- [ ] Keep `server/dynastySourceTrust.ts` and `server/valueBlend.ts` cleanup isolated from report UX work so typecheck fixes stay easy to verify.
+- [ ] Refresh the redraft trade-ledger screenshot regression whenever that UI is touched again.
+- [ ] Stage the final commit in logical groups instead of one mixed worktree commit.
 
 ### Production Smoke After Deploy
-- [ ] After deployment, run the manual `Production Smoke` GitHub workflow against `https://dynastydegens.com`
-- [ ] Verify dynasty league `Skids Get Beat` still renders dynasty copy, draft capital, rookie draft, and trade-value context correctly
-- [ ] Verify redraft league `test league` still avoids dynasty-first copy and prioritizes current-season values
-- [ ] Confirm deployed console logs do not show app errors on desktop and mobile
+- [ ] After deployment, run the manual `Production Smoke` GitHub workflow against `https://dynastydegens.com`.
+- [ ] Verify dynasty leagues `Skids Get Beat` and `The Fantasy Degenerates` still render dynasty copy, draft capital and main draft surfaces, rookie draft surfaces, and trade-value context correctly.
+- [ ] Verify redraft leagues `test league` and `Gov Tech Grid Iron` still avoid dynasty-first copy and prioritize current-season values.
+- [ ] Confirm internal draft baseline comparison dates are not exposed in the deployed report UI.
+- [ ] Confirm deployed console logs do not show app errors on desktop or mobile.
 
 ### Bundle Cleanup
-- [ ] Use `pnpm run build:analyze` to inspect `dist/bundle-stats.html` before the next performance pass
-- [ ] Reduce the remaining large `RecentTransactionsPanel` lazy chunk
-- [ ] Check whether shared helpers pulled from `ReportTables.tsx` keep too much code in downstream chunks
-- [ ] Consider extracting trade-ledger helpers into a non-React utility module once `TradeHistoryTable` and `TradeWarRoom` are split
+- [ ] Use `pnpm run build:analyze` to inspect `dist/bundle-stats.html` before the next performance pass.
+- [ ] Reduce the remaining large `RecentTransactionsPanel` lazy chunk.
+- [ ] Check whether shared helpers pulled from `ReportTables.tsx` keep too much code in downstream chunks.
+- [ ] Consider extracting trade-ledger helpers into a non-React utility module once `TradeHistoryTable` and `TradeWarRoom` are split.

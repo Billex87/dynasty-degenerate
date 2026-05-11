@@ -34,7 +34,7 @@ describe('buildAutopilotData', () => {
       'Trade leverage',
     ]);
     expect(data.lineup[0]?.player).toBe('Sample Quarterback');
-    expect(data.waivers[0]?.player).toBe('Depth Receiver');
+    expect(data.waivers[0]?.player).toBe('Waiver Receiver');
     expect(data.trades.some((recommendation) => recommendation.player === 'Sample Runner')).toBe(true);
     expect(data.weeklyPlan?.starterToReview?.player).toBe('Sample Tight End');
     expect(data.weeklyPlan?.options.map((option) => option.player)).toEqual(expect.arrayContaining(['Sample Quarterback', 'Sample Receiver']));
@@ -63,6 +63,50 @@ describe('buildAutopilotData', () => {
     ]);
     expect(data.waivers[0]?.summary).toContain('current-season profile');
     expect(data.trades.some((recommendation) => recommendation.summary.includes('weekly starter'))).toBe(true);
+  });
+
+  it('promotes schedule planning data into the weekly plan and todo list', () => {
+    const reportData = {
+      ...createCachedCommandCenterReport().reportData,
+      schedulePlanning: {
+        source: 'DraftSharks',
+        status: 'ready' as const,
+        updatedAt: '2026-05-11T00:00:00.000Z',
+        rosterGaps: [{
+          manager: 'Tester',
+          position: 'RB',
+          weeks: [7, 9],
+          severity: 'high' as const,
+          note: 'RB depth gets thin during the bye crunch.',
+        }],
+        streamerCandidates: [{
+          playerId: 'streamer-1',
+          name: 'Week 7 Streamer',
+          position: 'QB',
+          team: 'BUF',
+          byeWeek: 12,
+          seasonSOS: 42,
+          scheduleTier: 'easy' as const,
+          targetWeeks: [7, 9],
+          note: 'Stream during the bye stack.',
+        }],
+        byeWeekNotes: [{
+          week: 7,
+          note: 'First major bye-week crunch.',
+          teams: ['BUF', 'MIA'],
+        }],
+      },
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'redraft',
+      fallback: AUTOPILOT_MOCK_DATA.redraft,
+    });
+
+    expect(data.scheduleTodo[0]).toContain('Schedule planning is live');
+    expect(data.scheduleTodo.some((todo) => todo.includes('Week 7 is the first bye-week checkpoint'))).toBe(true);
+    expect(data.weeklyPlan?.options.some((option) => option.player === 'Week 7 Streamer')).toBe(true);
   });
 
   it('preserves redraft league mode as a current-season read', () => {
@@ -121,5 +165,49 @@ describe('buildAutopilotData', () => {
     expect(data.managerTendency?.competitiveConsistencyScore).toBeGreaterThan(70);
     expect(data.managerTendency?.signals).toEqual(expect.arrayContaining(['4 seasons tracked']));
     expect(data.direction.confidence).toBeGreaterThan(86);
+  });
+
+  it('caps AI read confidence when league confidence is low', () => {
+    const reportData = createCachedCommandCenterReport().reportData;
+    const lowConfidenceReport = {
+      ...reportData,
+      leagueDiagnostics: {
+        ...reportData.leagueDiagnostics!,
+        aiConfidence: {
+          score: 34,
+          label: 'Low confidence',
+          note: 'Thin league memory.',
+          previousScore: null,
+          scoreDelta: null,
+          signals: [],
+          managerConfidence: [{
+            manager: 'Tester',
+            score: 31,
+            label: 'Low confidence',
+            note: 'Thin manager memory.',
+            previousScore: null,
+            scoreDelta: null,
+            signals: [],
+          }],
+        },
+      },
+    };
+
+    const data = buildAutopilotData({
+      reportData: lowConfidenceReport,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    const cap = 47;
+    expect(data.direction.confidence).toBeLessThanOrEqual(cap);
+    expect(data.lineup.every((recommendation) => recommendation.confidence <= cap)).toBe(true);
+    expect(data.waivers.every((recommendation) => recommendation.confidence <= cap)).toBe(true);
+    expect(data.trades.every((recommendation) => recommendation.confidence <= cap)).toBe(true);
+    expect(data.projections.every((projection) => projection.confidence <= cap)).toBe(true);
+    expect(data.systemRead[0]).toMatchObject({
+      label: 'League AI confidence',
+      value: 34,
+    });
   });
 });

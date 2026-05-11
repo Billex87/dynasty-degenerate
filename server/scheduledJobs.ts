@@ -1,9 +1,12 @@
 import { storeKtcSnapshot } from './ktcSnapshotJob';
 import { shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from './prospectSource';
+import { runDynamicDataRefresh } from './dynamicDataJobs';
 
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 const SNAPSHOT_HOURS = [6, 12, 18];
 const PROSPECT_SNAPSHOT_HOUR = 7;
+const DYNAMIC_REFRESH_HOUR = 18;
+const DYNAMIC_REFRESH_MINUTE = 40;
 
 function getPacificDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -32,6 +35,7 @@ function getPacificDateParts(date: Date) {
 export function initializeScheduledJobs() {
   let lastSnapshotRunKey: string | null = null;
   let lastProspectSnapshotRunMonth: string | null = null;
+  let lastDynamicRefreshRunKey: string | null = null;
 
   // Using a simple interval check since we don't have a full cron library
   
@@ -60,10 +64,22 @@ export function initializeScheduledJobs() {
         console.error('[Scheduled Jobs] Error running prospect snapshot:', error);
       });
     }
+
+    if (
+      hour === DYNAMIC_REFRESH_HOUR
+      && minute === DYNAMIC_REFRESH_MINUTE
+      && lastDynamicRefreshRunKey !== dateKey
+    ) {
+      lastDynamicRefreshRunKey = dateKey;
+      console.log(`[Scheduled Jobs] Running dynamic data refresh at ${now.toISOString()} (${dateKey} ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')} ${SNAPSHOT_TIME_ZONE})`);
+      runDynamicDataRefresh().catch((error) => {
+        console.error('[Scheduled Jobs] Error running dynamic data refresh:', error);
+      });
+    }
   }
 
   // Check every minute if we should run the snapshot
   setInterval(checkAndRunKtcSnapshot, 60000);
   
-  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at ${SNAPSHOT_HOURS.join(':00 and ')}:00 and prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00 ${SNAPSHOT_TIME_ZONE}`);
+  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at ${SNAPSHOT_HOURS.join(':00 and ')}:00, prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00, and dynamic data refresh runs daily at ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')} ${SNAPSHOT_TIME_ZONE}`);
 }

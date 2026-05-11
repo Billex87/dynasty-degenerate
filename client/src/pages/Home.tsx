@@ -22,7 +22,7 @@ import { PlayerPill, PreviewMetricChips, ReportSectionHeader, type PreviewMetric
 import { getLeagueModeCopy, getPlayerRankForMode, normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
 import { getPositionRankClass } from '@/lib/positionRank';
 import { UNAUTHED_ERR_MSG } from '@shared/const';
-import type { ReportData } from '@shared/types';
+import type { RankingSourceDiagnostic, ReportData } from '@shared/types';
 
 const DraftAnalysis = lazy(() => import('@/components/DraftAnalysis').then((module) => ({ default: module.DraftAnalysis })));
 const RankingsBoard = lazy(() => import('@/components/RankingsBoard').then((module) => ({ default: module.RankingsBoard })));
@@ -51,8 +51,8 @@ const AssistantFeatureShells = lazy(() => import('@/components/CommandCenterExpa
 const AITeamAutopilot = lazy(() => import('@/components/AITeamAutopilot'));
 
 const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_DATA_VERSION = 'draftbuzz-history-v1';
-const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v18';
+const REPORT_CACHE_DATA_VERSION = 'draft-baseline-v1';
+const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v20';
 const STALE_REPORT_CACHE_KEYS = [
   'dynasty-degenerates:last-report:v10',
   'dynasty-degenerates:last-report:v11',
@@ -62,6 +62,8 @@ const STALE_REPORT_CACHE_KEYS = [
   'dynasty-degenerates:last-report:v15',
   'dynasty-degenerates:last-report:v16',
   'dynasty-degenerates:last-report:v17',
+  'dynasty-degenerates:last-report:v18',
+  'dynasty-degenerates:last-report:v19',
 ];
 const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
@@ -403,6 +405,92 @@ function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
   ].filter(Boolean) as PreviewMetric[];
 }
 
+function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
+  const taxiRows = [...(data.managerRosterIntelligence || [])]
+    .filter((row) => row.manager && (row.taxiTriage?.items.length || 0) > 0)
+    .map((row) => ({
+      row,
+      promoteCount: Number(row.taxiTriage?.counts['Promote Now'] || 0),
+      cutCount: Number(row.taxiTriage?.counts.Cuttable || 0),
+    }));
+
+  if (!taxiRows.length) return [];
+
+  const mostPromotable = [...taxiRows]
+    .filter(({ promoteCount }) => promoteCount > 0)
+    .sort((a, b) => (
+      b.promoteCount - a.promoteCount
+      || b.cutCount - a.cutCount
+      || (b.row.taxiTriage?.items.length || 0) - (a.row.taxiTriage?.items.length || 0)
+      || a.row.manager.localeCompare(b.row.manager)
+    ))[0] || null;
+  const mostCuttable = [...taxiRows]
+    .filter(({ cutCount }) => cutCount > 0)
+    .sort((a, b) => (
+      b.cutCount - a.cutCount
+      || b.promoteCount - a.promoteCount
+      || (b.row.taxiTriage?.items.length || 0) - (a.row.taxiTriage?.items.length || 0)
+      || a.row.manager.localeCompare(b.row.manager)
+    ))[0] || null;
+
+  return [
+    mostPromotable ? {
+      label: mostPromotable.promoteCount === 1 ? 'Most Promotable' : `Most Promotable (${mostPromotable.promoteCount})`,
+      value: renderPreviewManagerIdentity(mostPromotable.row.manager, data.managerAvatars),
+      tone: 'good',
+      className: 'analysis-preview-chip-manager-preview',
+    } : null,
+    mostCuttable ? {
+      label: mostCuttable.cutCount === 1 ? 'Most Cuttable' : `Most Cuttable (${mostCuttable.cutCount})`,
+      value: renderPreviewManagerIdentity(mostCuttable.row.manager, data.managerAvatars),
+      tone: 'warn',
+      className: 'analysis-preview-chip-manager-preview',
+    } : null,
+  ].filter(Boolean) as PreviewMetric[];
+}
+
+function buildManagerPositionRoomPreviewMetrics(data: ReportData): PreviewMetric[] {
+  const rosterCapacity = Number(data.leagueDiagnostics?.rosterSlots?.length || 0);
+  if (!rosterCapacity) return [];
+
+  const roomRows = [...(data.managerPositionCounts || [])]
+    .filter((row) => row.manager)
+    .map((row) => ({
+      row,
+      room: rosterCapacity - Number(row.totalRosterPlayerCount || 0),
+    }));
+
+  const needToDrop = roomRows
+    .filter(({ room }) => room < 0)
+    .sort((a, b) => (
+      a.room - b.room
+      || Number(b.row.totalRosterPlayerCount || 0) - Number(a.row.totalRosterPlayerCount || 0)
+      || a.row.manager.localeCompare(b.row.manager)
+    ))[0] || null;
+  const openRoom = roomRows
+    .filter(({ room }) => room > 0)
+    .sort((a, b) => (
+      b.room - a.room
+      || Number(a.row.totalRosterPlayerCount || 0) - Number(b.row.totalRosterPlayerCount || 0)
+      || a.row.manager.localeCompare(b.row.manager)
+    ))[0] || null;
+
+  return [
+    needToDrop ? {
+      label: needToDrop.room === -1 ? 'Needs 1 Drop' : `Needs ${Math.abs(needToDrop.room)} Drops`,
+      value: renderPreviewManagerIdentity(needToDrop.row.manager, data.managerAvatars),
+      tone: 'warn',
+      className: 'analysis-preview-chip-manager-preview',
+    } : null,
+    openRoom ? {
+      label: openRoom.room === 1 ? 'Open 1 Spot' : `Open ${openRoom.room} Spots`,
+      value: renderPreviewManagerIdentity(openRoom.row.manager, data.managerAvatars),
+      tone: 'good',
+      className: 'analysis-preview-chip-manager-preview',
+    } : null,
+  ].filter(Boolean) as PreviewMetric[];
+}
+
 function buildRankingsPreviewMetrics(rankings?: ReportData['rankings'], mode: LeagueValueMode = 'dynasty'): PreviewMetric[] {
   const profileKey = mode === 'redraft'
     ? rankings?.defaultProfileKey
@@ -669,6 +757,45 @@ type CachedSleeperUser = {
   recentLeagueIds: string[];
   savedAt: number;
 };
+
+function getAnalysisLeaguePreview(league: SleeperLeagueOption): AnalysisLeaguePreview {
+  return {
+    leagueName: league.name,
+    leagueFormat: league.format || league.mobileFormat || `${league.totalRosters || '?'}-Team League`,
+    leagueLogo: league.avatarUrl,
+  };
+}
+
+function getLeagueIdAnalysisPreview(leagueId: string): AnalysisLeaguePreview {
+  return {
+    leagueName: 'Sleeper League',
+    leagueFormat: `League ID ${leagueId}`,
+    leagueLogo: null,
+  };
+}
+
+function findKnownSleeperLeague(
+  leagueId: string,
+  userLeagues: SleeperLeagueOption[],
+  cachedUsers: CachedSleeperUser[],
+  extraLeagues: SleeperLeagueOption[] = []
+): SleeperLeagueOption | null {
+  const normalizedLeagueId = leagueId.trim();
+  if (!normalizedLeagueId) return null;
+
+  const leagueGroups = [
+    extraLeagues,
+    userLeagues,
+    ...cachedUsers.map((user) => user.leagues),
+  ];
+
+  for (const leagues of leagueGroups) {
+    const match = leagues.find((league) => league.leagueId === normalizedLeagueId);
+    if (match) return match;
+  }
+
+  return null;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -1327,6 +1454,46 @@ function addUniqueDiagnosticRow(
   rows.push(row);
 }
 
+function formatSignedDiagnosticDelta(value?: number | null): string | null {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric === 0) return '0';
+  return `${numeric > 0 ? '+' : ''}${numeric}`;
+}
+
+function formatLeagueAiConfidenceTrend(reportData: ReportData): string | null {
+  const trend = reportData.leagueDiagnostics?.aiConfidence?.history || [];
+  if (trend.length < 2) return null;
+  return trend
+    .slice(-6)
+    .map((point) => `${point.snapshotKey}: ${point.score}%`)
+    .join(' -> ');
+}
+
+function isPriorityAdminDiagnosticRow(row: AdminValueDiagnosticRow): boolean {
+  if (row.tone === 'danger') return true;
+  if (row.tone !== 'warn') return false;
+  return /player value|player values|ranking identities|player alias|redraft source|dynasty source|devy source|value blend|value input/i.test(row.area);
+}
+
+function compareAdminDiagnosticPriority(a: AdminValueDiagnosticRow, b: AdminValueDiagnosticRow): number {
+  const toneScore = (row: AdminValueDiagnosticRow) => row.tone === 'danger' ? 0 : row.tone === 'warn' ? 1 : 2;
+  return toneScore(a) - toneScore(b) || a.area.localeCompare(b.area) || a.item.localeCompare(b.item);
+}
+
+function getAdminValueAttentionSummary(reportData: ReportData): {
+  count: number;
+  tone: 'warn' | 'danger';
+} {
+  const priorityRows = buildAdminValueDiagnostics(reportData, [])
+    .filter(isPriorityAdminDiagnosticRow);
+
+  return {
+    count: priorityRows.length,
+    tone: priorityRows.some((row) => row.tone === 'danger') ? 'danger' : 'warn',
+  };
+}
+
 function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: string[]): AdminValueDiagnosticRow[] {
   const rows: AdminValueDiagnosticRow[] = [];
   const seen = new Set<string>();
@@ -1338,6 +1505,103 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
   const leagueDiagnostics = reportData.leagueDiagnostics;
 
   if (leagueDiagnostics) {
+    const leagueConfidence = leagueDiagnostics.aiConfidence;
+    const leagueConfidenceDelta = formatSignedDiagnosticDelta(leagueConfidence?.scoreDelta);
+    const leagueConfidenceTrend = formatLeagueAiConfidenceTrend(reportData);
+    if (leagueConfidence) {
+      const confidenceTone: AdminValueDiagnosticRow['tone'] = leagueConfidence.score < 52
+        ? 'warn'
+        : leagueConfidence.score >= 72
+          ? 'good'
+          : 'info';
+      addUniqueDiagnosticRow(rows, seen, {
+        id: 'league-ai-confidence',
+        area: 'AI confidence',
+        item: `${leagueConfidence.score}% ${leagueConfidence.label}`,
+        status: leagueConfidence.score < 52 ? 'Low confidence' : leagueConfidence.score >= 72 ? 'Strong' : 'Building',
+        tone: confidenceTone,
+        note: leagueConfidence.note,
+      });
+    }
+    if (leagueConfidence && (leagueConfidenceDelta || leagueConfidenceTrend)) {
+      addUniqueDiagnosticRow(rows, seen, {
+        id: 'league-ai-confidence-trend',
+        area: 'AI confidence trend',
+        item: leagueConfidenceDelta ? `${leagueConfidenceDelta} since previous snapshot` : `${leagueConfidence.score}% current`,
+        status: leagueConfidence.scoreDelta === null || leagueConfidence.scoreDelta === undefined
+          ? 'Trend building'
+          : leagueConfidence.scoreDelta > 0
+            ? 'Improving'
+            : leagueConfidence.scoreDelta < 0
+              ? 'Declining'
+              : 'Flat',
+        tone: leagueConfidence.scoreDelta === null || leagueConfidence.scoreDelta === undefined
+          ? 'info'
+          : leagueConfidence.scoreDelta < -6
+            ? 'warn'
+            : leagueConfidence.scoreDelta > 0
+              ? 'good'
+              : 'info',
+        note: leagueConfidenceTrend
+          ? `Recent confidence snapshots: ${leagueConfidenceTrend}.`
+          : 'Confidence deltas compare this report against the latest persisted league confidence snapshot.',
+      });
+    }
+    if (leagueConfidence?.calibration && leagueConfidence.calibration.status !== 'ready') {
+      addUniqueDiagnosticRow(rows, seen, {
+        id: 'league-ai-confidence-calibration',
+        area: 'AI confidence calibration',
+        item: `${leagueConfidence.calibration.observedSampleSize}/${leagueConfidence.calibration.targetSampleSize} samples`,
+        status: leagueConfidence.calibration.status === 'pending' ? 'Pending season' : 'Collecting',
+        tone: 'info',
+        note: leagueConfidence.calibration.note,
+      });
+    }
+    leagueConfidence?.signals
+      .filter((signal) => signal.status !== 'strong')
+      .slice(0, 4)
+      .forEach((signal) => {
+        addUniqueDiagnosticRow(rows, seen, {
+          id: `league-ai-confidence-signal-${signal.key}`,
+          area: 'AI confidence signal',
+          item: `${signal.label}: ${signal.score}%`,
+          status: signal.status === 'low' ? 'Low evidence' : 'Building',
+          tone: signal.status === 'low' ? 'warn' : 'info',
+          note: signal.note,
+        });
+      });
+    leagueConfidence?.signals
+      .filter((signal) => signal.scoreDelta !== null && signal.scoreDelta !== undefined)
+      .sort((a, b) => Math.abs(Number(b.scoreDelta || 0)) - Math.abs(Number(a.scoreDelta || 0)))
+      .slice(0, 6)
+      .forEach((signal) => {
+        const delta = Number(signal.scoreDelta || 0);
+        addUniqueDiagnosticRow(rows, seen, {
+          id: `league-ai-confidence-signal-trend-${signal.key}`,
+          area: 'AI confidence signal trend',
+          item: `${signal.label}: ${delta > 0 ? '+' : ''}${delta} to ${signal.score}%`,
+          status: delta > 0 ? 'Gaining' : delta < 0 ? 'Dropping' : 'Flat',
+          tone: delta > 0 ? 'good' : delta < -6 ? 'warn' : 'info',
+          note: signal.previousScore === null || signal.previousScore === undefined
+            ? signal.note
+            : `Previous ${signal.previousScore}%. ${signal.note}`,
+        });
+      });
+    leagueConfidence?.managerConfidence
+      ?.filter((manager) => manager.score < 62)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 3)
+      .forEach((manager) => {
+        addUniqueDiagnosticRow(rows, seen, {
+          id: `manager-ai-confidence-${manager.manager}`,
+          area: 'Manager AI confidence',
+          item: `${manager.manager}: ${manager.score}%`,
+          status: manager.score < 50 ? 'Low evidence' : 'Building',
+          tone: manager.score < 50 ? 'warn' : 'info',
+          note: manager.note,
+        });
+      });
+
     leagueDiagnostics.valueLimitations.forEach((limitation, index) => {
       const coverageStatus = getValueCoverageStatus(limitation);
       if (!isActionableDiagnosticTone(coverageStatus.tone)) return;
@@ -1349,6 +1613,51 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
         tone: coverageStatus.tone,
         note: limitation,
       });
+    });
+  }
+
+  if (reportData.depthChartDiagnostics) {
+    const diagnostic = reportData.depthChartDiagnostics;
+    const checked = diagnostic.checkedPlayerCount || 0;
+    const matched = diagnostic.matchedPlayerCount || 0;
+    const coveragePct = checked ? Math.round((matched / checked) * 100) : 0;
+    const failedTeams = diagnostic.failedTeams.map((team) => team.toUpperCase());
+    const hasTeamGaps = failedTeams.length > 0;
+    const tone: AdminValueDiagnosticRow['tone'] = hasTeamGaps || (checked > 0 && coveragePct < 60)
+      ? 'warn'
+      : diagnostic.mismatchCount > 0
+        ? 'info'
+        : 'good';
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'depth-chart-role-coverage',
+      area: 'Depth chart roles',
+      item: checked ? `${matched}/${checked} players matched` : 'No team players checked',
+      status: hasTeamGaps ? 'Team gaps' : diagnostic.mismatchCount ? 'Stale tags found' : 'Loaded',
+      tone,
+        note: [
+          checked
+            ? `Current team chart roles matched ${coveragePct}% of checked report players.`
+            : 'No active NFL team players were available for current role matching.',
+          `${diagnostic.mismatchCount} Sleeper role tag${diagnostic.mismatchCount === 1 ? '' : 's'} differed from the current team chart.`,
+          `Teams loaded: ${diagnostic.loadedTeams.length}/${diagnostic.requestedTeams.length}.`,
+          `Role enrichment took ${Math.round(diagnostic.durationMs || 0)}ms.`,
+          failedTeams.length ? `Needs retry for: ${failedTeams.join(', ')}.` : null,
+        ].filter(Boolean).join(' '),
+      });
+  }
+
+  if (reportData.transactionBackfillDiagnostics) {
+    const diagnostic = reportData.transactionBackfillDiagnostics;
+    addUniqueDiagnosticRow(rows, seen, {
+      id: 'historical-sleeper-transactions',
+      area: 'Sleeper history backfill',
+      item: `${diagnostic.transactionCount} transactions`,
+      status: diagnostic.checkedLeagueCount ? `${diagnostic.seasonCount} season${diagnostic.seasonCount === 1 ? '' : 's'}` : 'No history',
+      tone: diagnostic.checkedLeagueCount ? 'good' : 'info',
+      note: [
+        `${diagnostic.checkedLeagueCount} previous league${diagnostic.checkedLeagueCount === 1 ? '' : 's'} checked.`,
+        `${diagnostic.waiverOrFreeAgentCount} waiver/free-agent moves and ${diagnostic.tradeProposalCount} non-complete trade signals were backfilled for manager behavior reads.`,
+      ].join(' '),
     });
   }
 
@@ -1368,6 +1677,86 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
         note: `${diagnostic.note}${errorNote}`,
       });
     }
+  }
+
+  if (isRedraftValueMode && reportData.rankings?.redraftSourceDiagnostics?.length) {
+    reportData.rankings.redraftSourceDiagnostics.forEach((diagnostic) => {
+      const tone: AdminValueDiagnosticRow['tone'] = diagnostic.status === 'loaded'
+        ? 'good'
+        : diagnostic.status === 'disabled'
+          ? 'info'
+          : diagnostic.status === 'empty'
+            ? 'warn'
+            : diagnostic.status === 'stale'
+              ? 'danger'
+              : 'danger';
+      addUniqueDiagnosticRow(rows, seen, {
+        id: `redraft-source-${diagnostic.key}`,
+        area: 'Redraft source',
+        item: `${diagnostic.source}: ${diagnostic.rowCount.toLocaleString()} rows`,
+        status: diagnostic.status === 'loaded'
+          ? 'Loaded'
+          : diagnostic.status === 'disabled'
+            ? 'Disabled'
+            : diagnostic.status === 'empty'
+              ? 'No rows'
+              : diagnostic.status === 'stale'
+                ? 'Stale data'
+                : 'Source error',
+        tone: diagnostic.trustAlert?.level === 'danger' ? 'danger' : diagnostic.trustAlert?.level === 'warn' ? 'warn' : tone,
+        note: formatSourceTrustDiagnosticNote(diagnostic),
+      });
+    });
+  }
+
+  if (!isRedraftValueMode && reportData.rankings?.dynastySourceDiagnostics?.length) {
+    reportData.rankings.dynastySourceDiagnostics.forEach((diagnostic) => {
+      const tone: AdminValueDiagnosticRow['tone'] = diagnostic.status === 'loaded'
+        ? 'good'
+        : diagnostic.status === 'empty'
+          ? 'warn'
+          : diagnostic.status === 'disabled'
+            ? 'info'
+            : 'danger';
+      addUniqueDiagnosticRow(rows, seen, {
+        id: `dynasty-source-${diagnostic.key}`,
+        area: 'Dynasty source',
+        item: `${diagnostic.source}: ${diagnostic.rowCount.toLocaleString()} rows`,
+        status: diagnostic.status === 'loaded'
+          ? 'Loaded'
+          : diagnostic.status === 'empty'
+            ? 'No rows'
+            : diagnostic.status === 'disabled'
+              ? 'Disabled'
+              : diagnostic.status === 'stale'
+                ? 'Stale data'
+                : 'Source error',
+        tone: diagnostic.trustAlert?.level === 'danger' ? 'danger' : diagnostic.trustAlert?.level === 'warn' ? 'warn' : tone,
+        note: formatSourceTrustDiagnosticNote(diagnostic),
+      });
+    });
+  }
+
+  if (!isRedraftValueMode && reportData.rankings?.devySourceDiagnostics?.length) {
+    reportData.rankings.devySourceDiagnostics.forEach((diagnostic) => {
+      const tone: AdminValueDiagnosticRow['tone'] = diagnostic.trustAlert?.level === 'danger'
+        ? 'danger'
+        : diagnostic.trustAlert?.level === 'warn'
+          ? 'warn'
+          : diagnostic.status === 'loaded'
+            ? 'good'
+            : diagnostic.status === 'empty'
+              ? 'warn'
+              : 'danger';
+      addUniqueDiagnosticRow(rows, seen, {
+        id: `devy-source-${diagnostic.key}`,
+        area: 'Devy source',
+        item: `${diagnostic.source}: ${diagnostic.rowCount.toLocaleString()} rows`,
+        status: diagnostic.status === 'loaded' ? 'Loaded' : diagnostic.status === 'empty' ? 'No rows' : 'Source issue',
+        tone,
+        note: formatSourceTrustDiagnosticNote(diagnostic),
+      });
+    });
   }
 
   currentSnapshotGaps.forEach((dateKey) => {
@@ -1407,6 +1796,23 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       note: `Ranking rows did not match a Sleeper player. First example: ${unmatchedRankingRows[0].playerName}. These rows may show the wrong owner/avatar until mapped.`,
     });
   }
+
+  rankingIdentityDiagnostics
+    .filter((row) => row.board !== 'devy')
+    .slice(0, 8)
+    .forEach((diagnostic, index) => {
+      const isCollision = diagnostic.status === 'resolved-collision';
+      addUniqueDiagnosticRow(rows, seen, {
+        id: `ranking-alias-review-${index}-${diagnostic.id}`,
+        area: 'Player alias review',
+        item: diagnostic.playerName,
+        status: isCollision ? 'Resolved collision' : 'Needs mapping',
+        tone: isCollision ? 'warn' : 'danger',
+        note: isCollision && diagnostic.selectedPlayerName
+          ? `${diagnostic.note} Source key: ${diagnostic.sourceKey}.`
+          : `${diagnostic.note} Add or adjust an alias if this source row should map to a Sleeper player.`,
+      });
+    });
 
   outlookPlayers.forEach((player) => {
     const profile = getOutlookPlayerValueProfile(reportData, player);
@@ -1454,6 +1860,27 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
   return rows.slice(0, 32);
 }
 
+function formatSourceTrustDiagnosticNote(diagnostic: RankingSourceDiagnostic): string {
+  const trustText = Number.isFinite(diagnostic.trustScore)
+    ? `Trust ${diagnostic.trustScore}/100 (${Number(diagnostic.trustMultiplier || 1).toFixed(2)}x effective weight).${diagnostic.trustNote ? ` ${diagnostic.trustNote}.` : ''}`
+    : '';
+  const trustDelta = Number(diagnostic.trustScoreDelta);
+  const movementText = Number.isFinite(trustDelta)
+    ? trustDelta > 0
+      ? `Trust rose +${trustDelta} points since the previous snapshot.`
+      : trustDelta < 0
+        ? `Trust fell ${Math.abs(trustDelta)} points since the previous snapshot.`
+        : 'Trust was unchanged since the previous snapshot.'
+    : '';
+  return [
+    diagnostic.note,
+    trustText,
+    movementText,
+    diagnostic.trustAlert?.message || '',
+    diagnostic.error ? `Error: ${diagnostic.error}` : '',
+  ].filter(Boolean).join(' ');
+}
+
 function getAdminBlendProfileLabel(reportData: ReportData, profileKey?: string | null): string {
   if (!profileKey) return 'League-matched profile';
   const profileOption = reportData.rankings?.profileOptions?.find((option) => option.key === profileKey);
@@ -1467,7 +1894,7 @@ function formatAdminBlendSources(
   if (!isRedraft) return sources;
   const redraftSources = sources.filter((source) => {
     const text = `${source.key} ${source.source} ${source.note || ''}`;
-    return /(redraft|season|fantasypros|current)/i.test(text)
+    return /(redraft|season|fantasypros|current|myfantasyleague|mfl|espn|fleaflicker|yahoo|nfl fantasy)/i.test(text)
       && !/(dynasty|devy|college|rookie)/i.test(text);
   });
 
@@ -1493,7 +1920,7 @@ function buildAdminBlendSummaries(reportData: ReportData): AdminBlendSummary[] {
   const summaries: AdminBlendSummary[] = [];
   const leagueValueMode = normalizeLeagueValueMode(reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode);
   const isRedraft = leagueValueMode === 'redraft';
-  const dynastyProfileKey = rankings.defaultProfileKey;
+  const dynastyProfileKey = isRedraft ? rankings.defaultRedraftProfileKey || rankings.defaultProfileKey : rankings.defaultProfileKey;
   const devyProfileKey = rankings.defaultDevyProfileKey;
 
   if (dynastyProfileKey && sourceWeightProfiles[dynastyProfileKey]) {
@@ -1551,12 +1978,77 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
 
   const rows = buildAdminValueDiagnostics(reportData, getActionableMissingSnapshotDates(data));
   const blendSummaries = buildAdminBlendSummaries(reportData);
+  const leagueConfidence = reportData.leagueDiagnostics?.aiConfidence;
+  const managerConfidenceRows = [...(leagueConfidence?.managerConfidence || [])]
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 4);
+  const priorityRows = rows
+    .filter(isPriorityAdminDiagnosticRow)
+    .sort(compareAdminDiagnosticPriority)
+    .slice(0, 6);
+  const priorityIds = new Set(priorityRows.map((row) => row.id));
+  const remainingRows = rows.filter((row) => !priorityIds.has(row.id));
 
   return (
     <div className="admin-value-diagnostics">
       <p className="admin-value-diagnostics-intro">
-        Admin eyes only. This shows what is calculated from Sleeper league settings, what is covered by stored market values, and only the gaps that still need attention.
+        Admin eyes only. This shows what is calculated from Sleeper league settings, what is covered by stored market values, and source health for the active value lens.
       </p>
+      {leagueConfidence && (
+        <section className="admin-confidence-drilldown" aria-label="Admin confidence drilldown">
+          <div className="admin-confidence-drilldown-head">
+            <span>Confidence Drilldown</span>
+            <strong>{leagueConfidence.score}% {leagueConfidence.label}</strong>
+            <p>{leagueConfidence.note}</p>
+          </div>
+          <div className="admin-confidence-signal-grid">
+            {leagueConfidence.signals.map((signal) => {
+              const delta = Number(signal.scoreDelta || 0);
+              return (
+                <article key={signal.key} className={`admin-confidence-signal-card admin-confidence-signal-card-${signal.status}`}>
+                  <div>
+                    <span>{signal.label}</span>
+                    <strong>{signal.score}%</strong>
+                  </div>
+                  <em>{signal.previousScore === null || signal.previousScore === undefined ? 'New signal' : `${delta > 0 ? '+' : ''}${delta} from ${signal.previousScore}%`}</em>
+                  <p>{signal.note}</p>
+                </article>
+              );
+            })}
+          </div>
+          {managerConfidenceRows.length > 0 && (
+            <div className="admin-manager-confidence-strip" aria-label="Lowest manager confidence rows">
+              <span>Weakest manager reads</span>
+              {managerConfidenceRows.map((manager) => (
+                <small key={manager.manager}>
+                  <strong>{manager.manager}</strong>
+                  <em>{manager.score}%</em>
+                </small>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      {priorityRows.length > 0 && (
+        <section className="admin-critical-alerts" aria-label="Important admin value alerts">
+          <div className="admin-critical-alerts-header">
+            <span>Needs Admin Attention</span>
+            <strong>{priorityRows.length} important value/source flag{priorityRows.length === 1 ? '' : 's'}</strong>
+          </div>
+          <div className="admin-critical-alerts-grid">
+            {priorityRows.map((row) => (
+              <article key={`priority-${row.id}`} className={`admin-critical-alert-card admin-critical-alert-card-${row.tone || 'info'}`}>
+                <div>
+                  <span>{row.area}</span>
+                  <strong>{row.item}</strong>
+                </div>
+                <p>{row.note}</p>
+                <em>{row.status}</em>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       {blendSummaries.length > 0 && (
         <div className="admin-blend-summary-grid">
           {blendSummaries.map((summary) => (
@@ -1595,7 +2087,7 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
         </div>
       )}
       <div className="admin-value-diagnostics-grid">
-        {rows.map((row) => (
+        {remainingRows.map((row) => (
           <article key={row.id} className={`admin-value-diagnostics-card admin-value-diagnostics-card-${row.tone || 'info'}`}>
             <div className="admin-value-diagnostics-card-top">
               <div>
@@ -1612,6 +2104,46 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
   );
 }
 
+function AdminAttentionBadge({
+  count,
+  label,
+  tone = 'warn',
+}: {
+  count: number;
+  label: string;
+  tone?: 'warn' | 'danger' | 'info';
+}) {
+  if (!Number.isFinite(count) || count <= 0) return null;
+
+  return (
+    <span className={`admin-attention-badge admin-attention-badge-${tone}`} aria-label={`${count} ${label}`}>
+      <strong>{count > 99 ? '99+' : count.toLocaleString()}</strong>
+      <em>{label}</em>
+    </span>
+  );
+}
+
+function AdminValueDiagnosticsSection({ reportData }: { reportData: ReportData }) {
+  const attentionSummary = getAdminValueAttentionSummary(reportData);
+
+  return (
+    <CollapsibleReportSection
+      title="Admin Eyes Only: Value Assumptions"
+      kicker="Hidden diagnostics"
+      previewAccessory={attentionSummary.count > 0 ? (
+        <AdminAttentionBadge
+          count={attentionSummary.count}
+          label="Needs attention"
+          tone={attentionSummary.tone}
+        />
+      ) : undefined}
+      premium
+    >
+      <AdminValueDiagnosticsTable reportData={reportData} />
+    </CollapsibleReportSection>
+  );
+}
+
 function formatAdminTelemetryDate(value?: string | null): string {
   if (!value) return 'n/a';
   const date = new Date(value);
@@ -1622,6 +2154,47 @@ function formatAdminTelemetryDate(value?: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+function isPrioritySourceHealthEvent(event: { level?: string | null }): boolean {
+  return event.level === 'danger' || event.level === 'warn';
+}
+
+function AdminTrafficTelemetrySection() {
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
+  const canViewTelemetry = canViewAdminTelemetryForUser(authQuery.data);
+  const { data: sourceHealth } = trpc.system.sourceHealth.useQuery(
+    { lookbackDays: 7 },
+    {
+      enabled: canViewTelemetry,
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: 1000 * 60,
+    }
+  );
+  const priorityEvents = (sourceHealth?.recentEvents || []).filter(isPrioritySourceHealthEvent);
+  const alertTone = priorityEvents.some((event) => event.level === 'danger') ? 'danger' : 'warn';
+
+  return (
+    <CollapsibleReportSection
+      title="Admin Eyes Only: Traffic & Abuse"
+      kicker="Request telemetry"
+      previewAccessory={priorityEvents.length > 0 ? (
+        <AdminAttentionBadge
+          count={priorityEvents.length}
+          label="Source alerts"
+          tone={alertTone}
+        />
+      ) : undefined}
+      premium
+    >
+      <AdminAbuseTelemetryPanel />
+    </CollapsibleReportSection>
+  );
 }
 
 function AdminAbuseTelemetryPanel() {
@@ -1644,6 +2217,19 @@ function AdminAbuseTelemetryPanel() {
   });
   const canViewTelemetry = canViewAdminTelemetryForUser(authQuery.data);
   const { data, error, isLoading, isFetching, refetch } = trpc.system.abuseTelemetry.useQuery(
+    { lookbackDays: 7 },
+    {
+      enabled: canViewTelemetry,
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: 1000 * 60,
+    }
+  );
+  const {
+    data: sourceHealth,
+    isFetching: isSourceHealthFetching,
+    refetch: refetchSourceHealth,
+  } = trpc.system.sourceHealth.useQuery(
     { lookbackDays: 7 },
     {
       enabled: canViewTelemetry,
@@ -1715,6 +2301,9 @@ function AdminAbuseTelemetryPanel() {
     { label: 'Unique IPs', value: data.totals.uniqueIps },
     { label: 'Unique Leagues', value: data.totals.uniqueLeagueIds },
   ];
+  const prioritySourceHealthEvents = (sourceHealth?.recentEvents || [])
+    .filter(isPrioritySourceHealthEvent)
+    .slice(0, 6);
 
   return (
     <div className="admin-traffic-panel">
@@ -1727,12 +2316,57 @@ function AdminAbuseTelemetryPanel() {
           type="button"
           variant="outline"
           className="admin-traffic-refresh"
-          disabled={isFetching}
-          onClick={() => void refetch()}
+          disabled={isFetching || isSourceHealthFetching}
+          onClick={() => {
+            void refetch();
+            void refetchSourceHealth();
+          }}
         >
           Refresh
         </Button>
       </div>
+
+      {prioritySourceHealthEvents.length > 0 && (
+        <section className="admin-critical-alerts admin-critical-alerts-traffic" aria-label="Important source health alerts">
+          <div className="admin-critical-alerts-header">
+            <span>Needs Admin Attention</span>
+            <strong>{prioritySourceHealthEvents.length} source-health alert{prioritySourceHealthEvents.length === 1 ? '' : 's'}</strong>
+          </div>
+          <div className="admin-critical-alerts-grid">
+            {prioritySourceHealthEvents.map((event) => (
+              <article key={`source-priority-${event.id}`} className={`admin-critical-alert-card admin-critical-alert-card-${event.level === 'danger' ? 'danger' : 'warn'}`}>
+                <div>
+                  <span>{event.job}</span>
+                  <strong>{event.source}</strong>
+                </div>
+                <p>{event.message}</p>
+                <em>{event.status} · {event.board || 'source'} · {event.rowCount ?? 0} rows</em>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {sourceHealth?.bySource?.length ? (
+        <section className="admin-source-history-strip" aria-label="Source alert history">
+          <div className="admin-source-history-head">
+            <span>Source Alert History</span>
+            <strong>{sourceHealth.totals.uniqueSources} source{sourceHealth.totals.uniqueSources === 1 ? '' : 's'} flagged in {sourceHealth.lookbackDays} days</strong>
+          </div>
+          <div className="admin-source-history-grid">
+            {sourceHealth.bySource.slice(0, 6).map((bucket) => (
+              <article key={bucket.label} className="admin-source-history-card">
+                <div>
+                  <span>{bucket.label}</span>
+                  <strong>{bucket.danger} danger · {bucket.warn} warn</strong>
+                </div>
+                <p>{bucket.lastMessage || 'No message captured.'}</p>
+                <em>First {formatAdminTelemetryDate(bucket.firstSeen)} · Latest {formatAdminTelemetryDate(bucket.lastSeen)}</em>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="admin-traffic-stat-grid">
         {totalCards.map((card) => (
@@ -1782,6 +2416,19 @@ function AdminAbuseTelemetryPanel() {
             ))}
           </div>
         </section>
+
+        <section className="admin-traffic-card">
+          <h4>Source Health</h4>
+          <div className="admin-traffic-list">
+            {sourceHealth?.recentEvents?.length ? sourceHealth.recentEvents.slice(0, 8).map((event) => (
+              <div key={event.id} className={`admin-traffic-row admin-traffic-row-${event.level === 'danger' ? 'error' : 'success'}`}>
+                <strong>{event.source}</strong>
+                <span>{event.level} · {event.status} · {event.board || 'source'} · {event.rowCount ?? 0} rows</span>
+                <em>{formatAdminTelemetryDate(event.createdAt)} · {event.message}</em>
+              </div>
+            )) : <p className="admin-traffic-empty">No source-health alerts in the last 7 days.</p>}
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -1824,6 +2471,7 @@ export default function Home() {
   const [loadingTransitionPhase, setLoadingTransitionPhase] = useState<LoadingTransitionPhase>('loading');
   const [prospectArchiveOpenedWhileLoading, setProspectArchiveOpenedWhileLoading] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
+  const activeAnalysisLeagueIdRef = useRef<string | null>(null);
 
   const clearSuccessTransitionTimers = () => {
     successTransitionTimerRefs.current.forEach((timer) => window.clearTimeout(timer));
@@ -1836,6 +2484,28 @@ export default function Home() {
       callback();
     }, delay);
     successTransitionTimerRefs.current.push(timer);
+  };
+
+  const leaguePreviewMutation = trpc.league.getLeaguePreview.useMutation();
+
+  const beginAnalysisLoading = async (nextLeagueId: string, extraKnownLeagues: SleeperLeagueOption[] = []) => {
+    activeAnalysisLeagueIdRef.current = nextLeagueId;
+    const knownLeague = findKnownSleeperLeague(nextLeagueId, userLeagues, cachedSleeperUsers, extraKnownLeagues);
+
+    setPendingAnalysisLeague(knownLeague ? getAnalysisLeaguePreview(knownLeague) : getLeagueIdAnalysisPreview(nextLeagueId));
+    setAnalysisCompleteMessage(null);
+    setLoadingTransitionPhase('loading');
+    setIsLoading(true);
+
+    if (knownLeague) return;
+
+    try {
+      const league = await leaguePreviewMutation.mutateAsync({ leagueId: nextLeagueId });
+      if (activeAnalysisLeagueIdRef.current !== league.leagueId) return;
+      setPendingAnalysisLeague(getAnalysisLeaguePreview(league));
+    } catch {
+      // The full analysis request owns the user-facing error state.
+    }
   };
 
   const rememberLeagueId = (value: string) => {
@@ -1880,6 +2550,7 @@ export default function Home() {
 	  const analyzeMutation = trpc.league.analyze.useMutation({
 	    onSuccess: (data) => {
 	      clearSuccessTransitionTimers();
+      activeAnalysisLeagueIdRef.current = data.leagueId;
 	      setLeagueId(data.leagueId);
       setLeagueName(data.leagueName);
       setLeagueLogo(data.leagueLogo);
@@ -1910,12 +2581,14 @@ export default function Home() {
         setIsLoading(false);
         setAnalysisCompleteMessage(null);
         setPendingAnalysisLeague(null);
+        activeAnalysisLeagueIdRef.current = null;
       }, REPORT_SUCCESS_REVEAL_DELAY_MS + REPORT_SUCCESS_READ_AFTER_REVEAL_MS + REPORT_SUCCESS_KICK_MS);
     },
     onError: (error) => {
       clearSuccessTransitionTimers();
       setAnalysisCompleteMessage(null);
       setPendingAnalysisLeague(null);
+      activeAnalysisLeagueIdRef.current = null;
       setLoadingTransitionPhase('loading');
       setIsLoading(false);
       showMutationErrorToast(error);
@@ -2035,15 +2708,10 @@ export default function Home() {
 	        setLeagueId(urlLeagueId);
 	        setActiveTab(urlTab || 'overview');
 	        setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, urlLeagueId));
-	        const pendingLeague = restoredLeagues.find((league) => league.leagueId === urlLeagueId);
-	        setPendingAnalysisLeague(pendingLeague ? {
-	          leagueName: pendingLeague.name,
-	          leagueFormat: pendingLeague.format || pendingLeague.mobileFormat || `${pendingLeague.totalRosters || '?'}-Team League`,
-	          leagueLogo: pendingLeague.avatarUrl,
-	        } : null);
-	        setLoadingTransitionPhase('loading');
-	        setIsLoading(true);
-	        analyzeMutation.mutate({ leagueId: urlLeagueId, viewerUserId: restoredViewerUserId || undefined });
+	        void beginAnalysisLoading(urlLeagueId, restoredLeagues).finally(() => {
+	          if (activeAnalysisLeagueIdRef.current !== urlLeagueId) return;
+	          analyzeMutation.mutate({ leagueId: urlLeagueId, viewerUserId: restoredViewerUserId || undefined });
+	        });
 	        return;
 	      }
 
@@ -2129,18 +2797,12 @@ export default function Home() {
       toast.error('Please enter a league ID');
       return;
     }
-    const pendingLeague = userLeagues.find((league) => league.leagueId === nextLeagueId);
-    setPendingAnalysisLeague(pendingLeague ? {
-      leagueName: pendingLeague.name,
-      leagueFormat: pendingLeague.format || pendingLeague.mobileFormat || `${pendingLeague.totalRosters || '?'}-Team Dynasty`,
-      leagueLogo: pendingLeague.avatarUrl,
-    } : null);
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
-    setAnalysisCompleteMessage(null);
-    setLoadingTransitionPhase('loading');
-    setIsLoading(true);
-    analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: viewerUserId || undefined });
+    void beginAnalysisLoading(nextLeagueId).finally(() => {
+      if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
+      analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: viewerUserId || undefined });
+    });
   };
 
   const handleFindLeagues = async () => {
@@ -2235,6 +2897,7 @@ export default function Home() {
 	    localStorage.removeItem(SLEEPER_SESSION_KEY);
 	    updateReportTabUrl('overview', '');
 	    clearSuccessTransitionTimers();
+    activeAnalysisLeagueIdRef.current = null;
     setIsLeaguePickerOpen(false);
     setIsChangeLeagueModalOpen(false);
     setAnalysisCompleteMessage(null);
@@ -2319,17 +2982,10 @@ export default function Home() {
     setReportData(null);
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
-    const pendingLeague = userLeagues.find((league) => league.leagueId === nextLeagueId)
-      || cachedUser?.leagues.find((league) => league.leagueId === nextLeagueId);
-    setPendingAnalysisLeague(pendingLeague ? {
-      leagueName: pendingLeague.name,
-      leagueFormat: pendingLeague.format || pendingLeague.mobileFormat || `${pendingLeague.totalRosters || '?'}-Team Dynasty`,
-      leagueLogo: pendingLeague.avatarUrl,
-    } : null);
-    setAnalysisCompleteMessage(null);
-    setLoadingTransitionPhase('loading');
-    setIsLoading(true);
-    analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: cachedUser?.userId || viewerUserId || undefined });
+    void beginAnalysisLoading(nextLeagueId, cachedUser?.leagues || []).finally(() => {
+      if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
+      analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: cachedUser?.userId || viewerUserId || undefined });
+    });
   };
 
   const usernameAutocompleteOptions = getFilteredAutocompleteOptions(sleeperUsernameHistory, sleeperUsername);
@@ -2744,7 +3400,6 @@ export default function Home() {
                 <CollapsibleReportSection
                   title="Monthly Team Blueprint"
                   kicker="Roster blueprint report"
-                  defaultOpen
                   premium
                   previewMetrics={[
                     { label: 'Managers', value: reportData.managerRosterIntelligence?.length || 0, tone: 'info' },
@@ -2803,6 +3458,7 @@ export default function Home() {
                     <TradePartnerFinder
                       data={reportData}
                       managerAvatars={reportData.managerAvatars}
+                      leagueId={leagueId}
                     />
                     <LeagueExploits
                       data={reportData}
@@ -2869,7 +3525,11 @@ export default function Home() {
                   />
                 </CollapsibleReportSection>
                 {hasTaxiTriage && (
-                <CollapsibleReportSection title="Taxi Squad Triage" kicker="Taxi-only activation checks">
+                <CollapsibleReportSection
+                  title="Taxi Squad Triage"
+                  kicker="Taxi-only activation checks"
+                  previewMetrics={buildTaxiPreviewMetrics(reportData)}
+                >
                   <LeagueCommandCenter
                     data={reportData}
                     managerAvatars={reportData.managerAvatars}
@@ -2885,6 +3545,7 @@ export default function Home() {
                   <CollapsibleReportSection
                     title="Manager Position Counts"
                     kicker={isRedraftReport ? 'Starter depth and position gaps' : 'Full roster depth map'}
+                    previewMetrics={buildManagerPositionRoomPreviewMetrics(reportData)}
                   >
                     <ManagerPositionCountsTable
                       data={reportData.managerPositionCounts}
@@ -2953,6 +3614,7 @@ export default function Home() {
                       managerPositionCounts={reportData.managerPositionCounts}
                       positionDepth={reportData.positionDepth}
                       leagueDiagnostics={reportData.leagueDiagnostics}
+                      recentTransactions={reportData.recentTransactions}
                       leagueValueMode={leagueValueMode}
                     />
                   </CollapsibleReportSection>
@@ -3065,7 +3727,6 @@ export default function Home() {
 	                  <CollapsibleReportSection
 	                    title="Prospect Score Archive"
 	                    kicker="Scouting data archive"
-	                    defaultOpen={!isProspectArchiveLoading}
                     onOpenChange={(open) => {
                       if (open && isProspectArchiveLoading) {
                         setProspectArchiveOpenedWhileLoading(true);
@@ -3096,12 +3757,8 @@ export default function Home() {
 	                      <span>Admin Diagnostics</span>
 	                      <p>Operational checks separated from the league report so normal owner analysis stays focused.</p>
 	                    </div>
-		                    <CollapsibleReportSection title="Admin Eyes Only: Traffic & Abuse" kicker="Request telemetry" premium>
-	                      <AdminAbuseTelemetryPanel />
-	                    </CollapsibleReportSection>
-		                    <CollapsibleReportSection title="Admin Eyes Only: Value Assumptions" kicker="Hidden diagnostics" premium>
-	                      <AdminValueDiagnosticsTable reportData={displayReportData} />
-	                    </CollapsibleReportSection>
+		                    <AdminTrafficTelemetrySection />
+		                    <AdminValueDiagnosticsSection reportData={displayReportData} />
 	                  </section>
 	                )}
               </div>
@@ -3148,6 +3805,7 @@ export default function Home() {
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
                     viewerManager={reportData.viewerManager}
+                    leagueDiagnostics={reportData.leagueDiagnostics}
                     currentStandings={reportData.currentStandings}
                     standingsHistory={reportData.standingsHistory}
                     leagueValueMode={leagueValueMode}
@@ -3169,6 +3827,7 @@ export default function Home() {
                     leagueOverview={reportData.leagueOverview}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    leagueDiagnostics={reportData.leagueDiagnostics}
                     currentStandings={reportData.currentStandings}
                     standingsHistory={reportData.standingsHistory}
                     leagueValueMode={leagueValueMode}
@@ -3186,6 +3845,7 @@ export default function Home() {
                     leagueOverview={reportData.leagueOverview}
                     leagueId={leagueId}
                     leagueLogo={leagueLogo}
+                    leagueDiagnostics={reportData.leagueDiagnostics}
                     currentStandings={reportData.currentStandings}
                     standingsHistory={reportData.standingsHistory}
                     leagueValueMode={leagueValueMode}

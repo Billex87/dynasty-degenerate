@@ -17,6 +17,8 @@ function buildSourceProfiles(overrides: Partial<ValueProfileSourceValues> = {}):
     fantasyCalc: {},
     dynastyProcess: { one_qb: {}, superflex: {} },
     fantasyPros: { STD: {}, HALF: {}, PPR: {} },
+    fantasyProsDynasty: {},
+    fantasyNerds: {},
     flockFantasy: { SUPERFLEX: {}, ONEQB: {}, PROSPECTS_SF: {}, PROSPECTS: {} },
     dynastyNerds: { PPR: {}, SFLEX: {}, STD: {}, SFLEXTEP: {} },
     dynastyDealerBenchmark: {},
@@ -111,5 +113,47 @@ describe('value blending', () => {
     expect(row.flock_position_rank).toBe('TE15');
     expect(row.value_sources).toEqual(expect.arrayContaining(['FlockFantasy', 'KTC']));
     expect(row.ktc_value).toBeGreaterThan(1000);
+  });
+
+  it('uses FantasyPros Dynasty as a dynasty blend source separate from season rankings', async () => {
+    const profiles = await loadBlendedValueProfiles(emptyKtcProfiles, buildSourceProfiles({
+      fantasyProsDynasty: {
+        elitewr: {
+          name: 'Elite WR',
+          position: 'WR',
+          rankingType: 'DYNASTY',
+          overallRank: 12,
+          positionRank: 'WR5',
+          dynastyValue: 9000,
+          value: 9000,
+        },
+      },
+      fantasyPros: {
+        STD: {},
+        HALF: {},
+        PPR: {
+          elitewr: {
+            name: 'Elite WR',
+            position: 'WR',
+            rankingType: 'DRAFT',
+            overallRank: 30,
+            positionRank: 'WR12',
+            seasonValue: 7200,
+            value: 7200,
+          },
+        },
+      },
+    }));
+
+    const row = profiles['12_sf_ppr_base'].elitewr;
+    expect(row).toMatchObject({
+      name: 'Elite WR',
+      expert_value_fantasypros: 9000,
+      fantasypros_dynasty_rank: 12,
+      fantasypros_dynasty_position_rank: 'WR5',
+      fantasypros_season_value: 7200,
+      value_sources: ['FantasyPros'],
+    });
+    expect(row.position_rank).toBe('WR1');
   });
 });

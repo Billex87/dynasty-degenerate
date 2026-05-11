@@ -6,13 +6,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { DraftPick, LeagueValueMode, PlayerDetails } from '@shared/types';
-import { TrendingUp, TrendingDown, X } from 'lucide-react';
+import type { DraftPick, PlayerDetails } from '@shared/types';
+import { ExternalLink, TrendingUp, TrendingDown, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getPlayerAvailability } from '@/lib/playerStatus';
 import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle } from '@/lib/teamTileStyle';
-import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
+import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
+import { getDraftKind, getDraftKindLabel, getDraftWindowLabel } from '@/lib/draftDisplay';
+import { getPlayerValueConfidence } from '@/lib/playerValueConfidence';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
@@ -53,9 +55,28 @@ const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; acce
   WAS: { primary: '#5A1414', secondary: '#FFB612', accent: '#FFFFFF' },
 };
 
+const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
+type PlayerSchedule = NonNullable<PlayerDetails['schedule']>;
+
 function getProspectSourceLabel(source?: string | null): string | null {
   if (!source) return null;
   return source === 'NFL Draft Buzz' ? 'Prospect Archive' : source;
+}
+
+function getStoredAdminViewMode(): 'admin' | 'regular' | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(SLEEPER_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { adminViewMode?: unknown } | null;
+    if (parsed?.adminViewMode === 'admin' || parsed?.adminViewMode === 'regular') {
+      return parsed.adminViewMode;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 interface PlayerDetailModalProps {
@@ -141,6 +162,12 @@ export function PlayerDetailModal({
       staleTime: 1000 * 60 * 15,
     }
   );
+  const { data: authUser } = trpc.auth.me.useQuery(undefined, {
+    enabled: isOpen,
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
 
   useEffect(() => {
     setHeadshot(null);
@@ -168,6 +195,7 @@ export function PlayerDetailModal({
   const isCollegeProspect = isCollegeOnlyModalPick(pick, details);
   const preferProspectImage = Boolean(pick.preferProspectImage);
   const prospectCollege = prospectProfile?.college || details?.college || null;
+  const isAdminView = Boolean(authUser?.isPrivilegedAdmin) || getStoredAdminViewMode() === 'admin';
   const directHeadshot = !isCollegeProspect && pick.player_id && !directImageFailed
     ? `https://sleepercdn.com/content/nfl/players/${pick.player_id}.jpg`
     : null;
@@ -180,6 +208,10 @@ export function PlayerDetailModal({
   const valueProfile = details?.valueProfile;
   const valueMode = normalizeLeagueValueMode(pick.valueMode || 'dynasty');
   const isRedraftValueMode = valueMode === 'redraft';
+  const draftKindLabel = (pick.round !== undefined || pick.pick !== undefined || pick.draftKind || pick.draftPickCount)
+    ? getDraftKindLabel(getDraftKind(pick, valueMode))
+    : null;
+  const draftWindowLabel = getDraftWindowLabel(pick, valueMode);
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
   const currentValue = pick.currentKtcValue;
   const draftValue = pick.ktcValue;
@@ -207,12 +239,11 @@ export function PlayerDetailModal({
   const availability = isCollegeProspect
     ? { label: 'College Prospect', tone: 'taxi' as const }
     : getPlayerAvailability(details);
-  const collegeInfoLogo = details?.college ? (
-    <ProspectCollegePill
-      college={details.college}
-      logoUrl={details.prospectProfile?.collegeLogoUrl || pick.collegeLogoUrl}
-    />
-  ) : null;
+  const headerInfoRows = [
+    ['College', prospectCollege || details?.college || '-'],
+    ['40 Time', formatFortyTime(prospectProfile?.fortyYardDash)],
+    ['Birthday', formatBirthday(details?.birthDate) || '-'],
+  ] as const;
   const physicalRows = [
     ['Age', details?.age],
     ['Height', formatHeight(details?.height)],
@@ -220,26 +251,15 @@ export function PlayerDetailModal({
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const experienceRows = [
     ['Rookie Year', details?.rookieYear],
-    ['Depth Chart', formatDepthChart(details?.depthChartPosition, details?.depthChartOrder)],
+    ['Depth Chart', formatDepthChartRole(details, true)],
     ['Years Exp', details?.yearsExp],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
-  const backgroundRows = isCollegeProspect ? [] : [
-    ['College', collegeInfoLogo],
-    ['Birthday', formatBirthday(details?.birthDate)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const prospectMetricRows = prospectProfile ? [
     ['Projected Rookie Pick', prospectProfile.projectedRookiePick],
     ['Board Rank', prospectProfile.fantasyProsDevyRank ? `#${prospectProfile.fantasyProsDevyRank}` : prospectProfile.overallRank ? `#${prospectProfile.overallRank}` : null],
     ['Position Rank', prospectProfile.fantasyProsDevyPositionRank || (prospectProfile.positionRank ? `${prospectProfile.position}${prospectProfile.positionRank}` : null)],
     ['Draft Class', prospectProfile.draftYear],
-    ['College', prospectProfile.college ? (
-      <ProspectCollegePill
-        college={prospectProfile.college}
-        logoUrl={pick.collegeLogoUrl || prospectProfile.collegeLogoUrl}
-      />
-    ) : null],
     ['Class', prospectProfile.classYear],
-    ['40 Time', prospectProfile.fortyYardDash ? `${prospectProfile.fortyYardDash}s` : null],
     ['Size', [prospectProfile.height, prospectProfile.weight].filter(Boolean).join(' / ')],
     ['Role', prospectProfile.role],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
@@ -257,17 +277,16 @@ export function PlayerDetailModal({
     ['Status', details.prospectProfile.status],
     ['Birthplace', details.prospectProfile.birthPlace],
     ['Draft Class', details.prospectProfile.draftYear],
-    ['College', details.prospectProfile.college],
     ['Overall Rank', details.prospectProfile.overallRank ? `#${details.prospectProfile.overallRank}` : null],
     ['Position Rank', details.prospectProfile.positionRank ? `${details.prospectProfile.position}${details.prospectProfile.positionRank}` : null],
     ['Rating', details.prospectProfile.rating],
     ['Avg Scout Rank', details.prospectProfile.averageOverallRank ? `#${details.prospectProfile.averageOverallRank}` : null],
-    ['40 Time', details.prospectProfile.fortyYardDash ? `${details.prospectProfile.fortyYardDash}s` : null],
     ['Size', [details.prospectProfile.height, details.prospectProfile.weight].filter(Boolean).join(' / ')],
-    ['Summary', details.prospectProfile.summary],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const previousSeasonRankLabel = getPreviousSeasonRankLabel(details);
+  const previousSeasonRankMobileLabel = getPreviousSeasonRankMobileLabel(details);
   const lastSeasonRows = [
-    ['Last Year Rank', details?.lastSeasonPositionRank ? `${details.lastSeasonYear || 'Last'} ${details.lastSeasonPositionRank}` : null],
+    [previousSeasonRankLabel, details?.lastSeasonPositionRank],
     ['Games Played', details?.lastSeasonGames],
     ['PPG', details?.lastSeasonPointsPerGame],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
@@ -275,10 +294,16 @@ export function PlayerDetailModal({
     ['Avg Missed', details?.avgGamesMissed !== null && details?.avgGamesMissed !== undefined && details?.availabilitySeasons ? `${details.avgGamesMissed} / yr` : null],
     ['Sample', details?.availabilitySeasons ? `${details.availabilitySeasons} yr${details.availabilitySeasons === 1 ? '' : 's'}` : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
-  const healthRows = [
-    ['Availability', availability.label],
-    ['Injury Status', details?.injuryStatus && details.injuryStatus !== availability.label ? details.injuryStatus : null],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const scheduleProfile = details?.schedule || null;
+  const scheduleRows = scheduleProfile ? [
+    ['Bye Week', scheduleProfile.byeWeek !== null && scheduleProfile.byeWeek !== undefined ? `Week ${scheduleProfile.byeWeek}` : null],
+    ['Season SOS', scheduleProfile.seasonSOS !== null && scheduleProfile.seasonSOS !== undefined ? `${Math.round(scheduleProfile.seasonSOS)}%` : null],
+    ['Schedule Tier', formatScheduleTierLabel(scheduleProfile.scheduleTier)],
+    ['Streamer Weeks', formatScheduleWeekList(scheduleProfile.streamerWeeks)],
+    ['Avoid Weeks', formatScheduleWeekList(scheduleProfile.avoidWeeks)],
+    ['Source', scheduleProfile.source],
+    ['Updated', scheduleProfile.updatedAt ? formatNewsDate(scheduleProfile.updatedAt) : null],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const dynastyRank = getValueProfileRank(valueProfile, 'dynasty', currentRank);
   const seasonRank = getValueProfileRank(valueProfile, 'season', currentRank);
   const balancedRank = getValueProfileRank(valueProfile, 'balanced', currentRank);
@@ -286,29 +311,14 @@ export function PlayerDetailModal({
   const rebuilderRank = getValueProfileRank(valueProfile, 'rebuilder', currentRank);
   const topDynastyRank = dynastyRank || (valueMode !== 'redraft' ? currentRank : null);
   const topSeasonRank = seasonRank || (valueMode === 'redraft' ? currentRank : null);
-  const lastSeasonRank = details?.lastSeasonPositionRank
-    ? `${details.lastSeasonYear || 'Last'} ${details.lastSeasonPositionRank}`
-    : null;
+  const lastSeasonRank = details?.lastSeasonPositionRank || null;
   const dynastyValue = valueProfile?.dynastyValue
     ?? valueProfile?.balancedValue
     ?? (valueMode !== 'redraft' ? currentValue : null);
   const seasonValue = valueProfile?.seasonValue
     ?? valueProfile?.fantasyProsSeasonValue
     ?? (valueMode === 'redraft' ? currentValue : null);
-  const marketRankRows = valueProfile ? (
-    isRedraftValueMode
-      ? [
-          ['Season', seasonRank],
-          ['Last Season', details?.lastSeasonPositionRank ? `${details.lastSeasonYear || 'Last'} ${details.lastSeasonPositionRank}` : null],
-        ]
-      : [
-          ['Dynasty', dynastyRank],
-          ['Season', seasonRank],
-          ['Balanced', balancedRank],
-          ['Contender', contenderRank],
-          ['Rebuilder', rebuilderRank],
-        ]
-  ).filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const valueConfidence = getPlayerValueConfidence({ valueProfile, mode: valueMode });
   const sourceValueRows = valueProfile ? (
     isRedraftValueMode
       ? [
@@ -319,23 +329,19 @@ export function PlayerDetailModal({
       : [
           ['Flock Fantasy', valueProfile.flockFantasy],
           ['Market Consensus', valueProfile.marketKtc],
+          ['FantasyPros Dynasty', valueProfile.fantasyProsDynasty],
           ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
           ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
           ['DynastyProcess', valueProfile.dynastyProcess],
           ['Dynasty Nerds', valueProfile.dynastyNerds],
+          ['Fantasy Nerds', valueProfile.fantasyNerds],
           ['Dynasty Dealer Benchmark', valueProfile.dynastyDealerBenchmark],
           ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
         ]
   ).filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const latestNews = playerNewsData?.latestNews ?? details?.latestNews ?? null;
   const hasMeaningfulNews = Boolean(latestNews?.title || latestNews?.summary);
-  const latestNewsRows = hasMeaningfulNews && latestNews ? [
-    ['Title', latestNews.title],
-    ['Date', latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null],
-    ['Source', latestNews.source],
-    ['Summary', latestNews.summary],
-    ['URL', latestNews.url],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const prospectSummary = details?.prospectProfile?.summary || null;
   const intelligenceNotes = buildPlayerIntelligenceNotes({
     details,
     currentRank,
@@ -445,7 +451,7 @@ export function PlayerDetailModal({
               </div>
             )}
 
-            <DialogHeader className="relative px-12 sm:pr-10">
+            <DialogHeader className="relative mx-auto w-full max-w-2xl px-4 text-center sm:px-6">
               <div className="mb-4 flex justify-center">
                 {pick.manager ? (
                   <div className="inline-flex w-fit items-center gap-4 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-xs font-bold text-cyan-200 shadow-lg shadow-black/20">
@@ -471,7 +477,7 @@ export function PlayerDetailModal({
             </DialogHeader>
 
             <div className="relative mt-4 flex justify-center sm:mt-7">
-              <div className="flex w-full max-w-xl flex-col items-center gap-3 sm:grid sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-center sm:gap-7">
+              <div className="flex w-full max-w-2xl flex-col items-center gap-3 sm:gap-4">
                 <div className="relative h-22 w-22 overflow-hidden rounded-2xl border border-cyan-300/35 bg-slate-950 shadow-xl shadow-black/40 sm:h-28 sm:w-28">
                   {playerImageSrc ? (
                     <img
@@ -496,11 +502,11 @@ export function PlayerDetailModal({
                     </div>
                   )}
                 </div>
-                <div className="min-w-0 space-y-3 text-center sm:text-left">
+                <div className="min-w-0 space-y-3 text-center">
                   <div className={`athletic-headline break-words font-black leading-none tracking-normal text-orange-400 ${playerNameSizeClass}`}>
                     {pick.playerName}
                   </div>
-                  <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
+                  <div className="flex flex-wrap justify-center gap-2">
                     {isCollegeProspect ? (
                       <ProspectCollegePill
                         college={prospectCollege}
@@ -524,7 +530,17 @@ export function PlayerDetailModal({
                     <span className={getPositionRankPillClass(position, 'player-modal-position-pill')}>
                       {position}
                     </span>
-                    <StatusPill label={availability.label} tone={availability.tone} />
+                  </div>
+                  <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
+                    {headerInfoRows.map(([label, value]) => (
+                      <InlineInfoTile
+                        key={label}
+                        label={label}
+                        value={value}
+                        teamColors={teamColors}
+                        tileAccent={tileAccent}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -532,7 +548,7 @@ export function PlayerDetailModal({
           </div>
 
           <div className="space-y-4 bg-slate-950/85 p-4 backdrop-blur-sm sm:space-y-5 sm:p-6">
-            {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025) && (
+            {(pick.round !== undefined || pick.pick !== undefined || draftValue !== undefined || pick.positionRankMay2025 || draftKindLabel || draftWindowLabel) && (
               <div className="mx-auto grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                 {pick.round !== undefined && (
                   <InlineInfoTile
@@ -546,6 +562,22 @@ export function PlayerDetailModal({
                   <InlineInfoTile
                     label="Pick #"
                     value={String(pick.pick)}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                )}
+                {draftKindLabel && (
+                  <InlineInfoTile
+                    label="Draft Type"
+                    value={draftKindLabel}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                  />
+                )}
+                {draftWindowLabel && (
+                  <InlineInfoTile
+                    label="Value Basis"
+                    value={draftWindowLabel}
                     teamColors={teamColors}
                     tileAccent={tileAccent}
                   />
@@ -609,8 +641,8 @@ export function PlayerDetailModal({
                 )}
                 {lastSeasonRank && (
                 <MetricTile
-                  label="Last Season Rank"
-                  mobileLabel="Last Yr"
+                  label={previousSeasonRankLabel}
+                  mobileLabel={previousSeasonRankMobileLabel}
                   value={lastSeasonRank}
                   valueClassName={`${getPositionRankPillClass(details?.lastSeasonPositionRank)} player-modal-rank-value`}
                   teamColors={teamColors}
@@ -743,12 +775,30 @@ export function PlayerDetailModal({
               </div>
             )}
 
+            {scheduleRows.length > 0 && (
+              <div className="mx-auto max-w-xl space-y-2">
+                <CompleteDataSection
+                  title="Schedule / Bye Window"
+                  rows={scheduleRows}
+                  teamColors={teamColors}
+                  tileAccent={tileAccent}
+                  compactNumbers
+                  wide
+                  priority
+                />
+                <p className="text-center text-[0.68rem] font-bold uppercase tracking-[0.16em] text-cyan-200/70 sm:text-xs">
+                  Lower SOS values are tougher matchups. Use this for bye-week coverage and streamer timing.
+                </p>
+              </div>
+            )}
+
             {showAIRead && (
               <AIReadPanel
                 title={playerAiRead.title}
                 subtitle={playerAiRead.subtitle}
                 readType={playerAiRead.readType}
                 confidence={playerAiRead.confidence}
+                confidenceNote={playerAiRead.confidenceNote}
                 severity={playerAiRead.severity}
                 chips={playerAiRead.chips}
                 body={playerAiRead.body}
@@ -813,7 +863,7 @@ export function PlayerDetailModal({
                   {isRedraftValueMode ? (
                     <>
                       <InfoTile label="Position Rank" value={topSeasonRank || currentRank || '-'} valueClassName={getPositionRankPillClass(topSeasonRank || currentRank)} teamColors={teamColors} tileAccent={tileAccent} />
-                      <InfoTile label="Team Role" value={formatDepthChart(details?.depthChartPosition, details?.depthChartOrder) || availability.label} teamColors={teamColors} tileAccent={tileAccent} />
+                      <InfoTile label="Team Role" value={formatDepthChartRole(details, true) || availability.label} teamColors={teamColors} tileAccent={tileAccent} />
                       <InfoTile label="Trend" value={valueGain !== undefined && valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'} teamColors={teamColors} tileAccent={tileAccent} />
                     </>
                   ) : (
@@ -823,6 +873,11 @@ export function PlayerDetailModal({
                       <InfoTile label="Rebuilder" value={rebuilderRank || '-'} valueClassName={getPositionRankPillClass(rebuilderRank)} teamColors={teamColors} tileAccent={tileAccent} />
                     </>
                   )}
+                </div>
+                <div className={`player-value-confidence-card player-value-confidence-card-${valueConfidence.tone}`}>
+                  <span>Value Confidence</span>
+                  <strong>{valueConfidence.label} · {valueConfidence.score}%</strong>
+                  <p>{valueConfidence.note}</p>
                 </div>
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
                   <p className="text-center text-[0.68rem] font-bold leading-relaxed uppercase tracking-[0.16em] text-cyan-200/70">
@@ -840,13 +895,6 @@ export function PlayerDetailModal({
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {physicalRows.map(([label, value]) => (
                     <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
-                  ))}
-                </div>
-              )}
-              {backgroundRows.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                  {backgroundRows.map(([label, value]) => (
-                    <InfoTile key={String(label)} label={String(label)} value={value as ReactNode} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>
               )}
@@ -876,23 +924,120 @@ export function PlayerDetailModal({
                   ))}
                 </div>
               )}
-              {!isCollegeProspect && healthRows.map(([label, value]) => (
-                <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
-              ))}
             </div>
 
-            {(marketRankRows.length > 0
-              || sourceValueRows.length > 0
+            {((isAdminView && sourceValueRows.length > 0)
               || prospectRows.length > 0
-              || latestNewsRows.length > 0
+              || Boolean(prospectSummary)
+              || hasMeaningfulNews
               || Boolean(details?.availabilityHistory?.length)) && (
               <div className="player-complete-data mx-auto max-w-xl">
                 <p className="player-complete-title">Source Detail</p>
                 <div className="player-complete-grid">
-                  <CompleteDataSection title="Market Ranks" rows={marketRankRows} teamColors={teamColors} tileAccent={tileAccent} rankValues priority inlineRows />
-                  <CompleteDataSection title="Source Inputs" rows={sourceValueRows} teamColors={teamColors} tileAccent={tileAccent} />
                   <CompleteDataSection title="Prospect File" rows={prospectRows} teamColors={teamColors} tileAccent={tileAccent} wide />
-                  <CompleteDataSection title="Latest News" rows={latestNewsRows} teamColors={teamColors} tileAccent={tileAccent} wide />
+                  {prospectSummary ? (
+                    <div
+                      className="player-complete-section player-complete-section-wide border-cyan-300/15 bg-slate-950/55 p-4 sm:p-5"
+                      style={{
+                        borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
+                        background: teamColors
+                          ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
+                          : undefined,
+                      }}
+                      >
+                        <h4>Prospect Summary</h4>
+                      <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
+                        {prospectSummary}
+                      </p>
+                    </div>
+                  ) : null}
+                  {isAdminView && sourceValueRows.length > 0 ? (
+                    <div
+                      className="player-complete-section player-complete-section-wide border-cyan-300/15 bg-slate-950/55 p-4 sm:p-5"
+                      style={{
+                        borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
+                        background: teamColors
+                          ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
+                          : undefined,
+                      }}
+                    >
+                      <h4>Source Inputs</h4>
+                      <div className="mt-3 grid gap-2">
+                        {sourceValueRows.map(([label, value]) => (
+                          <div
+                            key={`source-${label}`}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-cyan-300/10 bg-slate-950/35 px-3 py-2.5"
+                          >
+                            <span className="min-w-0 flex-1 font-mono text-[0.68rem] font-bold uppercase tracking-[0.16em] text-cyan-200/80 sm:text-[0.72rem]">
+                              {label}
+                            </span>
+                            <strong className="min-w-0 shrink-0 text-right text-sm font-black text-slate-100 sm:text-base">
+                              {formatCompleteValue(value)}
+                            </strong>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {latestNews && hasMeaningfulNews ? (
+                    latestNews?.url ? (
+                      <a
+                        href={latestNews.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="player-complete-section player-complete-section-wide block border-cyan-300/15 bg-slate-950/55 p-4 text-left no-underline transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-slate-950/75 sm:p-5"
+                        style={{
+                          borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
+                          background: teamColors
+                            ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
+                            : undefined,
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h4>Latest News</h4>
+                            <p className="mt-3 break-words text-base font-black leading-tight text-slate-50 sm:text-lg">
+                              {latestNews.title}
+                            </p>
+                            <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
+                              {[latestNews.source, latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null].filter(Boolean).join(' · ') || 'Recent update'}
+                            </p>
+                            {latestNews.summary ? (
+                              <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
+                                {latestNews.summary}
+                              </p>
+                            ) : null}
+                          </div>
+                          <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-400/10 text-cyan-200">
+                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                        </div>
+                      </a>
+                    ) : (
+                      <div
+                        className="player-complete-section player-complete-section-wide border-cyan-300/15 bg-slate-950/55 p-4 text-left sm:p-5"
+                        style={{
+                          borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
+                          background: teamColors
+                            ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
+                            : undefined,
+                        }}
+                      >
+                        <h4>Latest News</h4>
+                        <p className="mt-3 break-words text-base font-black leading-tight text-slate-50 sm:text-lg">
+                          {latestNews.title}
+                        </p>
+                        <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
+                          {[latestNews.source, latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null].filter(Boolean).join(' · ') || 'Recent update'}
+                        </p>
+                        {latestNews.summary ? (
+                          <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
+                            {latestNews.summary}
+                          </p>
+                        ) : null}
+                      </div>
+                    )
+                  ) : null}
                   {details?.availabilityHistory?.length ? (
                     <div className="player-complete-section player-complete-section-wide">
                       <h4>Availability History</h4>
@@ -960,6 +1105,14 @@ function formatBirthday(birthDate: PlayerDetails['birthDate']) {
   });
 }
 
+function formatFortyTime(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') return '-';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-';
+  const trimmed = numeric.toFixed(2).replace(/\.?0+$/, '');
+  return `${trimmed}s`;
+}
+
 function formatSleeperNewsUpdated(value: PlayerDetails['sleeperNewsUpdated']) {
   if (!value) return null;
   const numeric = Number(value);
@@ -979,6 +1132,20 @@ function formatDepthChart(position: string | null | undefined, order: number | n
   if (!position) return null;
   const normalizedPosition = ['SWR', 'LWR', 'RWR'].includes(position) ? 'WR' : position;
   return [normalizedPosition, order ? `#${order}` : null].filter(Boolean).join(' ');
+}
+
+function formatDepthChartRole(details: PlayerDetails | undefined, includeActualPrefix = false) {
+  const label = formatDepthChart(details?.depthChartPosition, details?.depthChartOrder);
+  if (!label) return null;
+  return includeActualPrefix && details?.depthChartVerified ? `Current ${label}` : label;
+}
+
+function getPreviousSeasonRankLabel(details?: PlayerDetails) {
+  return details?.lastSeasonYear ? `${details.lastSeasonYear} Rank` : 'Previous Rank';
+}
+
+function getPreviousSeasonRankMobileLabel(details?: PlayerDetails) {
+  return details?.lastSeasonYear || 'Prev';
 }
 
 function formatValueLens(value: number | null | undefined) {
@@ -1044,6 +1211,8 @@ function getPeerValueForMode(
 
 function getValueChangeNote(pick: PlayerModalData) {
   if (pick.ktcValue !== undefined) {
+    const draftWindowLabel = getDraftWindowLabel(pick, pick.valueMode);
+    if (draftWindowLabel) return `Draft-day value compared against ${draftWindowLabel.toLowerCase()}.`;
     return 'Draft-day value to current value.';
   }
 
@@ -1108,6 +1277,10 @@ function buildPlayerAiRead({
     currentRank || position || 'No rank',
     currentValue ? `Value ${formatValueLens(currentValue)}` : { label: 'No value', tone: 'warn' },
   ];
+  const valueConfidence = getPlayerValueConfidence({ valueProfile, mode: valueMode || 'dynasty' });
+  const scheduleSummary = formatScheduleSummary(details?.schedule || null);
+  const scheduleStreamerWeeks = formatScheduleWeekList(details?.schedule?.streamerWeeks);
+  const scheduleAvoidWeeks = formatScheduleWeekList(details?.schedule?.avoidWeeks);
 
   if (isCollegeProspect) {
     const score = prospectProfile?.rating ? `Prospect score ${prospectProfile.rating}` : 'Prospect file';
@@ -1131,6 +1304,9 @@ function buildPlayerAiRead({
   }
   if (age !== null && age !== undefined) chips.push(`${age} yrs`);
   if (latestNews?.title) chips.push('News attached');
+  if (scheduleSummary) chips.push(scheduleSummary);
+  if (scheduleStreamerWeeks) chips.push(`Stream ${scheduleStreamerWeeks}`);
+  if (scheduleAvoidWeeks) chips.push(`Avoid ${scheduleAvoidWeeks}`);
 
   const isRedraft = valueMode === 'redraft';
   const veteranAge = position === 'RB' ? 27 : position === 'WR' ? 29 : position === 'TE' ? 30 : position === 'QB' ? 33 : 30;
@@ -1169,11 +1345,22 @@ function buildPlayerAiRead({
     body = `${latestNews.title || 'Latest player news'} is attached to this player. Treat news as context, then verify whether the value or role signal actually changed.`;
   }
 
+  if (scheduleSummary) {
+    if (body === `${playerName} is best evaluated through roster context, not raw value alone.` && !latestNews?.title) {
+      readType = 'Schedule Lens';
+      severity = details?.schedule?.scheduleTier === 'hard' || details?.schedule?.scheduleTier === 'elite' ? 'warn' : 'info';
+      body = `${playerName} has ${scheduleSummary.toLowerCase()} loaded. Use the bye-week and SOS inputs for roster planning and streamer timing.`;
+    } else {
+      body = `${body} Schedule context: ${scheduleSummary}.`;
+    }
+  }
+
   return {
     title: `${playerName} AI read`,
     subtitle: isRedraft ? 'Current-season and lineup-context lens.' : 'Dynasty market, season profile, age curve, and availability lens.',
     readType,
-    confidence: valueProfile ? 82 : 62,
+    confidence: valueProfile ? Math.min(86, valueConfidence.score + 8) : Math.min(62, valueConfidence.score + 18),
+    confidenceNote: valueConfidence.note,
     severity,
     chips,
     body,
@@ -1269,7 +1456,7 @@ function buildPlayerDecisionLabels({
   if (lastRankNumber && lastRankNumber <= eliteCutoff && !labels.some((label) => label.label === 'Core Lock')) {
     labels.push({
       label: 'Proven Spike',
-      copy: `${details?.lastSeasonYear || 'Last year'} ${details?.lastSeasonPositionRank} says the ceiling is real.`,
+      copy: `${getPreviousSeasonRankLabel(details)} ${details?.lastSeasonPositionRank} says the ceiling is real.`,
       tone: 'hold',
     });
   }
@@ -1325,8 +1512,8 @@ function buildPlayerIntelligenceNotes({
   if (lastRank) {
     const eliteCutoff = position === 'TE' ? 6 : position === 'QB' ? 8 : 12;
     notes.push({
-      label: 'Last Season',
-      value: `${details?.lastSeasonYear || 'Last'} ${lastRank}`,
+      label: getPreviousSeasonRankLabel(details),
+      value: lastRank,
       copy: [
         details?.lastSeasonGames ? `${details.lastSeasonGames} games` : null,
         details?.lastSeasonPointsPerGame ? `${details.lastSeasonPointsPerGame} PPG` : null,
@@ -1359,11 +1546,34 @@ function buildPlayerIntelligenceNotes({
   if (roleLabel) {
     const isLeadRole = roleLabel.includes('#1') || /^(QB|RB|WR|TE|K|DEF|DST)$/.test(roleLabel);
     const availability = getPlayerAvailability(details);
+    const sleeperRoleLabel = formatDepthChart(details?.sleeperDepthChartPosition, details?.sleeperDepthChartOrder);
+    const roleValue = details?.depthChartVerified ? `Current ${roleLabel}` : roleLabel;
+    const copy = details?.depthChartMismatch && sleeperRoleLabel
+      ? `Sleeper's role tag looks stale; the current team chart has him at ${roleLabel}.`
+      : `Current team chart has him at ${roleLabel} with ${availability.label.toLowerCase()} availability.`;
     notes.push({
       label: 'Team Role',
-      value: roleLabel,
-      copy: `${details?.team || 'Team'} depth chart signal with ${availability.label.toLowerCase()} availability.`,
+      value: roleValue,
+      copy,
       tone: availability.tone === 'risk' || availability.tone === 'warning' ? 'risk' : isLeadRole ? 'upside' : 'neutral',
+    });
+  }
+
+  const scheduleSummary = formatScheduleSummary(details?.schedule || null);
+  if (scheduleSummary) {
+    const streamerWeeks = formatScheduleWeekList(details?.schedule?.streamerWeeks);
+    const avoidWeeks = formatScheduleWeekList(details?.schedule?.avoidWeeks);
+    const scheduleSource = details?.schedule?.source || null;
+    notes.push({
+      label: 'Schedule',
+      value: scheduleSummary,
+      copy: [
+        streamerWeeks ? `Streamer windows: ${streamerWeeks}.` : null,
+        avoidWeeks ? `Avoid windows: ${avoidWeeks}.` : null,
+        scheduleSource ? `Source: ${scheduleSource}.` : null,
+      ].filter(Boolean).join(' ') || 'Use bye weeks and SOS to plan streamer coverage.',
+      tone: details?.schedule?.scheduleTier === 'hard' || details?.schedule?.scheduleTier === 'elite' ? 'market' : 'upside',
+      fullWidth: true,
     });
   }
 
@@ -1430,34 +1640,38 @@ function formatNewsDate(value: string) {
   });
 }
 
+function formatScheduleWeekList(weeks?: number[] | null) {
+  const uniqueWeeks = Array.from(new Set((weeks || []).filter((week): week is number => Number.isFinite(week) && week > 0)))
+    .sort((a, b) => a - b);
+  if (!uniqueWeeks.length) return null;
+  if (uniqueWeeks.length <= 3) return uniqueWeeks.map((week) => `W${week}`).join(' · ');
+  return `${uniqueWeeks.slice(0, 3).map((week) => `W${week}`).join(' · ')} +${uniqueWeeks.length - 3}`;
+}
+
+function formatScheduleTierLabel(tier?: PlayerSchedule['scheduleTier']) {
+  if (!tier) return null;
+  if (tier === 'easy') return 'Easy schedule';
+  if (tier === 'neutral') return 'Neutral schedule';
+  if (tier === 'hard') return 'Hard schedule';
+  return 'Elite schedule';
+}
+
+function formatScheduleSummary(schedule?: PlayerSchedule | null) {
+  if (!schedule) return null;
+  const parts = [
+    schedule.byeWeek ? `Bye W${schedule.byeWeek}` : null,
+    schedule.seasonSOS !== null && schedule.seasonSOS !== undefined ? `SOS ${Math.round(schedule.seasonSOS)}%` : null,
+    formatScheduleTierLabel(schedule.scheduleTier),
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+}
+
 function parseRankNumber(rank?: string | null) {
   if (!rank) return null;
   const match = String(rank).match(/\d+/);
   if (!match) return null;
   const number = Number(match[0]);
   return Number.isFinite(number) ? number : null;
-}
-
-function StatusPill({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: 'active' | 'warning' | 'risk' | 'taxi';
-}) {
-  const toneClass = tone === 'risk'
-    ? 'border-rose-300/35 bg-rose-500/15 text-rose-100'
-    : tone === 'warning'
-      ? 'border-amber-300/35 bg-amber-400/15 text-amber-100'
-      : tone === 'taxi'
-        ? 'border-cyan-300/35 bg-cyan-400/12 text-cyan-100'
-        : 'border-emerald-300/30 bg-emerald-400/10 text-emerald-200';
-
-  return (
-    <span className={`rounded-full border px-3 py-1 text-xs font-bold ${toneClass}`}>
-      {label}
-    </span>
-  );
 }
 
 function ProspectCollegePill({
@@ -1656,7 +1870,7 @@ function InlineInfoTile({
 }) {
   return (
     <div
-      className="flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 sm:gap-2 sm:px-4 sm:py-3"
+      className="flex flex-wrap items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-center sm:gap-2 sm:px-4 sm:py-3"
       style={{
         borderColor: teamColors ? `${tileAccent || teamColors.accent}24` : undefined,
         background: teamColors
@@ -1667,7 +1881,7 @@ function InlineInfoTile({
       <span className="text-sm font-black tracking-normal sm:text-base" style={{ color: tileAccent || teamColors?.accent || undefined }}>
         {label}:
       </span>
-      <span className={`text-sm font-black text-slate-100 sm:text-base ${valueClassName || ''}`}>{value}</span>
+      <span className={`min-w-0 break-words text-sm font-black leading-tight text-slate-100 sm:text-base ${valueClassName || ''}`}>{value}</span>
     </div>
   );
 }

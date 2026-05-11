@@ -22,7 +22,7 @@ import {
   Target,
   Users,
 } from 'lucide-react';
-import type { DraftPick, ManagerIntelPlayer, ManagerStarterPlayer, PlayerDetails, PlayerInfo, RankingPlayer, ReportData, TrendingPlayer, WeeklyMomentum } from '@shared/types';
+import type { ActionPlanRecord, DraftPick, ManagerIntelPlayer, ManagerStarterPlayer, PlayerDetails, PlayerInfo, RankingPlayer, ReportData, TrendingPlayer, WeeklyMomentum } from '@shared/types';
 import { AIReadPanel, type AIReadChip } from './AIReadPanel';
 import { EmptyState, MetricPill, PlayerIdentityRow } from './reportPrimitives';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
@@ -31,6 +31,7 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { getLeagueModeCopy, normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
+import { trpc } from '@/lib/trpc';
 
 type ManagerAvatars = ReportData['managerAvatars'];
 type ManagerIntelRow = NonNullable<ReportData['managerRosterIntelligence']>[number];
@@ -61,6 +62,8 @@ const POSITIONS: Position[] = ['QB', 'RB', 'WR', 'TE'];
 const BLUEPRINT_TIERS = ['Elite', 'Championship', 'Contending', 'Reload', 'Rebuild'];
 const WATCH_ALERT_PREFERENCES_KEY = 'dynasty-degenerates:watch-alert-preferences:v1';
 const PORTFOLIO_SNAPSHOT_KEY = 'dynasty-degenerates:portfolio-snapshots:v1';
+const ACTION_PLAN_STORAGE_KEY = 'dynasty-degenerates:action-plans:v1';
+const TRADE_RECOMMENDATION_OUTCOME_KEY = 'dynasty-degenerates:trade-recommendation-outcomes:v1';
 
 type WatchAlertPreferences = {
   riseThresholdPct: number;
@@ -111,6 +114,208 @@ function formatPercent(value?: number | null): string {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function confidenceFromEvidence(base: number, evidence: Array<[boolean, number]>, cap = 94): number {
+  return clamp(
+    Math.round(evidence.reduce((score, [available, weight]) => score + (available ? weight : 0), base)),
+    28,
+    cap
+  );
+}
+
+function scaledEvidence(count: number | null | undefined, fullSample: number, maxWeight: number): number {
+  const numeric = Number(count || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  return Math.min(maxWeight, (numeric / Math.max(1, fullSample)) * maxWeight);
+}
+
+function getReportTeamCount(data: ReportData): number {
+  return data.leagueDiagnostics?.teamCount
+    || data.managerRosterIntelligence?.length
+    || data.leagueOverview?.length
+    || 12;
+}
+
+function getOverviewConfidence(data: ReportData): number {
+  const leagueConfidence = data.leagueDiagnostics?.aiConfidence?.score;
+  if (Number.isFinite(leagueConfidence)) return clamp(Number(leagueConfidence), 0, 100);
+
+  const teamCount = getReportTeamCount(data);
+  return confidenceFromEvidence(34, [
+    [Boolean(getDefaultManager(data)), 6],
+    [Boolean(data.managerRosterIntelligence?.length), scaledEvidence(data.managerRosterIntelligence?.length, teamCount, 18)],
+    [Boolean(data.powerRankings?.length), scaledEvidence(data.powerRankings?.length, teamCount, 12)],
+    [Boolean(data.leagueOverview?.length), scaledEvidence(data.leagueOverview?.length, teamCount, 10)],
+    [Boolean(data.positionDepth?.length), 8],
+    [Boolean(data.tradeTendencies?.length || data.tradeHistory?.length), scaledEvidence((data.tradeTendencies?.length || 0) + (data.tradeHistory?.length || 0), teamCount + 8, 12)],
+    [Boolean(data.rankings?.defaultProfileKey), 5],
+    [Boolean(data.weeklyRisers?.length || data.weeklyFallers?.length), 5],
+  ]);
+}
+
+function getManagerAiConfidenceScore(data: ReportData, manager: string): number | null {
+  const confidence = data.leagueDiagnostics?.aiConfidence?.managerConfidence
+    ?.find((row) => normalizeNameKey(row.manager) === normalizeNameKey(manager));
+  const score = Number(confidence?.score);
+  return Number.isFinite(score) ? clamp(score, 0, 100) : null;
+}
+
+function capByAiConfidence(data: ReportData, confidence: number, manager?: string | null, padding = 16): number {
+  const caps: number[] = [];
+  const leagueScore = Number(data.leagueDiagnostics?.aiConfidence?.score);
+  if (Number.isFinite(leagueScore)) caps.push(clamp(leagueScore + padding, 28, 94));
+  if (manager) {
+    const managerScore = getManagerAiConfidenceScore(data, manager);
+    if (managerScore !== null) caps.push(clamp(managerScore + padding, 28, 94));
+  }
+  return caps.length ? Math.min(confidence, ...caps) : confidence;
+}
+
+function getAiConfidenceDisplayNote(data: ReportData, manager?: string | null): string | null {
+  const leagueConfidence = data.leagueDiagnostics?.aiConfidence;
+  const managerConfidence = manager
+    ? leagueConfidence?.managerConfidence?.find((row) => normalizeNameKey(row.manager) === normalizeNameKey(manager))
+    : null;
+  const confidence = managerConfidence || leagueConfidence;
+  if (!confidence) return null;
+
+  const delta = Number(confidence.scoreDelta);
+  const trend = Number.isFinite(delta) && delta !== 0
+    ? `${delta > 0 ? '+' : ''}${delta} since last snapshot`
+    : Number.isFinite(delta)
+      ? 'flat since last snapshot'
+      : 'evidence building';
+  const weakestSignal = [...(confidence.signals || [])].sort((a, b) => a.score - b.score)[0]?.label.toLowerCase();
+  const scope = managerConfidence ? 'Team' : 'League';
+
+  return weakestSignal
+    ? `${scope} ${trend}; weakest ${weakestSignal}.`
+    : `${scope} ${trend}.`;
+}
+
+function getMonthlyConfidence(data: ReportData, manager: string, hasPartialHistory: boolean): number {
+  const managerHistoryCount = (data.monthlyBlueprintHistory || []).filter((snapshot) => snapshot.manager === manager).length;
+  const rawConfidence = confidenceFromEvidence(hasPartialHistory ? 38 : 46, [
+    [Boolean(getIntel(data, manager)), 12],
+    [Boolean(getPower(data, manager)), 8],
+    [Boolean(getOverview(data, manager)), 8],
+    [Boolean(data.pickPortfolios?.some((row) => row.manager === manager)), 6],
+    [Boolean(data.tradeHistory?.length), scaledEvidence(data.tradeHistory?.length, 10, 8)],
+    [Boolean(data.weeklyRisers?.length || data.weeklyFallers?.length), 5],
+    [managerHistoryCount >= 2, scaledEvidence(managerHistoryCount, 4, 10)],
+    [data.monthlyBlueprintSnapshot?.status === 'stored', 4],
+  ]);
+  return capByAiConfidence(data, rawConfidence, manager, 14);
+}
+
+function getManagerReadConfidence(data: ReportData, manager: string): number {
+  const rawConfidence = confidenceFromEvidence(36, [
+    [Boolean(getIntel(data, manager)), 16],
+    [Boolean(getPower(data, manager)), 9],
+    [Boolean(getOverview(data, manager)), 9],
+    [Boolean(data.managerPositionCounts?.some((row) => row.manager === manager)), 8],
+    [Boolean(data.pickPortfolios?.some((row) => row.manager === manager)), 5],
+    [Boolean(data.tradeTendencies?.some((row) => row.manager === manager)), 5],
+    [Boolean(data.weeklyRisers?.some((row) => row.owner === manager) || data.weeklyFallers?.some((row) => row.owner === manager)), 4],
+  ]);
+  return capByAiConfidence(data, rawConfidence, manager, 16);
+}
+
+function getRankingsConfidence(data: ReportData, rowCount: number): number {
+  const rawConfidence = confidenceFromEvidence(rowCount ? 42 : 32, [
+    [rowCount > 0, scaledEvidence(rowCount, 250, 22)],
+    [Boolean(data.leagueDiagnostics?.valueSnapshotProfileCount), 8],
+    [Boolean(data.rankings?.defaultProfileKey), 8],
+    [Boolean(data.currentPositionRankById && Object.keys(data.currentPositionRankById).length), 6],
+    [Boolean(data.weeklyRisers?.length || data.weeklyFallers?.length), 6],
+  ]);
+  return capByAiConfidence(data, rawConfidence, null, 18);
+}
+
+function getTradeHistoryConfidence(data: ReportData): number {
+  const tradeCount = data.tradeHistory?.length || 0;
+  const rawConfidence = confidenceFromEvidence(tradeCount ? 42 : 30, [
+    [tradeCount > 0, scaledEvidence(tradeCount, 18, 22)],
+    [Boolean(data.tradeTendencies?.length), scaledEvidence(data.tradeTendencies?.length, getReportTeamCount(data), 12)],
+    [Boolean(data.tradeProfitLeaderboard?.length), 8],
+    [Boolean(data.managerRosterIntelligence?.length), 6],
+    [Boolean(data.standingsHistory?.length), 5],
+  ]);
+  return capByAiConfidence(data, rawConfidence, null, 16);
+}
+
+function getModuleConfidence(base: number, evidence: Array<[boolean, number]>): number {
+  return confidenceFromEvidence(base, evidence, 92);
+}
+
+function normalizeNameKey(value: string | null | undefined): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeTradePlayerKey(value: string | null | undefined): string {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function formatTradeSignalDate(value?: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+}
+
+function getTradeResistanceRead(
+  data: ReportData,
+  targetManager: string,
+  targetPlayer?: ManagerIntelPlayer | null,
+): { penalty: number; chip: AIReadChip | null; note: string | null; playerSpecific: boolean } {
+  const managerKey = normalizeNameKey(targetManager);
+  const managerSignals = (data.tradeProposalSignals || [])
+    .filter((signal) => signal.managers.some((manager) => normalizeNameKey(manager) === managerKey));
+  const targetPlayerNameKey = normalizeTradePlayerKey(targetPlayer?.name);
+  const playerSignals = targetPlayer?.player_id
+    ? managerSignals.filter((signal) => (
+      signal.playerIds.includes(targetPlayer.player_id)
+      || (targetPlayerNameKey && signal.playerNames.some((name) => normalizeTradePlayerKey(name) === targetPlayerNameKey))
+    ))
+    : [];
+  const hardStatusPattern = /declin|reject|cancel|veto|fail|expire/i;
+  const hardSignals = (playerSignals.length ? playerSignals : managerSignals)
+    .filter((signal) => hardStatusPattern.test(signal.status));
+  const signal = hardSignals[0] || playerSignals[0] || managerSignals[0] || null;
+  const playerSpecificSignalCount = playerSignals.length;
+  const hardSignalCount = hardSignals.length;
+  const softSignalCount = Math.max(0, managerSignals.length - hardSignalCount);
+  const penalty = Math.min(22, playerSpecificSignalCount * 9 + hardSignalCount * 5 + softSignalCount * 2);
+
+  if (!signal || penalty <= 0) {
+    return { penalty: 0, chip: null, note: null, playerSpecific: false };
+  }
+
+  const playerSpecific = Boolean(targetPlayer && playerSignals.length);
+  const statusLabel = signal.status.replace(/_/g, ' ');
+  const latestDateLabel = formatTradeSignalDate(signal.date);
+  const countCopy = playerSpecific
+    ? `${playerSpecificSignalCount} player-specific signal${playerSpecificSignalCount === 1 ? '' : 's'}`
+    : `${managerSignals.length} non-complete trade signal${managerSignals.length === 1 ? '' : 's'}`;
+  const latestCopy = latestDateLabel ? ` Latest: ${latestDateLabel}.` : '';
+  const chip = playerSpecific
+    ? { label: `${targetPlayer?.name} resistance`, tone: 'warn' as const }
+    : { label: `${targetManager} trade friction`, tone: 'warn' as const };
+  const note = playerSpecific
+    ? `${targetManager} has ${countCopy} involving ${targetPlayer?.name} (${statusLabel}).${latestCopy} Lower the first ask or include a cleaner fit.`
+    : `${targetManager} has ${countCopy} (${statusLabel}), so confidence is discounted until the offer fit is cleaner.${latestCopy}`;
+
+  return { penalty, chip, note, playerSpecific };
+}
+
+function applyTradeResistance(confidence: number, resistance: { penalty: number }): number {
+  return clamp(Math.round(confidence - resistance.penalty), 28, 94);
 }
 
 function toFiniteNumber(value: unknown): number | null {
@@ -186,6 +391,111 @@ function readPortfolioSnapshots(): PortfolioSnapshot[] {
 function writePortfolioSnapshots(snapshots: PortfolioSnapshot[]) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(PORTFOLIO_SNAPSHOT_KEY, JSON.stringify(snapshots.slice(0, 30)));
+}
+
+function readJsonArrayFromStorage<T>(key: string): T[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || '[]');
+    return Array.isArray(parsed) ? parsed as T[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeJsonArrayToStorage<T>(key: string, value: T[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
+}
+
+function readTrackedTradePlans(): ActionPlanRecord[] {
+  return mergeTrackedTradePlans(
+    readJsonArrayFromStorage<ActionPlanRecord>(ACTION_PLAN_STORAGE_KEY),
+    readJsonArrayFromStorage<ActionPlanRecord>(TRADE_RECOMMENDATION_OUTCOME_KEY)
+  ).slice(0, 80);
+}
+
+function writeTrackedTradePlans(plans: ActionPlanRecord[]) {
+  const tradePlans = mergeTrackedTradePlans(plans).slice(0, 80);
+  const existingActionPlans = readJsonArrayFromStorage<ActionPlanRecord>(ACTION_PLAN_STORAGE_KEY);
+  const nonTradePlans = existingActionPlans.filter((plan) => plan?.kind !== 'trade');
+  const nextActionPlans = [...tradePlans, ...nonTradePlans]
+    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
+    .slice(0, 100);
+  writeJsonArrayToStorage(ACTION_PLAN_STORAGE_KEY, nextActionPlans);
+  writeJsonArrayToStorage(TRADE_RECOMMENDATION_OUTCOME_KEY, tradePlans);
+}
+
+function upsertTrackedTradePlan(plan: ActionPlanRecord): ActionPlanRecord[] {
+  const next = [plan, ...readTrackedTradePlans().filter((item) => item.id !== plan.id)]
+    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
+    .slice(0, 80);
+  writeTrackedTradePlans(next);
+  return next;
+}
+
+function mergeTrackedTradePlans(...groups: ActionPlanRecord[][]): ActionPlanRecord[] {
+  const byId = new Map<string, ActionPlanRecord>();
+  groups.flat().forEach((plan) => {
+    if (plan?.kind !== 'trade' || !plan.id) return;
+    const existing = byId.get(plan.id);
+    if (!existing || (plan.updatedAt || plan.createdAt) >= (existing.updatedAt || existing.createdAt)) {
+      byId.set(plan.id, plan);
+    }
+  });
+  return Array.from(byId.values())
+    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
+    .slice(0, 100);
+}
+
+function getTradePlanId(
+  leagueId: string | undefined,
+  sourceManager: string,
+  targetManager: string,
+  targetPlayer?: ManagerIntelPlayer | null,
+): string {
+  return [
+    'trade',
+    leagueId || 'unknown-league',
+    normalizeNameKey(sourceManager),
+    normalizeNameKey(targetManager),
+    targetPlayer?.player_id || normalizeTradePlayerKey(targetPlayer?.name) || 'value-fit',
+  ].join(':');
+}
+
+function getTradePlanOutcomeStatus(data: ReportData, plan: ActionPlanRecord): ActionPlanRecord['status'] | null {
+  if (plan.kind !== 'trade' || ['acted', 'blocked'].includes(plan.status)) return null;
+  const sourceManager = String(plan.payload?.sourceManager || plan.manager || '');
+  const targetManager = String(plan.payload?.targetManager || '');
+  const createdAt = Number(plan.createdAt || 0);
+  const completedTrade = (data.tradeHistory || []).find((trade) => {
+    const dateMs = Date.parse(trade.date);
+    const afterPlan = !createdAt || !Number.isFinite(dateMs) || dateMs >= createdAt - 86_400_000;
+    return afterPlan
+      && [trade.team_a, trade.team_b].some((manager) => normalizeNameKey(manager) === normalizeNameKey(sourceManager))
+      && [trade.team_a, trade.team_b].some((manager) => normalizeNameKey(manager) === normalizeNameKey(targetManager));
+  });
+  if (completedTrade) return 'acted';
+
+  const targetPlayerId = String(plan.payload?.targetPlayerId || plan.playerId || '');
+  const targetPlayerNameKey = normalizeTradePlayerKey(String(plan.payload?.targetPlayerName || ''));
+  const blockedSignal = (data.tradeProposalSignals || []).find((signal) => {
+    const dateMs = Date.parse(signal.date);
+    const afterPlan = !createdAt || !Number.isFinite(dateMs) || dateMs >= createdAt - 86_400_000;
+    const includesManagers = signal.managers.some((manager) => normalizeNameKey(manager) === normalizeNameKey(sourceManager))
+      && signal.managers.some((manager) => normalizeNameKey(manager) === normalizeNameKey(targetManager));
+    const includesPlayer = !targetPlayerId && !targetPlayerNameKey
+      ? true
+      : signal.playerIds.includes(targetPlayerId)
+        || signal.playerNames.some((name) => normalizeTradePlayerKey(name) === targetPlayerNameKey);
+    return afterPlan && includesManagers && includesPlayer && /declin|reject|cancel|veto|fail|expire/i.test(signal.status);
+  });
+  if (blockedSignal) return 'blocked';
+  return null;
 }
 
 function getManagerOptions(data: ReportData): string[] {
@@ -532,10 +842,13 @@ function buildOverviewRead(data: ReportData) {
     title: `${modeCopy.ownerTitle} Upgrade Path`,
     body: `${lead} ${valueLine} ${gapLine} ${partnerLine}`,
     chips: [
+      data.leagueDiagnostics?.aiConfidence
+        ? { label: data.leagueDiagnostics.aiConfidence.label, tone: data.leagueDiagnostics.aiConfidence.score >= 70 ? 'good' : data.leagueDiagnostics.aiConfidence.score >= 52 ? 'info' : 'warn' }
+        : null,
       leagueValueMode === 'redraft' ? 'Season lens' : 'Dynasty lens',
       data.powerRankings?.length ? 'Power ranks loaded' : { label: 'No power ranks', tone: 'warn' },
       data.managerRosterIntelligence?.length ? 'Roster recon loaded' : { label: 'Roster recon missing', tone: 'warn' },
-    ] as AIReadChip[],
+    ].filter(Boolean) as AIReadChip[],
   };
 }
 
@@ -545,13 +858,15 @@ export function OverviewAIPulse({
   data: ReportData;
 }) {
   const read = buildOverviewRead(data);
+  const confidence = getOverviewConfidence(data);
   return (
     <AIReadPanel
       title={read.title}
       subtitle="Live league scan using returned Sleeper rosters, league-matched values, and stored movement windows."
       readType="League Exploit"
-      confidence={data.managerRosterIntelligence?.length ? 84 : 54}
-      severity={data.managerRosterIntelligence?.length ? 'info' : 'warn'}
+      confidence={confidence}
+      confidenceNote={getAiConfidenceDisplayNote(data)}
+      severity={confidence >= 76 ? 'info' : 'warn'}
       chips={read.chips}
       body={read.body}
       backgroundVariant="league"
@@ -573,7 +888,22 @@ function buildTradePartners(data: ReportData, sourceManager: string) {
     const theyOffer = getBestTradeableAtPosition(intel, sourceNeed) || intel?.sellCandidate || intel?.tradeChip || null;
     const canMatchNeed = Boolean(youOffer && need);
     const canHelpYou = Boolean(theyOffer && sourceNeed);
-    const confidence = clamp(45 + (canMatchNeed ? 18 : 0) + (canHelpYou ? 18 : 0) + (surplus && sourceNeed === surplus ? 12 : 0), 35, 94);
+    const tendency = data.tradeTendencies?.find((row) => normalizeNameKey(row.manager) === normalizeNameKey(manager));
+    const activityAdjustment = tendency
+      ? tendency.tradeCount >= 6
+        ? 8
+        : tendency.tradeCount >= 3
+          ? 5
+          : tendency.tradeCount === 0
+            ? -6
+            : 0
+      : 0;
+    const favoritePartnerAdjustment = normalizeNameKey(tendency?.favoritePartner) === normalizeNameKey(sourceManager) ? 4 : 0;
+    const resistance = getTradeResistanceRead(data, manager, theyOffer);
+    const confidence = applyTradeResistance(
+      clamp(45 + (canMatchNeed ? 18 : 0) + (canHelpYou ? 18 : 0) + (surplus && sourceNeed === surplus ? 12 : 0) + activityAdjustment + favoritePartnerAdjustment, 35, 94),
+      resistance
+    );
     const label = need
       ? `${need} buyer`
       : surplus
@@ -597,7 +927,8 @@ function buildTradePartners(data: ReportData, sourceManager: string) {
       theyOffer,
       angle,
       confidence,
-      aiRead: `${manager} reads as ${label.toLowerCase()}. ${angle}.`,
+      resistanceRead: resistance,
+      aiRead: `${manager} reads as ${label.toLowerCase()}. ${angle}.${resistance.note ? ` ${resistance.note}` : ''}`,
     };
   }).sort((a, b) => b.confidence - a.confidence);
 }
@@ -635,6 +966,7 @@ export function MonthlyTeamBlueprint({
   const hasPartialHistory = !data.standingsHistory?.length || !data.tradeHistory?.length || !data.weeklyRisers?.length;
   const snapshotStatus = data.monthlyBlueprintSnapshot;
   const formatBadges = getFormatBadges(data);
+  const monthlyConfidence = getMonthlyConfidence(data, manager, hasPartialHistory);
 
   if (!managerOptions.length || !intel) {
     return (
@@ -887,8 +1219,9 @@ export function MonthlyTeamBlueprint({
           title="Monthly blueprint ready"
           subtitle="Uses current roster, league rankings, draft picks, trade history, and 7-day value movement where available."
           readType="Monthly Blueprint"
-          confidence={hasPartialHistory ? 74 : 88}
-          severity={hasPartialHistory ? 'warn' : 'good'}
+          confidence={monthlyConfidence}
+          confidenceNote={getAiConfidenceDisplayNote(data, manager)}
+          severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
           chips={[
             snapshotStatus?.status === 'stored'
               ? `Stored ${snapshotStatus.month}`
@@ -1328,8 +1661,9 @@ export function MonthlyTeamBlueprint({
             <AIReadPanel
               title="Blueprint AI Summary"
               readType="Monthly Blueprint"
-              confidence={hasPartialHistory ? 76 : 90}
-              severity={hasPartialHistory ? 'warn' : 'good'}
+              confidence={monthlyConfidence}
+              confidenceNote={getAiConfidenceDisplayNote(data, manager)}
+              severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
               chips={[
                 `Value rank #${overview?.rank_value || '-'}`,
                 `${formatPercent(intel.starterValuePct)} starter share`,
@@ -1406,7 +1740,7 @@ export function LeaguePowerRankings({
                 compact
                 title={`${row.manager} power read`}
                 readType="Contender Path"
-                confidence={82}
+                confidence={getManagerReadConfidence(data, row.manager)}
                 severity={readiness >= 70 ? 'good' : readiness <= 45 ? 'warn' : 'info'}
                 chips={chips}
                 body={`${row.manager}'s best advantage is ${strength.toLowerCase()}. The biggest roster flaw is ${weakness.toLowerCase()}. ${intel?.summary || 'Roster intelligence was not returned for a deeper read.'}`}
@@ -1544,7 +1878,7 @@ export function TeamBreakdownRecon({
         <AIReadPanel
           title={`${manager} suggested next move`}
           readType={intel.timeline?.toLowerCase().includes('rebuild') ? 'Rebuild Path' : 'Contender Path'}
-          confidence={84}
+          confidence={getManagerReadConfidence(data, manager)}
           severity={weaknesses.length > 2 ? 'warn' : 'info'}
           chips={[
             `Need: ${getNeedPosition(data, manager) || '-'}`,
@@ -1563,14 +1897,100 @@ export function TeamBreakdownRecon({
 export function TradePartnerFinder({
   data,
   managerAvatars,
+  leagueId,
 }: {
   data: ReportData;
   managerAvatars?: ManagerAvatars;
+  leagueId?: string;
 }) {
   const managerOptions = getManagerOptions(data);
   const [selectedManager, setSelectedManager] = useState(getDefaultManager(data));
+  const [localTrackedTradePlans, setLocalTrackedTradePlans] = useState<ActionPlanRecord[]>(() => readTrackedTradePlans());
+  const utils = trpc.useUtils();
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
+  const isServerPersistenceEnabled = Boolean(authQuery.data);
+  const serverTrackedTradePlansQuery = trpc.actionPlans.list.useQuery(
+    { leagueId },
+    {
+      enabled: isServerPersistenceEnabled,
+      retry: false,
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 30,
+    }
+  );
+  const upsertTrackedTradePlanMutation = trpc.actionPlans.upsert.useMutation({
+    onSuccess: async () => {
+      await utils.actionPlans.list.invalidate({ leagueId });
+    },
+  });
   const manager = selectedManager || managerOptions[0] || '';
   const recommendations = useMemo(() => buildTradePartners(data, manager).slice(0, 8), [data, manager]);
+  const trackedTradePlans = useMemo(
+    () => mergeTrackedTradePlans(localTrackedTradePlans, serverTrackedTradePlansQuery.data?.plans || []),
+    [localTrackedTradePlans, serverTrackedTradePlansQuery.data?.plans]
+  );
+  const visibleTrackedTradePlans = trackedTradePlans.filter((plan) => (
+    (!leagueId || !plan.leagueId || plan.leagueId === leagueId)
+    && normalizeNameKey(String(plan.payload?.sourceManager || plan.manager || '')) === normalizeNameKey(manager)
+  ));
+
+  const persistTrackedTradePlan = (plan: ActionPlanRecord) => {
+    const planWithUpdatedAt = {
+      ...plan,
+      updatedAt: Date.now(),
+    };
+    setLocalTrackedTradePlans(upsertTrackedTradePlan(planWithUpdatedAt));
+    if (isServerPersistenceEnabled) {
+      upsertTrackedTradePlanMutation.mutate({ plan: planWithUpdatedAt });
+    }
+  };
+
+  useEffect(() => {
+    trackedTradePlans.forEach((plan) => {
+      const outcomeStatus = getTradePlanOutcomeStatus(data, plan);
+      if (!outcomeStatus || outcomeStatus === plan.status) return;
+      persistTrackedTradePlan({
+        ...plan,
+        status: outcomeStatus,
+        summary: outcomeStatus === 'acted'
+          ? `${plan.summary} Outcome: a completed trade with this manager is now in the ledger.`
+          : `${plan.summary} Outcome: a non-complete trade signal is now in the ledger.`,
+        payload: {
+          ...plan.payload,
+          outcomeStatus,
+          outcomeCheckedAt: Date.now(),
+        },
+      });
+    });
+  }, [data, trackedTradePlans, isServerPersistenceEnabled]);
+
+  const trackTradePlan = (recommendation: ReturnType<typeof buildTradePartners>[number]) => {
+    const plan: ActionPlanRecord = {
+      id: getTradePlanId(leagueId, manager, recommendation.manager, recommendation.theyOffer),
+      kind: 'trade',
+      leagueId,
+      manager,
+      playerId: recommendation.theyOffer?.player_id,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      title: `Trade read: ${recommendation.manager}`,
+      summary: recommendation.aiRead,
+      status: 'tracked',
+      payload: {
+        sourceManager: manager,
+        targetManager: recommendation.manager,
+        targetPlayerId: recommendation.theyOffer?.player_id || null,
+        targetPlayerName: recommendation.theyOffer?.name || null,
+        confidence: recommendation.confidence,
+        resistanceNote: recommendation.resistanceRead.note,
+      },
+    };
+    persistTrackedTradePlan(plan);
+  };
 
   if (!managerOptions.length) {
     return <EmptyState className="command-module-empty" title="No managers found for trade partner matching" />;
@@ -1586,6 +2006,20 @@ export function TradePartnerFinder({
           </select>
         </label>
       </div>
+      {visibleTrackedTradePlans.length > 0 && (
+        <div className="trade-outcome-strip" aria-label="Tracked trade recommendation outcomes">
+          <span>Tracked trade reads</span>
+          <em className="trade-outcome-sync-state">
+            {isServerPersistenceEnabled ? 'Synced' : 'Local fallback'}
+          </em>
+          {visibleTrackedTradePlans.slice(0, 4).map((plan) => (
+            <small key={plan.id} className={`trade-outcome-pill trade-outcome-pill-${plan.status}`}>
+              <strong>{String(plan.payload?.targetManager || plan.title)}</strong>
+              <em>{plan.status}</em>
+            </small>
+          ))}
+        </div>
+      )}
       <div className="trade-partner-grid balanced-tile-grid" style={getBalancedGridStyle(recommendations.length)}>
         {recommendations.map((recommendation) => (
           <article key={recommendation.manager} className="trade-partner-card">
@@ -1605,8 +2039,9 @@ export function TradePartnerFinder({
               readType="Trade Window"
               confidence={recommendation.confidence}
               severity={recommendation.confidence >= 75 ? 'good' : recommendation.confidence <= 55 ? 'warn' : 'info'}
-              chips={[recommendation.label, recommendation.need ? `${recommendation.need} need` : 'No clear need']}
+              chips={[recommendation.label, recommendation.need ? `${recommendation.need} need` : 'No clear need', recommendation.resistanceRead.chip].filter(Boolean) as AIReadChip[]}
               body={recommendation.aiRead}
+              actions={[{ label: 'Track trade read', onClick: () => trackTradePlan(recommendation) }]}
               backgroundVariant="trade"
             />
           </article>
@@ -1644,6 +2079,7 @@ export function TradeFinderGenerator({
   const awayValue = getTradePlayerValue(selectedAway, data);
   const targetValue = getTradePlayerValue(selectedTarget, data);
   const gap = targetValue - awayValue;
+  const targetResistance = getTradeResistanceRead(data, targetManager, selectedTarget);
   const secondaryGive = sourcePlayers.find((player) => player.player_id !== selectedAway?.player_id && player.pos === sourceIntel?.tradePlan?.surplusPosition) || null;
   const secondaryAsk = targetPlayers.find((player) => player.player_id !== selectedTarget?.player_id && player.pos === targetIntel?.tradePlan?.surplusPosition) || null;
   const secondaryGiveValue = getTradePlayerValue(secondaryGive, data);
@@ -1654,7 +2090,7 @@ export function TradeFinderGenerator({
       give: [selectedAway],
       receive: [selectedTarget],
       gap,
-      confidence: Math.max(42, 88 - Math.round(Math.abs(gap) / 125)),
+      confidence: applyTradeResistance(Math.max(42, 88 - Math.round(Math.abs(gap) / 125)), targetResistance),
       note: Math.abs(gap) <= 500
         ? 'Raw value is close enough to start the conversation, then roster fit decides the rest.'
         : gap > 0
@@ -1666,7 +2102,7 @@ export function TradeFinderGenerator({
       give: [selectedAway, secondaryGive],
       receive: [selectedTarget],
       gap: targetValue - awayValue - secondaryGiveValue,
-      confidence: Math.max(38, 82 - Math.round(Math.abs(targetValue - awayValue - secondaryGiveValue) / 150)),
+      confidence: applyTradeResistance(Math.max(38, 82 - Math.round(Math.abs(targetValue - awayValue - secondaryGiveValue) / 150)), targetResistance),
       note: `${secondaryGive.name} turns this into a ${sourceIntel?.tradePlan?.surplusPosition || 'depth'} consolidation package instead of a one-for-one value poke.`,
     } : null,
     secondaryAsk ? {
@@ -1674,7 +2110,7 @@ export function TradeFinderGenerator({
       give: [selectedAway],
       receive: [selectedTarget, secondaryAsk],
       gap: targetValue + secondaryAskValue - awayValue,
-      confidence: Math.max(34, 78 - Math.round(Math.abs(targetValue + secondaryAskValue - awayValue) / 175)),
+      confidence: applyTradeResistance(Math.max(34, 78 - Math.round(Math.abs(targetValue + secondaryAskValue - awayValue) / 175)), targetResistance),
       note: `${secondaryAsk.name} is the add-back if ${targetManager} wants the cleaner headline asset.`,
     } : null,
   ].filter(Boolean) as Array<{ label: string; give: ManagerIntelPlayer[]; receive: ManagerIntelPlayer[]; gap: number; confidence: number; note: string }> : [];
@@ -1735,11 +2171,12 @@ export function TradeFinderGenerator({
           mode,
           selectedAway ? `Give ${selectedAway.name}` : { label: 'No outgoing asset', tone: 'warn' },
           selectedTarget ? `Ask ${selectedTarget.name}` : { label: 'No target asset', tone: 'warn' },
-        ]}
+          targetResistance.chip,
+        ].filter(Boolean) as AIReadChip[]}
         body={qbDepthWarning
           ? `Do not move ${selectedAway?.name} in this Superflex build unless another QB is coming back. The roster does not have enough QB depth for raw value math to be useful.`
           : packages.length
-            ? `The cleanest starting point is ${packages[0].label.toLowerCase()} with a value gap of ${gap >= 0 ? '+' : ''}${formatCompactValue(gap)} from your side. Roster fit still matters more than calculator symmetry.`
+            ? `The cleanest starting point is ${packages[0].label.toLowerCase()} with a value gap of ${gap >= 0 ? '+' : ''}${formatCompactValue(gap)} from your side. Roster fit still matters more than calculator symmetry.${targetResistance.note ? ` ${targetResistance.note}` : ''}`
             : 'Returned roster data does not contain enough tradeable player detail to generate a responsible package.'}
         backgroundVariant="trade"
       />
@@ -1890,7 +2327,7 @@ export function LeagueExploits({
             compact
             title="Exploit read"
             readType="League Exploit"
-            confidence={78}
+            confidence={getManagerReadConfidence(data, exploit.manager)}
             severity={exploit.tone}
             chips={[exploit.exploit, exploit.manager]}
             body={`${exploit.suggestedMove}. ${exploit.why}`}
@@ -1911,14 +2348,15 @@ export function RankingsMarketRead({
   const topRiser = [...rows].filter((row) => !row.isPick && !row.isDevy).sort((a, b) => (b.movement || 0) - (a.movement || 0))[0];
   const topFaller = [...rows].filter((row) => !row.isPick && !row.isDevy).sort((a, b) => (a.movement || 0) - (b.movement || 0))[0];
   const ownedCount = rows.filter((row) => row.owner).length;
+  const confidence = getRankingsConfidence(data, rows.length);
 
   return (
     <AIReadPanel
       title="Ranking board market signal"
       subtitle="This board uses league-matched values and source metadata when returned by the rankings endpoint."
       readType="Market Signal"
-      confidence={rows.length ? 82 : 50}
-      severity={rows.length ? 'info' : 'warn'}
+      confidence={confidence}
+      severity={confidence >= 70 ? 'info' : 'warn'}
       chips={[
         `${rows.length} assets`,
         `${ownedCount} rostered`,
@@ -1942,14 +2380,15 @@ export function TradeBrowserRead({
   const biggestGap = [...trades].sort((a, b) => Math.abs(b.point_gap || 0) - Math.abs(a.point_gap || 0))[0];
   const mostActive = [...(data.tradeTendencies || [])].sort((a, b) => b.tradeCount - a.tradeCount)[0];
   const bestProfit = [...(data.tradeProfitLeaderboard || [])].sort((a, b) => b.profit - a.profit)[0];
+  const confidence = getTradeHistoryConfidence(data);
 
   return (
     <AIReadPanel
       title="Trade browser read"
       subtitle="Searchable trade ledger foundation with value-gap context, manager tendency signals, and roster-window reads."
       readType="Trade Window"
-      confidence={trades.length ? 84 : 55}
-      severity={trades.length ? 'info' : 'warn'}
+      confidence={confidence}
+      severity={confidence >= 68 ? 'info' : 'warn'}
       chips={[
         `${trades.length} trades`,
         mostActive ? `Most active: ${mostActive.manager}` : { label: 'No tendencies', tone: 'warn' },
@@ -2381,6 +2820,50 @@ export function AssistantFeatureShells({
     savedPortfolioLeagueCount: savedPortfolio.leagueCount,
     matchupPreviewAvailable: matchupDataAvailable,
   }), [data, manager, matchupDataAvailable, savedPortfolio.leagueCount, watchPreferences.savedAt, watchPreferences.trackedPlayerIds.length]);
+  const watchConfidence = getModuleConfidence(watchSignals.length ? 44 : 32, [
+    [watchSignals.length > 0, scaledEvidence(watchSignals.length, 8, 22)],
+    [Boolean(data.weeklyRisers?.length), 8],
+    [Boolean(data.weeklyFallers?.length), 8],
+    [Boolean(watchPreferences.savedAt || watchPreferences.trackedPlayerIds.length), 6],
+  ]);
+  const lineupConfidence = getModuleConfidence(counts ? 42 : 30, [
+    [Boolean(counts), 16],
+    [usesSleeperStarterMap, 14],
+    [starterPlayers.length > 0, scaledEvidence(starterPlayers.length, 8, 8)],
+    [benchPressure.length > 0, 5],
+    [Boolean(data.leagueDiagnostics?.starterCalculation), 6],
+  ]);
+  const waiverConfidence = getModuleConfidence(waiverAdds.length ? 40 : 30, [
+    [Boolean(data.waiverIntelligence), 12],
+    [waiverAdds.length > 0, scaledEvidence(waiverAdds.length, 8, 16)],
+    [Boolean(data.recentTransactions?.length), scaledEvidence(data.recentTransactions?.length, 12, 10)],
+    [Boolean(intel?.droppablePlayers?.length), 6],
+    [Boolean(data.positionDepth?.length), 5],
+  ]);
+  const exposureConfidence = getModuleConfidence(portfolio.totalValue ? 40 : 30, [
+    [portfolio.totalValue > 0, 14],
+    [portfolio.topAssets.length > 0, scaledEvidence(portfolio.topAssets.length, 8, 8)],
+    [savedPortfolio.leagueCount > 1, scaledEvidence(savedPortfolio.leagueCount, 4, 16)],
+    [savedPortfolio.overexposedPlayers.length > 0, 6],
+  ]);
+  const rookieConfidence = getModuleConfidence(rookieSignals.length ? 40 : 30, [
+    [rookieSignals.length > 0, scaledEvidence(rookieSignals.length, 10, 18)],
+    [Boolean(data.draftPicks?.length), 10],
+    [Boolean(data.prospectSourceDiagnostics?.status), 8],
+    [Boolean(data.weeklyRisers?.length || data.weeklyFallers?.length), 5],
+  ]);
+  const newsConfidence = getModuleConfidence(newsRows.length ? 38 : 30, [
+    [newsRows.length > 0, scaledEvidence(newsRows.length, 10, 18)],
+    [Boolean(data.playerDetailsById && Object.values(data.playerDetailsById).some((details) => details.latestNews)), 12],
+    [Boolean(data.weeklyRisers?.length || data.weeklyFallers?.length), 5],
+  ]);
+  const matchupConfidence = getModuleConfidence(matchupDataAvailable ? 42 : 28, [
+    [matchupDataAvailable, 20],
+    [Boolean(matchupPreview?.positionEdges?.length), 8],
+    [Boolean(matchupPreview?.mustStarts?.length || matchupPreview?.vulnerableSpots?.length), 8],
+    [usesSleeperStarterMap, 6],
+    [Boolean(data.leagueDiagnostics?.starterCountSummary), 4],
+  ]);
 
   useEffect(() => {
     if (!portfolioSnapshot) return;
@@ -2519,7 +3002,7 @@ export function AssistantFeatureShells({
           <AIReadPanel
             title="Market signal read"
             readType="Market Signal"
-            confidence={watchSignals.length ? 82 : 52}
+            confidence={watchConfidence}
             severity={watchSignals.length ? 'info' : 'warn'}
             chips={[`${data.weeklyRisers?.length || 0} risers`, `${data.weeklyFallers?.length || 0} fallers`, `${watchPreferences.trackedPlayerIds.length} watched`]}
             body={watchSignals.length
@@ -2553,7 +3036,7 @@ export function AssistantFeatureShells({
           <AIReadPanel
             title="Starter strength read"
             readType="Lineup Leak"
-            confidence={counts ? 84 : 48}
+            confidence={lineupConfidence}
             severity={benchPressure.length ? 'warn' : counts ? 'info' : 'warn'}
             chips={[counts ? (usesSleeperStarterMap ? 'Sleeper starters' : 'Projected starters') : { label: 'No lineup map', tone: 'warn' }, data.leagueDiagnostics?.starterCalculation ? 'Slot-aware' : 'Current roster only']}
             body={counts
@@ -2589,7 +3072,7 @@ export function AssistantFeatureShells({
           <AIReadPanel
             title="Waiver fit read"
             readType="Waiver Opportunity"
-            confidence={waiverAdds.length ? 82 : 54}
+            confidence={waiverConfidence}
             severity={waiverAdds.length ? 'good' : 'warn'}
             chips={[data.waiverIntelligence ? 'Sleeper waiver data' : { label: 'No waiver payload', tone: 'warn' }, leagueValueMode === 'redraft' ? 'Weekly usage lens' : 'Dynasty stash lens']}
             body={bestWaiver
@@ -2640,7 +3123,7 @@ export function AssistantFeatureShells({
           <AIReadPanel
             title="Exposure read"
             readType="Monthly Blueprint"
-            confidence={portfolio.totalValue ? 74 : 44}
+            confidence={exposureConfidence}
             severity={(portfolio.topThreeShare || 0) >= 55 ? 'warn' : portfolio.totalValue ? 'info' : 'warn'}
             chips={[
               savedPortfolio.leagueCount > 1 ? `${savedPortfolio.leagueCount} saved leagues` : 'Single-league exposure',
@@ -2675,7 +3158,7 @@ export function AssistantFeatureShells({
           <AIReadPanel
             title="Degen prospect score"
             readType="Draft Capital Read"
-            confidence={rookieSignals.length ? 78 : 44}
+            confidence={rookieConfidence}
             severity={rookieSignals.length ? 'info' : 'warn'}
             chips={[data.draftPicks?.length ? 'Draft data loaded' : { label: 'No draft picks', tone: 'warn' }, data.prospectSourceDiagnostics?.status || 'Prospect source unknown']}
             body={rookieSignals.length
@@ -2704,7 +3187,7 @@ export function AssistantFeatureShells({
           <AIReadPanel
             title="Research read"
             readType="Player Trend"
-            confidence={newsRows.length ? 72 : 46}
+            confidence={newsConfidence}
             severity={newsRows.length ? 'info' : 'warn'}
             chips={[`${newsRows.length} news/status flags`, newsRows.length ? 'News payload loaded' : { label: 'No news payload', tone: 'warn' }]}
             body={newsRows.length
@@ -2750,7 +3233,7 @@ export function AssistantFeatureShells({
           <AIReadPanel
             title="Weekly matchup availability"
             readType="Lineup Leak"
-            confidence={matchupDataAvailable ? 80 : 38}
+            confidence={matchupConfidence}
             severity={matchupDataAvailable ? 'info' : 'warn'}
             chips={[matchupDataAvailable ? 'Matchups loaded' : { label: 'Schedule pending', tone: 'warn' }, data.leagueDiagnostics?.starterCountSummary || 'Starter slots loaded']}
             body={matchupPreview

@@ -1,6 +1,8 @@
 export type DynastySourceWeightKey =
   | 'flock'
+  | 'fantasyPros'
   | 'dynastyNerds'
+  | 'fantasyNerds'
   | 'ktc'
   | 'fantasyCalc'
   | 'dynastyProcess';
@@ -9,7 +11,9 @@ export type DynastyRankingBoard = 'dynasty' | 'devy';
 
 export interface DynastySourceWeights {
   flock: number;
+  fantasyPros: number;
   dynastyNerds: number;
+  fantasyNerds: number;
   ktc: number;
   fantasyCalc: number;
   dynastyProcess: number;
@@ -28,11 +32,24 @@ export interface DynastySourceWeightEntry {
   weight: number;
   percent: number;
   note: string;
+  baseWeight?: number | null;
+  effectiveWeight?: number | null;
+  trustScore?: number | null;
+  trustMultiplier?: number | null;
 }
+
+export type DynastySourceWeightTrustMap = Partial<Record<DynastySourceWeightKey, {
+  score?: number | null;
+  multiplier?: number | null;
+  baseWeight?: number | null;
+  effectiveWeight?: number | null;
+}>>;
 
 const SOURCE_LABELS: Record<DynastySourceWeightKey, string> = {
   flock: 'Flock Fantasy',
+  fantasyPros: 'FantasyPros Dynasty',
   dynastyNerds: 'Dynasty Nerds',
+  fantasyNerds: 'Fantasy Nerds',
   ktc: 'KTC',
   fantasyCalc: 'FantasyCalc',
   dynastyProcess: 'DynastyProcess',
@@ -69,8 +86,10 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
   if (board === 'devy') {
     return {
       flock: 0.45,
+      fantasyPros: 0,
       ktc: 0.35,
       dynastyNerds: 0.20,
+      fantasyNerds: 0,
       fantasyCalc: 0,
       dynastyProcess: 0,
     };
@@ -78,104 +97,145 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
 
   if (isSuperflex && isTep) {
     return {
-      flock: 0.35,
-      dynastyNerds: 0.30,
-      ktc: 0.22,
-      fantasyCalc: 0.10,
-      dynastyProcess: 0.03,
+      flock: 0.29,
+      fantasyPros: 0.12,
+      dynastyNerds: 0.25,
+      fantasyNerds: 0.07,
+      ktc: 0.17,
+      fantasyCalc: 0.08,
+      dynastyProcess: 0.02,
     };
   }
 
   if (isSuperflex && isStandard) {
     return {
-      flock: 0.36,
-      dynastyNerds: 0.28,
-      ktc: 0.16,
-      fantasyCalc: 0.17,
-      dynastyProcess: 0.03,
+      flock: 0.30,
+      fantasyPros: 0.12,
+      dynastyNerds: 0.23,
+      fantasyNerds: 0.07,
+      ktc: 0.14,
+      fantasyCalc: 0.12,
+      dynastyProcess: 0.02,
     };
   }
 
   if (isSuperflex) {
     return {
-      flock: 0.40,
-      dynastyNerds: 0.25,
-      ktc: 0.20,
-      fantasyCalc: 0.12,
-      dynastyProcess: 0.03,
+      flock: 0.32,
+      fantasyPros: 0.12,
+      dynastyNerds: 0.21,
+      fantasyNerds: 0.07,
+      ktc: 0.16,
+      fantasyCalc: 0.10,
+      dynastyProcess: 0.02,
     };
   }
 
   if (isTep && isStandard) {
     return {
-      flock: 0.30,
-      dynastyNerds: 0.28,
-      ktc: 0.29,
-      fantasyCalc: 0.10,
-      dynastyProcess: 0.03,
+      flock: 0.25,
+      fantasyPros: 0.12,
+      dynastyNerds: 0.23,
+      fantasyNerds: 0.07,
+      ktc: 0.23,
+      fantasyCalc: 0.08,
+      dynastyProcess: 0.02,
     };
   }
 
   if (isTep) {
     return {
-      flock: 0.34,
-      dynastyNerds: 0.24,
-      ktc: 0.29,
-      fantasyCalc: 0.10,
-      dynastyProcess: 0.03,
+      flock: 0.28,
+      fantasyPros: 0.12,
+      dynastyNerds: 0.20,
+      fantasyNerds: 0.07,
+      ktc: 0.23,
+      fantasyCalc: 0.08,
+      dynastyProcess: 0.02,
     };
   }
 
   if (isStandard) {
     return {
-      flock: 0.34,
-      dynastyNerds: 0.30,
-      ktc: 0.16,
-      fantasyCalc: 0.17,
-      dynastyProcess: 0.03,
+      flock: 0.28,
+      fantasyPros: 0.12,
+      dynastyNerds: 0.25,
+      fantasyNerds: 0.07,
+      ktc: 0.14,
+      fantasyCalc: 0.12,
+      dynastyProcess: 0.02,
     };
   }
 
   return {
-    flock: 0.40,
-    dynastyNerds: 0.27,
-    ktc: 0.18,
-    fantasyCalc: 0.12,
-    dynastyProcess: 0.03,
+    flock: 0.32,
+    fantasyPros: 0.12,
+    dynastyNerds: 0.23,
+    fantasyNerds: 0.07,
+    ktc: 0.14,
+    fantasyCalc: 0.10,
+    dynastyProcess: 0.02,
   };
 }
 
-export function getDynastySourceWeightEntries(weights: DynastySourceWeights): DynastySourceWeightEntry[] {
+export function getDynastySourceWeightEntries(
+  weights: DynastySourceWeights,
+  sourceTrust: DynastySourceWeightTrustMap = {},
+): DynastySourceWeightEntry[] {
   const notes: Record<DynastySourceWeightKey, string> = {
     flock: 'Primary dynasty/rookie rankings signal when available.',
+    fantasyPros: 'API-backed FantasyPros dynasty ECR support; kept below format-aware sources because the public ranking type is not league-format specific.',
     dynastyNerds: 'Format-aware expert/community support, including Standard, SF, and SF TEP buckets.',
+    fantasyNerds: 'API-backed consensus dynasty ranking support; kept modest because the endpoint is not league-format specific.',
     ktc: 'Market/liquidity signal. Useful, but kept below the ranking anchors to avoid crowd-noise whiplash.',
     fantasyCalc: 'Secondary market value support with team/QB/PPR format knobs.',
     dynastyProcess: 'Small stabilizer/fallback source because it is broad and public, but less current for our use case.',
   };
 
-  return (Object.keys(SOURCE_LABELS) as DynastySourceWeightKey[]).map((key) => ({
-    key,
-    source: SOURCE_LABELS[key],
-    weight: weights[key],
-    percent: Math.round(weights[key] * 100),
-    note: notes[key],
-  }));
+  const effectiveWeights = (Object.keys(SOURCE_LABELS) as DynastySourceWeightKey[]).map((key) => (
+    sourceTrust[key]?.effectiveWeight ?? weights[key]
+  ));
+  const totalEffectiveWeight = effectiveWeights.reduce((sum, weight) => sum + Math.max(0, weight), 0) || 1;
+
+  return (Object.keys(SOURCE_LABELS) as DynastySourceWeightKey[]).map((key) => {
+    const trust = sourceTrust[key] || null;
+    const effectiveWeight = trust?.effectiveWeight ?? weights[key];
+    const trustNote = trust?.score !== undefined && trust?.score !== null
+      ? ` Adaptive trust ${trust.score}/100 (${Number(trust.multiplier ?? 1).toFixed(2)}x base weight).`
+      : '';
+    return {
+      key,
+      source: SOURCE_LABELS[key],
+      weight: effectiveWeight,
+      percent: Math.round((effectiveWeight / totalEffectiveWeight) * 100),
+      note: `${notes[key]}${trustNote}`,
+      baseWeight: trust?.baseWeight ?? weights[key],
+      effectiveWeight,
+      trustScore: trust?.score ?? null,
+      trustMultiplier: trust?.multiplier ?? null,
+    };
+  });
 }
 
-export function formatDynastySourceWeights(weights: DynastySourceWeights): string {
-  return getDynastySourceWeightEntries(weights)
+export function formatDynastySourceWeights(
+  weights: DynastySourceWeights,
+  sourceTrust: DynastySourceWeightTrustMap = {},
+): string {
+  return getDynastySourceWeightEntries(weights, sourceTrust)
     .filter((entry) => entry.weight > 0)
     .map((entry) => `${entry.source} ${entry.percent}%`)
     .join(', ');
 }
 
-export function getDynastySourceWeightNotes(options: DynastySourceWeightOptions = {}): string[] {
+export function getDynastySourceWeightNotes(
+  options: DynastySourceWeightOptions = {},
+  sourceTrust: DynastySourceWeightTrustMap = {},
+): string[] {
   const board = options.board || 'dynasty';
   const weights = getDynastySourceWeights(options);
   const notes = [
-    `Primary blend weights: ${formatDynastySourceWeights(weights)}.`,
-    'FantasyPros is 0% of dynasty value/rankings. It remains a season/projection source for redraft and projected-lineup sections only.',
+    `Primary blend weights: ${formatDynastySourceWeights(weights, sourceTrust)}.`,
+    'FantasyPros Dynasty now participates in the dynasty blend as API-backed expert consensus, while FantasyPros Draft/ROS stays in redraft and projected-lineup context.',
     'DynastyDealer is 0% of the primary blend for now. It stays benchmark-only until its endpoint is confirmed stable and usable.',
   ];
 

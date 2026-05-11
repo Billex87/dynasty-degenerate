@@ -10,8 +10,14 @@ import {
   playerNameKeyVariants,
 } from './leagueAnalysis';
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
-import { KTC_SNAPSHOT_PROFILES, VALUE_SOURCE_PROFILE_DEFINITIONS } from './valueBlend';
+import { KTC_SNAPSHOT_PROFILES, VALUE_SOURCE_PROFILE_DEFINITIONS, getValueSourceProfileKey } from './valueBlend';
 import { getDynastySourceWeightNotes, getDynastySourceWeights, formatDynastySourceWeights } from './dynastySourceWeights';
+import { getWeeklyMomentumPctChange } from './valueBaselinePolicy';
+import {
+  calculateDynastySourceTrust,
+  getDynastySourceRowsFromSnapshotValues,
+  loadRecentDynastySourceRowsFromLocalSnapshots,
+} from './dynastySourceTrust';
 import type {
   LeagueValueMode,
   ManagerIntelPlayer,
@@ -39,9 +45,15 @@ export interface KTCValues {
     flock_position_rank?: string | null;
     flock_tier?: number | null;
     flock_format?: string | null;
+    expert_value_fantasypros?: number;
+    fantasypros_dynasty_rank?: number;
+    fantasypros_dynasty_position_rank?: string | null;
     market_value_fantasycalc?: number;
     expert_value_dynastyprocess?: number;
     expert_value_dynastynerds?: number;
+    expert_value_fantasynerds?: number;
+    fantasynerds_rank?: number;
+    fantasynerds_position_rank?: string | null;
     dynastynerds_rank?: number;
     dynastynerds_position_rank?: string | null;
     dynastynerds_format?: string | null;
@@ -155,6 +167,7 @@ interface SeasonData {
   draftSlotsBySeason?: Record<string, Record<number, number>>;
   rosterPositions?: string[];
   scoringSettings?: Record<string, any>;
+  playoffWeekStart?: number;
   valueBlendProfileKey?: string;
   valueBlendProfileLabel?: string;
 }
@@ -202,6 +215,28 @@ function normalizePlayerIds(ids: Array<string | number | null | undefined> | und
   }
 
   return normalized;
+}
+
+function addUtcDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function getLaborDay(season: number): Date {
+  const septemberFirst = new Date(Date.UTC(season, 8, 1, 12, 0, 0, 0));
+  const daysUntilMonday = (1 - septemberFirst.getUTCDay() + 7) % 7;
+  return addUtcDays(septemberFirst, daysUntilMonday);
+}
+
+function getNflWeekStartDate(season: number, week: number): Date {
+  const boundedWeek = Math.max(1, Math.floor(week || 1));
+  return addUtcDays(getLaborDay(season), 3 + ((boundedWeek - 1) * 7));
+}
+
+function getRedraftChampionshipWeekEndValueDate(season: number, playoffWeekStart?: number): Date {
+  const boundedPlayoffWeekStart = Math.max(2, Math.floor(playoffWeekStart || 15));
+  return addUtcDays(getNflWeekStartDate(season, boundedPlayoffWeekStart + 3), -1);
 }
 
 function getTaxiPlayerIds(roster: Pick<Roster, 'taxi'> | undefined): string[] {
@@ -988,8 +1023,14 @@ function buildLeagueDiagnostics(
     ppr: receptionScoring,
     tep: tightEndPremium,
   };
-  const sourceWeightLabel = formatDynastySourceWeights(getDynastySourceWeights(sourceWeightOptions));
-  const sourceWeightNotes = getDynastySourceWeightNotes(sourceWeightOptions);
+  const sourceWeights = getDynastySourceWeights(sourceWeightOptions);
+  const sourceTrust = calculateDynastySourceTrust({
+    sourceMaps: getDynastySourceRowsFromSnapshotValues(ktcValues),
+    baseWeights: sourceWeights,
+    history: loadRecentDynastySourceRowsFromLocalSnapshots(currentSeasonData.valueBlendProfileKey || getValueSourceProfileKey(sourceWeightOptions)),
+  });
+  const sourceWeightLabel = formatDynastySourceWeights(sourceWeights, sourceTrust);
+  const sourceWeightNotes = getDynastySourceWeightNotes(sourceWeightOptions, sourceTrust);
   const selectedValueProfile = currentSeasonData.valueBlendProfileLabel || '12-team SF PPR';
   const valueProfiles = Array.from(
     new Set(
@@ -1000,15 +1041,21 @@ function buildLeagueDiagnostics(
   ).sort();
   const playerValues = Object.values(ktcValues).filter((value) => !/\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(value.name));
   const sourceCoverage = (source: string) => playerValues.filter((value) => value.value_sources?.includes(source)).length;
-  const coverageParts = ['FlockFantasy', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']
+  const coverageParts = ['FlockFantasy', 'FantasyPros', 'DynastyNerds', 'FantasyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']
     .filter((source) => sourceCoverage(source) > 0)
     .map((source) => `${source}: ${sourceCoverage(source)}`);
+  const fantasyProsDynastyCoverage = sourceCoverage('FantasyPros');
   const fantasyProsSeasonCoverage = playerValues.filter((value) => Number(value.fantasypros_season_value || 0) > 0).length;
   const dealerCoverage = playerValues.filter((value) => Number(value.benchmark_value_dynastydealer || 0) > 0).length;
+  const seasonNumber = Number(currentSeasonData.label);
+  const redraftTradeWindowEndDate = leagueValueMode === 'redraft' && Number.isFinite(seasonNumber)
+    ? getRedraftChampionshipWeekEndValueDate(seasonNumber, currentSeasonData.playoffWeekStart).toISOString().split('T')[0]
+    : null;
 
   return {
     teamCount,
     valueMode: leagueValueMode,
+    redraftTradeWindowEndDate,
     rosterSlots: currentSeasonData.rosterPositions || [],
     starterSlots,
     lineupSlotSummary: formatLineupSlotSummary(lineupProfile),
@@ -1023,18 +1070,22 @@ function buildLeagueDiagnostics(
     scoringSummary: formatScoringSummary(currentSeasonData.scoringSettings),
     receptionScoring,
     tightEndPremium,
-    ktcProfileLabel: `This report is using the ${selectedValueProfile} blended profile. Primary dynasty weights for this league: ${sourceWeightLabel}. FantasyPros is season-only and Dynasty Dealer is benchmark-only; neither is counted in the dynasty blend.`,
+    ktcProfileLabel: `This report is using the ${selectedValueProfile} blended profile. Primary dynasty weights for this league: ${sourceWeightLabel}. FantasyPros Dynasty is included where available; FantasyPros Draft/ROS stays season/redraft-only. Dynasty Dealer remains benchmark-only.`,
     valueSnapshotProfileCount: VALUE_SOURCE_PROFILE_DEFINITIONS.length,
     valueSnapshotProfiles: [
       `${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended league profiles: 10/12/14-team, 1QB/SF, Standard/Half/PPR, and 0/0.5/1/1.5 TEP buckets`,
       'The 6 PM value snapshot stores raw source payloads plus every blended league-format profile, so future 7-day comparisons use stored history instead of live guesses.',
       `${KTC_SNAPSHOT_PROFILES.length} KTC market profiles for 1QB/SF and TEP variants`,
       'Flock Fantasy dynasty and rookie rankings for 1QB/SF',
+      fantasyProsDynastyCoverage > 0
+        ? `FantasyPros Dynasty API rankings stored for ${fantasyProsDynastyCoverage} players and included as a modest adaptive-trust dynasty source.`
+        : 'FantasyPros Dynasty API support is wired, but no dynasty values were present in this snapshot.',
+      'Fantasy Nerds API dynasty consensus rankings when FANTASY_NERDS_API_KEY is configured',
       'Dynasty Nerds PPR, Superflex, Standard, and Superflex TEP rankings with player values, Sleeper IDs, and movement',
       `Active dynasty source weights: ${sourceWeightLabel}`,
       'FantasyCalc format values and DynastyProcess 1QB/SF values support the dynasty blend at smaller weights',
       fantasyProsSeasonCoverage > 0
-        ? `FantasyPros season ranks and points stored for ${fantasyProsSeasonCoverage} players, but used only for season/redraft and projected-lineup context.`
+        ? `FantasyPros Draft/season ranks and points stored for ${fantasyProsSeasonCoverage} players, but used only for season/redraft and projected-lineup context.`
         : 'FantasyPros season-rank support is wired, but no season values were present in this snapshot.',
       starterSlots.some((slot) => slot === 'K' || slot === 'DEF')
         ? 'This league has K/DEF starter slots. Kicker and defense are treated as season-only lineup positions with positional rank/projection context, not dynasty-value assets.'
@@ -1046,9 +1097,9 @@ function buildLeagueDiagnostics(
     valueLimitations: [
       `Selected value profile: ${selectedValueProfile}. League analysis no longer uses the old default 12-team SF PPR blend when the league settings point elsewhere.`,
       `Daily snapshots now track ${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended format profiles across team count, QB format, reception scoring, and TEP bucket.`,
-      'Daily storage includes raw source profiles for KTC, Flock Fantasy, Dynasty Nerds, FantasyCalc, DynastyProcess, FantasyPros season ranks, and Dynasty Dealer benchmark values before the app builds league-matched blends.',
-      'Flock Fantasy is treated as the highest-priority dynasty/rookie rankings source where the public rankings endpoint returns data. Dynasty Nerds is the secondary expert/community dynasty source and is selected by the closest league format. Redraft stays projection/season-source driven.',
-      'Expansion queue for primary data coverage: licensed FantasyPros API access, LeagueLogs value/news verification, DraftSharks/GridIron-style season projection sources, and a dedicated player-news feed. These stay out of the blend until they are reliably stored and attributable.',
+      'Daily storage includes raw source profiles for KTC, Flock Fantasy, FantasyPros Dynasty, Dynasty Nerds, Fantasy Nerds, FantasyCalc, DynastyProcess, FantasyPros season ranks, and Dynasty Dealer benchmark values before the app builds league-matched blends.',
+      'Flock Fantasy is treated as the highest-priority dynasty/rookie rankings source where the public rankings endpoint returns data. FantasyPros Dynasty and Fantasy Nerds add API-backed consensus support at modest weights because those endpoints are not league-format specific. Dynasty Nerds remains the secondary format-aware source. Redraft stays projection/season-source driven.',
+      'Expansion queue for primary data coverage: GridIron/DataSportsGroup-style season projection sources, MySportsFeeds if approved, LeagueLogs value/news verification, and a dedicated player-news feed. These stay out of the blend until they are reliably stored and attributable.',
       normalizeNumQbsForDiagnostics(lineupProfile) === 2 && tightEndPremium > 0
         ? 'Dynasty Nerds has a direct Superflex TEP source for this format bucket.'
         : normalizeNumQbsForDiagnostics(lineupProfile) === 2
@@ -2493,19 +2544,21 @@ export async function generateReport(
       const currentWeeklyVal = getPrimarySnapshotValue(pid, ktcValues);
       const lastWeekVal = getPrimarySnapshotValue(pid, ktcValuesLastWeek);
       if (currentWeeklyVal > 0 && lastWeekVal > 0) {
-        const pct_change = (currentWeeklyVal - lastWeekVal) / lastWeekVal * 100;
-        weeklyMomentum.push({
-          name: getCachedPlayerName(pid),
-          player_id: pid,
-          playerDetails: getCachedPlayerDetails(pid, getRosterPlayerStatus(r, pid)),
-          currentPositionRank: getPrimaryRank(pid),
-          owner: name,
-          pos,
-          val_last: lastWeekVal,
-          val_now: currentWeeklyVal,
-          diff: currentWeeklyVal - lastWeekVal,
-          pct_change,
-        });
+        const pct_change = getWeeklyMomentumPctChange(currentWeeklyVal, lastWeekVal);
+        if (pct_change !== null) {
+          weeklyMomentum.push({
+            name: getCachedPlayerName(pid),
+            player_id: pid,
+            playerDetails: getCachedPlayerDetails(pid, getRosterPlayerStatus(r, pid)),
+            currentPositionRank: getPrimaryRank(pid),
+            owner: name,
+            pos,
+            val_last: lastWeekVal,
+            val_now: currentWeeklyVal,
+            diff: currentWeeklyVal - lastWeekVal,
+            pct_change,
+          });
+        }
       }
 
       if (val > 300) {

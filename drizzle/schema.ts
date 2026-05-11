@@ -60,3 +60,99 @@ export const prospectSnapshots = mysqlTable("prospectSnapshots", {
 
 export type ProspectSnapshot = typeof prospectSnapshots.$inferSelect;
 export type InsertProspectSnapshot = typeof prospectSnapshots.$inferInsert;
+
+export const devySourceSnapshots = mysqlTable("devySourceSnapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  snapshotKey: varchar("snapshotKey", { length: 10 }).notNull(),
+  profileKey: varchar("profileKey", { length: 64 }).notNull(),
+  payload: longtext("payload").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  profileKeyUnique: uniqueIndex("devySourceSnapshots_profile_key_uidx").on(table.profileKey, table.snapshotKey),
+  profileKeyIndex: index("devySourceSnapshots_profile_key_idx").on(table.profileKey, table.snapshotKey),
+}));
+
+export type DevySourceSnapshot = typeof devySourceSnapshots.$inferSelect;
+export type InsertDevySourceSnapshot = typeof devySourceSnapshots.$inferInsert;
+
+export const leagueAiConfidenceSnapshots = mysqlTable("leagueAiConfidenceSnapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  snapshotKey: varchar("snapshotKey", { length: 10 }).notNull(),
+  leagueId: text("leagueId").notNull(),
+  payload: longtext("payload").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  leagueKeyUnique: uniqueIndex("leagueAiConfidenceSnapshots_league_key_uidx").on(table.leagueId, table.snapshotKey),
+  leagueKeyIndex: index("leagueAiConfidenceSnapshots_league_key_idx").on(table.leagueId, table.snapshotKey),
+}));
+
+export type LeagueAiConfidenceSnapshot = typeof leagueAiConfidenceSnapshots.$inferSelect;
+export type InsertLeagueAiConfidenceSnapshot = typeof leagueAiConfidenceSnapshots.$inferInsert;
+
+export const sourceHealthEvents = mysqlTable("sourceHealthEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  job: text("job").notNull(),
+  board: varchar("board", { length: 16 }),
+  sourceKey: text("sourceKey").notNull(),
+  source: text("source").notNull(),
+  level: varchar("level", { length: 16 }).notNull(),
+  status: varchar("status", { length: 16 }).notNull(),
+  rowCount: int("rowCount"),
+  message: text("message").notNull(),
+  payload: longtext("payload"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  createdAtIndex: index("sourceHealthEvents_createdAt_idx").on(table.createdAt),
+  sourceCreatedAtIndex: index("sourceHealthEvents_source_createdAt_idx").on(table.sourceKey, table.createdAt),
+}));
+
+export type SourceHealthEvent = typeof sourceHealthEvents.$inferSelect;
+export type InsertSourceHealthEvent = typeof sourceHealthEvents.$inferInsert;
+
+export const actionPlans = mysqlTable("actionPlans", {
+  id: int("id").autoincrement().primaryKey(),
+  userKey: text("userKey").notNull(),
+  planId: text("planId").notNull(),
+  kind: varchar("kind", { length: 16 }).notNull(),
+  leagueId: text("leagueId"),
+  manager: text("manager"),
+  playerId: text("playerId"),
+  replacementPlayerId: text("replacementPlayerId"),
+  title: text("title").notNull(),
+  summary: text("summary"),
+  status: varchar("status", { length: 16 }).notNull(),
+  payload: longtext("payload").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userPlanUnique: uniqueIndex("actionPlans_user_plan_uidx").on(table.userKey, table.planId),
+  userLeagueIndex: index("actionPlans_user_league_updatedAt_idx").on(table.userKey, table.leagueId, table.updatedAt),
+}));
+
+export type ActionPlan = typeof actionPlans.$inferSelect;
+export type InsertActionPlan = typeof actionPlans.$inferInsert;
+
+export const waiverBidHistory = mysqlTable("waiverBidHistory", {
+  id: int("id").autoincrement().primaryKey(),
+  userKey: text("userKey").notNull(),
+  historyId: text("historyId").notNull(),
+  leagueId: text("leagueId"),
+  manager: text("manager"),
+  playerId: text("playerId").notNull(),
+  playerName: text("playerName").notNull(),
+  position: varchar("position", { length: 8 }).notNull(),
+  bidMin: int("bidMin").notNull(),
+  bidMax: int("bidMax").notNull(),
+  bidLabel: text("bidLabel").notNull(),
+  source: varchar("source", { length: 32 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userHistoryUnique: uniqueIndex("waiverBidHistory_user_history_uidx").on(table.userKey, table.historyId),
+  userLeagueIndex: index("waiverBidHistory_user_league_updatedAt_idx").on(table.userKey, table.leagueId, table.updatedAt),
+}));
+
+export type WaiverBidHistory = typeof waiverBidHistory.$inferSelect;
+export type InsertWaiverBidHistory = typeof waiverBidHistory.$inferInsert;
