@@ -1268,7 +1268,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       currentPositionRank: player.isDevy ? prospectPositionRank : modalRank || player.positionRank || player.pos,
       currentKtcValue: player.isDevy ? undefined : modalValue ?? player.value,
       valueGain: player.movement || undefined,
-      valueChangeNote: player.movementLabel ? 'Blended value change over the last 7 days.' : undefined,
+      valueChangeNote: player.movementLabel ? 'Blended value change over the current comparison window.' : undefined,
       valueMode: leagueValueMode,
       manager: player.owner || undefined,
       managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,

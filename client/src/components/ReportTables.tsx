@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/table';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, ChevronDown, Copy, Crown, ExternalLink, LockKeyhole, Save, Scissors, ShieldCheck, TrendingDown, TrendingUp, X as XIcon } from 'lucide-react';
-import type { ActionPlanRecord, ActionPlanStatus, DraftPick, ManagerIntelPlayer, PlayerDetails, RecentTransactionPlayer, ReportData, TaxiTriageItem, TrendingPlayer, WaiverBidHistoryRecord } from '@shared/types';
+import type { ActionPlanRecord, ActionPlanStatus, DraftPick, ManagerIntelPlayer, PlayerDetails, RecentTransactionPlayer, ReportData, TaxiTriageItem, TradeProposalSignal, TrendingPlayer, WaiverBidHistoryRecord } from '@shared/types';
 import { trpc } from '@/lib/trpc';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
@@ -410,7 +410,7 @@ function renderTradeSummaryManager(
           </ChampionAvatarFrame>
           {isWinner && <Crown className="trade-winner-crown" aria-hidden="true" />}
         </span>
-        <span className="min-w-0 truncate">{manager}</span>
+        <span className="min-w-0">{manager}</span>
       </span>
     </span>
   );
@@ -8034,6 +8034,173 @@ export function TradeHistoryTable({
   );
 }
 
+function formatTradeProposalDate(value?: string | null): string {
+  if (!value) return 'n/a';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'n/a';
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function formatTradeProposalStatus(status?: string | null): string {
+  const label = String(status || 'unknown').replace(/_/g, ' ').trim();
+  if (!label) return 'Unknown';
+  return label
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function getTradeProposalStatusTone(status?: string | null): 'neutral' | 'good' | 'warn' | 'danger' | 'info' {
+  if (!status) return 'neutral';
+  if (/declin|reject|cancel|veto|expire|fail/i.test(status)) return 'danger';
+  if (/pending|open|waiting|propos|active/i.test(status)) return 'warn';
+  if (/accept|complete/i.test(status)) return 'good';
+  return 'info';
+}
+
+export function TradeProposalSignalsTable({
+  data,
+  managerAvatars,
+}: {
+  data: TradeProposalSignal[];
+  managerAvatars?: ManagerAvatars;
+}) {
+  const orderedSignals = React.useMemo(
+    () => [...data].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)),
+    [data]
+  );
+
+  if (!orderedSignals.length) {
+    return (
+      <EmptyState
+        className="trade-empty-state"
+        title="No non-complete trades found"
+        description="Sleeper did not return any pending, declined, rejected, or cancelled trade transactions for this league."
+      />
+    );
+  }
+
+  return (
+    <Card className="trade-proposal-card overflow-hidden border-slate-800 bg-slate-900">
+      <div className="overflow-x-auto">
+        <Table className="trade-proposal-table report-table-polished min-w-[56rem]">
+          <TableHeader className="border-b-2 border-cyan-500/20">
+            <TableRow className="border-slate-700">
+              <TableHead className="text-white font-semibold">Date</TableHead>
+              <TableHead className="text-white font-semibold">Status</TableHead>
+              <TableHead className="text-white font-semibold">Managers</TableHead>
+              <TableHead className="text-white font-semibold">Assets</TableHead>
+              <TableHead className="text-white font-semibold">Note</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orderedSignals.map((signal) => {
+              const statusTone = getTradeProposalStatusTone(signal.status);
+              const visiblePlayers = signal.playerNames.slice(0, 2).map((playerName, index) => ({
+                playerId: signal.playerIds[index],
+                playerName,
+              }));
+              const visiblePickLabels = (signal.pickLabels || []).slice(0, 2);
+              const totalAssetCount = signal.playerNames.length + (signal.pickLabels || []).length;
+              const assetSummary = [...signal.playerNames, ...(signal.pickLabels || [])].join(' · ');
+
+              return (
+                <TableRow key={signal.id} className={`trade-proposal-row trade-proposal-row-${statusTone}`}>
+                  <TableCell className="align-top text-slate-200">
+                    {formatTradeProposalDate(signal.date)}
+                  </TableCell>
+                  <TableCell className="align-top">
+                    <span className={`command-mini-badge command-mini-badge-${statusTone}`}>
+                      {formatTradeProposalStatus(signal.status)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="align-top">
+                    <div className="flex flex-wrap gap-2" title={signal.managers.join(' · ') || 'Unknown'}>
+                      {signal.managers.length ? (
+                        <>
+                          {signal.managers.slice(0, 3).map((manager) => (
+                            <ManagerNameWithAvatar
+                              key={`${signal.id}-${manager}`}
+                              avatarUrl={managerAvatars?.[manager]}
+                              managerName={manager}
+                            />
+                          ))}
+                          {signal.managers.length > 3 && (
+                            <span className="trade-proposal-more-pill">
+                              +{signal.managers.length - 3} more
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="trade-proposal-empty">Unknown</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="align-top">
+                    <div className="space-y-2" title={assetSummary || 'No asset labels returned'}>
+                      {visiblePlayers.length > 0 && (
+                        <div className="trade-proposal-asset-group">
+                          <span className="trade-proposal-asset-label">Players</span>
+                          <div className="flex flex-wrap gap-2">
+                            {visiblePlayers.map((player) => (
+                              <PlayerNameWithHeadshot
+                                key={`${signal.id}-${player.playerId || player.playerName}`}
+                                playerId={player.playerId}
+                                playerName={player.playerName}
+                              />
+                            ))}
+                            {signal.playerNames.length > visiblePlayers.length && (
+                              <span className="trade-proposal-more-pill">
+                                +{signal.playerNames.length - visiblePlayers.length} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {visiblePickLabels.length > 0 && (
+                        <div className="trade-proposal-asset-group">
+                          <span className="trade-proposal-asset-label">Picks</span>
+                          <div className="flex flex-wrap gap-2">
+                            {visiblePickLabels.map((pickLabel) => (
+                              <span
+                                key={`${signal.id}-${pickLabel}`}
+                                className="trade-proposal-pick-pill command-mini-badge command-mini-badge-neutral"
+                              >
+                                {pickLabel}
+                              </span>
+                            ))}
+                            {(signal.pickLabels || []).length > visiblePickLabels.length && (
+                              <span className="trade-proposal-more-pill">
+                                +{(signal.pickLabels || []).length - visiblePickLabels.length} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {totalAssetCount === 0 && (
+                        <span className="trade-proposal-empty">No asset labels returned</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="align-top text-slate-300">
+                    {signal.note}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+}
 
 export function TradeTheftDetector({
   data,
@@ -8292,7 +8459,7 @@ const WAIVER_POSITIONS: WaiverPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 const WAIVER_SPECIAL_TEAMS_POSITIONS = ['K', 'DEF'] as const;
 const WAIVER_RECOMMENDATION_LIMIT = 4;
 const WAIVER_RECOMMENDATION_MINIMUM = 2;
-export const VALUE_BLEND_HISTORY_START_LABEL = 'May 5, 2026';
+export const VALUE_BLEND_HISTORY_START_LABEL = 'May 7, 2026';
 export const FIRST_FULL_BLEND_WEEK_LABEL = 'May 12, 2026 after the 6 PM scrape';
 
 function getWaiverActionPlanId(

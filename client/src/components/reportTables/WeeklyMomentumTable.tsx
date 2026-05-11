@@ -21,7 +21,7 @@ import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 
 export default function WeeklyMomentumTable({
   data,
-  title,
+  title: _title,
   managerAvatars,
   playerDetailsById,
   leagueId,
@@ -47,8 +47,8 @@ export default function WeeklyMomentumTable({
       <div className="weekly-momentum-baseline-note">
         <span>7-day baseline</span>
         <p>
-          Movement compares today&apos;s league-matched blended value to the closest stored snapshot from at least seven days back.
-          The first clean same-blend window starts {FIRST_FULL_BLEND_WEEK_LABEL}.
+          Movement compares today&apos;s league-matched blended value to the earliest stored blended snapshot until the clean seven-day window opens.
+          Same-blend history starts {VALUE_BLEND_HISTORY_START_LABEL}; the first clean same-blend window starts {FIRST_FULL_BLEND_WEEK_LABEL}.
         </p>
       </div>
       {data.length > 0 ? (
@@ -79,7 +79,7 @@ export default function WeeklyMomentumTable({
                   managerAvatarUrl: managerAvatars?.[row.owner],
                   currentPositionRank: row.currentPositionRank,
                   valueMode: leagueValueMode,
-                  valueChangeNote: `7-day movement compares the current league-matched blend with the closest stored snapshot from at least seven days back. Same-blend history starts ${VALUE_BLEND_HISTORY_START_LABEL}.`,
+                  valueChangeNote: `Blended value change compares the current league-matched blend with the earliest stored blended snapshot until the clean seven-day window opens. Same-blend history starts ${VALUE_BLEND_HISTORY_START_LABEL}; the first clean same-blend window starts ${FIRST_FULL_BLEND_WEEK_LABEL}.`,
                 }))}
               >
                 <div className="weekly-momentum-tile-top">
@@ -129,7 +129,7 @@ export default function WeeklyMomentumTable({
       ) : (
         <EmptyState
           className="weekly-momentum-empty"
-          title={`No ${isRiserList ? 'risers' : title.toLowerCase()} found for the current 7-day window.`}
+          title={`No ${isRiserList ? 'weekly risers' : 'weekly fallers'} found for the current blended window.`}
         />
       )}
       <PlayerDetailModal

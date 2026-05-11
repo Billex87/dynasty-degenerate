@@ -562,7 +562,7 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v35';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v36';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
 const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
 const RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP = 250;
@@ -2529,36 +2529,65 @@ function buildRecentTransactions(
     });
 }
 
+function ordinalRound(round: number): string {
+  if (round === 1) return '1st';
+  if (round === 2) return '2nd';
+  if (round === 3) return '3rd';
+  return `${round}th`;
+}
+
+function formatTradeProposalPickLabel(pick: any, rosterUserMap: Record<string, string>): string | null {
+  const season = String(pick?.season || '').trim();
+  const round = Number(pick?.round || 0);
+  const ownerName = rosterUserMap[String(pick?.owner_id ?? '')] || null;
+  const roundLabel = Number.isFinite(round) && round > 0 ? ordinalRound(round) : null;
+  const baseLabel = [season, roundLabel].filter(Boolean).join(' ');
+  if (!baseLabel && !ownerName) return null;
+  if (!baseLabel) return ownerName;
+  return ownerName ? `${baseLabel} (${ownerName})` : baseLabel;
+}
+
 function buildTradeProposalSignals(
   transactions: any[],
   rosterUserMap: Record<string, string>,
-  players: Record<string, any>
+  players: Record<string, any>,
+  limit: number | null = 24
 ): NonNullable<ReportData['tradeProposalSignals']> {
-  return [...transactions]
+  const orderedTransactions = [...transactions]
     .filter((transaction) => transaction?.type === 'trade' && transaction?.status !== 'complete')
-    .sort((a, b) => Number(b?.status_updated || b?.created || 0) - Number(a?.status_updated || a?.created || 0))
-    .slice(0, 24)
-    .map((transaction) => {
-      const rosterIds = Array.isArray(transaction.roster_ids)
-        ? transaction.roster_ids
-        : [transaction.roster_id].filter(Boolean);
-      const managers = rosterIds
-        .map((rosterId: unknown) => rosterUserMap[String(rosterId)])
-        .filter((manager: string | undefined): manager is string => Boolean(manager));
-      const playerIds = Array.from(new Set(Object.keys(transaction.adds || {}).filter(Boolean)));
-      const playerNames = playerIds.map((playerId) => getPlayerName(playerId, players));
-      const status = String(transaction.status || 'unknown');
+    .sort((a, b) => Number(b?.status_updated || b?.created || 0) - Number(a?.status_updated || a?.created || 0));
+  const selectedTransactions = typeof limit === 'number' && Number.isFinite(limit)
+    ? orderedTransactions.slice(0, limit)
+    : orderedTransactions;
 
-      return {
-        id: String(transaction.transaction_id || `${transaction.created || transaction.status_updated}-${status}`),
-        date: new Date(Number(transaction.status_updated || transaction.created || Date.now())).toISOString(),
-        status,
-        managers,
-        playerIds,
-        playerNames,
-        note: `Sleeper returned a ${status} trade transaction${playerNames.length ? ` involving ${playerNames.slice(0, 3).join(', ')}` : ''}.`,
-      };
-    });
+  return selectedTransactions.map((transaction) => {
+    const rosterIds = Array.isArray(transaction.roster_ids)
+      ? transaction.roster_ids
+      : [transaction.roster_id].filter(Boolean);
+    const managers = rosterIds
+      .map((rosterId: unknown) => rosterUserMap[String(rosterId)])
+      .filter((manager: string | undefined): manager is string => Boolean(manager));
+    const playerIds = Array.from(new Set(Object.keys(transaction.adds || {}).filter(Boolean)));
+    const playerNames = playerIds.map((playerId) => getPlayerName(playerId, players));
+    const pickLabels = Array.isArray(transaction.draft_picks)
+      ? transaction.draft_picks
+          .map((pick: any) => formatTradeProposalPickLabel(pick, rosterUserMap))
+          .filter((label: string | null): label is string => Boolean(label))
+      : [];
+    const signalItems = Array.from(new Set([...playerNames, ...pickLabels]));
+    const status = String(transaction.status || 'unknown');
+
+    return {
+      id: String(transaction.transaction_id || `${transaction.created || transaction.status_updated}-${status}`),
+      date: new Date(Number(transaction.status_updated || transaction.created || Date.now())).toISOString(),
+      status,
+      managers,
+      playerIds,
+      playerNames,
+      pickLabels,
+      note: `Sleeper returned a ${status} trade transaction${signalItems.length ? ` involving ${signalItems.slice(0, 3).join(', ')}` : ''}.`,
+    };
+  });
 }
 
 function getScoringFamily(scoringSettings: Record<string, any> | undefined): 'std' | 'half_ppr' | 'ppr' | 'custom' {
@@ -3267,11 +3296,13 @@ export const appRouter = router({
             (t: any) => t.type === 'trade' && t.status === 'complete'
           );
           markAnalyzeStep('transactions');
+          let adminTradeProposalSignals: NonNullable<ReportData['adminTradeProposalSignals']> = [];
 
           const players = await fetch(
             'https://api.sleeper.app/v1/players/nfl'
           ).then((r) => r.json());
           markAnalyzeStep('players');
+          adminTradeProposalSignals = buildTradeProposalSignals(allTransactions, rosterUserMap, players, null);
 
           const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
           const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
@@ -3719,6 +3750,7 @@ export const appRouter = router({
             waiverIntelligence,
             recentTransactions: allRecentTransactions,
             transactionBackfillDiagnostics,
+            adminTradeProposalSignals,
             tradeProposalSignals,
             draftPicks: draftAnalysis.draftPicks,
             draftStats: draftAnalysis.draftStats,

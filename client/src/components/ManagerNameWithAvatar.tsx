@@ -34,7 +34,7 @@ export function ManagerNameWithAvatar({
           </span>
         )}
       </ChampionAvatarFrame>
-      <span className="interactive-identity-name min-w-0 truncate">{visibleName}</span>
+      <span className="interactive-identity-name min-w-0">{visibleName}</span>
       {showAccoladePills && <ManagerChampionshipPills managerName={managerName} />}
     </div>
   );

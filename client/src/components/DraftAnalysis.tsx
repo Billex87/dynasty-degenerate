@@ -88,9 +88,10 @@ function getDraftGroupYear(groupKey: string): string {
 
 function getDraftGroupKindOrder(groupKey: string): number {
   const kind = groupKey.split('::')[1];
-  if (kind === 'main' || kind === 'startup') return 0;
+  if (kind === 'main') return 0;
   if (kind === 'rookie') return 1;
-  return 2;
+  if (kind === 'startup') return 2;
+  return 3;
 }
 
 function compareDraftGroupKeys(a: string, b: string): number {

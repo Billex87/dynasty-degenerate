@@ -483,6 +483,7 @@ export interface TradeProposalSignal {
   managers: string[];
   playerIds: string[];
   playerNames: string[];
+  pickLabels?: string[];
   note: string;
 }
 
@@ -1013,6 +1014,7 @@ export interface ReportData {
   }>;
   tradeHistory: TradeData[];
   tradeProposalSignals?: TradeProposalSignal[];
+  adminTradeProposalSignals?: TradeProposalSignal[];
   positionDepth: PositionDepth[];
   managerPositionCounts: Array<{
     manager: string;
