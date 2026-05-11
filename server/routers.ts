@@ -486,7 +486,6 @@ export async function assertMonthlyReportGenerationAllowed(input: {
   viewerUserId?: string | null;
   ipAddress?: string | null;
 }) {
-  if (input.ctx.user && hasAdminPermissionsForUser(input.ctx.user)) return;
   if (isTrustedAutomationRequest(input.ctx.req as any)) return;
 
   const snapshotMonth = getBlueprintSnapshotMonth();
@@ -505,17 +504,17 @@ export async function assertMonthlyReportGenerationAllowed(input: {
     if (process.env.NODE_ENV === 'production') {
       throw new TRPCError({
         code: 'SERVICE_UNAVAILABLE',
-        message: 'Monthly report generation quota is temporarily unavailable. Please try again shortly.',
+        message: 'Monthly blueprint generation quota is temporarily unavailable. Please try again shortly.',
       });
     }
     return;
   }
 
-  if (reservation.allowed) return;
+  if (reservation.allowed || reservation.existing?.leagueId === input.leagueId) return;
 
   throw new TRPCError({
     code: 'TOO_MANY_REQUESTS',
-    message: `Monthly report generation limit reached for ${snapshotMonth}. You can view cached reports now, or generate another fresh blueprint next month.`,
+    message: `Monthly blueprint generation limit reached for ${snapshotMonth}. You can view cached blueprints now, or generate another fresh blueprint next month.`,
   });
 }
 
@@ -692,6 +691,41 @@ async function persistMonthlyBlueprintSnapshots(input: {
       source: 'none',
       warning: 'Monthly blueprint snapshot persistence failed; the in-app report still uses the current returned data.',
     };
+  }
+}
+
+async function getMonthlyBlueprintQuotaUnavailableSnapshot(input: {
+  ctx: TrpcContext;
+  leagueId: string;
+  viewerUserId?: string | null;
+  ipAddress?: string | null;
+}): Promise<NonNullable<ReportData['monthlyBlueprintSnapshot']> | null> {
+  try {
+    await assertMonthlyReportGenerationAllowed(input);
+    return null;
+  } catch (error) {
+    const snapshotMonth = getBlueprintSnapshotMonth();
+    if (error instanceof TRPCError && error.code === 'TOO_MANY_REQUESTS') {
+      return {
+        month: snapshotMonth,
+        status: 'unavailable',
+        managerCount: 0,
+        source: 'none',
+        warning: `Monthly blueprint generation limit reached for ${snapshotMonth}. The league report loaded, but another fresh monthly blueprint cannot be generated until next month.`,
+      };
+    }
+
+    if (error instanceof TRPCError && error.code === 'SERVICE_UNAVAILABLE') {
+      return {
+        month: snapshotMonth,
+        status: 'unavailable',
+        managerCount: 0,
+        source: 'none',
+        warning: 'The league report loaded, but monthly blueprint generation quota could not be checked. Try generating the blueprint again shortly.',
+      };
+    }
+
+    throw error;
   }
 }
 
@@ -2616,14 +2650,6 @@ export const appRouter = router({
             return cloneReportWithViewerManager(cachedReport, input.viewerUserId) as any;
           }
 
-          await assertMonthlyReportGenerationAllowed({
-            ctx,
-            leagueId: input.leagueId,
-            viewerUserId: input.viewerUserId,
-            ipAddress,
-          });
-          markAnalyzeStep('monthly generation quota');
-
           assertRateLimit(ctx.req as any, {
             id: 'league.analyze.generate.ip',
             max: 6,
@@ -3074,13 +3100,19 @@ export const appRouter = router({
             draftPicks: draftAnalysis.draftPicks,
             draftStats: draftAnalysis.draftStats,
           };
-          const monthlyBlueprintSnapshot = await persistMonthlyBlueprintSnapshots({
+          const quotaUnavailableSnapshot = await getMonthlyBlueprintQuotaUnavailableSnapshot({
+            ctx,
+            leagueId: input.leagueId,
+            viewerUserId: input.viewerUserId,
+            ipAddress,
+          });
+          const monthlyBlueprintSnapshot = quotaUnavailableSnapshot || (await persistMonthlyBlueprintSnapshots({
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
             leagueFormat: formatLeagueFormat(leagueInfo),
             reportData: reportPayloadData,
-          });
-          const monthlyBlueprintHistory = monthlyBlueprintSnapshot.source === 'database'
+          }));
+          const monthlyBlueprintHistory = monthlyBlueprintSnapshot.source === 'database' || monthlyBlueprintSnapshot.status === 'unavailable'
             ? await readMonthlyBlueprintHistory(input.leagueId)
             : [];
           markAnalyzeStep('monthly blueprint snapshot');

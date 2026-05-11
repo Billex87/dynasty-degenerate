@@ -71,7 +71,28 @@ describe("monthly report generation quota", () => {
     }));
   });
 
-  it("blocks regular users after their monthly generation is used", async () => {
+  it("blocks another monthly blueprint after the user's monthly generation is used", async () => {
+    reserveMonthlyReportGeneration.mockResolvedValueOnce({
+      allowed: false,
+      userKey: "auth:sample-user",
+      snapshotMonth: "2026-05",
+      existing: {
+        leagueId: "123456789012345678",
+        createdAt: new Date(),
+      },
+    });
+
+    await expect(assertMonthlyReportGenerationAllowed({
+      ctx: createContext(),
+      leagueId: "999999999999999999",
+      viewerUserId: "222222222222222222",
+      ipAddress: "203.0.113.10",
+    })).rejects.toMatchObject({
+      code: "TOO_MANY_REQUESTS",
+    });
+  });
+
+  it("allows the same monthly blueprint to be regenerated for the original league", async () => {
     reserveMonthlyReportGeneration.mockResolvedValueOnce({
       allowed: false,
       userKey: "auth:sample-user",
@@ -87,24 +108,33 @@ describe("monthly report generation quota", () => {
       leagueId: "123456789012345678",
       viewerUserId: "222222222222222222",
       ipAddress: "203.0.113.10",
-    })).rejects.toMatchObject({
-      code: "TOO_MANY_REQUESTS",
-    });
+    })).resolves.toBeUndefined();
   });
 
-  it("lets ADMIN_PERMISSIONS users generate without using the monthly quota", async () => {
+  it("applies the monthly blueprint quota to ADMIN_PERMISSIONS users too", async () => {
     process.env.ADMIN_PERMISSIONS = "mynameisbillex";
+    reserveMonthlyReportGeneration.mockResolvedValueOnce({
+      allowed: false,
+      userKey: "auth:mynameisbillex",
+      snapshotMonth: "2026-05",
+      existing: {
+        leagueId: "123456789012345678",
+        createdAt: new Date(),
+      },
+    });
 
     await expect(assertMonthlyReportGenerationAllowed({
       ctx: createContext({
         openId: "mynameisbillex",
         name: "mynameisbillex",
       }),
-      leagueId: "123456789012345678",
+      leagueId: "999999999999999999",
       viewerUserId: "222222222222222222",
       ipAddress: "203.0.113.10",
-    })).resolves.toBeUndefined();
+    })).rejects.toMatchObject({
+      code: "TOO_MANY_REQUESTS",
+    });
 
-    expect(reserveMonthlyReportGeneration).not.toHaveBeenCalled();
+    expect(reserveMonthlyReportGeneration).toHaveBeenCalledTimes(1);
   });
 });
