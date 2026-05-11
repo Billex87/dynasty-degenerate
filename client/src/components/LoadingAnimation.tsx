@@ -115,7 +115,9 @@ export function LoadingAnimation({
             )}
             {step.status === 'loading' && (
               <div className="loading-football-track" aria-hidden="true">
-                <span className="loading-football-arc" />
+                <svg className="loading-football-arc" viewBox="0 0 100 48" preserveAspectRatio="none" focusable="false">
+                  <path d="M 1.5 42 Q 50 7 98.5 42" />
+                </svg>
                 <span className="loading-football-shadow" />
                 <span className="loading-football" />
               </div>
@@ -132,7 +134,7 @@ export function LoadingAnimation({
             <div className="w-full mt-1">
               <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-orange-500 to-cyan-400 rounded-full transition-all duration-500"
+                  className="loading-progress-fill h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${(steps.filter(s => s.status === 'complete').length / steps.length) * 100}%`
                   }}
