@@ -1,3 +1,40 @@
+.ai-tron-css-packet-vertical {
+  left: var(--packet-left, 50%);
+  top: var(--packet-top, 12%);
+  width: 3px;
+  height: calc(20px * var(--packet-scale, 1));
+  background: linear-gradient(180deg, rgba(37, 231, 255, 0.1), rgba(37, 231, 255, 0.95), rgba(255, 255, 255, 0.84));
+  animation-name: ai-tron-css-packet-y;
+}
+
+.ai-tron-css-packet-horizontal {
+  left: var(--packet-left, 50%);
+  top: var(--packet-top, 50%);
+  animation-name: ai-tron-css-packet-x;
+}
+.ai-tron-css-packet-vertical::after {
+  right: auto;
+  left: 50%;
+  top: auto;
+  bottom: -1px;
+  transform: translateX(-50%);
+}
+
+.ai-tron-css-packet-vertical.ai-tron-css-packet-reverse::after {
+  top: -1px;
+  bottom: auto;
+}
+.ai-tron-css-packet-vertical::before {
+  inset: -24px auto -32px 50%;
+  width: 1px;
+  height: auto;
+  background: linear-gradient(180deg, transparent, rgba(37, 231, 255, 0.1), rgba(37, 231, 255, 0.42), transparent);
+  transform: translateX(-50%);
+}
+
+.ai-tron-css-packet-vertical.ai-tron-css-packet-reverse::before {
+  background: linear-gradient(0deg, transparent, rgba(37, 231, 255, 0.1), rgba(37, 231, 255, 0.42), transparent);
+}
 /* AI Tron R3F surface */
 .ai-surface-r3f,
 .ai-read-panel-r3f {
@@ -28,11 +65,24 @@
   pointer-events: none;
   border-radius: inherit;
   background:
-    radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--ai-read-accent, #73f0ff) 32%, transparent) 0 1px, transparent 3px),
-    radial-gradient(circle at 86% 12%, rgba(255, 171, 72, 0.32) 0 1px, transparent 3px),
-    radial-gradient(circle at 8% 92%, color-mix(in srgb, var(--ai-read-accent, #73f0ff) 28%, transparent) 0 1px, transparent 3px),
-    radial-gradient(circle at 92% 92%, color-mix(in srgb, var(--ai-read-accent, #73f0ff) 24%, transparent) 0 1px, transparent 3px);
-  opacity: 0.78;
+    linear-gradient(rgba(86, 220, 255, 0.085) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(86, 220, 255, 0.085) 1px, transparent 1px),
+    linear-gradient(rgba(86, 220, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(86, 220, 255, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--ai-read-accent, #73f0ff) 38%, transparent) 0 1px, transparent 3px),
+    radial-gradient(circle at 86% 12%, rgba(255, 171, 72, 0.36) 0 1px, transparent 3px),
+    radial-gradient(circle at 8% 92%, color-mix(in srgb, var(--ai-read-accent, #73f0ff) 34%, transparent) 0 1px, transparent 3px),
+    radial-gradient(circle at 92% 92%, color-mix(in srgb, var(--ai-read-accent, #73f0ff) 30%, transparent) 0 1px, transparent 3px);
+  background-size:
+    26px 26px,
+    26px 26px,
+    104px 104px,
+    104px 104px,
+    auto,
+    auto,
+    auto,
+    auto;
+  opacity: 0.84;
   transform: none !important;
   animation: none !important;
 }
@@ -48,25 +98,25 @@
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 34%),
     radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.38) 100%);
-  opacity: 0.72;
+  opacity: 0.42;
   transform: none !important;
   animation: none !important;
 }
 
-.ai-surface-r3f > .ai-tron-surface,
-.ai-read-panel-r3f > .ai-tron-surface {
+.ai-surface-r3f>.ai-tron-surface,
+.ai-read-panel-r3f>.ai-tron-surface {
   position: absolute !important;
   inset: 0;
   z-index: 1 !important;
   pointer-events: none;
   overflow: hidden;
   border-radius: inherit;
-  opacity: 1;
+  opacity: 1.15;
   mix-blend-mode: normal;
 }
 
-.ai-surface-r3f > .ai-tron-surface canvas,
-.ai-read-panel-r3f > .ai-tron-surface canvas {
+.ai-surface-r3f>.ai-tron-surface canvas,
+.ai-read-panel-r3f>.ai-tron-surface canvas {
   display: block;
   width: 100% !important;
   height: 100% !important;
@@ -74,8 +124,8 @@
   z-index: 1;
 }
 
-.ai-surface-r3f > :not(.ai-tron-surface),
-.ai-read-panel-r3f > :not(.ai-tron-surface) {
+.ai-surface-r3f> :not(.ai-tron-surface),
+.ai-read-panel-r3f> :not(.ai-tron-surface) {
   position: relative;
   z-index: 3;
 }
@@ -85,8 +135,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-surface-r3f > .ai-tron-surface,
-  .ai-read-panel-r3f > .ai-tron-surface {
+
+  .ai-surface-r3f>.ai-tron-surface,
+  .ai-read-panel-r3f>.ai-tron-surface {
     opacity: 0.42;
   }
 }
@@ -94,27 +145,32 @@
 .ai-tron-css-packet {
   position: absolute;
   z-index: 2;
-  width: 10px;
+  width: calc(14px * var(--packet-scale, 1));
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(37, 231, 255, 0.22), rgba(37, 231, 255, 0.82));
-  box-shadow: 0 0 5px rgba(37, 231, 255, 0.46);
+  background: linear-gradient(90deg, rgba(37, 231, 255, 0.08), rgba(37, 231, 255, 0.98), rgba(255, 255, 255, 0.9));
+  box-shadow:
+    0 0 5px rgba(37, 231, 255, 0.54),
+    0 0 12px rgba(37, 231, 255, 0.2);
   opacity: 0;
   transform: translate3d(0, 0, 0);
-  animation: ai-tron-css-packet-x 10.8s linear infinite;
+  animation: ai-tron-css-packet-x var(--packet-duration, 1.25s) linear infinite;
+  animation-delay: var(--packet-delay, 0s);
 }
 
 .ai-tron-surface-r3f-ready .ai-tron-css-packet {
-  display: none;
+  display: block;
 }
 
 .ai-tron-css-packet::before {
   content: "";
   position: absolute;
-  inset: 50% -2px auto -4px;
+  inset: 50% -18px auto -12px;
   height: 1px;
-  background: rgba(37, 231, 255, 0.22);
-  box-shadow: 0 0 5px rgba(37, 231, 255, 0.18);
+  background: linear-gradient(90deg, transparent, rgba(37, 231, 255, 0.08), rgba(37, 231, 255, 0.32), transparent);
+  box-shadow:
+    0 0 6px rgba(37, 231, 255, 0.26),
+    0 0 18px rgba(37, 231, 255, 0.14);
   transform: translateY(-50%);
 }
 
@@ -126,40 +182,39 @@
   width: 3px;
   height: 3px;
   border-radius: 999px;
-  background: rgba(160, 246, 255, 0.9);
-  box-shadow: 0 0 5px rgba(37, 231, 255, 0.5);
+  background: rgba(186, 250, 255, 0.96);
+  box-shadow:
+    0 0 7px rgba(37, 231, 255, 0.78),
+    0 0 16px rgba(37, 231, 255, 0.28);
   transform: translateY(-50%);
 }
 
-.ai-tron-css-packet-1 {
-  left: 8%;
-  top: 28%;
-  animation-duration: 10.8s;
-  animation-delay: -1.2s;
+.ai-tron-css-packet-reverse::before {
+  background: linear-gradient(270deg, transparent, rgba(37, 231, 255, 0.08), rgba(37, 231, 255, 0.32), transparent);
 }
 
-.ai-tron-css-packet-2 {
-  left: 52%;
-  top: 47%;
-  animation-duration: 13.5s;
-  animation-delay: -5.8s;
+.ai-tron-css-packet-reverse::after {
+  right: auto;
+  left: -1px;
 }
 
-.ai-tron-css-packet-3 {
-  left: 74%;
-  top: 72%;
-  animation-duration: 15.1s;
-  animation-delay: -9.1s;
+.ai-tron-css-packet-1,
+.ai-tron-css-packet-3,
+.ai-tron-css-packet-4,
+.ai-tron-css-packet-6,
+.ai-tron-css-packet-7,
+.ai-tron-css-packet-9,
+.ai-tron-css-packet-10 {
+  left: var(--packet-left, 50%);
+  top: var(--packet-top, 50%);
 }
 
 .ai-tron-css-packet-4 {
-  left: 26%;
-  top: 78%;
-  width: 8px;
+  left: var(--packet-left, 26%);
+  top: var(--packet-top, 78%);
+  width: 12px;
   background: linear-gradient(90deg, rgba(255, 171, 72, 0.18), rgba(255, 171, 72, 0.68));
   box-shadow: 0 0 5px rgba(255, 171, 72, 0.34);
-  animation-duration: 17.4s;
-  animation-delay: -11.4s;
 }
 
 .ai-tron-css-packet-4::after {
@@ -167,30 +222,24 @@
   box-shadow: 0 0 5px rgba(255, 171, 72, 0.5);
 }
 
+.ai-tron-css-packet-2,
 .ai-tron-css-packet-5,
-.ai-tron-css-packet-6 {
+.ai-tron-css-packet-8,
+.ai-tron-css-packet-11,
+.ai-tron-css-packet-12 {
+  left: var(--packet-left, 50%);
+  top: var(--packet-top, 12%);
   width: 3px;
-  height: 10px;
-  background: linear-gradient(180deg, rgba(37, 231, 255, 0.22), rgba(37, 231, 255, 0.78));
+  height: calc(18px * var(--packet-scale, 1));
+  background: linear-gradient(180deg, rgba(37, 231, 255, 0.12), rgba(37, 231, 255, 0.95), rgba(255, 255, 255, 0.82));
   animation-name: ai-tron-css-packet-y;
 }
 
-.ai-tron-css-packet-5 {
-  left: 34%;
-  top: 8%;
-  animation-duration: 11.2s;
-  animation-delay: -4.4s;
-}
-
-.ai-tron-css-packet-6 {
-  left: 86%;
-  top: 20%;
-  animation-duration: 14.4s;
-  animation-delay: -8.7s;
-}
-
+.ai-tron-css-packet-2::after,
 .ai-tron-css-packet-5::after,
-.ai-tron-css-packet-6::after {
+.ai-tron-css-packet-8::after,
+.ai-tron-css-packet-11::after,
+.ai-tron-css-packet-12::after {
   right: auto;
   left: 50%;
   top: auto;
@@ -198,51 +247,142 @@
   transform: translateX(-50%);
 }
 
+.ai-tron-css-packet-2.ai-tron-css-packet-reverse::after,
+.ai-tron-css-packet-5.ai-tron-css-packet-reverse::after,
+.ai-tron-css-packet-8.ai-tron-css-packet-reverse::after,
+.ai-tron-css-packet-11.ai-tron-css-packet-reverse::after,
+.ai-tron-css-packet-12.ai-tron-css-packet-reverse::after {
+  top: -1px;
+  bottom: auto;
+}
+
+.ai-tron-css-packet-2::before,
+.ai-tron-css-packet-5::before,
+.ai-tron-css-packet-8::before,
+.ai-tron-css-packet-11::before,
+.ai-tron-css-packet-12::before {
+  inset: -22px auto -28px 50%;
+  width: 1px;
+  height: auto;
+  background: linear-gradient(180deg, transparent, rgba(37, 231, 255, 0.1), rgba(37, 231, 255, 0.42), transparent);
+  transform: translateX(-50%);
+}
+
+.ai-tron-css-packet-2.ai-tron-css-packet-reverse::before,
+.ai-tron-css-packet-5.ai-tron-css-packet-reverse::before,
+.ai-tron-css-packet-8.ai-tron-css-packet-reverse::before,
+.ai-tron-css-packet-11.ai-tron-css-packet-reverse::before,
+.ai-tron-css-packet-12.ai-tron-css-packet-reverse::before {
+  background: linear-gradient(0deg, transparent, rgba(37, 231, 255, 0.1), rgba(37, 231, 255, 0.42), transparent);
+}
+
+.ai-tron-personality-bursty .ai-tron-css-packet {
+  animation-duration: calc(var(--packet-duration, 1.25s) * 0.62);
+}
+
+.ai-tron-personality-horizontal .ai-tron-css-packet-2,
+.ai-tron-personality-horizontal .ai-tron-css-packet-5,
+.ai-tron-personality-horizontal .ai-tron-css-packet-8,
+.ai-tron-personality-horizontal .ai-tron-css-packet-11,
+.ai-tron-personality-horizontal .ai-tron-css-packet-12 {
+  opacity: 0.2;
+  animation-duration: calc(var(--packet-duration, 1.25s) * 1.35);
+}
+
+.ai-tron-personality-horizontal .ai-tron-css-packet-1,
+.ai-tron-personality-horizontal .ai-tron-css-packet-3,
+.ai-tron-personality-horizontal .ai-tron-css-packet-4,
+.ai-tron-personality-horizontal .ai-tron-css-packet-6,
+.ai-tron-personality-horizontal .ai-tron-css-packet-7,
+.ai-tron-personality-horizontal .ai-tron-css-packet-9,
+.ai-tron-personality-horizontal .ai-tron-css-packet-10 {
+  animation-duration: calc(var(--packet-duration, 1.25s) * 0.78);
+}
+
+.ai-tron-personality-vertical .ai-tron-css-packet-1,
+.ai-tron-personality-vertical .ai-tron-css-packet-3,
+.ai-tron-personality-vertical .ai-tron-css-packet-4,
+.ai-tron-personality-vertical .ai-tron-css-packet-6,
+.ai-tron-personality-vertical .ai-tron-css-packet-7,
+.ai-tron-personality-vertical .ai-tron-css-packet-9,
+.ai-tron-personality-vertical .ai-tron-css-packet-10 {
+  opacity: 0.2;
+  animation-duration: calc(var(--packet-duration, 1.25s) * 1.35);
+}
+
+.ai-tron-personality-vertical .ai-tron-css-packet-2,
+.ai-tron-personality-vertical .ai-tron-css-packet-5,
+.ai-tron-personality-vertical .ai-tron-css-packet-8,
+.ai-tron-personality-vertical .ai-tron-css-packet-11,
+.ai-tron-personality-vertical .ai-tron-css-packet-12 {
+  height: calc(24px * var(--packet-scale, 1));
+  animation-duration: calc(var(--packet-duration, 1.25s) * 0.72);
+}
+
+.ai-tron-personality-quiet .ai-tron-css-packet {
+  filter: saturate(0.85);
+  animation-duration: calc(var(--packet-duration, 1.25s) * 1.8);
+}
+
 @keyframes ai-tron-css-packet-x {
   0% {
     opacity: 0;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scaleX(0.72);
   }
-  48% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0);
-  }
-  53% {
-    opacity: 0.68;
-  }
-  68% {
-    opacity: 0.62;
-  }
-  84% {
+
+  7% {
     opacity: 0;
   }
+
+  12% {
+    opacity: calc(0.96 * var(--packet-opacity-boost, 1));
+    transform: translate3d(calc(var(--packet-travel-x, 238px) * 0.07), 0, 0) scaleX(1.05);
+  }
+
+  34% {
+    opacity: calc(0.92 * var(--packet-opacity-boost, 1));
+    transform: translate3d(calc(var(--packet-travel-x, 238px) * 0.4), 0, 0) scaleX(0.82);
+  }
+
+  58% {
+    opacity: calc(0.62 * var(--packet-opacity-boost, 1));
+    transform: translate3d(calc(var(--packet-travel-x, 238px) * 0.7), 0, 0) scaleX(1.18);
+  }
+
   100% {
     opacity: 0;
-    transform: translate3d(78px, 0, 0);
+    transform: translate3d(var(--packet-travel-x, 238px), 0, 0) scaleX(0.5);
   }
 }
 
 @keyframes ai-tron-css-packet-y {
   0% {
     opacity: 0;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scaleY(0.7);
   }
-  50% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0);
-  }
-  55% {
-    opacity: 0.58;
-  }
-  70% {
-    opacity: 0.52;
-  }
-  86% {
+
+  9% {
     opacity: 0;
   }
+
+  14% {
+    opacity: calc(0.9 * var(--packet-opacity-boost, 1));
+    transform: translate3d(0, calc(var(--packet-travel-y, 198px) * 0.07), 0) scaleY(1.1);
+  }
+
+  38% {
+    opacity: calc(0.84 * var(--packet-opacity-boost, 1));
+    transform: translate3d(0, calc(var(--packet-travel-y, 198px) * 0.43), 0) scaleY(0.88);
+  }
+
+  62% {
+    opacity: calc(0.5 * var(--packet-opacity-boost, 1));
+    transform: translate3d(0, calc(var(--packet-travel-y, 198px) * 0.7), 0) scaleY(1.2);
+  }
+
   100% {
     opacity: 0;
-    transform: translate3d(0, 68px, 0);
+    transform: translate3d(0, var(--packet-travel-y, 198px), 0) scaleY(0.5);
   }
 }
 
@@ -251,4 +391,8 @@
     animation: none !important;
     opacity: 0.18;
   }
+}
+.ai-tron-personality-vertical .ai-tron-css-packet-vertical {
+  height: calc(26px * var(--packet-scale, 1));
+  animation-duration: calc(var(--packet-duration, 1.25s) * 0.72);
 }

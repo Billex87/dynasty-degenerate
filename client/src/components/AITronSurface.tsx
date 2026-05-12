@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import * as THREE from 'three';
 
 export type AITronTheme = 'cyan' | 'green' | 'amber' | 'red' | 'blue';
@@ -466,13 +466,99 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
 export function AITronSurface({ theme = 'cyan', density = 'medium' }: AITronSurfaceProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [canvasReady, setCanvasReady] = useState(false);
-  const fallbackPackets = density === 'small' ? [1, 4, 5] : density === 'large' ? [1, 2, 3, 4, 5, 6] : [1, 2, 4, 5];
+
+  const [packetSeed, setPacketSeed] = useState(0);
+
+  useEffect(() => {
+    let timeoutId: number;
+
+    const scheduleNextPacketShuffle = () => {
+      timeoutId = window.setTimeout(() => {
+        setPacketSeed((seed) => seed + 1);
+        scheduleNextPacketShuffle();
+      }, randomBetween(5200, 9800));
+    };
+
+    scheduleNextPacketShuffle();
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  const personalityClass = useMemo(() => {
+    const personalities = [
+      'ai-tron-personality-balanced',
+      'ai-tron-personality-bursty',
+      'ai-tron-personality-horizontal',
+      'ai-tron-personality-vertical',
+      'ai-tron-personality-quiet',
+    ];
+
+    return personalities[Math.floor(Math.random() * personalities.length)];
+  }, []);
+
+  const packetVars = useMemo(() => {
+    return Array.from({ length: 12 }, (_, index) => {
+      const forcedVerticalIndexes = [1, 4, 7, 10, 11];
+      const vertical = forcedVerticalIndexes.includes(index) || Math.random() < 0.34;
+      const rowBand = index % 7;
+      const reverse = Math.random() < 0.5;
+      const verticalColumns = [6, 18, 31, 44, 57, 70, 83, 94];
+      const horizontalRows = [14, 27, 40, 53, 66, 79, 88];
+      const columnIndex = Math.floor(Math.random() * verticalColumns.length);
+      const farRightBias = Math.random() < 0.34 ? randomBetween(78, 98) : null;
+      const left = vertical
+        ? farRightBias ?? randomBetween(verticalColumns[columnIndex] - 6, verticalColumns[columnIndex] + 6)
+        : reverse
+          ? randomBetween(32, 96)
+          : randomBetween(-12, 74);
+      const top = vertical
+        ? reverse
+          ? randomBetween(54, 104)
+          : randomBetween(-18, 54)
+        : randomBetween(horizontalRows[rowBand % horizontalRows.length] - 6, horizontalRows[rowBand % horizontalRows.length] + 7);
+      const duration = vertical ? randomBetween(1.05, 2.6) : randomBetween(0.88, 2.15);
+      const delay = -randomBetween(0, duration * 0.85);
+      const travelX = randomBetween(90, 280) * (reverse && !vertical ? -1 : 1);
+      const travelY = randomBetween(190, 440) * (reverse && vertical ? -1 : 1);
+      const scale = randomBetween(0.55, 1.05);
+      const opacityBoost = randomBetween(0.52, 1.0);
+      const packetDirectionClass = reverse ? 'reverse' : 'forward';
+
+      return {
+        '--packet-left': `${left}%`,
+        '--packet-top': `${top}%`,
+        '--packet-duration': `${duration}s`,
+        '--packet-delay': `${delay}s`,
+        '--packet-travel-x': `${travelX}px`,
+        '--packet-travel-y': `${travelY}px`,
+        '--packet-scale': scale,
+        '--packet-opacity-boost': opacityBoost,
+        '--packet-direction-class': packetDirectionClass,
+        '--packet-axis-class': vertical ? 'vertical' : 'horizontal',
+      } as CSSProperties;
+    });
+  }, [packetSeed]);
+
+  const fallbackPackets =
+    density === 'small'
+      ? [1, 2, 3, 4, 5, 6, 7, 8]
+      : density === 'large'
+        ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   return (
-    <div className={`ai-tron-surface${canvasReady ? ' ai-tron-surface-r3f-ready' : ''}`} aria-hidden="true">
+    <div
+      className={`ai-tron-surface ${personalityClass}${canvasReady ? ' ai-tron-surface-r3f-ready' : ''}`}
+      aria-hidden="true"
+    >
       {fallbackPackets.map((packet) => (
-        <span key={packet} className={`ai-tron-css-packet ai-tron-css-packet-${packet}`} />
+        <span
+          key={packet}
+          className={`ai-tron-css-packet ai-tron-css-packet-${packet} ${packetVars[packet - 1]?.['--packet-direction-class'] === 'reverse' ? 'ai-tron-css-packet-reverse' : 'ai-tron-css-packet-forward'} ${packetVars[packet - 1]?.['--packet-axis-class'] === 'vertical' ? 'ai-tron-css-packet-vertical' : 'ai-tron-css-packet-horizontal'}`}
+          style={packetVars[packet - 1]}
+        />
       ))}
+
       <Canvas
         orthographic
         camera={{ position: [0, 0, 5], zoom: 100 }}
