@@ -54,7 +54,7 @@ pnpm db:push
 ## Admin Auth Configuration
 Admin traffic telemetry uses a first-party passphrase flow at `/api/trpc/auth.adminLogin`; it does not depend on any external redirect URL allowlist.
 
-Set `ADMIN_LOGIN_PASSWORD` to a strong random value and keep `JWT_SECRET` stable across deploys so existing admin sessions remain valid. The login creates a signed browser-session `app_session_id` cookie and persists a local admin user with role `admin` when the database is available.
+Set `ADMIN_LOGIN_PASSWORD` to a strong random value and keep `JWT_SECRET` stable across deploys so existing admin sessions remain valid. In local development, `JWT_SECRET` can be omitted and the server will fall back to a stable dev-only signing secret so `ADMIN_LOGIN_PASSWORD` is the only value you need to type at the login prompt. The login creates a signed browser-session `app_session_id` cookie and persists a local admin user with role `admin` when the database is available.
 
 ## Vercel Cron
 `vercel.json` calls `/api/cron/ktc-snapshot` at paired UTC times for `06:00` and `18:00` in `America/Vancouver`. The endpoint checks Pacific time before doing work, so the extra UTC entries are daylight-saving fallbacks.

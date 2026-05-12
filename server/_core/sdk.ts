@@ -12,6 +12,7 @@ const isNonEmptyString = (value: unknown): value is string =>
 export const LOCAL_AUTH_APP_ID = "dynasty-degenerates";
 export const LOCAL_ADMIN_OPEN_ID = "local-admin";
 const LOCAL_ADMIN_NAME = "Admin";
+const LOCAL_SESSION_SECRET = "dynasty-degenerates-local-session-secret-v1";
 
 export type SessionPayload = {
   openId: string;
@@ -53,7 +54,8 @@ class SDKServer {
   }
 
   private getSessionSecret() {
-    const secret = process.env.JWT_SECRET ?? "";
+    const configuredSecret = process.env.JWT_SECRET?.trim();
+    const secret = configuredSecret || (process.env.NODE_ENV === "production" ? "" : LOCAL_SESSION_SECRET);
     return new TextEncoder().encode(secret);
   }
 

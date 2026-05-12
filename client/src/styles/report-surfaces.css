@@ -4782,7 +4782,8 @@ body {
 .report-league-lockup:hover .report-league-icon,
 .league-shortcut-button:hover {
   filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.28));
-  transform: translateY(-1px) scale(1.025);
+  transform: translateY(-0.18rem) scale(1.08);
+  z-index: 20 !important;
 }
 
 .report-header-action {

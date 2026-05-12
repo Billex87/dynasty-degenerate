@@ -1010,6 +1010,18 @@ function buildProjectedValueProjection(player: PlayerInfo, direction: ValueDirec
   };
 }
 
+export function buildSleeperResearchTodo(mode: AutopilotMode): string[] {
+  return [
+    'Check `GET /v1/state/nfl` first so season and week context stay dynamic.',
+    'Cache `GET /players/nfl/research/<season_type>/<season>[/<week>]` snapshots so rostered % and start % can trend over time.',
+    'Add `GET /v1/players/nfl/{player_id}` for single-player metadata lookups.',
+    'Add `GET /v1/players/nfl/{team}/depth_chart` for Sleeper-native depth chart context.',
+    mode === 'redraft'
+      ? 'Then wire projections into start/sit and weekly plan cards.'
+      : 'Then layer projections into dynasty market reads and ranking context.',
+  ];
+}
+
 function buildIntelPlayerProjection(
   player: AutopilotPlayerLike,
   direction: ValueDirection,
@@ -1114,6 +1126,7 @@ function buildPowerRows(data: ReportData, mode: AutopilotMode, fallback: LeagueP
 }
 
 function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
+  const sleeperResearchTodo = buildSleeperResearchTodo(mode);
   const schedulePlanning = data.schedulePlanning;
   const rosterGaps = [...(schedulePlanning?.rosterGaps || [])].sort((a, b) => {
     const severityRank: Record<'low' | 'medium' | 'high', number> = { low: 0, medium: 1, high: 2 };
@@ -1124,6 +1137,7 @@ function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
 
   if (schedulePlanning?.status === 'ready' || rosterGaps.length || streamerCandidate || firstByeWeek) {
     return [
+      ...sleeperResearchTodo,
       schedulePlanning?.status === 'ready'
         ? `Schedule planning is live${schedulePlanning.source ? ` from ${schedulePlanning.source}` : ''}; use it to drive bye-week coverage.`
         : 'Schedule planning is partial; keep the bye-week and streamer lanes ready for the next data pass.',
@@ -1142,6 +1156,7 @@ function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
 
   if (data.matchupPreviews?.length) {
     return [
+      ...sleeperResearchTodo,
       `${data.matchupPreviews.length} matchup preview${data.matchupPreviews.length === 1 ? '' : 's'} are available for weekly lineup context.`,
       'Next layer: weight defensive schedule strength by position instead of treating every matchup note equally.',
       mode === 'redraft'
@@ -1151,6 +1166,7 @@ function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
   }
 
   return [
+    ...sleeperResearchTodo,
     'Add weekly defensive matchup scoring when the league schedule is released.',
     'Compare playoff-week opponent strength for each starter.',
     mode === 'redraft'

@@ -15,6 +15,7 @@ import {
 import { Bot, CheckCircle2, ChevronDown, Zap, TrendingUp, TrendingDown, BarChart3, Repeat2, ClipboardList, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingAnimation } from '@/components/LoadingAnimation';
+import { PremiumFxLayer, type PremiumFxVariant } from '@/components/PremiumFxLayer';
 import { SupportButton } from '@/components/SupportButton';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
@@ -3427,6 +3428,15 @@ export default function Home() {
     loadingTransitionPhase === 'reveal' ? 'loading-success-card-reveal' : '',
     loadingTransitionPhase === 'kick' ? 'loading-success-card-kick' : '',
   ].filter(Boolean).join(' ');
+  const reportFxVariant: PremiumFxVariant = resolvedActiveTab === 'trades'
+    ? 'trade-flow'
+    : resolvedActiveTab === 'momentum'
+      ? 'waiver-radar'
+      : resolvedActiveTab === 'rankings'
+        ? 'rankings-grid'
+        : resolvedActiveTab === 'autopilot'
+          ? 'autopilot-orbit'
+          : 'report-shell';
   const loadingDialog = (
     <Dialog key="analysis-loading-dialog" open={isLoading} onOpenChange={() => undefined}>
       <DialogContent
@@ -3453,6 +3463,7 @@ export default function Home() {
               role="status"
               aria-live="polite"
             >
+              <PremiumFxLayer variant="loading-stamp" intensity="high" />
               <span className="loading-success-impact-core" aria-hidden="true" />
               <span className="loading-success-scanline" aria-hidden="true" />
               <div className="loading-success-copy">
@@ -3524,7 +3535,7 @@ export default function Home() {
             autoComplete="current-password"
             className="border-orange-400/20 bg-slate-950/80 text-slate-100 placeholder:text-slate-500"
           />
-          <DialogFooter className="gap-2 sm:justify-end">
+          <DialogFooter className="gap-2 sm:items-center sm:justify-center">
             <Button
               type="button"
               variant="outline"
@@ -3607,6 +3618,7 @@ export default function Home() {
       <>
       <ManagerChampionshipProvider championships={reportData.managerChampionships}>
       <div className={`report-shell min-h-screen flex flex-col ${isLoadingRevealPhase ? 'report-shell-entering' : ''}`}>
+        <PremiumFxLayer variant={reportFxVariant} intensity={resolvedActiveTab === 'overview' ? 'low' : 'medium'} />
         {/* Premium Header */}
         <div className="report-header sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-2">
@@ -4455,7 +4467,8 @@ export default function Home() {
 
   return (
     <>
-    <div className="home-shell min-h-screen flex flex-col">
+    <div className="home-shell min-h-screen flex flex-col premium-fx-host">
+      <PremiumFxLayer variant="home-hero" intensity="low" />
       <div className="home-header px-4 py-4 sm:py-5">
         <HomeLogoChrome />
         <HomeHeaderShortcuts

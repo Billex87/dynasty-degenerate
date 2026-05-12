@@ -691,6 +691,21 @@ export interface PlayerDetails {
   yearsExp?: number | null;
   status?: string | null;
   sleeperNewsUpdated?: number | string | null;
+  sleeperRosteredPct?: number | null;
+  sleeperStartedPct?: number | null;
+  sleeperResearchSeason?: string | null;
+  sleeperResearchSeasonType?: string | null;
+  leagueUsage?: {
+    season: string;
+    ownedGames: number;
+    startedGames: number;
+    managerBreakdown: Array<{
+      manager: string;
+      rosterId: number;
+      ownedGames: number;
+      startedGames: number;
+    }>;
+  } | null;
   schedule?: PlayerScheduleProfile | null;
   valueProfile?: {
     dynastyValue?: number | null;

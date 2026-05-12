@@ -695,20 +695,21 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
         </div>
       ) : null}
 
-      {!player.isDevy && !player.isPick && (hasRankMovement || previousSeasonSummary) ? (
+      {!player.isDevy && !player.isPick && hasRankMovement ? (
         <div className="value-board__trend" aria-label={`${player.name} board movement`}>
-          {hasRankMovement ? (
-            <span className={`ranking-trend-pill ${rankMovementClass}`}>
-              {player.rankMovementLabel}
-              {rankMovementIcon}
-            </span>
-          ) : null}
-          {previousSeasonSummary ? (
-            <span className="ranking-last-season-summary-pill" title={previousSeasonSummary.title}>
-              <span className="ranking-last-season-summary-full">{previousSeasonSummary.label}</span>
-              <span className="ranking-last-season-summary-compact">{previousSeasonSummary.compactLabel}</span>
-            </span>
-          ) : null}
+          <span className={`ranking-trend-pill ${rankMovementClass}`}>
+            {player.rankMovementLabel}
+            {rankMovementIcon}
+          </span>
+        </div>
+      ) : null}
+
+      {!player.isDevy && !player.isPick && previousSeasonSummary ? (
+        <div className="value-board__previous-season">
+          <span className="ranking-last-season-summary-pill" title={previousSeasonSummary.title}>
+            <span className="ranking-last-season-summary-full">{previousSeasonSummary.label}</span>
+            <span className="ranking-last-season-summary-compact">{previousSeasonSummary.compactLabel}</span>
+          </span>
         </div>
       ) : null}
     </button>

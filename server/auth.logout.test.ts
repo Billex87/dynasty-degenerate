@@ -66,6 +66,32 @@ describe("auth.logout", () => {
 });
 
 describe("auth.adminLogin", () => {
+  it("accepts the local Alstott40! password without JWT_SECRET", async () => {
+    const originalJwtSecret = process.env.JWT_SECRET;
+    const originalAdminPassword = process.env.ADMIN_LOGIN_PASSWORD;
+    delete process.env.JWT_SECRET;
+    process.env.ADMIN_LOGIN_PASSWORD = "Alstott40!";
+
+    try {
+      const { ctx, clearedCookies } = createAuthContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const result = await caller.auth.adminLogin({
+        passphrase: "Alstott40!",
+      });
+
+      expect(result).toEqual({ success: true });
+      expect(clearedCookies).toHaveLength(1);
+      expect(clearedCookies[0]?.name).toBe(COOKIE_NAME);
+      expect(clearedCookies[0]?.value).toEqual(expect.any(String));
+    } finally {
+      if (originalJwtSecret === undefined) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = originalJwtSecret;
+      if (originalAdminPassword === undefined) delete process.env.ADMIN_LOGIN_PASSWORD;
+      else process.env.ADMIN_LOGIN_PASSWORD = originalAdminPassword;
+    }
+  });
+
   it("sets the session cookie for a valid admin passphrase", async () => {
     const originalJwtSecret = process.env.JWT_SECRET;
     const originalAdminPassword = process.env.ADMIN_LOGIN_PASSWORD;

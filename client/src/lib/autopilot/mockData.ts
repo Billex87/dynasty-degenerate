@@ -1,3 +1,4 @@
+import { buildSleeperResearchTodo } from './buildAutopilotData';
 import type { AutopilotData, AutopilotMode } from './types';
 
 export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
@@ -153,6 +154,7 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
       { rank: 4, team: 'OnlyFants', direction: 'Reload', score: 72, note: 'Young core gives trade flexibility.', tone: 'info' },
     ],
     scheduleTodo: [
+      ...buildSleeperResearchTodo('dynasty'),
       'Add weekly defensive matchup scoring when the league schedule is released.',
       'Compare playoff-week opponent strength for each starter.',
       'Blend matchup difficulty into start/sit confidence without overpowering talent and role.',
@@ -310,6 +312,7 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
       { rank: 4, team: 'OnlyFants', direction: 'Streamer build', score: 70, note: 'Can climb with waiver aggression.', tone: 'info' },
     ],
     scheduleTodo: [
+      ...buildSleeperResearchTodo('redraft'),
       'Add opponent defensive strength once weekly schedule data is available.',
       'Blend matchup strength into QB, streamer, and flex calls.',
       'Add playoff-week matchup planning for high-seed teams.',

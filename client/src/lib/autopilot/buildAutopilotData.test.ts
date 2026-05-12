@@ -104,7 +104,11 @@ describe('buildAutopilotData', () => {
       fallback: AUTOPILOT_MOCK_DATA.redraft,
     });
 
-    expect(data.scheduleTodo[0]).toContain('Schedule planning is live');
+    expect(data.scheduleTodo[0]).toContain('state/nfl');
+    expect(data.scheduleTodo[1]).toContain('research');
+    expect(data.scheduleTodo[2]).toContain('player_id');
+    expect(data.scheduleTodo[3]).toContain('depth_chart');
+    expect(data.scheduleTodo.some((todo) => todo.includes('Schedule planning is live'))).toBe(true);
     expect(data.scheduleTodo.some((todo) => todo.includes('Week 7 is the first bye-week checkpoint'))).toBe(true);
     expect(data.weeklyPlan?.options.some((option) => option.player === 'Week 7 Streamer')).toBe(true);
   });

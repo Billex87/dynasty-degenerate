@@ -19,6 +19,7 @@ import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
 import { AIReadPanel, type AIReadChip } from './AIReadPanel';
+import { PremiumFxLayer } from './PremiumFxLayer';
 
 const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
   ARI: { primary: '#97233F', secondary: '#000000', accent: '#FFB612' },
@@ -141,13 +142,15 @@ export function PlayerDetailModal({
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
   const [fallbackImageFailed, setFallbackImageFailed] = useState(false);
-  const queryDetails = pick?.playerDetails;
+  const queryDetails = pick?.player_id && playerDetailsById?.[pick.player_id]
+    ? { ...pick.playerDetails, ...playerDetailsById[pick.player_id] }
+    : pick?.playerDetails || (pick?.player_id ? playerDetailsById?.[pick.player_id] : undefined);
   const queryIsCollegeProspect = isCollegeOnlyModalPick(pick, queryDetails);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
     {
       playerId: pick?.player_id || '',
       playerName: pick?.playerName || null,
-      position: pick?.playerPos || pick?.playerDetails?.position || null,
+      position: pick?.playerPos || queryDetails?.position || null,
     },
     { enabled: !!pick?.player_id && isOpen && directImageFailed }
   );
@@ -155,8 +158,8 @@ export function PlayerDetailModal({
     {
       playerId: pick?.player_id || '',
       playerName: pick?.playerName || '',
-      team: pick?.playerDetails?.team || null,
-      position: pick?.playerPos || pick?.playerDetails?.position || null,
+      team: queryDetails?.team || null,
+      position: pick?.playerPos || queryDetails?.position || null,
     },
     {
       enabled: isOpen && Boolean(pick?.playerName) && !queryIsCollegeProspect,
@@ -168,7 +171,7 @@ export function PlayerDetailModal({
       leagueId: leagueId || '',
       playerId: pick?.player_id || '',
       season: expandedAvailabilitySeason || '',
-      position: pick?.playerDetails?.position || pick?.playerPos || null,
+      position: queryDetails?.position || pick?.playerPos || null,
     },
     {
       enabled: isOpen && Boolean(leagueId && pick?.player_id && expandedAvailabilitySeason),
@@ -207,7 +210,7 @@ export function PlayerDetailModal({
   }, [headshotData]);
 
   if (!pick) return null;
-  const details = pick.playerDetails;
+  const details = queryDetails;
   const prospectProfile = details?.prospectProfile || null;
   const isCollegeProspect = isCollegeOnlyModalPick(pick, details);
   const preferProspectImage = Boolean(pick.preferProspectImage);
@@ -256,6 +259,8 @@ export function PlayerDetailModal({
   const availability = isCollegeProspect
     ? { label: 'College Prospect', tone: 'taxi' as const }
     : getPlayerAvailability(details);
+  const leagueUsage = details?.leagueUsage || null;
+  const hasLeagueUsage = Boolean(leagueUsage && (leagueUsage.ownedGames > 0 || leagueUsage.startedGames > 0));
   const prospectHeaderInfoRows = [
     ['College', prospectCollege || details?.college || '-'],
     ['40 Time', formatFortyTime(prospectProfile?.fortyYardDash)],
@@ -378,6 +383,12 @@ export function PlayerDetailModal({
     valueProfile,
     valueMode,
   });
+  const hasSleeperMarketSnapshot = Boolean(
+    details && (
+      (details.sleeperRosteredPct !== null && details.sleeperRosteredPct !== undefined)
+      || (details.sleeperStartedPct !== null && details.sleeperStartedPct !== undefined)
+    )
+  );
   const decisionLabels = buildPlayerDecisionLabels({
     details,
     currentRank,
@@ -445,6 +456,7 @@ export function PlayerDetailModal({
         className={`player-detail-modal ${isCollegeProspect ? 'player-detail-modal-prospect' : ''} max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-h-[88vh] sm:max-w-2xl`}
         style={{ ...collegeTileStyle, background: modalBackground }}
       >
+        <PremiumFxLayer variant="player-modal" intensity="low" />
         <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto pb-[env(safe-area-inset-bottom)] sm:max-h-[88vh]">
           <div
             className="relative overflow-hidden border-b border-cyan-400/20 px-4 pb-5 pt-5 sm:px-6 sm:pb-7 sm:pt-6"
@@ -848,41 +860,44 @@ export function PlayerDetailModal({
               </div>
             ) : null}
 
-            {!isCollegeProspect && intelligenceNotes.length > 0 && (
+            {!isCollegeProspect && (intelligenceNotes.length > 0 || hasSleeperMarketSnapshot) && (
               <div className="player-intelligence-panel mx-auto max-w-xl">
                 <p className="player-intelligence-title">
                   Player Intelligence
                 </p>
-                <div className="player-intelligence-grid">
-                  {intelligenceNotes.map((note) => (
-                    <div
-                      key={`${note.label}-${note.value}`}
-                      className={`player-intelligence-card player-intelligence-card-${note.tone || 'neutral'} ${note.fullWidth ? 'player-intelligence-card-wide' : ''}`}
-                    >
-                      <div className="player-intelligence-label">
-                        {note.label}
-                      </div>
+                <SleeperMarketBadge details={details} />
+                {intelligenceNotes.length > 0 && (
+                  <div className="player-intelligence-grid">
+                    {intelligenceNotes.map((note) => (
                       <div
-                        className={`player-intelligence-value ${
-                          note.tone === 'risk'
-                            ? 'text-rose-300'
-                            : note.tone === 'upside'
-                              ? 'text-emerald-300'
-                              : note.tone === 'market'
-                                ? 'text-amber-300'
-                                : 'text-slate-100'
-                        }`}
+                        key={`${note.label}-${note.value}`}
+                        className={`player-intelligence-card player-intelligence-card-${note.tone || 'neutral'} ${note.fullWidth ? 'player-intelligence-card-wide' : ''}`}
                       >
-                        {note.value}
+                        <div className="player-intelligence-label">
+                          {note.label}
+                        </div>
+                        <div
+                          className={`player-intelligence-value ${
+                            note.tone === 'risk'
+                              ? 'text-rose-300'
+                              : note.tone === 'upside'
+                                ? 'text-emerald-300'
+                                : note.tone === 'market'
+                                  ? 'text-amber-300'
+                                  : 'text-slate-100'
+                          }`}
+                        >
+                          {note.value}
+                        </div>
+                        {note.copy && (
+                          <p className="player-intelligence-copy">
+                            {note.copy}
+                          </p>
+                        )}
                       </div>
-                      {note.copy && (
-                        <p className="player-intelligence-copy">
-                          {note.copy}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1166,7 +1181,47 @@ export function PlayerDetailModal({
                   ) : null}
                 </div>
               ) : null}
+              {!isCollegeProspect && hasLeagueUsage && leagueUsage ? (
+                <div className="player-complete-section player-complete-section-wide">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h4>League Usage</h4>
+                      <p className="mt-1 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-cyan-200/70">
+                        Weekly roster tenure from the previous season, not a percentage.
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <strong className="block text-sm font-black text-slate-50 sm:text-base">
+                        {formatSeasonStatValue(leagueUsage.startedGames)} started / {formatSeasonStatValue(leagueUsage.ownedGames)} owned
+                      </strong>
+                      <span className="mt-1 block text-[0.68rem] font-bold uppercase tracking-[0.14em] text-cyan-200/70">
+                        {leagueUsage.season}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    {leagueUsage.managerBreakdown.map((entry) => (
+                      <div
+                        key={`${entry.manager}-${entry.rosterId}`}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-cyan-300/10 bg-slate-950/35 px-3 py-2.5"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">
+                          {entry.manager}
+                        </span>
+                        <span className="shrink-0 text-right">
+                          <strong className="block text-sm font-black text-slate-50">
+                            {formatSeasonStatValue(entry.startedGames)} / {formatSeasonStatValue(entry.ownedGames)}
+                          </strong>
+                          <span className="block text-[0.62rem] font-bold uppercase tracking-[0.14em] text-cyan-200/65">
+                            started / owned
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              ) : null}
+            </div>
               </div>
             )}
 
@@ -1279,6 +1334,13 @@ function formatSeasonStatValue(value: number | null | undefined): string {
   return numeric.toLocaleString(undefined, {
     maximumFractionDigits: Number.isInteger(numeric) ? 0 : 1,
   });
+}
+
+function formatSleeperMarketPercent(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+  const numeric = Number(value);
+  const rounded = Math.round(numeric * 10) / 10;
+  return `${rounded.toFixed(1).replace(/\.0$/, '')}%`;
 }
 
 function isPositionRankValue(value: unknown) {
@@ -1818,6 +1880,62 @@ function ProspectCollegePill({
         <span className="player-modal-college-fallback" aria-hidden="true">{getCollegeInitials(college)}</span>
       )}
     </span>
+  );
+}
+
+function SleeperMarketBadge({
+  details,
+}: {
+  details?: PlayerDetails;
+}) {
+  const [iconFailed, setIconFailed] = useState(false);
+  const rosteredPct = details?.sleeperRosteredPct;
+  const startedPct = details?.sleeperStartedPct;
+  const researchSeasonLabel = [details?.sleeperResearchSeasonType, details?.sleeperResearchSeason]
+    .filter(Boolean)
+    .join(' ');
+
+  if (rosteredPct === null && startedPct === null) return null;
+  if (rosteredPct === undefined && startedPct === undefined) return null;
+
+  return (
+    <div className="player-intelligence-card player-intelligence-card-wide player-intelligence-card-market">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-slate-900/80 shadow-inner shadow-black/20">
+          {iconFailed ? (
+            <span className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-cyan-200">
+              S
+            </span>
+          ) : (
+            <img
+              src="https://sleeper.com/favicon.ico"
+              alt=""
+              aria-hidden="true"
+              className="h-5 w-5 rounded-md object-contain"
+              onError={() => setIconFailed(true)}
+            />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="player-intelligence-label">Sleeper Market</div>
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm font-black leading-none text-slate-100">
+            {rosteredPct !== null && rosteredPct !== undefined ? (
+              <span>
+                <strong>{formatSleeperMarketPercent(rosteredPct)}</strong> rostered
+              </span>
+            ) : null}
+            {startedPct !== null && startedPct !== undefined ? (
+              <span>
+                <strong>{formatSleeperMarketPercent(startedPct)}</strong> started
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-cyan-200/70">
+            Public research snapshot{researchSeasonLabel ? ` · ${researchSeasonLabel}` : ''}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 

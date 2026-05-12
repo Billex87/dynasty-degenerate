@@ -1133,6 +1133,209 @@ async function fetchSleeperJson<T = any>(url: string): Promise<T | null> {
   }
 }
 
+type SleeperPlayerResearchSnapshot = {
+  owned?: number;
+  started?: number;
+};
+
+type SleeperLeagueUsageBreakdown = {
+  manager: string;
+  rosterId: number;
+  ownedGames: number;
+  startedGames: number;
+};
+
+type SleeperLeagueUsageSummary = {
+  season: string;
+  ownedGames: number;
+  startedGames: number;
+  managerBreakdown: SleeperLeagueUsageBreakdown[];
+};
+
+type SleeperMatchupRow = {
+  roster_id?: number | string | null;
+  players?: Array<string | number | null | undefined>;
+  starters?: Array<string | number | null | undefined>;
+};
+
+const sleeperPlayerResearchCache = new Map<string, { fetchedAt: number; data: Record<string, SleeperPlayerResearchSnapshot> }>();
+const SLEEPER_PLAYER_RESEARCH_CACHE_TTL_MS = 60 * 60 * 1000;
+const sleeperLeagueUsageCache = new Map<string, { fetchedAt: number; data: Record<string, SleeperLeagueUsageSummary> }>();
+const SLEEPER_LEAGUE_USAGE_CACHE_TTL_MS = 60 * 60 * 1000;
+const SLEEPER_LEAGUE_USAGE_WEEKS = 18;
+
+function normalizeSleeperSeasonType(value: string | null | undefined): string {
+  return (value || 'regular').trim().toLowerCase() || 'regular';
+}
+
+function normalizeSleeperPlayerIds(ids: Array<string | number | null | undefined> | undefined): string[] {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+
+  for (const id of ids || []) {
+    if (id === null || id === undefined) continue;
+    const key = String(id).trim();
+    if (!key || key === '0' || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(key);
+  }
+
+  return normalized;
+}
+
+function normalizeSleeperResearchPercent(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : null;
+}
+
+async function fetchSleeperLeagueUsageSummary(
+  leagueId: string,
+  season: string,
+  rosterUserMap: Record<string, string>,
+  rosterDisplayMap: Record<string, string> = {},
+): Promise<Record<string, SleeperLeagueUsageSummary>> {
+  const normalizedLeagueId = String(leagueId || '').trim();
+  const normalizedSeason = String(season || '').trim();
+  if (!normalizedLeagueId || !normalizedSeason) return {};
+
+  const cacheKey = `${normalizedLeagueId}:${normalizedSeason}`;
+  const cached = sleeperLeagueUsageCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < SLEEPER_LEAGUE_USAGE_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const matchupResponses = await Promise.all(
+    Array.from({ length: SLEEPER_LEAGUE_USAGE_WEEKS }, (_, index) => index + 1).map(async (week) => [
+      week,
+      await fetchSleeperJson<SleeperMatchupRow[]>(
+        `https://api.sleeper.app/v1/league/${encodeURIComponent(normalizedLeagueId)}/matchups/${week}`
+      ),
+    ] as const)
+  );
+
+  const usageByPlayerId = new Map<string, {
+    season: string;
+    ownedGames: number;
+    startedGames: number;
+    managerBreakdown: Map<string, SleeperLeagueUsageBreakdown>;
+  }>();
+
+  for (const [, matchups] of matchupResponses) {
+    if (!Array.isArray(matchups) || matchups.length === 0) continue;
+
+    const activeRows = matchups.filter((row) => {
+      const rosterPlayers = normalizeSleeperPlayerIds(row?.players);
+      const starterPlayers = normalizeSleeperPlayerIds(row?.starters);
+      return rosterPlayers.length > 0 || starterPlayers.length > 0;
+    });
+
+    if (!activeRows.length) continue;
+
+    for (const row of activeRows) {
+      const rosterId = Number(row?.roster_id);
+      if (!Number.isFinite(rosterId)) continue;
+
+      const manager = rosterDisplayMap[String(rosterId)]
+        || rosterUserMap[String(rosterId)]
+        || `Roster ${rosterId}`;
+      const rosterPlayers = normalizeSleeperPlayerIds(row.players);
+      const starterPlayers = normalizeSleeperPlayerIds(row.starters);
+
+      const getProfile = (playerId: string) => {
+        let profile = usageByPlayerId.get(playerId);
+        if (!profile) {
+          profile = {
+            season: normalizedSeason,
+            ownedGames: 0,
+            startedGames: 0,
+            managerBreakdown: new Map<string, SleeperLeagueUsageBreakdown>(),
+          };
+          usageByPlayerId.set(playerId, profile);
+        }
+        return profile;
+      };
+
+      for (const playerId of rosterPlayers) {
+        const profile = getProfile(playerId);
+        profile.ownedGames += 1;
+        const managerUsage = profile.managerBreakdown.get(manager) || {
+          manager,
+          rosterId,
+          ownedGames: 0,
+          startedGames: 0,
+        };
+        managerUsage.ownedGames += 1;
+        profile.managerBreakdown.set(manager, managerUsage);
+      }
+
+      for (const playerId of starterPlayers) {
+        const profile = getProfile(playerId);
+        profile.startedGames += 1;
+        const managerUsage = profile.managerBreakdown.get(manager) || {
+          manager,
+          rosterId,
+          ownedGames: 0,
+          startedGames: 0,
+        };
+        managerUsage.startedGames += 1;
+        profile.managerBreakdown.set(manager, managerUsage);
+      }
+    }
+  }
+
+  const data = Object.fromEntries(
+    Array.from(usageByPlayerId.entries()).map(([playerId, profile]) => [
+      playerId,
+      {
+        season: profile.season,
+        ownedGames: profile.ownedGames,
+        startedGames: profile.startedGames,
+        managerBreakdown: Array.from(profile.managerBreakdown.values()).sort((a, b) => {
+          if (b.ownedGames !== a.ownedGames) return b.ownedGames - a.ownedGames;
+          if (b.startedGames !== a.startedGames) return b.startedGames - a.startedGames;
+          return a.manager.localeCompare(b.manager);
+        }),
+      },
+    ])
+  ) as Record<string, SleeperLeagueUsageSummary>;
+
+  sleeperLeagueUsageCache.set(cacheKey, {
+    fetchedAt: Date.now(),
+    data,
+  });
+
+  return data;
+}
+
+async function fetchSleeperPlayerResearchMap(
+  seasonType: string,
+  season: string
+): Promise<Record<string, SleeperPlayerResearchSnapshot>> {
+  const normalizedSeasonType = normalizeSleeperSeasonType(seasonType);
+  const normalizedSeason = String(season || '').trim();
+  if (!normalizedSeason) return {};
+
+  const cacheKey = `${normalizedSeasonType}:${normalizedSeason}`;
+  const cached = sleeperPlayerResearchCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < SLEEPER_PLAYER_RESEARCH_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const data = await fetchSleeperJson<Record<string, SleeperPlayerResearchSnapshot>>(
+    `https://api.sleeper.com/players/nfl/research/${encodeURIComponent(normalizedSeasonType)}/${encodeURIComponent(normalizedSeason)}`
+  );
+
+  if (!data || typeof data !== 'object') return {};
+
+  const researchMap = data as Record<string, SleeperPlayerResearchSnapshot>;
+  sleeperPlayerResearchCache.set(cacheKey, {
+    fetchedAt: Date.now(),
+    data: researchMap,
+  });
+
+  return researchMap;
+}
+
 type SleeperGraphQLTransactionResponse = {
   data?: {
     league_transactions_filtered?: any[];
@@ -3318,10 +3521,10 @@ export const appRouter = router({
     adminLogin: publicProcedure
       .input(z.object({ passphrase: z.string().min(1).max(256) }))
       .mutation(async ({ input, ctx }) => {
-        if (!process.env.JWT_SECRET) {
+        if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
           throw new TRPCError({
             code: "PRECONDITION_FAILED",
-            message: "Admin login requires JWT_SECRET to be configured.",
+            message: "Admin login requires JWT_SECRET to be configured in production.",
           });
         }
 
@@ -4200,18 +4403,37 @@ export const appRouter = router({
               .map((playerId) => [playerId, allValueProfilesById[playerId]])
               .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
           );
-          const availabilityHistoryById = await fetchPlayerAvailabilityHistory(
-            detailPlayerIds,
-            players,
-            leagueInfo.scoring_settings,
-            lastCompletedSeason
-          );
+          const sleeperResearchSeasonType = String(leagueInfo.season_type || 'regular');
+          const [
+            availabilityHistoryById,
+            fantasyProsNews,
+            depthChartResult,
+            sleeperResearchByPlayerId,
+            pastSeasonUsageByPlayerId,
+          ] = await Promise.all([
+            fetchPlayerAvailabilityHistory(
+              detailPlayerIds,
+              players,
+              leagueInfo.scoring_settings,
+              lastCompletedSeason
+            ),
+            fetchFantasyProsNews(),
+            fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players),
+            fetchSleeperPlayerResearchMap(sleeperResearchSeasonType, currentSeason),
+            prevLeagueId && pastSeasonData
+              ? fetchSleeperLeagueUsageSummary(
+                  prevLeagueId,
+                  pastSeasonData.label,
+                  pastSeasonData.rosterMap as Record<string, string>,
+                  pastRosterDisplayMap
+                )
+              : Promise.resolve({} as Record<string, SleeperLeagueUsageSummary>),
+          ]);
           const latestNewsByPlayerId = buildLatestNewsByPlayerId(
             detailPlayerIds,
             players,
-            await fetchFantasyProsNews()
+            fantasyProsNews
           );
-          const depthChartResult = await fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players);
           const actualDepthChartsByPlayerId = depthChartResult.playerDepthCharts;
           const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, prospectLookup, actualDepthChartsByPlayerId);
           markAnalyzeStep('player detail assembly');
@@ -4240,6 +4462,11 @@ export const appRouter = router({
                   latestNews: latestNewsByPlayerId[playerId] || null,
                   avgGamesMissed: availabilityHistoryById[playerId]?.avgGamesMissed ?? null,
                   availabilitySeasons: availabilityHistoryById[playerId]?.availabilitySeasons ?? 0,
+                  sleeperRosteredPct: normalizeSleeperResearchPercent(sleeperResearchByPlayerId[playerId]?.owned),
+                  sleeperStartedPct: normalizeSleeperResearchPercent(sleeperResearchByPlayerId[playerId]?.started),
+                  sleeperResearchSeason: currentSeason,
+                  sleeperResearchSeasonType,
+                  leagueUsage: pastSeasonUsageByPlayerId[playerId] || null,
                   similarTradeValues: similarTradeValuesById[playerId] || [],
                 },
               ])

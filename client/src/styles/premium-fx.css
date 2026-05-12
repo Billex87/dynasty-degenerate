@@ -1,0 +1,207 @@
+.premium-fx-host,
+.premium-fx-surface {
+  position: relative;
+  isolation: isolate;
+}
+
+.premium-fx-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.86;
+  mix-blend-mode: screen;
+  contain: strict;
+}
+
+.premium-fx-layer + *,
+.premium-fx-content {
+  position: relative;
+  z-index: 1;
+}
+
+.home-shell > :not(.premium-fx-layer-home-hero) {
+  position: relative;
+  z-index: 1;
+}
+
+.premium-fx-layer-home-hero {
+  opacity: 0.56;
+  filter: saturate(1.05) blur(0.1px);
+}
+
+.premium-fx-layer-report-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.26;
+  mix-blend-mode: screen;
+}
+
+.premium-fx-layer-loading-stamp {
+  inset: -0.7rem;
+  z-index: 0;
+  opacity: 1;
+}
+
+.premium-fx-layer-loading-pass {
+  inset: -0.34rem -0.4rem -0.28rem;
+  z-index: 2;
+  opacity: 1;
+  filter: drop-shadow(0 0 0.42rem rgba(251, 146, 60, 0.24));
+  mix-blend-mode: normal;
+}
+
+.premium-fx-layer-player-modal {
+  opacity: 0.42;
+}
+
+.premium-fx-layer-trade-flow,
+.premium-fx-layer-waiver-radar,
+.premium-fx-layer-rankings-grid,
+.premium-fx-layer-autopilot-orbit {
+  opacity: 0.32;
+}
+
+.report-shell {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+}
+
+.report-shell > .premium-fx-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100vw;
+  height: 100dvh;
+}
+
+.report-shell > :not(.premium-fx-layer) {
+  position: relative;
+  z-index: 1;
+}
+
+.report-shell::before {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(circle at 50% 12%, rgba(34, 211, 238, 0.08), transparent 32%),
+    linear-gradient(180deg, rgba(251, 146, 60, 0.08), transparent 16%, transparent 74%, rgba(34, 211, 238, 0.05));
+  opacity: 0.62;
+}
+
+.loading-success-card {
+  overflow: hidden;
+}
+
+.loading-success-card .premium-fx-layer-loading-stamp {
+  border-radius: inherit;
+}
+
+.loading-football-track {
+  isolation: isolate;
+  top: 0.38rem;
+  right: 0.72rem;
+  left: 2.05rem;
+  z-index: 2;
+  height: 3.1rem;
+  opacity: 1;
+}
+
+.loading-football-track .loading-football-arc {
+  z-index: 1;
+  opacity: 0.34;
+}
+
+.loading-football-track .loading-football-fx {
+  z-index: 2;
+}
+
+.loading-step > .loading-step-dot,
+.loading-step > .flex-1,
+.loading-step > .text-cyan-300 {
+  position: relative;
+  z-index: 4;
+}
+
+[data-slot="dialog-content"].analysis-loading-dialog,
+[data-slot="dialog-content"].analysis-loading-dialog:focus,
+[data-slot="dialog-content"].analysis-loading-dialog:focus-visible {
+  outline: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+.loading-success-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.player-detail-modal {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+[data-slot="dialog-content"]:is(.player-detail-modal, .manager-draft-modal, .starter-modal, .trade-manager-modal, .full-trade-ledger-modal, .manager-command-dialog) {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+}
+
+.player-detail-modal .premium-fx-layer-player-modal {
+  border-radius: inherit;
+}
+
+.player-detail-modal > :not(.premium-fx-layer-player-modal) {
+  position: relative;
+  z-index: 1;
+}
+
+.premium-section-fx {
+  position: absolute;
+  inset: -1.5rem;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.premium-section-fx > .premium-fx-layer {
+  inset: 0;
+}
+
+.premium-section-fx + * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 760px) {
+  .premium-fx-layer-report-shell {
+    opacity: 0.18;
+  }
+
+  .premium-fx-layer-home-hero,
+  .premium-fx-layer-player-modal {
+    opacity: 0.28;
+  }
+
+  .premium-fx-layer-trade-flow,
+  .premium-fx-layer-waiver-radar,
+  .premium-fx-layer-rankings-grid,
+  .premium-fx-layer-autopilot-orbit {
+    opacity: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-fx-layer {
+    display: none !important;
+  }
+}

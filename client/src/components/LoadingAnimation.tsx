@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, Sparkles, Zap } from 'lucide-react';
+import { PremiumFxLayer } from './PremiumFxLayer';
 
 interface LoadingStep {
   id: string;
@@ -118,8 +119,7 @@ export function LoadingAnimation({
                 <svg className="loading-football-arc" viewBox="0 0 100 48" preserveAspectRatio="none" focusable="false">
                   <path d="M 1.5 42 Q 50 7 98.5 42" />
                 </svg>
-                <span className="loading-football-shadow" />
-                <span className="loading-football" />
+                <PremiumFxLayer variant="loading-pass" intensity="high" className="loading-football-fx" />
               </div>
             )}
           </div>

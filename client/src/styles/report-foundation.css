@@ -1780,6 +1780,8 @@
     min-width: 0;
     align-items: center;
     justify-content: flex-end;
+    isolation: isolate;
+    overflow: visible;
   }
 
   .league-shortcut-button {
@@ -1808,7 +1810,7 @@
   }
 
   .league-shortcut-button + .league-shortcut-button {
-    margin-left: -0.76rem;
+    margin-left: -0.98rem;
   }
 
   .league-shortcut-button img {
@@ -1820,6 +1822,7 @@
   .league-shortcut-button:hover,
   .league-shortcut-button:focus-visible,
   .league-shortcut-button.is-active {
+    z-index: 20 !important;
     border-color: rgba(251, 146, 60, 0.78);
     box-shadow:
       0 14px 30px rgba(0, 0, 0, 0.38),
@@ -1830,7 +1833,7 @@
 
   .league-shortcut-button:hover,
   .league-shortcut-button:focus-visible {
-    transform: translateY(-0.14rem) scale(1.04);
+    transform: translateY(-0.18rem) scale(1.08);
   }
 
   .home-header-title {
@@ -2098,7 +2101,7 @@
         0 0 0 2px rgba(2, 6, 23, 0.86);
     }
     .league-shortcut-button + .league-shortcut-button {
-      margin-left: -0.86rem;
+      margin-left: -0.94rem;
     }
     .home-action-row {
       width: min(100%, 23rem);
@@ -4381,7 +4384,7 @@
   }
 
   .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {
-    margin-left: -0.82rem;
+    margin-left: -0.96rem;
   }
 
   .report-league-icon {
@@ -12944,7 +12947,7 @@
     }
 
     .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {
-      margin-left: -0.7rem;
+      margin-left: -0.86rem;
     }
 
     .report-tabs {
