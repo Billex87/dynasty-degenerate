@@ -5807,135 +5807,137 @@ export default function Home() {
                       {canViewAdminFeatureExpansion && (
                         <TradeBrowserRead data={reportDataForView} />
                       )}
-                      <CollapsibleReportSection
-                        title="Share Hidden Sleeper Data"
-                        kicker="Share pending, cancelled, rejected, and waiver rows once. We remember this browser for this league."
-                        previewMetrics={buildSleeperHiddenPreviewMetrics(
-                          reportData
-                        )}
-                        defaultOpen={!hiddenSleeperConsentResolved}
-                      >
-                        <div className="space-y-6">
-                          <Card className="border-slate-800 bg-slate-950/70 p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
-                            <form
-                              className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
-                              onSubmit={event => {
-                                event.preventDefault();
-                                handleImportSleeperTradeCenter();
-                              }}
-                            >
-                              <div className="space-y-1">
-                                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                                  Hidden Sleeper Feed
-                                </p>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <h3 className="text-lg font-semibold text-white">
-                                    {hiddenSleeperShareButtonLabel}
-                                  </h3>
-                                  <span className="command-mini-badge command-mini-badge-info">
-                                    {hiddenSleeperShareStatusLabel}
+                      {canViewAdminFeatureExpansion && (
+                        <CollapsibleReportSection
+                          title="Admin Eyes Only: Share Hidden Sleeper Data"
+                          kicker="Share pending, cancelled, rejected, and waiver rows once. We remember this browser for this league."
+                          previewMetrics={buildSleeperHiddenPreviewMetrics(
+                            reportData
+                          )}
+                          defaultOpen={!hiddenSleeperConsentResolved}
+                        >
+                          <div className="space-y-6">
+                            <Card className="border-slate-800 bg-slate-950/70 p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
+                              <form
+                                className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
+                                onSubmit={event => {
+                                  event.preventDefault();
+                                  handleImportSleeperTradeCenter();
+                                }}
+                              >
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                                    Hidden Sleeper Feed
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-lg font-semibold text-white">
+                                      {hiddenSleeperShareButtonLabel}
+                                    </h3>
+                                    <span className="command-mini-badge command-mini-badge-info">
+                                      {hiddenSleeperShareStatusLabel}
+                                    </span>
+                                  </div>
+                                  <p className="max-w-2xl text-sm leading-6 text-slate-300">
+                                    Paste a live Sleeper auth token from an
+                                    authenticated browser session. We store the
+                                    resulting hidden rows for this league and do
+                                    not keep the token.
+                                  </p>
+                                  {hiddenSleeperSnapshot && (
+                                    <p className="text-xs leading-5 text-slate-400">
+                                      {hiddenSleeperSnapshot.sharedBy
+                                        ? `Shared by ${hiddenSleeperSnapshot.sharedBy}`
+                                        : "Shared by this browser"}
+                                      {hiddenSleeperSnapshot.sharedAt
+                                        ? ` · ${new Date(hiddenSleeperSnapshot.sharedAt).toLocaleString()}`
+                                        : ""}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-2 sm:min-w-[22rem] sm:flex-row sm:items-center">
+                                  <Input
+                                    type="password"
+                                    value={sleeperTradeCenterToken}
+                                    onChange={event =>
+                                      setSleeperTradeCenterToken(
+                                        event.target.value
+                                      )
+                                    }
+                                    placeholder="Sleeper auth token"
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    className="w-full bg-slate-950/80 sm:min-w-[18rem]"
+                                  />
+                                  <Button
+                                    type="submit"
+                                    disabled={
+                                      hiddenSleeperTradeCenterMutation.isPending
+                                    }
+                                    className="shrink-0 whitespace-nowrap bg-gradient-to-r from-cyan-500 to-orange-500 text-slate-950 hover:from-cyan-400 hover:to-orange-400"
+                                  >
+                                    {hiddenSleeperTradeCenterMutation.isPending
+                                      ? "Sharing..."
+                                      : hiddenSleeperShareButtonLabel}
+                                  </Button>
+                                </div>
+                              </form>
+                            </Card>
+
+                            <div className="space-y-6">
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                                    Hidden Trade Center Rows
+                                  </span>
+                                  <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                    {hiddenSleeperImportLoaded
+                                      ? "Shared"
+                                      : "Run share to populate"}
                                   </span>
                                 </div>
-                                <p className="max-w-2xl text-sm leading-6 text-slate-300">
-                                  Paste a live Sleeper auth token from an
-                                  authenticated browser session. We store the
-                                  resulting hidden rows for this league and do
-                                  not keep the token.
-                                </p>
-                                {hiddenSleeperSnapshot && (
-                                  <p className="text-xs leading-5 text-slate-400">
-                                    {hiddenSleeperSnapshot.sharedBy
-                                      ? `Shared by ${hiddenSleeperSnapshot.sharedBy}`
-                                      : "Shared by this browser"}
-                                    {hiddenSleeperSnapshot.sharedAt
-                                      ? ` · ${new Date(hiddenSleeperSnapshot.sharedAt).toLocaleString()}`
-                                      : ""}
-                                  </p>
+                                {hiddenSleeperTradeSignals !== undefined ? (
+                                  <TradeProposalSignalsTable
+                                    data={hiddenSleeperTradeSignals}
+                                    managerAvatars={reportData.managerAvatars}
+                                  />
+                                ) : (
+                                  <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
+                                    No hidden trade-center rows have been shared
+                                    yet. Paste a token above to load pending,
+                                    rejected, and cancelled trade offers.
+                                  </Card>
                                 )}
                               </div>
-                              <div className="flex flex-col gap-2 sm:min-w-[22rem] sm:flex-row sm:items-center">
-                                <Input
-                                  type="password"
-                                  value={sleeperTradeCenterToken}
-                                  onChange={event =>
-                                    setSleeperTradeCenterToken(
-                                      event.target.value
-                                    )
-                                  }
-                                  placeholder="Sleeper auth token"
-                                  autoComplete="off"
-                                  spellCheck={false}
-                                  className="w-full bg-slate-950/80 sm:min-w-[18rem]"
-                                />
-                                <Button
-                                  type="submit"
-                                  disabled={
-                                    hiddenSleeperTradeCenterMutation.isPending
-                                  }
-                                  className="shrink-0 whitespace-nowrap bg-gradient-to-r from-cyan-500 to-orange-500 text-slate-950 hover:from-cyan-400 hover:to-orange-400"
-                                >
-                                  {hiddenSleeperTradeCenterMutation.isPending
-                                    ? "Sharing..."
-                                    : hiddenSleeperShareButtonLabel}
-                                </Button>
-                              </div>
-                            </form>
-                          </Card>
 
-                          <div className="space-y-6">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                                  Hidden Trade Center Rows
-                                </span>
-                                <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                  {hiddenSleeperImportLoaded
-                                    ? "Shared"
-                                    : "Run share to populate"}
-                                </span>
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                                    Hidden Waiver Claims
+                                  </span>
+                                  <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                    {hiddenSleeperImportLoaded
+                                      ? "Shared"
+                                      : "Run share to populate"}
+                                  </span>
+                                </div>
+                                {hiddenSleeperWaiverSignals !== undefined ? (
+                                  <SleeperWaiverClaimsTable
+                                    data={hiddenSleeperWaiverSignals}
+                                    managerAvatars={reportData.managerAvatars}
+                                  />
+                                ) : (
+                                  <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
+                                    No hidden waiver claims have been shared yet.
+                                    This table will show the player claims and
+                                    FAAB bids from Sleeper once the token is
+                                    loaded.
+                                  </Card>
+                                )}
                               </div>
-                              {hiddenSleeperTradeSignals !== undefined ? (
-                                <TradeProposalSignalsTable
-                                  data={hiddenSleeperTradeSignals}
-                                  managerAvatars={reportData.managerAvatars}
-                                />
-                              ) : (
-                                <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
-                                  No hidden trade-center rows have been shared
-                                  yet. Paste a token above to load pending,
-                                  rejected, and cancelled trade offers.
-                                </Card>
-                              )}
-                            </div>
-
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                                  Hidden Waiver Claims
-                                </span>
-                                <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                  {hiddenSleeperImportLoaded
-                                    ? "Shared"
-                                    : "Run share to populate"}
-                                </span>
-                              </div>
-                              {hiddenSleeperWaiverSignals !== undefined ? (
-                                <SleeperWaiverClaimsTable
-                                  data={hiddenSleeperWaiverSignals}
-                                  managerAvatars={reportData.managerAvatars}
-                                />
-                              ) : (
-                                <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
-                                  No hidden waiver claims have been shared yet.
-                                  This table will show the player claims and
-                                  FAAB bids from Sleeper once the token is
-                                  loaded.
-                                </Card>
-                              )}
                             </div>
                           </div>
-                        </div>
-                      </CollapsibleReportSection>
+                        </CollapsibleReportSection>
+                      )}
 
                       {canViewAdminFeatureExpansion && (
                         <CollapsibleReportSection
