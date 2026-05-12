@@ -1810,7 +1810,7 @@
   }
 
   .league-shortcut-button + .league-shortcut-button {
-    margin-left: -0.98rem;
+    margin-left: calc(2.75rem * -0.55);
   }
 
   .league-shortcut-button img {
@@ -2101,7 +2101,7 @@
         0 0 0 2px rgba(2, 6, 23, 0.86);
     }
     .league-shortcut-button + .league-shortcut-button {
-      margin-left: -0.94rem;
+      margin-left: calc(2.75rem * -0.55);
     }
     .home-action-row {
       width: min(100%, 23rem);
@@ -4384,7 +4384,7 @@
   }
 
   .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {
-    margin-left: -0.96rem;
+    margin-left: calc(clamp(2rem, 9vw, 3rem) * -0.55);
   }
 
   .report-league-icon {
@@ -12947,7 +12947,7 @@
     }
 
     .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {
-      margin-left: -0.86rem;
+      margin-left: calc(clamp(2rem, 9vw, 3rem) * -0.55);
     }
 
     .report-tabs {
