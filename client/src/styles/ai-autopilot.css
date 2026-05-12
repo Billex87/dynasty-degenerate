@@ -1048,6 +1048,241 @@
   font-size: 0.78rem;
 }
 
+/* AI Autopilot circuit-glass surfaces */
+.autopilot-hero,
+.autopilot-direction-panel,
+.autopilot-section,
+.autopilot-command-strip,
+.autopilot-footer-read,
+.autopilot-score-tile,
+.autopilot-recommendation-card,
+.autopilot-trade-shot,
+.autopilot-pull-card,
+.autopilot-start-options,
+.autopilot-start-option,
+.autopilot-projection-row,
+.autopilot-power-row,
+.autopilot-schedule-panel,
+.autopilot-future-stack {
+  --ai-grid-color: color-mix(in srgb, var(--tone, var(--autopilot-cyan)) 28%, rgba(103, 232, 249, 0.042));
+  --ai-grid-hot: color-mix(in srgb, var(--tone, var(--autopilot-cyan)) 42%, rgba(125, 211, 252, 0.09));
+  --ai-glow-primary: color-mix(in srgb, var(--tone, var(--autopilot-cyan)) 34%, rgba(34, 211, 238, 0.042));
+  --ai-glow-secondary: color-mix(in srgb, var(--autopilot-orange) 58%, rgba(251, 146, 60, 0.022));
+  --ai-border-glow: color-mix(in srgb, var(--tone, var(--autopilot-cyan)) 46%, rgba(34, 211, 238, 0.24));
+  --ai-border-glass: rgba(255, 255, 255, 0.03);
+  --ai-grid-size: 22px;
+  --ai-grid-speed: 43s;
+  --ai-line-speed: 16s;
+  --ai-scan-speed: 11s;
+  --ai-border-speed: 16s;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: var(--ai-border-glow);
+  background:
+    radial-gradient(circle at 50% 16%, rgba(10, 18, 33, 0.48), transparent 38%),
+    radial-gradient(circle at 50% 52%, rgba(2, 6, 23, 0.9), rgba(1, 5, 14, 0.98) 66%, rgba(1, 4, 10, 0.995) 100%),
+    linear-gradient(135deg, rgba(1, 5, 14, 0.98), rgba(2, 8, 20, 0.96) 54%, rgba(1, 4, 10, 0.995));
+  box-shadow:
+    inset 0 0 0 1px var(--ai-border-glass),
+    inset 0 1px 0 rgba(255, 255, 255, 0.024),
+    inset 0 0 24px rgba(2, 6, 23, 0.5),
+    0 0 16px color-mix(in srgb, var(--ai-glow-primary) 48%, transparent);
+  animation: ai-border-breathe var(--ai-border-speed) ease-in-out infinite;
+}
+
+.autopilot-pull-card {
+  animation:
+    autopilot-lineup-shake 2.8s var(--dd-ease) infinite,
+    ai-border-breathe var(--ai-border-speed) ease-in-out infinite;
+}
+
+.autopilot-hero::before,
+.autopilot-direction-panel::before,
+.autopilot-section::before,
+.autopilot-command-strip::before,
+.autopilot-footer-read::before,
+.autopilot-score-tile::before,
+.autopilot-recommendation-card::before,
+.autopilot-trade-shot::before,
+.autopilot-pull-card::before,
+.autopilot-start-options::before,
+.autopilot-start-option::before,
+.autopilot-projection-row::before,
+.autopilot-power-row::before,
+.autopilot-schedule-panel::before,
+.autopilot-future-stack::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-primary) 24%, transparent), rgba(2, 6, 23, 0.025) 44%, transparent 68%) 0 0 / 100% 100% no-repeat,
+    linear-gradient(180deg, color-mix(in srgb, var(--ai-grid-hot) 82%, rgba(255, 255, 255, 0.32)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% var(--ai-grid-size) repeat,
+    linear-gradient(90deg, color-mix(in srgb, var(--ai-grid-hot) 82%, rgba(255, 255, 255, 0.32)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / var(--ai-grid-size) 100% repeat,
+    linear-gradient(180deg, transparent 0 49%, color-mix(in srgb, var(--ai-border-glow) 62%, transparent) 49.2% 50%, transparent 50.4% 100%) 12px 0 / 34px 172px repeat-y,
+    linear-gradient(90deg, transparent 0 49%, color-mix(in srgb, var(--ai-border-glow) 52%, transparent) 49.2% 50%, transparent 50.4% 100%) 0 14px / 172px 6px repeat-x,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-grid-hot) 70%, rgba(255, 255, 255, 0.46)) 0 1.05px, transparent 1.6px) 0 0 / var(--ai-grid-size) var(--ai-grid-size) repeat,
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.52) 0 0.86px, transparent 1.32px) 8px 8px / calc(var(--ai-grid-size) * 2.6) calc(var(--ai-grid-size) * 2.6) repeat,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-secondary) 70%, #fbbf24) 0 0.82px, transparent 1.26px) 0 0 / calc(var(--ai-grid-size) * 4) calc(var(--ai-grid-size) * 4) repeat;
+  opacity: 0.82;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  will-change: transform, opacity, background-position;
+  animation:
+    ai-grid-drift var(--ai-grid-speed) linear infinite,
+    ai-data-packet-vertical calc(var(--ai-line-speed) * 1.12) linear infinite,
+    ai-line-surge var(--ai-scan-speed) ease-in-out infinite;
+}
+
+.autopilot-hero::after,
+.autopilot-direction-panel::after,
+.autopilot-section::after,
+.autopilot-command-strip::after,
+.autopilot-footer-read::after,
+.autopilot-score-tile::after,
+.autopilot-recommendation-card::after,
+.autopilot-trade-shot::after,
+.autopilot-pull-card::after,
+.autopilot-start-options::after,
+.autopilot-start-option::after,
+.autopilot-projection-row::after,
+.autopilot-power-row::after,
+.autopilot-schedule-panel::after,
+.autopilot-future-stack::after {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  z-index: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, transparent 0 48%, color-mix(in srgb, var(--ai-border-glow) 94%, rgba(255, 255, 255, 0.24)) 49.2% 50.8%, transparent 52% 100%) 0 10px / 184px 1px repeat-x,
+    linear-gradient(90deg, transparent 0 49%, rgba(255, 255, 255, 0.9) 49.6% 50.4%, transparent 51% 100%) 32px 0 / 112px 1px repeat-x,
+    linear-gradient(180deg, transparent 0 48%, color-mix(in srgb, var(--ai-border-glow) 90%, rgba(255, 255, 255, 0.18)) 49.2% 50.8%, transparent 52% 100%) 8px 0 / 1px 184px repeat-y,
+    linear-gradient(180deg, transparent 0 49%, rgba(255, 255, 255, 0.68) 49.6% 50.4%, transparent 51% 100%) 0 28px / 1px 132px repeat-y,
+    linear-gradient(125deg, transparent 0 48%, color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 48.4% 48.9%, transparent 49.4% 100%) 0 0 / 220px 220px repeat,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-border-glow) 78%, rgba(255, 255, 255, 0.24)) 0 0.95px, transparent 1.45px) 0 0 / calc(var(--ai-grid-size) * 3) calc(var(--ai-grid-size) * 3) repeat,
+    linear-gradient(90deg, transparent 0 49%, color-mix(in srgb, var(--ai-glow-secondary) 82%, #fbbf24) 49.4% 50.6%, transparent 51% 100%) 64px 4px / 210px 1px repeat-x;
+  opacity: 0.28;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  will-change: opacity, background-position;
+  animation:
+    ai-data-packet-horizontal calc(var(--ai-line-speed) * 1.04) linear infinite,
+    ai-node-flicker calc(var(--ai-scan-speed) * 1.04) ease-in-out infinite;
+  animation-delay:
+    calc(var(--ai-line-speed) * -0.28),
+    0s;
+}
+
+.autopilot-hero > *,
+.autopilot-direction-panel > *,
+.autopilot-section > *,
+.autopilot-command-strip > *,
+.autopilot-footer-read > *,
+.autopilot-score-tile > *,
+.autopilot-recommendation-card > *,
+.autopilot-trade-shot > *,
+.autopilot-pull-card > *,
+.autopilot-start-options > *,
+.autopilot-start-option > *,
+.autopilot-projection-row > *,
+.autopilot-power-row > *,
+.autopilot-schedule-panel > *,
+.autopilot-future-stack > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Reference-style AI circuit refinement */
+.autopilot-hero,
+.autopilot-direction-panel,
+.autopilot-section,
+.autopilot-command-strip,
+.autopilot-footer-read,
+.autopilot-score-tile,
+.autopilot-recommendation-card,
+.autopilot-trade-shot,
+.autopilot-pull-card,
+.autopilot-start-options,
+.autopilot-start-option,
+.autopilot-projection-row,
+.autopilot-power-row,
+.autopilot-schedule-panel,
+.autopilot-future-stack {
+  --ai-circuit-size: var(--ai-grid-size, 22px);
+  --ai-circuit-accent: var(--tone, var(--ai-border-glow, #67e8f9));
+  --ai-circuit-line: color-mix(in srgb, var(--ai-grid-color) 46%, transparent);
+  --ai-circuit-line-hot: color-mix(in srgb, var(--ai-circuit-accent) 72%, rgba(255, 255, 255, 0.22));
+  --ai-circuit-node: color-mix(in srgb, var(--ai-circuit-accent) 86%, rgba(255, 255, 255, 0.42));
+}
+
+.autopilot-hero::before,
+.autopilot-direction-panel::before,
+.autopilot-section::before,
+.autopilot-command-strip::before,
+.autopilot-footer-read::before,
+.autopilot-score-tile::before,
+.autopilot-recommendation-card::before,
+.autopilot-trade-shot::before,
+.autopilot-pull-card::before,
+.autopilot-start-options::before,
+.autopilot-start-option::before,
+.autopilot-projection-row::before,
+.autopilot-power-row::before,
+.autopilot-schedule-panel::before,
+.autopilot-future-stack::before {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--ai-glow-primary) 14%, transparent), rgba(2, 6, 23, 0.018) 38%, transparent 66%) 0 0 / 100% 100% no-repeat,
+    linear-gradient(180deg, var(--ai-circuit-line) 0 1px, transparent 1px var(--ai-circuit-size)) 0 0 / 100% var(--ai-circuit-size) repeat,
+    linear-gradient(90deg, var(--ai-circuit-line) 0 1px, transparent 1px var(--ai-circuit-size)) 0 0 / var(--ai-circuit-size) 100% repeat,
+    linear-gradient(90deg, transparent 0 14%, color-mix(in srgb, var(--ai-circuit-line-hot) 56%, transparent) 14.4% 24%, transparent 24.4% 100%) 0 11px / 264px 1px repeat-x,
+    linear-gradient(180deg, transparent 0 18%, color-mix(in srgb, var(--ai-circuit-line-hot) 48%, transparent) 18.2% 30%, transparent 30.4% 100%) 18px 0 / 1px 286px repeat-y,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-grid-hot) 38%, rgba(255, 255, 255, 0.18)) 0 0.78px, transparent 1.28px) 0 0 / var(--ai-circuit-size) var(--ai-circuit-size) repeat,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-circuit-node) 42%, transparent) 0 0.72px, transparent 1.16px) 8px 8px / calc(var(--ai-circuit-size) * 2.6) calc(var(--ai-circuit-size) * 2.6) repeat,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-secondary) 78%, #fbbf24) 0 0.76px, transparent 1.18px) 0 0 / calc(var(--ai-circuit-size) * 4.6) calc(var(--ai-circuit-size) * 4.6) repeat;
+  opacity: 0.58;
+}
+
+.autopilot-hero::after,
+.autopilot-direction-panel::after,
+.autopilot-section::after,
+.autopilot-command-strip::after,
+.autopilot-footer-read::after,
+.autopilot-score-tile::after,
+.autopilot-recommendation-card::after,
+.autopilot-trade-shot::after,
+.autopilot-pull-card::after,
+.autopilot-start-options::after,
+.autopilot-start-option::after,
+.autopilot-projection-row::after,
+.autopilot-power-row::after,
+.autopilot-schedule-panel::after,
+.autopilot-future-stack::after {
+  background:
+    linear-gradient(90deg, transparent 0 9%, color-mix(in srgb, var(--ai-circuit-accent) 36%, transparent) 9.4% 15%, rgba(255, 255, 255, 0.88) 15.4% 16%, color-mix(in srgb, var(--ai-circuit-accent) 94%, rgba(255, 255, 255, 0.36)) 16.2% 18.4%, transparent 20.4% 100%) 0 calc(var(--ai-circuit-size) * 1) / 620px 1px repeat-x,
+    linear-gradient(90deg, transparent 0 42%, color-mix(in srgb, var(--ai-circuit-accent) 26%, transparent) 42.4% 48%, rgba(255, 255, 255, 0.78) 48.4% 49%, color-mix(in srgb, var(--ai-circuit-accent) 88%, transparent) 49.2% 51.2%, transparent 53% 100%) 86px calc(var(--ai-circuit-size) * 3) / 760px 1px repeat-x,
+    linear-gradient(90deg, transparent 0 58%, color-mix(in srgb, var(--ai-glow-secondary) 54%, transparent) 58.3% 63%, color-mix(in srgb, var(--ai-glow-secondary) 95%, #fbbf24) 63.4% 64.2%, transparent 66% 100%) 144px calc(var(--ai-circuit-size) * 5) / 680px 1px repeat-x,
+    linear-gradient(180deg, transparent 0 11%, color-mix(in srgb, var(--ai-circuit-accent) 34%, transparent) 11.3% 17%, rgba(255, 255, 255, 0.82) 17.4% 18%, color-mix(in srgb, var(--ai-circuit-accent) 92%, rgba(255, 255, 255, 0.32)) 18.2% 20.4%, transparent 22.4% 100%) calc(var(--ai-circuit-size) * 4) 0 / 1px 560px repeat-y,
+    linear-gradient(180deg, transparent 0 36%, color-mix(in srgb, var(--ai-circuit-accent) 28%, transparent) 36.4% 43%, rgba(255, 255, 255, 0.76) 43.3% 44%, color-mix(in srgb, var(--ai-circuit-accent) 84%, transparent) 44.2% 46.2%, transparent 48% 100%) calc(var(--ai-circuit-size) * 10) 42px / 1px 640px repeat-y,
+    linear-gradient(180deg, transparent 0 61%, color-mix(in srgb, var(--ai-glow-secondary) 42%, transparent) 61.4% 67%, color-mix(in srgb, var(--ai-glow-secondary) 94%, #fbbf24) 67.2% 68%, transparent 70% 100%) calc(var(--ai-circuit-size) * 15) 0 / 1px 700px repeat-y,
+    radial-gradient(circle at 9% 2%, color-mix(in srgb, var(--ai-circuit-accent) 98%, white) 0 1.42px, color-mix(in srgb, var(--ai-circuit-accent) 38%, transparent) 2.4px, transparent 6px) 0 0 / 100% 100% no-repeat,
+    radial-gradient(circle at 58% 28%, color-mix(in srgb, var(--ai-circuit-node) 96%, rgba(255, 255, 255, 0.42)) 0 1.15px, color-mix(in srgb, var(--ai-circuit-accent) 32%, transparent) 2.1px, transparent 5px) 0 0 / 100% 100% no-repeat,
+    radial-gradient(circle at 78% 64%, color-mix(in srgb, var(--ai-glow-secondary) 96%, #fbbf24) 0 1.12px, color-mix(in srgb, var(--ai-glow-secondary) 36%, transparent) 2.1px, transparent 4.8px) 0 0 / 100% 100% no-repeat;
+  opacity: 0.5;
+  animation:
+    ai-data-packets-sparse calc(var(--ai-line-speed) * 1.45) linear infinite,
+    ai-packet-field-breathe calc(var(--ai-scan-speed) * 1.35) ease-in-out infinite;
+  animation-delay:
+    calc(var(--ai-line-speed) * -0.18),
+    -2.7s;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .autopilot-mode-button:hover,
   .autopilot-screenshot-button:hover {
@@ -1250,6 +1485,91 @@
   .autopilot-screenshot-button,
   .autopilot-reasoning summary svg {
     transition-duration: 1ms !important;
+  }
+
+  .autopilot-hero,
+  .autopilot-direction-panel,
+  .autopilot-section,
+  .autopilot-command-strip,
+  .autopilot-footer-read,
+  .autopilot-score-tile,
+  .autopilot-recommendation-card,
+  .autopilot-trade-shot,
+  .autopilot-pull-card,
+  .autopilot-start-options,
+  .autopilot-start-option,
+  .autopilot-projection-row,
+  .autopilot-power-row,
+  .autopilot-schedule-panel,
+  .autopilot-future-stack,
+  .autopilot-hero::before,
+  .autopilot-direction-panel::before,
+  .autopilot-section::before,
+  .autopilot-command-strip::before,
+  .autopilot-footer-read::before,
+  .autopilot-score-tile::before,
+  .autopilot-recommendation-card::before,
+  .autopilot-trade-shot::before,
+  .autopilot-pull-card::before,
+  .autopilot-start-options::before,
+  .autopilot-start-option::before,
+  .autopilot-projection-row::before,
+  .autopilot-power-row::before,
+  .autopilot-schedule-panel::before,
+  .autopilot-future-stack::before,
+  .autopilot-hero::after,
+  .autopilot-direction-panel::after,
+  .autopilot-section::after,
+  .autopilot-command-strip::after,
+  .autopilot-footer-read::after,
+  .autopilot-score-tile::after,
+  .autopilot-recommendation-card::after,
+  .autopilot-trade-shot::after,
+  .autopilot-pull-card::after,
+  .autopilot-start-options::after,
+  .autopilot-start-option::after,
+  .autopilot-projection-row::after,
+  .autopilot-power-row::after,
+  .autopilot-schedule-panel::after,
+  .autopilot-future-stack::after {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .autopilot-hero::before,
+  .autopilot-direction-panel::before,
+  .autopilot-section::before,
+  .autopilot-command-strip::before,
+  .autopilot-footer-read::before,
+  .autopilot-score-tile::before,
+  .autopilot-recommendation-card::before,
+  .autopilot-trade-shot::before,
+  .autopilot-pull-card::before,
+  .autopilot-start-options::before,
+  .autopilot-start-option::before,
+  .autopilot-projection-row::before,
+  .autopilot-power-row::before,
+  .autopilot-schedule-panel::before,
+  .autopilot-future-stack::before {
+    opacity: 0.58;
+  }
+
+  .autopilot-hero::after,
+  .autopilot-direction-panel::after,
+  .autopilot-section::after,
+  .autopilot-command-strip::after,
+  .autopilot-footer-read::after,
+  .autopilot-score-tile::after,
+  .autopilot-recommendation-card::after,
+  .autopilot-trade-shot::after,
+  .autopilot-pull-card::after,
+  .autopilot-start-options::after,
+  .autopilot-start-option::after,
+  .autopilot-projection-row::after,
+  .autopilot-power-row::after,
+  .autopilot-schedule-panel::after,
+  .autopilot-future-stack::after {
+    opacity: 0.48;
   }
 
   .autopilot-pull-card {

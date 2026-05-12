@@ -2,6 +2,17 @@
 
 - Canonical item-by-item execution prompt: [docs/todo-list-execution-prompt.md](docs/todo-list-execution-prompt.md)
 
+## Premium UX / Three.js Roadmap
+
+- [ ] Rebuild the loading and report-generated modals as true Three.js scenes, not just CSS polish. Target a premium fantasy-football command-center feel: a cinematic 3D football fly-by on a real low-to-high arc, a depth-field loading stage, a textured league-logo coin/medallion, and a physical `REPORT GENERATED` stamp slam with ripple shockwaves, subtle camera thud, light sweep, and restrained glow.
+- [ ] Keep the experience responsive and production-safe: code-native readable text/actions, desktop/tablet/mobile framing, reduced-motion fallback, graceful non-WebGL fallback, and no blocking of report generation if the 3D scene fails.
+- [ ] Add visual QA coverage for the modal rebuild with Playwright screenshots and canvas checks across desktop and mobile viewports so the animation is nonblank, correctly framed, and visibly 3D before shipping.
+- [ ] Evaluate a subtle Three.js command-center backdrop for the generated report shell: layered 3D field/grid depth, premium tron-line movement, light sweeps, and parallax that make the report feel alive without reducing table readability or hurting scroll performance.
+- [ ] Upgrade player detail moments with restrained 3D depth where it adds signal: player/value medallion, confidence ring, market-movement pulse, and source-weight orbit that visually explains why the AI read is high or low confidence.
+- [ ] Explore Three.js reveal treatments for high-value intelligence modules such as Waiver Intelligence, Trade War Room, Weekly Momentum, and Rankings: small 3D radar/scanner/market-map scenes that support the data instead of replacing it.
+- [ ] Add an admin-only Three.js source-health cockpit concept for dynamic valuation trust: source nodes, drift warnings, confidence changes, and dynasty/redraft weight movement shown as an interactive 3D map for quick anomaly spotting.
+- [ ] Build any Three.js expansion behind a shared lazy-loaded scene layer with strict performance budgets, feature flags, reduced-motion/static fallbacks, and mobile battery/GPU checks before enabling it broadly.
+
 ## Data Operations Roadmap
 
 - [ ] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.

@@ -5150,15 +5150,18 @@ body {
 @layer components {
   /* Owner/manager/waiver AI surfaces */
   .owner-intel-ai-card,
+  .owner-intel-read-grid > div,
   .owner-intel-read-grid > .owner-intel-wild-notes,
   .manager-command-ai-read,
+  .waiver-intel-recommendation-banner,
+  .waiver-intel-panel .waiver-intel-card,
   .waiver-intel-card-suggested {
-    --ai-grid-color: rgba(103, 232, 249, 0.032);
-    --ai-grid-hot: rgba(125, 211, 252, 0.068);
+    --ai-grid-color: rgba(103, 232, 249, 0.07);
+    --ai-grid-hot: rgba(125, 211, 252, 0.18);
     --ai-grid-muted: rgba(1, 5, 14, 0.98);
-    --ai-glow-primary: rgba(34, 211, 238, 0.034);
-    --ai-glow-secondary: rgba(251, 146, 60, 0.018);
-    --ai-border-glow: rgba(34, 211, 238, 0.22);
+    --ai-glow-primary: rgba(34, 211, 238, 0.042);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.022);
+    --ai-border-glow: rgba(34, 211, 238, 0.24);
     --ai-border-glass: rgba(255, 255, 255, 0.028);
     --ai-pulse-origin-x: 18%;
     --ai-pulse-origin-y: 26%;
@@ -5186,11 +5189,11 @@ body {
   }
 
   .owner-intel-ai-card-good {
-    --ai-border-glow: rgba(52, 211, 153, 0.22);
-    --ai-glow-primary: rgba(16, 185, 129, 0.034);
-    --ai-glow-secondary: rgba(52, 211, 153, 0.018);
-    --ai-grid-color: rgba(52, 211, 153, 0.032);
-    --ai-grid-hot: rgba(134, 239, 172, 0.068);
+    --ai-border-glow: rgba(52, 211, 153, 0.24);
+    --ai-glow-primary: rgba(16, 185, 129, 0.042);
+    --ai-glow-secondary: rgba(52, 211, 153, 0.022);
+    --ai-grid-color: rgba(52, 211, 153, 0.068);
+    --ai-grid-hot: rgba(134, 239, 172, 0.16);
     --ai-pulse-origin-x: 22%;
     --ai-pulse-origin-y: 24%;
     --ai-grid-speed: 40s;
@@ -5199,11 +5202,11 @@ body {
   }
 
   .owner-intel-ai-card-warn {
-    --ai-border-glow: rgba(251, 146, 60, 0.22);
-    --ai-glow-primary: rgba(249, 115, 22, 0.03);
-    --ai-glow-secondary: rgba(251, 146, 60, 0.018);
-    --ai-grid-color: rgba(251, 146, 60, 0.03);
-    --ai-grid-hot: rgba(253, 186, 116, 0.064);
+    --ai-border-glow: rgba(251, 146, 60, 0.24);
+    --ai-glow-primary: rgba(249, 115, 22, 0.038);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.022);
+    --ai-grid-color: rgba(251, 146, 60, 0.058);
+    --ai-grid-hot: rgba(253, 186, 116, 0.142);
     --ai-pulse-origin-x: 76%;
     --ai-pulse-origin-y: 20%;
     --ai-grid-speed: 40s;
@@ -5212,11 +5215,11 @@ body {
   }
 
   .owner-intel-ai-card-danger {
-    --ai-border-glow: rgba(251, 113, 133, 0.22);
-    --ai-glow-primary: rgba(244, 63, 94, 0.03);
-    --ai-glow-secondary: rgba(251, 113, 133, 0.018);
-    --ai-grid-color: rgba(251, 113, 133, 0.028);
-    --ai-grid-hot: rgba(253, 164, 175, 0.062);
+    --ai-border-glow: rgba(251, 113, 133, 0.24);
+    --ai-glow-primary: rgba(244, 63, 94, 0.038);
+    --ai-glow-secondary: rgba(251, 113, 133, 0.022);
+    --ai-grid-color: rgba(251, 113, 133, 0.055);
+    --ai-grid-hot: rgba(253, 164, 175, 0.135);
     --ai-pulse-origin-x: 72%;
     --ai-pulse-origin-y: 34%;
     --ai-grid-speed: 41s;
@@ -5225,13 +5228,14 @@ body {
   }
 
   .owner-intel-ai-card-future,
+  .owner-intel-read-grid > div,
   .owner-intel-read-grid > .owner-intel-wild-notes,
   .manager-command-ai-read {
-    --ai-border-glow: rgba(45, 212, 191, 0.22);
-    --ai-glow-primary: rgba(34, 211, 238, 0.034);
-    --ai-glow-secondary: rgba(45, 212, 191, 0.018);
-    --ai-grid-color: rgba(45, 212, 191, 0.03);
-    --ai-grid-hot: rgba(103, 232, 249, 0.064);
+    --ai-border-glow: rgba(45, 212, 191, 0.24);
+    --ai-glow-primary: rgba(34, 211, 238, 0.042);
+    --ai-glow-secondary: rgba(45, 212, 191, 0.022);
+    --ai-grid-color: rgba(45, 212, 191, 0.068);
+    --ai-grid-hot: rgba(103, 232, 249, 0.17);
     --ai-pulse-origin-x: 68%;
     --ai-pulse-origin-y: 22%;
     --ai-grid-size: 22px;
@@ -5243,11 +5247,11 @@ body {
 
   .owner-intel-ai-theme-trade,
   .waiver-intel-card-suggested {
-    --ai-border-glow: rgba(52, 211, 153, 0.22);
-    --ai-glow-primary: rgba(16, 185, 129, 0.034);
-    --ai-glow-secondary: rgba(52, 211, 153, 0.018);
-    --ai-grid-color: rgba(52, 211, 153, 0.03);
-    --ai-grid-hot: rgba(134, 239, 172, 0.064);
+    --ai-border-glow: rgba(52, 211, 153, 0.24);
+    --ai-glow-primary: rgba(16, 185, 129, 0.042);
+    --ai-glow-secondary: rgba(52, 211, 153, 0.022);
+    --ai-grid-color: rgba(52, 211, 153, 0.068);
+    --ai-grid-hot: rgba(134, 239, 172, 0.16);
     --ai-pulse-origin-x: 20%;
     --ai-pulse-origin-y: 28%;
     --ai-grid-size: 22px;
@@ -5257,12 +5261,37 @@ body {
     --ai-scan-speed: 18s;
   }
 
+  .waiver-intel-panel .waiver-intel-card:not(.waiver-intel-card-suggested) {
+    --ai-border-glow: color-mix(in srgb, var(--team-accent, #22d3ee) 46%, rgba(34, 211, 238, 0.24));
+    --ai-glow-primary: color-mix(in srgb, var(--team-accent, #22d3ee) 34%, rgba(34, 211, 238, 0.034));
+    --ai-glow-secondary: rgba(251, 146, 60, 0.022);
+    --ai-grid-color: color-mix(in srgb, var(--team-accent, #22d3ee) 38%, rgba(103, 232, 249, 0.07));
+    --ai-grid-hot: color-mix(in srgb, var(--team-accent, #22d3ee) 58%, rgba(125, 211, 252, 0.16));
+    --ai-pulse-origin-x: 70%;
+    --ai-pulse-origin-y: 24%;
+    --ai-grid-speed: 43s;
+    --ai-line-speed: 27s;
+    --ai-scan-speed: 19s;
+  }
+
+  .waiver-intel-recommendation-banner {
+    --ai-border-glow: rgba(34, 211, 238, 0.28);
+    --ai-glow-primary: rgba(34, 211, 238, 0.046);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.024);
+    --ai-grid-color: rgba(103, 232, 249, 0.07);
+    --ai-grid-hot: rgba(125, 211, 252, 0.17);
+    --ai-grid-size: 20px;
+    --ai-grid-size-strong: 80px;
+    --ai-pulse-origin-x: 42%;
+    --ai-pulse-origin-y: 18%;
+  }
+
   .owner-intel-ai-theme-window {
-    --ai-border-glow: rgba(45, 212, 191, 0.22);
-    --ai-glow-primary: rgba(20, 184, 166, 0.032);
-    --ai-glow-secondary: rgba(45, 212, 191, 0.018);
-    --ai-grid-color: rgba(45, 212, 191, 0.03);
-    --ai-grid-hot: rgba(94, 234, 212, 0.064);
+    --ai-border-glow: rgba(45, 212, 191, 0.24);
+    --ai-glow-primary: rgba(20, 184, 166, 0.04);
+    --ai-glow-secondary: rgba(45, 212, 191, 0.022);
+    --ai-grid-color: rgba(45, 212, 191, 0.066);
+    --ai-grid-hot: rgba(94, 234, 212, 0.155);
     --ai-pulse-origin-x: 72%;
     --ai-pulse-origin-y: 18%;
     --ai-grid-size: 22px;
@@ -5273,11 +5302,11 @@ body {
   }
 
   .owner-intel-ai-theme-draft {
-    --ai-border-glow: rgba(250, 204, 21, 0.22);
-    --ai-glow-primary: rgba(250, 204, 21, 0.03);
-    --ai-glow-secondary: rgba(250, 204, 21, 0.018);
-    --ai-grid-color: rgba(250, 204, 21, 0.028);
-    --ai-grid-hot: rgba(253, 224, 71, 0.062);
+    --ai-border-glow: rgba(250, 204, 21, 0.24);
+    --ai-glow-primary: rgba(250, 204, 21, 0.038);
+    --ai-glow-secondary: rgba(250, 204, 21, 0.022);
+    --ai-grid-color: rgba(250, 204, 21, 0.055);
+    --ai-grid-hot: rgba(253, 224, 71, 0.135);
     --ai-pulse-origin-x: 24%;
     --ai-pulse-origin-y: 18%;
     --ai-grid-size: 22px;
@@ -5288,11 +5317,11 @@ body {
   }
 
   .owner-intel-ai-theme-churn {
-    --ai-border-glow: rgba(251, 146, 60, 0.22);
-    --ai-glow-primary: rgba(249, 115, 22, 0.03);
-    --ai-glow-secondary: rgba(251, 146, 60, 0.018);
-    --ai-grid-color: rgba(251, 146, 60, 0.03);
-    --ai-grid-hot: rgba(253, 186, 116, 0.064);
+    --ai-border-glow: rgba(251, 146, 60, 0.24);
+    --ai-glow-primary: rgba(249, 115, 22, 0.038);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.022);
+    --ai-grid-color: rgba(251, 146, 60, 0.058);
+    --ai-grid-hot: rgba(253, 186, 116, 0.142);
     --ai-pulse-origin-x: 78%;
     --ai-pulse-origin-y: 60%;
     --ai-grid-size: 22px;
@@ -5303,11 +5332,11 @@ body {
   }
 
   .owner-intel-ai-theme-risk {
-    --ai-border-glow: rgba(251, 113, 133, 0.22);
-    --ai-glow-primary: rgba(244, 63, 94, 0.03);
-    --ai-glow-secondary: rgba(251, 113, 133, 0.018);
-    --ai-grid-color: rgba(251, 113, 133, 0.028);
-    --ai-grid-hot: rgba(253, 164, 175, 0.062);
+    --ai-border-glow: rgba(251, 113, 133, 0.24);
+    --ai-glow-primary: rgba(244, 63, 94, 0.038);
+    --ai-glow-secondary: rgba(251, 113, 133, 0.022);
+    --ai-grid-color: rgba(251, 113, 133, 0.055);
+    --ai-grid-hot: rgba(253, 164, 175, 0.135);
     --ai-pulse-origin-x: 78%;
     --ai-pulse-origin-y: 34%;
     --ai-grid-size: 22px;
@@ -5318,11 +5347,11 @@ body {
   }
 
   .owner-intel-ai-theme-upside {
-    --ai-border-glow: rgba(192, 132, 252, 0.22);
-    --ai-glow-primary: rgba(168, 85, 247, 0.03);
-    --ai-glow-secondary: rgba(192, 132, 252, 0.018);
-    --ai-grid-color: rgba(192, 132, 252, 0.028);
-    --ai-grid-hot: rgba(216, 180, 254, 0.06);
+    --ai-border-glow: rgba(192, 132, 252, 0.24);
+    --ai-glow-primary: rgba(168, 85, 247, 0.038);
+    --ai-glow-secondary: rgba(192, 132, 252, 0.022);
+    --ai-grid-color: rgba(192, 132, 252, 0.055);
+    --ai-grid-hot: rgba(216, 180, 254, 0.135);
     --ai-pulse-origin-x: 64%;
     --ai-pulse-origin-y: 14%;
     --ai-grid-size: 22px;
@@ -5333,11 +5362,11 @@ body {
   }
 
   .owner-intel-ai-theme-sell {
-    --ai-border-glow: rgba(251, 146, 60, 0.22);
-    --ai-glow-primary: rgba(249, 115, 22, 0.03);
-    --ai-glow-secondary: rgba(251, 146, 60, 0.018);
-    --ai-grid-color: rgba(251, 146, 60, 0.03);
-    --ai-grid-hot: rgba(253, 186, 116, 0.064);
+    --ai-border-glow: rgba(251, 146, 60, 0.24);
+    --ai-glow-primary: rgba(249, 115, 22, 0.038);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.022);
+    --ai-grid-color: rgba(251, 146, 60, 0.058);
+    --ai-grid-hot: rgba(253, 186, 116, 0.142);
     --ai-pulse-origin-x: 78%;
     --ai-pulse-origin-y: 58%;
     --ai-grid-size: 22px;
@@ -5348,11 +5377,11 @@ body {
   }
 
   .owner-intel-ai-theme-core {
-    --ai-border-glow: rgba(125, 211, 252, 0.22);
-    --ai-glow-primary: rgba(56, 189, 248, 0.03);
-    --ai-glow-secondary: rgba(125, 211, 252, 0.018);
-    --ai-grid-color: rgba(125, 211, 252, 0.028);
-    --ai-grid-hot: rgba(186, 230, 253, 0.062);
+    --ai-border-glow: rgba(125, 211, 252, 0.24);
+    --ai-glow-primary: rgba(56, 189, 248, 0.038);
+    --ai-glow-secondary: rgba(125, 211, 252, 0.022);
+    --ai-grid-color: rgba(125, 211, 252, 0.058);
+    --ai-grid-hot: rgba(186, 230, 253, 0.142);
     --ai-pulse-origin-x: 56%;
     --ai-pulse-origin-y: 50%;
     --ai-grid-size: 22px;
@@ -5363,11 +5392,11 @@ body {
   }
 
   .owner-intel-ai-theme-neutral {
-    --ai-border-glow: rgba(34, 211, 238, 0.18);
-    --ai-glow-primary: rgba(34, 211, 238, 0.03);
-    --ai-glow-secondary: rgba(45, 212, 191, 0.018);
-    --ai-grid-color: rgba(45, 212, 191, 0.03);
-    --ai-grid-hot: rgba(103, 232, 249, 0.064);
+    --ai-border-glow: rgba(34, 211, 238, 0.22);
+    --ai-glow-primary: rgba(34, 211, 238, 0.038);
+    --ai-glow-secondary: rgba(45, 212, 191, 0.022);
+    --ai-grid-color: rgba(45, 212, 191, 0.064);
+    --ai-grid-hot: rgba(103, 232, 249, 0.152);
     --ai-pulse-origin-x: 18%;
     --ai-pulse-origin-y: 28%;
     --ai-grid-size: 22px;
@@ -5377,25 +5406,41 @@ body {
     --ai-scan-speed: 18s;
   }
 
+  .owner-intel-read-grid > div,
+  .owner-intel-ai-card,
+  .owner-intel-read-grid > .owner-intel-wild-notes,
+  .manager-command-ai-read,
+  .waiver-intel-recommendation-banner,
+  .waiver-intel-panel .waiver-intel-card,
+  .waiver-intel-card-suggested {
+    --ai-line-speed: 15s;
+    --ai-scan-speed: 10.5s;
+  }
+
   .owner-intel-ai-card::before,
+  .owner-intel-read-grid > div::before,
   .owner-intel-read-grid > .owner-intel-wild-notes::before,
   .manager-command-ai-read::before,
+  .waiver-intel-recommendation-banner::before,
+  .waiver-intel-panel .waiver-intel-card::before,
   .waiver-intel-card-suggested::before {
     content: "";
     position: absolute;
     inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: 0;
     border-radius: inherit;
     background:
-      radial-gradient(circle at 50% 50%, rgba(4, 10, 22, 0.52), rgba(2, 6, 23, 0.08) 44%, transparent 68%) 0 0 / 100% 100% no-repeat,
-      linear-gradient(180deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% 100% repeat,
-      linear-gradient(90deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% 100% repeat,
-      linear-gradient(180deg, transparent 0 40%, color-mix(in srgb, var(--ai-border-glow) 44%, transparent) 41% 42%, transparent 43% 100%) 12px 0 / 28px 172px repeat-y,
-      linear-gradient(90deg, transparent 0 40%, color-mix(in srgb, var(--ai-border-glow) 34%, transparent) 41% 42%, transparent 43% 100%) 0 14px / 172px 28px repeat-x,
-      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-grid-hot) 70%, transparent) 0 1px, transparent 1.55px) 0 0 / var(--ai-grid-size) var(--ai-grid-size) repeat,
-      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09) 0 0.8px, transparent 1.3px) 8px 8px / calc(var(--ai-grid-size) * 2.6) calc(var(--ai-grid-size) * 2.6) repeat,
-      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-secondary) 40%, transparent) 0 0.8px, transparent 1.2px) 0 0 / calc(var(--ai-grid-size) * 4) calc(var(--ai-grid-size) * 4) repeat;
-    opacity: 0.5;
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-primary) 24%, transparent), rgba(2, 6, 23, 0.025) 44%, transparent 68%) 0 0 / 100% 100% no-repeat,
+      linear-gradient(180deg, color-mix(in srgb, var(--ai-grid-hot) 82%, rgba(255, 255, 255, 0.32)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% var(--ai-grid-size) repeat,
+      linear-gradient(90deg, color-mix(in srgb, var(--ai-grid-hot) 82%, rgba(255, 255, 255, 0.32)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / var(--ai-grid-size) 100% repeat,
+      linear-gradient(180deg, transparent 0 49%, color-mix(in srgb, var(--ai-border-glow) 62%, transparent) 49.2% 50%, transparent 50.4% 100%) 12px 0 / 34px 172px repeat-y,
+      linear-gradient(90deg, transparent 0 49%, color-mix(in srgb, var(--ai-border-glow) 52%, transparent) 49.2% 50%, transparent 50.4% 100%) 0 14px / 172px 6px repeat-x,
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-grid-hot) 70%, rgba(255, 255, 255, 0.46)) 0 1.05px, transparent 1.6px) 0 0 / var(--ai-grid-size) var(--ai-grid-size) repeat,
+      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.52) 0 0.86px, transparent 1.32px) 8px 8px / calc(var(--ai-grid-size) * 2.6) calc(var(--ai-grid-size) * 2.6) repeat,
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-secondary) 70%, #fbbf24) 0 0.82px, transparent 1.26px) 0 0 / calc(var(--ai-grid-size) * 4) calc(var(--ai-grid-size) * 4) repeat;
+    opacity: 0.82;
     pointer-events: none;
     transform: translate3d(0, 0, 0);
     will-change: transform, opacity, background-position;
@@ -5406,8 +5451,11 @@ body {
   }
 
   .owner-intel-ai-card::after,
+  .owner-intel-read-grid > div::after,
   .owner-intel-read-grid > .owner-intel-wild-notes::after,
   .manager-command-ai-read::after,
+  .waiver-intel-recommendation-banner::after,
+  .waiver-intel-panel .waiver-intel-card::after,
   .waiver-intel-card-suggested::after {
     content: "";
     position: absolute;
@@ -5415,29 +5463,32 @@ body {
     z-index: 0;
     border-radius: inherit;
     background:
-      linear-gradient(90deg, transparent 0 43%, color-mix(in srgb, var(--ai-border-glow) 74%, transparent) 44% 56%, transparent 57% 100%) 0 10px / 184px 22px repeat-x,
-      linear-gradient(90deg, transparent 0 46%, rgba(255, 255, 255, 0.18) 47% 53%, transparent 54% 100%) 32px 0 / 118px 14px repeat-x,
-      linear-gradient(125deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 45% 48%, transparent 49% 100%) 0 0 / 220px 220px repeat,
-      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-border-glow) 58%, transparent) 0 1px, transparent 1.2px) 0 0 / 46% 46% no-repeat,
-      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 14%, transparent) 0 1px, transparent 5rem) 0 0 / 100% 100% no-repeat;
-    opacity: 0.08;
+      linear-gradient(90deg, transparent 0 48%, color-mix(in srgb, var(--ai-border-glow) 94%, rgba(255, 255, 255, 0.24)) 49.2% 50.8%, transparent 52% 100%) 0 10px / 184px 1px repeat-x,
+      linear-gradient(90deg, transparent 0 49%, rgba(255, 255, 255, 0.9) 49.6% 50.4%, transparent 51% 100%) 32px 0 / 112px 1px repeat-x,
+      linear-gradient(180deg, transparent 0 48%, color-mix(in srgb, var(--ai-border-glow) 90%, rgba(255, 255, 255, 0.18)) 49.2% 50.8%, transparent 52% 100%) 8px 0 / 1px 184px repeat-y,
+      linear-gradient(180deg, transparent 0 49%, rgba(255, 255, 255, 0.68) 49.6% 50.4%, transparent 51% 100%) 0 28px / 1px 132px repeat-y,
+      linear-gradient(125deg, transparent 0 48%, color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 48.4% 48.9%, transparent 49.4% 100%) 0 0 / 220px 220px repeat,
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-border-glow) 78%, rgba(255, 255, 255, 0.24)) 0 0.95px, transparent 1.45px) 0 0 / calc(var(--ai-grid-size) * 3) calc(var(--ai-grid-size) * 3) repeat,
+      linear-gradient(90deg, transparent 0 49%, color-mix(in srgb, var(--ai-glow-secondary) 82%, #fbbf24) 49.4% 50.6%, transparent 51% 100%) 64px 4px / 210px 1px repeat-x;
+    opacity: 0.28;
     mix-blend-mode: screen;
     pointer-events: none;
     transform-origin: var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
     will-change: transform, opacity, background-position;
     animation:
       ai-data-packet-horizontal calc(var(--ai-line-speed) * 1.04) linear infinite,
-      ai-node-flicker calc(var(--ai-scan-speed) * 1.04) ease-in-out infinite,
-      ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite;
+      ai-node-flicker calc(var(--ai-scan-speed) * 1.04) ease-in-out infinite;
     animation-delay:
-      calc(var(--ai-ripple-speed) * -0.18),
-      0s,
-      calc(var(--ai-ripple-speed) * -0.24);
+      calc(var(--ai-line-speed) * -0.28),
+      0s;
   }
 
   .owner-intel-ai-card > *,
+  .owner-intel-read-grid > div > *,
   .owner-intel-read-grid > .owner-intel-wild-notes > *,
   .manager-command-ai-read > *,
+  .waiver-intel-recommendation-banner > *,
+  .waiver-intel-panel .waiver-intel-card > *,
   .waiver-intel-card-suggested > * {
     position: relative;
     z-index: 1;
@@ -5456,33 +5507,48 @@ body {
 
   @media (prefers-reduced-motion: reduce) {
     .owner-intel-ai-card,
+    .owner-intel-read-grid > div,
     .owner-intel-read-grid > .owner-intel-wild-notes,
     .manager-command-ai-read,
+    .waiver-intel-recommendation-banner,
+    .waiver-intel-panel .waiver-intel-card,
     .waiver-intel-card-suggested,
     .owner-intel-ai-card::before,
+    .owner-intel-read-grid > div::before,
     .owner-intel-read-grid > .owner-intel-wild-notes::before,
     .manager-command-ai-read::before,
+    .waiver-intel-recommendation-banner::before,
+    .waiver-intel-panel .waiver-intel-card::before,
     .waiver-intel-card-suggested::before,
     .owner-intel-ai-card::after,
+    .owner-intel-read-grid > div::after,
     .owner-intel-read-grid > .owner-intel-wild-notes::after,
     .manager-command-ai-read::after,
+    .waiver-intel-recommendation-banner::after,
+    .waiver-intel-panel .waiver-intel-card::after,
     .waiver-intel-card-suggested::after {
       animation: none !important;
       transform: none !important;
     }
 
     .owner-intel-ai-card::before,
+    .owner-intel-read-grid > div::before,
     .owner-intel-read-grid > .owner-intel-wild-notes::before,
     .manager-command-ai-read::before,
+    .waiver-intel-recommendation-banner::before,
+    .waiver-intel-panel .waiver-intel-card::before,
     .waiver-intel-card-suggested::before {
-      opacity: 0.56;
+      opacity: 0.58;
     }
 
     .owner-intel-ai-card::after,
+    .owner-intel-read-grid > div::after,
     .owner-intel-read-grid > .owner-intel-wild-notes::after,
     .manager-command-ai-read::after,
+    .waiver-intel-recommendation-banner::after,
+    .waiver-intel-panel .waiver-intel-card::after,
     .waiver-intel-card-suggested::after {
-      opacity: 0.06;
+      opacity: 0.48;
     }
   }
 }

@@ -92,10 +92,6 @@
     {
       "path": "/api/cron/dynamic-data-refresh",
       "schedule": "40 1 * * *"
-    },
-    {
-      "path": "/api/cron/ktc-snapshot?force=true",
-      "schedule": "45 3 12 5 *"
     }
   ]
 }
