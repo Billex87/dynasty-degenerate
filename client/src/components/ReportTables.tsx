@@ -6897,7 +6897,8 @@ export function OwnerIntelMatrix({
                     );
                   })}
                   {selectedActionNotes.length ? (
-                    <div className={getAiNeuralSurfaceClass('neutral', 'owner-intel-wild-notes')}>
+                    <div className={getAiNeuralSurfaceClass('neutral', 'owner-intel-wild-notes ai-surface-r3f')}>
+                      <AITronSurface theme="cyan" density="large" />
                       <h4>{isRedraft ? 'Lineup Notes' : 'Dynasty AI Notes'}</h4>
                       <ul>
                         {selectedActionNotes.map((note) => (

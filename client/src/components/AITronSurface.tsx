@@ -17,25 +17,31 @@ type PacketConfig = {
   duration: number;
   delay: number;
   color: string;
-  dash: boolean;
+  length: number;
 };
 
-type NodeConfig = {
+type NodePulseConfig = {
   position: [number, number, number];
   duration: number;
   delay: number;
   color: string;
 };
 
+type PacketRenderRefs = {
+  head: THREE.Mesh | null;
+  trail: THREE.Mesh | null;
+  glow: THREE.Mesh | null;
+};
+
 const GRID_STEP = 0.24;
 const PACKET_TIMINGS = [4.8, 6.2, 7.5, 9.1, 11.4];
-const PACKET_DELAYS = [-1.2, -3.8, -5.1, -7.4, -9.6];
+const PACKET_DELAYS = [-1.2, -3.8, -5.1, -7.4, -9.6, -11.2];
 
 const THEME_COLORS: Record<AITronTheme, { packet: string; trace: string; accent: string }> = {
-  cyan: { packet: '#73f0ff', trace: '#56dcff', accent: '#ffab48' },
+  cyan: { packet: '#25e7ff', trace: '#1bb8d8', accent: '#ffab48' },
   green: { packet: '#8cffcf', trace: '#45e6a5', accent: '#73f0ff' },
-  amber: { packet: '#73f0ff', trace: '#56dcff', accent: '#ffab48' },
-  red: { packet: '#7dd3fc', trace: '#56dcff', accent: '#ff6b7a' },
+  amber: { packet: '#73f0ff', trace: '#38d7ff', accent: '#ffab48' },
+  red: { packet: '#8fd8ff', trace: '#38d7ff', accent: '#ff6b7a' },
   blue: { packet: '#8fd8ff', trace: '#60a5fa', accent: '#73f0ff' },
 };
 
@@ -63,11 +69,11 @@ function buildGridGeometry(width: number, height: number) {
   const halfHeight = height / 2;
 
   for (let x = snapToGrid(-halfWidth); x <= halfWidth + GRID_STEP; x += GRID_STEP) {
-    points.push(x, -halfHeight, -0.03, x, halfHeight, -0.03);
+    points.push(x, -halfHeight, -0.045, x, halfHeight, -0.045);
   }
 
   for (let y = snapToGrid(-halfHeight); y <= halfHeight + GRID_STEP; y += GRID_STEP) {
-    points.push(-halfWidth, y, -0.03, halfWidth, y, -0.03);
+    points.push(-halfWidth, y, -0.045, halfWidth, y, -0.045);
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -75,121 +81,159 @@ function buildGridGeometry(width: number, height: number) {
   return geometry;
 }
 
-function buildTraceGeometry(width: number, height: number) {
+function buildIntersectionGeometry(width: number, height: number) {
   const points: number[] = [];
   const halfWidth = width / 2;
   const halfHeight = height / 2;
-  const traces = [
-    [-0.38, 0.28, 0.34, 0],
-    [0.08, -0.14, 0.46, 0],
-    [-0.08, -0.36, 0, 0.46],
-    [0.42, 0.08, 0, -0.38],
-    [-0.64, -0.06, 0.28, 0],
-    [0.62, -0.3, -0.32, 0],
-  ];
 
-  traces.forEach(([nx, ny, dx, dy], index) => {
-    const x1 = snapToGrid(nx * halfWidth);
-    const y1 = snapToGrid(ny * halfHeight);
-    const x2 = snapToGrid(x1 + dx);
-    const y2 = snapToGrid(y1 + dy);
-    points.push(x1, y1, -0.02, x2, y2, -0.02);
+  for (let x = snapToGrid(-halfWidth); x <= halfWidth + GRID_STEP; x += GRID_STEP) {
+    for (let y = snapToGrid(-halfHeight); y <= halfHeight + GRID_STEP; y += GRID_STEP) {
+      points.push(x, y, -0.035);
+    }
+  }
 
-    if (index % 2 === 0) {
-      const cornerX = snapToGrid(x2);
-      const cornerY = snapToGrid(y2 + (dy === 0 ? GRID_STEP : 0));
-      points.push(x2, y2, -0.02, cornerX, cornerY, -0.02);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+  return geometry;
+}
+
+function addTrace(points: number[], x: number, y: number, dx: number, dy: number) {
+  const x1 = snapToGrid(x);
+  const y1 = snapToGrid(y);
+  const x2 = snapToGrid(x + dx);
+  const y2 = snapToGrid(y + dy);
+  points.push(x1, y1, -0.025, x2, y2, -0.025);
+}
+
+function buildTraceGeometry(width: number, height: number, amber = false) {
+  const points: number[] = [];
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  const traceSeeds = amber
+    ? [
+        [0.36, 0.28, 0.16, 0],
+        [-0.18, -0.34, 0, -0.18],
+      ]
+    : [
+        [-0.44, 0.36, 0.34, 0],
+        [-0.1, 0.22, 0.28, 0],
+        [0.18, 0.1, 0.22, 0],
+        [0.44, -0.2, -0.32, 0],
+        [-0.58, -0.38, 0.28, 0],
+        [-0.12, -0.18, 0, 0.3],
+        [0.22, -0.38, 0, 0.34],
+        [0.62, 0.34, 0, -0.3],
+      ];
+
+  traceSeeds.forEach(([nx, ny, dx, dy], index) => {
+    const startX = nx * halfWidth;
+    const startY = ny * halfHeight;
+    addTrace(points, startX, startY, dx, dy);
+
+    if (!amber && index % 2 === 0) {
+      addTrace(points, startX + dx, startY + dy, 0, index % 4 === 0 ? GRID_STEP * 1.6 : -GRID_STEP * 1.4);
     }
   });
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
   return geometry;
+}
+
+function getPacketCount(density: AITronDensity) {
+  if (density === 'small') return 6;
+  if (density === 'large') return 14;
+  return 9;
 }
 
 function buildPackets(width: number, height: number, density: AITronDensity, theme: AITronTheme): PacketConfig[] {
   const colors = THEME_COLORS[theme];
-  const count = density === 'small' ? 3 : density === 'large' ? 8 : 5;
+  const count = getPacketCount(density);
   const halfWidth = width / 2;
   const halfHeight = height / 2;
-  const rows = [-0.36, -0.12, 0.12, 0.34, 0.48].map((value) => snapToGrid(value * halfHeight));
-  const columns = [-0.42, -0.18, 0.16, 0.38, 0.58].map((value) => snapToGrid(value * halfWidth));
+  const rows = [-0.42, -0.28, -0.1, 0.12, 0.28, 0.42].map((value) => snapToGrid(value * halfHeight));
+  const columns = [-0.54, -0.32, -0.08, 0.18, 0.42, 0.58].map((value) => snapToGrid(value * halfWidth));
 
   return Array.from({ length: count }, (_, index) => {
     const axis = index % 3 === 1 ? 'y' : 'x';
-    const amber = theme === 'amber' || index === count - 1;
     const direction = index % 4 === 2 ? -1 : 1;
-    const distance = direction * (0.42 + (index % 4) * 0.17);
+    const distance = direction * (0.5 + (index % 4) * 0.22);
+    const isAccent = index === count - 1 || (theme === 'amber' && index % 4 === 0);
+    const color = isAccent ? colors.accent : colors.packet;
 
     if (axis === 'x') {
-      const startX = snapToGrid((-0.42 + index * 0.13) * halfWidth);
-      const y = rows[index % rows.length];
       return {
         axis,
-        start: [startX, y, 0],
+        start: [snapToGrid((-0.56 + index * 0.11) * halfWidth), rows[index % rows.length], 0.02],
         distance,
         duration: PACKET_TIMINGS[index % PACKET_TIMINGS.length],
         delay: PACKET_DELAYS[index % PACKET_DELAYS.length],
-        color: amber ? colors.accent : colors.packet,
-        dash: index % 2 === 0,
+        color,
+        length: 0.16 + (index % 3) * 0.045,
       };
     }
 
-    const x = columns[index % columns.length];
-    const startY = snapToGrid((-0.38 + index * 0.12) * halfHeight);
     return {
       axis,
-      start: [x, startY, 0],
+      start: [columns[index % columns.length], snapToGrid((-0.48 + index * 0.13) * halfHeight), 0.02],
       distance,
       duration: PACKET_TIMINGS[index % PACKET_TIMINGS.length],
       delay: PACKET_DELAYS[index % PACKET_DELAYS.length],
-      color: amber ? colors.accent : colors.packet,
-      dash: index % 2 === 0,
+      color,
+      length: 0.16 + (index % 3) * 0.045,
     };
   });
 }
 
-function buildNodes(width: number, height: number, density: AITronDensity, theme: AITronTheme): NodeConfig[] {
+function buildPulseNodes(width: number, height: number, density: AITronDensity, theme: AITronTheme): NodePulseConfig[] {
   const colors = THEME_COLORS[theme];
-  const count = density === 'small' ? 3 : density === 'large' ? 9 : 5;
+  const count = density === 'small' ? 4 : density === 'large' ? 11 : 7;
   const halfWidth = width / 2;
   const halfHeight = height / 2;
 
   return Array.from({ length: count }, (_, index) => ({
     position: [
-      snapToGrid((-0.45 + (index % 5) * 0.22) * halfWidth),
-      snapToGrid((-0.32 + Math.floor(index / 2) * 0.18) * halfHeight),
-      0.01,
+      snapToGrid((-0.48 + (index % 6) * 0.19) * halfWidth),
+      snapToGrid((-0.38 + Math.floor(index / 2) * 0.18) * halfHeight),
+      0.035,
     ],
-    duration: 5.6 + (index % 4) * 1.7,
-    delay: -index * 1.35,
-    color: theme === 'amber' && index % 4 === 0 ? colors.accent : colors.packet,
+    duration: 5.2 + (index % 5) * 1.45,
+    delay: -index * 1.2,
+    color: theme === 'amber' && index % 5 === 0 ? colors.accent : colors.packet,
   }));
 }
 
 function packetProgress(elapsed: number, duration: number, delay: number) {
   const raw = ((elapsed + Math.abs(delay)) % duration) / duration;
-  const opacity = raw < 0.08
-    ? raw / 0.08
-    : raw > 0.72
-      ? Math.max(0, 1 - (raw - 0.72) / 0.28)
+  const opacity = raw < 0.1
+    ? raw / 0.1
+    : raw > 0.68
+      ? Math.max(0, 1 - (raw - 0.68) / 0.2)
       : 1;
-  return { travel: Math.min(raw / 0.72, 1), opacity };
+  return { travel: Math.min(raw / 0.68, 1), opacity };
+}
+
+function setMaterialOpacity(mesh: THREE.Mesh | null, opacity: number) {
+  if (!mesh) return;
+  const material = mesh.material as THREE.MeshBasicMaterial;
+  material.opacity = opacity;
 }
 
 function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfaceProps> & { reducedMotion: boolean }) {
   const { viewport } = useThree();
-  const packetRefs = useRef<Array<THREE.Mesh | null>>([]);
-  const nodeRefs = useRef<Array<THREE.Mesh | null>>([]);
+  const packetRefs = useRef<PacketRenderRefs[]>([]);
+  const pulseRefs = useRef<Array<THREE.Mesh | null>>([]);
   const elapsedRef = useRef(0);
   const colors = THEME_COLORS[theme];
   const width = Math.max(viewport.width, 1);
   const height = Math.max(viewport.height, 1);
 
   const gridGeometry = useMemo(() => buildGridGeometry(width, height), [width, height]);
+  const intersectionGeometry = useMemo(() => buildIntersectionGeometry(width, height), [width, height]);
   const traceGeometry = useMemo(() => buildTraceGeometry(width, height), [width, height]);
+  const amberTraceGeometry = useMemo(() => buildTraceGeometry(width, height, true), [width, height]);
   const packets = useMemo(() => buildPackets(width, height, density, theme), [width, height, density, theme]);
-  const nodes = useMemo(() => buildNodes(width, height, density, theme), [width, height, density, theme]);
+  const pulseNodes = useMemo(() => buildPulseNodes(width, height, density, theme), [width, height, density, theme]);
 
   useFrame((_, delta) => {
     if (reducedMotion) return;
@@ -197,74 +241,102 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
     const elapsed = elapsedRef.current;
 
     packets.forEach((packet, index) => {
-      const mesh = packetRefs.current[index];
-      if (!mesh) return;
+      const refs = packetRefs.current[index];
+      if (!refs) return;
       const { travel, opacity } = packetProgress(elapsed, packet.duration, packet.delay);
-      mesh.position.set(
-        packet.start[0] + (packet.axis === 'x' ? packet.distance * travel : 0),
-        packet.start[1] + (packet.axis === 'y' ? packet.distance * travel : 0),
-        packet.start[2],
-      );
-      const material = mesh.material as THREE.MeshBasicMaterial;
-      material.opacity = opacity * (packet.dash ? 0.76 : 0.88);
+      const x = packet.start[0] + (packet.axis === 'x' ? packet.distance * travel : 0);
+      const y = packet.start[1] + (packet.axis === 'y' ? packet.distance * travel : 0);
+      const trailingOffset = packet.axis === 'x'
+        ? [packet.distance > 0 ? -packet.length * 0.62 : packet.length * 0.62, 0, 0]
+        : [0, packet.distance > 0 ? -packet.length * 0.62 : packet.length * 0.62, 0];
+
+      refs.head?.position.set(x, y, packet.start[2]);
+      refs.trail?.position.set(x + trailingOffset[0], y + trailingOffset[1], packet.start[2] - 0.002);
+      refs.glow?.position.set(x, y, packet.start[2] - 0.004);
+      setMaterialOpacity(refs.head, opacity);
+      setMaterialOpacity(refs.trail, opacity * 0.66);
+      setMaterialOpacity(refs.glow, opacity * 0.16);
     });
 
-    nodes.forEach((node, index) => {
-      const mesh = nodeRefs.current[index];
+    pulseNodes.forEach((node, index) => {
+      const mesh = pulseRefs.current[index];
       if (!mesh) return;
       const cycle = ((elapsed + Math.abs(node.delay)) % node.duration) / node.duration;
-      const pulse = cycle > 0.42 && cycle < 0.55 ? Math.sin(((cycle - 0.42) / 0.13) * Math.PI) : 0;
-      mesh.scale.setScalar(0.75 + pulse * 0.45);
-      const material = mesh.material as THREE.MeshBasicMaterial;
-      material.opacity = 0.14 + pulse * 0.54;
+      const pulse = cycle > 0.34 && cycle < 0.48 ? Math.sin(((cycle - 0.34) / 0.14) * Math.PI) : 0;
+      mesh.scale.setScalar(0.8 + pulse * 0.7);
+      setMaterialOpacity(mesh, 0.12 + pulse * 0.62);
     });
   });
 
   return (
     <>
       <lineSegments geometry={gridGeometry}>
-        <lineBasicMaterial color={colors.trace} transparent opacity={0.075} depthWrite={false} />
+        <lineBasicMaterial color={colors.trace} transparent opacity={0.06} depthWrite={false} toneMapped={false} />
       </lineSegments>
+      <points geometry={intersectionGeometry}>
+        <pointsMaterial color={colors.trace} transparent opacity={0.32} size={0.016} sizeAttenuation depthWrite={false} toneMapped={false} />
+      </points>
       <lineSegments geometry={traceGeometry}>
-        <lineBasicMaterial color={colors.trace} transparent opacity={0.22} depthWrite={false} />
+        <lineBasicMaterial color={colors.trace} transparent opacity={0.5} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </lineSegments>
-      {nodes.map((node, index) => (
+      <lineSegments geometry={amberTraceGeometry}>
+        <lineBasicMaterial color={colors.accent} transparent opacity={0.42} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+      </lineSegments>
+      {pulseNodes.map((node, index) => (
         <mesh
           key={`node-${index}-${node.position.join('-')}`}
           ref={(mesh) => {
-            nodeRefs.current[index] = mesh;
+            pulseRefs.current[index] = mesh;
           }}
           position={node.position}
         >
-          <circleGeometry args={[0.012, 12]} />
+          <circleGeometry args={[0.018, 16]} />
           <meshBasicMaterial
             color={node.color}
             transparent
-            opacity={reducedMotion ? 0.22 : 0.14}
+            opacity={reducedMotion ? 0.28 : 0.12}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
+            toneMapped={false}
           />
         </mesh>
       ))}
-      {packets.map((packet, index) => (
-        <mesh
-          key={`packet-${index}-${packet.start.join('-')}`}
-          ref={(mesh) => {
-            packetRefs.current[index] = mesh;
-          }}
-          position={packet.start}
-          rotation={[0, 0, packet.axis === 'y' ? Math.PI / 2 : 0]}
-        >
-          {packet.dash ? <planeGeometry args={[0.12, 0.018]} /> : <circleGeometry args={[0.018, 14]} />}
-          <meshBasicMaterial
-            color={packet.color}
-            transparent
-            opacity={reducedMotion ? 0.25 : 0}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
+      {packets.map((packet, index) => {
+        const rotation = packet.axis === 'y' ? Math.PI / 2 : 0;
+        return (
+          <group key={`packet-${index}-${packet.start.join('-')}`}>
+            <mesh
+              ref={(mesh) => {
+                packetRefs.current[index] = { ...(packetRefs.current[index] || {}), glow: mesh };
+              }}
+              position={packet.start}
+            >
+              <circleGeometry args={[0.06, 18]} />
+              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </mesh>
+            <mesh
+              ref={(mesh) => {
+                packetRefs.current[index] = { ...(packetRefs.current[index] || {}), trail: mesh };
+              }}
+              position={packet.start}
+              rotation={[0, 0, rotation]}
+            >
+              <planeGeometry args={[packet.length, 0.03]} />
+              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.16 : 0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </mesh>
+            <mesh
+              ref={(mesh) => {
+                packetRefs.current[index] = { ...(packetRefs.current[index] || {}), head: mesh };
+              }}
+              position={packet.start}
+              rotation={[0, 0, rotation]}
+            >
+              <planeGeometry args={[Math.max(0.07, packet.length * 0.42), 0.04]} />
+              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.24 : 0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </mesh>
+          </group>
+        );
+      })}
     </>
   );
 }
