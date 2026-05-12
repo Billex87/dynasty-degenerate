@@ -58,6 +58,10 @@
 - [ ] Turn that audit into a source coverage matrix in admin so we can see at a glance what each API or scrape is actually returning.
 - [ ] Use this compact template for each source during the audit: `Source / Returns / Used now / Could power later / Open questions`.
 - [ ] Sleeper - Returns: league settings, rosters, players, matchups, waivers, trades, news/status, and user/player IDs. Used now: league analysis, roster intelligence, matchup preview plumbing, waiver/trade analysis, and identity matching. Could power later: schedule-week matchup reads, exposure views, alerting, and lineup guidance. Open questions: which endpoints reliably expose current-week matchup and projection context.
+- [ ] Research the Google query `api to get nfl player nicknames` and compare the useful fields from the results against the NFL APIs we already consider first-class so we can capture any extra nickname/alias data we are missing.
+- [ ] For each candidate result from that query, document whether it provides player nicknames, alternate display names, alias mappings, pronunciation hints, suffix normalization, social handles, or other identity-enrichment fields beyond our current data.
+- [ ] Cross-check the nickname/alias sources against the APIs already on our recommended list, including Sleeper, BALLDONTLIE, nflreadr/nflverse player-name mappings, SportsBlaze, FantasyData/SportsDataIO, Sportradar, ESPN, and any other vetted NFL endpoints.
+- [ ] Decide which extra fields are actually worth storing or normalizing in our player identity layer, and which ones are only nice-to-have research artifacts.
 - [ ] FantasyPros - Returns: rankings, projections, ADP, injuries, news, compare-players, player-points, and player/external IDs. Used now: dynasty/redraft blends, rookie and devy context, injury/news notes, player modal details, and confidence calibration. Could power later: lineup strength, value movement, matchup preview, and trade explainers. Open questions: rate limits, production terms, and which projection/news endpoints are safe to depend on.
 - [ ] DraftSharks - Returns: rankings, SOS, bye weeks, D/ST, matchup data, and possibly projections. Used now: source research only. Could power later: bye-week navigation, streamer planning, matchup reads, and schedule-strength tooling. Open questions: partner/API access and whether the public pages stay stable enough to trust.
 - [ ] KeepTradeCut - Returns: trade-database rows, market values, and source metadata where available. Used now: trade/value research. Could power later: dynasty trade comps and market trend views. Open questions: whether access is stable without scraping and whether there is a supported data path.
@@ -97,6 +101,43 @@
 - [ ] Build a reusable comparison layer that can answer "who has this player most resembled historically at the same age, usage, and value?" for deeper AI readouts.
 - [ ] Expand the source-history layer to preserve enough season-by-season and week-by-week snapshots to support long-term curve and cohort analysis.
 - [ ] Add admin diagnostics for model inputs so we can inspect which age, usage, market, and production signals drove a specific readout.
+
+## Overview Tab / Readout Clarity Roadmap
+
+- [ ] Audit every table in the Overview tab and list the exact job each one is supposed to do.
+- [ ] Identify any repeated signals, summaries, or conclusions that are being shown on multiple tables and remove the duplication.
+- [ ] Define one primary message for each table so we can clearly decide what belongs there and what should live elsewhere.
+- [ ] Move overlapping readouts into the table that owns them, or pull them out entirely if they do not have a clear owner.
+- [ ] Make sure the Overview tab reads as a set of distinct layers of insight instead of multiple tables saying the same thing in different words.
+- [ ] Add review pass for each Overview table after logic changes so duplicates do not creep back in during future feature work.
+- [ ] Build an ownership matrix for every Overview surface with columns for surface, primary job, allowed readouts, banned overlap, and source-of-truth owner.
+- [ ] Audit the full Overview stack in render order and assign one job to each surface:
+  - [ ] `OverviewAIPulse`: narrative summary only; it should set the league story, not repeat table metrics.
+  - [ ] `Monthly Team Blueprint`: long-horizon roster plan only; keep it focused on team direction, age curve, and roster construction.
+  - [ ] `League Power Rankings`: league-wide strength/value ordering only; do not duplicate owner-level advice or roster-blueprint language.
+  - [ ] `Team Breakdown & Roster Recon`: strengths, leaks, surplus, and next move only; it should explain the roster, not re-rank the league.
+  - [ ] `Trade Finder, Partners & League Exploits`: trade opportunities, partner matching, and league pressure points only; do not repeat roster-health or power-rank copy.
+  - [ ] `Assistant Feature Radar`: placeholder/shell inventory only; it should never echo active analysis from the real readouts.
+  - [ ] `OwnerIntelMatrix`: owner identity, roster identity, comp lanes, and strategy tags only; keep it as the owner-level source of truth.
+  - [ ] `LeagueCommandCenter` in roster mode: projected starters, bench depth, step-ins, season read, and injury insurance only.
+  - [ ] `LeagueCommandCenter` in taxi mode: taxi promote/park/cut decisions only.
+  - [ ] `Manager Position Counts`: position depth and imbalance only; keep it as the single owner for count-based roster gaps.
+- [ ] Define the duplicated concepts that must have one clear owner and no copy-paste repetition:
+  - [ ] league value rank
+  - [ ] starter count / starter room
+  - [ ] bench depth
+  - [ ] age and age flags
+  - [ ] roster health
+  - [ ] position imbalance
+  - [ ] tradeable depth
+  - [ ] trade partner fit
+  - [ ] taxi promote/park/cut calls
+  - [ ] top-manager or best-team claims
+- [ ] If a concept has to appear in two places, rewrite one instance so it clearly answers a different question instead of repeating the same conclusion.
+- [ ] Move shared calculations into one source of truth and make the other surfaces reference that result rather than restating the same readout.
+- [ ] Compare the final Overview stack side-by-side after every logic change and remove any repeated phrasing, repeated ranks, repeated value tags, or repeated "best/worst" labels.
+- [ ] Add a regression check or snapshot test that fails if two Overview surfaces end up telling the same story with the same metric stack.
+- [ ] Require an explicit owner review for any new Overview metric so we do not reintroduce duplicate readouts when new features land.
 
 ## May 14, 2026 - Projections / SOS Rollout
 
@@ -468,6 +509,24 @@
 - [ ] After the NFL schedule release, confirm Sleeper exposes current-week matchup IDs, opponent rosters, submitted lineups, and projection context for the target leagues.
 - [ ] Add server-side matchup ingestion to populate `ReportData.matchupPreviews`.
 - [ ] Keep the schedule-pending empty state for offseason and pre-schedule periods.
+- [ ] Use the schedule-release feature checklist below so we do not miss other schedule-driven surfaces.
+
+### Schedule Release Feature Checklist
+
+- [ ] Build schedule-release data ingestion and normalization for matchup IDs, opponent rosters, submitted lineups, bye weeks, and target weeks.
+- [ ] Populate `schedulePlanning` with roster gaps, streamer candidates, bye-window coverage, and schedule notes from the released NFL calendar.
+- [ ] Fill `ReportData.matchupPreviews` and the matchup preview UI with weekly win odds, opponent edge, boom/bust, must-start, and how-you-win analysis.
+- [ ] Add player-detail schedule cards for season SOS, bye weeks, streamer windows, and opponent difficulty so player views get real schedule context.
+- [ ] Wire schedule context into `CommandCenterExpansion`, `PlayerDetailModal`, `AITeamAutopilot`, and `LeagueCommandCenter` so the same schedule data powers every surface without diverging.
+- [ ] Add schedule-aware autopilot guidance for roster gaps, start/sit calls, streamer targets, waiver timing, and priority actions.
+- [ ] Add D/ST and matchup-streamer logic driven by schedule strength, bye-week pressure, and upcoming opponent difficulty.
+- [ ] Add waiver timing and bench-stash guidance for upcoming bye-week cliffs and short-term lineup pressure.
+- [ ] Feed schedule context into redraft lineup strength, valuation, and confidence only after freshness checks pass.
+- [ ] Add schedule-aware trade and dynasty context for short-term contention windows, playoff pushes, and easy/hard stretches.
+- [ ] Add schedule badges or notes in Overview and owner-level surfaces when schedule context changes the read.
+- [ ] Add tests for schedule normalization, matchup mapping, bye-window rendering, streamer candidate generation, and fallback/offseason states.
+- [ ] Add QA coverage for schedule-dependent surfaces across Overview, Command Center, Matchup Preview, Player Detail, Autopilot, Rankings, and trade/waiver modules.
+- [ ] Keep pre-schedule and offseason empty states honest until the data exists.
 
 ### Watch Alerts - Server Persistence
 - [ ] Move watch thresholds from browser-local storage to user/server persistence.
