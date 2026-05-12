@@ -33,7 +33,7 @@ test.describe('redraft value consistency', () => {
   test('uses current-season value consistently between draft row and draft player modal', async ({ page }) => {
     await loadCachedReport(page, 'value-consistency-draft-redraft', '#draft');
 
-    await page.getByRole('button', { name: /2026 Draft Recap/ }).click();
+    await page.locator('.report-disclosure-summary').filter({ hasText: '2026 Main Draft' }).click();
     const draftRow = page.getByRole('button', { name: /#1 Sample Starter/ });
     await expect(draftRow).toBeVisible();
     await expect(draftRow).toContainText('5,000');

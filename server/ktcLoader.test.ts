@@ -1,5 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { hasUsableBlendedSnapshotValues, loadLatestLocalWeeklyMomentumSnapshot, sanitizeKtcSnapshotValues } from './ktcLoader';
+import fs from 'fs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as liveKTCScraper from './liveKTCScraper';
+import * as valueBlend from './valueBlend';
+import {
+  clearKTCCache,
+  hasUsableBlendedSnapshotValues,
+  loadBlendedKTCValues,
+  loadLatestLocalWeeklyMomentumSnapshot,
+  sanitizeKtcSnapshotValues,
+} from './ktcLoader';
 import { getWeeklyMomentumBaselineTargetDateKey, getWeeklyMomentumPctChange, isWeeklyMomentumBaselineFloorActive } from './valueBaselinePolicy';
 
 describe('hasUsableBlendedSnapshotValues', () => {
@@ -108,5 +117,64 @@ describe('weekly momentum baseline policy', () => {
   it('drops movement percentages with tiny denominator baselines', () => {
     expect(getWeeklyMomentumPctChange(1400, 3)).toBeNull();
     expect(getWeeklyMomentumPctChange(3500, 3000)).toBeCloseTo(16.666, 2);
+  });
+});
+
+describe('loadBlendedKTCValues', () => {
+  afterEach(() => {
+    clearKTCCache();
+    vi.restoreAllMocks();
+  });
+
+  it('prefers live blended values over stored snapshots', async () => {
+    const liveValues = {
+      testplayer: {
+        name: 'Test Player',
+        ktc_value: 2222,
+        position_rank: 'WR1',
+      },
+    };
+    const snapshotValues = {
+      testplayer: {
+        name: 'Test Player',
+        ktc_value: 1111,
+        position_rank: 'WR99',
+        value_sources: ['KTC'],
+      },
+    };
+
+    const originalExistsSync = fs.existsSync.bind(fs);
+    const originalReaddirSync = fs.readdirSync.bind(fs);
+    const originalReadFileSync = fs.readFileSync.bind(fs);
+    let snapshotFileRead = false;
+
+    vi.spyOn(liveKTCScraper, 'getCurrentKTCRankings').mockResolvedValue(liveValues as any);
+    vi.spyOn(valueBlend, 'loadBlendedPlayerValues').mockImplementation(async (values) => values as any);
+    vi.spyOn(fs, 'existsSync').mockImplementation((candidatePath) => {
+      const path = String(candidatePath);
+      if (path.includes('ktc-snapshots')) return true;
+      return originalExistsSync(candidatePath);
+    });
+    const readdirSpy = vi.spyOn(fs, 'readdirSync').mockImplementation((candidatePath) => {
+      const path = String(candidatePath);
+      if (path.includes('ktc-snapshots')) return ['ktc-snapshot-2026-05-07.json'] as any;
+      return originalReaddirSync(candidatePath);
+    });
+    vi.spyOn(fs, 'readFileSync').mockImplementation((candidatePath, options) => {
+      const path = String(candidatePath);
+      if (path.includes('ktc-snapshots')) {
+        snapshotFileRead = true;
+        return JSON.stringify(snapshotValues) as any;
+      }
+      return originalReadFileSync(candidatePath as any, options as any);
+    });
+
+    const result = await loadBlendedKTCValues({ ktcProfileKey: 'sf_ppr' });
+
+    expect(liveKTCScraper.getCurrentKTCRankings).toHaveBeenCalled();
+    expect(readdirSpy).not.toHaveBeenCalled();
+    expect(snapshotFileRead).toBe(false);
+    expect(result.testplayer?.ktc_value).toBe(2222);
+    expect(result.testplayer?.position_rank).toBe('WR1');
   });
 });

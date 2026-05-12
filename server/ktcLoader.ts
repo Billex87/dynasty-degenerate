@@ -97,12 +97,6 @@ export async function loadBlendedKTCValues(options: ValueBlendOptions = {}): Pro
   const cacheKey = getValueSourceProfileKey({ ...options, ktcProfileKey });
   if (blendedKtcValuesCache[cacheKey]) return blendedKtcValuesCache[cacheKey];
 
-  const storedSnapshotValues = loadLatestLocalKtcSnapshotDaysAgo(0, cacheKey);
-  if (Object.keys(storedSnapshotValues).length > 0) {
-    blendedKtcValuesCache[cacheKey] = storedSnapshotValues;
-    return blendedKtcValuesCache[cacheKey];
-  }
-
   const defaultKtcValues = await loadKTCValues();
   let profileKtcValues = defaultKtcValues;
 
@@ -117,10 +111,22 @@ export async function loadBlendedKTCValues(options: ValueBlendOptions = {}): Pro
     }
   }
 
-  blendedKtcValuesCache[cacheKey] = await loadBlendedPlayerValues(profileKtcValues, {
+  const liveBlendedValues = await loadBlendedPlayerValues(profileKtcValues, {
     ...options,
     ktcProfileKey,
   });
+  if (Object.keys(liveBlendedValues).length > 0) {
+    blendedKtcValuesCache[cacheKey] = liveBlendedValues;
+    return blendedKtcValuesCache[cacheKey];
+  }
+
+  const storedSnapshotValues = loadLatestLocalKtcSnapshotDaysAgo(0, cacheKey);
+  if (Object.keys(storedSnapshotValues).length > 0) {
+    blendedKtcValuesCache[cacheKey] = storedSnapshotValues;
+    return blendedKtcValuesCache[cacheKey];
+  }
+
+  blendedKtcValuesCache[cacheKey] = liveBlendedValues;
   return blendedKtcValuesCache[cacheKey];
 }
 

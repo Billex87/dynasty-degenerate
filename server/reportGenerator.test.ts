@@ -875,6 +875,40 @@ describe('generateReport trade ledger', () => {
     expect(intelRow?.reservePlayers?.[0].playerDetails?.rosterStatus).toBe('IR');
   });
 
+  it('counts total roster capacity from lineup, bench, reserve, and taxi slots', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterPositions: ['QB', 'RB', 'WR', 'TE', 'BN', 'BN'],
+        reserveSlots: 2,
+        taxiSlots: 15,
+        rosterMap: { 1: 'Manager A' },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['activeQb', 'activeRb'], reserve: ['reserveRb'], taxi: ['taxiRb'] },
+        ],
+      },
+      null,
+      {
+        activeQb: { first_name: 'Active', last_name: 'QB', position: 'QB', age: 25 },
+        activeRb: { first_name: 'Active', last_name: 'RB', position: 'RB', age: 25 },
+        reserveRb: { first_name: 'Reserve', last_name: 'RB', position: 'RB', age: 24, injury_status: 'IR' },
+        taxiRb: { first_name: 'Taxi', last_name: 'RB', position: 'RB', age: 22, injury_status: 'Taxi' },
+      },
+      {
+        activeqb: { name: 'Active QB', ktc_value: 6000, redraft_value: 6000, position_rank: 'QB8' },
+        activerb: { name: 'Active RB', ktc_value: 5000, redraft_value: 5000, position_rank: 'RB12' },
+        reserverb: { name: 'Reserve RB', ktc_value: 4000, redraft_value: 4000, position_rank: 'RB18' },
+        taxirb: { name: 'Taxi RB', ktc_value: 3000, redraft_value: 3000, position_rank: 'RB35' },
+      },
+      {}
+    );
+
+    expect(report.leagueDiagnostics?.totalRosterSlots).toBe(23);
+    expect(report.leagueDiagnostics?.reserveSlots).toBe(2);
+    expect(report.leagueDiagnostics?.taxiSlots).toBe(15);
+  });
+
   it('builds owner intel from the actual superflex lineup and bench path', async () => {
     const report = await generateReport(
       {

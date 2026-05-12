@@ -563,7 +563,7 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v36';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v37';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
 const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
 const RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP = 250;
@@ -3948,7 +3948,7 @@ export const appRouter = router({
           ).then((r) => r.json());
           markAnalyzeStep('league info');
 
-          if (!leagueInfo.league_id) {
+          if (!leagueInfo || typeof leagueInfo !== 'object' || !leagueInfo.league_id) {
             await insertLoginAttempt({
               eventType: "analyze_league",
               status: "error",
@@ -4105,6 +4105,8 @@ export const appRouter = router({
                 finalTradedPicks: tradedPicks,
                 draftSlotsBySeason,
                 rosterPositions: Array.isArray(pastLeagueInfo.roster_positions) ? pastLeagueInfo.roster_positions : [],
+                reserveSlots: Number(pastLeagueInfo.settings?.reserve_slots || 0),
+                taxiSlots: Number(pastLeagueInfo.settings?.taxi_slots || 0),
               };
             } catch (e) {
               console.warn('Failed to fetch past season data:', e);
@@ -4158,6 +4160,8 @@ export const appRouter = router({
             finalTradedPicks: tradedPicks,
             draftSlotsBySeason,
             rosterPositions: Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [],
+            reserveSlots: Number(leagueInfo.settings?.reserve_slots || 0),
+            taxiSlots: Number(leagueInfo.settings?.taxi_slots || 0),
             scoringSettings: leagueInfo.scoring_settings || {},
             playoffWeekStart: Number(leagueInfo.settings?.playoff_week_start || 15),
             valueBlendProfileKey: leagueValueProfileKey,

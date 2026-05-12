@@ -166,6 +166,8 @@ interface SeasonData {
   }>;
   draftSlotsBySeason?: Record<string, Record<number, number>>;
   rosterPositions?: string[];
+  reserveSlots?: number;
+  taxiSlots?: number;
   scoringSettings?: Record<string, any>;
   playoffWeekStart?: number;
   valueBlendProfileKey?: string;
@@ -1016,6 +1018,9 @@ function buildLeagueDiagnostics(
   const lineupProfile = getLineupSlotProfile(currentSeasonData.rosterPositions);
   const starterCounts = getPositionStarterCounts(currentSeasonData.rosterPositions, teamCount);
   const submittedStarterRosterCount = currentSeasonData.rosters.filter((roster) => getSubmittedStarterIds(roster).length > 0).length;
+  const reserveSlots = Math.max(0, Math.floor(Number(currentSeasonData.reserveSlots || 0)));
+  const taxiSlots = Math.max(0, Math.floor(Number(currentSeasonData.taxiSlots || 0)));
+  const totalRosterSlots = Math.max(0, currentSeasonData.rosterPositions?.length || 0) + reserveSlots + taxiSlots;
   const receptionScoring = getScoringNumber(currentSeasonData.scoringSettings, 'rec');
   const tightEndPremium = getTightEndPremium(currentSeasonData.scoringSettings);
   const sourceWeightOptions = {
@@ -1058,6 +1063,9 @@ function buildLeagueDiagnostics(
     redraftTradeWindowEndDate,
     rosterSlots: currentSeasonData.rosterPositions || [],
     starterSlots,
+    totalRosterSlots,
+    reserveSlots,
+    taxiSlots,
     lineupSlotSummary: formatLineupSlotSummary(lineupProfile),
     starterCountSummary: formatStarterCountSummary(starterCounts),
     starterCalculation: submittedStarterRosterCount

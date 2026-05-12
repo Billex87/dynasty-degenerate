@@ -887,6 +887,9 @@ export interface LeagueDiagnostics {
   redraftTradeWindowEndDate?: string | null;
   rosterSlots: string[];
   starterSlots: string[];
+  totalRosterSlots?: number;
+  reserveSlots?: number;
+  taxiSlots?: number;
   lineupSlotSummary: string;
   starterCountSummary: string;
   starterCalculation: string;
