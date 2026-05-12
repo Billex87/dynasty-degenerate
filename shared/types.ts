@@ -487,6 +487,28 @@ export interface TradeProposalSignal {
   note: string;
 }
 
+export interface SleeperWaiverClaimSignal {
+  id: string;
+  date: string;
+  status: string;
+  managers: string[];
+  playerIds: string[];
+  playerNames: string[];
+  dropPlayerIds?: string[];
+  dropPlayerNames?: string[];
+  bidAmount: number | null;
+  waiverBudget?: number | null;
+  note: string;
+}
+
+export interface SleeperHiddenLeagueSnapshot {
+  sharedBy?: string | null;
+  sharedAt: number;
+  transactionCount: number;
+  tradeCount: number;
+  waiverCount: number;
+}
+
 export interface PowerRanking {
   rank: number;
   manager: string;
@@ -719,6 +741,7 @@ export interface PlayerDetails {
     games: number | null;
     gamesMissed: number | null;
     pointsPerGame: number | null;
+    positionRank?: string | null;
   }>;
   latestNews?: {
     title: string;
@@ -1015,6 +1038,9 @@ export interface ReportData {
   tradeHistory: TradeData[];
   tradeProposalSignals?: TradeProposalSignal[];
   adminTradeProposalSignals?: TradeProposalSignal[];
+  adminSleeperTradeProposalSignals?: TradeProposalSignal[];
+  adminSleeperWaiverSignals?: SleeperWaiverClaimSignal[];
+  sleeperHiddenLeagueSnapshot?: SleeperHiddenLeagueSnapshot | null;
   positionDepth: PositionDepth[];
   managerPositionCounts: Array<{
     manager: string;

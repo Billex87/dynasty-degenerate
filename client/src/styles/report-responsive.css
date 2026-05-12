@@ -3809,7 +3809,7 @@
   }
 }
 
-/* Shared AI neural field: grid depth, routed signal pulses, badge scan, and motion fallback. */
+/* Neural surface system */
 .report-shell .ai-neural-surface,
 .ai-neural-surface {
   --ai-neural-accent: #22d3ee;
@@ -3821,16 +3821,35 @@
   --ai-neural-grid-strong: rgba(103, 232, 249, 0.105);
   --ai-neural-glow: rgba(34, 211, 238, 0.075);
   --ai-neural-halo: rgba(34, 211, 238, 0.055);
+  --ai-neural-pulse-soft: var(--ai-neural-soft);
+  --ai-neural-pulse-muted: var(--ai-neural-muted);
   --ai-neural-grid-size: 18px;
   --ai-neural-grid-size-strong: 72px;
   --ai-neural-speed: 18.5s;
   --ai-neural-delay: -1.2s;
   --ai-neural-depth-speed: 31s;
+  --ai-grid-color: var(--ai-neural-grid);
+  --ai-grid-hot: var(--ai-neural-grid-strong);
+  --ai-grid-muted: rgba(1, 5, 14, 0.96);
+  --ai-glow-primary: var(--ai-neural-glow);
+  --ai-glow-secondary: rgba(251, 146, 60, 0.028);
+  --ai-border-glow: var(--ai-neural-border);
+  --ai-border-glass: rgba(255, 255, 255, 0.03);
+  --ai-pulse-origin-x: 18%;
+  --ai-pulse-origin-y: 28%;
+  --ai-grid-speed: 33s;
+  --ai-line-speed: 22s;
+  --ai-scan-speed: 18s;
+  --ai-ripple-speed: var(--ai-neural-speed);
+  --ai-border-speed: 13s;
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border-color: var(--ai-neural-border) !important;
-  background: radial-gradient(circle at 12% 0%, var(--ai-neural-glow), transparent 34%), radial-gradient(circle at 92% 6%, rgba(251, 146, 60, 0.055), transparent 32%), linear-gradient(135deg, rgba(1, 5, 14, 0.99), rgba(2, 12, 24, 0.96) 52%, rgba(1, 5, 14, 0.98)) !important;
+  border-color: var(--ai-border-glow) !important;
+  background:
+    radial-gradient(circle at 10% 0%, var(--ai-glow-primary), transparent 34%),
+    radial-gradient(circle at 92% 6%, var(--ai-glow-secondary), transparent 32%),
+    linear-gradient(135deg, rgba(1, 5, 14, 0.99), rgba(2, 12, 24, 0.96) 52%, rgba(1, 5, 14, 0.98)) !important;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.026),
     0 0 22px var(--ai-neural-halo),
@@ -3849,6 +3868,11 @@
   --ai-neural-glow: rgba(16, 185, 129, 0.082);
   --ai-neural-halo: rgba(52, 211, 153, 0.058);
   --ai-neural-delay: -2.8s;
+  --ai-pulse-origin-x: 20%;
+  --ai-pulse-origin-y: 28%;
+  --ai-grid-speed: 29s;
+  --ai-line-speed: 18s;
+  --ai-scan-speed: 15s;
 }
 
 .ai-neural-surface-window {
@@ -3863,6 +3887,11 @@
   --ai-neural-halo: rgba(45, 212, 191, 0.052);
   --ai-neural-delay: -6.1s;
   --ai-neural-speed: 21s;
+  --ai-pulse-origin-x: 74%;
+  --ai-pulse-origin-y: 20%;
+  --ai-grid-speed: 31s;
+  --ai-line-speed: 20s;
+  --ai-scan-speed: 16s;
 }
 
 .ai-neural-surface-draft {
@@ -3876,6 +3905,11 @@
   --ai-neural-glow: rgba(250, 204, 21, 0.06);
   --ai-neural-halo: rgba(250, 204, 21, 0.046);
   --ai-neural-delay: -9.4s;
+  --ai-pulse-origin-x: 24%;
+  --ai-pulse-origin-y: 18%;
+  --ai-grid-speed: 28s;
+  --ai-line-speed: 17s;
+  --ai-scan-speed: 15s;
 }
 
 .ai-neural-surface-churn,
@@ -3890,6 +3924,11 @@
   --ai-neural-glow: rgba(249, 115, 22, 0.066);
   --ai-neural-halo: rgba(251, 146, 60, 0.048);
   --ai-neural-delay: -8.3s;
+  --ai-pulse-origin-x: 78%;
+  --ai-pulse-origin-y: 60%;
+  --ai-grid-speed: 27s;
+  --ai-line-speed: 18s;
+  --ai-scan-speed: 15s;
 }
 
 .ai-neural-surface-risk {
@@ -3903,6 +3942,11 @@
   --ai-neural-glow: rgba(244, 63, 94, 0.06);
   --ai-neural-halo: rgba(251, 113, 133, 0.044);
   --ai-neural-delay: -4.7s;
+  --ai-pulse-origin-x: 80%;
+  --ai-pulse-origin-y: 36%;
+  --ai-grid-speed: 28s;
+  --ai-line-speed: 19s;
+  --ai-scan-speed: 16s;
 }
 
 .ai-neural-surface-upside {
@@ -3916,6 +3960,11 @@
   --ai-neural-glow: rgba(168, 85, 247, 0.052);
   --ai-neural-halo: rgba(192, 132, 252, 0.04);
   --ai-neural-delay: -14.2s;
+  --ai-pulse-origin-x: 64%;
+  --ai-pulse-origin-y: 14%;
+  --ai-grid-speed: 30s;
+  --ai-line-speed: 19s;
+  --ai-scan-speed: 16s;
 }
 
 .ai-neural-surface-core {
@@ -3929,28 +3978,42 @@
   --ai-neural-glow: rgba(56, 189, 248, 0.06);
   --ai-neural-halo: rgba(125, 211, 252, 0.046);
   --ai-neural-delay: -11.6s;
+  --ai-pulse-origin-x: 56%;
+  --ai-pulse-origin-y: 50%;
+  --ai-grid-speed: 31s;
+  --ai-line-speed: 19s;
+  --ai-scan-speed: 16s;
 }
 
 .ai-neural-surface-neutral {
   --ai-neural-delay: -1.5s;
+  --ai-pulse-origin-x: 18%;
+  --ai-pulse-origin-y: 28%;
+  --ai-grid-speed: 32s;
 }
 
 .waiver-intel-grid .ai-neural-surface:nth-child(3n + 1),
 .owner-intel-read-grid .ai-neural-surface:nth-child(3n + 1) {
   --ai-neural-speed: 19.5s;
   --ai-neural-delay: -4.2s;
+  --ai-pulse-origin-x: 20%;
+  --ai-pulse-origin-y: 26%;
 }
 
 .waiver-intel-grid .ai-neural-surface:nth-child(3n + 2),
 .owner-intel-read-grid .ai-neural-surface:nth-child(3n + 2) {
   --ai-neural-speed: 22s;
   --ai-neural-delay: -8.6s;
+  --ai-pulse-origin-x: 72%;
+  --ai-pulse-origin-y: 18%;
 }
 
 .waiver-intel-grid .ai-neural-surface:nth-child(3n + 3),
 .owner-intel-read-grid .ai-neural-surface:nth-child(3n + 3) {
   --ai-neural-speed: 17.75s;
   --ai-neural-delay: -12.4s;
+  --ai-pulse-origin-x: 46%;
+  --ai-pulse-origin-y: 68%;
 }
 
 .ai-neural-surface::before,
@@ -3965,82 +4028,68 @@
 
 .ai-neural-surface::before {
   background:
-    linear-gradient(180deg, transparent, var(--ai-neural-core) 18%, var(--ai-neural-accent) 50%, var(--ai-neural-core) 82%, transparent) 0 0 / 2px 100% no-repeat,
-    linear-gradient(90deg, var(--ai-neural-soft), transparent 34%) 0 0 / 42% 1px no-repeat,
-    linear-gradient(270deg, var(--ai-neural-soft), transparent 34%) 100% 100% / 42% 1px no-repeat,
-    linear-gradient(var(--ai-neural-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ai-neural-grid) 1px, transparent 1px),
-    linear-gradient(var(--ai-neural-grid-strong) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ai-neural-grid-strong) 1px, transparent 1px),
-    radial-gradient(circle at 20% 26%, var(--ai-neural-soft) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 72% 64%, var(--ai-neural-muted) 0 1px, transparent 1.8px),
-    repeating-linear-gradient(180deg, transparent 0 9px, rgba(186, 230, 253, 0.018) 10px, transparent 12px);
+    linear-gradient(180deg, transparent 0 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%),
+    linear-gradient(180deg, var(--ai-grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ai-grid-color) 1px, transparent 1px),
+    linear-gradient(180deg, var(--ai-grid-hot) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ai-grid-hot) 1px, transparent 1px),
+    linear-gradient(180deg, transparent 0%, var(--ai-neural-accent) 18%, var(--ai-neural-core) 48%, var(--ai-neural-accent) 82%, transparent 100%) 0 0 / 2px 100% no-repeat,
+    linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 24%, transparent) 49%, transparent 53%),
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 16% 22%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 84% 72%, color-mix(in srgb, var(--ai-glow-secondary) 44%, transparent) 0 1px, transparent 1.4px);
   background-size:
+    100% 100%,
+    var(--ai-neural-grid-size) var(--ai-neural-grid-size),
+    var(--ai-neural-grid-size) var(--ai-neural-grid-size),
+    var(--ai-neural-grid-size-strong) var(--ai-neural-grid-size-strong),
+    var(--ai-neural-grid-size-strong) var(--ai-neural-grid-size-strong),
     2px 100%,
-    42% 1px,
-    42% 1px,
-    var(--ai-neural-grid-size) var(--ai-neural-grid-size),
-    var(--ai-neural-grid-size) var(--ai-neural-grid-size),
-    var(--ai-neural-grid-size-strong) var(--ai-neural-grid-size-strong),
-    var(--ai-neural-grid-size-strong) var(--ai-neural-grid-size-strong),
-    88px 64px,
-    116px 92px,
-    100% 12px;
+    220px 220px,
+    106px 106px,
+    152px 152px,
+    198px 198px;
   opacity: 0.66;
   transform: translate3d(0, 0, 0);
-  animation: ai-neural-field-breathe var(--ai-neural-depth-speed) ease-in-out infinite;
-  animation-delay: calc(var(--ai-neural-delay) * 0.5);
+  animation:
+    ai-grid-drift var(--ai-grid-speed) linear infinite,
+    ai-line-surge var(--ai-line-speed) ease-in-out infinite,
+    ai-node-pulse var(--ai-scan-speed) ease-in-out infinite;
 }
 
 .ai-neural-surface::after {
-  inset: -18%;
+  inset: -14%;
   background:
-    radial-gradient(circle, var(--ai-neural-core) 0 1.15px, rgba(255, 255, 255, 0.3) 1.45px, transparent 2px),
-    radial-gradient(circle, var(--ai-neural-soft) 0 3px, transparent 18px),
-    linear-gradient(90deg, transparent 0 8%, var(--ai-neural-muted) 30%, var(--ai-neural-core) 50%, var(--ai-neural-muted) 70%, transparent 92%),
-    radial-gradient(circle, var(--ai-neural-core) 0 1px, rgba(255, 255, 255, 0.26) 1.35px, transparent 2px),
-    radial-gradient(circle, var(--ai-neural-muted) 0 3px, transparent 16px),
-    linear-gradient(0deg, transparent 0 10%, var(--ai-neural-muted) 31%, var(--ai-neural-soft) 50%, var(--ai-neural-muted) 69%, transparent 90%),
-    radial-gradient(circle, var(--ai-neural-core) 0 1.12px, rgba(255, 255, 255, 0.28) 1.45px, transparent 2px),
-    radial-gradient(circle, var(--ai-neural-soft) 0 3.5px, transparent 20px),
-    linear-gradient(90deg, transparent 0 9%, var(--ai-neural-muted) 28%, var(--ai-neural-core) 50%, var(--ai-neural-muted) 72%, transparent 91%),
-    radial-gradient(circle, var(--ai-neural-core) 0 1px, rgba(255, 255, 255, 0.24) 1.35px, transparent 2px),
-    radial-gradient(circle, var(--ai-neural-muted) 0 3px, transparent 17px),
-    linear-gradient(0deg, transparent 0 12%, var(--ai-neural-muted) 32%, var(--ai-neural-soft) 50%, var(--ai-neural-muted) 68%, transparent 88%);
-  background-position:
-    12% 31%,
-    12% 31%,
-    calc(12% - 54px) 31%,
-    56% 88%,
-    56% 88%,
-    56% calc(88% - 44px),
-    95% 36%,
-    95% 36%,
-    calc(95% - 62px) 36%,
-    28% 5%,
-    28% 5%,
-    28% calc(5% - 44px);
-  background-repeat: no-repeat;
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-neural-core) 82%, transparent) 0 1px, color-mix(in srgb, var(--ai-neural-pulse-soft) 54%, transparent) 1px 1rem, transparent 3.5rem),
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-neural-pulse-muted) 24%, transparent) 0 1px, transparent 5.2rem),
+    linear-gradient(90deg, transparent 0 8%, var(--ai-neural-pulse-muted) 30%, var(--ai-neural-core) 50%, var(--ai-neural-pulse-muted) 70%, transparent 92%),
+    linear-gradient(0deg, transparent 0 10%, var(--ai-neural-pulse-muted) 31%, var(--ai-neural-soft) 50%, var(--ai-neural-pulse-muted) 69%, transparent 90%),
+    linear-gradient(125deg, transparent 0 42%, color-mix(in srgb, var(--ai-neural-pulse-soft) 18%, transparent) 47%, rgba(255, 255, 255, 0.14) 50%, color-mix(in srgb, var(--ai-neural-pulse-soft) 8%, transparent) 53%, transparent 61%),
+    repeating-linear-gradient(180deg, transparent 0 15px, rgba(255, 255, 255, 0.014) 15px 16px, transparent 19px);
   background-size:
-    28px 28px,
-    62px 62px,
-    108px 3px,
-    24px 24px,
-    54px 54px,
-    3px 88px,
-    30px 30px,
-    70px 70px,
-    124px 3px,
-    24px 24px,
-    58px 58px,
-    3px 82px;
-  filter: drop-shadow(0 0 6px var(--ai-neural-accent));
+    46% 46%,
+    100% 100%,
+    220% 100%,
+    220% 100%,
+    240% 100%,
+    100% 100%;
+  background-position:
+    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+    145% 0,
+    -18% 0,
+    0 0,
+    0 0;
+  opacity: 0.075;
   mix-blend-mode: screen;
-  opacity: 0.072;
-  transform: translate3d(-1.5%, -1%, 0) scale(1);
-  will-change: background-position, transform, opacity;
-  animation: ai-neural-signal-route var(--ai-neural-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite;
-  animation-delay: var(--ai-neural-delay);
+  transform-origin: var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
+  will-change: transform, opacity, background-position;
+  animation:
+    ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite,
+    ai-scan-sweep calc(var(--ai-scan-speed) * 1.08) linear infinite;
+  animation-delay:
+    calc(var(--ai-ripple-speed) * -0.24),
+    0s;
 }
 
 .ai-neural-surface > * {
@@ -4091,133 +4140,6 @@
     0 0 18px var(--ai-neural-halo);
 }
 
-@keyframes ai-neural-field-breathe {
-  0%,
-  100% {
-    opacity: 0.58;
-    transform: translate3d(0, 0, 0);
-  }
-
-  44% {
-    opacity: 0.74;
-    transform: translate3d(0.35%, -0.35%, 0);
-  }
-
-  72% {
-    opacity: 0.62;
-    transform: translate3d(-0.25%, 0.2%, 0);
-  }
-}
-
-@keyframes ai-neural-signal-route {
-  0%,
-  100% {
-    background-position:
-      12% 31%,
-      12% 31%,
-      calc(12% - 54px) 31%,
-      56% 88%,
-      56% 88%,
-      56% calc(88% - 44px),
-      95% 36%,
-      95% 36%,
-      calc(95% - 62px) 36%,
-      28% 5%,
-      28% 5%,
-      28% calc(5% - 44px);
-    opacity: 0.042;
-    transform: translate3d(-2%, -1%, 0) scale(1);
-  }
-
-  10% {
-    opacity: 0.24;
-  }
-
-  23% {
-    background-position:
-      32% 31%,
-      32% 31%,
-      calc(32% - 54px) 31%,
-      56% 66%,
-      56% 66%,
-      56% calc(66% - 44px),
-      75% 40%,
-      75% 40%,
-      calc(75% - 62px) 40%,
-      28% 32%,
-      28% 32%,
-      28% calc(32% - 44px);
-    opacity: 0.058;
-    transform: translate3d(2%, 2.5%, 0) scale(1.008);
-  }
-
-  38% {
-    opacity: 0.2;
-  }
-
-  47% {
-    background-position:
-      55% 49%,
-      55% 49%,
-      calc(55% - 54px) 49%,
-      52% 48%,
-      52% 48%,
-      52% calc(48% - 44px),
-      55% 64%,
-      55% 64%,
-      calc(55% - 62px) 64%,
-      45% 49%,
-      45% 49%,
-      45% calc(49% - 44px);
-    opacity: 0.07;
-    transform: translate3d(-3%, 5.5%, 0) scale(1.012);
-  }
-
-  61% {
-    opacity: 0.23;
-  }
-
-  71% {
-    background-position:
-      76% 63%,
-      76% 63%,
-      calc(76% - 54px) 63%,
-      58% 22%,
-      58% 22%,
-      58% calc(22% - 44px),
-      32% 61%,
-      32% 61%,
-      calc(32% - 62px) 61%,
-      58% 83%,
-      58% 83%,
-      58% calc(83% - 44px);
-    opacity: 0.052;
-    transform: translate3d(4%, -3%, 0) scale(1.018);
-  }
-
-  80% {
-    opacity: 0.18;
-  }
-
-  88% {
-    background-position:
-      103% 63%,
-      103% 63%,
-      calc(103% - 54px) 63%,
-      62% -5%,
-      62% -5%,
-      62% calc(-5% - 44px),
-      8% 42%,
-      8% 42%,
-      calc(8% - 62px) 42%,
-      86% 71%,
-      86% 71%,
-      86% calc(71% - 44px);
-    opacity: 0.06;
-    transform: translate3d(1%, 4%, 0) scale(1.01);
-  }
-}
-
 @keyframes ai-neural-badge-scan {
   0%,
   62%,
@@ -4233,20 +4155,6 @@
   84% {
     transform: translate3d(145%, 0, 0);
     opacity: 0;
-  }
-}
-
-@media (max-width: 639px) {
-  .ai-neural-surface {
-    --ai-neural-grid-size: 16px;
-    --ai-neural-grid-size-strong: 64px;
-  }
-
-  .ai-recommendation-badge {
-    max-width: 100%;
-    padding-inline: 0.42rem;
-    font-size: 0.56rem;
-    letter-spacing: 0.1em;
   }
 }
 
@@ -4270,6 +4178,20 @@
 
   .ai-recommendation-badge::after {
     opacity: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .ai-neural-surface {
+    --ai-neural-grid-size: 16px;
+    --ai-neural-grid-size-strong: 64px;
+  }
+
+  .ai-recommendation-badge {
+    max-width: 100%;
+    padding-inline: 0.42rem;
+    font-size: 0.56rem;
+    letter-spacing: 0.1em;
   }
 }
 
@@ -6131,56 +6053,142 @@
   }
 }
 
-/* Dynasty command-center expansion */
+/* AI Read base surface */
 .ai-read-panel {
   --ai-read-accent: #22d3ee;
   --ai-read-border: rgba(34, 211, 238, 0.32);
   --ai-read-glow: rgba(34, 211, 238, 0.12);
   --ai-read-grid: rgba(34, 211, 238, 0.06);
+  --ai-grid-color: var(--ai-read-grid);
+  --ai-grid-hot: rgba(103, 232, 249, 0.11);
+  --ai-grid-muted: rgba(2, 8, 23, 0.86);
+  --ai-glow-primary: var(--ai-read-glow);
+  --ai-glow-secondary: rgba(249, 115, 22, 0.045);
+  --ai-border-glow: var(--ai-read-border);
+  --ai-border-glass: rgba(255, 255, 255, 0.03);
+  --ai-pulse-origin-x: 18%;
+  --ai-pulse-origin-y: 26%;
+  --ai-grid-size: 24px;
+  --ai-grid-size-strong: 76px;
+  --ai-grid-speed: 30s;
+  --ai-line-speed: 20s;
+  --ai-scan-speed: 16s;
+  --ai-ripple-speed: 14s;
+  --ai-border-speed: 11s;
   position: relative;
   isolation: isolate;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--ai-read-border);
-  border-radius: 0.78rem;
+  border: 1px solid var(--ai-border-glow);
+  border-radius: 0.82rem;
   background:
-    linear-gradient(var(--ai-read-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ai-read-grid) 1px, transparent 1px),
-    radial-gradient(circle at 8% 0%, var(--ai-read-glow), transparent 30%),
-    radial-gradient(circle at 100% 4%, rgba(249, 115, 22, 0.06), transparent 28%),
-    linear-gradient(135deg, rgba(2, 8, 23, 0.96), rgba(3, 19, 36, 0.94) 52%, rgba(2, 6, 23, 0.98));
-  background-size: 24px 24px, 24px 24px, auto, auto, auto;
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--ai-glow-primary) 62%, transparent), transparent 26%),
+    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--ai-glow-secondary) 58%, transparent), transparent 24%),
+    radial-gradient(circle at 50% 118%, rgba(2, 6, 23, 0.42), transparent 58%),
+    linear-gradient(135deg, rgba(2, 8, 23, 0.98), rgba(3, 19, 36, 0.94) 52%, rgba(2, 6, 23, 0.99));
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    inset 0 0 0 1px var(--ai-border-glass),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    inset 0 0 28px rgba(2, 6, 23, 0.36),
     0 10px 30px rgba(0, 0, 0, 0.22);
   width: min(100%, 64rem);
   margin-inline: auto;
   padding: clamp(0.56rem, 1.05vw, 0.76rem) clamp(0.64rem, 1.25vw, 0.84rem);
+  animation: ai-border-breathe var(--ai-border-speed) ease-in-out infinite;
 }
 
 .ai-read-panel::before {
   content: "";
   position: absolute;
-  inset: 0 0 auto;
+  inset: 0;
   z-index: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--ai-read-accent), color-mix(in srgb, var(--ai-read-accent) 16%, transparent), transparent 68%);
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, transparent 0 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%),
+    linear-gradient(180deg, var(--ai-grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ai-grid-color) 1px, transparent 1px),
+    linear-gradient(180deg, var(--ai-grid-hot) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ai-grid-hot) 1px, transparent 1px),
+    linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 24%, transparent) 49%, transparent 53%),
+    linear-gradient(225deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 16%, transparent) 49%, transparent 53%),
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 12% 20%, rgba(255, 255, 255, 0.16) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 82% 72%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 70% 14%, color-mix(in srgb, var(--ai-glow-secondary) 44%, transparent) 0 1px, transparent 1.4px);
+  background-size:
+    100% 100%,
+    var(--ai-grid-size) var(--ai-grid-size),
+    var(--ai-grid-size) var(--ai-grid-size),
+    var(--ai-grid-size-strong) var(--ai-grid-size-strong),
+    var(--ai-grid-size-strong) var(--ai-grid-size-strong),
+    220px 220px,
+    300px 300px,
+    110px 110px,
+    160px 160px,
+    190px 190px,
+    230px 230px;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
   opacity: 0.72;
   pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  animation:
+    ai-grid-drift var(--ai-grid-speed) linear infinite,
+    ai-line-surge var(--ai-line-speed) ease-in-out infinite,
+    ai-node-pulse var(--ai-scan-speed) ease-in-out infinite;
 }
 
 .ai-read-panel::after {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -12%;
   z-index: 0;
+  border-radius: inherit;
   background:
-    linear-gradient(90deg, transparent, color-mix(in srgb, var(--ai-read-accent) 10%, transparent), transparent),
-    linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.025), transparent);
-  background-size: 180% 100%, 100% 4.5rem;
-  opacity: 0.14;
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, color-mix(in srgb, var(--ai-glow-primary) 42%, transparent) 1px 1.25rem, transparent 3.75rem),
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 20%, transparent) 0 1px, transparent 5.5rem),
+    linear-gradient(125deg, transparent 0 42%, color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 47%, rgba(255, 255, 255, 0.16) 50%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 53%, transparent 61%),
+    linear-gradient(90deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 11%, transparent) 50%, transparent 56%),
+    repeating-linear-gradient(180deg, transparent 0 14px, rgba(255, 255, 255, 0.018) 14px 15px, transparent 18px),
+    radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--ai-glow-secondary) 24%, transparent) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--ai-glow-secondary) 16%, transparent) 0 1px, transparent 1.6px);
+  background-size:
+    48% 48%,
+    100% 100%,
+    240% 100%,
+    220% 100%,
+    100% 100%,
+    140px 140px,
+    180px 180px;
+  background-position:
+    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+    145% 0,
+    -20% 0,
+    0 0,
+    16% 18%,
+    82% 76%;
+  opacity: 0.08;
+  mix-blend-mode: screen;
   pointer-events: none;
-  animation: ai-read-diagnostic-sweep 12s ease-in-out infinite;
+  transform-origin: var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
+  will-change: transform, opacity, background-position;
+  animation:
+    ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite,
+    ai-scan-sweep calc(var(--ai-scan-speed) * 1.12) linear infinite;
+  animation-delay:
+    calc(var(--ai-ripple-speed) * -0.28),
+    0s;
 }
 
 .ai-read-panel > * {
@@ -6194,6 +6202,11 @@
   --ai-read-border: rgba(52, 211, 153, 0.34);
   --ai-read-glow: rgba(16, 185, 129, 0.12);
   --ai-read-grid: rgba(52, 211, 153, 0.055);
+  --ai-grid-color: var(--ai-read-grid);
+  --ai-grid-hot: rgba(134, 239, 172, 0.105);
+  --ai-glow-primary: var(--ai-read-glow);
+  --ai-pulse-origin-x: 20%;
+  --ai-pulse-origin-y: 28%;
 }
 
 .ai-read-panel-market,
@@ -6202,6 +6215,12 @@
   --ai-read-border: rgba(251, 146, 60, 0.34);
   --ai-read-glow: rgba(249, 115, 22, 0.12);
   --ai-read-grid: rgba(251, 146, 60, 0.055);
+  --ai-grid-color: var(--ai-read-grid);
+  --ai-grid-hot: rgba(253, 186, 116, 0.102);
+  --ai-glow-primary: var(--ai-read-glow);
+  --ai-glow-secondary: rgba(251, 146, 60, 0.03);
+  --ai-pulse-origin-x: 82%;
+  --ai-pulse-origin-y: 20%;
 }
 
 .ai-read-panel-draft,
@@ -6210,6 +6229,11 @@
   --ai-read-border: rgba(250, 204, 21, 0.32);
   --ai-read-glow: rgba(250, 204, 21, 0.1);
   --ai-read-grid: rgba(250, 204, 21, 0.052);
+  --ai-grid-color: var(--ai-read-grid);
+  --ai-grid-hot: rgba(253, 224, 71, 0.1);
+  --ai-glow-primary: var(--ai-read-glow);
+  --ai-pulse-origin-x: 24%;
+  --ai-pulse-origin-y: 22%;
 }
 
 .ai-read-panel-lineup,
@@ -6218,6 +6242,11 @@
   --ai-read-border: rgba(45, 212, 191, 0.32);
   --ai-read-glow: rgba(45, 212, 191, 0.11);
   --ai-read-grid: rgba(45, 212, 191, 0.055);
+  --ai-grid-color: var(--ai-read-grid);
+  --ai-grid-hot: rgba(103, 232, 249, 0.1);
+  --ai-glow-primary: var(--ai-read-glow);
+  --ai-pulse-origin-x: 64%;
+  --ai-pulse-origin-y: 68%;
 }
 
 .ai-read-panel-waiver {
@@ -6225,6 +6254,11 @@
   --ai-read-border: rgba(134, 239, 172, 0.3);
   --ai-read-glow: rgba(134, 239, 172, 0.1);
   --ai-read-grid: rgba(134, 239, 172, 0.05);
+  --ai-grid-color: var(--ai-read-grid);
+  --ai-grid-hot: rgba(163, 230, 53, 0.092);
+  --ai-glow-primary: var(--ai-read-glow);
+  --ai-pulse-origin-x: 78%;
+  --ai-pulse-origin-y: 30%;
 }
 
 .ai-read-panel-severity-danger {
@@ -6232,6 +6266,47 @@
   --ai-read-border: rgba(251, 113, 133, 0.34);
   --ai-read-glow: rgba(244, 63, 94, 0.1);
   --ai-read-grid: rgba(251, 113, 133, 0.052);
+  --ai-grid-color: var(--ai-read-grid);
+  --ai-grid-hot: rgba(253, 164, 175, 0.1);
+  --ai-glow-primary: var(--ai-read-glow);
+  --ai-pulse-origin-x: 74%;
+  --ai-pulse-origin-y: 34%;
+}
+
+.ai-read-panel-blueprint {
+  --ai-read-accent: #7dd3fc;
+  --ai-read-border: rgba(125, 211, 252, 0.34);
+  --ai-read-glow: rgba(56, 189, 248, 0.12);
+  --ai-read-grid: rgba(125, 211, 252, 0.062);
+  --ai-grid-color: var(--ai-read-grid);
+  --ai-grid-hot: rgba(186, 230, 253, 0.12);
+  --ai-glow-primary: var(--ai-read-glow);
+  --ai-glow-secondary: rgba(56, 189, 248, 0.028);
+  --ai-pulse-origin-x: 22%;
+  --ai-pulse-origin-y: 18%;
+  --ai-grid-size: 18px;
+  --ai-grid-size-strong: 54px;
+  --ai-grid-speed: 24s;
+  --ai-line-speed: 16s;
+  --ai-scan-speed: 13s;
+}
+
+.ai-read-panel-league {
+  --ai-read-accent: #67e8f9;
+  --ai-read-border: rgba(103, 232, 249, 0.3);
+  --ai-read-glow: rgba(34, 211, 238, 0.11);
+  --ai-read-grid: rgba(45, 212, 191, 0.052);
+  --ai-grid-color: var(--ai-read-grid);
+  --ai-grid-hot: rgba(103, 232, 249, 0.104);
+  --ai-glow-primary: var(--ai-read-glow);
+  --ai-glow-secondary: rgba(251, 146, 60, 0.028);
+  --ai-pulse-origin-x: 70%;
+  --ai-pulse-origin-y: 16%;
+  --ai-grid-size: 22px;
+  --ai-grid-size-strong: 68px;
+  --ai-grid-speed: 32s;
+  --ai-line-speed: 18s;
+  --ai-scan-speed: 15s;
 }
 
 .ai-read-status-rail {
@@ -6496,26 +6571,18 @@
   display: none;
 }
 
-@keyframes ai-read-diagnostic-sweep {
-  0%,
-  100% {
-    background-position: 140% 0, 0 0;
-    opacity: 0.16;
-  }
-
-  48% {
-    background-position: 20% 0, 0 2.5rem;
-    opacity: 0.28;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
+  .ai-read-panel,
+  .ai-read-panel::before,
   .ai-read-panel::after {
     animation: none;
   }
 }
 
 .ai-read-panel-compact {
+  --ai-grid-size: 18px;
+  --ai-grid-size-strong: 60px;
+  --ai-ripple-speed: 16s;
   padding: 0.5rem 0.58rem;
 }
 
@@ -6526,7 +6593,7 @@
 .ai-read-panel-compact[open] .ai-read-compact-summary {
   margin-bottom: 0.54rem;
   padding-bottom: 0.48rem;
-  border-bottom: 1px solid rgba(34, 211, 238, 0.14);
+  border-bottom: 1px solid color-mix(in srgb, var(--ai-read-border) 44%, rgba(255, 255, 255, 0.06));
 }
 
 .overview-ai-pulse,
@@ -8342,43 +8409,114 @@
   width: 100%;
 }
 
-.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::before {
-  content: "";
-  position: absolute;
-  inset: -0.1rem;
-  z-index: 0;
-  border-radius: inherit;
+/* Page-level AI read overlays */
+.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell) {
+  --ai-grid-color: rgba(34, 211, 238, 0.05);
+  --ai-grid-hot: rgba(103, 232, 249, 0.1);
+  --ai-grid-muted: rgba(2, 8, 23, 0.84);
+  --ai-glow-primary: rgba(34, 211, 238, 0.1);
+  --ai-glow-secondary: rgba(249, 115, 22, 0.028);
+  --ai-border-glow: rgba(34, 211, 238, 0.24);
+  --ai-border-glass: rgba(255, 255, 255, 0.03);
+  --ai-pulse-origin-x: 18%;
+  --ai-pulse-origin-y: 24%;
+  --ai-grid-size: 26px;
+  --ai-grid-size-strong: 84px;
+  --ai-grid-speed: 36s;
+  --ai-line-speed: 22s;
+  --ai-scan-speed: 18s;
+  --ai-ripple-speed: 16s;
+  --ai-border-speed: 13s;
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--ai-border-glow);
+  border-radius: 0.98rem;
+  overflow: hidden;
   background:
-    radial-gradient(ellipse at 76% 42%, rgba(254, 240, 138, 0.07), rgba(251, 146, 60, 0.045) 42%, transparent 72%),
-    radial-gradient(ellipse at 14% 50%, rgba(34, 211, 238, 0.035), transparent 58%);
-  background-position: 50% 50%, 50% 50%;
-  background-size: 180% 100%, 150% 100%;
-  opacity: 0.22;
-  pointer-events: none;
-  animation: dd-admin-solar-field 7.8s ease-in-out infinite;
+    radial-gradient(circle at 10% 0%, rgba(34, 211, 238, 0.09), transparent 28%),
+    radial-gradient(circle at 92% 4%, rgba(249, 115, 22, 0.026), transparent 24%),
+    radial-gradient(circle at 50% 112%, rgba(2, 6, 23, 0.44), transparent 54%),
+    linear-gradient(180deg, rgba(2, 8, 23, 0.96), rgba(3, 15, 31, 0.9) 46%, rgba(2, 6, 23, 0.98));
+  box-shadow:
+    inset 0 0 0 1px var(--ai-border-glass),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    inset 0 0 30px rgba(2, 6, 23, 0.36),
+    0 18px 42px rgba(0, 0, 0, 0.24);
+  animation: ai-border-breathe var(--ai-border-speed) ease-in-out infinite;
 }
 
-.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::after {
+.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 0;
   border-radius: inherit;
   background:
-    linear-gradient(110deg, transparent 0 40%, rgba(254, 240, 138, 0.045) 48%, rgba(251, 146, 60, 0.035) 52%, transparent 62% 100%);
-  background-size: 220% 100%;
-  box-shadow:
-    0 0 12px rgba(251, 146, 60, 0.055),
-    0 0 12px rgba(34, 211, 238, 0.03);
-  opacity: 0.12;
+    linear-gradient(180deg, transparent 0 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%),
+    linear-gradient(180deg, var(--ai-grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ai-grid-color) 1px, transparent 1px),
+    linear-gradient(180deg, var(--ai-grid-hot) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ai-grid-hot) 1px, transparent 1px),
+    linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 20%, transparent) 49%, transparent 53%),
+    linear-gradient(225deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 14%, transparent) 49%, transparent 53%),
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 11% 24%, rgba(255, 255, 255, 0.14) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 81% 74%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.4px);
+  background-size:
+    100% 100%,
+    var(--ai-grid-size) var(--ai-grid-size),
+    var(--ai-grid-size) var(--ai-grid-size),
+    var(--ai-grid-size-strong) var(--ai-grid-size-strong),
+    var(--ai-grid-size-strong) var(--ai-grid-size-strong),
+    220px 220px,
+    300px 300px,
+    118px 118px,
+    160px 160px,
+    200px 200px;
+  opacity: 0.72;
   pointer-events: none;
-  animation: dd-admin-solar-sweep 8.8s ease-in-out infinite;
+  transform: translate3d(0, 0, 0);
+  animation:
+    ai-grid-drift var(--ai-grid-speed) linear infinite,
+    ai-line-surge var(--ai-line-speed) ease-in-out infinite,
+    ai-node-pulse var(--ai-scan-speed) ease-in-out infinite;
 }
 
-.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell) {
-  position: relative;
-  border-color: rgba(251, 146, 60, 0.28);
-  overflow: hidden;
+.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::after {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  z-index: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 74%, transparent) 0 1px, color-mix(in srgb, var(--ai-glow-primary) 38%, transparent) 1px 1.15rem, transparent 4rem),
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 0 1px, transparent 5.75rem),
+    linear-gradient(125deg, transparent 0 42%, color-mix(in srgb, var(--ai-glow-primary) 16%, transparent) 47%, rgba(255, 255, 255, 0.14) 50%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 53%, transparent 61%),
+    linear-gradient(90deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 50%, transparent 56%),
+    repeating-linear-gradient(180deg, transparent 0 15px, rgba(255, 255, 255, 0.016) 15px 16px, transparent 19px);
+  background-size:
+    46% 46%,
+    100% 100%,
+    240% 100%,
+    220% 100%,
+    100% 100%;
+  background-position:
+    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+    145% 0,
+    -18% 0,
+    0 0;
+  opacity: 0.08;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  transform-origin: var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
+  will-change: transform, opacity, background-position;
+  animation:
+    ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite,
+    ai-scan-sweep calc(var(--ai-scan-speed) * 1.1) linear infinite;
+  animation-delay:
+    calc(var(--ai-ripple-speed) * -0.3),
+    0s;
 }
 
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell) > * {
@@ -8396,34 +8534,200 @@
     0 0 13px rgba(249, 115, 22, 0.16);
 }
 
-@keyframes dd-admin-solar-field {
+@keyframes ai-grid-drift {
   0%,
   100% {
-    opacity: 0.62;
-    background-position: 0 0, 0 0, 84% 50%, 18% 50%, 0 0;
+    background-position:
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0;
   }
 
-  45% {
-    opacity: 0.98;
-    background-position: 0.6rem 0.35rem, 0.35rem 0, 66% 50%, 26% 52%, 0 0;
+  24% {
+    background-position:
+      0 0,
+      0.35rem 0.18rem,
+      0.18rem 0.35rem,
+      -0.4rem 0.1rem,
+      0.1rem -0.4rem,
+      1.4rem 0.45rem,
+      -0.8rem 0.2rem,
+      0.2rem 0.1rem,
+      -0.6rem 0.18rem,
+      0.12rem -0.22rem;
   }
 
-  68% {
-    opacity: 0.78;
-    background-position: 0.15rem 0.2rem, 0.15rem 0.25rem, 74% 48%, 20% 50%, 0 0;
+  58% {
+    background-position:
+      0 0,
+      -0.28rem 0.18rem,
+      0.24rem -0.32rem,
+      0.42rem -0.12rem,
+      -0.18rem 0.36rem,
+      -1rem 0.22rem,
+      0.72rem -0.18rem,
+      -0.1rem 0.14rem,
+      0.62rem -0.22rem,
+      -0.06rem 0.16rem;
   }
 }
 
-@keyframes dd-admin-solar-sweep {
+@keyframes ai-line-surge {
   0%,
   100% {
+    background-size:
+      100% 100%,
+      var(--ai-grid-size) var(--ai-grid-size),
+      var(--ai-grid-size) var(--ai-grid-size),
+      var(--ai-grid-size-strong) var(--ai-grid-size-strong),
+      var(--ai-grid-size-strong) var(--ai-grid-size-strong),
+      220px 220px,
+      300px 300px,
+      118px 118px,
+      160px 160px,
+      200px 200px;
+    opacity: 0.66;
+  }
+
+  38% {
+    background-size:
+      100% 100%,
+      var(--ai-grid-size) var(--ai-grid-size),
+      var(--ai-grid-size) var(--ai-grid-size),
+      calc(var(--ai-grid-size-strong) * 1.08) calc(var(--ai-grid-size-strong) * 1.08),
+      calc(var(--ai-grid-size-strong) * 1.08) calc(var(--ai-grid-size-strong) * 1.08),
+      220px 220px,
+      300px 300px,
+      118px 118px,
+      160px 160px,
+      200px 200px;
+    opacity: 0.88;
+  }
+
+  72% {
+    background-size:
+      100% 100%,
+      var(--ai-grid-size) var(--ai-grid-size),
+      var(--ai-grid-size) var(--ai-grid-size),
+      calc(var(--ai-grid-size-strong) * 0.96) calc(var(--ai-grid-size-strong) * 0.96),
+      calc(var(--ai-grid-size-strong) * 0.96) calc(var(--ai-grid-size-strong) * 0.96),
+      220px 220px,
+      300px 300px,
+      118px 118px,
+      160px 160px,
+      200px 200px;
+    opacity: 0.72;
+  }
+}
+
+@keyframes ai-touch-ripple {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.02;
+  }
+
+  18% {
     opacity: 0.16;
-    background-position: 145% 0;
+  }
+
+  34% {
+    transform: scale(1.02);
+    opacity: 0.1;
+  }
+
+  56% {
+    transform: scale(1.08);
+    opacity: 0.02;
+  }
+
+  78% {
+    transform: scale(1.01);
+    opacity: 0.12;
+  }
+}
+
+@keyframes ai-scan-sweep {
+  0%,
+  100% {
+    background-position:
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      145% 0,
+      -18% 0,
+      0 0;
+    opacity: 0.04;
+  }
+
+  26% {
+    background-position:
+      calc(var(--ai-pulse-origin-x) + 2%) calc(var(--ai-pulse-origin-y) - 1%),
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      108% 0,
+      -8% 0,
+      0 0;
+    opacity: 0.14;
+  }
+
+  52% {
+    background-position:
+      calc(var(--ai-pulse-origin-x) - 2%) calc(var(--ai-pulse-origin-y) + 1%),
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      58% 0,
+      16% 0,
+      0 0;
+    opacity: 0.08;
+  }
+
+  76% {
+    background-position:
+      calc(var(--ai-pulse-origin-x) + 1%) calc(var(--ai-pulse-origin-y) + 2%),
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      0% 0,
+      102% 0,
+      0 0;
+    opacity: 0.16;
+  }
+}
+
+@keyframes ai-node-pulse {
+  0%,
+  100% {
+    opacity: 0.58;
+  }
+
+  42% {
+    opacity: 0.8;
+  }
+
+  68% {
+    opacity: 0.66;
+  }
+}
+
+@keyframes ai-border-breathe {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px var(--ai-border-glass),
+      inset 0 1px 0 rgba(255, 255, 255, 0.025),
+      inset 0 0 28px rgba(2, 6, 23, 0.34),
+      0 10px 30px rgba(0, 0, 0, 0.22);
   }
 
   48% {
-    opacity: 0.72;
-    background-position: 36% 0;
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--ai-border-glow) 42%, rgba(255, 255, 255, 0.05)),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      inset 0 0 34px rgba(2, 6, 23, 0.3),
+      0 12px 34px rgba(0, 0, 0, 0.24);
   }
 }
 
@@ -8431,6 +8735,7 @@
   .report-shell .admin-premium-tab::before,
   .report-disclosure.admin-premium-section > .report-disclosure-summary::before,
   .report-disclosure.admin-premium-section > .report-disclosure-summary::after,
+  .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell),
   .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::before,
   .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::after {
     animation: none;
@@ -8438,20 +8743,29 @@
 }
 
 .admin-diagnostics-shell {
+  --ai-grid-color: rgba(45, 212, 191, 0.044);
+  --ai-grid-hot: rgba(103, 232, 249, 0.09);
+  --ai-glow-primary: rgba(34, 211, 238, 0.08);
+  --ai-glow-secondary: rgba(251, 146, 60, 0.035);
+  --ai-border-glow: rgba(251, 146, 60, 0.38);
+  --ai-border-glass: rgba(255, 255, 255, 0.03);
+  --ai-pulse-origin-x: 76%;
+  --ai-pulse-origin-y: 22%;
   display: grid;
   gap: 0.85rem;
-  border: 1px solid rgba(251, 146, 60, 0.52);
-  border-top-color: rgba(251, 146, 60, 0.86);
-  border-radius: 12px;
+  border: 1px solid rgba(251, 146, 60, 0.42);
+  border-top-color: rgba(251, 146, 60, 0.84);
+  border-radius: 0.98rem;
   background:
-    linear-gradient(180deg, rgba(251, 146, 60, 0.1), transparent 4rem),
-    radial-gradient(ellipse at 76% 0%, rgba(251, 146, 60, 0.16), transparent 42%),
-    linear-gradient(135deg, rgba(8, 47, 73, 0.28), rgba(15, 23, 42, 0.76)),
-    rgba(2, 6, 23, 0.52);
+    radial-gradient(circle at 10% 0%, rgba(34, 211, 238, 0.06), transparent 28%),
+    radial-gradient(circle at 86% 0%, rgba(251, 146, 60, 0.08), transparent 24%),
+    linear-gradient(135deg, rgba(8, 47, 73, 0.24), rgba(15, 23, 42, 0.78)),
+    rgba(2, 6, 23, 0.56);
   padding: clamp(0.85rem, 2vw, 1.15rem);
   box-shadow:
-    0 -1px 16px rgba(251, 146, 60, 0.34),
-    0 18px 48px rgba(249, 115, 22, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 -1px 16px rgba(251, 146, 60, 0.28),
+    0 18px 48px rgba(249, 115, 22, 0.14),
     0 22px 62px rgba(0, 0, 0, 0.28);
 }
 
@@ -9783,4 +10097,135 @@
   text-overflow: clip !important;
   white-space: normal !important;
   line-height: 1.18 !important;
+}
+
+/* Rankings board pill rail cleanup */
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__manager,
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__movement,
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__trend {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__manager .interactive-identity-name,
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__manager .manager-chip:not(:has(.interactive-identity-name)) > span:last-child {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__movement {
+  gap: 0.22rem 0.3rem;
+  flex-wrap: wrap;
+  align-content: center;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__movement > * {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__movement .ranking-ai-read-chip,
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__movement .ranking-value-confidence-chip {
+  margin-top: 0 !important;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__trend {
+  justify-content: flex-end;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__trend .ranking-trend-pill {
+  flex: 0 0 auto;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__age-pill {
+  display: inline-flex;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: #cbd5e1;
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__trend {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.08rem;
+  overflow: hidden;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-pill {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.02rem 0.12rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #a5f3fc;
+  font-size: 0.5rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: right;
+  text-transform: none;
+  white-space: normal;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-pill > span {
+  display: inline;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-full {
+  color: #fde68a;
+  font-size: 0.49rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-compact {
+  color: #a5f3fc;
+  font-size: 0.55rem;
+  font-weight: 950;
+}
+
+@media (max-width: 767px) {
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__age-pill {
+    font-size: 0.58rem;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-pill {
+    gap: 0.03rem;
+    font-size: 0.44rem;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-full {
+    font-size: 0.43rem;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-compact {
+    font-size: 0.48rem;
+  }
 }

@@ -18,7 +18,7 @@ import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draf
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
-import { fetchFantasyProsLatestPlayerNews, fetchFantasyProsNews, fetchFantasyProsPlayerPoints, findLatestFantasyProsNewsForPlayer } from "./fantasyPros";
+import { fetchFantasyProsLatestPlayerNews, fetchFantasyProsNews, findLatestFantasyProsNewsForPlayer } from "./fantasyPros";
 import { buildRankingsBoard } from "./rankingsBoard";
 import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persistLeagueAiConfidenceSnapshot } from "./leagueAiConfidence";
 import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
@@ -32,9 +32,9 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { findLeagueReportCache, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, reserveMonthlyReportGeneration, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertUser, upsertWaiverBidHistory } from "./db";
+import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, reserveMonthlyReportGeneration, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence } from "../shared/types";
+import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -53,6 +53,7 @@ const SLEEPER_ID_PATTERN = /^\d{8,24}$/;
 const sleeperLeagueIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a valid Sleeper league ID');
 const sleeperUserIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a valid Sleeper user ID');
 const sleeperUsernameSchema = z.string().trim().min(1).max(64);
+const sleeperAuthTokenSchema = z.string().trim().min(1).max(4096);
 const actionPlanSchema = z.object({
   id: z.string().min(1).max(256),
   kind: z.enum(["lineup", "waiver", "trade"]),
@@ -1132,6 +1133,165 @@ async function fetchSleeperJson<T = any>(url: string): Promise<T | null> {
   }
 }
 
+type SleeperGraphQLTransactionResponse = {
+  data?: {
+    league_transactions_filtered?: any[];
+  };
+  errors?: Array<{ message?: string } | string>;
+};
+
+function getSleeperGraphQLErrorMessage(errors: SleeperGraphQLTransactionResponse['errors']): string | null {
+  if (!Array.isArray(errors) || errors.length === 0) return null;
+  const firstError = errors[0];
+  if (typeof firstError === 'string') return firstError;
+  return firstError?.message || null;
+}
+
+async function fetchSleeperTradeCenterTransactions(leagueId: string, authToken: string): Promise<any[]> {
+  const normalizedAuthToken = authToken.replace(/^Bearer\s+/i, '').trim();
+  const query = `
+    query league_transactions_filtered {
+      league_transactions_filtered(
+        league_id: ${JSON.stringify(leagueId)},
+        roster_id_filters: [],
+        type_filters: ${JSON.stringify(['trade', 'waiver'])},
+        leg_filters: [],
+        status_filters: ${JSON.stringify(['pending', 'proposed', 'cancelled', 'failed', 'rejected'])},
+        limit: 500
+      ) {
+        adds
+        consenter_ids
+        created
+        creator
+        draft_picks
+        drops
+        league_id
+        leg
+        metadata
+        roster_ids
+        settings
+        status
+        status_updated
+        transaction_id
+        type
+        player_map
+        waiver_budget
+      }
+    }
+  `;
+
+  const response = await fetch('https://api.sleeper.app/graphql', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: normalizedAuthToken,
+      'X-Sleeper-GraphQL-Op': 'league_transactions_filtered',
+    },
+    body: JSON.stringify({
+      operationName: 'league_transactions_filtered',
+      query,
+    }),
+  });
+
+  const rawBody = await response.text();
+  let payload: SleeperGraphQLTransactionResponse | null = null;
+  try {
+    payload = rawBody ? JSON.parse(rawBody) as SleeperGraphQLTransactionResponse : null;
+  } catch {
+    payload = null;
+  }
+
+  const graphqlErrorMessage = getSleeperGraphQLErrorMessage(payload?.errors);
+  const isUnauthorized = response.status === 401 || response.status === 403 || /unauthor/i.test(String(graphqlErrorMessage || ''));
+  if (!response.ok || graphqlErrorMessage) {
+    const message = isUnauthorized
+      ? 'Sleeper auth token was rejected.'
+      : graphqlErrorMessage || `Sleeper returned ${response.status} while loading hidden trade center data`;
+    throw new TRPCError({
+      code: isUnauthorized ? 'UNAUTHORIZED' : 'BAD_REQUEST',
+      message,
+    });
+  }
+
+  const transactions = payload?.data?.league_transactions_filtered;
+  return Array.isArray(transactions) ? transactions : [];
+}
+
+type SleeperHiddenTradeCenterImport = {
+  tradeProposalSignals: NonNullable<ReportData['adminSleeperTradeProposalSignals']>;
+  waiverSignals: NonNullable<ReportData['adminSleeperWaiverSignals']>;
+  transactionCount: number;
+  tradeCount: number;
+  waiverCount: number;
+};
+
+async function loadSleeperHiddenTradeCenterImport(input: {
+  leagueId: string;
+  authToken: string;
+}): Promise<SleeperHiddenTradeCenterImport> {
+  const [users, rosters, players, hiddenTransactions] = await Promise.all([
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${input.leagueId}/users`),
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${input.leagueId}/rosters`),
+    fetchSleeperPlayersIndex(),
+    fetchSleeperTradeCenterTransactions(input.leagueId, input.authToken.trim()),
+  ]);
+
+  const safeUsers = Array.isArray(users) ? users : [];
+  const safeRosters = Array.isArray(rosters) ? rosters : [];
+  const safePlayers = players && typeof players === 'object' ? players : {};
+  const userMap = Object.fromEntries(safeUsers.map((user: any) => [user.user_id, user]));
+  const rosterUserMap = Object.fromEntries(
+    safeRosters.map((roster: any) => [
+      roster.roster_id,
+      normalizeManagerName(userMap[roster.owner_id]?.display_name),
+    ])
+  );
+
+  const tradeProposalSignals = buildTradeProposalSignals(hiddenTransactions, rosterUserMap, safePlayers, null);
+  const waiverSignals = buildSleeperWaiverClaimSignals(hiddenTransactions, rosterUserMap, safePlayers, userMap);
+
+  return {
+    tradeProposalSignals,
+    waiverSignals,
+    transactionCount: hiddenTransactions.length,
+    tradeCount: tradeProposalSignals.length,
+    waiverCount: waiverSignals.length,
+  };
+}
+
+function buildSleeperHiddenLeagueSnapshotMetadata(input: {
+  sharedBy?: string | null;
+  sharedAt?: number | Date | null;
+  transactionCount: number;
+  tradeCount: number;
+  waiverCount: number;
+}): SleeperHiddenLeagueSnapshot {
+  return {
+    sharedBy: input.sharedBy?.trim() || null,
+    sharedAt: input.sharedAt instanceof Date ? input.sharedAt.getTime() : Number(input.sharedAt || Date.now()),
+    transactionCount: Number(input.transactionCount || 0),
+    tradeCount: Number(input.tradeCount || 0),
+    waiverCount: Number(input.waiverCount || 0),
+  };
+}
+
+async function attachStoredSleeperHiddenLeagueSnapshot(payload: any, leagueId: string): Promise<any> {
+  if (!payload?.reportData) return payload;
+
+  const snapshot = await findLatestSleeperHiddenLeagueSnapshot(leagueId);
+  if (!snapshot) return payload;
+
+  return {
+    ...payload,
+    reportData: {
+      ...payload.reportData,
+      sleeperHiddenLeagueSnapshot: buildSleeperHiddenLeagueSnapshotMetadata(snapshot),
+      adminSleeperTradeProposalSignals: snapshot.tradeProposalSignals,
+      adminSleeperWaiverSignals: snapshot.waiverSignals,
+    },
+  };
+}
+
 const SLEEPER_PLAYERS_CACHE_TTL_MS = 60 * 60 * 1000;
 let sleeperPlayersCache: {
   expiresAt: number;
@@ -1537,34 +1697,58 @@ async function fetchPlayerAvailabilityHistory(
   players: Record<string, any>,
   scoringSettings: Record<string, any> | undefined,
   lastCompletedSeason: string,
-  seasonCount = 3
 ): Promise<Record<string, Pick<PlayerDetails, 'availabilityHistory' | 'avgGamesMissed' | 'availabilitySeasons'>>> {
-  const scoringFamily = getScoringFamily(scoringSettings);
-  const fantasyProsScoring = scoringFamily === 'ppr' ? 'PPR' : scoringFamily === 'std' ? 'STD' : 'HALF';
-  const seasons = Array.from({ length: seasonCount }, (_, index) => String(Number(lastCompletedSeason) - index))
-    .filter((season) => Number.isFinite(Number(season)));
   const uniquePlayerIds = Array.from(new Set(Array.from(playerIds).filter(Boolean)))
     .filter((playerId) => ['QB', 'RB', 'WR', 'TE'].includes(players[playerId]?.position));
+  if (!uniquePlayerIds.length) return {};
 
-  const seasonPoints = await Promise.all(
-    seasons.map(async (season) => ({
-      season,
-      values: await fetchFantasyProsPlayerPoints(season, fantasyProsScoring),
-    }))
+  const playerStartSeasonById = Object.fromEntries(
+    uniquePlayerIds.map((playerId) => [
+      playerId,
+      Math.max(MIN_SLEEPER_SEASON, getSeasonLineupPlayerStartSeason(players[playerId], lastCompletedSeason)),
+    ])
   );
+  const earliestSeason = Math.max(
+    MIN_SLEEPER_SEASON,
+    Math.min(...Object.values(playerStartSeasonById))
+  );
+  const seasonRange = Number(lastCompletedSeason) - earliestSeason + 1;
+  if (!Number.isFinite(seasonRange) || seasonRange <= 0) {
+    return Object.fromEntries(uniquePlayerIds.map((playerId) => [
+      playerId,
+      {
+        availabilityHistory: [],
+        avgGamesMissed: null,
+        availabilitySeasons: 0,
+      },
+    ]));
+  }
+
+  const seasons = Array.from({ length: seasonRange }, (_, index) => String(earliestSeason + index));
+  const seasonRankMaps = await Promise.all(
+    seasons.map(async (season) => [
+      season,
+      await buildSleeperSeasonRankMap(season, players, scoringSettings, ['QB', 'RB', 'WR', 'TE']),
+    ] as const)
+  );
+  const seasonRankMapBySeason = Object.fromEntries(seasonRankMaps);
 
   return Object.fromEntries(uniquePlayerIds.map((playerId) => {
-    const key = cleanName(`${players[playerId]?.first_name || ''}${players[playerId]?.last_name || ''}`);
-    const history = seasonPoints
-      .map(({ season, values }) => {
-        const points = values[key];
-        if (!points || typeof points.games !== 'number') return null;
-        const gamesMissed = Math.max(0, 17 - points.games);
+    const playerHistoryStartSeason = playerStartSeasonById[playerId] || earliestSeason;
+    const history = seasons
+      .filter((season) => Number(season) >= playerHistoryStartSeason)
+      .map((season) => {
+        const summary = seasonRankMapBySeason[season]?.[playerId];
+        if (!summary) return null;
+        const gamesPlayed = summary.games ?? null;
         return {
           season,
-          games: points.games,
-          gamesMissed,
-          pointsPerGame: points.average ?? null,
+          games: gamesPlayed,
+          gamesMissed: gamesPlayed !== null
+            ? Math.max(0, getSleeperSeasonWeekCount(season) - gamesPlayed)
+            : null,
+          pointsPerGame: summary.pointsPerGame ?? null,
+          positionRank: summary.positionRank ?? null,
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
@@ -2590,6 +2774,102 @@ function buildTradeProposalSignals(
   });
 }
 
+function getTransactionManagerNames(
+  transaction: any,
+  rosterUserMap: Record<string, string>,
+  userMap?: Record<string, any>
+): string[] {
+  const rosterIds = Array.isArray(transaction?.roster_ids) ? transaction.roster_ids : [];
+  const rosterManagers = rosterIds
+    .map((rosterId: unknown) => rosterUserMap[String(rosterId)])
+    .filter((manager: string | undefined): manager is string => Boolean(manager));
+
+  if (rosterManagers.length > 0) {
+    return Array.from(new Set(rosterManagers));
+  }
+
+  const consenterIds = Array.isArray(transaction?.consenter_ids) ? transaction.consenter_ids : [];
+  const consenters = consenterIds
+    .map((consenterId: unknown) => {
+      const user = userMap?.[String(consenterId)];
+      return normalizeManagerName(user?.display_name || user?.username || '');
+    })
+    .filter(Boolean);
+
+  if (consenters.length > 0) {
+    return Array.from(new Set(consenters));
+  }
+
+  const creator = transaction?.creator != null ? String(transaction.creator) : '';
+  if (creator && userMap?.[creator]) {
+    const creatorName = normalizeManagerName(userMap[creator]?.display_name || userMap[creator]?.username || '');
+    if (creatorName) return [creatorName];
+  }
+
+  return [];
+}
+
+function getHiddenTransactionPlayerIds(transaction: any): string[] {
+  const addIds = Object.keys(transaction?.adds || {});
+  if (addIds.length > 0) return Array.from(new Set(addIds));
+
+  const playerMapIds = transaction?.player_map && typeof transaction.player_map === 'object'
+    ? Object.keys(transaction.player_map)
+    : [];
+  return Array.from(new Set(playerMapIds));
+}
+
+function getHiddenTransactionDropIds(transaction: any): string[] {
+  return Array.from(new Set(Object.keys(transaction?.drops || {})));
+}
+
+function buildSleeperWaiverClaimSignals(
+  transactions: any[],
+  rosterUserMap: Record<string, string>,
+  players: Record<string, any>,
+  userMap?: Record<string, any>
+): SleeperWaiverClaimSignal[] {
+  return [...transactions]
+    .filter((transaction) => transaction?.type === 'waiver' && transaction?.status !== 'complete')
+    .sort((a, b) => Number(b?.status_updated || b?.created || 0) - Number(a?.status_updated || a?.created || 0))
+    .map((transaction) => {
+      const managers = getTransactionManagerNames(transaction, rosterUserMap, userMap);
+      const playerIds = getHiddenTransactionPlayerIds(transaction);
+      const dropPlayerIds = getHiddenTransactionDropIds(transaction);
+      const playerNames = playerIds.map((playerId) => getPlayerName(playerId, players));
+      const dropPlayerNames = dropPlayerIds.map((playerId) => getPlayerName(playerId, players));
+      const bidAmount = Number(
+        transaction.settings?.waiver_bid ??
+        transaction.settings?.bid ??
+        transaction.waiver_bid ??
+        transaction.metadata?.waiver_bid ??
+        0
+      ) || null;
+      const waiverBudget = Number(
+        transaction.waiver_budget ??
+        transaction.settings?.waiver_budget ??
+        0
+      ) || null;
+      const signalItems = Array.from(new Set([...playerNames, ...dropPlayerNames]));
+      const status = String(transaction.status || 'unknown');
+      const bidText = bidAmount !== null ? bidAmount.toLocaleString() : null;
+
+      return {
+        id: String(transaction.transaction_id || `${transaction.created || transaction.status_updated}-${status}`),
+        date: new Date(Number(transaction.status_updated || transaction.created || Date.now())).toISOString(),
+        status,
+        managers,
+        playerIds,
+        playerNames,
+        dropPlayerIds,
+        dropPlayerNames,
+        bidAmount,
+        waiverBudget,
+        note: `Sleeper returned a ${status} waiver claim${signalItems.length ? ` involving ${signalItems.slice(0, 3).join(', ')}` : ''}${bidText ? ` with ${bidText} FAAB` : ''}.`,
+      };
+    });
+}
+
 function getScoringFamily(scoringSettings: Record<string, any> | undefined): 'std' | 'half_ppr' | 'ppr' | 'custom' {
   const rec = Number(scoringSettings?.rec ?? 0);
   if (rec === 1) return 'ppr';
@@ -2609,21 +2889,237 @@ function calculateFantasyPointsFromScoring(stats: Record<string, any>, scoringSe
 
 const SLEEPER_SEASON_STATS_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const sleeperSeasonStatsCache = new Map<string, { loadedAt: number; values: Record<string, any> }>();
+const MIN_SLEEPER_SEASON = 2017;
 
-async function fetchSleeperSeasonStats(season: string): Promise<Record<string, any>> {
-  const cached = sleeperSeasonStatsCache.get(season);
+function getSleeperSeasonWeekCount(season: string): number {
+  return Number(season) >= 2021 ? 18 : 17;
+}
+
+async function fetchSleeperSeasonStats(season: string, week?: number | null): Promise<Record<string, any>> {
+  const cacheKey = week ? `${season}:${week}` : season;
+  const cached = sleeperSeasonStatsCache.get(cacheKey);
   if (cached && Date.now() - cached.loadedAt < SLEEPER_SEASON_STATS_CACHE_TTL_MS) {
     return cached.values;
   }
 
-  const response = await fetch(`https://api.sleeper.app/v1/stats/nfl/regular/${season}`);
+  const response = await fetch(
+    week
+      ? `https://api.sleeper.app/v1/stats/nfl/regular/${season}/${week}`
+      : `https://api.sleeper.app/v1/stats/nfl/regular/${season}`
+  );
   if (!response.ok) {
     throw new Error(`Sleeper season stats ${response.status}`);
   }
   const values = await response.json();
   const safeValues = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
-  sleeperSeasonStatsCache.set(season, { loadedAt: Date.now(), values: safeValues });
+  sleeperSeasonStatsCache.set(cacheKey, { loadedAt: Date.now(), values: safeValues });
   return safeValues;
+}
+
+function getSeasonLineupPlayerStartSeason(player: Record<string, any> | undefined, fallbackSeason: string): number {
+  const rookieYear = Number(player?.metadata?.rookie_year ?? player?.rookieYear ?? 0);
+  if (Number.isFinite(rookieYear) && rookieYear > 0) return rookieYear;
+
+  const yearsExp = Number(player?.years_exp ?? player?.yearsExp ?? 0);
+  if (Number.isFinite(yearsExp) && yearsExp > 0) {
+    return Math.max(MIN_SLEEPER_SEASON, Number(fallbackSeason) - yearsExp + 1);
+  }
+
+  return Number(fallbackSeason);
+}
+
+function formatNumberValue(value: unknown): string | null {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return numeric.toLocaleString(undefined, {
+    maximumFractionDigits: Number.isInteger(numeric) ? 0 : 1,
+  });
+}
+
+function buildSleeperGameStatSummary(stats: Record<string, any>, position?: string | null): string {
+  const normalizedPosition = normalizeSeasonLineupPosition(position);
+  const format = (value: unknown): string | null => formatNumberValue(value);
+  const parts: string[] = [];
+
+  if (normalizedPosition === 'QB') {
+    const passYds = format(stats.pass_yd);
+    const passTd = format(stats.pass_td);
+    const rushYds = format(stats.rush_yd);
+    const rushTd = format(stats.rush_td);
+    const passInt = format(stats.pass_int);
+    if (passYds) parts.push(`${passYds} pass yds`);
+    if (passTd) parts.push(`${passTd} pass TD`);
+    if (rushYds) parts.push(`${rushYds} rush yds`);
+    if (rushTd) parts.push(`${rushTd} rush TD`);
+    if (passInt) parts.push(`${passInt} INT`);
+  } else if (normalizedPosition === 'RB') {
+    const rushAtt = format(stats.rush_att);
+    const rushYds = format(stats.rush_yd);
+    const rec = format(stats.rec);
+    const recYds = format(stats.rec_yd);
+    const rushTd = format(stats.rush_td);
+    if (rushAtt) parts.push(`${rushAtt} rush att`);
+    if (rushYds) parts.push(`${rushYds} rush yds`);
+    if (rec) parts.push(`${rec} rec`);
+    if (recYds) parts.push(`${recYds} rec yds`);
+    if (rushTd) parts.push(`${rushTd} rush TD`);
+  } else if (normalizedPosition === 'WR' || normalizedPosition === 'TE') {
+    const rec = format(stats.rec);
+    const recYds = format(stats.rec_yd);
+    const recTd = format(stats.rec_td);
+    const rushYds = format(stats.rush_yd);
+    if (rec) parts.push(`${rec} rec`);
+    if (recYds) parts.push(`${recYds} rec yds`);
+    if (recTd) parts.push(`${recTd} rec TD`);
+    if (rushYds) parts.push(`${rushYds} rush yds`);
+  } else {
+    const sacks = format(stats.sack);
+    const interceptions = format(stats.int);
+    const fumbles = format(stats.fum_rec);
+    const touchdowns = format(stats.def_td);
+    if (sacks) parts.push(`${sacks} sacks`);
+    if (interceptions) parts.push(`${interceptions} INT`);
+    if (fumbles) parts.push(`${fumbles} FR`);
+    if (touchdowns) parts.push(`${touchdowns} TD`);
+  }
+
+  return parts.slice(0, 4).join(' · ') || 'No weekly stat detail returned';
+}
+
+type SleeperSeasonScoreRecord = {
+  playerId: string;
+  position: string;
+  points: number;
+  games: number | null;
+  providedPositionRank: number | null;
+};
+
+async function buildSleeperSeasonRankMap(
+  season: string,
+  players: Record<string, any>,
+  scoringSettings: Record<string, any> | undefined,
+  positions: string[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']
+): Promise<Record<string, LastSeasonPlayerRank>> {
+  const scoringFamily = getScoringFamily(scoringSettings);
+  const sleeperSeasonStats = await fetchSleeperSeasonStats(season);
+  const scoredPlayers: SleeperSeasonScoreRecord[] = Object.entries(players)
+    .map(([playerId, player]) => {
+      const position = normalizeSeasonLineupPosition(player?.position);
+      if (!position || !positions.includes(position)) return null;
+
+      const rawStats = sleeperSeasonStats[playerId]?.stats || sleeperSeasonStats[playerId];
+      if (!rawStats || typeof rawStats !== 'object') return null;
+
+      const providedPositionRank = Number(rawStats[`pos_rank_${scoringFamily}`] ?? rawStats.pos_rank_half_ppr ?? rawStats.pos_rank_ppr ?? rawStats.pos_rank_std);
+      const providedPoints = Number(rawStats[`pts_${scoringFamily}`] ?? rawStats.pts_half_ppr ?? rawStats.pts_ppr ?? rawStats.pts_std);
+      const points = scoringFamily === 'custom'
+        ? calculateFantasyPointsFromScoring(rawStats, scoringSettings)
+        : providedPoints;
+      const games = Number(rawStats.gp ?? rawStats.gs ?? 0);
+
+      if (!Number.isFinite(points)) return null;
+
+      return {
+        playerId,
+        position,
+        points,
+        games: Number.isFinite(games) ? games : null,
+        providedPositionRank: Number.isFinite(providedPositionRank) ? providedPositionRank : null,
+      };
+    })
+    .filter((entry): entry is SleeperSeasonScoreRecord => Boolean(entry));
+
+  const ranks: Record<string, LastSeasonPlayerRank> = {};
+  for (const position of positions) {
+    const positionPlayers = scoredPlayers
+      .filter((player) => player.position === position)
+      .sort((a, b) => b.points - a.points);
+
+    positionPlayers.forEach((player, index) => {
+      const rank = scoringFamily === 'custom'
+        ? index + 1
+        : player.providedPositionRank || index + 1;
+      ranks[player.playerId] = {
+        positionRank: `${position}${rank}`,
+        fantasyPoints: Math.round(player.points * 10) / 10,
+        games: player.games ?? null,
+        pointsPerGame: player.games && player.games > 0
+          ? Math.round((player.points / player.games) * 10) / 10
+          : null,
+        season,
+      };
+    });
+  }
+
+  return ranks;
+}
+
+type SleeperWeeklyGameLogEntry = {
+  week: number;
+  fantasyPoints: number | null;
+  positionRank: string | null;
+  statLine: string;
+};
+
+async function buildSleeperSeasonGameLog(
+  playerId: string,
+  position: string | null | undefined,
+  scoringSettings: Record<string, any> | undefined,
+  season: string,
+): Promise<{
+  weeklyGames: SleeperWeeklyGameLogEntry[];
+  gamesPlayed: number;
+  gamesMissed: number;
+  fantasyPoints: number | null;
+  pointsPerGame: number | null;
+  positionRank: string | null;
+}> {
+  const scoringFamily = getScoringFamily(scoringSettings);
+  const weekCount = getSleeperSeasonWeekCount(season);
+  const weeklyStats = await Promise.all(
+    Array.from({ length: weekCount }, (_, index) => index + 1).map(async (week) => [
+      week,
+      await fetchSleeperSeasonStats(season, week),
+    ] as const)
+  );
+
+  const weeklyGames = weeklyStats
+    .map(([week, stats]) => {
+      const rawStats = stats[playerId]?.stats || stats[playerId];
+      if (!rawStats || typeof rawStats !== 'object') return null;
+
+      const fantasyPoints = scoringFamily === 'custom'
+        ? calculateFantasyPointsFromScoring(rawStats, scoringSettings)
+        : Number(rawStats[`pts_${scoringFamily}`] ?? rawStats.pts_half_ppr ?? rawStats.pts_ppr ?? rawStats.pts_std ?? 0);
+      const positionRankNumber = Number(rawStats[`pos_rank_${scoringFamily}`] ?? rawStats.pos_rank_half_ppr ?? rawStats.pos_rank_ppr ?? rawStats.pos_rank_std);
+      const hasPoints = Number.isFinite(fantasyPoints);
+      const hasGame = Number(rawStats.gp ?? rawStats.gs ?? 0) > 0 || hasPoints;
+      if (!hasGame) return null;
+
+      return {
+        week,
+        fantasyPoints: Number.isFinite(fantasyPoints) ? Math.round(fantasyPoints * 10) / 10 : null,
+        positionRank: Number.isFinite(positionRankNumber)
+          ? `${normalizeSeasonLineupPosition(position) || ''}${positionRankNumber}`
+          : null,
+        statLine: buildSleeperGameStatSummary(rawStats, position),
+      };
+    })
+    .filter((item): item is SleeperWeeklyGameLogEntry => Boolean(item));
+
+  const fantasyPoints = weeklyGames.reduce((sum, entry) => sum + (entry.fantasyPoints || 0), 0);
+  const gamesPlayed = weeklyGames.length;
+  const gamesMissed = Math.max(0, weekCount - gamesPlayed);
+  const pointsPerGame = gamesPlayed > 0 ? Math.round((fantasyPoints / gamesPlayed) * 10) / 10 : null;
+
+  return {
+    weeklyGames,
+    gamesPlayed,
+    gamesMissed,
+    fantasyPoints: weeklyGames.length ? Math.round(fantasyPoints * 10) / 10 : null,
+    pointsPerGame,
+    positionRank: weeklyGames.find((entry) => entry.positionRank)?.positionRank || null,
+  };
 }
 
 async function fetchLastSeasonPositionRanks(
@@ -2638,64 +3134,12 @@ async function fetchLastSeasonPositionRanks(
       const position = normalizeSeasonLineupPosition(players[playerId]?.position);
       return Boolean(position && rankPositions.includes(position));
     });
-  const scoringFamily = getScoringFamily(scoringSettings);
-  const fantasyProsScoring = scoringFamily === 'ppr' ? 'PPR' : scoringFamily === 'std' ? 'STD' : 'HALF';
-  const fantasyProsPoints = await fetchFantasyProsPlayerPoints(season, fantasyProsScoring);
-  const sleeperSeasonStats = await fetchSleeperSeasonStats(season);
-  const scoredPlayers: Array<{
-    playerId: string;
-    position: string;
-    points: number;
-    games?: number | null;
-    pointsPerGame?: number | null;
-    providedPositionRank?: number | null;
-  }> = [];
-
-  for (const playerId of uniquePlayerIds) {
-    const stats = sleeperSeasonStats[playerId]?.stats || sleeperSeasonStats[playerId];
-    if (!stats || typeof stats !== 'object') continue;
-
-    const position = normalizeSeasonLineupPosition(players[playerId]?.position);
-    const nameKey = cleanName(`${players[playerId]?.first_name || ''}${players[playerId]?.last_name || ''}`);
-    const fpPoints = fantasyProsPoints[nameKey];
-    const providedPositionRank = Number(stats[`pos_rank_${scoringFamily}`] ?? stats.pos_rank_half_ppr ?? stats.pos_rank_ppr ?? stats.pos_rank_std);
-    const providedPoints = Number(stats[`pts_${scoringFamily}`] ?? stats.pts_half_ppr ?? stats.pts_ppr ?? stats.pts_std);
-    const points = scoringFamily === 'custom'
-      ? calculateFantasyPointsFromScoring(stats, scoringSettings)
-      : providedPoints;
-
-    if (!position || !Number.isFinite(points) || points <= 0) continue;
-    scoredPlayers.push({
-      playerId,
-      position,
-      points,
-      games: fpPoints?.games ?? null,
-      pointsPerGame: fpPoints?.average ?? null,
-      providedPositionRank: Number.isFinite(providedPositionRank) ? providedPositionRank : null,
-    });
-  }
-
-  const ranks: Record<string, LastSeasonPlayerRank> = {};
-  for (const position of rankPositions) {
-    const positionPlayers = scoredPlayers
-      .filter((player) => player.position === position)
-      .sort((a, b) => b.points - a.points);
-
-    positionPlayers.forEach((player, index) => {
-      const rank = scoringFamily === 'custom'
-        ? index + 1
-        : player.providedPositionRank || index + 1;
-      ranks[player.playerId] = {
-        positionRank: `${position}${rank}`,
-        fantasyPoints: Math.round(player.points * 10) / 10,
-        games: player.games ?? null,
-        pointsPerGame: player.pointsPerGame ?? null,
-        season,
-      };
-    });
-  }
-
-  return ranks;
+  const rankMap = await buildSleeperSeasonRankMap(season, players, scoringSettings, rankPositions);
+  return Object.fromEntries(
+    uniquePlayerIds
+      .map((playerId) => [playerId, rankMap[playerId]])
+      .filter((entry): entry is [string, LastSeasonPlayerRank] => Boolean(entry[1]))
+  );
 }
 
 async function fetchDraftSlotsBySeason(
@@ -2910,7 +3354,7 @@ export const appRouter = router({
           expiresInMs: ONE_YEAR_MS,
         });
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        ctx.res.cookie(COOKIE_NAME, sessionToken, cookieOptions);
 
         return {
           success: true,
@@ -3177,6 +3621,64 @@ export const appRouter = router({
         return { ranks };
       }),
 
+    importSleeperTradeCenter: publicProcedure
+      .input(z.object({
+        leagueId: sleeperLeagueIdSchema,
+        authToken: sleeperAuthTokenSchema,
+        sharedBy: z.string().trim().max(128).optional().nullable(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        assertRateLimit(ctx.req as any, {
+          id: 'league.importSleeperTradeCenter',
+          max: 12,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId,
+          message: 'Too many hidden trade center imports. Please wait a few minutes and try again.',
+        });
+
+        const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${input.leagueId}`);
+        if (!leagueInfo?.league_id) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Invalid league ID',
+          });
+        }
+
+        const hiddenImport = await loadSleeperHiddenTradeCenterImport({
+          leagueId: input.leagueId,
+          authToken: input.authToken.trim(),
+        });
+        const sleeperHiddenLeagueSnapshot = buildSleeperHiddenLeagueSnapshotMetadata({
+          sharedBy: input.sharedBy ?? null,
+          sharedAt: Date.now(),
+          transactionCount: hiddenImport.transactionCount,
+          tradeCount: hiddenImport.tradeCount,
+          waiverCount: hiddenImport.waiverCount,
+        });
+        await upsertSleeperHiddenLeagueSnapshot({
+          leagueId: leagueInfo.league_id,
+          sharedBy: sleeperHiddenLeagueSnapshot.sharedBy,
+          sharedAt: sleeperHiddenLeagueSnapshot.sharedAt,
+          snapshot: {
+            tradeProposalSignals: hiddenImport.tradeProposalSignals,
+            waiverSignals: hiddenImport.waiverSignals,
+            transactionCount: hiddenImport.transactionCount,
+            tradeCount: hiddenImport.tradeCount,
+            waiverCount: hiddenImport.waiverCount,
+          },
+        });
+
+        return {
+          sleeperHiddenLeagueSnapshot,
+          tradeProposalSignals: hiddenImport.tradeProposalSignals,
+          waiverSignals: hiddenImport.waiverSignals,
+          transactionCount: hiddenImport.transactionCount,
+          tradeCount: hiddenImport.tradeCount,
+          waiverCount: hiddenImport.waiverCount,
+          leagueId: leagueInfo.league_id,
+        } as const;
+      }),
+
     rankings: publicProcedure
       .input(z.object({ leagueId: sleeperLeagueIdSchema, forceRefresh: z.boolean().optional() }))
       .query(async ({ input, ctx }) => {
@@ -3212,6 +3714,7 @@ export const appRouter = router({
           const cachedReport = forceRefresh ? null : await readCachedLeagueReport(reportCacheKey);
           markAnalyzeStep('cache lookup');
           if (!forceRefresh && cachedReport && typeof cachedReport === 'object') {
+            const cachedReportWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(cachedReport, input.leagueId);
             await insertLoginAttempt({
               eventType: "analyze_league",
               status: "success",
@@ -3220,7 +3723,7 @@ export const appRouter = router({
               userAgent,
               note: "Served cached league report",
             });
-            return cloneReportWithViewerManager(cachedReport, input.viewerUserId) as any;
+            return cloneReportWithViewerManager(cachedReportWithHiddenData, input.viewerUserId) as any;
           }
 
           assertRateLimit(ctx.req as any, {
@@ -3701,8 +4204,7 @@ export const appRouter = router({
             detailPlayerIds,
             players,
             leagueInfo.scoring_settings,
-            lastCompletedSeason,
-            3
+            lastCompletedSeason
           );
           const latestNewsByPlayerId = buildLatestNewsByPlayerId(
             detailPlayerIds,
@@ -3784,12 +4286,14 @@ export const appRouter = router({
           });
           markAnalyzeStep('league AI confidence snapshot');
 
+          const reportDataWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(reportDataWithConfidence, input.leagueId);
+
           const analyzePayload = {
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
             leagueLogo: getSleeperAvatarUrl(leagueInfo.avatar),
             leagueFormat: formatLeagueFormat(leagueInfo),
-            reportData: reportDataWithConfidence,
+            reportData: reportDataWithHiddenData,
           };
           markAnalyzeStep('payload assembly');
 
@@ -3846,6 +4350,43 @@ export const appRouter = router({
             publishedAt: latestNews.publishedAt || null,
           } : null,
         };
+      }),
+    seasonGameLog: publicProcedure
+      .input(z.object({
+        leagueId: sleeperLeagueIdSchema,
+        playerId: z.string().trim().min(1).max(64),
+        season: z.string().trim().regex(/^\d{4}$/),
+        position: z.string().trim().max(8).optional().nullable(),
+      }))
+      .query(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'players.seasonGameLog',
+          max: 30,
+          windowMs: 1000 * 60 * 10,
+          scope: `${input.leagueId}:${input.playerId}`,
+          message: 'Too many season log requests. Please wait a few minutes and try again.',
+        });
+
+        const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${input.leagueId}`);
+        if (!leagueInfo?.league_id) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Invalid league ID',
+          });
+        }
+
+        const seasonGameLog = await buildSleeperSeasonGameLog(
+          input.playerId,
+          input.position || null,
+          leagueInfo.scoring_settings || {},
+          input.season
+        );
+
+        return {
+          ...seasonGameLog,
+          season: input.season,
+        } as const;
       }),
   }),
 

@@ -4375,8 +4375,13 @@
   }
 
   .report-league-shortcuts .league-shortcut-button {
-    width: clamp(2rem, 4vw, 2.35rem);
-    height: clamp(2rem, 4vw, 2.35rem);
+    width: clamp(2rem, 9vw, 3rem);
+    height: clamp(2rem, 9vw, 3rem);
+    font-size: 0.74rem;
+  }
+
+  .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {
+    margin-left: -0.82rem;
   }
 
   .report-league-icon {
@@ -8749,35 +8754,187 @@
 
   .player-availability-card {
     display: grid;
-    gap: 0.22rem;
+    gap: 0.28rem;
     border: 1px solid rgba(34, 211, 238, 0.14);
-    border-radius: 0.75rem;
+    border-radius: 0.82rem;
     background: rgba(2, 6, 23, 0.46);
-    padding: 0.55rem;
-    text-align: center;
+    padding: 0.58rem;
+    text-align: left;
+    appearance: none;
+    cursor: pointer;
+    transition:
+      transform 160ms ease,
+      border-color 160ms ease,
+      background 160ms ease,
+      box-shadow 160ms ease;
   }
 
-  .player-availability-card span {
+  .player-availability-card:hover,
+  .player-availability-card:focus-visible {
+    border-color: rgba(103, 232, 249, 0.34);
+    background: rgba(2, 6, 23, 0.56);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  .player-availability-card.is-active {
+    border-color: rgba(103, 232, 249, 0.48);
+    background: rgba(2, 6, 23, 0.66);
+    box-shadow:
+      0 0 0 1px rgba(103, 232, 249, 0.12),
+      0 0 24px rgba(34, 211, 238, 0.12);
+  }
+
+  .player-availability-card-kicker {
+    color: #67e8f9;
+    font-size: 0.62rem;
+    font-weight: 1000;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .player-availability-card-year {
+    color: #f8fafc;
+    font-size: 0.96rem;
+    font-weight: 1000;
+    line-height: 1;
+  }
+
+  .player-availability-card-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.34rem;
+    margin-top: 0.1rem;
+  }
+
+  .player-availability-card-metric {
+    display: grid;
+    gap: 0.12rem;
+    border: 1px solid rgba(34, 211, 238, 0.1);
+    border-radius: 0.6rem;
+    background: rgba(15, 23, 42, 0.5);
+    padding: 0.42rem 0.46rem;
+  }
+
+  .player-availability-card-metric small,
+  .player-availability-card-metric strong,
+  .player-availability-log-kicker,
+  .player-availability-log-loading {
+    text-transform: uppercase;
+  }
+
+  .player-availability-card-metric small {
+    color: #94a3b8;
+    font-size: 0.58rem;
+    font-style: normal;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+  }
+
+  .player-availability-card-metric strong {
+    color: #f8fafc;
+    font-size: 0.8rem;
+    font-weight: 1000;
+    line-height: 1;
+  }
+
+  .player-availability-log-panel {
+    margin-top: 0.5rem;
+    border: 1px solid rgba(34, 211, 238, 0.14);
+    border-radius: 0.9rem;
+    background: rgba(2, 6, 23, 0.52);
+    padding: 0.68rem;
+  }
+
+  .player-availability-log-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .player-availability-log-kicker,
+  .player-availability-log-loading {
     color: #67e8f9;
     font-size: 0.62rem;
     font-weight: 1000;
     letter-spacing: 0.12em;
   }
 
-  .player-availability-card strong {
+  .player-availability-log-header h5 {
+    margin-top: 0.12rem;
     color: #f8fafc;
-    font-size: 0.85rem;
+    font-size: 0.92rem;
+    font-weight: 1000;
+  }
+
+  .player-availability-log-header p {
+    margin-top: 0.18rem;
+    color: #cbd5e1;
+    font-size: 0.69rem;
+    font-weight: 850;
+    line-height: 1.35;
+  }
+
+  .player-availability-log-list {
+    display: grid;
+    gap: 0.42rem;
+    margin-top: 0.56rem;
+  }
+
+  .player-availability-log-row {
+    display: grid;
+    grid-template-columns: max-content max-content minmax(0, 1fr);
+    align-items: start;
+    gap: 0.28rem 0.52rem;
+    border: 1px solid rgba(34, 211, 238, 0.1);
+    border-radius: 0.72rem;
+    background: rgba(15, 23, 42, 0.48);
+    padding: 0.5rem 0.55rem;
+  }
+
+  .player-availability-log-meta {
+    display: grid;
+    gap: 0.1rem;
+  }
+
+  .player-availability-log-meta strong {
+    color: #f8fafc;
+    font-size: 0.72rem;
     font-weight: 1000;
     line-height: 1;
   }
 
-  .player-availability-card em,
-  .player-availability-card small {
+  .player-availability-log-meta span {
+    color: #67e8f9;
+    font-size: 0.58rem;
+    font-weight: 1000;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .player-availability-log-points {
+    justify-self: end;
+    color: #f8fafc;
+    font-size: 0.8rem;
+    font-weight: 1000;
+    line-height: 1;
+  }
+
+  .player-availability-log-stats {
+    grid-column: 1 / -1;
     color: #94a3b8;
     font-size: 0.66rem;
-    font-style: normal;
     font-weight: 850;
-    line-height: 1.1;
+    line-height: 1.32;
+  }
+
+  .player-availability-log-empty {
+    margin-top: 0.48rem;
+    color: #94a3b8;
+    font-size: 0.68rem;
+    font-weight: 850;
+    line-height: 1.32;
   }
 
   @media (max-width: 520px) {
@@ -8819,6 +8976,14 @@
 
     .player-availability-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .player-availability-log-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .player-availability-log-points {
+      justify-self: start;
     }
   }
 
@@ -12778,14 +12943,8 @@
       font-size: clamp(0.58rem, 2.45vw, 0.7rem);
     }
 
-    .report-league-shortcuts .league-shortcut-button {
-      width: 1.9rem;
-      height: 1.9rem;
-      font-size: 0.56rem;
-    }
-
     .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {
-      margin-left: -0.58rem;
+      margin-left: -0.7rem;
     }
 
     .report-tabs {

@@ -85,12 +85,12 @@ describe("auth.adminLogin", () => {
       expect(clearedCookies[0]?.name).toBe(COOKIE_NAME);
       expect(clearedCookies[0]?.value).toEqual(expect.any(String));
       expect(clearedCookies[0]?.options).toMatchObject({
-        maxAge: 1000 * 60 * 60 * 24 * 365,
         secure: true,
         sameSite: "none",
         httpOnly: true,
         path: "/",
       });
+      expect(clearedCookies[0]?.options).not.toHaveProperty("maxAge");
     } finally {
       if (originalJwtSecret === undefined) delete process.env.JWT_SECRET;
       else process.env.JWT_SECRET = originalJwtSecret;

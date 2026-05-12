@@ -48,7 +48,7 @@ type RankingsTableConfig = {
 };
 
 const PAGE_SIZE = 25;
-const DRAFT_BUZZ_PAGE_SIZE = 100;
+const DRAFT_BUZZ_PAGE_SIZE = 25;
 const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement'];
 const SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 const POSITION_FILTER_KEYS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'PICK'] as const;
@@ -154,25 +154,24 @@ function formatFantasyPointTotal(value?: number | null): string | null {
   });
 }
 
-function getPreviousSeasonPill(details?: PlayerDetails): { label: string; compactLabel: string; title: string } | null {
-  const rank = details?.lastSeasonPositionRank;
+function getPreviousSeasonSummary(details?: PlayerDetails): { label: string; compactLabel: string; title: string } | null {
+  const rank = details?.lastSeasonPositionRank?.trim();
   const points = formatFantasyPointTotal(details?.lastSeasonFantasyPoints);
+  const pointsPerGame = formatFantasyPointTotal(details?.lastSeasonPointsPerGame);
   if (!rank && !points) return null;
 
-  const season = details?.lastSeasonYear || 'Previous season';
-  const seasonRankLabel = details?.lastSeasonYear ? `${details.lastSeasonYear} Rank` : 'Previous Rank';
-  const pointsPerGame = formatFantasyPointTotal(details?.lastSeasonPointsPerGame);
+  const season = details?.lastSeasonYear || null;
+  const seasonShortLabel = season ? String(season).slice(-2) : null;
   const titleParts = [
-    rank ? `${seasonRankLabel}: ${rank}` : null,
-    points ? `${points} league-scoring fantasy points` : null,
+    rank ? `position rank ${rank}` : null,
+    points ? `${points} fantasy points` : null,
     pointsPerGame ? `${pointsPerGame} PPG` : null,
   ].filter(Boolean);
-  const labelParts = [rank, points ? `${points} pts` : null].filter(Boolean);
 
   return {
-    label: `${seasonRankLabel}: ${labelParts.join(', ')}`,
-    compactLabel: [rank, points].filter(Boolean).join(', '),
-    title: `${season} production: ${titleParts.join(' • ')}`,
+    label: seasonShortLabel ? `${seasonShortLabel} Totals:` : 'Totals:',
+    compactLabel: [rank, points ? `${points} pts` : null].filter(Boolean).join(', '),
+    title: `${season || 'Previous season'} production: ${titleParts.join(' • ')}`,
   };
 }
 
@@ -180,6 +179,89 @@ function getTeamSearchTerms(team?: string | null): string[] {
   const normalizedTeam = normalizeNflTeamAbbr(team);
   if (!normalizedTeam) return ['free agent', 'fa'];
   return [normalizedTeam, ...(NFL_TEAM_SEARCH_TERMS[normalizedTeam] || [])];
+}
+
+function getRankingSearchTerms(player: RankingPlayer, details?: PlayerDetails): string[] {
+  const team = details?.team || player.team;
+  const prospect = player.prospectProfile;
+  const valueProfile = details?.valueProfile;
+  const terms = [
+    player.name,
+    team,
+    ...getTeamSearchTerms(team),
+    player.college,
+    player.owner,
+    player.pos,
+    player.positionRank,
+    player.overallRank,
+    player.value,
+    player.seasonValue,
+    player.ktcValue,
+    player.flockValue,
+    player.fantasyProsDynastyValue,
+    player.dynastyNerdsValue,
+    player.fantasyNerdsValue,
+    player.fantasyCalcValue,
+    player.dynastyProcessValue,
+    player.dynastyDealerBenchmark,
+    player.dynastyDealerVoteRating,
+    player.fantasyProsValue,
+    player.movementLabel,
+    player.rankMovementLabel,
+    player.projectedRookiePick,
+    player.fantasyProsDevyPositionRank,
+    player.fantasyProsDevyRank,
+    player.draftYear,
+    player.age,
+    ...player.sources,
+    valueProfile?.dynastyValue,
+    valueProfile?.seasonValue,
+    valueProfile?.contenderValue,
+    valueProfile?.rebuilderValue,
+    valueProfile?.balancedValue,
+    valueProfile?.dynastyPositionRank,
+    valueProfile?.seasonPositionRank,
+    valueProfile?.contenderPositionRank,
+    valueProfile?.rebuilderPositionRank,
+    valueProfile?.balancedPositionRank,
+    valueProfile?.marketKtc,
+    valueProfile?.flockFantasy,
+    valueProfile?.fantasyProsDynasty,
+    valueProfile?.fantasyCalcDynasty,
+    valueProfile?.fantasyCalcRedraft,
+    valueProfile?.dynastyProcess,
+    valueProfile?.dynastyNerds,
+    valueProfile?.fantasyNerds,
+    valueProfile?.dynastyDealerBenchmark,
+    valueProfile?.dynastyDealerVoteRating,
+    valueProfile?.fantasyProsSeasonValue,
+    ...(valueProfile?.sources || []),
+    prospect?.role,
+    prospect?.college,
+    prospect?.nflTeam,
+    prospect?.projectedRookiePick,
+    prospect?.classYear,
+    prospect?.status,
+    prospect?.height,
+    prospect?.weight,
+    prospect?.fortyYardDash,
+    prospect?.summary,
+    prospect?.fantasyProsDevyRank,
+    prospect?.fantasyProsDevyPositionRank,
+    prospect?.fantasyProsDevyAge,
+    prospect?.fantasyProsDevyBestRank,
+    prospect?.fantasyProsDevyWorstRank,
+    prospect?.fantasyProsDevyAverageRank,
+  ];
+
+  return terms
+    .flatMap((value) => {
+      if (value === null || value === undefined || value === '') return [];
+      if (Array.isArray(value)) return value;
+      return [String(value)];
+    })
+    .map((value) => value.trim())
+    .filter(Boolean);
 }
 
 function getDraftClassValue(player: RankingPlayer): number | null {
@@ -441,6 +523,16 @@ function isRedraftSourceLabel(source: string): boolean {
     || /^fantasypros$/i.test(source.trim());
 }
 
+function getRankingSearchPlaceholder(board: RankingsTableConfig['board'], leagueValueMode: LeagueValueMode): string {
+  if (board === 'devy') {
+    return 'Search player, school, class, rank, measurables';
+  }
+
+  return leagueValueMode === 'redraft'
+    ? 'Search player, team, manager, college, position, season value, movement'
+    : 'Search player, team, manager, college, position, rank, value, movement';
+}
+
 function RankingValueRow({ player, config, playerDetailsById, managerAvatars, viewerManager, onSelect, showAIReads }: { player: RankingPlayer; config: RankingsTableConfig; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelect: (player: RankingPlayer) => void; showAIReads?: boolean }) {
   const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
   const isRedraftRankingRow = config.leagueValueMode === 'redraft' || player.sources?.some(isRedraftSourceLabel);
@@ -499,7 +591,7 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     mode: config.leagueValueMode,
     context: 'rankings',
   }) || player.pos;
-  const previousSeasonPill = !player.isDevy && !player.isPick ? getPreviousSeasonPill(details) : null;
+  const previousSeasonSummary = !player.isDevy && !player.isPick ? getPreviousSeasonSummary(details) : null;
   const valueConfidence = !player.isDevy && !player.isPick
     ? getPlayerValueConfidence({ valueProfile: rankingValueProfile, mode: config.leagueValueMode })
     : null;
@@ -548,7 +640,7 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
           ) : player.isDevy ? (
             <span className="ranking-devy-class-pill ranking-devy-class-pill-empty">-</span>
           ) : player.age ? (
-            <span className="value-board__age-pill">
+            <span className="value-board__age-pill" title={`${player.age} year old`}>
               <span className="value-board__age-full">{player.age} Year Old</span>
               <span className="value-board__age-short">{player.age} YO</span>
             </span>
@@ -556,19 +648,6 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
             <span className="value-board__age-empty">-</span>
           )}
         </div>
-
-        {!player.isDevy && !player.isPick ? (
-          <div className="ranking-card-pills value-board__previous-season">
-            {previousSeasonPill ? (
-              <span className="ranking-last-season-summary-pill" title={previousSeasonPill.title}>
-                <span className="ranking-last-season-summary-full">{previousSeasonPill.label}</span>
-                <span className="ranking-last-season-summary-compact">{previousSeasonPill.compactLabel}</span>
-              </span>
-            ) : (
-              <span className="ranking-last-season-empty">Previous Rank: -</span>
-            )}
-          </div>
-        ) : null}
       </div>
 
       <div className="value-board__manager">
@@ -616,12 +695,20 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
         </div>
       ) : null}
 
-      {hasRankMovement ? (
+      {!player.isDevy && !player.isPick && (hasRankMovement || previousSeasonSummary) ? (
         <div className="value-board__trend" aria-label={`${player.name} board movement`}>
-          <span className={`ranking-trend-pill ${rankMovementClass}`}>
-            {player.rankMovementLabel}
-            {rankMovementIcon}
-          </span>
+          {hasRankMovement ? (
+            <span className={`ranking-trend-pill ${rankMovementClass}`}>
+              {player.rankMovementLabel}
+              {rankMovementIcon}
+            </span>
+          ) : null}
+          {previousSeasonSummary ? (
+            <span className="ranking-last-season-summary-pill" title={previousSeasonSummary.title}>
+              <span className="ranking-last-season-summary-full">{previousSeasonSummary.label}</span>
+              <span className="ranking-last-season-summary-compact">{previousSeasonSummary.compactLabel}</span>
+            </span>
+          ) : null}
         </div>
       ) : null}
     </button>
@@ -808,7 +895,14 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
       <div className="draftbuzz-controls value-board__toolbar">
         <div className="rankings-search-wrap value-board__search">
           <Search className="h-4 w-4" aria-hidden="true" />
-          <Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search player, school, class" className="rankings-search-input" />
+          <Input
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            placeholder="Search player, school, team, class, rank, measurables"
+            aria-label="Search player, school, team, class, rank, measurables"
+            title="Search player, school, team, class, rank, measurables"
+            className="rankings-search-input"
+          />
         </div>
 
         <div className="rankings-control-group rankings-class-toggle" aria-label="Draft class filter">
@@ -979,8 +1073,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
       .filter(player => {
         if (!normalizedQuery) return true;
         const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
-        const team = details?.team || player.team;
-        return [player.name, team, ...getTeamSearchTerms(team), player.college, player.owner, player.positionRank, player.pos].some(value =>
+        return getRankingSearchTerms(player, details).some(value =>
           String(value || '')
             .toLowerCase()
             .includes(normalizedQuery)
@@ -1093,7 +1186,14 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
 
         <div className="rankings-search-wrap value-board__search">
           <Search className="h-4 w-4" aria-hidden="true" />
-          <Input value={query} onChange={event => setQuery(event.target.value)} placeholder={config.board === 'devy' ? 'Player or team' : 'Search player'} className="rankings-search-input" />
+          <Input
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            placeholder={getRankingSearchPlaceholder(config.board, config.leagueValueMode)}
+            aria-label={getRankingSearchPlaceholder(config.board, config.leagueValueMode)}
+            title={getRankingSearchPlaceholder(config.board, config.leagueValueMode)}
+            className="rankings-search-input"
+          />
         </div>
 
         {config.board !== 'devy' ? (

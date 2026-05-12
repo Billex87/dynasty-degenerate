@@ -31,6 +31,7 @@ const TradeWarRoom = lazy(() => import('@/components/reportTables/TradeWarRoom')
 const TradeProfitLeaderboardTable = lazy(() => import('@/components/reportTables/TradeProfitLeaderboardTable'));
 const TradeHistoryTable = lazy(() => import('@/components/reportTables/TradeHistoryTable'));
 const TradeProposalSignalsTable = lazy(() => import('@/components/reportTables/TradeProposalSignalsTable'));
+const SleeperWaiverClaimsTable = lazy(() => import('@/components/reportTables/SleeperWaiverClaimsTable'));
 const ManagerPositionCountsTable = lazy(() => import('@/components/reportTables/ManagerPositionCountsTable'));
 const OwnerIntelMatrix = lazy(() => import('@/components/reportTables/OwnerIntelMatrix'));
 const LeagueCommandCenter = lazy(() => import('@/components/reportTables/LeagueCommandCenter'));
@@ -72,9 +73,11 @@ const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
 const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
 const CACHED_SLEEPER_USERS_KEY = 'dynasty-degenerates:sleeper-user-history:v1';
 const ADMIN_UNLOCK_MODAL_DISMISSED_KEY = 'dynasty-degenerates:admin-unlock-dismissed:v1';
+const SLEEPER_HIDDEN_CONSENT_KEY = 'dynasty-degenerates:sleeper-hidden-consent:v1';
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
+const MAX_REPORT_HEADER_LEAGUES = 4;
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-05-07';
 const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
@@ -84,6 +87,11 @@ const SHOW_ASSISTANT_FEATURE_RADAR = String(import.meta.env.VITE_SHOW_ASSISTANT_
 
 type LoadingTransitionPhase = 'loading' | 'success' | 'reveal' | 'kick' | 'done';
 type OwnerIntelSortMode = 'dynasty' | 'contender' | 'rebuilder';
+type SleeperHiddenConsentRecord = {
+  acknowledgedAt: number;
+  sharedAt: number | null;
+};
+type SleeperHiddenConsentMap = Record<string, SleeperHiddenConsentRecord>;
 
 function getKtcAdminIdentity(user?: SleeperUserSession | null, fallbackUsername?: string): string | null {
   return user?.username || user?.displayName || fallbackUsername || null;
@@ -91,6 +99,53 @@ function getKtcAdminIdentity(user?: SleeperUserSession | null, fallbackUsername?
 
 function normalizeViewerIdentifier(value?: string | null): string {
   return value?.trim().toLowerCase() || '';
+}
+
+function getSleeperHiddenConsentStorageKey(leagueId?: string | null, userKey?: string | null): string | null {
+  const normalizedLeagueId = String(leagueId || '').trim();
+  if (!normalizedLeagueId) return null;
+  const normalizedUserKey = normalizeViewerIdentifier(userKey);
+  return `${normalizedLeagueId}:${normalizedUserKey || 'league'}`;
+}
+
+function readSleeperHiddenConsentMap(): SleeperHiddenConsentMap {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(SLEEPER_HIDDEN_CONSENT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as SleeperHiddenConsentMap : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeSleeperHiddenConsentMap(map: SleeperHiddenConsentMap): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(SLEEPER_HIDDEN_CONSENT_KEY, JSON.stringify(map));
+  } catch {
+    // Local storage can be unavailable in privacy-restricted contexts.
+  }
+}
+
+function rememberSleeperHiddenConsent(input: {
+  leagueId: string;
+  userKey?: string | null;
+  sharedAt?: number | null;
+}): SleeperHiddenConsentMap {
+  const key = getSleeperHiddenConsentStorageKey(input.leagueId, input.userKey);
+  if (!key) return readSleeperHiddenConsentMap();
+
+  const next = {
+    ...readSleeperHiddenConsentMap(),
+    [key]: {
+      acknowledgedAt: Date.now(),
+      sharedAt: Number(input.sharedAt || Date.now()),
+    },
+  };
+  writeSleeperHiddenConsentMap(next);
+  return next;
 }
 
 type AdminAuthUser = {
@@ -841,6 +896,27 @@ function buildTradeProposalPreviewMetrics(reportData: ReportData): PreviewMetric
   ];
 }
 
+function buildSleeperHiddenPreviewMetrics(reportData: ReportData): PreviewMetric[] {
+  const snapshot = reportData.sleeperHiddenLeagueSnapshot || null;
+  const tradeSignals = [...(reportData.adminSleeperTradeProposalSignals || [])]
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  const waiverSignals = [...(reportData.adminSleeperWaiverSignals || [])]
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  const latestSignal = [...tradeSignals, ...waiverSignals]
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0] || null;
+  const sharedAtLabel = snapshot?.sharedAt ? new Date(snapshot.sharedAt).toLocaleDateString() : null;
+
+  return [
+    { label: 'Trades', value: tradeSignals.length || snapshot?.tradeCount || 0, tone: (tradeSignals.length || snapshot?.tradeCount || 0) ? 'info' : 'warn' },
+    { label: 'Waivers', value: waiverSignals.length || snapshot?.waiverCount || 0, tone: (waiverSignals.length || snapshot?.waiverCount || 0) ? 'info' : 'warn' },
+    {
+      label: 'Latest',
+      value: latestSignal ? formatTradeProposalPreviewDate(latestSignal.date) : sharedAtLabel || '-',
+      tone: latestSignal || sharedAtLabel ? 'good' : 'neutral',
+    },
+  ];
+}
+
 function normalizeAdminViewMode(value: unknown): AdminViewMode | null {
   return value === 'admin' || value === 'regular' ? value : null;
 }
@@ -1152,6 +1228,20 @@ function getOrderedLeagueOptions(
     ...recentLeagues,
     ...leagues.filter((league) => !seen.has(league.leagueId)),
   ];
+}
+
+function getReportHeaderLeagueShortcuts(
+  leagues: SleeperLeagueOption[],
+  activeLeagueId?: string | null
+): SleeperLeagueOption[] {
+  if (!leagues.length) return [];
+
+  const activeLeague = leagues.find((league) => league.leagueId === activeLeagueId);
+  const orderedLeagues = activeLeague
+    ? [activeLeague, ...leagues.filter((league) => league.leagueId !== activeLeagueId)]
+    : leagues;
+
+  return orderedLeagues.slice(0, MAX_REPORT_HEADER_LEAGUES);
 }
 
 function rememberCachedSleeperLeagueShortcut({
@@ -2352,22 +2442,10 @@ function AdminTrafficTelemetrySection() {
 }
 
 function AdminAbuseTelemetryPanel() {
-  const utils = trpc.useUtils();
-  const [adminPassphrase, setAdminPassphrase] = useState('');
   const authQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5,
-  });
-  const adminLoginMutation = trpc.auth.adminLogin.useMutation({
-    onSuccess: async () => {
-      setAdminPassphrase('');
-      await utils.auth.me.invalidate();
-      toast.success('Admin session unlocked.');
-    },
-    onError: (loginError) => {
-      toast.error(loginError.message);
-    },
   });
   const canViewTelemetry = canViewAdminTelemetryForUser(authQuery.data);
   const { data, error, isLoading, isFetching, refetch } = trpc.system.abuseTelemetry.useQuery(
@@ -2400,32 +2478,8 @@ function AdminAbuseTelemetryPanel() {
   if (!canViewTelemetry) {
     return (
       <div className="admin-traffic-panel admin-traffic-panel-error">
-        <p>Traffic telemetry requires a first-party admin session.</p>
-        <span>The Sleeper admin view unlocks report diagnostics, but request abuse logs stay behind this private passphrase.</span>
-        <form
-          className="admin-traffic-login-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            adminLoginMutation.mutate({ passphrase: adminPassphrase });
-          }}
-        >
-          <Input
-            type="password"
-            value={adminPassphrase}
-            onChange={(event) => setAdminPassphrase(event.target.value)}
-            placeholder="Admin passphrase"
-            autoComplete="current-password"
-            className="admin-traffic-login-input"
-          />
-          <Button
-            disabled={!adminPassphrase.trim() || adminLoginMutation.isPending}
-            type="submit"
-            variant="outline"
-            className="admin-traffic-refresh"
-          >
-            {adminLoginMutation.isPending ? 'Signing in...' : 'Sign in as admin'}
-          </Button>
-        </form>
+        <p>Traffic telemetry is locked until you unlock Admin Tools for this browser session.</p>
+        <span>Use the footer button to enter the first-party passphrase once, then this panel and the rest of the admin tools stay open until the browser closes.</span>
       </div>
     );
   }
@@ -2594,6 +2648,7 @@ export default function Home() {
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5,
   });
+  const utils = trpc.useUtils();
   const [leagueId, setLeagueId] = useState('');
   const [sleeperUsername, setSleeperUsername] = useState('');
   const [leagueIdHistory, setLeagueIdHistory] = useState<string[]>(() => readAutocompleteHistory(LEAGUE_ID_HISTORY_KEY));
@@ -2606,6 +2661,8 @@ export default function Home() {
   const [adminViewMode, setAdminViewMode] = useState<AdminViewMode | null>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportDataCacheVersion, setReportDataCacheVersion] = useState<string | null>(null);
+  const [sleeperTradeCenterToken, setSleeperTradeCenterToken] = useState('');
+  const [sleeperHiddenConsentMap, setSleeperHiddenConsentMap] = useState<SleeperHiddenConsentMap>(() => readSleeperHiddenConsentMap());
   const [activeTab, setActiveTab] = useState(() => getInitialReportTabFromUrl() || 'overview');
   const [leagueName, setLeagueName] = useState('');
   const [leagueLogo, setLeagueLogo] = useState<string | null>(null);
@@ -2622,10 +2679,23 @@ export default function Home() {
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
   const [isAdminUnlockModalOpen, setIsAdminUnlockModalOpen] = useState(false);
+  const [isAdminAccessModalOpen, setIsAdminAccessModalOpen] = useState(false);
+  const [adminPassphrase, setAdminPassphrase] = useState('');
   const [loadingTransitionPhase, setLoadingTransitionPhase] = useState<LoadingTransitionPhase>('loading');
   const [prospectArchiveOpenedWhileLoading, setProspectArchiveOpenedWhileLoading] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
   const activeAnalysisLeagueIdRef = useRef<string | null>(null);
+  const adminLoginMutation = trpc.auth.adminLogin.useMutation({
+    onSuccess: async () => {
+      setAdminPassphrase('');
+      setIsAdminAccessModalOpen(false);
+      await utils.auth.me.invalidate();
+      toast.success('Admin session unlocked.');
+    },
+    onError: (loginError) => {
+      toast.error(loginError.message);
+    },
+  });
 
   const clearSuccessTransitionTimers = () => {
     successTransitionTimerRefs.current.forEach((timer) => window.clearTimeout(timer));
@@ -2701,9 +2771,15 @@ export default function Home() {
     setCachedSleeperUsers(nextUsers);
   };
 
-	  const analyzeMutation = trpc.league.analyze.useMutation({
-	    onSuccess: (data) => {
-	      clearSuccessTransitionTimers();
+  const sleeperHiddenConsentKey = getSleeperHiddenConsentStorageKey(
+    leagueId,
+    sleeperUsername || viewerUsername || viewerUserId
+  );
+  const sleeperHiddenConsent = sleeperHiddenConsentKey ? sleeperHiddenConsentMap[sleeperHiddenConsentKey] || null : null;
+
+  const analyzeMutation = trpc.league.analyze.useMutation({
+    onSuccess: (data) => {
+      clearSuccessTransitionTimers();
       activeAnalysisLeagueIdRef.current = data.leagueId;
 	      setLeagueId(data.leagueId);
       setLeagueName(data.leagueName);
@@ -2745,6 +2821,34 @@ export default function Home() {
       activeAnalysisLeagueIdRef.current = null;
       setLoadingTransitionPhase('loading');
       setIsLoading(false);
+      showMutationErrorToast(error);
+    },
+  });
+
+  const hiddenSleeperTradeCenterMutation = trpc.league.importSleeperTradeCenter.useMutation({
+    onSuccess: (data) => {
+      setReportData((current) => current ? {
+        ...current,
+        adminSleeperTradeProposalSignals: data.tradeProposalSignals,
+        adminSleeperWaiverSignals: data.waiverSignals,
+        sleeperHiddenLeagueSnapshot: data.sleeperHiddenLeagueSnapshot || {
+          sharedBy: null,
+          sharedAt: Date.now(),
+          transactionCount: data.transactionCount,
+          tradeCount: data.tradeCount,
+          waiverCount: data.waiverCount,
+        },
+      } : current);
+      const nextHiddenConsentMap = rememberSleeperHiddenConsent({
+        leagueId: data.leagueId,
+        userKey: sleeperUsername || viewerUsername || viewerUserId,
+        sharedAt: data.sleeperHiddenLeagueSnapshot?.sharedAt || Date.now(),
+      });
+      setSleeperHiddenConsentMap(nextHiddenConsentMap);
+      setSleeperTradeCenterToken('');
+      toast.success(`Shared ${data.tradeCount} hidden trade row${data.tradeCount === 1 ? '' : 's'} and ${data.waiverCount} waiver claim${data.waiverCount === 1 ? '' : 's'} from Sleeper.`);
+    },
+    onError: (error) => {
       showMutationErrorToast(error);
     },
   });
@@ -2964,6 +3068,24 @@ export default function Home() {
     });
   };
 
+  const handleImportSleeperTradeCenter = () => {
+    const nextLeagueId = leagueId.trim();
+    const authToken = sleeperTradeCenterToken.trim();
+    if (!nextLeagueId) {
+      toast.error('Please load a league first');
+      return;
+    }
+    if (!authToken) {
+      toast.error('Please paste a Sleeper auth token');
+      return;
+    }
+    hiddenSleeperTradeCenterMutation.mutate({
+      leagueId: nextLeagueId,
+      authToken,
+      sharedBy: sleeperUsername.trim() || viewerUsername || viewerUserId || null,
+    });
+  };
+
   const handleFindLeagues = async () => {
     const normalizedUsername = sleeperUsername.trim();
     if (!normalizedUsername) {
@@ -3050,15 +3172,16 @@ export default function Home() {
     handleAdminViewModeChoice(adminViewMode === 'admin' ? 'regular' : 'admin');
   };
 
-	  const handleStartOver = () => {
-	    localStorage.removeItem(REPORT_CACHE_KEY);
-	    localStorage.removeItem(LAST_LEAGUE_KEY);
-	    localStorage.removeItem(SLEEPER_SESSION_KEY);
-	    updateReportTabUrl('overview', '');
-	    clearSuccessTransitionTimers();
+  const handleStartOver = () => {
+    localStorage.removeItem(REPORT_CACHE_KEY);
+    localStorage.removeItem(LAST_LEAGUE_KEY);
+    localStorage.removeItem(SLEEPER_SESSION_KEY);
+    updateReportTabUrl('overview', '');
+    clearSuccessTransitionTimers();
     activeAnalysisLeagueIdRef.current = null;
     setIsLeaguePickerOpen(false);
     setIsChangeLeagueModalOpen(false);
+    setIsAdminAccessModalOpen(false);
     setAnalysisCompleteMessage(null);
     setPendingAnalysisLeague(null);
     setLoadingTransitionPhase('loading');
@@ -3072,6 +3195,8 @@ export default function Home() {
     setViewerUserId(null);
     setViewerUsername(null);
     setAdminViewMode(null);
+    setAdminPassphrase('');
+    setSleeperTradeCenterToken('');
     setActiveTab('overview');
   };
 
@@ -3151,6 +3276,7 @@ export default function Home() {
   const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(leagueIdHistory, leagueId);
   const activeCachedSleeperUser = findCachedSleeperUser(cachedSleeperUsers, viewerUserId, sleeperUsername);
   const orderedUserLeagues = getOrderedLeagueOptions(userLeagues, activeCachedSleeperUser);
+  const reportHeaderLeagueShortcuts = getReportHeaderLeagueShortcuts(orderedUserLeagues, leagueId);
   const cachedLeagueShortcuts = getLeagueShortcutsForUser(
     activeCachedSleeperUser,
     userLeagues,
@@ -3179,6 +3305,17 @@ export default function Home() {
     } catch {
       // Non-critical preference.
     }
+  };
+
+  const handleAdminToolsClick = () => {
+    if (hasAuthenticatedAdminPermissions) return;
+    if (adminViewMode === 'admin') {
+      handleAdminModeToggle();
+      return;
+    }
+
+    setAdminPassphrase('');
+    setIsAdminAccessModalOpen(true);
   };
 
   const migratedActiveTab = activeTab === 'projections' ? 'rankings' : activeTab;
@@ -3348,6 +3485,70 @@ export default function Home() {
     </Dialog>
   );
 
+  const adminAccessDialog = (
+    <Dialog
+      open={isAdminAccessModalOpen && !hasAuthenticatedAdminPermissions}
+      onOpenChange={(open) => {
+        if (open) return;
+        setIsAdminAccessModalOpen(false);
+        setAdminPassphrase('');
+      }}
+    >
+      <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="athletic-headline text-3xl text-orange-300">
+            Unlock Admin Tools
+          </DialogTitle>
+          <DialogDescription className="text-slate-300">
+            Enter the passphrase once to open telemetry and admin diagnostics for this browser session.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="admin-unlock-dialog-grid">
+          <span>Session only</span>
+          <span>Telemetry</span>
+          <span>Admin diagnostics</span>
+          <span>One passphrase</span>
+        </div>
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            adminLoginMutation.mutate({ passphrase: adminPassphrase });
+          }}
+        >
+          <Input
+            type="password"
+            value={adminPassphrase}
+            onChange={(event) => setAdminPassphrase(event.target.value)}
+            placeholder="Admin passphrase"
+            autoComplete="current-password"
+            className="border-orange-400/20 bg-slate-950/80 text-slate-100 placeholder:text-slate-500"
+          />
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-slate-700 text-slate-200 hover:bg-slate-900 sm:w-auto"
+              onClick={() => {
+                setIsAdminAccessModalOpen(false);
+                setAdminPassphrase('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!adminPassphrase.trim() || adminLoginMutation.isPending}
+              className="w-full bg-gradient-to-r from-orange-500 to-cyan-400 font-black text-slate-950 hover:from-orange-400 hover:to-cyan-300 sm:w-auto"
+            >
+              {adminLoginMutation.isPending ? 'Unlocking...' : 'Unlock Admin Tools'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+
   const adminUnlockDialog = (
     <Dialog
       open={hasAuthenticatedAdminPermissions && isAdminUnlockModalOpen}
@@ -3388,6 +3589,18 @@ export default function Home() {
     const isRedraftReport = leagueValueMode === 'redraft';
     const modeCopy = getLeagueModeCopy(leagueValueMode);
     const displayReportData = reportDataWithRankings || reportData;
+    const hiddenSleeperTradeSignals = reportData.adminSleeperTradeProposalSignals;
+    const hiddenSleeperWaiverSignals = reportData.adminSleeperWaiverSignals;
+    const hiddenSleeperSnapshot = reportData.sleeperHiddenLeagueSnapshot || null;
+    const hiddenSleeperImportLoaded = hiddenSleeperTradeSignals !== undefined || hiddenSleeperWaiverSignals !== undefined || hiddenSleeperSnapshot !== null;
+    const hiddenSleeperBrowserConsent = Boolean(sleeperHiddenConsent);
+    const hiddenSleeperConsentResolved = hiddenSleeperBrowserConsent || hiddenSleeperSnapshot !== null;
+    const hiddenSleeperShareButtonLabel = hiddenSleeperBrowserConsent || hiddenSleeperSnapshot ? 'Refresh hidden rows' : 'Share hidden rows';
+    const hiddenSleeperShareStatusLabel = hiddenSleeperBrowserConsent
+      ? 'Remembered on this browser'
+      : hiddenSleeperSnapshot
+        ? 'Stored for this league'
+        : 'One-time share';
     const showTradeMarketRadar = reportData.weeklyRisers.some((player) => player.val_now >= 2500)
       || reportData.weeklyFallers.some((player) => player.val_now >= 1800);
     return (
@@ -3447,22 +3660,15 @@ export default function Home() {
                       </p>
                     )}
                   </div>
-                  {leagueLogo && (
-                    <img
-                      src={leagueLogo}
-                      alt={leagueName ? `${leagueName} league icon` : 'League icon'}
-                      className="report-league-icon"
-                    />
-                  )}
                 </button>
-                {orderedUserLeagues.length > 0 && (
+                {reportHeaderLeagueShortcuts.length > 0 && (
                   <LeagueShortcutStack
-                    leagues={orderedUserLeagues}
+                    leagues={reportHeaderLeagueShortcuts}
                     activeLeagueId={leagueId}
                     onSelect={handleCachedLeagueShortcutSelect}
                     className="report-league-shortcuts"
                     label="Switch"
-                    limit={orderedUserLeagues.length}
+                    limit={MAX_REPORT_HEADER_LEAGUES}
                   />
                 )}
               </div>
@@ -3889,6 +4095,109 @@ export default function Home() {
             <TabsContent value="trades" className="report-tab-content">
               <div className="trade-sections space-y-6 sm:space-y-8">
                 {canViewAdminFeatureExpansion && <TradeBrowserRead data={reportData} />}
+                <CollapsibleReportSection
+                  title="Share Hidden Sleeper Data"
+                  kicker="Share pending, cancelled, rejected, and waiver rows once. We remember this browser for this league."
+                  previewMetrics={buildSleeperHiddenPreviewMetrics(reportData)}
+                  defaultOpen={!hiddenSleeperConsentResolved}
+                >
+                  <div className="space-y-6">
+                    <Card className="border-slate-800 bg-slate-950/70 p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
+                      <form
+                        className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          handleImportSleeperTradeCenter();
+                        }}
+                      >
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                            Hidden Sleeper Feed
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-lg font-semibold text-white">
+                              {hiddenSleeperShareButtonLabel}
+                            </h3>
+                            <span className="command-mini-badge command-mini-badge-info">
+                              {hiddenSleeperShareStatusLabel}
+                            </span>
+                          </div>
+                          <p className="max-w-2xl text-sm leading-6 text-slate-300">
+                            Paste a live Sleeper auth token from an authenticated browser session. We store the resulting hidden rows for this league and do not keep the token.
+                          </p>
+                          {hiddenSleeperSnapshot && (
+                            <p className="text-xs leading-5 text-slate-400">
+                              {hiddenSleeperSnapshot.sharedBy ? `Shared by ${hiddenSleeperSnapshot.sharedBy}` : 'Shared by this browser'}{hiddenSleeperSnapshot.sharedAt ? ` · ${new Date(hiddenSleeperSnapshot.sharedAt).toLocaleString()}` : ''}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2 sm:min-w-[22rem] sm:flex-row sm:items-center">
+                          <Input
+                            type="password"
+                            value={sleeperTradeCenterToken}
+                            onChange={(event) => setSleeperTradeCenterToken(event.target.value)}
+                            placeholder="Sleeper auth token"
+                            autoComplete="off"
+                            spellCheck={false}
+                            className="w-full bg-slate-950/80 sm:min-w-[18rem]"
+                          />
+                          <Button
+                            type="submit"
+                            disabled={hiddenSleeperTradeCenterMutation.isPending}
+                            className="shrink-0 whitespace-nowrap bg-gradient-to-r from-cyan-500 to-orange-500 text-slate-950 hover:from-cyan-400 hover:to-orange-400"
+                          >
+                            {hiddenSleeperTradeCenterMutation.isPending ? 'Sharing...' : hiddenSleeperShareButtonLabel}
+                          </Button>
+                        </div>
+                      </form>
+                    </Card>
+
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                              Hidden Trade Center Rows
+                            </span>
+                            <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              {hiddenSleeperImportLoaded ? 'Shared' : 'Run share to populate'}
+                            </span>
+                          </div>
+                          {hiddenSleeperTradeSignals !== undefined ? (
+                            <TradeProposalSignalsTable
+                              data={hiddenSleeperTradeSignals}
+                              managerAvatars={reportData.managerAvatars}
+                            />
+                          ) : (
+                            <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
+                              No hidden trade-center rows have been shared yet. Paste a token above to load pending, rejected, and cancelled trade offers.
+                            </Card>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                              Hidden Waiver Claims
+                            </span>
+                            <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              {hiddenSleeperImportLoaded ? 'Shared' : 'Run share to populate'}
+                            </span>
+                          </div>
+                          {hiddenSleeperWaiverSignals !== undefined ? (
+                            <SleeperWaiverClaimsTable
+                              data={hiddenSleeperWaiverSignals}
+                              managerAvatars={reportData.managerAvatars}
+                            />
+                          ) : (
+                            <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
+                              No hidden waiver claims have been shared yet. This table will show the player claims and FAAB bids from Sleeper once the token is loaded.
+                            </Card>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CollapsibleReportSection>
+
                 {canViewAdminFeatureExpansion && (
                   <CollapsibleReportSection
                     title="Admin Eyes Only: Open Trade Offers"
@@ -4021,7 +4330,7 @@ export default function Home() {
                 {hasAdminPermissions && (
                   <Button
                     type="button"
-                    onClick={hasAuthenticatedAdminPermissions ? undefined : handleAdminModeToggle}
+                    onClick={handleAdminToolsClick}
                     variant="outline"
                     disabled={hasAuthenticatedAdminPermissions}
                     className={`report-header-action report-footer-primary-action report-header-admin-toggle ${canViewAdminFeatureExpansion ? 'report-header-admin-toggle-active' : ''}`}
@@ -4137,6 +4446,7 @@ export default function Home() {
 	        {clownEasterEggDialog}
 	      </div>
 	      </ManagerChampionshipProvider>
+	      {adminAccessDialog}
 	      {adminUnlockDialog}
 	      {loadingDialog}
 	      </>
@@ -4338,6 +4648,7 @@ export default function Home() {
       )}
       {clownEasterEggDialog}
     </div>
+    {adminAccessDialog}
     {adminUnlockDialog}
     {loadingDialog}
     </>

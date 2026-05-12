@@ -136,6 +136,7 @@ export function PlayerDetailModal({
   showAIRead = false,
 }: PlayerDetailModalProps) {
   const [focusedPeerPick, setFocusedPeerPick] = useState<PlayerModalData | null>(null);
+  const [expandedAvailabilitySeason, setExpandedAvailabilitySeason] = useState<string | null>(null);
   const pick = focusedPeerPick || selectedPick;
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
@@ -162,6 +163,18 @@ export function PlayerDetailModal({
       staleTime: 1000 * 60 * 15,
     }
   );
+  const { data: seasonGameLog, isFetching: isSeasonGameLogFetching } = trpc.players.seasonGameLog.useQuery(
+    {
+      leagueId: leagueId || '',
+      playerId: pick?.player_id || '',
+      season: expandedAvailabilitySeason || '',
+      position: pick?.playerDetails?.position || pick?.playerPos || null,
+    },
+    {
+      enabled: isOpen && Boolean(leagueId && pick?.player_id && expandedAvailabilitySeason),
+      staleTime: 1000 * 60 * 5,
+    }
+  );
   const { data: authUser } = trpc.auth.me.useQuery(undefined, {
     enabled: isOpen,
     retry: false,
@@ -178,6 +191,10 @@ export function PlayerDetailModal({
   useEffect(() => {
     setFocusedPeerPick(null);
   }, [selectedPick?.player_id, selectedPick?.playerName, isOpen]);
+
+  useEffect(() => {
+    setExpandedAvailabilitySeason(null);
+  }, [pick?.player_id, isOpen]);
 
   useEffect(() => {
     if (headshotData?.success && headshotData?.data && headshotData.contentType) {
@@ -239,11 +256,21 @@ export function PlayerDetailModal({
   const availability = isCollegeProspect
     ? { label: 'College Prospect', tone: 'taxi' as const }
     : getPlayerAvailability(details);
-  const headerInfoRows = [
+  const prospectHeaderInfoRows = [
     ['College', prospectCollege || details?.college || '-'],
     ['40 Time', formatFortyTime(prospectProfile?.fortyYardDash)],
     ['Birthday', formatBirthday(details?.birthDate) || '-'],
   ] as const;
+  const playerBioRows = !isCollegeProspect ? [
+    ['College', prospectCollege ? (
+      <ProspectCollegePill
+        college={prospectCollege}
+        logoUrl={pick.collegeLogoUrl || prospectProfile?.collegeLogoUrl}
+      />
+    ) : '-'],
+    ['40 Time', formatFortyTime(prospectProfile?.fortyYardDash)],
+    ['Birthday', formatBirthday(details?.birthDate) || '-'],
+  ] as const : [];
   const physicalRows = [
     ['Age', details?.age],
     ['Height', formatHeight(details?.height)],
@@ -292,8 +319,9 @@ export function PlayerDetailModal({
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const availabilityRows = [
     ['Avg Missed', details?.avgGamesMissed !== null && details?.avgGamesMissed !== undefined && details?.availabilitySeasons ? `${details.avgGamesMissed} / yr` : null],
-    ['Sample', details?.availabilitySeasons ? `${details.availabilitySeasons} yr${details.availabilitySeasons === 1 ? '' : 's'}` : null],
+    ['Seasons', details?.availabilitySeasons ? `${details.availabilitySeasons} yr${details.availabilitySeasons === 1 ? '' : 's'}` : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const selectedAvailabilityHistory = details?.availabilityHistory?.find((item) => item.season === expandedAvailabilitySeason) || null;
   const scheduleProfile = details?.schedule || null;
   const scheduleRows = scheduleProfile ? [
     ['Bye Week', scheduleProfile.byeWeek !== null && scheduleProfile.byeWeek !== undefined ? `Week ${scheduleProfile.byeWeek}` : null],
@@ -531,17 +559,19 @@ export function PlayerDetailModal({
                       {position}
                     </span>
                   </div>
-                  <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
-                    {headerInfoRows.map(([label, value]) => (
-                      <InlineInfoTile
-                        key={label}
-                        label={label}
-                        value={value}
-                        teamColors={teamColors}
-                        tileAccent={tileAccent}
-                      />
-                    ))}
-                  </div>
+                  {isCollegeProspect && (
+                    <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
+                      {prospectHeaderInfoRows.map(([label, value]) => (
+                        <InlineInfoTile
+                          key={label}
+                          label={label}
+                          value={value}
+                          teamColors={teamColors}
+                          tileAccent={tileAccent}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -625,7 +655,7 @@ export function PlayerDetailModal({
                   tileAccent={tileAccent}
                   className="player-modal-metric-season-value"
                 />
-                <MetricTile label="Season Rank" mobileLabel="S-Rank" value={topSeasonRank || '-'} valueClassName={`${getPositionRankPillClass(topSeasonRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-season-rank" />
+                <MetricTile label="Season Rank" mobileLabel="Season" value={topSeasonRank || '-'} valueClassName={`${getPositionRankPillClass(topSeasonRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-season-rank" />
                 {!isRedraftValueMode && (
                   <>
                     <MetricTile
@@ -636,7 +666,7 @@ export function PlayerDetailModal({
                       tileAccent={tileAccent}
                       className="player-modal-metric-dynasty-value"
                     />
-                    <MetricTile label="Dynasty Rank" mobileLabel="D-Rank" value={topDynastyRank || '-'} valueClassName={`${getPositionRankPillClass(topDynastyRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-dynasty-rank" />
+                    <MetricTile label="Dynasty Rank" mobileLabel="Dynasty" value={topDynastyRank || '-'} valueClassName={`${getPositionRankPillClass(topDynastyRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-dynasty-rank" />
                   </>
                 )}
                 {lastSeasonRank && (
@@ -688,7 +718,7 @@ export function PlayerDetailModal({
                 <p className="player-modal-section-kicker text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
                   Cross-Position Trade Comps
                 </p>
-                <div className="player-trade-comp-grid grid grid-cols-1 gap-2 sm:grid-cols-4">
+                <div className="player-trade-comp-grid grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {details.similarTradeValues.map((peer, index) => (
                     <button
                       key={`${peer.playerId}-${index}`}
@@ -716,7 +746,7 @@ export function PlayerDetailModal({
                           <strong>{peer.value.toLocaleString()}</strong>
                         </span>
                         <span className={peer.difference > 0 ? 'player-trade-comp-delta-positive' : peer.difference < 0 ? 'player-trade-comp-delta-negative' : 'player-trade-comp-delta-neutral'}>
-                          <em>Delta</em>
+                          <em>Gap</em>
                           <strong>
                             {peer.difference > 0 ? '+' : ''}{peer.difference.toLocaleString()}
                             {peer.difference > 0 && <TrendingUp className="h-3.5 w-3.5" />}
@@ -898,6 +928,19 @@ export function PlayerDetailModal({
                   ))}
                 </div>
               )}
+              {playerBioRows.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {playerBioRows.map(([label, value]) => (
+                    <InfoTile
+                      key={String(label)}
+                      label={String(label)}
+                      value={value}
+                      teamColors={teamColors}
+                      tileAccent={tileAccent}
+                    />
+                  ))}
+                </div>
+              )}
               {!isCollegeProspect && lastSeasonRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {lastSeasonRows.map(([label, value]) => (
@@ -1038,23 +1081,91 @@ export function PlayerDetailModal({
                       </div>
                     )
                   ) : null}
-                  {details?.availabilityHistory?.length ? (
-                    <div className="player-complete-section player-complete-section-wide">
+              {details?.availabilityHistory?.length ? (
+                <div className="player-complete-section player-complete-section-wide">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
                       <h4>Availability History</h4>
-                      <div className="player-availability-grid">
-                        {details.availabilityHistory.map((item) => (
-                          <div key={item.season} className="player-availability-card">
-                            <span>{item.season}</span>
-                            <strong>{item.games ?? '-'} GP</strong>
-                            <em>{item.gamesMissed ?? '-'} missed</em>
-                            {item.pointsPerGame !== null && item.pointsPerGame !== undefined && (
-                              <small>{item.pointsPerGame} PPG</small>
-                            )}
+                      <p className="mt-1 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-cyan-200/70">
+                        Tap a year to open the weekly log.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="player-availability-grid">
+                    {details.availabilityHistory.map((item) => {
+                      const isActive = expandedAvailabilitySeason === item.season;
+                      return (
+                        <button
+                          key={item.season}
+                          type="button"
+                          className={`player-availability-card ${isActive ? 'is-active' : ''}`}
+                          aria-expanded={isActive}
+                          onClick={() => setExpandedAvailabilitySeason((current) => (current === item.season ? null : item.season))}
+                        >
+                          <span className="player-availability-card-kicker">Year</span>
+                          <strong className="player-availability-card-year">{item.season}</strong>
+                          <div className="player-availability-card-metrics">
+                            <div className="player-availability-card-metric">
+                              <small>Position Rank</small>
+                              <strong>{item.positionRank || '-'}</strong>
+                            </div>
+                            <div className="player-availability-card-metric">
+                              <small>Position PPG</small>
+                              <strong>{formatSeasonStatValue(item.pointsPerGame)}</strong>
+                            </div>
+                            <div className="player-availability-card-metric">
+                              <small>Games Played</small>
+                              <strong>{formatSeasonStatValue(item.games)}</strong>
+                            </div>
+                            <div className="player-availability-card-metric">
+                              <small>Games Missed</small>
+                              <strong>{formatSeasonStatValue(item.gamesMissed)}</strong>
+                            </div>
                           </div>
-                        ))}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {expandedAvailabilitySeason ? (
+                    <div className="player-availability-log-panel">
+                      <div className="player-availability-log-header">
+                        <div>
+                          <span className="player-availability-log-kicker">Weekly Log</span>
+                          <h5>{selectedAvailabilityHistory?.season || expandedAvailabilitySeason}</h5>
+                          <p>
+                            {selectedAvailabilityHistory
+                              ? `${formatSeasonStatValue(selectedAvailabilityHistory.games)} GP · ${formatSeasonStatValue(selectedAvailabilityHistory.gamesMissed)} missed · ${formatSeasonStatValue(selectedAvailabilityHistory.pointsPerGame)} PPG${selectedAvailabilityHistory.positionRank ? ` · ${selectedAvailabilityHistory.positionRank}` : ''}`
+                              : 'Loading weekly game data from Sleeper.'}
+                          </p>
+                        </div>
+                        {isSeasonGameLogFetching ? (
+                          <span className="player-availability-log-loading">Loading...</span>
+                        ) : null}
                       </div>
+                      {seasonGameLog?.weeklyGames?.length ? (
+                        <div className="player-availability-log-list">
+                          {seasonGameLog.weeklyGames.map((game) => (
+                            <div key={`${expandedAvailabilitySeason}-${game.week}`} className="player-availability-log-row">
+                              <div className="player-availability-log-meta">
+                                <strong>Week {game.week}</strong>
+                                <span>{game.positionRank || '-'}</span>
+                              </div>
+                              <strong className="player-availability-log-points">
+                                {formatSeasonStatValue(game.fantasyPoints)} pts
+                              </strong>
+                              <p className="player-availability-log-stats">{game.statLine}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : isSeasonGameLogFetching ? (
+                        <p className="player-availability-log-empty">Loading weekly game log from Sleeper...</p>
+                      ) : (
+                        <p className="player-availability-log-empty">No weekly game log was returned for that season.</p>
+                      )}
                     </div>
                   ) : null}
+                </div>
+              ) : null}
                 </div>
               </div>
             )}
@@ -1160,6 +1271,14 @@ function formatCompleteValue(value: unknown, compactNumbers?: boolean) {
     return compactNumbers ? formatValueLens(value) : value.toLocaleString();
   }
   return String(value);
+}
+
+function formatSeasonStatValue(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+  const numeric = Number(value);
+  return numeric.toLocaleString(undefined, {
+    maximumFractionDigits: Number.isInteger(numeric) ? 0 : 1,
+  });
 }
 
 function isPositionRankValue(value: unknown) {

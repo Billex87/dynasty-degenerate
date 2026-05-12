@@ -5147,210 +5147,234 @@ body {
 }
 
 @layer components {
+  /* Owner/manager/waiver AI surfaces */
   .owner-intel-ai-card,
   .owner-intel-read-grid > .owner-intel-wild-notes,
   .manager-command-ai-read,
   .waiver-intel-card-suggested {
-    --ai-tron-accent: #22d3ee;
-    --ai-tron-border: rgba(34, 211, 238, 0.26);
-    --ai-tron-glow: rgba(34, 211, 238, 0.06);
-    --ai-tron-grid: rgba(45, 212, 191, 0.055);
-    --ai-tron-grid-strong: rgba(103, 232, 249, 0.1);
-    --ai-tron-core: rgba(103, 232, 249, 0.82);
-    --ai-tron-pulse-soft: rgba(103, 232, 249, 0.46);
-    --ai-tron-pulse-muted: rgba(45, 212, 191, 0.4);
-    --ai-tron-halo: rgba(45, 212, 191, 0.018);
-    --ai-tron-pulse-duration: 17s;
-    --ai-tron-pulse-delay: -1s;
+    --ai-grid-color: rgba(45, 212, 191, 0.055);
+    --ai-grid-hot: rgba(103, 232, 249, 0.1);
+    --ai-grid-muted: rgba(1, 5, 14, 0.96);
+    --ai-glow-primary: rgba(34, 211, 238, 0.082);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.03);
+    --ai-border-glow: rgba(34, 211, 238, 0.28);
+    --ai-border-glass: rgba(255, 255, 255, 0.03);
+    --ai-pulse-origin-x: 18%;
+    --ai-pulse-origin-y: 26%;
+    --ai-grid-size: 20px;
+    --ai-grid-size-strong: 66px;
+    --ai-grid-speed: 28s;
+    --ai-line-speed: 18s;
+    --ai-scan-speed: 15s;
+    --ai-ripple-speed: 16s;
+    --ai-border-speed: 12s;
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    border-color: var(--ai-tron-border) !important;
-    background: linear-gradient(var(--ai-tron-grid) 1px, transparent 1px), linear-gradient(90deg, var(--ai-tron-grid) 1px, transparent 1px), linear-gradient(var(--ai-tron-grid-strong) 1px, transparent 1px), linear-gradient(90deg, var(--ai-tron-grid-strong) 1px, transparent 1px), radial-gradient(circle at 12% 0%, var(--ai-tron-glow), transparent 38%), radial-gradient(circle at 100% 8%, var(--ai-tron-glow), transparent 34%), linear-gradient(135deg, rgba(1, 5, 14, 0.99), rgba(2, 10, 22, 0.96) 48%, rgba(1, 5, 14, 0.99)) !important;
-    background-size:
-      20px 20px,
-      20px 20px,
-      60px 60px,
-      60px 60px,
-      auto,
-      auto,
-      auto !important;
+    border-color: var(--ai-border-glow) !important;
+    background:
+      radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--ai-glow-primary) 78%, transparent), transparent 30%),
+      radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--ai-glow-secondary) 64%, transparent), transparent 28%),
+      radial-gradient(circle at 50% 116%, rgba(2, 6, 23, 0.48), transparent 54%),
+      linear-gradient(135deg, rgba(1, 5, 14, 0.99), rgba(2, 10, 22, 0.96) 50%, rgba(1, 5, 14, 0.99)) !important;
     box-shadow:
-      inset 0 0 0 1px rgba(103, 232, 249, 0.032),
-      inset 0 0 24px var(--ai-tron-halo),
-      0 0 18px var(--ai-tron-halo);
+      inset 0 0 0 1px var(--ai-border-glass),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      inset 0 0 24px rgba(2, 6, 23, 0.42),
+      0 0 18px color-mix(in srgb, var(--ai-glow-primary) 70%, transparent) !important;
+    animation: ai-border-breathe var(--ai-border-speed) ease-in-out infinite;
   }
 
   .owner-intel-ai-card-good {
-    --ai-tron-accent: #34d399;
-    --ai-tron-border: rgba(52, 211, 153, 0.27);
-    --ai-tron-glow: rgba(16, 185, 129, 0.07);
-    --ai-tron-grid: rgba(52, 211, 153, 0.055);
-    --ai-tron-grid-strong: rgba(134, 239, 172, 0.1);
-    --ai-tron-core: rgba(134, 239, 172, 0.76);
-    --ai-tron-pulse-soft: rgba(134, 239, 172, 0.42);
-    --ai-tron-pulse-muted: rgba(52, 211, 153, 0.34);
-    --ai-tron-halo: rgba(52, 211, 153, 0.018);
-    --ai-tron-pulse-delay: -3.2s;
+    --ai-border-glow: rgba(52, 211, 153, 0.32);
+    --ai-glow-primary: rgba(16, 185, 129, 0.092);
+    --ai-glow-secondary: rgba(52, 211, 153, 0.028);
+    --ai-grid-color: rgba(52, 211, 153, 0.055);
+    --ai-grid-hot: rgba(134, 239, 172, 0.1);
+    --ai-pulse-origin-x: 22%;
+    --ai-pulse-origin-y: 24%;
+    --ai-grid-speed: 26s;
+    --ai-line-speed: 17s;
+    --ai-scan-speed: 14s;
   }
 
   .owner-intel-ai-card-warn {
-    --ai-tron-accent: #c27a32;
-    --ai-tron-border: rgba(194, 122, 50, 0.3);
-    --ai-tron-glow: rgba(194, 122, 50, 0.065);
-    --ai-tron-grid: rgba(194, 122, 50, 0.06);
-    --ai-tron-grid-strong: rgba(251, 146, 60, 0.11);
-    --ai-tron-core: rgba(251, 146, 60, 0.76);
-    --ai-tron-pulse-soft: rgba(251, 146, 60, 0.42);
-    --ai-tron-pulse-muted: rgba(194, 122, 50, 0.34);
-    --ai-tron-halo: rgba(194, 122, 50, 0.02);
-    --ai-tron-pulse-delay: -7.6s;
+    --ai-border-glow: rgba(251, 146, 60, 0.32);
+    --ai-glow-primary: rgba(249, 115, 22, 0.09);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.03);
+    --ai-grid-color: rgba(251, 146, 60, 0.055);
+    --ai-grid-hot: rgba(253, 186, 116, 0.102);
+    --ai-pulse-origin-x: 76%;
+    --ai-pulse-origin-y: 20%;
+    --ai-grid-speed: 27s;
+    --ai-line-speed: 18s;
+    --ai-scan-speed: 14s;
   }
 
   .owner-intel-ai-card-danger {
-    --ai-tron-accent: #fb7185;
-    --ai-tron-border: rgba(251, 113, 133, 0.28);
-    --ai-tron-glow: rgba(244, 63, 94, 0.06);
-    --ai-tron-grid: rgba(251, 113, 133, 0.055);
-    --ai-tron-grid-strong: rgba(253, 164, 175, 0.1);
-    --ai-tron-core: rgba(253, 164, 175, 0.74);
-    --ai-tron-pulse-soft: rgba(253, 164, 175, 0.42);
-    --ai-tron-pulse-muted: rgba(251, 113, 133, 0.34);
-    --ai-tron-halo: rgba(251, 113, 133, 0.018);
-    --ai-tron-pulse-delay: -11.4s;
+    --ai-border-glow: rgba(251, 113, 133, 0.32);
+    --ai-glow-primary: rgba(244, 63, 94, 0.09);
+    --ai-glow-secondary: rgba(251, 113, 133, 0.028);
+    --ai-grid-color: rgba(251, 113, 133, 0.055);
+    --ai-grid-hot: rgba(253, 164, 175, 0.1);
+    --ai-pulse-origin-x: 72%;
+    --ai-pulse-origin-y: 34%;
+    --ai-grid-speed: 27s;
+    --ai-line-speed: 18s;
+    --ai-scan-speed: 14s;
   }
 
   .owner-intel-ai-card-future,
   .owner-intel-read-grid > .owner-intel-wild-notes,
   .manager-command-ai-read {
-    --ai-tron-accent: #2dd4bf;
-    --ai-tron-border: rgba(45, 212, 191, 0.28);
-    --ai-tron-glow: rgba(20, 184, 166, 0.07);
-    --ai-tron-grid: rgba(45, 212, 191, 0.055);
-    --ai-tron-grid-strong: rgba(94, 234, 212, 0.1);
-    --ai-tron-core: rgba(94, 234, 212, 0.76);
-    --ai-tron-pulse-soft: rgba(94, 234, 212, 0.42);
-    --ai-tron-pulse-muted: rgba(45, 212, 191, 0.34);
-    --ai-tron-halo: rgba(45, 212, 191, 0.018);
-    --ai-tron-pulse-delay: -5.1s;
+    --ai-border-glow: rgba(45, 212, 191, 0.32);
+    --ai-glow-primary: rgba(34, 211, 238, 0.088);
+    --ai-glow-secondary: rgba(45, 212, 191, 0.028);
+    --ai-grid-color: rgba(45, 212, 191, 0.055);
+    --ai-grid-hot: rgba(103, 232, 249, 0.1);
+    --ai-pulse-origin-x: 68%;
+    --ai-pulse-origin-y: 22%;
+    --ai-grid-size: 19px;
+    --ai-grid-size-strong: 62px;
+    --ai-grid-speed: 29s;
+    --ai-line-speed: 17s;
+    --ai-scan-speed: 14s;
   }
 
   .owner-intel-ai-theme-trade,
   .waiver-intel-card-suggested {
-    --ai-tron-accent: #34d399;
-    --ai-tron-border: rgba(52, 211, 153, 0.29);
-    --ai-tron-glow: rgba(16, 185, 129, 0.07);
-    --ai-tron-grid: rgba(52, 211, 153, 0.055);
-    --ai-tron-grid-strong: rgba(134, 239, 172, 0.1);
-    --ai-tron-core: rgba(134, 239, 172, 0.76);
-    --ai-tron-pulse-soft: rgba(134, 239, 172, 0.42);
-    --ai-tron-pulse-muted: rgba(52, 211, 153, 0.34);
-    --ai-tron-halo: rgba(52, 211, 153, 0.018);
-    --ai-tron-pulse-delay: -2.8s;
+    --ai-border-glow: rgba(52, 211, 153, 0.3);
+    --ai-glow-primary: rgba(16, 185, 129, 0.088);
+    --ai-glow-secondary: rgba(52, 211, 153, 0.028);
+    --ai-grid-color: rgba(52, 211, 153, 0.055);
+    --ai-grid-hot: rgba(134, 239, 172, 0.1);
+    --ai-pulse-origin-x: 20%;
+    --ai-pulse-origin-y: 28%;
+    --ai-grid-size: 21px;
+    --ai-grid-size-strong: 68px;
+    --ai-grid-speed: 26s;
+    --ai-line-speed: 17s;
+    --ai-scan-speed: 14s;
   }
 
   .owner-intel-ai-theme-window {
-    --ai-tron-accent: #2dd4bf;
-    --ai-tron-border: rgba(45, 212, 191, 0.28);
-    --ai-tron-glow: rgba(20, 184, 166, 0.07);
-    --ai-tron-grid: rgba(45, 212, 191, 0.055);
-    --ai-tron-grid-strong: rgba(94, 234, 212, 0.1);
-    --ai-tron-core: rgba(94, 234, 212, 0.76);
-    --ai-tron-pulse-soft: rgba(94, 234, 212, 0.42);
-    --ai-tron-pulse-muted: rgba(45, 212, 191, 0.34);
-    --ai-tron-halo: rgba(45, 212, 191, 0.018);
-    --ai-tron-pulse-delay: -6.1s;
+    --ai-border-glow: rgba(45, 212, 191, 0.3);
+    --ai-glow-primary: rgba(20, 184, 166, 0.086);
+    --ai-glow-secondary: rgba(45, 212, 191, 0.028);
+    --ai-grid-color: rgba(45, 212, 191, 0.055);
+    --ai-grid-hot: rgba(94, 234, 212, 0.102);
+    --ai-pulse-origin-x: 72%;
+    --ai-pulse-origin-y: 18%;
+    --ai-grid-size: 20px;
+    --ai-grid-size-strong: 64px;
+    --ai-grid-speed: 27s;
+    --ai-line-speed: 18s;
+    --ai-scan-speed: 15s;
   }
 
   .owner-intel-ai-theme-draft {
-    --ai-tron-accent: #facc15;
-    --ai-tron-border: rgba(250, 204, 21, 0.28);
-    --ai-tron-glow: rgba(250, 204, 21, 0.06);
-    --ai-tron-grid: rgba(250, 204, 21, 0.052);
-    --ai-tron-grid-strong: rgba(253, 224, 71, 0.1);
-    --ai-tron-core: rgba(253, 224, 71, 0.74);
-    --ai-tron-pulse-soft: rgba(253, 224, 71, 0.38);
-    --ai-tron-pulse-muted: rgba(250, 204, 21, 0.3);
-    --ai-tron-halo: rgba(250, 204, 21, 0.016);
-    --ai-tron-pulse-delay: -9.4s;
+    --ai-border-glow: rgba(250, 204, 21, 0.3);
+    --ai-glow-primary: rgba(250, 204, 21, 0.084);
+    --ai-glow-secondary: rgba(250, 204, 21, 0.026);
+    --ai-grid-color: rgba(250, 204, 21, 0.052);
+    --ai-grid-hot: rgba(253, 224, 71, 0.096);
+    --ai-pulse-origin-x: 24%;
+    --ai-pulse-origin-y: 18%;
+    --ai-grid-size: 18px;
+    --ai-grid-size-strong: 56px;
+    --ai-grid-speed: 25s;
+    --ai-line-speed: 16s;
+    --ai-scan-speed: 13s;
   }
 
   .owner-intel-ai-theme-churn {
-    --ai-tron-accent: #c27a32;
-    --ai-tron-border: rgba(194, 122, 50, 0.3);
-    --ai-tron-glow: rgba(194, 122, 50, 0.065);
-    --ai-tron-grid: rgba(194, 122, 50, 0.06);
-    --ai-tron-grid-strong: rgba(251, 146, 60, 0.11);
-    --ai-tron-core: rgba(251, 146, 60, 0.76);
-    --ai-tron-pulse-soft: rgba(251, 146, 60, 0.42);
-    --ai-tron-pulse-muted: rgba(194, 122, 50, 0.34);
-    --ai-tron-halo: rgba(194, 122, 50, 0.02);
-    --ai-tron-pulse-delay: -12.8s;
+    --ai-border-glow: rgba(251, 146, 60, 0.3);
+    --ai-glow-primary: rgba(249, 115, 22, 0.09);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.03);
+    --ai-grid-color: rgba(251, 146, 60, 0.055);
+    --ai-grid-hot: rgba(253, 186, 116, 0.102);
+    --ai-pulse-origin-x: 78%;
+    --ai-pulse-origin-y: 60%;
+    --ai-grid-size: 21px;
+    --ai-grid-size-strong: 68px;
+    --ai-grid-speed: 27s;
+    --ai-line-speed: 18s;
+    --ai-scan-speed: 14s;
   }
 
   .owner-intel-ai-theme-risk {
-    --ai-tron-accent: #fb7185;
-    --ai-tron-border: rgba(251, 113, 133, 0.28);
-    --ai-tron-glow: rgba(244, 63, 94, 0.06);
-    --ai-tron-grid: rgba(251, 113, 133, 0.055);
-    --ai-tron-grid-strong: rgba(253, 164, 175, 0.1);
-    --ai-tron-core: rgba(253, 164, 175, 0.74);
-    --ai-tron-pulse-soft: rgba(253, 164, 175, 0.42);
-    --ai-tron-pulse-muted: rgba(251, 113, 133, 0.34);
-    --ai-tron-halo: rgba(251, 113, 133, 0.018);
-    --ai-tron-pulse-delay: -4.7s;
+    --ai-border-glow: rgba(251, 113, 133, 0.3);
+    --ai-glow-primary: rgba(244, 63, 94, 0.088);
+    --ai-glow-secondary: rgba(251, 113, 133, 0.028);
+    --ai-grid-color: rgba(251, 113, 133, 0.052);
+    --ai-grid-hot: rgba(253, 164, 175, 0.096);
+    --ai-pulse-origin-x: 78%;
+    --ai-pulse-origin-y: 34%;
+    --ai-grid-size: 21px;
+    --ai-grid-size-strong: 68px;
+    --ai-grid-speed: 27s;
+    --ai-line-speed: 18s;
+    --ai-scan-speed: 14s;
   }
 
   .owner-intel-ai-theme-upside {
-    --ai-tron-accent: #c084fc;
-    --ai-tron-border: rgba(192, 132, 252, 0.28);
-    --ai-tron-glow: rgba(168, 85, 247, 0.06);
-    --ai-tron-grid: rgba(192, 132, 252, 0.052);
-    --ai-tron-grid-strong: rgba(216, 180, 254, 0.1);
-    --ai-tron-core: rgba(216, 180, 254, 0.74);
-    --ai-tron-pulse-soft: rgba(216, 180, 254, 0.38);
-    --ai-tron-pulse-muted: rgba(192, 132, 252, 0.3);
-    --ai-tron-halo: rgba(192, 132, 252, 0.016);
-    --ai-tron-pulse-delay: -14.2s;
+    --ai-border-glow: rgba(192, 132, 252, 0.3);
+    --ai-glow-primary: rgba(168, 85, 247, 0.082);
+    --ai-glow-secondary: rgba(192, 132, 252, 0.028);
+    --ai-grid-color: rgba(192, 132, 252, 0.05);
+    --ai-grid-hot: rgba(216, 180, 254, 0.094);
+    --ai-pulse-origin-x: 64%;
+    --ai-pulse-origin-y: 14%;
+    --ai-grid-size: 20px;
+    --ai-grid-size-strong: 66px;
+    --ai-grid-speed: 29s;
+    --ai-line-speed: 19s;
+    --ai-scan-speed: 15s;
   }
 
   .owner-intel-ai-theme-sell {
-    --ai-tron-accent: #fb923c;
-    --ai-tron-border: rgba(251, 146, 60, 0.3);
-    --ai-tron-glow: rgba(249, 115, 22, 0.065);
-    --ai-tron-grid: rgba(251, 146, 60, 0.058);
-    --ai-tron-grid-strong: rgba(253, 186, 116, 0.11);
-    --ai-tron-core: rgba(253, 186, 116, 0.76);
-    --ai-tron-pulse-soft: rgba(253, 186, 116, 0.42);
-    --ai-tron-pulse-muted: rgba(251, 146, 60, 0.34);
-    --ai-tron-halo: rgba(251, 146, 60, 0.02);
-    --ai-tron-pulse-delay: -8.3s;
+    --ai-border-glow: rgba(251, 146, 60, 0.3);
+    --ai-glow-primary: rgba(249, 115, 22, 0.09);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.03);
+    --ai-grid-color: rgba(251, 146, 60, 0.058);
+    --ai-grid-hot: rgba(253, 186, 116, 0.102);
+    --ai-pulse-origin-x: 78%;
+    --ai-pulse-origin-y: 58%;
+    --ai-grid-size: 21px;
+    --ai-grid-size-strong: 68px;
+    --ai-grid-speed: 27s;
+    --ai-line-speed: 18s;
+    --ai-scan-speed: 14s;
   }
 
   .owner-intel-ai-theme-core {
-    --ai-tron-accent: #7dd3fc;
-    --ai-tron-border: rgba(125, 211, 252, 0.3);
-    --ai-tron-glow: rgba(56, 189, 248, 0.065);
-    --ai-tron-grid: rgba(125, 211, 252, 0.055);
-    --ai-tron-grid-strong: rgba(186, 230, 253, 0.1);
-    --ai-tron-core: rgba(186, 230, 253, 0.74);
-    --ai-tron-pulse-soft: rgba(186, 230, 253, 0.4);
-    --ai-tron-pulse-muted: rgba(125, 211, 252, 0.32);
-    --ai-tron-halo: rgba(125, 211, 252, 0.018);
-    --ai-tron-pulse-delay: -11.6s;
+    --ai-border-glow: rgba(125, 211, 252, 0.3);
+    --ai-glow-primary: rgba(56, 189, 248, 0.082);
+    --ai-glow-secondary: rgba(125, 211, 252, 0.028);
+    --ai-grid-color: rgba(125, 211, 252, 0.05);
+    --ai-grid-hot: rgba(186, 230, 253, 0.098);
+    --ai-pulse-origin-x: 56%;
+    --ai-pulse-origin-y: 50%;
+    --ai-grid-size: 20px;
+    --ai-grid-size-strong: 66px;
+    --ai-grid-speed: 28s;
+    --ai-line-speed: 18s;
+    --ai-scan-speed: 15s;
   }
 
   .owner-intel-ai-theme-neutral {
-    --ai-tron-accent: #22d3ee;
-    --ai-tron-border: rgba(34, 211, 238, 0.26);
-    --ai-tron-glow: rgba(34, 211, 238, 0.06);
-    --ai-tron-grid: rgba(45, 212, 191, 0.055);
-    --ai-tron-grid-strong: rgba(103, 232, 249, 0.1);
-    --ai-tron-core: rgba(103, 232, 249, 0.82);
-    --ai-tron-pulse-soft: rgba(103, 232, 249, 0.46);
-    --ai-tron-pulse-muted: rgba(45, 212, 191, 0.4);
-    --ai-tron-halo: rgba(45, 212, 191, 0.018);
-    --ai-tron-pulse-delay: -1.5s;
+    --ai-border-glow: rgba(34, 211, 238, 0.28);
+    --ai-glow-primary: rgba(34, 211, 238, 0.08);
+    --ai-glow-secondary: rgba(45, 212, 191, 0.028);
+    --ai-grid-color: rgba(45, 212, 191, 0.055);
+    --ai-grid-hot: rgba(103, 232, 249, 0.1);
+    --ai-pulse-origin-x: 18%;
+    --ai-pulse-origin-y: 28%;
+    --ai-grid-size: 20px;
+    --ai-grid-size-strong: 66px;
+    --ai-grid-speed: 28s;
+    --ai-line-speed: 18s;
+    --ai-scan-speed: 15s;
   }
 
   .owner-intel-ai-card::before,
@@ -5359,13 +5383,52 @@ body {
   .waiver-intel-card-suggested::before {
     content: "";
     position: absolute;
-    inset: 0 auto 0 0;
-    width: 2px;
-    border-radius: inherit;
-    background: linear-gradient(180deg, transparent 0%, var(--ai-tron-accent) 16%, var(--ai-tron-core) 48%, var(--ai-tron-accent) 82%, transparent 100%);
-    box-shadow: 0 0 10px var(--ai-tron-accent);
-    opacity: 0.72;
+    inset: 0;
     z-index: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(180deg, transparent 0 47%, rgba(255, 255, 255, 0.03) 50%, transparent 53%),
+      linear-gradient(180deg, var(--ai-grid-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ai-grid-color) 1px, transparent 1px),
+      linear-gradient(180deg, var(--ai-grid-hot) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ai-grid-hot) 1px, transparent 1px),
+      linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 22%, transparent) 49%, transparent 53%),
+      linear-gradient(225deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 14%, transparent) 49%, transparent 53%),
+      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, transparent 1.4px),
+      radial-gradient(circle at 16% 18%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.4px),
+      radial-gradient(circle at 82% 72%, rgba(255, 255, 255, 0.1) 0 1px, transparent 1.4px),
+      radial-gradient(circle at 70% 14%, color-mix(in srgb, var(--ai-glow-secondary) 42%, transparent) 0 1px, transparent 1.4px);
+    background-size:
+      100% 100%,
+      var(--ai-grid-size) var(--ai-grid-size),
+      var(--ai-grid-size) var(--ai-grid-size),
+      var(--ai-grid-size-strong) var(--ai-grid-size-strong),
+      var(--ai-grid-size-strong) var(--ai-grid-size-strong),
+      220px 220px,
+      300px 300px,
+      110px 110px,
+      156px 156px,
+      198px 198px,
+      240px 240px;
+    background-position:
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0;
+    opacity: 0.68;
+    pointer-events: none;
+    transform: translate3d(0, 0, 0);
+    animation:
+      ai-grid-drift var(--ai-grid-speed) linear infinite,
+      ai-line-surge var(--ai-line-speed) ease-in-out infinite,
+      ai-node-pulse var(--ai-scan-speed) ease-in-out infinite;
   }
 
   .owner-intel-ai-card::after,
@@ -5374,42 +5437,44 @@ body {
   .waiver-intel-card-suggested::after {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: -12%;
     z-index: 0;
     border-radius: inherit;
-    background: radial-gradient(circle, var(--ai-tron-core) 0 1px, var(--ai-tron-pulse-soft) 2px, transparent 18px), linear-gradient(90deg, transparent, var(--ai-tron-pulse-soft) 28%, var(--ai-tron-core) 50%, var(--ai-tron-pulse-soft) 72%, transparent), linear-gradient(0deg, transparent, var(--ai-tron-pulse-soft) 28%, var(--ai-tron-core) 50%, var(--ai-tron-pulse-soft) 72%, transparent), radial-gradient(circle, var(--ai-tron-core) 0 1px, var(--ai-tron-pulse-muted) 2px, transparent 15px), linear-gradient(90deg, transparent, var(--ai-tron-pulse-muted) 28%, var(--ai-tron-pulse-soft) 50%, var(--ai-tron-pulse-muted) 72%, transparent), linear-gradient(0deg, transparent, var(--ai-tron-pulse-muted) 28%, var(--ai-tron-pulse-soft) 50%, var(--ai-tron-pulse-muted) 72%, transparent), radial-gradient(circle, var(--ai-tron-core) 0 1px, var(--ai-tron-pulse-soft) 2px, transparent 20px), linear-gradient(90deg, transparent, var(--ai-tron-pulse-muted) 24%, var(--ai-tron-core) 50%, var(--ai-tron-pulse-muted) 76%, transparent), linear-gradient(0deg, transparent, var(--ai-tron-pulse-muted) 24%, var(--ai-tron-core) 50%, var(--ai-tron-pulse-muted) 76%, transparent);
-    background-position:
-      calc(18% - 23px) calc(32% - 23px),
-      calc(18% - 44px) calc(32% - 1px),
-      calc(18% - 1px) calc(32% - 29px),
-      calc(58% - 18px) calc(68% - 18px),
-      calc(58% - 33px) calc(68% - 1px),
-      calc(58% - 1px) calc(68% - 22px),
-      calc(84% - 27px) calc(30% - 27px),
-      calc(84% - 55px) calc(30% - 1px),
-      calc(84% - 1px) calc(30% - 36px);
-    background-repeat: no-repeat;
+    background:
+      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 74%, transparent) 0 1px, color-mix(in srgb, var(--ai-glow-primary) 40%, transparent) 1px 1.15rem, transparent 3.9rem),
+      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 0 1px, transparent 5.5rem),
+      linear-gradient(125deg, transparent 0 42%, color-mix(in srgb, var(--ai-glow-primary) 16%, transparent) 47%, rgba(255, 255, 255, 0.14) 50%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 53%, transparent 61%),
+      linear-gradient(90deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 50%, transparent 56%),
+      repeating-linear-gradient(180deg, transparent 0 14px, rgba(255, 255, 255, 0.016) 14px 15px, transparent 18px),
+      radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--ai-glow-secondary) 24%, transparent) 0 1px, transparent 1.6px),
+      radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--ai-glow-secondary) 16%, transparent) 0 1px, transparent 1.6px);
     background-size:
-      46px 46px,
-      88px 2px,
-      2px 58px,
-      36px 36px,
-      66px 2px,
-      2px 44px,
-      54px 54px,
-      110px 2px,
-      2px 72px;
-    filter: drop-shadow(0 0 4px var(--ai-tron-accent));
+      48% 48%,
+      100% 100%,
+      240% 100%,
+      220% 100%,
+      100% 100%,
+      140px 140px,
+      180px 180px;
+    background-position:
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      145% 0,
+      -18% 0,
+      0 0,
+      14% 18%,
+      82% 76%;
+    opacity: 0.08;
     mix-blend-mode: screen;
-    opacity: 0.03;
     pointer-events: none;
-    animation: ai-tron-neural-pulse var(--ai-tron-pulse-duration) ease-in-out infinite;
-    animation-delay: var(--ai-tron-pulse-delay);
-  }
-
-  .owner-intel-read-grid > .owner-intel-wild-notes,
-  .manager-command-ai-read {
-    --ai-tron-pulse-duration: 22s;
+    transform-origin: var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
+    will-change: transform, opacity, background-position;
+    animation:
+      ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite,
+      ai-scan-sweep calc(var(--ai-scan-speed) * 1.1) linear infinite;
+    animation-delay:
+      calc(var(--ai-ripple-speed) * -0.24),
+      0s;
   }
 
   .owner-intel-ai-card > *,
@@ -5421,85 +5486,45 @@ body {
   }
 
   .manager-command-ai-read .manager-command-inline-read {
-    border-top-color: rgba(45, 212, 191, 0.22);
+    border-top-color: color-mix(in srgb, var(--ai-border-glow) 72%, rgba(255, 255, 255, 0.04));
   }
 
-  @keyframes ai-tron-neural-pulse {
-    0%,
-    100% {
-      background-position:
-        calc(18% - 23px) calc(32% - 23px),
-        calc(18% - 44px) calc(32% - 1px),
-        calc(18% - 1px) calc(32% - 29px),
-        calc(58% - 18px) calc(68% - 18px),
-        calc(58% - 33px) calc(68% - 1px),
-        calc(58% - 1px) calc(68% - 22px),
-        calc(84% - 27px) calc(30% - 27px),
-        calc(84% - 55px) calc(30% - 1px),
-        calc(84% - 1px) calc(30% - 36px);
-      opacity: 0.025;
-    }
-
-    7% {
-      opacity: 0.17;
-    }
-
-    15% {
-      opacity: 0.038;
-    }
-
-    31% {
-      background-position:
-        calc(28% - 23px) calc(74% - 23px),
-        calc(28% - 44px) calc(74% - 1px),
-        calc(28% - 1px) calc(74% - 29px),
-        calc(46% - 18px) calc(24% - 18px),
-        calc(46% - 33px) calc(24% - 1px),
-        calc(46% - 1px) calc(24% - 22px),
-        calc(76% - 27px) calc(56% - 27px),
-        calc(76% - 55px) calc(56% - 1px),
-        calc(76% - 1px) calc(56% - 36px);
-      opacity: 0.025;
-    }
-
-    39% {
-      opacity: 0.19;
-    }
-
-    48% {
-      opacity: 0.04;
-    }
-
-    64% {
-      background-position:
-        calc(14% - 23px) calc(58% - 23px),
-        calc(14% - 44px) calc(58% - 1px),
-        calc(14% - 1px) calc(58% - 29px),
-        calc(64% - 18px) calc(38% - 18px),
-        calc(64% - 33px) calc(38% - 1px),
-        calc(64% - 1px) calc(38% - 22px),
-        calc(90% - 27px) calc(78% - 27px),
-        calc(90% - 55px) calc(78% - 1px),
-        calc(90% - 1px) calc(78% - 36px);
-      opacity: 0.025;
-    }
-
-    72% {
-      opacity: 0.16;
-    }
-
-    84% {
-      opacity: 0.04;
-    }
+  .waiver-intel-card-suggested .waiver-intel-main .player-chip img,
+  .waiver-intel-card-suggested .waiver-intel-main .player-chip > span[aria-hidden="true"] {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--ai-border-glow) 68%, rgba(255, 255, 255, 0.16)),
+      0 0 18px color-mix(in srgb, var(--ai-glow-primary) 78%, transparent);
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .owner-intel-ai-card,
+    .owner-intel-read-grid > .owner-intel-wild-notes,
+    .manager-command-ai-read,
+    .waiver-intel-card-suggested,
+    .owner-intel-ai-card::before,
+    .owner-intel-read-grid > .owner-intel-wild-notes::before,
+    .manager-command-ai-read::before,
+    .waiver-intel-card-suggested::before,
     .owner-intel-ai-card::after,
     .owner-intel-read-grid > .owner-intel-wild-notes::after,
     .manager-command-ai-read::after,
     .waiver-intel-card-suggested::after {
-      animation: none;
-      opacity: 0.08;
+      animation: none !important;
+      transform: none !important;
+    }
+
+    .owner-intel-ai-card::before,
+    .owner-intel-read-grid > .owner-intel-wild-notes::before,
+    .manager-command-ai-read::before,
+    .waiver-intel-card-suggested::before {
+      opacity: 0.56;
+    }
+
+    .owner-intel-ai-card::after,
+    .owner-intel-read-grid > .owner-intel-wild-notes::after,
+    .manager-command-ai-read::after,
+    .waiver-intel-card-suggested::after {
+      opacity: 0.06;
     }
   }
 }
@@ -6550,16 +6575,30 @@ body,
   min-width: 0;
   align-items: center;
   justify-content: flex-start;
+  overflow: hidden;
 }
 
 .value-board__manager .ranking-owner-chip {
   max-width: 100%;
   justify-content: flex-start;
+  overflow: hidden;
 }
 
 .value-board__manager .manager-chip {
   min-width: 0;
   max-width: 100%;
+  overflow: hidden;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+}
+
+.value-board__manager .interactive-identity-name,
+.value-board__manager .manager-chip:not(:has(.interactive-identity-name)) > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .value-board__manager .manager-chip > span:last-child {
@@ -6599,6 +6638,9 @@ body,
   min-width: 0;
   align-self: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.28rem;
+  overflow: hidden;
 }
 
 .value-board__market-values {

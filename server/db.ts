@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import type { InsertUser, User } from "../drizzle/schema";
-import type { ActionPlanRecord, WaiverBidHistoryRecord } from "../shared/types";
+import type { ActionPlanRecord, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TradeProposalSignal, WaiverBidHistoryRecord } from "../shared/types";
 
 type SqlClient = ReturnType<typeof neon>;
 
@@ -213,6 +213,23 @@ async function ensureSchema(sql: SqlClient) {
       await sql`
         CREATE INDEX IF NOT EXISTS "leagueReportCache_leagueId_updatedAt_idx"
         ON "leagueReportCache" ("leagueId", "updatedAt" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "sleeperHiddenLeagueSnapshots" (
+          id SERIAL PRIMARY KEY,
+          "leagueId" TEXT NOT NULL UNIQUE,
+          "sharedBy" TEXT,
+          "sharedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          payload TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "sleeperHiddenLeagueSnapshots_league_updatedAt_idx"
+        ON "sleeperHiddenLeagueSnapshots" ("leagueId", "updatedAt" DESC)
       `;
 
       await sql`
@@ -1330,4 +1347,97 @@ export async function listWaiverBidHistory(input: {
       `;
 
   return (result as Record<string, any>[]).map(normalizeWaiverBidHistoryRow);
+}
+
+type SleeperHiddenLeagueSnapshotPayload = {
+  tradeProposalSignals: TradeProposalSignal[];
+  waiverSignals: SleeperWaiverClaimSignal[];
+  transactionCount: number;
+  tradeCount: number;
+  waiverCount: number;
+};
+
+type StoredSleeperHiddenLeagueSnapshot = SleeperHiddenLeagueSnapshot & SleeperHiddenLeagueSnapshotPayload;
+
+function normalizeSleeperHiddenLeagueSnapshotRow(row: any): StoredSleeperHiddenLeagueSnapshot | null {
+  try {
+    const payload = row?.payload ? JSON.parse(String(row.payload)) as Partial<SleeperHiddenLeagueSnapshotPayload> : null;
+    if (!payload) return null;
+
+    return {
+      sharedBy: row.sharedBy ?? null,
+      sharedAt: row.sharedAt ? new Date(row.sharedAt).getTime() : Date.now(),
+      transactionCount: Number(payload.transactionCount || 0),
+      tradeCount: Number(payload.tradeCount || 0),
+      waiverCount: Number(payload.waiverCount || 0),
+      tradeProposalSignals: Array.isArray(payload.tradeProposalSignals) ? payload.tradeProposalSignals as TradeProposalSignal[] : [],
+      waiverSignals: Array.isArray(payload.waiverSignals) ? payload.waiverSignals as SleeperWaiverClaimSignal[] : [],
+    };
+  } catch (error) {
+    console.warn("[Database] Failed to parse hidden Sleeper league snapshot:", error);
+    return null;
+  }
+}
+
+export async function upsertSleeperHiddenLeagueSnapshot(input: {
+  leagueId: string;
+  sharedBy?: string | null;
+  sharedAt?: number | Date | null;
+  snapshot: SleeperHiddenLeagueSnapshotPayload;
+}): Promise<boolean> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert hidden Sleeper league snapshot: database not available");
+    return false;
+  }
+
+  const sharedAt = input.sharedAt instanceof Date ? input.sharedAt : new Date(Number(input.sharedAt || Date.now()));
+
+  await sql`
+    INSERT INTO "sleeperHiddenLeagueSnapshots" (
+      "leagueId",
+      "sharedBy",
+      "sharedAt",
+      payload,
+      "createdAt",
+      "updatedAt"
+    )
+    VALUES (
+      ${input.leagueId},
+      ${input.sharedBy ?? null},
+      ${sharedAt},
+      ${JSON.stringify(input.snapshot)},
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT ("leagueId") DO UPDATE SET
+      "sharedBy" = EXCLUDED."sharedBy",
+      "sharedAt" = EXCLUDED."sharedAt",
+      payload = EXCLUDED.payload,
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function findLatestSleeperHiddenLeagueSnapshot(leagueId: string): Promise<StoredSleeperHiddenLeagueSnapshot | null> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot read hidden Sleeper league snapshot: database not available");
+    return null;
+  }
+
+  const result = await sql`
+    SELECT
+      "sharedBy",
+      "sharedAt",
+      payload
+    FROM "sleeperHiddenLeagueSnapshots"
+    WHERE "leagueId" = ${leagueId}
+    ORDER BY "updatedAt" DESC
+    LIMIT 1
+  ` as Array<{ sharedBy?: string | null; sharedAt?: Date | string | null; payload?: string | null }>;
+
+  if (!result.length) return null;
+  return normalizeSleeperHiddenLeagueSnapshotRow(result[0]);
 }
