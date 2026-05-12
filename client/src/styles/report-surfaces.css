@@ -5150,11 +5150,7 @@ body {
 @layer components {
   /* Owner/manager/waiver AI surfaces */
   .owner-intel-ai-card,
-  .owner-intel-read-grid > div,
-  .owner-intel-read-grid > .owner-intel-wild-notes,
   .manager-command-ai-read,
-  .waiver-intel-recommendation-banner,
-  .waiver-intel-panel .waiver-intel-card,
   .waiver-intel-card-suggested {
     --ai-grid-color: rgba(103, 232, 249, 0.07);
     --ai-grid-hot: rgba(125, 211, 252, 0.18);
@@ -5228,8 +5224,6 @@ body {
   }
 
   .owner-intel-ai-card-future,
-  .owner-intel-read-grid > div,
-  .owner-intel-read-grid > .owner-intel-wild-notes,
   .manager-command-ai-read {
     --ai-border-glow: rgba(45, 212, 191, 0.24);
     --ai-glow-primary: rgba(34, 211, 238, 0.042);
@@ -5259,31 +5253,6 @@ body {
     --ai-grid-speed: 40s;
     --ai-line-speed: 25s;
     --ai-scan-speed: 18s;
-  }
-
-  .waiver-intel-panel .waiver-intel-card:not(.waiver-intel-card-suggested) {
-    --ai-border-glow: color-mix(in srgb, var(--team-accent, #22d3ee) 46%, rgba(34, 211, 238, 0.24));
-    --ai-glow-primary: color-mix(in srgb, var(--team-accent, #22d3ee) 34%, rgba(34, 211, 238, 0.034));
-    --ai-glow-secondary: rgba(251, 146, 60, 0.022);
-    --ai-grid-color: color-mix(in srgb, var(--team-accent, #22d3ee) 38%, rgba(103, 232, 249, 0.07));
-    --ai-grid-hot: color-mix(in srgb, var(--team-accent, #22d3ee) 58%, rgba(125, 211, 252, 0.16));
-    --ai-pulse-origin-x: 70%;
-    --ai-pulse-origin-y: 24%;
-    --ai-grid-speed: 43s;
-    --ai-line-speed: 27s;
-    --ai-scan-speed: 19s;
-  }
-
-  .waiver-intel-recommendation-banner {
-    --ai-border-glow: rgba(34, 211, 238, 0.28);
-    --ai-glow-primary: rgba(34, 211, 238, 0.046);
-    --ai-glow-secondary: rgba(251, 146, 60, 0.024);
-    --ai-grid-color: rgba(103, 232, 249, 0.07);
-    --ai-grid-hot: rgba(125, 211, 252, 0.17);
-    --ai-grid-size: 20px;
-    --ai-grid-size-strong: 80px;
-    --ai-pulse-origin-x: 42%;
-    --ai-pulse-origin-y: 18%;
   }
 
   .owner-intel-ai-theme-window {
@@ -5406,23 +5375,15 @@ body {
     --ai-scan-speed: 18s;
   }
 
-  .owner-intel-read-grid > div,
   .owner-intel-ai-card,
-  .owner-intel-read-grid > .owner-intel-wild-notes,
   .manager-command-ai-read,
-  .waiver-intel-recommendation-banner,
-  .waiver-intel-panel .waiver-intel-card,
   .waiver-intel-card-suggested {
     --ai-line-speed: 15s;
     --ai-scan-speed: 10.5s;
   }
 
   .owner-intel-ai-card::before,
-  .owner-intel-read-grid > div::before,
-  .owner-intel-read-grid > .owner-intel-wild-notes::before,
   .manager-command-ai-read::before,
-  .waiver-intel-recommendation-banner::before,
-  .waiver-intel-panel .waiver-intel-card::before,
   .waiver-intel-card-suggested::before {
     content: "";
     position: absolute;
@@ -5451,11 +5412,7 @@ body {
   }
 
   .owner-intel-ai-card::after,
-  .owner-intel-read-grid > div::after,
-  .owner-intel-read-grid > .owner-intel-wild-notes::after,
   .manager-command-ai-read::after,
-  .waiver-intel-recommendation-banner::after,
-  .waiver-intel-panel .waiver-intel-card::after,
   .waiver-intel-card-suggested::after {
     content: "";
     position: absolute;
@@ -5484,11 +5441,7 @@ body {
   }
 
   .owner-intel-ai-card > *,
-  .owner-intel-read-grid > div > *,
-  .owner-intel-read-grid > .owner-intel-wild-notes > *,
   .manager-command-ai-read > *,
-  .waiver-intel-recommendation-banner > *,
-  .waiver-intel-panel .waiver-intel-card > *,
   .waiver-intel-card-suggested > * {
     position: relative;
     z-index: 1;
@@ -5507,46 +5460,26 @@ body {
 
   @media (prefers-reduced-motion: reduce) {
     .owner-intel-ai-card,
-    .owner-intel-read-grid > div,
-    .owner-intel-read-grid > .owner-intel-wild-notes,
     .manager-command-ai-read,
-    .waiver-intel-recommendation-banner,
-    .waiver-intel-panel .waiver-intel-card,
     .waiver-intel-card-suggested,
     .owner-intel-ai-card::before,
-    .owner-intel-read-grid > div::before,
-    .owner-intel-read-grid > .owner-intel-wild-notes::before,
     .manager-command-ai-read::before,
-    .waiver-intel-recommendation-banner::before,
-    .waiver-intel-panel .waiver-intel-card::before,
     .waiver-intel-card-suggested::before,
     .owner-intel-ai-card::after,
-    .owner-intel-read-grid > div::after,
-    .owner-intel-read-grid > .owner-intel-wild-notes::after,
     .manager-command-ai-read::after,
-    .waiver-intel-recommendation-banner::after,
-    .waiver-intel-panel .waiver-intel-card::after,
     .waiver-intel-card-suggested::after {
       animation: none !important;
       transform: none !important;
     }
 
     .owner-intel-ai-card::before,
-    .owner-intel-read-grid > div::before,
-    .owner-intel-read-grid > .owner-intel-wild-notes::before,
     .manager-command-ai-read::before,
-    .waiver-intel-recommendation-banner::before,
-    .waiver-intel-panel .waiver-intel-card::before,
     .waiver-intel-card-suggested::before {
       opacity: 0.58;
     }
 
     .owner-intel-ai-card::after,
-    .owner-intel-read-grid > div::after,
-    .owner-intel-read-grid > .owner-intel-wild-notes::after,
     .manager-command-ai-read::after,
-    .waiver-intel-recommendation-banner::after,
-    .waiver-intel-panel .waiver-intel-card::after,
     .waiver-intel-card-suggested::after {
       opacity: 0.48;
     }

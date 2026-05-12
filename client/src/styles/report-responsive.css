@@ -8550,17 +8550,18 @@
 .ai-read-panel,
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell),
 .owner-intel-ai-card,
-.owner-intel-read-grid > div,
-.owner-intel-read-grid > .owner-intel-wild-notes,
 .manager-command-ai-read,
-.waiver-intel-recommendation-banner,
-.waiver-intel-panel .waiver-intel-card,
 .waiver-intel-card-suggested {
   --ai-circuit-size: var(--ai-grid-size, var(--ai-neural-grid-size, 22px));
   --ai-circuit-accent: var(--ai-read-accent, var(--ai-neural-accent, var(--ai-border-glow, #67e8f9)));
-  --ai-circuit-line: color-mix(in srgb, var(--ai-grid-color) 46%, transparent);
-  --ai-circuit-line-hot: color-mix(in srgb, var(--ai-circuit-accent) 72%, rgba(255, 255, 255, 0.22));
-  --ai-circuit-node: color-mix(in srgb, var(--ai-circuit-accent) 86%, rgba(255, 255, 255, 0.42));
+  --ai-circuit-line: color-mix(in srgb, var(--ai-grid-color) 42%, transparent);
+  --ai-circuit-line-hot: color-mix(in srgb, var(--ai-circuit-accent) 66%, rgba(255, 255, 255, 0.14));
+  --ai-circuit-node: color-mix(in srgb, var(--ai-circuit-accent) 76%, rgba(255, 255, 255, 0.24));
+  --ai-packet-delay: calc(var(--ai-line-speed) * -0.18);
+  --ai-flicker-delay: -2.7s;
+  background:
+    radial-gradient(circle at 52% 42%, color-mix(in srgb, var(--ai-circuit-accent) 4%, transparent), transparent 36%),
+    linear-gradient(135deg, rgba(1, 5, 16, 0.99), rgba(2, 8, 22, 0.97) 54%, rgba(0, 2, 8, 0.995)) !important;
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--ai-border-glow) 38%, rgba(255, 255, 255, 0.04)),
     inset 0 1px 0 rgba(255, 255, 255, 0.045),
@@ -8568,57 +8569,76 @@
     0 0 18px color-mix(in srgb, var(--ai-border-glow) 28%, transparent) !important;
 }
 
+.waiver-intel-grid .ai-neural-surface:nth-child(3n + 1),
+.owner-intel-read-grid .ai-neural-surface:nth-child(3n + 1),
+.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell):nth-child(3n + 1) {
+  --ai-line-speed: 15.8s;
+  --ai-scan-speed: 11.2s;
+  --ai-packet-delay: -1.9s;
+  --ai-flicker-delay: -4.6s;
+}
+
+.waiver-intel-grid .ai-neural-surface:nth-child(3n + 2),
+.owner-intel-read-grid .ai-neural-surface:nth-child(3n + 2),
+.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell):nth-child(3n + 2) {
+  --ai-line-speed: 18.6s;
+  --ai-scan-speed: 12.8s;
+  --ai-packet-delay: -6.4s;
+  --ai-flicker-delay: -1.2s;
+}
+
+.waiver-intel-grid .ai-neural-surface:nth-child(3n + 3),
+.owner-intel-read-grid .ai-neural-surface:nth-child(3n + 3),
+.report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell):nth-child(3n + 3) {
+  --ai-line-speed: 21.4s;
+  --ai-scan-speed: 14.6s;
+  --ai-packet-delay: -9.7s;
+  --ai-flicker-delay: -7.8s;
+}
+
 .ai-neural-surface::before,
 .ai-read-panel::before,
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::before,
 .owner-intel-ai-card::before,
-.owner-intel-read-grid > div::before,
-.owner-intel-read-grid > .owner-intel-wild-notes::before,
 .manager-command-ai-read::before,
-.waiver-intel-recommendation-banner::before,
-.waiver-intel-panel .waiver-intel-card::before,
 .waiver-intel-card-suggested::before {
   width: 100%;
   height: 100%;
   background:
-    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--ai-glow-primary) 14%, transparent), rgba(2, 6, 23, 0.018) 38%, transparent 66%) 0 0 / 100% 100% no-repeat,
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--ai-circuit-node) 36%, transparent) 0 0.62px, transparent 1.12px) 0 0 / var(--ai-circuit-size) var(--ai-circuit-size) repeat,
+    linear-gradient(90deg, transparent 0 10%, color-mix(in srgb, var(--ai-circuit-line-hot) 38%, transparent) 10.4% 19%, transparent 19.4% 100%) 0 calc(var(--ai-circuit-size) * 2) / 340px 1px repeat-x,
+    linear-gradient(90deg, transparent 0 68%, color-mix(in srgb, var(--ai-circuit-line-hot) 30%, transparent) 68.4% 77%, transparent 77.4% 100%) 74px calc(var(--ai-circuit-size) * 5) / 460px 1px repeat-x,
+    linear-gradient(180deg, transparent 0 18%, color-mix(in srgb, var(--ai-circuit-line-hot) 30%, transparent) 18.4% 28%, transparent 28.4% 100%) calc(var(--ai-circuit-size) * 4) 0 / 1px 420px repeat-y,
+    linear-gradient(180deg, transparent 0 62%, color-mix(in srgb, var(--ai-circuit-line-hot) 24%, transparent) 62.4% 72%, transparent 72.4% 100%) calc(var(--ai-circuit-size) * 11) 40px / 1px 540px repeat-y,
     linear-gradient(180deg, var(--ai-circuit-line) 0 1px, transparent 1px var(--ai-circuit-size)) 0 0 / 100% var(--ai-circuit-size) repeat,
-    linear-gradient(90deg, var(--ai-circuit-line) 0 1px, transparent 1px var(--ai-circuit-size)) 0 0 / var(--ai-circuit-size) 100% repeat,
-    linear-gradient(90deg, transparent 0 14%, color-mix(in srgb, var(--ai-circuit-line-hot) 56%, transparent) 14.4% 24%, transparent 24.4% 100%) 0 11px / 264px 1px repeat-x,
-    linear-gradient(180deg, transparent 0 18%, color-mix(in srgb, var(--ai-circuit-line-hot) 48%, transparent) 18.2% 30%, transparent 30.4% 100%) 18px 0 / 1px 286px repeat-y,
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-grid-hot) 38%, rgba(255, 255, 255, 0.18)) 0 0.78px, transparent 1.28px) 0 0 / var(--ai-circuit-size) var(--ai-circuit-size) repeat,
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-circuit-node) 42%, transparent) 0 0.72px, transparent 1.16px) 8px 8px / calc(var(--ai-circuit-size) * 2.6) calc(var(--ai-circuit-size) * 2.6) repeat,
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-secondary) 78%, #fbbf24) 0 0.76px, transparent 1.18px) 0 0 / calc(var(--ai-circuit-size) * 4.6) calc(var(--ai-circuit-size) * 4.6) repeat;
-  opacity: 0.58;
+    linear-gradient(90deg, var(--ai-circuit-line) 0 1px, transparent 1px var(--ai-circuit-size)) 0 0 / var(--ai-circuit-size) 100% repeat;
+  opacity: 0.52;
+  animation: ai-line-energize calc(var(--ai-scan-speed) * 1.65) ease-in-out infinite;
 }
 
 .ai-neural-surface::after,
 .ai-read-panel::after,
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::after,
 .owner-intel-ai-card::after,
-.owner-intel-read-grid > div::after,
-.owner-intel-read-grid > .owner-intel-wild-notes::after,
 .manager-command-ai-read::after,
-.waiver-intel-recommendation-banner::after,
-.waiver-intel-panel .waiver-intel-card::after,
 .waiver-intel-card-suggested::after {
+  inset: -1px;
   background:
-    linear-gradient(90deg, transparent 0 9%, color-mix(in srgb, var(--ai-circuit-accent) 36%, transparent) 9.4% 15%, rgba(255, 255, 255, 0.88) 15.4% 16%, color-mix(in srgb, var(--ai-circuit-accent) 94%, rgba(255, 255, 255, 0.36)) 16.2% 18.4%, transparent 20.4% 100%) 0 calc(var(--ai-circuit-size) * 1) / 620px 1px repeat-x,
-    linear-gradient(90deg, transparent 0 42%, color-mix(in srgb, var(--ai-circuit-accent) 26%, transparent) 42.4% 48%, rgba(255, 255, 255, 0.78) 48.4% 49%, color-mix(in srgb, var(--ai-circuit-accent) 88%, transparent) 49.2% 51.2%, transparent 53% 100%) 86px calc(var(--ai-circuit-size) * 3) / 760px 1px repeat-x,
-    linear-gradient(90deg, transparent 0 58%, color-mix(in srgb, var(--ai-glow-secondary) 54%, transparent) 58.3% 63%, color-mix(in srgb, var(--ai-glow-secondary) 95%, #fbbf24) 63.4% 64.2%, transparent 66% 100%) 144px calc(var(--ai-circuit-size) * 5) / 680px 1px repeat-x,
-    linear-gradient(180deg, transparent 0 11%, color-mix(in srgb, var(--ai-circuit-accent) 34%, transparent) 11.3% 17%, rgba(255, 255, 255, 0.82) 17.4% 18%, color-mix(in srgb, var(--ai-circuit-accent) 92%, rgba(255, 255, 255, 0.32)) 18.2% 20.4%, transparent 22.4% 100%) calc(var(--ai-circuit-size) * 4) 0 / 1px 560px repeat-y,
-    linear-gradient(180deg, transparent 0 36%, color-mix(in srgb, var(--ai-circuit-accent) 28%, transparent) 36.4% 43%, rgba(255, 255, 255, 0.76) 43.3% 44%, color-mix(in srgb, var(--ai-circuit-accent) 84%, transparent) 44.2% 46.2%, transparent 48% 100%) calc(var(--ai-circuit-size) * 10) 42px / 1px 640px repeat-y,
-    linear-gradient(180deg, transparent 0 61%, color-mix(in srgb, var(--ai-glow-secondary) 42%, transparent) 61.4% 67%, color-mix(in srgb, var(--ai-glow-secondary) 94%, #fbbf24) 67.2% 68%, transparent 70% 100%) calc(var(--ai-circuit-size) * 15) 0 / 1px 700px repeat-y,
-    radial-gradient(circle at 9% 2%, color-mix(in srgb, var(--ai-circuit-accent) 98%, white) 0 1.42px, color-mix(in srgb, var(--ai-circuit-accent) 38%, transparent) 2.4px, transparent 6px) 0 0 / 100% 100% no-repeat,
-    radial-gradient(circle at 58% 28%, color-mix(in srgb, var(--ai-circuit-node) 96%, rgba(255, 255, 255, 0.42)) 0 1.15px, color-mix(in srgb, var(--ai-circuit-accent) 32%, transparent) 2.1px, transparent 5px) 0 0 / 100% 100% no-repeat,
-    radial-gradient(circle at 78% 64%, color-mix(in srgb, var(--ai-glow-secondary) 96%, #fbbf24) 0 1.12px, color-mix(in srgb, var(--ai-glow-secondary) 36%, transparent) 2.1px, transparent 4.8px) 0 0 / 100% 100% no-repeat;
-  opacity: 0.5;
+    linear-gradient(90deg, transparent 0 8%, color-mix(in srgb, var(--ai-circuit-accent) 32%, transparent) 8.2% 11%, rgba(255, 255, 255, 0.9) 11.2% 11.7%, color-mix(in srgb, var(--ai-circuit-accent) 98%, rgba(255, 255, 255, 0.4)) 12% 15.5%, color-mix(in srgb, var(--ai-circuit-accent) 38%, transparent) 15.8% 19.5%, transparent 21% 100%) 0 calc(var(--ai-circuit-size) * 1) / 620px 2px repeat-x,
+    linear-gradient(90deg, transparent 0 37%, color-mix(in srgb, var(--ai-circuit-accent) 24%, transparent) 37.4% 41%, rgba(255, 255, 255, 0.82) 41.2% 41.8%, color-mix(in srgb, var(--ai-circuit-accent) 92%, transparent) 42% 45.8%, color-mix(in srgb, var(--ai-circuit-accent) 28%, transparent) 46% 50%, transparent 52% 100%) 80px calc(var(--ai-circuit-size) * 3) / 760px 2px repeat-x,
+    linear-gradient(90deg, transparent 0 58%, color-mix(in srgb, var(--ai-glow-secondary) 42%, transparent) 58.4% 62%, color-mix(in srgb, var(--ai-glow-secondary) 98%, #fbbf24) 62.2% 63%, color-mix(in srgb, var(--ai-glow-secondary) 30%, transparent) 63.4% 67%, transparent 69% 100%) 132px calc(var(--ai-circuit-size) * 5) / 820px 2px repeat-x,
+    linear-gradient(180deg, transparent 0 11%, color-mix(in srgb, var(--ai-circuit-accent) 30%, transparent) 11.2% 15%, rgba(255, 255, 255, 0.86) 15.2% 15.8%, color-mix(in srgb, var(--ai-circuit-accent) 96%, rgba(255, 255, 255, 0.34)) 16% 19.5%, color-mix(in srgb, var(--ai-circuit-accent) 30%, transparent) 19.8% 23%, transparent 25% 100%) calc(var(--ai-circuit-size) * 4) 0 / 2px 560px repeat-y,
+    linear-gradient(180deg, transparent 0 36%, color-mix(in srgb, var(--ai-circuit-accent) 24%, transparent) 36.3% 40%, rgba(255, 255, 255, 0.78) 40.2% 40.8%, color-mix(in srgb, var(--ai-circuit-accent) 88%, transparent) 41% 44.4%, color-mix(in srgb, var(--ai-circuit-accent) 28%, transparent) 44.8% 48%, transparent 50% 100%) calc(var(--ai-circuit-size) * 10) 40px / 2px 640px repeat-y,
+    linear-gradient(180deg, transparent 0 61%, color-mix(in srgb, var(--ai-glow-secondary) 30%, transparent) 61.4% 65%, color-mix(in srgb, var(--ai-glow-secondary) 96%, #fbbf24) 65.3% 66%, color-mix(in srgb, var(--ai-glow-secondary) 26%, transparent) 66.4% 70%, transparent 72% 100%) calc(var(--ai-circuit-size) * 15) 0 / 2px 760px repeat-y;
+  opacity: 0.58;
+  will-change: background-position, opacity;
+  transform: translate3d(0, 0, 0);
   animation:
-    ai-data-packets-sparse calc(var(--ai-line-speed) * 1.45) linear infinite,
-    ai-packet-field-breathe calc(var(--ai-scan-speed) * 1.35) ease-in-out infinite;
+    ai-data-packet-horizontal calc(var(--ai-line-speed) * 1.35) linear infinite,
+    ai-node-flicker calc(var(--ai-scan-speed) * 1.2) ease-in-out infinite;
   animation-delay:
-    calc(var(--ai-line-speed) * -0.18),
-    -2.7s;
+    var(--ai-packet-delay),
+    var(--ai-flicker-delay);
 }
 
 .admin-premium-solar-flare {
@@ -8629,67 +8649,6 @@
   box-shadow:
     0 0 0 1px rgba(251, 146, 60, 0.08),
     0 0 13px rgba(249, 115, 22, 0.16);
-}
-
-@keyframes ai-data-packets-sparse {
-  0%,
-  100% {
-    background-position:
-      0 calc(var(--ai-circuit-size) * 1),
-      86px calc(var(--ai-circuit-size) * 3),
-      144px calc(var(--ai-circuit-size) * 5),
-      calc(var(--ai-circuit-size) * 4) 0,
-      calc(var(--ai-circuit-size) * 10) 42px,
-      calc(var(--ai-circuit-size) * 15) 0,
-      0 0,
-      0 0,
-      0 0;
-  }
-
-  38% {
-    background-position:
-      72px calc(var(--ai-circuit-size) * 1),
-      128px calc(var(--ai-circuit-size) * 3),
-      104px calc(var(--ai-circuit-size) * 5),
-      calc(var(--ai-circuit-size) * 4) 68px,
-      calc(var(--ai-circuit-size) * 10) 114px,
-      calc(var(--ai-circuit-size) * 15) 48px,
-      0 0,
-      0 0,
-      0 0;
-  }
-
-  72% {
-    background-position:
-      118px calc(var(--ai-circuit-size) * 1),
-      196px calc(var(--ai-circuit-size) * 3),
-      178px calc(var(--ai-circuit-size) * 5),
-      calc(var(--ai-circuit-size) * 4) 108px,
-      calc(var(--ai-circuit-size) * 10) 154px,
-      calc(var(--ai-circuit-size) * 15) 92px,
-      0 0,
-      0 0,
-      0 0;
-  }
-}
-
-@keyframes ai-packet-field-breathe {
-  0%,
-  100% {
-    opacity: 0.38;
-  }
-
-  18% {
-    opacity: 0.54;
-  }
-
-  44% {
-    opacity: 0.66;
-  }
-
-  70% {
-    opacity: 0.46;
-  }
 }
 
 @keyframes ai-grid-drift {
@@ -8761,54 +8720,90 @@
   }
 }
 
+@keyframes ai-line-energize {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+
+  42% {
+    opacity: 0.52;
+  }
+
+  72% {
+    opacity: 0.46;
+  }
+}
+
 @keyframes ai-data-packet-horizontal {
   0%,
   100% {
     background-position:
-      0 10px,
-      32px 0,
-      8px 0,
-      0 28px,
-      0 0,
-      0 0,
-      64px 4px;
+      0 calc(var(--ai-circuit-size) * 1),
+      80px calc(var(--ai-circuit-size) * 3),
+      132px calc(var(--ai-circuit-size) * 5),
+      calc(var(--ai-circuit-size) * 4) 0,
+      calc(var(--ai-circuit-size) * 10) 40px,
+      calc(var(--ai-circuit-size) * 15) 0;
   }
 
-  44% {
+  18% {
     background-position:
-      28px 10px,
-      12px 0,
-      8px 36px,
-      0 8px,
-      24px 18px,
-      18px 28px,
-      92px 4px;
+      24px calc(var(--ai-circuit-size) * 1),
+      92px calc(var(--ai-circuit-size) * 3),
+      118px calc(var(--ai-circuit-size) * 5),
+      calc(var(--ai-circuit-size) * 4) 28px,
+      calc(var(--ai-circuit-size) * 10) 58px,
+      calc(var(--ai-circuit-size) * 15) 20px;
   }
 
-  76% {
+  37% {
     background-position:
-      64px 10px,
-      48px 0,
-      8px 82px,
-      0 56px,
-      56px 28px,
-      36px 52px,
-      136px 4px;
+      42px calc(var(--ai-circuit-size) * 1),
+      106px calc(var(--ai-circuit-size) * 3),
+      98px calc(var(--ai-circuit-size) * 5),
+      calc(var(--ai-circuit-size) * 4) 46px,
+      calc(var(--ai-circuit-size) * 10) 78px,
+      calc(var(--ai-circuit-size) * 15) 34px;
+  }
+
+  64% {
+    background-position:
+      96px calc(var(--ai-circuit-size) * 1),
+      154px calc(var(--ai-circuit-size) * 3),
+      38px calc(var(--ai-circuit-size) * 5),
+      calc(var(--ai-circuit-size) * 4) 112px,
+      calc(var(--ai-circuit-size) * 10) 142px,
+      calc(var(--ai-circuit-size) * 15) 88px;
+  }
+
+  82% {
+    background-position:
+      120px calc(var(--ai-circuit-size) * 1),
+      180px calc(var(--ai-circuit-size) * 3),
+      20px calc(var(--ai-circuit-size) * 5),
+      calc(var(--ai-circuit-size) * 4) 126px,
+      calc(var(--ai-circuit-size) * 10) 166px,
+      calc(var(--ai-circuit-size) * 15) 104px;
   }
 }
 
 @keyframes ai-node-flicker {
   0%,
   100% {
-    opacity: 0.42;
+    opacity: 0.36;
   }
 
-  36% {
-    opacity: 0.68;
-  }
-
-  68% {
+  30% {
     opacity: 0.5;
+  }
+
+  56% {
+    opacity: 0.56;
+  }
+
+  82% {
+    opacity: 0.42;
   }
 }
 
