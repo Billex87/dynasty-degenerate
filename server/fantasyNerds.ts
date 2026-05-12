@@ -43,17 +43,26 @@ function isFresh(cache: { loadedAt: number } | null | undefined): boolean {
   return Boolean(cache && Date.now() - cache.loadedAt < CACHE_TTL_MS);
 }
 
+function shouldUseFantasyNerdsTestData(): boolean {
+  if (process.env.ENABLE_FANTASY_NERDS_TEST_DATA === 'true') return true;
+  return process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
+}
+
 function getFantasyNerdsApiKey(): string | null {
-  return process.env.FANTASY_NERDS_API_KEY || process.env.FANTASYNERDS_API_KEY || null;
+  return process.env.FANTASY_NERDS_API_KEY || process.env.FANTASYNERDS_API_KEY || (shouldUseFantasyNerdsTestData() ? 'TEST' : null);
 }
 
 export function hasFantasyNerdsApiKey(): boolean {
   const key = getFantasyNerdsApiKey();
   if (!key) return false;
-  if (/^TEST$/i.test(key) && process.env.ENABLE_FANTASY_NERDS_TEST_DATA !== 'true' && process.env.NODE_ENV !== 'test') {
+  if (/^TEST$/i.test(key) && !shouldUseFantasyNerdsTestData()) {
     return false;
   }
   return true;
+}
+
+export function isFantasyNerdsTestDataActive(): boolean {
+  return /^TEST$/i.test(getFantasyNerdsApiKey() || '') && shouldUseFantasyNerdsTestData();
 }
 
 function toNumber(value: unknown): number | null {
@@ -208,8 +217,22 @@ export async function fetchFantasyNerdsDraftRankings(
       fantasyNerdsFetch('draft-rankings', { format: scoring }),
       fantasyNerdsFetch('adp', { teams, format: scoring }),
     ]);
-    const rankings = normalizeFantasyNerdsRankingsPayload(rankingsPayload, { kind: 'redraft', teams });
-    const adpRows = normalizeFantasyNerdsRankingsPayload(adpPayload, { kind: 'redraft', teams });
+    const useTestData = isFantasyNerdsTestDataActive();
+    const season = String(new Date().getFullYear());
+    const applySeasonOverride = (values: Record<string, FantasyNerdsRanking>): Record<string, FantasyNerdsRanking> => {
+      if (!useTestData) return values;
+      return Object.fromEntries(
+        Object.entries(values).map(([key, value]) => [
+          key,
+          {
+            ...value,
+            season,
+          },
+        ]),
+      );
+    };
+    const rankings = applySeasonOverride(normalizeFantasyNerdsRankingsPayload(rankingsPayload, { kind: 'redraft', teams }));
+    const adpRows = applySeasonOverride(normalizeFantasyNerdsRankingsPayload(adpPayload, { kind: 'redraft', teams }));
     const values: Record<string, FantasyNerdsRanking> = { ...rankings };
 
     for (const [key, adpRow] of Object.entries(adpRows)) {
@@ -239,7 +262,7 @@ export async function fetchFantasyNerdsDynastyRankings(
     const values = normalizeFantasyNerdsRankingsPayload(payload, {
       kind: 'dynasty',
       expectedSeason,
-      rejectStaleDynastySeason: true,
+      rejectStaleDynastySeason: !isFantasyNerdsTestDataActive(),
     });
     cachedDynastyRankings = { loadedAt: Date.now(), values };
     return values;

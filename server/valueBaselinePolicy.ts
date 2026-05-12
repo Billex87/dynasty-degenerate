@@ -49,7 +49,7 @@ export function getWeeklyMomentumPctChange(currentValue: number, baselineValue: 
   if (baselineValue < WEEKLY_MOMENTUM_MIN_BASELINE_VALUE) return null;
 
   const diff = currentValue - baselineValue;
-  if (Math.abs(diff) < WEEKLY_MOMENTUM_MIN_ABSOLUTE_CHANGE) return null;
+  if (diff === 0) return 0;
 
   return (diff / baselineValue) * 100;
 }

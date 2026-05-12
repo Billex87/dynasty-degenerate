@@ -3862,184 +3862,184 @@
 /* Neural surface system */
 .report-shell .ai-neural-surface,
 .ai-neural-surface {
-  --ai-neural-accent: #22d3ee;
-  --ai-neural-core: rgba(103, 232, 249, 0.88);
-  --ai-neural-soft: rgba(103, 232, 249, 0.36);
-  --ai-neural-muted: rgba(45, 212, 191, 0.22);
-  --ai-neural-border: rgba(34, 211, 238, 0.32);
-  --ai-neural-grid: rgba(45, 212, 191, 0.052);
-  --ai-neural-grid-strong: rgba(103, 232, 249, 0.105);
-  --ai-neural-glow: rgba(34, 211, 238, 0.075);
-  --ai-neural-halo: rgba(34, 211, 238, 0.055);
+  --ai-neural-accent: #67e8f9;
+  --ai-neural-core: rgba(125, 211, 252, 0.62);
+  --ai-neural-soft: rgba(125, 211, 252, 0.18);
+  --ai-neural-muted: rgba(45, 212, 191, 0.1);
+  --ai-neural-border: rgba(34, 211, 238, 0.22);
+  --ai-neural-grid: rgba(103, 232, 249, 0.032);
+  --ai-neural-grid-strong: rgba(125, 211, 252, 0.068);
+  --ai-neural-glow: rgba(34, 211, 238, 0.034);
+  --ai-neural-halo: rgba(34, 211, 238, 0.042);
   --ai-neural-pulse-soft: var(--ai-neural-soft);
   --ai-neural-pulse-muted: var(--ai-neural-muted);
-  --ai-neural-grid-size: 18px;
-  --ai-neural-grid-size-strong: 72px;
-  --ai-neural-speed: 18.5s;
+  --ai-neural-grid-size: 22px;
+  --ai-neural-grid-size-strong: 88px;
+  --ai-neural-speed: 38s;
   --ai-neural-delay: -1.2s;
   --ai-neural-depth-speed: 31s;
   --ai-grid-color: var(--ai-neural-grid);
   --ai-grid-hot: var(--ai-neural-grid-strong);
-  --ai-grid-muted: rgba(1, 5, 14, 0.96);
+  --ai-grid-muted: rgba(1, 5, 14, 0.98);
   --ai-glow-primary: var(--ai-neural-glow);
-  --ai-glow-secondary: rgba(251, 146, 60, 0.028);
+  --ai-glow-secondary: var(--ai-neural-muted);
   --ai-border-glow: var(--ai-neural-border);
-  --ai-border-glass: rgba(255, 255, 255, 0.03);
+  --ai-border-glass: rgba(255, 255, 255, 0.028);
   --ai-pulse-origin-x: 18%;
   --ai-pulse-origin-y: 28%;
-  --ai-grid-speed: 33s;
-  --ai-line-speed: 22s;
+  --ai-grid-speed: 42s;
+  --ai-line-speed: 26s;
   --ai-scan-speed: 18s;
   --ai-ripple-speed: var(--ai-neural-speed);
-  --ai-border-speed: 13s;
+  --ai-border-speed: 15s;
   position: relative;
   isolation: isolate;
   overflow: hidden;
   border-color: var(--ai-border-glow) !important;
   background:
-    radial-gradient(circle at 10% 0%, var(--ai-glow-primary), transparent 34%),
-    radial-gradient(circle at 92% 6%, var(--ai-glow-secondary), transparent 32%),
-    linear-gradient(135deg, rgba(1, 5, 14, 0.99), rgba(2, 12, 24, 0.96) 52%, rgba(1, 5, 14, 0.98)) !important;
+    radial-gradient(circle at 50% 16%, rgba(10, 18, 33, 0.54), transparent 36%),
+    radial-gradient(circle at 50% 52%, rgba(2, 6, 23, 0.9), rgba(1, 5, 14, 0.98) 66%, rgba(1, 4, 10, 0.995) 100%),
+    linear-gradient(135deg, rgba(1, 5, 14, 0.98), rgba(2, 8, 20, 0.96) 54%, rgba(1, 4, 10, 0.995)) !important;
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.026),
-    0 0 22px var(--ai-neural-halo),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
-    inset 0 0 34px rgba(2, 6, 23, 0.42) !important;
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 0 16px var(--ai-neural-halo),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.028),
+    inset 0 0 30px rgba(2, 6, 23, 0.5) !important;
 }
 
 .ai-neural-surface-trade {
   --ai-neural-accent: #34d399;
-  --ai-neural-core: rgba(134, 239, 172, 0.84);
-  --ai-neural-soft: rgba(134, 239, 172, 0.34);
-  --ai-neural-muted: rgba(52, 211, 153, 0.24);
-  --ai-neural-border: rgba(52, 211, 153, 0.34);
-  --ai-neural-grid: rgba(52, 211, 153, 0.052);
-  --ai-neural-grid-strong: rgba(134, 239, 172, 0.105);
-  --ai-neural-glow: rgba(16, 185, 129, 0.082);
-  --ai-neural-halo: rgba(52, 211, 153, 0.058);
+  --ai-neural-core: rgba(134, 239, 172, 0.6);
+  --ai-neural-soft: rgba(134, 239, 172, 0.18);
+  --ai-neural-muted: rgba(52, 211, 153, 0.1);
+  --ai-neural-border: rgba(52, 211, 153, 0.24);
+  --ai-neural-grid: rgba(52, 211, 153, 0.032);
+  --ai-neural-grid-strong: rgba(134, 239, 172, 0.068);
+  --ai-neural-glow: rgba(16, 185, 129, 0.034);
+  --ai-neural-halo: rgba(52, 211, 153, 0.042);
   --ai-neural-delay: -2.8s;
   --ai-pulse-origin-x: 20%;
   --ai-pulse-origin-y: 28%;
-  --ai-grid-speed: 29s;
-  --ai-line-speed: 18s;
-  --ai-scan-speed: 15s;
+  --ai-grid-speed: 39s;
+  --ai-line-speed: 24s;
+  --ai-scan-speed: 17s;
 }
 
 .ai-neural-surface-window {
   --ai-neural-accent: #2dd4bf;
-  --ai-neural-core: rgba(94, 234, 212, 0.82);
-  --ai-neural-soft: rgba(94, 234, 212, 0.34);
-  --ai-neural-muted: rgba(45, 212, 191, 0.24);
-  --ai-neural-border: rgba(45, 212, 191, 0.32);
-  --ai-neural-grid: rgba(45, 212, 191, 0.052);
-  --ai-neural-grid-strong: rgba(94, 234, 212, 0.102);
-  --ai-neural-glow: rgba(20, 184, 166, 0.078);
-  --ai-neural-halo: rgba(45, 212, 191, 0.052);
+  --ai-neural-core: rgba(94, 234, 212, 0.58);
+  --ai-neural-soft: rgba(94, 234, 212, 0.18);
+  --ai-neural-muted: rgba(45, 212, 191, 0.1);
+  --ai-neural-border: rgba(45, 212, 191, 0.24);
+  --ai-neural-grid: rgba(45, 212, 191, 0.03);
+  --ai-neural-grid-strong: rgba(94, 234, 212, 0.066);
+  --ai-neural-glow: rgba(20, 184, 166, 0.032);
+  --ai-neural-halo: rgba(45, 212, 191, 0.04);
   --ai-neural-delay: -6.1s;
-  --ai-neural-speed: 21s;
+  --ai-neural-speed: 40s;
   --ai-pulse-origin-x: 74%;
   --ai-pulse-origin-y: 20%;
-  --ai-grid-speed: 31s;
-  --ai-line-speed: 20s;
-  --ai-scan-speed: 16s;
+  --ai-grid-speed: 40s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-neural-surface-draft {
   --ai-neural-accent: #facc15;
-  --ai-neural-core: rgba(253, 224, 71, 0.78);
-  --ai-neural-soft: rgba(253, 224, 71, 0.3);
-  --ai-neural-muted: rgba(250, 204, 21, 0.2);
-  --ai-neural-border: rgba(250, 204, 21, 0.32);
-  --ai-neural-grid: rgba(250, 204, 21, 0.048);
-  --ai-neural-grid-strong: rgba(253, 224, 71, 0.095);
-  --ai-neural-glow: rgba(250, 204, 21, 0.06);
-  --ai-neural-halo: rgba(250, 204, 21, 0.046);
+  --ai-neural-core: rgba(253, 224, 71, 0.56);
+  --ai-neural-soft: rgba(253, 224, 71, 0.16);
+  --ai-neural-muted: rgba(250, 204, 21, 0.1);
+  --ai-neural-border: rgba(250, 204, 21, 0.24);
+  --ai-neural-grid: rgba(250, 204, 21, 0.028);
+  --ai-neural-grid-strong: rgba(253, 224, 71, 0.062);
+  --ai-neural-glow: rgba(250, 204, 21, 0.03);
+  --ai-neural-halo: rgba(250, 204, 21, 0.038);
   --ai-neural-delay: -9.4s;
   --ai-pulse-origin-x: 24%;
   --ai-pulse-origin-y: 18%;
-  --ai-grid-speed: 28s;
-  --ai-line-speed: 17s;
-  --ai-scan-speed: 15s;
+  --ai-grid-speed: 41s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-neural-surface-churn,
 .ai-neural-surface-sell {
   --ai-neural-accent: #fb923c;
-  --ai-neural-core: rgba(253, 186, 116, 0.8);
-  --ai-neural-soft: rgba(253, 186, 116, 0.31);
-  --ai-neural-muted: rgba(251, 146, 60, 0.21);
-  --ai-neural-border: rgba(251, 146, 60, 0.32);
-  --ai-neural-grid: rgba(251, 146, 60, 0.052);
-  --ai-neural-grid-strong: rgba(253, 186, 116, 0.1);
-  --ai-neural-glow: rgba(249, 115, 22, 0.066);
-  --ai-neural-halo: rgba(251, 146, 60, 0.048);
+  --ai-neural-core: rgba(253, 186, 116, 0.58);
+  --ai-neural-soft: rgba(253, 186, 116, 0.16);
+  --ai-neural-muted: rgba(251, 146, 60, 0.1);
+  --ai-neural-border: rgba(251, 146, 60, 0.24);
+  --ai-neural-grid: rgba(251, 146, 60, 0.03);
+  --ai-neural-grid-strong: rgba(253, 186, 116, 0.064);
+  --ai-neural-glow: rgba(249, 115, 22, 0.03);
+  --ai-neural-halo: rgba(251, 146, 60, 0.038);
   --ai-neural-delay: -8.3s;
   --ai-pulse-origin-x: 78%;
   --ai-pulse-origin-y: 60%;
-  --ai-grid-speed: 27s;
-  --ai-line-speed: 18s;
-  --ai-scan-speed: 15s;
+  --ai-grid-speed: 40s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-neural-surface-risk {
   --ai-neural-accent: #fb7185;
-  --ai-neural-core: rgba(253, 164, 175, 0.78);
-  --ai-neural-soft: rgba(253, 164, 175, 0.31);
-  --ai-neural-muted: rgba(251, 113, 133, 0.2);
-  --ai-neural-border: rgba(251, 113, 133, 0.32);
-  --ai-neural-grid: rgba(251, 113, 133, 0.048);
-  --ai-neural-grid-strong: rgba(253, 164, 175, 0.095);
-  --ai-neural-glow: rgba(244, 63, 94, 0.06);
-  --ai-neural-halo: rgba(251, 113, 133, 0.044);
+  --ai-neural-core: rgba(253, 164, 175, 0.56);
+  --ai-neural-soft: rgba(253, 164, 175, 0.16);
+  --ai-neural-muted: rgba(251, 113, 133, 0.1);
+  --ai-neural-border: rgba(251, 113, 133, 0.24);
+  --ai-neural-grid: rgba(251, 113, 133, 0.028);
+  --ai-neural-grid-strong: rgba(253, 164, 175, 0.062);
+  --ai-neural-glow: rgba(244, 63, 94, 0.03);
+  --ai-neural-halo: rgba(251, 113, 133, 0.038);
   --ai-neural-delay: -4.7s;
   --ai-pulse-origin-x: 80%;
   --ai-pulse-origin-y: 36%;
-  --ai-grid-speed: 28s;
-  --ai-line-speed: 19s;
-  --ai-scan-speed: 16s;
+  --ai-grid-speed: 41s;
+  --ai-line-speed: 26s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-neural-surface-upside {
   --ai-neural-accent: #c084fc;
-  --ai-neural-core: rgba(216, 180, 254, 0.76);
-  --ai-neural-soft: rgba(216, 180, 254, 0.28);
-  --ai-neural-muted: rgba(192, 132, 252, 0.18);
-  --ai-neural-border: rgba(192, 132, 252, 0.3);
-  --ai-neural-grid: rgba(192, 132, 252, 0.045);
-  --ai-neural-grid-strong: rgba(216, 180, 254, 0.088);
-  --ai-neural-glow: rgba(168, 85, 247, 0.052);
-  --ai-neural-halo: rgba(192, 132, 252, 0.04);
+  --ai-neural-core: rgba(216, 180, 254, 0.54);
+  --ai-neural-soft: rgba(216, 180, 254, 0.15);
+  --ai-neural-muted: rgba(192, 132, 252, 0.1);
+  --ai-neural-border: rgba(192, 132, 252, 0.22);
+  --ai-neural-grid: rgba(192, 132, 252, 0.028);
+  --ai-neural-grid-strong: rgba(216, 180, 254, 0.06);
+  --ai-neural-glow: rgba(168, 85, 247, 0.03);
+  --ai-neural-halo: rgba(192, 132, 252, 0.036);
   --ai-neural-delay: -14.2s;
   --ai-pulse-origin-x: 64%;
   --ai-pulse-origin-y: 14%;
-  --ai-grid-speed: 30s;
-  --ai-line-speed: 19s;
-  --ai-scan-speed: 16s;
+  --ai-grid-speed: 40s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-neural-surface-core {
   --ai-neural-accent: #7dd3fc;
-  --ai-neural-core: rgba(186, 230, 253, 0.78);
-  --ai-neural-soft: rgba(186, 230, 253, 0.3);
-  --ai-neural-muted: rgba(125, 211, 252, 0.2);
-  --ai-neural-border: rgba(125, 211, 252, 0.32);
-  --ai-neural-grid: rgba(125, 211, 252, 0.048);
-  --ai-neural-grid-strong: rgba(186, 230, 253, 0.09);
-  --ai-neural-glow: rgba(56, 189, 248, 0.06);
-  --ai-neural-halo: rgba(125, 211, 252, 0.046);
+  --ai-neural-core: rgba(186, 230, 253, 0.56);
+  --ai-neural-soft: rgba(186, 230, 253, 0.16);
+  --ai-neural-muted: rgba(125, 211, 252, 0.1);
+  --ai-neural-border: rgba(125, 211, 252, 0.24);
+  --ai-neural-grid: rgba(125, 211, 252, 0.028);
+  --ai-neural-grid-strong: rgba(186, 230, 253, 0.062);
+  --ai-neural-glow: rgba(56, 189, 248, 0.03);
+  --ai-neural-halo: rgba(125, 211, 252, 0.038);
   --ai-neural-delay: -11.6s;
   --ai-pulse-origin-x: 56%;
   --ai-pulse-origin-y: 50%;
-  --ai-grid-speed: 31s;
-  --ai-line-speed: 19s;
-  --ai-scan-speed: 16s;
+  --ai-grid-speed: 40s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-neural-surface-neutral {
   --ai-neural-delay: -1.5s;
   --ai-pulse-origin-x: 18%;
   --ai-pulse-origin-y: 28%;
-  --ai-grid-speed: 32s;
+  --ai-grid-speed: 41s;
 }
 
 .waiver-intel-grid .ai-neural-surface:nth-child(3n + 1),
@@ -4078,68 +4078,43 @@
 
 .ai-neural-surface::before {
   background:
-    linear-gradient(180deg, transparent 0 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%),
-    linear-gradient(180deg, var(--ai-grid-color) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ai-grid-color) 1px, transparent 1px),
-    linear-gradient(180deg, var(--ai-grid-hot) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ai-grid-hot) 1px, transparent 1px),
-    linear-gradient(180deg, transparent 0%, var(--ai-neural-accent) 18%, var(--ai-neural-core) 48%, var(--ai-neural-accent) 82%, transparent 100%) 0 0 / 2px 100% no-repeat,
-    linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 24%, transparent) 49%, transparent 53%),
-    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, transparent 1.4px),
-    radial-gradient(circle at 16% 22%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.4px),
-    radial-gradient(circle at 84% 72%, color-mix(in srgb, var(--ai-glow-secondary) 44%, transparent) 0 1px, transparent 1.4px);
-  background-size:
-    100% 100%,
-    var(--ai-neural-grid-size) var(--ai-neural-grid-size),
-    var(--ai-neural-grid-size) var(--ai-neural-grid-size),
-    var(--ai-neural-grid-size-strong) var(--ai-neural-grid-size-strong),
-    var(--ai-neural-grid-size-strong) var(--ai-neural-grid-size-strong),
-    2px 100%,
-    220px 220px,
-    106px 106px,
-    152px 152px,
-    198px 198px;
-  opacity: 0.66;
+    radial-gradient(circle at 50% 50%, rgba(4, 10, 22, 0.52), rgba(2, 6, 23, 0.08) 44%, transparent 68%) 0 0 / 100% 100% no-repeat,
+    linear-gradient(180deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-neural-grid-size)) 0 0 / 100% 100% repeat,
+    linear-gradient(90deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-neural-grid-size)) 0 0 / 100% 100% repeat,
+    linear-gradient(180deg, transparent 0 40%, color-mix(in srgb, var(--ai-glow-primary) 44%, transparent) 41% 42%, transparent 43% 100%) 12px 0 / 28px 172px repeat-y,
+    linear-gradient(90deg, transparent 0 40%, color-mix(in srgb, var(--ai-glow-primary) 34%, transparent) 41% 42%, transparent 43% 100%) 0 14px / 172px 28px repeat-x,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-grid-hot) 70%, transparent) 0 1px, transparent 1.55px) 0 0 / var(--ai-neural-grid-size) var(--ai-neural-grid-size) repeat,
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09) 0 0.8px, transparent 1.3px) 8px 8px / calc(var(--ai-neural-grid-size) * 2.6) calc(var(--ai-neural-grid-size) * 2.6) repeat,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-secondary) 40%, transparent) 0 0.8px, transparent 1.2px) 0 0 / calc(var(--ai-neural-grid-size) * 4) calc(var(--ai-neural-grid-size) * 4) repeat;
+  opacity: 0.5;
   transform: translate3d(0, 0, 0);
+  will-change: transform, opacity, background-position;
   animation:
     ai-grid-drift var(--ai-grid-speed) linear infinite,
-    ai-line-surge var(--ai-line-speed) ease-in-out infinite,
-    ai-node-pulse var(--ai-scan-speed) ease-in-out infinite;
+    ai-data-packet-vertical calc(var(--ai-line-speed) * 1.12) linear infinite,
+    ai-line-surge var(--ai-scan-speed) ease-in-out infinite;
 }
 
 .ai-neural-surface::after {
-  inset: -14%;
+  inset: -10%;
   background:
-    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-neural-core) 82%, transparent) 0 1px, color-mix(in srgb, var(--ai-neural-pulse-soft) 54%, transparent) 1px 1rem, transparent 3.5rem),
-    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-neural-pulse-muted) 24%, transparent) 0 1px, transparent 5.2rem),
-    linear-gradient(90deg, transparent 0 8%, var(--ai-neural-pulse-muted) 30%, var(--ai-neural-core) 50%, var(--ai-neural-pulse-muted) 70%, transparent 92%),
-    linear-gradient(0deg, transparent 0 10%, var(--ai-neural-pulse-muted) 31%, var(--ai-neural-soft) 50%, var(--ai-neural-pulse-muted) 69%, transparent 90%),
-    linear-gradient(125deg, transparent 0 42%, color-mix(in srgb, var(--ai-neural-pulse-soft) 18%, transparent) 47%, rgba(255, 255, 255, 0.14) 50%, color-mix(in srgb, var(--ai-neural-pulse-soft) 8%, transparent) 53%, transparent 61%),
-    repeating-linear-gradient(180deg, transparent 0 15px, rgba(255, 255, 255, 0.014) 15px 16px, transparent 19px);
-  background-size:
-    46% 46%,
-    100% 100%,
-    220% 100%,
-    220% 100%,
-    240% 100%,
-    100% 100%;
-  background-position:
-    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-    145% 0,
-    -18% 0,
-    0 0,
-    0 0;
-  opacity: 0.075;
+    linear-gradient(90deg, transparent 0 43%, color-mix(in srgb, var(--ai-neural-core) 74%, transparent) 44% 56%, transparent 57% 100%) 0 10px / 184px 22px repeat-x,
+    linear-gradient(90deg, transparent 0 46%, rgba(255, 255, 255, 0.18) 47% 53%, transparent 54% 100%) 32px 0 / 118px 14px repeat-x,
+    linear-gradient(125deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 45% 48%, transparent 49% 100%) 0 0 / 220px 220px repeat,
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-neural-core) 58%, transparent) 0 1px, transparent 1.2px) 0 0 / 46% 46% no-repeat,
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 14%, transparent) 0 1px, transparent 5rem) 0 0 / 100% 100% no-repeat;
+  opacity: 0.08;
   mix-blend-mode: screen;
   transform-origin: var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
   will-change: transform, opacity, background-position;
   animation:
-    ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite,
-    ai-scan-sweep calc(var(--ai-scan-speed) * 1.08) linear infinite;
+    ai-data-packet-horizontal calc(var(--ai-line-speed) * 1.04) linear infinite,
+    ai-node-flicker calc(var(--ai-scan-speed) * 1.04) ease-in-out infinite,
+    ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite;
   animation-delay:
-    calc(var(--ai-ripple-speed) * -0.24),
-    0s;
+    calc(var(--ai-ripple-speed) * -0.18),
+    0s,
+    calc(var(--ai-ripple-speed) * -0.24);
 }
 
 .ai-neural-surface > * {
@@ -4209,6 +4184,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ai-read-panel,
+  .ai-read-panel::before,
+  .ai-read-panel::after,
   .ai-neural-surface,
   .ai-neural-surface::before,
   .ai-neural-surface::after,
@@ -4226,6 +4204,14 @@
     opacity: 0.085;
   }
 
+  .ai-read-panel::before {
+    opacity: 0.52;
+  }
+
+  .ai-read-panel::after {
+    opacity: 0.055;
+  }
+
   .ai-recommendation-badge::after {
     opacity: 0;
   }
@@ -4233,8 +4219,8 @@
 
 @media (max-width: 639px) {
   .ai-neural-surface {
-    --ai-neural-grid-size: 16px;
-    --ai-neural-grid-size-strong: 64px;
+    --ai-neural-grid-size: 18px;
+    --ai-neural-grid-size-strong: 72px;
   }
 
   .ai-recommendation-badge {
@@ -5645,6 +5631,10 @@
   white-space: nowrap;
 }
 
+.analysis-preview-chip-label-text-compact {
+  display: none;
+}
+
 .analysis-preview-chip-label-hidden:not(.analysis-preview-chip-has-icon) > .analysis-preview-chip-label {
   display: none;
 }
@@ -6105,26 +6095,26 @@
 
 /* AI Read base surface */
 .ai-read-panel {
-  --ai-read-accent: #22d3ee;
-  --ai-read-border: rgba(34, 211, 238, 0.32);
-  --ai-read-glow: rgba(34, 211, 238, 0.12);
-  --ai-read-grid: rgba(34, 211, 238, 0.06);
+  --ai-read-accent: #67e8f9;
+  --ai-read-border: rgba(34, 211, 238, 0.2);
+  --ai-read-glow: rgba(34, 211, 238, 0.034);
+  --ai-read-grid: rgba(103, 232, 249, 0.032);
   --ai-grid-color: var(--ai-read-grid);
-  --ai-grid-hot: rgba(103, 232, 249, 0.11);
-  --ai-grid-muted: rgba(2, 8, 23, 0.86);
+  --ai-grid-hot: rgba(125, 211, 252, 0.068);
+  --ai-grid-muted: rgba(1, 5, 14, 0.98);
   --ai-glow-primary: var(--ai-read-glow);
-  --ai-glow-secondary: rgba(249, 115, 22, 0.045);
+  --ai-glow-secondary: rgba(249, 115, 22, 0.018);
   --ai-border-glow: var(--ai-read-border);
-  --ai-border-glass: rgba(255, 255, 255, 0.03);
+  --ai-border-glass: rgba(255, 255, 255, 0.028);
   --ai-pulse-origin-x: 18%;
   --ai-pulse-origin-y: 26%;
-  --ai-grid-size: 24px;
-  --ai-grid-size-strong: 76px;
-  --ai-grid-speed: 30s;
-  --ai-line-speed: 20s;
-  --ai-scan-speed: 16s;
-  --ai-ripple-speed: 14s;
-  --ai-border-speed: 11s;
+  --ai-grid-size: 22px;
+  --ai-grid-size-strong: 84px;
+  --ai-grid-speed: 42s;
+  --ai-line-speed: 26s;
+  --ai-scan-speed: 18s;
+  --ai-ripple-speed: 38s;
+  --ai-border-speed: 15s;
   position: relative;
   isolation: isolate;
   min-width: 0;
@@ -6132,14 +6122,13 @@
   border: 1px solid var(--ai-border-glow);
   border-radius: 0.82rem;
   background:
-    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--ai-glow-primary) 62%, transparent), transparent 26%),
-    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--ai-glow-secondary) 58%, transparent), transparent 24%),
-    radial-gradient(circle at 50% 118%, rgba(2, 6, 23, 0.42), transparent 58%),
-    linear-gradient(135deg, rgba(2, 8, 23, 0.98), rgba(3, 19, 36, 0.94) 52%, rgba(2, 6, 23, 0.99));
+    radial-gradient(circle at 50% 16%, rgba(10, 18, 33, 0.54), transparent 36%),
+    radial-gradient(circle at 50% 52%, rgba(2, 6, 23, 0.9), rgba(1, 5, 14, 0.98) 66%, rgba(1, 4, 10, 0.995) 100%),
+    linear-gradient(135deg, rgba(1, 5, 14, 0.98), rgba(2, 8, 20, 0.96) 54%, rgba(1, 4, 10, 0.995));
   box-shadow:
     inset 0 0 0 1px var(--ai-border-glass),
-    inset 0 1px 0 rgba(255, 255, 255, 0.025),
-    inset 0 0 28px rgba(2, 6, 23, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.022),
+    inset 0 0 28px rgba(2, 6, 23, 0.46),
     0 10px 30px rgba(0, 0, 0, 0.22);
   width: min(100%, 64rem);
   margin-inline: auto;
@@ -6154,48 +6143,22 @@
   z-index: 0;
   border-radius: inherit;
   background:
-    linear-gradient(180deg, transparent 0 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%),
-    linear-gradient(180deg, var(--ai-grid-color) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ai-grid-color) 1px, transparent 1px),
-    linear-gradient(180deg, var(--ai-grid-hot) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ai-grid-hot) 1px, transparent 1px),
-    linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 24%, transparent) 49%, transparent 53%),
-    linear-gradient(225deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 16%, transparent) 49%, transparent 53%),
-    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, transparent 1.4px),
-    radial-gradient(circle at 12% 20%, rgba(255, 255, 255, 0.16) 0 1px, transparent 1.4px),
-    radial-gradient(circle at 82% 72%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.4px),
-    radial-gradient(circle at 70% 14%, color-mix(in srgb, var(--ai-glow-secondary) 44%, transparent) 0 1px, transparent 1.4px);
-  background-size:
-    100% 100%,
-    var(--ai-grid-size) var(--ai-grid-size),
-    var(--ai-grid-size) var(--ai-grid-size),
-    var(--ai-grid-size-strong) var(--ai-grid-size-strong),
-    var(--ai-grid-size-strong) var(--ai-grid-size-strong),
-    220px 220px,
-    300px 300px,
-    110px 110px,
-    160px 160px,
-    190px 190px,
-    230px 230px;
-  background-position:
-    0 0,
-    0 0,
-    0 0,
-    0 0,
-    0 0,
-    0 0,
-    0 0,
-    0 0,
-    0 0,
-    0 0,
-    0 0;
-  opacity: 0.72;
+    radial-gradient(circle at 50% 50%, rgba(4, 10, 22, 0.52), rgba(2, 6, 23, 0.08) 44%, transparent 68%) 0 0 / 100% 100% no-repeat,
+    linear-gradient(180deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% 100% repeat,
+    linear-gradient(90deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% 100% repeat,
+    linear-gradient(180deg, transparent 0 40%, color-mix(in srgb, var(--ai-glow-primary) 44%, transparent) 41% 42%, transparent 43% 100%) 12px 0 / 28px 172px repeat-y,
+    linear-gradient(90deg, transparent 0 40%, color-mix(in srgb, var(--ai-glow-primary) 34%, transparent) 41% 42%, transparent 43% 100%) 0 14px / 172px 28px repeat-x,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-grid-hot) 70%, transparent) 0 1px, transparent 1.55px) 0 0 / var(--ai-grid-size) var(--ai-grid-size) repeat,
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09) 0 0.8px, transparent 1.3px) 8px 8px / calc(var(--ai-grid-size) * 2.6) calc(var(--ai-grid-size) * 2.6) repeat,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-secondary) 40%, transparent) 0 0.8px, transparent 1.2px) 0 0 / calc(var(--ai-grid-size) * 4) calc(var(--ai-grid-size) * 4) repeat;
+  opacity: 0.5;
   pointer-events: none;
   transform: translate3d(0, 0, 0);
+  will-change: transform, opacity, background-position;
   animation:
     ai-grid-drift var(--ai-grid-speed) linear infinite,
-    ai-line-surge var(--ai-line-speed) ease-in-out infinite,
-    ai-node-pulse var(--ai-scan-speed) ease-in-out infinite;
+    ai-data-packet-vertical calc(var(--ai-line-speed) * 1.12) linear infinite,
+    ai-line-surge var(--ai-scan-speed) ease-in-out infinite;
 }
 
 .ai-read-panel::after {
@@ -6205,40 +6168,24 @@
   z-index: 0;
   border-radius: inherit;
   background:
-    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, color-mix(in srgb, var(--ai-glow-primary) 42%, transparent) 1px 1.25rem, transparent 3.75rem),
-    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 20%, transparent) 0 1px, transparent 5.5rem),
-    linear-gradient(125deg, transparent 0 42%, color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 47%, rgba(255, 255, 255, 0.16) 50%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 53%, transparent 61%),
-    linear-gradient(90deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 11%, transparent) 50%, transparent 56%),
-    repeating-linear-gradient(180deg, transparent 0 14px, rgba(255, 255, 255, 0.018) 14px 15px, transparent 18px),
-    radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--ai-glow-secondary) 24%, transparent) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--ai-glow-secondary) 16%, transparent) 0 1px, transparent 1.6px);
-  background-size:
-    48% 48%,
-    100% 100%,
-    240% 100%,
-    220% 100%,
-    100% 100%,
-    140px 140px,
-    180px 180px;
-  background-position:
-    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-    145% 0,
-    -20% 0,
-    0 0,
-    16% 18%,
-    82% 76%;
+    linear-gradient(90deg, transparent 0 43%, color-mix(in srgb, var(--ai-read-accent) 74%, transparent) 44% 56%, transparent 57% 100%) 0 10px / 184px 22px repeat-x,
+    linear-gradient(90deg, transparent 0 46%, rgba(255, 255, 255, 0.18) 47% 53%, transparent 54% 100%) 32px 0 / 118px 14px repeat-x,
+    linear-gradient(125deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 45% 48%, transparent 49% 100%) 0 0 / 220px 220px repeat,
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-read-accent) 58%, transparent) 0 1px, transparent 1.2px) 0 0 / 46% 46% no-repeat,
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 14%, transparent) 0 1px, transparent 5rem) 0 0 / 100% 100% no-repeat;
   opacity: 0.08;
   mix-blend-mode: screen;
   pointer-events: none;
   transform-origin: var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
   will-change: transform, opacity, background-position;
   animation:
-    ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite,
-    ai-scan-sweep calc(var(--ai-scan-speed) * 1.12) linear infinite;
+    ai-data-packet-horizontal calc(var(--ai-line-speed) * 1.04) linear infinite,
+    ai-node-flicker calc(var(--ai-scan-speed) * 1.04) ease-in-out infinite,
+    ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite;
   animation-delay:
-    calc(var(--ai-ripple-speed) * -0.28),
-    0s;
+    calc(var(--ai-ripple-speed) * -0.18),
+    0s,
+    calc(var(--ai-ripple-speed) * -0.24);
 }
 
 .ai-read-panel > * {
@@ -6249,114 +6196,144 @@
 .ai-read-panel-trade,
 .ai-read-panel-severity-good {
   --ai-read-accent: #34d399;
-  --ai-read-border: rgba(52, 211, 153, 0.34);
-  --ai-read-glow: rgba(16, 185, 129, 0.12);
-  --ai-read-grid: rgba(52, 211, 153, 0.055);
+  --ai-read-border: rgba(52, 211, 153, 0.22);
+  --ai-read-glow: rgba(16, 185, 129, 0.034);
+  --ai-read-grid: rgba(52, 211, 153, 0.032);
   --ai-grid-color: var(--ai-read-grid);
-  --ai-grid-hot: rgba(134, 239, 172, 0.105);
+  --ai-grid-hot: rgba(134, 239, 172, 0.068);
   --ai-glow-primary: var(--ai-read-glow);
   --ai-pulse-origin-x: 20%;
   --ai-pulse-origin-y: 28%;
+  --ai-grid-size: 22px;
+  --ai-grid-size-strong: 84px;
+  --ai-grid-speed: 40s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-read-panel-market,
 .ai-read-panel-severity-warn {
   --ai-read-accent: #fb923c;
-  --ai-read-border: rgba(251, 146, 60, 0.34);
-  --ai-read-glow: rgba(249, 115, 22, 0.12);
-  --ai-read-grid: rgba(251, 146, 60, 0.055);
+  --ai-read-border: rgba(251, 146, 60, 0.22);
+  --ai-read-glow: rgba(249, 115, 22, 0.03);
+  --ai-read-grid: rgba(251, 146, 60, 0.03);
   --ai-grid-color: var(--ai-read-grid);
-  --ai-grid-hot: rgba(253, 186, 116, 0.102);
+  --ai-grid-hot: rgba(253, 186, 116, 0.064);
   --ai-glow-primary: var(--ai-read-glow);
-  --ai-glow-secondary: rgba(251, 146, 60, 0.03);
+  --ai-glow-secondary: rgba(251, 146, 60, 0.018);
   --ai-pulse-origin-x: 82%;
   --ai-pulse-origin-y: 20%;
+  --ai-grid-size: 22px;
+  --ai-grid-size-strong: 84px;
+  --ai-grid-speed: 40s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-read-panel-draft,
 .ai-read-panel-monthly {
   --ai-read-accent: #facc15;
-  --ai-read-border: rgba(250, 204, 21, 0.32);
-  --ai-read-glow: rgba(250, 204, 21, 0.1);
-  --ai-read-grid: rgba(250, 204, 21, 0.052);
+  --ai-read-border: rgba(250, 204, 21, 0.22);
+  --ai-read-glow: rgba(250, 204, 21, 0.03);
+  --ai-read-grid: rgba(250, 204, 21, 0.028);
   --ai-grid-color: var(--ai-read-grid);
-  --ai-grid-hot: rgba(253, 224, 71, 0.1);
+  --ai-grid-hot: rgba(253, 224, 71, 0.062);
   --ai-glow-primary: var(--ai-read-glow);
   --ai-pulse-origin-x: 24%;
   --ai-pulse-origin-y: 22%;
+  --ai-grid-size: 22px;
+  --ai-grid-size-strong: 84px;
+  --ai-grid-speed: 41s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-read-panel-lineup,
 .ai-read-panel-roster {
   --ai-read-accent: #2dd4bf;
-  --ai-read-border: rgba(45, 212, 191, 0.32);
-  --ai-read-glow: rgba(45, 212, 191, 0.11);
-  --ai-read-grid: rgba(45, 212, 191, 0.055);
+  --ai-read-border: rgba(45, 212, 191, 0.22);
+  --ai-read-glow: rgba(45, 212, 191, 0.03);
+  --ai-read-grid: rgba(45, 212, 191, 0.028);
   --ai-grid-color: var(--ai-read-grid);
-  --ai-grid-hot: rgba(103, 232, 249, 0.1);
+  --ai-grid-hot: rgba(103, 232, 249, 0.062);
   --ai-glow-primary: var(--ai-read-glow);
   --ai-pulse-origin-x: 64%;
   --ai-pulse-origin-y: 68%;
+  --ai-grid-size: 22px;
+  --ai-grid-size-strong: 84px;
+  --ai-grid-speed: 41s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-read-panel-waiver {
   --ai-read-accent: #86efac;
-  --ai-read-border: rgba(134, 239, 172, 0.3);
-  --ai-read-glow: rgba(134, 239, 172, 0.1);
-  --ai-read-grid: rgba(134, 239, 172, 0.05);
+  --ai-read-border: rgba(134, 239, 172, 0.22);
+  --ai-read-glow: rgba(134, 239, 172, 0.03);
+  --ai-read-grid: rgba(134, 239, 172, 0.028);
   --ai-grid-color: var(--ai-read-grid);
-  --ai-grid-hot: rgba(163, 230, 53, 0.092);
+  --ai-grid-hot: rgba(163, 230, 53, 0.06);
   --ai-glow-primary: var(--ai-read-glow);
   --ai-pulse-origin-x: 78%;
   --ai-pulse-origin-y: 30%;
+  --ai-grid-size: 22px;
+  --ai-grid-size-strong: 84px;
+  --ai-grid-speed: 41s;
+  --ai-line-speed: 25s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-read-panel-severity-danger {
   --ai-read-accent: #fb7185;
-  --ai-read-border: rgba(251, 113, 133, 0.34);
-  --ai-read-glow: rgba(244, 63, 94, 0.1);
-  --ai-read-grid: rgba(251, 113, 133, 0.052);
+  --ai-read-border: rgba(251, 113, 133, 0.22);
+  --ai-read-glow: rgba(244, 63, 94, 0.03);
+  --ai-read-grid: rgba(251, 113, 133, 0.028);
   --ai-grid-color: var(--ai-read-grid);
-  --ai-grid-hot: rgba(253, 164, 175, 0.1);
+  --ai-grid-hot: rgba(253, 164, 175, 0.062);
   --ai-glow-primary: var(--ai-read-glow);
   --ai-pulse-origin-x: 74%;
   --ai-pulse-origin-y: 34%;
+  --ai-grid-size: 22px;
+  --ai-grid-size-strong: 84px;
+  --ai-grid-speed: 41s;
+  --ai-line-speed: 26s;
+  --ai-scan-speed: 18s;
 }
 
 .ai-read-panel-blueprint {
   --ai-read-accent: #7dd3fc;
-  --ai-read-border: rgba(125, 211, 252, 0.34);
-  --ai-read-glow: rgba(56, 189, 248, 0.12);
-  --ai-read-grid: rgba(125, 211, 252, 0.062);
+  --ai-read-border: rgba(125, 211, 252, 0.28);
+  --ai-read-glow: rgba(56, 189, 248, 0.034);
+  --ai-read-grid: rgba(125, 211, 252, 0.038);
   --ai-grid-color: var(--ai-read-grid);
-  --ai-grid-hot: rgba(186, 230, 253, 0.12);
+  --ai-grid-hot: rgba(186, 230, 253, 0.076);
   --ai-glow-primary: var(--ai-read-glow);
-  --ai-glow-secondary: rgba(56, 189, 248, 0.028);
+  --ai-glow-secondary: rgba(56, 189, 248, 0.022);
   --ai-pulse-origin-x: 22%;
   --ai-pulse-origin-y: 18%;
   --ai-grid-size: 18px;
   --ai-grid-size-strong: 54px;
-  --ai-grid-speed: 24s;
-  --ai-line-speed: 16s;
-  --ai-scan-speed: 13s;
+  --ai-grid-speed: 36s;
+  --ai-line-speed: 23s;
+  --ai-scan-speed: 16s;
 }
 
 .ai-read-panel-league {
   --ai-read-accent: #67e8f9;
-  --ai-read-border: rgba(103, 232, 249, 0.3);
-  --ai-read-glow: rgba(34, 211, 238, 0.11);
-  --ai-read-grid: rgba(45, 212, 191, 0.052);
+  --ai-read-border: rgba(103, 232, 249, 0.26);
+  --ai-read-glow: rgba(34, 211, 238, 0.032);
+  --ai-read-grid: rgba(45, 212, 191, 0.03);
   --ai-grid-color: var(--ai-read-grid);
-  --ai-grid-hot: rgba(103, 232, 249, 0.104);
+  --ai-grid-hot: rgba(103, 232, 249, 0.07);
   --ai-glow-primary: var(--ai-read-glow);
-  --ai-glow-secondary: rgba(251, 146, 60, 0.028);
+  --ai-glow-secondary: rgba(251, 146, 60, 0.018);
   --ai-pulse-origin-x: 70%;
   --ai-pulse-origin-y: 16%;
   --ai-grid-size: 22px;
   --ai-grid-size-strong: 68px;
-  --ai-grid-speed: 32s;
-  --ai-line-speed: 18s;
-  --ai-scan-speed: 15s;
+  --ai-grid-speed: 39s;
+  --ai-line-speed: 24s;
+  --ai-scan-speed: 17s;
 }
 
 .ai-read-status-rail {
@@ -8461,36 +8438,35 @@
 
 /* Page-level AI read overlays */
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell) {
-  --ai-grid-color: rgba(34, 211, 238, 0.05);
-  --ai-grid-hot: rgba(103, 232, 249, 0.1);
-  --ai-grid-muted: rgba(2, 8, 23, 0.84);
-  --ai-glow-primary: rgba(34, 211, 238, 0.1);
-  --ai-glow-secondary: rgba(249, 115, 22, 0.028);
-  --ai-border-glow: rgba(34, 211, 238, 0.24);
-  --ai-border-glass: rgba(255, 255, 255, 0.03);
+  --ai-grid-color: rgba(103, 232, 249, 0.032);
+  --ai-grid-hot: rgba(125, 211, 252, 0.068);
+  --ai-grid-muted: rgba(1, 5, 14, 0.98);
+  --ai-glow-primary: rgba(34, 211, 238, 0.034);
+  --ai-glow-secondary: rgba(249, 115, 22, 0.018);
+  --ai-border-glow: rgba(34, 211, 238, 0.22);
+  --ai-border-glass: rgba(255, 255, 255, 0.028);
   --ai-pulse-origin-x: 18%;
   --ai-pulse-origin-y: 24%;
-  --ai-grid-size: 26px;
-  --ai-grid-size-strong: 84px;
-  --ai-grid-speed: 36s;
-  --ai-line-speed: 22s;
+  --ai-grid-size: 24px;
+  --ai-grid-size-strong: 96px;
+  --ai-grid-speed: 44s;
+  --ai-line-speed: 27s;
   --ai-scan-speed: 18s;
-  --ai-ripple-speed: 16s;
-  --ai-border-speed: 13s;
+  --ai-ripple-speed: 40s;
+  --ai-border-speed: 16s;
   position: relative;
   isolation: isolate;
   border: 1px solid var(--ai-border-glow);
   border-radius: 0.98rem;
   overflow: hidden;
   background:
-    radial-gradient(circle at 10% 0%, rgba(34, 211, 238, 0.09), transparent 28%),
-    radial-gradient(circle at 92% 4%, rgba(249, 115, 22, 0.026), transparent 24%),
-    radial-gradient(circle at 50% 112%, rgba(2, 6, 23, 0.44), transparent 54%),
-    linear-gradient(180deg, rgba(2, 8, 23, 0.96), rgba(3, 15, 31, 0.9) 46%, rgba(2, 6, 23, 0.98));
+    radial-gradient(circle at 50% 16%, rgba(10, 18, 33, 0.5), transparent 38%),
+    radial-gradient(circle at 50% 52%, rgba(2, 6, 23, 0.88), rgba(1, 5, 14, 0.98) 66%, rgba(1, 4, 10, 0.995) 100%),
+    linear-gradient(180deg, rgba(1, 5, 14, 0.98), rgba(2, 8, 20, 0.96) 54%, rgba(1, 4, 10, 0.995));
   box-shadow:
     inset 0 0 0 1px var(--ai-border-glass),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    inset 0 0 30px rgba(2, 6, 23, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.022),
+    inset 0 0 30px rgba(2, 6, 23, 0.48),
     0 18px 42px rgba(0, 0, 0, 0.24);
   animation: ai-border-breathe var(--ai-border-speed) ease-in-out infinite;
 }
@@ -8502,34 +8478,22 @@
   z-index: 0;
   border-radius: inherit;
   background:
-    linear-gradient(180deg, transparent 0 48%, rgba(255, 255, 255, 0.03) 50%, transparent 52%),
-    linear-gradient(180deg, var(--ai-grid-color) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ai-grid-color) 1px, transparent 1px),
-    linear-gradient(180deg, var(--ai-grid-hot) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ai-grid-hot) 1px, transparent 1px),
-    linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 20%, transparent) 49%, transparent 53%),
-    linear-gradient(225deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 14%, transparent) 49%, transparent 53%),
-    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, transparent 1.4px),
-    radial-gradient(circle at 11% 24%, rgba(255, 255, 255, 0.14) 0 1px, transparent 1.4px),
-    radial-gradient(circle at 81% 74%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.4px);
-  background-size:
-    100% 100%,
-    var(--ai-grid-size) var(--ai-grid-size),
-    var(--ai-grid-size) var(--ai-grid-size),
-    var(--ai-grid-size-strong) var(--ai-grid-size-strong),
-    var(--ai-grid-size-strong) var(--ai-grid-size-strong),
-    220px 220px,
-    300px 300px,
-    118px 118px,
-    160px 160px,
-    200px 200px;
-  opacity: 0.72;
+    radial-gradient(circle at 50% 50%, rgba(4, 10, 22, 0.52), rgba(2, 6, 23, 0.08) 44%, transparent 68%) 0 0 / 100% 100% no-repeat,
+    linear-gradient(180deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% 100% repeat,
+    linear-gradient(90deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% 100% repeat,
+    linear-gradient(180deg, transparent 0 40%, color-mix(in srgb, var(--ai-glow-primary) 44%, transparent) 41% 42%, transparent 43% 100%) 12px 0 / 28px 172px repeat-y,
+    linear-gradient(90deg, transparent 0 40%, color-mix(in srgb, var(--ai-glow-primary) 34%, transparent) 41% 42%, transparent 43% 100%) 0 14px / 172px 28px repeat-x,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-grid-hot) 70%, transparent) 0 1px, transparent 1.55px) 0 0 / var(--ai-grid-size) var(--ai-grid-size) repeat,
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09) 0 0.8px, transparent 1.3px) 8px 8px / calc(var(--ai-grid-size) * 2.6) calc(var(--ai-grid-size) * 2.6) repeat,
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-secondary) 40%, transparent) 0 0.8px, transparent 1.2px) 0 0 / calc(var(--ai-grid-size) * 4) calc(var(--ai-grid-size) * 4) repeat;
+  opacity: 0.5;
   pointer-events: none;
   transform: translate3d(0, 0, 0);
+  will-change: transform, opacity, background-position;
   animation:
     ai-grid-drift var(--ai-grid-speed) linear infinite,
-    ai-line-surge var(--ai-line-speed) ease-in-out infinite,
-    ai-node-pulse var(--ai-scan-speed) ease-in-out infinite;
+    ai-data-packet-vertical calc(var(--ai-line-speed) * 1.12) linear infinite,
+    ai-line-surge var(--ai-scan-speed) ease-in-out infinite;
 }
 
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell)::after {
@@ -8539,34 +8503,24 @@
   z-index: 0;
   border-radius: inherit;
   background:
-    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 74%, transparent) 0 1px, color-mix(in srgb, var(--ai-glow-primary) 38%, transparent) 1px 1.15rem, transparent 4rem),
-    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 0 1px, transparent 5.75rem),
-    linear-gradient(125deg, transparent 0 42%, color-mix(in srgb, var(--ai-glow-primary) 16%, transparent) 47%, rgba(255, 255, 255, 0.14) 50%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 53%, transparent 61%),
-    linear-gradient(90deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 50%, transparent 56%),
-    repeating-linear-gradient(180deg, transparent 0 15px, rgba(255, 255, 255, 0.016) 15px 16px, transparent 19px);
-  background-size:
-    46% 46%,
-    100% 100%,
-    240% 100%,
-    220% 100%,
-    100% 100%;
-  background-position:
-    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-    var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-    145% 0,
-    -18% 0,
-    0 0;
+    linear-gradient(90deg, transparent 0 43%, color-mix(in srgb, var(--ai-neural-accent, #67e8f9) 74%, transparent) 44% 56%, transparent 57% 100%) 0 10px / 184px 22px repeat-x,
+    linear-gradient(90deg, transparent 0 46%, rgba(255, 255, 255, 0.18) 47% 53%, transparent 54% 100%) 32px 0 / 118px 14px repeat-x,
+    linear-gradient(125deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 45% 48%, transparent 49% 100%) 0 0 / 220px 220px repeat,
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-neural-accent, #67e8f9) 58%, transparent) 0 1px, transparent 1.2px) 0 0 / 46% 46% no-repeat,
+    radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 14%, transparent) 0 1px, transparent 5rem) 0 0 / 100% 100% no-repeat;
   opacity: 0.08;
   mix-blend-mode: screen;
   pointer-events: none;
   transform-origin: var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
   will-change: transform, opacity, background-position;
   animation:
-    ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite,
-    ai-scan-sweep calc(var(--ai-scan-speed) * 1.1) linear infinite;
+    ai-data-packet-horizontal calc(var(--ai-line-speed) * 1.04) linear infinite,
+    ai-node-flicker calc(var(--ai-scan-speed) * 1.04) ease-in-out infinite,
+    ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite;
   animation-delay:
-    calc(var(--ai-ripple-speed) * -0.3),
-    0s;
+    calc(var(--ai-ripple-speed) * -0.18),
+    0s,
+    calc(var(--ai-ripple-speed) * -0.24);
 }
 
 .report-shell :is(.overview-ai-pulse, .rankings-ai-read, .trade-browser-ai-read, .draft-ai-read, .player-modal-ai-read, .admin-diagnostics-shell) > * {
@@ -8587,178 +8541,129 @@
 @keyframes ai-grid-drift {
   0%,
   100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate3d(0.12rem, -0.08rem, 0) scale(1.004);
+  }
+
+  66% {
+    transform: translate3d(-0.1rem, 0.12rem, 0) scale(1.006);
+  }
+}
+
+@keyframes ai-data-packet-vertical {
+  0%,
+  100% {
     background-position:
       0 0,
       0 0,
       0 0,
+      12px 0,
+      0 14px,
       0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0,
+      8px 8px,
       0 0;
   }
 
-  24% {
+  38% {
     background-position:
       0 0,
-      0.35rem 0.18rem,
-      0.18rem 0.35rem,
-      -0.4rem 0.1rem,
-      0.1rem -0.4rem,
-      1.4rem 0.45rem,
-      -0.8rem 0.2rem,
-      0.2rem 0.1rem,
-      -0.6rem 0.18rem,
-      0.12rem -0.22rem;
+      0 0,
+      0 0,
+      12px 18px,
+      0 2px,
+      0 0,
+      8px 8px,
+      0 0;
   }
 
-  58% {
+  72% {
     background-position:
       0 0,
-      -0.28rem 0.18rem,
-      0.24rem -0.32rem,
-      0.42rem -0.12rem,
-      -0.18rem 0.36rem,
-      -1rem 0.22rem,
-      0.72rem -0.18rem,
-      -0.1rem 0.14rem,
-      0.62rem -0.22rem,
-      -0.06rem 0.16rem;
+      0 0,
+      0 0,
+      12px 36px,
+      0 24px,
+      0 0,
+      8px 8px,
+      0 0;
   }
 }
 
 @keyframes ai-line-surge {
   0%,
   100% {
-    background-size:
-      100% 100%,
-      var(--ai-grid-size) var(--ai-grid-size),
-      var(--ai-grid-size) var(--ai-grid-size),
-      var(--ai-grid-size-strong) var(--ai-grid-size-strong),
-      var(--ai-grid-size-strong) var(--ai-grid-size-strong),
-      220px 220px,
-      300px 300px,
-      118px 118px,
-      160px 160px,
-      200px 200px;
-    opacity: 0.66;
+    opacity: 0.48;
   }
 
-  38% {
-    background-size:
-      100% 100%,
-      var(--ai-grid-size) var(--ai-grid-size),
-      var(--ai-grid-size) var(--ai-grid-size),
-      calc(var(--ai-grid-size-strong) * 1.08) calc(var(--ai-grid-size-strong) * 1.08),
-      calc(var(--ai-grid-size-strong) * 1.08) calc(var(--ai-grid-size-strong) * 1.08),
-      220px 220px,
-      300px 300px,
-      118px 118px,
-      160px 160px,
-      200px 200px;
-    opacity: 0.88;
+  46% {
+    opacity: 0.6;
   }
 
-  72% {
-    background-size:
-      100% 100%,
-      var(--ai-grid-size) var(--ai-grid-size),
-      var(--ai-grid-size) var(--ai-grid-size),
-      calc(var(--ai-grid-size-strong) * 0.96) calc(var(--ai-grid-size-strong) * 0.96),
-      calc(var(--ai-grid-size-strong) * 0.96) calc(var(--ai-grid-size-strong) * 0.96),
-      220px 220px,
-      300px 300px,
-      118px 118px,
-      160px 160px,
-      200px 200px;
-    opacity: 0.72;
+  74% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes ai-data-packet-horizontal {
+  0%,
+  100% {
+    background-position:
+      0 10px,
+      32px 0,
+      0 0,
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
+  }
+
+  44% {
+    background-position:
+      28px 10px,
+      12px 0,
+      24px 18px,
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
+  }
+
+  76% {
+    background-position:
+      64px 10px,
+      48px 0,
+      56px 28px,
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
+      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
+  }
+}
+
+@keyframes ai-node-flicker {
+  0%,
+  100% {
+    opacity: 0.07;
+  }
+
+  36% {
+    opacity: 0.13;
+  }
+
+  68% {
+    opacity: 0.09;
   }
 }
 
 @keyframes ai-touch-ripple {
   0%,
   100% {
-    transform: scale(0.96);
-    opacity: 0.02;
-  }
-
-  18% {
-    opacity: 0.16;
+    transform: scale(0.992);
   }
 
   34% {
-    transform: scale(1.02);
-    opacity: 0.1;
+    transform: scale(1.006);
   }
 
-  56% {
-    transform: scale(1.08);
-    opacity: 0.02;
-  }
-
-  78% {
-    transform: scale(1.01);
-    opacity: 0.12;
-  }
-}
-
-@keyframes ai-scan-sweep {
-  0%,
-  100% {
-    background-position:
-      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-      145% 0,
-      -18% 0,
-      0 0;
-    opacity: 0.04;
-  }
-
-  26% {
-    background-position:
-      calc(var(--ai-pulse-origin-x) + 2%) calc(var(--ai-pulse-origin-y) - 1%),
-      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-      108% 0,
-      -8% 0,
-      0 0;
-    opacity: 0.14;
-  }
-
-  52% {
-    background-position:
-      calc(var(--ai-pulse-origin-x) - 2%) calc(var(--ai-pulse-origin-y) + 1%),
-      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-      58% 0,
-      16% 0,
-      0 0;
-    opacity: 0.08;
-  }
-
-  76% {
-    background-position:
-      calc(var(--ai-pulse-origin-x) + 1%) calc(var(--ai-pulse-origin-y) + 2%),
-      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-      0% 0,
-      102% 0,
-      0 0;
-    opacity: 0.16;
-  }
-}
-
-@keyframes ai-node-pulse {
-  0%,
-  100% {
-    opacity: 0.58;
-  }
-
-  42% {
-    opacity: 0.8;
-  }
-
-  68% {
-    opacity: 0.66;
+  62% {
+    transform: scale(1.014);
   }
 }
 
@@ -8767,16 +8672,16 @@
   100% {
     box-shadow:
       inset 0 0 0 1px var(--ai-border-glass),
-      inset 0 1px 0 rgba(255, 255, 255, 0.025),
-      inset 0 0 28px rgba(2, 6, 23, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.022),
+      inset 0 0 28px rgba(2, 6, 23, 0.46),
       0 10px 30px rgba(0, 0, 0, 0.22);
   }
 
   48% {
     box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--ai-border-glow) 42%, rgba(255, 255, 255, 0.05)),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 0 34px rgba(2, 6, 23, 0.3),
+      inset 0 0 0 1px color-mix(in srgb, var(--ai-border-glow) 32%, rgba(255, 255, 255, 0.045)),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      inset 0 0 34px rgba(2, 6, 23, 0.34),
       0 12px 34px rgba(0, 0, 0, 0.24);
   }
 }
@@ -8793,29 +8698,28 @@
 }
 
 .admin-diagnostics-shell {
-  --ai-grid-color: rgba(45, 212, 191, 0.044);
-  --ai-grid-hot: rgba(103, 232, 249, 0.09);
-  --ai-glow-primary: rgba(34, 211, 238, 0.08);
-  --ai-glow-secondary: rgba(251, 146, 60, 0.035);
-  --ai-border-glow: rgba(251, 146, 60, 0.38);
-  --ai-border-glass: rgba(255, 255, 255, 0.03);
+  --ai-grid-color: rgba(103, 232, 249, 0.03);
+  --ai-grid-hot: rgba(125, 211, 252, 0.064);
+  --ai-glow-primary: rgba(34, 211, 238, 0.032);
+  --ai-glow-secondary: rgba(251, 146, 60, 0.018);
+  --ai-border-glow: rgba(251, 146, 60, 0.24);
+  --ai-border-glass: rgba(255, 255, 255, 0.028);
   --ai-pulse-origin-x: 76%;
   --ai-pulse-origin-y: 22%;
   display: grid;
   gap: 0.85rem;
-  border: 1px solid rgba(251, 146, 60, 0.42);
-  border-top-color: rgba(251, 146, 60, 0.84);
+  border: 1px solid rgba(251, 146, 60, 0.28);
+  border-top-color: rgba(251, 146, 60, 0.56);
   border-radius: 0.98rem;
   background:
-    radial-gradient(circle at 10% 0%, rgba(34, 211, 238, 0.06), transparent 28%),
-    radial-gradient(circle at 86% 0%, rgba(251, 146, 60, 0.08), transparent 24%),
-    linear-gradient(135deg, rgba(8, 47, 73, 0.24), rgba(15, 23, 42, 0.78)),
-    rgba(2, 6, 23, 0.56);
+    radial-gradient(circle at 50% 16%, rgba(10, 18, 33, 0.46), transparent 36%),
+    radial-gradient(circle at 50% 52%, rgba(2, 6, 23, 0.88), rgba(1, 5, 14, 0.98) 66%, rgba(1, 4, 10, 0.995) 100%),
+    linear-gradient(135deg, rgba(1, 5, 14, 0.98), rgba(2, 8, 20, 0.96) 54%, rgba(1, 4, 10, 0.995));
   padding: clamp(0.85rem, 2vw, 1.15rem);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
-    0 -1px 16px rgba(251, 146, 60, 0.28),
-    0 18px 48px rgba(249, 115, 22, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.022),
+    0 -1px 14px rgba(251, 146, 60, 0.16),
+    0 18px 48px rgba(249, 115, 22, 0.1),
     0 22px 62px rgba(0, 0, 0, 0.28);
 }
 
@@ -8914,6 +8818,8 @@
 
 @media (max-width: 760px) {
   .ai-read-panel {
+    --ai-grid-size: 20px;
+    --ai-grid-size-strong: 72px;
     width: min(100%, 34rem);
     border-radius: 0.74rem;
     padding: 0.6rem 0.62rem;
@@ -9480,6 +9386,33 @@
   min-width: 6.35rem;
 }
 
+.report-disclosure-preview-row-middle {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  column-gap: 0.28rem;
+}
+
+.report-disclosure-preview-row-middle .report-disclosure-preview-slot {
+  display: flex;
+  min-width: 0;
+}
+
+.report-disclosure-preview-row-middle .report-disclosure-preview-slot-lead {
+  justify-content: flex-end;
+}
+
+.report-disclosure-preview-row-middle .report-disclosure-preview-slot-trail {
+  justify-content: flex-start;
+}
+
+.report-disclosure-preview-row-middle .report-disclosure-preview-accessory {
+  justify-self: center;
+}
+
 .report-disclosure-preview-accessory {
   display: inline-flex;
   min-width: 0;
@@ -9693,15 +9626,41 @@
   }
 
   .analysis-preview-chip-starter-room > .analysis-preview-chip-label {
-    flex: 0 0 min-content;
-    max-width: 3.55rem;
-    line-height: 0.95;
+    flex: 0 0 auto;
+    max-width: none;
+    line-height: 1;
   }
 
   .analysis-preview-chip-starter-room .analysis-preview-chip-label-text {
     display: inline-block;
-    line-height: 0.95;
-    white-space: normal;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .analysis-preview-chip-starter-room .analysis-preview-chip-label-text-compact {
+    display: none;
+  }
+
+  .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview:has(.analysis-preview-chip-starter-room) {
+    display: grid;
+    width: min(100%, 27rem);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: center;
+    gap: 0.42rem;
+  }
+
+  .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview:has(.analysis-preview-chip-starter-room) .analysis-preview-chip-starter-room {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview:has(.analysis-preview-chip-starter-room) .analysis-preview-manager-name {
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal;
   }
 
   .report-disclosure-preview-row .analysis-preview-chip-row-single .analysis-preview-chip {
@@ -9720,6 +9679,61 @@
   .report-disclosure-preview-row:has(.owner-intel-sort-controls) .report-disclosure-preview-accessory {
     width: 100%;
     flex-basis: 100%;
+  }
+
+  .report-disclosure-preview-row-middle {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "lead trail"
+      "accessory accessory";
+    align-items: center;
+    justify-content: stretch;
+    gap: 0.34rem 0.42rem;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .report-disclosure-preview-row.report-disclosure-preview-row-middle .report-disclosure-preview-slot {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .report-disclosure-preview-row.report-disclosure-preview-row-middle .report-disclosure-preview-slot-lead {
+    grid-area: lead;
+    justify-content: flex-start;
+  }
+
+  .report-disclosure-preview-row.report-disclosure-preview-row-middle .report-disclosure-preview-slot-trail {
+    grid-area: trail;
+    justify-content: flex-end;
+  }
+
+  .report-disclosure-preview-row.report-disclosure-preview-row-middle .report-disclosure-preview-accessory {
+    grid-area: accessory;
+    width: auto;
+    justify-self: center;
+    justify-content: center;
+  }
+
+  .report-disclosure-preview-row.report-disclosure-preview-row-middle .analysis-preview-chip-row-single {
+    width: 100%;
+  }
+
+  .report-disclosure-preview-row.report-disclosure-preview-row-middle .analysis-preview-chip-manager-preview {
+    width: 100%;
+    min-width: 0;
+    gap: 0.16rem;
+    padding-inline: 0.3rem;
+  }
+
+  .report-disclosure-preview-row.report-disclosure-preview-row-middle .analysis-preview-chip-manager-preview .analysis-preview-manager-value {
+    flex: 1 1 auto;
+    gap: 0.14rem;
+  }
+
+  .report-disclosure-preview-row.report-disclosure-preview-row-middle .analysis-preview-chip-manager-preview .analysis-preview-manager-name {
+    max-width: none;
   }
 
   .owner-intel-sort-controls {
@@ -9816,6 +9830,16 @@
   .draft-year-preview-chips .analysis-preview-manager-value {
     max-width: min(10.5rem, 56vw);
     justify-content: center;
+  }
+}
+
+@media (max-width: 430px) {
+  .analysis-preview-chip-starter-room .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-full {
+    display: none;
+  }
+
+  .analysis-preview-chip-starter-room .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-compact {
+    display: inline-block;
   }
 }
 
@@ -10131,6 +10155,29 @@
 .report-shell .analysis-preview-chip-manager-preview,
 .report-shell .analysis-preview-chip-starter-room {
   max-width: none !important;
+}
+
+.report-shell .report-disclosure-summary .report-disclosure-preview-row.report-disclosure-preview-row-middle .analysis-preview-chip.analysis-preview-chip-manager-preview .analysis-preview-manager-value .analysis-preview-manager-name {
+  display: inline-block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+
+.report-shell .report-disclosure-summary .report-disclosure-preview-row.report-disclosure-preview-row-middle .analysis-preview-chip-row-single .analysis-preview-chip.analysis-preview-chip-manager-preview {
+  width: 100% !important;
+  max-width: none !important;
+  flex: 1 1 100% !important;
+}
+
+.report-shell .report-disclosure-summary .report-disclosure-preview-row.report-disclosure-preview-row-middle .report-disclosure-preview-slot .analysis-preview-chip-row-single {
+  display: flex !important;
+  width: 100% !important;
+  max-width: none !important;
+  flex: 1 1 100% !important;
+  grid-template-columns: none !important;
 }
 
 .report-shell .rookie-draft-manager-cell .manager-chip {

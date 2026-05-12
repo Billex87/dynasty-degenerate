@@ -1,9 +1,26 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
-import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type SyntheticEvent,
+} from "react";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -11,120 +28,246 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Bot, CheckCircle2, ChevronDown, Zap, TrendingUp, TrendingDown, BarChart3, Repeat2, ClipboardList, ListOrdered } from 'lucide-react';
-import { toast } from 'sonner';
-import { LoadingAnimation } from '@/components/LoadingAnimation';
-import { PremiumFxLayer, type PremiumFxVariant } from '@/components/PremiumFxLayer';
-import { SupportButton } from '@/components/SupportButton';
-import { FeedbackButton } from '@/components/FeedbackButton';
-import { ManagerChampionshipProvider } from '@/components/ManagerChampionships';
-import { PlayerPill, PreviewMetricChips, ReportSectionHeader, type PreviewMetric } from '@/components/reportPrimitives';
-import { getLeagueModeCopy, getPlayerRankForMode, normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
-import { getPositionRankClass } from '@/lib/positionRank';
-import { UNAUTHED_ERR_MSG } from '@shared/const';
-import type { RankingSourceDiagnostic, ReportData } from '@shared/types';
+} from "@/components/ui/dialog";
+import {
+  Bot,
+  CheckCircle2,
+  ChevronDown,
+  Users,
+  Zap,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  Repeat2,
+  ClipboardList,
+  ListOrdered,
+} from "lucide-react";
+import { toast } from "sonner";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
+import {
+  PremiumFxLayer,
+  type PremiumFxVariant,
+} from "@/components/PremiumFxLayer";
+import { SupportButton } from "@/components/SupportButton";
+import { FeedbackButton } from "@/components/FeedbackButton";
+import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
+import {
+  PlayerPill,
+  PreviewMetricChips,
+  ReportSectionHeader,
+  type PreviewMetric,
+} from "@/components/reportPrimitives";
+import {
+  getLeagueModeCopy,
+  getPlayerRankForMode,
+  normalizeLeagueValueMode,
+  type LeagueValueMode,
+} from "@/lib/leagueValueMode";
+import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
+import { getPositionRankClass } from "@/lib/positionRank";
+import { UNAUTHED_ERR_MSG } from "@shared/const";
+import type { RankingSourceDiagnostic, ReportData } from "@shared/types";
 
-const DraftAnalysis = lazy(() => import('@/components/DraftAnalysis').then((module) => ({ default: module.DraftAnalysis })));
-const RankingsBoard = lazy(() => import('@/components/RankingsBoard').then((module) => ({ default: module.RankingsBoard })));
-const WeeklyMomentumTable = lazy(() => import('@/components/reportTables/WeeklyMomentumTable'));
-const TradeWarRoom = lazy(() => import('@/components/reportTables/TradeWarRoom'));
-const TradeProfitLeaderboardTable = lazy(() => import('@/components/reportTables/TradeProfitLeaderboardTable'));
-const TradeHistoryTable = lazy(() => import('@/components/reportTables/TradeHistoryTable'));
-const TradeProposalSignalsTable = lazy(() => import('@/components/reportTables/TradeProposalSignalsTable'));
-const SleeperWaiverClaimsTable = lazy(() => import('@/components/reportTables/SleeperWaiverClaimsTable'));
-const ManagerPositionCountsTable = lazy(() => import('@/components/reportTables/ManagerPositionCountsTable'));
-const OwnerIntelMatrix = lazy(() => import('@/components/reportTables/OwnerIntelMatrix'));
-const LeagueCommandCenter = lazy(() => import('@/components/reportTables/LeagueCommandCenter'));
-const TradeMarketRadar = lazy(() => import('@/components/reportTables/TradeMarketRadar'));
-const TradeTheftDetector = lazy(() => import('@/components/reportTables/TradeTheftDetector'));
-const TrendingPlayersTable = lazy(() => import('@/components/reportTables/TrendingPlayersTable'));
-const WaiverIntelligencePanel = lazy(() => import('@/components/reportTables/WaiverIntelligencePanel'));
-const RecentTransactionsPanel = lazy(() => import('@/components/reportTables/RecentTransactionsPanel'));
-const OverviewAIPulse = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.OverviewAIPulse })));
-const MonthlyTeamBlueprint = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.MonthlyTeamBlueprint })));
-const LeaguePowerRankings = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.LeaguePowerRankings })));
-const TeamBreakdownRecon = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.TeamBreakdownRecon })));
-const TradeFinderGenerator = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.TradeFinderGenerator })));
-const TradePartnerFinder = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.TradePartnerFinder })));
-const LeagueExploits = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.LeagueExploits })));
-const RankingsMarketRead = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.RankingsMarketRead })));
-const TradeBrowserRead = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.TradeBrowserRead })));
-const AssistantFeatureShells = lazy(() => import('@/components/CommandCenterExpansion').then((module) => ({ default: module.AssistantFeatureShells })));
-const AITeamAutopilot = lazy(() => import('@/components/AITeamAutopilot'));
+const DraftAnalysis = lazy(() =>
+  import("@/components/DraftAnalysis").then(module => ({
+    default: module.DraftAnalysis,
+  }))
+);
+const RankingsBoard = lazy(() =>
+  import("@/components/RankingsBoard").then(module => ({
+    default: module.RankingsBoard,
+  }))
+);
+const WeeklyMomentumTable = lazy(
+  () => import("@/components/reportTables/WeeklyMomentumTable")
+);
+const TradeWarRoom = lazy(
+  () => import("@/components/reportTables/TradeWarRoom")
+);
+const TradeProfitLeaderboardTable = lazy(
+  () => import("@/components/reportTables/TradeProfitLeaderboardTable")
+);
+const TradeHistoryTable = lazy(
+  () => import("@/components/reportTables/TradeHistoryTable")
+);
+const TradeProposalSignalsTable = lazy(
+  () => import("@/components/reportTables/TradeProposalSignalsTable")
+);
+const SleeperWaiverClaimsTable = lazy(
+  () => import("@/components/reportTables/SleeperWaiverClaimsTable")
+);
+const ManagerPositionCountsTable = lazy(
+  () => import("@/components/reportTables/ManagerPositionCountsTable")
+);
+const OwnerIntelMatrix = lazy(
+  () => import("@/components/reportTables/OwnerIntelMatrix")
+);
+const LeagueCommandCenter = lazy(
+  () => import("@/components/reportTables/LeagueCommandCenter")
+);
+const TradeMarketRadar = lazy(
+  () => import("@/components/reportTables/TradeMarketRadar")
+);
+const TradeTheftDetector = lazy(
+  () => import("@/components/reportTables/TradeTheftDetector")
+);
+const TrendingPlayersTable = lazy(
+  () => import("@/components/reportTables/TrendingPlayersTable")
+);
+const WaiverIntelligencePanel = lazy(
+  () => import("@/components/reportTables/WaiverIntelligencePanel")
+);
+const RecentTransactionsPanel = lazy(
+  () => import("@/components/reportTables/RecentTransactionsPanel")
+);
+const OverviewAIPulse = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.OverviewAIPulse,
+  }))
+);
+const MonthlyTeamBlueprint = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.MonthlyTeamBlueprint,
+  }))
+);
+const LeaguePowerRankings = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.LeaguePowerRankings,
+  }))
+);
+const TeamBreakdownRecon = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.TeamBreakdownRecon,
+  }))
+);
+const TradeFinderGenerator = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.TradeFinderGenerator,
+  }))
+);
+const TradePartnerFinder = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.TradePartnerFinder,
+  }))
+);
+const LeagueExploits = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.LeagueExploits,
+  }))
+);
+const RankingsMarketRead = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.RankingsMarketRead,
+  }))
+);
+const TradeBrowserRead = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.TradeBrowserRead,
+  }))
+);
+const AssistantFeatureShells = lazy(() =>
+  import("@/components/CommandCenterExpansion").then(module => ({
+    default: module.AssistantFeatureShells,
+  }))
+);
+const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
-const DYNASTY_LOGO_SRC = '/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines';
-const REPORT_CACHE_DATA_VERSION = 'draft-baseline-v2';
-const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v20';
+const DYNASTY_LOGO_SRC =
+  "/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines";
+const REPORT_CACHE_DATA_VERSION = "draft-baseline-v2";
+const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v20";
 const STALE_REPORT_CACHE_KEYS = [
-  'dynasty-degenerates:last-report:v10',
-  'dynasty-degenerates:last-report:v11',
-  'dynasty-degenerates:last-report:v12',
-  'dynasty-degenerates:last-report:v13',
-  'dynasty-degenerates:last-report:v14',
-  'dynasty-degenerates:last-report:v15',
-  'dynasty-degenerates:last-report:v16',
-  'dynasty-degenerates:last-report:v17',
-  'dynasty-degenerates:last-report:v18',
-  'dynasty-degenerates:last-report:v19',
+  "dynasty-degenerates:last-report:v10",
+  "dynasty-degenerates:last-report:v11",
+  "dynasty-degenerates:last-report:v12",
+  "dynasty-degenerates:last-report:v13",
+  "dynasty-degenerates:last-report:v14",
+  "dynasty-degenerates:last-report:v15",
+  "dynasty-degenerates:last-report:v16",
+  "dynasty-degenerates:last-report:v17",
+  "dynasty-degenerates:last-report:v18",
+  "dynasty-degenerates:last-report:v19",
 ];
-const LAST_LEAGUE_KEY = 'dynasty-degenerates:last-league:v1';
-const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
-const LEAGUE_ID_HISTORY_KEY = 'dynasty-degenerates:league-id-history:v1';
-const SLEEPER_USERNAME_HISTORY_KEY = 'dynasty-degenerates:sleeper-username-history:v1';
-const CACHED_SLEEPER_USERS_KEY = 'dynasty-degenerates:sleeper-user-history:v1';
-const ADMIN_UNLOCK_MODAL_DISMISSED_KEY = 'dynasty-degenerates:admin-unlock-dismissed:v1';
-const SLEEPER_HIDDEN_CONSENT_KEY = 'dynasty-degenerates:sleeper-hidden-consent:v1';
+const LAST_LEAGUE_KEY = "dynasty-degenerates:last-league:v1";
+const SLEEPER_SESSION_KEY = "dynasty-degenerates:sleeper-session:v1";
+const LEAGUE_ID_HISTORY_KEY = "dynasty-degenerates:league-id-history:v1";
+const SLEEPER_USERNAME_HISTORY_KEY =
+  "dynasty-degenerates:sleeper-username-history:v1";
+const CACHED_SLEEPER_USERS_KEY = "dynasty-degenerates:sleeper-user-history:v1";
+const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
+  "dynasty-degenerates:admin-unlock-dismissed:v1";
+const SLEEPER_HIDDEN_CONSENT_KEY =
+  "dynasty-degenerates:sleeper-hidden-consent:v1";
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
 const MAX_REPORT_HEADER_LEAGUES = 4;
-const ADMIN_VALUE_DIAGNOSTIC_START_DATE = '2026-05-07';
-const CLOWN_EASTER_EGG_USERNAMES = new Set(['armchairgmzar', 'tjsmoov']);
+const LEAGUE_VIEW_MANAGER_VALUE = "__league__";
+const ADMIN_VALUE_DIAGNOSTIC_START_DATE = "2026-05-07";
+const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
 const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 1850;
 const REPORT_SUCCESS_KICK_MS = 900;
-const SHOW_ASSISTANT_FEATURE_RADAR = String(import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || 'true').toLowerCase() !== 'false';
+const SHOW_ASSISTANT_FEATURE_RADAR =
+  String(
+    import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || "true"
+  ).toLowerCase() !== "false";
 
-type LoadingTransitionPhase = 'loading' | 'success' | 'reveal' | 'kick' | 'done';
-type OwnerIntelSortMode = 'dynasty' | 'contender' | 'rebuilder';
+type LoadingTransitionPhase =
+  | "loading"
+  | "success"
+  | "reveal"
+  | "kick"
+  | "done";
+type OwnerIntelSortMode = "dynasty" | "contender" | "rebuilder";
 type SleeperHiddenConsentRecord = {
   acknowledgedAt: number;
   sharedAt: number | null;
 };
 type SleeperHiddenConsentMap = Record<string, SleeperHiddenConsentRecord>;
 
-function getKtcAdminIdentity(user?: SleeperUserSession | null, fallbackUsername?: string): string | null {
+function getKtcAdminIdentity(
+  user?: SleeperUserSession | null,
+  fallbackUsername?: string
+): string | null {
   return user?.username || user?.displayName || fallbackUsername || null;
 }
 
 function normalizeViewerIdentifier(value?: string | null): string {
-  return value?.trim().toLowerCase() || '';
+  return value?.trim().toLowerCase() || "";
 }
 
-function getSleeperHiddenConsentStorageKey(leagueId?: string | null, userKey?: string | null): string | null {
-  const normalizedLeagueId = String(leagueId || '').trim();
+function getSleeperHiddenConsentStorageKey(
+  leagueId?: string | null,
+  userKey?: string | null
+): string | null {
+  const normalizedLeagueId = String(leagueId || "").trim();
   if (!normalizedLeagueId) return null;
   const normalizedUserKey = normalizeViewerIdentifier(userKey);
-  return `${normalizedLeagueId}:${normalizedUserKey || 'league'}`;
+  return `${normalizedLeagueId}:${normalizedUserKey || "league"}`;
 }
 
 function readSleeperHiddenConsentMap(): SleeperHiddenConsentMap {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === "undefined") return {};
   try {
     const raw = window.localStorage.getItem(SLEEPER_HIDDEN_CONSENT_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as SleeperHiddenConsentMap : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as SleeperHiddenConsentMap)
+      : {};
   } catch {
     return {};
   }
 }
 
 function writeSleeperHiddenConsentMap(map: SleeperHiddenConsentMap): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(SLEEPER_HIDDEN_CONSENT_KEY, JSON.stringify(map));
+    window.localStorage.setItem(
+      SLEEPER_HIDDEN_CONSENT_KEY,
+      JSON.stringify(map)
+    );
   } catch {
     // Local storage can be unavailable in privacy-restricted contexts.
   }
@@ -159,7 +302,7 @@ type AdminAuthUser = {
 
 function canViewAdminTelemetryForUser(user?: AdminAuthUser | null): boolean {
   if (!user) return false;
-  return user.role === 'admin' || Boolean(user.isPrivilegedAdmin);
+  return user.role === "admin" || Boolean(user.isPrivilegedAdmin);
 }
 
 function showMutationErrorToast(error: { message: string }) {
@@ -184,7 +327,10 @@ function ProspectArchiveLoadingState() {
       <div className="prospect-archive-loading__copy">
         <span>Scouting Data Archive</span>
         <strong>Getting college prospects</strong>
-        <p>Loading Draft Buzz scores, class filters, position ranks, and verified combine measurables.</p>
+        <p>
+          Loading Draft Buzz scores, class filters, position ranks, and verified
+          combine measurables.
+        </p>
       </div>
       <div className="prospect-archive-loading__badges" aria-hidden="true">
         <span>NCAA</span>
@@ -195,127 +341,153 @@ function ProspectArchiveLoadingState() {
   );
 }
 
-const REPORT_TAB_VALUES = ['overview', 'autopilot', 'momentum', 'rankings', 'trades', 'draft'] as const;
+const REPORT_TAB_VALUES = [
+  "overview",
+  "autopilot",
+  "momentum",
+  "rankings",
+  "trades",
+  "draft",
+] as const;
 
 function normalizeReportTab(value?: string | null): string | null {
-  const normalized = String(value || '').replace(/^#/, '').replace(/^tab=/, '').trim().toLowerCase();
-  return REPORT_TAB_VALUES.includes(normalized as typeof REPORT_TAB_VALUES[number]) ? normalized : null;
+  const normalized = String(value || "")
+    .replace(/^#/, "")
+    .replace(/^tab=/, "")
+    .trim()
+    .toLowerCase();
+  return REPORT_TAB_VALUES.includes(
+    normalized as (typeof REPORT_TAB_VALUES)[number]
+  )
+    ? normalized
+    : null;
 }
 
 function getInitialReportTabFromUrl(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   const hashTab = normalizeReportTab(window.location.hash);
   if (hashTab) return hashTab;
-  return normalizeReportTab(new URLSearchParams(window.location.search).get('tab'));
+  return normalizeReportTab(
+    new URLSearchParams(window.location.search).get("tab")
+  );
 }
 
 function getInitialReportLeagueIdFromUrl(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.search);
-  const value = params.get('leagueId') || params.get('league');
-  const normalized = String(value || '').trim();
+  const value = params.get("leagueId") || params.get("league");
+  const normalized = String(value || "").trim();
   return normalized || null;
 }
 
 function updateReportTabUrl(tab: string, leagueId?: string | null) {
-  if (typeof window === 'undefined') return;
-  const normalizedTab = normalizeReportTab(tab) || 'overview';
+  if (typeof window === "undefined") return;
+  const normalizedTab = normalizeReportTab(tab) || "overview";
   const params = new URLSearchParams(window.location.search);
-  params.delete('tab');
+  params.delete("tab");
   if (leagueId !== undefined) {
-    const normalizedLeagueId = String(leagueId || '').trim();
+    const normalizedLeagueId = String(leagueId || "").trim();
     if (normalizedLeagueId) {
-      params.set('leagueId', normalizedLeagueId);
+      params.set("leagueId", normalizedLeagueId);
     } else {
-      params.delete('leagueId');
-      params.delete('league');
+      params.delete("leagueId");
+      params.delete("league");
     }
   }
   const nextSearch = params.toString();
-  const nextHash = normalizedTab === 'overview' ? '' : `#${normalizedTab}`;
-  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${nextHash}`;
-  window.history.replaceState(null, '', nextUrl);
+  const nextHash = normalizedTab === "overview" ? "" : `#${normalizedTab}`;
+  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${nextHash}`;
+  window.history.replaceState(null, "", nextUrl);
 }
 
 function formatPreviewNumber(value?: number | null): string {
   const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return '-';
+  if (!Number.isFinite(numeric)) return "-";
   if (Math.abs(numeric) >= 1000) return `${Math.round(numeric / 100) / 10}K`;
   return numeric.toLocaleString();
 }
 
 function formatPreviewDate(value?: string | null): string {
-  if (!value) return '-';
+  if (!value) return "-";
   const parsed = new Date(value.length === 10 ? `${value}T12:00:00Z` : value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
 function formatReceptionChip(value?: number | null): string | null {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
-  if (numeric === 0) return 'Standard';
-  if (numeric === 0.5) return 'Half PPR';
-  if (numeric === 1) return 'PPR';
+  if (numeric === 0) return "Standard";
+  if (numeric === 0.5) return "Half PPR";
+  if (numeric === 1) return "PPR";
   return `${numeric} PPR`;
 }
 
 function formatTepChip(value?: number | null): string | null {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return null;
-  return numeric >= 1 ? 'TEP+' : 'TEP';
+  return numeric >= 1 ? "TEP+" : "TEP";
 }
 
 function buildLeagueFormatPills(
   leagueFormat: string,
-  diagnostics?: ReportData['leagueDiagnostics'],
-  mode?: LeagueValueMode | string | null,
+  diagnostics?: ReportData["leagueDiagnostics"],
+  mode?: LeagueValueMode | string | null
 ): string[] {
   const chips: string[] = [];
-  const normalizedFormat = leagueFormat || '';
+  const normalizedFormat = leagueFormat || "";
   const addChip = (value?: string | null) => {
     const normalized = value?.trim();
     if (normalized && !chips.includes(normalized)) chips.push(normalized);
   };
 
-  const teamCount = diagnostics?.teamCount || Number(normalizedFormat.match(/\b(\d{1,2})\s*-?\s*team\b/i)?.[1]);
+  const teamCount =
+    diagnostics?.teamCount ||
+    Number(normalizedFormat.match(/\b(\d{1,2})\s*-?\s*team\b/i)?.[1]);
   if (Number.isFinite(teamCount) && teamCount > 0) addChip(`${teamCount}-Team`);
 
-  const normalizedMode = normalizeLeagueValueMode(mode || diagnostics?.valueMode);
-  addChip(normalizedMode === 'redraft' ? 'Redraft' : 'Dynasty');
+  const normalizedMode = normalizeLeagueValueMode(
+    mode || diagnostics?.valueMode
+  );
+  addChip(normalizedMode === "redraft" ? "Redraft" : "Dynasty");
 
   const slotText = [
     normalizedFormat,
     ...(diagnostics?.starterSlots || []),
     ...(diagnostics?.rosterSlots || []),
-  ].join(' ');
-  if (/\b(super[_\s-]?flex|sflex|sf)\b/i.test(slotText) || /\bOP\b/.test(slotText)) {
-    addChip('SF');
+  ].join(" ");
+  if (
+    /\b(super[_\s-]?flex|sflex|sf)\b/i.test(slotText) ||
+    /\bOP\b/.test(slotText)
+  ) {
+    addChip("SF");
   } else if (/\b(1\s*QB|one\s*QB|1QB)\b/i.test(slotText)) {
-    addChip('1QB');
+    addChip("1QB");
   }
 
   const scoringChip = diagnostics
     ? formatReceptionChip(diagnostics.receptionScoring)
     : /\b(half[-\s]?ppr)\b/i.test(normalizedFormat)
-      ? 'Half PPR'
+      ? "Half PPR"
       : /\b(non[-\s]?ppr|standard|std)\b/i.test(normalizedFormat)
-        ? 'Standard'
+        ? "Standard"
         : /\bppr\b/i.test(normalizedFormat)
-          ? 'PPR'
+          ? "PPR"
           : null;
   addChip(scoringChip);
 
   const tepChip = diagnostics
     ? formatTepChip(diagnostics.tightEndPremium)
-    : /\b(tep\+|1(?:\.0)?\s*tep|1\.5\s*tep|2(?:\.0)?\s*tep|te\s*premium\+)\b/i.test(normalizedFormat)
-      ? 'TEP+'
+    : /\b(tep\+|1(?:\.0)?\s*tep|1\.5\s*tep|2(?:\.0)?\s*tep|te\s*premium\+)\b/i.test(
+          normalizedFormat
+        )
+      ? "TEP+"
       : /\b(tep|te\s*premium)\b/i.test(normalizedFormat)
-        ? 'TEP'
+        ? "TEP"
         : null;
   addChip(tepChip);
 
@@ -323,7 +495,11 @@ function buildLeagueFormatPills(
 }
 
 function getBestManagerByValue(data: ReportData): string | null {
-  return [...(data.leagueOverview || [])].sort((a, b) => a.rank_value - b.rank_value)[0]?.manager || null;
+  return (
+    [...(data.leagueOverview || [])].sort(
+      (a, b) => a.rank_value - b.rank_value
+    )[0]?.manager || null
+  );
 }
 
 const OWNER_INTEL_SORT_OPTIONS: Array<{
@@ -331,17 +507,17 @@ const OWNER_INTEL_SORT_OPTIONS: Array<{
   label: string;
   shortLabel: string;
 }> = [
-  { key: 'dynasty', label: 'Dynasty', shortLabel: 'DYN' },
-  { key: 'contender', label: 'Contender', shortLabel: 'CON' },
-  { key: 'rebuilder', label: 'Rebuilder', shortLabel: 'REB' },
+  { key: "dynasty", label: "Dynasty", shortLabel: "DYN" },
+  { key: "contender", label: "Contender", shortLabel: "CON" },
+  { key: "rebuilder", label: "Rebuilder", shortLabel: "REB" },
 ];
 
 function renderPreviewManagerIdentity(
   manager: string | null | undefined,
-  managerAvatars?: ReportData['managerAvatars'],
-  className = '',
+  managerAvatars?: ReportData["managerAvatars"],
+  className = ""
 ): ReactNode {
-  if (!manager) return '-';
+  if (!manager) return "-";
   const avatarUrl = managerAvatars?.[manager];
 
   return (
@@ -354,7 +530,7 @@ function renderPreviewManagerIdentity(
         {avatarUrl ? (
           <img src={avatarUrl} alt="" />
         ) : (
-          <span>{manager[0]?.toUpperCase() || '?'}</span>
+          <span>{manager[0]?.toUpperCase() || "?"}</span>
         )}
       </span>
       <span className="analysis-preview-manager-name">{manager}</span>
@@ -362,37 +538,59 @@ function renderPreviewManagerIdentity(
   );
 }
 
-function getOwnerIntelPreviewScore(data: ReportData, manager: string, sortMode: OwnerIntelSortMode): number | null {
-  const powerRow = data.powerRankings?.find((row) => row.manager === manager);
-  const timelineRow = data.dynastyTimelines?.find((row) => row.manager === manager);
+function getOwnerIntelPreviewScore(
+  data: ReportData,
+  manager: string,
+  sortMode: OwnerIntelSortMode
+): number | null {
+  const powerRow = data.powerRankings?.find(row => row.manager === manager);
+  const timelineRow = data.dynastyTimelines?.find(
+    row => row.manager === manager
+  );
 
-  const score = sortMode === 'contender'
-    ? timelineRow?.contenderScore ?? powerRow?.starterStrength
-    : sortMode === 'rebuilder'
-      ? timelineRow?.rebuildScore ?? powerRow?.draftCapital
-      : powerRow?.rosterValue;
+  const score =
+    sortMode === "contender"
+      ? (timelineRow?.contenderScore ?? powerRow?.starterStrength)
+      : sortMode === "rebuilder"
+        ? (timelineRow?.rebuildScore ?? powerRow?.draftCapital)
+        : powerRow?.rosterValue;
 
   const numericScore = Number(score);
   return Number.isFinite(numericScore) ? numericScore : null;
 }
 
-function getOwnerIntelPreviewManagers(data: ReportData, sortMode: OwnerIntelSortMode): {
+function getOwnerIntelPreviewManagers(
+  data: ReportData,
+  sortMode: OwnerIntelSortMode
+): {
   leader: string | null;
   weakest: string | null;
 } {
-  const managers = Array.from(new Set([
-    ...(data.managerRosterIntelligence || []).map((row) => row.manager),
-    ...(data.leagueOverview || []).map((row) => row.manager),
-  ].filter(Boolean)));
+  const managers = Array.from(
+    new Set(
+      [
+        ...(data.managerRosterIntelligence || []).map(row => row.manager),
+        ...(data.leagueOverview || []).map(row => row.manager),
+      ].filter(Boolean)
+    )
+  );
 
   const scoredManagers = managers
-    .map((manager) => ({ manager, score: getOwnerIntelPreviewScore(data, manager, sortMode) }))
-    .filter((item): item is { manager: string; score: number } => item.score !== null)
+    .map(manager => ({
+      manager,
+      score: getOwnerIntelPreviewScore(data, manager, sortMode),
+    }))
+    .filter(
+      (item): item is { manager: string; score: number } => item.score !== null
+    )
     .sort((a, b) => b.score - a.score || a.manager.localeCompare(b.manager));
 
   return {
     leader: scoredManagers[0]?.manager || null,
-    weakest: scoredManagers.length > 1 ? scoredManagers[scoredManagers.length - 1].manager : null,
+    weakest:
+      scoredManagers.length > 1
+        ? scoredManagers[scoredManagers.length - 1].manager
+        : null,
   };
 }
 
@@ -405,296 +603,544 @@ function OwnerIntelSortControls({
 }) {
   return (
     <span className="owner-intel-sort-controls" aria-label="Sort managers">
-      {OWNER_INTEL_SORT_OPTIONS.map((option) => (
+      {OWNER_INTEL_SORT_OPTIONS.map(option => (
         <button
           key={option.key}
           type="button"
-          className={`owner-intel-sort-button${value === option.key ? ' owner-intel-sort-button-active' : ''}`}
+          className={`owner-intel-sort-button${value === option.key ? " owner-intel-sort-button-active" : ""}`}
           aria-pressed={value === option.key}
           data-owner-intel-sort={option.key}
-          onClick={(event) => {
+          onClick={event => {
             event.preventDefault();
             event.stopPropagation();
             onChange(option.key);
           }}
         >
           <span className="owner-intel-sort-label-full">{option.label}</span>
-          <span className="owner-intel-sort-label-short">{option.shortLabel}</span>
+          <span className="owner-intel-sort-label-short">
+            {option.shortLabel}
+          </span>
         </button>
       ))}
     </span>
   );
 }
 
-function buildOwnerPreviewMetrics(data: ReportData, mode: LeagueValueMode, sortMode: OwnerIntelSortMode = 'dynasty'): PreviewMetric[] {
+function buildOwnerPreviewMetrics(
+  data: ReportData,
+  mode: LeagueValueMode,
+  sortMode: OwnerIntelSortMode = "dynasty"
+): PreviewMetric[] {
   const valueLeader = getBestManagerByValue(data);
-  const starterLeader = [...(data.powerRankings || [])].sort((a, b) => b.starterStrength - a.starterStrength)[0]?.manager;
-  const starterWeakest = [...(data.powerRankings || [])].sort((a, b) => a.starterStrength - b.starterStrength)[0]?.manager;
+  const starterLeader = [...(data.powerRankings || [])].sort(
+    (a, b) => b.starterStrength - a.starterStrength
+  )[0]?.manager;
+  const starterWeakest = [...(data.powerRankings || [])].sort(
+    (a, b) => a.starterStrength - b.starterStrength
+  )[0]?.manager;
   const ownerPreviewManagers = getOwnerIntelPreviewManagers(data, sortMode);
 
-  return mode === 'redraft'
-    ? [
-        { label: 'Starter Leader', value: renderPreviewManagerIdentity(starterLeader || valueLeader, data.managerAvatars), tone: 'good', className: 'analysis-preview-chip-manager-preview' },
-        starterWeakest ? { label: 'Weakest', value: renderPreviewManagerIdentity(starterWeakest, data.managerAvatars), tone: 'warn', className: 'analysis-preview-chip-manager-preview' } : null,
-      ].filter(Boolean) as PreviewMetric[]
-    : [
-        { label: 'Leader', value: renderPreviewManagerIdentity(ownerPreviewManagers.leader || valueLeader, data.managerAvatars), tone: 'good', className: 'analysis-preview-chip-manager-preview' },
-        ownerPreviewManagers.weakest ? { label: 'Weakest', value: renderPreviewManagerIdentity(ownerPreviewManagers.weakest, data.managerAvatars), tone: 'warn', className: 'analysis-preview-chip-manager-preview' } : null,
-      ].filter(Boolean) as PreviewMetric[];
+  return mode === "redraft"
+    ? ([
+        {
+          label: "Starter Leader",
+          value: renderPreviewManagerIdentity(
+            starterLeader || valueLeader,
+            data.managerAvatars
+          ),
+          tone: "good",
+          className: "analysis-preview-chip-manager-preview",
+        },
+        starterWeakest
+          ? {
+              label: "Weakest",
+              value: renderPreviewManagerIdentity(
+                starterWeakest,
+                data.managerAvatars
+              ),
+              tone: "warn",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+      ].filter(Boolean) as PreviewMetric[])
+    : ([
+        {
+          label: "Leader",
+          value: renderPreviewManagerIdentity(
+            ownerPreviewManagers.leader || valueLeader,
+            data.managerAvatars
+          ),
+          tone: "good",
+          className: "analysis-preview-chip-manager-preview",
+        },
+        ownerPreviewManagers.weakest
+          ? {
+              label: "Weakest",
+              value: renderPreviewManagerIdentity(
+                ownerPreviewManagers.weakest,
+                data.managerAvatars
+              ),
+              tone: "warn",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+      ].filter(Boolean) as PreviewMetric[]);
 }
 
 function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
-  const starterRows = [...(data.managerRosterIntelligence || [])].filter((row) => row.manager);
-  const starterScoreByManager = new Map((data.powerRankings || []).map((row) => [row.manager, row.starterStrength || 0]));
-  const getStarterPreviewScore = (row: NonNullable<ReportData['managerRosterIntelligence']>[number]) => (
-    row.starterSeasonValue
-    || row.starterValue
-    || starterScoreByManager.get(row.manager)
-    || 0
+  const starterRows = [...(data.managerRosterIntelligence || [])].filter(
+    row => row.manager
   );
-  const orderedStarterRows = starterRows.sort((a, b) => getStarterPreviewScore(b) - getStarterPreviewScore(a));
+  const starterScoreByManager = new Map(
+    (data.powerRankings || []).map(row => [
+      row.manager,
+      row.starterStrength || 0,
+    ])
+  );
+  const getStarterPreviewScore = (
+    row: NonNullable<ReportData["managerRosterIntelligence"]>[number]
+  ) =>
+    row.starterSeasonValue ||
+    row.starterValue ||
+    starterScoreByManager.get(row.manager) ||
+    0;
+  const orderedStarterRows = starterRows.sort(
+    (a, b) => getStarterPreviewScore(b) - getStarterPreviewScore(a)
+  );
   const strongestStarterManager = orderedStarterRows[0]?.manager || null;
-  const weakestStarterManager = orderedStarterRows.length > 1
-    ? orderedStarterRows[orderedStarterRows.length - 1]?.manager || null
-    : null;
+  const weakestStarterManager =
+    orderedStarterRows.length > 1
+      ? orderedStarterRows[orderedStarterRows.length - 1]?.manager || null
+      : null;
   return [
     {
-      label: 'Stronger Starters',
-      value: renderPreviewManagerIdentity(strongestStarterManager, data.managerAvatars),
-      tone: 'good',
-      className: 'analysis-preview-chip-starter-room',
+      label: "Strongest Starters",
+      compactLabel: "Strongest",
+      value: renderPreviewManagerIdentity(
+        strongestStarterManager,
+        data.managerAvatars
+      ),
+      tone: "good",
+      className: "analysis-preview-chip-starter-room",
     },
-    weakestStarterManager ? {
-      label: 'Weakest Starters',
-      value: renderPreviewManagerIdentity(weakestStarterManager, data.managerAvatars),
-      tone: 'warn',
-      className: 'analysis-preview-chip-starter-room',
-    } : null,
+    weakestStarterManager
+      ? {
+          label: "Weakest Starters",
+          compactLabel: "Weakest",
+          value: renderPreviewManagerIdentity(
+            weakestStarterManager,
+            data.managerAvatars
+          ),
+          tone: "warn",
+          className: "analysis-preview-chip-starter-room",
+        }
+      : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
 function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
   const taxiRows = [...(data.managerRosterIntelligence || [])]
-    .filter((row) => row.manager && (row.taxiTriage?.items.length || 0) > 0)
-    .map((row) => ({
+    .filter(row => row.manager && (row.taxiTriage?.items.length || 0) > 0)
+    .map(row => ({
       row,
-      promoteCount: Number(row.taxiTriage?.counts['Promote Now'] || 0),
+      promoteCount: Number(row.taxiTriage?.counts["Promote Now"] || 0),
       cutCount: Number(row.taxiTriage?.counts.Cuttable || 0),
     }));
 
   if (!taxiRows.length) return [];
 
-  const mostPromotable = [...taxiRows]
-    .filter(({ promoteCount }) => promoteCount > 0)
-    .sort((a, b) => (
-      b.promoteCount - a.promoteCount
-      || b.cutCount - a.cutCount
-      || (b.row.taxiTriage?.items.length || 0) - (a.row.taxiTriage?.items.length || 0)
-      || a.row.manager.localeCompare(b.row.manager)
-    ))[0] || null;
-  const mostCuttable = [...taxiRows]
-    .filter(({ cutCount }) => cutCount > 0)
-    .sort((a, b) => (
-      b.cutCount - a.cutCount
-      || b.promoteCount - a.promoteCount
-      || (b.row.taxiTriage?.items.length || 0) - (a.row.taxiTriage?.items.length || 0)
-      || a.row.manager.localeCompare(b.row.manager)
-    ))[0] || null;
+  const mostPromotable =
+    [...taxiRows]
+      .filter(({ promoteCount }) => promoteCount > 0)
+      .sort(
+        (a, b) =>
+          b.promoteCount - a.promoteCount ||
+          b.cutCount - a.cutCount ||
+          (b.row.taxiTriage?.items.length || 0) -
+            (a.row.taxiTriage?.items.length || 0) ||
+          a.row.manager.localeCompare(b.row.manager)
+      )[0] || null;
+  const mostCuttable =
+    [...taxiRows]
+      .filter(({ cutCount }) => cutCount > 0)
+      .sort(
+        (a, b) =>
+          b.cutCount - a.cutCount ||
+          b.promoteCount - a.promoteCount ||
+          (b.row.taxiTriage?.items.length || 0) -
+            (a.row.taxiTriage?.items.length || 0) ||
+          a.row.manager.localeCompare(b.row.manager)
+      )[0] || null;
 
   return [
-    mostPromotable ? {
-      label: mostPromotable.promoteCount === 1 ? 'Most Promotable' : `Most Promotable (${mostPromotable.promoteCount})`,
-      value: renderPreviewManagerIdentity(mostPromotable.row.manager, data.managerAvatars),
-      tone: 'good',
-      className: 'analysis-preview-chip-manager-preview',
-    } : null,
-    mostCuttable ? {
-      label: mostCuttable.cutCount === 1 ? 'Most Cuttable' : `Most Cuttable (${mostCuttable.cutCount})`,
-      value: renderPreviewManagerIdentity(mostCuttable.row.manager, data.managerAvatars),
-      tone: 'warn',
-      className: 'analysis-preview-chip-manager-preview',
-    } : null,
+    mostPromotable
+      ? {
+          label:
+            mostPromotable.promoteCount === 1
+              ? "Most Promotable"
+              : `Most Promotable (${mostPromotable.promoteCount})`,
+          value: renderPreviewManagerIdentity(
+            mostPromotable.row.manager,
+            data.managerAvatars
+          ),
+          tone: "good",
+          className: "analysis-preview-chip-manager-preview",
+        }
+      : null,
+    mostCuttable
+      ? {
+          label:
+            mostCuttable.cutCount === 1
+              ? "Most Cuttable"
+              : `Most Cuttable (${mostCuttable.cutCount})`,
+          value: renderPreviewManagerIdentity(
+            mostCuttable.row.manager,
+            data.managerAvatars
+          ),
+          tone: "warn",
+          className: "analysis-preview-chip-manager-preview",
+        }
+      : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
-function buildManagerPositionRoomPreviewMetrics(data: ReportData): PreviewMetric[] {
+function buildManagerPositionRoomPreviewMetrics(
+  data: ReportData
+): PreviewMetric[] {
   const rosterCapacity = Number(
-    data.leagueDiagnostics?.totalRosterSlots
-    || (data.leagueDiagnostics?.rosterSlots?.length || 0)
-      + Number(data.leagueDiagnostics?.reserveSlots || 0)
-      + Number(data.leagueDiagnostics?.taxiSlots || 0)
+    data.leagueDiagnostics?.totalRosterSlots ||
+      (data.leagueDiagnostics?.rosterSlots?.length || 0) +
+        Number(data.leagueDiagnostics?.reserveSlots || 0) +
+        Number(data.leagueDiagnostics?.taxiSlots || 0)
   );
   if (!rosterCapacity) return [];
 
   const roomRows = [...(data.managerPositionCounts || [])]
-    .filter((row) => row.manager)
-    .map((row) => ({
+    .filter(row => row.manager)
+    .map(row => ({
       row,
       room: rosterCapacity - Number(row.totalRosterPlayerCount || 0),
     }));
 
-  const needToDrop = roomRows
-    .filter(({ room }) => room < 0)
-    .sort((a, b) => (
-      a.room - b.room
-      || Number(b.row.totalRosterPlayerCount || 0) - Number(a.row.totalRosterPlayerCount || 0)
-      || a.row.manager.localeCompare(b.row.manager)
-    ))[0] || null;
-  const openRoom = roomRows
-    .filter(({ room }) => room > 0)
-    .sort((a, b) => (
-      b.room - a.room
-      || Number(a.row.totalRosterPlayerCount || 0) - Number(b.row.totalRosterPlayerCount || 0)
-      || a.row.manager.localeCompare(b.row.manager)
-    ))[0] || null;
+  const needToDrop =
+    roomRows
+      .filter(({ room }) => room < 0)
+      .sort(
+        (a, b) =>
+          a.room - b.room ||
+          Number(b.row.totalRosterPlayerCount || 0) -
+            Number(a.row.totalRosterPlayerCount || 0) ||
+          a.row.manager.localeCompare(b.row.manager)
+      )[0] || null;
+  const openRoom =
+    roomRows
+      .filter(({ room }) => room > 0)
+      .sort(
+        (a, b) =>
+          b.room - a.room ||
+          Number(a.row.totalRosterPlayerCount || 0) -
+            Number(b.row.totalRosterPlayerCount || 0) ||
+          a.row.manager.localeCompare(b.row.manager)
+      )[0] || null;
 
   return [
-    needToDrop ? {
-      label: needToDrop.room === -1 ? 'Needs 1 Drop' : `Needs ${Math.abs(needToDrop.room)} Drops`,
-      value: renderPreviewManagerIdentity(needToDrop.row.manager, data.managerAvatars),
-      tone: 'warn',
-      className: 'analysis-preview-chip-manager-preview',
-    } : null,
-    openRoom ? {
-      label: openRoom.room === 1 ? 'Open 1 Spot' : `Open ${openRoom.room} Spots`,
-      value: renderPreviewManagerIdentity(openRoom.row.manager, data.managerAvatars),
-      tone: 'good',
-      className: 'analysis-preview-chip-manager-preview',
-    } : null,
+    needToDrop
+      ? {
+          label:
+            needToDrop.room === -1
+              ? "Must Drop (1)"
+              : `Must Drop (${Math.abs(needToDrop.room)})`,
+          value: renderPreviewManagerIdentity(
+            needToDrop.row.manager,
+            data.managerAvatars
+          ),
+          tone: "warn",
+          className: "analysis-preview-chip-manager-preview",
+        }
+      : null,
+    openRoom
+      ? {
+          label:
+            openRoom.room === 1 ? "Can Add (1)" : `Can Add (${openRoom.room})`,
+          value: renderPreviewManagerIdentity(
+            openRoom.row.manager,
+            data.managerAvatars
+          ),
+          tone: "good",
+          className: "analysis-preview-chip-manager-preview",
+        }
+      : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
-type TradePreviewSection = 'war-room' | 'leaderboard' | 'theft' | 'ledger';
+type TradePreviewSection = "war-room" | "leaderboard" | "theft" | "ledger";
 
-function getTradeLoserManager(trade?: ReportData['tradeHistory'][number] | null): string | null {
+function getTradeLoserManager(
+  trade?: ReportData["tradeHistory"][number] | null
+): string | null {
   if (!trade) return null;
   if (trade.winner === trade.team_a) return trade.team_b;
   if (trade.winner === trade.team_b) return trade.team_a;
-  if (trade.winners?.includes(trade.team_a) && !trade.winners.includes(trade.team_b)) return trade.team_b;
-  if (trade.winners?.includes(trade.team_b) && !trade.winners.includes(trade.team_a)) return trade.team_a;
+  if (
+    trade.winners?.includes(trade.team_a) &&
+    !trade.winners.includes(trade.team_b)
+  )
+    return trade.team_b;
+  if (
+    trade.winners?.includes(trade.team_b) &&
+    !trade.winners.includes(trade.team_a)
+  )
+    return trade.team_a;
   return null;
 }
 
-function buildTradePreviewMetrics(data: ReportData, _mode: LeagueValueMode, section: TradePreviewSection): PreviewMetric[] {
+function buildTradePreviewMetrics(
+  data: ReportData,
+  _mode: LeagueValueMode,
+  section: TradePreviewSection
+): PreviewMetric[] {
   const tradeHistory = [...(data.tradeHistory || [])];
   const tradeTendencies = [...(data.tradeTendencies || [])];
   const managerIntel = data.managerRosterIntelligence || [];
 
   const uniqueTradeManagers = new Set<string>();
-  tradeHistory.forEach((trade) => {
+  tradeHistory.forEach(trade => {
     if (trade.team_a) uniqueTradeManagers.add(trade.team_a);
     if (trade.team_b) uniqueTradeManagers.add(trade.team_b);
   });
 
-  const biggestGap = [...tradeHistory].sort((a, b) => Math.abs(b.point_gap || 0) - Math.abs(a.point_gap || 0))[0] || null;
-  const latestTrade = [...tradeHistory].sort((a, b) => b.date.localeCompare(a.date))[0] || null;
-  const bestProfit = [...tradeTendencies].sort((a, b) => b.profit - a.profit)[0] || null;
-  const busiestTrader = [...tradeTendencies].sort((a, b) => b.tradeCount - a.tradeCount)[0] || null;
-  const bestWinRate = [...tradeTendencies].sort((a, b) => b.winPct - a.winPct)[0] || null;
-  const taxiRows = managerIntel.filter((row) => (row.taxiTriage?.items.length || 0) > 0);
+  const biggestGap =
+    [...tradeHistory].sort(
+      (a, b) => Math.abs(b.point_gap || 0) - Math.abs(a.point_gap || 0)
+    )[0] || null;
+  const latestTrade =
+    [...tradeHistory].sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+  const bestProfit =
+    [...tradeTendencies].sort((a, b) => b.profit - a.profit)[0] || null;
+  const busiestTrader =
+    [...tradeTendencies].sort((a, b) => b.tradeCount - a.tradeCount)[0] || null;
+  const bestWinRate =
+    [...tradeTendencies].sort((a, b) => b.winPct - a.winPct)[0] || null;
+  const taxiRows = managerIntel.filter(
+    row => (row.taxiTriage?.items.length || 0) > 0
+  );
   const promotableRows = [...managerIntel]
-    .filter((row) => (row.taxiTriage?.counts['Promote Now'] || 0) > 0)
-    .sort((a, b) => (b.taxiTriage?.counts['Promote Now'] || 0) - (a.taxiTriage?.counts['Promote Now'] || 0) || a.manager.localeCompare(b.manager));
+    .filter(row => (row.taxiTriage?.counts["Promote Now"] || 0) > 0)
+    .sort(
+      (a, b) =>
+        (b.taxiTriage?.counts["Promote Now"] || 0) -
+          (a.taxiTriage?.counts["Promote Now"] || 0) ||
+        a.manager.localeCompare(b.manager)
+    );
   const cuttableRows = [...managerIntel]
-    .filter((row) => (row.taxiTriage?.counts.Cuttable || 0) > 0)
-    .sort((a, b) => (b.taxiTriage?.counts.Cuttable || 0) - (a.taxiTriage?.counts.Cuttable || 0) || a.manager.localeCompare(b.manager));
+    .filter(row => (row.taxiTriage?.counts.Cuttable || 0) > 0)
+    .sort(
+      (a, b) =>
+        (b.taxiTriage?.counts.Cuttable || 0) -
+          (a.taxiTriage?.counts.Cuttable || 0) ||
+        a.manager.localeCompare(b.manager)
+    );
   const topPromotable = promotableRows[0] || null;
   const topCuttable = cuttableRows[0] || null;
-  const topPromotableCount = topPromotable?.taxiTriage?.counts['Promote Now'] || 0;
+  const topPromotableCount =
+    topPromotable?.taxiTriage?.counts["Promote Now"] || 0;
   const topCuttableCount = topCuttable?.taxiTriage?.counts.Cuttable || 0;
   const cookedManager = getTradeLoserManager(biggestGap);
 
   switch (section) {
-    case 'war-room':
+    case "war-room":
       return [
-        { label: 'Managers', value: managerIntel.length, tone: managerIntel.length ? 'info' : 'warn' },
-        topPromotable ? {
-          label: `Most promotable${topPromotableCount ? ` (${topPromotableCount})` : ''}`,
-          value: renderPreviewManagerIdentity(topPromotable.manager, data.managerAvatars),
-          tone: 'good',
-          className: 'analysis-preview-chip-manager-preview',
-        } : null,
-        topCuttable ? {
-          label: `Most cuttable${topCuttableCount ? ` (${topCuttableCount})` : ''}`,
-          value: renderPreviewManagerIdentity(topCuttable.manager, data.managerAvatars),
-          tone: 'danger',
-          className: 'analysis-preview-chip-manager-preview',
-        } : null,
-        { label: 'Taxi triage', value: taxiRows.length, tone: taxiRows.length ? 'info' : 'neutral' },
+        {
+          label: "Managers",
+          value: managerIntel.length,
+          tone: managerIntel.length ? "info" : "warn",
+        },
+        topPromotable
+          ? {
+              label: `Most promotable${topPromotableCount ? ` (${topPromotableCount})` : ""}`,
+              value: renderPreviewManagerIdentity(
+                topPromotable.manager,
+                data.managerAvatars
+              ),
+              tone: "good",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        topCuttable
+          ? {
+              label: `Most cuttable${topCuttableCount ? ` (${topCuttableCount})` : ""}`,
+              value: renderPreviewManagerIdentity(
+                topCuttable.manager,
+                data.managerAvatars
+              ),
+              tone: "danger",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        {
+          label: "Taxi triage",
+          value: taxiRows.length,
+          tone: taxiRows.length ? "info" : "neutral",
+        },
       ].filter(Boolean) as PreviewMetric[];
-    case 'leaderboard':
+    case "leaderboard":
       return [
-        { label: 'Trades', value: tradeTendencies.length, tone: tradeTendencies.length ? 'info' : 'warn' },
-        bestProfit ? {
-          label: `Top profit (${formatPreviewNumber(bestProfit.profit)})`,
-          value: renderPreviewManagerIdentity(bestProfit.manager, data.managerAvatars),
-          tone: bestProfit.profit >= 0 ? 'good' : 'danger',
-          className: 'analysis-preview-chip-manager-preview',
-        } : null,
-        busiestTrader ? {
-          label: `Most trades (${busiestTrader.tradeCount})`,
-          value: renderPreviewManagerIdentity(busiestTrader.manager, data.managerAvatars),
-          tone: 'info',
-          className: 'analysis-preview-chip-manager-preview',
-        } : null,
-        bestWinRate ? {
-          label: `Best win rate (${bestWinRate.winPct}%)`,
-          value: renderPreviewManagerIdentity(bestWinRate.manager, data.managerAvatars),
-          tone: 'good',
-          className: 'analysis-preview-chip-manager-preview',
-        } : null,
+        {
+          label: "Trades",
+          value: tradeTendencies.length,
+          tone: tradeTendencies.length ? "info" : "warn",
+        },
+        bestProfit
+          ? {
+              label: `Top profit (${formatPreviewNumber(bestProfit.profit)})`,
+              value: renderPreviewManagerIdentity(
+                bestProfit.manager,
+                data.managerAvatars
+              ),
+              tone: bestProfit.profit >= 0 ? "good" : "danger",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        busiestTrader
+          ? {
+              label: `Most trades (${busiestTrader.tradeCount})`,
+              value: renderPreviewManagerIdentity(
+                busiestTrader.manager,
+                data.managerAvatars
+              ),
+              tone: "info",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        bestWinRate
+          ? {
+              label: `Best win rate (${bestWinRate.winPct}%)`,
+              value: renderPreviewManagerIdentity(
+                bestWinRate.manager,
+                data.managerAvatars
+              ),
+              tone: "good",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
       ].filter(Boolean) as PreviewMetric[];
-    case 'theft':
+    case "theft":
       return [
-        { label: 'Trades', value: tradeHistory.length, tone: tradeHistory.length ? 'info' : 'warn' },
-        cookedManager ? {
-          label: `Most cooked${biggestGap ? ` (${formatPreviewNumber(Math.abs(biggestGap.point_gap || 0))})` : ''}`,
-          value: renderPreviewManagerIdentity(cookedManager, data.managerAvatars),
-          tone: 'danger',
-          className: 'analysis-preview-chip-manager-preview',
-        } : null,
-        biggestGap ? {
-          label: 'Largest gap',
-          value: formatPreviewNumber(Math.abs(biggestGap.point_gap || 0)),
-          tone: 'warn',
-        } : null,
-        { label: 'Trade managers', value: uniqueTradeManagers.size, tone: uniqueTradeManagers.size ? 'neutral' : 'warn' },
+        {
+          label: "Trades",
+          value: tradeHistory.length,
+          tone: tradeHistory.length ? "info" : "warn",
+        },
+        cookedManager
+          ? {
+              label: `Most cooked${biggestGap ? ` (${formatPreviewNumber(Math.abs(biggestGap.point_gap || 0))})` : ""}`,
+              value: renderPreviewManagerIdentity(
+                cookedManager,
+                data.managerAvatars
+              ),
+              tone: "danger",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        biggestGap
+          ? {
+              label: "Largest gap",
+              value: formatPreviewNumber(Math.abs(biggestGap.point_gap || 0)),
+              tone: "warn",
+            }
+          : null,
+        {
+          label: "Trade managers",
+          value: uniqueTradeManagers.size,
+          tone: uniqueTradeManagers.size ? "neutral" : "warn",
+        },
       ].filter(Boolean) as PreviewMetric[];
-    case 'ledger':
+    case "ledger":
     default:
       return [
-        { label: 'Trades', value: tradeHistory.length, tone: tradeHistory.length ? 'info' : 'warn' },
-        { label: 'Trade managers', value: uniqueTradeManagers.size, tone: uniqueTradeManagers.size ? 'neutral' : 'warn' },
-        latestTrade ? {
-          label: 'Latest trade',
-          value: formatPreviewDate(latestTrade.date),
-          tone: 'info',
-        } : null,
-        biggestGap ? {
-          label: `Largest gap (${formatPreviewNumber(Math.abs(biggestGap.point_gap || 0))})`,
-          value: renderPreviewManagerIdentity(biggestGap.winner, data.managerAvatars),
-          tone: 'warn',
-          className: 'analysis-preview-chip-manager-preview',
-        } : null,
+        {
+          label: "Trades",
+          value: tradeHistory.length,
+          tone: tradeHistory.length ? "info" : "warn",
+        },
+        {
+          label: "Trade managers",
+          value: uniqueTradeManagers.size,
+          tone: uniqueTradeManagers.size ? "neutral" : "warn",
+        },
+        latestTrade
+          ? {
+              label: "Latest trade",
+              value: formatPreviewDate(latestTrade.date),
+              tone: "info",
+            }
+          : null,
+        biggestGap
+          ? {
+              label: `Largest gap (${formatPreviewNumber(Math.abs(biggestGap.point_gap || 0))})`,
+              value: renderPreviewManagerIdentity(
+                biggestGap.winner,
+                data.managerAvatars
+              ),
+              tone: "warn",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
       ].filter(Boolean) as PreviewMetric[];
   }
 }
 
-function buildDraftPreviewMetrics(data: ReportData, mode: LeagueValueMode): PreviewMetric[] {
+function buildDraftPreviewMetrics(
+  data: ReportData,
+  mode: LeagueValueMode
+): PreviewMetric[] {
   const picks = data.draftPicks || [];
-  const topGain = [...picks].sort((a, b) => (b.valueGain || 0) - (a.valueGain || 0))[0];
-  const totalSwing = picks.reduce((sum, pick) => sum + (pick.valueGain || 0), 0);
-  const hitCount = picks.filter((pick) => pick.draftOutcome === 'hit' || pick.isStarter).length;
-  const hitRate = picks.length ? `${Math.round((hitCount / picks.length) * 100)}%` : '-';
+  const topGain = [...picks].sort(
+    (a, b) => (b.valueGain || 0) - (a.valueGain || 0)
+  )[0];
+  const totalSwing = picks.reduce(
+    (sum, pick) => sum + (pick.valueGain || 0),
+    0
+  );
+  const hitCount = picks.filter(
+    pick => pick.draftOutcome === "hit" || pick.isStarter
+  ).length;
+  const hitRate = picks.length
+    ? `${Math.round((hitCount / picks.length) * 100)}%`
+    : "-";
   return [
-    { label: 'Picks', value: picks.length, tone: picks.length ? 'info' : 'warn' },
-    topGain ? { label: mode === 'redraft' ? 'Best Current Gain' : 'Top Value Gain', value: topGain.playerName, tone: 'good' } : null,
-    picks.length ? { label: mode === 'redraft' ? 'Starter Hit Rate' : 'Hit Rate', value: hitRate, tone: 'info' } : null,
-    picks.length ? { label: 'Total Swing', value: `${totalSwing > 0 ? '+' : ''}${formatPreviewNumber(totalSwing)}`, tone: totalSwing >= 0 ? 'good' : 'danger' } : null,
+    {
+      label: "Picks",
+      value: picks.length,
+      tone: picks.length ? "info" : "warn",
+    },
+    topGain
+      ? {
+          label: mode === "redraft" ? "Best Current Gain" : "Top Value Gain",
+          value: topGain.playerName,
+          tone: "good",
+        }
+      : null,
+    picks.length
+      ? {
+          label: mode === "redraft" ? "Starter Hit Rate" : "Hit Rate",
+          value: hitRate,
+          tone: "info",
+        }
+      : null,
+    picks.length
+      ? {
+          label: "Total Swing",
+          value: `${totalSwing > 0 ? "+" : ""}${formatPreviewNumber(totalSwing)}`,
+          tone: totalSwing >= 0 ? "good" : "danger",
+        }
+      : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
-function renderMomentumPreviewPlayer(player: ReportData['weeklyRisers'][number]) {
+function renderMomentumPreviewPlayer(
+  player: ReportData["weeklyRisers"][number]
+) {
   return (
     <PlayerPill
       playerId={player.player_id}
@@ -706,7 +1152,9 @@ function renderMomentumPreviewPlayer(player: ReportData['weeklyRisers'][number])
   );
 }
 
-function renderTrendingPreviewPlayer(player: NonNullable<ReportData['trendingAdds']>[number]) {
+function renderTrendingPreviewPlayer(
+  player: NonNullable<ReportData["trendingAdds"]>[number]
+) {
   return (
     <PlayerPill
       playerId={player.player_id}
@@ -718,13 +1166,18 @@ function renderTrendingPreviewPlayer(player: NonNullable<ReportData['trendingAdd
   );
 }
 
-type RecentTransactionPreviewPlayer = NonNullable<ReportData['recentTransactions']>[number]['addedPlayer'];
+type RecentTransactionPreviewPlayer = NonNullable<
+  ReportData["recentTransactions"]
+>[number]["addedPlayer"];
 
-function renderPreviewPlayerMetric(player: ReactNode, metric?: string | null, metricClassName?: string) {
-  const metricClass = [
-    'analysis-preview-player-count',
-    metricClassName,
-  ].filter(Boolean).join(' ');
+function renderPreviewPlayerMetric(
+  player: ReactNode,
+  metric?: string | null,
+  metricClassName?: string
+) {
+  const metricClass = ["analysis-preview-player-count", metricClassName]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <span className="analysis-preview-player-with-meta">
@@ -734,7 +1187,9 @@ function renderPreviewPlayerMetric(player: ReactNode, metric?: string | null, me
   );
 }
 
-function renderRecentTransactionPreviewPlayer(player: RecentTransactionPreviewPlayer) {
+function renderRecentTransactionPreviewPlayer(
+  player: RecentTransactionPreviewPlayer
+) {
   if (!player) return null;
   return (
     <PlayerPill
@@ -747,21 +1202,32 @@ function renderRecentTransactionPreviewPlayer(player: RecentTransactionPreviewPl
   );
 }
 
-function getRecentTransactionPreviewRank(player: RecentTransactionPreviewPlayer, leagueValueMode: LeagueValueMode): string | null {
+function getRecentTransactionPreviewRank(
+  player: RecentTransactionPreviewPlayer,
+  leagueValueMode: LeagueValueMode
+): string | null {
   if (!player) return null;
-  return getPlayerRankForMode({
-    valueProfile: player.playerDetails?.valueProfile,
-    fallbackRank: player.currentPositionRank || player.pos,
-    mode: leagueValueMode,
-    context: 'rankings',
-  }) || player.currentPositionRank || player.pos || null;
+  return (
+    getPlayerRankForMode({
+      valueProfile: player.playerDetails?.valueProfile,
+      fallbackRank: player.currentPositionRank || player.pos,
+      mode: leagueValueMode,
+      context: "rankings",
+    }) ||
+    player.currentPositionRank ||
+    player.pos ||
+    null
+  );
 }
 
 function formatPreviewPercent(value?: number | null): string | null {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
-  const rounded = Math.abs(numeric) >= 10 ? Math.round(numeric) : Math.round(numeric * 10) / 10;
-  return `${rounded > 0 ? '+' : ''}${rounded}%`;
+  const rounded =
+    Math.abs(numeric) >= 10
+      ? Math.round(numeric)
+      : Math.round(numeric * 10) / 10;
+  return `${rounded > 0 ? "+" : ""}${rounded}%`;
 }
 
 function formatPreviewCount(value?: number | null): string | null {
@@ -774,11 +1240,35 @@ function formatPreviewCount(value?: number | null): string | null {
 }
 
 function buildMomentumPreviewMetrics(data: ReportData): PreviewMetric[] {
-  const topRiser = [...(data.weeklyRisers || [])].sort((a, b) => b.pct_change - a.pct_change)[0];
-  const topFaller = [...(data.weeklyFallers || [])].sort((a, b) => a.pct_change - b.pct_change)[0];
+  const topRiser = [...(data.weeklyRisers || [])].sort(
+    (a, b) => b.pct_change - a.pct_change
+  )[0];
+  const topFaller = [...(data.weeklyFallers || [])].sort(
+    (a, b) => a.pct_change - b.pct_change
+  )[0];
   return [
-    topRiser ? { label: 'Biggest Riser', value: renderPreviewPlayerMetric(renderMomentumPreviewPlayer(topRiser), formatPreviewPercent(topRiser.pct_change)), tone: 'good', hideLabel: true } : null,
-    topFaller ? { label: 'Biggest Faller', value: renderPreviewPlayerMetric(renderMomentumPreviewPlayer(topFaller), formatPreviewPercent(topFaller.pct_change)), tone: 'danger', hideLabel: true } : null,
+    topRiser
+      ? {
+          label: "Biggest Riser",
+          value: renderPreviewPlayerMetric(
+            renderMomentumPreviewPlayer(topRiser),
+            formatPreviewPercent(topRiser.pct_change)
+          ),
+          tone: "good",
+          hideLabel: true,
+        }
+      : null,
+    topFaller
+      ? {
+          label: "Biggest Faller",
+          value: renderPreviewPlayerMetric(
+            renderMomentumPreviewPlayer(topFaller),
+            formatPreviewPercent(topFaller.pct_change)
+          ),
+          tone: "danger",
+          hideLabel: true,
+        }
+      : null,
   ].filter(Boolean) as PreviewMetric[];
 }
 
@@ -786,67 +1276,94 @@ function buildWeeklyRiserPreviewMetrics(data: ReportData): PreviewMetric[] {
   return [...(data.weeklyRisers || [])]
     .sort((a, b) => b.pct_change - a.pct_change)
     .slice(0, 2)
-    .map((player, index): PreviewMetric => ({
-      label: `Riser ${index + 1}`,
-      value: renderPreviewPlayerMetric(renderMomentumPreviewPlayer(player), formatPreviewPercent(player.pct_change)),
-      tone: 'good',
-      hideLabel: true,
-    }));
+    .map(
+      (player, index): PreviewMetric => ({
+        label: `Riser ${index + 1}`,
+        value: renderPreviewPlayerMetric(
+          renderMomentumPreviewPlayer(player),
+          formatPreviewPercent(player.pct_change)
+        ),
+        tone: "good",
+        hideLabel: true,
+      })
+    );
 }
 
 function buildWeeklyFallerPreviewMetrics(data: ReportData): PreviewMetric[] {
   return [...(data.weeklyFallers || [])]
     .sort((a, b) => a.pct_change - b.pct_change)
     .slice(0, 2)
-    .map((player, index): PreviewMetric => ({
-      label: `Faller ${index + 1}`,
-      value: renderPreviewPlayerMetric(renderMomentumPreviewPlayer(player), formatPreviewPercent(player.pct_change)),
-      tone: 'danger',
-      hideLabel: true,
-    }));
+    .map(
+      (player, index): PreviewMetric => ({
+        label: `Faller ${index + 1}`,
+        value: renderPreviewPlayerMetric(
+          renderMomentumPreviewPlayer(player),
+          formatPreviewPercent(player.pct_change)
+        ),
+        tone: "danger",
+        hideLabel: true,
+      })
+    );
 }
 
 function buildTrendingPreviewMetrics(
-  players: NonNullable<ReportData['trendingAdds']>,
-  direction: 'up' | 'down',
+  players: NonNullable<ReportData["trendingAdds"]>,
+  direction: "up" | "down"
 ): PreviewMetric[] {
   return [...players]
     .sort((a, b) => b.count - a.count || (b.ktcValue || 0) - (a.ktcValue || 0))
     .slice(0, 4)
-    .map((player, index): PreviewMetric => ({
-      label: `${direction === 'up' ? 'Add' : 'Drop'} ${index + 1}`,
-      value: renderPreviewPlayerMetric(renderTrendingPreviewPlayer(player), formatPreviewCount(player.count)),
-      tone: direction === 'up' ? 'good' : 'danger',
-      hideLabel: true,
-    }));
+    .map(
+      (player, index): PreviewMetric => ({
+        label: `${direction === "up" ? "Add" : "Drop"} ${index + 1}`,
+        value: renderPreviewPlayerMetric(
+          renderTrendingPreviewPlayer(player),
+          formatPreviewCount(player.count)
+        ),
+        tone: direction === "up" ? "good" : "danger",
+        hideLabel: true,
+      })
+    );
 }
 
-function buildRecentTransactionPreviewMetrics(transactions?: ReportData['recentTransactions'], leagueValueMode: LeagueValueMode = 'dynasty'): PreviewMetric[] {
+function buildRecentTransactionPreviewMetrics(
+  transactions?: ReportData["recentTransactions"],
+  leagueValueMode: LeagueValueMode = "dynasty"
+): PreviewMetric[] {
   const now = Date.now();
-  const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
 
   return [...(transactions || [])]
-    .filter((transaction) => {
+    .filter(transaction => {
       const timestamp = Date.parse(transaction.date);
-      return Number.isFinite(timestamp) && timestamp >= sevenDaysAgo && timestamp <= now;
+      return (
+        Number.isFinite(timestamp) &&
+        timestamp >= sevenDaysAgo &&
+        timestamp <= now
+      );
     })
     .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
-    .map((transaction) => ({
+    .map(transaction => ({
       transaction,
       player: transaction.addedPlayer || transaction.droppedPlayer,
-      tone: transaction.addedPlayer ? 'good' as const : 'danger' as const,
-      label: transaction.addedPlayer ? 'Added' : 'Dropped',
+      tone: transaction.addedPlayer ? ("good" as const) : ("danger" as const),
+      label: transaction.addedPlayer ? "Added" : "Dropped",
     }))
-    .filter((item) => item.player)
+    .filter(item => item.player)
     .slice(0, 4)
     .map((item, index): PreviewMetric => {
-      const rank = getRecentTransactionPreviewRank(item.player, leagueValueMode);
+      const rank = getRecentTransactionPreviewRank(
+        item.player,
+        leagueValueMode
+      );
       return {
         label: `${item.label} ${index + 1}`,
         value: renderPreviewPlayerMetric(
           renderRecentTransactionPreviewPlayer(item.player),
           rank,
-          rank ? `analysis-preview-player-count-rank ${getPositionRankClass(rank)}` : undefined,
+          rank
+            ? `analysis-preview-player-count-rank ${getPositionRankClass(rank)}`
+            : undefined
         ),
         tone: item.tone,
         hideLabel: true,
@@ -855,76 +1372,114 @@ function buildRecentTransactionPreviewMetrics(transactions?: ReportData['recentT
 }
 
 function formatTradeProposalPreviewDate(value?: string | null): string {
-  if (!value) return 'n/a';
+  if (!value) return "n/a";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'n/a';
+  if (Number.isNaN(date.getTime())) return "n/a";
   return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
+    month: "short",
+    day: "numeric",
   }).format(date);
 }
 
 function formatTradeProposalPreviewStatus(status?: string | null): string {
-  const label = String(status || 'unknown').replace(/_/g, ' ').trim();
-  if (!label) return 'Unknown';
+  const label = String(status || "unknown")
+    .replace(/_/g, " ")
+    .trim();
+  if (!label) return "Unknown";
   return label
     .split(/\s+/)
     .filter(Boolean)
-    .map((part) => part[0]?.toUpperCase() + part.slice(1))
-    .join(' ');
+    .map(part => part[0]?.toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
-function getTradeProposalPreviewTone(status?: string | null): PreviewMetric['tone'] {
-  if (!status) return 'neutral';
-  if (/declin|reject|cancel|veto|expire|fail/i.test(status)) return 'danger';
-  if (/pending|open|waiting|propos|active/i.test(status)) return 'warn';
-  if (/accept|complete/i.test(status)) return 'good';
-  return 'info';
+function getTradeProposalPreviewTone(
+  status?: string | null
+): PreviewMetric["tone"] {
+  if (!status) return "neutral";
+  if (/declin|reject|cancel|veto|expire|fail/i.test(status)) return "danger";
+  if (/pending|open|waiting|propos|active/i.test(status)) return "warn";
+  if (/accept|complete/i.test(status)) return "good";
+  return "info";
 }
 
-function buildTradeProposalPreviewMetrics(reportData: ReportData): PreviewMetric[] {
-  const signals = [...(reportData.adminTradeProposalSignals || reportData.tradeProposalSignals || [])]
-    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+function buildTradeProposalPreviewMetrics(
+  reportData: ReportData
+): PreviewMetric[] {
+  const signals = [
+    ...(reportData.adminTradeProposalSignals ||
+      reportData.tradeProposalSignals ||
+      []),
+  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
   const latestSignal = signals[0] || null;
 
   return [
-    { label: 'Signals', value: signals.length, tone: signals.length ? 'info' : 'warn' },
     {
-      label: 'Latest',
-      value: latestSignal ? formatTradeProposalPreviewDate(latestSignal.date) : '-',
-      tone: latestSignal ? 'good' : 'neutral',
+      label: "Signals",
+      value: signals.length,
+      tone: signals.length ? "info" : "warn",
     },
     {
-      label: 'Status',
-      value: latestSignal ? formatTradeProposalPreviewStatus(latestSignal.status) : '-',
-      tone: latestSignal ? getTradeProposalPreviewTone(latestSignal.status) : 'neutral',
+      label: "Latest",
+      value: latestSignal
+        ? formatTradeProposalPreviewDate(latestSignal.date)
+        : "-",
+      tone: latestSignal ? "good" : "neutral",
+    },
+    {
+      label: "Status",
+      value: latestSignal
+        ? formatTradeProposalPreviewStatus(latestSignal.status)
+        : "-",
+      tone: latestSignal
+        ? getTradeProposalPreviewTone(latestSignal.status)
+        : "neutral",
     },
   ];
 }
 
-function buildSleeperHiddenPreviewMetrics(reportData: ReportData): PreviewMetric[] {
+function buildSleeperHiddenPreviewMetrics(
+  reportData: ReportData
+): PreviewMetric[] {
   const snapshot = reportData.sleeperHiddenLeagueSnapshot || null;
-  const tradeSignals = [...(reportData.adminSleeperTradeProposalSignals || [])]
-    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
-  const waiverSignals = [...(reportData.adminSleeperWaiverSignals || [])]
-    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
-  const latestSignal = [...tradeSignals, ...waiverSignals]
-    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0] || null;
-  const sharedAtLabel = snapshot?.sharedAt ? new Date(snapshot.sharedAt).toLocaleDateString() : null;
+  const tradeSignals = [
+    ...(reportData.adminSleeperTradeProposalSignals || []),
+  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  const waiverSignals = [...(reportData.adminSleeperWaiverSignals || [])].sort(
+    (a, b) => Date.parse(b.date) - Date.parse(a.date)
+  );
+  const latestSignal =
+    [...tradeSignals, ...waiverSignals].sort(
+      (a, b) => Date.parse(b.date) - Date.parse(a.date)
+    )[0] || null;
+  const sharedAtLabel = snapshot?.sharedAt
+    ? new Date(snapshot.sharedAt).toLocaleDateString()
+    : null;
 
   return [
-    { label: 'Trades', value: tradeSignals.length || snapshot?.tradeCount || 0, tone: (tradeSignals.length || snapshot?.tradeCount || 0) ? 'info' : 'warn' },
-    { label: 'Waivers', value: waiverSignals.length || snapshot?.waiverCount || 0, tone: (waiverSignals.length || snapshot?.waiverCount || 0) ? 'info' : 'warn' },
     {
-      label: 'Latest',
-      value: latestSignal ? formatTradeProposalPreviewDate(latestSignal.date) : sharedAtLabel || '-',
-      tone: latestSignal || sharedAtLabel ? 'good' : 'neutral',
+      label: "Trades",
+      value: tradeSignals.length || snapshot?.tradeCount || 0,
+      tone: tradeSignals.length || snapshot?.tradeCount || 0 ? "info" : "warn",
+    },
+    {
+      label: "Waivers",
+      value: waiverSignals.length || snapshot?.waiverCount || 0,
+      tone:
+        waiverSignals.length || snapshot?.waiverCount || 0 ? "info" : "warn",
+    },
+    {
+      label: "Latest",
+      value: latestSignal
+        ? formatTradeProposalPreviewDate(latestSignal.date)
+        : sharedAtLabel || "-",
+      tone: latestSignal || sharedAtLabel ? "good" : "neutral",
     },
   ];
 }
 
 function normalizeAdminViewMode(value: unknown): AdminViewMode | null {
-  return value === 'admin' || value === 'regular' ? value : null;
+  return value === "admin" || value === "regular" ? value : null;
 }
 
 type SleeperLeagueOption = {
@@ -939,7 +1494,10 @@ type SleeperLeagueOption = {
   powerRank: number | null;
 };
 
-type LeagueRankResult = Pick<SleeperLeagueOption, 'leagueId' | 'standingsRank' | 'powerRank'>;
+type LeagueRankResult = Pick<
+  SleeperLeagueOption,
+  "leagueId" | "standingsRank" | "powerRank"
+>;
 
 type AnalysisLeaguePreview = {
   leagueName: string;
@@ -956,7 +1514,7 @@ type SleeperUserSession = {
   isPrivilegedReportViewer?: boolean;
 };
 
-type AdminViewMode = 'admin' | 'regular';
+type AdminViewMode = "admin" | "regular";
 
 type CachedReport = {
   cacheVersion?: string;
@@ -969,7 +1527,7 @@ type CachedReport = {
   savedAt: number;
 };
 
-type LastLeague = Omit<CachedReport, 'reportData'>;
+type LastLeague = Omit<CachedReport, "reportData">;
 
 type SleeperSession = {
   username: string;
@@ -991,17 +1549,22 @@ type CachedSleeperUser = {
   savedAt: number;
 };
 
-function getAnalysisLeaguePreview(league: SleeperLeagueOption): AnalysisLeaguePreview {
+function getAnalysisLeaguePreview(
+  league: SleeperLeagueOption
+): AnalysisLeaguePreview {
   return {
     leagueName: league.name,
-    leagueFormat: league.format || league.mobileFormat || `${league.totalRosters || '?'}-Team League`,
+    leagueFormat:
+      league.format ||
+      league.mobileFormat ||
+      `${league.totalRosters || "?"}-Team League`,
     leagueLogo: league.avatarUrl,
   };
 }
 
 function getLeagueIdAnalysisPreview(leagueId: string): AnalysisLeaguePreview {
   return {
-    leagueName: 'Sleeper League',
+    leagueName: "Sleeper League",
     leagueFormat: `League ID ${leagueId}`,
     leagueLogo: null,
   };
@@ -1019,11 +1582,13 @@ function findKnownSleeperLeague(
   const leagueGroups = [
     extraLeagues,
     userLeagues,
-    ...cachedUsers.map((user) => user.leagues),
+    ...cachedUsers.map(user => user.leagues),
   ];
 
   for (const leagues of leagueGroups) {
-    const match = leagues.find((league) => league.leagueId === normalizedLeagueId);
+    const match = leagues.find(
+      league => league.leagueId === normalizedLeagueId
+    );
     if (match) return match;
   }
 
@@ -1031,64 +1596,85 @@ function findKnownSleeperLeague(
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function normalizeLeagueOption(value: unknown): SleeperLeagueOption | null {
-  if (!isRecord(value) || typeof value.leagueId !== 'string' || typeof value.name !== 'string') {
+  if (
+    !isRecord(value) ||
+    typeof value.leagueId !== "string" ||
+    typeof value.name !== "string"
+  ) {
     return null;
   }
 
   return {
     leagueId: value.leagueId,
     name: value.name,
-    avatarUrl: typeof value.avatarUrl === 'string' ? value.avatarUrl : null,
-    season: typeof value.season === 'string' ? value.season : '',
-    format: typeof value.format === 'string' ? value.format : '',
-    mobileFormat: typeof value.mobileFormat === 'string' ? value.mobileFormat : '',
-    totalRosters: typeof value.totalRosters === 'number' ? value.totalRosters : 0,
-    standingsRank: typeof value.standingsRank === 'number' ? value.standingsRank : null,
-    powerRank: typeof value.powerRank === 'number' ? value.powerRank : null,
+    avatarUrl: typeof value.avatarUrl === "string" ? value.avatarUrl : null,
+    season: typeof value.season === "string" ? value.season : "",
+    format: typeof value.format === "string" ? value.format : "",
+    mobileFormat:
+      typeof value.mobileFormat === "string" ? value.mobileFormat : "",
+    totalRosters:
+      typeof value.totalRosters === "number" ? value.totalRosters : 0,
+    standingsRank:
+      typeof value.standingsRank === "number" ? value.standingsRank : null,
+    powerRank: typeof value.powerRank === "number" ? value.powerRank : null,
   };
 }
 
 function normalizeCachedSleeperUser(value: unknown): CachedSleeperUser | null {
-  if (!isRecord(value) || typeof value.username !== 'string') return null;
+  if (!isRecord(value) || typeof value.username !== "string") return null;
   const username = value.username.trim();
   if (!username) return null;
   const leagues = Array.isArray(value.leagues)
-    ? value.leagues.map(normalizeLeagueOption).filter((league): league is SleeperLeagueOption => Boolean(league))
+    ? value.leagues
+        .map(normalizeLeagueOption)
+        .filter((league): league is SleeperLeagueOption => Boolean(league))
     : [];
-  const validLeagueIds = new Set(leagues.map((league) => league.leagueId));
+  const validLeagueIds = new Set(leagues.map(league => league.leagueId));
   const recentLeagueIds = Array.isArray(value.recentLeagueIds)
     ? value.recentLeagueIds
-      .filter((leagueId): leagueId is string => typeof leagueId === 'string')
-      .filter((leagueId, index, list) => list.indexOf(leagueId) === index)
-      .filter((leagueId) => validLeagueIds.has(leagueId))
-      .slice(0, MAX_RECENT_LEAGUES_PER_USER)
+        .filter((leagueId): leagueId is string => typeof leagueId === "string")
+        .filter((leagueId, index, list) => list.indexOf(leagueId) === index)
+        .filter(leagueId => validLeagueIds.has(leagueId))
+        .slice(0, MAX_RECENT_LEAGUES_PER_USER)
     : [];
-  const userId = typeof value.userId === 'string' && value.userId.trim() ? value.userId : username;
-  const displayName = typeof value.displayName === 'string' && value.displayName.trim() ? value.displayName : username;
-  const hasAdminPermissions = value.hasAdminPermissions === true
-    || value.isPrivilegedReportViewer === true;
+  const userId =
+    typeof value.userId === "string" && value.userId.trim()
+      ? value.userId
+      : username;
+  const displayName =
+    typeof value.displayName === "string" && value.displayName.trim()
+      ? value.displayName
+      : username;
+  const hasAdminPermissions =
+    value.hasAdminPermissions === true ||
+    value.isPrivilegedReportViewer === true;
 
   return {
     userId,
     username,
     displayName,
-    avatarUrl: typeof value.avatarUrl === 'string' && value.avatarUrl.trim() ? value.avatarUrl : null,
+    avatarUrl:
+      typeof value.avatarUrl === "string" && value.avatarUrl.trim()
+        ? value.avatarUrl
+        : null,
     hasAdminPermissions,
     isPrivilegedReportViewer: hasAdminPermissions,
     leagues,
     recentLeagueIds,
-    savedAt: typeof value.savedAt === 'number' ? value.savedAt : 0,
+    savedAt: typeof value.savedAt === "number" ? value.savedAt : 0,
   };
 }
 
 function readCachedSleeperUsers(): CachedSleeperUser[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === "undefined") return [];
   try {
-    const parsed = JSON.parse(localStorage.getItem(CACHED_SLEEPER_USERS_KEY) || '[]');
+    const parsed = JSON.parse(
+      localStorage.getItem(CACHED_SLEEPER_USERS_KEY) || "[]"
+    );
     if (!Array.isArray(parsed)) return [];
     return parsed
       .map(normalizeCachedSleeperUser)
@@ -1101,9 +1687,11 @@ function readCachedSleeperUsers(): CachedSleeperUser[] {
   }
 }
 
-function writeCachedSleeperUsers(users: CachedSleeperUser[]): CachedSleeperUser[] {
+function writeCachedSleeperUsers(
+  users: CachedSleeperUser[]
+): CachedSleeperUser[] {
   const next = users
-    .filter((user) => user.username)
+    .filter(user => user.username)
     .sort((a, b) => b.savedAt - a.savedAt)
     .slice(0, MAX_CACHED_SLEEPER_USERS);
   try {
@@ -1114,25 +1702,33 @@ function writeCachedSleeperUsers(users: CachedSleeperUser[]): CachedSleeperUser[
   return next;
 }
 
-function rememberCachedSleeperUser(user: CachedSleeperUser): CachedSleeperUser[] {
+function rememberCachedSleeperUser(
+  user: CachedSleeperUser
+): CachedSleeperUser[] {
   const normalizedUsername = normalizeViewerIdentifier(user.username);
   const normalizedUserId = normalizeViewerIdentifier(user.userId);
   const current = readCachedSleeperUsers();
-  const existing = current.find((cachedUser) => (
-    normalizeViewerIdentifier(cachedUser.username) === normalizedUsername
-    || normalizeViewerIdentifier(cachedUser.userId) === normalizedUserId
-  ));
-  const leagueIds = new Set(user.leagues.map((league) => league.leagueId));
-  const recentLeagueIds = (user.recentLeagueIds.length ? user.recentLeagueIds : existing?.recentLeagueIds || [])
+  const existing = current.find(
+    cachedUser =>
+      normalizeViewerIdentifier(cachedUser.username) === normalizedUsername ||
+      normalizeViewerIdentifier(cachedUser.userId) === normalizedUserId
+  );
+  const leagueIds = new Set(user.leagues.map(league => league.leagueId));
+  const recentLeagueIds = (
+    user.recentLeagueIds.length
+      ? user.recentLeagueIds
+      : existing?.recentLeagueIds || []
+  )
     .filter((leagueId, index, list) => list.indexOf(leagueId) === index)
-    .filter((leagueId) => leagueIds.has(leagueId))
+    .filter(leagueId => leagueIds.has(leagueId))
     .slice(0, MAX_RECENT_LEAGUES_PER_USER);
   return writeCachedSleeperUsers([
     { ...user, recentLeagueIds, savedAt: Date.now() },
-    ...current.filter((cachedUser) => (
-      normalizeViewerIdentifier(cachedUser.username) !== normalizedUsername
-      && normalizeViewerIdentifier(cachedUser.userId) !== normalizedUserId
-    )),
+    ...current.filter(
+      cachedUser =>
+        normalizeViewerIdentifier(cachedUser.username) !== normalizedUsername &&
+        normalizeViewerIdentifier(cachedUser.userId) !== normalizedUserId
+    ),
   ]);
 }
 
@@ -1143,8 +1739,9 @@ function buildCachedSleeperUser(
 ): CachedSleeperUser {
   const userId = user?.userId || username;
   const displayName = user?.displayName || user?.username || username;
-  const hasAdminPermissions = user?.hasAdminPermissions === true
-    || user?.isPrivilegedReportViewer === true;
+  const hasAdminPermissions =
+    user?.hasAdminPermissions === true ||
+    user?.isPrivilegedReportViewer === true;
   return {
     userId,
     username: user?.username || username,
@@ -1158,10 +1755,13 @@ function buildCachedSleeperUser(
   };
 }
 
-function mergeLeagueRanks(leagues: SleeperLeagueOption[], ranks: LeagueRankResult[]): SleeperLeagueOption[] {
+function mergeLeagueRanks(
+  leagues: SleeperLeagueOption[],
+  ranks: LeagueRankResult[]
+): SleeperLeagueOption[] {
   if (!ranks.length) return leagues;
-  const rankByLeagueId = new Map(ranks.map((rank) => [rank.leagueId, rank]));
-  return leagues.map((league) => {
+  const rankByLeagueId = new Map(ranks.map(rank => [rank.leagueId, rank]));
+  return leagues.map(league => {
     const rank = rankByLeagueId.get(league.leagueId);
     if (!rank) return league;
     return {
@@ -1179,16 +1779,23 @@ function findCachedSleeperUser(
 ): CachedSleeperUser | null {
   const normalizedUserId = normalizeViewerIdentifier(userId);
   const normalizedUsername = normalizeViewerIdentifier(username);
-  return users.find((user) => (
-    (normalizedUserId && normalizeViewerIdentifier(user.userId) === normalizedUserId)
-    || (normalizedUsername && normalizeViewerIdentifier(user.username) === normalizedUsername)
-  )) || users[0] || null;
+  return (
+    users.find(
+      user =>
+        (normalizedUserId &&
+          normalizeViewerIdentifier(user.userId) === normalizedUserId) ||
+        (normalizedUsername &&
+          normalizeViewerIdentifier(user.username) === normalizedUsername)
+    ) ||
+    users[0] ||
+    null
+  );
 }
 
 function getLeagueFallbackInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
-  return name.trim().slice(0, 2).toUpperCase() || 'DD';
+  return name.trim().slice(0, 2).toUpperCase() || "DD";
 }
 
 function getLeagueShortcutsForUser(
@@ -1199,17 +1806,17 @@ function getLeagueShortcutsForUser(
   const leagues = cachedUser?.leagues.length ? cachedUser.leagues : userLeagues;
   if (!leagues.length) return [];
 
-  const leagueById = new Map(leagues.map((league) => [league.leagueId, league]));
+  const leagueById = new Map(leagues.map(league => [league.leagueId, league]));
   const orderedIds = cachedUser?.recentLeagueIds || [];
   const seen = new Set<string>();
   return orderedIds
-    .filter((leagueId) => leagueId !== activeLeagueId)
-    .filter((leagueId) => {
+    .filter(leagueId => leagueId !== activeLeagueId)
+    .filter(leagueId => {
       if (seen.has(leagueId)) return false;
       seen.add(leagueId);
       return leagueById.has(leagueId);
     })
-    .map((leagueId) => leagueById.get(leagueId))
+    .map(leagueId => leagueById.get(leagueId))
     .filter((league): league is SleeperLeagueOption => Boolean(league))
     .slice(0, MAX_RECENT_LEAGUES_PER_USER);
 }
@@ -1220,10 +1827,10 @@ function getOrderedLeagueOptions(
 ): SleeperLeagueOption[] {
   if (!leagues.length) return [];
 
-  const leagueById = new Map(leagues.map((league) => [league.leagueId, league]));
+  const leagueById = new Map(leagues.map(league => [league.leagueId, league]));
   const seen = new Set<string>();
   const recentLeagues = (cachedUser?.recentLeagueIds || [])
-    .map((leagueId) => leagueById.get(leagueId))
+    .map(leagueId => leagueById.get(leagueId))
     .filter((league): league is SleeperLeagueOption => {
       if (!league || seen.has(league.leagueId)) return false;
       seen.add(league.leagueId);
@@ -1232,7 +1839,7 @@ function getOrderedLeagueOptions(
 
   return [
     ...recentLeagues,
-    ...leagues.filter((league) => !seen.has(league.leagueId)),
+    ...leagues.filter(league => !seen.has(league.leagueId)),
   ];
 }
 
@@ -1242,12 +1849,64 @@ function getReportHeaderLeagueShortcuts(
 ): SleeperLeagueOption[] {
   if (!leagues.length) return [];
 
-  const activeLeague = leagues.find((league) => league.leagueId === activeLeagueId);
+  const activeLeague = leagues.find(
+    league => league.leagueId === activeLeagueId
+  );
   const orderedLeagues = activeLeague
-    ? [activeLeague, ...leagues.filter((league) => league.leagueId !== activeLeagueId)]
+    ? [
+        activeLeague,
+        ...leagues.filter(league => league.leagueId !== activeLeagueId),
+      ]
     : leagues;
 
   return orderedLeagues.slice(0, MAX_REPORT_HEADER_LEAGUES);
+}
+
+function getReportManagerNames(
+  reportData: ReportData,
+  viewerManager?: string | null
+): string[] {
+  const managerNames = new Set<string>();
+  const addManager = (value?: string | null) => {
+    const trimmed = value?.trim();
+    if (trimmed) managerNames.add(trimmed);
+  };
+
+  Object.keys(reportData.managerAvatars || {}).forEach(addManager);
+  Object.keys(reportData.managerChampionships || {}).forEach(addManager);
+  (reportData.currentStandings || []).forEach(row => addManager(row.manager));
+  (reportData.standingsHistory || []).forEach(row => addManager(row.manager));
+  (reportData.leagueOverview || []).forEach(row => addManager(row.manager));
+  (reportData.tradeProfitLeaderboard || []).forEach(row =>
+    addManager(row.manager)
+  );
+  (reportData.managerPositionCounts || []).forEach(row =>
+    addManager(row.manager)
+  );
+  (reportData.managerRosterIntelligence || []).forEach(row =>
+    addManager(row.manager)
+  );
+  (reportData.tradeTendencies || []).forEach(row => addManager(row.manager));
+  (reportData.powerRankings || []).forEach(row => addManager(row.manager));
+  (reportData.dynastyTimelines || []).forEach(row => addManager(row.manager));
+  (reportData.pickPortfolios || []).forEach(row => addManager(row.manager));
+  (reportData.monthlyBlueprintHistory || []).forEach(row =>
+    addManager(row.manager)
+  );
+  (reportData.matchupPreviews || []).forEach(row => addManager(row.manager));
+  (reportData.recentTransactions || []).forEach(row => addManager(row.manager));
+  (reportData.draftPicks || []).forEach(row => addManager(row.manager));
+  addManager(reportData.viewerManager);
+
+  return sortRowsByViewerAndStanding(
+    Array.from(managerNames),
+    manager => manager,
+    {
+      viewerManager,
+      standings: reportData.currentStandings,
+      leagueOverview: reportData.leagueOverview,
+    }
+  );
 }
 
 function rememberCachedSleeperLeagueShortcut({
@@ -1263,16 +1922,22 @@ function rememberCachedSleeperLeagueShortcut({
   leagues: SleeperLeagueOption[];
   leagueId: string;
 }): CachedSleeperUser[] {
-  const normalizedUsername = normalizeViewerIdentifier(user?.username || username);
+  const normalizedUsername = normalizeViewerIdentifier(
+    user?.username || username
+  );
   const normalizedUserId = normalizeViewerIdentifier(user?.userId || username);
-  const leagueIds = new Set(leagues.map((league) => league.leagueId));
+  const leagueIds = new Set(leagues.map(league => league.leagueId));
   if (!normalizedUsername || !leagueIds.has(leagueId)) return users;
 
-  const existing = findCachedSleeperUser(users, user?.userId || null, user?.username || username);
+  const existing = findCachedSleeperUser(
+    users,
+    user?.userId || null,
+    user?.username || username
+  );
   const base = existing || buildCachedSleeperUser(username, user, leagues);
   const nextRecentLeagueIds = [leagueId, ...(base.recentLeagueIds || [])]
     .filter((id, index, list) => list.indexOf(id) === index)
-    .filter((id) => leagueIds.has(id))
+    .filter(id => leagueIds.has(id))
     .slice(0, MAX_RECENT_LEAGUES_PER_USER);
   const nextUser: CachedSleeperUser = {
     ...base,
@@ -1280,14 +1945,16 @@ function rememberCachedSleeperLeagueShortcut({
     username: user?.username || base.username || username,
     displayName: user?.displayName || base.displayName || username,
     avatarUrl: user?.avatarUrl || base.avatarUrl || null,
-    hasAdminPermissions: user?.hasAdminPermissions === true
-      || user?.isPrivilegedReportViewer === true
-      || base.hasAdminPermissions === true
-      || base.isPrivilegedReportViewer === true,
-    isPrivilegedReportViewer: user?.hasAdminPermissions === true
-      || user?.isPrivilegedReportViewer === true
-      || base.hasAdminPermissions === true
-      || base.isPrivilegedReportViewer === true,
+    hasAdminPermissions:
+      user?.hasAdminPermissions === true ||
+      user?.isPrivilegedReportViewer === true ||
+      base.hasAdminPermissions === true ||
+      base.isPrivilegedReportViewer === true,
+    isPrivilegedReportViewer:
+      user?.hasAdminPermissions === true ||
+      user?.isPrivilegedReportViewer === true ||
+      base.hasAdminPermissions === true ||
+      base.isPrivilegedReportViewer === true,
     leagues,
     recentLeagueIds: nextRecentLeagueIds,
     savedAt: Date.now(),
@@ -1295,14 +1962,17 @@ function rememberCachedSleeperLeagueShortcut({
 
   return writeCachedSleeperUsers([
     nextUser,
-    ...users.filter((cachedUser) => (
-      normalizeViewerIdentifier(cachedUser.username) !== normalizedUsername
-      && normalizeViewerIdentifier(cachedUser.userId) !== normalizedUserId
-    )),
+    ...users.filter(
+      cachedUser =>
+        normalizeViewerIdentifier(cachedUser.username) !== normalizedUsername &&
+        normalizeViewerIdentifier(cachedUser.userId) !== normalizedUserId
+    ),
   ]);
 }
 
-function cachedSleeperUserToSessionUser(user: CachedSleeperUser): SleeperUserSession {
+function cachedSleeperUserToSessionUser(
+  user: CachedSleeperUser
+): SleeperUserSession {
   return {
     userId: user.userId,
     username: user.username,
@@ -1314,13 +1984,13 @@ function cachedSleeperUserToSessionUser(user: CachedSleeperUser): SleeperUserSes
 }
 
 function readAutocompleteHistory(key: string): string[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === "undefined") return [];
   try {
-    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .filter((value): value is string => typeof value === 'string')
-      .map((value) => value.trim())
+      .filter((value): value is string => typeof value === "string")
+      .map(value => value.trim())
       .filter(Boolean)
       .slice(0, MAX_AUTOCOMPLETE_HISTORY);
   } catch {
@@ -1333,8 +2003,10 @@ function rememberAutocompleteValue(key: string, value: string): string[] {
   const trimmed = value.trim();
   if (!trimmed) return readAutocompleteHistory(key);
   const current = readAutocompleteHistory(key);
-  const next = [trimmed, ...current.filter((item) => item.toLowerCase() !== trimmed.toLowerCase())]
-    .slice(0, MAX_AUTOCOMPLETE_HISTORY);
+  const next = [
+    trimmed,
+    ...current.filter(item => item.toLowerCase() !== trimmed.toLowerCase()),
+  ].slice(0, MAX_AUTOCOMPLETE_HISTORY);
   try {
     localStorage.setItem(key, JSON.stringify(next));
   } catch {
@@ -1343,18 +2015,22 @@ function rememberAutocompleteValue(key: string, value: string): string[] {
   return next;
 }
 
-function getFilteredAutocompleteOptions(history: string[], value: string): string[] {
+function getFilteredAutocompleteOptions(
+  history: string[],
+  value: string
+): string[] {
   const needle = value.trim().toLowerCase();
   return history
-    .filter((item) => !needle || item.toLowerCase().includes(needle))
+    .filter(item => !needle || item.toLowerCase().includes(needle))
     .slice(0, 6);
 }
 
 function getLoadingSuccessTitleClassName(leagueName: string): string {
   const length = leagueName.trim().length;
-  if (length >= 34) return 'loading-success-title loading-success-title-compact';
-  if (length >= 20) return 'loading-success-title loading-success-title-long';
-  return 'loading-success-title';
+  if (length >= 34)
+    return "loading-success-title loading-success-title-compact";
+  if (length >= 20) return "loading-success-title loading-success-title-long";
+  return "loading-success-title";
 }
 
 function HomeActionRow() {
@@ -1363,6 +2039,100 @@ function HomeActionRow() {
       <SupportButton className="home-action-button" />
       <FeedbackButton className="home-action-button" />
     </div>
+  );
+}
+
+function AdminManagerSwitcher({
+  managers,
+  activeManager,
+  managerAvatars,
+  onSelect,
+}: {
+  managers: string[];
+  activeManager: string | null;
+  managerAvatars?: ReportData["managerAvatars"];
+  onSelect: (manager: string | null) => void;
+}) {
+  if (managers.length < 2) return null;
+
+  const selectedManagerLabel = activeManager || "League View";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="report-header-action report-footer-primary-action !w-full justify-between gap-2 sm:!w-auto sm:min-w-[14rem] sm:max-w-[18rem]"
+          aria-label={`View as ${selectedManagerLabel}`}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="report-header-action-label">View As</span>
+            <span className="min-w-0 truncate text-cyan-50/85">
+              {selectedManagerLabel}
+            </span>
+          </span>
+          <ChevronDown
+            className="h-3.5 w-3.5 shrink-0 opacity-80"
+            aria-hidden="true"
+          />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="center"
+        className="w-72 border-orange-400/20 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/20"
+      >
+        <DropdownMenuLabel className="px-2 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-400">
+          View As Manager
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator className="bg-slate-800/80" />
+        <DropdownMenuRadioGroup
+          value={activeManager || LEAGUE_VIEW_MANAGER_VALUE}
+          onValueChange={value =>
+            onSelect(value === LEAGUE_VIEW_MANAGER_VALUE ? null : value)
+          }
+        >
+          <DropdownMenuRadioItem
+            value={LEAGUE_VIEW_MANAGER_VALUE}
+            className="gap-3 py-2 pr-3 pl-8"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-cyan-400/25 bg-slate-900 text-[10px] font-bold text-orange-300">
+                LV
+              </span>
+              <span className="truncate">League View</span>
+            </span>
+          </DropdownMenuRadioItem>
+          {managers.map(manager => {
+            const avatarUrl = managerAvatars?.[manager] || null;
+            return (
+              <DropdownMenuRadioItem
+                key={manager}
+                value={manager}
+                className="gap-3 py-2 pr-3 pl-8"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-6 w-6 shrink-0 rounded-full border border-cyan-300/25 object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-cyan-300/25 bg-slate-900 text-[10px] font-bold text-orange-300">
+                      {getLeagueFallbackInitials(manager)}
+                    </span>
+                  )}
+                  <span className="truncate">{manager}</span>
+                </span>
+              </DropdownMenuRadioItem>
+            );
+          })}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1404,12 +2174,14 @@ function HomeCachedUserSwitcher({
         {visibleUsers.map((user, index) => {
           const label = user.displayName || user.username;
           const initials = label.slice(0, 2).toUpperCase();
-          const isActive = activeIdentifier && normalizeViewerIdentifier(user.username) === activeIdentifier;
+          const isActive =
+            activeIdentifier &&
+            normalizeViewerIdentifier(user.username) === activeIdentifier;
           return (
             <button
               key={`${user.userId}-${user.username}`}
               type="button"
-              className={`home-user-button${isActive ? ' is-active' : ''}`}
+              className={`home-user-button${isActive ? " is-active" : ""}`}
               onClick={() => onSelect(user)}
               style={{ zIndex: index + 1 }}
               title={`Use ${label}`}
@@ -1433,7 +2205,7 @@ function LeagueShortcutStack({
   activeLeagueId,
   onSelect,
   className,
-  label = 'Leagues',
+  label = "Leagues",
   limit,
 }: {
   leagues: SleeperLeagueOption[];
@@ -1445,11 +2217,15 @@ function LeagueShortcutStack({
 }) {
   if (!leagues.length) return null;
 
-  const visibleLeagueLimit = typeof limit === 'number' ? limit : MAX_RECENT_LEAGUES_PER_USER;
+  const visibleLeagueLimit =
+    typeof limit === "number" ? limit : MAX_RECENT_LEAGUES_PER_USER;
   const visibleLeagues = leagues.slice(0, visibleLeagueLimit);
 
   return (
-    <div className={`league-shortcut-switcher${className ? ` ${className}` : ''}`} aria-label="Previous league shortcuts">
+    <div
+      className={`league-shortcut-switcher${className ? ` ${className}` : ""}`}
+      aria-label="Previous league shortcuts"
+    >
       <span className="league-shortcut-label">{label}</span>
       <div className="league-shortcut-stack">
         {visibleLeagues.map((league, index) => {
@@ -1458,14 +2234,18 @@ function LeagueShortcutStack({
             <button
               key={league.leagueId}
               type="button"
-              className={`league-shortcut-button${isActive ? ' is-active' : ''}`}
+              className={`league-shortcut-button${isActive ? " is-active" : ""}`}
               onClick={() => {
                 if (!isActive) onSelect(league.leagueId);
               }}
               style={{ zIndex: visibleLeagues.length - index }}
-              title={isActive ? `${league.name} is open` : `Open ${league.name}`}
-              aria-label={isActive ? `${league.name} is open` : `Open ${league.name}`}
-              aria-current={isActive ? 'page' : undefined}
+              title={
+                isActive ? `${league.name} is open` : `Open ${league.name}`
+              }
+              aria-label={
+                isActive ? `${league.name} is open` : `Open ${league.name}`
+              }
+              aria-current={isActive ? "page" : undefined}
             >
               {league.avatarUrl ? (
                 <img src={league.avatarUrl} alt="" aria-hidden="true" />
@@ -1517,11 +2297,11 @@ function HomeBrandLockup() {
   return (
     <div className="home-footer-brand">
       <h1 className="home-header-title athletic-title mb-2">
-        Dynasty<br />Degenerates
+        Dynasty
+        <br />
+        Degenerates
       </h1>
-      <p className="home-header-tagline">
-        For Degens, By Degens
-      </p>
+      <p className="home-header-tagline">For Degens, By Degens</p>
     </div>
   );
 }
@@ -1549,12 +2329,12 @@ function RecentEntrySuggestions({
   return (
     <div className="home-autocomplete-panel" role="listbox" aria-label={label}>
       <span>Recent</span>
-      {options.map((option) => (
+      {options.map(option => (
         <button
           key={option}
           type="button"
           role="option"
-          onMouseDown={(event) => event.preventDefault()}
+          onMouseDown={event => event.preventDefault()}
           onClick={() => onSelect(option)}
         >
           {option}
@@ -1566,17 +2346,19 @@ function RecentEntrySuggestions({
 
 function getLeagueCardNameClassName(name: string): string {
   const length = name.trim().length;
-  if (length >= 30) return 'home-league-card-name home-league-card-name-xxlong';
-  if (length >= 23) return 'home-league-card-name home-league-card-name-xlong';
-  if (length >= 17) return 'home-league-card-name home-league-card-name-long';
-  return 'home-league-card-name';
+  if (length >= 30) return "home-league-card-name home-league-card-name-xxlong";
+  if (length >= 23) return "home-league-card-name home-league-card-name-xlong";
+  if (length >= 17) return "home-league-card-name home-league-card-name-long";
+  return "home-league-card-name";
 }
 
 function getLeagueCardFormatClassName(format: string): string {
   const length = format.trim().length;
-  if (length >= 31) return 'home-league-card-format home-league-card-format-xlong';
-  if (length >= 24) return 'home-league-card-format home-league-card-format-long';
-  return 'home-league-card-format';
+  if (length >= 31)
+    return "home-league-card-format home-league-card-format-xlong";
+  if (length >= 24)
+    return "home-league-card-format home-league-card-format-long";
+  return "home-league-card-format";
 }
 
 function LeaguePickerCard({
@@ -1586,7 +2368,8 @@ function LeaguePickerCard({
   league: SleeperLeagueOption;
   onSelect: (leagueId: string) => void;
 }) {
-  const desktopFormat = league.format || `${league.totalRosters || '?'}-Team Dynasty`;
+  const desktopFormat =
+    league.format || `${league.totalRosters || "?"}-Team Dynasty`;
   const mobileFormat = league.mobileFormat || desktopFormat;
 
   return (
@@ -1597,12 +2380,21 @@ function LeaguePickerCard({
       onClick={() => onSelect(league.leagueId)}
     >
       {league.avatarUrl ? (
-        <img src={league.avatarUrl} alt="" aria-hidden="true" className="home-league-card-watermark" />
+        <img
+          src={league.avatarUrl}
+          alt=""
+          aria-hidden="true"
+          className="home-league-card-watermark"
+        />
       ) : null}
       <div className="home-league-card-top">
         <span className="home-league-card-icon-wrap">
           {league.avatarUrl ? (
-            <img src={league.avatarUrl} alt={`${league.name} icon`} className="home-league-card-icon" />
+            <img
+              src={league.avatarUrl}
+              alt={`${league.name} icon`}
+              className="home-league-card-icon"
+            />
           ) : (
             <span className="home-league-card-icon home-league-card-fallback">
               {league.name.slice(0, 2).toUpperCase()}
@@ -1619,18 +2411,31 @@ function LeaguePickerCard({
           </span>
         </span>
       </div>
-      <span className={`${getLeagueCardFormatClassName(desktopFormat)} home-league-card-format-desktop`} title={desktopFormat}>
+      <span
+        className={`${getLeagueCardFormatClassName(desktopFormat)} home-league-card-format-desktop`}
+        title={desktopFormat}
+      >
         {desktopFormat}
       </span>
-      <span className={`${getLeagueCardFormatClassName(mobileFormat)} home-league-card-format-mobile`} title={mobileFormat}>
+      <span
+        className={`${getLeagueCardFormatClassName(mobileFormat)} home-league-card-format-mobile`}
+        title={mobileFormat}
+      >
         {mobileFormat}
       </span>
-      <span className="home-league-card-ranks" aria-label={`${league.name} current league standing and power rank`}>
+      <span
+        className="home-league-card-ranks"
+        aria-label={`${league.name} current league standing and power rank`}
+      >
         {league.powerRank ? (
-          <span className="home-league-pill home-league-pill-power">Power #{league.powerRank}</span>
+          <span className="home-league-pill home-league-pill-power">
+            Power #{league.powerRank}
+          </span>
         ) : null}
         {league.standingsRank ? (
-          <span className="home-league-pill home-league-pill-standings">Standings #{league.standingsRank}</span>
+          <span className="home-league-pill home-league-pill-standings">
+            Standings #{league.standingsRank}
+          </span>
         ) : null}
       </span>
     </button>
@@ -1643,7 +2448,7 @@ type AdminValueDiagnosticRow = {
   item: string;
   status: string;
   note: string;
-  tone?: 'good' | 'warn' | 'danger' | 'info';
+  tone?: "good" | "warn" | "danger" | "info";
 };
 
 type AdminBlendSummary = {
@@ -1659,39 +2464,51 @@ type AdminBlendSummary = {
   }>;
 };
 
-type OutlookPlayer = ReportData['projectedRisers'][number];
+type OutlookPlayer = ReportData["projectedRisers"][number];
 
-function getValueCoverageStatus(note: string): Pick<AdminValueDiagnosticRow, 'status' | 'tone'> {
+function getValueCoverageStatus(
+  note: string
+): Pick<AdminValueDiagnosticRow, "status" | "tone"> {
   if (/benchmark/i.test(note)) {
-    return { status: 'Benchmark stored', tone: 'info' };
+    return { status: "Benchmark stored", tone: "info" };
   }
   if (/exact custom|closest|bucket/i.test(note)) {
-    return { status: 'Bucketed', tone: 'info' };
+    return { status: "Bucketed", tone: "info" };
   }
   if (/support is wired|no .*present/i.test(note)) {
-    return { status: 'Awaiting data', tone: 'warn' };
+    return { status: "Awaiting data", tone: "warn" };
   }
-  return { status: 'Tracked', tone: 'good' };
+  return { status: "Tracked", tone: "good" };
 }
 
-function isActionableDiagnosticTone(tone?: AdminValueDiagnosticRow['tone']): boolean {
-  return tone === 'warn' || tone === 'danger';
+function isActionableDiagnosticTone(
+  tone?: AdminValueDiagnosticRow["tone"]
+): boolean {
+  return tone === "warn" || tone === "danger";
 }
 
 function getValueCoverageItem(note: string, index: number): string {
-  if (/Selected value profile/i.test(note)) return 'Selected profile';
-  if (/Daily snapshots/i.test(note)) return 'Daily storage';
-  if (/Flock Fantasy|Dynasty Nerds|Redraft/i.test(note)) return 'Source weighting';
-  if (/TE premium|TEP/i.test(note)) return 'TE premium bucket';
-  if (/Standard|Half|PPR/i.test(note)) return 'PPR bucket';
-  if (/coverage/i.test(note)) return 'Source coverage';
-  if (/benchmark/i.test(note)) return 'Benchmark source';
+  if (/Selected value profile/i.test(note)) return "Selected profile";
+  if (/Daily snapshots/i.test(note)) return "Daily storage";
+  if (/Flock Fantasy|Dynasty Nerds|Redraft/i.test(note))
+    return "Source weighting";
+  if (/TE premium|TEP/i.test(note)) return "TE premium bucket";
+  if (/Standard|Half|PPR/i.test(note)) return "PPR bucket";
+  if (/coverage/i.test(note)) return "Source coverage";
+  if (/benchmark/i.test(note)) return "Benchmark source";
   return `Coverage note ${index + 1}`;
 }
 
-function getOutlookPlayerValueProfile(reportData: ReportData, player: OutlookPlayer) {
-  return player.playerDetails?.valueProfile
-    || (player.player_id ? reportData.playerDetailsById?.[player.player_id]?.valueProfile : undefined);
+function getOutlookPlayerValueProfile(
+  reportData: ReportData,
+  player: OutlookPlayer
+) {
+  return (
+    player.playerDetails?.valueProfile ||
+    (player.player_id
+      ? reportData.playerDetailsById?.[player.player_id]?.valueProfile
+      : undefined)
+  );
 }
 
 function addUniqueDiagnosticRow(
@@ -1707,8 +2524,8 @@ function addUniqueDiagnosticRow(
 function formatSignedDiagnosticDelta(value?: number | null): string | null {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
-  if (numeric === 0) return '0';
-  return `${numeric > 0 ? '+' : ''}${numeric}`;
+  if (numeric === 0) return "0";
+  return `${numeric > 0 ? "+" : ""}${numeric}`;
 }
 
 function formatLeagueAiConfidenceTrend(reportData: ReportData): string | null {
@@ -1716,138 +2533,185 @@ function formatLeagueAiConfidenceTrend(reportData: ReportData): string | null {
   if (trend.length < 2) return null;
   return trend
     .slice(-6)
-    .map((point) => `${point.snapshotKey}: ${point.score}%`)
-    .join(' -> ');
+    .map(point => `${point.snapshotKey}: ${point.score}%`)
+    .join(" -> ");
 }
 
 function isPriorityAdminDiagnosticRow(row: AdminValueDiagnosticRow): boolean {
-  if (row.tone === 'danger') return true;
-  if (row.tone !== 'warn') return false;
-  return /player value|player values|ranking identities|player alias|redraft source|dynasty source|devy source|value blend|value input/i.test(row.area);
+  if (row.tone === "danger") return true;
+  if (row.tone !== "warn") return false;
+  return /player value|player values|ranking identities|player alias|redraft source|dynasty source|devy source|value blend|value input/i.test(
+    row.area
+  );
 }
 
-function compareAdminDiagnosticPriority(a: AdminValueDiagnosticRow, b: AdminValueDiagnosticRow): number {
-  const toneScore = (row: AdminValueDiagnosticRow) => row.tone === 'danger' ? 0 : row.tone === 'warn' ? 1 : 2;
-  return toneScore(a) - toneScore(b) || a.area.localeCompare(b.area) || a.item.localeCompare(b.item);
+function compareAdminDiagnosticPriority(
+  a: AdminValueDiagnosticRow,
+  b: AdminValueDiagnosticRow
+): number {
+  const toneScore = (row: AdminValueDiagnosticRow) =>
+    row.tone === "danger" ? 0 : row.tone === "warn" ? 1 : 2;
+  return (
+    toneScore(a) - toneScore(b) ||
+    a.area.localeCompare(b.area) ||
+    a.item.localeCompare(b.item)
+  );
 }
 
 function getAdminValueAttentionSummary(reportData: ReportData): {
   count: number;
-  tone: 'warn' | 'danger';
+  tone: "warn" | "danger";
 } {
-  const priorityRows = buildAdminValueDiagnostics(reportData, [])
-    .filter(isPriorityAdminDiagnosticRow);
+  const priorityRows = buildAdminValueDiagnostics(reportData, []).filter(
+    isPriorityAdminDiagnosticRow
+  );
 
   return {
     count: priorityRows.length,
-    tone: priorityRows.some((row) => row.tone === 'danger') ? 'danger' : 'warn',
+    tone: priorityRows.some(row => row.tone === "danger") ? "danger" : "warn",
   };
 }
 
-function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: string[]): AdminValueDiagnosticRow[] {
+function buildAdminValueDiagnostics(
+  reportData: ReportData,
+  missingDateKeys: string[]
+): AdminValueDiagnosticRow[] {
   const rows: AdminValueDiagnosticRow[] = [];
   const seen = new Set<string>();
-  const isRedraftValueMode = normalizeLeagueValueMode(reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode) === 'redraft';
+  const isRedraftValueMode =
+    normalizeLeagueValueMode(
+      reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
+    ) === "redraft";
   const currentSnapshotGaps = missingDateKeys
-    .filter((dateKey) => dateKey >= ADMIN_VALUE_DIAGNOSTIC_START_DATE)
+    .filter(dateKey => dateKey >= ADMIN_VALUE_DIAGNOSTIC_START_DATE)
     .sort();
-  const outlookPlayers = [...reportData.projectedRisers, ...reportData.projectedFallers];
+  const outlookPlayers = [
+    ...reportData.projectedRisers,
+    ...reportData.projectedFallers,
+  ];
   const leagueDiagnostics = reportData.leagueDiagnostics;
 
   if (leagueDiagnostics) {
     const leagueConfidence = leagueDiagnostics.aiConfidence;
-    const leagueConfidenceDelta = formatSignedDiagnosticDelta(leagueConfidence?.scoreDelta);
+    const leagueConfidenceDelta = formatSignedDiagnosticDelta(
+      leagueConfidence?.scoreDelta
+    );
     const leagueConfidenceTrend = formatLeagueAiConfidenceTrend(reportData);
     if (leagueConfidence) {
-      const confidenceTone: AdminValueDiagnosticRow['tone'] = leagueConfidence.score < 52
-        ? 'warn'
-        : leagueConfidence.score >= 72
-          ? 'good'
-          : 'info';
+      const confidenceTone: AdminValueDiagnosticRow["tone"] =
+        leagueConfidence.score < 52
+          ? "warn"
+          : leagueConfidence.score >= 72
+            ? "good"
+            : "info";
       addUniqueDiagnosticRow(rows, seen, {
-        id: 'league-ai-confidence',
-        area: 'AI confidence',
+        id: "league-ai-confidence",
+        area: "AI confidence",
         item: `${leagueConfidence.score}% ${leagueConfidence.label}`,
-        status: leagueConfidence.score < 52 ? 'Low confidence' : leagueConfidence.score >= 72 ? 'Strong' : 'Building',
+        status:
+          leagueConfidence.score < 52
+            ? "Low confidence"
+            : leagueConfidence.score >= 72
+              ? "Strong"
+              : "Building",
         tone: confidenceTone,
         note: leagueConfidence.note,
       });
     }
     if (leagueConfidence && (leagueConfidenceDelta || leagueConfidenceTrend)) {
       addUniqueDiagnosticRow(rows, seen, {
-        id: 'league-ai-confidence-trend',
-        area: 'AI confidence trend',
-        item: leagueConfidenceDelta ? `${leagueConfidenceDelta} since previous snapshot` : `${leagueConfidence.score}% current`,
-        status: leagueConfidence.scoreDelta === null || leagueConfidence.scoreDelta === undefined
-          ? 'Trend building'
-          : leagueConfidence.scoreDelta > 0
-            ? 'Improving'
-            : leagueConfidence.scoreDelta < 0
-              ? 'Declining'
-              : 'Flat',
-        tone: leagueConfidence.scoreDelta === null || leagueConfidence.scoreDelta === undefined
-          ? 'info'
-          : leagueConfidence.scoreDelta < -6
-            ? 'warn'
+        id: "league-ai-confidence-trend",
+        area: "AI confidence trend",
+        item: leagueConfidenceDelta
+          ? `${leagueConfidenceDelta} since previous snapshot`
+          : `${leagueConfidence.score}% current`,
+        status:
+          leagueConfidence.scoreDelta === null ||
+          leagueConfidence.scoreDelta === undefined
+            ? "Trend building"
             : leagueConfidence.scoreDelta > 0
-              ? 'good'
-              : 'info',
+              ? "Improving"
+              : leagueConfidence.scoreDelta < 0
+                ? "Declining"
+                : "Flat",
+        tone:
+          leagueConfidence.scoreDelta === null ||
+          leagueConfidence.scoreDelta === undefined
+            ? "info"
+            : leagueConfidence.scoreDelta < -6
+              ? "warn"
+              : leagueConfidence.scoreDelta > 0
+                ? "good"
+                : "info",
         note: leagueConfidenceTrend
           ? `Recent confidence snapshots: ${leagueConfidenceTrend}.`
-          : 'Confidence deltas compare this report against the latest persisted league confidence snapshot.',
+          : "Confidence deltas compare this report against the latest persisted league confidence snapshot.",
       });
     }
-    if (leagueConfidence?.calibration && leagueConfidence.calibration.status !== 'ready') {
+    if (
+      leagueConfidence?.calibration &&
+      leagueConfidence.calibration.status !== "ready"
+    ) {
       addUniqueDiagnosticRow(rows, seen, {
-        id: 'league-ai-confidence-calibration',
-        area: 'AI confidence calibration',
+        id: "league-ai-confidence-calibration",
+        area: "AI confidence calibration",
         item: `${leagueConfidence.calibration.observedSampleSize}/${leagueConfidence.calibration.targetSampleSize} samples`,
-        status: leagueConfidence.calibration.status === 'pending' ? 'Pending season' : 'Collecting',
-        tone: 'info',
+        status:
+          leagueConfidence.calibration.status === "pending"
+            ? "Pending season"
+            : "Collecting",
+        tone: "info",
         note: leagueConfidence.calibration.note,
       });
     }
     leagueConfidence?.signals
-      .filter((signal) => signal.status !== 'strong')
+      .filter(signal => signal.status !== "strong")
       .slice(0, 4)
-      .forEach((signal) => {
+      .forEach(signal => {
         addUniqueDiagnosticRow(rows, seen, {
           id: `league-ai-confidence-signal-${signal.key}`,
-          area: 'AI confidence signal',
+          area: "AI confidence signal",
           item: `${signal.label}: ${signal.score}%`,
-          status: signal.status === 'low' ? 'Low evidence' : 'Building',
-          tone: signal.status === 'low' ? 'warn' : 'info',
+          status: signal.status === "low" ? "Low evidence" : "Building",
+          tone: signal.status === "low" ? "warn" : "info",
           note: signal.note,
         });
       });
     leagueConfidence?.signals
-      .filter((signal) => signal.scoreDelta !== null && signal.scoreDelta !== undefined)
-      .sort((a, b) => Math.abs(Number(b.scoreDelta || 0)) - Math.abs(Number(a.scoreDelta || 0)))
+      .filter(
+        signal => signal.scoreDelta !== null && signal.scoreDelta !== undefined
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(Number(b.scoreDelta || 0)) -
+          Math.abs(Number(a.scoreDelta || 0))
+      )
       .slice(0, 6)
-      .forEach((signal) => {
+      .forEach(signal => {
         const delta = Number(signal.scoreDelta || 0);
         addUniqueDiagnosticRow(rows, seen, {
           id: `league-ai-confidence-signal-trend-${signal.key}`,
-          area: 'AI confidence signal trend',
-          item: `${signal.label}: ${delta > 0 ? '+' : ''}${delta} to ${signal.score}%`,
-          status: delta > 0 ? 'Gaining' : delta < 0 ? 'Dropping' : 'Flat',
-          tone: delta > 0 ? 'good' : delta < -6 ? 'warn' : 'info',
-          note: signal.previousScore === null || signal.previousScore === undefined
-            ? signal.note
-            : `Previous ${signal.previousScore}%. ${signal.note}`,
+          area: "AI confidence signal trend",
+          item: `${signal.label}: ${delta > 0 ? "+" : ""}${delta} to ${signal.score}%`,
+          status: delta > 0 ? "Gaining" : delta < 0 ? "Dropping" : "Flat",
+          tone: delta > 0 ? "good" : delta < -6 ? "warn" : "info",
+          note:
+            signal.previousScore === null || signal.previousScore === undefined
+              ? signal.note
+              : `Previous ${signal.previousScore}%. ${signal.note}`,
         });
       });
     leagueConfidence?.managerConfidence
-      ?.filter((manager) => manager.score < 62)
+      ?.filter(manager => manager.score < 62)
       .sort((a, b) => a.score - b.score)
       .slice(0, 3)
-      .forEach((manager) => {
+      .forEach(manager => {
         addUniqueDiagnosticRow(rows, seen, {
           id: `manager-ai-confidence-${manager.manager}`,
-          area: 'Manager AI confidence',
+          area: "Manager AI confidence",
           item: `${manager.manager}: ${manager.score}%`,
-          status: manager.score < 50 ? 'Low evidence' : 'Building',
-          tone: manager.score < 50 ? 'warn' : 'info',
+          status: manager.score < 50 ? "Low evidence" : "Building",
+          tone: manager.score < 50 ? "warn" : "info",
           note: manager.note,
         });
       });
@@ -1857,7 +2721,7 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
       if (!isActionableDiagnosticTone(coverageStatus.tone)) return;
       addUniqueDiagnosticRow(rows, seen, {
         id: `value-limitation-${index}`,
-        area: 'Value coverage',
+        area: "Value coverage",
         item: getValueCoverageItem(limitation, index),
         status: coverageStatus.status,
         tone: coverageStatus.tone,
@@ -1871,295 +2735,378 @@ function buildAdminValueDiagnostics(reportData: ReportData, missingDateKeys: str
     const checked = diagnostic.checkedPlayerCount || 0;
     const matched = diagnostic.matchedPlayerCount || 0;
     const coveragePct = checked ? Math.round((matched / checked) * 100) : 0;
-    const failedTeams = diagnostic.failedTeams.map((team) => team.toUpperCase());
+    const failedTeams = diagnostic.failedTeams.map(team => team.toUpperCase());
     const hasTeamGaps = failedTeams.length > 0;
-    const tone: AdminValueDiagnosticRow['tone'] = hasTeamGaps || (checked > 0 && coveragePct < 60)
-      ? 'warn'
-      : diagnostic.mismatchCount > 0
-        ? 'info'
-        : 'good';
+    const tone: AdminValueDiagnosticRow["tone"] =
+      hasTeamGaps || (checked > 0 && coveragePct < 60)
+        ? "warn"
+        : diagnostic.mismatchCount > 0
+          ? "info"
+          : "good";
     addUniqueDiagnosticRow(rows, seen, {
-      id: 'depth-chart-role-coverage',
-      area: 'Depth chart roles',
-      item: checked ? `${matched}/${checked} players matched` : 'No team players checked',
-      status: hasTeamGaps ? 'Team gaps' : diagnostic.mismatchCount ? 'Stale tags found' : 'Loaded',
+      id: "depth-chart-role-coverage",
+      area: "Depth chart roles",
+      item: checked
+        ? `${matched}/${checked} players matched`
+        : "No team players checked",
+      status: hasTeamGaps
+        ? "Team gaps"
+        : diagnostic.mismatchCount
+          ? "Stale tags found"
+          : "Loaded",
       tone,
-        note: [
-          checked
-            ? `Current team chart roles matched ${coveragePct}% of checked report players.`
-            : 'No active NFL team players were available for current role matching.',
-          `${diagnostic.mismatchCount} Sleeper role tag${diagnostic.mismatchCount === 1 ? '' : 's'} differed from the current team chart.`,
-          `Teams loaded: ${diagnostic.loadedTeams.length}/${diagnostic.requestedTeams.length}.`,
-          `Role enrichment took ${Math.round(diagnostic.durationMs || 0)}ms.`,
-          failedTeams.length ? `Needs retry for: ${failedTeams.join(', ')}.` : null,
-        ].filter(Boolean).join(' '),
-      });
+      note: [
+        checked
+          ? `Current team chart roles matched ${coveragePct}% of checked report players.`
+          : "No active NFL team players were available for current role matching.",
+        `${diagnostic.mismatchCount} Sleeper role tag${diagnostic.mismatchCount === 1 ? "" : "s"} differed from the current team chart.`,
+        `Teams loaded: ${diagnostic.loadedTeams.length}/${diagnostic.requestedTeams.length}.`,
+        `Role enrichment took ${Math.round(diagnostic.durationMs || 0)}ms.`,
+        failedTeams.length
+          ? `Needs retry for: ${failedTeams.join(", ")}.`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    });
   }
 
   if (reportData.transactionBackfillDiagnostics) {
     const diagnostic = reportData.transactionBackfillDiagnostics;
     addUniqueDiagnosticRow(rows, seen, {
-      id: 'historical-sleeper-transactions',
-      area: 'Sleeper history backfill',
+      id: "historical-sleeper-transactions",
+      area: "Sleeper history backfill",
       item: `${diagnostic.transactionCount} transactions`,
-      status: diagnostic.checkedLeagueCount ? `${diagnostic.seasonCount} season${diagnostic.seasonCount === 1 ? '' : 's'}` : 'No history',
-      tone: diagnostic.checkedLeagueCount ? 'good' : 'info',
+      status: diagnostic.checkedLeagueCount
+        ? `${diagnostic.seasonCount} season${diagnostic.seasonCount === 1 ? "" : "s"}`
+        : "No history",
+      tone: diagnostic.checkedLeagueCount ? "good" : "info",
       note: [
-        `${diagnostic.checkedLeagueCount} previous league${diagnostic.checkedLeagueCount === 1 ? '' : 's'} checked.`,
+        `${diagnostic.checkedLeagueCount} previous league${diagnostic.checkedLeagueCount === 1 ? "" : "s"} checked.`,
         `${diagnostic.waiverOrFreeAgentCount} waiver/free-agent moves and ${diagnostic.tradeProposalCount} non-complete trade signals were backfilled for manager behavior reads.`,
-      ].join(' '),
+      ].join(" "),
     });
   }
 
   if (!isRedraftValueMode && reportData.prospectSourceDiagnostics) {
     const diagnostic = reportData.prospectSourceDiagnostics;
-    const tone = diagnostic.status === 'stored' ? 'good' : diagnostic.status === 'partial' ? 'warn' : 'warn';
+    const tone =
+      diagnostic.status === "stored"
+        ? "good"
+        : diagnostic.status === "partial"
+          ? "warn"
+          : "warn";
     if (isActionableDiagnosticTone(tone)) {
-      const errorNote = diagnostic.status === 'partial' && diagnostic.errors?.length
-        ? ` ${diagnostic.errors.length} scrape gap${diagnostic.errors.length === 1 ? '' : 's'} remain. First: ${diagnostic.errors[0]}.`
-        : '';
+      const errorNote =
+        diagnostic.status === "partial" && diagnostic.errors?.length
+          ? ` ${diagnostic.errors.length} scrape gap${diagnostic.errors.length === 1 ? "" : "s"} remain. First: ${diagnostic.errors[0]}.`
+          : "";
       addUniqueDiagnosticRow(rows, seen, {
-        id: 'prospect-context-source',
-        area: 'Prospect context',
+        id: "prospect-context-source",
+        area: "Prospect context",
         item: `${diagnostic.playerCount} profiles`,
-        status: diagnostic.status === 'partial' ? 'Stored with gaps' : 'Snapshot pending',
+        status:
+          diagnostic.status === "partial"
+            ? "Stored with gaps"
+            : "Snapshot pending",
         tone,
         note: `${diagnostic.note}${errorNote}`,
       });
     }
   }
 
-  if (isRedraftValueMode && reportData.rankings?.redraftSourceDiagnostics?.length) {
-    reportData.rankings.redraftSourceDiagnostics.forEach((diagnostic) => {
-      const tone: AdminValueDiagnosticRow['tone'] = diagnostic.status === 'loaded'
-        ? 'good'
-        : diagnostic.status === 'disabled'
-          ? 'info'
-          : diagnostic.status === 'empty'
-            ? 'warn'
-            : diagnostic.status === 'stale'
-              ? 'danger'
-              : 'danger';
+  if (
+    isRedraftValueMode &&
+    reportData.rankings?.redraftSourceDiagnostics?.length
+  ) {
+    reportData.rankings.redraftSourceDiagnostics.forEach(diagnostic => {
+      const tone: AdminValueDiagnosticRow["tone"] =
+        diagnostic.status === "loaded"
+          ? "good"
+          : diagnostic.status === "disabled"
+            ? "info"
+            : diagnostic.status === "empty"
+              ? "warn"
+              : diagnostic.status === "stale"
+                ? "danger"
+                : "danger";
       addUniqueDiagnosticRow(rows, seen, {
         id: `redraft-source-${diagnostic.key}`,
-        area: 'Redraft source',
+        area: "Redraft source",
         item: `${diagnostic.source}: ${diagnostic.rowCount.toLocaleString()} rows`,
-        status: diagnostic.status === 'loaded'
-          ? 'Loaded'
-          : diagnostic.status === 'disabled'
-            ? 'Disabled'
-            : diagnostic.status === 'empty'
-              ? 'No rows'
-              : diagnostic.status === 'stale'
-                ? 'Stale data'
-                : 'Source error',
-        tone: diagnostic.trustAlert?.level === 'danger' ? 'danger' : diagnostic.trustAlert?.level === 'warn' ? 'warn' : tone,
+        status:
+          diagnostic.status === "loaded"
+            ? "Loaded"
+            : diagnostic.status === "disabled"
+              ? "Disabled"
+              : diagnostic.status === "empty"
+                ? "No rows"
+                : diagnostic.status === "stale"
+                  ? "Stale data"
+                  : "Source error",
+        tone:
+          diagnostic.trustAlert?.level === "danger"
+            ? "danger"
+            : diagnostic.trustAlert?.level === "warn"
+              ? "warn"
+              : tone,
         note: formatSourceTrustDiagnosticNote(diagnostic),
       });
     });
   }
 
-  if (!isRedraftValueMode && reportData.rankings?.dynastySourceDiagnostics?.length) {
-    reportData.rankings.dynastySourceDiagnostics.forEach((diagnostic) => {
-      const tone: AdminValueDiagnosticRow['tone'] = diagnostic.status === 'loaded'
-        ? 'good'
-        : diagnostic.status === 'empty'
-          ? 'warn'
-          : diagnostic.status === 'disabled'
-            ? 'info'
-            : 'danger';
+  if (
+    !isRedraftValueMode &&
+    reportData.rankings?.dynastySourceDiagnostics?.length
+  ) {
+    reportData.rankings.dynastySourceDiagnostics.forEach(diagnostic => {
+      const tone: AdminValueDiagnosticRow["tone"] =
+        diagnostic.status === "loaded"
+          ? "good"
+          : diagnostic.status === "empty"
+            ? "warn"
+            : diagnostic.status === "disabled"
+              ? "info"
+              : "danger";
       addUniqueDiagnosticRow(rows, seen, {
         id: `dynasty-source-${diagnostic.key}`,
-        area: 'Dynasty source',
+        area: "Dynasty source",
         item: `${diagnostic.source}: ${diagnostic.rowCount.toLocaleString()} rows`,
-        status: diagnostic.status === 'loaded'
-          ? 'Loaded'
-          : diagnostic.status === 'empty'
-            ? 'No rows'
-            : diagnostic.status === 'disabled'
-              ? 'Disabled'
-              : diagnostic.status === 'stale'
-                ? 'Stale data'
-                : 'Source error',
-        tone: diagnostic.trustAlert?.level === 'danger' ? 'danger' : diagnostic.trustAlert?.level === 'warn' ? 'warn' : tone,
+        status:
+          diagnostic.status === "loaded"
+            ? "Loaded"
+            : diagnostic.status === "empty"
+              ? "No rows"
+              : diagnostic.status === "disabled"
+                ? "Disabled"
+                : diagnostic.status === "stale"
+                  ? "Stale data"
+                  : "Source error",
+        tone:
+          diagnostic.trustAlert?.level === "danger"
+            ? "danger"
+            : diagnostic.trustAlert?.level === "warn"
+              ? "warn"
+              : tone,
         note: formatSourceTrustDiagnosticNote(diagnostic),
       });
     });
   }
 
-  if (!isRedraftValueMode && reportData.rankings?.devySourceDiagnostics?.length) {
-    reportData.rankings.devySourceDiagnostics.forEach((diagnostic) => {
-      const tone: AdminValueDiagnosticRow['tone'] = diagnostic.trustAlert?.level === 'danger'
-        ? 'danger'
-        : diagnostic.trustAlert?.level === 'warn'
-          ? 'warn'
-          : diagnostic.status === 'loaded'
-            ? 'good'
-            : diagnostic.status === 'empty'
-              ? 'warn'
-              : 'danger';
+  if (
+    !isRedraftValueMode &&
+    reportData.rankings?.devySourceDiagnostics?.length
+  ) {
+    reportData.rankings.devySourceDiagnostics.forEach(diagnostic => {
+      const tone: AdminValueDiagnosticRow["tone"] =
+        diagnostic.trustAlert?.level === "danger"
+          ? "danger"
+          : diagnostic.trustAlert?.level === "warn"
+            ? "warn"
+            : diagnostic.status === "loaded"
+              ? "good"
+              : diagnostic.status === "empty"
+                ? "warn"
+                : "danger";
       addUniqueDiagnosticRow(rows, seen, {
         id: `devy-source-${diagnostic.key}`,
-        area: 'Devy source',
+        area: "Devy source",
         item: `${diagnostic.source}: ${diagnostic.rowCount.toLocaleString()} rows`,
-        status: diagnostic.status === 'loaded' ? 'Loaded' : diagnostic.status === 'empty' ? 'No rows' : 'Source issue',
+        status:
+          diagnostic.status === "loaded"
+            ? "Loaded"
+            : diagnostic.status === "empty"
+              ? "No rows"
+              : "Source issue",
         tone,
         note: formatSourceTrustDiagnosticNote(diagnostic),
       });
     });
   }
 
-  currentSnapshotGaps.forEach((dateKey) => {
+  currentSnapshotGaps.forEach(dateKey => {
     addUniqueDiagnosticRow(rows, seen, {
       id: `snapshot-${dateKey}`,
-      area: 'Value blend',
+      area: "Value blend",
       item: dateKey,
-      status: 'Missing day',
-      tone: 'warn',
+      status: "Missing day",
+      tone: "warn",
       note: `Daily blend was not stored after the ${ADMIN_VALUE_DIAGNOSTIC_START_DATE} blend cutoff, so any comparison touching this date uses the nearest available stored profile.`,
     });
   });
 
-  const playersWithoutSourceMetadata = outlookPlayers
-    .filter((player) => player.player_id && !getOutlookPlayerValueProfile(reportData, player));
+  const playersWithoutSourceMetadata = outlookPlayers.filter(
+    player =>
+      player.player_id && !getOutlookPlayerValueProfile(reportData, player)
+  );
   if (playersWithoutSourceMetadata.length) {
     addUniqueDiagnosticRow(rows, seen, {
-      id: 'source-metadata-missing',
-      area: 'Player values',
+      id: "source-metadata-missing",
+      area: "Player values",
       item: `${playersWithoutSourceMetadata.length} report players`,
-      status: 'Source check unavailable',
-      tone: 'warn',
-      note: 'The displayed player values exist, but this report payload did not include source-level blend detail.',
+      status: "Source check unavailable",
+      tone: "warn",
+      note: "The displayed player values exist, but this report payload did not include source-level blend detail.",
     });
   }
 
-  const rankingIdentityDiagnostics = reportData.rankings?.identityDiagnostics || [];
-  const unmatchedRankingRows = rankingIdentityDiagnostics.filter((row) => row.status === 'unmatched' && row.board !== 'devy');
+  const rankingIdentityDiagnostics =
+    reportData.rankings?.identityDiagnostics || [];
+  const unmatchedRankingRows = rankingIdentityDiagnostics.filter(
+    row => row.status === "unmatched" && row.board !== "devy"
+  );
 
   if (unmatchedRankingRows.length) {
     addUniqueDiagnosticRow(rows, seen, {
-      id: 'ranking-identity-unmatched',
-      area: 'Ranking identities',
-      item: `${unmatchedRankingRows.length} source row${unmatchedRankingRows.length === 1 ? '' : 's'}`,
-      status: 'Needs mapping',
-      tone: 'danger',
+      id: "ranking-identity-unmatched",
+      area: "Ranking identities",
+      item: `${unmatchedRankingRows.length} source row${unmatchedRankingRows.length === 1 ? "" : "s"}`,
+      status: "Needs mapping",
+      tone: "danger",
       note: `Ranking rows did not match a Sleeper player. First example: ${unmatchedRankingRows[0].playerName}. These rows may show the wrong owner/avatar until mapped.`,
     });
   }
 
   rankingIdentityDiagnostics
-    .filter((row) => row.board !== 'devy')
+    .filter(row => row.board !== "devy")
     .slice(0, 8)
     .forEach((diagnostic, index) => {
-      const isCollision = diagnostic.status === 'resolved-collision';
+      const isCollision = diagnostic.status === "resolved-collision";
       addUniqueDiagnosticRow(rows, seen, {
         id: `ranking-alias-review-${index}-${diagnostic.id}`,
-        area: 'Player alias review',
+        area: "Player alias review",
         item: diagnostic.playerName,
-        status: isCollision ? 'Resolved collision' : 'Needs mapping',
-        tone: isCollision ? 'warn' : 'danger',
-        note: isCollision && diagnostic.selectedPlayerName
-          ? `${diagnostic.note} Source key: ${diagnostic.sourceKey}.`
-          : `${diagnostic.note} Add or adjust an alias if this source row should map to a Sleeper player.`,
+        status: isCollision ? "Resolved collision" : "Needs mapping",
+        tone: isCollision ? "warn" : "danger",
+        note:
+          isCollision && diagnostic.selectedPlayerName
+            ? `${diagnostic.note} Source key: ${diagnostic.sourceKey}.`
+            : `${diagnostic.note} Add or adjust an alias if this source row should map to a Sleeper player.`,
       });
     });
 
-  outlookPlayers.forEach((player) => {
+  outlookPlayers.forEach(player => {
     const profile = getOutlookPlayerValueProfile(reportData, player);
     if (!profile) return;
 
     const sources = profile.sources || [];
     const hasCoreMarketSource = isRedraftValueMode
-      ? Boolean(profile.fantasyCalcRedraft || profile.fantasyProsSeasonValue || profile.seasonValue)
-      : Boolean(profile.flockFantasy || profile.dynastyNerds || profile.marketKtc || profile.fantasyCalcDynasty || profile.dynastyProcess);
+      ? Boolean(
+          profile.fantasyCalcRedraft ||
+            profile.fantasyProsSeasonValue ||
+            profile.seasonValue
+        )
+      : Boolean(
+          profile.flockFantasy ||
+            profile.dynastyNerds ||
+            profile.marketKtc ||
+            profile.fantasyCalcDynasty ||
+            profile.dynastyProcess
+        );
     if (hasCoreMarketSource) return;
 
     addUniqueDiagnosticRow(rows, seen, {
       id: `thin-value-${player.player_id || player.name}`,
-      area: 'Player value',
+      area: "Player value",
       item: player.name,
-      status: sources.length ? 'Non-primary source' : 'No source list',
-      tone: 'warn',
-      note: `${sources.length || 0} source${sources.length === 1 ? '' : 's'} found, but none are one of the primary ${isRedraftValueMode ? 'redraft/current-season' : 'dynasty'} blend sources. The card can render, but admin should verify the player mapping/value source.`,
+      status: sources.length ? "Non-primary source" : "No source list",
+      tone: "warn",
+      note: `${sources.length || 0} source${sources.length === 1 ? "" : "s"} found, but none are one of the primary ${isRedraftValueMode ? "redraft/current-season" : "dynasty"} blend sources. The card can render, but admin should verify the player mapping/value source.`,
     });
   });
 
-  const missingAgePlayers = outlookPlayers.filter((player) => player.age == null);
+  const missingAgePlayers = outlookPlayers.filter(player => player.age == null);
   if (missingAgePlayers.length) {
     addUniqueDiagnosticRow(rows, seen, {
-      id: 'missing-age-value-input',
-      area: 'Value input',
+      id: "missing-age-value-input",
+      area: "Value input",
       item: `${missingAgePlayers.length} report players`,
-      status: 'Age missing',
-      tone: 'warn',
-      note: 'Age-aware value context falls back to the current value when the age curve cannot be applied.',
+      status: "Age missing",
+      tone: "warn",
+      note: "Age-aware value context falls back to the current value when the age curve cannot be applied.",
     });
   }
 
   if (!rows.length) {
     rows.push({
-      id: 'no-active-diagnostics',
-      area: 'Value assumptions',
-      item: 'Current report',
-      status: 'No active flags',
-      tone: 'good',
-      note: 'No missing post-cutoff snapshot days or unmapped primary-value players were detected. League-format notes still show what is calculated versus bucketed.',
+      id: "no-active-diagnostics",
+      area: "Value assumptions",
+      item: "Current report",
+      status: "No active flags",
+      tone: "good",
+      note: "No missing post-cutoff snapshot days or unmapped primary-value players were detected. League-format notes still show what is calculated versus bucketed.",
     });
   }
 
   return rows.slice(0, 32);
 }
 
-function formatSourceTrustDiagnosticNote(diagnostic: RankingSourceDiagnostic): string {
+function formatSourceTrustDiagnosticNote(
+  diagnostic: RankingSourceDiagnostic
+): string {
   const trustText = Number.isFinite(diagnostic.trustScore)
-    ? `Trust ${diagnostic.trustScore}/100 (${Number(diagnostic.trustMultiplier || 1).toFixed(2)}x effective weight).${diagnostic.trustNote ? ` ${diagnostic.trustNote}.` : ''}`
-    : '';
+    ? `Trust ${diagnostic.trustScore}/100 (${Number(diagnostic.trustMultiplier || 1).toFixed(2)}x effective weight).${diagnostic.trustNote ? ` ${diagnostic.trustNote}.` : ""}`
+    : "";
   const trustDelta = Number(diagnostic.trustScoreDelta);
   const movementText = Number.isFinite(trustDelta)
     ? trustDelta > 0
       ? `Trust rose +${trustDelta} points since the previous snapshot.`
       : trustDelta < 0
         ? `Trust fell ${Math.abs(trustDelta)} points since the previous snapshot.`
-        : 'Trust was unchanged since the previous snapshot.'
-    : '';
+        : "Trust was unchanged since the previous snapshot."
+    : "";
   return [
     diagnostic.note,
     trustText,
     movementText,
-    diagnostic.trustAlert?.message || '',
-    diagnostic.error ? `Error: ${diagnostic.error}` : '',
-  ].filter(Boolean).join(' ');
+    diagnostic.trustAlert?.message || "",
+    diagnostic.error ? `Error: ${diagnostic.error}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
-function getAdminBlendProfileLabel(reportData: ReportData, profileKey?: string | null): string {
-  if (!profileKey) return 'League-matched profile';
-  const profileOption = reportData.rankings?.profileOptions?.find((option) => option.key === profileKey);
-  return profileOption?.label || 'League-matched profile';
+function getAdminBlendProfileLabel(
+  reportData: ReportData,
+  profileKey?: string | null
+): string {
+  if (!profileKey) return "League-matched profile";
+  const profileOption = reportData.rankings?.profileOptions?.find(
+    option => option.key === profileKey
+  );
+  return profileOption?.label || "League-matched profile";
 }
 
 function formatAdminBlendSources(
-  sources: AdminBlendSummary['sources'],
-  isRedraft: boolean,
-): AdminBlendSummary['sources'] {
+  sources: AdminBlendSummary["sources"],
+  isRedraft: boolean
+): AdminBlendSummary["sources"] {
   if (!isRedraft) return sources;
-  const redraftSources = sources.filter((source) => {
-    const text = `${source.key} ${source.source} ${source.note || ''}`;
-    return /(redraft|season|fantasypros|current|myfantasyleague|mfl|espn|fleaflicker|yahoo|nfl fantasy)/i.test(text)
-      && !/(dynasty|devy|college|rookie)/i.test(text);
+  const redraftSources = sources.filter(source => {
+    const text = `${source.key} ${source.source} ${source.note || ""}`;
+    return (
+      /(redraft|season|fantasypros|current|myfantasyleague|mfl|espn|fleaflicker|yahoo|nfl fantasy)/i.test(
+        text
+      ) && !/(dynasty|devy|college|rookie)/i.test(text)
+    );
   });
 
-  return redraftSources.length ? redraftSources : [{
-    key: 'current-season-model',
-    source: 'Current-season model',
-    percent: 100,
-    note: 'Redraft reports expose the current-season value lens by default.',
-  }];
+  return redraftSources.length
+    ? redraftSources
+    : [
+        {
+          key: "current-season-model",
+          source: "Current-season model",
+          percent: 100,
+          note: "Redraft reports expose the current-season value lens by default.",
+        },
+      ];
 }
 
 function formatScoutingArchiveCopy(value?: string | null): string {
-  return String(value || '')
-    .replace(/NFL Draft Buzz/g, 'archived scouting data')
-    .replace(/Draft Buzz/g, 'scouting archive');
+  return String(value || "")
+    .replace(/NFL Draft Buzz/g, "archived scouting data")
+    .replace(/Draft Buzz/g, "scouting archive");
 }
 
 function buildAdminBlendSummaries(reportData: ReportData): AdminBlendSummary[] {
@@ -2168,39 +3115,52 @@ function buildAdminBlendSummaries(reportData: ReportData): AdminBlendSummary[] {
   if (!rankings || !sourceWeightProfiles) return [];
 
   const summaries: AdminBlendSummary[] = [];
-  const leagueValueMode = normalizeLeagueValueMode(reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode);
-  const isRedraft = leagueValueMode === 'redraft';
-  const dynastyProfileKey = isRedraft ? rankings.defaultRedraftProfileKey || rankings.defaultProfileKey : rankings.defaultProfileKey;
+  const leagueValueMode = normalizeLeagueValueMode(
+    reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
+  );
+  const isRedraft = leagueValueMode === "redraft";
+  const dynastyProfileKey = isRedraft
+    ? rankings.defaultRedraftProfileKey || rankings.defaultProfileKey
+    : rankings.defaultProfileKey;
   const devyProfileKey = rankings.defaultDevyProfileKey;
 
   if (dynastyProfileKey && sourceWeightProfiles[dynastyProfileKey]) {
     summaries.push({
-      id: isRedraft ? 'current-league-redraft-blend' : 'current-league-dynasty-blend',
-      title: isRedraft ? 'Current League Redraft Blend' : 'Current League Dynasty Blend',
-      profileLabel: isRedraft ? 'Current-season value blend' : getAdminBlendProfileLabel(reportData, dynastyProfileKey),
+      id: isRedraft
+        ? "current-league-redraft-blend"
+        : "current-league-dynasty-blend",
+      title: isRedraft
+        ? "Current League Redraft Blend"
+        : "Current League Dynasty Blend",
+      profileLabel: isRedraft
+        ? "Current-season value blend"
+        : getAdminBlendProfileLabel(reportData, dynastyProfileKey),
       note: isRedraft
-        ? 'Primary current-season blend for rankings, roster values, trades, and redraft owner reads in this league.'
-        : 'Primary dynasty market blend for rankings, roster values, trades, and non-lineup dynasty reads in this league.',
-      sources: formatAdminBlendSources(sourceWeightProfiles[dynastyProfileKey].sources
-        .filter((source) => source.percent > 0)
-        .map((source) => ({
-          key: source.key,
-          source: formatScoutingArchiveCopy(source.source),
-          percent: source.percent,
-          note: formatScoutingArchiveCopy(source.note),
-        })), isRedraft),
+        ? "Primary current-season blend for rankings, roster values, trades, and redraft owner reads in this league."
+        : "Primary dynasty market blend for rankings, roster values, trades, and non-lineup dynasty reads in this league.",
+      sources: formatAdminBlendSources(
+        sourceWeightProfiles[dynastyProfileKey].sources
+          .filter(source => source.percent > 0)
+          .map(source => ({
+            key: source.key,
+            source: formatScoutingArchiveCopy(source.source),
+            percent: source.percent,
+            note: formatScoutingArchiveCopy(source.note),
+          })),
+        isRedraft
+      ),
     });
   }
 
   if (!isRedraft && devyProfileKey && sourceWeightProfiles[devyProfileKey]) {
     summaries.push({
-      id: 'current-league-college-blend',
-      title: 'College Prospect Blend',
+      id: "current-league-college-blend",
+      title: "College Prospect Blend",
       profileLabel: getAdminBlendProfileLabel(reportData, devyProfileKey),
-      note: 'Prospect-board blend for college/devy assets. Prospect traits are context only and do not directly change dynasty market values.',
+      note: "Prospect-board blend for college/devy assets. Prospect traits are context only and do not directly change dynasty market values.",
       sources: sourceWeightProfiles[devyProfileKey].sources
-        .filter((source) => source.percent > 0)
-        .map((source) => ({
+        .filter(source => source.percent > 0)
+        .map(source => ({
           key: source.key,
           source: formatScoutingArchiveCopy(source.source),
           percent: source.percent,
@@ -2217,16 +3177,23 @@ function getActionableMissingSnapshotDates(data?: {
   todayDateKey?: string | null;
 }): string[] {
   if (!data?.missingDateKeys?.length || !data.todayDateKey) return [];
-  return data.missingDateKeys.filter((dateKey) => dateKey === data.todayDateKey);
+  return data.missingDateKeys.filter(dateKey => dateKey === data.todayDateKey);
 }
 
-function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) {
+function AdminValueDiagnosticsTable({
+  reportData,
+}: {
+  reportData: ReportData;
+}) {
   const { data } = trpc.system.snapshotCoverage.useQuery(
     { lookbackDays: 14 },
     { refetchOnWindowFocus: false, staleTime: 1000 * 60 * 5 }
   );
 
-  const rows = buildAdminValueDiagnostics(reportData, getActionableMissingSnapshotDates(data));
+  const rows = buildAdminValueDiagnostics(
+    reportData,
+    getActionableMissingSnapshotDates(data)
+  );
   const blendSummaries = buildAdminBlendSummaries(reportData);
   const leagueConfidence = reportData.leagueDiagnostics?.aiConfidence;
   const managerConfidenceRows = [...(leagueConfidence?.managerConfidence || [])]
@@ -2236,40 +3203,58 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
     .filter(isPriorityAdminDiagnosticRow)
     .sort(compareAdminDiagnosticPriority)
     .slice(0, 6);
-  const priorityIds = new Set(priorityRows.map((row) => row.id));
-  const remainingRows = rows.filter((row) => !priorityIds.has(row.id));
+  const priorityIds = new Set(priorityRows.map(row => row.id));
+  const remainingRows = rows.filter(row => !priorityIds.has(row.id));
 
   return (
     <div className="admin-value-diagnostics">
       <p className="admin-value-diagnostics-intro">
-        Admin eyes only. This shows what is calculated from Sleeper league settings, what is covered by stored market values, and source health for the active value lens.
+        Admin eyes only. This shows what is calculated from Sleeper league
+        settings, what is covered by stored market values, and source health for
+        the active value lens.
       </p>
       {leagueConfidence && (
-        <section className="admin-confidence-drilldown" aria-label="Admin confidence drilldown">
+        <section
+          className="admin-confidence-drilldown"
+          aria-label="Admin confidence drilldown"
+        >
           <div className="admin-confidence-drilldown-head">
             <span>Confidence Drilldown</span>
-            <strong>{leagueConfidence.score}% {leagueConfidence.label}</strong>
+            <strong>
+              {leagueConfidence.score}% {leagueConfidence.label}
+            </strong>
             <p>{leagueConfidence.note}</p>
           </div>
           <div className="admin-confidence-signal-grid">
-            {leagueConfidence.signals.map((signal) => {
+            {leagueConfidence.signals.map(signal => {
               const delta = Number(signal.scoreDelta || 0);
               return (
-                <article key={signal.key} className={`admin-confidence-signal-card admin-confidence-signal-card-${signal.status}`}>
+                <article
+                  key={signal.key}
+                  className={`admin-confidence-signal-card admin-confidence-signal-card-${signal.status}`}
+                >
                   <div>
                     <span>{signal.label}</span>
                     <strong>{signal.score}%</strong>
                   </div>
-                  <em>{signal.previousScore === null || signal.previousScore === undefined ? 'New signal' : `${delta > 0 ? '+' : ''}${delta} from ${signal.previousScore}%`}</em>
+                  <em>
+                    {signal.previousScore === null ||
+                    signal.previousScore === undefined
+                      ? "New signal"
+                      : `${delta > 0 ? "+" : ""}${delta} from ${signal.previousScore}%`}
+                  </em>
                   <p>{signal.note}</p>
                 </article>
               );
             })}
           </div>
           {managerConfidenceRows.length > 0 && (
-            <div className="admin-manager-confidence-strip" aria-label="Lowest manager confidence rows">
+            <div
+              className="admin-manager-confidence-strip"
+              aria-label="Lowest manager confidence rows"
+            >
               <span>Weakest manager reads</span>
-              {managerConfidenceRows.map((manager) => (
+              {managerConfidenceRows.map(manager => (
                 <small key={manager.manager}>
                   <strong>{manager.manager}</strong>
                   <em>{manager.score}%</em>
@@ -2280,14 +3265,23 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
         </section>
       )}
       {priorityRows.length > 0 && (
-        <section className="admin-critical-alerts" aria-label="Important admin value alerts">
+        <section
+          className="admin-critical-alerts"
+          aria-label="Important admin value alerts"
+        >
           <div className="admin-critical-alerts-header">
             <span>Needs Admin Attention</span>
-            <strong>{priorityRows.length} important value/source flag{priorityRows.length === 1 ? '' : 's'}</strong>
+            <strong>
+              {priorityRows.length} important value/source flag
+              {priorityRows.length === 1 ? "" : "s"}
+            </strong>
           </div>
           <div className="admin-critical-alerts-grid">
-            {priorityRows.map((row) => (
-              <article key={`priority-${row.id}`} className={`admin-critical-alert-card admin-critical-alert-card-${row.tone || 'info'}`}>
+            {priorityRows.map(row => (
+              <article
+                key={`priority-${row.id}`}
+                className={`admin-critical-alert-card admin-critical-alert-card-${row.tone || "info"}`}
+              >
                 <div>
                   <span>{row.area}</span>
                   <strong>{row.item}</strong>
@@ -2301,15 +3295,22 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
       )}
       {blendSummaries.length > 0 && (
         <div className="admin-blend-summary-grid">
-          {blendSummaries.map((summary) => (
+          {blendSummaries.map(summary => (
             <article key={summary.id} className="admin-blend-summary-card">
               <div className="admin-blend-summary-top">
                 <span>{summary.title}</span>
                 <strong>{summary.profileLabel}</strong>
               </div>
-              <div className="admin-blend-source-list" aria-label={`${summary.title} source weights`}>
-                {summary.sources.map((source) => (
-                  <span key={source.key} className="admin-blend-source-pill" title={source.note}>
+              <div
+                className="admin-blend-source-list"
+                aria-label={`${summary.title} source weights`}
+              >
+                {summary.sources.map(source => (
+                  <span
+                    key={source.key}
+                    className="admin-blend-source-pill"
+                    title={source.note}
+                  >
                     <strong>{source.source}</strong>
                     <em>{source.percent}%</em>
                   </span>
@@ -2324,21 +3325,29 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
               <strong>Weights normalize when sources are missing</strong>
             </div>
             <p>
-              {normalizeLeagueValueMode(reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode) === 'redraft'
-                ? 'If a player is missing one of the current-season sources above, the available weights normalize across only the sources present. Long-term market inputs stay hidden in this report.'
-                : 'If a player is missing one of the sources above, the available weights normalize across only the sources present. Players only get flagged below when no primary blend source is attached. Season and projection data is only for lineup and redraft-style reads, not dynasty market value.'}
+              {normalizeLeagueValueMode(
+                reportData.leagueDiagnostics?.valueMode ||
+                  reportData.leagueValueMode
+              ) === "redraft"
+                ? "If a player is missing one of the current-season sources above, the available weights normalize across only the sources present. Long-term market inputs stay hidden in this report."
+                : "If a player is missing one of the sources above, the available weights normalize across only the sources present. Players only get flagged below when no primary blend source is attached. Season and projection data is only for lineup and redraft-style reads, not dynasty market value."}
             </p>
             {reportData.leagueDiagnostics && (
               <p>
-                Current league context: {reportData.leagueDiagnostics.teamCount}-team {reportData.leagueDiagnostics.scoringSummary}. Starter math uses {reportData.leagueDiagnostics.lineupSlotSummary}.
+                Current league context: {reportData.leagueDiagnostics.teamCount}
+                -team {reportData.leagueDiagnostics.scoringSummary}. Starter
+                math uses {reportData.leagueDiagnostics.lineupSlotSummary}.
               </p>
             )}
           </article>
         </div>
       )}
       <div className="admin-value-diagnostics-grid">
-        {remainingRows.map((row) => (
-          <article key={row.id} className={`admin-value-diagnostics-card admin-value-diagnostics-card-${row.tone || 'info'}`}>
+        {remainingRows.map(row => (
+          <article
+            key={row.id}
+            className={`admin-value-diagnostics-card admin-value-diagnostics-card-${row.tone || "info"}`}
+          >
             <div className="admin-value-diagnostics-card-top">
               <div>
                 <span>{row.area}</span>
@@ -2357,36 +3366,45 @@ function AdminValueDiagnosticsTable({ reportData }: { reportData: ReportData }) 
 function AdminAttentionBadge({
   count,
   label,
-  tone = 'warn',
+  tone = "warn",
 }: {
   count: number;
   label: string;
-  tone?: 'warn' | 'danger' | 'info';
+  tone?: "warn" | "danger" | "info";
 }) {
   if (!Number.isFinite(count) || count <= 0) return null;
 
   return (
-    <span className={`admin-attention-badge admin-attention-badge-${tone}`} aria-label={`${count} ${label}`}>
-      <strong>{count > 99 ? '99+' : count.toLocaleString()}</strong>
+    <span
+      className={`admin-attention-badge admin-attention-badge-${tone}`}
+      aria-label={`${count} ${label}`}
+    >
+      <strong>{count > 99 ? "99+" : count.toLocaleString()}</strong>
       <em>{label}</em>
     </span>
   );
 }
 
-function AdminValueDiagnosticsSection({ reportData }: { reportData: ReportData }) {
+function AdminValueDiagnosticsSection({
+  reportData,
+}: {
+  reportData: ReportData;
+}) {
   const attentionSummary = getAdminValueAttentionSummary(reportData);
 
   return (
     <CollapsibleReportSection
       title="Admin Eyes Only: Value Assumptions"
       kicker="Hidden diagnostics"
-      previewAccessory={attentionSummary.count > 0 ? (
-        <AdminAttentionBadge
-          count={attentionSummary.count}
-          label="Needs attention"
-          tone={attentionSummary.tone}
-        />
-      ) : undefined}
+      previewAccessory={
+        attentionSummary.count > 0 ? (
+          <AdminAttentionBadge
+            count={attentionSummary.count}
+            label="Needs attention"
+            tone={attentionSummary.tone}
+          />
+        ) : undefined
+      }
       premium
     >
       <AdminValueDiagnosticsTable reportData={reportData} />
@@ -2395,19 +3413,21 @@ function AdminValueDiagnosticsSection({ reportData }: { reportData: ReportData }
 }
 
 function formatAdminTelemetryDate(value?: string | null): string {
-  if (!value) return 'n/a';
+  if (!value) return "n/a";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'n/a';
+  if (Number.isNaN(date.getTime())) return "n/a";
   return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 }
 
-function isPrioritySourceHealthEvent(event: { level?: string | null }): boolean {
-  return event.level === 'danger' || event.level === 'warn';
+function isPrioritySourceHealthEvent(event: {
+  level?: string | null;
+}): boolean {
+  return event.level === "danger" || event.level === "warn";
 }
 
 function AdminTrafficTelemetrySection() {
@@ -2426,20 +3446,26 @@ function AdminTrafficTelemetrySection() {
       staleTime: 1000 * 60,
     }
   );
-  const priorityEvents = (sourceHealth?.recentEvents || []).filter(isPrioritySourceHealthEvent);
-  const alertTone = priorityEvents.some((event) => event.level === 'danger') ? 'danger' : 'warn';
+  const priorityEvents = (sourceHealth?.recentEvents || []).filter(
+    isPrioritySourceHealthEvent
+  );
+  const alertTone = priorityEvents.some(event => event.level === "danger")
+    ? "danger"
+    : "warn";
 
   return (
     <CollapsibleReportSection
       title="Admin Eyes Only: Traffic & Abuse"
       kicker="Request telemetry"
-      previewAccessory={priorityEvents.length > 0 ? (
-        <AdminAttentionBadge
-          count={priorityEvents.length}
-          label="Source alerts"
-          tone={alertTone}
-        />
-      ) : undefined}
+      previewAccessory={
+        priorityEvents.length > 0 ? (
+          <AdminAttentionBadge
+            count={priorityEvents.length}
+            label="Source alerts"
+            tone={alertTone}
+          />
+        ) : undefined
+      }
       premium
     >
       <AdminAbuseTelemetryPanel />
@@ -2454,15 +3480,16 @@ function AdminAbuseTelemetryPanel() {
     staleTime: 1000 * 60 * 5,
   });
   const canViewTelemetry = canViewAdminTelemetryForUser(authQuery.data);
-  const { data, error, isLoading, isFetching, refetch } = trpc.system.abuseTelemetry.useQuery(
-    { lookbackDays: 7 },
-    {
-      enabled: canViewTelemetry,
-      refetchOnWindowFocus: false,
-      retry: false,
-      staleTime: 1000 * 60,
-    }
-  );
+  const { data, error, isLoading, isFetching, refetch } =
+    trpc.system.abuseTelemetry.useQuery(
+      { lookbackDays: 7 },
+      {
+        enabled: canViewTelemetry,
+        refetchOnWindowFocus: false,
+        retry: false,
+        staleTime: 1000 * 60,
+      }
+    );
   const {
     data: sourceHealth,
     isFetching: isSourceHealthFetching,
@@ -2478,20 +3505,33 @@ function AdminAbuseTelemetryPanel() {
   );
 
   if (authQuery.isLoading) {
-    return <div className="rankings-empty-state">Checking admin telemetry access...</div>;
+    return (
+      <div className="rankings-empty-state">
+        Checking admin telemetry access...
+      </div>
+    );
   }
 
   if (!canViewTelemetry) {
     return (
       <div className="admin-traffic-panel admin-traffic-panel-error">
-        <p>Traffic telemetry is locked until you unlock Admin Tools for this browser session.</p>
-        <span>Use the footer button to enter the first-party passphrase once, then this panel and the rest of the admin tools stay open until the browser closes.</span>
+        <p>
+          Traffic telemetry is locked until you unlock Admin Tools for this
+          browser session.
+        </p>
+        <span>
+          Use the footer button to enter the first-party passphrase once, then
+          this panel and the rest of the admin tools stay open until the browser
+          closes.
+        </span>
       </div>
     );
   }
 
   if (isLoading) {
-    return <div className="rankings-empty-state">Loading traffic telemetry...</div>;
+    return (
+      <div className="rankings-empty-state">Loading traffic telemetry...</div>
+    );
   }
 
   if (error) {
@@ -2504,16 +3544,20 @@ function AdminAbuseTelemetryPanel() {
   }
 
   if (!data) {
-    return <div className="rankings-empty-state">No traffic telemetry available.</div>;
+    return (
+      <div className="rankings-empty-state">
+        No traffic telemetry available.
+      </div>
+    );
   }
 
   const totalCards = [
-    { label: 'Events', value: data.totals.events },
-    { label: 'Generated Reports', value: data.totals.generatedReports },
-    { label: 'Cached Reports', value: data.totals.cachedReports },
-    { label: 'Rate Limits', value: data.totals.rateLimitEvents },
-    { label: 'Unique IPs', value: data.totals.uniqueIps },
-    { label: 'Unique Leagues', value: data.totals.uniqueLeagueIds },
+    { label: "Events", value: data.totals.events },
+    { label: "Generated Reports", value: data.totals.generatedReports },
+    { label: "Cached Reports", value: data.totals.cachedReports },
+    { label: "Rate Limits", value: data.totals.rateLimitEvents },
+    { label: "Unique IPs", value: data.totals.uniqueIps },
+    { label: "Unique Leagues", value: data.totals.uniqueLeagueIds },
   ];
   const prioritySourceHealthEvents = (sourceHealth?.recentEvents || [])
     .filter(isPrioritySourceHealthEvent)
@@ -2524,7 +3568,9 @@ function AdminAbuseTelemetryPanel() {
       <div className="admin-traffic-header">
         <div>
           <span>Last {data.lookbackDays} days</span>
-          <strong>Generated {formatAdminTelemetryDate(data.generatedAt)}</strong>
+          <strong>
+            Generated {formatAdminTelemetryDate(data.generatedAt)}
+          </strong>
         </div>
         <Button
           type="button"
@@ -2541,20 +3587,32 @@ function AdminAbuseTelemetryPanel() {
       </div>
 
       {prioritySourceHealthEvents.length > 0 && (
-        <section className="admin-critical-alerts admin-critical-alerts-traffic" aria-label="Important source health alerts">
+        <section
+          className="admin-critical-alerts admin-critical-alerts-traffic"
+          aria-label="Important source health alerts"
+        >
           <div className="admin-critical-alerts-header">
             <span>Needs Admin Attention</span>
-            <strong>{prioritySourceHealthEvents.length} source-health alert{prioritySourceHealthEvents.length === 1 ? '' : 's'}</strong>
+            <strong>
+              {prioritySourceHealthEvents.length} source-health alert
+              {prioritySourceHealthEvents.length === 1 ? "" : "s"}
+            </strong>
           </div>
           <div className="admin-critical-alerts-grid">
-            {prioritySourceHealthEvents.map((event) => (
-              <article key={`source-priority-${event.id}`} className={`admin-critical-alert-card admin-critical-alert-card-${event.level === 'danger' ? 'danger' : 'warn'}`}>
+            {prioritySourceHealthEvents.map(event => (
+              <article
+                key={`source-priority-${event.id}`}
+                className={`admin-critical-alert-card admin-critical-alert-card-${event.level === "danger" ? "danger" : "warn"}`}
+              >
                 <div>
                   <span>{event.job}</span>
                   <strong>{event.source}</strong>
                 </div>
                 <p>{event.message}</p>
-                <em>{event.status} · {event.board || 'source'} · {event.rowCount ?? 0} rows</em>
+                <em>
+                  {event.status} · {event.board || "source"} ·{" "}
+                  {event.rowCount ?? 0} rows
+                </em>
               </article>
             ))}
           </div>
@@ -2562,20 +3620,32 @@ function AdminAbuseTelemetryPanel() {
       )}
 
       {sourceHealth?.bySource?.length ? (
-        <section className="admin-source-history-strip" aria-label="Source alert history">
+        <section
+          className="admin-source-history-strip"
+          aria-label="Source alert history"
+        >
           <div className="admin-source-history-head">
             <span>Source Alert History</span>
-            <strong>{sourceHealth.totals.uniqueSources} source{sourceHealth.totals.uniqueSources === 1 ? '' : 's'} flagged in {sourceHealth.lookbackDays} days</strong>
+            <strong>
+              {sourceHealth.totals.uniqueSources} source
+              {sourceHealth.totals.uniqueSources === 1 ? "" : "s"} flagged in{" "}
+              {sourceHealth.lookbackDays} days
+            </strong>
           </div>
           <div className="admin-source-history-grid">
-            {sourceHealth.bySource.slice(0, 6).map((bucket) => (
+            {sourceHealth.bySource.slice(0, 6).map(bucket => (
               <article key={bucket.label} className="admin-source-history-card">
                 <div>
                   <span>{bucket.label}</span>
-                  <strong>{bucket.danger} danger · {bucket.warn} warn</strong>
+                  <strong>
+                    {bucket.danger} danger · {bucket.warn} warn
+                  </strong>
                 </div>
-                <p>{bucket.lastMessage || 'No message captured.'}</p>
-                <em>First {formatAdminTelemetryDate(bucket.firstSeen)} · Latest {formatAdminTelemetryDate(bucket.lastSeen)}</em>
+                <p>{bucket.lastMessage || "No message captured."}</p>
+                <em>
+                  First {formatAdminTelemetryDate(bucket.firstSeen)} · Latest{" "}
+                  {formatAdminTelemetryDate(bucket.lastSeen)}
+                </em>
               </article>
             ))}
           </div>
@@ -2583,7 +3653,7 @@ function AdminAbuseTelemetryPanel() {
       ) : null}
 
       <div className="admin-traffic-stat-grid">
-        {totalCards.map((card) => (
+        {totalCards.map(card => (
           <article key={card.label} className="admin-traffic-stat">
             <span>{card.label}</span>
             <strong>{card.value.toLocaleString()}</strong>
@@ -2595,10 +3665,13 @@ function AdminAbuseTelemetryPanel() {
         <section className="admin-traffic-card">
           <h4>Top IPs</h4>
           <div className="admin-traffic-list">
-            {data.topIps.map((entry) => (
+            {data.topIps.map(entry => (
               <div key={entry.label} className="admin-traffic-row">
                 <strong>{entry.label}</strong>
-                <span>{entry.count} events · {entry.rateLimited} limited · {entry.uniqueLeagueIds} leagues</span>
+                <span>
+                  {entry.count} events · {entry.rateLimited} limited ·{" "}
+                  {entry.uniqueLeagueIds} leagues
+                </span>
                 <em>Last seen {formatAdminTelemetryDate(entry.lastSeen)}</em>
               </div>
             ))}
@@ -2608,24 +3681,45 @@ function AdminAbuseTelemetryPanel() {
         <section className="admin-traffic-card">
           <h4>Top Leagues</h4>
           <div className="admin-traffic-list">
-            {data.topLeagueIds.length ? data.topLeagueIds.map((entry) => (
-              <div key={entry.label} className="admin-traffic-row">
-                <strong>{entry.label}</strong>
-                <span>{entry.count} events · {entry.success} success · {entry.error} errors</span>
-                <em>Last seen {formatAdminTelemetryDate(entry.lastSeen)}</em>
-              </div>
-            )) : <p className="admin-traffic-empty">No league-specific events yet.</p>}
+            {data.topLeagueIds.length ? (
+              data.topLeagueIds.map(entry => (
+                <div key={entry.label} className="admin-traffic-row">
+                  <strong>{entry.label}</strong>
+                  <span>
+                    {entry.count} events · {entry.success} success ·{" "}
+                    {entry.error} errors
+                  </span>
+                  <em>Last seen {formatAdminTelemetryDate(entry.lastSeen)}</em>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                No league-specific events yet.
+              </p>
+            )}
           </div>
         </section>
 
         <section className="admin-traffic-card">
           <h4>Recent Events</h4>
           <div className="admin-traffic-list">
-            {data.recentEvents.map((event) => (
-              <div key={event.id} className={`admin-traffic-row admin-traffic-row-${event.status}`}>
-                <strong>{event.eventType.replace(/_/g, ' ')}</strong>
-                <span>{event.status} · {event.username || event.leagueId || event.ipAddress || 'unknown'}</span>
-                <em>{formatAdminTelemetryDate(event.createdAt)}{event.note ? ` · ${event.note}` : ''}</em>
+            {data.recentEvents.map(event => (
+              <div
+                key={event.id}
+                className={`admin-traffic-row admin-traffic-row-${event.status}`}
+              >
+                <strong>{event.eventType.replace(/_/g, " ")}</strong>
+                <span>
+                  {event.status} ·{" "}
+                  {event.username ||
+                    event.leagueId ||
+                    event.ipAddress ||
+                    "unknown"}
+                </span>
+                <em>
+                  {formatAdminTelemetryDate(event.createdAt)}
+                  {event.note ? ` · ${event.note}` : ""}
+                </em>
               </div>
             ))}
           </div>
@@ -2634,13 +3728,28 @@ function AdminAbuseTelemetryPanel() {
         <section className="admin-traffic-card">
           <h4>Source Health</h4>
           <div className="admin-traffic-list">
-            {sourceHealth?.recentEvents?.length ? sourceHealth.recentEvents.slice(0, 8).map((event) => (
-              <div key={event.id} className={`admin-traffic-row admin-traffic-row-${event.level === 'danger' ? 'error' : 'success'}`}>
-                <strong>{event.source}</strong>
-                <span>{event.level} · {event.status} · {event.board || 'source'} · {event.rowCount ?? 0} rows</span>
-                <em>{formatAdminTelemetryDate(event.createdAt)} · {event.message}</em>
-              </div>
-            )) : <p className="admin-traffic-empty">No source-health alerts in the last 7 days.</p>}
+            {sourceHealth?.recentEvents?.length ? (
+              sourceHealth.recentEvents.slice(0, 8).map(event => (
+                <div
+                  key={event.id}
+                  className={`admin-traffic-row admin-traffic-row-${event.level === "danger" ? "error" : "success"}`}
+                >
+                  <strong>{event.source}</strong>
+                  <span>
+                    {event.level} · {event.status} · {event.board || "source"} ·{" "}
+                    {event.rowCount ?? 0} rows
+                  </span>
+                  <em>
+                    {formatAdminTelemetryDate(event.createdAt)} ·{" "}
+                    {event.message}
+                  </em>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                No source-health alerts in the last 7 days.
+              </p>
+            )}
           </div>
         </section>
       </div>
@@ -2655,62 +3764,91 @@ export default function Home() {
     staleTime: 1000 * 60 * 5,
   });
   const utils = trpc.useUtils();
-  const [leagueId, setLeagueId] = useState('');
-  const [sleeperUsername, setSleeperUsername] = useState('');
-  const [leagueIdHistory, setLeagueIdHistory] = useState<string[]>(() => readAutocompleteHistory(LEAGUE_ID_HISTORY_KEY));
-  const [sleeperUsernameHistory, setSleeperUsernameHistory] = useState<string[]>(() => readAutocompleteHistory(SLEEPER_USERNAME_HISTORY_KEY));
-  const [cachedSleeperUsers, setCachedSleeperUsers] = useState<CachedSleeperUser[]>(() => readCachedSleeperUsers());
-  const [focusedAutocomplete, setFocusedAutocomplete] = useState<'username' | 'league' | null>(null);
+  const [leagueId, setLeagueId] = useState("");
+  const [sleeperUsername, setSleeperUsername] = useState("");
+  const [leagueIdHistory, setLeagueIdHistory] = useState<string[]>(() =>
+    readAutocompleteHistory(LEAGUE_ID_HISTORY_KEY)
+  );
+  const [sleeperUsernameHistory, setSleeperUsernameHistory] = useState<
+    string[]
+  >(() => readAutocompleteHistory(SLEEPER_USERNAME_HISTORY_KEY));
+  const [cachedSleeperUsers, setCachedSleeperUsers] = useState<
+    CachedSleeperUser[]
+  >(() => readCachedSleeperUsers());
+  const [focusedAutocomplete, setFocusedAutocomplete] = useState<
+    "username" | "league" | null
+  >(null);
   const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [viewerUsername, setViewerUsername] = useState<string | null>(null);
-  const [adminViewMode, setAdminViewMode] = useState<AdminViewMode | null>(null);
+  const [adminViewMode, setAdminViewMode] = useState<AdminViewMode | null>(
+    null
+  );
+  const [adminViewerManager, setAdminViewerManager] = useState<string | null>(
+    null
+  );
   const [reportData, setReportData] = useState<ReportData | null>(null);
-  const [reportDataCacheVersion, setReportDataCacheVersion] = useState<string | null>(null);
-  const [sleeperTradeCenterToken, setSleeperTradeCenterToken] = useState('');
-  const [sleeperHiddenConsentMap, setSleeperHiddenConsentMap] = useState<SleeperHiddenConsentMap>(() => readSleeperHiddenConsentMap());
-  const [activeTab, setActiveTab] = useState(() => getInitialReportTabFromUrl() || 'overview');
-  const [leagueName, setLeagueName] = useState('');
+  const [reportDataCacheVersion, setReportDataCacheVersion] = useState<
+    string | null
+  >(null);
+  const [sleeperTradeCenterToken, setSleeperTradeCenterToken] = useState("");
+  const [sleeperHiddenConsentMap, setSleeperHiddenConsentMap] =
+    useState<SleeperHiddenConsentMap>(() => readSleeperHiddenConsentMap());
+  const [activeTab, setActiveTab] = useState(
+    () => getInitialReportTabFromUrl() || "overview"
+  );
+  const [leagueName, setLeagueName] = useState("");
   const [leagueLogo, setLeagueLogo] = useState<string | null>(null);
-  const [leagueFormat, setLeagueFormat] = useState('');
-  const [ownerIntelSortMode, setOwnerIntelSortMode] = useState<OwnerIntelSortMode>('dynasty');
+  const [leagueFormat, setLeagueFormat] = useState("");
+  const [ownerIntelSortMode, setOwnerIntelSortMode] =
+    useState<OwnerIntelSortMode>("dynasty");
   const [isLoading, setIsLoading] = useState(false);
   const [analysisCompleteMessage, setAnalysisCompleteMessage] = useState<{
     leagueName: string;
     leagueFormat: string;
     leagueLogo: string | null;
   } | null>(null);
-  const [pendingAnalysisLeague, setPendingAnalysisLeague] = useState<AnalysisLeaguePreview | null>(null);
+  const [pendingAnalysisLeague, setPendingAnalysisLeague] =
+    useState<AnalysisLeaguePreview | null>(null);
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
   const [isAdminUnlockModalOpen, setIsAdminUnlockModalOpen] = useState(false);
   const [isAdminAccessModalOpen, setIsAdminAccessModalOpen] = useState(false);
-  const [adminPassphrase, setAdminPassphrase] = useState('');
-  const [loadingTransitionPhase, setLoadingTransitionPhase] = useState<LoadingTransitionPhase>('loading');
-  const [prospectArchiveOpenedWhileLoading, setProspectArchiveOpenedWhileLoading] = useState(false);
+  const [adminPassphrase, setAdminPassphrase] = useState("");
+  const [loadingTransitionPhase, setLoadingTransitionPhase] =
+    useState<LoadingTransitionPhase>("loading");
+  const [
+    prospectArchiveOpenedWhileLoading,
+    setProspectArchiveOpenedWhileLoading,
+  ] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
   const activeAnalysisLeagueIdRef = useRef<string | null>(null);
   const adminLoginMutation = trpc.auth.adminLogin.useMutation({
     onSuccess: async () => {
-      setAdminPassphrase('');
+      setAdminPassphrase("");
       setIsAdminAccessModalOpen(false);
       await utils.auth.me.invalidate();
-      toast.success('Admin session unlocked.');
+      toast.success("Admin session unlocked.");
     },
-    onError: (loginError) => {
+    onError: loginError => {
       toast.error(loginError.message);
     },
   });
 
   const clearSuccessTransitionTimers = () => {
-    successTransitionTimerRefs.current.forEach((timer) => window.clearTimeout(timer));
+    successTransitionTimerRefs.current.forEach(timer =>
+      window.clearTimeout(timer)
+    );
     successTransitionTimerRefs.current = [];
   };
 
   const queueSuccessTransitionTimer = (callback: () => void, delay: number) => {
     const timer = window.setTimeout(() => {
-      successTransitionTimerRefs.current = successTransitionTimerRefs.current.filter((queuedTimer) => queuedTimer !== timer);
+      successTransitionTimerRefs.current =
+        successTransitionTimerRefs.current.filter(
+          queuedTimer => queuedTimer !== timer
+        );
       callback();
     }, delay);
     successTransitionTimerRefs.current.push(timer);
@@ -2718,19 +3856,33 @@ export default function Home() {
 
   const leaguePreviewMutation = trpc.league.getLeaguePreview.useMutation();
 
-  const beginAnalysisLoading = async (nextLeagueId: string, extraKnownLeagues: SleeperLeagueOption[] = []) => {
+  const beginAnalysisLoading = async (
+    nextLeagueId: string,
+    extraKnownLeagues: SleeperLeagueOption[] = []
+  ) => {
     activeAnalysisLeagueIdRef.current = nextLeagueId;
-    const knownLeague = findKnownSleeperLeague(nextLeagueId, userLeagues, cachedSleeperUsers, extraKnownLeagues);
+    const knownLeague = findKnownSleeperLeague(
+      nextLeagueId,
+      userLeagues,
+      cachedSleeperUsers,
+      extraKnownLeagues
+    );
 
-    setPendingAnalysisLeague(knownLeague ? getAnalysisLeaguePreview(knownLeague) : getLeagueIdAnalysisPreview(nextLeagueId));
+    setPendingAnalysisLeague(
+      knownLeague
+        ? getAnalysisLeaguePreview(knownLeague)
+        : getLeagueIdAnalysisPreview(nextLeagueId)
+    );
     setAnalysisCompleteMessage(null);
-    setLoadingTransitionPhase('loading');
+    setLoadingTransitionPhase("loading");
     setIsLoading(true);
 
     if (knownLeague) return;
 
     try {
-      const league = await leaguePreviewMutation.mutateAsync({ leagueId: nextLeagueId });
+      const league = await leaguePreviewMutation.mutateAsync({
+        leagueId: nextLeagueId,
+      });
       if (activeAnalysisLeagueIdRef.current !== league.leagueId) return;
       setPendingAnalysisLeague(getAnalysisLeaguePreview(league));
     } catch {
@@ -2743,12 +3895,18 @@ export default function Home() {
   };
 
   const rememberSleeperUsername = (value: string) => {
-    setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, value));
+    setSleeperUsernameHistory(
+      rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, value)
+    );
   };
 
   const getCurrentSessionUserForCache = (): SleeperUserSession | null => {
-    const cachedUser = findCachedSleeperUser(cachedSleeperUsers, viewerUserId, sleeperUsername);
-    const username = sleeperUsername.trim() || cachedUser?.username || '';
+    const cachedUser = findCachedSleeperUser(
+      cachedSleeperUsers,
+      viewerUserId,
+      sleeperUsername
+    );
+    const username = sleeperUsername.trim() || cachedUser?.username || "";
     if (!username) return null;
 
     return {
@@ -2756,15 +3914,19 @@ export default function Home() {
       username: cachedUser?.username || viewerUsername || username,
       displayName: cachedUser?.displayName || viewerUsername || username,
       avatarUrl: cachedUser?.avatarUrl || null,
-      hasAdminPermissions: cachedUser?.hasAdminPermissions === true || cachedUser?.isPrivilegedReportViewer === true,
-      isPrivilegedReportViewer: cachedUser?.hasAdminPermissions === true || cachedUser?.isPrivilegedReportViewer === true,
+      hasAdminPermissions:
+        cachedUser?.hasAdminPermissions === true ||
+        cachedUser?.isPrivilegedReportViewer === true,
+      isPrivilegedReportViewer:
+        cachedUser?.hasAdminPermissions === true ||
+        cachedUser?.isPrivilegedReportViewer === true,
     };
   };
 
   const rememberCurrentUserLeagueShortcut = (nextLeagueId: string) => {
-    if (!userLeagues.some((league) => league.leagueId === nextLeagueId)) return;
+    if (!userLeagues.some(league => league.leagueId === nextLeagueId)) return;
     const sessionUser = getCurrentSessionUserForCache();
-    const username = sleeperUsername.trim() || sessionUser?.username || '';
+    const username = sleeperUsername.trim() || sessionUser?.username || "";
     if (!sessionUser || !username) return;
 
     const nextUsers = rememberCachedSleeperLeagueShortcut({
@@ -2781,13 +3943,15 @@ export default function Home() {
     leagueId,
     sleeperUsername || viewerUsername || viewerUserId
   );
-  const sleeperHiddenConsent = sleeperHiddenConsentKey ? sleeperHiddenConsentMap[sleeperHiddenConsentKey] || null : null;
+  const sleeperHiddenConsent = sleeperHiddenConsentKey
+    ? sleeperHiddenConsentMap[sleeperHiddenConsentKey] || null
+    : null;
 
   const analyzeMutation = trpc.league.analyze.useMutation({
-    onSuccess: (data) => {
+    onSuccess: data => {
       clearSuccessTransitionTimers();
       activeAnalysisLeagueIdRef.current = data.leagueId;
-	      setLeagueId(data.leagueId);
+      setLeagueId(data.leagueId);
       setLeagueName(data.leagueName);
       setLeagueLogo(data.leagueLogo);
       setLeagueFormat(data.leagueFormat);
@@ -2802,102 +3966,136 @@ export default function Home() {
         leagueFormat: data.leagueFormat,
         leagueLogo: data.leagueLogo,
       });
-	      setLoadingTransitionPhase('success');
-	      updateReportTabUrl(activeTab, data.leagueId);
-	      queueSuccessTransitionTimer(() => {
+      setLoadingTransitionPhase("success");
+      updateReportTabUrl(activeTab, data.leagueId);
+      queueSuccessTransitionTimer(() => {
         setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
         setReportData(data.reportData);
-        setLoadingTransitionPhase('reveal');
+        setLoadingTransitionPhase("reveal");
       }, REPORT_SUCCESS_REVEAL_DELAY_MS);
       queueSuccessTransitionTimer(() => {
-        setLoadingTransitionPhase('kick');
+        setLoadingTransitionPhase("kick");
       }, REPORT_SUCCESS_REVEAL_DELAY_MS + REPORT_SUCCESS_READ_AFTER_REVEAL_MS);
-      queueSuccessTransitionTimer(() => {
-        setLoadingTransitionPhase('done');
-        setIsLoading(false);
-        setAnalysisCompleteMessage(null);
-        setPendingAnalysisLeague(null);
-        activeAnalysisLeagueIdRef.current = null;
-      }, REPORT_SUCCESS_REVEAL_DELAY_MS + REPORT_SUCCESS_READ_AFTER_REVEAL_MS + REPORT_SUCCESS_KICK_MS);
+      queueSuccessTransitionTimer(
+        () => {
+          setLoadingTransitionPhase("done");
+          setIsLoading(false);
+          setAnalysisCompleteMessage(null);
+          setPendingAnalysisLeague(null);
+          activeAnalysisLeagueIdRef.current = null;
+        },
+        REPORT_SUCCESS_REVEAL_DELAY_MS +
+          REPORT_SUCCESS_READ_AFTER_REVEAL_MS +
+          REPORT_SUCCESS_KICK_MS
+      );
     },
-    onError: (error) => {
+    onError: error => {
       clearSuccessTransitionTimers();
       setAnalysisCompleteMessage(null);
       setPendingAnalysisLeague(null);
       activeAnalysisLeagueIdRef.current = null;
-      setLoadingTransitionPhase('loading');
+      setLoadingTransitionPhase("loading");
       setIsLoading(false);
       showMutationErrorToast(error);
     },
   });
 
-  const hiddenSleeperTradeCenterMutation = trpc.league.importSleeperTradeCenter.useMutation({
-    onSuccess: (data) => {
-      setReportData((current) => current ? {
-        ...current,
-        adminSleeperTradeProposalSignals: data.tradeProposalSignals,
-        adminSleeperWaiverSignals: data.waiverSignals,
-        sleeperHiddenLeagueSnapshot: data.sleeperHiddenLeagueSnapshot || {
-          sharedBy: null,
-          sharedAt: Date.now(),
-          transactionCount: data.transactionCount,
-          tradeCount: data.tradeCount,
-          waiverCount: data.waiverCount,
-        },
-      } : current);
-      const nextHiddenConsentMap = rememberSleeperHiddenConsent({
-        leagueId: data.leagueId,
-        userKey: sleeperUsername || viewerUsername || viewerUserId,
-        sharedAt: data.sleeperHiddenLeagueSnapshot?.sharedAt || Date.now(),
-      });
-      setSleeperHiddenConsentMap(nextHiddenConsentMap);
-      setSleeperTradeCenterToken('');
-      toast.success(`Shared ${data.tradeCount} hidden trade row${data.tradeCount === 1 ? '' : 's'} and ${data.waiverCount} waiver claim${data.waiverCount === 1 ? '' : 's'} from Sleeper.`);
-    },
-    onError: (error) => {
-      showMutationErrorToast(error);
-    },
-  });
+  const hiddenSleeperTradeCenterMutation =
+    trpc.league.importSleeperTradeCenter.useMutation({
+      onSuccess: data => {
+        setReportData(current =>
+          current
+            ? {
+                ...current,
+                adminSleeperTradeProposalSignals: data.tradeProposalSignals,
+                adminSleeperWaiverSignals: data.waiverSignals,
+                sleeperHiddenLeagueSnapshot:
+                  data.sleeperHiddenLeagueSnapshot || {
+                    sharedBy: null,
+                    sharedAt: Date.now(),
+                    transactionCount: data.transactionCount,
+                    tradeCount: data.tradeCount,
+                    waiverCount: data.waiverCount,
+                  },
+              }
+            : current
+        );
+        const nextHiddenConsentMap = rememberSleeperHiddenConsent({
+          leagueId: data.leagueId,
+          userKey: sleeperUsername || viewerUsername || viewerUserId,
+          sharedAt: data.sleeperHiddenLeagueSnapshot?.sharedAt || Date.now(),
+        });
+        setSleeperHiddenConsentMap(nextHiddenConsentMap);
+        setSleeperTradeCenterToken("");
+        toast.success(
+          `Shared ${data.tradeCount} hidden trade row${data.tradeCount === 1 ? "" : "s"} and ${data.waiverCount} waiver claim${data.waiverCount === 1 ? "" : "s"} from Sleeper.`
+        );
+      },
+      onError: error => {
+        showMutationErrorToast(error);
+      },
+    });
 
-  useEffect(() => () => {
-    clearSuccessTransitionTimers();
-  }, []);
+  useEffect(
+    () => () => {
+      clearSuccessTransitionTimers();
+    },
+    []
+  );
 
   const userLeagueRanksMutation = trpc.league.getUserLeagueRanks.useMutation({
-    onSuccess: (data) => {
-      setUserLeagues((prev) => mergeLeagueRanks(prev, data.ranks));
+    onSuccess: data => {
+      setUserLeagues(prev => mergeLeagueRanks(prev, data.ranks));
     },
   });
   const requestUserLeagueRanks = userLeagueRanksMutation.mutate;
 
   useEffect(() => {
     if (!viewerUserId || !sleeperUsername || !userLeagues.length) return;
-    if (userLeagues.every((league) => league.standingsRank != null && league.powerRank != null)) return;
+    if (
+      userLeagues.every(
+        league => league.standingsRank != null && league.powerRank != null
+      )
+    )
+      return;
 
     requestUserLeagueRanks({
       username: sleeperUsername,
       userId: viewerUserId,
       displayName: viewerUsername || sleeperUsername,
-      leagueIds: userLeagues.map((league) => league.leagueId),
+      leagueIds: userLeagues.map(league => league.leagueId),
     });
-  }, [requestUserLeagueRanks, sleeperUsername, userLeagues, viewerUserId, viewerUsername]);
+  }, [
+    requestUserLeagueRanks,
+    sleeperUsername,
+    userLeagues,
+    viewerUserId,
+    viewerUsername,
+  ]);
 
   const userLeaguesMutation = trpc.league.getUserLeagues.useMutation({
     onSuccess: (data, variables) => {
       const username = variables.username.trim();
       const nextViewerUserId = data.user?.userId || null;
       const nextViewerIdentity = getKtcAdminIdentity(data.user, username);
-      const nextHasAdminPermissions = data.user?.hasAdminPermissions === true || data.user?.isPrivilegedReportViewer === true;
+      const nextHasAdminPermissions =
+        data.user?.hasAdminPermissions === true ||
+        data.user?.isPrivilegedReportViewer === true;
       setUserLeagues(data.leagues);
       setViewerUserId(nextViewerUserId);
       setViewerUsername(nextViewerIdentity);
       setAdminViewMode(null);
+      setAdminViewerManager(null);
       if (data.leagues.length === 0) {
-        toast.error('No Sleeper leagues found for this username');
+        toast.error("No Sleeper leagues found for this username");
         return;
       }
       rememberSleeperUsername(username);
-      setCachedSleeperUsers(rememberCachedSleeperUser(buildCachedSleeperUser(username, data.user, data.leagues)));
+      setCachedSleeperUsers(
+        rememberCachedSleeperUser(
+          buildCachedSleeperUser(username, data.user, data.leagues)
+        )
+      );
       try {
         localStorage.setItem(
           SLEEPER_SESSION_KEY,
@@ -2913,40 +4111,69 @@ export default function Home() {
         // Losing this cache only affects the league switcher, not the report itself.
       }
       if (nextHasAdminPermissions) {
-        setAdminViewMode('regular');
-        persistAdminViewMode('regular');
+        setAdminViewMode("regular");
+        persistAdminViewMode("regular");
       }
-      toast.success(`Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? '' : 's'}`);
+      toast.success(
+        `Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? "" : "s"}`
+      );
     },
-    onError: (error) => {
+    onError: error => {
       showMutationErrorToast(error);
     },
   });
 
-	  useEffect(() => {
-	    let restoredViewerUserId: string | null = null;
-	    let restoredLeagues: SleeperLeagueOption[] = [];
-	    const urlLeagueId = getInitialReportLeagueIdFromUrl();
-	    const urlTab = getInitialReportTabFromUrl();
-	    try {
+  useEffect(() => {
+    let restoredViewerUserId: string | null = null;
+    let restoredLeagues: SleeperLeagueOption[] = [];
+    const urlLeagueId = getInitialReportLeagueIdFromUrl();
+    const urlTab = getInitialReportTabFromUrl();
+    try {
       const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
       if (sleeperSession) {
-	        const parsed = JSON.parse(sleeperSession) as SleeperSession;
-	        const parsedLeagues = Array.isArray(parsed.leagues) ? parsed.leagues : [];
-	        restoredLeagues = parsedLeagues;
-        const restoredViewerIdentity = getKtcAdminIdentity(parsed.user, parsed.username);
-        const restoredAdminViewMode = normalizeAdminViewMode(parsed.adminViewMode);
-        const restoredHasAdminPermissions = parsed.user?.hasAdminPermissions === true || parsed.user?.isPrivilegedReportViewer === true;
-        setSleeperUsername(parsed.username || '');
+        const parsed = JSON.parse(sleeperSession) as SleeperSession;
+        const parsedLeagues = Array.isArray(parsed.leagues)
+          ? parsed.leagues
+          : [];
+        restoredLeagues = parsedLeagues;
+        const restoredViewerIdentity = getKtcAdminIdentity(
+          parsed.user,
+          parsed.username
+        );
+        const restoredAdminViewMode = normalizeAdminViewMode(
+          parsed.adminViewMode
+        );
+        const restoredHasAdminPermissions =
+          parsed.user?.hasAdminPermissions === true ||
+          parsed.user?.isPrivilegedReportViewer === true;
+        setSleeperUsername(parsed.username || "");
         restoredViewerUserId = parsed.user?.userId || null;
         setViewerUserId(restoredViewerUserId);
         setViewerUsername(restoredViewerIdentity);
-        setAdminViewMode(restoredHasAdminPermissions ? restoredAdminViewMode || 'regular' : null);
+        setAdminViewMode(
+          restoredHasAdminPermissions
+            ? restoredAdminViewMode || "regular"
+            : null
+        );
+        setAdminViewerManager(null);
         if (parsed.username) {
-          setSleeperUsernameHistory(rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, parsed.username));
+          setSleeperUsernameHistory(
+            rememberAutocompleteValue(
+              SLEEPER_USERNAME_HISTORY_KEY,
+              parsed.username
+            )
+          );
         }
         if (parsed.username && parsedLeagues.length) {
-          setCachedSleeperUsers(rememberCachedSleeperUser(buildCachedSleeperUser(parsed.username, parsed.user, parsedLeagues)));
+          setCachedSleeperUsers(
+            rememberCachedSleeperUser(
+              buildCachedSleeperUser(
+                parsed.username,
+                parsed.user,
+                parsedLeagues
+              )
+            )
+          );
         }
         setUserLeagues(parsedLeagues);
       }
@@ -2955,52 +4182,67 @@ export default function Home() {
     }
 
     try {
-      STALE_REPORT_CACHE_KEYS.forEach((key) => localStorage.removeItem(key));
-	      const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
-	      if (cachedReport) {
-	        const parsed = JSON.parse(cachedReport) as CachedReport;
-	        if (parsed.cacheVersion === REPORT_CACHE_DATA_VERSION && (!urlLeagueId || parsed.leagueId === urlLeagueId)) {
-	          setLeagueId(parsed.leagueId);
-	          setLeagueName(parsed.leagueName);
-	          setLeagueLogo(parsed.leagueLogo);
-	          setLeagueFormat(parsed.leagueFormat);
-	          setActiveTab(urlTab || parsed.activeTab || 'overview');
-	          setReportDataCacheVersion(parsed.cacheVersion);
-	          setReportData(parsed.reportData);
-	          setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
-	          return;
-	        }
-	        localStorage.removeItem(REPORT_CACHE_KEY);
-	      }
+      STALE_REPORT_CACHE_KEYS.forEach(key => localStorage.removeItem(key));
+      const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
+      if (cachedReport) {
+        const parsed = JSON.parse(cachedReport) as CachedReport;
+        if (
+          parsed.cacheVersion === REPORT_CACHE_DATA_VERSION &&
+          (!urlLeagueId || parsed.leagueId === urlLeagueId)
+        ) {
+          setLeagueId(parsed.leagueId);
+          setLeagueName(parsed.leagueName);
+          setLeagueLogo(parsed.leagueLogo);
+          setLeagueFormat(parsed.leagueFormat);
+          setActiveTab(urlTab || parsed.activeTab || "overview");
+          setReportDataCacheVersion(parsed.cacheVersion);
+          setReportData(parsed.reportData);
+          setLeagueIdHistory(
+            rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId)
+          );
+          return;
+        }
+        localStorage.removeItem(REPORT_CACHE_KEY);
+      }
 
-	      if (urlLeagueId) {
-	        setLeagueId(urlLeagueId);
-	        setActiveTab(urlTab || 'overview');
-	        setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, urlLeagueId));
-	        void beginAnalysisLoading(urlLeagueId, restoredLeagues).finally(() => {
-	          if (activeAnalysisLeagueIdRef.current !== urlLeagueId) return;
-	          analyzeMutation.mutate({ leagueId: urlLeagueId, viewerUserId: restoredViewerUserId || undefined });
-	        });
-	        return;
-	      }
+      if (urlLeagueId) {
+        setLeagueId(urlLeagueId);
+        setActiveTab(urlTab || "overview");
+        setLeagueIdHistory(
+          rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, urlLeagueId)
+        );
+        void beginAnalysisLoading(urlLeagueId, restoredLeagues).finally(() => {
+          if (activeAnalysisLeagueIdRef.current !== urlLeagueId) return;
+          analyzeMutation.mutate({
+            leagueId: urlLeagueId,
+            viewerUserId: restoredViewerUserId || undefined,
+          });
+        });
+        return;
+      }
 
-	      const lastLeague = localStorage.getItem(LAST_LEAGUE_KEY);
-	      if (lastLeague) {
+      const lastLeague = localStorage.getItem(LAST_LEAGUE_KEY);
+      if (lastLeague) {
         const parsed = JSON.parse(lastLeague) as LastLeague;
         setLeagueId(parsed.leagueId);
         setLeagueName(parsed.leagueName);
         setLeagueLogo(parsed.leagueLogo);
         setLeagueFormat(parsed.leagueFormat);
-	        setActiveTab(urlTab || parsed.activeTab || 'overview');
-        setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId));
+        setActiveTab(urlTab || parsed.activeTab || "overview");
+        setLeagueIdHistory(
+          rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId)
+        );
         setPendingAnalysisLeague({
           leagueName: parsed.leagueName,
           leagueFormat: parsed.leagueFormat,
           leagueLogo: parsed.leagueLogo,
         });
-        setLoadingTransitionPhase('loading');
+        setLoadingTransitionPhase("loading");
         setIsLoading(true);
-        analyzeMutation.mutate({ leagueId: parsed.leagueId, viewerUserId: restoredViewerUserId || undefined });
+        analyzeMutation.mutate({
+          leagueId: parsed.leagueId,
+          viewerUserId: restoredViewerUserId || undefined,
+        });
       }
     } catch {
       localStorage.removeItem(REPORT_CACHE_KEY);
@@ -3024,11 +4266,14 @@ export default function Home() {
 
     try {
       localStorage.setItem(LAST_LEAGUE_KEY, JSON.stringify(lastLeague));
-      localStorage.setItem(REPORT_CACHE_KEY, JSON.stringify({
-        ...lastLeague,
-        cacheVersion: REPORT_CACHE_DATA_VERSION,
-        reportData,
-      } satisfies CachedReport));
+      localStorage.setItem(
+        REPORT_CACHE_KEY,
+        JSON.stringify({
+          ...lastLeague,
+          cacheVersion: REPORT_CACHE_DATA_VERSION,
+          reportData,
+        } satisfies CachedReport)
+      );
     } catch {
       localStorage.removeItem(REPORT_CACHE_KEY);
       try {
@@ -3040,10 +4285,16 @@ export default function Home() {
   }, [activeTab, leagueFormat, leagueId, leagueLogo, leagueName, reportData]);
 
   useEffect(() => {
-    if (!reportData || reportDataCacheVersion === REPORT_CACHE_DATA_VERSION || !leagueId || isLoading) return;
+    if (
+      !reportData ||
+      reportDataCacheVersion === REPORT_CACHE_DATA_VERSION ||
+      !leagueId ||
+      isLoading
+    )
+      return;
 
     localStorage.removeItem(REPORT_CACHE_KEY);
-    STALE_REPORT_CACHE_KEYS.forEach((key) => localStorage.removeItem(key));
+    STALE_REPORT_CACHE_KEYS.forEach(key => localStorage.removeItem(key));
     setReportData(null);
     setReportDataCacheVersion(null);
     setAnalysisCompleteMessage(null);
@@ -3052,9 +4303,12 @@ export default function Home() {
       leagueFormat,
       leagueLogo,
     });
-    setLoadingTransitionPhase('loading');
+    setLoadingTransitionPhase("loading");
     setIsLoading(true);
-    analyzeMutation.mutate({ leagueId, viewerUserId: viewerUserId || undefined });
+    analyzeMutation.mutate({
+      leagueId,
+      viewerUserId: viewerUserId || undefined,
+    });
     // This intentionally runs when a preserved React Fast Refresh state has report data
     // from an older browser cache version.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3063,14 +4317,20 @@ export default function Home() {
   const handleAnalyze = async (targetLeagueId = leagueId) => {
     const nextLeagueId = targetLeagueId.trim();
     if (!nextLeagueId) {
-      toast.error('Please enter a league ID');
+      toast.error("Please enter a league ID");
       return;
+    }
+    if (nextLeagueId !== leagueId.trim()) {
+      setAdminViewerManager(null);
     }
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
     void beginAnalysisLoading(nextLeagueId).finally(() => {
       if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
-      analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: viewerUserId || undefined });
+      analyzeMutation.mutate({
+        leagueId: nextLeagueId,
+        viewerUserId: viewerUserId || undefined,
+      });
     });
   };
 
@@ -3078,24 +4338,25 @@ export default function Home() {
     const nextLeagueId = leagueId.trim();
     const authToken = sleeperTradeCenterToken.trim();
     if (!nextLeagueId) {
-      toast.error('Please load a league first');
+      toast.error("Please load a league first");
       return;
     }
     if (!authToken) {
-      toast.error('Please paste a Sleeper auth token');
+      toast.error("Please paste a Sleeper auth token");
       return;
     }
     hiddenSleeperTradeCenterMutation.mutate({
       leagueId: nextLeagueId,
       authToken,
-      sharedBy: sleeperUsername.trim() || viewerUsername || viewerUserId || null,
+      sharedBy:
+        sleeperUsername.trim() || viewerUsername || viewerUserId || null,
     });
   };
 
   const handleFindLeagues = async () => {
     const normalizedUsername = sleeperUsername.trim();
     if (!normalizedUsername) {
-      toast.error('Please enter a Sleeper username');
+      toast.error("Please enter a Sleeper username");
       return;
     }
     if (CLOWN_EASTER_EGG_USERNAMES.has(normalizedUsername.toLowerCase())) {
@@ -3107,14 +4368,20 @@ export default function Home() {
 
   const handleCachedSleeperUserSelect = (cachedUser: CachedSleeperUser) => {
     const sessionUser = cachedSleeperUserToSessionUser(cachedUser);
-    const nextViewerIdentity = getKtcAdminIdentity(sessionUser, cachedUser.username);
-    const nextHasAdminPermissions = sessionUser.hasAdminPermissions === true || sessionUser.isPrivilegedReportViewer === true;
+    const nextViewerIdentity = getKtcAdminIdentity(
+      sessionUser,
+      cachedUser.username
+    );
+    const nextHasAdminPermissions =
+      sessionUser.hasAdminPermissions === true ||
+      sessionUser.isPrivilegedReportViewer === true;
     setSleeperUsername(cachedUser.username);
     setFocusedAutocomplete(null);
     setUserLeagues(cachedUser.leagues);
     setViewerUserId(cachedUser.userId);
     setViewerUsername(nextViewerIdentity);
-    setAdminViewMode(nextHasAdminPermissions ? 'regular' : null);
+    setAdminViewMode(nextHasAdminPermissions ? "regular" : null);
+    setAdminViewerManager(null);
     setIsLeaguePickerOpen(false);
     setIsChangeLeagueModalOpen(false);
     rememberSleeperUsername(cachedUser.username);
@@ -3127,7 +4394,7 @@ export default function Home() {
           username: cachedUser.username,
           user: sessionUser,
           leagues: cachedUser.leagues,
-          adminViewMode: nextHasAdminPermissions ? 'regular' : null,
+          adminViewMode: nextHasAdminPermissions ? "regular" : null,
           savedAt: Date.now(),
         } satisfies SleeperSession)
       );
@@ -3142,10 +4409,11 @@ export default function Home() {
 
   const handleClownDismiss = () => {
     setIsClownModalOpen(false);
-    setSleeperUsername('');
+    setSleeperUsername("");
     setUserLeagues([]);
     setFocusedAutocomplete(null);
     setAdminViewMode(null);
+    setAdminViewerManager(null);
   };
 
   const persistAdminViewMode = (mode: AdminViewMode) => {
@@ -3168,21 +4436,26 @@ export default function Home() {
 
   const handleAdminViewModeChoice = (mode: AdminViewMode) => {
     setAdminViewMode(mode);
+    if (mode === "regular") {
+      setAdminViewerManager(null);
+    }
     persistAdminViewMode(mode);
-    if (mode === 'regular') {
-      setActiveTab('overview');
+    if (mode === "regular") {
+      setActiveTab("overview");
     }
   };
 
   const handleAdminModeToggle = () => {
-    handleAdminViewModeChoice(adminViewMode === 'admin' ? 'regular' : 'admin');
+    handleAdminViewModeChoice(
+      adminViewMode === "regular" ? "admin" : "regular"
+    );
   };
 
   const handleStartOver = () => {
     localStorage.removeItem(REPORT_CACHE_KEY);
     localStorage.removeItem(LAST_LEAGUE_KEY);
     localStorage.removeItem(SLEEPER_SESSION_KEY);
-    updateReportTabUrl('overview', '');
+    updateReportTabUrl("overview", "");
     clearSuccessTransitionTimers();
     activeAnalysisLeagueIdRef.current = null;
     setIsLeaguePickerOpen(false);
@@ -3190,20 +4463,21 @@ export default function Home() {
     setIsAdminAccessModalOpen(false);
     setAnalysisCompleteMessage(null);
     setPendingAnalysisLeague(null);
-    setLoadingTransitionPhase('loading');
+    setLoadingTransitionPhase("loading");
     setReportData(null);
-    setLeagueId('');
-    setSleeperUsername('');
-    setLeagueName('');
+    setLeagueId("");
+    setSleeperUsername("");
+    setLeagueName("");
     setLeagueLogo(null);
-    setLeagueFormat('');
+    setLeagueFormat("");
     setUserLeagues([]);
     setViewerUserId(null);
     setViewerUsername(null);
     setAdminViewMode(null);
-    setAdminPassphrase('');
-    setSleeperTradeCenterToken('');
-    setActiveTab('overview');
+    setAdminViewerManager(null);
+    setAdminPassphrase("");
+    setSleeperTradeCenterToken("");
+    setActiveTab("overview");
   };
 
   const handleAnalyzeAnotherLeague = () => {
@@ -3230,11 +4504,23 @@ export default function Home() {
   };
 
   const handleCachedLeagueShortcutSelect = (nextLeagueId: string) => {
-    const cachedUser = findCachedSleeperUser(cachedSleeperUsers, viewerUserId, sleeperUsername);
-      const sessionUser = cachedUser ? cachedSleeperUserToSessionUser(cachedUser) : null;
+    const cachedUser = findCachedSleeperUser(
+      cachedSleeperUsers,
+      viewerUserId,
+      sleeperUsername
+    );
+    const sessionUser = cachedUser
+      ? cachedSleeperUserToSessionUser(cachedUser)
+      : null;
+    setAdminViewerManager(null);
     if (cachedUser && sessionUser) {
-      const nextViewerIdentity = getKtcAdminIdentity(sessionUser, cachedUser.username);
-      const nextHasAdminPermissions = sessionUser.hasAdminPermissions === true || sessionUser.isPrivilegedReportViewer === true;
+      const nextViewerIdentity = getKtcAdminIdentity(
+        sessionUser,
+        cachedUser.username
+      );
+      const nextHasAdminPermissions =
+        sessionUser.hasAdminPermissions === true ||
+        sessionUser.isPrivilegedReportViewer === true;
       setSleeperUsername(cachedUser.username);
       setFocusedAutocomplete(null);
       setUserLeagues(cachedUser.leagues);
@@ -3242,13 +4528,15 @@ export default function Home() {
       setViewerUsername(nextViewerIdentity);
       setAdminViewMode(nextHasAdminPermissions ? adminViewMode : null);
       rememberSleeperUsername(cachedUser.username);
-      setCachedSleeperUsers(rememberCachedSleeperLeagueShortcut({
-        users: readCachedSleeperUsers(),
-        user: sessionUser,
-        username: cachedUser.username,
-        leagues: cachedUser.leagues,
-        leagueId: nextLeagueId,
-      }));
+      setCachedSleeperUsers(
+        rememberCachedSleeperLeagueShortcut({
+          users: readCachedSleeperUsers(),
+          user: sessionUser,
+          username: cachedUser.username,
+          leagues: cachedUser.leagues,
+          leagueId: nextLeagueId,
+        })
+      );
 
       try {
         localStorage.setItem(
@@ -3272,63 +4560,106 @@ export default function Home() {
     setReportData(null);
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
-    void beginAnalysisLoading(nextLeagueId, cachedUser?.leagues || []).finally(() => {
-      if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
-      analyzeMutation.mutate({ leagueId: nextLeagueId, viewerUserId: cachedUser?.userId || viewerUserId || undefined });
-    });
+    void beginAnalysisLoading(nextLeagueId, cachedUser?.leagues || []).finally(
+      () => {
+        if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
+        analyzeMutation.mutate({
+          leagueId: nextLeagueId,
+          viewerUserId: cachedUser?.userId || viewerUserId || undefined,
+        });
+      }
+    );
   };
 
-  const usernameAutocompleteOptions = getFilteredAutocompleteOptions(sleeperUsernameHistory, sleeperUsername);
-  const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(leagueIdHistory, leagueId);
-  const activeCachedSleeperUser = findCachedSleeperUser(cachedSleeperUsers, viewerUserId, sleeperUsername);
-  const orderedUserLeagues = getOrderedLeagueOptions(userLeagues, activeCachedSleeperUser);
-  const reportHeaderLeagueShortcuts = getReportHeaderLeagueShortcuts(orderedUserLeagues, leagueId);
+  const usernameAutocompleteOptions = getFilteredAutocompleteOptions(
+    sleeperUsernameHistory,
+    sleeperUsername
+  );
+  const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(
+    leagueIdHistory,
+    leagueId
+  );
+  const activeCachedSleeperUser = findCachedSleeperUser(
+    cachedSleeperUsers,
+    viewerUserId,
+    sleeperUsername
+  );
+  const orderedUserLeagues = getOrderedLeagueOptions(
+    userLeagues,
+    activeCachedSleeperUser
+  );
+  const reportHeaderLeagueShortcuts = getReportHeaderLeagueShortcuts(
+    orderedUserLeagues,
+    leagueId
+  );
   const cachedLeagueShortcuts = getLeagueShortcutsForUser(
     activeCachedSleeperUser,
     userLeagues,
     reportData ? leagueId : null
   );
-  const hasAuthenticatedAdminPermissions = canViewAdminTelemetryForUser(authQuery.data);
-  const hasSleeperAdminPermissions = activeCachedSleeperUser?.hasAdminPermissions === true
-    || activeCachedSleeperUser?.isPrivilegedReportViewer === true;
-  const hasAdminPermissions = hasAuthenticatedAdminPermissions || hasSleeperAdminPermissions;
-  const canViewAdminFeatureExpansion = hasAuthenticatedAdminPermissions || (hasSleeperAdminPermissions && adminViewMode === 'admin');
+  const hasAuthenticatedAdminPermissions = canViewAdminTelemetryForUser(
+    authQuery.data
+  );
+  const hasSleeperAdminPermissions =
+    activeCachedSleeperUser?.hasAdminPermissions === true ||
+    activeCachedSleeperUser?.isPrivilegedReportViewer === true;
+  const hasAdminPermissions =
+    hasAuthenticatedAdminPermissions || hasSleeperAdminPermissions;
+  const canViewAdminFeatureExpansion = hasAuthenticatedAdminPermissions
+    ? adminViewMode !== "regular"
+    : hasSleeperAdminPermissions && adminViewMode === "admin";
 
   useEffect(() => {
-    if (!hasAuthenticatedAdminPermissions || !reportData) return;
+    if (
+      !hasAuthenticatedAdminPermissions ||
+      !reportData ||
+      !canViewAdminFeatureExpansion
+    )
+      return;
     try {
-      if (sessionStorage.getItem(ADMIN_UNLOCK_MODAL_DISMISSED_KEY) === 'true') return;
+      if (sessionStorage.getItem(ADMIN_UNLOCK_MODAL_DISMISSED_KEY) === "true")
+        return;
     } catch {
       // Session storage only prevents repeating this prompt.
     }
     setIsAdminUnlockModalOpen(true);
-  }, [hasAuthenticatedAdminPermissions, reportData]);
+  }, [
+    canViewAdminFeatureExpansion,
+    hasAuthenticatedAdminPermissions,
+    reportData,
+  ]);
 
   const handleAdminUnlockModalDismiss = () => {
     setIsAdminUnlockModalOpen(false);
     try {
-      sessionStorage.setItem(ADMIN_UNLOCK_MODAL_DISMISSED_KEY, 'true');
+      sessionStorage.setItem(ADMIN_UNLOCK_MODAL_DISMISSED_KEY, "true");
     } catch {
       // Non-critical preference.
     }
   };
 
   const handleAdminToolsClick = () => {
-    if (hasAuthenticatedAdminPermissions) return;
-    if (adminViewMode === 'admin') {
+    if (hasAdminPermissions) {
       handleAdminModeToggle();
       return;
     }
 
-    setAdminPassphrase('');
+    setAdminPassphrase("");
     setIsAdminAccessModalOpen(true);
   };
 
-  const migratedActiveTab = activeTab === 'projections' ? 'rankings' : activeTab;
+  const migratedActiveTab =
+    activeTab === "projections" ? "rankings" : activeTab;
   const canViewAutopilotTab = canViewAdminFeatureExpansion;
-  const shouldDeferAutopilotUrlSync = migratedActiveTab === 'autopilot' && !canViewAutopilotTab && authQuery.isLoading;
-  const resolvedActiveTab = migratedActiveTab === 'autopilot' && !canViewAutopilotTab ? 'overview' : migratedActiveTab;
-  const reportTabsClassName = `report-tabs ${canViewAutopilotTab ? 'report-tabs-six' : 'report-tabs-five'}`;
+  const shouldDeferAutopilotUrlSync =
+    migratedActiveTab === "autopilot" &&
+    !canViewAutopilotTab &&
+    authQuery.isLoading;
+  const resolvedActiveTab =
+    migratedActiveTab === "autopilot" && !canViewAutopilotTab
+      ? "overview"
+      : migratedActiveTab;
+  const reportTabsClassName = `report-tabs ${canViewAutopilotTab ? "report-tabs-six" : "report-tabs-five"}`;
   const rankingsQuery = trpc.league.rankings.useQuery(
     { leagueId },
     {
@@ -3338,27 +4669,35 @@ export default function Home() {
       retry: 1,
     }
   );
-  const rankingsForReport = rankingsQuery.data?.rankings || reportData?.rankings;
-  const isProspectArchiveLoading = rankingsQuery.isLoading && !rankingsForReport;
-  const reportDataWithRankings = reportData && rankingsForReport
-    ? { ...reportData, rankings: rankingsForReport }
-    : reportData;
+  const rankingsForReport =
+    rankingsQuery.data?.rankings || reportData?.rankings;
+  const isProspectArchiveLoading =
+    rankingsQuery.isLoading && !rankingsForReport;
+  const reportDataWithRankings =
+    reportData && rankingsForReport
+      ? { ...reportData, rankings: rankingsForReport }
+      : reportData;
   const handleReportTabChange = (nextTab: string) => {
-    const allowedNextTab = nextTab === 'autopilot' && !canViewAutopilotTab ? 'overview' : nextTab;
+    const allowedNextTab =
+      nextTab === "autopilot" && !canViewAutopilotTab ? "overview" : nextTab;
     setActiveTab(allowedNextTab);
     updateReportTabUrl(allowedNextTab, leagueId);
   };
 
   useEffect(() => {
-    if (activeTab === 'autopilot' && !canViewAutopilotTab && !authQuery.isLoading) {
-      setActiveTab('overview');
-      updateReportTabUrl('overview', leagueId);
+    if (
+      activeTab === "autopilot" &&
+      !canViewAutopilotTab &&
+      !authQuery.isLoading
+    ) {
+      setActiveTab("overview");
+      updateReportTabUrl("overview", leagueId);
       return;
     }
 
-    if (activeTab === 'projections') {
-      setActiveTab('rankings');
-      updateReportTabUrl('rankings', leagueId);
+    if (activeTab === "projections") {
+      setActiveTab("rankings");
+      updateReportTabUrl("rankings", leagueId);
     }
   }, [activeTab, authQuery.isLoading, canViewAutopilotTab, leagueId]);
 
@@ -3376,8 +4715,8 @@ export default function Home() {
       setActiveTab(tabFromUrl);
     };
     syncTabFromUrl();
-    window.addEventListener('hashchange', syncTabFromUrl);
-    return () => window.removeEventListener('hashchange', syncTabFromUrl);
+    window.addEventListener("hashchange", syncTabFromUrl);
+    return () => window.removeEventListener("hashchange", syncTabFromUrl);
   }, [reportData]);
 
   useEffect(() => {
@@ -3398,10 +4737,10 @@ export default function Home() {
           </DialogDescription>
         </DialogHeader>
         <div className="clown-easter-egg-body">
-          <div className="clown-easter-egg-face" aria-hidden="true">🤡</div>
-          <p className="clown-easter-egg-copy">
-            Rival league energy detected.
-          </p>
+          <div className="clown-easter-egg-face" aria-hidden="true">
+            🤡
+          </div>
+          <p className="clown-easter-egg-copy">Rival league energy detected.</p>
         </div>
         <DialogFooter className="sm:justify-center">
           <Button
@@ -3416,44 +4755,61 @@ export default function Home() {
     </Dialog>
   );
 
-  const loadingLeague = analysisCompleteMessage || pendingAnalysisLeague || (
-    leagueName || leagueFormat || leagueLogo
+  const loadingLeague =
+    analysisCompleteMessage ||
+    pendingAnalysisLeague ||
+    (leagueName || leagueFormat || leagueLogo
       ? { leagueName, leagueFormat, leagueLogo }
-      : null
-  );
-  const isLoadingRevealPhase = loadingTransitionPhase === 'reveal' || loadingTransitionPhase === 'kick';
+      : null);
+  const isLoadingRevealPhase =
+    loadingTransitionPhase === "reveal" || loadingTransitionPhase === "kick";
   const leagueFormatPills = buildLeagueFormatPills(
     leagueFormat,
     reportData?.leagueDiagnostics,
-    reportData?.leagueDiagnostics?.valueMode || reportData?.leagueValueMode,
+    reportData?.leagueDiagnostics?.valueMode || reportData?.leagueValueMode
   );
   const loadingSuccessCardClassName = [
-    'loading-success-card',
-    analysisCompleteMessage?.leagueLogo ? 'loading-success-card-logo' : '',
-    loadingTransitionPhase === 'reveal' ? 'loading-success-card-reveal' : '',
-    loadingTransitionPhase === 'kick' ? 'loading-success-card-kick' : '',
-  ].filter(Boolean).join(' ');
-  const reportFxVariant: PremiumFxVariant = resolvedActiveTab === 'trades'
-    ? 'trade-flow'
-    : resolvedActiveTab === 'momentum'
-      ? 'waiver-radar'
-      : resolvedActiveTab === 'rankings'
-        ? 'rankings-grid'
-        : resolvedActiveTab === 'autopilot'
-          ? 'autopilot-orbit'
-          : 'report-shell';
+    "loading-success-card",
+    analysisCompleteMessage?.leagueLogo ? "loading-success-card-logo" : "",
+    loadingTransitionPhase === "reveal" ? "loading-success-card-reveal" : "",
+    loadingTransitionPhase === "kick" ? "loading-success-card-kick" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const reportFxVariant: PremiumFxVariant =
+    resolvedActiveTab === "trades"
+      ? "trade-flow"
+      : resolvedActiveTab === "momentum"
+        ? "waiver-radar"
+        : resolvedActiveTab === "rankings"
+          ? "rankings-grid"
+          : resolvedActiveTab === "autopilot"
+            ? "autopilot-orbit"
+            : "report-shell";
   const loadingDialog = (
-    <Dialog key="analysis-loading-dialog" open={isLoading} onOpenChange={() => undefined}>
+    <Dialog
+      key="analysis-loading-dialog"
+      open={isLoading}
+      onOpenChange={() => undefined}
+    >
       <DialogContent
         className={`analysis-loading-dialog analysis-loading-dialog-${loadingTransitionPhase} border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg`}
         overlayClassName={`analysis-loading-overlay analysis-loading-overlay-${loadingTransitionPhase}`}
         showCloseButton={false}
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onPointerDownOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={event => event.preventDefault()}
+        onPointerDownOutside={event => event.preventDefault()}
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>{analysisCompleteMessage ? 'League Report Ready' : 'Analyzing League'}</DialogTitle>
-          <DialogDescription>{analysisCompleteMessage ? 'The league report is ready.' : 'Generating the selected league report.'}</DialogDescription>
+          <DialogTitle>
+            {analysisCompleteMessage
+              ? "League Report Ready"
+              : "Analyzing League"}
+          </DialogTitle>
+          <DialogDescription>
+            {analysisCompleteMessage
+              ? "The league report is ready."
+              : "Generating the selected league report."}
+          </DialogDescription>
         </DialogHeader>
         <div className="analysis-loading-modal-body">
           <LoadingAnimation
@@ -3469,7 +4825,10 @@ export default function Home() {
               aria-live="polite"
             >
               <PremiumFxLayer variant="loading-stamp" intensity="high" />
-              <span className="loading-success-impact-core" aria-hidden="true" />
+              <span
+                className="loading-success-impact-core"
+                aria-hidden="true"
+              />
               <span className="loading-success-scanline" aria-hidden="true" />
               <div className="loading-success-copy">
                 <p className="loading-success-kicker">
@@ -3487,8 +4846,10 @@ export default function Home() {
                     <CheckCircle2 aria-hidden="true" />
                   )}
                 </div>
-                <h2 className={`${getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || 'League report')} loading-success-league-name loading-gradient-text`}>
-                  {analysisCompleteMessage.leagueName || 'League report'}
+                <h2
+                  className={`${getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || "League report")} loading-success-league-name loading-gradient-text`}
+                >
+                  {analysisCompleteMessage.leagueName || "League report"}
                 </h2>
                 <div className="loading-success-bar" aria-hidden="true">
                   <span />
@@ -3504,10 +4865,10 @@ export default function Home() {
   const adminAccessDialog = (
     <Dialog
       open={isAdminAccessModalOpen && !hasAuthenticatedAdminPermissions}
-      onOpenChange={(open) => {
+      onOpenChange={open => {
         if (open) return;
         setIsAdminAccessModalOpen(false);
-        setAdminPassphrase('');
+        setAdminPassphrase("");
       }}
     >
       <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
@@ -3516,7 +4877,8 @@ export default function Home() {
             Unlock Admin Tools
           </DialogTitle>
           <DialogDescription className="text-slate-300">
-            Enter the passphrase once to open telemetry and admin diagnostics for this browser session.
+            Enter the passphrase once to open telemetry and admin diagnostics
+            for this browser session.
           </DialogDescription>
         </DialogHeader>
         <div className="admin-unlock-dialog-grid">
@@ -3527,7 +4889,7 @@ export default function Home() {
         </div>
         <form
           className="space-y-4"
-          onSubmit={(event) => {
+          onSubmit={event => {
             event.preventDefault();
             adminLoginMutation.mutate({ passphrase: adminPassphrase });
           }}
@@ -3535,7 +4897,7 @@ export default function Home() {
           <Input
             type="password"
             value={adminPassphrase}
-            onChange={(event) => setAdminPassphrase(event.target.value)}
+            onChange={event => setAdminPassphrase(event.target.value)}
             placeholder="Admin passphrase"
             autoComplete="current-password"
             className="border-orange-400/20 bg-slate-950/80 text-slate-100 placeholder:text-slate-500"
@@ -3547,7 +4909,7 @@ export default function Home() {
               className="w-full border-slate-700 text-slate-200 hover:bg-slate-900 sm:w-auto"
               onClick={() => {
                 setIsAdminAccessModalOpen(false);
-                setAdminPassphrase('');
+                setAdminPassphrase("");
               }}
             >
               Cancel
@@ -3557,7 +4919,9 @@ export default function Home() {
               disabled={!adminPassphrase.trim() || adminLoginMutation.isPending}
               className="w-full bg-gradient-to-r from-orange-500 to-cyan-400 font-black text-slate-950 hover:from-orange-400 hover:to-cyan-300 sm:w-auto"
             >
-              {adminLoginMutation.isPending ? 'Unlocking...' : 'Unlock Admin Tools'}
+              {adminLoginMutation.isPending
+                ? "Unlocking..."
+                : "Unlock Admin Tools"}
             </Button>
           </DialogFooter>
         </form>
@@ -3568,7 +4932,7 @@ export default function Home() {
   const adminUnlockDialog = (
     <Dialog
       open={hasAuthenticatedAdminPermissions && isAdminUnlockModalOpen}
-      onOpenChange={(open) => {
+      onOpenChange={open => {
         if (!open) handleAdminUnlockModalDismiss();
       }}
     >
@@ -3578,7 +4942,9 @@ export default function Home() {
             Admin Command Center Unlocked
           </DialogTitle>
           <DialogDescription className="text-slate-300">
-            Your signed-in admin session has premium AI reads, blueprint reports, league power tools, market signals, and admin-only diagnostics turned on.
+            Your signed-in admin session has premium AI reads, blueprint
+            reports, league power tools, market signals, and admin-only
+            diagnostics turned on.
           </DialogDescription>
         </DialogHeader>
         <div className="admin-unlock-dialog-grid">
@@ -3601,899 +4967,1353 @@ export default function Home() {
   );
 
   if (reportData) {
-    const leagueValueMode = normalizeLeagueValueMode(reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode);
-    const isRedraftReport = leagueValueMode === 'redraft';
+    const leagueValueMode = normalizeLeagueValueMode(
+      reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
+    );
+    const isRedraftReport = leagueValueMode === "redraft";
     const modeCopy = getLeagueModeCopy(leagueValueMode);
-    const displayReportData = reportDataWithRankings || reportData;
-    const hiddenSleeperTradeSignals = reportData.adminSleeperTradeProposalSignals;
+    const reportDataBase = reportDataWithRankings || reportData;
+    const effectiveViewerManager = hasAdminPermissions
+      ? (adminViewerManager ?? reportDataBase.viewerManager ?? null)
+      : (reportDataBase.viewerManager ?? null);
+    const reportManagerNames = getReportManagerNames(
+      reportDataBase,
+      effectiveViewerManager
+    );
+    const reportDataForView: ReportData = {
+      ...reportDataBase,
+      viewerManager: effectiveViewerManager,
+    };
+    const hasManagerViewOptions = reportManagerNames.length > 1;
+    const hiddenSleeperTradeSignals =
+      reportData.adminSleeperTradeProposalSignals;
     const hiddenSleeperWaiverSignals = reportData.adminSleeperWaiverSignals;
-    const hiddenSleeperSnapshot = reportData.sleeperHiddenLeagueSnapshot || null;
-    const hiddenSleeperImportLoaded = hiddenSleeperTradeSignals !== undefined || hiddenSleeperWaiverSignals !== undefined || hiddenSleeperSnapshot !== null;
+    const hiddenSleeperSnapshot =
+      reportData.sleeperHiddenLeagueSnapshot || null;
+    const hiddenSleeperImportLoaded =
+      hiddenSleeperTradeSignals !== undefined ||
+      hiddenSleeperWaiverSignals !== undefined ||
+      hiddenSleeperSnapshot !== null;
     const hiddenSleeperBrowserConsent = Boolean(sleeperHiddenConsent);
-    const hiddenSleeperConsentResolved = hiddenSleeperBrowserConsent || hiddenSleeperSnapshot !== null;
-    const hiddenSleeperShareButtonLabel = hiddenSleeperBrowserConsent || hiddenSleeperSnapshot ? 'Refresh hidden rows' : 'Share hidden rows';
+    const hiddenSleeperConsentResolved =
+      hiddenSleeperBrowserConsent || hiddenSleeperSnapshot !== null;
+    const hiddenSleeperShareButtonLabel =
+      hiddenSleeperBrowserConsent || hiddenSleeperSnapshot
+        ? "Refresh hidden rows"
+        : "Share hidden rows";
     const hiddenSleeperShareStatusLabel = hiddenSleeperBrowserConsent
-      ? 'Remembered on this browser'
+      ? "Remembered on this browser"
       : hiddenSleeperSnapshot
-        ? 'Stored for this league'
-        : 'One-time share';
-    const showTradeMarketRadar = reportData.weeklyRisers.some((player) => player.val_now >= 2500)
-      || reportData.weeklyFallers.some((player) => player.val_now >= 1800);
+        ? "Stored for this league"
+        : "One-time share";
+    const showTradeMarketRadar =
+      reportData.weeklyRisers.some(player => player.val_now >= 2500) ||
+      reportData.weeklyFallers.some(player => player.val_now >= 1800);
     return (
       <>
-      <ManagerChampionshipProvider championships={reportData.managerChampionships}>
-      <div className={`report-shell min-h-screen flex flex-col ${isLoadingRevealPhase ? 'report-shell-entering' : ''}`}>
-        <PremiumFxLayer variant={reportFxVariant} intensity={resolvedActiveTab === 'overview' ? 'low' : 'medium'} />
-        {/* Premium Header */}
-        <div className="report-header sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:pl-6 sm:pr-2 md:pl-6 md:pr-1 lg:pr-0 py-3 md:py-2">
-             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-6">
-              {/* Left: Brand */}
-              <div className="report-header-brand min-w-0">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <div className={`report-header-mobile-brand-lockup md:hidden ${hasAdminPermissions ? 'report-header-mobile-brand-lockup-admin' : ''}`}>
-                  <img
-                    src={DYNASTY_LOGO_SRC}
-                    alt="Dynasty Degenerates"
-                    className="report-header-mobile-logo"
-                  />
+        <ManagerChampionshipProvider
+          championships={reportData.managerChampionships}
+        >
+          <div
+            className={`report-shell min-h-screen flex flex-col ${isLoadingRevealPhase ? "report-shell-entering" : ""}`}
+          >
+            <PremiumFxLayer
+              variant={reportFxVariant}
+              intensity={resolvedActiveTab === "overview" ? "low" : "medium"}
+            />
+            {/* Premium Header */}
+            <div className="report-header sticky top-0 z-50">
+              <div className="max-w-7xl mx-auto px-4 sm:pl-6 sm:pr-2 md:pl-6 md:pr-1 lg:pr-0 py-3 md:py-2">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-6">
+                  {/* Left: Brand */}
+                  <div className="report-header-brand min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <div
+                        className={`report-header-mobile-brand-lockup md:hidden ${hasAdminPermissions ? "report-header-mobile-brand-lockup-admin" : ""}`}
+                      >
+                        <img
+                          src={DYNASTY_LOGO_SRC}
+                          alt="Dynasty Degenerates"
+                          className="report-header-mobile-logo"
+                        />
+                      </div>
+                      <h2 className="report-header-wordmark athletic-headline hidden truncate text-base sm:text-xl md:block">
+                        <span>Dynasty</span> <span>Degenerates</span>
+                      </h2>
+                    </div>
+                    <span
+                      className="report-live-indicator hidden md:inline-flex"
+                      aria-label="League analysis loaded"
+                    >
+                      <span aria-hidden="true" />
+                      League scan complete
+                    </span>
                   </div>
-                  <h2 className="report-header-wordmark athletic-headline hidden truncate text-base sm:text-xl md:block">
-                    <span>Dynasty</span> <span>Degenerates</span>
-                  </h2>
-                </div>
-                <span className="report-live-indicator hidden md:inline-flex" aria-label="League analysis loaded">
-                  <span aria-hidden="true" />
-                  League scan complete
-                </span>
-              </div>
 
-              {/* Center: Logo */}
-              <div className="hidden md:col-start-2 md:flex items-center justify-center">
-                <img
-                  src={DYNASTY_LOGO_SRC}
-                  alt="Dynasty Degenerates Logo"
-                  className="report-header-logo"
-                />
-              </div>
+                  {/* Center: Logo */}
+                  <div className="hidden md:col-start-2 md:flex items-center justify-center">
+                    <img
+                      src={DYNASTY_LOGO_SRC}
+                      alt="Dynasty Degenerates Logo"
+                      className="report-header-logo"
+                    />
+                  </div>
 
-              {/* Right: League Name + shortcuts */}
-              <div className="report-league-zone md:col-start-3">
-                <button
-                  type="button"
-                  className="report-league-lockup"
-                  onClick={handleHeaderLeagueClick}
-                  aria-label="Open league switcher"
-                >
-                  <div className="min-w-0 text-right">
-                    <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">{leagueName}</p>
-                    {leagueFormatPills.length > 0 && (
-                      <p className="report-league-format-row text-[11px] font-medium text-cyan-200/70 sm:text-xs" aria-label={`League format: ${leagueFormatPills.join(', ')}`}>
-                        {leagueFormatPills.map((chip) => (
-                          <span key={chip} className="report-league-format-pill">
-                            {chip}
-                          </span>
-                        ))}
-                      </p>
+                  {/* Right: League Name + shortcuts */}
+                  <div className="report-league-zone md:col-start-3">
+                    <button
+                      type="button"
+                      className="report-league-lockup"
+                      onClick={handleHeaderLeagueClick}
+                      aria-label="Open league switcher"
+                    >
+                      <div className="min-w-0 text-right">
+                        <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">
+                          {leagueName}
+                        </p>
+                        {leagueFormatPills.length > 0 && (
+                          <p
+                            className="report-league-format-row text-[11px] font-medium text-cyan-200/70 sm:text-xs"
+                            aria-label={`League format: ${leagueFormatPills.join(", ")}`}
+                          >
+                            {leagueFormatPills.map(chip => (
+                              <span
+                                key={chip}
+                                className="report-league-format-pill"
+                              >
+                                {chip}
+                              </span>
+                            ))}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                    {reportHeaderLeagueShortcuts.length > 0 && (
+                      <LeagueShortcutStack
+                        leagues={reportHeaderLeagueShortcuts}
+                        activeLeagueId={leagueId}
+                        onSelect={handleCachedLeagueShortcutSelect}
+                        className="report-league-shortcuts"
+                        label="Switch"
+                        limit={MAX_REPORT_HEADER_LEAGUES}
+                      />
                     )}
                   </div>
-                </button>
-                {reportHeaderLeagueShortcuts.length > 0 && (
-                  <LeagueShortcutStack
-                    leagues={reportHeaderLeagueShortcuts}
-                    activeLeagueId={leagueId}
-                    onSelect={handleCachedLeagueShortcutSelect}
-                    className="report-league-shortcuts"
-                    label="Switch"
-                    limit={MAX_REPORT_HEADER_LEAGUES}
-                  />
-                )}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
-          <Tabs value={resolvedActiveTab} onValueChange={handleReportTabChange} className="w-full">
-            <TabsList
-              className={reportTabsClassName}
-              data-active-tab={resolvedActiveTab}
-            >
-              <TabsTrigger value="overview" className="report-tab" aria-label="Overview">
-                <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                <span className="report-tab-label-full" aria-hidden="true">Overview</span>
-                <span className="report-tab-label-short" aria-hidden="true">View</span>
-              </TabsTrigger>
-
-              {canViewAutopilotTab && (
-                <TabsTrigger value="autopilot" className="report-tab" aria-label="AI Autopilot">
-                  <Bot className="h-4 w-4" aria-hidden="true" />
-                  <span className="report-tab-label-full" aria-hidden="true">AI Autopilot</span>
-                  <span className="report-tab-label-short" aria-hidden="true">Auto</span>
-                </TabsTrigger>
-              )}
-
-              <TabsTrigger value="momentum" className="report-tab" aria-label="Weekly Momentum">
-                <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                <span className="report-tab-label-full" aria-hidden="true">Weekly Momentum</span>
-                <span className="report-tab-label-short" aria-hidden="true">Trend</span>
-              </TabsTrigger>
-              <TabsTrigger value="rankings" className="report-tab" aria-label="Rankings">
-                <ListOrdered className="h-4 w-4" aria-hidden="true" />
-                <span className="report-tab-label-full" aria-hidden="true">Rankings</span>
-                <span className="report-tab-label-short" aria-hidden="true">Ranks</span>
-              </TabsTrigger>
-              <TabsTrigger value="trades" className="report-tab" aria-label="Trade History">
-                <Repeat2 className="h-4 w-4" aria-hidden="true" />
-                <span className="report-tab-label-full" aria-hidden="true">Trade History</span>
-                <span className="report-tab-label-short" aria-hidden="true">Trades</span>
-              </TabsTrigger>
-
-              <TabsTrigger value="draft" className="report-tab" aria-label="Draft History">
-                <ClipboardList className="h-4 w-4" aria-hidden="true" />
-                <span className="report-tab-label-full" aria-hidden="true">Draft History</span>
-                <span className="report-tab-label-short" aria-hidden="true">Draft</span>
-              </TabsTrigger>
-            </TabsList>
-
-            <Suspense fallback={<ReportSectionLoadingFallback />}>
-            <TabsContent value="overview" className="report-tab-content">
-              <div className="space-y-6 sm:space-y-8">
-                {canViewAdminFeatureExpansion && (
-                  <>
-                <OverviewAIPulse data={reportData} />
-                <CollapsibleReportSection
-                  title="Monthly Team Blueprint"
-                  kicker="Roster blueprint report"
-                  premium
-                  previewMetrics={[
-                    { label: 'Managers', value: reportData.managerRosterIntelligence?.length || 0, tone: 'info' },
-                    { label: 'Format', value: leagueValueMode === 'redraft' ? 'Season' : 'Dynasty', tone: 'neutral' },
-                    { label: 'History', value: reportData.weeklyRisers?.length ? 'Partial' : 'Current', tone: reportData.weeklyRisers?.length ? 'warn' : 'neutral' },
-                  ]}
+            {/* Content */}
+            <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
+              <Tabs
+                value={resolvedActiveTab}
+                onValueChange={handleReportTabChange}
+                className="w-full"
+              >
+                <TabsList
+                  className={reportTabsClassName}
+                  data-active-tab={resolvedActiveTab}
                 >
-                  <MonthlyTeamBlueprint
-                    data={reportData}
-                    leagueName={leagueName}
-                    leagueFormat={leagueFormat}
-                    managerAvatars={reportData.managerAvatars}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection
-                  title="League Power Rankings"
-                  kicker={isRedraftReport ? 'Weekly power, starter strength, depth, and roster flaws' : 'Power, roster value, starters, age, and flaws'}
-                  premium
-                  previewMetrics={[
-                    { label: 'Teams', value: reportData.powerRankings?.length || 0, tone: reportData.powerRankings?.length ? 'info' : 'warn' },
-                    { label: 'Top Team', value: reportData.powerRankings?.[0]?.manager || '-', tone: 'good' },
-                    { label: 'Lens', value: isRedraftReport ? 'Weekly' : 'Dynasty', tone: 'neutral' },
-                  ]}
-                >
-                  <LeaguePowerRankings
-                    data={reportData}
-                    managerAvatars={reportData.managerAvatars}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection
-                  title="Team Breakdown & Roster Recon"
-                  kicker="Strengths, leaks, surplus, and next move"
-                  premium
-                  previewMetrics={[
-                    { label: 'Recon Teams', value: reportData.managerRosterIntelligence?.length || 0, tone: 'info' },
-                    { label: 'Depth Flags', value: reportData.positionDepth?.length || 0, tone: reportData.positionDepth?.length ? 'warn' : 'neutral' },
-                  ]}
-                >
-                  <TeamBreakdownRecon
-                    data={reportData}
-                    managerAvatars={reportData.managerAvatars}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection
-                  title="Trade Finder, Partners & League Exploits"
-                  kicker={isRedraftReport ? 'Starter upgrades, roster need matching, and weekly pressure points' : 'Fair packages, roster need matching, and league-wide pressure points'}
-                  premium
-                  previewMetrics={[
-                    { label: 'Managers', value: reportData.managerRosterIntelligence?.length || 0, tone: 'info' },
-                    { label: 'Position Signals', value: reportData.positionDepth?.length || 0, tone: reportData.positionDepth?.length ? 'warn' : 'neutral' },
-                    { label: isRedraftReport ? 'Roster Fits' : 'Pick Portfolios', value: isRedraftReport ? reportData.managerRosterIntelligence?.length || 0 : reportData.pickPortfolios?.length || 0, tone: (isRedraftReport ? reportData.managerRosterIntelligence?.length : reportData.pickPortfolios?.length) ? 'info' : 'warn' },
-                  ]}
-                >
-                  <div className="command-expansion-stack">
-                    <TradeFinderGenerator data={reportData} />
-                    <TradePartnerFinder
-                      data={reportData}
+                  <TabsTrigger
+                    value="overview"
+                    className="report-tab"
+                    aria-label="Overview"
+                  >
+                    <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                    <span className="report-tab-label-full" aria-hidden="true">
+                      Overview
+                    </span>
+                    <span className="report-tab-label-short" aria-hidden="true">
+                      View
+                    </span>
+                  </TabsTrigger>
+
+                  {canViewAutopilotTab && (
+                    <TabsTrigger
+                      value="autopilot"
+                      className="report-tab"
+                      aria-label="AI Autopilot"
+                    >
+                      <Bot className="h-4 w-4" aria-hidden="true" />
+                      <span
+                        className="report-tab-label-full"
+                        aria-hidden="true"
+                      >
+                        AI Autopilot
+                      </span>
+                      <span
+                        className="report-tab-label-short"
+                        aria-hidden="true"
+                      >
+                        Auto
+                      </span>
+                    </TabsTrigger>
+                  )}
+
+                  <TabsTrigger
+                    value="momentum"
+                    className="report-tab"
+                    aria-label="Weekly Momentum"
+                  >
+                    <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                    <span className="report-tab-label-full" aria-hidden="true">
+                      Weekly Momentum
+                    </span>
+                    <span className="report-tab-label-short" aria-hidden="true">
+                      Trend
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="rankings"
+                    className="report-tab"
+                    aria-label="Rankings"
+                  >
+                    <ListOrdered className="h-4 w-4" aria-hidden="true" />
+                    <span className="report-tab-label-full" aria-hidden="true">
+                      Rankings
+                    </span>
+                    <span className="report-tab-label-short" aria-hidden="true">
+                      Ranks
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="trades"
+                    className="report-tab"
+                    aria-label="Trade History"
+                  >
+                    <Repeat2 className="h-4 w-4" aria-hidden="true" />
+                    <span className="report-tab-label-full" aria-hidden="true">
+                      Trade History
+                    </span>
+                    <span className="report-tab-label-short" aria-hidden="true">
+                      Trades
+                    </span>
+                  </TabsTrigger>
+
+                  <TabsTrigger
+                    value="draft"
+                    className="report-tab"
+                    aria-label="Draft History"
+                  >
+                    <ClipboardList className="h-4 w-4" aria-hidden="true" />
+                    <span className="report-tab-label-full" aria-hidden="true">
+                      Draft History
+                    </span>
+                    <span className="report-tab-label-short" aria-hidden="true">
+                      Draft
+                    </span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <Suspense fallback={<ReportSectionLoadingFallback />}>
+                  <TabsContent value="overview" className="report-tab-content">
+                    <div className="space-y-6 sm:space-y-8">
+                      {canViewAdminFeatureExpansion && (
+                        <>
+                          <OverviewAIPulse data={reportDataForView} />
+                          <CollapsibleReportSection
+                            title="Monthly Team Blueprint"
+                            kicker="Roster blueprint report"
+                            premium
+                            previewMetrics={[
+                              {
+                                label: "Managers",
+                                value:
+                                  reportData.managerRosterIntelligence
+                                    ?.length || 0,
+                                tone: "info",
+                              },
+                              {
+                                label: "Format",
+                                value:
+                                  leagueValueMode === "redraft"
+                                    ? "Season"
+                                    : "Dynasty",
+                                tone: "neutral",
+                              },
+                              {
+                                label: "History",
+                                value: reportData.weeklyRisers?.length
+                                  ? "Partial"
+                                  : "Current",
+                                tone: reportData.weeklyRisers?.length
+                                  ? "warn"
+                                  : "neutral",
+                              },
+                            ]}
+                          >
+                            <MonthlyTeamBlueprint
+                              data={reportDataForView}
+                              leagueName={leagueName}
+                              leagueFormat={leagueFormat}
+                              managerAvatars={reportData.managerAvatars}
+                            />
+                          </CollapsibleReportSection>
+                          <CollapsibleReportSection
+                            title="League Power Rankings"
+                            kicker={
+                              isRedraftReport
+                                ? "Weekly power, starter strength, depth, and roster flaws"
+                                : "Power, roster value, starters, age, and flaws"
+                            }
+                            premium
+                            previewMetrics={[
+                              {
+                                label: "Teams",
+                                value: reportData.powerRankings?.length || 0,
+                                tone: reportData.powerRankings?.length
+                                  ? "info"
+                                  : "warn",
+                              },
+                              {
+                                label: "Top Team",
+                                value:
+                                  reportData.powerRankings?.[0]?.manager || "-",
+                                tone: "good",
+                              },
+                              {
+                                label: "Lens",
+                                value: isRedraftReport ? "Weekly" : "Dynasty",
+                                tone: "neutral",
+                              },
+                            ]}
+                          >
+                            <LeaguePowerRankings
+                              data={reportDataForView}
+                              managerAvatars={reportData.managerAvatars}
+                            />
+                          </CollapsibleReportSection>
+                          <CollapsibleReportSection
+                            title="Team Breakdown & Roster Recon"
+                            kicker="Strengths, leaks, surplus, and next move"
+                            premium
+                            previewMetrics={[
+                              {
+                                label: "Recon Teams",
+                                value:
+                                  reportData.managerRosterIntelligence
+                                    ?.length || 0,
+                                tone: "info",
+                              },
+                              {
+                                label: "Depth Flags",
+                                value: reportData.positionDepth?.length || 0,
+                                tone: reportData.positionDepth?.length
+                                  ? "warn"
+                                  : "neutral",
+                              },
+                            ]}
+                          >
+                            <TeamBreakdownRecon
+                              data={reportDataForView}
+                              managerAvatars={reportData.managerAvatars}
+                            />
+                          </CollapsibleReportSection>
+                          <CollapsibleReportSection
+                            title="Trade Finder, Partners & League Exploits"
+                            kicker={
+                              isRedraftReport
+                                ? "Starter upgrades, roster need matching, and weekly pressure points"
+                                : "Fair packages, roster need matching, and league-wide pressure points"
+                            }
+                            premium
+                            previewMetrics={[
+                              {
+                                label: "Managers",
+                                value:
+                                  reportData.managerRosterIntelligence
+                                    ?.length || 0,
+                                tone: "info",
+                              },
+                              {
+                                label: "Position Signals",
+                                value: reportData.positionDepth?.length || 0,
+                                tone: reportData.positionDepth?.length
+                                  ? "warn"
+                                  : "neutral",
+                              },
+                              {
+                                label: isRedraftReport
+                                  ? "Roster Fits"
+                                  : "Pick Portfolios",
+                                value: isRedraftReport
+                                  ? reportData.managerRosterIntelligence
+                                      ?.length || 0
+                                  : reportData.pickPortfolios?.length || 0,
+                                tone: (
+                                  isRedraftReport
+                                    ? reportData.managerRosterIntelligence
+                                        ?.length
+                                    : reportData.pickPortfolios?.length
+                                )
+                                  ? "info"
+                                  : "warn",
+                              },
+                            ]}
+                          >
+                            <div className="command-expansion-stack">
+                              <TradeFinderGenerator data={reportDataForView} />
+                              <TradePartnerFinder
+                                data={reportDataForView}
+                                managerAvatars={reportData.managerAvatars}
+                                leagueId={leagueId}
+                              />
+                              <LeagueExploits
+                                data={reportDataForView}
+                                managerAvatars={reportData.managerAvatars}
+                              />
+                            </div>
+                          </CollapsibleReportSection>
+                          {SHOW_ASSISTANT_FEATURE_RADAR && (
+                            <CollapsibleReportSection
+                              title="Assistant Feature Radar"
+                              kicker="Useful shells without fake data"
+                              premium
+                              previewMetrics={[
+                                {
+                                  label: "Waiver Adds",
+                                  value:
+                                    reportData.waiverIntelligence
+                                      ?.availableTrendingAdds?.length || 0,
+                                  tone: reportData.waiverIntelligence
+                                    ?.availableTrendingAdds?.length
+                                    ? "good"
+                                    : "warn",
+                                },
+                                {
+                                  label: "Lineup Maps",
+                                  value:
+                                    reportData.managerPositionCounts?.length ||
+                                    0,
+                                  tone: "info",
+                                },
+                                {
+                                  label: "News Flags",
+                                  value: Object.values(
+                                    reportData.playerDetailsById || {}
+                                  ).filter(details => details.latestNews)
+                                    .length,
+                                  tone: "neutral",
+                                },
+                              ]}
+                            >
+                              <AssistantFeatureShells
+                                data={reportDataForView}
+                                leagueName={leagueName}
+                                leagueId={leagueId}
+                              />
+                            </CollapsibleReportSection>
+                          )}
+                        </>
+                      )}
+                      {(() => {
+                        const hasTaxiTriage =
+                          !isRedraftReport &&
+                          reportData.managerRosterIntelligence?.some(
+                            row => (row.taxiTriage?.items.length || 0) > 0
+                          );
+                        return (
+                          <>
+                            <CollapsibleReportSection
+                              title={modeCopy.ownerTitle}
+                              kicker={modeCopy.ownerKicker}
+                              previewMetrics={buildOwnerPreviewMetrics(
+                                reportData,
+                                leagueValueMode,
+                                ownerIntelSortMode
+                              )}
+                              previewAccessoryPlacement="middle"
+                              previewAccessory={
+                                !isRedraftReport ? (
+                                  <OwnerIntelSortControls
+                                    value={ownerIntelSortMode}
+                                    onChange={setOwnerIntelSortMode}
+                                  />
+                                ) : undefined
+                              }
+                            >
+                              <OwnerIntelMatrix
+                                data={reportDataForView}
+                                managerAvatars={reportData.managerAvatars}
+                                leagueId={leagueId}
+                                leagueLogo={leagueLogo}
+                                viewerManager={effectiveViewerManager}
+                                currentStandings={reportData.currentStandings}
+                                leagueValueMode={leagueValueMode}
+                                ownerIntelSortMode={ownerIntelSortMode}
+                              />
+                            </CollapsibleReportSection>
+                            <CollapsibleReportSection
+                              title={modeCopy.rosterTitle}
+                              kicker={modeCopy.rosterKicker}
+                              previewMetrics={buildRosterPreviewMetrics(
+                                reportData
+                              )}
+                            >
+                              <LeagueCommandCenter
+                                data={reportDataForView}
+                                managerAvatars={reportData.managerAvatars}
+                                leagueId={leagueId}
+                                leagueLogo={leagueLogo}
+                                section="roster"
+                                viewerManager={effectiveViewerManager}
+                                currentStandings={reportData.currentStandings}
+                                leagueValueMode={leagueValueMode}
+                              />
+                            </CollapsibleReportSection>
+                            {hasTaxiTriage && (
+                              <CollapsibleReportSection
+                                title="Taxi Squad Triage"
+                                kicker="Taxi-only activation checks"
+                                previewMetrics={buildTaxiPreviewMetrics(
+                                  reportData
+                                )}
+                              >
+                                <LeagueCommandCenter
+                                  data={reportDataForView}
+                                  managerAvatars={reportData.managerAvatars}
+                                  leagueId={leagueId}
+                                  leagueLogo={leagueLogo}
+                                  section="taxi"
+                                  viewerManager={effectiveViewerManager}
+                                  currentStandings={reportData.currentStandings}
+                                />
+                              </CollapsibleReportSection>
+                            )}
+                            {reportData.managerPositionCounts.length > 0 && (
+                              <CollapsibleReportSection
+                                title="Manager Position Counts"
+                                kicker={
+                                  isRedraftReport
+                                    ? "Starter depth and position gaps"
+                                    : "Full roster depth map"
+                                }
+                                previewMetrics={buildManagerPositionRoomPreviewMetrics(
+                                  reportData
+                                )}
+                              >
+                                <ManagerPositionCountsTable
+                                  data={reportData.managerPositionCounts}
+                                  positionDepth={reportData.positionDepth}
+                                  managerAvatars={reportData.managerAvatars}
+                                  playerDetailsById={
+                                    reportData.playerDetailsById
+                                  }
+                                  leagueId={leagueId}
+                                  leagueLogo={leagueLogo}
+                                  viewerManager={effectiveViewerManager}
+                                  leagueValueMode={leagueValueMode}
+                                />
+                              </CollapsibleReportSection>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </TabsContent>
+
+                  {canViewAutopilotTab && (
+                    <TabsContent
+                      value="autopilot"
+                      className="report-tab-content"
+                    >
+                      <AITeamAutopilot
+                        reportData={reportDataForView}
+                        leagueName={leagueName}
+                        leagueFormat={leagueFormat}
+                        leagueValueMode={leagueValueMode}
+                      />
+                    </TabsContent>
+                  )}
+
+                  <TabsContent value="momentum" className="report-tab-content">
+                    <div className="space-y-6 sm:space-y-8">
+                      {showTradeMarketRadar && (
+                        <CollapsibleReportSection
+                          title="Trade Market Radar"
+                          kicker={
+                            isRedraftReport
+                              ? "Current-season buy and sell signals"
+                              : "Buy and sell signals"
+                          }
+                          previewMetrics={buildMomentumPreviewMetrics(
+                            reportData
+                          )}
+                        >
+                          <TradeMarketRadar
+                            risers={reportData.weeklyRisers}
+                            fallers={reportData.weeklyFallers}
+                            managerAvatars={reportData.managerAvatars}
+                            playerDetailsById={reportData.playerDetailsById}
+                            leagueId={leagueId}
+                            leagueLogo={leagueLogo}
+                            viewerManager={effectiveViewerManager}
+                            leagueValueMode={leagueValueMode}
+                          />
+                        </CollapsibleReportSection>
+                      )}
+                      {canViewAdminFeatureExpansion && (
+                        <CollapsibleReportSection
+                          title="Waiver Intelligence"
+                          kicker={
+                            isRedraftReport
+                              ? "Opportunity, usage, and roster need"
+                              : "Available value"
+                          }
+                          previewMetrics={buildMomentumPreviewMetrics(
+                            reportData
+                          )}
+                          premium
+                        >
+                          <WaiverIntelligencePanel
+                            data={reportData.waiverIntelligence}
+                            managerAvatars={reportData.managerAvatars}
+                            playerDetailsById={reportData.playerDetailsById}
+                            leagueId={leagueId}
+                            leagueLogo={leagueLogo}
+                            viewerManager={effectiveViewerManager}
+                            managerRosterIntelligence={
+                              reportData.managerRosterIntelligence
+                            }
+                            managerPositionCounts={
+                              reportData.managerPositionCounts
+                            }
+                            positionDepth={reportData.positionDepth}
+                            leagueDiagnostics={reportData.leagueDiagnostics}
+                            recentTransactions={reportData.recentTransactions}
+                            leagueValueMode={leagueValueMode}
+                          />
+                        </CollapsibleReportSection>
+                      )}
+                      <CollapsibleReportSection
+                        title="Recent Transactions"
+                        kicker={
+                          isRedraftReport
+                            ? "Claims, drops, and weekly churn"
+                            : "Claims, drops, and churn"
+                        }
+                        previewMetrics={buildRecentTransactionPreviewMetrics(
+                          reportData.recentTransactions,
+                          leagueValueMode
+                        )}
+                      >
+                        <RecentTransactionsPanel
+                          data={reportData.recentTransactions}
+                          managerAvatars={reportData.managerAvatars}
+                          playerDetailsById={reportData.playerDetailsById}
+                          leagueId={leagueId}
+                          leagueLogo={leagueLogo}
+                          leagueValueMode={leagueValueMode}
+                        />
+                      </CollapsibleReportSection>
+                      <CollapsibleReportSection
+                        title="Top 10 Weekly Risers"
+                        kicker="7-day % gainers"
+                        previewMetrics={buildWeeklyRiserPreviewMetrics(
+                          reportData
+                        )}
+                      >
+                        <WeeklyMomentumTable
+                          data={reportData.weeklyRisers}
+                          title="Weekly Risers"
+                          managerAvatars={reportData.managerAvatars}
+                          playerDetailsById={reportData.playerDetailsById}
+                          leagueId={leagueId}
+                          leagueLogo={leagueLogo}
+                          viewerManager={effectiveViewerManager}
+                          leagueValueMode={leagueValueMode}
+                        />
+                      </CollapsibleReportSection>
+                      <CollapsibleReportSection
+                        title="Top 10 Weekly Fallers"
+                        kicker="7-day % drops"
+                        previewMetrics={buildWeeklyFallerPreviewMetrics(
+                          reportData
+                        )}
+                      >
+                        <WeeklyMomentumTable
+                          data={reportData.weeklyFallers}
+                          title="Weekly Fallers"
+                          managerAvatars={reportData.managerAvatars}
+                          playerDetailsById={reportData.playerDetailsById}
+                          leagueId={leagueId}
+                          leagueLogo={leagueLogo}
+                          viewerManager={effectiveViewerManager}
+                          leagueValueMode={leagueValueMode}
+                        />
+                      </CollapsibleReportSection>
+                      <CollapsibleReportSection
+                        title="Trending Adds"
+                        kicker={
+                          isRedraftReport
+                            ? "Sleeper add activity"
+                            : "Sleeper activity"
+                        }
+                        previewMetrics={buildTrendingPreviewMetrics(
+                          reportData.trendingAdds || [],
+                          "up"
+                        )}
+                      >
+                        <TrendingPlayersTable
+                          data={reportData.trendingAdds || []}
+                          title="Trending Adds"
+                          countLabel="Adds"
+                          managerAvatars={reportData.managerAvatars}
+                          playerDetailsById={reportData.playerDetailsById}
+                          leagueId={leagueId}
+                          leagueLogo={leagueLogo}
+                          viewerManager={effectiveViewerManager}
+                          leagueValueMode={leagueValueMode}
+                        />
+                      </CollapsibleReportSection>
+                      <CollapsibleReportSection
+                        title="Trending Drops"
+                        kicker={
+                          isRedraftReport
+                            ? "Sleeper drop activity"
+                            : "Sleeper activity"
+                        }
+                        previewMetrics={buildTrendingPreviewMetrics(
+                          reportData.trendingDrops || [],
+                          "down"
+                        )}
+                      >
+                        <TrendingPlayersTable
+                          data={reportData.trendingDrops || []}
+                          title="Trending Drops"
+                          countLabel="Drops"
+                          managerAvatars={reportData.managerAvatars}
+                          playerDetailsById={reportData.playerDetailsById}
+                          leagueId={leagueId}
+                          leagueLogo={leagueLogo}
+                          viewerManager={effectiveViewerManager}
+                          leagueValueMode={leagueValueMode}
+                        />
+                      </CollapsibleReportSection>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="rankings" className="report-tab-content">
+                    <div className="space-y-6 sm:space-y-8">
+                      <CollapsibleReportSection
+                        title="Full Roster Rankings"
+                        kicker={
+                          isRedraftReport
+                            ? "Current-season player values"
+                            : "League-matched player values"
+                        }
+                      >
+                        {rankingsQuery.isLoading && !rankingsForReport ? (
+                          <div className="rankings-empty-state">
+                            Loading league-matched rankings...
+                          </div>
+                        ) : (
+                          <div className="space-y-4 sm:space-y-5">
+                            {canViewAdminFeatureExpansion && (
+                              <RankingsMarketRead data={reportDataForView} />
+                            )}
+                            <RankingsBoard
+                              rankings={rankingsForReport}
+                              playerDetailsById={reportData.playerDetailsById}
+                              managerAvatars={reportData.managerAvatars}
+                              leagueId={leagueId}
+                              leagueLogo={leagueLogo}
+                              viewerManager={effectiveViewerManager}
+                              board="dynasty"
+                              hidePicks={isRedraftReport}
+                              leagueValueMode={leagueValueMode}
+                              showAIReads={canViewAdminFeatureExpansion}
+                            />
+                          </div>
+                        )}
+                      </CollapsibleReportSection>
+                      {!isRedraftReport && (
+                        <CollapsibleReportSection
+                          title="College Rankings"
+                          kicker="Future rookie pipeline"
+                        >
+                          {rankingsQuery.isLoading && !rankingsForReport ? (
+                            <div className="rankings-empty-state">
+                              Loading college prospect rankings...
+                            </div>
+                          ) : (
+                            <RankingsBoard
+                              rankings={rankingsForReport}
+                              playerDetailsById={reportData.playerDetailsById}
+                              managerAvatars={reportData.managerAvatars}
+                              leagueId={leagueId}
+                              leagueLogo={leagueLogo}
+                              viewerManager={effectiveViewerManager}
+                              board="devy"
+                              hidePicks
+                              leagueValueMode={leagueValueMode}
+                              showAIReads={canViewAdminFeatureExpansion}
+                            />
+                          )}
+                        </CollapsibleReportSection>
+                      )}
+                      {!isRedraftReport && (
+                        <CollapsibleReportSection
+                          title="Prospect Score Archive"
+                          kicker="Scouting data archive"
+                          onOpenChange={open => {
+                            if (open && isProspectArchiveLoading) {
+                              setProspectArchiveOpenedWhileLoading(true);
+                            }
+                          }}
+                        >
+                          {isProspectArchiveLoading &&
+                          prospectArchiveOpenedWhileLoading ? (
+                            <ProspectArchiveLoadingState />
+                          ) : isProspectArchiveLoading ? null : (
+                            <RankingsBoard
+                              rankings={rankingsForReport}
+                              playerDetailsById={reportData.playerDetailsById}
+                              managerAvatars={reportData.managerAvatars}
+                              leagueId={leagueId}
+                              leagueLogo={leagueLogo}
+                              viewerManager={effectiveViewerManager}
+                              board="draftbuzz"
+                              hidePicks
+                              leagueValueMode={leagueValueMode}
+                              showAIReads={canViewAdminFeatureExpansion}
+                            />
+                          )}
+                        </CollapsibleReportSection>
+                      )}
+                      {canViewAdminFeatureExpansion && (
+                        <section
+                          className="admin-diagnostics-shell"
+                          aria-label="Admin diagnostics"
+                        >
+                          <div className="admin-diagnostics-shell-header">
+                            <span>Admin Diagnostics</span>
+                            <p>
+                              Operational checks separated from the league
+                              report so normal owner analysis stays focused.
+                            </p>
+                          </div>
+                          <AdminTrafficTelemetrySection />
+                          <AdminValueDiagnosticsSection
+                            reportData={reportDataForView}
+                          />
+                        </section>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="trades" className="report-tab-content">
+                    <div className="trade-sections space-y-6 sm:space-y-8">
+                      {canViewAdminFeatureExpansion && (
+                        <TradeBrowserRead data={reportDataForView} />
+                      )}
+                      <CollapsibleReportSection
+                        title="Share Hidden Sleeper Data"
+                        kicker="Share pending, cancelled, rejected, and waiver rows once. We remember this browser for this league."
+                        previewMetrics={buildSleeperHiddenPreviewMetrics(
+                          reportData
+                        )}
+                        defaultOpen={!hiddenSleeperConsentResolved}
+                      >
+                        <div className="space-y-6">
+                          <Card className="border-slate-800 bg-slate-950/70 p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
+                            <form
+                              className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
+                              onSubmit={event => {
+                                event.preventDefault();
+                                handleImportSleeperTradeCenter();
+                              }}
+                            >
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                                  Hidden Sleeper Feed
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h3 className="text-lg font-semibold text-white">
+                                    {hiddenSleeperShareButtonLabel}
+                                  </h3>
+                                  <span className="command-mini-badge command-mini-badge-info">
+                                    {hiddenSleeperShareStatusLabel}
+                                  </span>
+                                </div>
+                                <p className="max-w-2xl text-sm leading-6 text-slate-300">
+                                  Paste a live Sleeper auth token from an
+                                  authenticated browser session. We store the
+                                  resulting hidden rows for this league and do
+                                  not keep the token.
+                                </p>
+                                {hiddenSleeperSnapshot && (
+                                  <p className="text-xs leading-5 text-slate-400">
+                                    {hiddenSleeperSnapshot.sharedBy
+                                      ? `Shared by ${hiddenSleeperSnapshot.sharedBy}`
+                                      : "Shared by this browser"}
+                                    {hiddenSleeperSnapshot.sharedAt
+                                      ? ` · ${new Date(hiddenSleeperSnapshot.sharedAt).toLocaleString()}`
+                                      : ""}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-2 sm:min-w-[22rem] sm:flex-row sm:items-center">
+                                <Input
+                                  type="password"
+                                  value={sleeperTradeCenterToken}
+                                  onChange={event =>
+                                    setSleeperTradeCenterToken(
+                                      event.target.value
+                                    )
+                                  }
+                                  placeholder="Sleeper auth token"
+                                  autoComplete="off"
+                                  spellCheck={false}
+                                  className="w-full bg-slate-950/80 sm:min-w-[18rem]"
+                                />
+                                <Button
+                                  type="submit"
+                                  disabled={
+                                    hiddenSleeperTradeCenterMutation.isPending
+                                  }
+                                  className="shrink-0 whitespace-nowrap bg-gradient-to-r from-cyan-500 to-orange-500 text-slate-950 hover:from-cyan-400 hover:to-orange-400"
+                                >
+                                  {hiddenSleeperTradeCenterMutation.isPending
+                                    ? "Sharing..."
+                                    : hiddenSleeperShareButtonLabel}
+                                </Button>
+                              </div>
+                            </form>
+                          </Card>
+
+                          <div className="space-y-6">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                                  Hidden Trade Center Rows
+                                </span>
+                                <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                  {hiddenSleeperImportLoaded
+                                    ? "Shared"
+                                    : "Run share to populate"}
+                                </span>
+                              </div>
+                              {hiddenSleeperTradeSignals !== undefined ? (
+                                <TradeProposalSignalsTable
+                                  data={hiddenSleeperTradeSignals}
+                                  managerAvatars={reportData.managerAvatars}
+                                />
+                              ) : (
+                                <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
+                                  No hidden trade-center rows have been shared
+                                  yet. Paste a token above to load pending,
+                                  rejected, and cancelled trade offers.
+                                </Card>
+                              )}
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+                                  Hidden Waiver Claims
+                                </span>
+                                <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                  {hiddenSleeperImportLoaded
+                                    ? "Shared"
+                                    : "Run share to populate"}
+                                </span>
+                              </div>
+                              {hiddenSleeperWaiverSignals !== undefined ? (
+                                <SleeperWaiverClaimsTable
+                                  data={hiddenSleeperWaiverSignals}
+                                  managerAvatars={reportData.managerAvatars}
+                                />
+                              ) : (
+                                <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
+                                  No hidden waiver claims have been shared yet.
+                                  This table will show the player claims and
+                                  FAAB bids from Sleeper once the token is
+                                  loaded.
+                                </Card>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CollapsibleReportSection>
+
+                      {canViewAdminFeatureExpansion && (
+                        <CollapsibleReportSection
+                          title="Admin Eyes Only: Open Trade Offers"
+                          kicker="Pending, declined, rejected, and cancelled Sleeper transactions"
+                          previewMetrics={buildTradeProposalPreviewMetrics(
+                            reportData
+                          )}
+                          premium
+                          defaultOpen
+                        >
+                          <TradeProposalSignalsTable
+                            data={
+                              reportData.adminTradeProposalSignals ||
+                              reportData.tradeProposalSignals ||
+                              []
+                            }
+                            managerAvatars={reportData.managerAvatars}
+                          />
+                        </CollapsibleReportSection>
+                      )}
+                      <CollapsibleReportSection
+                        title="Trade War Room"
+                        kicker={modeCopy.tradeWarKicker}
+                        previewMetrics={buildTradePreviewMetrics(
+                          reportData,
+                          leagueValueMode,
+                          "war-room"
+                        )}
+                      >
+                        <TradeWarRoom
+                          data={reportData.managerRosterIntelligence}
+                          managerAvatars={reportData.managerAvatars}
+                          playerDetailsById={reportData.playerDetailsById}
+                          leagueOverview={reportData.leagueOverview}
+                          powerRankings={reportData.powerRankings}
+                          dynastyTimelines={reportData.dynastyTimelines}
+                          leagueId={leagueId}
+                          leagueLogo={leagueLogo}
+                          viewerManager={effectiveViewerManager}
+                          currentStandings={reportData.currentStandings}
+                          leagueValueMode={leagueValueMode}
+                        />
+                      </CollapsibleReportSection>
+                      <CollapsibleReportSection
+                        title={
+                          isRedraftReport
+                            ? "Trade Value Leaderboard"
+                            : "All-Time Trade Profit Leaderboard"
+                        }
+                        kicker={
+                          isRedraftReport
+                            ? "Current-season trade edge"
+                            : "Net trade edge"
+                        }
+                        previewMetrics={buildTradePreviewMetrics(
+                          reportData,
+                          leagueValueMode,
+                          "leaderboard"
+                        )}
+                      >
+                        <TradeProfitLeaderboardTable
+                          data={reportData.tradeProfitLeaderboard}
+                          managerAvatars={reportData.managerAvatars}
+                          tradeHistory={reportData.tradeHistory}
+                          draftPicks={reportData.draftPicks || []}
+                          playerDetailsById={reportData.playerDetailsById}
+                          currentPositionRankById={
+                            reportData.currentPositionRankById
+                          }
+                          tradeTendencies={reportData.tradeTendencies}
+                          managerRosterIntelligence={
+                            reportData.managerRosterIntelligence
+                          }
+                          dynastyTimelines={reportData.dynastyTimelines}
+                          leagueOverview={reportData.leagueOverview}
+                          leagueId={leagueId}
+                          leagueLogo={leagueLogo}
+                          viewerManager={effectiveViewerManager}
+                          leagueDiagnostics={reportData.leagueDiagnostics}
+                          currentStandings={reportData.currentStandings}
+                          standingsHistory={reportData.standingsHistory}
+                          leagueValueMode={leagueValueMode}
+                        />
+                      </CollapsibleReportSection>
+                      <CollapsibleReportSection
+                        title={
+                          isRedraftReport
+                            ? "Trade Balance Review"
+                            : "Trade Theft Detector"
+                        }
+                        kicker={
+                          isRedraftReport
+                            ? "Largest current-season gaps"
+                            : "Who got cooked"
+                        }
+                        previewMetrics={buildTradePreviewMetrics(
+                          reportData,
+                          leagueValueMode,
+                          "theft"
+                        )}
+                      >
+                        <TradeTheftDetector
+                          data={reportData.tradeHistory}
+                          managerAvatars={reportData.managerAvatars}
+                          draftPicks={reportData.draftPicks || []}
+                          playerDetailsById={reportData.playerDetailsById}
+                          currentPositionRankById={
+                            reportData.currentPositionRankById
+                          }
+                          managerRosterIntelligence={
+                            reportData.managerRosterIntelligence
+                          }
+                          dynastyTimelines={reportData.dynastyTimelines}
+                          leagueOverview={reportData.leagueOverview}
+                          leagueId={leagueId}
+                          leagueLogo={leagueLogo}
+                          leagueDiagnostics={reportData.leagueDiagnostics}
+                          currentStandings={reportData.currentStandings}
+                          standingsHistory={reportData.standingsHistory}
+                          leagueValueMode={leagueValueMode}
+                        />
+                      </CollapsibleReportSection>
+                      <ModalReportSection
+                        title="Full Trade Ledger"
+                        kicker="Every completed deal"
+                        previewMetrics={buildTradePreviewMetrics(
+                          reportData,
+                          leagueValueMode,
+                          "ledger"
+                        )}
+                      >
+                        <TradeHistoryTable
+                          data={reportData.tradeHistory}
+                          draftPicks={reportData.draftPicks || []}
+                          managerAvatars={reportData.managerAvatars}
+                          playerDetailsById={reportData.playerDetailsById}
+                          currentPositionRankById={
+                            reportData.currentPositionRankById
+                          }
+                          managerRosterIntelligence={
+                            reportData.managerRosterIntelligence
+                          }
+                          dynastyTimelines={reportData.dynastyTimelines}
+                          leagueOverview={reportData.leagueOverview}
+                          leagueId={leagueId}
+                          leagueLogo={leagueLogo}
+                          leagueDiagnostics={reportData.leagueDiagnostics}
+                          currentStandings={reportData.currentStandings}
+                          standingsHistory={reportData.standingsHistory}
+                          leagueValueMode={leagueValueMode}
+                          variant="modal"
+                        />
+                      </ModalReportSection>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="draft" className="report-tab-content">
+                    <DraftAnalysis
+                      draftPicks={reportData.draftPicks || []}
+                      draftStats={reportData.draftStats || []}
+                      managerRosterIntelligence={
+                        reportData.managerRosterIntelligence
+                      }
                       managerAvatars={reportData.managerAvatars}
+                      playerDetailsById={reportData.playerDetailsById}
                       leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                      viewerManager={effectiveViewerManager}
+                      currentStandings={reportData.currentStandings}
+                      leagueOverview={reportData.leagueOverview}
+                      leagueValueMode={leagueValueMode}
+                      showAIReads={canViewAdminFeatureExpansion}
                     />
-                    <LeagueExploits
-                      data={reportData}
-                      managerAvatars={reportData.managerAvatars}
+                  </TabsContent>
+                </Suspense>
+              </Tabs>
+            </div>
+
+            {/* Bottom Action Buttons */}
+            <div className="report-footer border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
+              <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
+                <div className="report-footer-actions">
+                  <div className="report-footer-primary-actions">
+                    {hasAdminPermissions && (
+                      <Button
+                        type="button"
+                        onClick={handleAdminToolsClick}
+                        variant="outline"
+                        className={`report-header-action report-footer-primary-action !w-full sm:!w-auto report-header-admin-toggle ${canViewAdminFeatureExpansion ? "report-header-admin-toggle-active" : ""}`}
+                        aria-pressed={canViewAdminFeatureExpansion}
+                        aria-label={
+                          canViewAdminFeatureExpansion
+                            ? "Switch to regular report view"
+                            : "Return to admin report view"
+                        }
+                      >
+                        <span className="report-header-action-label">
+                          {canViewAdminFeatureExpansion
+                            ? "Regular View"
+                            : "Admin Tools"}
+                        </span>
+                      </Button>
+                    )}
+                    {hasAdminPermissions && hasManagerViewOptions && (
+                      <AdminManagerSwitcher
+                        managers={reportManagerNames}
+                        activeManager={effectiveViewerManager}
+                        managerAvatars={reportData.managerAvatars}
+                        onSelect={setAdminViewerManager}
+                      />
+                    )}
+                    <Button
+                      onClick={handleAnalyzeAnotherLeague}
+                      variant="outline"
+                      className="report-header-action report-footer-primary-action !w-full sm:!w-auto"
+                    >
+                      <span className="report-header-action-label">
+                        Analyze Another League
+                      </span>
+                    </Button>
+                  </div>
+                  <div className="report-footer-secondary-actions">
+                    <SupportButton compact />
+                    <FeedbackButton
+                      compact
+                      leagueId={leagueId}
+                      leagueName={leagueName}
+                      leagueFormat={leagueFormat}
                     />
                   </div>
-                </CollapsibleReportSection>
-                {SHOW_ASSISTANT_FEATURE_RADAR && (
-                  <CollapsibleReportSection
-                    title="Assistant Feature Radar"
-                    kicker="Useful shells without fake data"
-                    premium
-                    previewMetrics={[
-                      { label: 'Waiver Adds', value: reportData.waiverIntelligence?.availableTrendingAdds?.length || 0, tone: reportData.waiverIntelligence?.availableTrendingAdds?.length ? 'good' : 'warn' },
-                      { label: 'Lineup Maps', value: reportData.managerPositionCounts?.length || 0, tone: 'info' },
-                      { label: 'News Flags', value: Object.values(reportData.playerDetailsById || {}).filter((details) => details.latestNews).length, tone: 'neutral' },
-                    ]}
-                  >
-                    <AssistantFeatureShells data={reportData} leagueName={leagueName} leagueId={leagueId} />
-                  </CollapsibleReportSection>
-                )}
-                  </>
-                )}
-                {(() => {
-                  const hasTaxiTriage = !isRedraftReport && reportData.managerRosterIntelligence?.some((row) => (row.taxiTriage?.items.length || 0) > 0);
-                  return (
-                    <>
-                <CollapsibleReportSection
-                  title={modeCopy.ownerTitle}
-                  kicker={modeCopy.ownerKicker}
-                  previewMetrics={buildOwnerPreviewMetrics(reportData, leagueValueMode, ownerIntelSortMode)}
-                  previewAccessory={!isRedraftReport ? (
-                    <OwnerIntelSortControls
-                      value={ownerIntelSortMode}
-                      onChange={setOwnerIntelSortMode}
-                    />
-                  ) : undefined}
-                >
-                  <OwnerIntelMatrix
-                    data={reportData}
-                    managerAvatars={reportData.managerAvatars}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    viewerManager={reportData.viewerManager}
-                    currentStandings={reportData.currentStandings}
-                    leagueValueMode={leagueValueMode}
-                    ownerIntelSortMode={ownerIntelSortMode}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection
-                  title={modeCopy.rosterTitle}
-                  kicker={modeCopy.rosterKicker}
-                  previewMetrics={buildRosterPreviewMetrics(reportData)}
-                >
-                  <LeagueCommandCenter
-                    data={reportData}
-                    managerAvatars={reportData.managerAvatars}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    section="roster"
-                    viewerManager={reportData.viewerManager}
-                    currentStandings={reportData.currentStandings}
-                    leagueValueMode={leagueValueMode}
-                  />
-                </CollapsibleReportSection>
-                {hasTaxiTriage && (
-                <CollapsibleReportSection
-                  title="Taxi Squad Triage"
-                  kicker="Taxi-only activation checks"
-                  previewMetrics={buildTaxiPreviewMetrics(reportData)}
-                >
-                  <LeagueCommandCenter
-                    data={reportData}
-                    managerAvatars={reportData.managerAvatars}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    section="taxi"
-                    viewerManager={reportData.viewerManager}
-                    currentStandings={reportData.currentStandings}
-                  />
-                </CollapsibleReportSection>
-                )}
-                {reportData.managerPositionCounts.length > 0 && (
-                  <CollapsibleReportSection
-                    title="Manager Position Counts"
-                    kicker={isRedraftReport ? 'Starter depth and position gaps' : 'Full roster depth map'}
-                    previewMetrics={buildManagerPositionRoomPreviewMetrics(reportData)}
-                  >
-                    <ManagerPositionCountsTable
-                      data={reportData.managerPositionCounts}
-                      positionDepth={reportData.positionDepth}
-                      managerAvatars={reportData.managerAvatars}
-                      playerDetailsById={reportData.playerDetailsById}
-                      leagueId={leagueId}
-                      leagueLogo={leagueLogo}
-                      viewerManager={reportData.viewerManager}
-                      leagueValueMode={leagueValueMode}
-                    />
-                  </CollapsibleReportSection>
-                )}
-                    </>
-                  );
-                })()}
+                </div>
               </div>
-            </TabsContent>
+            </div>
 
-            {canViewAutopilotTab && (
-              <TabsContent value="autopilot" className="report-tab-content">
-                <AITeamAutopilot
-                  reportData={displayReportData}
-                  leagueName={leagueName}
-                  leagueFormat={leagueFormat}
-                  leagueValueMode={leagueValueMode}
-                />
-              </TabsContent>
-            )}
-
-            <TabsContent value="momentum" className="report-tab-content">
-              <div className="space-y-6 sm:space-y-8">
-                {showTradeMarketRadar && (
-                  <CollapsibleReportSection
-                    title="Trade Market Radar"
-                    kicker={isRedraftReport ? 'Current-season buy and sell signals' : 'Buy and sell signals'}
-                    previewMetrics={buildMomentumPreviewMetrics(reportData)}
-                  >
-                    <TradeMarketRadar
-                      risers={reportData.weeklyRisers}
-                      fallers={reportData.weeklyFallers}
-                      managerAvatars={reportData.managerAvatars}
-                      playerDetailsById={reportData.playerDetailsById}
-                      leagueId={leagueId}
-                      leagueLogo={leagueLogo}
-                      viewerManager={reportData.viewerManager}
-                      leagueValueMode={leagueValueMode}
-                    />
-                  </CollapsibleReportSection>
-                )}
-                {canViewAdminFeatureExpansion && (
-                  <CollapsibleReportSection
-                    title="Waiver Intelligence"
-                    kicker={isRedraftReport ? 'Opportunity, usage, and roster need' : 'Available value'}
-                    previewMetrics={buildMomentumPreviewMetrics(reportData)}
-                    premium
-                  >
-                    <WaiverIntelligencePanel
-                      data={reportData.waiverIntelligence}
-                      managerAvatars={reportData.managerAvatars}
-                      playerDetailsById={reportData.playerDetailsById}
-                      leagueId={leagueId}
-                      leagueLogo={leagueLogo}
-                      viewerManager={reportData.viewerManager}
-                      managerRosterIntelligence={reportData.managerRosterIntelligence}
-                      managerPositionCounts={reportData.managerPositionCounts}
-                      positionDepth={reportData.positionDepth}
-                      leagueDiagnostics={reportData.leagueDiagnostics}
-                      recentTransactions={reportData.recentTransactions}
-                      leagueValueMode={leagueValueMode}
-                    />
-                  </CollapsibleReportSection>
-                )}
-                <CollapsibleReportSection
-                  title="Recent Transactions"
-                  kicker={isRedraftReport ? 'Claims, drops, and weekly churn' : 'Claims, drops, and churn'}
-                  previewMetrics={buildRecentTransactionPreviewMetrics(reportData.recentTransactions, leagueValueMode)}
-                >
-                  <RecentTransactionsPanel
-                    data={reportData.recentTransactions}
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    leagueValueMode={leagueValueMode}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 10 Weekly Risers" kicker="7-day % gainers" previewMetrics={buildWeeklyRiserPreviewMetrics(reportData)}>
-                  <WeeklyMomentumTable data={reportData.weeklyRisers} title="Weekly Risers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection title="Top 10 Weekly Fallers" kicker="7-day % drops" previewMetrics={buildWeeklyFallerPreviewMetrics(reportData)}>
-                  <WeeklyMomentumTable data={reportData.weeklyFallers} title="Weekly Fallers" managerAvatars={reportData.managerAvatars} playerDetailsById={reportData.playerDetailsById} leagueId={leagueId} leagueLogo={leagueLogo} viewerManager={reportData.viewerManager} leagueValueMode={leagueValueMode} />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection
-                  title="Trending Adds"
-                  kicker={isRedraftReport ? "Sleeper add activity" : "Sleeper activity"}
-                  previewMetrics={buildTrendingPreviewMetrics(reportData.trendingAdds || [], 'up')}
-                >
-                  <TrendingPlayersTable
-                    data={reportData.trendingAdds || []}
-                    title="Trending Adds"
-                    countLabel="Adds"
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    viewerManager={reportData.viewerManager}
-                    leagueValueMode={leagueValueMode}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection
-                  title="Trending Drops"
-                  kicker={isRedraftReport ? "Sleeper drop activity" : "Sleeper activity"}
-                  previewMetrics={buildTrendingPreviewMetrics(reportData.trendingDrops || [], 'down')}
-                >
-                  <TrendingPlayersTable
-                    data={reportData.trendingDrops || []}
-                    title="Trending Drops"
-                    countLabel="Drops"
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    viewerManager={reportData.viewerManager}
-                    leagueValueMode={leagueValueMode}
-                  />
-                </CollapsibleReportSection>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="rankings" className="report-tab-content">
-              <div className="space-y-6 sm:space-y-8">
-                <CollapsibleReportSection
-                  title="Full Roster Rankings"
-                  kicker={isRedraftReport ? 'Current-season player values' : 'League-matched player values'}
-                >
-                  {rankingsQuery.isLoading && !rankingsForReport ? (
-                    <div className="rankings-empty-state">Loading league-matched rankings...</div>
-                  ) : (
-                    <div className="space-y-4 sm:space-y-5">
-                      {canViewAdminFeatureExpansion && <RankingsMarketRead data={displayReportData} />}
-                      <RankingsBoard
-                        rankings={rankingsForReport}
-                        playerDetailsById={reportData.playerDetailsById}
-                        managerAvatars={reportData.managerAvatars}
-                        leagueId={leagueId}
-                        leagueLogo={leagueLogo}
-                        viewerManager={reportData.viewerManager}
-                        board="dynasty"
-                        hidePicks={isRedraftReport}
-                        leagueValueMode={leagueValueMode}
-                        showAIReads={canViewAdminFeatureExpansion}
-                      />
-                    </div>
-                  )}
-                </CollapsibleReportSection>
-                {!isRedraftReport && (
-	                  <CollapsibleReportSection title="College Rankings" kicker="Future rookie pipeline">
-                    {rankingsQuery.isLoading && !rankingsForReport ? (
-                      <div className="rankings-empty-state">Loading college prospect rankings...</div>
-                    ) : (
-                      <RankingsBoard
-                        rankings={rankingsForReport}
-                        playerDetailsById={reportData.playerDetailsById}
-                        managerAvatars={reportData.managerAvatars}
-                        leagueId={leagueId}
-                        leagueLogo={leagueLogo}
-                        viewerManager={reportData.viewerManager}
-                        board="devy"
-                        hidePicks
-                        leagueValueMode={leagueValueMode}
-                        showAIReads={canViewAdminFeatureExpansion}
-                      />
-                    )}
-                  </CollapsibleReportSection>
-                )}
-                {!isRedraftReport && (
-	                  <CollapsibleReportSection
-	                    title="Prospect Score Archive"
-	                    kicker="Scouting data archive"
-                    onOpenChange={(open) => {
-                      if (open && isProspectArchiveLoading) {
-                        setProspectArchiveOpenedWhileLoading(true);
-                      }
-                    }}
-                  >
-                    {isProspectArchiveLoading && prospectArchiveOpenedWhileLoading ? (
-                      <ProspectArchiveLoadingState />
-                    ) : isProspectArchiveLoading ? null : (
-                      <RankingsBoard
-                        rankings={rankingsForReport}
-                        playerDetailsById={reportData.playerDetailsById}
-                        managerAvatars={reportData.managerAvatars}
-                        leagueId={leagueId}
-                        leagueLogo={leagueLogo}
-                        viewerManager={reportData.viewerManager}
-                        board="draftbuzz"
-                        hidePicks
-                        leagueValueMode={leagueValueMode}
-                        showAIReads={canViewAdminFeatureExpansion}
-                      />
-                    )}
-                  </CollapsibleReportSection>
-                )}
-	                {canViewAdminFeatureExpansion && (
-	                  <section className="admin-diagnostics-shell" aria-label="Admin diagnostics">
-	                    <div className="admin-diagnostics-shell-header">
-	                      <span>Admin Diagnostics</span>
-	                      <p>Operational checks separated from the league report so normal owner analysis stays focused.</p>
-	                    </div>
-		                    <AdminTrafficTelemetrySection />
-		                    <AdminValueDiagnosticsSection reportData={displayReportData} />
-	                  </section>
-	                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="trades" className="report-tab-content">
-              <div className="trade-sections space-y-6 sm:space-y-8">
-                {canViewAdminFeatureExpansion && <TradeBrowserRead data={reportData} />}
-                <CollapsibleReportSection
-                  title="Share Hidden Sleeper Data"
-                  kicker="Share pending, cancelled, rejected, and waiver rows once. We remember this browser for this league."
-                  previewMetrics={buildSleeperHiddenPreviewMetrics(reportData)}
-                  defaultOpen={!hiddenSleeperConsentResolved}
-                >
-                  <div className="space-y-6">
-                    <Card className="border-slate-800 bg-slate-950/70 p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
-                      <form
-                        className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          handleImportSleeperTradeCenter();
-                        }}
-                      >
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                            Hidden Sleeper Feed
-                          </p>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-lg font-semibold text-white">
-                              {hiddenSleeperShareButtonLabel}
-                            </h3>
-                            <span className="command-mini-badge command-mini-badge-info">
-                              {hiddenSleeperShareStatusLabel}
-                            </span>
-                          </div>
-                          <p className="max-w-2xl text-sm leading-6 text-slate-300">
-                            Paste a live Sleeper auth token from an authenticated browser session. We store the resulting hidden rows for this league and do not keep the token.
-                          </p>
-                          {hiddenSleeperSnapshot && (
-                            <p className="text-xs leading-5 text-slate-400">
-                              {hiddenSleeperSnapshot.sharedBy ? `Shared by ${hiddenSleeperSnapshot.sharedBy}` : 'Shared by this browser'}{hiddenSleeperSnapshot.sharedAt ? ` · ${new Date(hiddenSleeperSnapshot.sharedAt).toLocaleString()}` : ''}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-2 sm:min-w-[22rem] sm:flex-row sm:items-center">
-                          <Input
-                            type="password"
-                            value={sleeperTradeCenterToken}
-                            onChange={(event) => setSleeperTradeCenterToken(event.target.value)}
-                            placeholder="Sleeper auth token"
-                            autoComplete="off"
-                            spellCheck={false}
-                            className="w-full bg-slate-950/80 sm:min-w-[18rem]"
+            <Dialog
+              open={isLeaguePickerOpen}
+              onOpenChange={setIsLeaguePickerOpen}
+            >
+              <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
+                <DialogHeader className="league-switch-header text-center sm:text-center">
+                  <DialogTitle className="athletic-headline text-3xl text-orange-400">
+                    Pick Another League
+                  </DialogTitle>
+                  <DialogDescription className="league-switch-description text-cyan-100/70">
+                    <span className="league-switch-signed-in-line">
+                      <span>Signed in as</span>
+                      <span className="league-switch-user-chip">
+                        {activeCachedSleeperUser?.avatarUrl ? (
+                          <img
+                            src={activeCachedSleeperUser.avatarUrl}
+                            alt=""
+                            aria-hidden="true"
+                            className="league-switch-user-avatar"
                           />
-                          <Button
-                            type="submit"
-                            disabled={hiddenSleeperTradeCenterMutation.isPending}
-                            className="shrink-0 whitespace-nowrap bg-gradient-to-r from-cyan-500 to-orange-500 text-slate-950 hover:from-cyan-400 hover:to-orange-400"
+                        ) : (
+                          <span
+                            className="league-switch-user-fallback"
+                            aria-hidden="true"
                           >
-                            {hiddenSleeperTradeCenterMutation.isPending ? 'Sharing...' : hiddenSleeperShareButtonLabel}
-                          </Button>
-                        </div>
-                      </form>
-                    </Card>
-
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                              Hidden Trade Center Rows
-                            </span>
-                            <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                              {hiddenSleeperImportLoaded ? 'Shared' : 'Run share to populate'}
-                            </span>
-                          </div>
-                          {hiddenSleeperTradeSignals !== undefined ? (
-                            <TradeProposalSignalsTable
-                              data={hiddenSleeperTradeSignals}
-                              managerAvatars={reportData.managerAvatars}
-                            />
-                          ) : (
-                            <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
-                              No hidden trade-center rows have been shared yet. Paste a token above to load pending, rejected, and cancelled trade offers.
-                            </Card>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                              Hidden Waiver Claims
-                            </span>
-                            <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                              {hiddenSleeperImportLoaded ? 'Shared' : 'Run share to populate'}
-                            </span>
-                          </div>
-                          {hiddenSleeperWaiverSignals !== undefined ? (
-                            <SleeperWaiverClaimsTable
-                              data={hiddenSleeperWaiverSignals}
-                              managerAvatars={reportData.managerAvatars}
-                            />
-                          ) : (
-                            <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
-                              No hidden waiver claims have been shared yet. This table will show the player claims and FAAB bids from Sleeper once the token is loaded.
-                            </Card>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CollapsibleReportSection>
-
-                {canViewAdminFeatureExpansion && (
-                  <CollapsibleReportSection
-                    title="Admin Eyes Only: Open Trade Offers"
-                    kicker="Pending, declined, rejected, and cancelled Sleeper transactions"
-                    previewMetrics={buildTradeProposalPreviewMetrics(reportData)}
-                    premium
-                    defaultOpen
-                  >
-                    <TradeProposalSignalsTable
-                      data={reportData.adminTradeProposalSignals || reportData.tradeProposalSignals || []}
-                      managerAvatars={reportData.managerAvatars}
+                            {(
+                              sleeperUsername ||
+                              activeCachedSleeperUser?.displayName ||
+                              "SA"
+                            )
+                              .trim()
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </span>
+                        )}
+                        <strong>
+                          {sleeperUsername ||
+                            activeCachedSleeperUser?.displayName ||
+                            "your Sleeper account"}
+                        </strong>
+                      </span>
+                      <span>.</span>
+                    </span>
+                    <span>Choose one of your current Sleeper leagues.</span>
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="home-league-picker league-switch-picker">
+                  {orderedUserLeagues.map(league => (
+                    <LeaguePickerCard
+                      key={league.leagueId}
+                      league={league}
+                      onSelect={handleAnalyzeLeagueOption}
                     />
-                  </CollapsibleReportSection>
-                )}
-                <CollapsibleReportSection
-                  title="Trade War Room"
-                  kicker={modeCopy.tradeWarKicker}
-                  previewMetrics={buildTradePreviewMetrics(reportData, leagueValueMode, 'war-room')}
-                >
-                  <TradeWarRoom
-                    data={reportData.managerRosterIntelligence}
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueOverview={reportData.leagueOverview}
-                    powerRankings={reportData.powerRankings}
-                    dynastyTimelines={reportData.dynastyTimelines}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    viewerManager={reportData.viewerManager}
-                    currentStandings={reportData.currentStandings}
-                    leagueValueMode={leagueValueMode}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection
-                  title={isRedraftReport ? 'Trade Value Leaderboard' : 'All-Time Trade Profit Leaderboard'}
-                  kicker={isRedraftReport ? 'Current-season trade edge' : 'Net trade edge'}
-                  previewMetrics={buildTradePreviewMetrics(reportData, leagueValueMode, 'leaderboard')}
-                >
-                  <TradeProfitLeaderboardTable
-                    data={reportData.tradeProfitLeaderboard}
-                    managerAvatars={reportData.managerAvatars}
-                    tradeHistory={reportData.tradeHistory}
-                    draftPicks={reportData.draftPicks || []}
-                    playerDetailsById={reportData.playerDetailsById}
-                    currentPositionRankById={reportData.currentPositionRankById}
-                    tradeTendencies={reportData.tradeTendencies}
-                    managerRosterIntelligence={reportData.managerRosterIntelligence}
-                    dynastyTimelines={reportData.dynastyTimelines}
-                    leagueOverview={reportData.leagueOverview}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    viewerManager={reportData.viewerManager}
-                    leagueDiagnostics={reportData.leagueDiagnostics}
-                    currentStandings={reportData.currentStandings}
-                    standingsHistory={reportData.standingsHistory}
-                    leagueValueMode={leagueValueMode}
-                  />
-                </CollapsibleReportSection>
-                <CollapsibleReportSection
-                  title={isRedraftReport ? 'Trade Balance Review' : 'Trade Theft Detector'}
-                  kicker={isRedraftReport ? 'Largest current-season gaps' : 'Who got cooked'}
-                  previewMetrics={buildTradePreviewMetrics(reportData, leagueValueMode, 'theft')}
-                >
-                  <TradeTheftDetector
-                    data={reportData.tradeHistory}
-                    managerAvatars={reportData.managerAvatars}
-                    draftPicks={reportData.draftPicks || []}
-                    playerDetailsById={reportData.playerDetailsById}
-                    currentPositionRankById={reportData.currentPositionRankById}
-                    managerRosterIntelligence={reportData.managerRosterIntelligence}
-                    dynastyTimelines={reportData.dynastyTimelines}
-                    leagueOverview={reportData.leagueOverview}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    leagueDiagnostics={reportData.leagueDiagnostics}
-                    currentStandings={reportData.currentStandings}
-                    standingsHistory={reportData.standingsHistory}
-                    leagueValueMode={leagueValueMode}
-                  />
-                </CollapsibleReportSection>
-                <ModalReportSection title="Full Trade Ledger" kicker="Every completed deal" previewMetrics={buildTradePreviewMetrics(reportData, leagueValueMode, 'ledger')}>
-                  <TradeHistoryTable
-                    data={reportData.tradeHistory}
-                    draftPicks={reportData.draftPicks || []}
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    currentPositionRankById={reportData.currentPositionRankById}
-                    managerRosterIntelligence={reportData.managerRosterIntelligence}
-                    dynastyTimelines={reportData.dynastyTimelines}
-                    leagueOverview={reportData.leagueOverview}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    leagueDiagnostics={reportData.leagueDiagnostics}
-                    currentStandings={reportData.currentStandings}
-                    standingsHistory={reportData.standingsHistory}
-                    leagueValueMode={leagueValueMode}
-                    variant="modal"
-                  />
-                </ModalReportSection>
-              </div>
-            </TabsContent>
-
-
-
-            <TabsContent value="draft" className="report-tab-content">
-              <DraftAnalysis
-                draftPicks={reportData.draftPicks || []}
-                draftStats={reportData.draftStats || []}
-                managerRosterIntelligence={reportData.managerRosterIntelligence}
-                managerAvatars={reportData.managerAvatars}
-                playerDetailsById={reportData.playerDetailsById}
-                leagueId={leagueId}
-                leagueLogo={leagueLogo}
-                viewerManager={reportData.viewerManager}
-                currentStandings={reportData.currentStandings}
-                leagueOverview={reportData.leagueOverview}
-                leagueValueMode={leagueValueMode}
-                showAIReads={canViewAdminFeatureExpansion}
-              />
-            </TabsContent>
-            </Suspense>
-          </Tabs>
-        </div>
-
-        {/* Bottom Action Buttons */}
-        <div className="report-footer border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
-          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
-            <div className="report-footer-actions">
-              <div className="report-footer-primary-actions">
-                {hasAdminPermissions && (
+                  ))}
+                </div>
+                <DialogFooter className="league-switch-footer sm:justify-center">
                   <Button
                     type="button"
-                    onClick={handleAdminToolsClick}
+                    onClick={handleStartOver}
                     variant="outline"
-                    disabled={hasAuthenticatedAdminPermissions}
-                    className={`report-header-action report-footer-primary-action report-header-admin-toggle ${canViewAdminFeatureExpansion ? 'report-header-admin-toggle-active' : ''}`}
-                    aria-pressed={canViewAdminFeatureExpansion}
-                    aria-label={hasAuthenticatedAdminPermissions ? 'Admin report tools unlocked by app admin session' : canViewAdminFeatureExpansion ? 'Switch to regular report view' : 'Unlock admin report tools'}
+                    className="league-switch-start-over-button border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
                   >
-                    <span className="report-header-action-label">
-                      {hasAuthenticatedAdminPermissions ? 'Admin Tools' : canViewAdminFeatureExpansion ? 'Regular View' : 'Admin Tools'}
-                    </span>
+                    Back to Home
                   </Button>
-                )}
-                <Button
-                  onClick={handleAnalyzeAnotherLeague}
-                  variant="outline"
-                  className="report-header-action report-footer-primary-action"
-                >
-                  <span className="report-header-action-label">Analyze Another League</span>
-                </Button>
-              </div>
-              <div className="report-footer-secondary-actions">
-                <SupportButton compact />
-                <FeedbackButton
-                  compact
-                  leagueId={leagueId}
-                  leagueName={leagueName}
-                  leagueFormat={leagueFormat}
-                />
-              </div>
-            </div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog
+              open={isChangeLeagueModalOpen}
+              onOpenChange={setIsChangeLeagueModalOpen}
+            >
+              <DialogContent className="league-switch-dialog change-league-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-md">
+                <DialogHeader className="change-league-header text-center sm:text-center">
+                  <DialogTitle className="athletic-headline change-league-title text-3xl text-orange-400">
+                    Change Leagues?
+                  </DialogTitle>
+                  <DialogDescription className="change-league-copy">
+                    This report was opened from a league ID, so there is not a
+                    saved Sleeper league list for this session. Stay on this
+                    report, or start over to analyze a different league.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="league-switch-footer gap-2 sm:justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsChangeLeagueModalOpen(false)}
+                    className="support-button support-button-compact change-league-stay-button"
+                  >
+                    Stay Here
+                  </button>
+                  <Button
+                    type="button"
+                    onClick={handleStartOver}
+                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
+                  >
+                    Back to Home
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {clownEasterEggDialog}
           </div>
-        </div>
-
-        <Dialog open={isLeaguePickerOpen} onOpenChange={setIsLeaguePickerOpen}>
-          <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
-            <DialogHeader className="league-switch-header text-center sm:text-center">
-              <DialogTitle className="athletic-headline text-3xl text-orange-400">
-                Pick Another League
-              </DialogTitle>
-              <DialogDescription className="league-switch-description text-cyan-100/70">
-                <span className="league-switch-signed-in-line">
-                  <span>Signed in as</span>
-                  <span className="league-switch-user-chip">
-                    {activeCachedSleeperUser?.avatarUrl ? (
-                      <img
-                        src={activeCachedSleeperUser.avatarUrl}
-                        alt=""
-                        aria-hidden="true"
-                        className="league-switch-user-avatar"
-                      />
-                    ) : (
-                      <span className="league-switch-user-fallback" aria-hidden="true">
-                        {(sleeperUsername || activeCachedSleeperUser?.displayName || 'SA').trim().slice(0, 2).toUpperCase()}
-                      </span>
-                    )}
-                    <strong>{sleeperUsername || activeCachedSleeperUser?.displayName || 'your Sleeper account'}</strong>
-                  </span>
-                  <span>.</span>
-                </span>
-                <span>Choose one of your current Sleeper leagues.</span>
-              </DialogDescription>
-            </DialogHeader>
-            <div className="home-league-picker league-switch-picker">
-              {orderedUserLeagues.map((league) => (
-                <LeaguePickerCard
-                  key={league.leagueId}
-                  league={league}
-                  onSelect={handleAnalyzeLeagueOption}
-                />
-              ))}
-            </div>
-            <DialogFooter className="league-switch-footer sm:justify-center">
-              <Button
-                type="button"
-                onClick={handleStartOver}
-                variant="outline"
-                className="league-switch-start-over-button border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
-              >
-                Back to Home
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isChangeLeagueModalOpen} onOpenChange={setIsChangeLeagueModalOpen}>
-          <DialogContent className="league-switch-dialog change-league-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-md">
-            <DialogHeader className="change-league-header text-center sm:text-center">
-              <DialogTitle className="athletic-headline change-league-title text-3xl text-orange-400">
-                Change Leagues?
-              </DialogTitle>
-              <DialogDescription className="change-league-copy">
-                This report was opened from a league ID, so there is not a saved Sleeper league list for this session. Stay on this report, or start over to analyze a different league.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="league-switch-footer gap-2 sm:justify-center">
-              <button
-                type="button"
-                onClick={() => setIsChangeLeagueModalOpen(false)}
-                className="support-button support-button-compact change-league-stay-button"
-              >
-                Stay Here
-              </button>
-              <Button
-                type="button"
-                onClick={handleStartOver}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
-              >
-                Back to Home
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-	        {clownEasterEggDialog}
-	      </div>
-	      </ManagerChampionshipProvider>
-	      {adminAccessDialog}
-	      {adminUnlockDialog}
-	      {loadingDialog}
-	      </>
+        </ManagerChampionshipProvider>
+        {adminAccessDialog}
+        {adminUnlockDialog}
+        {loadingDialog}
+      </>
     );
   }
 
   return (
     <>
-    <div className="home-shell min-h-screen flex flex-col premium-fx-host">
-      <PremiumFxLayer variant="home-hero" intensity="low" />
-      <div className="home-header px-4 py-4 sm:py-5">
-        <HomeLogoChrome />
-        <HomeHeaderShortcuts
-          leagues={cachedLeagueShortcuts}
-          users={cachedSleeperUsers}
-          activeUsername={sleeperUsername}
-          onLeagueSelect={handleCachedLeagueShortcutSelect}
-          onUserSelect={handleCachedSleeperUserSelect}
-        />
-      </div>
-      <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
+      <div className="home-shell min-h-screen flex flex-col premium-fx-host">
+        <PremiumFxLayer variant="home-hero" intensity="low" />
+        <div className="home-header px-4 py-4 sm:py-5">
+          <HomeLogoChrome />
+          <HomeHeaderShortcuts
+            leagues={cachedLeagueShortcuts}
+            users={cachedSleeperUsers}
+            activeUsername={sleeperUsername}
+            onLeagueSelect={handleCachedLeagueShortcutSelect}
+            onUserSelect={handleCachedSleeperUserSelect}
+          />
+        </div>
+        <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
           <div className="home-hero w-full max-w-3xl space-y-8 sm:space-y-12">
             {/* Main Title */}
             <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
-              <h2 className="athletic-title home-title text-4xl sm:text-6xl md:text-7xl bg-gradient-to-r from-orange-400 via-orange-300 to-yellow-300 bg-clip-text text-transparent" aria-label="Obliterate Your Competition">
+              <h2
+                className="athletic-title home-title text-4xl sm:text-6xl md:text-7xl bg-gradient-to-r from-orange-400 via-orange-300 to-yellow-300 bg-clip-text text-transparent"
+                aria-label="Obliterate Your Competition"
+              >
                 <span>Obliterate Your</span>
                 <span>Competition</span>
               </h2>
-	              <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
-	                Stop guessing. Start dominating. <span className="home-subtitle-name">Dynasty Degenerates</span> blends dynasty market data, redraft season value, roster context, and AI-driven reads to give you an unfair advantage in every Sleeper league.
+              <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
+                Stop guessing. Start dominating.{" "}
+                <span className="home-subtitle-name">Dynasty Degenerates</span>{" "}
+                blends dynasty market data, redraft season value, roster
+                context, and AI-driven reads to give you an unfair advantage in
+                every Sleeper league.
               </p>
             </div>
 
@@ -4514,22 +6334,27 @@ export default function Home() {
                       list="sleeper-username-history"
                       placeholder="Sleeper username"
                       value={sleeperUsername}
-                      onChange={(e) => setSleeperUsername(e.target.value)}
-                      onFocus={() => setFocusedAutocomplete('username')}
-                      onBlur={() => window.setTimeout(() => setFocusedAutocomplete(null), 120)}
+                      onChange={e => setSleeperUsername(e.target.value)}
+                      onFocus={() => setFocusedAutocomplete("username")}
+                      onBlur={() =>
+                        window.setTimeout(
+                          () => setFocusedAutocomplete(null),
+                          120
+                        )
+                      }
                       className="w-full bg-slate-900 border-cyan-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-cyan-300 text-center sm:text-left"
-                      onKeyDown={(e) => e.key === 'Enter' && handleFindLeagues()}
+                      onKeyDown={e => e.key === "Enter" && handleFindLeagues()}
                     />
                     <datalist id="sleeper-username-history">
-                      {sleeperUsernameHistory.map((value) => (
+                      {sleeperUsernameHistory.map(value => (
                         <option key={value} value={value} />
                       ))}
                     </datalist>
-                    {focusedAutocomplete === 'username' ? (
+                    {focusedAutocomplete === "username" ? (
                       <RecentEntrySuggestions
                         label="Recent Sleeper usernames"
                         options={usernameAutocompleteOptions}
-                        onSelect={(value) => {
+                        onSelect={value => {
                           setSleeperUsername(value);
                           setFocusedAutocomplete(null);
                         }}
@@ -4542,17 +6367,20 @@ export default function Home() {
                     disabled={userLeaguesMutation.isPending}
                     className="home-find-leagues-button w-full sm:w-auto h-12 shrink-0 rounded-lg border border-cyan-300/25 bg-cyan-400/10 px-5 font-bold text-cyan-100 hover:bg-cyan-400/15"
                   >
-                    {userLeaguesMutation.isPending ? 'Finding...' : 'Find Leagues'}
+                    {userLeaguesMutation.isPending
+                      ? "Finding..."
+                      : "Find Leagues"}
                   </Button>
                 </div>
                 <p className="home-field-helper text-xs text-slate-400 mt-2">
-                  Pick one of your Sleeper leagues and this will run the report automatically.
+                  Pick one of your Sleeper leagues and this will run the report
+                  automatically.
                 </p>
               </div>
 
               {userLeagues.length > 0 && (
                 <div className="home-league-picker">
-                  {orderedUserLeagues.map((league) => (
+                  {orderedUserLeagues.map(league => (
                     <LeaguePickerCard
                       key={league.leagueId}
                       league={league}
@@ -4581,22 +6409,24 @@ export default function Home() {
                     list="sleeper-league-id-history"
                     placeholder="Find in your Sleeper app settings or URL"
                     value={leagueId}
-                    onChange={(e) => setLeagueId(e.target.value)}
-                    onFocus={() => setFocusedAutocomplete('league')}
-                    onBlur={() => window.setTimeout(() => setFocusedAutocomplete(null), 120)}
+                    onChange={e => setLeagueId(e.target.value)}
+                    onFocus={() => setFocusedAutocomplete("league")}
+                    onBlur={() =>
+                      window.setTimeout(() => setFocusedAutocomplete(null), 120)
+                    }
                     className="w-full bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
-                    onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+                    onKeyDown={e => e.key === "Enter" && handleAnalyze()}
                   />
                   <datalist id="sleeper-league-id-history">
-                    {leagueIdHistory.map((value) => (
+                    {leagueIdHistory.map(value => (
                       <option key={value} value={value} />
                     ))}
                   </datalist>
-                  {focusedAutocomplete === 'league' ? (
+                  {focusedAutocomplete === "league" ? (
                     <RecentEntrySuggestions
                       label="Recent Sleeper league IDs"
                       options={leagueIdAutocompleteOptions}
-                      onSelect={(value) => {
+                      onSelect={value => {
                         setLeagueId(value);
                         setFocusedAutocomplete(null);
                       }}
@@ -4604,7 +6434,8 @@ export default function Home() {
                   ) : null}
                 </div>
                 <p className="home-field-helper text-xs text-slate-400 mt-2">
-                  In the Sleeper app, open your league → go to General Settings → scroll to the bottom to find your League ID.
+                  In the Sleeper app, open your league → go to General Settings
+                  → scroll to the bottom to find your League ID.
                 </p>
               </div>
 
@@ -4627,8 +6458,10 @@ export default function Home() {
                   </div>
                   <h3 className="font-semibold text-white">League Overview</h3>
                 </div>
-	                <p className="text-sm text-slate-400">
-	                  See every manager's format-aware value with position strength, starter depth, and roster context. No bullshit, just the numbers.
+                <p className="text-sm text-slate-400">
+                  See every manager's format-aware value with position strength,
+                  starter depth, and roster context. No bullshit, just the
+                  numbers.
                 </p>
               </div>
 
@@ -4639,8 +6472,9 @@ export default function Home() {
                   </div>
                   <h3 className="font-semibold text-white">Trade History</h3>
                 </div>
-	                <p className="text-sm text-slate-400">
-	                  Track dynasty market swings or redraft current-season trade gaps with the correct value lens for the league.
+                <p className="text-sm text-slate-400">
+                  Track dynasty market swings or redraft current-season trade
+                  gaps with the correct value lens for the league.
                 </p>
               </div>
 
@@ -4651,24 +6485,25 @@ export default function Home() {
                   </div>
                   <h3 className="font-semibold text-white">Player Rankings</h3>
                 </div>
-	                <p className="text-sm text-slate-400">
-	                  Browse league-matched dynasty, redraft, and prospect boards across SuperFlex, Standard, PPR, and TE-premium formats.
+                <p className="text-sm text-slate-400">
+                  Browse league-matched dynasty, redraft, and prospect boards
+                  across SuperFlex, Standard, PPR, and TE-premium formats.
                 </p>
               </div>
             </div>
           </div>
-      </div>
-
-      {!reportData && (
-        <div className="home-footer mt-auto px-4 py-6 sm:py-8">
-          <HomeFooterChrome showBrand={!isLoading} />
         </div>
-      )}
-      {clownEasterEggDialog}
-    </div>
-    {adminAccessDialog}
-    {adminUnlockDialog}
-    {loadingDialog}
+
+        {!reportData && (
+          <div className="home-footer mt-auto px-4 py-6 sm:py-8">
+            <HomeFooterChrome showBrand={!isLoading} />
+          </div>
+        )}
+        {clownEasterEggDialog}
+      </div>
+      {adminAccessDialog}
+      {adminUnlockDialog}
+      {loadingDialog}
     </>
   );
 }
@@ -4678,6 +6513,7 @@ function CollapsibleReportSection({
   kicker,
   previewMetrics,
   previewAccessory,
+  previewAccessoryPlacement = "end",
   defaultOpen = false,
   premium = false,
   onOpenChange,
@@ -4687,6 +6523,7 @@ function CollapsibleReportSection({
   kicker?: string;
   previewMetrics?: PreviewMetric[];
   previewAccessory?: ReactNode;
+  previewAccessoryPlacement?: "end" | "middle";
   defaultOpen?: boolean;
   premium?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -4694,6 +6531,8 @@ function CollapsibleReportSection({
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [hasRenderedContent, setHasRenderedContent] = useState(defaultOpen);
+  const visiblePreviewMetrics = (previewMetrics || []).filter(metric => metric.value !== null && metric.value !== undefined && metric.value !== "");
+  const useMiddleAccessoryLayout = previewAccessoryPlacement === "middle" && Boolean(previewAccessory) && visiblePreviewMetrics.length === 2;
 
   useEffect(() => {
     setIsOpen(defaultOpen);
@@ -4712,18 +6551,48 @@ function CollapsibleReportSection({
   };
 
   return (
-    <details className={`report-section report-disclosure${premium ? ' admin-premium-flare admin-premium-section' : ''}`} open={isOpen} onToggle={handleToggle}>
+    <details
+      className={`report-section report-disclosure${premium ? " admin-premium-flare admin-premium-section" : ""}`}
+      open={isOpen}
+      onToggle={handleToggle}
+    >
       <summary className="report-disclosure-summary">
         <ReportSectionHeader title={title} kicker={kicker} />
         {previewAccessory ? (
-          <span className="report-disclosure-preview-row">
-            <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
-            <span className="report-disclosure-preview-accessory">
-              {previewAccessory}
+          useMiddleAccessoryLayout ? (
+            <span className="report-disclosure-preview-row report-disclosure-preview-row-middle">
+              <span className="report-disclosure-preview-slot report-disclosure-preview-slot-lead">
+                <PreviewMetricChips
+                  metrics={[visiblePreviewMetrics[0]]}
+                  className="report-disclosure-preview"
+                />
+              </span>
+              <span className="report-disclosure-preview-accessory">
+                {previewAccessory}
+              </span>
+              <span className="report-disclosure-preview-slot report-disclosure-preview-slot-trail">
+                <PreviewMetricChips
+                  metrics={[visiblePreviewMetrics[1]]}
+                  className="report-disclosure-preview"
+                />
+              </span>
             </span>
-          </span>
+          ) : (
+            <span className="report-disclosure-preview-row">
+              <PreviewMetricChips
+                metrics={visiblePreviewMetrics}
+                className="report-disclosure-preview"
+              />
+              <span className="report-disclosure-preview-accessory">
+                {previewAccessory}
+              </span>
+            </span>
+          )
         ) : (
-          <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
+          <PreviewMetricChips
+            metrics={visiblePreviewMetrics}
+            className="report-disclosure-preview"
+          />
         )}
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </summary>
@@ -4763,7 +6632,10 @@ function ModalReportSection({
         aria-expanded={isOpen}
       >
         <ReportSectionHeader title={title} kicker={kicker} />
-        <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
+        <PreviewMetricChips
+          metrics={previewMetrics}
+          className="report-disclosure-preview"
+        />
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </button>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>

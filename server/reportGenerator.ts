@@ -12,12 +12,13 @@ import {
 import { loadLatestLocalKtcSnapshotBefore } from './ktcLoader';
 import { KTC_SNAPSHOT_PROFILES, VALUE_SOURCE_PROFILE_DEFINITIONS, getValueSourceProfileKey } from './valueBlend';
 import { getDynastySourceWeightNotes, getDynastySourceWeights, formatDynastySourceWeights } from './dynastySourceWeights';
-import { getWeeklyMomentumPctChange } from './valueBaselinePolicy';
+import { WEEKLY_MOMENTUM_MIN_ABSOLUTE_CHANGE, getWeeklyMomentumPctChange } from './valueBaselinePolicy';
 import {
   calculateDynastySourceTrust,
   getDynastySourceRowsFromSnapshotValues,
   loadRecentDynastySourceRowsFromLocalSnapshots,
 } from './dynastySourceTrust';
+import { isFantasyNerdsTestDataActive } from './fantasyNerds';
 import type {
   LeagueValueMode,
   ManagerIntelPlayer,
@@ -1088,7 +1089,10 @@ function buildLeagueDiagnostics(
       fantasyProsDynastyCoverage > 0
         ? `FantasyPros Dynasty API rankings stored for ${fantasyProsDynastyCoverage} players and included as a modest adaptive-trust dynasty source.`
         : 'FantasyPros Dynasty API support is wired, but no dynasty values were present in this snapshot.',
-      'Fantasy Nerds API dynasty consensus rankings when FANTASY_NERDS_API_KEY is configured',
+      'Fantasy Nerds API dynasty consensus rankings when FANTASY_NERDS_API_KEY is configured, or when development uses the public TEST fallback',
+      ...(isFantasyNerdsTestDataActive()
+        ? ['Fantasy Nerds is currently using the public TEST fallback in local development; a real API key is required for live rankings.']
+        : []),
       'Dynasty Nerds PPR, Superflex, Standard, and Superflex TEP rankings with player values, Sleeper IDs, and movement',
       `Active dynasty source weights: ${sourceWeightLabel}`,
       'FantasyCalc format values and DynastyProcess 1QB/SF values support the dynasty blend at smaller weights',
@@ -2553,7 +2557,7 @@ export async function generateReport(
       const lastWeekVal = getPrimarySnapshotValue(pid, ktcValuesLastWeek);
       if (currentWeeklyVal > 0 && lastWeekVal > 0) {
         const pct_change = getWeeklyMomentumPctChange(currentWeeklyVal, lastWeekVal);
-        if (pct_change !== null) {
+        if (pct_change !== null && pct_change !== 0) {
           weeklyMomentum.push({
             name: getCachedPlayerName(pid),
             player_id: pid,
@@ -2854,15 +2858,26 @@ export async function generateReport(
       rank: finalRanks[name]?.current_VALUE || 0,
     }));
 
-  const weeklyRisers = weeklyMomentum
-    .filter((player) => player.diff > 0 && player.pct_change > 0)
-    .sort((a, b) => b.pct_change - a.pct_change || b.diff - a.diff)
-    .slice(0, 10);
+  const selectMomentumRows = (
+    rows: typeof weeklyMomentum,
+    direction: 'up' | 'down'
+  ) => {
+    const directionalRows = rows.filter((player) => (
+      direction === 'up'
+        ? player.diff > 0 && player.pct_change > 0
+        : player.diff < 0 && player.pct_change < 0
+    ));
+    const meaningfulRows = directionalRows.filter((player) => Math.abs(player.diff) >= WEEKLY_MOMENTUM_MIN_ABSOLUTE_CHANGE);
+    const sortedRows = [...(meaningfulRows.length ? meaningfulRows : directionalRows)].sort((a, b) => (
+      direction === 'up'
+        ? b.pct_change - a.pct_change || b.diff - a.diff
+        : a.pct_change - b.pct_change || a.diff - b.diff
+    ));
+    return sortedRows.slice(0, 10);
+  };
 
-  const weeklyFallers = weeklyMomentum
-    .filter((player) => player.diff < 0 && player.pct_change < 0)
-    .sort((a, b) => a.pct_change - b.pct_change || a.diff - b.diff)
-    .slice(0, 10);
+  const weeklyRisers = selectMomentumRows(weeklyMomentum, 'up');
+  const weeklyFallers = selectMomentumRows(weeklyMomentum, 'down');
 
   const leagueOverview = Object.entries(teamData)
     .sort((a, b) => b[1].total_val - a[1].total_val)

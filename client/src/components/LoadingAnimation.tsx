@@ -79,6 +79,16 @@ export function LoadingAnimation({
         {isComplete ? 'Report locked and loaded.' : 'Analyzing league data...'}
       </p>
 
+      {!isComplete && (
+        <div className="loading-cinematic-pass" aria-hidden="true">
+          <span className="loading-cinematic-field" />
+          <span className="loading-cinematic-wake" />
+          <span className="loading-cinematic-shadow" />
+          <span className="loading-cinematic-ball" />
+          <PremiumFxLayer variant="loading-pass" intensity="high" className="loading-cinematic-pass-fx" />
+        </div>
+      )}
+
       <div className="loading-step-list">
         {steps.map((step) => (
           <div key={step.id} className={`loading-step flex items-center gap-4 loading-step-${step.status}`}>
@@ -116,9 +126,14 @@ export function LoadingAnimation({
             )}
             {step.status === 'loading' && (
               <div className="loading-football-track" aria-hidden="true">
+                <span className="loading-football-launch" />
+                <span className="loading-football-catch" />
+                <span className="loading-football-contrail" />
                 <svg className="loading-football-arc" viewBox="0 0 100 48" preserveAspectRatio="none" focusable="false">
                   <path d="M 1.5 42 Q 50 7 98.5 42" />
                 </svg>
+                <span className="loading-football-shadow" />
+                <span className="loading-football" />
                 <PremiumFxLayer variant="loading-pass" intensity="high" className="loading-football-fx" />
               </div>
             )}

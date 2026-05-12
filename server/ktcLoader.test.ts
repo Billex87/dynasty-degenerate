@@ -116,6 +116,7 @@ describe('weekly momentum baseline policy', () => {
 
   it('drops movement percentages with tiny denominator baselines', () => {
     expect(getWeeklyMomentumPctChange(1400, 3)).toBeNull();
+    expect(getWeeklyMomentumPctChange(280, 250)).toBeCloseTo(12, 1);
     expect(getWeeklyMomentumPctChange(3500, 3000)).toBeCloseTo(16.666, 2);
   });
 });

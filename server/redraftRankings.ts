@@ -118,7 +118,7 @@ const REDRAFT_SOURCE_CONFIG: Record<RedraftRankingSourceKey, {
   fantasyNerds: {
     source: 'Fantasy Nerds',
     weight: 0.12,
-    note: 'API-backed draft rankings and ADP by scoring format when the Fantasy Nerds API key is configured.',
+    note: 'API-backed draft rankings and ADP by scoring format when the Fantasy Nerds API key is configured, or when development uses the public TEST fallback.',
   },
   internalSeasonBlend: {
     source: 'Internal Season Blend',

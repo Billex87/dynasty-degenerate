@@ -5153,229 +5153,228 @@ body {
   .owner-intel-read-grid > .owner-intel-wild-notes,
   .manager-command-ai-read,
   .waiver-intel-card-suggested {
-    --ai-grid-color: rgba(45, 212, 191, 0.055);
-    --ai-grid-hot: rgba(103, 232, 249, 0.1);
-    --ai-grid-muted: rgba(1, 5, 14, 0.96);
-    --ai-glow-primary: rgba(34, 211, 238, 0.082);
-    --ai-glow-secondary: rgba(251, 146, 60, 0.03);
-    --ai-border-glow: rgba(34, 211, 238, 0.28);
-    --ai-border-glass: rgba(255, 255, 255, 0.03);
+    --ai-grid-color: rgba(103, 232, 249, 0.032);
+    --ai-grid-hot: rgba(125, 211, 252, 0.068);
+    --ai-grid-muted: rgba(1, 5, 14, 0.98);
+    --ai-glow-primary: rgba(34, 211, 238, 0.034);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.018);
+    --ai-border-glow: rgba(34, 211, 238, 0.22);
+    --ai-border-glass: rgba(255, 255, 255, 0.028);
     --ai-pulse-origin-x: 18%;
     --ai-pulse-origin-y: 26%;
-    --ai-grid-size: 20px;
-    --ai-grid-size-strong: 66px;
-    --ai-grid-speed: 28s;
-    --ai-line-speed: 18s;
-    --ai-scan-speed: 15s;
-    --ai-ripple-speed: 16s;
-    --ai-border-speed: 12s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 42s;
+    --ai-line-speed: 26s;
+    --ai-scan-speed: 18s;
+    --ai-ripple-speed: 40s;
+    --ai-border-speed: 16s;
     position: relative;
     isolation: isolate;
     overflow: hidden;
     border-color: var(--ai-border-glow) !important;
     background:
-      radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--ai-glow-primary) 78%, transparent), transparent 30%),
-      radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--ai-glow-secondary) 64%, transparent), transparent 28%),
-      radial-gradient(circle at 50% 116%, rgba(2, 6, 23, 0.48), transparent 54%),
-      linear-gradient(135deg, rgba(1, 5, 14, 0.99), rgba(2, 10, 22, 0.96) 50%, rgba(1, 5, 14, 0.99)) !important;
+      radial-gradient(circle at 50% 16%, rgba(10, 18, 33, 0.5), transparent 38%),
+      radial-gradient(circle at 50% 52%, rgba(2, 6, 23, 0.88), rgba(1, 5, 14, 0.98) 66%, rgba(1, 4, 10, 0.995) 100%),
+      linear-gradient(135deg, rgba(1, 5, 14, 0.98), rgba(2, 8, 20, 0.96) 54%, rgba(1, 4, 10, 0.995)) !important;
     box-shadow:
       inset 0 0 0 1px var(--ai-border-glass),
-      inset 0 1px 0 rgba(255, 255, 255, 0.03),
-      inset 0 0 24px rgba(2, 6, 23, 0.42),
-      0 0 18px color-mix(in srgb, var(--ai-glow-primary) 70%, transparent) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.022),
+      inset 0 0 24px rgba(2, 6, 23, 0.48),
+      0 0 16px color-mix(in srgb, var(--ai-glow-primary) 52%, transparent) !important;
     animation: ai-border-breathe var(--ai-border-speed) ease-in-out infinite;
   }
 
   .owner-intel-ai-card-good {
-    --ai-border-glow: rgba(52, 211, 153, 0.32);
-    --ai-glow-primary: rgba(16, 185, 129, 0.092);
-    --ai-glow-secondary: rgba(52, 211, 153, 0.028);
-    --ai-grid-color: rgba(52, 211, 153, 0.055);
-    --ai-grid-hot: rgba(134, 239, 172, 0.1);
+    --ai-border-glow: rgba(52, 211, 153, 0.22);
+    --ai-glow-primary: rgba(16, 185, 129, 0.034);
+    --ai-glow-secondary: rgba(52, 211, 153, 0.018);
+    --ai-grid-color: rgba(52, 211, 153, 0.032);
+    --ai-grid-hot: rgba(134, 239, 172, 0.068);
     --ai-pulse-origin-x: 22%;
     --ai-pulse-origin-y: 24%;
-    --ai-grid-speed: 26s;
-    --ai-line-speed: 17s;
-    --ai-scan-speed: 14s;
+    --ai-grid-speed: 40s;
+    --ai-line-speed: 25s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-card-warn {
-    --ai-border-glow: rgba(251, 146, 60, 0.32);
-    --ai-glow-primary: rgba(249, 115, 22, 0.09);
-    --ai-glow-secondary: rgba(251, 146, 60, 0.03);
-    --ai-grid-color: rgba(251, 146, 60, 0.055);
-    --ai-grid-hot: rgba(253, 186, 116, 0.102);
+    --ai-border-glow: rgba(251, 146, 60, 0.22);
+    --ai-glow-primary: rgba(249, 115, 22, 0.03);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.018);
+    --ai-grid-color: rgba(251, 146, 60, 0.03);
+    --ai-grid-hot: rgba(253, 186, 116, 0.064);
     --ai-pulse-origin-x: 76%;
     --ai-pulse-origin-y: 20%;
-    --ai-grid-speed: 27s;
-    --ai-line-speed: 18s;
-    --ai-scan-speed: 14s;
+    --ai-grid-speed: 40s;
+    --ai-line-speed: 25s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-card-danger {
-    --ai-border-glow: rgba(251, 113, 133, 0.32);
-    --ai-glow-primary: rgba(244, 63, 94, 0.09);
-    --ai-glow-secondary: rgba(251, 113, 133, 0.028);
-    --ai-grid-color: rgba(251, 113, 133, 0.055);
-    --ai-grid-hot: rgba(253, 164, 175, 0.1);
+    --ai-border-glow: rgba(251, 113, 133, 0.22);
+    --ai-glow-primary: rgba(244, 63, 94, 0.03);
+    --ai-glow-secondary: rgba(251, 113, 133, 0.018);
+    --ai-grid-color: rgba(251, 113, 133, 0.028);
+    --ai-grid-hot: rgba(253, 164, 175, 0.062);
     --ai-pulse-origin-x: 72%;
     --ai-pulse-origin-y: 34%;
-    --ai-grid-speed: 27s;
-    --ai-line-speed: 18s;
-    --ai-scan-speed: 14s;
+    --ai-grid-speed: 41s;
+    --ai-line-speed: 25s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-card-future,
   .owner-intel-read-grid > .owner-intel-wild-notes,
   .manager-command-ai-read {
-    --ai-border-glow: rgba(45, 212, 191, 0.32);
-    --ai-glow-primary: rgba(34, 211, 238, 0.088);
-    --ai-glow-secondary: rgba(45, 212, 191, 0.028);
-    --ai-grid-color: rgba(45, 212, 191, 0.055);
-    --ai-grid-hot: rgba(103, 232, 249, 0.1);
+    --ai-border-glow: rgba(45, 212, 191, 0.22);
+    --ai-glow-primary: rgba(34, 211, 238, 0.034);
+    --ai-glow-secondary: rgba(45, 212, 191, 0.018);
+    --ai-grid-color: rgba(45, 212, 191, 0.03);
+    --ai-grid-hot: rgba(103, 232, 249, 0.064);
     --ai-pulse-origin-x: 68%;
     --ai-pulse-origin-y: 22%;
-    --ai-grid-size: 19px;
-    --ai-grid-size-strong: 62px;
-    --ai-grid-speed: 29s;
-    --ai-line-speed: 17s;
-    --ai-scan-speed: 14s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 42s;
+    --ai-line-speed: 26s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-theme-trade,
   .waiver-intel-card-suggested {
-    --ai-border-glow: rgba(52, 211, 153, 0.3);
-    --ai-glow-primary: rgba(16, 185, 129, 0.088);
-    --ai-glow-secondary: rgba(52, 211, 153, 0.028);
-    --ai-grid-color: rgba(52, 211, 153, 0.055);
-    --ai-grid-hot: rgba(134, 239, 172, 0.1);
+    --ai-border-glow: rgba(52, 211, 153, 0.22);
+    --ai-glow-primary: rgba(16, 185, 129, 0.034);
+    --ai-glow-secondary: rgba(52, 211, 153, 0.018);
+    --ai-grid-color: rgba(52, 211, 153, 0.03);
+    --ai-grid-hot: rgba(134, 239, 172, 0.064);
     --ai-pulse-origin-x: 20%;
     --ai-pulse-origin-y: 28%;
-    --ai-grid-size: 21px;
-    --ai-grid-size-strong: 68px;
-    --ai-grid-speed: 26s;
-    --ai-line-speed: 17s;
-    --ai-scan-speed: 14s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 40s;
+    --ai-line-speed: 25s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-theme-window {
-    --ai-border-glow: rgba(45, 212, 191, 0.3);
-    --ai-glow-primary: rgba(20, 184, 166, 0.086);
-    --ai-glow-secondary: rgba(45, 212, 191, 0.028);
-    --ai-grid-color: rgba(45, 212, 191, 0.055);
-    --ai-grid-hot: rgba(94, 234, 212, 0.102);
+    --ai-border-glow: rgba(45, 212, 191, 0.22);
+    --ai-glow-primary: rgba(20, 184, 166, 0.032);
+    --ai-glow-secondary: rgba(45, 212, 191, 0.018);
+    --ai-grid-color: rgba(45, 212, 191, 0.03);
+    --ai-grid-hot: rgba(94, 234, 212, 0.064);
     --ai-pulse-origin-x: 72%;
     --ai-pulse-origin-y: 18%;
-    --ai-grid-size: 20px;
-    --ai-grid-size-strong: 64px;
-    --ai-grid-speed: 27s;
-    --ai-line-speed: 18s;
-    --ai-scan-speed: 15s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 41s;
+    --ai-line-speed: 25s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-theme-draft {
-    --ai-border-glow: rgba(250, 204, 21, 0.3);
-    --ai-glow-primary: rgba(250, 204, 21, 0.084);
-    --ai-glow-secondary: rgba(250, 204, 21, 0.026);
-    --ai-grid-color: rgba(250, 204, 21, 0.052);
-    --ai-grid-hot: rgba(253, 224, 71, 0.096);
+    --ai-border-glow: rgba(250, 204, 21, 0.22);
+    --ai-glow-primary: rgba(250, 204, 21, 0.03);
+    --ai-glow-secondary: rgba(250, 204, 21, 0.018);
+    --ai-grid-color: rgba(250, 204, 21, 0.028);
+    --ai-grid-hot: rgba(253, 224, 71, 0.062);
     --ai-pulse-origin-x: 24%;
     --ai-pulse-origin-y: 18%;
-    --ai-grid-size: 18px;
-    --ai-grid-size-strong: 56px;
-    --ai-grid-speed: 25s;
-    --ai-line-speed: 16s;
-    --ai-scan-speed: 13s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 39s;
+    --ai-line-speed: 24s;
+    --ai-scan-speed: 17s;
   }
 
   .owner-intel-ai-theme-churn {
-    --ai-border-glow: rgba(251, 146, 60, 0.3);
-    --ai-glow-primary: rgba(249, 115, 22, 0.09);
-    --ai-glow-secondary: rgba(251, 146, 60, 0.03);
-    --ai-grid-color: rgba(251, 146, 60, 0.055);
-    --ai-grid-hot: rgba(253, 186, 116, 0.102);
+    --ai-border-glow: rgba(251, 146, 60, 0.22);
+    --ai-glow-primary: rgba(249, 115, 22, 0.03);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.018);
+    --ai-grid-color: rgba(251, 146, 60, 0.03);
+    --ai-grid-hot: rgba(253, 186, 116, 0.064);
     --ai-pulse-origin-x: 78%;
     --ai-pulse-origin-y: 60%;
-    --ai-grid-size: 21px;
-    --ai-grid-size-strong: 68px;
-    --ai-grid-speed: 27s;
-    --ai-line-speed: 18s;
-    --ai-scan-speed: 14s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 41s;
+    --ai-line-speed: 25s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-theme-risk {
-    --ai-border-glow: rgba(251, 113, 133, 0.3);
-    --ai-glow-primary: rgba(244, 63, 94, 0.088);
-    --ai-glow-secondary: rgba(251, 113, 133, 0.028);
-    --ai-grid-color: rgba(251, 113, 133, 0.052);
-    --ai-grid-hot: rgba(253, 164, 175, 0.096);
+    --ai-border-glow: rgba(251, 113, 133, 0.22);
+    --ai-glow-primary: rgba(244, 63, 94, 0.03);
+    --ai-glow-secondary: rgba(251, 113, 133, 0.018);
+    --ai-grid-color: rgba(251, 113, 133, 0.028);
+    --ai-grid-hot: rgba(253, 164, 175, 0.062);
     --ai-pulse-origin-x: 78%;
     --ai-pulse-origin-y: 34%;
-    --ai-grid-size: 21px;
-    --ai-grid-size-strong: 68px;
-    --ai-grid-speed: 27s;
-    --ai-line-speed: 18s;
-    --ai-scan-speed: 14s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 41s;
+    --ai-line-speed: 25s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-theme-upside {
-    --ai-border-glow: rgba(192, 132, 252, 0.3);
-    --ai-glow-primary: rgba(168, 85, 247, 0.082);
-    --ai-glow-secondary: rgba(192, 132, 252, 0.028);
-    --ai-grid-color: rgba(192, 132, 252, 0.05);
-    --ai-grid-hot: rgba(216, 180, 254, 0.094);
+    --ai-border-glow: rgba(192, 132, 252, 0.22);
+    --ai-glow-primary: rgba(168, 85, 247, 0.03);
+    --ai-glow-secondary: rgba(192, 132, 252, 0.018);
+    --ai-grid-color: rgba(192, 132, 252, 0.028);
+    --ai-grid-hot: rgba(216, 180, 254, 0.06);
     --ai-pulse-origin-x: 64%;
     --ai-pulse-origin-y: 14%;
-    --ai-grid-size: 20px;
-    --ai-grid-size-strong: 66px;
-    --ai-grid-speed: 29s;
-    --ai-line-speed: 19s;
-    --ai-scan-speed: 15s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 42s;
+    --ai-line-speed: 26s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-theme-sell {
-    --ai-border-glow: rgba(251, 146, 60, 0.3);
-    --ai-glow-primary: rgba(249, 115, 22, 0.09);
-    --ai-glow-secondary: rgba(251, 146, 60, 0.03);
-    --ai-grid-color: rgba(251, 146, 60, 0.058);
-    --ai-grid-hot: rgba(253, 186, 116, 0.102);
+    --ai-border-glow: rgba(251, 146, 60, 0.22);
+    --ai-glow-primary: rgba(249, 115, 22, 0.03);
+    --ai-glow-secondary: rgba(251, 146, 60, 0.018);
+    --ai-grid-color: rgba(251, 146, 60, 0.03);
+    --ai-grid-hot: rgba(253, 186, 116, 0.064);
     --ai-pulse-origin-x: 78%;
     --ai-pulse-origin-y: 58%;
-    --ai-grid-size: 21px;
-    --ai-grid-size-strong: 68px;
-    --ai-grid-speed: 27s;
-    --ai-line-speed: 18s;
-    --ai-scan-speed: 14s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 41s;
+    --ai-line-speed: 25s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-theme-core {
-    --ai-border-glow: rgba(125, 211, 252, 0.3);
-    --ai-glow-primary: rgba(56, 189, 248, 0.082);
-    --ai-glow-secondary: rgba(125, 211, 252, 0.028);
-    --ai-grid-color: rgba(125, 211, 252, 0.05);
-    --ai-grid-hot: rgba(186, 230, 253, 0.098);
+    --ai-border-glow: rgba(125, 211, 252, 0.22);
+    --ai-glow-primary: rgba(56, 189, 248, 0.03);
+    --ai-glow-secondary: rgba(125, 211, 252, 0.018);
+    --ai-grid-color: rgba(125, 211, 252, 0.028);
+    --ai-grid-hot: rgba(186, 230, 253, 0.062);
     --ai-pulse-origin-x: 56%;
     --ai-pulse-origin-y: 50%;
-    --ai-grid-size: 20px;
-    --ai-grid-size-strong: 66px;
-    --ai-grid-speed: 28s;
-    --ai-line-speed: 18s;
-    --ai-scan-speed: 15s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 42s;
+    --ai-line-speed: 26s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-theme-neutral {
-    --ai-border-glow: rgba(34, 211, 238, 0.28);
-    --ai-glow-primary: rgba(34, 211, 238, 0.08);
-    --ai-glow-secondary: rgba(45, 212, 191, 0.028);
-    --ai-grid-color: rgba(45, 212, 191, 0.055);
-    --ai-grid-hot: rgba(103, 232, 249, 0.1);
+    --ai-border-glow: rgba(34, 211, 238, 0.18);
+    --ai-glow-primary: rgba(34, 211, 238, 0.03);
+    --ai-glow-secondary: rgba(45, 212, 191, 0.018);
+    --ai-grid-color: rgba(45, 212, 191, 0.03);
+    --ai-grid-hot: rgba(103, 232, 249, 0.064);
     --ai-pulse-origin-x: 18%;
     --ai-pulse-origin-y: 28%;
-    --ai-grid-size: 20px;
-    --ai-grid-size-strong: 66px;
-    --ai-grid-speed: 28s;
-    --ai-line-speed: 18s;
-    --ai-scan-speed: 15s;
+    --ai-grid-size: 22px;
+    --ai-grid-size-strong: 88px;
+    --ai-grid-speed: 42s;
+    --ai-line-speed: 26s;
+    --ai-scan-speed: 18s;
   }
 
   .owner-intel-ai-card::before,
@@ -5388,48 +5387,22 @@ body {
     z-index: 0;
     border-radius: inherit;
     background:
-      linear-gradient(180deg, transparent 0 47%, rgba(255, 255, 255, 0.03) 50%, transparent 53%),
-      linear-gradient(180deg, var(--ai-grid-color) 1px, transparent 1px),
-      linear-gradient(90deg, var(--ai-grid-color) 1px, transparent 1px),
-      linear-gradient(180deg, var(--ai-grid-hot) 1px, transparent 1px),
-      linear-gradient(90deg, var(--ai-grid-hot) 1px, transparent 1px),
-      linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 22%, transparent) 49%, transparent 53%),
-      linear-gradient(225deg, transparent 0 46%, color-mix(in srgb, var(--ai-glow-primary) 14%, transparent) 49%, transparent 53%),
-      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 72%, transparent) 0 1px, transparent 1.4px),
-      radial-gradient(circle at 16% 18%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.4px),
-      radial-gradient(circle at 82% 72%, rgba(255, 255, 255, 0.1) 0 1px, transparent 1.4px),
-      radial-gradient(circle at 70% 14%, color-mix(in srgb, var(--ai-glow-secondary) 42%, transparent) 0 1px, transparent 1.4px);
-    background-size:
-      100% 100%,
-      var(--ai-grid-size) var(--ai-grid-size),
-      var(--ai-grid-size) var(--ai-grid-size),
-      var(--ai-grid-size-strong) var(--ai-grid-size-strong),
-      var(--ai-grid-size-strong) var(--ai-grid-size-strong),
-      220px 220px,
-      300px 300px,
-      110px 110px,
-      156px 156px,
-      198px 198px,
-      240px 240px;
-    background-position:
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0,
-      0 0;
-    opacity: 0.68;
+      radial-gradient(circle at 50% 50%, rgba(4, 10, 22, 0.52), rgba(2, 6, 23, 0.08) 44%, transparent 68%) 0 0 / 100% 100% no-repeat,
+      linear-gradient(180deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% 100% repeat,
+      linear-gradient(90deg, color-mix(in srgb, var(--ai-grid-color) 80%, rgba(255, 255, 255, 0.05)) 0 1px, transparent 1px var(--ai-grid-size)) 0 0 / 100% 100% repeat,
+      linear-gradient(180deg, transparent 0 40%, color-mix(in srgb, var(--ai-border-glow) 44%, transparent) 41% 42%, transparent 43% 100%) 12px 0 / 28px 172px repeat-y,
+      linear-gradient(90deg, transparent 0 40%, color-mix(in srgb, var(--ai-border-glow) 34%, transparent) 41% 42%, transparent 43% 100%) 0 14px / 172px 28px repeat-x,
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-grid-hot) 70%, transparent) 0 1px, transparent 1.55px) 0 0 / var(--ai-grid-size) var(--ai-grid-size) repeat,
+      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09) 0 0.8px, transparent 1.3px) 8px 8px / calc(var(--ai-grid-size) * 2.6) calc(var(--ai-grid-size) * 2.6) repeat,
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ai-glow-secondary) 40%, transparent) 0 0.8px, transparent 1.2px) 0 0 / calc(var(--ai-grid-size) * 4) calc(var(--ai-grid-size) * 4) repeat;
+    opacity: 0.5;
     pointer-events: none;
     transform: translate3d(0, 0, 0);
+    will-change: transform, opacity, background-position;
     animation:
       ai-grid-drift var(--ai-grid-speed) linear infinite,
-      ai-line-surge var(--ai-line-speed) ease-in-out infinite,
-      ai-node-pulse var(--ai-scan-speed) ease-in-out infinite;
+      ai-data-packet-vertical calc(var(--ai-line-speed) * 1.12) linear infinite,
+      ai-line-surge var(--ai-scan-speed) ease-in-out infinite;
   }
 
   .owner-intel-ai-card::after,
@@ -5442,40 +5415,24 @@ body {
     z-index: 0;
     border-radius: inherit;
     background:
-      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 74%, transparent) 0 1px, color-mix(in srgb, var(--ai-glow-primary) 40%, transparent) 1px 1.15rem, transparent 3.9rem),
-      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 0 1px, transparent 5.5rem),
-      linear-gradient(125deg, transparent 0 42%, color-mix(in srgb, var(--ai-glow-primary) 16%, transparent) 47%, rgba(255, 255, 255, 0.14) 50%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 53%, transparent 61%),
-      linear-gradient(90deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 10%, transparent) 50%, transparent 56%),
-      repeating-linear-gradient(180deg, transparent 0 14px, rgba(255, 255, 255, 0.016) 14px 15px, transparent 18px),
-      radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--ai-glow-secondary) 24%, transparent) 0 1px, transparent 1.6px),
-      radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--ai-glow-secondary) 16%, transparent) 0 1px, transparent 1.6px);
-    background-size:
-      48% 48%,
-      100% 100%,
-      240% 100%,
-      220% 100%,
-      100% 100%,
-      140px 140px,
-      180px 180px;
-    background-position:
-      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-      var(--ai-pulse-origin-x) var(--ai-pulse-origin-y),
-      145% 0,
-      -18% 0,
-      0 0,
-      14% 18%,
-      82% 76%;
+      linear-gradient(90deg, transparent 0 43%, color-mix(in srgb, var(--ai-border-glow) 74%, transparent) 44% 56%, transparent 57% 100%) 0 10px / 184px 22px repeat-x,
+      linear-gradient(90deg, transparent 0 46%, rgba(255, 255, 255, 0.18) 47% 53%, transparent 54% 100%) 32px 0 / 118px 14px repeat-x,
+      linear-gradient(125deg, transparent 0 44%, color-mix(in srgb, var(--ai-glow-primary) 18%, transparent) 45% 48%, transparent 49% 100%) 0 0 / 220px 220px repeat,
+      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-border-glow) 58%, transparent) 0 1px, transparent 1.2px) 0 0 / 46% 46% no-repeat,
+      radial-gradient(circle at var(--ai-pulse-origin-x) var(--ai-pulse-origin-y), color-mix(in srgb, var(--ai-glow-primary) 14%, transparent) 0 1px, transparent 5rem) 0 0 / 100% 100% no-repeat;
     opacity: 0.08;
     mix-blend-mode: screen;
     pointer-events: none;
     transform-origin: var(--ai-pulse-origin-x) var(--ai-pulse-origin-y);
     will-change: transform, opacity, background-position;
     animation:
-      ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite,
-      ai-scan-sweep calc(var(--ai-scan-speed) * 1.1) linear infinite;
+      ai-data-packet-horizontal calc(var(--ai-line-speed) * 1.04) linear infinite,
+      ai-node-flicker calc(var(--ai-scan-speed) * 1.04) ease-in-out infinite,
+      ai-touch-ripple var(--ai-ripple-speed) cubic-bezier(0.22, 0.78, 0.28, 1) infinite;
     animation-delay:
-      calc(var(--ai-ripple-speed) * -0.24),
-      0s;
+      calc(var(--ai-ripple-speed) * -0.18),
+      0s,
+      calc(var(--ai-ripple-speed) * -0.24);
   }
 
   .owner-intel-ai-card > *,

@@ -153,6 +153,7 @@ export function LeagueTypeBadge({
 
 export type PreviewMetric = {
   label: string;
+  compactLabel?: string;
   value: ReactNode;
   tone?: ReportTone;
   icon?: ReactNode;
@@ -190,9 +191,14 @@ export function PreviewMetricChips({
             metric.className,
           )}
         >
-          <span className="analysis-preview-chip-label">
+          <span className={cn('analysis-preview-chip-label', metric.compactLabel && 'analysis-preview-chip-label-has-compact')}>
             {metric.icon && <span className="analysis-preview-chip-icon" aria-hidden="true">{metric.icon}</span>}
-            <span className="analysis-preview-chip-label-text">{metric.label}</span>
+            <span className="analysis-preview-chip-label-text analysis-preview-chip-label-text-full">{metric.label}</span>
+            {metric.compactLabel && (
+              <span className="analysis-preview-chip-label-text analysis-preview-chip-label-text-compact">
+                {metric.compactLabel}
+              </span>
+            )}
           </span>
           <strong>{metric.value}</strong>
         </span>
