@@ -6866,36 +6866,34 @@ export function OwnerIntelMatrix({
                 </div>
 
                 <div className="owner-intel-read-grid">
-                  <div className="owner-intel-read-wide">
+                  <div className="owner-intel-read-wide ai-surface-r3f">
+                    <AITronSurface theme="cyan" density="medium" />
                     <h4>{isRedraft ? 'Roster Read' : 'Dynasty Roster Read'}</h4>
                     <p>{selectedRosterRead}</p>
                   </div>
-                  <div>
+                  <div className="ai-surface-r3f">
+                    <AITronSurface theme="blue" density="small" />
                     <h4>{isRedraft ? 'Best Move' : 'Dynasty Best Move'}</h4>
                     <p>{selectedBestMove}</p>
                   </div>
-                  <div>
+                  <div className="ai-surface-r3f">
+                    <AITronSurface theme="amber" density="small" />
                     <h4>{isRedraft ? 'Starter / Bench Context' : 'Market / Picks'}</h4>
                     <p>{selectedTradeDraftProfile}</p>
                   </div>
-                  {selectedAiSuggestions.map((card, cardIndex) => {
-                    const enableTronSurface = cardIndex === 0;
-                    return (
+                  {selectedAiSuggestions.map((card) => (
                     <div
                       key={`${card.title}-${card.copy}`}
                       className={getAiNeuralSurfaceClass(
                         card.theme || 'neutral',
-                        `owner-intel-ai-card ${enableTronSurface ? 'ai-surface-r3f' : ''} owner-intel-ai-card-${card.tone} ${card.theme ? `owner-intel-ai-theme-${card.theme}` : ''} ${card.wide ? 'owner-intel-read-wide' : ''}`,
+                        `owner-intel-ai-card ai-surface-r3f owner-intel-ai-card-${card.tone} ${card.theme ? `owner-intel-ai-theme-${card.theme}` : ''} ${card.wide ? 'owner-intel-read-wide' : ''}`,
                       )}
                     >
-                      {enableTronSurface && (
-                        <AITronSurface theme={getAITronThemeForDynastySurface(card.theme || 'neutral')} density={card.wide ? 'medium' : 'small'} />
-                      )}
+                      <AITronSurface theme={getAITronThemeForDynastySurface(card.theme || 'neutral')} density={card.wide ? 'medium' : 'small'} />
                       <h4>{card.title}</h4>
                       <p>{card.copy}</p>
                     </div>
-                    );
-                  })}
+                  ))}
                   {selectedActionNotes.length ? (
                     <div className={getAiNeuralSurfaceClass('neutral', 'owner-intel-wild-notes ai-surface-r3f')}>
                       <AITronSurface theme="cyan" density="large" />
