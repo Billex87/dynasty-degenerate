@@ -34,8 +34,8 @@ type PacketRenderRefs = {
 };
 
 const GRID_STEP = 0.22;
-const PACKET_TIMINGS = [4.8, 6.2, 7.5, 9.1, 11.4];
-const PACKET_DELAYS = [-1.2, -3.8, -5.1, -7.4, -9.6, -11.2];
+const PACKET_TIMINGS = [8.6, 11.2, 14.7, 18.5, 23.3];
+const PACKET_DELAYS = [-1.2, -4.6, -9.1, -13.7, -18.4, -21.9];
 
 const THEME_COLORS: Record<AITronTheme, { packet: string; trace: string; accent: string }> = {
   cyan: { packet: '#25e7ff', trace: '#1bb8d8', accent: '#ffab48' },
@@ -141,9 +141,9 @@ function buildTraceGeometry(width: number, height: number, amber = false) {
 }
 
 function getPacketCount(density: AITronDensity) {
-  if (density === 'small') return 9;
-  if (density === 'large') return 22;
-  return 14;
+  if (density === 'small') return 2;
+  if (density === 'large') return 5;
+  return 3;
 }
 
 function buildPackets(width: number, height: number, density: AITronDensity, theme: AITronTheme): PacketConfig[] {
@@ -157,7 +157,7 @@ function buildPackets(width: number, height: number, density: AITronDensity, the
   return Array.from({ length: count }, (_, index) => {
     const axis = index % 3 === 1 ? 'y' : 'x';
     const direction = index % 4 === 2 ? -1 : 1;
-    const distance = direction * (0.54 + (index % 4) * 0.24);
+    const distance = direction * (0.22 + (index % 4) * 0.08);
     const isAccent = index === count - 1 || (theme === 'amber' && index % 4 === 0);
     const color = isAccent ? colors.accent : colors.packet;
 
@@ -169,7 +169,7 @@ function buildPackets(width: number, height: number, density: AITronDensity, the
         duration: PACKET_TIMINGS[index % PACKET_TIMINGS.length],
         delay: PACKET_DELAYS[index % PACKET_DELAYS.length],
         color,
-        length: 0.2 + (index % 3) * 0.06,
+        length: 0.06 + (index % 3) * 0.02,
       };
     }
 
@@ -180,14 +180,14 @@ function buildPackets(width: number, height: number, density: AITronDensity, the
       duration: PACKET_TIMINGS[index % PACKET_TIMINGS.length],
       delay: PACKET_DELAYS[index % PACKET_DELAYS.length],
       color,
-      length: 0.2 + (index % 3) * 0.06,
+      length: 0.06 + (index % 3) * 0.02,
     };
   });
 }
 
 function buildPulseNodes(width: number, height: number, density: AITronDensity, theme: AITronTheme): NodePulseConfig[] {
   const colors = THEME_COLORS[theme];
-  const count = density === 'small' ? 8 : density === 'large' ? 22 : 14;
+  const count = density === 'small' ? 2 : density === 'large' ? 6 : 4;
   const halfWidth = width / 2;
   const halfHeight = height / 2;
 
@@ -197,20 +197,22 @@ function buildPulseNodes(width: number, height: number, density: AITronDensity, 
       snapToGrid((-0.38 + Math.floor(index / 2) * 0.18) * halfHeight),
       0.035,
     ],
-    duration: 5.2 + (index % 5) * 1.45,
-    delay: -index * 1.2,
+    duration: 9.4 + (index % 5) * 2.6,
+    delay: -index * 3.1,
     color: theme === 'amber' && index % 5 === 0 ? colors.accent : colors.packet,
   }));
 }
 
 function packetProgress(elapsed: number, duration: number, delay: number) {
   const raw = ((elapsed + Math.abs(delay)) % duration) / duration;
-  const opacity = raw < 0.1
-    ? raw / 0.1
-    : raw > 0.68
-      ? Math.max(0, 1 - (raw - 0.68) / 0.2)
-      : 1;
-  return { travel: Math.min(raw / 0.68, 1), opacity };
+  const opacity = raw < 0.03
+    ? raw / 0.03
+    : raw > 0.2 && raw < 0.32
+      ? Math.max(0, 1 - (raw - 0.2) / 0.12)
+      : raw >= 0.32
+        ? 0
+        : 1;
+  return { travel: Math.min(raw / 0.2, 1), opacity };
 }
 
 function setMaterialOpacity(mesh: THREE.Mesh | null, opacity: number) {
@@ -253,34 +255,34 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
       refs.head?.position.set(x, y, packet.start[2]);
       refs.trail?.position.set(x + trailingOffset[0], y + trailingOffset[1], packet.start[2] - 0.002);
       refs.glow?.position.set(x, y, packet.start[2] - 0.004);
-      setMaterialOpacity(refs.head, opacity * 0.88);
-      setMaterialOpacity(refs.trail, opacity * 0.7);
-      setMaterialOpacity(refs.glow, opacity * 0.22);
+      setMaterialOpacity(refs.head, opacity * 0.58);
+      setMaterialOpacity(refs.trail, opacity * 0.24);
+      setMaterialOpacity(refs.glow, opacity * 0.05);
     });
 
     pulseNodes.forEach((node, index) => {
       const mesh = pulseRefs.current[index];
       if (!mesh) return;
       const cycle = ((elapsed + Math.abs(node.delay)) % node.duration) / node.duration;
-      const pulse = cycle > 0.34 && cycle < 0.48 ? Math.sin(((cycle - 0.34) / 0.14) * Math.PI) : 0;
-      mesh.scale.setScalar(0.8 + pulse * 0.7);
-      setMaterialOpacity(mesh, 0.12 + pulse * 0.62);
+      const pulse = cycle > 0.36 && cycle < 0.42 ? Math.sin(((cycle - 0.36) / 0.06) * Math.PI) : 0;
+      mesh.scale.setScalar(0.75 + pulse * 0.32);
+      setMaterialOpacity(mesh, 0.06 + pulse * 0.26);
     });
   });
 
   return (
     <>
       <lineSegments geometry={gridGeometry}>
-        <lineBasicMaterial color={colors.trace} transparent opacity={0.14} depthWrite={false} depthTest={false} toneMapped={false} />
+        <lineBasicMaterial color={colors.trace} transparent opacity={0.08} depthWrite={false} depthTest={false} toneMapped={false} />
       </lineSegments>
       <points geometry={intersectionGeometry}>
-        <pointsMaterial color={colors.trace} transparent opacity={0.44} size={0.02} sizeAttenuation depthWrite={false} depthTest={false} toneMapped={false} />
+        <pointsMaterial color={colors.trace} transparent opacity={0.2} size={0.012} sizeAttenuation depthWrite={false} depthTest={false} toneMapped={false} />
       </points>
       <lineSegments geometry={traceGeometry}>
-        <lineBasicMaterial color={colors.trace} transparent opacity={0.66} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+        <lineBasicMaterial color={colors.trace} transparent opacity={0.26} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </lineSegments>
       <lineSegments geometry={amberTraceGeometry}>
-        <lineBasicMaterial color={colors.accent} transparent opacity={0.46} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+        <lineBasicMaterial color={colors.accent} transparent opacity={0.16} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </lineSegments>
       {pulseNodes.map((node, index) => (
         <mesh
@@ -290,7 +292,7 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
           }}
           position={node.position}
         >
-          <circleGeometry args={[0.018, 16]} />
+          <circleGeometry args={[0.01, 12]} />
           <meshBasicMaterial
             color={node.color}
             transparent
@@ -312,8 +314,8 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
               }}
               position={packet.start}
             >
-              <circleGeometry args={[0.075, 20]} />
-              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.16 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
+              <circleGeometry args={[0.026, 12]} />
+              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
             </mesh>
             <mesh
               ref={(mesh) => {
@@ -322,8 +324,8 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
               position={packet.start}
               rotation={[0, 0, rotation]}
             >
-              <planeGeometry args={[packet.length, 0.034]} />
-              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.24 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
+              <planeGeometry args={[packet.length, 0.012]} />
+              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.1 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
             </mesh>
             <mesh
               ref={(mesh) => {
@@ -332,8 +334,8 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
               position={packet.start}
               rotation={[0, 0, rotation]}
             >
-              <planeGeometry args={[Math.max(0.08, packet.length * 0.46), 0.046]} />
-              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.35 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
+              <planeGeometry args={[Math.max(0.028, packet.length * 0.46), 0.018]} />
+              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.14 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
             </mesh>
           </group>
         );
@@ -344,15 +346,13 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
 
 export function AITronSurface({ theme = 'cyan', density = 'medium' }: AITronSurfaceProps) {
   const reducedMotion = usePrefersReducedMotion();
+  const fallbackPackets = density === 'small' ? [1, 5] : density === 'large' ? [1, 2, 4, 6] : [1, 3, 5];
 
   return (
     <div className="ai-tron-surface" aria-hidden="true">
-      <span className="ai-tron-css-packet ai-tron-css-packet-1" />
-      <span className="ai-tron-css-packet ai-tron-css-packet-2" />
-      <span className="ai-tron-css-packet ai-tron-css-packet-3" />
-      <span className="ai-tron-css-packet ai-tron-css-packet-4" />
-      <span className="ai-tron-css-packet ai-tron-css-packet-5" />
-      <span className="ai-tron-css-packet ai-tron-css-packet-6" />
+      {fallbackPackets.map((packet) => (
+        <span key={packet} className={`ai-tron-css-packet ai-tron-css-packet-${packet}`} />
+      ))}
       <Canvas
         orthographic
         camera={{ position: [0, 0, 5], zoom: 100 }}

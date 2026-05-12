@@ -519,3 +519,4 @@
 - [ ] Summarize the top fantasy football + AI YouTube videos and extract any repeat ideas, workflows, or features we could implement.
 - [ ] Outline how a Chrome extension could help draft players using multiple criteria, rankings, and context signals.
 - [ ] Trace any existing references to the AI chatbot in the codebase and docs, then explain what it currently does or where it still needs to be defined.
+- [ ] Review [Dynasty Daddy fantasy rankings](https://dynasty-daddy.com/fantasy-rankings/lamarjacksonqb?league=1312139584427012096&year=2026&platform=0&userId=472986961783549952&teamId=3) for feature ideas, layout ideas, and any useful ranking or league-context capabilities we should consider.
