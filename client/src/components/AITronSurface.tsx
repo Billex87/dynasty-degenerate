@@ -15,9 +15,14 @@ type PacketConfig = {
   start: [number, number, number];
   distance: number;
   duration: number;
-  delay: number;
   color: string;
   length: number;
+};
+
+type PacketState = PacketConfig & {
+  active: boolean;
+  age: number;
+  waitUntil: number;
 };
 
 type NodePulseConfig = {
@@ -36,9 +41,6 @@ type PacketRenderRefs = {
 };
 
 const GRID_STEP = 0.22;
-const PACKET_TIMINGS = [7.4, 9.8, 12.6, 15.8, 19.4];
-const PACKET_DELAYS = [-1.2, -3.9, -7.8, -11.6, -15.1, -18.7];
-
 const THEME_COLORS: Record<AITronTheme, { packet: string; trace: string; accent: string }> = {
   cyan: { packet: '#25e7ff', trace: '#1bb8d8', accent: '#ffab48' },
   green: { packet: '#8cffcf', trace: '#45e6a5', accent: '#73f0ff' },
@@ -148,43 +150,59 @@ function getPacketCount(density: AITronDensity) {
   return 5;
 }
 
-function buildPackets(width: number, height: number, density: AITronDensity, theme: AITronTheme): PacketConfig[] {
+function randomBetween(min: number, max: number) {
+  return min + Math.random() * (max - min);
+}
+
+function buildPacketState(width: number, height: number, density: AITronDensity, theme: AITronTheme, elapsed: number, index: number): PacketState {
   const colors = THEME_COLORS[theme];
-  const count = getPacketCount(density);
   const halfWidth = width / 2;
   const halfHeight = height / 2;
-  const rows = [-0.46, -0.34, -0.22, -0.08, 0.08, 0.22, 0.34, 0.46].map((value) => snapToGrid(value * halfHeight));
-  const columns = [-0.58, -0.44, -0.28, -0.12, 0.08, 0.24, 0.42, 0.58].map((value) => snapToGrid(value * halfWidth));
+  const axis = Math.random() < 0.68 ? 'x' : 'y';
+  const direction = Math.random() < 0.5 ? -1 : 1;
+  const distance = direction * randomBetween(0.26, density === 'large' ? 0.78 : 0.62);
+  const length = randomBetween(0.065, 0.11);
+  const duration = randomBetween(0.8, 2.4);
+  const useAccent = theme === 'amber' ? Math.random() < 0.28 : Math.random() < 0.08;
+  const color = useAccent ? colors.accent : colors.packet;
 
-  return Array.from({ length: count }, (_, index) => {
-    const axis = index % 3 === 1 ? 'y' : 'x';
-    const direction = index % 4 === 2 ? -1 : 1;
-    const distance = direction * (0.34 + (index % 4) * 0.12);
-    const isAccent = index === count - 1 || (theme === 'amber' && index % 4 === 0);
-    const color = isAccent ? colors.accent : colors.packet;
-
-    if (axis === 'x') {
-      return {
-        axis,
-        start: [snapToGrid((-0.56 + index * 0.11) * halfWidth), rows[index % rows.length], 0.02],
-        distance,
-        duration: PACKET_TIMINGS[index % PACKET_TIMINGS.length],
-        delay: PACKET_DELAYS[index % PACKET_DELAYS.length],
-        color,
-        length: 0.08 + (index % 3) * 0.025,
-      };
-    }
-
+  if (axis === 'x') {
+    const safeMin = -halfWidth + Math.abs(Math.min(0, distance)) + GRID_STEP;
+    const safeMax = halfWidth - Math.abs(Math.max(0, distance)) - GRID_STEP;
     return {
       axis,
-      start: [columns[index % columns.length], snapToGrid((-0.48 + index * 0.13) * halfHeight), 0.02],
+      start: [snapToGrid(randomBetween(safeMin, safeMax)), snapToGrid(randomBetween(-halfHeight * 0.44, halfHeight * 0.44)), 0.02],
       distance,
-      duration: PACKET_TIMINGS[index % PACKET_TIMINGS.length],
-      delay: PACKET_DELAYS[index % PACKET_DELAYS.length],
+      duration,
       color,
-      length: 0.08 + (index % 3) * 0.025,
+      length,
+      active: true,
+      age: 0,
+      waitUntil: elapsed + randomBetween(1.2, 5.8) + index * 0.13,
     };
-  });
+  }
+
+  const safeMin = -halfHeight + Math.abs(Math.min(0, distance)) + GRID_STEP;
+  const safeMax = halfHeight - Math.abs(Math.max(0, distance)) - GRID_STEP;
+  return {
+    axis,
+    start: [snapToGrid(randomBetween(-halfWidth * 0.48, halfWidth * 0.48)), snapToGrid(randomBetween(safeMin, safeMax)), 0.02],
+    distance,
+    duration,
+    color,
+    length,
+    active: true,
+    age: 0,
+    waitUntil: elapsed + randomBetween(1.2, 5.8) + index * 0.13,
+  };
+}
+
+function buildInitialPacketStates(width: number, height: number, density: AITronDensity, theme: AITronTheme): PacketState[] {
+  return Array.from({ length: getPacketCount(density) }, (_, index) => ({
+    ...buildPacketState(width, height, density, theme, 0, index),
+    active: false,
+    waitUntil: randomBetween(0.4, 7.5) + index * 0.41,
+  }));
 }
 
 function buildPulseNodes(width: number, height: number, density: AITronDensity, theme: AITronTheme): NodePulseConfig[] {
@@ -205,16 +223,14 @@ function buildPulseNodes(width: number, height: number, density: AITronDensity, 
   }));
 }
 
-function packetProgress(elapsed: number, duration: number, delay: number) {
-  const raw = ((elapsed + Math.abs(delay)) % duration) / duration;
-  const opacity = raw < 0.05
-    ? raw / 0.05
-    : raw > 0.34 && raw < 0.48
-      ? Math.max(0, 1 - (raw - 0.34) / 0.14)
-      : raw >= 0.48
-        ? 0
-        : 1;
-  return { travel: Math.min(raw / 0.34, 1), opacity };
+function packetProgress(age: number, duration: number) {
+  const raw = Math.min(age / duration, 1);
+  const opacity = raw < 0.12
+    ? raw / 0.12
+    : raw > 0.72
+      ? Math.max(0, 1 - (raw - 0.72) / 0.28)
+      : 1;
+  return { travel: raw, opacity };
 }
 
 function setMaterialOpacity(mesh: THREE.Mesh | null, opacity: number) {
@@ -223,11 +239,29 @@ function setMaterialOpacity(mesh: THREE.Mesh | null, opacity: number) {
   material.opacity = opacity;
 }
 
+function setMaterialColor(mesh: THREE.Mesh | null, color: string) {
+  if (!mesh) return;
+  const material = mesh.material as THREE.MeshBasicMaterial;
+  material.color.set(color);
+}
+
+function hidePacketRefs(refs?: PacketRenderRefs) {
+  if (!refs) return;
+  setMaterialOpacity(refs.head, 0);
+  setMaterialOpacity(refs.trail, 0);
+  setMaterialOpacity(refs.glow, 0);
+  setMaterialOpacity(refs.carrier, 0);
+  setMaterialOpacity(refs.node, 0);
+}
+
 function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfaceProps> & { reducedMotion: boolean }) {
   const { viewport } = useThree();
   const packetRefs = useRef<PacketRenderRefs[]>([]);
+  const packetStates = useRef<PacketState[]>([]);
   const pulseRefs = useRef<Array<THREE.Mesh | null>>([]);
   const elapsedRef = useRef(0);
+  const burstUntilRef = useRef(0);
+  const nextBurstAtRef = useRef(randomBetween(1.2, 5.2));
   const colors = THEME_COLORS[theme];
   const width = Math.max(viewport.width, 1);
   const height = Math.max(viewport.height, 1);
@@ -236,18 +270,60 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
   const intersectionGeometry = useMemo(() => buildIntersectionGeometry(width, height), [width, height]);
   const traceGeometry = useMemo(() => buildTraceGeometry(width, height), [width, height]);
   const amberTraceGeometry = useMemo(() => buildTraceGeometry(width, height, true), [width, height]);
-  const packets = useMemo(() => buildPackets(width, height, density, theme), [width, height, density, theme]);
+  const packetSlots = useMemo(() => Array.from({ length: getPacketCount(density) }, (_, index) => index), [density]);
   const pulseNodes = useMemo(() => buildPulseNodes(width, height, density, theme), [width, height, density, theme]);
+
+  useEffect(() => {
+    elapsedRef.current = 0;
+    packetStates.current = buildInitialPacketStates(width, height, density, theme);
+    packetRefs.current.forEach(hidePacketRefs);
+    burstUntilRef.current = 0;
+    nextBurstAtRef.current = randomBetween(1.2, 5.2);
+  }, [width, height, density, theme]);
 
   useFrame((_, delta) => {
     if (reducedMotion) return;
     elapsedRef.current += delta;
     const elapsed = elapsedRef.current;
+    if (elapsed >= nextBurstAtRef.current) {
+      burstUntilRef.current = elapsed + randomBetween(0.8, 2.1);
+      nextBurstAtRef.current = elapsed + randomBetween(4.2, 10.8);
+    }
+    const isBursting = elapsed < burstUntilRef.current;
 
-    packets.forEach((packet, index) => {
+    packetSlots.forEach((_, index) => {
       const refs = packetRefs.current[index];
       if (!refs) return;
-      const { travel, opacity } = packetProgress(elapsed, packet.duration, packet.delay);
+      let packet = packetStates.current[index];
+      if (!packet) {
+        packet = {
+          ...buildPacketState(width, height, density, theme, elapsed, index),
+          active: false,
+          waitUntil: elapsed + randomBetween(0.4, 6.0),
+        };
+        packetStates.current[index] = packet;
+      }
+
+      if (!packet.active) {
+        hidePacketRefs(refs);
+        if (elapsed >= packet.waitUntil && (isBursting || Math.random() < delta * 0.22)) {
+          packet = buildPacketState(width, height, density, theme, elapsed, index);
+          packetStates.current[index] = packet;
+        } else {
+          return;
+        }
+      }
+
+      packet.age += delta;
+      if (packet.age >= packet.duration) {
+        packet.active = false;
+        packet.waitUntil = elapsed + (isBursting ? randomBetween(0.15, 1.1) : randomBetween(1.6, 7.2));
+        hidePacketRefs(refs);
+        return;
+      }
+
+      const { travel, opacity } = packetProgress(packet.age, packet.duration);
+      const nodePulse = opacity * (0.42 + Math.sin(travel * Math.PI * 7) ** 2 * 0.58);
       const x = packet.start[0] + (packet.axis === 'x' ? packet.distance * travel : 0);
       const y = packet.start[1] + (packet.axis === 'y' ? packet.distance * travel : 0);
       const trailingOffset = packet.axis === 'x'
@@ -263,11 +339,29 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
         snapToGrid(y + (packet.axis === 'y' ? trailingOffset[1] * 0.25 : 0)),
         packet.start[2] + 0.004,
       );
-      setMaterialOpacity(refs.head, opacity * 0.72);
-      setMaterialOpacity(refs.trail, opacity * 0.34);
-      setMaterialOpacity(refs.glow, opacity * 0.08);
-      setMaterialOpacity(refs.carrier, opacity * 0.32);
-      setMaterialOpacity(refs.node, opacity * 0.42);
+      const packetRotation = packet.axis === 'y' ? Math.PI / 2 : 0;
+      if (refs.head) {
+        refs.head.rotation.z = packetRotation;
+        refs.head.scale.x = Math.max(0.036, packet.length * 0.48) / 0.045;
+      }
+      if (refs.trail) {
+        refs.trail.rotation.z = packetRotation;
+        refs.trail.scale.x = packet.length / 0.11;
+      }
+      if (refs.carrier) {
+        refs.carrier.rotation.z = packetRotation;
+        refs.carrier.scale.x = (packet.length * 1.25) / 0.14;
+      }
+      setMaterialColor(refs.head, packet.color);
+      setMaterialColor(refs.trail, packet.color);
+      setMaterialColor(refs.glow, packet.color);
+      setMaterialColor(refs.carrier, packet.color);
+      setMaterialColor(refs.node, packet.color);
+      setMaterialOpacity(refs.head, opacity * 0.84);
+      setMaterialOpacity(refs.trail, opacity * 0.42);
+      setMaterialOpacity(refs.glow, opacity * 0.1);
+      setMaterialOpacity(refs.carrier, opacity * 0.52);
+      setMaterialOpacity(refs.node, nodePulse * 0.68);
     });
 
     pulseNodes.forEach((node, index) => {
@@ -314,57 +408,53 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
           />
         </mesh>
       ))}
-      {packets.map((packet, index) => {
-        const rotation = packet.axis === 'y' ? Math.PI / 2 : 0;
+      {packetSlots.map((index) => {
         return (
-          <group key={`packet-${index}-${packet.start.join('-')}`}>
+          <group key={`packet-${index}`}>
             <mesh
               ref={(mesh) => {
                 packetRefs.current[index] = { ...(packetRefs.current[index] || {}), glow: mesh };
               }}
-              position={packet.start}
+              position={[0, 0, 0.02]}
             >
               <circleGeometry args={[0.026, 12]} />
-              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
+              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
             </mesh>
             <mesh
               ref={(mesh) => {
                 packetRefs.current[index] = { ...(packetRefs.current[index] || {}), carrier: mesh };
               }}
-              position={packet.start}
-              rotation={[0, 0, rotation]}
+              position={[0, 0, 0.02]}
             >
-              <planeGeometry args={[packet.length * 1.25, 0.009]} />
-              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
+              <planeGeometry args={[0.14, 0.009]} />
+              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
             </mesh>
             <mesh
               ref={(mesh) => {
                 packetRefs.current[index] = { ...(packetRefs.current[index] || {}), node: mesh };
               }}
-              position={packet.start}
+              position={[0, 0, 0.02]}
             >
               <circleGeometry args={[0.015, 12]} />
-              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
+              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
             </mesh>
             <mesh
               ref={(mesh) => {
                 packetRefs.current[index] = { ...(packetRefs.current[index] || {}), trail: mesh };
               }}
-              position={packet.start}
-              rotation={[0, 0, rotation]}
+              position={[0, 0, 0.02]}
             >
-              <planeGeometry args={[packet.length, 0.014]} />
-              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.1 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
+              <planeGeometry args={[0.11, 0.014]} />
+              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.1 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
             </mesh>
             <mesh
               ref={(mesh) => {
                 packetRefs.current[index] = { ...(packetRefs.current[index] || {}), head: mesh };
               }}
-              position={packet.start}
-              rotation={[0, 0, rotation]}
+              position={[0, 0, 0.02]}
             >
-              <planeGeometry args={[Math.max(0.036, packet.length * 0.48), 0.02]} />
-              <meshBasicMaterial color={packet.color} transparent opacity={reducedMotion ? 0.14 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
+              <planeGeometry args={[0.045, 0.02]} />
+              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.14 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
             </mesh>
           </group>
         );
@@ -375,10 +465,11 @@ function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfacePr
 
 export function AITronSurface({ theme = 'cyan', density = 'medium' }: AITronSurfaceProps) {
   const reducedMotion = usePrefersReducedMotion();
+  const [canvasReady, setCanvasReady] = useState(false);
   const fallbackPackets = density === 'small' ? [1, 4, 5] : density === 'large' ? [1, 2, 3, 4, 5, 6] : [1, 2, 4, 5];
 
   return (
-    <div className="ai-tron-surface" aria-hidden="true">
+    <div className={`ai-tron-surface${canvasReady ? ' ai-tron-surface-r3f-ready' : ''}`} aria-hidden="true">
       {fallbackPackets.map((packet) => (
         <span key={packet} className={`ai-tron-css-packet ai-tron-css-packet-${packet}`} />
       ))}
@@ -387,6 +478,7 @@ export function AITronSurface({ theme = 'cyan', density = 'medium' }: AITronSurf
         camera={{ position: [0, 0, 5], zoom: 100 }}
         gl={{ alpha: true, antialias: false, powerPreference: 'low-power' }}
         dpr={[1, 1.5]}
+        onCreated={() => setCanvasReady(true)}
       >
         <AITronScene theme={theme} density={density} reducedMotion={reducedMotion} />
       </Canvas>

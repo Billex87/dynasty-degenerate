@@ -104,6 +104,10 @@
   animation: ai-tron-css-packet-x 10.8s linear infinite;
 }
 
+.ai-tron-surface-r3f-ready .ai-tron-css-packet {
+  display: none;
+}
+
 .ai-tron-css-packet::before {
   content: "";
   position: absolute;
