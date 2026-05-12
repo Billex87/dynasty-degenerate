@@ -77,6 +77,27 @@
   - [ ] Waiver and trade calibration dashboards from historical outcomes and manager-league history.
   - [ ] Player source trace views that show which feeds are contributing to a player's current value or confidence.
 
+## AI Logic / Signal Engineering Roadmap
+
+- [ ] Build a historical player cohort engine that compares value, production, age, draft capital, and role across all players by position, format, and season.
+- [ ] Add age/value curves so AI can tell whether a player is early, normal, or late relative to their position's typical peak and decline window.
+- [ ] Measure production peaks and decline slopes by season, age, and game window so the readouts can flag when a player has already peaked, is peaking now, or is still climbing.
+- [ ] Add breakout and falloff detection for year-over-year changes in snap share, targets, rush attempts, routes, touchdowns, and efficiency.
+- [ ] Build player archetype and comp clusters using size, athletic profile, draft capital, usage profile, and scoring shape so the AI can explain similar historical outcomes instead of just raw ranks.
+- [ ] Add rolling trend, volatility, and momentum features across 3/6/12/24 game and season windows so the readouts distinguish sustained growth from short spikes.
+- [ ] Separate opportunity-driven value from talent-driven value by modeling team context, depth-chart changes, injuries, QB changes, offensive environment, and role shifts.
+- [ ] Add age-adjusted market-vs-production deltas so we can spot players whose market value is lagging or overstating what the production curve says.
+- [ ] Build position-specific aging models for QB, RB, WR, and TE, since the same age means different things by position and role.
+- [ ] Add historical outcome buckets such as breakout, sustain, fade, injury-cliff, and late-career rebound, then map current players into those buckets for AI reads.
+- [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts.
+- [ ] Surface a short explanation trace in the UI so each AI read can show the top reasons the model thinks a player is undervalued, overvalued, peaking, or declining.
+- [ ] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.
+- [ ] Add league-context modifiers for dynasty, redraft, superflex, and format-specific scoring so the logic stays format-aware.
+- [ ] Create anomaly rules for unusual cases like age-curve outliers, late breakouts, injury comebacks, small-sample spikes, and role-driven production jumps.
+- [ ] Build a reusable comparison layer that can answer "who has this player most resembled historically at the same age, usage, and value?" for deeper AI readouts.
+- [ ] Expand the source-history layer to preserve enough season-by-season and week-by-week snapshots to support long-term curve and cohort analysis.
+- [ ] Add admin diagnostics for model inputs so we can inspect which age, usage, market, and production signals drove a specific readout.
+
 ## May 14, 2026 - Projections / SOS Rollout
 
 - [ ] Confirm the approved source blend for projections, strength of schedule, and bye-week data before wiring any feature to live inputs.
