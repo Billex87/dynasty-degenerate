@@ -173,7 +173,7 @@ const AssistantFeatureShells = lazy(() =>
 const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
-  "/assets/dynasty-logo-cropped.png?v=20260428-cyan-lines";
+  "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
 const REPORT_CACHE_DATA_VERSION = "draft-baseline-v2";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v20";
 const STALE_REPORT_CACHE_KEYS = [
