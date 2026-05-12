@@ -512,3 +512,10 @@
 - [ ] Reduce the remaining large `RecentTransactionsPanel` lazy chunk.
 - [ ] Check whether shared helpers pulled from `ReportTables.tsx` keep too much code in downstream chunks.
 - [ ] Consider extracting trade-ledger helpers into a non-React utility module once `TradeHistoryTable` and `TradeWarRoom` are split.
+
+### Research / Product Ideas
+- [ ] Investigate FantasyPros VORP rankings on [FantasyPros VORP](https://www.fantasypros.com/nfl/rankings/vorp.php), confirm how the metric is calculated, and decide whether it should inform any existing valuation or draft surfaces.
+- [ ] Check whether the Sleeper API exposes draft data or trade data from leagues beyond our own so we can store it for later analysis and product ideas.
+- [ ] Summarize the top fantasy football + AI YouTube videos and extract any repeat ideas, workflows, or features we could implement.
+- [ ] Outline how a Chrome extension could help draft players using multiple criteria, rankings, and context signals.
+- [ ] Trace any existing references to the AI chatbot in the codebase and docs, then explain what it currently does or where it still needs to be defined.

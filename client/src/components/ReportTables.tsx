@@ -25,6 +25,7 @@ import { ChampionAvatarFrame, ManagerChampionshipPills } from './ManagerChampion
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { TeamLogoPill } from './TeamLogoPill';
 import { EmptyState, MetricPill, PlayerIdentityRow, ReportCard } from './reportPrimitives';
+import { AITronSurface, type AITronTheme } from './AITronSurface';
 import {
   getPlayerRankForMode,
   getPlayerValueForMode,
@@ -2824,6 +2825,26 @@ export function getAiNeuralSurfaceClass(theme: DynastyAiTheme = 'neutral', extra
     `${AI_NEURAL_SURFACE_CLASS}-${theme}`,
     extraClassName,
   ].filter(Boolean).join(' ');
+}
+
+function getAITronThemeForDynastySurface(theme: DynastyAiTheme = 'neutral'): AITronTheme {
+  switch (theme) {
+    case 'core':
+    case 'upside':
+      return 'green';
+    case 'draft':
+    case 'risk':
+      return 'amber';
+    case 'sell':
+      return 'red';
+    case 'trade':
+    case 'window':
+      return 'blue';
+    case 'churn':
+    case 'neutral':
+    default:
+      return 'cyan';
+  }
 }
 
 const STARTING_ROSTER_STRENGTH_TITLE = 'Starting Lineup Slot Ranks';
@@ -6857,18 +6878,24 @@ export function OwnerIntelMatrix({
                     <h4>{isRedraft ? 'Starter / Bench Context' : 'Market / Picks'}</h4>
                     <p>{selectedTradeDraftProfile}</p>
                   </div>
-                  {selectedAiSuggestions.map((card) => (
+                  {selectedAiSuggestions.map((card, cardIndex) => {
+                    const enableTronSurface = cardIndex === 0;
+                    return (
                     <div
                       key={`${card.title}-${card.copy}`}
                       className={getAiNeuralSurfaceClass(
                         card.theme || 'neutral',
-                        `owner-intel-ai-card owner-intel-ai-card-${card.tone} ${card.theme ? `owner-intel-ai-theme-${card.theme}` : ''} ${card.wide ? 'owner-intel-read-wide' : ''}`,
+                        `owner-intel-ai-card ${enableTronSurface ? 'ai-surface-r3f' : ''} owner-intel-ai-card-${card.tone} ${card.theme ? `owner-intel-ai-theme-${card.theme}` : ''} ${card.wide ? 'owner-intel-read-wide' : ''}`,
                       )}
                     >
+                      {enableTronSurface && (
+                        <AITronSurface theme={getAITronThemeForDynastySurface(card.theme || 'neutral')} density={card.wide ? 'medium' : 'small'} />
+                      )}
                       <h4>{card.title}</h4>
                       <p>{card.copy}</p>
                     </div>
-                  ))}
+                    );
+                  })}
                   {selectedActionNotes.length ? (
                     <div className={getAiNeuralSurfaceClass('neutral', 'owner-intel-wild-notes')}>
                       <h4>{isRedraft ? 'Lineup Notes' : 'Dynasty AI Notes'}</h4>

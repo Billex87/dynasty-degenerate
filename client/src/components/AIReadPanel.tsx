@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { BrainCircuit } from 'lucide-react';
+import { AITronSurface, type AITronDensity, type AITronTheme } from '@/components/AITronSurface';
 import { cn } from '@/lib/utils';
 
 export type AIReadSeverity = 'neutral' | 'good' | 'info' | 'warn' | 'danger';
@@ -68,6 +69,31 @@ function renderChip(chip: AIReadChip) {
       {label}
     </span>
   );
+}
+
+function getAITronTheme(variant: AIReadBackgroundVariant, severity: AIReadSeverity): AITronTheme {
+  if (severity === 'danger') return 'red';
+  if (severity === 'good') return 'green';
+  if (severity === 'warn') return 'amber';
+
+  switch (variant) {
+    case 'roster':
+    case 'lineup':
+      return 'green';
+    case 'market':
+    case 'draft':
+    case 'monthly':
+      return 'amber';
+    case 'trade':
+      return 'blue';
+    case 'waiver':
+      return 'cyan';
+    case 'league':
+      return 'blue';
+    case 'blueprint':
+    default:
+      return 'cyan';
+  }
 }
 
 function AIReadPanelContent({
@@ -145,8 +171,12 @@ export function AIReadPanel({
   className,
   ...props
 }: AIReadPanelProps) {
+  const tronTheme = getAITronTheme(backgroundVariant, severity);
+  const tronDensity: AITronDensity = compact ? 'small' : 'medium';
   const rootClassName = cn(
     'ai-read-panel',
+    'ai-surface-r3f',
+    'ai-read-panel-r3f',
     compact && 'ai-read-panel-compact',
     `ai-read-panel-${backgroundVariant}`,
     `ai-read-panel-severity-${severity}`,
@@ -156,6 +186,7 @@ export function AIReadPanel({
   if (compact) {
     return (
       <details className={rootClassName}>
+        <AITronSurface theme={tronTheme} density={tronDensity} />
         <summary className="ai-read-compact-summary">
           <span className="ai-read-badge">
             <BrainCircuit className="h-3.5 w-3.5" aria-hidden="true" />
@@ -170,6 +201,7 @@ export function AIReadPanel({
 
   return (
     <article className={rootClassName}>
+      <AITronSurface theme={tronTheme} density={tronDensity} />
       <AIReadPanelContent {...props} severity={severity} />
     </article>
   );
