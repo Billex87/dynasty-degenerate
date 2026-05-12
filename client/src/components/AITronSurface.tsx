@@ -347,6 +347,12 @@ export function AITronSurface({ theme = 'cyan', density = 'medium' }: AITronSurf
 
   return (
     <div className="ai-tron-surface" aria-hidden="true">
+      <span className="ai-tron-css-packet ai-tron-css-packet-1" />
+      <span className="ai-tron-css-packet ai-tron-css-packet-2" />
+      <span className="ai-tron-css-packet ai-tron-css-packet-3" />
+      <span className="ai-tron-css-packet ai-tron-css-packet-4" />
+      <span className="ai-tron-css-packet ai-tron-css-packet-5" />
+      <span className="ai-tron-css-packet ai-tron-css-packet-6" />
       <Canvas
         orthographic
         camera={{ position: [0, 0, 5], zoom: 100 }}

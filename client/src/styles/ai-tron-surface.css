@@ -42,7 +42,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 2;
   pointer-events: none;
   border-radius: inherit;
   background:
@@ -57,7 +57,7 @@
 .ai-read-panel-r3f > .ai-tron-surface {
   position: absolute !important;
   inset: 0;
-  z-index: 0 !important;
+  z-index: 1 !important;
   pointer-events: none;
   overflow: hidden;
   border-radius: inherit;
@@ -70,12 +70,14 @@
   display: block;
   width: 100% !important;
   height: 100% !important;
+  position: relative;
+  z-index: 1;
 }
 
 .ai-surface-r3f > :not(.ai-tron-surface),
 .ai-read-panel-r3f > :not(.ai-tron-surface) {
   position: relative;
-  z-index: 1;
+  z-index: 3;
 }
 
 .ai-read-panel-r3f .ai-read-status-rail {
@@ -86,5 +88,145 @@
   .ai-surface-r3f > .ai-tron-surface,
   .ai-read-panel-r3f > .ai-tron-surface {
     opacity: 0.42;
+  }
+}
+
+.ai-tron-css-packet {
+  position: absolute;
+  z-index: 2;
+  width: 42px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(37, 231, 255, 0.28), rgba(37, 231, 255, 0.95));
+  box-shadow: 0 0 8px rgba(37, 231, 255, 0.72), 0 0 18px rgba(37, 231, 255, 0.22);
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+  animation: ai-tron-css-packet-x 5.8s linear infinite;
+}
+
+.ai-tron-css-packet::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(37, 231, 255, 0.95);
+  box-shadow: 0 0 10px rgba(37, 231, 255, 0.9);
+  transform: translateY(-50%);
+}
+
+.ai-tron-css-packet-1 {
+  left: 8%;
+  top: 28%;
+  animation-duration: 5.8s;
+  animation-delay: -1.2s;
+}
+
+.ai-tron-css-packet-2 {
+  left: 52%;
+  top: 47%;
+  animation-duration: 7.5s;
+  animation-delay: -3.8s;
+}
+
+.ai-tron-css-packet-3 {
+  left: 74%;
+  top: 72%;
+  animation-duration: 9.1s;
+  animation-delay: -5.1s;
+}
+
+.ai-tron-css-packet-4 {
+  left: 26%;
+  top: 78%;
+  width: 32px;
+  background: linear-gradient(90deg, transparent, rgba(255, 171, 72, 0.24), rgba(255, 171, 72, 0.88));
+  box-shadow: 0 0 8px rgba(255, 171, 72, 0.62), 0 0 16px rgba(255, 171, 72, 0.18);
+  animation-duration: 11.4s;
+  animation-delay: -7.4s;
+}
+
+.ai-tron-css-packet-4::after {
+  background: rgba(255, 171, 72, 0.95);
+  box-shadow: 0 0 10px rgba(255, 171, 72, 0.86);
+}
+
+.ai-tron-css-packet-5,
+.ai-tron-css-packet-6 {
+  width: 3px;
+  height: 34px;
+  background: linear-gradient(180deg, transparent, rgba(37, 231, 255, 0.26), rgba(37, 231, 255, 0.88));
+  animation-name: ai-tron-css-packet-y;
+}
+
+.ai-tron-css-packet-5 {
+  left: 34%;
+  top: 8%;
+  animation-duration: 6.2s;
+  animation-delay: -2.4s;
+}
+
+.ai-tron-css-packet-6 {
+  left: 86%;
+  top: 20%;
+  animation-duration: 8.4s;
+  animation-delay: -4.7s;
+}
+
+.ai-tron-css-packet-5::after,
+.ai-tron-css-packet-6::after {
+  right: auto;
+  left: 50%;
+  top: auto;
+  bottom: -2px;
+  transform: translateX(-50%);
+}
+
+@keyframes ai-tron-css-packet-x {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  10% {
+    opacity: 0.9;
+  }
+  58% {
+    opacity: 0.9;
+  }
+  82% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(128px, 0, 0);
+  }
+}
+
+@keyframes ai-tron-css-packet-y {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  10% {
+    opacity: 0.82;
+  }
+  58% {
+    opacity: 0.82;
+  }
+  82% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 104px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-tron-css-packet {
+    animation: none !important;
+    opacity: 0.35;
   }
 }
