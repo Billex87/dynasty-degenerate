@@ -1,6 +1,4 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import * as THREE from 'three';
+import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react';
 
 export type AITronTheme = 'cyan' | 'green' | 'amber' | 'red' | 'blue';
 export type AITronDensity = 'small' | 'medium' | 'large';
@@ -8,566 +6,532 @@ export type AITronDensity = 'small' | 'medium' | 'large';
 interface AITronSurfaceProps {
   theme?: AITronTheme;
   density?: AITronDensity;
+  routeKey?: string;
 }
 
-type PacketConfig = {
-  axis: 'x' | 'y';
-  start: [number, number, number];
-  distance: number;
-  duration: number;
+type CircuitPoint = {
+  x: number;
+  y: number;
+};
+
+type CircuitPath = {
+  id: string;
+  d: string;
   color: string;
-  length: number;
-};
-
-type PacketState = PacketConfig & {
-  active: boolean;
-  age: number;
-  waitUntil: number;
-};
-
-type NodePulseConfig = {
-  position: [number, number, number];
+  opacity: number;
+  width: number;
   duration: number;
   delay: number;
+  pulse: number;
+  dash: string;
+  reverse?: boolean;
+  isHero?: boolean;
+  isBus?: boolean;
+  nodes: CircuitPoint[];
+};
+
+type JunctionFlare = CircuitPoint & {
+  id: string;
   color: string;
+  delay: number;
+  radius: number;
+  opacity: number;
+  hero?: boolean;
 };
 
-type PacketRenderRefs = {
-  head: THREE.Mesh | null;
-  trail: THREE.Mesh | null;
-  glow: THREE.Mesh | null;
-  carrier: THREE.Mesh | null;
-  node: THREE.Mesh | null;
-};
-
-const GRID_STEP = 0.22;
 const THEME_COLORS: Record<AITronTheme, { packet: string; trace: string; accent: string }> = {
-  cyan: { packet: '#25e7ff', trace: '#1bb8d8', accent: '#ffab48' },
-  green: { packet: '#8cffcf', trace: '#45e6a5', accent: '#73f0ff' },
-  amber: { packet: '#73f0ff', trace: '#38d7ff', accent: '#ffab48' },
+  cyan: { packet: '#7df7ff', trace: '#35dfff', accent: '#ffb45a' },
+  green: { packet: '#7df7ff', trace: '#35dfff', accent: '#ffb45a' },
+  amber: { packet: '#7df7ff', trace: '#35dfff', accent: '#ffb45a' },
   red: { packet: '#8fd8ff', trace: '#38d7ff', accent: '#ff6b7a' },
-  blue: { packet: '#8fd8ff', trace: '#60a5fa', accent: '#73f0ff' },
+  blue: { packet: '#7df7ff', trace: '#35dfff', accent: '#ffb45a' },
 };
 
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setReduced(mediaQuery.matches);
-    update();
-    mediaQuery.addEventListener('change', update);
-    return () => mediaQuery.removeEventListener('change', update);
-  }, []);
-
-  return reduced;
+function hashSeed(value: string): number {
+  return value.split('').reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) >>> 0, 2166136261);
 }
 
-function snapToGrid(value: number) {
-  return Math.round(value / GRID_STEP) * GRID_STEP;
-}
-
-function buildGridGeometry(width: number, height: number) {
-  const points: number[] = [];
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-
-  for (let x = snapToGrid(-halfWidth); x <= halfWidth + GRID_STEP; x += GRID_STEP) {
-    points.push(x, -halfHeight, -0.045, x, halfHeight, -0.045);
-  }
-
-  for (let y = snapToGrid(-halfHeight); y <= halfHeight + GRID_STEP; y += GRID_STEP) {
-    points.push(-halfWidth, y, -0.045, halfWidth, y, -0.045);
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-  return geometry;
-}
-
-function buildIntersectionGeometry(width: number, height: number) {
-  const points: number[] = [];
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-
-  for (let x = snapToGrid(-halfWidth); x <= halfWidth + GRID_STEP; x += GRID_STEP) {
-    for (let y = snapToGrid(-halfHeight); y <= halfHeight + GRID_STEP; y += GRID_STEP) {
-      points.push(x, y, -0.035);
-    }
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-  return geometry;
-}
-
-function addTrace(points: number[], x: number, y: number, dx: number, dy: number) {
-  const x1 = snapToGrid(x);
-  const y1 = snapToGrid(y);
-  const x2 = snapToGrid(x + dx);
-  const y2 = snapToGrid(y + dy);
-  points.push(x1, y1, -0.025, x2, y2, -0.025);
-}
-
-function buildTraceGeometry(width: number, height: number, amber = false) {
-  const points: number[] = [];
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-  const traceSeeds = amber
-    ? [
-        [0.36, 0.28, 0.16, 0],
-        [-0.18, -0.34, 0, -0.18],
-      ]
-    : [
-        [-0.44, 0.36, 0.34, 0],
-        [-0.1, 0.22, 0.28, 0],
-        [0.18, 0.1, 0.22, 0],
-        [0.44, -0.2, -0.32, 0],
-        [-0.58, -0.38, 0.28, 0],
-        [-0.12, -0.18, 0, 0.3],
-        [0.22, -0.38, 0, 0.34],
-        [0.62, 0.34, 0, -0.3],
-      ];
-
-  traceSeeds.forEach(([nx, ny, dx, dy], index) => {
-    const startX = nx * halfWidth;
-    const startY = ny * halfHeight;
-    addTrace(points, startX, startY, dx, dy);
-
-    if (!amber && index % 2 === 0) {
-      addTrace(points, startX + dx, startY + dy, 0, index % 4 === 0 ? GRID_STEP * 1.6 : -GRID_STEP * 1.4);
-    }
-  });
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-  return geometry;
-}
-
-function getPacketCount(density: AITronDensity) {
-  if (density === 'small') return 3;
-  if (density === 'large') return 8;
-  return 5;
-}
-
-function randomBetween(min: number, max: number) {
-  return min + Math.random() * (max - min);
-}
-
-function buildPacketState(width: number, height: number, density: AITronDensity, theme: AITronTheme, elapsed: number, index: number): PacketState {
-  const colors = THEME_COLORS[theme];
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-  const axis = Math.random() < 0.68 ? 'x' : 'y';
-  const direction = Math.random() < 0.5 ? -1 : 1;
-  const distance = direction * randomBetween(0.26, density === 'large' ? 0.78 : 0.62);
-  const length = randomBetween(0.065, 0.11);
-  const duration = randomBetween(0.8, 2.4);
-  const useAccent = theme === 'amber' ? Math.random() < 0.28 : Math.random() < 0.08;
-  const color = useAccent ? colors.accent : colors.packet;
-
-  if (axis === 'x') {
-    const safeMin = -halfWidth + Math.abs(Math.min(0, distance)) + GRID_STEP;
-    const safeMax = halfWidth - Math.abs(Math.max(0, distance)) - GRID_STEP;
-    return {
-      axis,
-      start: [snapToGrid(randomBetween(safeMin, safeMax)), snapToGrid(randomBetween(-halfHeight * 0.44, halfHeight * 0.44)), 0.02],
-      distance,
-      duration,
-      color,
-      length,
-      active: true,
-      age: 0,
-      waitUntil: elapsed + randomBetween(1.2, 5.8) + index * 0.13,
-    };
-  }
-
-  const safeMin = -halfHeight + Math.abs(Math.min(0, distance)) + GRID_STEP;
-  const safeMax = halfHeight - Math.abs(Math.max(0, distance)) - GRID_STEP;
-  return {
-    axis,
-    start: [snapToGrid(randomBetween(-halfWidth * 0.48, halfWidth * 0.48)), snapToGrid(randomBetween(safeMin, safeMax)), 0.02],
-    distance,
-    duration,
-    color,
-    length,
-    active: true,
-    age: 0,
-    waitUntil: elapsed + randomBetween(1.2, 5.8) + index * 0.13,
+function seededRandom(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state += 0x6D2B79F5;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-function buildInitialPacketStates(width: number, height: number, density: AITronDensity, theme: AITronTheme): PacketState[] {
-  return Array.from({ length: getPacketCount(density) }, (_, index) => ({
-    ...buildPacketState(width, height, density, theme, 0, index),
-    active: false,
-    waitUntil: randomBetween(0.4, 7.5) + index * 0.41,
-  }));
-}
-
-function buildPulseNodes(width: number, height: number, density: AITronDensity, theme: AITronTheme): NodePulseConfig[] {
-  const colors = THEME_COLORS[theme];
-  const count = density === 'small' ? 3 : density === 'large' ? 8 : 5;
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-
-  return Array.from({ length: count }, (_, index) => ({
-    position: [
-      snapToGrid((-0.48 + (index % 6) * 0.19) * halfWidth),
-      snapToGrid((-0.38 + Math.floor(index / 2) * 0.18) * halfHeight),
-      0.035,
-    ],
-    duration: 8.4 + (index % 5) * 2.2,
-    delay: -index * 2.7,
-    color: theme === 'amber' && index % 5 === 0 ? colors.accent : colors.packet,
-  }));
-}
-
-function packetProgress(age: number, duration: number) {
-  const raw = Math.min(age / duration, 1);
-  const opacity = raw < 0.12
-    ? raw / 0.12
-    : raw > 0.72
-      ? Math.max(0, 1 - (raw - 0.72) / 0.28)
-      : 1;
-  return { travel: raw, opacity };
-}
-
-function setMaterialOpacity(mesh: THREE.Mesh | null, opacity: number) {
-  if (!mesh) return;
-  const material = mesh.material as THREE.MeshBasicMaterial;
-  material.opacity = opacity;
-}
-
-function setMaterialColor(mesh: THREE.Mesh | null, color: string) {
-  if (!mesh) return;
-  const material = mesh.material as THREE.MeshBasicMaterial;
-  material.color.set(color);
-}
-
-function hidePacketRefs(refs?: PacketRenderRefs) {
-  if (!refs) return;
-  setMaterialOpacity(refs.head, 0);
-  setMaterialOpacity(refs.trail, 0);
-  setMaterialOpacity(refs.glow, 0);
-  setMaterialOpacity(refs.carrier, 0);
-  setMaterialOpacity(refs.node, 0);
-}
-
-function AITronScene({ theme, density, reducedMotion }: Required<AITronSurfaceProps> & { reducedMotion: boolean }) {
-  const { viewport } = useThree();
-  const packetRefs = useRef<PacketRenderRefs[]>([]);
-  const packetStates = useRef<PacketState[]>([]);
-  const pulseRefs = useRef<Array<THREE.Mesh | null>>([]);
-  const elapsedRef = useRef(0);
-  const burstUntilRef = useRef(0);
-  const nextBurstAtRef = useRef(randomBetween(1.2, 5.2));
-  const colors = THEME_COLORS[theme];
-  const width = Math.max(viewport.width, 1);
-  const height = Math.max(viewport.height, 1);
-
-  const gridGeometry = useMemo(() => buildGridGeometry(width, height), [width, height]);
-  const intersectionGeometry = useMemo(() => buildIntersectionGeometry(width, height), [width, height]);
-  const traceGeometry = useMemo(() => buildTraceGeometry(width, height), [width, height]);
-  const amberTraceGeometry = useMemo(() => buildTraceGeometry(width, height, true), [width, height]);
-  const packetSlots = useMemo(() => Array.from({ length: getPacketCount(density) }, (_, index) => index), [density]);
-  const pulseNodes = useMemo(() => buildPulseNodes(width, height, density, theme), [width, height, density, theme]);
+function usePrefersReducedMotion() {
+  const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    elapsedRef.current = 0;
-    packetStates.current = buildInitialPacketStates(width, height, density, theme);
-    packetRefs.current.forEach(hidePacketRefs);
-    burstUntilRef.current = 0;
-    nextBurstAtRef.current = randomBetween(1.2, 5.2);
-  }, [width, height, density, theme]);
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
 
-  useFrame((_, delta) => {
-    if (reducedMotion) return;
-    elapsedRef.current += delta;
-    const elapsed = elapsedRef.current;
-    if (elapsed >= nextBurstAtRef.current) {
-      burstUntilRef.current = elapsed + randomBetween(0.8, 2.1);
-      nextBurstAtRef.current = elapsed + randomBetween(4.2, 10.8);
-    }
-    const isBursting = elapsed < burstUntilRef.current;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener('change', update);
 
-    packetSlots.forEach((_, index) => {
-      const refs = packetRefs.current[index];
-      if (!refs) return;
-      let packet = packetStates.current[index];
-      if (!packet) {
-        packet = {
-          ...buildPacketState(width, height, density, theme, elapsed, index),
-          active: false,
-          waitUntil: elapsed + randomBetween(0.4, 6.0),
-        };
-        packetStates.current[index] = packet;
-      }
+    return () => media.removeEventListener('change', update);
+  }, []);
 
-      if (!packet.active) {
-        hidePacketRefs(refs);
-        if (elapsed >= packet.waitUntil && (isBursting || Math.random() < delta * 0.22)) {
-          packet = buildPacketState(width, height, density, theme, elapsed, index);
-          packetStates.current[index] = packet;
-        } else {
-          return;
-        }
-      }
+  return reducedMotion;
+}
 
-      packet.age += delta;
-      if (packet.age >= packet.duration) {
-        packet.active = false;
-        packet.waitUntil = elapsed + (isBursting ? randomBetween(0.15, 1.1) : randomBetween(1.6, 7.2));
-        hidePacketRefs(refs);
-        return;
-      }
+function pathFromPoints(points: CircuitPoint[]) {
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+}
 
-      const { travel, opacity } = packetProgress(packet.age, packet.duration);
-      const nodePulse = opacity * (0.42 + Math.sin(travel * Math.PI * 7) ** 2 * 0.58);
-      const x = packet.start[0] + (packet.axis === 'x' ? packet.distance * travel : 0);
-      const y = packet.start[1] + (packet.axis === 'y' ? packet.distance * travel : 0);
-      const trailingOffset = packet.axis === 'x'
-        ? [packet.distance > 0 ? -packet.length * 0.62 : packet.length * 0.62, 0, 0]
-        : [0, packet.distance > 0 ? -packet.length * 0.62 : packet.length * 0.62, 0];
+function pickCircuitValue<T>(rand: () => number, values: T[]) {
+  return values[Math.floor(rand() * values.length)];
+}
 
-      refs.head?.position.set(x, y, packet.start[2]);
-      refs.trail?.position.set(x + trailingOffset[0], y + trailingOffset[1], packet.start[2] - 0.002);
-      refs.glow?.position.set(x, y, packet.start[2] - 0.004);
-      refs.carrier?.position.set(x, y, packet.start[2] - 0.006);
-      refs.node?.position.set(
-        snapToGrid(x + (packet.axis === 'x' ? trailingOffset[0] * 0.25 : 0)),
-        snapToGrid(y + (packet.axis === 'y' ? trailingOffset[1] * 0.25 : 0)),
-        packet.start[2] + 0.004,
-      );
-      const packetRotation = packet.axis === 'y' ? Math.PI / 2 : 0;
-      if (refs.head) {
-        refs.head.rotation.z = packetRotation;
-        refs.head.scale.x = Math.max(0.036, packet.length * 0.48) / 0.045;
-      }
-      if (refs.trail) {
-        refs.trail.rotation.z = packetRotation;
-        refs.trail.scale.x = packet.length / 0.11;
-      }
-      if (refs.carrier) {
-        refs.carrier.rotation.z = packetRotation;
-        refs.carrier.scale.x = (packet.length * 1.25) / 0.14;
-      }
-      setMaterialColor(refs.head, packet.color);
-      setMaterialColor(refs.trail, packet.color);
-      setMaterialColor(refs.glow, packet.color);
-      setMaterialColor(refs.carrier, packet.color);
-      setMaterialColor(refs.node, packet.color);
-      setMaterialOpacity(refs.head, opacity * 0.84);
-      setMaterialOpacity(refs.trail, opacity * 0.42);
-      setMaterialOpacity(refs.glow, opacity * 0.1);
-      setMaterialOpacity(refs.carrier, opacity * 0.52);
-      setMaterialOpacity(refs.node, nodePulse * 0.68);
-    });
+function getActiveCount(density: AITronDensity) {
+  if (density === 'small') return 2;
+  if (density === 'large') return 5;
+  return 4;
+}
 
-    pulseNodes.forEach((node, index) => {
-      const mesh = pulseRefs.current[index];
-      if (!mesh) return;
-      const cycle = ((elapsed + Math.abs(node.delay)) % node.duration) / node.duration;
-      const pulse = cycle > 0.34 && cycle < 0.44 ? Math.sin(((cycle - 0.34) / 0.1) * Math.PI) : 0;
-      mesh.scale.setScalar(0.75 + pulse * 0.42);
-      setMaterialOpacity(mesh, 0.07 + pulse * 0.38);
-    });
+function getParticleCount(density: AITronDensity) {
+  if (density === 'small') return 14;
+  if (density === 'large') return 44;
+  return 28;
+}
+
+type ParticleTrail = {
+  id: string;
+  left: number;
+  top: number;
+  length: number;
+  duration: number;
+  delay: number;
+  opacity: number;
+  scale: number;
+  reverse: boolean;
+  color: string;
+};
+
+function buildParticleTrails(seedKey: string, count: number, direction: 1 | -1, color: string): ParticleTrail[] {
+  const rand = seededRandom(hashSeed(seedKey));
+  const lanes = [9, 14, 21, 28, 36, 44, 53, 62, 72, 83, 91];
+  const reverse = direction === -1;
+
+  return Array.from({ length: count }, (_, index) => {
+    const lane = lanes[Math.floor(rand() * lanes.length)];
+    return {
+      id: `${seedKey}-trail-${index}`,
+      left: reverse ? 102 + rand() * 32 : -34 + rand() * 32,
+      top: lane + (rand() - 0.5) * 3.2,
+      length: 18 + rand() * 54,
+      duration: 4.2 + rand() * 5.4,
+      delay: -(rand() * 9.5),
+      opacity: 0.09 + rand() * 0.2,
+      scale: 0.62 + rand() * 0.68,
+      reverse,
+      color,
+    };
   });
+}
+
+function AITronParticleField({
+  colors,
+  density,
+  prefix,
+}: {
+  colors: { packet: string; accent: string };
+  density: AITronDensity;
+  prefix: string;
+}) {
+  const particleCount = getParticleCount(density);
+  const trails = useMemo(
+    () => [
+      ...buildParticleTrails(`${prefix}-cyan-current`, particleCount, 1, colors.packet),
+      ...buildParticleTrails(`${prefix}-amber-current`, Math.max(12, Math.floor(particleCount * 0.48)), -1, colors.accent),
+    ],
+    [colors.accent, colors.packet, particleCount, prefix],
+  );
 
   return (
-    <>
-      <lineSegments geometry={gridGeometry}>
-        <lineBasicMaterial color={colors.trace} transparent opacity={0.1} depthWrite={false} depthTest={false} toneMapped={false} />
-      </lineSegments>
-      <points geometry={intersectionGeometry}>
-        <pointsMaterial color={colors.trace} transparent opacity={0.24} size={0.013} sizeAttenuation depthWrite={false} depthTest={false} toneMapped={false} />
-      </points>
-      <lineSegments geometry={traceGeometry}>
-        <lineBasicMaterial color={colors.trace} transparent opacity={0.3} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} toneMapped={false} />
-      </lineSegments>
-      <lineSegments geometry={amberTraceGeometry}>
-        <lineBasicMaterial color={colors.accent} transparent opacity={0.16} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} toneMapped={false} />
-      </lineSegments>
-      {pulseNodes.map((node, index) => (
-        <mesh
-          key={`node-${index}-${node.position.join('-')}`}
-          ref={(mesh) => {
-            pulseRefs.current[index] = mesh;
-          }}
-          position={node.position}
-        >
-          <circleGeometry args={[0.012, 12]} />
-          <meshBasicMaterial
-            color={node.color}
-            transparent
-            opacity={reducedMotion ? 0.28 : 0.12}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            depthTest={false}
-            toneMapped={false}
-          />
-        </mesh>
+    <div className="ai-tron-particle-field">
+      {trails.map(trail => (
+        <span
+          key={trail.id}
+          className={`ai-tron-particle-trail${trail.reverse ? ' ai-tron-particle-trail-reverse' : ''}`}
+          style={{
+            '--trail-color': trail.color,
+            '--trail-left': `${trail.left}%`,
+            '--trail-top': `${trail.top}%`,
+            '--trail-length': `${trail.length}px`,
+            '--trail-duration': `${trail.duration}s`,
+            '--trail-delay': `${trail.delay}s`,
+            '--trail-opacity': trail.opacity,
+            '--trail-scale': trail.scale,
+          } as CSSProperties}
+        />
       ))}
-      {packetSlots.map((index) => {
-        return (
-          <group key={`packet-${index}`}>
-            <mesh
-              ref={(mesh) => {
-                packetRefs.current[index] = { ...(packetRefs.current[index] || {}), glow: mesh };
-              }}
-              position={[0, 0, 0.02]}
-            >
-              <circleGeometry args={[0.026, 12]} />
-              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
-            </mesh>
-            <mesh
-              ref={(mesh) => {
-                packetRefs.current[index] = { ...(packetRefs.current[index] || {}), carrier: mesh };
-              }}
-              position={[0, 0, 0.02]}
-            >
-              <planeGeometry args={[0.14, 0.009]} />
-              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
-            </mesh>
-            <mesh
-              ref={(mesh) => {
-                packetRefs.current[index] = { ...(packetRefs.current[index] || {}), node: mesh };
-              }}
-              position={[0, 0, 0.02]}
-            >
-              <circleGeometry args={[0.015, 12]} />
-              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.08 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
-            </mesh>
-            <mesh
-              ref={(mesh) => {
-                packetRefs.current[index] = { ...(packetRefs.current[index] || {}), trail: mesh };
-              }}
-              position={[0, 0, 0.02]}
-            >
-              <planeGeometry args={[0.11, 0.014]} />
-              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.1 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
-            </mesh>
-            <mesh
-              ref={(mesh) => {
-                packetRefs.current[index] = { ...(packetRefs.current[index] || {}), head: mesh };
-              }}
-              position={[0, 0, 0.02]}
-            >
-              <planeGeometry args={[0.045, 0.02]} />
-              <meshBasicMaterial color={colors.packet} transparent opacity={reducedMotion ? 0.14 : 0} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} toneMapped={false} />
-            </mesh>
-          </group>
-        );
-      })}
-    </>
+    </div>
   );
 }
 
-export function AITronSurface({ theme = 'cyan', density = 'medium' }: AITronSurfaceProps) {
-  const reducedMotion = usePrefersReducedMotion();
-  const [canvasReady, setCanvasReady] = useState(false);
+function makeBoardRoute(index: number, theme: AITronTheme, prefix: string, seed: number): CircuitPath {
+  const colors = THEME_COLORS[theme];
+  const rand = seededRandom((seed + index * 0x9e3779b9) >>> 0);
+  const variant = (index + Math.floor(rand() * 6)) % 6;
+  let nodes: CircuitPoint[];
 
-  const [packetSeed, setPacketSeed] = useState(0);
-
-  useEffect(() => {
-    let timeoutId: number;
-
-    const scheduleNextPacketShuffle = () => {
-      timeoutId = window.setTimeout(() => {
-        setPacketSeed((seed) => seed + 1);
-        scheduleNextPacketShuffle();
-      }, randomBetween(5200, 9800));
-    };
-
-    scheduleNextPacketShuffle();
-
-    return () => window.clearTimeout(timeoutId);
-  }, []);
-
-  const personalityClass = useMemo(() => {
-    const personalities = [
-      'ai-tron-personality-balanced',
-      'ai-tron-personality-bursty',
-      'ai-tron-personality-horizontal',
-      'ai-tron-personality-vertical',
-      'ai-tron-personality-quiet',
+  if (variant === 0) {
+    const y = pickCircuitValue(rand, [78, 82, 86, 90]);
+    const a = pickCircuitValue(rand, [14, 18, 22]);
+    const b = pickCircuitValue(rand, [38, 44, 50]);
+    const c = pickCircuitValue(rand, [66, 72, 78]);
+    const y2 = y - pickCircuitValue(rand, [8, 11, 14]);
+    const y3 = y2 - pickCircuitValue(rand, [6, 9, 12]);
+    const y4 = y3 - pickCircuitValue(rand, [3, 6, 9]);
+    nodes = [
+      { x: 2, y },
+      { x: a, y },
+      { x: a, y: y2 },
+      { x: b, y: y2 },
+      { x: b + 8, y: y3 },
+      { x: c, y: y3 },
+      { x: c + 8, y: y4 },
+      { x: 98, y: y4 },
     ];
+  } else if (variant === 1) {
+    const x = pickCircuitValue(rand, [78, 82, 86, 90]);
+    const yA = pickCircuitValue(rand, [12, 16, 20]);
+    const yB = pickCircuitValue(rand, [34, 40, 46]);
+    const yC = pickCircuitValue(rand, [62, 68, 74]);
+    const x2 = x + pickCircuitValue(rand, [6, 9, 12]);
+    const x3 = x - pickCircuitValue(rand, [5, 8, 11]);
+    nodes = [
+      { x: pickCircuitValue(rand, [52, 58, 64]), y: 2 },
+      { x, y: 2 },
+      { x, y: yA },
+      { x: x2, y: yA },
+      { x: x2, y: yB },
+      { x: 98, y: yB },
+      { x: 98, y: yC },
+      { x: x3, y: yC },
+    ];
+  } else if (variant === 2) {
+    const y = pickCircuitValue(rand, [9, 12, 15, 18]);
+    const a = pickCircuitValue(rand, [30, 36, 42]);
+    const b = pickCircuitValue(rand, [56, 62, 68]);
+    const y2 = y + pickCircuitValue(rand, [8, 11, 14]);
+    const y3 = y2 + pickCircuitValue(rand, [7, 10, 13]);
+    const end = pickCircuitValue(rand, [82, 88, 94]);
+    nodes = [
+      { x: pickCircuitValue(rand, [6, 10, 14]), y },
+      { x: a, y },
+      { x: a + 7, y: y2 },
+      { x: b, y: y2 },
+      { x: b, y: y3 },
+      { x: end, y: y3 },
+      { x: 98, y: y3 },
+    ];
+  } else if (variant === 3) {
+    const y = pickCircuitValue(rand, [50, 56, 62, 68]);
+    const a = pickCircuitValue(rand, [18, 24, 30]);
+    const b = pickCircuitValue(rand, [44, 50, 56]);
+    const c = pickCircuitValue(rand, [70, 76, 82]);
+    const y2 = y - pickCircuitValue(rand, [8, 11, 14]);
+    const y3 = y - pickCircuitValue(rand, [16, 19, 22]);
+    const y4 = y - pickCircuitValue(rand, [3, 6, 9]);
+    nodes = [
+      { x: 3, y },
+      { x: a, y },
+      { x: a, y: y2 },
+      { x: b, y: y2 },
+      { x: b + 9, y: y3 },
+      { x: c, y: y3 },
+      { x: c, y: y4 },
+      { x: 97, y: y4 },
+    ];
+  } else if (variant === 4) {
+    const x = pickCircuitValue(rand, [7, 10, 13]);
+    const yA = pickCircuitValue(rand, [22, 28, 34]);
+    const yB = pickCircuitValue(rand, [48, 54, 60]);
+    const b = pickCircuitValue(rand, [44, 50, 56]);
+    const x2 = x + pickCircuitValue(rand, [8, 11, 14]);
+    const yC = yB - pickCircuitValue(rand, [7, 10, 13]);
+    nodes = [
+      { x, y: 5 },
+      { x, y: yA },
+      { x: x2, y: yA },
+      { x: x2, y: yB },
+      { x: b, y: yB },
+      { x: b + 9, y: yC },
+      { x: 94, y: yC },
+    ];
+  } else {
+    const y = pickCircuitValue(rand, [88, 92, 96]);
+    const a = pickCircuitValue(rand, [24, 30, 36]);
+    const b = pickCircuitValue(rand, [54, 60, 66]);
+    const c = pickCircuitValue(rand, [74, 80, 86]);
+    const y2 = y - pickCircuitValue(rand, [8, 11, 14]);
+    const y3 = y - pickCircuitValue(rand, [18, 21, 24]);
+    const y4 = pickCircuitValue(rand, [54, 60, 66]);
+    nodes = [
+      { x: 4, y },
+      { x: a, y },
+      { x: a, y: y2 },
+      { x: b, y: y2 },
+      { x: b + 10, y: y3 },
+      { x: c, y: y3 },
+      { x: c, y: y4 },
+      { x: 98, y: y4 },
+    ];
+  }
 
-    return personalities[Math.floor(Math.random() * personalities.length)];
-  }, []);
+  const isAccent = variant === 1 || variant === 5 || ((seed >>> (index % 16)) & 3) === 0;
 
-  const packetVars = useMemo(() => {
-    return Array.from({ length: 12 }, (_, index) => {
-      const forcedVerticalIndexes = [1, 4, 7, 10, 11];
-      const vertical = forcedVerticalIndexes.includes(index) || Math.random() < 0.34;
-      const rowBand = index % 7;
-      const reverse = Math.random() < 0.5;
-      const verticalColumns = [6, 18, 31, 44, 57, 70, 83, 94];
-      const horizontalRows = [14, 27, 40, 53, 66, 79, 88];
-      const columnIndex = Math.floor(Math.random() * verticalColumns.length);
-      const farRightBias = Math.random() < 0.34 ? randomBetween(78, 98) : null;
-      const left = vertical
-        ? farRightBias ?? randomBetween(verticalColumns[columnIndex] - 6, verticalColumns[columnIndex] + 6)
-        : reverse
-          ? randomBetween(32, 96)
-          : randomBetween(-12, 74);
-      const top = vertical
-        ? reverse
-          ? randomBetween(54, 104)
-          : randomBetween(-18, 54)
-        : randomBetween(horizontalRows[rowBand % horizontalRows.length] - 6, horizontalRows[rowBand % horizontalRows.length] + 7);
-      const duration = vertical ? randomBetween(1.05, 2.6) : randomBetween(0.88, 2.15);
-      const delay = -randomBetween(0, duration * 0.85);
-      const travelX = randomBetween(90, 280) * (reverse && !vertical ? -1 : 1);
-      const travelY = randomBetween(190, 440) * (reverse && vertical ? -1 : 1);
-      const scale = randomBetween(0.55, 1.05);
-      const opacityBoost = randomBetween(0.52, 1.0);
-      const packetDirectionClass = reverse ? 'reverse' : 'forward';
+  return {
+    id: `${prefix}-board-route-${index}`,
+    d: pathFromPoints(nodes),
+    color: isAccent ? colors.accent : colors.packet,
+    opacity: isAccent ? 0.43 : 0.52,
+    width: isAccent ? 0.32 : 0.38,
+    duration: isAccent ? 7.4 + rand() * 2.4 : 6.2 + rand() * 2.8,
+    delay: -(0.4 + index * 0.72 + rand() * 1.1),
+    pulse: isAccent ? 0.68 : 0.72,
+    dash: isAccent ? '6 260' : '7 240',
+    reverse: rand() > 0.5,
+    isHero: index < 3,
+    isBus: true,
+    nodes,
+  };
+}
 
-      return {
-        '--packet-left': `${left}%`,
-        '--packet-top': `${top}%`,
-        '--packet-duration': `${duration}s`,
-        '--packet-delay': `${delay}s`,
-        '--packet-travel-x': `${travelX}px`,
-        '--packet-travel-y': `${travelY}px`,
-        '--packet-scale': scale,
-        '--packet-opacity-boost': opacityBoost,
-        '--packet-direction-class': packetDirectionClass,
-        '--packet-axis-class': vertical ? 'vertical' : 'horizontal',
-      } as CSSProperties;
-    });
-  }, [packetSeed]);
+function makeHairlineRoute(index: number, theme: AITronTheme, prefix: string, seed: number): CircuitPath {
+  const colors = THEME_COLORS[theme];
+  const rand = seededRandom((seed ^ (index + 17) * 0x85ebca6b) >>> 0);
+  const y = pickCircuitValue(rand, [18, 24, 31, 39, 47, 58, 73, 82]);
+  const start = pickCircuitValue(rand, [5, 8, 12, 16, 30, 42, 50]);
+  const bend = pickCircuitValue(rand, [-9, -6, -4, 4, 6, 9]);
+  const mid = start + pickCircuitValue(rand, [12, 16, 20]);
+  const end = Math.min(start + pickCircuitValue(rand, [42, 50, 58]), 98);
+  const nodes = [
+    { x: start, y },
+    { x: mid, y },
+    { x: mid, y: y + bend },
+    { x: end, y: y + bend },
+  ];
 
-  const fallbackPackets =
-    density === 'small'
-      ? [1, 2, 3, 4, 5, 6, 7, 8]
-      : density === 'large'
-        ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  return {
+    id: `${prefix}-hairline-${index}`,
+    d: pathFromPoints(nodes),
+    color: rand() > 0.76 ? colors.accent : colors.packet,
+    opacity: rand() > 0.72 ? 0.14 : 0.075,
+    width: 0.12,
+    duration: 7.2 + rand() * 3.6,
+    delay: -(rand() * 8),
+    pulse: 0.18,
+    dash: '3 240',
+    reverse: rand() > 0.66,
+    nodes,
+  };
+}
+
+function makePadRoute(index: number, theme: AITronTheme, prefix: string, seed: number): CircuitPath {
+  const colors = THEME_COLORS[theme];
+  const rand = seededRandom((seed ^ (index + 53) * 0xc2b2ae35) >>> 0);
+  const leftPadX = pickCircuitValue(rand, [14, 18, 22]);
+  const leftPadY = pickCircuitValue(rand, [76, 80, 84]);
+  const leftPadEnd = pickCircuitValue(rand, [28, 34, 40]);
+  const topPadStart = pickCircuitValue(rand, [72, 78, 84]);
+  const topPadX = pickCircuitValue(rand, [86, 90, 94]);
+  const topPadY = pickCircuitValue(rand, [22, 28, 34]);
+  const rightPadY = pickCircuitValue(rand, [68, 74, 80]);
+  const rightPadX = pickCircuitValue(rand, [78, 84, 90]);
+  const sidePadY = pickCircuitValue(rand, [30, 36, 42]);
+  const sidePadX = pickCircuitValue(rand, [20, 26, 32]);
+  const sidePadDrop = pickCircuitValue(rand, [48, 54, 60]);
+  const padRoutes: CircuitPoint[][] = [
+    [{ x: leftPadX, y: 94 }, { x: leftPadX, y: leftPadY }, { x: leftPadEnd, y: leftPadY }],
+    [{ x: topPadStart, y: 8 }, { x: topPadX, y: 8 }, { x: topPadX, y: topPadY }],
+    [{ x: 94, y: rightPadY }, { x: rightPadX, y: rightPadY }, { x: rightPadX, y: 94 }],
+    [{ x: 6, y: sidePadY }, { x: sidePadX, y: sidePadY }, { x: sidePadX, y: sidePadDrop }],
+  ];
+  const nodes = padRoutes[index % padRoutes.length];
+
+  return {
+    id: `${prefix}-pad-route-${index}`,
+    d: pathFromPoints(nodes),
+    color: rand() > 0.5 ? colors.packet : colors.accent,
+    opacity: 0.2,
+    width: 0.16,
+    duration: 8.5 + rand() * 3.5,
+    delay: -(rand() * 7),
+    pulse: 0.22,
+    dash: '4 170',
+    reverse: rand() > 0.5,
+    nodes,
+  };
+}
+
+function getAnimateValues(path: CircuitPath) {
+  return path.reverse ? { from: '0', to: '220' } : { from: '220', to: '0' };
+}
+
+function getHeroFlares(paths: CircuitPath[]): JunctionFlare[] {
+  return paths
+    .filter((path) => path.isHero || path.isBus)
+    .flatMap((path, pathIndex) =>
+      path.nodes.slice(1, -1)
+        .filter((_, nodeIndex) => path.isHero ? nodeIndex % 2 === 0 : nodeIndex === 1)
+        .map((node, nodeIndex) => ({
+          id: `${path.id}-flare-${nodeIndex}`,
+          x: node.x,
+          y: node.y,
+          color: path.color,
+          delay: -(pathIndex * 0.8 + nodeIndex * 0.42),
+          radius: path.isHero ? 0.72 : 0.34,
+          opacity: path.isHero ? 0.72 : 0.38,
+          hero: path.isHero,
+        })),
+    );
+}
+
+export function AITronSurface({ theme = 'cyan', density = 'medium', routeKey }: AITronSurfaceProps) {
+  const colors = THEME_COLORS[theme];
+  const reactId = useId().replace(/:/g, '');
+  const prefix = useMemo(() => `ai-tron-${reactId}`, [reactId]);
+  const layoutSeed = useMemo(() => hashSeed(`${routeKey || prefix}-${theme}-${density}`), [density, prefix, routeKey, theme]);
+  const reducedMotion = usePrefersReducedMotion();
+
+  const paths = useMemo(() => {
+    const board = Array.from({ length: density === 'small' ? 3 : 6 }, (_, index) => makeBoardRoute(index, theme, prefix, layoutSeed));
+    const hairlines = Array.from({ length: density === 'large' ? 5 : density === 'small' ? 2 : 3 }, (_, index) => makeHairlineRoute(index, theme, prefix, layoutSeed));
+    const pads = Array.from({ length: density === 'small' ? 1 : 2 }, (_, index) => makePadRoute(index, theme, prefix, layoutSeed));
+
+    return [...board, ...pads, ...hairlines];
+  }, [density, layoutSeed, prefix, theme]);
+
+  const activePaths = useMemo(() => {
+    const busPaths = paths.filter((path) => path.isBus);
+    const accentPaths = paths.filter((path) => !path.isBus && path.color === colors.accent).slice(0, 1);
+    const supportingPaths = paths.filter((path) => !path.isBus && path.color !== colors.accent);
+
+    return [...busPaths, ...accentPaths, ...supportingPaths].slice(0, getActiveCount(density));
+  }, [colors.accent, density, paths]);
+
+  const nodes = useMemo(
+    () => paths
+      .flatMap((path) => path.nodes.map((node, index) => ({ ...node, key: `${path.id}-node-${index}`, color: path.color, isBus: path.isBus })))
+      .filter((node, index) => node.isBus ? index % 3 === 0 : hashSeed(node.key) % 17 === 0),
+    [paths],
+  );
+
+  const flares = useMemo(() => getHeroFlares(paths), [paths]);
 
   return (
-    <div
-      className={`ai-tron-surface ${personalityClass}${canvasReady ? ' ai-tron-surface-r3f-ready' : ''}`}
-      aria-hidden="true"
-    >
-      {fallbackPackets.map((packet) => (
-        <span
-          key={packet}
-          className={`ai-tron-css-packet ai-tron-css-packet-${packet} ${packetVars[packet - 1]?.['--packet-direction-class'] === 'reverse' ? 'ai-tron-css-packet-reverse' : 'ai-tron-css-packet-forward'} ${packetVars[packet - 1]?.['--packet-axis-class'] === 'vertical' ? 'ai-tron-css-packet-vertical' : 'ai-tron-css-packet-horizontal'}`}
-          style={packetVars[packet - 1]}
-        />
-      ))}
+    <div className="ai-tron-surface ai-tron-surface-mounted" aria-hidden="true">
+      {!reducedMotion && (
+        <AITronParticleField colors={colors} density={density} prefix={prefix} />
+      )}
 
-      <Canvas
-        orthographic
-        camera={{ position: [0, 0, 5], zoom: 100 }}
-        gl={{ alpha: true, antialias: false, powerPreference: 'low-power' }}
-        dpr={[1, 1.5]}
-        onCreated={() => setCanvasReady(true)}
-      >
-        <AITronScene theme={theme} density={density} reducedMotion={reducedMotion} />
-      </Canvas>
+      <svg className="ai-tron-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs>
+          <filter id={`${prefix}-glow`} x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="0.5" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          <filter id={`${prefix}-flare-glow`} x="-90%" y="-90%" width="280%" height="280%">
+            <feGaussianBlur stdDeviation="0.95" result="flareBlur" />
+            <feMerge>
+              <feMergeNode in="flareBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <g className="ai-tron-static-traces">
+          {paths.map((path) => (
+            <path
+              key={path.id}
+              id={path.id}
+              d={path.d}
+              fill="none"
+              stroke={path.color}
+              strokeWidth={path.width}
+              strokeOpacity={path.isBus ? Math.min(path.opacity + 0.04, 0.58) : path.opacity}
+              strokeLinecap="square"
+              strokeLinejoin="miter"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </g>
+
+        <g className="ai-tron-static-nodes">
+          {nodes.map((node) => (
+            <g key={node.key}>
+              <circle cx={node.x} cy={node.y} r={node.isBus ? '0.22' : '0.1'} fill={node.color} opacity={node.isBus ? '0.42' : '0.14'} />
+              {node.isBus && <circle cx={node.x} cy={node.y} r="0.07" fill="#ffffff" opacity="0.24" />}
+            </g>
+          ))}
+        </g>
+
+        <g className="ai-tron-junction-flares" filter={`url(#${prefix}-flare-glow)`}>
+          {flares.map((flare) => (
+            <g key={flare.id}>
+              <circle cx={flare.x} cy={flare.y} r={flare.radius} fill={flare.color} opacity={flare.opacity}>
+                <animate attributeName="opacity" values={`${flare.opacity * 0.28};${flare.opacity};${flare.opacity * 0.28}`} dur={flare.hero ? '5.4s' : '7.2s'} begin={`${flare.delay}s`} repeatCount="indefinite" />
+              </circle>
+              <circle cx={flare.x} cy={flare.y} r={flare.hero ? '0.14' : '0.08'} fill="#ffffff" opacity={flare.hero ? '0.64' : '0.36'}>
+                <animate attributeName="opacity" values="0.18;0.78;0.18" dur={flare.hero ? '5.4s' : '7.2s'} begin={`${flare.delay}s`} repeatCount="indefinite" />
+              </circle>
+            </g>
+          ))}
+        </g>
+
+        <g className="ai-tron-signals" filter={`url(#${prefix}-glow)`}>
+          {activePaths.map((path, index) => {
+            const animate = getAnimateValues(path);
+
+            return (
+              <g key={`${path.id}-signal`}>
+                <path
+                  d={path.d}
+                  fill="none"
+                  stroke={path.color}
+                  strokeWidth={path.isBus ? path.width * 1.95 : path.width * 1.1}
+                  strokeOpacity={path.isBus ? '0.54' : '0.1'}
+                  strokeLinecap="square"
+                  strokeLinejoin="miter"
+                  strokeDasharray={path.dash}
+                  vectorEffect="non-scaling-stroke"
+                >
+                  <animate attributeName="stroke-dashoffset" from={animate.from} to={animate.to} dur={`${path.duration * 1.18}s`} begin={`${path.delay + index * 0.12}s`} repeatCount="indefinite" />
+                </path>
+
+                <ellipse rx={path.isBus ? '0.72' : '0.24'} ry={path.isBus ? '0.09' : '0.045'} fill={path.color} opacity={path.pulse}>
+                  <animateMotion dur={`${path.duration}s`} begin={`${path.delay}s`} repeatCount="indefinite" rotate="auto" keyPoints={path.reverse ? '1;0' : '0;1'} keyTimes="0;1" calcMode="linear">
+                    <mpath href={`#${path.id}`} />
+                  </animateMotion>
+                </ellipse>
+
+                <circle r={path.isBus ? '0.07' : '0.03'} fill="#ffffff" opacity={path.isBus ? '0.36' : '0.18'}>
+                  <animateMotion dur={`${path.duration}s`} begin={`${path.delay}s`} repeatCount="indefinite" rotate="auto" keyPoints={path.reverse ? '1;0' : '0;1'} keyTimes="0;1" calcMode="linear">
+                    <mpath href={`#${path.id}`} />
+                  </animateMotion>
+                </circle>
+              </g>
+            );
+          })}
+        </g>
+
+        <g className="ai-tron-corner-pulses">
+          <circle cx="8" cy="12" r="0.12" fill={colors.packet} opacity="0.28" />
+          <circle cx="90" cy="11" r="0.12" fill={colors.accent} opacity="0.3" />
+          <circle cx="92" cy="88" r="0.12" fill={colors.packet} opacity="0.28" />
+        </g>
+      </svg>
     </div>
   );
 }

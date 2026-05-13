@@ -4,6 +4,7 @@
 
 ## Premium UX / Three.js Roadmap
 
+- [ ] Bring the Owner Intel / AI Tron readout grid up to the `best.png` reference quality: flowing circuit-board light paths around each tile, distinct per-card routing, cyan/orange node glow, stronger edge/corner rails, clean readable text lanes, and a full-width Dynasty AI Notes bottom rail with connected mini-modules that feels like one powered PCB system instead of separate generic cards.
 - [ ] Rebuild the loading and report-generated modals as true Three.js scenes, not just CSS polish. Target a premium fantasy-football command-center feel: a cinematic 3D football fly-by on a real low-to-high arc, a depth-field loading stage, a textured league-logo coin/medallion, and a physical `REPORT GENERATED` stamp slam with ripple shockwaves, subtle camera thud, light sweep, and restrained glow.
 - [ ] Keep the experience responsive and production-safe: code-native readable text/actions, desktop/tablet/mobile framing, reduced-motion fallback, graceful non-WebGL fallback, and no blocking of report generation if the 3D scene fails.
 - [ ] Add visual QA coverage for the modal rebuild with Playwright screenshots and canvas checks across desktop and mobile viewports so the animation is nonblank, correctly framed, and visibly 3D before shipping.
@@ -15,6 +16,7 @@
 
 ## Data Operations Roadmap
 
+- [ ] Add a Neon/Postgres transfer audit and optimization pass now that the Neon free transfer limit was exceeded. Report largest tables, largest JSON payload rows, recent `leagueReportCache` sizes, snapshot table sizes, most frequent DB reads/writes, and which app flows are driving transfer. Then reduce transfer with smaller projections, shorter cache payloads, compression where useful, TTL/retention cleanup, and avoiding full payload reads when only metadata is needed.
 - [ ] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
 - [ ] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
 - [ ] Revisit KeepTradeCut trade-database access later; only integrate it if we can get a stable, approved data path instead of a brittle scrape.
