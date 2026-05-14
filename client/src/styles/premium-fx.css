@@ -112,7 +112,7 @@
   isolation: isolate;
 }
 
-.analysis-loading-panel > :not(.loading-cinematic-pass) {
+.analysis-loading-panel > :not(.loading-cinematic-pass):not(.dd-loading-letterbox):not(.dd-loading-crown-stage) {
   position: relative;
   z-index: 4;
 }
@@ -264,7 +264,7 @@
     0 0 0.9rem rgba(251, 146, 60, 0.26);
   opacity: 0;
   transform: translateX(-50%) scale(0.45);
-  animation: loading-football-endpoint-pulse 1.32s cubic-bezier(0.14, 0.78, 0.2, 1) infinite;
+  animation: loading-football-endpoint-pulse 1.4s linear infinite;
 }
 
 .loading-football-launch {
@@ -273,7 +273,7 @@
 
 .loading-football-catch {
   right: -0.18rem;
-  animation-delay: 0.66s;
+  animation-delay: 0.7s;
 }
 
 .loading-football-contrail {
@@ -299,7 +299,7 @@
   content: "";
   transform: translateY(0.05rem) scaleY(0.72);
   filter: blur(0.2px) drop-shadow(0 0 0.44rem rgba(251, 146, 60, 0.42));
-  animation: loading-football-contrail-sweep 1.32s cubic-bezier(0.14, 0.78, 0.2, 1) infinite;
+  animation: loading-football-contrail-sweep 1.4s linear infinite;
 }
 
 .loading-football-contrail::after {
@@ -319,7 +319,7 @@
     0 0 0.2rem rgba(255, 247, 237, 0.44) inset,
     0 0 0.95rem rgba(251, 146, 60, 0.62),
     0 0 1.45rem rgba(34, 211, 238, 0.28);
-  animation: loading-football-pass 1.32s cubic-bezier(0.14, 0.78, 0.2, 1) infinite;
+  animation: loading-football-pass 1.4s linear infinite;
 }
 
 .loading-football-track .loading-football-shadow {
@@ -328,7 +328,7 @@
   height: 0.22rem;
   background: rgba(0, 0, 0, 0.7);
   filter: blur(3px);
-  animation: loading-football-shadow 1.32s cubic-bezier(0.14, 0.78, 0.2, 1) infinite;
+  animation: loading-football-shadow 1.4s linear infinite;
 }
 
 .loading-success-card {
@@ -543,42 +543,51 @@
   }
 }
 
+/* Smooth football pass — constant horizontal velocity, full-height
+   parabolic arc, steady spin. Peaks at top of the track. Y values
+   from y = 3.02 - 2.97 * 4t(1-t), peaking at 50% / 0.05rem.
+   Rotation is constant 0→1440deg (2 full rotations). No scale change. */
 @keyframes loading-football-pass {
   0% {
     opacity: 0;
-    transform: translate3d(0, 3.02rem, 0) rotate(-18deg) scale(0.72);
+    transform: translate3d(0, 3.02rem, 0) rotate(0deg);
   }
-  8% {
+  5% {
     opacity: 1;
-    transform: translate3d(calc(7cqw - 0.08rem), 2.72rem, 0) rotate(84deg) scale(0.86);
   }
-  22% {
-    opacity: 1;
-    transform: translate3d(calc(22cqw - 0.22rem), 1.86rem, 0) rotate(284deg) scale(1.02);
+  10% {
+    transform: translate3d(calc(10cqw - 0.13rem), 1.95rem, 0) rotate(144deg);
   }
-  38% {
-    opacity: 1;
-    transform: translate3d(calc(38cqw - 0.42rem), 1.22rem, 0) rotate(524deg) scale(1.12);
+  20% {
+    transform: translate3d(calc(20cqw - 0.26rem), 1.12rem, 0) rotate(288deg);
+  }
+  30% {
+    transform: translate3d(calc(30cqw - 0.38rem), 0.53rem, 0) rotate(432deg);
+  }
+  40% {
+    transform: translate3d(calc(40cqw - 0.51rem), 0.17rem, 0) rotate(576deg);
   }
   50% {
-    opacity: 1;
-    transform: translate3d(calc(50cqw - 0.54rem), 1.06rem, 0) rotate(704deg) scale(1.14);
+    transform: translate3d(calc(50cqw - 0.64rem), 0.05rem, 0) rotate(720deg);
   }
-  62% {
-    opacity: 1;
-    transform: translate3d(calc(62cqw - 0.66rem), 1.22rem, 0) rotate(884deg) scale(1.08);
+  60% {
+    transform: translate3d(calc(60cqw - 0.77rem), 0.17rem, 0) rotate(864deg);
   }
-  78% {
-    opacity: 1;
-    transform: translate3d(calc(78cqw - 0.84rem), 1.9rem, 0) rotate(1124deg) scale(0.94);
+  70% {
+    transform: translate3d(calc(70cqw - 0.9rem), 0.53rem, 0) rotate(1008deg);
   }
-  92% {
+  80% {
+    transform: translate3d(calc(80cqw - 1.02rem), 1.12rem, 0) rotate(1152deg);
+  }
+  90% {
+    transform: translate3d(calc(90cqw - 1.15rem), 1.95rem, 0) rotate(1296deg);
+  }
+  95% {
     opacity: 1;
-    transform: translate3d(calc(92cqw - 1rem), 2.72rem, 0) rotate(1328deg) scale(0.8);
   }
   100% {
     opacity: 0;
-    transform: translate3d(calc(100cqw - 1.28rem), 3.02rem, 0) rotate(1454deg) scale(0.68);
+    transform: translate3d(calc(100cqw - 1.28rem), 3.02rem, 0) rotate(1440deg);
   }
 }
 

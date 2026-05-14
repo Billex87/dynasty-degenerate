@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Sparkles, Zap } from 'lucide-react';
-import { PremiumFxLayer } from './PremiumFxLayer';
+
+function LoadingLetterbox({ isComplete }: { isComplete: boolean }) {
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div
+      className="dd-loading-letterbox"
+      data-state={isComplete ? 'exit' : 'enter'}
+      aria-hidden="true"
+    />,
+    document.body
+  );
+}
 
 interface LoadingStep {
   id: string;
@@ -60,6 +72,8 @@ export function LoadingAnimation({
 
   return (
     <div className="loading-panel analysis-loading-panel">
+      <LoadingLetterbox isComplete={isComplete} />
+
       <div className="loading-modal-header">
         <span className="loading-modal-bolt" aria-hidden="true">
           {leagueLogo ? (
@@ -78,16 +92,6 @@ export function LoadingAnimation({
       <p className="loading-status-line">
         {isComplete ? 'Report locked and loaded.' : 'Analyzing league data...'}
       </p>
-
-      {!isComplete && (
-        <div className="loading-cinematic-pass" aria-hidden="true">
-          <span className="loading-cinematic-field" />
-          <span className="loading-cinematic-wake" />
-          <span className="loading-cinematic-shadow" />
-          <span className="loading-cinematic-ball" />
-          <PremiumFxLayer variant="loading-pass" intensity="high" className="loading-cinematic-pass-fx" />
-        </div>
-      )}
 
       <div className="loading-step-list">
         {steps.map((step) => (
@@ -134,7 +138,6 @@ export function LoadingAnimation({
                 </svg>
                 <span className="loading-football-shadow" />
                 <span className="loading-football" />
-                <PremiumFxLayer variant="loading-pass" intensity="high" className="loading-football-fx" />
               </div>
             )}
           </div>
