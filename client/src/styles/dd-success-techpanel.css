@@ -1,0 +1,108 @@
+/* Sci-fi / AI tech-panel restyle of the Report Generated success card.
+   Only restyles the existing markup — does not change copy or icons.
+   Pairs with .loading-success-card markup in Home.tsx. */
+
+.loading-success-card {
+  /* 3D canvas inside provides the chrome — keep this container minimal */
+  border: 0 !important;
+  border-radius: 14px !important;
+  background: transparent !important;
+  box-shadow:
+    0 36px 80px rgba(0, 0, 0, 0.7),
+    0 0 64px rgba(0, 212, 219, 0.22),
+    0 0 46px rgba(255, 106, 0, 0.14) !important;
+  isolation: isolate;
+  overflow: visible;
+}
+
+/* Hide the legacy stamp FX layer when 3D is active */
+.loading-success-card .premium-fx-layer-loading-stamp { display: none !important; }
+
+/* Snap-in entrance for the container; 3D scene handles its own intro */
+.loading-success-card {
+  animation: loading-success-pane-stamp-wow 0.6s cubic-bezier(0.18, 0.88, 0.18, 1) both;
+}
+.loading-success-card.loading-success-card-reveal,
+.loading-success-card.loading-success-card-kick {
+  animation: none;
+}
+
+/* Corner brackets are now provided by the 3D card's chamfered geometry.
+   Legacy DOM decorations are hidden so the 3D backdrop reads clean. */
+.loading-success-card::before { display: none; }
+.loading-success-scanline { display: none !important; }
+.loading-success-impact-core { display: none !important; }
+
+/* Tighten the existing entrance ripple to feel snappier */
+.loading-success-ripple {
+  animation-duration: 0.78s !important;
+  border-color: rgba(0, 212, 219, 0.72) !important;
+}
+.loading-success-ripple-b {
+  border-color: rgba(255, 106, 0, 0.62) !important;
+  animation-delay: 110ms !important;
+}
+
+/* Kicker "REPORT GENERATED" tag: keep its existing 3D-stamp animation,
+   just tint to brand cyan + add holographic feel */
+.loading-success-card .loading-success-kicker {
+  border-color: rgba(0, 212, 219, 0.85) !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(0, 212, 219, 0.26), transparent 38%),
+    linear-gradient(135deg, rgba(0, 124, 132, 0.32), rgba(2, 6, 23, 0.78) 38%, rgba(2, 6, 23, 0.88)) !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 212, 219, 0.32) inset,
+    0 0 24px rgba(0, 212, 219, 0.4),
+    0 0 18px rgba(255, 106, 0, 0.16) !important;
+  text-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.9),
+    0 0 12px rgba(0, 212, 219, 0.6) !important;
+}
+.loading-success-card .loading-success-kicker::after {
+  border-color: rgba(2, 33, 38, 0.82) !important;
+  background: linear-gradient(135deg, rgba(2, 33, 38, 0.82), rgba(2, 6, 23, 0.72)) !important;
+}
+
+/* League name underline / bar: cyan→orange gradient with brand-accurate hues */
+.loading-success-bar {
+  position: relative;
+  display: block;
+  width: min(14rem, 70%);
+  height: 4px;
+  margin: 0.6rem auto 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0, 212, 219, 0.95) 14%,
+    rgba(255, 192, 61, 0.9) 50%,
+    rgba(255, 106, 0, 0.95) 86%,
+    transparent 100%
+  );
+  border-radius: 2px;
+  filter: drop-shadow(0 0 6px rgba(0, 212, 219, 0.5));
+  opacity: 0;
+  animation: dd-techpanel-bar-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+}
+.loading-success-bar > span {
+  display: none;
+}
+@keyframes dd-techpanel-bar-in {
+  from { opacity: 0; transform: scaleX(0.3); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .loading-success-card,
+  .loading-success-card.loading-success-card-reveal,
+  .loading-success-card.loading-success-card-kick {
+    animation: none !important;
+  }
+  .loading-success-card::before,
+  .loading-success-scanline,
+  .loading-success-impact-core,
+  .loading-success-bar {
+    animation: none;
+    opacity: 1;
+  }
+  .loading-success-scanline { display: none; }
+}

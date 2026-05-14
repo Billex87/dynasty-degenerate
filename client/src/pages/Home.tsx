@@ -48,6 +48,7 @@ import {
   PremiumFxLayer,
   type PremiumFxVariant,
 } from "@/components/PremiumFxLayer";
+const SuccessCard3D = lazy(() => import("@/components/SuccessCard3D"));
 import { SupportButton } from "@/components/SupportButton";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
@@ -206,7 +207,7 @@ const LEAGUE_VIEW_MANAGER_VALUE = "__league__";
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = "2026-05-07";
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
-const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 1850;
+const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 850;
 const REPORT_SUCCESS_KICK_MS = 900;
 const SHOW_ASSISTANT_FEATURE_RADAR =
   String(
@@ -4824,7 +4825,9 @@ export default function Home() {
               role="status"
               aria-live="polite"
             >
-              <PremiumFxLayer variant="loading-stamp" intensity="high" />
+              <Suspense fallback={null}>
+                <SuccessCard3D exit={loadingTransitionPhase === "kick"} />
+              </Suspense>
               <span
                 className="loading-success-impact-core"
                 aria-hidden="true"
