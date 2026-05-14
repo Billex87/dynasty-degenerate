@@ -177,6 +177,7 @@ const DYNASTY_LOGO_SRC =
   "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
 const REPORT_CACHE_DATA_VERSION = "draft-baseline-v2";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v20";
+const REPORT_CACHE_MAX_AGE_MS = 15 * 60 * 1000;
 const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v10",
   "dynasty-degenerates:last-report:v11",
@@ -1561,6 +1562,13 @@ function getAnalysisLeaguePreview(
       `${league.totalRosters || "?"}-Team League`,
     leagueLogo: league.avatarUrl,
   };
+}
+
+function isFreshTimestamp(value: unknown, maxAgeMs: number): boolean {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return false;
+  }
+  return Date.now() - value <= maxAgeMs;
 }
 
 function getLeagueIdAnalysisPreview(leagueId: string): AnalysisLeaguePreview {
@@ -4127,6 +4135,7 @@ export default function Home() {
   useEffect(() => {
     let restoredViewerUserId: string | null = null;
     let restoredLeagues: SleeperLeagueOption[] = [];
+    let sleeperSessionSavedAt: number | null = null;
     const urlLeagueId = getInitialReportLeagueIdFromUrl();
     const urlTab = getInitialReportTabFromUrl();
     try {
@@ -4147,6 +4156,7 @@ export default function Home() {
         const restoredHasAdminPermissions =
           parsed.user?.hasAdminPermissions === true ||
           parsed.user?.isPrivilegedReportViewer === true;
+        sleeperSessionSavedAt = parsed.savedAt || null;
         setSleeperUsername(parsed.username || "");
         restoredViewerUserId = parsed.user?.userId || null;
         setViewerUserId(restoredViewerUserId);
@@ -4187,9 +4197,19 @@ export default function Home() {
       const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
       if (cachedReport) {
         const parsed = JSON.parse(cachedReport) as CachedReport;
+        const cachedReportIsFresh = isFreshTimestamp(
+          parsed.savedAt,
+          REPORT_CACHE_MAX_AGE_MS
+        );
+        const sleeperSessionIsFresh =
+          sleeperSessionSavedAt === null
+            ? true
+            : isFreshTimestamp(sleeperSessionSavedAt, REPORT_CACHE_MAX_AGE_MS);
         if (
           parsed.cacheVersion === REPORT_CACHE_DATA_VERSION &&
-          (!urlLeagueId || parsed.leagueId === urlLeagueId)
+          (!urlLeagueId || parsed.leagueId === urlLeagueId) &&
+          cachedReportIsFresh &&
+          sleeperSessionIsFresh
         ) {
           setLeagueId(parsed.leagueId);
           setLeagueName(parsed.leagueName);
