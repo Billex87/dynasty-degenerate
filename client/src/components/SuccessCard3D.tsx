@@ -1,20 +1,12 @@
 /* 3D backdrop for the Report Generated success card.
-   Renders a real 3D scene with two rectangular area lights painting the
+   Renders a real 3D scene with animated emissive bars painting the
    chamfered card surface, plus bloom postprocessing and dust particles.
    The existing HTML text/icons sit on top of this canvas via z-index. */
 
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
-
-let rectAreaInited = false;
-function ensureRectAreaInit() {
-  if (rectAreaInited) return;
-  RectAreaLightUniformsLib.init();
-  rectAreaInited = true;
-}
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Bloom, EffectComposer } from "@react-three/postprocessing";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 
 interface SuccessCard3DProps {
   /** when true the lights snap off (exit / kick phase) */
@@ -22,49 +14,68 @@ interface SuccessCard3DProps {
   className?: string;
 }
 
-export default function SuccessCard3D({ exit = false, className }: SuccessCard3DProps) {
+export default function SuccessCard3D({
+  exit = false,
+  className,
+}: SuccessCard3DProps) {
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const m = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReducedMotion(m.matches);
     update();
-    m.addEventListener('change', update);
-    return () => m.removeEventListener('change', update);
-  }, []);
-
-  useEffect(() => {
-    ensureRectAreaInit();
+    m.addEventListener("change", update);
+    return () => m.removeEventListener("change", update);
   }, []);
 
   return (
     <div
       className={className}
       aria-hidden="true"
-      style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 0,
+      }}
     >
       <Canvas
         camera={{ position: [0, 0, 3.2], fov: 38 }}
         dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-        style={{ background: 'transparent' }}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance",
+        }}
+        style={{ background: "transparent" }}
       >
         <Suspense fallback={null}>
-      <Scene exit={exit} reducedMotion={reducedMotion} />
+          <Scene exit={exit} reducedMotion={reducedMotion} />
         </Suspense>
         <EffectComposer multisampling={0}>
-          <Bloom intensity={1.8} luminanceThreshold={0.28} luminanceSmoothing={0.75} mipmapBlur />
+          <Bloom
+            intensity={1.8}
+            luminanceThreshold={0.28}
+            luminanceSmoothing={0.75}
+            mipmapBlur
+          />
         </EffectComposer>
       </Canvas>
     </div>
   );
 }
 
-function Scene({ exit, reducedMotion }: { exit: boolean; reducedMotion: boolean }) {
+function Scene({
+  exit,
+  reducedMotion,
+}: {
+  exit: boolean;
+  reducedMotion: boolean;
+}) {
   return (
     <>
-      <color attach="background" args={['#04090d']} />
+      <color attach="background" args={["#04090d"]} />
       <ambientLight intensity={0.08} />
 
       <CameraRig reducedMotion={reducedMotion} />
@@ -72,10 +83,28 @@ function Scene({ exit, reducedMotion }: { exit: boolean; reducedMotion: boolean 
       <BroadcastLights exit={exit} reducedMotion={reducedMotion} />
 
       {/* Front key fill so the card middle is visible — slightly warm */}
-      <pointLight position={[0, 0, 2.4]} intensity={0.9} color="#3a5a68" distance={5} decay={2.0} />
+      <pointLight
+        position={[0, 0, 2.4]}
+        intensity={0.9}
+        color="#3a5a68"
+        distance={5}
+        decay={2.0}
+      />
       {/* Side rim lights for chamfer definition — punched up */}
-      <pointLight position={[-1.6, 0, 1.4]} intensity={1.1} color="#00D4DB" distance={3.6} decay={2.4} />
-      <pointLight position={[1.6, 0, 1.4]} intensity={0.7} color="#FF7A14" distance={3.6} decay={2.4} />
+      <pointLight
+        position={[-1.6, 0, 1.4]}
+        intensity={1.1}
+        color="#00D4DB"
+        distance={3.6}
+        decay={2.4}
+      />
+      <pointLight
+        position={[1.6, 0, 1.4]}
+        intensity={0.7}
+        color="#FF7A14"
+        distance={3.6}
+        decay={2.4}
+      />
 
       <CardSurface reducedMotion={reducedMotion} />
       <SurfaceScanline reducedMotion={reducedMotion} />
@@ -106,9 +135,15 @@ function CameraRig({ reducedMotion }: { reducedMotion: boolean }) {
   return null;
 }
 
-function BroadcastLights({ exit, reducedMotion }: { exit: boolean; reducedMotion: boolean }) {
-  const topRef = useRef<THREE.RectAreaLight>(null);
-  const bottomRef = useRef<THREE.RectAreaLight>(null);
+function BroadcastLights({
+  exit,
+  reducedMotion,
+}: {
+  exit: boolean;
+  reducedMotion: boolean;
+}) {
+  const topRef = useRef<THREE.PointLight>(null);
+  const bottomRef = useRef<THREE.PointLight>(null);
 
   // Visible bar meshes for the lights themselves — these are what bloom
   // picks up and what the user sees as cyan/orange strips.
@@ -125,14 +160,14 @@ function BroadcastLights({ exit, reducedMotion }: { exit: boolean; reducedMotion
     if (t > 0.36) return 1;
     // discrete keyframes interpolated linearly
     const k: [number, number][] = [
-      [0.00, 0.0],
+      [0.0, 0.0],
       [0.04, 1.6],
       [0.07, 0.15],
       [0.11, 1.35],
       [0.15, 0.4],
       [0.19, 1.2],
       [0.24, 0.7],
-      [0.30, 1.08],
+      [0.3, 1.08],
       [0.36, 1.0],
     ];
     for (let i = 0; i < k.length - 1; i += 1) {
@@ -152,9 +187,10 @@ function BroadcastLights({ exit, reducedMotion }: { exit: boolean; reducedMotion
     // Exit: fade to 0 over 350ms
     const exitMul = exit ? Math.max(0, 1 - elapsed / 0.35) : 1;
     // Idle breathing pulse (very subtle, only after flicker settles)
-    const breathe = reducedMotion || elapsed < 0.4
-      ? 1
-      : 0.94 + Math.sin(clock.elapsedTime * 1.5) * 0.06;
+    const breathe =
+      reducedMotion || elapsed < 0.4
+        ? 1
+        : 0.94 + Math.sin(clock.elapsedTime * 1.5) * 0.06;
 
     const finalMul = turnOn * exitMul * breathe;
 
@@ -163,50 +199,62 @@ function BroadcastLights({ exit, reducedMotion }: { exit: boolean; reducedMotion
 
     // Light bar entrance: scale from 0 width to full over first 220ms,
     // synced with the brightest flicker spike (anchors the eye)
-    const barScale = reducedMotion ? 1 : Math.min(1, Math.max(0, (elapsed - 0.02) / 0.22));
+    const barScale = reducedMotion
+      ? 1
+      : Math.min(1, Math.max(0, (elapsed - 0.02) / 0.22));
     const easedBarScale = 1 - Math.pow(1 - barScale, 3); // ease-out cubic
 
     if (topBarRef.current) {
       topBarRef.current.scale.x = easedBarScale;
-      (topBarRef.current.material as THREE.MeshBasicMaterial).opacity = 1 * finalMul;
+      (topBarRef.current.material as THREE.MeshBasicMaterial).opacity =
+        1 * finalMul;
     }
     if (bottomBarRef.current) {
       bottomBarRef.current.scale.x = easedBarScale;
-      (bottomBarRef.current.material as THREE.MeshBasicMaterial).opacity = 1 * finalMul;
+      (bottomBarRef.current.material as THREE.MeshBasicMaterial).opacity =
+        1 * finalMul;
     }
   });
 
   return (
     <>
-      {/* CYAN top rect area light — sits BEHIND the card edge, paints surface */}
-      <rectAreaLight
+      {/* CYAN top glow — sits behind the card edge and paints the surface */}
+      <pointLight
         ref={topRef}
-        color={'#00D4DB'}
+        color={"#00D4DB"}
         intensity={0}
-        width={3.4}
-        height={0.4}
-        position={[0, 0.92, 0.05]}
-        rotation={[-Math.PI, 0, 0]}
+        position={[0, 0.92, 0.75]}
+        distance={3.8}
+        decay={2.1}
       />
       {/* visible cyan bezel strip at the very top edge */}
       <mesh ref={topBarRef} position={[0, 0.78, 0.08]}>
         <planeGeometry args={[2.6, 0.05]} />
-        <meshBasicMaterial color={'#a0fbff'} transparent opacity={1} toneMapped={false} />
+        <meshBasicMaterial
+          color={"#a0fbff"}
+          transparent
+          opacity={1}
+          toneMapped={false}
+        />
       </mesh>
 
-      {/* ORANGE bottom rect area light */}
-      <rectAreaLight
+      {/* ORANGE bottom glow */}
+      <pointLight
         ref={bottomRef}
-        color={'#FF7A14'}
+        color={"#FF7A14"}
         intensity={0}
-        width={3.0}
-        height={0.32}
-        position={[0, -0.92, 0.05]}
-        rotation={[Math.PI, 0, 0]}
+        position={[0, -0.92, 0.75]}
+        distance={3.4}
+        decay={2.1}
       />
       <mesh ref={bottomBarRef} position={[0, -0.78, 0.08]}>
         <planeGeometry args={[2.4, 0.04]} />
-        <meshBasicMaterial color={'#ffb46a'} transparent opacity={1} toneMapped={false} />
+        <meshBasicMaterial
+          color={"#ffb46a"}
+          transparent
+          opacity={1}
+          toneMapped={false}
+        />
       </mesh>
     </>
   );
@@ -267,7 +315,7 @@ function CardSurface({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <mesh ref={meshRef} geometry={cardGeom} position={[0, 0, -0.2]}>
       <meshStandardMaterial
-        color={'#14272f'}
+        color={"#14272f"}
         metalness={0.9}
         roughness={0.12}
         transparent
@@ -298,7 +346,12 @@ function SurfaceScanline({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <mesh ref={ref} position={[0, 0.75, -0.12]}>
       <planeGeometry args={[2.55, 0.018]} />
-      <meshBasicMaterial color={'#7df7ff'} transparent opacity={0} toneMapped={false} />
+      <meshBasicMaterial
+        color={"#7df7ff"}
+        transparent
+        opacity={0}
+        toneMapped={false}
+      />
     </mesh>
   );
 }
@@ -314,7 +367,8 @@ function DustParticles({ reducedMotion }: { reducedMotion: boolean }) {
       positions[i * 3] = (Math.random() - 0.5) * 3.6;
       // Bias particles toward the top/bottom light strips for volumetric effect
       const v = Math.random();
-      const yMag = v < 0.5 ? -1 + Math.random() * 0.3 : 0.7 + Math.random() * 0.3;
+      const yMag =
+        v < 0.5 ? -1 + Math.random() * 0.3 : 0.7 + Math.random() * 0.3;
       positions[i * 3 + 1] = i % 3 === 0 ? (Math.random() - 0.5) * 1.8 : yMag;
       positions[i * 3 + 2] = (Math.random() - 0.5) * 1.4 + 0.3;
       sizes[i] = 0.012 + Math.random() * 0.02;
@@ -325,7 +379,8 @@ function DustParticles({ reducedMotion }: { reducedMotion: boolean }) {
   useFrame((_, dt) => {
     if (!ref.current) return;
     if (reducedMotion) return;
-    const posAttr = ref.current.geometry.attributes.position as THREE.BufferAttribute;
+    const posAttr = ref.current.geometry.attributes
+      .position as THREE.BufferAttribute;
     const arr = posAttr.array as Float32Array;
     for (let i = 0; i < count; i += 1) {
       arr[i * 3 + 1] += dt * (0.04 + (i % 5) * 0.01);
@@ -342,7 +397,7 @@ function DustParticles({ reducedMotion }: { reducedMotion: boolean }) {
       </bufferGeometry>
       <pointsMaterial
         size={0.02}
-        color={'#bff0ff'}
+        color={"#bff0ff"}
         transparent
         opacity={0.42}
         depthWrite={false}
