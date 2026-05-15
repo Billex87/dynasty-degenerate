@@ -32,7 +32,8 @@
 - [x] Add a user-load provider boundary guard: report/ranking/player-detail loads use live Sleeper current-state calls only, non-Sleeper reads share snapshot-mode options, and tests block accidental live FantasyPros/OpticOdds/etc. calls during user loads.
 - [x] Add source freshness diagnostics for every snapshot-backed provider in the admin/report payload: source key, snapshot key, updated time, row count, payload size, stale/missing status, and last job error where available.
 - [x] Add report-payload auditing and transfer slimming for cached league reports: local cache payloads can be measured by section, duplicate embedded `playerDetails` are compacted when `playerDetailsById` already carries that player, and cache metadata can be checked without reading full payloads.
-- [ ] Reduce transfer further by splitting ranking metadata/detail reads, trimming duplicated prospect fields, tightening cache TTL/retention, and expanding metadata-only cache/status reads where routes do not need full payloads.
+- [x] Reduce rankings transfer by dropping duplicate legacy ranking arrays from transfer/cache payloads and compacting repeated prospect profile details in ranking rows while preserving full prospect detail through the Draft Buzz scoreboard copy.
+- [ ] Reduce transfer further with true ranking metadata/detail endpoints, tighter cache TTL/retention, and expanded metadata-only cache/status reads where routes do not need full payloads.
 - [x] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
 - [x] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
 - [x] Revisit KeepTradeCut trade-database access later; only integrate it if we can get a stable, approved data path instead of a brittle scrape.

@@ -92,4 +92,88 @@ describe('report payload slimming', () => {
     expect(result.payload.reportData.weeklyRisers[0].playerDetails).not.toHaveProperty('valueProfile');
     expect(slimCachedLeagueReportPayload({ rankings: {} }).stats.compactedEmbeddedPlayerDetails).toBe(0);
   });
+
+  it('removes duplicated legacy ranking arrays from transfer payloads', () => {
+    const row = {
+      id: 'dynasty_sf_ppr:test',
+      name: 'Test Player',
+      pos: 'RB',
+      overallRank: 1,
+      value: 9000,
+      sources: ['KTC'],
+      sourceCount: 1,
+    };
+    const result = slimCachedLeagueReportPayload({
+      rankings: {
+        profiles: {
+          dynasty_sf_ppr: [row],
+        },
+        dynastySf: [row],
+        dynastyOneQb: [row],
+        devySf: [],
+        devyOneQb: [],
+      },
+    });
+
+    expect(result.stats.removedRankingLegacyArrays).toBe(2);
+    expect(result.payload.rankings.profiles.dynasty_sf_ppr).toHaveLength(1);
+    expect(result.payload.rankings.dynastySf).toEqual([]);
+    expect(result.payload.rankings.dynastyOneQb).toEqual([]);
+  });
+
+  it('compacts repeated ranking prospect profiles while preserving card and modal fields', () => {
+    const prospectProfile = {
+      source: 'NFL Draft Buzz',
+      sourceUrl: 'https://example.com/prospect',
+      scrapeMonth: '2026-05',
+      draftYear: 2027,
+      name: 'Future Star',
+      position: 'WR',
+      college: 'Ohio State',
+      playerImageUrl: 'https://example.com/player.png',
+      collegeLogoUrl: 'https://example.com/college.png',
+      overallRank: 1,
+      positionRank: 1,
+      height: '6-2',
+      weight: '210',
+      fortyYardDash: 4.4,
+      role: 'Explosive X receiver',
+      summary: 'A long scouting summary that should stay out of repeated profile rows.',
+      projectedRookiePick: '1.01',
+    };
+    const result = slimCachedLeagueReportPayload({
+      rankings: {
+        profiles: {
+          devy_sf_ppr: [{
+            id: 'devy_sf_ppr:future-star',
+            name: 'Future Star',
+            pos: 'WR',
+            overallRank: 1,
+            value: 9999,
+            sources: ['NFL Draft Buzz'],
+            sourceCount: 1,
+            isDevy: true,
+            prospectProfile,
+          }],
+        },
+        devySf: [],
+      },
+    });
+    const compactProfile = result.payload.rankings.profiles.devy_sf_ppr[0].prospectProfile;
+
+    expect(result.stats.compactedRankingProspectProfiles).toBe(1);
+    expect(compactProfile).toMatchObject({
+      source: 'NFL Draft Buzz',
+      draftYear: 2027,
+      college: 'Ohio State',
+      height: '6-2',
+      weight: '210',
+      fortyYardDash: 4.4,
+      role: 'Explosive X receiver',
+      projectedRookiePick: '1.01',
+    });
+    expect(compactProfile).not.toHaveProperty('summary');
+    expect(compactProfile).not.toHaveProperty('sourceUrl');
+    expect(compactProfile).not.toHaveProperty('scrapeMonth');
+  });
 });

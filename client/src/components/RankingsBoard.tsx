@@ -1305,6 +1305,15 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
 
   const handleSelectPlayer = (player: RankingPlayer) => {
     const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
+    const draftBuzzEntry = player.isDevy
+      ? rankings?.draftBuzzScoreboard?.find((entry) => {
+          if (player.player_id && entry.player_id === player.player_id) return true;
+          return entry.name.toLowerCase() === player.name.toLowerCase()
+            && entry.position === player.pos
+            && Number(entry.draftYear || 0) === Number(player.draftYear || player.prospectProfile?.draftYear || 0);
+        })
+      : undefined;
+    const fullProspectProfile = draftBuzzEntry?.prospectProfile || player.prospectProfile || null;
     const fallbackValue = leagueValueMode === 'redraft'
       ? player.seasonValue ?? player.fantasyProsValue ?? player.value
       : player.value;
@@ -1320,17 +1329,17 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       mode: leagueValueMode,
       context: 'rankings',
     });
-    const prospectPositionRank = player.positionRank || player.fantasyProsDevyPositionRank || player.prospectProfile?.fantasyProsDevyPositionRank || (player.prospectProfile?.positionRank ? `${player.pos}${player.prospectProfile.positionRank}` : null) || player.pos;
-    const prospectOnlyDetails = player.prospectProfile
+    const prospectPositionRank = player.positionRank || player.fantasyProsDevyPositionRank || fullProspectProfile?.fantasyProsDevyPositionRank || (fullProspectProfile?.positionRank ? `${player.pos}${fullProspectProfile.positionRank}` : null) || player.pos;
+    const prospectOnlyDetails = fullProspectProfile
       ? {
           fullName: player.name,
           position: player.pos,
           team: player.team || null,
-          college: player.prospectProfile.college || player.college || null,
-          age: player.age || player.prospectProfile.fantasyProsDevyAge || null,
-          height: player.prospectProfile.height || null,
-          weight: player.prospectProfile.weight || null,
-          prospectProfile: player.prospectProfile,
+          college: fullProspectProfile.college || player.college || null,
+          age: player.age || fullProspectProfile.fantasyProsDevyAge || null,
+          height: fullProspectProfile.height || null,
+          weight: fullProspectProfile.weight || null,
+          prospectProfile: fullProspectProfile,
         }
       : undefined;
     const isRedraftRankingRow = leagueValueMode === 'redraft' || player.sources?.some(isRedraftSourceLabel);
@@ -1373,13 +1382,13 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       valueMode: leagueValueMode,
       manager: player.owner || undefined,
       managerAvatarUrl: player.owner ? managerAvatars?.[player.owner] : null,
-      playerImageUrl: player.imageUrl || player.prospectProfile?.playerImageUrl || null,
-      collegeLogoUrl: player.collegeLogoUrl || player.prospectProfile?.collegeLogoUrl || null,
+      playerImageUrl: player.imageUrl || fullProspectProfile?.playerImageUrl || null,
+      collegeLogoUrl: player.collegeLogoUrl || fullProspectProfile?.collegeLogoUrl || null,
       isCollegeProspect: player.isDevy,
       playerDetails: details
         ? {
             ...details,
-            prospectProfile: player.prospectProfile || details.prospectProfile || null,
+            prospectProfile: fullProspectProfile || details.prospectProfile || null,
           }
         : prospectOnlyDetails || rankingOnlyDetails,
     });

@@ -57,6 +57,99 @@ function compactPlayerDetails(details) {
   );
 }
 
+function createSlimmingStats() {
+  return {
+    compactedEmbeddedPlayerDetails: 0,
+    compactedEmbeddedPlayerDetailsBytes: 0,
+    compactedRankingProspectProfiles: 0,
+    compactedRankingProspectProfileBytes: 0,
+    removedRankingLegacyArrays: 0,
+    removedRankingLegacyArrayBytes: 0,
+  };
+}
+
+function hasSlimmingChanges(stats) {
+  return stats.compactedEmbeddedPlayerDetails > 0
+    || stats.compactedRankingProspectProfiles > 0
+    || stats.removedRankingLegacyArrays > 0;
+}
+
+function compactRankingProspectProfile(profile) {
+  return Object.fromEntries(
+    Object.entries(profile)
+      .filter(([key, value]) => value !== undefined && !['summary', 'sourceUrl', 'scrapeMonth'].includes(key))
+  );
+}
+
+function slimRankingRow(row, stats) {
+  if (!isRecord(row) || !isRecord(row.prospectProfile)) return row;
+
+  const compacted = compactRankingProspectProfile(row.prospectProfile);
+  const originalBytes = jsonSize(row.prospectProfile);
+  const compactedBytes = jsonSize(compacted);
+  if (compactedBytes >= originalBytes) return row;
+
+  stats.compactedRankingProspectProfiles += 1;
+  stats.compactedRankingProspectProfileBytes += originalBytes - compactedBytes;
+  return {
+    ...row,
+    prospectProfile: compacted,
+  };
+}
+
+function slimRankingsBoard(rankings, stats) {
+  if (!isRecord(rankings)) return rankings;
+
+  let changed = false;
+  const next = { ...rankings };
+  const legacyArrayKeys = [
+    'dynastySf',
+    'dynastyOneQb',
+    'devySf',
+    'devyOneQb',
+    'redraftPpr',
+    'redraftHalfPpr',
+    'redraftStandard',
+  ];
+
+  for (const key of legacyArrayKeys) {
+    if (Array.isArray(next[key]) && next[key].length > 0) {
+      stats.removedRankingLegacyArrays += 1;
+      stats.removedRankingLegacyArrayBytes += jsonSize(next[key]);
+      next[key] = [];
+      changed = true;
+    }
+  }
+
+  if (isRecord(rankings.profiles)) {
+    const profiles = {};
+    let profilesChanged = false;
+
+    for (const [key, rows] of Object.entries(rankings.profiles)) {
+      if (!Array.isArray(rows)) {
+        profiles[key] = rows;
+        continue;
+      }
+
+      let rowsChanged = false;
+      const slimmedRows = rows.map((row) => {
+        const slimmed = slimRankingRow(row, stats);
+        if (slimmed !== row) rowsChanged = true;
+        return slimmed;
+      });
+      profiles[key] = rowsChanged ? slimmedRows : rows;
+      if (rowsChanged) profilesChanged = true;
+    }
+
+    if (profilesChanged) {
+      next.profiles = profiles;
+      changed = true;
+    }
+  }
+
+  return changed ? next : rankings;
+}
+
 function parseStoredPayload(text) {
   const parsed = JSON.parse(text);
   if (parsed?.__ddCacheEncoding === ENCODING && typeof parsed.payload === 'string') {
@@ -111,20 +204,25 @@ function slimValue(value, detailIds, stats, insideDetailMap = false) {
 }
 
 function slimCachedPayload(payload) {
-  const stats = {
-    compactedEmbeddedPlayerDetails: 0,
-    compactedEmbeddedPlayerDetailsBytes: 0,
-  };
+  const stats = createSlimmingStats();
 
   if (!isRecord(payload) || !isRecord(payload.reportData)) {
+    if (isRecord(payload?.rankings)) {
+      const rankings = slimRankingsBoard(payload.rankings, stats);
+      return hasSlimmingChanges(stats)
+        ? { payload: { ...payload, rankings }, stats }
+        : { payload, stats };
+    }
     return { payload, stats };
   }
 
   const detailIds = new Set(Object.keys(payload.reportData.playerDetailsById || {}));
-  if (!detailIds.size) return { payload, stats };
-
-  const reportData = slimValue(payload.reportData, detailIds, stats);
-  if (!stats.compactedEmbeddedPlayerDetails) return { payload, stats };
+  const slimmedDetails = detailIds.size ? slimValue(payload.reportData, detailIds, stats) : payload.reportData;
+  const slimmedRankings = isRecord(slimmedDetails?.rankings) ? slimRankingsBoard(slimmedDetails.rankings, stats) : null;
+  const reportData = slimmedRankings && slimmedRankings !== slimmedDetails.rankings
+    ? { ...slimmedDetails, rankings: slimmedRankings }
+    : slimmedDetails;
+  if (!hasSlimmingChanges(stats)) return { payload, stats };
   return {
     payload: {
       ...payload,
@@ -209,8 +307,7 @@ async function main() {
         storageEncoding: parsed.storageEncoding,
         payloadSize,
         slimmedSize,
-        duplicateCount: slimmed.stats.compactedEmbeddedPlayerDetails,
-        duplicateBytes: slimmed.stats.compactedEmbeddedPlayerDetailsBytes,
+        stats: slimmed.stats,
         topSections: getTopSections(sectionRoot(parsed.payload)),
       });
     } catch (error) {
@@ -229,10 +326,14 @@ async function main() {
       }
 
       const savings = Math.max(0, row.payloadSize - row.slimmedSize);
+      const stats = row.stats || createSlimmingStats();
       console.log(`   kind: ${row.kind}`);
       console.log(`   updatedAt: ${row.updatedAt.toISOString()}`);
       console.log(`   storage: ${row.storageEncoding}, fileSize: ${formatBytes(row.fileBytes)}, responsePayloadSize: ${formatBytes(row.payloadSize)}`);
-      console.log(`   compactedEmbeddedPlayerDetails: ${row.duplicateCount} (${formatBytes(row.duplicateBytes)} saved), estimatedSlimmedResponse: ${formatBytes(row.slimmedSize)}, estimatedSavings: ${formatBytes(savings)}`);
+      console.log(`   estimatedSlimmedResponse: ${formatBytes(row.slimmedSize)}, estimatedSavings: ${formatBytes(savings)}`);
+      console.log(`   compactedEmbeddedPlayerDetails: ${stats.compactedEmbeddedPlayerDetails} (${formatBytes(stats.compactedEmbeddedPlayerDetailsBytes)} saved)`);
+      console.log(`   compactedRankingProspectProfiles: ${stats.compactedRankingProspectProfiles} (${formatBytes(stats.compactedRankingProspectProfileBytes)} saved)`);
+      console.log(`   removedRankingLegacyArrays: ${stats.removedRankingLegacyArrays} (${formatBytes(stats.removedRankingLegacyArrayBytes)} saved)`);
       console.log(`   topSections: ${row.topSections.map((section) => `${section.key}=${formatBytes(section.bytes)}`).join(', ') || 'none'}`);
     });
 }
