@@ -28,6 +28,7 @@ import { buildProspectLookup, findProspectProfile, loadProspectContext } from ".
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
 import { loadSourceSnapshotFreshnessDiagnostics } from "./sourceSnapshotFreshness";
+import { slimCachedLeagueReportPayload } from "./reportPayloadSlimming";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -627,19 +628,30 @@ function getMemoryCachedLeagueReport(cacheKey: string): unknown | null {
 
 async function readCachedLeagueReport(cacheKey: string): Promise<unknown | null> {
   const memoryCached = getMemoryCachedLeagueReport(cacheKey);
-  if (memoryCached) return memoryCached;
+  if (memoryCached) {
+    const { payload: slimmedMemoryCached } = slimCachedLeagueReportPayload(memoryCached);
+    if (slimmedMemoryCached !== memoryCached) {
+      leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: slimmedMemoryCached });
+    }
+    return slimmedMemoryCached;
+  }
 
   const storedCached = await findLeagueReportCache(cacheKey, LEAGUE_REPORT_CACHE_TTL_MS);
   if (storedCached) {
-    leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: storedCached });
-    void writeFileCachedLeagueReport(cacheKey, storedCached);
-    return storedCached;
+    const { payload: slimmedStoredCached } = slimCachedLeagueReportPayload(storedCached);
+    leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: slimmedStoredCached });
+    void writeFileCachedLeagueReport(cacheKey, slimmedStoredCached);
+    return slimmedStoredCached;
   }
 
   const fileCached = await readFileCachedLeagueReport(cacheKey);
   if (fileCached) {
-    leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: fileCached });
-    return fileCached;
+    const { payload: slimmedFileCached } = slimCachedLeagueReportPayload(fileCached);
+    leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: slimmedFileCached });
+    if (slimmedFileCached !== fileCached) {
+      void writeFileCachedLeagueReport(cacheKey, slimmedFileCached);
+    }
+    return slimmedFileCached;
   }
 
   return null;
@@ -651,14 +663,15 @@ async function writeCachedLeagueReport(
   viewerUserId: string | undefined,
   payload: unknown
 ) {
-  leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload });
+  const { payload: slimmedPayload } = slimCachedLeagueReportPayload(payload);
+  leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: slimmedPayload });
   await Promise.allSettled([
-    writeFileCachedLeagueReport(cacheKey, payload),
+    writeFileCachedLeagueReport(cacheKey, slimmedPayload),
     upsertLeagueReportCache({
       cacheKey,
       leagueId,
       viewerUserId: viewerUserId || null,
-      payload,
+      payload: slimmedPayload,
     }),
   ]);
 }
@@ -4581,13 +4594,14 @@ export const appRouter = router({
 
           const reportDataWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(reportDataWithConfidence, input.leagueId);
 
-          const analyzePayload = {
+          const analyzePayloadRaw = {
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
             leagueLogo: getSleeperAvatarUrl(leagueInfo.avatar),
             leagueFormat: formatLeagueFormat(leagueInfo),
             reportData: reportDataWithHiddenData,
           };
+          const { payload: analyzePayload } = slimCachedLeagueReportPayload(analyzePayloadRaw);
           markAnalyzeStep('payload assembly');
 
           try {

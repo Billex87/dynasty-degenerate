@@ -23,6 +23,7 @@
     "check:fantasypros": "node scripts/check-fantasypros.mjs",
     "probe:external-sources": "node scripts/probe-external-sources.mjs",
     "audit:neon-transfer": "node scripts/audit-neon-transfer.mjs",
+    "audit:report-payload": "node scripts/audit-report-payload.mjs",
     "compact:league-report-cache": "node scripts/compact-league-report-cache.mjs",
     "cleanup:league-report-cache": "node scripts/cleanup-league-report-cache.mjs",
     "cleanup:league-report-cache:expired": "LEAGUE_REPORT_CACHE_CLEANUP_MODE=expired node scripts/cleanup-league-report-cache.mjs",

@@ -95,6 +95,14 @@ export type StoredSnapshotMetadata = {
   tableName: string;
 };
 
+export type LeagueReportCacheMetadata = {
+  cacheKey: string;
+  leagueId: string;
+  viewerUserId: string | null;
+  updatedAt: Date;
+  payloadSizeBytes: number;
+};
+
 function getSql() {
   if (!process.env.DATABASE_URL) return null;
   if (!sqlClient) {
@@ -1129,6 +1137,42 @@ export async function findLeagueReportCache(cacheKey: string, maxAgeMs: number):
     console.warn("[Database] Failed to parse league report cache:", error);
     return null;
   }
+}
+
+export async function findLeagueReportCacheMetadata(cacheKey: string, maxAgeMs: number): Promise<LeagueReportCacheMetadata | null> {
+  const sql = await getDb();
+  if (!sql) return null;
+
+  const freshAfter = new Date(Date.now() - maxAgeMs);
+  const result = await sql`
+    SELECT
+      "cacheKey",
+      "leagueId",
+      "viewerUserId",
+      "updatedAt",
+      OCTET_LENGTH(payload) AS payload_bytes
+    FROM "leagueReportCache"
+    WHERE "cacheKey" = ${cacheKey}
+      AND "updatedAt" >= ${freshAfter}
+    LIMIT 1
+  ` as Array<{
+    cacheKey?: string | null;
+    leagueId?: string | null;
+    viewerUserId?: string | null;
+    updatedAt?: Date | string | null;
+    payload_bytes?: number | string | null;
+  }>;
+
+  const row = result[0];
+  if (!row?.cacheKey || !row.leagueId) return null;
+
+  return {
+    cacheKey: String(row.cacheKey),
+    leagueId: String(row.leagueId),
+    viewerUserId: row.viewerUserId ? String(row.viewerUserId) : null,
+    updatedAt: row.updatedAt ? new Date(row.updatedAt) : new Date(),
+    payloadSizeBytes: Number(row.payload_bytes || 0),
+  };
 }
 
 export async function upsertLeagueReportCache(input: {
