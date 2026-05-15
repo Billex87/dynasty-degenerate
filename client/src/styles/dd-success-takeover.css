@@ -1,0 +1,280 @@
+/* Fullscreen Report Generated takeover — HTML overlay styles.
+   Pairs with SuccessTakeover.tsx markup. */
+
+.dd-success-takeover {
+  animation: dd-takeover-fade-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dd-success-takeover[data-exit="true"] {
+  animation: dd-takeover-fade-out 0.55s cubic-bezier(0.55, 0, 0.78, 0.32) forwards;
+}
+@keyframes dd-takeover-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dd-takeover-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* The modal card itself floats subtly so everything inside it
+   (3D canvas + HTML overlay) moves together as one piece of glass. */
+.dd-success-card {
+  animation: dd-card-float 6.5s ease-in-out infinite;
+}
+@keyframes dd-card-float {
+  0%, 100% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  25% {
+    transform: translate(-50%, calc(-50% - 6px)) rotate(0.3deg);
+  }
+  50% {
+    transform: translate(-50%, calc(-50% + 4px)) rotate(-0.2deg);
+  }
+  75% {
+    transform: translate(-50%, calc(-50% - 4px)) rotate(0.15deg);
+  }
+}
+
+/* Stack: kicker (top), logo (middle), league name (bottom) */
+.dd-success-plate-stack {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2.4rem 1.6rem 3.4rem;
+  pointer-events: none;
+  user-select: none;
+  z-index: 3;
+}
+.dd-success-plate-stack > .dd-success-kicker {
+  margin: 0;
+}
+.dd-success-plate-logo {
+  width: clamp(11rem, 28vw, 17rem);
+  height: auto;
+  opacity: 0;
+  filter:
+    drop-shadow(0 0 16px rgba(255, 106, 0, 0.55))
+    drop-shadow(0 0 32px rgba(0, 212, 219, 0.32))
+    drop-shadow(0 0 10px rgba(255, 192, 61, 0.42));
+  animation: dd-plate-logo-in 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.55s forwards,
+             dd-plate-logo-float 4.2s ease-in-out 1.6s infinite;
+}
+@keyframes dd-plate-logo-in {
+  from { opacity: 0; transform: scale(0.65); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes dd-plate-logo-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.02); }
+}
+
+.dd-success-plate-content .dd-success-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.45rem 1.1rem 0.5rem;
+  border: 1.5px solid rgba(0, 212, 219, 0.9);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(0, 124, 132, 0.45), rgba(2, 6, 23, 0.6) 60%);
+  color: #f6feff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 12px rgba(0, 212, 219, 0.85),
+    0 1px 2px rgba(0, 0, 0, 0.85);
+  box-shadow:
+    0 0 0 1px rgba(0, 212, 219, 0.4) inset,
+    0 0 26px rgba(0, 212, 219, 0.55),
+    0 0 14px rgba(255, 106, 0, 0.16);
+  opacity: 0;
+  animation: dd-plate-kicker-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.55s forwards;
+}
+@keyframes dd-plate-kicker-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dd-success-logo-img-3d {
+  width: 52%;
+  height: auto;
+  opacity: 0;
+  filter:
+    drop-shadow(0 0 16px rgba(255, 106, 0, 0.55))
+    drop-shadow(0 0 32px rgba(0, 212, 219, 0.32))
+    drop-shadow(0 0 10px rgba(255, 192, 61, 0.42));
+  animation: dd-plate-logo-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.7s forwards;
+}
+@keyframes dd-plate-logo-in {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.dd-success-plate-content .dd-success-league {
+  margin: 0;
+  padding: 0 1rem;
+  font-weight: 900;
+  font-size: 1.2rem;
+  line-height: 1.04;
+  letter-spacing: 0.012em;
+  text-transform: uppercase;
+  text-align: center;
+  background: linear-gradient(96deg, #FFC03D 0%, #FF8A00 38%, #FF6A00 62%, #FFC03D 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 22px rgba(255, 106, 0, 0.28);
+  opacity: 0;
+  animation: dd-plate-league-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 1.1s forwards;
+}
+@keyframes dd-plate-league-in {
+  from { opacity: 0; transform: translateY(12px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.dd-success-takeover .dd-success-logo-img {
+  opacity: 0;
+  filter:
+    drop-shadow(0 0 20px rgba(255, 106, 0, 0.5))
+    drop-shadow(0 0 36px rgba(0, 212, 219, 0.32))
+    drop-shadow(0 0 10px rgba(255, 192, 61, 0.42));
+  animation: dd-takeover-logo-in 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards,
+             dd-takeover-logo-float 4.2s ease-in-out 1.5s infinite;
+}
+@keyframes dd-takeover-logo-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -65%) scale(0.6);
+    filter:
+      drop-shadow(0 0 0 rgba(255, 106, 0, 0))
+      drop-shadow(0 0 0 rgba(0, 212, 219, 0));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -65%) scale(1);
+    filter:
+      drop-shadow(0 0 20px rgba(255, 106, 0, 0.5))
+      drop-shadow(0 0 36px rgba(0, 212, 219, 0.32))
+      drop-shadow(0 0 10px rgba(255, 192, 61, 0.42));
+  }
+}
+@keyframes dd-takeover-logo-float {
+  0%, 100% { transform: translate(-50%, -65%) scale(1); }
+  50% { transform: translate(-50%, -68%) scale(1.02); }
+}
+
+.dd-success-takeover .dd-success-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.45rem 1.1rem 0.5rem;
+  border: 1.5px solid rgba(0, 212, 219, 0.85);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(0, 124, 132, 0.32), rgba(2, 6, 23, 0.6) 60%);
+  color: #f6feff;
+  font-family: 'Oswald', system-ui, -apple-system, sans-serif;
+  font-size: clamp(0.78rem, 1.4vw, 0.94rem);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 12px rgba(0, 212, 219, 0.65),
+    0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow:
+    0 0 0 1px rgba(0, 212, 219, 0.35) inset,
+    0 0 22px rgba(0, 212, 219, 0.45),
+    0 0 14px rgba(255, 106, 0, 0.12);
+  opacity: 0;
+  animation: dd-takeover-kicker-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.55s forwards;
+}
+@keyframes dd-takeover-kicker-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dd-success-takeover .dd-success-league {
+  margin: 0;
+  padding: 0 1rem;
+  font-family: 'Oswald', system-ui, -apple-system, sans-serif;
+  font-weight: 900;
+  font-size: clamp(1.5rem, 3.4vw, 2.6rem);
+  line-height: 1.04;
+  letter-spacing: 0.012em;
+  text-transform: uppercase;
+  text-align: center;
+  background: linear-gradient(96deg, #FFC03D 0%, #FF8A00 38%, #FF6A00 62%, #FFC03D 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 22px rgba(255, 106, 0, 0.28);
+  opacity: 0;
+  animation: dd-takeover-league-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.82s forwards;
+}
+@keyframes dd-takeover-league-in {
+  from { opacity: 0; transform: translateY(22px) scale(0.96); filter: blur(8px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+.dd-success-takeover .dd-success-format {
+  margin: 0.4rem 0 0;
+  color: rgba(220, 240, 250, 0.78);
+  font-family: 'Oswald', system-ui, sans-serif;
+  font-size: clamp(0.78rem, 1.3vw, 0.95rem);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(0, 212, 219, 0.32);
+  opacity: 0;
+  animation: dd-takeover-format-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1.05s forwards;
+}
+@keyframes dd-takeover-format-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dd-success-takeover .dd-success-bar {
+  width: 0;
+  height: 4px;
+  margin-top: 1.1rem;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0, 212, 219, 0.95) 14%,
+    rgba(255, 192, 61, 0.92) 50%,
+    rgba(255, 106, 0, 0.95) 86%,
+    transparent 100%
+  );
+  border-radius: 2px;
+  filter: drop-shadow(0 0 8px rgba(0, 212, 219, 0.5))
+          drop-shadow(0 0 6px rgba(255, 106, 0, 0.32));
+  animation: dd-takeover-bar-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.2s forwards;
+}
+@keyframes dd-takeover-bar-in {
+  from { width: 0; }
+  to { width: clamp(8rem, 22vw, 16rem); }
+}
+
+@keyframes dd-takeover-league-badge {
+  from { opacity: 0; transform: translateY(-12px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dd-success-takeover,
+  .dd-success-takeover *,
+  .dd-success-takeover[data-exit="true"] {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  .dd-success-takeover[data-exit="true"] { opacity: 0 !important; }
+}

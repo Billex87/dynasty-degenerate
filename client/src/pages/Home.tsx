@@ -49,6 +49,7 @@ import {
   type PremiumFxVariant,
 } from "@/components/PremiumFxLayer";
 const SuccessCard3D = lazy(() => import("@/components/SuccessCard3D"));
+const SuccessTakeover = lazy(() => import("@/components/SuccessTakeover"));
 import { SupportButton } from "@/components/SupportButton";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
@@ -3817,6 +3818,19 @@ export default function Home() {
     leagueFormat: string;
     leagueLogo: string | null;
   } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('preview') === 'success') {
+      setIsLoading(true);
+      setAnalysisCompleteMessage({
+        leagueName: 'The Fantasy Degenerates',
+        leagueFormat: '12-Team Dynasty SF PPR TEP',
+        leagueLogo: '/favicon-32x32.png',
+      });
+    }
+  }, []);
+
   const [pendingAnalysisLeague, setPendingAnalysisLeague] =
     useState<AnalysisLeaguePreview | null>(null);
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
@@ -4810,7 +4824,7 @@ export default function Home() {
   const loadingDialog = (
     <Dialog
       key="analysis-loading-dialog"
-      open={isLoading}
+      open={isLoading && !analysisCompleteMessage}
       onOpenChange={() => undefined}
     >
       <DialogContent
@@ -4884,6 +4898,17 @@ export default function Home() {
       </DialogContent>
     </Dialog>
   );
+
+  const successTakeover = analysisCompleteMessage ? (
+    <Suspense fallback={null}>
+      <SuccessTakeover
+        leagueName={analysisCompleteMessage.leagueName}
+        leagueFormat={analysisCompleteMessage.leagueFormat}
+        leagueLogo={analysisCompleteMessage.leagueLogo}
+        exit={loadingTransitionPhase === "kick"}
+      />
+    </Suspense>
+  ) : null;
 
   const adminAccessDialog = (
     <Dialog
@@ -6304,6 +6329,7 @@ export default function Home() {
         {adminAccessDialog}
         {adminUnlockDialog}
         {loadingDialog}
+        {successTakeover}
       </>
     );
   }
@@ -6529,6 +6555,7 @@ export default function Home() {
       {adminAccessDialog}
       {adminUnlockDialog}
       {loadingDialog}
+      {successTakeover}
     </>
   );
 }
