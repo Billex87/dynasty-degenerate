@@ -10,6 +10,7 @@ Checklist status after this pass: `282` checked items and `156` unchecked items.
 | --- | --- | --- |
 | Neon/Postgres transfer audit | Added an executable transfer audit script that reports table size, largest report-cache payloads, recent cache transfer drivers, snapshot payload sizes, and source-health event volume. Requires production `DATABASE_URL` to run. | `scripts/audit-neon-transfer.mjs`, `package.json` |
 | League report cache compression | Added transparent gzip/base64 compression for large persistent and file-backed `leagueReportCache` payloads, plus a dry-run-capable one-off compaction command for existing heavy rows. Production top-20 compaction reduced those rows from `252 MB` to `35 MB`. | `server/db.ts`, `server/routers.ts`, `scripts/compact-league-report-cache.mjs`, `server/leagueReportCacheCompression.test.ts` |
+| League report cache cleanup | Added a dry-run-first stale-version cleanup command for old `leagueReportCache` rows. It keeps `league-report-v37` and `league-rankings-v11`, prints only row metadata and payload sizes, and requires explicit confirmation before any delete path can run. Production cleanup deleted `34` stale cache rows totaling `89 MB`, and the follow-up dry run found no remaining stale version rows. | `scripts/cleanup-league-report-cache.mjs`, `package.json`, `todo.md` |
 | Single-key leak response plan | Added provider key leak response plan covering disable, env removal, redeploy/rollback, repo/log audit, provider recovery, and verification commands. | `docs/provider-key-leak-response.md` |
 | New-source probation rule | Documented probation rule for every new API/feed/scrape before trust weight can rise. | `docs/source-onboarding-and-coverage-audit.md` |
 | Source audit template and matrix | Captured the current source coverage matrix, usage status, later feature potential, and open questions for Sleeper, FantasyPros, DraftSharks, KTC, Flock, FantasyCalc, Dynasty Nerds, Fantasy Nerds, DynastyProcess/nflverse, prospect sources, ESPN metadata, and internal jobs. | `docs/source-onboarding-and-coverage-audit.md` |
@@ -76,7 +77,7 @@ These were intentionally not implemented tonight per prompt:
 | May 14 projections/SOS rollout | Needs approved projection/SOS source blend and live schedule data validation. | Run provider checks after source approvals and schedule ingestion path are chosen. |
 | Source-health production backfill | Needs production cached reports and production env access. | Run `ENABLE_SOURCE_HEALTH_BACKFILL=true` only as a one-off. |
 | Alert webhook production config | Needs real Slack/email/webhook secret. | Set `SOURCE_HEALTH_ALERT_WEBHOOK_URL` in production secret store. |
-| Remaining report-cache bloat | The largest remaining rows are older `league-rankings-v2` and `league-report-v35/v36/v37` rows around `5.4 MB` or less. | Add retention cleanup for old cache versions and split ranking metadata/detail reads if transfer remains high. |
+| Remaining report-cache bloat | Old stale versions were removed; largest remaining cache rows are current `league-report-v37` and `league-rankings-v11` rows. | Split ranking metadata/detail reads if transfer remains high. |
 | Confidence calibration | Needs enough 2026 source snapshots, trades, waivers, injuries, news events, and standings movement. | Revisit after in-season sample size accumulates. |
 | Snapshot replay/regression tests | Needs a stable fixture set and expected drift thresholds. | Start with source-blend replay fixtures after source trust stabilizes. |
 | Monetization/auth/billing | Requires pricing, legal pages, email provider, Stripe product model, and entitlement schema decisions. | Draft implementation PRD before code changes. |
@@ -110,6 +111,10 @@ These were intentionally not implemented tonight per prompt:
 - `LEAGUE_REPORT_CACHE_COMPACT_LIMIT=20 pnpm compact:league-report-cache`: dry-run passed; estimated top-20 reduction was `252 MB` to `35 MB`.
 - `LEAGUE_REPORT_CACHE_COMPACT_DRY_RUN=false LEAGUE_REPORT_CACHE_COMPACT_LIMIT=20 pnpm compact:league-report-cache`: production compaction passed; 20 rows changed.
 - `set -a; source .vercel/.env.production.local; set +a; pnpm audit:neon-transfer`: passed after compaction; largest `leagueReportCache` payload is now `5.4 MB` and the 18 MB `league-rankings-v11` rows no longer appear in the top 20.
+- `set -a; source .vercel/.env.production.local; set +a; pnpm cleanup:league-report-cache`: dry-run passed with `34` stale rows and `89 MB` eligible for deletion.
+- `LEAGUE_REPORT_CACHE_CLEANUP_DRY_RUN=false LEAGUE_REPORT_CACHE_CLEANUP_CONFIRM_DELETE=true pnpm cleanup:league-report-cache`: production cleanup passed; deleted `34` stale cache rows totaling `89 MB`.
+- `set -a; source .vercel/.env.production.local; set +a; pnpm audit:neon-transfer`: passed after stale cache cleanup; largest `leagueReportCache` rows are current `league-report-v37` and `league-rankings-v11` rows.
+- `set -a; source .vercel/.env.production.local; set +a; pnpm cleanup:league-report-cache`: follow-up dry run passed with no stale `leagueReportCache` version rows found.
 - `node --check scripts/audit-neon-transfer.mjs`: passed.
 - `node --check scripts/compact-league-report-cache.mjs`: passed.
 - `pnpm build`: passed.

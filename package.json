@@ -23,6 +23,7 @@
     "check:fantasypros": "node scripts/check-fantasypros.mjs",
     "audit:neon-transfer": "node scripts/audit-neon-transfer.mjs",
     "compact:league-report-cache": "node scripts/compact-league-report-cache.mjs",
+    "cleanup:league-report-cache": "node scripts/cleanup-league-report-cache.mjs",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {

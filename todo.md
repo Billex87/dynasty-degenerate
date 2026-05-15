@@ -21,6 +21,8 @@
 - [x] Run the Neon transfer audit with production `DATABASE_URL` and record the main transfer drivers.
 - [x] Add transparent compression for large `leagueReportCache` payloads and a one-off compaction command for existing heavy cache rows.
 - [x] After the compaction command runs against production, re-run `pnpm audit:neon-transfer` and confirm the 18 MB `league-rankings-v11` rows are reduced.
+- [x] Add a dry-run stale `leagueReportCache` cleanup command that keeps current `league-report-v37` and `league-rankings-v11` rows, prints only row metadata and payload size, and requires explicit confirmation before deletion.
+- [x] Run `pnpm cleanup:league-report-cache` against production, review the stale cache rows, and delete approved stale cache rows.
 - [ ] Reduce transfer further by splitting ranking metadata/detail reads, trimming duplicated prospect fields, tightening cache TTL/retention, and avoiding full payload reads when only metadata is needed.
 - [x] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
 - [x] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
