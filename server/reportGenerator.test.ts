@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import * as db from './db';
 import {
   cleanName,
   getPlayerValue,
@@ -10,6 +11,11 @@ import { generateReport } from './reportGenerator';
 
 type TestPlayers = Parameters<typeof generateReport>[2];
 type TestKtcValues = Parameters<typeof generateReport>[3];
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('League Analysis Helpers', () => {
   describe('cleanName', () => {
@@ -218,6 +224,80 @@ describe('generateReport trade ledger', () => {
       rank: 2,
       pointsFor: 1600,
     });
+  });
+
+  it('adds stored prop-market signals to manager market reads without live provider calls', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(db, 'findLatestProviderDataSnapshot').mockResolvedValue({
+      snapshotKey: '2026-09-10',
+      updatedAt: new Date('2026-09-10T18:00:00Z'),
+      payload: JSON.stringify({
+        schemaVersion: 1,
+        generatedAt: '2026-09-10T18:00:00Z',
+        snapshotKey: '2026-09-10',
+        snapshot: {
+          status: 'loaded',
+          source: 'OpticOdds Player Props',
+          generatedAt: '2026-09-10T18:00:00Z',
+          snapshotKey: '2026-09-10',
+          lines: [{
+            source: 'OpticOdds',
+            league: 'nfl',
+            sport: 'football',
+            fixtureId: 'fixture-1',
+            eventName: 'DEN at KC',
+            startTime: '2026-09-11T00:20:00.000Z',
+            playerId: 'sutton',
+            playerName: 'Courtland Sutton',
+            team: 'DEN',
+            market: 'player_receiving_yards',
+            marketLabel: 'Receiving Yards',
+            line: 54.5,
+            outcomes: [{
+              label: 'Over',
+              side: 'over',
+              priceAmerican: -112,
+              priceDecimal: null,
+              impliedProbability: null,
+              sportsbookId: 'sleeper',
+              sportsbookName: 'Sleeper',
+              lastUpdated: '2026-09-10T18:00:00.000Z',
+            }],
+          }],
+        },
+      }),
+    });
+
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterPositions: ['QB', 'RB', 'WR', 'TE', 'BN'],
+        rosterMap: { 1: 'Manager A' },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['sutton'] },
+        ],
+      },
+      null,
+      {
+        sutton: { first_name: 'Courtland', last_name: 'Sutton', position: 'WR', age: 30 },
+      },
+      {
+        courtlandsutton: {
+          name: 'Courtland Sutton',
+          ktc_value: 4500,
+          redraft_value: 5200,
+          position_rank: 'WR28',
+        },
+      },
+      {}
+    );
+
+    const managerIntel = report.managerRosterIntelligence.find((row) => row.manager === 'Manager A');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(managerIntel?.marketSignals?.some((signal) => signal.includes('Prop-market check: Courtland Sutton'))).toBe(true);
   });
 
   it('caps redraft trade outcome windows at the championship week boundary', async () => {

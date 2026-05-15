@@ -19,6 +19,7 @@ import {
   loadRecentDynastySourceRowsFromLocalSnapshots,
 } from './dynastySourceTrust';
 import { isFantasyNerdsTestDataActive } from './fantasyNerds';
+import { loadStoredPlayerPropMarketSignals, type PlayerPropMarketSignal } from './playerPropSignals';
 import type {
   LeagueValueMode,
   ManagerIntelPlayer,
@@ -2125,11 +2126,13 @@ function buildMarketSignals({
   buyTarget,
   sellCandidate,
   isContenderBuild,
+  propMarketSignals,
 }: {
   rosterPlayers: Array<ManagerIntelPlayer & { age?: number | null; isStarter?: boolean }>;
   buyTarget: ManagerIntelPlayer | null;
   sellCandidate: ManagerIntelPlayer | null;
   isContenderBuild: boolean;
+  propMarketSignals?: PlayerPropMarketSignal[];
 }) {
   const signals: string[] = [];
   const redraftDiscount = rosterPlayers
@@ -2147,6 +2150,7 @@ function buildMarketSignals({
 
   if (redraftDiscount) signals.push(`${redraftDiscount.name} has more current-season utility than dynasty price, a contender-friendly hold/buy.`);
   if (dynastyPremium) signals.push(`${dynastyPremium.name} is dynasty-priced above current-season projection, so rebuilders can hold but contenders should ask what the market pays.`);
+  signals.push(...buildRosterPropMarketSignalNotes(rosterPlayers, propMarketSignals || []));
   if (agingProducer) signals.push(`${agingProducer.name} is an aging producer: useful for a title push, dangerous as a long-term store of value.`);
   if (youthHype) signals.push(`${youthHype.name} carries youth premium; do not sell low, but use the name value if the roster needs weekly points.`);
   if (buyTarget) signals.push(`External target profile: ${buyTarget.name} fits the roster need better than a generic best-player trade.`);
@@ -2154,6 +2158,42 @@ function buildMarketSignals({
   if (isContenderBuild) signals.push('Contender lens: prefer redraft production and injury insulation over pure dynasty value.');
   else signals.push('Future lens: prefer age/value growth and picks over short-window production.');
   return signals.slice(0, 6);
+}
+
+function normalizeSignalKey(value?: string | null): string {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+}
+
+function buildRosterPropMarketSignalNotes(
+  rosterPlayers: Array<ManagerIntelPlayer & { age?: number | null; isStarter?: boolean }>,
+  propMarketSignals: PlayerPropMarketSignal[]
+) {
+  if (!propMarketSignals.length) return [];
+  const rosterPlayerIds = new Set(rosterPlayers.map((player) => player.player_id).filter(Boolean));
+  const rosterPlayerNames = new Set(rosterPlayers.map((player) => normalizeSignalKey(player.name)).filter(Boolean));
+
+  return propMarketSignals
+    .filter((signal) => {
+      if (signal.playerId && rosterPlayerIds.has(signal.playerId)) return true;
+      return rosterPlayerNames.has(normalizeSignalKey(signal.playerName));
+    })
+    .sort((a, b) => {
+      const confidenceOrder = { high: 0, medium: 1, low: 2 };
+      return confidenceOrder[a.confidence] - confidenceOrder[b.confidence] || b.sportsbookCount - a.sportsbookCount;
+    })
+    .slice(0, 2)
+    .map((signal) => {
+      const marketLabel = signal.marketLabel || signal.market.replace(/_/g, ' ');
+      const bookLabel = `${signal.sportsbookCount} book${signal.sportsbookCount === 1 ? '' : 's'}`;
+      const lineLabel = signal.marketLine !== null ? `${marketLabel} ${signal.marketLine}` : marketLabel;
+      if (signal.direction === 'market_higher') {
+        return `Prop-market support: ${signal.playerName} is priced above our ${marketLabel} projection across ${bookLabel}, a start/hold confidence boost.`;
+      }
+      if (signal.direction === 'market_lower') {
+        return `Prop-market caution: ${signal.playerName} is priced below our ${marketLabel} projection across ${bookLabel}, so pressure-test the lineup spot.`;
+      }
+      return `Prop-market check: ${signal.playerName} has a stored ${lineLabel} line across ${bookLabel}; use it as a current-role check before lineup calls.`;
+    });
 }
 
 function buildTradeBlueprints({
@@ -2398,6 +2438,9 @@ export async function generateReport(
   const seasonLineupValueCache = new Map<string, number>();
   const playerNameCache = new Map<string, string>();
   const playerDetailsCache = new Map<string, PlayerDetails | undefined>();
+  const storedPropMarketSignals = await loadStoredPlayerPropMarketSignals()
+    .then((result) => result.signals)
+    .catch(() => []);
 
   const getCachedPlayerName = (pid: string) => {
     if (!playerNameCache.has(pid)) {
@@ -3590,6 +3633,7 @@ export async function generateReport(
       buyTarget,
       sellCandidate,
       isContenderBuild,
+      propMarketSignals: storedPropMarketSignals,
     });
     const tradeBlueprints = buildTradeBlueprints({
       tradePlan,

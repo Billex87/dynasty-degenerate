@@ -43,3 +43,5 @@ OPTICODDS_PROP_MARKETS=player_passing_yards,player_rushing_yards,player_receivin
 The normalized line shape stores player identity, fixture/event metadata, market, line, sportsbook, over/under side, American odds, decimal odds when available, implied probability when available, and provider update timestamps.
 
 `server/playerPropSignals.ts` is the read-only signal layer over those snapshots. It compares stored market lines against internal projection inputs, then returns market direction, sportsbook agreement, confidence, and neutral start/sit support flags. It intentionally reads snapshots only; provider calls remain limited to the dynamic-data refresh path.
+
+Report generation now folds stored prop-market signals into manager `marketSignals` when a signal matches a rostered player. This gives Autopilot/report intelligence a value and start/sit context hook without adding live odds calls to normal report loads.
