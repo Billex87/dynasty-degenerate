@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { buildDepthChartDiagnostics, matchEspnDepthChartsToPlayers, parseEspnDepthChartHtml } from './espnDepthCharts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as db from './db';
+import { buildDepthChartDiagnostics, fetchEspnDepthChartsForPlayersWithDiagnostics, matchEspnDepthChartsToPlayers, parseEspnDepthChartHtml } from './espnDepthCharts';
 
 function createDepthChartHtml(groups: unknown[]) {
   return `<script>window['__espnfitt__']=${JSON.stringify({
@@ -14,6 +15,11 @@ function createDepthChartHtml(groups: unknown[]) {
 }
 
 describe('ESPN depth chart parsing', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it('parses duplicate offensive rows into one actual position depth order', () => {
     const chart = parseEspnDepthChartHtml(createDepthChartHtml([
       {
@@ -80,5 +86,40 @@ describe('ESPN depth chart parsing', () => {
     expect(diagnostics.loadedTeams).toEqual(['mia']);
     expect(diagnostics.failedTeams).toEqual(['dal']);
     expect(diagnostics.durationMs).toBe(0);
+  });
+
+  it('loads player depth charts from stored snapshots without fetching ESPN live pages', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(db, 'findLatestProviderDataSnapshot').mockResolvedValue({
+      snapshotKey: '2026-05-15',
+      updatedAt: new Date('2026-05-15T12:00:00Z'),
+      payload: JSON.stringify({
+        schemaVersion: 1,
+        generatedAt: '2026-05-15T12:00:00Z',
+        snapshotKey: '2026-05-15',
+        teams: {
+          mia: [{
+            team: 'mia',
+            position: 'WR',
+            order: 1,
+            playerName: 'Alpha One',
+            espnId: '111',
+            groupName: '3WR 1TE',
+          }],
+        },
+      }),
+    });
+
+    const result = await fetchEspnDepthChartsForPlayersWithDiagnostics(['player-a'], {
+      'player-a': { team: 'MIA', position: 'WR', full_name: 'Wrong Local Name', espn_id: '111' },
+    }, { sourceMode: 'snapshot' });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.playerDepthCharts['player-a']).toMatchObject({
+      playerName: 'Alpha One',
+      order: 1,
+    });
+    expect(result.diagnostics.loadedTeams).toEqual(['mia']);
   });
 });

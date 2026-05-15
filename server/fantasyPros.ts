@@ -1,9 +1,12 @@
 import { cleanName, playerNameKeyVariants } from './leagueAnalysis';
 import { recordApiProviderCacheHit, recordApiProviderTelemetryEvent } from './apiProviderTelemetry';
+import { findLatestProviderDataSnapshot, upsertProviderDataSnapshot } from './db';
+import { getProviderSnapshotDateKey, parseProviderSnapshotPayload } from './providerDataSnapshots';
 
 const FANTASYPROS_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 const SEASON_RANK_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
+const FANTASYPROS_NEWS_SNAPSHOT_SOURCE_KEY = 'fantasypros-news-v1';
 
 export type FantasyProsScoring = 'STD' | 'HALF' | 'PPR';
 export type FantasyProsRankingType = 'DRAFT' | 'ROS' | 'DYNASTY' | 'DEVY' | 'ROOKIES' | 'ADP' | 'DYNADP' | 'RKADP';
@@ -81,6 +84,19 @@ interface FantasyProsPlayerReference {
   position: string | null;
   team: string | null;
 }
+
+type FantasyProsLoadOptions = {
+  sourceMode?: 'live' | 'snapshot';
+  persistSnapshot?: boolean;
+  forceRefresh?: boolean;
+};
+
+type FantasyProsNewsSnapshotPayload = {
+  schemaVersion: 1;
+  generatedAt: string;
+  snapshotKey: string;
+  items: FantasyProsNewsItem[];
+};
 
 let cachedDraftRankings: { loadedAt: number; season: string; scoring: FantasyProsScoring; values: Record<string, FantasyProsRanking> } | null = null;
 const cachedConsensusRankings = new Map<string, { loadedAt: number; values: Record<string, FantasyProsRanking> }>();
@@ -384,6 +400,48 @@ function sortedNews(newsItems: FantasyProsNewsItem[]): FantasyProsNewsItem[] {
     .map(({ item }) => item);
 }
 
+function parseFantasyProsNewsSnapshot(payload?: string | null): FantasyProsNewsSnapshotPayload | null {
+  const parsed = parseProviderSnapshotPayload<Partial<FantasyProsNewsSnapshotPayload>>(payload);
+  if (
+    parsed?.schemaVersion !== 1 ||
+    typeof parsed.snapshotKey !== 'string' ||
+    !Array.isArray(parsed.items)
+  ) {
+    return null;
+  }
+
+  return parsed as FantasyProsNewsSnapshotPayload;
+}
+
+async function loadStoredFantasyProsNews(): Promise<FantasyProsNewsItem[]> {
+  const stored = await findLatestProviderDataSnapshot(FANTASYPROS_NEWS_SNAPSHOT_SOURCE_KEY);
+  const snapshot = parseFantasyProsNewsSnapshot(stored?.payload);
+  if (!snapshot) return cachedNews?.values || [];
+
+  cachedNews = { loadedAt: Date.now(), values: snapshot.items };
+  return snapshot.items;
+}
+
+async function persistFantasyProsNewsSnapshot(items: FantasyProsNewsItem[], now = new Date()) {
+  const snapshotKey = getProviderSnapshotDateKey(now);
+  const payload: FantasyProsNewsSnapshotPayload = {
+    schemaVersion: 1,
+    generatedAt: now.toISOString(),
+    snapshotKey,
+    items,
+  };
+
+  try {
+    await upsertProviderDataSnapshot({
+      sourceKey: FANTASYPROS_NEWS_SNAPSHOT_SOURCE_KEY,
+      snapshotKey,
+      payload: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.warn('[FantasyPros] Failed to persist news snapshot:', error);
+  }
+}
+
 function playerNameMatches(sourceName: string, candidateName: string): boolean {
   const sourceKeys = playerNameKeyVariants(sourceName).map(cleanName).filter((key) => key.length >= 5);
   const candidateKeys = playerNameKeyVariants(candidateName).map(cleanName).filter((key) => key.length >= 5);
@@ -500,14 +558,19 @@ export async function fetchFantasyProsPlayerPoints(
   }
 }
 
-export async function fetchFantasyProsNews(): Promise<FantasyProsNewsItem[]> {
+export async function fetchFantasyProsNews(options: FantasyProsLoadOptions = {}): Promise<FantasyProsNewsItem[]> {
   if (!isFantasyProsSubSourceEnabled('news')) return [];
-  if (cachedNews && isFresh(cachedNews)) {
+  if (options.sourceMode === 'snapshot') {
+    return loadStoredFantasyProsNews();
+  }
+
+  if (!options.forceRefresh && cachedNews && isFresh(cachedNews)) {
     recordApiProviderCacheHit({
       provider: 'FantasyPros',
       endpoint: '/NFL/news',
       job: 'news',
     });
+    if (options.persistSnapshot) await persistFantasyProsNewsSnapshot(cachedNews.values);
     return cachedNews.values;
   }
 
@@ -522,6 +585,7 @@ export async function fetchFantasyProsNews(): Promise<FantasyProsNewsItem[]> {
     const values = normalizeNewsRows(rows);
 
     cachedNews = { loadedAt: Date.now(), values };
+    if (options.persistSnapshot) await persistFantasyProsNewsSnapshot(values);
     return values;
   } catch (error) {
     console.warn('[FantasyPros] Failed to load player news:', error);
@@ -602,9 +666,14 @@ export async function fetchFantasyProsLatestPlayerNews(input: {
   playerName: string;
   team?: string | null;
   position?: string | null;
+  sourceMode?: 'live' | 'snapshot';
 }): Promise<FantasyProsNewsItem | null> {
   const playerName = input.playerName.trim();
   if (!playerName) return null;
+
+  if (input.sourceMode === 'snapshot') {
+    return findLatestFantasyProsNewsForPlayer(playerName, await fetchFantasyProsNews({ sourceMode: 'snapshot' }));
+  }
 
   const targetTeam = input.team?.toUpperCase() || null;
   const targetPosition = input.position?.toUpperCase() || null;

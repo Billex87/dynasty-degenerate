@@ -1,3 +1,6 @@
+import { findLatestProviderDataSnapshot, upsertProviderDataSnapshot } from './db';
+import { getProviderSnapshotDateKey, parseProviderSnapshotPayload } from './providerDataSnapshots';
+
 export interface EspnDepthChartEntry {
   team: string;
   position: string;
@@ -54,7 +57,19 @@ export interface EspnDepthChartWarmResult {
 const ESPN_FITT_MARKER = "window['__espnfitt__']=";
 const ESPN_DEPTH_CHART_CACHE_TTL_MS = 1000 * 60 * 30;
 const ESPN_DEPTH_CHART_CONCURRENCY = 6;
+const ESPN_DEPTH_CHART_SNAPSHOT_SOURCE_KEY = 'espn-depth-charts-v1';
 const teamDepthChartCache = new Map<string, { expiresAt: number; chart: EspnTeamDepthChart | null }>();
+
+type EspnDepthChartLoadOptions = {
+  sourceMode?: 'live' | 'snapshot';
+};
+
+type EspnDepthChartSnapshotPayload = {
+  schemaVersion: 1;
+  generatedAt: string;
+  snapshotKey: string;
+  teams: Record<string, EspnDepthChartEntry[]>;
+};
 
 const ESPN_TEAM_ABBR_BY_SLEEPER_TEAM: Record<string, string> = {
   ARI: 'ari',
@@ -271,6 +286,61 @@ function indexTeamDepthChart(team: string, entries: EspnDepthChartEntry[]): Espn
   return { team, entries: sortedEntries, byEspnId, byName };
 }
 
+function parseEspnDepthChartSnapshot(payload?: string | null): EspnDepthChartSnapshotPayload | null {
+  const parsed = parseProviderSnapshotPayload<Partial<EspnDepthChartSnapshotPayload>>(payload);
+  if (
+    parsed?.schemaVersion !== 1 ||
+    typeof parsed.snapshotKey !== 'string' ||
+    !parsed.teams ||
+    typeof parsed.teams !== 'object' ||
+    Array.isArray(parsed.teams)
+  ) {
+    return null;
+  }
+
+  return parsed as EspnDepthChartSnapshotPayload;
+}
+
+async function loadStoredEspnDepthCharts(teams: string[]): Promise<Map<string, EspnTeamDepthChart | null>> {
+  const stored = await findLatestProviderDataSnapshot(ESPN_DEPTH_CHART_SNAPSHOT_SOURCE_KEY);
+  const snapshot = parseEspnDepthChartSnapshot(stored?.payload);
+  const charts = new Map<string, EspnTeamDepthChart | null>();
+
+  for (const team of teams) {
+    const entries = snapshot?.teams?.[team] || null;
+    charts.set(team, entries ? indexTeamDepthChart(team, entries) : null);
+  }
+
+  return charts;
+}
+
+async function persistEspnDepthChartSnapshot(chartsByTeam: Map<string, EspnTeamDepthChart | null>, now = new Date()) {
+  const teams = Object.fromEntries(
+    Array.from(chartsByTeam.entries())
+      .filter((entry): entry is [string, EspnTeamDepthChart] => Boolean(entry[1]))
+      .map(([team, chart]) => [team, chart.entries])
+  );
+  if (!Object.keys(teams).length) return;
+
+  const snapshotKey = getProviderSnapshotDateKey(now);
+  const payload: EspnDepthChartSnapshotPayload = {
+    schemaVersion: 1,
+    generatedAt: now.toISOString(),
+    snapshotKey,
+    teams,
+  };
+
+  try {
+    await upsertProviderDataSnapshot({
+      sourceKey: ESPN_DEPTH_CHART_SNAPSHOT_SOURCE_KEY,
+      snapshotKey,
+      payload: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.warn('[ESPN Depth Charts] Failed to persist depth chart snapshot:', error);
+  }
+}
+
 export function parseEspnDepthChartHtml(html: string, team: string): EspnTeamDepthChart | null {
   const payload = extractEspnFittPayload(html);
   if (!payload) return null;
@@ -402,7 +472,8 @@ export function matchEspnDepthChartsToPlayers(
 
 export async function fetchEspnDepthChartsForPlayersWithDiagnostics(
   playerIds: Iterable<string>,
-  players: Record<string, any>
+  players: Record<string, any>,
+  options: EspnDepthChartLoadOptions = {}
 ): Promise<EspnDepthChartFetchResult> {
   const startedAt = Date.now();
   const uniquePlayerIds = Array.from(new Set(Array.from(playerIds).filter(Boolean)));
@@ -420,8 +491,9 @@ export async function fetchEspnDepthChartsForPlayersWithDiagnostics(
     };
   }
 
-  const charts = await mapLimit(uniqueTeams, ESPN_DEPTH_CHART_CONCURRENCY, async (team) => [team, await fetchEspnTeamDepthChart(team)] as const);
-  const chartsByTeam = new Map(charts);
+  const chartsByTeam = options.sourceMode === 'snapshot'
+    ? await loadStoredEspnDepthCharts(uniqueTeams)
+    : new Map(await mapLimit(uniqueTeams, ESPN_DEPTH_CHART_CONCURRENCY, async (team) => [team, await fetchEspnTeamDepthChart(team)] as const));
   const playerDepthCharts = matchEspnDepthChartsToPlayers(chartsByTeam, uniquePlayerIds, players);
   return {
     playerDepthCharts,
@@ -445,6 +517,7 @@ export async function warmEspnDepthChartsForTeams(teams: Iterable<string>): Prom
   )).sort();
   const charts = await mapLimit(requestedTeams, ESPN_DEPTH_CHART_CONCURRENCY, async (team) => [team, await fetchEspnTeamDepthChart(team)] as const);
   const chartsByTeam = new Map(charts);
+  await persistEspnDepthChartSnapshot(chartsByTeam);
   const loadedTeams = requestedTeams.filter((team) => Boolean(chartsByTeam.get(team)));
   const failedTeams = requestedTeams.filter((team) => !chartsByTeam.get(team));
 

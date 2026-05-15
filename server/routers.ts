@@ -4214,6 +4214,7 @@ export const appRouter = router({
           }
           const draftSharksScheduleContext = await loadDraftSharksScheduleContext({
             season: currentSeasonLabel,
+            sourceMode: 'snapshot',
           });
           markAnalyzeStep('schedule inputs');
           const reportData = await generateReport(
@@ -4468,8 +4469,8 @@ export const appRouter = router({
               leagueInfo.scoring_settings,
               lastCompletedSeason
             ),
-            fetchFantasyProsNews(),
-            fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players),
+            fetchFantasyProsNews({ sourceMode: 'snapshot' }),
+            fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, { sourceMode: 'snapshot' }),
             fetchSleeperPlayerResearchMap(sleeperResearchSeasonType, currentSeason),
             prevLeagueId && pastSeasonData
               ? fetchSleeperLeagueUsageSummary(
@@ -4620,6 +4621,7 @@ export const appRouter = router({
           playerName,
           team: input.team || null,
           position: input.position || null,
+          sourceMode: 'snapshot',
         });
 
         return {

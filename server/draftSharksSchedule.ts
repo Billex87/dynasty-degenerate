@@ -1,5 +1,7 @@
 import type { ScheduleTier } from '../shared/types';
 import { recordApiProviderCacheHit, recordApiProviderTelemetryEvent } from './apiProviderTelemetry';
+import { findLatestProviderDataSnapshot, upsertProviderDataSnapshot } from './db';
+import { getProviderSnapshotDateKey, parseProviderSnapshotPayload } from './providerDataSnapshots';
 
 export type DraftSharksScheduleStatus = 'disabled' | 'missing_config' | 'loaded' | 'empty' | 'error';
 
@@ -26,11 +28,15 @@ type DraftSharksFetchOptions = {
   season?: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  sourceMode?: 'live' | 'snapshot';
+  persistSnapshot?: boolean;
+  forceRefresh?: boolean;
 };
 
 const PROVIDER = 'DraftSharks';
 const SOURCE = 'DraftSharks SOS';
 const ENDPOINT = 'partner-sos-feed';
+const DRAFTSHARKS_SOS_SNAPSHOT_SOURCE_KEY = 'draftsharks-sos-v1';
 const DEFAULT_TIMEOUT_MS = 8000;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
@@ -46,6 +52,13 @@ const TEAM_ALIASES: Record<string, string> = {
 };
 
 let cachedContext: { expiresAt: number; value: DraftSharksScheduleContext } | null = null;
+
+type DraftSharksScheduleSnapshotPayload = {
+  schemaVersion: 1;
+  generatedAt: string;
+  snapshotKey: string;
+  context: DraftSharksScheduleContext;
+};
 
 function enabled() {
   return ENABLED_VALUES.has(String(process.env.ENABLE_DRAFTSHARKS_SOS || '').trim().toLowerCase());
@@ -176,6 +189,62 @@ export function normalizeDraftSharksSosPayload(payload: unknown): Record<string,
   return profiles;
 }
 
+function parseDraftSharksScheduleSnapshot(payload?: string | null): DraftSharksScheduleSnapshotPayload | null {
+  const parsed = parseProviderSnapshotPayload<Partial<DraftSharksScheduleSnapshotPayload>>(payload);
+  if (
+    parsed?.schemaVersion !== 1 ||
+    typeof parsed.snapshotKey !== 'string' ||
+    !parsed.context ||
+    typeof parsed.context !== 'object'
+  ) {
+    return null;
+  }
+
+  return parsed as DraftSharksScheduleSnapshotPayload;
+}
+
+async function loadStoredDraftSharksScheduleContext(): Promise<DraftSharksScheduleContext> {
+  const stored = await findLatestProviderDataSnapshot(DRAFTSHARKS_SOS_SNAPSHOT_SOURCE_KEY);
+  const snapshot = parseDraftSharksScheduleSnapshot(stored?.payload);
+  if (snapshot?.context) {
+    cachedContext = {
+      expiresAt: Date.now() + CACHE_TTL_MS,
+      value: snapshot.context,
+    };
+    return snapshot.context;
+  }
+
+  return {
+    status: 'empty',
+    source: SOURCE,
+    updatedAt: null,
+    profiles: {},
+    message: 'No stored DraftSharks SOS snapshot is available.',
+  };
+}
+
+async function persistDraftSharksScheduleSnapshot(context: DraftSharksScheduleContext, now = new Date()) {
+  if (context.status !== 'loaded') return;
+
+  const snapshotKey = getProviderSnapshotDateKey(now);
+  const payload: DraftSharksScheduleSnapshotPayload = {
+    schemaVersion: 1,
+    generatedAt: now.toISOString(),
+    snapshotKey,
+    context,
+  };
+
+  try {
+    await upsertProviderDataSnapshot({
+      sourceKey: DRAFTSHARKS_SOS_SNAPSHOT_SOURCE_KEY,
+      snapshotKey,
+      payload: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.warn('[DraftSharks] Failed to persist SOS snapshot:', error);
+  }
+}
+
 export async function loadDraftSharksScheduleContext(options: DraftSharksFetchOptions = {}): Promise<DraftSharksScheduleContext> {
   if (!enabled()) {
     return {
@@ -185,6 +254,10 @@ export async function loadDraftSharksScheduleContext(options: DraftSharksFetchOp
       profiles: {},
       message: 'DraftSharks SOS is disabled.',
     };
+  }
+
+  if (options.sourceMode === 'snapshot') {
+    return loadStoredDraftSharksScheduleContext();
   }
 
   const apiKey = String(process.env.DRAFTSHARKS_API_KEY || '').trim();
@@ -199,8 +272,9 @@ export async function loadDraftSharksScheduleContext(options: DraftSharksFetchOp
     };
   }
 
-  if (cachedContext && cachedContext.expiresAt > Date.now()) {
+  if (!options.forceRefresh && cachedContext && cachedContext.expiresAt > Date.now()) {
     recordApiProviderCacheHit({ provider: PROVIDER, endpoint: ENDPOINT, job: 'schedule-sos' });
+    if (options.persistSnapshot) await persistDraftSharksScheduleSnapshot(cachedContext.value);
     return cachedContext.value;
   }
 
@@ -251,6 +325,7 @@ export async function loadDraftSharksScheduleContext(options: DraftSharksFetchOp
         expiresAt: Date.now() + CACHE_TTL_MS,
         value: context,
       };
+      if (options.persistSnapshot) await persistDraftSharksScheduleSnapshot(context);
     }
 
     return context;

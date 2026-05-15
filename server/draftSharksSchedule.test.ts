@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearApiProviderTelemetryForTests, getApiProviderTelemetrySnapshot } from './apiProviderTelemetry';
+import * as db from './db';
 import {
   clearDraftSharksScheduleCacheForTests,
   getDraftSharksScheduleProfile,
@@ -114,5 +115,51 @@ describe('DraftSharks schedule integration', () => {
     });
     expect(JSON.stringify(telemetry)).not.toContain('test-key');
     expect(JSON.stringify(telemetry)).not.toContain('partner.example.test');
+  });
+
+  it('loads SOS context from stored snapshots without approved-access fetch config', async () => {
+    process.env.ENABLE_DRAFTSHARKS_SOS = 'true';
+    process.env.DRAFTSHARKS_API_KEY = '';
+    process.env.DRAFTSHARKS_SOS_URL = '';
+
+    const fetchMock = vi.fn();
+    vi.spyOn(db, 'findLatestProviderDataSnapshot').mockResolvedValue({
+      snapshotKey: '2026-05-15',
+      updatedAt: new Date('2026-05-15T12:00:00Z'),
+      payload: JSON.stringify({
+        schemaVersion: 1,
+        generatedAt: '2026-05-15T12:00:00Z',
+        snapshotKey: '2026-05-15',
+        context: {
+          status: 'loaded',
+          source: 'DraftSharks SOS',
+          updatedAt: '2026-05-15T12:00:00Z',
+          profiles: {
+            'KC:QB': {
+              team: 'KC',
+              position: 'QB',
+              seasonSOS: 64,
+              scheduleTier: 'easy',
+              streamerWeeks: [5, 9],
+              avoidWeeks: [],
+              source: 'DraftSharks SOS',
+              updatedAt: '2026-05-15T12:00:00Z',
+            },
+          },
+        },
+      }),
+    });
+
+    const context = await loadDraftSharksScheduleContext({
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sourceMode: 'snapshot',
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(context.status).toBe('loaded');
+    expect(getDraftSharksScheduleProfile(context, 'KC', 'QB')).toMatchObject({
+      seasonSOS: 64,
+      scheduleTier: 'easy',
+    });
   });
 });

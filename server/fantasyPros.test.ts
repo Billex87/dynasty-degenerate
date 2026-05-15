@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as db from './db';
 import {
   fetchFantasyProsDraftRankings,
   fetchFantasyProsDynastyRankings,
+  fetchFantasyProsLatestPlayerNews,
+  fetchFantasyProsNews,
   fetchFantasyProsPlayerPoints,
   normalizeFantasyProsRankingsPayload,
 } from './fantasyPros';
@@ -11,6 +14,7 @@ describe('FantasyPros API client', () => {
     delete process.env.FANTASYPROS_API_KEY;
     delete process.env.ENABLE_FANTASYPROS_DYNASTY_RANKINGS;
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('uses the documented uppercase NFL sport path and x-api-key header', async () => {
@@ -147,5 +151,37 @@ describe('FantasyPros API client', () => {
       'https://api.fantasypros.com/public/v2/json/nfl/2026/player-points?position=ALL&scoring=PPR',
       { headers: { 'x-api-key': 'test-fantasypros-key' } },
     );
+  });
+
+  it('loads news from stored snapshots without calling FantasyPros live endpoints', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(db, 'findLatestProviderDataSnapshot').mockResolvedValue({
+      snapshotKey: '2026-05-15',
+      updatedAt: new Date('2026-05-15T12:00:00Z'),
+      payload: JSON.stringify({
+        schemaVersion: 1,
+        generatedAt: '2026-05-15T12:00:00Z',
+        snapshotKey: '2026-05-15',
+        items: [{
+          title: 'Bijan Robinson workload rising',
+          summary: 'Atlanta plans more targets.',
+          source: 'FantasyPros',
+          publishedAt: '2026-05-15T11:00:00Z',
+          playerName: 'Bijan Robinson',
+          team: 'ATL',
+        }],
+      }),
+    });
+
+    const news = await fetchFantasyProsNews({ sourceMode: 'snapshot' });
+    const latestNews = await fetchFantasyProsLatestPlayerNews({
+      playerName: 'Bijan Robinson',
+      sourceMode: 'snapshot',
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(news).toHaveLength(1);
+    expect(latestNews?.title).toBe('Bijan Robinson workload rising');
   });
 });

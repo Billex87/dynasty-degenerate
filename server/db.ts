@@ -211,6 +211,27 @@ async function ensureSchema(sql: SqlClient) {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS "providerDataSnapshots" (
+          id SERIAL PRIMARY KEY,
+          "sourceKey" VARCHAR(128) NOT NULL,
+          "snapshotKey" VARCHAR(64) NOT NULL,
+          payload TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "providerDataSnapshots_source_key_uidx"
+        ON "providerDataSnapshots" ("sourceKey", "snapshotKey")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "providerDataSnapshots_source_key_idx"
+        ON "providerDataSnapshots" ("sourceKey", "snapshotKey" DESC)
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS "loginAttempts" (
           id SERIAL PRIMARY KEY,
           "eventType" VARCHAR(32) NOT NULL,
@@ -716,6 +737,46 @@ export async function listLeagueAiConfidenceSnapshots(leagueId: string, limit = 
       payload: String(row.payload),
       updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
     }));
+}
+
+export async function upsertProviderDataSnapshot(input: {
+  sourceKey: string;
+  snapshotKey: string;
+  payload: string;
+}) {
+  const sql = await getDb();
+  if (!sql) return false;
+
+  await sql`
+    INSERT INTO "providerDataSnapshots" ("sourceKey", "snapshotKey", payload)
+    VALUES (${input.sourceKey}, ${input.snapshotKey}, ${input.payload})
+    ON CONFLICT ("sourceKey", "snapshotKey") DO UPDATE SET
+      payload = EXCLUDED.payload,
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function findLatestProviderDataSnapshot(sourceKey: string) {
+  const sql = await getDb();
+  if (!sql) return null;
+
+  const result = await sql`
+    SELECT "snapshotKey", payload, "updatedAt"
+    FROM "providerDataSnapshots"
+    WHERE "sourceKey" = ${sourceKey}
+    ORDER BY "snapshotKey" DESC
+    LIMIT 1
+  ` as Array<{ snapshotKey?: string | null; payload?: string | null; updatedAt?: Date | string | null }>;
+
+  const row = result[0];
+  if (!row?.payload) return null;
+  return {
+    snapshotKey: String(row.snapshotKey || ''),
+    payload: String(row.payload),
+    updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
+  };
 }
 
 export async function insertSourceHealthEvents(events: SourceHealthEventInput[]): Promise<boolean> {

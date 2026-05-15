@@ -1,7 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { listLeagueReportCacheEntries } from './db';
+import { loadDraftSharksScheduleContext } from './draftSharksSchedule';
 import { warmEspnDepthChartsForTeams } from './espnDepthCharts';
+import { fetchFantasyProsNews } from './fantasyPros';
 import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth } from './fantasyProsHealth';
 import { loadBlendedKTCValues, loadLatestLocalWeeklyMomentumSnapshot } from './ktcLoader';
 import { attachLeagueAiConfidence, persistLeagueAiConfidenceSnapshot } from './leagueAiConfidence';
@@ -353,6 +355,29 @@ export async function warmDepthChartCacheFromCachedReports(options: {
   };
 }
 
+export async function refreshReportEnrichmentSnapshots(options: {
+  backfillLimit?: number;
+} = {}) {
+  const [fantasyProsNews, draftSharksSchedule, depthChartWarmCache] = await Promise.all([
+    fetchFantasyProsNews({ persistSnapshot: true, forceRefresh: true }),
+    loadDraftSharksScheduleContext({
+      season: String(new Date().getFullYear()),
+      persistSnapshot: true,
+      forceRefresh: true,
+    }),
+    warmDepthChartCacheFromCachedReports({
+      limit: options.backfillLimit || 100,
+    }),
+  ]);
+
+  return {
+    fantasyProsNewsCount: fantasyProsNews.length,
+    draftSharksStatus: draftSharksSchedule.status,
+    draftSharksProfileCount: Object.keys(draftSharksSchedule.profiles || {}).length,
+    depthChartWarmCache,
+  };
+}
+
 export async function runDynamicDataRefresh(options: {
   backfillLimit?: number;
 } = {}) {
@@ -361,9 +386,9 @@ export async function runDynamicDataRefresh(options: {
     ok: boolean;
     durationMs: number;
     sourceRefresh?: Awaited<ReturnType<typeof refreshRankingSourceSnapshots>>;
+    enrichmentRefresh?: Awaited<ReturnType<typeof refreshReportEnrichmentSnapshots>>;
     confidenceBackfill?: Awaited<ReturnType<typeof backfillLeagueAiConfidenceSnapshots>>;
     sourceHealthBackfill?: Awaited<ReturnType<typeof backfillSourceHealthFromCachedReports>>;
-    depthChartWarmCache?: Awaited<ReturnType<typeof warmDepthChartCacheFromCachedReports>>;
     errors: string[];
   } = {
     ok: true,
@@ -389,12 +414,12 @@ export async function runDynamicDataRefresh(options: {
   }
 
   try {
-    result.depthChartWarmCache = await warmDepthChartCacheFromCachedReports({
-      limit: options.backfillLimit || 100,
+    result.enrichmentRefresh = await refreshReportEnrichmentSnapshots({
+      backfillLimit: options.backfillLimit || 100,
     });
   } catch (error) {
     result.ok = false;
-    result.errors.push(`depth chart warm cache: ${getErrorMessage(error)}`);
+    result.errors.push(`enrichment refresh: ${getErrorMessage(error)}`);
   }
 
   try {
