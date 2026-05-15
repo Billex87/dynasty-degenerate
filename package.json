@@ -22,6 +22,7 @@
     "test:e2e:production:responsive": "env -u NO_COLOR PRODUCTION_SMOKE=true playwright test tests/e2e/production-smoke.spec.ts",
     "check:fantasypros": "node scripts/check-fantasypros.mjs",
     "audit:neon-transfer": "node scripts/audit-neon-transfer.mjs",
+    "compact:league-report-cache": "node scripts/compact-league-report-cache.mjs",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {

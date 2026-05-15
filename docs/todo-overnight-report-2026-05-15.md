@@ -2,13 +2,14 @@
 
 Scope: processed `todo.md` top to bottom using `docs/todo-list-execution-prompt.md`. UI/visual/frontend polish was deferred for tomorrow. Non-UI actionable work was implemented when safe. Blocked items were logged with reason and next action.
 
-Checklist status after this pass: `279` checked items and `155` unchecked items. The remaining unchecked items are primarily UI/Three.js, auth/billing/legal, schedule/SOS projection expansion, provider-access-dependent integrations, model/backtest work, and future persistence features.
+Checklist status after this pass: `282` checked items and `156` unchecked items. The remaining unchecked items are primarily UI/Three.js, auth/billing/legal, schedule/SOS projection expansion, provider-access-dependent integrations, model/backtest work, deeper cache slimming, and future persistence features.
 
 ## Implemented Tonight
 
 | Item | Result | Files |
 | --- | --- | --- |
 | Neon/Postgres transfer audit | Added an executable transfer audit script that reports table size, largest report-cache payloads, recent cache transfer drivers, snapshot payload sizes, and source-health event volume. Requires production `DATABASE_URL` to run. | `scripts/audit-neon-transfer.mjs`, `package.json` |
+| League report cache compression | Added transparent gzip/base64 compression for large persistent and file-backed `leagueReportCache` payloads, plus a dry-run-capable one-off compaction command for existing heavy rows. Production top-20 compaction reduced those rows from `252 MB` to `35 MB`. | `server/db.ts`, `server/routers.ts`, `scripts/compact-league-report-cache.mjs`, `server/leagueReportCacheCompression.test.ts` |
 | Single-key leak response plan | Added provider key leak response plan covering disable, env removal, redeploy/rollback, repo/log audit, provider recovery, and verification commands. | `docs/provider-key-leak-response.md` |
 | New-source probation rule | Documented probation rule for every new API/feed/scrape before trust weight can rise. | `docs/source-onboarding-and-coverage-audit.md` |
 | Source audit template and matrix | Captured the current source coverage matrix, usage status, later feature potential, and open questions for Sleeper, FantasyPros, DraftSharks, KTC, Flock, FantasyCalc, Dynasty Nerds, Fantasy Nerds, DynastyProcess/nflverse, prospect sources, ESPN metadata, and internal jobs. | `docs/source-onboarding-and-coverage-audit.md` |
@@ -23,6 +24,7 @@ Checklist status after this pass: `279` checked items and `155` unchecked items.
 ## Concise Implementation Notes
 
 - Neon transfer audit: implemented as a CLI so we can run the audit directly against production `DATABASE_URL` without adding UI or moving large payloads.
+- League report cache compression: keeps the API/client payload shape unchanged, but stores large cache entries compressed so repeated rankings/report cache reads transfer less text from Neon. The production top-20 compaction removed the 18 MB `league-rankings-v11` rows from the largest-row list.
 - Provider key leak response: implemented as operational docs because the real action is secret disable/rotation and deploy rollback, not runtime code.
 - Source probation rule: implemented as source-governance docs so new providers do not enter blends at full weight before health/drift history exists.
 - Source coverage audit: implemented as a compact matrix so we can see what each source returns, what it powers now, and what it could power later.
@@ -74,6 +76,7 @@ These were intentionally not implemented tonight per prompt:
 | May 14 projections/SOS rollout | Needs approved projection/SOS source blend and live schedule data validation. | Run provider checks after source approvals and schedule ingestion path are chosen. |
 | Source-health production backfill | Needs production cached reports and production env access. | Run `ENABLE_SOURCE_HEALTH_BACKFILL=true` only as a one-off. |
 | Alert webhook production config | Needs real Slack/email/webhook secret. | Set `SOURCE_HEALTH_ALERT_WEBHOOK_URL` in production secret store. |
+| Remaining report-cache bloat | The largest remaining rows are older `league-rankings-v2` and `league-report-v35/v36/v37` rows around `5.4 MB` or less. | Add retention cleanup for old cache versions and split ranking metadata/detail reads if transfer remains high. |
 | Confidence calibration | Needs enough 2026 source snapshots, trades, waivers, injuries, news events, and standings movement. | Revisit after in-season sample size accumulates. |
 | Snapshot replay/regression tests | Needs a stable fixture set and expected drift thresholds. | Start with source-blend replay fixtures after source trust stabilizes. |
 | Monetization/auth/billing | Requires pricing, legal pages, email provider, Stripe product model, and entitlement schema decisions. | Draft implementation PRD before code changes. |
@@ -103,6 +106,10 @@ These were intentionally not implemented tonight per prompt:
 - `pnpm test`: passed, 33 test files and 180 tests.
 - `curl -I --max-time 15 https://dynastydegens.com`: passed, production returned HTTP 200 from Vercel.
 - `PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm test:e2e:production`: passed, 4 production smoke tests covering `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`.
-- `pnpm audit:neon-transfer`: blocked locally because `DATABASE_URL` is not present. Full audit must run in an environment with production database access.
+- `set -a; source .vercel/.env.production.local; set +a; pnpm audit:neon-transfer`: passed with production env loaded. Initial audit showed `18 MB` `league-rankings-v11` rows.
+- `LEAGUE_REPORT_CACHE_COMPACT_LIMIT=20 pnpm compact:league-report-cache`: dry-run passed; estimated top-20 reduction was `252 MB` to `35 MB`.
+- `LEAGUE_REPORT_CACHE_COMPACT_DRY_RUN=false LEAGUE_REPORT_CACHE_COMPACT_LIMIT=20 pnpm compact:league-report-cache`: production compaction passed; 20 rows changed.
+- `set -a; source .vercel/.env.production.local; set +a; pnpm audit:neon-transfer`: passed after compaction; largest `leagueReportCache` payload is now `5.4 MB` and the 18 MB `league-rankings-v11` rows no longer appear in the top 20.
 - `node --check scripts/audit-neon-transfer.mjs`: passed.
+- `node --check scripts/compact-league-report-cache.mjs`: passed.
 - `pnpm build`: passed.

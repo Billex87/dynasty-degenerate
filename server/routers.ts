@@ -34,7 +34,7 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, reserveMonthlyReportGeneration, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
+import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence } from "../shared/types";
 
@@ -665,7 +665,7 @@ async function readFileCachedLeagueReport(cacheKey: string): Promise<unknown | n
     const filePath = getLeagueReportFileCachePath(cacheKey);
     const stats = await fs.stat(filePath);
     if (Date.now() - stats.mtimeMs > LEAGUE_REPORT_CACHE_TTL_MS) return null;
-    return JSON.parse(await fs.readFile(filePath, 'utf-8'));
+    return parseLeagueReportCachePayloadFromStorage(await fs.readFile(filePath, 'utf-8'));
   } catch (error: any) {
     if (error?.code !== 'ENOENT') {
       console.warn('Failed to read file league report cache:', error);
@@ -677,7 +677,7 @@ async function readFileCachedLeagueReport(cacheKey: string): Promise<unknown | n
 async function writeFileCachedLeagueReport(cacheKey: string, payload: unknown): Promise<void> {
   try {
     await fs.mkdir(LEAGUE_REPORT_FILE_CACHE_DIR, { recursive: true });
-    await fs.writeFile(getLeagueReportFileCachePath(cacheKey), JSON.stringify(payload));
+    await fs.writeFile(getLeagueReportFileCachePath(cacheKey), serializeLeagueReportCachePayloadForStorage(payload));
   } catch (error) {
     console.warn('Failed to write file league report cache:', error);
   }

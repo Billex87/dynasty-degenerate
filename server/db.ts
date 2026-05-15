@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless";
+import { gzipSync, gunzipSync } from "node:zlib";
 import type { InsertUser, User } from "../drizzle/schema";
 import type { ActionPlanRecord, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TradeProposalSignal, WaiverBidHistoryRecord } from "../shared/types";
 
@@ -13,6 +14,8 @@ const shouldQuietDevLogs = () =>
 const warnWhenDatabaseUnavailable = (...args: Parameters<typeof console.warn>) => {
   if (!shouldQuietDevLogs()) console.warn(...args);
 };
+const LEAGUE_REPORT_CACHE_COMPRESSION_THRESHOLD_BYTES = 256 * 1024;
+const LEAGUE_REPORT_CACHE_ENCODING = "gzip-base64";
 
 export type LoginAttemptEvent = {
   eventType: "find_leagues" | "analyze_league" | "rate_limit";
@@ -63,6 +66,34 @@ function getSql() {
     sqlClient = neon(process.env.DATABASE_URL);
   }
   return sqlClient;
+}
+
+export function serializeLeagueReportCachePayloadForStorage(payload: unknown): string {
+  const serialized = JSON.stringify(payload);
+  if (Buffer.byteLength(serialized, "utf8") < LEAGUE_REPORT_CACHE_COMPRESSION_THRESHOLD_BYTES) {
+    return serialized;
+  }
+
+  return JSON.stringify({
+    __ddCacheEncoding: LEAGUE_REPORT_CACHE_ENCODING,
+    v: 1,
+    payload: gzipSync(serialized).toString("base64"),
+  });
+}
+
+export function parseLeagueReportCachePayloadFromStorage(payload: string): unknown {
+  const parsed = JSON.parse(payload);
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    !Array.isArray(parsed) &&
+    (parsed as Record<string, unknown>).__ddCacheEncoding === LEAGUE_REPORT_CACHE_ENCODING &&
+    typeof (parsed as Record<string, unknown>).payload === "string"
+  ) {
+    const inflated = gunzipSync(Buffer.from(String((parsed as Record<string, unknown>).payload), "base64")).toString("utf8");
+    return JSON.parse(inflated);
+  }
+  return parsed;
 }
 
 async function ensureSchema(sql: SqlClient) {
@@ -928,7 +959,7 @@ export async function findLeagueReportCache(cacheKey: string, maxAgeMs: number):
   if (!payload) return null;
 
   try {
-    return JSON.parse(payload);
+    return parseLeagueReportCachePayloadFromStorage(payload);
   } catch (error) {
     console.warn("[Database] Failed to parse league report cache:", error);
     return null;
@@ -944,7 +975,7 @@ export async function upsertLeagueReportCache(input: {
   const sql = await getDb();
   if (!sql) return;
 
-  const payload = JSON.stringify(input.payload);
+  const payload = serializeLeagueReportCachePayloadForStorage(input.payload);
   await sql`
     INSERT INTO "leagueReportCache" (
       "cacheKey",
@@ -997,7 +1028,7 @@ export async function listLeagueReportCacheEntries(limit = 100): Promise<Array<{
     .map((row) => {
       let payload: unknown = null;
       try {
-        payload = JSON.parse(String(row.payload || 'null'));
+        payload = parseLeagueReportCachePayloadFromStorage(String(row.payload || 'null'));
       } catch (error) {
         console.warn("[Database] Failed to parse cached league report during list:", error);
       }
