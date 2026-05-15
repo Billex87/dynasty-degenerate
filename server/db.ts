@@ -17,6 +17,32 @@ const warnWhenDatabaseUnavailable = (...args: Parameters<typeof console.warn>) =
 const LEAGUE_REPORT_CACHE_COMPRESSION_THRESHOLD_BYTES = 256 * 1024;
 const LEAGUE_REPORT_CACHE_ENCODING = "gzip-base64";
 
+function serializeTextPayloadForStorage(payload: string): string {
+  if (Buffer.byteLength(payload, "utf8") < LEAGUE_REPORT_CACHE_COMPRESSION_THRESHOLD_BYTES) {
+    return payload;
+  }
+
+  return JSON.stringify({
+    __ddCacheEncoding: LEAGUE_REPORT_CACHE_ENCODING,
+    v: 1,
+    payload: gzipSync(payload).toString("base64"),
+  });
+}
+
+function parseTextPayloadFromStorage(payload: string): string {
+  const parsed = JSON.parse(payload);
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    !Array.isArray(parsed) &&
+    (parsed as Record<string, unknown>).__ddCacheEncoding === LEAGUE_REPORT_CACHE_ENCODING &&
+    typeof (parsed as Record<string, unknown>).payload === "string"
+  ) {
+    return gunzipSync(Buffer.from(String((parsed as Record<string, unknown>).payload), "base64")).toString("utf8");
+  }
+  return payload;
+}
+
 export type LoginAttemptEvent = {
   eventType: "find_leagues" | "analyze_league" | "rate_limit";
   status: "success" | "error";
@@ -70,30 +96,11 @@ function getSql() {
 
 export function serializeLeagueReportCachePayloadForStorage(payload: unknown): string {
   const serialized = JSON.stringify(payload);
-  if (Buffer.byteLength(serialized, "utf8") < LEAGUE_REPORT_CACHE_COMPRESSION_THRESHOLD_BYTES) {
-    return serialized;
-  }
-
-  return JSON.stringify({
-    __ddCacheEncoding: LEAGUE_REPORT_CACHE_ENCODING,
-    v: 1,
-    payload: gzipSync(serialized).toString("base64"),
-  });
+  return serializeTextPayloadForStorage(serialized);
 }
 
 export function parseLeagueReportCachePayloadFromStorage(payload: string): unknown {
-  const parsed = JSON.parse(payload);
-  if (
-    parsed &&
-    typeof parsed === "object" &&
-    !Array.isArray(parsed) &&
-    (parsed as Record<string, unknown>).__ddCacheEncoding === LEAGUE_REPORT_CACHE_ENCODING &&
-    typeof (parsed as Record<string, unknown>).payload === "string"
-  ) {
-    const inflated = gunzipSync(Buffer.from(String((parsed as Record<string, unknown>).payload), "base64")).toString("utf8");
-    return JSON.parse(inflated);
-  }
-  return parsed;
+  return JSON.parse(parseTextPayloadFromStorage(payload));
 }
 
 async function ensureSchema(sql: SqlClient) {
@@ -749,7 +756,7 @@ export async function upsertProviderDataSnapshot(input: {
 
   await sql`
     INSERT INTO "providerDataSnapshots" ("sourceKey", "snapshotKey", payload)
-    VALUES (${input.sourceKey}, ${input.snapshotKey}, ${input.payload})
+    VALUES (${input.sourceKey}, ${input.snapshotKey}, ${serializeTextPayloadForStorage(input.payload)})
     ON CONFLICT ("sourceKey", "snapshotKey") DO UPDATE SET
       payload = EXCLUDED.payload,
       "updatedAt" = NOW()
@@ -774,7 +781,7 @@ export async function findLatestProviderDataSnapshot(sourceKey: string) {
   if (!row?.payload) return null;
   return {
     snapshotKey: String(row.snapshotKey || ''),
-    payload: String(row.payload),
+    payload: parseTextPayloadFromStorage(String(row.payload)),
     updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
   };
 }

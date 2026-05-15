@@ -9,6 +9,7 @@ import { loadBlendedKTCValues, loadLatestLocalWeeklyMomentumSnapshot } from './k
 import { attachLeagueAiConfidence, persistLeagueAiConfidenceSnapshot } from './leagueAiConfidence';
 import { buildProspectLookup, loadProspectContext } from './prospectSource';
 import { buildRankingsBoard } from './rankingsBoard';
+import { refreshSleeperSeasonStatsSnapshots } from './sleeperSeasonStats';
 import { buildSourceHealthEvents, recordSourceHealthEvents } from './sourceHealth';
 import { getValueSourceProfileKey, getValueSourceProfileLabel, type ValueBlendOptions } from './valueBlend';
 import type { RankingSourceDiagnostic, ReportData } from '../shared/types';
@@ -358,7 +359,7 @@ export async function warmDepthChartCacheFromCachedReports(options: {
 export async function refreshReportEnrichmentSnapshots(options: {
   backfillLimit?: number;
 } = {}) {
-  const [fantasyProsNews, draftSharksSchedule, depthChartWarmCache] = await Promise.all([
+  const [fantasyProsNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats] = await Promise.all([
     fetchFantasyProsNews({ persistSnapshot: true, forceRefresh: true }),
     loadDraftSharksScheduleContext({
       season: String(new Date().getFullYear()),
@@ -368,6 +369,7 @@ export async function refreshReportEnrichmentSnapshots(options: {
     warmDepthChartCacheFromCachedReports({
       limit: options.backfillLimit || 100,
     }),
+    refreshSleeperSeasonStatsSnapshots(),
   ]);
 
   return {
@@ -375,6 +377,7 @@ export async function refreshReportEnrichmentSnapshots(options: {
     draftSharksStatus: draftSharksSchedule.status,
     draftSharksProfileCount: Object.keys(draftSharksSchedule.profiles || {}).length,
     depthChartWarmCache,
+    sleeperSeasonStats,
   };
 }
 

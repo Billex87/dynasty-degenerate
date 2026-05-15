@@ -25,6 +25,7 @@ import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry
 import { buildMatchupPreviews, buildPlayerScheduleProfiles, buildSchedulePlanningSummary } from "./schedulePlanning";
 import { loadDraftSharksScheduleContext } from "./draftSharksSchedule";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
+import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -1938,7 +1939,7 @@ async function fetchPlayerAvailabilityHistory(
   const seasonRankMaps = await Promise.all(
     seasons.map(async (season) => [
       season,
-      await buildSleeperSeasonRankMap(season, players, scoringSettings, ['QB', 'RB', 'WR', 'TE']),
+      await buildSleeperSeasonRankMap(season, players, scoringSettings, ['QB', 'RB', 'WR', 'TE'], { sourceMode: 'snapshot' }),
     ] as const)
   );
   const seasonRankMapBySeason = Object.fromEntries(seasonRankMaps);
@@ -3097,33 +3098,8 @@ function calculateFantasyPointsFromScoring(stats: Record<string, any>, scoringSe
   }, 0);
 }
 
-const SLEEPER_SEASON_STATS_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
-const sleeperSeasonStatsCache = new Map<string, { loadedAt: number; values: Record<string, any> }>();
-const MIN_SLEEPER_SEASON = 2017;
-
 function getSleeperSeasonWeekCount(season: string): number {
   return Number(season) >= 2021 ? 18 : 17;
-}
-
-async function fetchSleeperSeasonStats(season: string, week?: number | null): Promise<Record<string, any>> {
-  const cacheKey = week ? `${season}:${week}` : season;
-  const cached = sleeperSeasonStatsCache.get(cacheKey);
-  if (cached && Date.now() - cached.loadedAt < SLEEPER_SEASON_STATS_CACHE_TTL_MS) {
-    return cached.values;
-  }
-
-  const response = await fetch(
-    week
-      ? `https://api.sleeper.app/v1/stats/nfl/regular/${season}/${week}`
-      : `https://api.sleeper.app/v1/stats/nfl/regular/${season}`
-  );
-  if (!response.ok) {
-    throw new Error(`Sleeper season stats ${response.status}`);
-  }
-  const values = await response.json();
-  const safeValues = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
-  sleeperSeasonStatsCache.set(cacheKey, { loadedAt: Date.now(), values: safeValues });
-  return safeValues;
 }
 
 function getSeasonLineupPlayerStartSeason(player: Record<string, any> | undefined, fallbackSeason: string): number {
@@ -3208,10 +3184,11 @@ async function buildSleeperSeasonRankMap(
   season: string,
   players: Record<string, any>,
   scoringSettings: Record<string, any> | undefined,
-  positions: string[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']
+  positions: string[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'],
+  options: { sourceMode?: 'live' | 'snapshot' } = {}
 ): Promise<Record<string, LastSeasonPlayerRank>> {
   const scoringFamily = getScoringFamily(scoringSettings);
-  const sleeperSeasonStats = await fetchSleeperSeasonStats(season);
+  const sleeperSeasonStats = await fetchSleeperSeasonStats(season, null, options);
   const scoredPlayers: SleeperSeasonScoreRecord[] = Object.entries(players)
     .map(([playerId, player]) => {
       const position = normalizeSeasonLineupPosition(player?.position);
@@ -3344,7 +3321,7 @@ async function fetchLastSeasonPositionRanks(
       const position = normalizeSeasonLineupPosition(players[playerId]?.position);
       return Boolean(position && rankPositions.includes(position));
     });
-  const rankMap = await buildSleeperSeasonRankMap(season, players, scoringSettings, rankPositions);
+  const rankMap = await buildSleeperSeasonRankMap(season, players, scoringSettings, rankPositions, { sourceMode: 'snapshot' });
   return Object.fromEntries(
     uniquePlayerIds
       .map((playerId) => [playerId, rankMap[playerId]])
