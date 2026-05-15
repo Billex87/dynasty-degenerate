@@ -116,14 +116,24 @@ function BroadcastLights({ exit, reducedMotion }: { exit: boolean; reducedMotion
   const bottomBarRef = useRef<THREE.Mesh>(null);
 
   const startedAt = useRef(performance.now());
+  const exitStartedAt = useRef<number | null>(null);
 
-  // CRT power-on flicker curve. Returns 0..1.5 intensity multiplier
+  // Track when exit transitions from false -> true so we can fade
+  // relative to that moment, not relative to mount.
+  useEffect(() => {
+    if (exit && exitStartedAt.current === null) {
+      exitStartedAt.current = performance.now();
+    } else if (!exit) {
+      exitStartedAt.current = null;
+    }
+  }, [exit]);
+
+  // CRT power-on flicker curve. Returns 0..1.6 intensity multiplier
   // over the first 360ms — three stutter spikes settling to 1.0.
   // After 360ms returns 1.0.
   const powerOnFlicker = (t: number): number => {
     if (t < 0) return 0;
     if (t > 0.36) return 1;
-    // discrete keyframes interpolated linearly
     const k: [number, number][] = [
       [0.00, 0.0],
       [0.04, 1.6],
@@ -149,8 +159,12 @@ function BroadcastLights({ exit, reducedMotion }: { exit: boolean; reducedMotion
     const elapsed = (performance.now() - startedAt.current) / 1000;
     // Power-on stutter for the first 360ms, then steady 1.0
     const turnOn = reducedMotion ? 1 : powerOnFlicker(elapsed);
-    // Exit: fade to 0 over 350ms
-    const exitMul = exit ? Math.max(0, 1 - elapsed / 0.35) : 1;
+    // Exit: fade out from when `exit` becomes true, over 400ms
+    let exitMul = 1;
+    if (exit && exitStartedAt.current !== null) {
+      const exitElapsed = (performance.now() - exitStartedAt.current) / 1000;
+      exitMul = Math.max(0, 1 - exitElapsed / 0.4);
+    }
     // Idle breathing pulse (very subtle, only after flicker settles)
     const breathe = reducedMotion || elapsed < 0.4
       ? 1
