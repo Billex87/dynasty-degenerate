@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type SyntheticEvent,
 } from "react";
+import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { getPositionRankClass } from "@/lib/positionRank";
 import { UNAUTHED_ERR_MSG } from "@shared/const";
 import type { RankingSourceDiagnostic, ReportData } from "@shared/types";
+import type { AppRouter } from "../../../server/routers";
 
 const DraftAnalysis = lazy(() =>
   import("@/components/DraftAnalysis").then(module => ({
@@ -2460,6 +2462,10 @@ type AdminValueDiagnosticRow = {
   tone?: "good" | "warn" | "danger" | "info";
 };
 
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type SourceCoverageMatrixData = RouterOutputs["system"]["sourceCoverageMatrix"];
+type SourceCoverageRow = SourceCoverageMatrixData["rows"][number];
+
 type AdminBlendSummary = {
   id: string;
   title: string;
@@ -3463,6 +3469,29 @@ function formatAdminTelemetryDate(value?: string | null): string {
   }).format(date);
 }
 
+function formatAdminBytes(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "n/a";
+  const bytes = Math.max(0, Number(value));
+  if (bytes < 1024) return `${bytes.toLocaleString()} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024).toLocaleString()} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getSourceCoverageStatusLabel(row: SourceCoverageRow): string {
+  if (row.status === "loaded") return "Loaded";
+  if (row.status === "stale") return "Stale";
+  if (row.status === "missing") return "Missing";
+  if (row.status === "error") return "Source error";
+  if (row.status === "blocked") return "Needs approval";
+  return "Research";
+}
+
+function getSourceCoverageToneClass(row: SourceCoverageRow): string {
+  if (row.level === "danger") return "admin-source-coverage-row-danger";
+  if (row.level === "warn") return "admin-source-coverage-row-warn";
+  return "admin-source-coverage-row-good";
+}
+
 function isPrioritySourceHealthEvent(event: {
   level?: string | null;
 }): boolean {
@@ -3743,6 +3772,239 @@ function AdminProviderTelemetryPanel() {
                 No recent provider events recorded.
               </p>
             )}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function AdminSourceCoverageSection() {
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
+  const canViewTelemetry = canViewAdminTelemetryForUser(authQuery.data);
+  const query = trpc.system.sourceCoverageMatrix.useQuery(
+    { lookbackDays: 14 },
+    {
+      enabled: canViewTelemetry,
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: 1000 * 60,
+    }
+  );
+  const needsAttention = (query.data?.rows || []).filter(
+    row => row.level !== "info" || row.status === "blocked" || row.status === "research"
+  );
+  const tone = needsAttention.some(row => row.level === "danger")
+    ? "danger"
+    : "warn";
+
+  return (
+    <CollapsibleReportSection
+      title="Admin Eyes Only: Source Coverage"
+      kicker="Snapshot field map"
+      previewAccessory={
+        needsAttention.length > 0 ? (
+          <AdminAttentionBadge
+            count={needsAttention.length}
+            label="Review sources"
+            tone={tone}
+          />
+        ) : undefined
+      }
+      premium
+    >
+      <AdminSourceCoveragePanel
+        canViewTelemetry={canViewTelemetry}
+        isAuthLoading={authQuery.isLoading}
+        data={query.data}
+        error={query.error}
+        isLoading={query.isLoading}
+        isFetching={query.isFetching}
+        refetch={query.refetch}
+      />
+    </CollapsibleReportSection>
+  );
+}
+
+function AdminSourceCoveragePanel({
+  canViewTelemetry,
+  isAuthLoading,
+  data,
+  error,
+  isLoading,
+  isFetching,
+  refetch,
+}: {
+  canViewTelemetry: boolean;
+  isAuthLoading: boolean;
+  data: SourceCoverageMatrixData | undefined;
+  error: { message: string } | null;
+  isLoading: boolean;
+  isFetching: boolean;
+  refetch: () => Promise<unknown>;
+}) {
+  if (isAuthLoading) {
+    return (
+      <div className="rankings-empty-state">
+        Checking source coverage access...
+      </div>
+    );
+  }
+
+  if (!canViewTelemetry) {
+    return (
+      <div className="admin-traffic-panel admin-traffic-panel-error">
+        <p>Source coverage is locked until Admin Tools are unlocked.</p>
+        <span>
+          This panel is admin-only because it exposes provider names, refresh
+          cadence, and integration gaps.
+        </span>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rankings-empty-state">
+        Loading source coverage matrix...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="admin-traffic-panel admin-traffic-panel-error">
+        <p>Source coverage is unavailable for this session.</p>
+        <span>{error.message}</span>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="rankings-empty-state">
+        No source coverage metadata available.
+      </div>
+    );
+  }
+
+  const totalCards = [
+    { label: "Sources", value: data.totals.sources },
+    { label: "Loaded", value: data.totals.loaded },
+    { label: "Stale", value: data.totals.stale },
+    { label: "Missing", value: data.totals.missing },
+    { label: "Blocked", value: data.totals.blocked },
+    { label: "Research", value: data.totals.research },
+    { label: "Snapshots", value: data.totals.snapshotBacked },
+    { label: "Needs Approval", value: data.totals.needsApproval },
+  ];
+  const snapshotRows = data.rows.filter(row => row.snapshotKey || row.tableName);
+  const candidateRows = data.rows.filter(row => !row.snapshotKey && !row.tableName);
+
+  return (
+    <div className="admin-traffic-panel admin-source-coverage-panel">
+      <div className="admin-traffic-header">
+        <div>
+          <span>Last {data.lookbackDays} days</span>
+          <strong>
+            Source coverage matrix · {formatAdminTelemetryDate(data.generatedAt)}
+          </strong>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="admin-traffic-refresh"
+          disabled={isFetching}
+          onClick={() => void refetch()}
+        >
+          Refresh
+        </Button>
+      </div>
+
+      <div className="admin-traffic-stat-grid">
+        {totalCards.map(card => (
+          <article key={card.label} className="admin-traffic-stat">
+            <span>{card.label}</span>
+            <strong>{card.value.toLocaleString()}</strong>
+          </article>
+        ))}
+      </div>
+
+      <div className="admin-source-coverage-grid">
+        <section className="admin-traffic-card admin-source-coverage-card">
+          <h4>Snapshot-backed Sources</h4>
+          <div className="admin-traffic-list">
+            {snapshotRows.map(row => (
+              <article
+                key={row.sourceKey}
+                className={`admin-traffic-row admin-source-coverage-row ${getSourceCoverageToneClass(row)}`}
+              >
+                <div className="admin-source-coverage-row-head">
+                  <strong>{row.source}</strong>
+                  <span>{getSourceCoverageStatusLabel(row)}</span>
+                </div>
+                <span>
+                  {row.category} · {row.rowCount?.toLocaleString() || "n/a"} rows ·{" "}
+                  {formatAdminBytes(row.payloadSizeBytes)}
+                </span>
+                <em>
+                  Updated {formatAdminTelemetryDate(row.updatedAt)}
+                  {row.snapshotKey ? ` · Snapshot ${row.snapshotKey}` : ""}
+                </em>
+                <div className="admin-source-coverage-fields">
+                  <span>Returns</span>
+                  <p>{row.fieldMap.join(", ")}</p>
+                </div>
+                <div className="admin-source-coverage-fields">
+                  <span>Used now</span>
+                  <p>{row.usedNow.join(", ")}</p>
+                </div>
+                <div className="admin-source-coverage-fields">
+                  <span>Could power</span>
+                  <p>{row.couldPowerLater.join(", ")}</p>
+                </div>
+                {row.lastHealthMessage ? (
+                  <em>
+                    Health: {row.lastHealthStatus || "n/a"} · {row.lastHealthMessage}
+                  </em>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card admin-source-coverage-card">
+          <h4>Research / Approval Queue</h4>
+          <div className="admin-traffic-list">
+            {candidateRows.map(row => (
+              <article
+                key={row.sourceKey}
+                className={`admin-traffic-row admin-source-coverage-row ${getSourceCoverageToneClass(row)}`}
+              >
+                <div className="admin-source-coverage-row-head">
+                  <strong>{row.source}</strong>
+                  <span>{getSourceCoverageStatusLabel(row)}</span>
+                </div>
+                <span>{row.endpoint}</span>
+                <em>{row.authModel}</em>
+                <div className="admin-source-coverage-fields">
+                  <span>Returns</span>
+                  <p>{row.fieldMap.join(", ")}</p>
+                </div>
+                <div className="admin-source-coverage-fields">
+                  <span>Gaps</span>
+                  <p>{row.knownGaps.join(", ")}</p>
+                </div>
+                <div className="admin-source-coverage-fields">
+                  <span>Boundary</span>
+                  <p>{row.complianceNote}</p>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
       </div>
@@ -6098,6 +6360,7 @@ export default function Home() {
                             </p>
                           </div>
                           <AdminProviderTelemetrySection />
+                          <AdminSourceCoverageSection />
                           <AdminTrafficTelemetrySection />
                           <AdminValueDiagnosticsSection
                             reportData={reportDataForView}

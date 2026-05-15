@@ -3,6 +3,8 @@ import { adminProcedure, publicProcedure, router } from "./trpc";
 import { getLoginAttemptsSince, listKtcSnapshotDateKeysSince, listSourceHealthEventsSince, type StoredLoginAttempt, type StoredSourceHealthEvent } from "../db";
 import { getSnapshotDateKey, listLocalKtcSnapshotDateKeysSince } from "../ktcLoader";
 import { getApiProviderTelemetrySnapshot } from "../apiProviderTelemetry";
+import { buildSourceCoverageMatrix } from "../sourceCoverageMatrix";
+import { loadSourceSnapshotFreshnessDiagnostics } from "../sourceSnapshotFreshness";
 
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 
@@ -302,6 +304,39 @@ export const systemRouter = router({
           message: event.message,
         })),
       } as const;
+    }),
+
+  sourceCoverageMatrix: adminProcedure
+    .input(
+      z.object({
+        lookbackDays: z.number().int().min(1).max(30).default(14),
+        currentSeason: z.string().regex(/^\d{4}$/).default(String(new Date().getFullYear())),
+        valueProfileKey: z.string().min(1).max(80).default('12_sf_ppr_base'),
+        devyProfileKey: z.string().min(1).max(80).optional().nullable(),
+      })
+    )
+    .query(async ({ input }) => {
+      const previousSeason = String(Number(input.currentSeason) - 1);
+      const since = new Date(Date.now() - input.lookbackDays * 24 * 60 * 60 * 1000);
+      const [freshnessDiagnostics, healthEvents] = await Promise.all([
+        loadSourceSnapshotFreshnessDiagnostics({
+          currentSeason: input.currentSeason,
+          previousSeason,
+          valueProfileKey: input.valueProfileKey,
+          devyProfileKey: input.devyProfileKey,
+        }),
+        listSourceHealthEventsSince(since, 300),
+      ]);
+
+      return buildSourceCoverageMatrix({
+        currentSeason: input.currentSeason,
+        previousSeason,
+        valueProfileKey: input.valueProfileKey,
+        devyProfileKey: input.devyProfileKey,
+        lookbackDays: input.lookbackDays,
+        freshnessDiagnostics,
+        healthEvents,
+      });
     }),
 
   apiProviderTelemetry: adminProcedure

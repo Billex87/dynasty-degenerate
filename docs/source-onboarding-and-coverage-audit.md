@@ -62,6 +62,39 @@ Do not prioritize storing informal nicknames yet. The better immediate value is 
 - Waiver/trade calibration: store outcome labels server-side and backtest bid/trade resistance confidence.
 - Player source trace: show which feeds currently move each player's value and confidence.
 
+## Compact Field Maps
+
+These field maps are intentionally metadata-only. Do not paste full payloads, API keys, OAuth tokens, user cookies, hidden Sleeper tokens, or raw provider responses into this file.
+
+| Source | Endpoint / Storage | Auth Model | Refresh / Load Boundary | Compact Field Map | IDs | Freshness | Known Gaps |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Sleeper league API | Sleeper league/user/roster/draft/transaction/matchup/player endpoints | Public league/user endpoints; hidden import uses a user-provided token once and does not store it | User load only; this is the only source expected on login/report load | `league_id`, `season`, `settings`, `scoring_settings`, `rosters`, `users`, `players`, `drafts`, `traded_picks`, `transactions`, `matchups` | Sleeper league/user/player/roster/transaction/draft IDs | season/week/status timestamps from Sleeper | Projection and prop context is incomplete, so use snapshots for those signals |
+| Blended value snapshot | `ktcSnapshots` latest row | Stored internal snapshot | Nightly job; report load reads stored row | `player_id`, `player_name`, `position`, `team`, `value`, `rank`, `source_coverage`, `updated_at` | Sleeper player ID plus source IDs where available | `snapshotDate`, `createdAt` | Market data can lag news/role changes |
+| Redraft source snapshot | `redraftSourceSnapshots` by season | Stored internal snapshot assembled by cron | Nightly job; report load reads stored row | `player_id`, `name`, `position`, `team`, `rank`, `projection`, `adp`, `source`, `scoring_format` | Sleeper, FantasyPros, ESPN, Yahoo where present | `snapshotKey`, `updatedAt`, source timestamps when present | Sub-source package access and freshness vary |
+| FantasyPros rankings/projections | FantasyPros rankings, projections, ADP, compare-player, player-points endpoints | API key; production/commercial use needs approved rights | Cron/admin only; provider telemetry tracks calls | `player_id`, `player_name`, `position`, `team`, `rank`, `tier`, `adp`, `projected_points`, `injury_status`, `news` | FantasyPros ID plus name/team/position joins | source updated/published timestamps, stored snapshot key | Terms/rate limits must stay explicit before primary paid use |
+| FantasyPros news snapshot | `providerDataSnapshots` `fantasypros-news-v1` | API key when configured | Nightly job; report load reads stored row | `player_name`, `player_id`, `team`, `position`, `headline`, `summary`, `published_at`, `source_url` | FantasyPros ID plus name/team/position joins | `published_at`, `snapshotKey`, `updatedAt` | Player joins depend on identity normalization |
+| Devy and rookie snapshot | `devySourceSnapshots` by profile | Stored internal snapshot assembled by cron | Weekly/manual refresh; report load reads stored row | `player_name`, `college`, `position`, `class_year`, `rank`, `source`, `score`, `draft_year` | normalized player key, source ID when present | `snapshotKey`, `updatedAt` | College/prospect names need heavier normalization |
+| ESPN depth charts | `providerDataSnapshots` `espn-depth-charts-v1` | Public metadata fetch through scheduled job | Nightly in season; no report-load ESPN fetch | `team`, `position`, `depth_order`, `player_name`, `espn_id`, `status` | ESPN ID, team abbreviation, name/team join key | `snapshotKey`, `updatedAt` | Depth order semantics vary by team/source page |
+| DraftSharks SOS | `providerDataSnapshots` `draftsharks-sos-v1` | Partner/control-panel key and URL | Feature-flagged weekly job; no public-page scrape | `team`, `position`, `season_sos`, `tier`, `streamer_weeks`, `avoid_weeks`, `updated_at` | NFL team abbreviation, position | `updated_at`, `snapshotKey`, `updatedAt` | Needs final partner URL/payload/terms |
+| OpticOdds props | `providerDataSnapshots` `player-props-opticodds-v1` | OpticOdds API key | Feature-flagged cron only after approval | `player_name`, `team`, `opponent`, `market`, `line`, `over_price`, `under_price`, `sportsbook`, `starts_at` | provider event/player key plus name/team join | `starts_at`, `last_updated`, `snapshotKey`, `updatedAt` | Needs real key, sportsbook tuning, and compliance boundaries |
+| Sleeper season stats | `providerDataSnapshots` `sleeper-season-stats-v1:{season}` | Sleeper public stats through cron | Seasonal/long-term refresh | `player_id`, `season`, `week`, `team`, `position`, `stats` | Sleeper player ID | season/week/snapshot metadata | Backfill depth and stat normalization need tuning |
+| NFL Draft Buzz prospects | `prospectSnapshots` `NFL Draft Buzz` | Stored prospect snapshot | Monthly/draft-cycle refresh | `player_name`, `position`, `school`, `class_year`, `height`, `weight`, `rank`, `scouting_summary`, `image_url` | normalized prospect key, college/name join | `snapshotMonth`, `createdAt` | Image/logo consistency and monthly freshness |
+| FantasyCalc | Imported into value snapshots | Approved/public feed path only | Nightly source job; report load reads stored values | `player_name`, `position`, `team`, `value`, `rank`, `format`, `source_metadata` | source player ID where present, name/team/position join | source timestamp and snapshot date | Refresh cadence/source coverage should keep being audited |
+| Flock Fantasy | Imported source rows where available | Approved/public feed path only | Nightly source job when available | `player_name`, `position`, `team`, `rank`, `exposure`, `format` | source key when present, name/team/position join | source timestamp and snapshot date | Feed stability and rights need approval |
+| Dynasty Nerds | Imported dynasty/rookie ranking rows | Approved source path only | Nightly source job when available | `player_name`, `position`, `team`, `rank`, `format`, `rookie_flag` | source key when present, name/team/position join | source timestamp and snapshot date | Freshness by format should stay visible |
+| Fantasy Nerds | Rankings/projections/ADP endpoints if key/package allows | API key/package dependent | Cron/admin only if approved | `player_name`, `position`, `team`, `rank`, `projection`, `adp`, `package` | Fantasy Nerds ID when returned, name/team/position join | source timestamp and snapshot date | Current endpoints/package access need production key confirmation |
+| DynastyProcess / nflverse | Public dynasty values and player ID maps | Public dataset terms | Nightly/weekly enrichment | `player_name`, `merge_name`, `position`, `team`, `platform_ids`, `value`, `age`, `draft_metadata` | Sleeper, ESPN, Yahoo, FantasyPros, GSIS, PFR IDs | dataset version and snapshot date | Dataset versioning/freshness should stay explicit |
+| Yahoo / Fantrax / FFPC | Official/approved docs and probe-only checks | Yahoo OAuth/app approval; Fantrax/FFPC partner approval | Research only until approved | league/team/player IDs, matchups, rosters, projected points, ADP/ownership if licensed | platform player IDs where licensed | season/week/projection timestamps if returned | Do not scrape or authenticate with user cookies |
+
+## Admin Coverage Matrix
+
+The admin-only source coverage matrix is served by `system.sourceCoverageMatrix` and rendered under Admin Diagnostics. It combines the compact field maps above with stored snapshot metadata and source-health rows:
+
+- no live provider fetches are made by the matrix
+- no full payloads are returned to the browser
+- normal owner report loads still depend on Sleeper plus stored snapshots
+- blocked/research sources stay visible as approval work, not production dependencies
+
 ## DraftSharks Approved-Access Shell
 
 - `ENABLE_DRAFTSHARKS_SOS=true` is required before any DraftSharks SOS call runs.

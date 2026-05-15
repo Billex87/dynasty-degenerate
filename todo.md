@@ -72,10 +72,10 @@
 ## Source Audit / Feature Roadmap
 
 - [x] Audit every live API, partner feed, and scrape we use today, including Sleeper, FantasyPros, DraftSharks, KeepTradeCut, Flock Fantasy, FantasyCalc, Dynasty Nerds, Fantasy Nerds, DynastyProcess, Prospect Archive / NFL Draft Buzz, ESPN prospect metadata, and any internal snapshot jobs.
-- [ ] For each source, document exactly what comes back: endpoint or URL, auth model, rate limits, payload shape, unique IDs, timestamps/freshness, row counts, and known gaps or failure modes.
+- [x] For each source, document exactly what comes back: endpoint or URL, auth model, rate limits, payload shape, unique IDs, timestamps/freshness, row counts, and known gaps or failure modes.
 - [x] Write down which features each source can power now vs later so we can spot unused data before adding more integrations.
-- [ ] Save a compact sample payload or field map per source so the team can compare feeds without needing a fresh live fetch.
-- [ ] Turn that audit into a source coverage matrix in admin so we can see at a glance what each API or scrape is actually returning.
+- [x] Save a compact sample payload or field map per source so the team can compare feeds without needing a fresh live fetch.
+- [x] Turn that audit into a source coverage matrix in admin so we can see at a glance what each API or scrape is actually returning.
 - [x] Use this compact template for each source during the audit: `Source / Returns / Used now / Could power later / Open questions`.
 - [x] Sleeper - Returns: league settings, rosters, players, matchups, waivers, trades, news/status, and user/player IDs. Used now: league analysis, roster intelligence, matchup preview plumbing, waiver/trade analysis, and identity matching. Could power later: schedule-week matchup reads, exposure views, alerting, and lineup guidance. Open questions: which endpoints reliably expose current-week matchup and projection context.
 - [x] Research the Google query `api to get nfl player nicknames` and compare the useful fields from the results against the NFL APIs we already consider first-class so we can capture any extra nickname/alias data we are missing.
