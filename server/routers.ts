@@ -23,6 +23,7 @@ import { buildRankingsBoard } from "./rankingsBoard";
 import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persistLeagueAiConfidenceSnapshot } from "./leagueAiConfidence";
 import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
 import { buildMatchupPreviews, buildPlayerScheduleProfiles, buildSchedulePlanningSummary } from "./schedulePlanning";
+import { loadDraftSharksScheduleContext } from "./draftSharksSchedule";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import {
   getFantasyProsScoringForPpr,
@@ -4210,6 +4211,9 @@ export const appRouter = router({
           } catch (error) {
             console.warn('Failed to fetch current-week Sleeper matchups:', error);
           }
+          const draftSharksScheduleContext = await loadDraftSharksScheduleContext({
+            season: currentSeasonLabel,
+          });
           markAnalyzeStep('schedule inputs');
           const reportData = await generateReport(
             currentSeasonData,
@@ -4229,6 +4233,7 @@ export const appRouter = router({
             players,
             ktcValues,
             rosterPositions: currentSeasonData.rosterPositions,
+            draftSharksContext: draftSharksScheduleContext,
           });
           const matchupPreviews = buildMatchupPreviews({
             season: currentSeasonLabel,
@@ -4242,6 +4247,7 @@ export const appRouter = router({
           const playerScheduleProfiles = buildPlayerScheduleProfiles({
             season: currentSeasonLabel,
             players,
+            draftSharksContext: draftSharksScheduleContext,
           });
           markAnalyzeStep('schedule planning');
 

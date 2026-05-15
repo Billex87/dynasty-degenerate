@@ -21,7 +21,7 @@ Probation exits only after source-health rows and source-trust diagnostics show 
 | --- | --- | --- | --- | --- |
 | Sleeper | leagues, users, rosters, matchups, drafts, traded picks, transactions, players | league analysis, roster intelligence, draft/trade/waiver history, identity matching | matchup reads, schedule-week planner, exposure, alerts, lineup guidance | current-week projection context is not documented; draft/trade access is league-scoped |
 | FantasyPros | rankings, projections, ADP, injuries, news, compare-players, player-points, player IDs | dynasty/redraft/devy blends, health diagnostics, news/status context | lineup strength, VORP/value-over-cost, trade explainers, news-to-value movement | production/commercial rights and rate limits must be approved before primary paid use |
-| DraftSharks | rankings, SOS, bye weeks, D/ST, matchup/planning tools | source research only | bye-week navigation, streamers, schedule-aware matchup reads | public docs emphasize site sync; partner REST/API access still needs account/partner confirmation |
+| DraftSharks | rankings, SOS, bye weeks, D/ST, matchup/planning tools | approved-access SOS shell only | bye-week navigation, streamers, schedule-aware matchup reads | actual partner REST URL/payload still needs DraftSharks control-panel configuration |
 | KeepTradeCut | community values, rankings, calculator, trade database | limited research/local historical context | trade comps and market trend views only with approved access | FAQ says no API/export and forbids scraping full values/data |
 | Flock Fantasy | player rankings and exposure-style source rows where available | dynasty/rookie source research and blend support | portfolio exposure and roster concentration | feed stability and usage rights |
 | FantasyCalc | dynasty/redraft values and source metadata | blended market values and confidence support | trend comparison, market deltas | refresh cadence and allowed production usage |
@@ -37,6 +37,7 @@ Probation exits only after source-health rows and source-trust diagnostics show 
 - FantasyPros API access is documented as personal/non-commercial and says not to build a competing product or service with API data: https://support.fantasypros.com/hc/en-us/articles/49749297704475-How-do-I-request-access-to-the-FantasyPros-API
 - FantasyPros API docs expose useful NFL endpoints for news, players, player-points, targets, compare-players, consensus rankings, and projections: https://api.fantasypros.com/v2/docs
 - Sleeper official docs expose league users, matchups, traded picks, draft picks, and draft traded-picks endpoints; that is enough for league-scoped history but not a global trade/draft dataset: https://docs.sleeper.com/
+- DraftSharks affiliate materials say partners can implement tools by iFrame or REST API documentation from the DraftSharks control panel, so integration should stay partner/API-key gated and should not scrape public pages: https://www.draftsharks.com/fantasy-football-affiliate-program
 - nflreadr / ffverse player IDs include cross-platform IDs plus `name`, `merge_name`, birthdate, draft metadata, and `twitter_username`, which is useful for identity enrichment but not a nickname database: https://nflreadr.nflverse.com/reference/load_ff_playerids.html
 - KeepTradeCut FAQ says there is no API or CSV export and that scraping player values/data is forbidden: https://keeptradecut.com/frequently-asked-questions
 - Fantrax search results point to unofficial Python bindings rather than official stable docs, so it stays out of the blend until an approved integration path exists: https://fantraxapi.metamanager.wiki/en/stable/
@@ -61,3 +62,10 @@ Do not prioritize storing informal nicknames yet. The better immediate value is 
 - Waiver/trade calibration: store outcome labels server-side and backtest bid/trade resistance confidence.
 - Player source trace: show which feeds currently move each player's value and confidence.
 
+## DraftSharks Approved-Access Shell
+
+- `ENABLE_DRAFTSHARKS_SOS=true` is required before any DraftSharks SOS call runs.
+- `DRAFTSHARKS_API_KEY` and `DRAFTSHARKS_SOS_URL` must come from approved DraftSharks partner/control-panel access.
+- The app does not scrape DraftSharks public pages.
+- The normalizer accepts flexible team/position SOS rows with season SOS score, tier, streamer weeks, avoid weeks, and updated timestamp fields.
+- When loaded, DraftSharks enriches `PlayerScheduleProfile.seasonSOS`, `scheduleTier`, `streamerWeeks`, and `avoidWeeks`; otherwise schedule planning continues using NFL.com bye weeks plus Sleeper league data.

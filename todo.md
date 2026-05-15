@@ -22,6 +22,7 @@
 - [x] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
 - [x] Revisit KeepTradeCut trade-database access later; only integrate it if we can get a stable, approved data path instead of a brittle scrape.
 - [x] Confirm whether DraftSharks partner REST API/docs require a partner login or API key, and whether access is only available through their affiliate/control-panel workflow.
+- [x] Add an approved-access DraftSharks SOS integration shell behind server-only feature flags without scraping public DraftSharks pages.
 - [ ] On May 14, 2026, run the projections/SOS rollout checklist below before wiring any schedule-dependent feature to live data.
 - [ ] Run one-off source-health history backfill with `ENABLE_SOURCE_HEALTH_BACKFILL=true` after production cached reports exist.
 - [ ] Configure `SOURCE_HEALTH_ALERT_WEBHOOK_URL` for Slack/email/webhook alert delivery in production.
@@ -68,6 +69,7 @@
 - [x] Decide which extra fields are actually worth storing or normalizing in our player identity layer, and which ones are only nice-to-have research artifacts.
 - [x] FantasyPros - Returns: rankings, projections, ADP, injuries, news, compare-players, player-points, and player/external IDs. Used now: dynasty/redraft blends, rookie and devy context, injury/news notes, player modal details, and confidence calibration. Could power later: lineup strength, value movement, matchup preview, and trade explainers. Open questions: rate limits, production terms, and which projection/news endpoints are safe to depend on.
 - [x] DraftSharks - Returns: rankings, SOS, bye weeks, D/ST, matchup data, and possibly projections. Used now: source research only. Could power later: bye-week navigation, streamer planning, matchup reads, and schedule-strength tooling. Open questions: partner/API access and whether the public pages stay stable enough to trust.
+- [x] DraftSharks SOS shell - Returns: approved partner REST team/position SOS rows when configured. Used now: gated backend schedule enrichment only. Could power later: streamer weeks, avoid weeks, schedule tiers, matchup reads, and D/ST planning. Open questions: final partner URL, payload shape, and production terms from DraftSharks control panel.
 - [x] KeepTradeCut - Returns: trade-database rows, market values, and source metadata where available. Used now: trade/value research. Could power later: dynasty trade comps and market trend views. Open questions: whether access is stable without scraping and whether there is a supported data path.
 - [x] Flock Fantasy - Returns: exposure counts, league-share data, and player ranking rows. Used now: dynasty/rookie source research. Could power later: portfolio exposure and roster concentration. Open questions: whether the exposure feed is stable enough to ingest.
 - [x] FantasyCalc - Returns: dynasty/redraft value rows and source metadata. Used now: blended-value inputs and confidence support. Could power later: value trend and comparison views. Open questions: refresh cadence and source coverage details.
@@ -146,7 +148,7 @@
 ## May 14, 2026 - Projections / SOS Rollout
 
 - [ ] Confirm the approved source blend for projections, strength of schedule, and bye-week data before wiring any feature to live inputs.
-- [ ] Compare DraftSharks and FantasyPros as the long-term rankings/SOS source blend before raising trust weights for either one.
+- [ ] Compare DraftSharks and FantasyPros as the long-term rankings/SOS source blend before raising trust weights for either one after approved DraftSharks access is configured.
 - [x] Populate `schedulePlanning` from the schedule-release data so roster gaps, streamer candidates, and bye-window coverage have real source-backed inputs.
 - [ ] Wire schedule-aware inputs into matchup preview so weekly win odds, opponent edge, and "how you win" reads can use projection and SOS context.
 - [ ] Wire schedule-aware inputs into player detail views so bye windows, SOS tiers, and schedule summaries are visible at the player level.
@@ -154,7 +156,7 @@
 - [ ] Wire schedule-aware inputs into D/ST and matchup-streamer logic so upcoming schedule strength can influence start/sit and pickup decisions.
 - [ ] Wire projections into lineup-strength, redraft valuation, and confidence calculations only after validating source freshness and endpoint stability.
 - [ ] Add source-health checks and freshness checks for every projection/SOS feed we plan to depend on.
-- [x] Add tests for schedule normalization, bye-window rendering, streamer candidate generation, and planner output from real schedule inputs.
+- [x] Add tests for schedule normalization, bye-window rendering, streamer candidate generation, DraftSharks SOS normalization, and planner output from real schedule inputs.
 - [x] Leave a clear fallback state for pre-schedule and missing-data periods so offseason views remain stable.
 
 ## FantasyPros Integration Roadmap

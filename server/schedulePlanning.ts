@@ -1,6 +1,8 @@
 import { cleanName, getPlayerName, getPlayerRedraftValue, getPlayerValue } from './leagueAnalysis';
 import { isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from './playerEligibility';
 import type { KTCValues } from './reportGenerator';
+import { getDraftSharksScheduleProfile } from './draftSharksSchedule';
+import type { DraftSharksScheduleContext } from './draftSharksSchedule';
 import type { MatchupPreview, PlayerScheduleProfile, SchedulePlanningSummary } from '../shared/types';
 
 type SchedulePosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
@@ -31,7 +33,7 @@ type SleeperMatchupRow = {
   starters?: Array<string | number | null | undefined>;
 };
 
-const SCHEDULE_SOURCE = 'NFL.com 2026 bye weeks + Sleeper league data';
+const BASE_SCHEDULE_SOURCE = 'NFL.com 2026 bye weeks + Sleeper league data';
 const SCHEDULE_UPDATED_AT = '2026-05-15T09:00:00.000Z';
 const SUPPORTED_SEASONS = new Set(['2026']);
 const SCHEDULE_POSITIONS: SchedulePosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
@@ -152,9 +154,22 @@ function getScheduleValue(playerId: string, players: Record<string, SchedulePlay
     || 0;
 }
 
+function getScheduleSource(draftSharksContext?: DraftSharksScheduleContext | null): string {
+  return draftSharksContext?.status === 'loaded'
+    ? `${BASE_SCHEDULE_SOURCE} + DraftSharks SOS`
+    : BASE_SCHEDULE_SOURCE;
+}
+
+function getScheduleUpdatedAt(draftSharksContext?: DraftSharksScheduleContext | null): string {
+  return draftSharksContext?.status === 'loaded' && draftSharksContext.updatedAt
+    ? draftSharksContext.updatedAt
+    : SCHEDULE_UPDATED_AT;
+}
+
 export function buildPlayerScheduleProfiles(input: {
   season: string;
   players: Record<string, SchedulePlayer>;
+  draftSharksContext?: DraftSharksScheduleContext | null;
 }): Record<string, PlayerScheduleProfile> {
   if (!SUPPORTED_SEASONS.has(String(input.season))) return {};
 
@@ -163,15 +178,21 @@ export function buildPlayerScheduleProfiles(input: {
     const team = normalizeTeam(player.team);
     const byeWeek = getByeWeekForTeam(team, input.season);
     if (!team || !byeWeek) continue;
+    const position = getPosition(player);
+    const draftSharksProfile = getDraftSharksScheduleProfile(input.draftSharksContext, team, position);
+    const avoidWeeks = Array.from(new Set([
+      byeWeek,
+      ...(draftSharksProfile?.avoidWeeks || []),
+    ])).sort((a, b) => a - b);
 
     profiles[playerId] = {
-      source: SCHEDULE_SOURCE,
-      updatedAt: SCHEDULE_UPDATED_AT,
+      source: getScheduleSource(input.draftSharksContext),
+      updatedAt: draftSharksProfile?.updatedAt || getScheduleUpdatedAt(input.draftSharksContext),
       byeWeek,
-      seasonSOS: null,
-      scheduleTier: 'neutral',
-      streamerWeeks: [],
-      avoidWeeks: [byeWeek],
+      seasonSOS: draftSharksProfile?.seasonSOS ?? null,
+      scheduleTier: draftSharksProfile?.scheduleTier || 'neutral',
+      streamerWeeks: draftSharksProfile?.streamerWeeks || [],
+      avoidWeeks,
     };
   }
   return profiles;
@@ -185,10 +206,12 @@ export function buildSchedulePlanningSummary(input: {
   players: Record<string, SchedulePlayer>;
   ktcValues: KTCValues;
   rosterPositions?: string[];
+  draftSharksContext?: DraftSharksScheduleContext | null;
 }): SchedulePlanningSummary {
   const playerSchedules = buildPlayerScheduleProfiles({
     season: input.season,
     players: input.players,
+    draftSharksContext: input.draftSharksContext,
   });
   const byeWeekNotes = Object.entries(NFL_2026_BYE_WEEK_BY_TEAM)
     .reduce((weeks, [team, week]) => {
@@ -247,22 +270,29 @@ export function buildSchedulePlanningSummary(input: {
     })
     .map(([playerId, player]) => {
       const position = getPosition(player)!;
+      const team = normalizeTeam(player.team);
+      const draftSharksProfile = getDraftSharksScheduleProfile(input.draftSharksContext, team, position);
       const byeWeek = playerSchedules[playerId]?.byeWeek ?? null;
-      const targetWeeks = Array.from(gapWeeksByPosition.get(position) || [])
+      const targetWeeks = Array.from(new Set([
+        ...Array.from(gapWeeksByPosition.get(position) || []),
+        ...(draftSharksProfile?.streamerWeeks || []),
+      ]))
         .filter((week) => week !== byeWeek)
         .sort((a, b) => a - b);
       return {
         playerId,
         name: getPlayerDisplayName(playerId, input.players),
         position,
-        team: normalizeTeam(player.team),
+        team,
         byeWeek,
-        seasonSOS: null,
-        scheduleTier: 'neutral' as const,
+        seasonSOS: draftSharksProfile?.seasonSOS ?? null,
+        scheduleTier: draftSharksProfile?.scheduleTier || 'neutral' as const,
         targetWeeks,
         value: getScheduleValue(playerId, input.players, input.ktcValues),
         note: targetWeeks.length
-          ? `Available ${position} coverage for Week ${targetWeeks.join(', ')} bye pressure.`
+          ? draftSharksProfile?.streamerWeeks.length
+            ? `Available ${position} coverage with DraftSharks target Week ${targetWeeks.join(', ')} schedule windows.`
+            : `Available ${position} coverage for Week ${targetWeeks.join(', ')} bye pressure.`
           : `Available ${position} with Week ${byeWeek || 'n/a'} bye; monitor as schedule depth.`,
       };
     })
@@ -276,9 +306,9 @@ export function buildSchedulePlanningSummary(input: {
     : 'pending';
 
   return {
-    source: SCHEDULE_SOURCE,
+    source: getScheduleSource(input.draftSharksContext),
     status,
-    updatedAt: SCHEDULE_UPDATED_AT,
+    updatedAt: getScheduleUpdatedAt(input.draftSharksContext),
     rosterGaps,
     streamerCandidates,
     byeWeekNotes: Array.from(byeWeekNotes.entries())

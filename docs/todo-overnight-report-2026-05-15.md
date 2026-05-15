@@ -2,7 +2,7 @@
 
 Scope: processed `todo.md` top to bottom using `docs/todo-list-execution-prompt.md`. UI/visual/frontend polish was deferred for tomorrow. Non-UI actionable work was implemented when safe. Blocked items were logged with reason and next action.
 
-Checklist status after this pass: `272` checked items and `160` unchecked items. The remaining unchecked items are primarily UI/Three.js, auth/billing/legal, schedule UI/SOS/projection expansion, provider-access-dependent integrations, production smoke, model/backtest work, and future persistence features.
+Checklist status after this pass: `274` checked items and `160` unchecked items. The remaining unchecked items are primarily UI/Three.js, auth/billing/legal, schedule UI/SOS/projection expansion, provider-access-dependent integrations, production smoke, model/backtest work, and future persistence features.
 
 ## Implemented Tonight
 
@@ -17,6 +17,7 @@ Checklist status after this pass: `272` checked items and `160` unchecked items.
 | ComponentShowcase console log | Removed the leftover dialog submit `console.log`. | `client/src/pages/ComponentShowcase.tsx` |
 | API provider telemetry foundation | Added backend provider-call telemetry for call volume, failures, 429s, cache hits, cache hit rate, endpoint cost units, and recent events. Wired FantasyPros network/cache telemetry and exposed an admin tRPC endpoint for a later dashboard. | `server/apiProviderTelemetry.ts`, `server/fantasyPros.ts`, `server/_core/systemRouter.ts`, `server/apiProviderTelemetry.test.ts` |
 | Schedule ingestion foundation | Added 2026 NFL bye-week normalization from NFL.com, player schedule profiles, schedule-planning roster gaps, schedule-aware streamer candidates, Sleeper matchup ingestion, matchup preview generation, and schedule tests. | `server/schedulePlanning.ts`, `server/schedulePlanning.test.ts`, `server/routers.ts` |
+| DraftSharks SOS shell | Added an approved-access-only DraftSharks SOS fetch/normalization shell behind `ENABLE_DRAFTSHARKS_SOS`, `DRAFTSHARKS_API_KEY`, and `DRAFTSHARKS_SOS_URL`. It enriches player schedule profiles and streamer candidates only when configured, with no public-page scraping. | `server/draftSharksSchedule.ts`, `server/draftSharksSchedule.test.ts`, `server/schedulePlanning.ts`, `.env.example` |
 
 ## Concise Implementation Notes
 
@@ -29,6 +30,7 @@ Checklist status after this pass: `272` checked items and `160` unchecked items.
 - ComponentShowcase cleanup: removed the visible dev console noise with no behavior change.
 - API provider telemetry: implemented the backend foundation first; UI dashboard can consume `system.apiProviderTelemetry` later.
 - Schedule ingestion: implemented backend/data plumbing first; UI cards can now consume `schedulePlanning`, `matchupPreviews`, and player `schedule` profiles without inventing schedule data.
+- DraftSharks SOS: implemented the safe integration shell only; real data still requires approved DraftSharks partner REST URL and key.
 
 ## Already Implemented Or Mostly Covered
 
@@ -65,7 +67,7 @@ These were intentionally not implemented tonight per prompt:
 | FantasyPros as primary production source | FantasyPros support page says public API keys are personal/non-commercial and competing-product use is prohibited without approval. | Get written approval/commercial terms before using as primary paid/public data. |
 | Fantrax in blend | No official stable public API path confirmed; current useful docs are unofficial bindings. | Keep excluded until Fantrax or an approved provider path exists. |
 | KeepTradeCut trade database | KTC FAQ says no API/CSV export and scraping values/data is forbidden. | Use only approved access or user-visible references; do not scrape. |
-| DraftSharks partner REST/API | Public docs emphasize League Sync, not open REST docs. | Confirm partner/control-panel access with DraftSharks account/partner contact. |
+| DraftSharks live REST/API credentials | DraftSharks affiliate materials mention REST API docs in the partner control panel, but the actual SOS endpoint URL/payload requires approved account access. | Configure `ENABLE_DRAFTSHARKS_SOS=true`, `DRAFTSHARKS_API_KEY`, and `DRAFTSHARKS_SOS_URL` after partner approval. |
 | May 14 projections/SOS rollout | Needs approved projection/SOS source blend and live schedule data validation. | Run provider checks after source approvals and schedule ingestion path are chosen. |
 | Source-health production backfill | Needs production cached reports and production env access. | Run `ENABLE_SOURCE_HEALTH_BACKFILL=true` only as a one-off. |
 | Alert webhook production config | Needs real Slack/email/webhook secret. | Set `SOURCE_HEALTH_ALERT_WEBHOOK_URL` in production secret store. |
@@ -95,7 +97,8 @@ These were intentionally not implemented tonight per prompt:
 
 - `pnpm check`: passed.
 - `pnpm vitest run server/apiProviderTelemetry.test.ts server/adminTelemetry.test.ts server/fantasyPros.test.ts`: passed, 3 test files and 8 tests.
-- `pnpm test`: passed, 32 test files and 175 tests.
+- `pnpm vitest run server/draftSharksSchedule.test.ts server/schedulePlanning.test.ts`: passed, 2 test files and 8 tests.
+- `pnpm test`: passed, 33 test files and 180 tests.
 - `node scripts/audit-neon-transfer.mjs`: script starts and fails closed when `DATABASE_URL` is not present. Full audit must run in an environment with production database access.
 - `node --check scripts/audit-neon-transfer.mjs`: passed.
 - `pnpm build`: passed.

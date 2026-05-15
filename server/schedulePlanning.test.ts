@@ -5,6 +5,7 @@ import {
   buildSchedulePlanningSummary,
   getSupportedScheduleByeWeeks,
 } from './schedulePlanning';
+import type { DraftSharksScheduleContext } from './draftSharksSchedule';
 
 const players = {
   carRb: { full_name: 'Carolina Back', position: 'RB', team: 'CAR', status: 'Active' },
@@ -71,6 +72,54 @@ describe('schedule planning', () => {
     });
   });
 
+  it('enriches player schedules and streamer windows from DraftSharks SOS context', () => {
+    const draftSharksContext: DraftSharksScheduleContext = {
+      status: 'loaded',
+      source: 'DraftSharks SOS',
+      updatedAt: '2026-05-15T12:00:00.000Z',
+      profiles: {
+        'DEN:RB': {
+          team: 'DEN',
+          position: 'RB',
+          seasonSOS: 82,
+          scheduleTier: 'elite',
+          streamerWeeks: [6, 7],
+          avoidWeeks: [10],
+          source: 'DraftSharks SOS',
+          updatedAt: '2026-05-15T12:00:00.000Z',
+        },
+      },
+    };
+    const profiles = buildPlayerScheduleProfiles({ season: '2026', players, draftSharksContext });
+    const summary = buildSchedulePlanningSummary({
+      season: '2026',
+      currentWeek: 1,
+      rosters: [{
+        roster_id: 1,
+        players: ['carRb', 'kcRb', 'detWr', 'phiQb'],
+      }],
+      rosterMap: { 1: 'Bill' },
+      players,
+      ktcValues,
+      rosterPositions: ['QB', 'RB', 'RB', 'WR'],
+      draftSharksContext,
+    });
+
+    expect(profiles.faRb).toMatchObject({
+      source: 'NFL.com 2026 bye weeks + Sleeper league data + DraftSharks SOS',
+      seasonSOS: 82,
+      scheduleTier: 'elite',
+      streamerWeeks: [6, 7],
+      avoidWeeks: [10],
+    });
+    expect(summary.source).toBe('NFL.com 2026 bye weeks + Sleeper league data + DraftSharks SOS');
+    expect(summary.streamerCandidates?.find((candidate) => candidate.playerId === 'faRb')).toMatchObject({
+      seasonSOS: 82,
+      scheduleTier: 'elite',
+      targetWeeks: [5, 6, 7],
+    });
+  });
+
   it('builds matchup previews from Sleeper matchup rows when available', () => {
     const previews = buildMatchupPreviews({
       season: '2026',
@@ -99,4 +148,3 @@ describe('schedule planning', () => {
     expect(previews[0].positionEdges?.length).toBeGreaterThan(0);
   });
 });
-
