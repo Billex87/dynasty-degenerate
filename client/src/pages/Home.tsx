@@ -5255,7 +5255,7 @@ export default function Home() {
       ? "overview"
       : migratedActiveTab;
   const reportTabsClassName = `report-tabs ${canViewAutopilotTab ? "report-tabs-six" : "report-tabs-five"}`;
-  const rankingsQuery = trpc.league.rankings.useQuery(
+  const rankingsQuery = trpc.league.rankingsMeta.useQuery(
     { leagueId },
     {
       enabled: Boolean(reportData && leagueId && !reportData.rankings),

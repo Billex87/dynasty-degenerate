@@ -6,6 +6,7 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { EmptyState, ManagerBadge } from './reportPrimitives';
+import { trpc } from '@/lib/trpc';
 import { getPositionRankClass, getPositionRankPillClass } from '@/lib/positionRank';
 import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle, getTeamTileStyle, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
@@ -84,6 +85,13 @@ function getRankingsUrlPrefix(board: RankingsTableConfig['board']) {
   if (board === 'devy') return 'devy';
   if (board === 'redraft') return 'redraft';
   return 'rank';
+}
+
+function getProfileRowCount(rankings: NonNullable<ReportData['rankings']>, profileKey?: string | null): number {
+  if (!profileKey) return 0;
+  const rows = rankings.profiles?.[profileKey];
+  if (Array.isArray(rows) && rows.length > 0) return rows.length;
+  return rankings.profileRowCounts?.[profileKey] || 0;
 }
 
 function getPositionFilters(board: RankingsTableConfig['board'], hidePicks = false) {
@@ -1006,7 +1014,7 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
   );
 }
 
-function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, viewerManager, onSelectPlayer, onSelectDraftBuzzEntry, showAIReads }: { config: RankingsTableConfig; rankings: NonNullable<ReportData['rankings']>; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelectPlayer: (player: RankingPlayer) => void; onSelectDraftBuzzEntry: (entry: DraftBuzzScoreboardEntry) => void; showAIReads?: boolean }) {
+function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, viewerManager, leagueId, onSelectPlayer, onSelectDraftBuzzEntry, showAIReads }: { config: RankingsTableConfig; rankings: NonNullable<ReportData['rankings']>; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; leagueId?: string; onSelectPlayer: (player: RankingPlayer) => void; onSelectDraftBuzzEntry: (entry: DraftBuzzScoreboardEntry) => void; showAIReads?: boolean }) {
   const profileOptions = rankings.profileOptions || [];
   const boardOptions = profileOptions.filter(option => option.board === config.board);
   const urlPrefix = getRankingsUrlPrefix(config.board);
@@ -1040,7 +1048,19 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
     }
   }, [canIncludePicksWithOverall, config.board, config.defaultProfileKey, config.hidePicks, profileOptions, rankings.generatedAt, urlPrefix]);
 
-  const rows = rankings.profiles?.[selectedProfileKey] || [];
+  const localRows = selectedProfileKey ? rankings.profiles?.[selectedProfileKey] || [] : [];
+  const expectedRowCount = getProfileRowCount(rankings, selectedProfileKey);
+  const profileQuery = trpc.league.rankingProfile.useQuery(
+    { leagueId: leagueId || '', profileKey: selectedProfileKey || '' },
+    {
+      enabled: Boolean(leagueId && selectedProfileKey && localRows.length === 0 && expectedRowCount > 0),
+      staleTime: 1000 * 60 * 60 * 12,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    }
+  );
+  const rows = profileQuery.data?.rows || localRows;
+  const isProfileLoading = profileQuery.isLoading && localRows.length === 0 && expectedRowCount > 0;
   const activeProfile = profileOptions.find(option => option.key === selectedProfileKey);
   const activeProfileLabel = activeProfile ? getProfileButtonLabel(activeProfile) : null;
   const leagueTypeControlStyle = {
@@ -1252,6 +1272,12 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         </div>
       </div>
 
+      {isProfileLoading ? (
+        <div className="rankings-empty-state">
+          Loading selected ranking profile...
+        </div>
+      ) : null}
+
       <div className="rankings-result-count">
         Showing {pageRows.length.toLocaleString()} of {filteredRows.length.toLocaleString()} ranked assets
       </div>
@@ -1274,7 +1300,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         ))}
       </div>
 
-      {filteredRows.length === 0 ? (
+      {filteredRows.length === 0 && !isProfileLoading ? (
         <EmptyState
           className="rankings-empty-state"
           title="No rankings match those filters."
@@ -1302,11 +1328,23 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
 export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, leagueId, leagueLogo, viewerManager, board = 'all', hidePicks = false, leagueValueMode: leagueValueModeInput = 'dynasty', showAIReads = false }: { rankings?: ReportData['rankings']; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; leagueId?: string; leagueLogo?: string | null; viewerManager?: string | null; board?: 'all' | 'dynasty' | 'redraft' | 'devy' | 'draftbuzz'; hidePicks?: boolean; leagueValueMode?: ReportData['leagueValueMode']; showAIReads?: boolean }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
+  const shouldShowDraftBuzzScoreboard = board === 'draftbuzz' || (board === 'all' && leagueValueMode !== 'redraft');
+  const localDraftBuzzEntries = rankings?.draftBuzzScoreboard || [];
+  const draftBuzzQuery = trpc.league.rankingDraftBuzz.useQuery(
+    { leagueId: leagueId || '' },
+    {
+      enabled: Boolean(leagueId && shouldShowDraftBuzzScoreboard && localDraftBuzzEntries.length === 0 && (rankings?.draftBuzzScoreboardCount || 0) > 0),
+      staleTime: 1000 * 60 * 60 * 12,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    }
+  );
+  const draftBuzzEntries = localDraftBuzzEntries.length ? localDraftBuzzEntries : draftBuzzQuery.data?.entries || [];
 
   const handleSelectPlayer = (player: RankingPlayer) => {
     const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
     const draftBuzzEntry = player.isDevy
-      ? rankings?.draftBuzzScoreboard?.find((entry) => {
+      ? draftBuzzEntries.find((entry) => {
           if (player.player_id && entry.player_id === player.player_id) return true;
           return entry.name.toLowerCase() === player.name.toLowerCase()
             && entry.position === player.pos
@@ -1436,7 +1474,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
 
   const modeCopy = getLeagueModeCopy(leagueValueMode);
   const valueLabel = getPrimaryValueLabel(leagueValueMode, 'rankings');
-  const hasRedraftProfiles = rankings.profileOptions?.some((option) => option.board === 'redraft' && (rankings.profiles?.[option.key]?.length || 0) > 0);
+  const hasRedraftProfiles = rankings.profileOptions?.some((option) => option.board === 'redraft' && getProfileRowCount(rankings, option.key) > 0);
   const primaryBoard: RankingsTableConfig['board'] = board === 'redraft'
     ? 'redraft'
     : leagueValueMode === 'redraft' && hasRedraftProfiles
@@ -1467,15 +1505,22 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       } : null,
     ].filter(Boolean) as RankingsTableConfig[]
   ).filter(config => board === 'all' || config.board === board);
-  const showDraftBuzzScoreboard = board === 'draftbuzz' || (board === 'all' && leagueValueMode !== 'redraft');
 
   return (
     <div className="rankings-board">
       {tableConfigs.map(config => (
-        <RankingsTable key={config.board} config={config} rankings={rankings} playerDetailsById={playerDetailsById} managerAvatars={managerAvatars} viewerManager={viewerManager} onSelectPlayer={handleSelectPlayer} onSelectDraftBuzzEntry={handleSelectDraftBuzzEntry} showAIReads={showAIReads} />
+        <RankingsTable key={config.board} config={config} rankings={rankings} playerDetailsById={playerDetailsById} managerAvatars={managerAvatars} viewerManager={viewerManager} leagueId={leagueId} onSelectPlayer={handleSelectPlayer} onSelectDraftBuzzEntry={handleSelectDraftBuzzEntry} showAIReads={showAIReads} />
       ))}
 
-      {showDraftBuzzScoreboard ? rankings.draftBuzzScoreboard?.length ? <DraftBuzzScoreboard entries={rankings.draftBuzzScoreboard} onSelectEntry={handleSelectDraftBuzzEntry} /> : <EmptyState className="rankings-empty-state" title="Prospect score archive is not available for this report yet." description="Prospect archive data was not returned with this report." /> : null}
+      {shouldShowDraftBuzzScoreboard ? draftBuzzQuery.isLoading && !draftBuzzEntries.length ? (
+        <div className="rankings-empty-state">
+          Loading prospect score archive...
+        </div>
+      ) : draftBuzzEntries.length ? (
+        <DraftBuzzScoreboard entries={draftBuzzEntries} onSelectEntry={handleSelectDraftBuzzEntry} />
+      ) : (
+        <EmptyState className="rankings-empty-state" title="Prospect score archive is not available for this report yet." description="Prospect archive data was not returned with this report." />
+      ) : null}
 
       <PlayerDetailModal isOpen={selectedPlayer !== null} onClose={() => setSelectedPlayer(null)} pick={selectedPlayer} leagueId={leagueId} leagueLogo={leagueLogo} managerAvatars={managerAvatars} playerDetailsById={playerDetailsById} showAIRead={showAIReads} />
     </div>

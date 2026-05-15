@@ -29,6 +29,7 @@ import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStat
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
 import { loadSourceSnapshotFreshnessDiagnostics } from "./sourceSnapshotFreshness";
 import { slimCachedLeagueReportPayload } from "./reportPayloadSlimming";
+import { buildRankingDraftBuzzDetail, buildRankingProfileDetail, buildRankingsMetadata } from "./rankingPayloadViews";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -3902,6 +3903,60 @@ export const appRouter = router({
         });
         const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
         return buildLeagueRankingsPayload(input.leagueId, forceRefresh);
+      }),
+
+    rankingsMeta: publicProcedure
+      .input(z.object({ leagueId: sleeperLeagueIdSchema, forceRefresh: z.boolean().optional() }))
+      .query(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.rankingsMeta',
+          max: 60,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId,
+          message: 'Too many ranking metadata requests for this league. Please wait a few minutes and try again.',
+        });
+        const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
+        const payload = await buildLeagueRankingsPayload(input.leagueId, forceRefresh);
+        return {
+          rankings: buildRankingsMetadata(payload.rankings),
+        };
+      }),
+
+    rankingProfile: publicProcedure
+      .input(z.object({
+        leagueId: sleeperLeagueIdSchema,
+        profileKey: z.string().trim().min(1).max(80),
+        forceRefresh: z.boolean().optional(),
+      }))
+      .query(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.rankingProfile',
+          max: 90,
+          windowMs: 1000 * 60 * 10,
+          scope: `${input.leagueId}:${input.profileKey}`,
+          message: 'Too many ranking profile requests for this league. Please wait a few minutes and try again.',
+        });
+        const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
+        const payload = await buildLeagueRankingsPayload(input.leagueId, forceRefresh);
+        return buildRankingProfileDetail(payload.rankings, input.profileKey.trim());
+      }),
+
+    rankingDraftBuzz: publicProcedure
+      .input(z.object({ leagueId: sleeperLeagueIdSchema, forceRefresh: z.boolean().optional() }))
+      .query(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.rankingDraftBuzz',
+          max: 45,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId,
+          message: 'Too many prospect archive requests for this league. Please wait a few minutes and try again.',
+        });
+        const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
+        const payload = await buildLeagueRankingsPayload(input.leagueId, forceRefresh);
+        return buildRankingDraftBuzzDetail(payload.rankings);
       }),
 
     analyze: publicProcedure

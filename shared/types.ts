@@ -174,11 +174,14 @@ export interface RankingsBoard {
     sources: RankingSourceWeightEntry[];
   }>;
   profiles?: Record<string, RankingPlayer[]>;
+  profileRowCounts?: Record<string, number>;
   identityDiagnostics?: RankingIdentityDiagnostic[];
   dynastySourceDiagnostics?: RankingSourceDiagnostic[];
   redraftSourceDiagnostics?: RankingSourceDiagnostic[];
   devySourceDiagnostics?: RankingSourceDiagnostic[];
   draftBuzzScoreboard?: DraftBuzzScoreboardEntry[];
+  draftBuzzScoreboardCount?: number;
+  payloadMode?: 'full' | 'metadata';
   dynastySf: RankingPlayer[];
   dynastyOneQb: RankingPlayer[];
   devySf: RankingPlayer[];
