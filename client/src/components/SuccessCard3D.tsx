@@ -67,19 +67,43 @@ function Scene({ exit, reducedMotion }: { exit: boolean; reducedMotion: boolean 
       <color attach="background" args={['#04090d']} />
       <ambientLight intensity={0.08} />
 
+      <CameraRig reducedMotion={reducedMotion} />
+
       <BroadcastLights exit={exit} reducedMotion={reducedMotion} />
 
       {/* Front key fill so the card middle is visible — slightly warm */}
       <pointLight position={[0, 0, 2.4]} intensity={0.9} color="#3a5a68" distance={5} decay={2.0} />
-      {/* Side rim lights for chamfer definition */}
-      <pointLight position={[-1.6, 0, 1.4]} intensity={0.6} color="#00D4DB" distance={3.6} decay={2.4} />
-      <pointLight position={[1.6, 0, 1.4]} intensity={0.4} color="#FF7A14" distance={3.6} decay={2.4} />
+      {/* Side rim lights for chamfer definition — punched up */}
+      <pointLight position={[-1.6, 0, 1.4]} intensity={1.1} color="#00D4DB" distance={3.6} decay={2.4} />
+      <pointLight position={[1.6, 0, 1.4]} intensity={0.7} color="#FF7A14" distance={3.6} decay={2.4} />
 
       <CardSurface reducedMotion={reducedMotion} />
       <SurfaceScanline reducedMotion={reducedMotion} />
       <DustParticles reducedMotion={reducedMotion} />
     </>
   );
+}
+
+function CameraRig({ reducedMotion }: { reducedMotion: boolean }) {
+  const startedAt = useRef(performance.now());
+  useFrame(({ camera }) => {
+    if (reducedMotion) {
+      camera.position.z = 3.2;
+      camera.updateProjectionMatrix();
+      return;
+    }
+    const elapsed = (performance.now() - startedAt.current) / 1000;
+    // Settle from far (z=4.4) to close (z=3.2) over 0.95s with ease-out cubic
+    const t = Math.min(1, elapsed / 0.95);
+    const eased = 1 - Math.pow(1 - t, 3);
+    camera.position.z = 4.4 - 1.2 * eased;
+    // Very subtle continued drift after settle for liveliness
+    if (elapsed > 0.95) {
+      const driftT = (elapsed - 0.95) % 6;
+      camera.position.z = 3.2 - Math.sin((driftT / 6) * Math.PI * 2) * 0.015;
+    }
+  });
+  return null;
 }
 
 function BroadcastLights({ exit, reducedMotion }: { exit: boolean; reducedMotion: boolean }) {
@@ -93,24 +117,61 @@ function BroadcastLights({ exit, reducedMotion }: { exit: boolean; reducedMotion
 
   const startedAt = useRef(performance.now());
 
+  // CRT power-on flicker curve. Returns 0..1.5 intensity multiplier
+  // over the first 360ms — three stutter spikes settling to 1.0.
+  // After 360ms returns 1.0.
+  const powerOnFlicker = (t: number): number => {
+    if (t < 0) return 0;
+    if (t > 0.36) return 1;
+    // discrete keyframes interpolated linearly
+    const k: [number, number][] = [
+      [0.00, 0.0],
+      [0.04, 1.6],
+      [0.07, 0.15],
+      [0.11, 1.35],
+      [0.15, 0.4],
+      [0.19, 1.2],
+      [0.24, 0.7],
+      [0.30, 1.08],
+      [0.36, 1.0],
+    ];
+    for (let i = 0; i < k.length - 1; i += 1) {
+      if (t <= k[i + 1][0]) {
+        const span = k[i + 1][0] - k[i][0];
+        const frac = (t - k[i][0]) / span;
+        return k[i][1] + (k[i + 1][1] - k[i][1]) * frac;
+      }
+    }
+    return 1;
+  };
+
   useFrame(({ clock }) => {
     const elapsed = (performance.now() - startedAt.current) / 1000;
-    // Snap-on at ~0ms, full intensity by 250ms
-    const turnOn = reducedMotion ? 1 : Math.min(1, elapsed / 0.25);
+    // Power-on stutter for the first 360ms, then steady 1.0
+    const turnOn = reducedMotion ? 1 : powerOnFlicker(elapsed);
     // Exit: fade to 0 over 350ms
     const exitMul = exit ? Math.max(0, 1 - elapsed / 0.35) : 1;
-    // Idle breathing pulse (very subtle)
-    const breathe = reducedMotion ? 1 : 0.94 + Math.sin(clock.elapsedTime * 1.5) * 0.06;
+    // Idle breathing pulse (very subtle, only after flicker settles)
+    const breathe = reducedMotion || elapsed < 0.4
+      ? 1
+      : 0.94 + Math.sin(clock.elapsedTime * 1.5) * 0.06;
 
     const finalMul = turnOn * exitMul * breathe;
 
     if (topRef.current) topRef.current.intensity = 22 * finalMul;
     if (bottomRef.current) bottomRef.current.intensity = 18 * finalMul;
 
+    // Light bar entrance: scale from 0 width to full over first 220ms,
+    // synced with the brightest flicker spike (anchors the eye)
+    const barScale = reducedMotion ? 1 : Math.min(1, Math.max(0, (elapsed - 0.02) / 0.22));
+    const easedBarScale = 1 - Math.pow(1 - barScale, 3); // ease-out cubic
+
     if (topBarRef.current) {
+      topBarRef.current.scale.x = easedBarScale;
       (topBarRef.current.material as THREE.MeshBasicMaterial).opacity = 1 * finalMul;
     }
     if (bottomBarRef.current) {
+      bottomBarRef.current.scale.x = easedBarScale;
       (bottomBarRef.current.material as THREE.MeshBasicMaterial).opacity = 1 * finalMul;
     }
   });

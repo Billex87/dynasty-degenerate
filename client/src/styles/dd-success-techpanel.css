@@ -33,6 +33,31 @@
 .loading-success-scanline { display: none !important; }
 .loading-success-impact-core { display: none !important; }
 
+/* DD logo emission — pulses with the 3D scene's breathing rhythm so
+   the logo reads like a backlit emblem on the panel. */
+.loading-success-card .loading-success-icon,
+.loading-success-card .loading-success-logo-image {
+  filter:
+    drop-shadow(0 0 14px rgba(0, 212, 219, 0.55))
+    drop-shadow(0 0 28px rgba(255, 106, 0, 0.32))
+    drop-shadow(0 0 6px rgba(255, 192, 61, 0.4));
+  animation: dd-logo-emission-pulse 4.2s ease-in-out 0.6s infinite;
+}
+@keyframes dd-logo-emission-pulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 14px rgba(0, 212, 219, 0.55))
+      drop-shadow(0 0 28px rgba(255, 106, 0, 0.32))
+      drop-shadow(0 0 6px rgba(255, 192, 61, 0.4));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 22px rgba(0, 212, 219, 0.72))
+      drop-shadow(0 0 40px rgba(255, 106, 0, 0.46))
+      drop-shadow(0 0 10px rgba(255, 192, 61, 0.55));
+  }
+}
+
 /* Tighten the existing entrance ripple to feel snappier */
 .loading-success-ripple {
   animation-duration: 0.78s !important;
