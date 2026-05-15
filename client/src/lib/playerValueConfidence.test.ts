@@ -9,6 +9,7 @@ describe('getPlayerValueConfidence', () => {
     expect(confidence.score).toBeLessThan(46);
     expect(confidence.tone).toBe('danger');
     expect(confidence.primarySourceCount).toBe(0);
+    expect(confidence.sources).toEqual([]);
   });
 
   it('raises dynasty confidence when multiple primary sources agree', () => {
@@ -27,6 +28,13 @@ describe('getPlayerValueConfidence', () => {
     expect(confidence.score).toBeGreaterThanOrEqual(78);
     expect(confidence.tone).toBe('good');
     expect(confidence.primarySourceCount).toBeGreaterThanOrEqual(4);
+    expect(confidence.primarySources.map((source) => source.label)).toEqual([
+      'Dynasty blend',
+      'KTC market',
+      'Flock Fantasy',
+      'FantasyCalc dynasty',
+      'Dynasty Nerds',
+    ]);
   });
 
   it('penalizes wide source disagreement', () => {
@@ -58,5 +66,10 @@ describe('getPlayerValueConfidence', () => {
 
     expect(confidence.primarySourceCount).toBe(3);
     expect(confidence.score).toBeGreaterThanOrEqual(70);
+    expect(confidence.sources.map((source) => source.label)).toEqual([
+      'Season blend',
+      'FantasyPros season',
+      'FantasyCalc redraft',
+    ]);
   });
 });

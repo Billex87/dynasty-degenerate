@@ -5,6 +5,13 @@ type ValueProfile = NonNullable<PlayerDetails['valueProfile']>;
 
 export type PlayerValueConfidenceTone = 'danger' | 'warn' | 'info' | 'good';
 
+export type PlayerValueSourceTrace = {
+  key: keyof ValueProfile;
+  label: string;
+  value: number;
+  primary: boolean;
+};
+
 export type PlayerValueConfidence = {
   score: number;
   label: string;
@@ -12,6 +19,8 @@ export type PlayerValueConfidence = {
   sourceCount: number;
   primarySourceCount: number;
   spreadPct: number | null;
+  sources: PlayerValueSourceTrace[];
+  primarySources: PlayerValueSourceTrace[];
   note: string;
 };
 
@@ -99,13 +108,15 @@ export function getPlayerValueConfidence(input: {
       sourceCount: 0,
       primarySourceCount: 0,
       spreadPct: null,
+      sources: [],
+      primarySources: [],
       note: 'No value profile is attached to this player yet, so the read should stay conservative.',
     };
   }
 
   const sourceValues = getSourceValues(valueProfile, mode)
     .map((source) => ({ ...source, value: numericValue(source.value) }))
-    .filter((source): source is SourceValue & { value: number } => source.value !== null);
+    .filter((source): source is PlayerValueSourceTrace => source.value !== null);
   const primarySources = sourceValues.filter((source) => source.primary);
   const sourceCount = sourceValues.length;
   const primarySourceCount = primarySources.length;
@@ -147,6 +158,8 @@ export function getPlayerValueConfidence(input: {
     sourceCount,
     primarySourceCount,
     spreadPct,
+    sources: sourceValues,
+    primarySources,
     note: `${label} value confidence from ${primarySourceCount} ${sourceLabel}${topSources ? ` (${topSources})` : ''}; ${formatSpread(spreadPct)}.`,
   };
 }

@@ -97,7 +97,10 @@
 - [x] Add player prop snapshot foundation with normalized prop lines, OpticOdds env-gated refresh, provider snapshot persistence, and fixture tests. Keep props provider calls in dynamic-data refresh only; normal report loads should read stored snapshots.
 - [x] Add prop-market signal model shell that reads stored prop snapshots only, compares market lines to internal projection inputs, and emits sportsbook agreement, confidence, direction, and neutral start/sit support flags.
 - [x] Feed stored prop-market signals into backend manager market reads so report/autopilot intelligence can use props as value/start-sit context without live provider calls.
-- [ ] Add a prop-market signal model that compares player props against our projections/value snapshots and flags meaningful deltas for start/sit decisions, matchup previews, and player confidence, with jurisdiction/compliance and responsible-gaming boundaries documented before public release.
+- [ ] After OpticOdds approves/issues an API key, configure `ENABLE_OPTICODDS_PLAYER_PROPS=true` and `OPTICODDS_API_KEY` only in server/prod env, then run dynamic-data refresh and audit stored `player-props-opticodds-v1` row count, payload size, sportsbook coverage, and market coverage without printing payloads or secrets.
+- [ ] After the first real props snapshot, tune `OPTICODDS_SPORTSBOOKS` and `OPTICODDS_PROP_MARKETS` around available NFL markets for Sleeper, Underdog, bet365, and major books, then add source-health/freshness diagnostics before surfacing props publicly.
+- [ ] Add compliance and responsible-gaming boundaries before public props UI; internal report intelligence can use generic market-signal language first.
+- [ ] Tune prop-market signal thresholds after real snapshots exist: compare player props against projection/value snapshots, calibrate meaningful deltas for start/sit decisions, matchup previews, and player confidence, then document jurisdiction/compliance and responsible-gaming boundaries before public release.
 - [x] Add a shortlist of features we already have enough data to build from current sources:
   - [x] News-to-value movement analysis using FantasyPros/Sleeper news, injury, and snapshot timing.
   - [x] ADP vs value-over-cost views using FantasyPros ADP / DYNADP / RKADP plus current value blends.
