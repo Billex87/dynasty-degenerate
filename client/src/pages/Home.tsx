@@ -2933,6 +2933,36 @@ function buildAdminValueDiagnostics(
     });
   }
 
+  reportData.sourceSnapshotDiagnostics?.slice(0, 12).forEach(diagnostic => {
+    const tone: AdminValueDiagnosticRow["tone"] =
+      diagnostic.level === "danger"
+        ? "danger"
+        : diagnostic.level === "warn"
+          ? "warn"
+          : "info";
+    addUniqueDiagnosticRow(rows, seen, {
+      id: `source-snapshot-${diagnostic.sourceKey}`,
+      area: "Snapshot freshness",
+      item: diagnostic.rowCount !== null && diagnostic.rowCount !== undefined
+        ? `${diagnostic.source}: ${diagnostic.rowCount.toLocaleString()} rows`
+        : diagnostic.source,
+      status:
+        diagnostic.status === "loaded"
+          ? "Fresh"
+          : diagnostic.status === "stale"
+            ? "Stale"
+            : diagnostic.status === "missing"
+              ? "Missing"
+              : "Source error",
+      tone,
+      note: [
+        diagnostic.note,
+        diagnostic.snapshotKey ? `Snapshot key: ${diagnostic.snapshotKey}.` : null,
+        diagnostic.updatedAt ? `Updated: ${formatAdminTelemetryDate(diagnostic.updatedAt)}.` : null,
+      ].filter(Boolean).join(" "),
+    });
+  });
+
   currentSnapshotGaps.forEach(dateKey => {
     addUniqueDiagnosticRow(rows, seen, {
       id: `snapshot-${dateKey}`,

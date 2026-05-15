@@ -86,6 +86,15 @@ export type StoredSourceHealthEvent = SourceHealthEventInput & {
   createdAt: Date;
 };
 
+export type StoredSnapshotMetadata = {
+  sourceKey: string;
+  source: string;
+  snapshotKey: string | null;
+  updatedAt: Date | null;
+  payloadSizeBytes: number | null;
+  tableName: string;
+};
+
 function getSql() {
   if (!process.env.DATABASE_URL) return null;
   if (!sqlClient) {
@@ -784,6 +793,94 @@ export async function findLatestProviderDataSnapshot(sourceKey: string) {
     payload: parseTextPayloadFromStorage(String(row.payload)),
     updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
   };
+}
+
+export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetadata[]> {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const result = await sql`
+    WITH latest_ktc AS (
+      SELECT
+        'ktc-blended-values-v1'::text AS "sourceKey",
+        'Blended value snapshot'::text AS source,
+        to_char("snapshotDate" AT TIME ZONE 'America/Vancouver', 'YYYY-MM-DD') AS "snapshotKey",
+        "createdAt" AS "updatedAt",
+        octet_length(COALESCE("ktcData", '')) AS "payloadSizeBytes",
+        'ktcSnapshots'::text AS "tableName"
+      FROM "ktcSnapshots"
+      ORDER BY "snapshotDate" DESC
+      LIMIT 1
+    ),
+    latest_prospects AS (
+      SELECT DISTINCT ON (source)
+        ('prospect-snapshot:' || source)::text AS "sourceKey",
+        ('Prospect snapshot: ' || source)::text AS source,
+        "snapshotMonth" AS "snapshotKey",
+        "createdAt" AS "updatedAt",
+        octet_length(COALESCE("prospectData", '')) AS "payloadSizeBytes",
+        'prospectSnapshots'::text AS "tableName"
+      FROM "prospectSnapshots"
+      ORDER BY source, "snapshotMonth" DESC
+    ),
+    latest_redraft AS (
+      SELECT DISTINCT ON (season)
+        ('redraft-source-snapshot:' || season)::text AS "sourceKey",
+        ('Redraft source snapshot: ' || season)::text AS source,
+        "snapshotKey",
+        "updatedAt",
+        octet_length(COALESCE(payload, '')) AS "payloadSizeBytes",
+        'redraftSourceSnapshots'::text AS "tableName"
+      FROM "redraftSourceSnapshots"
+      ORDER BY season, "snapshotKey" DESC
+    ),
+    latest_devy AS (
+      SELECT DISTINCT ON ("profileKey")
+        ('devy-source-snapshot:' || "profileKey")::text AS "sourceKey",
+        ('Devy source snapshot: ' || "profileKey")::text AS source,
+        "snapshotKey",
+        "updatedAt",
+        octet_length(COALESCE(payload, '')) AS "payloadSizeBytes",
+        'devySourceSnapshots'::text AS "tableName"
+      FROM "devySourceSnapshots"
+      ORDER BY "profileKey", "snapshotKey" DESC
+    ),
+    latest_provider AS (
+      SELECT DISTINCT ON ("sourceKey")
+        "sourceKey"::text,
+        "sourceKey"::text AS source,
+        "snapshotKey",
+        "updatedAt",
+        octet_length(COALESCE(payload, '')) AS "payloadSizeBytes",
+        'providerDataSnapshots'::text AS "tableName"
+      FROM "providerDataSnapshots"
+      ORDER BY "sourceKey", "snapshotKey" DESC
+    )
+    SELECT * FROM latest_ktc
+    UNION ALL SELECT * FROM latest_prospects
+    UNION ALL SELECT * FROM latest_redraft
+    UNION ALL SELECT * FROM latest_devy
+    UNION ALL SELECT * FROM latest_provider
+    ORDER BY "sourceKey" ASC
+  ` as Array<{
+    sourceKey?: string | null;
+    source?: string | null;
+    snapshotKey?: string | null;
+    updatedAt?: Date | string | null;
+    payloadSizeBytes?: number | string | null;
+    tableName?: string | null;
+  }>;
+
+  return result.map((row) => ({
+    sourceKey: String(row.sourceKey || 'unknown'),
+    source: String(row.source || row.sourceKey || 'Unknown source'),
+    snapshotKey: row.snapshotKey ? String(row.snapshotKey) : null,
+    updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
+    payloadSizeBytes: row.payloadSizeBytes === null || row.payloadSizeBytes === undefined
+      ? null
+      : Number(row.payloadSizeBytes),
+    tableName: String(row.tableName || 'unknown'),
+  }));
 }
 
 export async function insertSourceHealthEvents(events: SourceHealthEventInput[]): Promise<boolean> {

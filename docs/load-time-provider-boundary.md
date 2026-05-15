@@ -9,3 +9,4 @@ Current guardrails:
 - `server/loadTimeProviderPolicy.ts` defines the allowed live hosts and the shared `{ sourceMode: "snapshot" }` option for user-load non-Sleeper reads.
 - `server/userLoadProviderBoundary.test.ts` checks the report/ranking/player-detail route source code for the expected snapshot calls and Sleeper-only live URL hosts.
 - `server/loadTimeProviderPolicy.test.ts` verifies the runtime policy blocks non-Sleeper live URLs before `fetch` is called.
+- `server/sourceSnapshotFreshness.ts` builds metadata-only freshness diagnostics from snapshot tables and source-health rows, then attaches the rows to report admin diagnostics without copying full provider payloads.

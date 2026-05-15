@@ -263,6 +263,23 @@ export interface ProspectSourceDiagnostics {
   errors?: string[];
 }
 
+export interface SourceSnapshotFreshnessDiagnostic {
+  sourceKey: string;
+  source: string;
+  tableName: string;
+  snapshotKey: string | null;
+  updatedAt: string | null;
+  ageHours: number | null;
+  payloadSizeBytes: number | null;
+  rowCount: number | null;
+  status: 'loaded' | 'stale' | 'missing' | 'error';
+  level: 'info' | 'warn' | 'danger';
+  note: string;
+  lastHealthStatus?: string | null;
+  lastHealthMessage?: string | null;
+  lastHealthAt?: string | null;
+}
+
 export interface ManagerData {
   total_val: number;
   past_val: number;
@@ -994,6 +1011,7 @@ export interface ReportData {
     warning?: string | null;
   };
   monthlyBlueprintHistory?: MonthlyBlueprintHistorySnapshot[];
+  sourceSnapshotDiagnostics?: SourceSnapshotFreshnessDiagnostic[];
   depthChartDiagnostics?: DepthChartDiagnostics;
   transactionBackfillDiagnostics?: TransactionBackfillDiagnostics;
   prospectSourceDiagnostics?: ProspectSourceDiagnostics;

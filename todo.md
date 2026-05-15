@@ -30,7 +30,7 @@
 - [x] Move remaining non-Sleeper report enrichments to provider snapshots: FantasyPros news, ESPN depth charts, and DraftSharks/SOS now refresh through dynamic-data jobs and read stored snapshots during user-triggered report/player-detail loads.
 - [x] Move static Sleeper season stats and historical availability reads to persisted nightly snapshots so normal report loads only live-check current league state, transactions, drafts, trends, matchups, and player index changes.
 - [x] Add a user-load provider boundary guard: report/ranking/player-detail loads use live Sleeper current-state calls only, non-Sleeper reads share snapshot-mode options, and tests block accidental live FantasyPros/OpticOdds/etc. calls during user loads.
-- [ ] Add source freshness diagnostics for every snapshot-backed provider in the admin/report payload: source key, snapshot key, updated time, row count, payload size, stale/missing status, and last job error where available.
+- [x] Add source freshness diagnostics for every snapshot-backed provider in the admin/report payload: source key, snapshot key, updated time, row count, payload size, stale/missing status, and last job error where available.
 - [ ] Reduce transfer further by splitting ranking metadata/detail reads, trimming duplicated prospect fields, tightening cache TTL/retention, and avoiding full payload reads when only metadata is needed.
 - [x] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
 - [x] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.

@@ -8,6 +8,7 @@ vi.mock("./db", () => ({
   getLoginAttemptsSince: vi.fn(),
   insertLoginAttempt: vi.fn(),
   listLeagueAiConfidenceSnapshots: vi.fn(() => Promise.resolve([])),
+  listLatestSnapshotMetadata: vi.fn(() => Promise.resolve([])),
   listSourceHealthEventsSince: vi.fn(() => Promise.resolve([])),
   reserveMonthlyReportGeneration,
   insertSourceHealthEvents: vi.fn(),

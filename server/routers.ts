@@ -27,6 +27,7 @@ import { loadDraftSharksScheduleContext } from "./draftSharksSchedule";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
+import { loadSourceSnapshotFreshnessDiagnostics } from "./sourceSnapshotFreshness";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -4481,12 +4482,27 @@ export const appRouter = router({
             players,
             fantasyProsNews
           );
+          const sourceSnapshotDiagnostics = await loadSourceSnapshotFreshnessDiagnostics({
+            currentSeason,
+            previousSeason: lastCompletedSeason,
+            valueProfileKey: leagueValueProfileKey,
+            devyProfileKey: `devy_${leagueValueProfileKey}`,
+            rowCounts: [
+              { sourceKey: 'ktc-blended-values-v1', rowCount: Object.keys(ktcValues || {}).length },
+              { sourceKey: 'fantasypros-news-v1', rowCount: fantasyProsNews.length },
+              { sourceKey: 'espn-depth-charts-v1', rowCount: depthChartResult.diagnostics.loadedTeams.length },
+              { sourceKey: 'draftsharks-sos-v1', rowCount: Object.keys(draftSharksScheduleContext.profiles || {}).length },
+              { sourceKey: `sleeper-season-stats-v1:${lastCompletedSeason}`, rowCount: Object.keys(lastSeasonPositionRanks || {}).length },
+              { sourceKey: 'prospect-snapshot:NFL Draft Buzz', rowCount: prospectContext.diagnostics.playerCount },
+            ],
+          });
           const actualDepthChartsByPlayerId = depthChartResult.playerDepthCharts;
           const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, prospectLookup, actualDepthChartsByPlayerId);
           markAnalyzeStep('player detail assembly');
 
           const reportPayloadData = {
             ...reportData,
+            sourceSnapshotDiagnostics,
             depthChartDiagnostics: depthChartResult.diagnostics,
             prospectSourceDiagnostics: prospectContext.diagnostics,
             viewerManager,
