@@ -3482,6 +3482,244 @@ function AdminTrafficTelemetrySection() {
   );
 }
 
+function AdminProviderTelemetrySection() {
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
+  const canViewTelemetry = canViewAdminTelemetryForUser(authQuery.data);
+  const { data } = trpc.system.apiProviderTelemetry.useQuery(
+    { lookbackDays: 7, limit: 12 },
+    {
+      enabled: canViewTelemetry,
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: 1000 * 60,
+    }
+  );
+  const issueCount = (data?.totals.failures || 0) + (data?.totals.rateLimited || 0);
+  const issueTone = data?.totals.rateLimited ? "danger" : "warn";
+
+  return (
+    <CollapsibleReportSection
+      title="API Budget & Rate Limits"
+      kicker="Provider telemetry"
+      previewAccessory={
+        issueCount > 0 ? (
+          <AdminAttentionBadge
+            count={issueCount}
+            label="Provider issues"
+            tone={issueTone}
+          />
+        ) : undefined
+      }
+      premium
+    >
+      <AdminProviderTelemetryPanel />
+    </CollapsibleReportSection>
+  );
+}
+
+function AdminProviderTelemetryPanel() {
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
+  const canViewTelemetry = canViewAdminTelemetryForUser(authQuery.data);
+  const { data, error, isLoading, isFetching, refetch } =
+    trpc.system.apiProviderTelemetry.useQuery(
+      { lookbackDays: 7, limit: 12 },
+      {
+        enabled: canViewTelemetry,
+        refetchOnWindowFocus: false,
+        retry: false,
+        staleTime: 1000 * 60,
+      }
+    );
+
+  if (authQuery.isLoading) {
+    return (
+      <div className="rankings-empty-state">
+        Checking provider telemetry access...
+      </div>
+    );
+  }
+
+  if (!canViewTelemetry) {
+    return (
+      <div className="admin-traffic-panel admin-traffic-panel-error">
+        <p>Provider telemetry is locked until Admin Tools are unlocked.</p>
+        <span>
+          This panel is admin-only because it exposes source costs, failures,
+          and endpoint behavior.
+        </span>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rankings-empty-state">
+        Loading provider telemetry...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="admin-traffic-panel admin-traffic-panel-error">
+        <p>Provider telemetry is unavailable for this session.</p>
+        <span>{error.message}</span>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="rankings-empty-state">
+        No provider telemetry available.
+      </div>
+    );
+  }
+
+  const totalCards = [
+    { label: "Calls", value: data.totals.calls },
+    { label: "Network Calls", value: data.totals.networkCalls },
+    { label: "Cache Hits", value: data.totals.cacheHits },
+    { label: "Cache Hit Rate", value: `${data.totals.cacheHitRatePct}%` },
+    { label: "Failures", value: data.totals.failures },
+    { label: "429s", value: data.totals.rateLimited },
+    { label: "Cost Units", value: data.totals.costUnits },
+    { label: "Avg Duration", value: `${data.totals.avgDurationMs}ms` },
+  ];
+
+  return (
+    <div className="admin-traffic-panel">
+      <div className="admin-traffic-header">
+        <div>
+          <span>Last 7 days</span>
+          <strong>
+            Provider budget snapshot ·{" "}
+            {formatAdminTelemetryDate(data.generatedAt)}
+          </strong>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="admin-traffic-refresh"
+          disabled={isFetching}
+          onClick={() => void refetch()}
+        >
+          Refresh
+        </Button>
+      </div>
+
+      <div className="admin-traffic-stat-grid">
+        {totalCards.map(card => (
+          <article key={card.label} className="admin-traffic-stat">
+            <span>{card.label}</span>
+            <strong>
+              {typeof card.value === "number"
+                ? card.value.toLocaleString()
+                : card.value}
+            </strong>
+          </article>
+        ))}
+      </div>
+
+      <div className="admin-traffic-grid">
+        <section className="admin-traffic-card">
+          <h4>Providers</h4>
+          <div className="admin-traffic-list">
+            {data.byProvider.length ? (
+              data.byProvider.map(provider => (
+                <div
+                  key={provider.label}
+                  className={`admin-traffic-row ${provider.failures || provider.rateLimited ? "admin-traffic-row-error" : ""}`}
+                >
+                  <strong>{provider.label}</strong>
+                  <span>
+                    {provider.calls} calls · {provider.networkCalls} network ·{" "}
+                    {provider.cacheHitRatePct}% cached
+                  </span>
+                  <em>
+                    {provider.failures} failures · {provider.rateLimited} 429s ·{" "}
+                    {provider.costUnits} cost units
+                  </em>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                No provider calls recorded in this window.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Highest Cost Endpoints</h4>
+          <div className="admin-traffic-list">
+            {data.byEndpoint.length ? (
+              data.byEndpoint.map(endpoint => (
+                <div
+                  key={endpoint.label}
+                  className={`admin-traffic-row ${endpoint.failures || endpoint.rateLimited ? "admin-traffic-row-error" : ""}`}
+                >
+                  <strong>{endpoint.label}</strong>
+                  <span>
+                    {endpoint.costUnits} cost units · {endpoint.calls} calls ·{" "}
+                    {endpoint.cacheHitRatePct}% cached
+                  </span>
+                  <em>
+                    Avg {endpoint.avgDurationMs}ms · Last{" "}
+                    {formatAdminTelemetryDate(endpoint.lastSeen)}
+                  </em>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                No endpoint cost rows recorded yet.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Recent Provider Events</h4>
+          <div className="admin-traffic-list">
+            {data.recentEvents.length ? (
+              data.recentEvents.slice(0, 10).map((event, index) => (
+                <div
+                  key={`${event.provider}-${event.endpoint}-${event.createdAt}-${index}`}
+                  className={`admin-traffic-row ${event.ok ? "" : "admin-traffic-row-error"}`}
+                >
+                  <strong>
+                    {event.provider} · {event.endpoint}
+                  </strong>
+                  <span>
+                    {event.ok ? "ok" : "failed"} · {event.status ?? "n/a"} ·{" "}
+                    {event.cacheStatus} · {event.durationMs ?? 0}ms
+                  </span>
+                  <em>
+                    {formatAdminTelemetryDate(event.createdAt)}
+                    {event.message ? ` · ${event.message}` : ""}
+                  </em>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                No recent provider events recorded.
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function AdminAbuseTelemetryPanel() {
   const authQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
@@ -5829,6 +6067,7 @@ export default function Home() {
                               report so normal owner analysis stays focused.
                             </p>
                           </div>
+                          <AdminProviderTelemetrySection />
                           <AdminTrafficTelemetrySection />
                           <AdminValueDiagnosticsSection
                             reportData={reportDataForView}

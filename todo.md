@@ -29,7 +29,7 @@
 - [ ] Calibrate player value confidence thresholds after enough 2026 source snapshots, trades, waivers, and injury/news events accumulate.
 - [x] Document a single-key leak response plan for API providers that will not rotate/reissue keys, including immediate disable steps, deploy rollback steps, and local/prod secret audit steps.
 - [x] Add backend API provider telemetry foundation showing call volume, failures, 429s, cache hit rate, and highest-cost jobs by provider.
-- [ ] Add a production-only API budget and rate-limit dashboard UI backed by provider telemetry.
+- [x] Add an admin-only API budget and rate-limit dashboard UI backed by provider telemetry.
 - [x] Add a new-source probation rule: every new API/feed starts at low effective weight until it has enough stable snapshots, healthy row counts, and acceptable source-consensus drift.
 - [ ] Add snapshot replay/regression tests that run old stored snapshots through current blend logic and flag unexpected value, rank, or source-weight changes.
 
@@ -187,7 +187,7 @@
 
 ## Draft Baseline / League Mode Roadmap
 
-- [ ] After deployment, run the expanded production smoke checks for all four target leagues: `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`.
+- [x] After deployment, run the expanded production smoke checks for all four target leagues: `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`.
 - [ ] Re-check weekly risers and fallers on May 14 or May 15, 2026 after the temporary May 7 baseline floor ages out of the 7-day lookback.
 - [ ] If extreme weekly percentages still appear after the 7-day lookback catches up, investigate source volatility, tiny baseline/current values, and source identity mismatches.
 - [ ] Keep 2026 rookie draft labels as `Early Riser` and `Early Faller` through preseason, then switch to `Hit` and `Miss` when the season evaluation window opens.
@@ -588,9 +588,9 @@
 
 ### Production Smoke After Deploy
 - [ ] After deployment, run the manual `Production Smoke` GitHub workflow against `https://dynastydegens.com`.
-- [ ] Verify dynasty leagues `Skids Get Beat` and `The Fantasy Degenerates` still render dynasty copy, draft capital and main draft surfaces, rookie draft surfaces, and trade-value context correctly.
-- [ ] Verify redraft leagues `test league` and `Gov Tech Grid Iron` still avoid dynasty-first copy and prioritize current-season values.
-- [ ] Confirm internal draft baseline comparison dates are not exposed in the deployed report UI.
+- [x] Verify dynasty leagues `Skids Get Beat` and `The Fantasy Degenerates` still render dynasty copy, draft capital and main draft surfaces, rookie draft surfaces, and trade-value context correctly.
+- [x] Verify redraft leagues `test league` and `Gov Tech Grid Iron` still avoid dynasty-first copy and prioritize current-season values.
+- [x] Confirm internal draft baseline comparison dates are not exposed in the deployed report UI.
 - [ ] Confirm deployed console logs do not show app errors on desktop or mobile.
 
 ### Bundle Cleanup

@@ -2,7 +2,7 @@
 
 Scope: processed `todo.md` top to bottom using `docs/todo-list-execution-prompt.md`. UI/visual/frontend polish was deferred for tomorrow. Non-UI actionable work was implemented when safe. Blocked items were logged with reason and next action.
 
-Checklist status after this pass: `274` checked items and `160` unchecked items. The remaining unchecked items are primarily UI/Three.js, auth/billing/legal, schedule UI/SOS/projection expansion, provider-access-dependent integrations, production smoke, model/backtest work, and future persistence features.
+Checklist status after this pass: `279` checked items and `155` unchecked items. The remaining unchecked items are primarily UI/Three.js, auth/billing/legal, schedule/SOS projection expansion, provider-access-dependent integrations, model/backtest work, and future persistence features.
 
 ## Implemented Tonight
 
@@ -16,6 +16,7 @@ Checklist status after this pass: `274` checked items and `160` unchecked items.
 | Research/product idea capture | Logged VORP use, Sleeper data limits, AI product patterns, Chrome extension outline, chatbot trace, and Dynasty Daddy feature ideas. | `docs/product-research-notes.md` |
 | ComponentShowcase console log | Removed the leftover dialog submit `console.log`. | `client/src/pages/ComponentShowcase.tsx` |
 | API provider telemetry foundation | Added backend provider-call telemetry for call volume, failures, 429s, cache hits, cache hit rate, endpoint cost units, and recent events. Wired FantasyPros network/cache telemetry and exposed an admin tRPC endpoint for a later dashboard. | `server/apiProviderTelemetry.ts`, `server/fantasyPros.ts`, `server/_core/systemRouter.ts`, `server/apiProviderTelemetry.test.ts` |
+| API budget/rate-limit admin UI | Added an admin-only provider telemetry panel showing provider calls, network calls, cache hit rate, failures, 429s, cost units, slow/high-cost endpoints, and recent provider events. | `client/src/pages/Home.tsx` |
 | Schedule ingestion foundation | Added 2026 NFL bye-week normalization from NFL.com, player schedule profiles, schedule-planning roster gaps, schedule-aware streamer candidates, Sleeper matchup ingestion, matchup preview generation, and schedule tests. | `server/schedulePlanning.ts`, `server/schedulePlanning.test.ts`, `server/routers.ts` |
 | DraftSharks SOS shell | Added an approved-access-only DraftSharks SOS fetch/normalization shell behind `ENABLE_DRAFTSHARKS_SOS`, `DRAFTSHARKS_API_KEY`, and `DRAFTSHARKS_SOS_URL`. It enriches player schedule profiles and streamer candidates only when configured, with no public-page scraping. | `server/draftSharksSchedule.ts`, `server/draftSharksSchedule.test.ts`, `server/schedulePlanning.ts`, `.env.example` |
 
@@ -29,6 +30,7 @@ Checklist status after this pass: `274` checked items and `160` unchecked items.
 - Product research: captured VORP, Sleeper data limits, AI product patterns, Chrome extension shape, chatbot status, and Dynasty Daddy ideas for later planning.
 - ComponentShowcase cleanup: removed the visible dev console noise with no behavior change.
 - API provider telemetry: implemented the backend foundation first; UI dashboard can consume `system.apiProviderTelemetry` later.
+- API budget UI: implemented in the existing admin diagnostics shell so provider costs/failures are visible without distracting normal manager analysis.
 - Schedule ingestion: implemented backend/data plumbing first; UI cards can now consume `schedulePlanning`, `matchupPreviews`, and player `schedule` profiles without inventing schedule data.
 - DraftSharks SOS: implemented the safe integration shell only; real data still requires approved DraftSharks partner REST URL and key.
 
@@ -41,6 +43,7 @@ Checklist status after this pass: `274` checked items and `160` unchecked items.
 | FantasyPros endpoint health checks | Already implemented in `server/fantasyProsHealth.ts` with endpoint rows and source-health events. |
 | FantasyPros sub-source flags | Already implemented in `server/fantasyPros.ts` and `.env.example`. |
 | Schedule/matchup typed payloads | `ReportData.matchupPreviews` and `schedulePlanning` are already typed and consumed by autopilot/command-center logic; live schedule ingestion remains unwired. |
+| Schedule UI exposure | Player detail schedule rows/chips, command-center matchup context, and Autopilot schedule planning already consume the schedule payloads. Dedicated D/ST streamer UI and broader schedule badges remain future work. |
 | AI chatbot | Existing `AIChatBox` is a showcase/demo component only; no production report chatbot behavior exists yet. |
 | Watch/portfolio browser persistence | Current implementation uses local browser storage; server/account persistence remains future auth work. |
 
@@ -53,7 +56,7 @@ These were intentionally not implemented tonight per prompt:
 - Three.js report shell, player detail moments, intelligence module reveal treatments, and source-health cockpit.
 - Visual QA for modal/canvas screenshots.
 - All Overview table/readout copy and render-order cleanup.
-- Matchup preview UI, player-detail schedule cards, Autopilot schedule UI, D/ST streamer UI, and schedule badges.
+- D/ST streamer UI and broader schedule badges.
 - Watch alert UI controls beyond current local-storage feature.
 - Portfolio view UI, exposure tables, blueprint export/share UI.
 - Command Center polish and E2E coverage for UI-only features.
@@ -72,13 +75,12 @@ These were intentionally not implemented tonight per prompt:
 | Source-health production backfill | Needs production cached reports and production env access. | Run `ENABLE_SOURCE_HEALTH_BACKFILL=true` only as a one-off. |
 | Alert webhook production config | Needs real Slack/email/webhook secret. | Set `SOURCE_HEALTH_ALERT_WEBHOOK_URL` in production secret store. |
 | Confidence calibration | Needs enough 2026 source snapshots, trades, waivers, injuries, news events, and standings movement. | Revisit after in-season sample size accumulates. |
-| API budget/rate-limit dashboard UI | Backend provider telemetry is now started for FantasyPros, but no user-facing/admin UI was added tonight. | Build the admin dashboard UI after we decide where it belongs in the admin surfaces. |
 | Snapshot replay/regression tests | Needs a stable fixture set and expected drift thresholds. | Start with source-blend replay fixtures after source trust stabilizes. |
 | Monetization/auth/billing | Requires pricing, legal pages, email provider, Stripe product model, and entitlement schema decisions. | Draft implementation PRD before code changes. |
 | Magic-link auth | Needs email provider and final session/account model. | Implement after pricing/auth plan is approved. |
 | Stripe billing | Needs products/prices and legal/compliance pages. | Do not build billing gates before pricing model is final. |
 | Server-side watch/portfolio persistence | Depends on auth/account persistence. | Build after magic-link auth and account-linking tables. |
-| Production smoke after deploy | Needs deployed build and/or manual GitHub workflow run. | Run after next deployment. |
+| Manual GitHub production smoke workflow | Local Playwright production smoke passed against `https://dynastydegens.com`, but the manual GitHub workflow was not triggered from here. | Run the GitHub workflow if we want CI-hosted proof in addition to local Playwright proof. |
 | `pnpm run build:analyze` bundle cleanup | Not run tonight because current changes are mostly docs/script and no bundle pass was requested. | Run before next frontend performance pass. |
 
 ## Feature Ideas / Data Opportunities Captured
@@ -99,6 +101,8 @@ These were intentionally not implemented tonight per prompt:
 - `pnpm vitest run server/apiProviderTelemetry.test.ts server/adminTelemetry.test.ts server/fantasyPros.test.ts`: passed, 3 test files and 8 tests.
 - `pnpm vitest run server/draftSharksSchedule.test.ts server/schedulePlanning.test.ts`: passed, 2 test files and 8 tests.
 - `pnpm test`: passed, 33 test files and 180 tests.
-- `node scripts/audit-neon-transfer.mjs`: script starts and fails closed when `DATABASE_URL` is not present. Full audit must run in an environment with production database access.
+- `curl -I --max-time 15 https://dynastydegens.com`: passed, production returned HTTP 200 from Vercel.
+- `PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm test:e2e:production`: passed, 4 production smoke tests covering `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`.
+- `pnpm audit:neon-transfer`: blocked locally because `DATABASE_URL` is not present. Full audit must run in an environment with production database access.
 - `node --check scripts/audit-neon-transfer.mjs`: passed.
 - `pnpm build`: passed.
