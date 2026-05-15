@@ -22,6 +22,7 @@ import { fetchFantasyProsLatestPlayerNews, fetchFantasyProsNews, findLatestFanta
 import { buildRankingsBoard } from "./rankingsBoard";
 import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persistLeagueAiConfidenceSnapshot } from "./leagueAiConfidence";
 import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
+import { buildMatchupPreviews, buildPlayerScheduleProfiles, buildSchedulePlanningSummary } from "./schedulePlanning";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import {
   getFantasyProsScoringForPpr,
@@ -124,6 +125,11 @@ function isTrustedAutomationRequest(req: RequestLike): boolean {
 
 function canForceRefreshLeagueCache(req: { headers?: Record<string, any> }): boolean {
   return isTrustedAutomationRequest(req);
+}
+
+function getSleeperCurrentWeek(leagueInfo: any): number {
+  const candidate = Number(leagueInfo?.leg ?? leagueInfo?.week ?? leagueInfo?.settings?.leg ?? 1);
+  return Number.isFinite(candidate) && candidate > 0 ? Math.min(18, Math.floor(candidate)) : 1;
 }
 
 function getAdminLoginPassword(): string {
@@ -4032,6 +4038,7 @@ export const appRouter = router({
           const leagueValueMode = getLeagueValueMode(leagueInfo);
           const prevLeagueId = leagueInfo.previous_league_id;
           const currentSeasonLabel = String(leagueInfo.season || new Date().getFullYear());
+          const currentScheduleWeek = getSleeperCurrentWeek(leagueInfo);
           const previousSeasonFallbackLabel = String(Number(currentSeasonLabel) - 1);
           const playoffWeekStartBySeason: Record<string, number> = {
             [currentSeasonLabel]: Number(leagueInfo.settings?.playoff_week_start || 15),
@@ -4194,6 +4201,16 @@ export const appRouter = router({
           markAnalyzeStep('last season ranks');
 
           const allValueProfilesById = buildPlayerValueProfileMap(Object.keys(players), players, ktcValues, leagueValueMode);
+          let currentWeekMatchups: any[] = [];
+          try {
+            const fetchedMatchups = await fetchSleeperJson<any[]>(
+              `https://api.sleeper.app/v1/league/${input.leagueId}/matchups/${currentScheduleWeek}`
+            );
+            currentWeekMatchups = Array.isArray(fetchedMatchups) ? fetchedMatchups : [];
+          } catch (error) {
+            console.warn('Failed to fetch current-week Sleeper matchups:', error);
+          }
+          markAnalyzeStep('schedule inputs');
           const reportData = await generateReport(
             currentSeasonData,
             pastSeasonData,
@@ -4204,6 +4221,29 @@ export const appRouter = router({
             { leagueValueMode }
           );
           markAnalyzeStep('generate report');
+          const schedulePlanning = buildSchedulePlanningSummary({
+            season: currentSeasonLabel,
+            currentWeek: currentScheduleWeek,
+            rosters,
+            rosterMap: rosterUserMap,
+            players,
+            ktcValues,
+            rosterPositions: currentSeasonData.rosterPositions,
+          });
+          const matchupPreviews = buildMatchupPreviews({
+            season: currentSeasonLabel,
+            week: currentScheduleWeek,
+            matchups: currentWeekMatchups,
+            rosters,
+            rosterMap: rosterUserMap,
+            players,
+            ktcValues,
+          });
+          const playerScheduleProfiles = buildPlayerScheduleProfiles({
+            season: currentSeasonLabel,
+            players,
+          });
+          markAnalyzeStep('schedule planning');
 
           // currentUserMap is the same as userIdToManagerMap, so we can reuse it
           const currentUserMap = userIdToManagerMap;
@@ -4471,6 +4511,7 @@ export const appRouter = router({
                   sleeperResearchSeason: currentSeason,
                   sleeperResearchSeasonType,
                   leagueUsage: pastSeasonUsageByPlayerId[playerId] || null,
+                  schedule: playerScheduleProfiles[playerId] || details.schedule || null,
                   similarTradeValues: similarTradeValuesById[playerId] || [],
                 },
               ])
@@ -4481,6 +4522,8 @@ export const appRouter = router({
             pickPortfolios,
             powerRankings,
             waiverIntelligence,
+            schedulePlanning,
+            matchupPreviews,
             recentTransactions: allRecentTransactions,
             transactionBackfillDiagnostics,
             adminTradeProposalSignals,

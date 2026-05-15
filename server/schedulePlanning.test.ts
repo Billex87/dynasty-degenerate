@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest';
+import {
+  buildMatchupPreviews,
+  buildPlayerScheduleProfiles,
+  buildSchedulePlanningSummary,
+  getSupportedScheduleByeWeeks,
+} from './schedulePlanning';
+
+const players = {
+  carRb: { full_name: 'Carolina Back', position: 'RB', team: 'CAR', status: 'Active' },
+  kcRb: { full_name: 'Kansas City Back', position: 'RB', team: 'KC', status: 'Active' },
+  detWr: { full_name: 'Detroit Wideout', position: 'WR', team: 'DET', status: 'Active' },
+  phiQb: { full_name: 'Philadelphia QB', position: 'QB', team: 'PHI', status: 'Active' },
+  faRb: { full_name: 'Free Agent Runner', position: 'RB', team: 'DEN', status: 'Active' },
+  faWr: { full_name: 'Free Agent Wideout', position: 'WR', team: 'SEA', status: 'Active' },
+};
+
+const ktcValues = {
+  carolinarb: { name: 'Carolina Back', ktc_value: 4500, redraft_value: 5200 },
+  kansascityback: { name: 'Kansas City Back', ktc_value: 4300, redraft_value: 5000 },
+  detroitwideout: { name: 'Detroit Wideout', ktc_value: 3900, redraft_value: 4700 },
+  philadelphiaqb: { name: 'Philadelphia QB', ktc_value: 7000, redraft_value: 7100 },
+  freeagentrunner: { name: 'Free Agent Runner', ktc_value: 2800, redraft_value: 3500 },
+  freeagentwideout: { name: 'Free Agent Wideout', ktc_value: 2400, redraft_value: 3300 },
+};
+
+describe('schedule planning', () => {
+  it('uses the official 2026 bye-week map for player schedule profiles', () => {
+    const byes = getSupportedScheduleByeWeeks();
+    const profiles = buildPlayerScheduleProfiles({ season: '2026', players });
+
+    expect(byes.CAR).toBe(5);
+    expect(byes.PHI).toBe(10);
+    expect(profiles.carRb).toMatchObject({
+      byeWeek: 5,
+      scheduleTier: 'neutral',
+      avoidWeeks: [5],
+      source: 'NFL.com 2026 bye weeks + Sleeper league data',
+    });
+  });
+
+  it('flags bye-week roster gaps and available coverage candidates', () => {
+    const summary = buildSchedulePlanningSummary({
+      season: '2026',
+      currentWeek: 1,
+      rosters: [{
+        roster_id: 1,
+        players: ['carRb', 'kcRb', 'detWr', 'phiQb'],
+        starters: ['phiQb', 'carRb', 'kcRb', 'detWr'],
+      }],
+      rosterMap: { 1: 'Bill' },
+      players,
+      ktcValues,
+      rosterPositions: ['QB', 'RB', 'RB', 'WR'],
+    });
+
+    expect(summary.status).toBe('ready');
+    expect(summary.byeWeekNotes?.find((row) => row.week === 5)?.teams).toEqual(['CAR', 'KC']);
+    expect(summary.rosterGaps).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        manager: 'Bill',
+        position: 'RB',
+        weeks: [5],
+        severity: 'high',
+      }),
+    ]));
+    expect(summary.streamerCandidates?.[0]).toMatchObject({
+      playerId: 'faRb',
+      position: 'RB',
+      targetWeeks: [5],
+    });
+  });
+
+  it('builds matchup previews from Sleeper matchup rows when available', () => {
+    const previews = buildMatchupPreviews({
+      season: '2026',
+      week: 1,
+      rosters: [
+        { roster_id: 1, players: ['phiQb', 'carRb'], starters: ['phiQb', 'carRb'] },
+        { roster_id: 2, players: ['detWr', 'kcRb'], starters: ['detWr', 'kcRb'] },
+      ],
+      rosterMap: { 1: 'Bill', 2: 'Opponent' },
+      players,
+      ktcValues,
+      matchups: [
+        { roster_id: 1, matchup_id: 10, starters: ['phiQb', 'carRb'], points: 0 },
+        { roster_id: 2, matchup_id: 10, starters: ['detWr', 'kcRb'], points: 0 },
+      ],
+    });
+
+    expect(previews).toHaveLength(2);
+    expect(previews[0]).toMatchObject({
+      week: 1,
+      manager: 'Bill',
+      opponentManager: 'Opponent',
+      source: 'Sleeper + Dynasty Degenerates schedule model',
+    });
+    expect(previews[0].projectedPoints).toBeGreaterThan(0);
+    expect(previews[0].positionEdges?.length).toBeGreaterThan(0);
+  });
+});
+

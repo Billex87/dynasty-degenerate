@@ -147,15 +147,15 @@
 
 - [ ] Confirm the approved source blend for projections, strength of schedule, and bye-week data before wiring any feature to live inputs.
 - [ ] Compare DraftSharks and FantasyPros as the long-term rankings/SOS source blend before raising trust weights for either one.
-- [ ] Populate `schedulePlanning` from the schedule-release data so roster gaps, streamer candidates, and bye-window coverage have real source-backed inputs.
+- [x] Populate `schedulePlanning` from the schedule-release data so roster gaps, streamer candidates, and bye-window coverage have real source-backed inputs.
 - [ ] Wire schedule-aware inputs into matchup preview so weekly win odds, opponent edge, and "how you win" reads can use projection and SOS context.
 - [ ] Wire schedule-aware inputs into player detail views so bye windows, SOS tiers, and schedule summaries are visible at the player level.
 - [ ] Wire schedule-aware inputs into weekly autopilot planning so streamer suggestions, roster gaps, and priority actions reflect byes and SOS.
 - [ ] Wire schedule-aware inputs into D/ST and matchup-streamer logic so upcoming schedule strength can influence start/sit and pickup decisions.
 - [ ] Wire projections into lineup-strength, redraft valuation, and confidence calculations only after validating source freshness and endpoint stability.
 - [ ] Add source-health checks and freshness checks for every projection/SOS feed we plan to depend on.
-- [ ] Add tests for schedule normalization, bye-window rendering, streamer candidate generation, and planner output from real schedule inputs.
-- [ ] Leave a clear fallback state for pre-schedule and missing-data periods so offseason views remain stable.
+- [x] Add tests for schedule normalization, bye-window rendering, streamer candidate generation, and planner output from real schedule inputs.
+- [x] Leave a clear fallback state for pre-schedule and missing-data periods so offseason views remain stable.
 
 ## FantasyPros Integration Roadmap
 
@@ -511,14 +511,14 @@
 
 ### Matchup Preview - Waiting on Real Schedule Data
 - [ ] After the NFL schedule release, confirm Sleeper exposes current-week matchup IDs, opponent rosters, submitted lineups, and projection context for the target leagues.
-- [ ] Add server-side matchup ingestion to populate `ReportData.matchupPreviews`.
-- [ ] Keep the schedule-pending empty state for offseason and pre-schedule periods.
+- [x] Add server-side matchup ingestion to populate `ReportData.matchupPreviews`.
+- [x] Keep the schedule-pending empty state for offseason and pre-schedule periods.
 - [ ] Use the schedule-release feature checklist below so we do not miss other schedule-driven surfaces.
 
 ### Schedule Release Feature Checklist
 
-- [ ] Build schedule-release data ingestion and normalization for matchup IDs, opponent rosters, submitted lineups, bye weeks, and target weeks.
-- [ ] Populate `schedulePlanning` with roster gaps, streamer candidates, bye-window coverage, and schedule notes from the released NFL calendar.
+- [x] Build schedule-release data ingestion and normalization for matchup IDs, opponent rosters, submitted lineups, bye weeks, and target weeks.
+- [x] Populate `schedulePlanning` with roster gaps, streamer candidates, bye-window coverage, and schedule notes from the released NFL calendar.
 - [ ] Fill `ReportData.matchupPreviews` and the matchup preview UI with weekly win odds, opponent edge, boom/bust, must-start, and how-you-win analysis.
 - [ ] Add player-detail schedule cards for season SOS, bye weeks, streamer windows, and opponent difficulty so player views get real schedule context.
 - [ ] Wire schedule context into `CommandCenterExpansion`, `PlayerDetailModal`, `AITeamAutopilot`, and `LeagueCommandCenter` so the same schedule data powers every surface without diverging.
@@ -528,9 +528,9 @@
 - [ ] Feed schedule context into redraft lineup strength, valuation, and confidence only after freshness checks pass.
 - [ ] Add schedule-aware trade and dynasty context for short-term contention windows, playoff pushes, and easy/hard stretches.
 - [ ] Add schedule badges or notes in Overview and owner-level surfaces when schedule context changes the read.
-- [ ] Add tests for schedule normalization, matchup mapping, bye-window rendering, streamer candidate generation, and fallback/offseason states.
+- [x] Add tests for schedule normalization, matchup mapping, bye-window rendering, streamer candidate generation, and fallback/offseason states.
 - [ ] Add QA coverage for schedule-dependent surfaces across Overview, Command Center, Matchup Preview, Player Detail, Autopilot, Rankings, and trade/waiver modules.
-- [ ] Keep pre-schedule and offseason empty states honest until the data exists.
+- [x] Keep pre-schedule and offseason empty states honest until the data exists.
 
 ### Watch Alerts - Server Persistence
 - [ ] Move watch thresholds from browser-local storage to user/server persistence.

@@ -2,7 +2,7 @@
 
 Scope: processed `todo.md` top to bottom using `docs/todo-list-execution-prompt.md`. UI/visual/frontend polish was deferred for tomorrow. Non-UI actionable work was implemented when safe. Blocked items were logged with reason and next action.
 
-Checklist status after this pass: `263` checked items and `169` unchecked items. The remaining unchecked items are primarily UI/Three.js, auth/billing/legal, schedule ingestion, provider-access-dependent integrations, production smoke, model/backtest work, and future persistence features.
+Checklist status after this pass: `272` checked items and `160` unchecked items. The remaining unchecked items are primarily UI/Three.js, auth/billing/legal, schedule UI/SOS/projection expansion, provider-access-dependent integrations, production smoke, model/backtest work, and future persistence features.
 
 ## Implemented Tonight
 
@@ -16,6 +16,7 @@ Checklist status after this pass: `263` checked items and `169` unchecked items.
 | Research/product idea capture | Logged VORP use, Sleeper data limits, AI product patterns, Chrome extension outline, chatbot trace, and Dynasty Daddy feature ideas. | `docs/product-research-notes.md` |
 | ComponentShowcase console log | Removed the leftover dialog submit `console.log`. | `client/src/pages/ComponentShowcase.tsx` |
 | API provider telemetry foundation | Added backend provider-call telemetry for call volume, failures, 429s, cache hits, cache hit rate, endpoint cost units, and recent events. Wired FantasyPros network/cache telemetry and exposed an admin tRPC endpoint for a later dashboard. | `server/apiProviderTelemetry.ts`, `server/fantasyPros.ts`, `server/_core/systemRouter.ts`, `server/apiProviderTelemetry.test.ts` |
+| Schedule ingestion foundation | Added 2026 NFL bye-week normalization from NFL.com, player schedule profiles, schedule-planning roster gaps, schedule-aware streamer candidates, Sleeper matchup ingestion, matchup preview generation, and schedule tests. | `server/schedulePlanning.ts`, `server/schedulePlanning.test.ts`, `server/routers.ts` |
 
 ## Concise Implementation Notes
 
@@ -27,6 +28,7 @@ Checklist status after this pass: `263` checked items and `169` unchecked items.
 - Product research: captured VORP, Sleeper data limits, AI product patterns, Chrome extension shape, chatbot status, and Dynasty Daddy ideas for later planning.
 - ComponentShowcase cleanup: removed the visible dev console noise with no behavior change.
 - API provider telemetry: implemented the backend foundation first; UI dashboard can consume `system.apiProviderTelemetry` later.
+- Schedule ingestion: implemented backend/data plumbing first; UI cards can now consume `schedulePlanning`, `matchupPreviews`, and player `schedule` profiles without inventing schedule data.
 
 ## Already Implemented Or Mostly Covered
 
@@ -93,7 +95,7 @@ These were intentionally not implemented tonight per prompt:
 
 - `pnpm check`: passed.
 - `pnpm vitest run server/apiProviderTelemetry.test.ts server/adminTelemetry.test.ts server/fantasyPros.test.ts`: passed, 3 test files and 8 tests.
-- `pnpm test`: passed, 31 test files and 172 tests.
+- `pnpm test`: passed, 32 test files and 175 tests.
 - `node scripts/audit-neon-transfer.mjs`: script starts and fails closed when `DATABASE_URL` is not present. Full audit must run in an environment with production database access.
 - `node --check scripts/audit-neon-transfer.mjs`: passed.
 - `pnpm build`: passed.
