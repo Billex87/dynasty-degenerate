@@ -46,7 +46,7 @@
 - [x] Add backend API provider telemetry foundation showing call volume, failures, 429s, cache hit rate, and highest-cost jobs by provider.
 - [x] Add an admin-only API budget and rate-limit dashboard UI backed by provider telemetry.
 - [x] Add a new-source probation rule: every new API/feed starts at low effective weight until it has enough stable snapshots, healthy row counts, and acceptable source-consensus drift.
-- [ ] Add snapshot replay/regression tests that run old stored snapshots through current blend logic and flag unexpected value, rank, or source-weight changes.
+- [x] Add snapshot replay/regression tests that run old stored snapshots through current blend logic and flag unexpected value, rank, or source-weight changes.
 
 ## Monetization / Auth Roadmap
 
