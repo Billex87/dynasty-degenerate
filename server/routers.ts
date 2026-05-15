@@ -26,7 +26,7 @@ import { buildMatchupPreviews, buildPlayerScheduleProfiles, buildSchedulePlannin
 import { loadDraftSharksScheduleContext } from "./draftSharksSchedule";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
-import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
+import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
 import { loadSourceSnapshotFreshnessDiagnostics } from "./sourceSnapshotFreshness";
 import { slimCachedLeagueReportPayload } from "./reportPayloadSlimming";
 import {
@@ -1149,8 +1149,7 @@ function buildLeagueRosterValueRankings(
 
 async function fetchSleeperJson<T = any>(url: string): Promise<T | null> {
   try {
-    assertUserLoadAllowedLiveProviderUrl(url, "Sleeper API load");
-    const response = await fetch(url);
+    const response = await fetchUserLoadResponse(url, "Sleeper API load");
     if (!response.ok) return null;
     return await response.json() as T;
   } catch {
@@ -1410,7 +1409,7 @@ async function fetchSleeperTradeCenterTransactions(leagueId: string, authToken: 
 
   const hiddenSleeperGraphqlUrl = 'https://api.sleeper.app/graphql';
   assertUserLoadAllowedLiveProviderUrl(hiddenSleeperGraphqlUrl, "hidden Sleeper import");
-  const response = await fetch(hiddenSleeperGraphqlUrl, {
+  const response = await fetchUserLoadResponse(hiddenSleeperGraphqlUrl, "hidden Sleeper import", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1536,7 +1535,7 @@ function fetchSleeperPlayersIndex(): Promise<Record<string, any>> {
 
   const playersUrl = "https://api.sleeper.app/v1/players/nfl";
   assertUserLoadAllowedLiveProviderUrl(playersUrl, "Sleeper player index load");
-  const promise = fetch(playersUrl)
+  const promise = fetchUserLoadResponse(playersUrl, "Sleeper player index load")
     .then((response) => (response.ok ? response.json() : {}))
     .catch(() => ({}));
 
@@ -3649,7 +3648,7 @@ export const appRouter = router({
         try {
           const userUrl = `https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`;
           assertUserLoadAllowedLiveProviderUrl(userUrl, "Sleeper username lookup");
-          const userResponse = await fetch(userUrl);
+          const userResponse = await fetchUserLoadResponse(userUrl, "Sleeper username lookup");
           if (!userResponse.ok) {
             await insertLoginAttempt({
               eventType: "find_leagues",
@@ -3681,7 +3680,7 @@ export const appRouter = router({
 
           const leaguesUrl = `https://api.sleeper.app/v1/user/${user.user_id}/leagues/nfl/${currentSeason}`;
           assertUserLoadAllowedLiveProviderUrl(leaguesUrl, "Sleeper user league lookup");
-          const leaguesResponse = await fetch(leaguesUrl);
+          const leaguesResponse = await fetchUserLoadResponse(leaguesUrl, "Sleeper user league lookup");
           const seasonLeagues = leaguesResponse.ok ? await leaguesResponse.json() : [];
 
           if (Array.isArray(seasonLeagues)) {

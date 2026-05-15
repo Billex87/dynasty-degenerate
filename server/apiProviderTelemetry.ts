@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 export type ApiProviderCacheStatus = 'hit' | 'miss' | 'bypass';
+export type ApiProviderCallScope = 'user-load' | 'cron' | 'admin' | 'maintenance' | 'test' | 'unknown';
 
 export type ApiProviderTelemetryEvent = {
   provider: string;
@@ -13,6 +14,7 @@ export type ApiProviderTelemetryEvent = {
   cacheStatus: ApiProviderCacheStatus;
   costUnits?: number;
   job?: string | null;
+  scope?: ApiProviderCallScope | null;
   message?: string | null;
   createdAt?: Date | string | null;
 };
@@ -27,6 +29,7 @@ type StoredApiProviderTelemetryEvent = {
   cacheStatus: ApiProviderCacheStatus;
   costUnits: number;
   job: string | null;
+  scope: ApiProviderCallScope;
   message: string | null;
   createdAt: Date;
 };
@@ -49,6 +52,14 @@ function getDateKey(date = new Date()): string {
 }
 
 function normalizeEvent(event: ApiProviderTelemetryEvent): StoredApiProviderTelemetryEvent {
+  const scope: ApiProviderCallScope = event.scope === 'user-load'
+    || event.scope === 'cron'
+    || event.scope === 'admin'
+    || event.scope === 'maintenance'
+    || event.scope === 'test'
+    ? event.scope
+    : 'unknown';
+
   return {
     provider: event.provider.trim() || 'unknown',
     endpoint: event.endpoint.trim() || 'unknown',
@@ -59,6 +70,7 @@ function normalizeEvent(event: ApiProviderTelemetryEvent): StoredApiProviderTele
     cacheStatus: event.cacheStatus,
     costUnits: Number.isFinite(event.costUnits) ? Math.max(0, Number(event.costUnits)) : 1,
     job: event.job ?? null,
+    scope,
     message: event.message ?? null,
     createdAt: event.createdAt ? new Date(event.createdAt) : new Date(),
   };
@@ -91,6 +103,7 @@ export function recordApiProviderCacheHit(input: {
   provider: string;
   endpoint: string;
   job?: string | null;
+  scope?: ApiProviderCallScope | null;
 }) {
   recordApiProviderTelemetryEvent({
     provider: input.provider,
@@ -101,6 +114,7 @@ export function recordApiProviderCacheHit(input: {
     cacheStatus: 'hit',
     costUnits: 0,
     job: input.job ?? null,
+    scope: input.scope ?? null,
     message: 'served from in-process cache',
   });
 }
@@ -213,9 +227,14 @@ export function getApiProviderTelemetrySnapshot(options: {
       avgDurationMs: durationSamples ? Math.round(totalDuration / durationSamples) : 0,
       uniqueProviders: new Set(scopedEvents.map((event) => event.provider)).size,
       uniqueEndpoints: new Set(scopedEvents.map((event) => `${event.provider}:${event.endpoint}`)).size,
+      userLoadCalls: scopedEvents.filter((event) => event.scope === 'user-load').length,
+      userLoadNetworkCalls: scopedEvents.filter((event) => event.scope === 'user-load' && event.cacheStatus !== 'hit').length,
+      cronCalls: scopedEvents.filter((event) => event.scope === 'cron').length,
+      adminCalls: scopedEvents.filter((event) => event.scope === 'admin').length,
     },
     byProvider: bucketEvents(scopedEvents, (event) => event.provider, limit),
     byEndpoint: bucketEvents(scopedEvents, (event) => `${event.provider} ${event.endpoint}`, limit),
+    byScope: bucketEvents(scopedEvents, (event) => event.scope, limit),
     recentEvents: [...scopedEvents]
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, Math.min(25, limit * 2))

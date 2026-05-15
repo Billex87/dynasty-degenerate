@@ -273,7 +273,7 @@ export async function loadDraftSharksScheduleContext(options: DraftSharksFetchOp
   }
 
   if (!options.forceRefresh && cachedContext && cachedContext.expiresAt > Date.now()) {
-    recordApiProviderCacheHit({ provider: PROVIDER, endpoint: ENDPOINT, job: 'schedule-sos' });
+    recordApiProviderCacheHit({ provider: PROVIDER, endpoint: ENDPOINT, job: 'schedule-sos', scope: 'cron' });
     if (options.persistSnapshot) await persistDraftSharksScheduleSnapshot(cachedContext.value);
     return cachedContext.value;
   }
@@ -317,6 +317,7 @@ export async function loadDraftSharksScheduleContext(options: DraftSharksFetchOp
       cacheStatus: 'miss',
       costUnits: 1,
       job: 'schedule-sos',
+      scope: 'cron',
       message: context.message,
     });
 
@@ -339,6 +340,7 @@ export async function loadDraftSharksScheduleContext(options: DraftSharksFetchOp
       cacheStatus: 'miss',
       costUnits: 1,
       job: 'schedule-sos',
+      scope: 'cron',
       message: error instanceof Error ? error.message : 'DraftSharks SOS fetch failed.',
     });
 

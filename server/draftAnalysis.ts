@@ -1,5 +1,6 @@
 import { LeagueValueMode, PlayerDetails, SleeperDraftPick } from '../shared/types';
 import { getDynastySourceWeights } from './dynastySourceWeights';
+import { fetchUserLoadJson } from './loadTimeProviderPolicy';
 
 
 
@@ -725,16 +726,18 @@ export async function fetchDraftData(
   };
 
   const appendDraftsForLeague = async (context: DraftLeagueContext) => {
-    const drafts = await fetch(
-      `https://api.sleeper.app/v1/league/${context.leagueId}/drafts`
-    ).then((r) => r.json());
+    const drafts = await fetchUserLoadJson<any[]>(
+      `https://api.sleeper.app/v1/league/${context.leagueId}/drafts`,
+      "Sleeper draft analysis load"
+    );
 
     if (!Array.isArray(drafts)) return;
 
     for (const draft of drafts) {
-      const draftPicks = await fetch(
-        `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`
-      ).then((r) => r.json());
+      const draftPicks = await fetchUserLoadJson<any[]>(
+        `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`,
+        "Sleeper draft pick analysis load"
+      );
 
       if (Array.isArray(draftPicks)) {
         draftPicks.forEach((pick: SleeperDraftPick) => {

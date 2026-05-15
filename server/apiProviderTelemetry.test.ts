@@ -20,11 +20,13 @@ describe('api provider telemetry', () => {
       durationMs: 120,
       cacheStatus: 'miss',
       costUnits: 1,
+      scope: 'cron',
     });
     recordApiProviderCacheHit({
       provider: 'FantasyPros',
       endpoint: '/NFL/2026/consensus-rankings',
       job: 'DRAFT',
+      scope: 'cron',
     });
     recordApiProviderTelemetryEvent({
       provider: 'FantasyPros',
@@ -34,6 +36,7 @@ describe('api provider telemetry', () => {
       durationMs: 40,
       cacheStatus: 'miss',
       costUnits: 1,
+      scope: 'user-load',
       message: 'rate limited',
     });
 
@@ -45,6 +48,9 @@ describe('api provider telemetry', () => {
     expect(snapshot.totals.cacheHitRatePct).toBe(33.3);
     expect(snapshot.totals.failures).toBe(1);
     expect(snapshot.totals.rateLimited).toBe(1);
+    expect(snapshot.totals.userLoadCalls).toBe(1);
+    expect(snapshot.totals.userLoadNetworkCalls).toBe(1);
+    expect(snapshot.totals.cronCalls).toBe(2);
     expect(snapshot.byProvider[0]).toMatchObject({
       label: 'FantasyPros',
       calls: 3,
@@ -54,6 +60,8 @@ describe('api provider telemetry', () => {
       rateLimited: 1,
     });
     expect(snapshot.byEndpoint[0]?.label).toContain('FantasyPros');
+    expect(snapshot.byScope.map((bucket) => bucket.label)).toContain('cron');
+    expect(snapshot.byScope.map((bucket) => bucket.label)).toContain('user-load');
   });
 
   it('ignores old events outside the lookback window', () => {
@@ -73,4 +81,3 @@ describe('api provider telemetry', () => {
     expect(snapshot.byProvider).toEqual([]);
   });
 });
-

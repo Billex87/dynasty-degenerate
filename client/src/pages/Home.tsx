@@ -3650,6 +3650,9 @@ function AdminProviderTelemetryPanel() {
     { label: "Cache Hit Rate", value: `${data.totals.cacheHitRatePct}%` },
     { label: "Failures", value: data.totals.failures },
     { label: "429s", value: data.totals.rateLimited },
+    { label: "User Load", value: data.totals.userLoadNetworkCalls },
+    { label: "Cron Calls", value: data.totals.cronCalls },
+    { label: "Admin Calls", value: data.totals.adminCalls },
     { label: "Cost Units", value: data.totals.costUnits },
     { label: "Avg Duration", value: `${data.totals.avgDurationMs}ms` },
   ];
@@ -3746,6 +3749,34 @@ function AdminProviderTelemetryPanel() {
         </section>
 
         <section className="admin-traffic-card">
+          <h4>Call Scope</h4>
+          <div className="admin-traffic-list">
+            {data.byScope.length ? (
+              data.byScope.map(scope => (
+                <div
+                  key={scope.label}
+                  className={`admin-traffic-row ${scope.failures || scope.rateLimited ? "admin-traffic-row-error" : ""}`}
+                >
+                  <strong>{scope.label}</strong>
+                  <span>
+                    {scope.calls} calls · {scope.networkCalls} network ·{" "}
+                    {scope.cacheHitRatePct}% cached
+                  </span>
+                  <em>
+                    {scope.failures} failures · {scope.rateLimited} 429s · Last{" "}
+                    {formatAdminTelemetryDate(scope.lastSeen)}
+                  </em>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                No scoped provider calls recorded yet.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
           <h4>Recent Provider Events</h4>
           <div className="admin-traffic-list">
             {data.recentEvents.length ? (
@@ -3759,7 +3790,7 @@ function AdminProviderTelemetryPanel() {
                   </strong>
                   <span>
                     {event.ok ? "ok" : "failed"} · {event.status ?? "n/a"} ·{" "}
-                    {event.cacheStatus} · {event.durationMs ?? 0}ms
+                    {event.cacheStatus} · {event.scope} · {event.durationMs ?? 0}ms
                   </span>
                   <em>
                     {formatAdminTelemetryDate(event.createdAt)}

@@ -219,6 +219,7 @@ async function fantasyProsFetch<T>(path: string): Promise<T | null> {
         durationMs: Date.now() - startedAt,
         cacheStatus: 'miss',
         costUnits: 1,
+        scope: 'cron',
         message: `FantasyPros ${response.status}`,
       });
       throw new Error(`FantasyPros ${response.status} ${path}`);
@@ -232,6 +233,7 @@ async function fantasyProsFetch<T>(path: string): Promise<T | null> {
       durationMs: Date.now() - startedAt,
       cacheStatus: 'miss',
       costUnits: 1,
+      scope: 'cron',
       message: null,
     });
     return payload;
@@ -245,6 +247,7 @@ async function fantasyProsFetch<T>(path: string): Promise<T | null> {
         durationMs: Date.now() - startedAt,
         cacheStatus: 'miss',
         costUnits: 1,
+        scope: 'cron',
         message: error instanceof Error ? error.message : String(error),
       });
     }
@@ -331,6 +334,7 @@ export async function fetchFantasyProsConsensusRankings({
       provider: 'FantasyPros',
       endpoint: `/NFL/${season}/consensus-rankings`,
       job: rankingType,
+      scope: 'cron',
     });
     return cached?.values || {};
   }
@@ -471,6 +475,7 @@ export async function fetchFantasyProsDraftRankings(
       provider: 'FantasyPros',
       endpoint: `/NFL/${season}/consensus-rankings`,
       job: 'DRAFT',
+      scope: 'cron',
     });
     return cachedDraftRankings.values;
   }
@@ -518,6 +523,7 @@ export async function fetchFantasyProsPlayerPoints(
       provider: 'FantasyPros',
       endpoint: `/nfl/${season}/player-points`,
       job: 'playerPoints',
+      scope: 'cron',
     });
     return cachedPlayerPoints.values;
   }
@@ -569,6 +575,7 @@ export async function fetchFantasyProsNews(options: FantasyProsLoadOptions = {})
       provider: 'FantasyPros',
       endpoint: '/NFL/news',
       job: 'news',
+      scope: 'cron',
     });
     if (options.persistSnapshot) await persistFantasyProsNewsSnapshot(cachedNews.values);
     return cachedNews.values;
@@ -600,6 +607,7 @@ export async function fetchFantasyProsPlayers(): Promise<FantasyProsPlayerRefere
       provider: 'FantasyPros',
       endpoint: '/NFL/players',
       job: 'players',
+      scope: 'cron',
     });
     return cachedPlayers.values;
   }
@@ -641,6 +649,7 @@ export async function fetchFantasyProsNewsForPlayer(
       provider: 'FantasyPros',
       endpoint: '/NFL/news',
       job: 'playerNews',
+      scope: 'cron',
     });
     return cached?.values || [];
   }

@@ -43,7 +43,7 @@ describe("league.getLeaguePreview", () => {
     const caller = appRouter.createCaller(createContext());
     const result = await caller.league.getLeaguePreview({ leagueId: "123456789012" });
 
-    expect(fetchMock).toHaveBeenCalledWith("https://api.sleeper.app/v1/league/123456789012");
+    expect(fetchMock).toHaveBeenCalledWith("https://api.sleeper.app/v1/league/123456789012", undefined);
     expect(result).toMatchObject({
       leagueId: "123456789012",
       name: "Known League",
