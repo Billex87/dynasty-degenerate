@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as db from './db';
 import * as liveKTCScraper from './liveKTCScraper';
 import * as valueBlend from './valueBlend';
 import {
@@ -177,5 +178,32 @@ describe('loadBlendedKTCValues', () => {
     expect(snapshotFileRead).toBe(false);
     expect(result.testplayer?.ktc_value).toBe(2222);
     expect(result.testplayer?.position_rank).toBe('WR1');
+  });
+
+  it('uses stored snapshots without live provider calls in snapshot mode', async () => {
+    const snapshotValues = {
+      testplayer: {
+        name: 'Test Player',
+        ktc_value: 1111,
+        position_rank: 'WR99',
+        value_sources: ['KTC', 'FantasyCalc'],
+      },
+    };
+
+    vi.spyOn(db, 'findKtcSnapshotOnOrBefore').mockResolvedValue(JSON.stringify({
+      blendedProfiles: {
+        '12_sf_ppr_base': snapshotValues,
+      },
+    }));
+    vi.spyOn(liveKTCScraper, 'getCurrentKTCRankings').mockResolvedValue({} as any);
+    vi.spyOn(valueBlend, 'loadBlendedPlayerValues').mockResolvedValue({} as any);
+
+    const result = await loadBlendedKTCValues({ numQbs: 2, ktcProfileKey: 'sf_ppr' }, { sourceMode: 'snapshot' });
+
+    expect(db.findKtcSnapshotOnOrBefore).toHaveBeenCalled();
+    expect(liveKTCScraper.getCurrentKTCRankings).not.toHaveBeenCalled();
+    expect(valueBlend.loadBlendedPlayerValues).not.toHaveBeenCalled();
+    expect(result.testplayer?.ktc_value).toBe(1111);
+    expect(result.testplayer?.position_rank).toBe('WR99');
   });
 });

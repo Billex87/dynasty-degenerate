@@ -3492,7 +3492,7 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
   const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
   const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
   const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
-  const ktcValues = await loadBlendedKTCValues(leagueValueOptions);
+  const ktcValues = await loadBlendedKTCValues(leagueValueOptions, { sourceMode: 'snapshot' });
   let ktcValuesLastWeek = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);
 
   if (!ktcValuesLastWeek || Object.keys(ktcValuesLastWeek).length === 0) {
@@ -3513,6 +3513,7 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
     prospectLookup: buildProspectLookup(prospectContext.profiles),
     prospectProfiles: prospectContext.profiles,
     leagueTeamCount: Number(leagueInfo?.total_rosters || leagueInfo?.settings?.num_teams || safeRosters.length || 12),
+    sourceMode: 'snapshot',
   });
   const payload = { rankings };
   await writeCachedLeagueReport(rankingsCacheKey, leagueId, undefined, payload);
@@ -3787,7 +3788,7 @@ export const appRouter = router({
           const options = getLeagueValueBlendOptions(leagueInfo);
           const key = getValueSourceProfileKey(options);
           if (!leagueValueCache.has(key)) {
-            leagueValueCache.set(key, loadBlendedKTCValues(options));
+            leagueValueCache.set(key, loadBlendedKTCValues(options, { sourceMode: 'snapshot' }));
           }
           return leagueValueCache.get(key)!;
         };
@@ -4020,7 +4021,7 @@ export const appRouter = router({
           const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
           const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
           const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
-          const ktcValues = await loadBlendedKTCValues(leagueValueOptions);
+          const ktcValues = await loadBlendedKTCValues(leagueValueOptions, { sourceMode: 'snapshot' });
           markAnalyzeStep('current values');
           // Get the latest KTC snapshot from at least 7 days ago for weekly value-change calculations.
           const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);

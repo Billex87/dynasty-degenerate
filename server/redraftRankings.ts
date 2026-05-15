@@ -1484,11 +1484,61 @@ async function loadSourceRows(
 export async function loadRedraftRankingProfiles({
   ktcValues = {},
   season = getCurrentSeason(),
+  sourceMode = 'live',
 }: {
   ktcValues?: KtcValues;
   season?: string;
+  sourceMode?: 'live' | 'snapshot';
 } = {}): Promise<RedraftRankingLoadResult> {
   runtimeSourceDiagnostics.clear();
+  if (sourceMode === 'snapshot') {
+    const latestSnapshot = (await loadRecentRedraftSourceSnapshots(season, 1))[0] || null;
+    if (latestSnapshot) {
+      const sharedSources = {
+        internalSeasonBlend: latestSnapshot.sources.internalSeasonBlend || sourceRowsFromInternalBlend(ktcValues),
+        mflAdp: latestSnapshot.sources.mflAdp || {},
+        mflRankings: latestSnapshot.sources.mflRankings || {},
+        fleaflicker: latestSnapshot.sources.fleaflicker || {},
+        yahooDraftAnalysis: latestSnapshot.sources.yahooDraftAnalysis || {},
+        nflFantasy: latestSnapshot.sources.nflFantasy || {},
+      };
+      const sourceTrust = calculateRedraftSourceTrust({
+        sourceMaps: {
+          fantasyPros: latestSnapshot.sources.fantasyPros || {},
+          fantasyNerds: latestSnapshot.sources.fantasyNerds || {},
+          internalSeasonBlend: sharedSources.internalSeasonBlend,
+          mflAdp: sharedSources.mflAdp,
+          mflRankings: sharedSources.mflRankings,
+          espnFantasy: latestSnapshot.sources.espnFantasy || {},
+          fleaflicker: sharedSources.fleaflicker,
+          yahooDraftAnalysis: sharedSources.yahooDraftAnalysis,
+          nflFantasy: sharedSources.nflFantasy,
+        },
+        diagnostics: latestSnapshot.diagnostics,
+        history: [],
+      });
+      const snapshotSources = {
+        fantasyPros: latestSnapshot.sources.fantasyPros || {},
+        fantasyNerds: latestSnapshot.sources.fantasyNerds || {},
+        espnFantasy: latestSnapshot.sources.espnFantasy || {},
+        ...sharedSources,
+      };
+
+      return {
+        profiles: {
+          redraft_ppr: blendRedraftRankingRows(snapshotSources, { sourceTrust }),
+          redraft_half_ppr: blendRedraftRankingRows(snapshotSources, { sourceTrust }),
+          redraft_standard: blendRedraftRankingRows(snapshotSources, { sourceTrust }),
+        },
+        diagnostics: latestSnapshot.diagnostics.map((diagnostic) => ({
+          ...diagnostic,
+          note: `${diagnostic.note || diagnostic.source} Loaded from stored nightly snapshot ${latestSnapshot.snapshotKey}.`,
+        })),
+        sourceTrust,
+      };
+    }
+  }
+
   if (!process.env.FANTASYPROS_API_KEY) {
     setRuntimeSourceDiagnostic('fantasyPros', {
       status: 'disabled',

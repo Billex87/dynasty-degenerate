@@ -12,6 +12,7 @@ import {
   WEEKLY_MOMENTUM_BASELINE_FLOOR_DATE_KEY,
   getWeeklyMomentumBaselineTargetDateKey,
 } from './valueBaselinePolicy';
+import { findKtcSnapshotOnOrBefore } from './db';
 
 interface KTCValues {
   [key: string]: {
@@ -57,6 +58,7 @@ type FlockSnapshotSourceProfiles = Partial<Record<'SUPERFLEX' | 'ONEQB' | 'PROSP
 let ktcValuesCache: KTCValues | null = null;
 let ktcValuesLastWeekCache: KTCValues | null = null;
 let blendedKtcValuesCache: Record<string, KTCValues> = {};
+let storedBlendedKtcValuesCache: Record<string, KTCValues> = {};
 const localKtcSnapshotCache = new Map<string, KTCValues>();
 const KTC_SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 const BLENDED_VALUE_PROFILE_KEY_PATTERN = /^(10|12|14)_(one_qb|sf)_(standard|half_ppr|ppr)_(base|tep_0_5|tep_1_0|tep_1_5)$/;
@@ -92,9 +94,45 @@ export async function loadKTCValues(): Promise<KTCValues> {
   return ktcValuesCache;
 }
 
-export async function loadBlendedKTCValues(options: ValueBlendOptions = {}): Promise<KTCValues> {
+type KtcValueLoadOptions = {
+  sourceMode?: 'live' | 'snapshot';
+};
+
+async function loadStoredBlendedKTCValues(valueProfileKey: string): Promise<KTCValues> {
+  if (storedBlendedKtcValuesCache[valueProfileKey]) return storedBlendedKtcValuesCache[valueProfileKey];
+
+  try {
+    const storedPayload = await findKtcSnapshotOnOrBefore(new Date());
+    if (storedPayload) {
+      const values = unwrapSnapshotValues(JSON.parse(storedPayload), valueProfileKey);
+      if (hasUsableBlendedSnapshotValues(values, valueProfileKey)) {
+        storedBlendedKtcValuesCache[valueProfileKey] = values;
+        return values;
+      }
+    }
+  } catch (error) {
+    console.warn('[KTC Snapshot] Failed to load database snapshot for interactive values:', error);
+  }
+
+  const localValues = loadLatestLocalKtcSnapshotDaysAgo(0, valueProfileKey);
+  if (Object.keys(localValues).length > 0) {
+    storedBlendedKtcValuesCache[valueProfileKey] = localValues;
+    return localValues;
+  }
+
+  return {};
+}
+
+export async function loadBlendedKTCValues(
+  options: ValueBlendOptions = {},
+  loadOptions: KtcValueLoadOptions = {}
+): Promise<KTCValues> {
   const ktcProfileKey = options.ktcProfileKey || getKtcProfileKeyForValueOptions(options);
   const cacheKey = getValueSourceProfileKey({ ...options, ktcProfileKey });
+  if (loadOptions.sourceMode === 'snapshot') {
+    return loadStoredBlendedKTCValues(cacheKey);
+  }
+
   if (blendedKtcValuesCache[cacheKey]) return blendedKtcValuesCache[cacheKey];
 
   const defaultKtcValues = await loadKTCValues();
@@ -449,6 +487,7 @@ export function clearKTCCache() {
   ktcValuesCache = null;
   ktcValuesLastWeekCache = null;
   blendedKtcValuesCache = {};
+  storedBlendedKtcValuesCache = {};
   localKtcSnapshotCache.clear();
 }
 

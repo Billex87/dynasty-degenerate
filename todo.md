@@ -26,8 +26,8 @@
 - [x] Run one-off source-health history backfill with `ENABLE_SOURCE_HEALTH_BACKFILL=true` after production cached reports exist; production scan found no eligible cached-report diagnostics to backfill.
 - [x] Add and run an expired `leagueReportCache` cleanup mode for rows older than the 12-hour serving TTL.
 - [x] Align browser report cache with the 12-hour server cache and avoid the extra `league.rankings` request when the loaded report already includes rankings.
-- [ ] Make the interactive report load path source-snapshot-only: nightly jobs refresh KTC/FantasyPros/Flock/DynastyNerds/FantasyCalc/etc., and normal page/report loads should only call Sleeper for league state plus new adds, drops, and trades.
-- [ ] Refactor `buildRankingsBoard` and report generation so non-Sleeper value/ranking/news providers are read from latest stored snapshots during user-triggered loads, with live provider calls reserved for cron/manual refresh jobs.
+- [x] Switch interactive value/ranking generation to latest stored source snapshots so normal report/ranking/rank lookup loads do not call KTC, FantasyCalc, DynastyProcess, Flock, DynastyNerds, FantasyNerds, FantasyPros dynasty/devy, or redraft ranking providers.
+- [ ] Finish the source-snapshot-only report path for remaining non-Sleeper enrichments: FantasyPros news, ESPN depth charts, DraftSharks/SOS schedule context, and any player-detail calls that still fetch outside Sleeper during user-triggered loads.
 - [ ] Reduce transfer further by splitting ranking metadata/detail reads, trimming duplicated prospect fields, tightening cache TTL/retention, and avoiding full payload reads when only metadata is needed.
 - [x] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
 - [x] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.

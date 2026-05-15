@@ -155,9 +155,9 @@ const PROFILE_KEY_BY_OPTION: Record<string, KtcProfileKey> = {
 function getFlockProfile(option: RankingProfileOption, flockProfiles: Awaited<ReturnType<typeof loadFlockFantasyValueProfiles>>) {
   if (option.board === 'redraft') return {};
   if (option.board === 'devy') {
-    return option.qbFormat === 'sf' ? flockProfiles.PROSPECTS_SF : flockProfiles.PROSPECTS;
+    return (option.qbFormat === 'sf' ? flockProfiles.PROSPECTS_SF : flockProfiles.PROSPECTS) || {};
   }
-  return option.qbFormat === 'sf' ? flockProfiles.SUPERFLEX : flockProfiles.ONEQB;
+  return (option.qbFormat === 'sf' ? flockProfiles.SUPERFLEX : flockProfiles.ONEQB) || {};
 }
 
 function getDynastyNerdsProfile(option: RankingProfileOption, dynastyNerdsProfiles: Awaited<ReturnType<typeof loadDynastyNerdsValueProfiles>>) {
@@ -1125,6 +1125,7 @@ export async function buildRankingsBoard({
   prospectLookup,
   prospectProfiles,
   leagueTeamCount,
+  sourceMode = 'live',
 }: {
   players: PlayerMap;
   ktcValues: KtcValues;
@@ -1136,13 +1137,15 @@ export async function buildRankingsBoard({
   prospectLookup?: Map<string, ProspectProfile>;
   prospectProfiles?: ProspectProfile[];
   leagueTeamCount?: number;
+  sourceMode?: 'live' | 'snapshot';
 }): Promise<RankingsBoard> {
+  const snapshotOnly = sourceMode === 'snapshot';
   const [ktcDevyProfiles, flockProfiles, dynastyNerdsProfiles, fantasyProsDevyRows, redraftResult] = await Promise.all([
-    getCurrentKTCDevyRankingProfiles(false),
-    loadFlockFantasyValueProfiles(),
-    loadDynastyNerdsValueProfiles(),
-    loadFantasyProsDevyRankings(),
-    loadRedraftRankingProfiles({ ktcValues }),
+    snapshotOnly ? Promise.resolve({} as Awaited<ReturnType<typeof getCurrentKTCDevyRankingProfiles>>) : getCurrentKTCDevyRankingProfiles(false),
+    snapshotOnly ? Promise.resolve({} as Awaited<ReturnType<typeof loadFlockFantasyValueProfiles>>) : loadFlockFantasyValueProfiles(),
+    snapshotOnly ? Promise.resolve({} as Awaited<ReturnType<typeof loadDynastyNerdsValueProfiles>>) : loadDynastyNerdsValueProfiles(),
+    snapshotOnly ? Promise.resolve({} as Awaited<ReturnType<typeof loadFantasyProsDevyRankings>>) : loadFantasyProsDevyRankings(),
+    loadRedraftRankingProfiles({ ktcValues, sourceMode }),
   ]);
   const redraftProfiles = redraftResult.profiles;
   const playerLookup = buildPlayerIdentityLookup(players);
@@ -1183,11 +1186,13 @@ export async function buildRankingsBoard({
         const prospectSourceHistory = await loadRecentProspectSourceSnapshots(option.key);
         const previousProspectSourceTrust = calculatePreviousProspectSourceTrust(prospectSourceHistory);
         devySourceDiagnostics = buildProspectSourceDiagnostics(prospectSourceRows, prospectSourceTrust, previousProspectSourceTrust);
-        await persistProspectSourceSnapshot({
-          profileKey: option.key,
-          sources: prospectSourceRows,
-          diagnostics: devySourceDiagnostics,
-        });
+        if (!snapshotOnly) {
+          await persistProspectSourceSnapshot({
+            profileKey: option.key,
+            sources: prospectSourceRows,
+            diagnostics: devySourceDiagnostics,
+          });
+        }
       }
       sourceWeightProfiles[option.key] = {
         label: formatProspectSourceWeights(prospectSourceTrust),
@@ -1229,7 +1234,7 @@ export async function buildRankingsBoard({
     }
     profiles[option.key] = buildRowsForProfile({
       option,
-      ktcRows: option.board === 'devy' ? ktcDevyProfiles[ktcProfileKey] : option.board === 'dynasty' ? ktcValues : {},
+      ktcRows: option.board === 'devy' ? ktcDevyProfiles[ktcProfileKey] || {} : option.board === 'dynasty' ? ktcValues : {},
       flockRows,
       dynastyNerdsRows,
       redraftRows: option.board === 'redraft' ? redraftProfiles[option.key as keyof typeof redraftProfiles] || {} : {},
