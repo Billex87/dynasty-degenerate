@@ -17,18 +17,19 @@
 
 ## Data Operations Roadmap
 
-- [ ] Add a Neon/Postgres transfer audit and optimization pass now that the Neon free transfer limit was exceeded. Report largest tables, largest JSON payload rows, recent `leagueReportCache` sizes, snapshot table sizes, most frequent DB reads/writes, and which app flows are driving transfer. Then reduce transfer with smaller projections, shorter cache payloads, compression where useful, TTL/retention cleanup, and avoiding full payload reads when only metadata is needed.
-- [ ] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
-- [ ] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
-- [ ] Revisit KeepTradeCut trade-database access later; only integrate it if we can get a stable, approved data path instead of a brittle scrape.
-- [ ] Confirm whether DraftSharks partner REST API/docs require a partner login or API key, and whether access is only available through their affiliate/control-panel workflow.
+- [x] Add a Neon/Postgres transfer audit command that reports largest tables, largest JSON payload rows, recent `leagueReportCache` sizes, snapshot payload sizes, and recent source-health volume. Follow-up still needed: run it with production `DATABASE_URL`, then reduce transfer with smaller projections, shorter cache payloads, compression where useful, TTL/retention cleanup, and avoiding full payload reads when only metadata is needed.
+- [x] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
+- [x] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
+- [x] Revisit KeepTradeCut trade-database access later; only integrate it if we can get a stable, approved data path instead of a brittle scrape.
+- [x] Confirm whether DraftSharks partner REST API/docs require a partner login or API key, and whether access is only available through their affiliate/control-panel workflow.
 - [ ] On May 14, 2026, run the projections/SOS rollout checklist below before wiring any schedule-dependent feature to live data.
 - [ ] Run one-off source-health history backfill with `ENABLE_SOURCE_HEALTH_BACKFILL=true` after production cached reports exist.
 - [ ] Configure `SOURCE_HEALTH_ALERT_WEBHOOK_URL` for Slack/email/webhook alert delivery in production.
 - [ ] Calibrate player value confidence thresholds after enough 2026 source snapshots, trades, waivers, and injury/news events accumulate.
-- [ ] Document a single-key leak response plan for API providers that will not rotate/reissue keys, including immediate disable steps, deploy rollback steps, and local/prod secret audit steps.
-- [ ] Add a production-only API budget and rate-limit dashboard showing call volume, failures, 429s, cache hit rate, and highest-cost jobs by provider.
-- [ ] Add a new-source probation rule: every new API/feed starts at low effective weight until it has enough stable snapshots, healthy row counts, and acceptable source-consensus drift.
+- [x] Document a single-key leak response plan for API providers that will not rotate/reissue keys, including immediate disable steps, deploy rollback steps, and local/prod secret audit steps.
+- [x] Add backend API provider telemetry foundation showing call volume, failures, 429s, cache hit rate, and highest-cost jobs by provider.
+- [ ] Add a production-only API budget and rate-limit dashboard UI backed by provider telemetry.
+- [x] Add a new-source probation rule: every new API/feed starts at low effective weight until it has enough stable snapshots, healthy row counts, and acceptable source-consensus drift.
 - [ ] Add snapshot replay/regression tests that run old stored snapshots through current blend logic and flag unexpected value, rank, or source-weight changes.
 
 ## Monetization / Auth Roadmap
@@ -54,35 +55,35 @@
 
 ## Source Audit / Feature Roadmap
 
-- [ ] Audit every live API, partner feed, and scrape we use today, including Sleeper, FantasyPros, DraftSharks, KeepTradeCut, Flock Fantasy, FantasyCalc, Dynasty Nerds, Fantasy Nerds, DynastyProcess, Prospect Archive / NFL Draft Buzz, ESPN prospect metadata, and any internal snapshot jobs.
+- [x] Audit every live API, partner feed, and scrape we use today, including Sleeper, FantasyPros, DraftSharks, KeepTradeCut, Flock Fantasy, FantasyCalc, Dynasty Nerds, Fantasy Nerds, DynastyProcess, Prospect Archive / NFL Draft Buzz, ESPN prospect metadata, and any internal snapshot jobs.
 - [ ] For each source, document exactly what comes back: endpoint or URL, auth model, rate limits, payload shape, unique IDs, timestamps/freshness, row counts, and known gaps or failure modes.
-- [ ] Write down which features each source can power now vs later so we can spot unused data before adding more integrations.
+- [x] Write down which features each source can power now vs later so we can spot unused data before adding more integrations.
 - [ ] Save a compact sample payload or field map per source so the team can compare feeds without needing a fresh live fetch.
 - [ ] Turn that audit into a source coverage matrix in admin so we can see at a glance what each API or scrape is actually returning.
-- [ ] Use this compact template for each source during the audit: `Source / Returns / Used now / Could power later / Open questions`.
-- [ ] Sleeper - Returns: league settings, rosters, players, matchups, waivers, trades, news/status, and user/player IDs. Used now: league analysis, roster intelligence, matchup preview plumbing, waiver/trade analysis, and identity matching. Could power later: schedule-week matchup reads, exposure views, alerting, and lineup guidance. Open questions: which endpoints reliably expose current-week matchup and projection context.
-- [ ] Research the Google query `api to get nfl player nicknames` and compare the useful fields from the results against the NFL APIs we already consider first-class so we can capture any extra nickname/alias data we are missing.
-- [ ] For each candidate result from that query, document whether it provides player nicknames, alternate display names, alias mappings, pronunciation hints, suffix normalization, social handles, or other identity-enrichment fields beyond our current data.
-- [ ] Cross-check the nickname/alias sources against the APIs already on our recommended list, including Sleeper, BALLDONTLIE, nflreadr/nflverse player-name mappings, SportsBlaze, FantasyData/SportsDataIO, Sportradar, ESPN, and any other vetted NFL endpoints.
-- [ ] Decide which extra fields are actually worth storing or normalizing in our player identity layer, and which ones are only nice-to-have research artifacts.
-- [ ] FantasyPros - Returns: rankings, projections, ADP, injuries, news, compare-players, player-points, and player/external IDs. Used now: dynasty/redraft blends, rookie and devy context, injury/news notes, player modal details, and confidence calibration. Could power later: lineup strength, value movement, matchup preview, and trade explainers. Open questions: rate limits, production terms, and which projection/news endpoints are safe to depend on.
-- [ ] DraftSharks - Returns: rankings, SOS, bye weeks, D/ST, matchup data, and possibly projections. Used now: source research only. Could power later: bye-week navigation, streamer planning, matchup reads, and schedule-strength tooling. Open questions: partner/API access and whether the public pages stay stable enough to trust.
-- [ ] KeepTradeCut - Returns: trade-database rows, market values, and source metadata where available. Used now: trade/value research. Could power later: dynasty trade comps and market trend views. Open questions: whether access is stable without scraping and whether there is a supported data path.
-- [ ] Flock Fantasy - Returns: exposure counts, league-share data, and player ranking rows. Used now: dynasty/rookie source research. Could power later: portfolio exposure and roster concentration. Open questions: whether the exposure feed is stable enough to ingest.
-- [ ] FantasyCalc - Returns: dynasty/redraft value rows and source metadata. Used now: blended-value inputs and confidence support. Could power later: value trend and comparison views. Open questions: refresh cadence and source coverage details.
-- [ ] Dynasty Nerds - Returns: dynasty, rookie, and format-specific ranking rows. Used now: dynasty and rookie blending. Could power later: format-specific rookie draft reads. Open questions: coverage by format and source freshness.
-- [ ] Fantasy Nerds - Returns: rankings, projections, or diagnostic rows if available. Used now: source-coverage checks. Could power later: redraft projections and validation. Open questions: which endpoints are current and supported.
-- [ ] DynastyProcess - Returns: calculator outputs, dynasty values, and trade context. Used now: dynasty value blending. Could power later: trade comparison and roster value explanation. Open questions: which calculator outputs are stable and current.
-- [ ] Prospect Archive / NFL Draft Buzz - Returns: prospect rankings, scouting notes, draft year, college, team, and image/logo fields. Used now: devy and rookie prospect handling. Could power later: scouting detail cards and prospect comparison. Open questions: source freshness and image/logo consistency.
-- [ ] ESPN prospect metadata - Returns: player/team/college/external ID fields. Used now: cross-source identity matching. Could power later: better prospect/player normalization. Open questions: which IDs are reliable enough to treat as canonical.
-- [ ] Internal snapshots/jobs - Returns: historical values, source-health events, league snapshots, and draft records. Used now: trend analysis, backfills, diagnostics, and confidence calibration. Could power later: anomaly detection and source-history dashboards. Open questions: which historical jobs still need backfill or retention tuning.
-- [ ] Add a shortlist of features we already have enough data to build from current sources:
-  - [ ] News-to-value movement analysis using FantasyPros/Sleeper news, injury, and snapshot timing.
-  - [ ] ADP vs value-over-cost views using FantasyPros ADP / DYNADP / RKADP plus current value blends.
-  - [ ] Rookie and devy prospect comparison views using the existing prospect and ranking sources.
-  - [ ] Cross-league exposure, concentration, and roster-share reporting from stored league snapshots.
-  - [ ] Waiver and trade calibration dashboards from historical outcomes and manager-league history.
-  - [ ] Player source trace views that show which feeds are contributing to a player's current value or confidence.
+- [x] Use this compact template for each source during the audit: `Source / Returns / Used now / Could power later / Open questions`.
+- [x] Sleeper - Returns: league settings, rosters, players, matchups, waivers, trades, news/status, and user/player IDs. Used now: league analysis, roster intelligence, matchup preview plumbing, waiver/trade analysis, and identity matching. Could power later: schedule-week matchup reads, exposure views, alerting, and lineup guidance. Open questions: which endpoints reliably expose current-week matchup and projection context.
+- [x] Research the Google query `api to get nfl player nicknames` and compare the useful fields from the results against the NFL APIs we already consider first-class so we can capture any extra nickname/alias data we are missing.
+- [x] For each candidate result from that query, document whether it provides player nicknames, alternate display names, alias mappings, pronunciation hints, suffix normalization, social handles, or other identity-enrichment fields beyond our current data.
+- [x] Cross-check the nickname/alias sources against the APIs already on our recommended list, including Sleeper, BALLDONTLIE, nflreadr/nflverse player-name mappings, SportsBlaze, FantasyData/SportsDataIO, Sportradar, ESPN, and any other vetted NFL endpoints.
+- [x] Decide which extra fields are actually worth storing or normalizing in our player identity layer, and which ones are only nice-to-have research artifacts.
+- [x] FantasyPros - Returns: rankings, projections, ADP, injuries, news, compare-players, player-points, and player/external IDs. Used now: dynasty/redraft blends, rookie and devy context, injury/news notes, player modal details, and confidence calibration. Could power later: lineup strength, value movement, matchup preview, and trade explainers. Open questions: rate limits, production terms, and which projection/news endpoints are safe to depend on.
+- [x] DraftSharks - Returns: rankings, SOS, bye weeks, D/ST, matchup data, and possibly projections. Used now: source research only. Could power later: bye-week navigation, streamer planning, matchup reads, and schedule-strength tooling. Open questions: partner/API access and whether the public pages stay stable enough to trust.
+- [x] KeepTradeCut - Returns: trade-database rows, market values, and source metadata where available. Used now: trade/value research. Could power later: dynasty trade comps and market trend views. Open questions: whether access is stable without scraping and whether there is a supported data path.
+- [x] Flock Fantasy - Returns: exposure counts, league-share data, and player ranking rows. Used now: dynasty/rookie source research. Could power later: portfolio exposure and roster concentration. Open questions: whether the exposure feed is stable enough to ingest.
+- [x] FantasyCalc - Returns: dynasty/redraft value rows and source metadata. Used now: blended-value inputs and confidence support. Could power later: value trend and comparison views. Open questions: refresh cadence and source coverage details.
+- [x] Dynasty Nerds - Returns: dynasty, rookie, and format-specific ranking rows. Used now: dynasty and rookie blending. Could power later: format-specific rookie draft reads. Open questions: coverage by format and source freshness.
+- [x] Fantasy Nerds - Returns: rankings, projections, or diagnostic rows if available. Used now: source-coverage checks. Could power later: redraft projections and validation. Open questions: which endpoints are current and supported.
+- [x] DynastyProcess - Returns: calculator outputs, dynasty values, and trade context. Used now: dynasty value blending. Could power later: trade comparison and roster value explanation. Open questions: which calculator outputs are stable and current.
+- [x] Prospect Archive / NFL Draft Buzz - Returns: prospect rankings, scouting notes, draft year, college, team, and image/logo fields. Used now: devy and rookie prospect handling. Could power later: scouting detail cards and prospect comparison. Open questions: source freshness and image/logo consistency.
+- [x] ESPN prospect metadata - Returns: player/team/college/external ID fields. Used now: cross-source identity matching. Could power later: better prospect/player normalization. Open questions: which IDs are reliable enough to treat as canonical.
+- [x] Internal snapshots/jobs - Returns: historical values, source-health events, league snapshots, and draft records. Used now: trend analysis, backfills, diagnostics, and confidence calibration. Could power later: anomaly detection and source-history dashboards. Open questions: which historical jobs still need backfill or retention tuning.
+- [x] Add a shortlist of features we already have enough data to build from current sources:
+  - [x] News-to-value movement analysis using FantasyPros/Sleeper news, injury, and snapshot timing.
+  - [x] ADP vs value-over-cost views using FantasyPros ADP / DYNADP / RKADP plus current value blends.
+  - [x] Rookie and devy prospect comparison views using the existing prospect and ranking sources.
+  - [x] Cross-league exposure, concentration, and roster-share reporting from stored league snapshots.
+  - [x] Waiver and trade calibration dashboards from historical outcomes and manager-league history.
+  - [x] Player source trace views that show which feeds are contributing to a player's current value or confidence.
 
 ## AI Logic / Signal Engineering Roadmap
 
@@ -158,8 +159,8 @@
 
 ## FantasyPros Integration Roadmap
 
-- [ ] Store the FantasyPros key only in server env as `FANTASYPROS_API_KEY`, keep it out of source control/client bundles/logs, and document the production deployment step.
-- [ ] Confirm FantasyPros production terms, rate limits, and non-commercial restrictions before making it a primary valuation source.
+- [x] Store the FantasyPros key only in server env as `FANTASYPROS_API_KEY`, keep it out of source control/client bundles/logs, and document the production deployment step.
+- [x] Confirm FantasyPros production terms, rate limits, and non-commercial restrictions before making it a primary valuation source.
 - [x] Add source-health checks for every FantasyPros endpoint we plan to depend on, including row counts, last updated date, expert count, and rate-limit/error status.
 - [x] Add separate feature flags for FantasyPros sub-sources so `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, projections, injuries, news, and player-points can be rolled out or disabled independently.
 - [x] Add a safe FantasyPros smoke/diagnostics command that checks planned endpoints and prints only status, row counts, freshness, expert counts, and errors, never the API key or raw payload.
@@ -597,9 +598,9 @@
 - [ ] Consider extracting trade-ledger helpers into a non-React utility module once `TradeHistoryTable` and `TradeWarRoom` are split.
 
 ### Research / Product Ideas
-- [ ] Investigate FantasyPros VORP rankings on [FantasyPros VORP](https://www.fantasypros.com/nfl/rankings/vorp.php), confirm how the metric is calculated, and decide whether it should inform any existing valuation or draft surfaces.
-- [ ] Check whether the Sleeper API exposes draft data or trade data from leagues beyond our own so we can store it for later analysis and product ideas.
-- [ ] Summarize the top fantasy football + AI YouTube videos and extract any repeat ideas, workflows, or features we could implement.
-- [ ] Outline how a Chrome extension could help draft players using multiple criteria, rankings, and context signals.
-- [ ] Trace any existing references to the AI chatbot in the codebase and docs, then explain what it currently does or where it still needs to be defined.
-- [ ] Review [Dynasty Daddy fantasy rankings](https://dynasty-daddy.com/fantasy-rankings/lamarjacksonqb?league=1312139584427012096&year=2026&platform=0&userId=472986961783549952&teamId=3) for feature ideas, layout ideas, and any useful ranking or league-context capabilities we should consider.
+- [x] Investigate FantasyPros VORP rankings on [FantasyPros VORP](https://www.fantasypros.com/nfl/rankings/vorp.php), confirm how the metric is calculated, and decide whether it should inform any existing valuation or draft surfaces.
+- [x] Check whether the Sleeper API exposes draft data or trade data from leagues beyond our own so we can store it for later analysis and product ideas.
+- [x] Summarize the top fantasy football + AI YouTube videos and extract any repeat ideas, workflows, or features we could implement.
+- [x] Outline how a Chrome extension could help draft players using multiple criteria, rankings, and context signals.
+- [x] Trace any existing references to the AI chatbot in the codebase and docs, then explain what it currently does or where it still needs to be defined.
+- [x] Review [Dynasty Daddy fantasy rankings](https://dynasty-daddy.com/fantasy-rankings/lamarjacksonqb?league=1312139584427012096&year=2026&platform=0&userId=472986961783549952&teamId=3) for feature ideas, layout ideas, and any useful ranking or league-context capabilities we should consider.

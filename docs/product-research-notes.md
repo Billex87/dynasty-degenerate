@@ -1,0 +1,107 @@
+# Product Research Notes
+
+These notes capture todo research that did not warrant runtime changes tonight.
+
+## FantasyPros VORP
+
+FantasyPros publishes VBD/VORP/VOLS ranking views and describes value-based drafting as maximizing incremental value relative to likely opponent rosters. Support docs explain that draft score uses projections to calculate VORP and compare team strength.
+
+Sources:
+
+- https://www.fantasypros.com/nfl/rankings/vorp.php
+- https://support.fantasypros.com/hc/en-us/articles/115005868747-What-is-value-based-drafting-What-do-player-draft-values-mean-VORP-VONA-VOLS-VBD
+- https://support.fantasypros.com/hc/en-us/articles/115001354808-What-is-the-Draft-Score-based-on
+
+Recommended product use:
+
+- Treat VORP as a draft-cost/readout layer, not a dynasty market-value source.
+- Use it for redraft lineup strength, draft assistant, value-over-cost, and replacement-level context.
+- Do not depend on FantasyPros VORP in paid/public outputs until FantasyPros production rights are cleared.
+
+## Sleeper Draft/Trade Data Beyond Our Leagues
+
+Sleeper exposes league-scoped drafts, draft picks, traded picks, and transactions. The official docs do not show a global public trade or draft database endpoint. Product direction should assume we can store data only from leagues users load or explicitly share.
+
+Source:
+
+- https://docs.sleeper.com/
+
+Recommended product use:
+
+- Build our own opt-in historical trade/draft corpus from analyzed/shared leagues.
+- Store only normalized, product-useful facts: player IDs, pick IDs, roster IDs, timestamps, league format, scoring settings, and outcome labels.
+
+## Fantasy Football + AI Product Patterns
+
+Repeated patterns from current AI fantasy products and community discussions:
+
+- draft-room overlays and Chrome extensions
+- league-sync personalization
+- chat assistant for roster questions
+- trade analyzer with partner fit and impact explanation
+- waiver prediction and alerting
+- scenario simulator for draft or trade choices
+- AI-generated team report/newsletter
+- transparent data freshness and source caveats
+
+Sources reviewed:
+
+- Drafty real-time Chrome extension positioning: https://drafty.club/
+- WinMyLeague AI learning/tool page: https://www.winmyleague.ai/learn
+- FantasyLife synced tool suite: https://www.fantasylife.com/tools
+- IBM/ESPN AI insights example: https://newsroom.ibm.com/2025-09-24-new-ibm-watsonx-ai-powered-insights-help-elevate-espn-fantasy-football-for-2025-fantasy-football-season
+
+Best next feature candidates:
+
+- draft-room companion extension that reads platform draft state and overlays our tier/value/opportunity notes
+- report chat that answers only from the current report payload and source trace
+- weekly briefing email generated from stored league snapshots
+
+## Chrome Extension Outline
+
+Minimum useful extension:
+
+- content scripts for Sleeper, ESPN, Yahoo, and MFL draft rooms
+- live drafted-player detection
+- panel with best available by blended value, VORP, roster need, tier breaks, stack/correlation, bye windows, and league format
+- manual fallback controls if platform DOM changes
+- no credentials stored in extension unless OAuth/account linking is implemented
+- server endpoint receives league ID plus selected provider and returns compact draft assistant payload
+
+Important risks:
+
+- platform DOMs change often
+- extension cannot expose third-party provider raw data if licensing forbids it
+- latency has to stay low enough for draft timers
+
+## AI Chatbot Trace
+
+Current codebase status:
+
+- `client/src/components/AIChatBox.tsx` is a reusable UI component.
+- `client/src/pages/ComponentShowcase.tsx` demonstrates it with fake/demo responses.
+- No production report chatbot route or tRPC mutation is wired from the search pass.
+
+Recommended direction:
+
+- Implement a report-scoped assistant only after we define retrieval boundaries.
+- Inputs should be current `ReportData`, source diagnostics, and saved user/league context.
+- The assistant should cite report sections and refuse unsupported live claims when no source payload exists.
+
+## Dynasty Daddy Feature Ideas
+
+The target Dynasty Daddy page is JavaScript-rendered, so search-indexed/public text was more useful than static HTML. Public material describes league-tied player values, trade calculations, season simulations, league statistics, portfolio/exposure, and multi-platform support.
+
+Sources:
+
+- https://dynasty-daddy.com/fantasy-rankings
+- https://www.patreon.com/DynastyDaddy
+
+Useful ideas for us:
+
+- multiple value-source toggles in player rankings
+- league-context player page that shows ownership, team fit, and trade partners
+- trade tree/history from a manager or player perspective
+- portfolio/exposure view across all synced leagues
+- predicted pick value based on projected team finish
+

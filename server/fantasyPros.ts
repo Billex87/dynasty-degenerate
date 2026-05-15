@@ -1,4 +1,5 @@
 import { cleanName, playerNameKeyVariants } from './leagueAnalysis';
+import { recordApiProviderCacheHit, recordApiProviderTelemetryEvent } from './apiProviderTelemetry';
 
 const FANTASYPROS_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
@@ -187,11 +188,52 @@ async function fantasyProsFetch<T>(path: string): Promise<T | null> {
   const apiKey = getFantasyProsApiKey();
   if (!apiKey) return null;
 
-  const response = await fetch(`${FANTASYPROS_BASE_URL}${path}`, {
-    headers: { 'x-api-key': apiKey },
-  });
-  if (!response.ok) throw new Error(`FantasyPros ${response.status} ${path}`);
-  return response.json() as Promise<T>;
+  const startedAt = Date.now();
+  const endpoint = path.split('?')[0] || path;
+  try {
+    const response = await fetch(`${FANTASYPROS_BASE_URL}${path}`, {
+      headers: { 'x-api-key': apiKey },
+    });
+    if (!response.ok) {
+      recordApiProviderTelemetryEvent({
+        provider: 'FantasyPros',
+        endpoint,
+        status: response.status,
+        ok: false,
+        durationMs: Date.now() - startedAt,
+        cacheStatus: 'miss',
+        costUnits: 1,
+        message: `FantasyPros ${response.status}`,
+      });
+      throw new Error(`FantasyPros ${response.status} ${path}`);
+    }
+    const payload = await response.json() as T;
+    recordApiProviderTelemetryEvent({
+      provider: 'FantasyPros',
+      endpoint,
+      status: response.status,
+      ok: true,
+      durationMs: Date.now() - startedAt,
+      cacheStatus: 'miss',
+      costUnits: 1,
+      message: null,
+    });
+    return payload;
+  } catch (error) {
+    if (!(error instanceof Error && /^FantasyPros \d+ /.test(error.message))) {
+      recordApiProviderTelemetryEvent({
+        provider: 'FantasyPros',
+        endpoint,
+        status: null,
+        ok: false,
+        durationMs: Date.now() - startedAt,
+        cacheStatus: 'miss',
+        costUnits: 1,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    throw error;
+  }
 }
 
 export function normalizeFantasyProsRankingsPayload(
@@ -268,7 +310,14 @@ export async function fetchFantasyProsConsensusRankings({
   if (!isFantasyProsSubSourceEnabled(rankingTypeToSubSource(rankingType))) return {};
   const cacheKey = `${season}:${scoring}:${rankingType}:${position}:${week}`;
   const cached = cachedConsensusRankings.get(cacheKey);
-  if (isFresh(cached || null)) return cached?.values || {};
+  if (isFresh(cached || null)) {
+    recordApiProviderCacheHit({
+      provider: 'FantasyPros',
+      endpoint: `/NFL/${season}/consensus-rankings`,
+      job: rankingType,
+    });
+    return cached?.values || {};
+  }
 
   try {
     const params = new URLSearchParams({
@@ -360,6 +409,11 @@ export async function fetchFantasyProsDraftRankings(
   scoring: FantasyProsScoring = 'HALF'
 ): Promise<Record<string, FantasyProsRanking>> {
   if (cachedDraftRankings?.season === season && cachedDraftRankings.scoring === scoring && isFresh(cachedDraftRankings)) {
+    recordApiProviderCacheHit({
+      provider: 'FantasyPros',
+      endpoint: `/NFL/${season}/consensus-rankings`,
+      job: 'DRAFT',
+    });
     return cachedDraftRankings.values;
   }
 
@@ -402,6 +456,11 @@ export async function fetchFantasyProsPlayerPoints(
 ): Promise<Record<string, FantasyProsPlayerPoints>> {
   if (!isFantasyProsSubSourceEnabled('playerPoints')) return {};
   if (cachedPlayerPoints?.season === season && cachedPlayerPoints.scoring === scoring && isFresh(cachedPlayerPoints)) {
+    recordApiProviderCacheHit({
+      provider: 'FantasyPros',
+      endpoint: `/nfl/${season}/player-points`,
+      job: 'playerPoints',
+    });
     return cachedPlayerPoints.values;
   }
 
@@ -443,7 +502,14 @@ export async function fetchFantasyProsPlayerPoints(
 
 export async function fetchFantasyProsNews(): Promise<FantasyProsNewsItem[]> {
   if (!isFantasyProsSubSourceEnabled('news')) return [];
-  if (cachedNews && isFresh(cachedNews)) return cachedNews.values;
+  if (cachedNews && isFresh(cachedNews)) {
+    recordApiProviderCacheHit({
+      provider: 'FantasyPros',
+      endpoint: '/NFL/news',
+      job: 'news',
+    });
+    return cachedNews.values;
+  }
 
   try {
     const payload = await fantasyProsFetch<{
@@ -465,7 +531,14 @@ export async function fetchFantasyProsNews(): Promise<FantasyProsNewsItem[]> {
 
 export async function fetchFantasyProsPlayers(): Promise<FantasyProsPlayerReference[]> {
   if (!hasFantasyProsApiKey()) return [];
-  if (cachedPlayers && isFresh(cachedPlayers)) return cachedPlayers.values;
+  if (cachedPlayers && isFresh(cachedPlayers)) {
+    recordApiProviderCacheHit({
+      provider: 'FantasyPros',
+      endpoint: '/NFL/players',
+      job: 'players',
+    });
+    return cachedPlayers.values;
+  }
 
   try {
     const payload = await fantasyProsFetch<{ players?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>>('/NFL/players');
@@ -499,7 +572,14 @@ export async function fetchFantasyProsNewsForPlayer(
   if (!isFantasyProsSubSourceEnabled('news')) return [];
   const cacheKey = `${fantasyProsPlayerId}:${limit}`;
   const cached = cachedPlayerNews.get(cacheKey);
-  if (isFresh(cached || null)) return cached?.values || [];
+  if (isFresh(cached || null)) {
+    recordApiProviderCacheHit({
+      provider: 'FantasyPros',
+      endpoint: '/NFL/news',
+      job: 'playerNews',
+    });
+    return cached?.values || [];
+  }
 
   try {
     const payload = await fantasyProsFetch<{

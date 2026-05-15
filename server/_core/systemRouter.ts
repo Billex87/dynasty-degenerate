@@ -2,6 +2,7 @@ import { z } from "zod";
 import { adminProcedure, publicProcedure, router } from "./trpc";
 import { getLoginAttemptsSince, listKtcSnapshotDateKeysSince, listSourceHealthEventsSince, type StoredLoginAttempt, type StoredSourceHealthEvent } from "../db";
 import { getSnapshotDateKey, listLocalKtcSnapshotDateKeysSince } from "../ktcLoader";
+import { getApiProviderTelemetrySnapshot } from "../apiProviderTelemetry";
 
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 
@@ -302,4 +303,16 @@ export const systemRouter = router({
         })),
       } as const;
     }),
+
+  apiProviderTelemetry: adminProcedure
+    .input(
+      z.object({
+        lookbackDays: z.number().int().min(1).max(30).default(7),
+        limit: z.number().int().min(1).max(25).default(10),
+      })
+    )
+    .query(({ input }) => getApiProviderTelemetrySnapshot({
+      lookbackMs: input.lookbackDays * 24 * 60 * 60 * 1000,
+      limit: input.limit,
+    })),
 });
