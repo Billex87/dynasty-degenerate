@@ -4824,7 +4824,7 @@ export default function Home() {
   const loadingDialog = (
     <Dialog
       key="analysis-loading-dialog"
-      open={isLoading && !analysisCompleteMessage}
+      open={isLoading}
       onOpenChange={() => undefined}
     >
       <DialogContent
