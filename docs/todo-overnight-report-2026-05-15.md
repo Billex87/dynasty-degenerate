@@ -10,7 +10,8 @@ Checklist status after this pass: `282` checked items and `156` unchecked items.
 | --- | --- | --- |
 | Neon/Postgres transfer audit | Added an executable transfer audit script that reports table size, largest report-cache payloads, recent cache transfer drivers, snapshot payload sizes, and source-health event volume. Requires production `DATABASE_URL` to run. | `scripts/audit-neon-transfer.mjs`, `package.json` |
 | League report cache compression | Added transparent gzip/base64 compression for large persistent and file-backed `leagueReportCache` payloads, plus a dry-run-capable one-off compaction command for existing heavy rows. Production top-20 compaction reduced those rows from `252 MB` to `35 MB`. | `server/db.ts`, `server/routers.ts`, `scripts/compact-league-report-cache.mjs`, `server/leagueReportCacheCompression.test.ts` |
-| League report cache cleanup | Added a dry-run-first stale-version cleanup command for old `leagueReportCache` rows. It keeps `league-report-v37` and `league-rankings-v11`, prints only row metadata and payload sizes, and requires explicit confirmation before any delete path can run. Production cleanup deleted `34` stale cache rows totaling `89 MB`, and the follow-up dry run found no remaining stale version rows. | `scripts/cleanup-league-report-cache.mjs`, `package.json`, `todo.md` |
+| League report cache cleanup | Added a dry-run-first cleanup command for old `leagueReportCache` rows. It supports stale-version cleanup and expired-row cleanup, keeps deletion guarded by explicit confirmation flags, and prints only row metadata plus payload sizes. Production cleanup deleted `34` stale-version rows totaling `89 MB` and `9` expired rows totaling `26 MB`; follow-up dry runs found no remaining stale or expired rows. | `scripts/cleanup-league-report-cache.mjs`, `package.json`, `todo.md` |
+| Report load cache hits | Aligned browser report-cache lifetime with the 12-hour server cache and stopped the report screen from calling `league.rankings` when the loaded report already includes rankings. | `client/src/pages/Home.tsx`, `todo.md` |
 | Single-key leak response plan | Added provider key leak response plan covering disable, env removal, redeploy/rollback, repo/log audit, provider recovery, and verification commands. | `docs/provider-key-leak-response.md` |
 | New-source probation rule | Documented probation rule for every new API/feed/scrape before trust weight can rise. | `docs/source-onboarding-and-coverage-audit.md` |
 | Source audit template and matrix | Captured the current source coverage matrix, usage status, later feature potential, and open questions for Sleeper, FantasyPros, DraftSharks, KTC, Flock, FantasyCalc, Dynasty Nerds, Fantasy Nerds, DynastyProcess/nflverse, prospect sources, ESPN metadata, and internal jobs. | `docs/source-onboarding-and-coverage-audit.md` |
@@ -42,7 +43,7 @@ Checklist status after this pass: `282` checked items and `156` unchecked items.
 | Todo Area | Status |
 | --- | --- |
 | `SOURCE_HEALTH_ALERT_WEBHOOK_URL` | Already present in `.env.example`, `docs/action-plan-next-milestone.md`, and `server/sourceHealth.ts`; production still needs the actual secret configured. |
-| Source-health backfill | Already wired behind `ENABLE_SOURCE_HEALTH_BACKFILL=true` in `server/dynamicDataJobs.ts`; blocked until production cached reports and production env access are available. |
+| Source-health backfill | Already wired behind `ENABLE_SOURCE_HEALTH_BACKFILL=true` in `server/dynamicDataJobs.ts`; production one-off scan found no cached-report diagnostics eligible to backfill. |
 | FantasyPros endpoint health checks | Already implemented in `server/fantasyProsHealth.ts` with endpoint rows and source-health events. |
 | FantasyPros sub-source flags | Already implemented in `server/fantasyPros.ts` and `.env.example`. |
 | Schedule/matchup typed payloads | `ReportData.matchupPreviews` and `schedulePlanning` are already typed and consumed by autopilot/command-center logic; live schedule ingestion remains unwired. |
@@ -75,9 +76,10 @@ These were intentionally not implemented tonight per prompt:
 | KeepTradeCut trade database | KTC FAQ says no API/CSV export and scraping values/data is forbidden. | Use only approved access or user-visible references; do not scrape. |
 | DraftSharks live REST/API credentials | DraftSharks affiliate materials mention REST API docs in the partner control panel, but the actual SOS endpoint URL/payload requires approved account access. | Configure `ENABLE_DRAFTSHARKS_SOS=true`, `DRAFTSHARKS_API_KEY`, and `DRAFTSHARKS_SOS_URL` after partner approval. |
 | May 14 projections/SOS rollout | Needs approved projection/SOS source blend and live schedule data validation. | Run provider checks after source approvals and schedule ingestion path are chosen. |
-| Source-health production backfill | Needs production cached reports and production env access. | Run `ENABLE_SOURCE_HEALTH_BACKFILL=true` only as a one-off. |
+| Source-health production backfill | Production one-off scan ran after cache compression/cleanup and found no eligible cached-report source diagnostics. | No action unless future report payloads include backfillable diagnostics. |
 | Alert webhook production config | Needs real Slack/email/webhook secret. | Set `SOURCE_HEALTH_ALERT_WEBHOOK_URL` in production secret store. |
-| Remaining report-cache bloat | Old stale versions were removed; largest remaining cache rows are current `league-report-v37` and `league-rankings-v11` rows. | Split ranking metadata/detail reads if transfer remains high. |
+| Remaining report-cache bloat | Old stale versions and expired rows were removed; largest remaining cache rows are fresh current `league-report-v37` and `league-rankings-v11` rows. Postgres table-size reporting may continue to show old relation size until normal vacuum/storage reclamation catches up. | Split ranking metadata/detail reads if transfer remains high. |
+| Interactive report performance | Normal page/report loads should use nightly source snapshots for value/ranking/news providers and only call Sleeper for league state plus new adds, drops, and trades. | Refactor `buildRankingsBoard` and report generation to use stored source snapshots during user-triggered loads; keep live provider fetches in cron/manual refresh paths. |
 | Confidence calibration | Needs enough 2026 source snapshots, trades, waivers, injuries, news events, and standings movement. | Revisit after in-season sample size accumulates. |
 | Snapshot replay/regression tests | Needs a stable fixture set and expected drift thresholds. | Start with source-blend replay fixtures after source trust stabilizes. |
 | Monetization/auth/billing | Requires pricing, legal pages, email provider, Stripe product model, and entitlement schema decisions. | Draft implementation PRD before code changes. |
@@ -115,6 +117,11 @@ These were intentionally not implemented tonight per prompt:
 - `LEAGUE_REPORT_CACHE_CLEANUP_DRY_RUN=false LEAGUE_REPORT_CACHE_CLEANUP_CONFIRM_DELETE=true pnpm cleanup:league-report-cache`: production cleanup passed; deleted `34` stale cache rows totaling `89 MB`.
 - `set -a; source .vercel/.env.production.local; set +a; pnpm audit:neon-transfer`: passed after stale cache cleanup; largest `leagueReportCache` rows are current `league-report-v37` and `league-rankings-v11` rows.
 - `set -a; source .vercel/.env.production.local; set +a; pnpm cleanup:league-report-cache`: follow-up dry run passed with no stale `leagueReportCache` version rows found.
+- `set -a; source .vercel/.env.production.local; set +a; pnpm exec tsx -e "import { backfillSourceHealthFromCachedReports } from './server/dynamicDataJobs.ts'; ..."`: production source-health backfill scan passed; scanned `54`, backfilled `0`, skipped `54`, alertCount `0`.
+- `set -a; source .vercel/.env.production.local; set +a; pnpm cleanup:league-report-cache:expired`: dry-run passed with `9` expired rows and `26 MB` eligible for deletion.
+- `LEAGUE_REPORT_CACHE_CLEANUP_DRY_RUN=false LEAGUE_REPORT_CACHE_CLEANUP_CONFIRM_DELETE=true pnpm cleanup:league-report-cache:expired`: production expired cleanup passed; deleted `9` expired rows totaling `26 MB`.
+- `set -a; source .vercel/.env.production.local; set +a; pnpm cleanup:league-report-cache:expired`: follow-up dry run passed with no expired rows older than `12` hours found.
+- `set -a; source .vercel/.env.production.local; set +a; pnpm audit:neon-transfer`: passed after expired cleanup; `leagueReportCache` now has about `10` rows and largest payload rows are fresh current cache keys.
 - `node --check scripts/audit-neon-transfer.mjs`: passed.
 - `node --check scripts/compact-league-report-cache.mjs`: passed.
 - `pnpm build`: passed.

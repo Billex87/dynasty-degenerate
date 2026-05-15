@@ -177,7 +177,7 @@ const DYNASTY_LOGO_SRC =
   "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
 const REPORT_CACHE_DATA_VERSION = "draft-baseline-v2";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v20";
-const REPORT_CACHE_MAX_AGE_MS = 15 * 60 * 1000;
+const REPORT_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v10",
   "dynasty-degenerates:last-report:v11",
@@ -4935,7 +4935,7 @@ export default function Home() {
   const rankingsQuery = trpc.league.rankings.useQuery(
     { leagueId },
     {
-      enabled: Boolean(reportData && leagueId),
+      enabled: Boolean(reportData && leagueId && !reportData.rankings),
       staleTime: 1000 * 60 * 60 * 12,
       refetchOnWindowFocus: false,
       retry: 1,
