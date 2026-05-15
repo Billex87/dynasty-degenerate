@@ -7,6 +7,7 @@ import { fetchFantasyProsNews } from './fantasyPros';
 import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth } from './fantasyProsHealth';
 import { loadBlendedKTCValues, loadLatestLocalWeeklyMomentumSnapshot } from './ktcLoader';
 import { attachLeagueAiConfidence, persistLeagueAiConfidenceSnapshot } from './leagueAiConfidence';
+import { refreshPlayerPropSnapshots } from './playerPropSnapshots';
 import { buildProspectLookup, loadProspectContext } from './prospectSource';
 import { buildRankingsBoard } from './rankingsBoard';
 import { refreshSleeperSeasonStatsSnapshots } from './sleeperSeasonStats';
@@ -359,7 +360,7 @@ export async function warmDepthChartCacheFromCachedReports(options: {
 export async function refreshReportEnrichmentSnapshots(options: {
   backfillLimit?: number;
 } = {}) {
-  const [fantasyProsNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats] = await Promise.all([
+  const [fantasyProsNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats, playerProps] = await Promise.all([
     fetchFantasyProsNews({ persistSnapshot: true, forceRefresh: true }),
     loadDraftSharksScheduleContext({
       season: String(new Date().getFullYear()),
@@ -370,6 +371,7 @@ export async function refreshReportEnrichmentSnapshots(options: {
       limit: options.backfillLimit || 100,
     }),
     refreshSleeperSeasonStatsSnapshots(),
+    refreshPlayerPropSnapshots(),
   ]);
 
   return {
@@ -378,6 +380,7 @@ export async function refreshReportEnrichmentSnapshots(options: {
     draftSharksProfileCount: Object.keys(draftSharksSchedule.profiles || {}).length,
     depthChartWarmCache,
     sleeperSeasonStats,
+    playerProps,
   };
 }
 

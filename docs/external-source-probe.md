@@ -26,3 +26,18 @@ PARLAY_API_KEY=
 ```
 
 Keep these server-only. If we integrate any of them, the production path should be: cron refresh -> provider snapshot -> report/load reads from snapshot. Normal report loads should not call these providers directly.
+
+## Prop Snapshot Foundation
+
+`server/playerPropSnapshots.ts` defines the first normalized prop shape and OpticOdds refresh path. It stays disabled unless `ENABLE_OPTICODDS_PLAYER_PROPS=true` and `OPTICODDS_API_KEY` are configured. Dynamic data refresh can then store daily `player-props-opticodds-v1` provider snapshots for report logic to read later without calling a props provider on normal page/report load.
+
+The default OpticOdds configuration keeps the first pass intentionally narrow:
+
+```sh
+ENABLE_OPTICODDS_PLAYER_PROPS=true
+OPTICODDS_FIXTURE_LIMIT=8
+OPTICODDS_SPORTSBOOKS=sleeper,bet365,underdog_fantasy_2_pick_
+OPTICODDS_PROP_MARKETS=player_passing_yards,player_rushing_yards,player_receiving_yards,player_receptions,player_anytime_touchdown
+```
+
+The normalized line shape stores player identity, fixture/event metadata, market, line, sportsbook, over/under side, American odds, decimal odds when available, implied probability when available, and provider update timestamps.
