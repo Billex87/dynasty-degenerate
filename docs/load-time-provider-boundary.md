@@ -16,6 +16,8 @@ Current guardrails:
 - `server/reportPayloadSlimming.ts` compacts duplicate embedded `playerDetails` in report transfer/cache payloads when the same player is already present in `playerDetailsById`, keeping a small display-safe shell for inline cards.
 - Ranking transfer payloads keep `rankings.profiles` as the canonical board data and drop duplicate legacy arrays (`dynastySf`, `redraftPpr`, etc.) from cache/response copies. Repeated devy row `prospectProfile` objects are compacted, and the UI hydrates full prospect modal detail from the single `draftBuzzScoreboard` copy.
 - Ranking UI loads now start with `league.rankingsMeta`, then fetch one selected profile through `league.rankingProfile` or the prospect archive through `league.rankingDraftBuzz`. This keeps full ranking rows and scouting summaries out of the initial rankings payload.
+- `league.reportCacheStatus` checks report-cache freshness with metadata only: cache key, source, updated time, age, and payload byte size. It does not deserialize or return the cached report payload.
+- Server report-cache serving TTL defaults to 12 hours and can be tuned with `LEAGUE_REPORT_CACHE_TTL_HOURS`. The local file cache is pruned by the same TTL plus `LEAGUE_REPORT_FILE_CACHE_MAX_FILES` so stale fallback blobs do not accumulate.
 
 ## Runtime Contract
 
@@ -23,3 +25,4 @@ Current guardrails:
 - FantasyPros, ESPN, DraftSharks, OpticOdds, KTC, FantasyCalc, DynastyProcess, Flock, Dynasty Nerds, Fantasy Nerds, and prospect sources must not be called live from normal user-load paths.
 - Non-Sleeper refreshes belong in scheduled jobs, admin-only diagnostics, maintenance scripts, or explicit one-off probes.
 - Stored snapshot reads can be used freely during report loads because they do not add live provider latency or API cost.
+- Cache status checks should use metadata-only helpers/endpoints unless the caller needs to render the actual report.

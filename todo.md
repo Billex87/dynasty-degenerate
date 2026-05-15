@@ -35,7 +35,8 @@
 - [x] Add report-payload auditing and transfer slimming for cached league reports: local cache payloads can be measured by section, duplicate embedded `playerDetails` are compacted when `playerDetailsById` already carries that player, and cache metadata can be checked without reading full payloads.
 - [x] Reduce rankings transfer by dropping duplicate legacy ranking arrays from transfer/cache payloads and compacting repeated prospect profile details in ranking rows while preserving full prospect detail through the Draft Buzz scoreboard copy.
 - [x] Reduce transfer further with ranking metadata/detail endpoints: normal rankings loads now fetch metadata first, then load only the active ranking profile or prospect archive detail when the UI opens it.
-- [ ] Reduce transfer further with tighter cache TTL/retention and expanded metadata-only cache/status reads where routes do not need full payloads.
+- [x] Reduce transfer further with tighter cache TTL/retention and expanded metadata-only cache/status reads: report-cache TTL is configurable, local file-cache fallbacks prune expired/overflow entries, expired cleanup follows the serving TTL by default, and `league.reportCacheStatus` reads freshness metadata without hydrating full payloads.
+- [ ] Split generated report caches into Sleeper-current-state and snapshot-backed static sections so logins can refresh only Sleeper adds/drops/trades/rosters while reusing nightly source snapshots and static report sections.
 - [x] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
 - [x] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
 - [x] Revisit KeepTradeCut trade-database access later; only integrate it if we can get a stable, approved data path instead of a brittle scrape.

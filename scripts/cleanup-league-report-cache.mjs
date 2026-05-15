@@ -7,7 +7,8 @@ const limit = Number.parseInt(process.env.LEAGUE_REPORT_CACHE_CLEANUP_LIMIT || '
 const dryRun = process.env.LEAGUE_REPORT_CACHE_CLEANUP_DRY_RUN !== 'false';
 const confirmDelete = process.env.LEAGUE_REPORT_CACHE_CLEANUP_CONFIRM_DELETE === 'true';
 const cleanupMode = process.env.LEAGUE_REPORT_CACHE_CLEANUP_MODE || 'versions';
-const maxAgeHours = Number.parseFloat(process.env.LEAGUE_REPORT_CACHE_CLEANUP_MAX_AGE_HOURS || '12') || 12;
+const servingTtlHours = Number.parseFloat(process.env.LEAGUE_REPORT_CACHE_TTL_HOURS || '12') || 12;
+const maxAgeHours = Number.parseFloat(process.env.LEAGUE_REPORT_CACHE_CLEANUP_MAX_AGE_HOURS || String(servingTtlHours)) || servingTtlHours;
 
 const CURRENT_LEAGUE_REPORT_VERSION = 37;
 const CURRENT_LEAGUE_RANKINGS_VERSION = 11;

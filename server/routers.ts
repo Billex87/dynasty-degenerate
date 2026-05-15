@@ -30,6 +30,7 @@ import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadR
 import { loadSourceSnapshotFreshnessDiagnostics } from "./sourceSnapshotFreshness";
 import { slimCachedLeagueReportPayload } from "./reportPayloadSlimming";
 import { buildRankingDraftBuzzDetail, buildRankingProfileDetail, buildRankingsMetadata } from "./rankingPayloadViews";
+import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueReportFileCacheMaxFiles, isLeagueReportCacheExpired, shouldPruneLeagueReportFileCacheEntry } from "./leagueReportCachePolicy";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -39,7 +40,7 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
+import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence } from "../shared/types";
 
@@ -577,7 +578,9 @@ type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: n
 
 const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v37';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
-const LEAGUE_REPORT_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
+const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
+const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
+const LEAGUE_REPORT_FILE_CACHE_MAX_FILES = getLeagueReportFileCacheMaxFiles();
 const RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP = 250;
 const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');
 const MONTHLY_BLUEPRINT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'monthly-blueprints');
@@ -615,6 +618,67 @@ function getLeagueRankingsCacheKey(leagueId: string, prospectCacheSegment = 'pro
 function getLeagueReportFileCachePath(cacheKey: string): string {
   const digest = crypto.createHash('sha256').update(cacheKey).digest('hex');
   return path.join(LEAGUE_REPORT_FILE_CACHE_DIR, `${digest}.json`);
+}
+
+async function getLeagueReportFileCacheMetadata(cacheKey: string): Promise<{
+  cacheKey: string;
+  updatedAt: Date;
+  payloadSizeBytes: number;
+} | null> {
+  try {
+    const filePath = getLeagueReportFileCachePath(cacheKey);
+    const stats = await fs.stat(filePath);
+    if (isLeagueReportCacheExpired(stats.mtimeMs, Date.now(), LEAGUE_REPORT_CACHE_TTL_MS)) {
+      void fs.unlink(filePath).catch(() => {});
+      return null;
+    }
+    return {
+      cacheKey,
+      updatedAt: new Date(stats.mtimeMs),
+      payloadSizeBytes: stats.size,
+    };
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') {
+      console.warn('Failed to read file league report cache metadata:', error);
+    }
+    return null;
+  }
+}
+
+async function pruneLeagueReportFileCache(): Promise<void> {
+  try {
+    const entries = await fs.readdir(LEAGUE_REPORT_FILE_CACHE_DIR);
+    const files = (await Promise.all(
+      entries
+        .filter((fileName) => fileName.endsWith('.json'))
+        .map(async (fileName) => {
+          const filePath = path.join(LEAGUE_REPORT_FILE_CACHE_DIR, fileName);
+          try {
+            const stats = await fs.stat(filePath);
+            return { filePath, updatedAtMs: stats.mtimeMs };
+          } catch {
+            return null;
+          }
+        })
+    ))
+      .filter((entry): entry is { filePath: string; updatedAtMs: number } => Boolean(entry))
+      .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+
+    await Promise.allSettled(
+      files
+        .filter((entry, index) => shouldPruneLeagueReportFileCacheEntry({
+          updatedAtMs: entry.updatedAtMs,
+          index,
+          ttlMs: LEAGUE_REPORT_CACHE_TTL_MS,
+          maxFiles: LEAGUE_REPORT_FILE_CACHE_MAX_FILES,
+        }))
+        .map((entry) => fs.unlink(entry.filePath))
+    );
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') {
+      console.warn('Failed to prune file league report cache:', error);
+    }
+  }
 }
 
 function getMemoryCachedLeagueReport(cacheKey: string): unknown | null {
@@ -681,7 +745,10 @@ async function readFileCachedLeagueReport(cacheKey: string): Promise<unknown | n
   try {
     const filePath = getLeagueReportFileCachePath(cacheKey);
     const stats = await fs.stat(filePath);
-    if (Date.now() - stats.mtimeMs > LEAGUE_REPORT_CACHE_TTL_MS) return null;
+    if (isLeagueReportCacheExpired(stats.mtimeMs, Date.now(), LEAGUE_REPORT_CACHE_TTL_MS)) {
+      void fs.unlink(filePath).catch(() => {});
+      return null;
+    }
     return parseLeagueReportCachePayloadFromStorage(await fs.readFile(filePath, 'utf-8'));
   } catch (error: any) {
     if (error?.code !== 'ENOENT') {
@@ -695,9 +762,69 @@ async function writeFileCachedLeagueReport(cacheKey: string, payload: unknown): 
   try {
     await fs.mkdir(LEAGUE_REPORT_FILE_CACHE_DIR, { recursive: true });
     await fs.writeFile(getLeagueReportFileCachePath(cacheKey), serializeLeagueReportCachePayloadForStorage(payload));
+    void pruneLeagueReportFileCache();
   } catch (error) {
     console.warn('Failed to write file league report cache:', error);
   }
+}
+
+async function getLeagueReportCacheStatus(cacheKey: string, leagueId: string, viewerUserId?: string | null) {
+  const memoryCached = leagueReportMemoryCache.get(cacheKey);
+  if (memoryCached && !isLeagueReportCacheExpired(memoryCached.loadedAt, Date.now(), LEAGUE_REPORT_CACHE_TTL_MS)) {
+    return {
+      cacheKey,
+      leagueId,
+      viewerUserId: viewerUserId || null,
+      status: 'hit' as const,
+      source: 'memory' as const,
+      updatedAt: new Date(memoryCached.loadedAt).toISOString(),
+      ageMs: Date.now() - memoryCached.loadedAt,
+      payloadSizeBytes: null,
+      maxAgeHours: LEAGUE_REPORT_CACHE_TTL_HOURS,
+    };
+  }
+
+  const storedMetadata = await findLeagueReportCacheMetadata(cacheKey, LEAGUE_REPORT_CACHE_TTL_MS);
+  if (storedMetadata) {
+    return {
+      cacheKey: storedMetadata.cacheKey,
+      leagueId: storedMetadata.leagueId,
+      viewerUserId: storedMetadata.viewerUserId,
+      status: 'hit' as const,
+      source: 'database' as const,
+      updatedAt: storedMetadata.updatedAt.toISOString(),
+      ageMs: Date.now() - storedMetadata.updatedAt.getTime(),
+      payloadSizeBytes: storedMetadata.payloadSizeBytes,
+      maxAgeHours: LEAGUE_REPORT_CACHE_TTL_HOURS,
+    };
+  }
+
+  const fileMetadata = await getLeagueReportFileCacheMetadata(cacheKey);
+  if (fileMetadata) {
+    return {
+      cacheKey,
+      leagueId,
+      viewerUserId: viewerUserId || null,
+      status: 'hit' as const,
+      source: 'file' as const,
+      updatedAt: fileMetadata.updatedAt.toISOString(),
+      ageMs: Date.now() - fileMetadata.updatedAt.getTime(),
+      payloadSizeBytes: fileMetadata.payloadSizeBytes,
+      maxAgeHours: LEAGUE_REPORT_CACHE_TTL_HOURS,
+    };
+  }
+
+  return {
+    cacheKey,
+    leagueId,
+    viewerUserId: viewerUserId || null,
+    status: 'miss' as const,
+    source: 'none' as const,
+    updatedAt: null,
+    ageMs: null,
+    payloadSizeBytes: null,
+    maxAgeHours: LEAGUE_REPORT_CACHE_TTL_HOURS,
+  };
 }
 
 function getBlueprintSnapshotMonth(date = new Date()): string {
@@ -3762,6 +3889,24 @@ export const appRouter = router({
           leagueInfo,
           String(leagueInfo.season || new Date().getFullYear())
         );
+      }),
+
+    reportCacheStatus: publicProcedure
+      .input(z.object({ leagueId: sleeperLeagueIdSchema, viewerUserId: sleeperUserIdSchema.optional() }))
+      .query(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.reportCacheStatus',
+          max: 60,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId,
+          message: 'Too many report cache status checks for this league. Please wait a few minutes and try again.',
+        });
+
+        const reportCacheKey = getLeagueReportCacheKey(input.leagueId, input.viewerUserId);
+        return {
+          report: await getLeagueReportCacheStatus(reportCacheKey, input.leagueId, input.viewerUserId),
+        };
       }),
 
     getUserLeagueRanks: publicProcedure
