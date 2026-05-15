@@ -26,6 +26,7 @@ import { buildMatchupPreviews, buildPlayerScheduleProfiles, buildSchedulePlannin
 import { loadDraftSharksScheduleContext } from "./draftSharksSchedule";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
+import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -1007,9 +1008,10 @@ async function fetchLeagueTransactions(leagueId: string): Promise<any[]> {
   const weeks = await Promise.all(
     Array.from({ length: 18 }, (_, index) => index + 1).map(async (week) => {
       try {
-        const transactions = await fetch(
-          `https://api.sleeper.app/v1/league/${leagueId}/transactions/${week}`
-        ).then((r) => r.json());
+        const transactions = await fetchUserLoadJson<any[]>(
+          `https://api.sleeper.app/v1/league/${leagueId}/transactions/${week}`,
+          "league transaction load"
+        );
         return Array.isArray(transactions) ? transactions : [];
       } catch (error) {
         console.warn(`Failed to fetch Sleeper transactions for league ${leagueId} week ${week}:`, error);
@@ -1133,6 +1135,7 @@ function buildLeagueRosterValueRankings(
 
 async function fetchSleeperJson<T = any>(url: string): Promise<T | null> {
   try {
+    assertUserLoadAllowedLiveProviderUrl(url, "Sleeper API load");
     const response = await fetch(url);
     if (!response.ok) return null;
     return await response.json() as T;
@@ -1391,7 +1394,9 @@ async function fetchSleeperTradeCenterTransactions(leagueId: string, authToken: 
     }
   `;
 
-  const response = await fetch('https://api.sleeper.app/graphql', {
+  const hiddenSleeperGraphqlUrl = 'https://api.sleeper.app/graphql';
+  assertUserLoadAllowedLiveProviderUrl(hiddenSleeperGraphqlUrl, "hidden Sleeper import");
+  const response = await fetch(hiddenSleeperGraphqlUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1515,7 +1520,9 @@ function fetchSleeperPlayersIndex(): Promise<Record<string, any>> {
     return sleeperPlayersCache.promise;
   }
 
-  const promise = fetch("https://api.sleeper.app/v1/players/nfl")
+  const playersUrl = "https://api.sleeper.app/v1/players/nfl";
+  assertUserLoadAllowedLiveProviderUrl(playersUrl, "Sleeper player index load");
+  const promise = fetch(playersUrl)
     .then((response) => (response.ok ? response.json() : {}))
     .catch(() => ({}));
 
@@ -1939,7 +1946,7 @@ async function fetchPlayerAvailabilityHistory(
   const seasonRankMaps = await Promise.all(
     seasons.map(async (season) => [
       season,
-      await buildSleeperSeasonRankMap(season, players, scoringSettings, ['QB', 'RB', 'WR', 'TE'], { sourceMode: 'snapshot' }),
+      await buildSleeperSeasonRankMap(season, players, scoringSettings, ['QB', 'RB', 'WR', 'TE'], getUserLoadSnapshotOptions()),
     ] as const)
   );
   const seasonRankMapBySeason = Object.fromEntries(seasonRankMaps);
@@ -2534,9 +2541,10 @@ async function fetchTrendingPlayers(
   leagueValueMode: LeagueValueMode = 'dynasty',
   valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
 ): Promise<TrendingPlayer[]> {
-  const trending = await fetch(
-    `https://api.sleeper.app/v1/players/nfl/trending/${type}?lookback_hours=168&limit=15`
-  ).then((r) => r.json());
+  const trending = await fetchUserLoadJson<any[]>(
+    `https://api.sleeper.app/v1/players/nfl/trending/${type}?lookback_hours=168&limit=15`,
+    "Sleeper trending player load"
+  );
 
   if (!Array.isArray(trending)) return [];
 
@@ -3321,7 +3329,7 @@ async function fetchLastSeasonPositionRanks(
       const position = normalizeSeasonLineupPosition(players[playerId]?.position);
       return Boolean(position && rankPositions.includes(position));
     });
-  const rankMap = await buildSleeperSeasonRankMap(season, players, scoringSettings, rankPositions, { sourceMode: 'snapshot' });
+  const rankMap = await buildSleeperSeasonRankMap(season, players, scoringSettings, rankPositions, getUserLoadSnapshotOptions());
   return Object.fromEntries(
     uniquePlayerIds
       .map((playerId) => [playerId, rankMap[playerId]])
@@ -3333,9 +3341,10 @@ async function fetchDraftSlotsBySeason(
   leagueId: string,
   rosters: Array<{ roster_id: number; owner_id: string }>
 ): Promise<Record<string, Record<number, number>>> {
-  const drafts = await fetch(
-    `https://api.sleeper.app/v1/league/${leagueId}/drafts`
-  ).then((r) => r.json());
+  const drafts = await fetchUserLoadJson<any[]>(
+    `https://api.sleeper.app/v1/league/${leagueId}/drafts`,
+    "Sleeper draft load"
+  );
 
   if (!Array.isArray(drafts)) return {};
 
@@ -3469,7 +3478,7 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
   const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
   const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
   const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
-  const ktcValues = await loadBlendedKTCValues(leagueValueOptions, { sourceMode: 'snapshot' });
+  const ktcValues = await loadBlendedKTCValues(leagueValueOptions, getUserLoadSnapshotOptions());
   let ktcValuesLastWeek = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);
 
   if (!ktcValuesLastWeek || Object.keys(ktcValuesLastWeek).length === 0) {
@@ -3490,7 +3499,7 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
     prospectLookup: buildProspectLookup(prospectContext.profiles),
     prospectProfiles: prospectContext.profiles,
     leagueTeamCount: Number(leagueInfo?.total_rosters || leagueInfo?.settings?.num_teams || safeRosters.length || 12),
-    sourceMode: 'snapshot',
+    ...getUserLoadSnapshotOptions(),
   });
   const payload = { rankings };
   await writeCachedLeagueReport(rankingsCacheKey, leagueId, undefined, payload);
@@ -3624,9 +3633,9 @@ export const appRouter = router({
         const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
 
         try {
-          const userResponse = await fetch(
-            `https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`
-          );
+          const userUrl = `https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`;
+          assertUserLoadAllowedLiveProviderUrl(userUrl, "Sleeper username lookup");
+          const userResponse = await fetch(userUrl);
           if (!userResponse.ok) {
             await insertLoginAttempt({
               eventType: "find_leagues",
@@ -3656,9 +3665,9 @@ export const appRouter = router({
           const seenLeagueIds = new Set<string>();
           const leagues = [];
 
-          const leaguesResponse = await fetch(
-            `https://api.sleeper.app/v1/user/${user.user_id}/leagues/nfl/${currentSeason}`
-          );
+          const leaguesUrl = `https://api.sleeper.app/v1/user/${user.user_id}/leagues/nfl/${currentSeason}`;
+          assertUserLoadAllowedLiveProviderUrl(leaguesUrl, "Sleeper user league lookup");
+          const leaguesResponse = await fetch(leaguesUrl);
           const seasonLeagues = leaguesResponse.ok ? await leaguesResponse.json() : [];
 
           if (Array.isArray(seasonLeagues)) {
@@ -3765,7 +3774,7 @@ export const appRouter = router({
           const options = getLeagueValueBlendOptions(leagueInfo);
           const key = getValueSourceProfileKey(options);
           if (!leagueValueCache.has(key)) {
-            leagueValueCache.set(key, loadBlendedKTCValues(options, { sourceMode: 'snapshot' }));
+            leagueValueCache.set(key, loadBlendedKTCValues(options, getUserLoadSnapshotOptions()));
           }
           return leagueValueCache.get(key)!;
         };
@@ -3928,9 +3937,10 @@ export const appRouter = router({
             message: 'Fresh report generation is temporarily throttled for this league.',
           });
 
-          const leagueInfo = await fetch(
-            `https://api.sleeper.app/v1/league/${input.leagueId}`
-          ).then((r) => r.json());
+          const leagueInfo = await fetchUserLoadJson<any>(
+            `https://api.sleeper.app/v1/league/${input.leagueId}`,
+            "league analyze load"
+          );
           markAnalyzeStep('league info');
 
           if (!leagueInfo || typeof leagueInfo !== 'object' || !leagueInfo.league_id) {
@@ -3954,14 +3964,16 @@ export const appRouter = router({
             note: leagueInfo.name || null,
           });
 
-          const users = await fetch(
-            `https://api.sleeper.app/v1/league/${input.leagueId}/users`
-          ).then((r) => r.json());
+          const users = await fetchUserLoadJson<any[]>(
+            `https://api.sleeper.app/v1/league/${input.leagueId}/users`,
+            "league users load"
+          );
           markAnalyzeStep('users');
 
-          const rosters = await fetch(
-            `https://api.sleeper.app/v1/league/${input.leagueId}/rosters`
-          ).then((r) => r.json());
+          const rosters = await fetchUserLoadJson<any[]>(
+            `https://api.sleeper.app/v1/league/${input.leagueId}/rosters`,
+            "league rosters load"
+          );
           markAnalyzeStep('rosters');
 
           const userMap = Object.fromEntries(
@@ -3989,16 +4001,17 @@ export const appRouter = router({
           markAnalyzeStep('transactions');
           let adminTradeProposalSignals: NonNullable<ReportData['adminTradeProposalSignals']> = [];
 
-          const players = await fetch(
-            'https://api.sleeper.app/v1/players/nfl'
-          ).then((r) => r.json());
+          const players = await fetchUserLoadJson<Record<string, any>>(
+            'https://api.sleeper.app/v1/players/nfl',
+            "Sleeper player index load"
+          );
           markAnalyzeStep('players');
           adminTradeProposalSignals = buildTradeProposalSignals(allTransactions, rosterUserMap, players, null);
 
           const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
           const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
           const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
-          const ktcValues = await loadBlendedKTCValues(leagueValueOptions, { sourceMode: 'snapshot' });
+          const ktcValues = await loadBlendedKTCValues(leagueValueOptions, getUserLoadSnapshotOptions());
           markAnalyzeStep('current values');
           // Get the latest KTC snapshot from at least 7 days ago for weekly value-change calculations.
           const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);
@@ -4035,9 +4048,10 @@ export const appRouter = router({
           let draftSlotsBySeason = await fetchDraftSlotsBySeason(input.leagueId, rosters);
           let tradedPicks: Array<{ season: string; round: number; roster_id: number; owner_id: number }> = [];
           try {
-            const fetchedTradedPicks = await fetch(
-              `https://api.sleeper.app/v1/league/${input.leagueId}/traded_picks`
-            ).then((r) => r.json());
+            const fetchedTradedPicks = await fetchUserLoadJson<any[]>(
+              `https://api.sleeper.app/v1/league/${input.leagueId}/traded_picks`,
+              "league traded picks load"
+            );
             tradedPicks = Array.isArray(fetchedTradedPicks) ? fetchedTradedPicks : [];
           } catch (error) {
             console.warn('Failed to fetch traded picks:', error);
@@ -4045,15 +4059,18 @@ export const appRouter = router({
 
           if (prevLeagueId) {
             try {
-              const pastLeagueInfo = await fetch(
-                `https://api.sleeper.app/v1/league/${prevLeagueId}`
-              ).then((r) => r.json());
-              const pastUsers = await fetch(
-                `https://api.sleeper.app/v1/league/${prevLeagueId}/users`
-              ).then((r) => r.json());
-              const pastRosters = await fetch(
-                `https://api.sleeper.app/v1/league/${prevLeagueId}/rosters`
-              ).then((r) => r.json());
+              const pastLeagueInfo = await fetchUserLoadJson<any>(
+                `https://api.sleeper.app/v1/league/${prevLeagueId}`,
+                "previous Sleeper league load"
+              );
+              const pastUsers = await fetchUserLoadJson<any[]>(
+                `https://api.sleeper.app/v1/league/${prevLeagueId}/users`,
+                "previous Sleeper league users load"
+              );
+              const pastRosters = await fetchUserLoadJson<any[]>(
+                `https://api.sleeper.app/v1/league/${prevLeagueId}/rosters`,
+                "previous Sleeper league rosters load"
+              );
               const pastSeasonLabel = String(pastLeagueInfo.season || previousSeasonFallbackLabel);
               playoffWeekStartBySeason[pastSeasonLabel] = Number(pastLeagueInfo.settings?.playoff_week_start || 15);
               const pastUserMap = Object.fromEntries(
@@ -4191,7 +4208,7 @@ export const appRouter = router({
           }
           const draftSharksScheduleContext = await loadDraftSharksScheduleContext({
             season: currentSeasonLabel,
-            sourceMode: 'snapshot',
+            ...getUserLoadSnapshotOptions(),
           });
           markAnalyzeStep('schedule inputs');
           const reportData = await generateReport(
@@ -4236,9 +4253,10 @@ export const appRouter = router({
           let pastUserDisplayMap: Record<string, string> = {};
           const pastManagerDisplayNameByManager: Record<string, string> = {};
           if (pastSeasonData) {
-            const pastUsers = await fetch(
-              `https://api.sleeper.app/v1/league/${prevLeagueId}/users`
-            ).then((r) => r.json());
+            const pastUsers = await fetchUserLoadJson<any[]>(
+              `https://api.sleeper.app/v1/league/${prevLeagueId}/users`,
+              "previous Sleeper league users load"
+            );
             pastUserMap = Object.fromEntries(
               pastUsers.map((u: any) => [u.user_id, normalizeManagerName(u.display_name)])
             );
@@ -4446,8 +4464,8 @@ export const appRouter = router({
               leagueInfo.scoring_settings,
               lastCompletedSeason
             ),
-            fetchFantasyProsNews({ sourceMode: 'snapshot' }),
-            fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, { sourceMode: 'snapshot' }),
+            fetchFantasyProsNews(getUserLoadSnapshotOptions()),
+            fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, getUserLoadSnapshotOptions()),
             fetchSleeperPlayerResearchMap(sleeperResearchSeasonType, currentSeason),
             prevLeagueId && pastSeasonData
               ? fetchSleeperLeagueUsageSummary(
@@ -4598,7 +4616,7 @@ export const appRouter = router({
           playerName,
           team: input.team || null,
           position: input.position || null,
-          sourceMode: 'snapshot',
+          ...getUserLoadSnapshotOptions(),
         });
 
         return {
