@@ -18,12 +18,11 @@ import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draf
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
-import { fetchFantasyProsLatestPlayerNews, fetchFantasyProsNews, findLatestFantasyProsNewsForPlayer } from "./fantasyPros";
+import { fetchFantasyProsLatestPlayerNews, findLatestFantasyProsNewsForPlayer, type FantasyProsNewsItem } from "./fantasyPros";
 import { buildRankingsBoard } from "./rankingsBoard";
 import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persistLeagueAiConfidenceSnapshot } from "./leagueAiConfidence";
 import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
 import { buildMatchupPreviews, buildPlayerScheduleProfiles, buildSchedulePlanningSummary } from "./schedulePlanning";
-import { loadDraftSharksScheduleContext } from "./draftSharksSchedule";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
@@ -31,6 +30,7 @@ import { loadSourceSnapshotFreshnessDiagnostics } from "./sourceSnapshotFreshnes
 import { slimCachedLeagueReportPayload } from "./reportPayloadSlimming";
 import { buildRankingDraftBuzzDetail, buildRankingProfileDetail, buildRankingsMetadata } from "./rankingPayloadViews";
 import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueReportFileCacheMaxFiles, isLeagueReportCacheExpired, shouldPruneLeagueReportFileCacheEntry } from "./leagueReportCachePolicy";
+import { loadReportStaticInputs } from "./reportStaticInputs";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -2650,7 +2650,7 @@ function buildSimilarTradeValueMap(
 function buildLatestNewsByPlayerId(
   playerIds: Iterable<string>,
   players: Record<string, any>,
-  newsItems: Awaited<ReturnType<typeof fetchFantasyProsNews>>
+  newsItems: FantasyProsNewsItem[]
 ): Record<string, NonNullable<PlayerDetails['latestNews']>> {
   const requestedIds = Array.from(new Set(Array.from(playerIds).filter(Boolean)));
   const entries: Array<[string, NonNullable<PlayerDetails['latestNews']>]> = [];
@@ -4224,27 +4224,28 @@ export const appRouter = router({
           const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
           const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
           const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
-          const ktcValues = await loadBlendedKTCValues(leagueValueOptions, getUserLoadSnapshotOptions());
-          markAnalyzeStep('current values');
-          // Get the latest KTC snapshot from at least 7 days ago for weekly value-change calculations.
-          const ktcValuesLastWeekRaw = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);
-          let ktcValuesLastWeek: KTCValues = {};
-          
-          if (ktcValuesLastWeekRaw && Object.keys(ktcValuesLastWeekRaw).length > 0) {
-            ktcValuesLastWeek = ktcValuesLastWeekRaw;
-          } else {
-            ktcValuesLastWeek = loadLatestLocalWeeklyMomentumSnapshot(leagueValueProfileKey);
-            if (Object.keys(ktcValuesLastWeek).length === 0) {
-              ktcValuesLastWeek = await loadKTCValuesLastWeek();
-            }
-          }
-          markAnalyzeStep('weekly baseline values');
-
           const leagueValueMode = getLeagueValueMode(leagueInfo);
           const prevLeagueId = leagueInfo.previous_league_id;
           const currentSeasonLabel = String(leagueInfo.season || new Date().getFullYear());
           const currentScheduleWeek = getSleeperCurrentWeek(leagueInfo);
           const previousSeasonFallbackLabel = String(Number(currentSeasonLabel) - 1);
+          const lastCompletedSeason = previousSeasonFallbackLabel;
+          const staticInputs = await loadReportStaticInputs({
+            leagueId: input.leagueId,
+            leagueValueOptions,
+            leagueValueProfileKey,
+            currentSeason: currentSeasonLabel,
+            lastCompletedSeason,
+            forceRefresh,
+          });
+          const {
+            ktcValues,
+            ktcValuesLastWeek,
+            draftSharksScheduleContext,
+            prospectContext,
+            fantasyProsNews,
+          } = staticInputs;
+          markAnalyzeStep(`static snapshot inputs ${staticInputs.cacheStatus}`);
           const playoffWeekStartBySeason: Record<string, number> = {
             [currentSeasonLabel]: Number(leagueInfo.settings?.playoff_week_start || 15),
           };
@@ -4383,7 +4384,6 @@ export const appRouter = router({
             valueBlendProfileKey: leagueValueProfileKey,
             valueBlendProfileLabel: leagueValueProfileLabel,
           };
-          const lastCompletedSeason = String(Number(currentSeasonData.label) - 1);
           let lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {};
           try {
             const rosteredPlayerIds = rosters.flatMap((roster: any) => roster.players || []);
@@ -4419,10 +4419,6 @@ export const appRouter = router({
           } catch (error) {
             console.warn('Failed to fetch current-week Sleeper matchups:', error);
           }
-          const draftSharksScheduleContext = await loadDraftSharksScheduleContext({
-            season: currentSeasonLabel,
-            ...getUserLoadSnapshotOptions(),
-          });
           markAnalyzeStep('schedule inputs');
           const reportData = await generateReport(
             currentSeasonData,
@@ -4638,7 +4634,6 @@ export const appRouter = router({
           ].slice(0, 80);
           const transactionBackfillDiagnostics = buildTransactionBackfillDiagnostics(historicalTransactionContexts);
           markAnalyzeStep('derived report tables');
-          const prospectContext = await loadProspectContext();
           const prospectLookup = buildProspectLookup(prospectContext.profiles);
           const managerChampionships = await buildManagerChampionships(leagueInfo, users, rosters);
           markAnalyzeStep('prospects and crowns');
@@ -4666,7 +4661,6 @@ export const appRouter = router({
           const sleeperResearchSeasonType = String(leagueInfo.season_type || 'regular');
           const [
             availabilityHistoryById,
-            fantasyProsNews,
             depthChartResult,
             sleeperResearchByPlayerId,
             pastSeasonUsageByPlayerId,
@@ -4677,7 +4671,6 @@ export const appRouter = router({
               leagueInfo.scoring_settings,
               lastCompletedSeason
             ),
-            fetchFantasyProsNews(getUserLoadSnapshotOptions()),
             fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, getUserLoadSnapshotOptions()),
             fetchSleeperPlayerResearchMap(sleeperResearchSeasonType, currentSeason),
             prevLeagueId && pastSeasonData

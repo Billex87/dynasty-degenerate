@@ -18,6 +18,7 @@ Current guardrails:
 - Ranking UI loads now start with `league.rankingsMeta`, then fetch one selected profile through `league.rankingProfile` or the prospect archive through `league.rankingDraftBuzz`. This keeps full ranking rows and scouting summaries out of the initial rankings payload.
 - `league.reportCacheStatus` checks report-cache freshness with metadata only: cache key, source, updated time, age, and payload byte size. It does not deserialize or return the cached report payload.
 - Server report-cache serving TTL defaults to 12 hours and can be tuned with `LEAGUE_REPORT_CACHE_TTL_HOURS`. The local file cache is pruned by the same TTL plus `LEAGUE_REPORT_FILE_CACHE_MAX_FILES` so stale fallback blobs do not accumulate.
+- `server/reportStaticInputs.ts` splits snapshot-backed report inputs from live Sleeper state. Normal report generation still refreshes Sleeper league/users/rosters/transactions/drafts/trends/matchups, but reuses cached nightly-backed values, weekly baseline values, FantasyPros news, DraftSharks/SOS, and prospect context when the static-input cache is fresh.
 
 ## Runtime Contract
 
@@ -26,3 +27,4 @@ Current guardrails:
 - Non-Sleeper refreshes belong in scheduled jobs, admin-only diagnostics, maintenance scripts, or explicit one-off probes.
 - Stored snapshot reads can be used freely during report loads because they do not add live provider latency or API cost.
 - Cache status checks should use metadata-only helpers/endpoints unless the caller needs to render the actual report.
+- Static report input cache hits must never skip live Sleeper current-state reads.

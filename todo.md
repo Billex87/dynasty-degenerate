@@ -36,7 +36,8 @@
 - [x] Reduce rankings transfer by dropping duplicate legacy ranking arrays from transfer/cache payloads and compacting repeated prospect profile details in ranking rows while preserving full prospect detail through the Draft Buzz scoreboard copy.
 - [x] Reduce transfer further with ranking metadata/detail endpoints: normal rankings loads now fetch metadata first, then load only the active ranking profile or prospect archive detail when the UI opens it.
 - [x] Reduce transfer further with tighter cache TTL/retention and expanded metadata-only cache/status reads: report-cache TTL is configurable, local file-cache fallbacks prune expired/overflow entries, expired cleanup follows the serving TTL by default, and `league.reportCacheStatus` reads freshness metadata without hydrating full payloads.
-- [ ] Split generated report caches into Sleeper-current-state and snapshot-backed static sections so logins can refresh only Sleeper adds/drops/trades/rosters while reusing nightly source snapshots and static report sections.
+- [x] Split generated report inputs into Sleeper-current-state and snapshot-backed static sections: `league.analyze` still refreshes live Sleeper league/users/rosters/transactions/drafts/trends/matchups, while cached static inputs reuse nightly-backed values, weekly baselines, FantasyPros news, DraftSharks/SOS, and prospect context.
+- [ ] Split generated report output sections further so fully static rendered sections can be reused across login refreshes, while mixed sections recompose from fresh Sleeper state plus cached static inputs.
 - [x] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
 - [x] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
 - [x] Revisit KeepTradeCut trade-database access later; only integrate it if we can get a stable, approved data path instead of a brittle scrape.
