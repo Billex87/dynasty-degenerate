@@ -65,6 +65,12 @@ import {
   normalizeLeagueValueMode,
   type LeagueValueMode,
 } from "@/lib/leagueValueMode";
+import {
+  buildManagerPositionRoomPreview,
+  buildOwnerIdentityPreview,
+  buildRosterStarterPreview,
+  buildTaxiTriagePreview,
+} from "@/lib/overviewInsights";
 import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { getPositionRankClass } from "@/lib/positionRank";
 import { UNAUTHED_ERR_MSG } from "@shared/const";
@@ -500,14 +506,6 @@ function buildLeagueFormatPills(
   return chips;
 }
 
-function getBestManagerByValue(data: ReportData): string | null {
-  return (
-    [...(data.leagueOverview || [])].sort(
-      (a, b) => a.rank_value - b.rank_value
-    )[0]?.manager || null
-  );
-}
-
 const OWNER_INTEL_SORT_OPTIONS: Array<{
   key: OwnerIntelSortMode;
   label: string;
@@ -542,62 +540,6 @@ function renderPreviewManagerIdentity(
       <span className="analysis-preview-manager-name">{manager}</span>
     </span>
   );
-}
-
-function getOwnerIntelPreviewScore(
-  data: ReportData,
-  manager: string,
-  sortMode: OwnerIntelSortMode
-): number | null {
-  const powerRow = data.powerRankings?.find(row => row.manager === manager);
-  const timelineRow = data.dynastyTimelines?.find(
-    row => row.manager === manager
-  );
-
-  const score =
-    sortMode === "contender"
-      ? (timelineRow?.contenderScore ?? powerRow?.starterStrength)
-      : sortMode === "rebuilder"
-        ? (timelineRow?.rebuildScore ?? powerRow?.draftCapital)
-        : powerRow?.rosterValue;
-
-  const numericScore = Number(score);
-  return Number.isFinite(numericScore) ? numericScore : null;
-}
-
-function getOwnerIntelPreviewManagers(
-  data: ReportData,
-  sortMode: OwnerIntelSortMode
-): {
-  leader: string | null;
-  weakest: string | null;
-} {
-  const managers = Array.from(
-    new Set(
-      [
-        ...(data.managerRosterIntelligence || []).map(row => row.manager),
-        ...(data.leagueOverview || []).map(row => row.manager),
-      ].filter(Boolean)
-    )
-  );
-
-  const scoredManagers = managers
-    .map(manager => ({
-      manager,
-      score: getOwnerIntelPreviewScore(data, manager, sortMode),
-    }))
-    .filter(
-      (item): item is { manager: string; score: number } => item.score !== null
-    )
-    .sort((a, b) => b.score - a.score || a.manager.localeCompare(b.manager));
-
-  return {
-    leader: scoredManagers[0]?.manager || null,
-    weakest:
-      scoredManagers.length > 1
-        ? scoredManagers[scoredManagers.length - 1].manager
-        : null,
-  };
 }
 
 function OwnerIntelSortControls({
@@ -637,104 +579,46 @@ function buildOwnerPreviewMetrics(
   mode: LeagueValueMode,
   sortMode: OwnerIntelSortMode = "dynasty"
 ): PreviewMetric[] {
-  const valueLeader = getBestManagerByValue(data);
-  const starterLeader = [...(data.powerRankings || [])].sort(
-    (a, b) => b.starterStrength - a.starterStrength
-  )[0]?.manager;
-  const starterWeakest = [...(data.powerRankings || [])].sort(
-    (a, b) => a.starterStrength - b.starterStrength
-  )[0]?.manager;
-  const ownerPreviewManagers = getOwnerIntelPreviewManagers(data, sortMode);
+  const sortLabel =
+    OWNER_INTEL_SORT_OPTIONS.find(option => option.key === sortMode)?.label ||
+    "Dynasty";
+  const preview = buildOwnerIdentityPreview(data, mode, sortLabel);
 
-  return mode === "redraft"
-    ? ([
-        {
-          label: "Starter Leader",
-          value: renderPreviewManagerIdentity(
-            starterLeader || valueLeader,
-            data.managerAvatars
-          ),
-          tone: "good",
-          className: "analysis-preview-chip-manager-preview",
-        },
-        starterWeakest
-          ? {
-              label: "Weakest",
-              value: renderPreviewManagerIdentity(
-                starterWeakest,
-                data.managerAvatars
-              ),
-              tone: "warn",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
-      ].filter(Boolean) as PreviewMetric[])
-    : ([
-        {
-          label: "Leader",
-          value: renderPreviewManagerIdentity(
-            ownerPreviewManagers.leader || valueLeader,
-            data.managerAvatars
-          ),
-          tone: "good",
-          className: "analysis-preview-chip-manager-preview",
-        },
-        ownerPreviewManagers.weakest
-          ? {
-              label: "Weakest",
-              value: renderPreviewManagerIdentity(
-                ownerPreviewManagers.weakest,
-                data.managerAvatars
-              ),
-              tone: "warn",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
-      ].filter(Boolean) as PreviewMetric[]);
+  return [
+    {
+      label: "Owner Profiles",
+      compactLabel: "Profiles",
+      value: preview.profileCount,
+      tone: preview.profileCount ? "info" : "warn",
+    },
+    {
+      label: "Identity Lens",
+      compactLabel: "Lens",
+      value: preview.identityLens,
+      tone: "neutral",
+    },
+  ];
 }
 
 function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
-  const starterRows = [...(data.managerRosterIntelligence || [])].filter(
-    row => row.manager
-  );
-  const starterScoreByManager = new Map(
-    (data.powerRankings || []).map(row => [
-      row.manager,
-      row.starterStrength || 0,
-    ])
-  );
-  const getStarterPreviewScore = (
-    row: NonNullable<ReportData["managerRosterIntelligence"]>[number]
-  ) =>
-    row.starterSeasonValue ||
-    row.starterValue ||
-    starterScoreByManager.get(row.manager) ||
-    0;
-  const orderedStarterRows = starterRows.sort(
-    (a, b) => getStarterPreviewScore(b) - getStarterPreviewScore(a)
-  );
-  const strongestStarterManager = orderedStarterRows[0]?.manager || null;
-  const weakestStarterManager =
-    orderedStarterRows.length > 1
-      ? orderedStarterRows[orderedStarterRows.length - 1]?.manager || null
-      : null;
+  const preview = buildRosterStarterPreview(data);
   return [
     {
       label: "Strongest Starters",
       compactLabel: "Strongest",
       value: renderPreviewManagerIdentity(
-        strongestStarterManager,
+        preview.strongestStarterManager,
         data.managerAvatars
       ),
       tone: "good",
       className: "analysis-preview-chip-starter-room",
     },
-    weakestStarterManager
+    preview.weakestStarterManager
       ? {
           label: "Weakest Starters",
           compactLabel: "Weakest",
           value: renderPreviewManagerIdentity(
-            weakestStarterManager,
+            preview.weakestStarterManager,
             data.managerAvatars
           ),
           tone: "warn",
@@ -745,62 +629,32 @@ function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
 }
 
 function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
-  const taxiRows = [...(data.managerRosterIntelligence || [])]
-    .filter(row => row.manager && (row.taxiTriage?.items.length || 0) > 0)
-    .map(row => ({
-      row,
-      promoteCount: Number(row.taxiTriage?.counts["Promote Now"] || 0),
-      cutCount: Number(row.taxiTriage?.counts.Cuttable || 0),
-    }));
-
-  if (!taxiRows.length) return [];
-
-  const mostPromotable =
-    [...taxiRows]
-      .filter(({ promoteCount }) => promoteCount > 0)
-      .sort(
-        (a, b) =>
-          b.promoteCount - a.promoteCount ||
-          b.cutCount - a.cutCount ||
-          (b.row.taxiTriage?.items.length || 0) -
-            (a.row.taxiTriage?.items.length || 0) ||
-          a.row.manager.localeCompare(b.row.manager)
-      )[0] || null;
-  const mostCuttable =
-    [...taxiRows]
-      .filter(({ cutCount }) => cutCount > 0)
-      .sort(
-        (a, b) =>
-          b.cutCount - a.cutCount ||
-          b.promoteCount - a.promoteCount ||
-          (b.row.taxiTriage?.items.length || 0) -
-            (a.row.taxiTriage?.items.length || 0) ||
-          a.row.manager.localeCompare(b.row.manager)
-      )[0] || null;
+  const preview = buildTaxiTriagePreview(data);
+  if (!preview) return [];
 
   return [
-    mostPromotable
+    preview.mostPromotableManager
       ? {
           label:
-            mostPromotable.promoteCount === 1
+            preview.promoteCount === 1
               ? "Most Promotable"
-              : `Most Promotable (${mostPromotable.promoteCount})`,
+              : `Most Promotable (${preview.promoteCount})`,
           value: renderPreviewManagerIdentity(
-            mostPromotable.row.manager,
+            preview.mostPromotableManager,
             data.managerAvatars
           ),
           tone: "good",
           className: "analysis-preview-chip-manager-preview",
         }
       : null,
-    mostCuttable
+    preview.mostCuttableManager
       ? {
           label:
-            mostCuttable.cutCount === 1
+            preview.cutCount === 1
               ? "Most Cuttable"
-              : `Most Cuttable (${mostCuttable.cutCount})`,
+              : `Most Cuttable (${preview.cutCount})`,
           value: renderPreviewManagerIdentity(
-            mostCuttable.row.manager,
+            preview.mostCuttableManager,
             data.managerAvatars
           ),
           tone: "warn",
@@ -813,63 +667,32 @@ function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
 function buildManagerPositionRoomPreviewMetrics(
   data: ReportData
 ): PreviewMetric[] {
-  const rosterCapacity = Number(
-    data.leagueDiagnostics?.totalRosterSlots ||
-      (data.leagueDiagnostics?.rosterSlots?.length || 0) +
-        Number(data.leagueDiagnostics?.reserveSlots || 0) +
-        Number(data.leagueDiagnostics?.taxiSlots || 0)
-  );
-  if (!rosterCapacity) return [];
-
-  const roomRows = [...(data.managerPositionCounts || [])]
-    .filter(row => row.manager)
-    .map(row => ({
-      row,
-      room: rosterCapacity - Number(row.totalRosterPlayerCount || 0),
-    }));
-
-  const needToDrop =
-    roomRows
-      .filter(({ room }) => room < 0)
-      .sort(
-        (a, b) =>
-          a.room - b.room ||
-          Number(b.row.totalRosterPlayerCount || 0) -
-            Number(a.row.totalRosterPlayerCount || 0) ||
-          a.row.manager.localeCompare(b.row.manager)
-      )[0] || null;
-  const openRoom =
-    roomRows
-      .filter(({ room }) => room > 0)
-      .sort(
-        (a, b) =>
-          b.room - a.room ||
-          Number(a.row.totalRosterPlayerCount || 0) -
-            Number(b.row.totalRosterPlayerCount || 0) ||
-          a.row.manager.localeCompare(b.row.manager)
-      )[0] || null;
+  const preview = buildManagerPositionRoomPreview(data);
+  if (!preview) return [];
 
   return [
-    needToDrop
+    preview.needToDropManager
       ? {
           label:
-            needToDrop.room === -1
+            preview.needToDropCount === 1
               ? "Must Drop (1)"
-              : `Must Drop (${Math.abs(needToDrop.room)})`,
+              : `Must Drop (${preview.needToDropCount})`,
           value: renderPreviewManagerIdentity(
-            needToDrop.row.manager,
+            preview.needToDropManager,
             data.managerAvatars
           ),
           tone: "warn",
           className: "analysis-preview-chip-manager-preview",
         }
       : null,
-    openRoom
+    preview.openRoomManager
       ? {
           label:
-            openRoom.room === 1 ? "Can Add (1)" : `Can Add (${openRoom.room})`,
+            preview.openRoomCount === 1
+              ? "Can Add (1)"
+              : `Can Add (${preview.openRoomCount})`,
           value: renderPreviewManagerIdentity(
-            openRoom.row.manager,
+            preview.openRoomManager,
             data.managerAvatars
           ),
           tone: "good",
@@ -5838,18 +5661,16 @@ export default function Home() {
                           <OverviewAIPulse data={reportDataForView} />
                           <CollapsibleReportSection
                             title="Monthly Team Blueprint"
-                            kicker="Roster health, market signals, and action plan"
+                            kicker="Monthly direction, roster age, and plan cadence"
                             premium
                             previewMetrics={[
                               {
-                                label: "Managers",
-                                value:
-                                  reportData.managerRosterIntelligence
-                                    ?.length || 0,
-                                tone: "info",
+                                label: "Cadence",
+                                value: "Monthly",
+                                tone: "neutral",
                               },
                               {
-                                label: "Format",
+                                label: "Plan Lens",
                                 value:
                                   leagueValueMode === "redraft"
                                     ? "Season"
@@ -5857,7 +5678,7 @@ export default function Home() {
                                 tone: "neutral",
                               },
                               {
-                                label: "History",
+                                label: "Snapshot",
                                 value: reportData.weeklyRisers?.length
                                   ? "Partial"
                                   : "Current",
@@ -5878,23 +5699,23 @@ export default function Home() {
                             title="League Power Rankings"
                             kicker={
                               isRedraftReport
-                                ? "Weekly power, starter strength, depth, and roster flaws"
-                                : "Power, roster value, starters, age, and flaws"
+                                ? "Weekly league ordering and relative strength tiers"
+                                : "League ordering, value tiers, and relative strength"
                             }
                             premium
                             previewMetrics={[
                               {
-                                label: "Teams",
+                                label: "Ranked Teams",
+                                compactLabel: "Teams",
                                 value: reportData.powerRankings?.length || 0,
                                 tone: reportData.powerRankings?.length
                                   ? "info"
                                   : "warn",
                               },
                               {
-                                label: "Top Team",
-                                value:
-                                  reportData.powerRankings?.[0]?.manager || "-",
-                                tone: "good",
+                                label: "Ordering",
+                                value: "Power",
+                                tone: "neutral",
                               },
                               {
                                 label: "Lens",
@@ -5910,18 +5731,28 @@ export default function Home() {
                           </CollapsibleReportSection>
                           <CollapsibleReportSection
                             title="Team Breakdown & Roster Recon"
-                            kicker="Strengths, leaks, surplus, and next move"
+                            kicker="Per-roster strengths, leaks, surplus, and next move"
                             premium
                             previewMetrics={[
                               {
-                                label: "Recon Teams",
+                                label: "Scope",
+                                value: "Team-by-team",
+                                tone: "neutral",
+                              },
+                              {
+                                label: "Recon Rows",
+                                compactLabel: "Rows",
                                 value:
                                   reportData.managerRosterIntelligence
                                     ?.length || 0,
-                                tone: "info",
+                                tone: reportData.managerRosterIntelligence
+                                  ?.length
+                                  ? "info"
+                                  : "warn",
                               },
                               {
-                                label: "Depth Flags",
+                                label: "Flag Source",
+                                compactLabel: "Flags",
                                 value: reportData.positionDepth?.length || 0,
                                 tone: reportData.positionDepth?.length
                                   ? "warn"
@@ -5938,29 +5769,25 @@ export default function Home() {
                             title="Trade Finder, Partners & League Exploits"
                             kicker={
                               isRedraftReport
-                                ? "Starter upgrades, roster need matching, and weekly pressure points"
-                                : "Fair packages, roster need matching, and league-wide pressure points"
+                                ? "Trade partners, upgrade lanes, and weekly pressure points"
+                                : "Trade partners, package lanes, and league pressure points"
                             }
                             premium
                             previewMetrics={[
                               {
-                                label: "Managers",
-                                value:
-                                  reportData.managerRosterIntelligence
-                                    ?.length || 0,
+                                label: "Owner",
+                                value: "Trade market",
+                                tone: "neutral",
+                              },
+                              {
+                                label: "Inputs",
+                                value: isRedraftReport
+                                  ? "Needs/Fits"
+                                  : "Needs/Picks",
                                 tone: "info",
                               },
                               {
-                                label: "Position Signals",
-                                value: reportData.positionDepth?.length || 0,
-                                tone: reportData.positionDepth?.length
-                                  ? "warn"
-                                  : "neutral",
-                              },
-                              {
-                                label: isRedraftReport
-                                  ? "Roster Fits"
-                                  : "Pick Portfolios",
+                                label: isRedraftReport ? "Fit Rows" : "Pick Rows",
                                 value: isRedraftReport
                                   ? reportData.managerRosterIntelligence
                                       ?.length || 0
@@ -5996,28 +5823,18 @@ export default function Home() {
                               premium
                               previewMetrics={[
                                 {
-                                  label: "Waiver Adds",
-                                  value:
-                                    reportData.waiverIntelligence
-                                      ?.availableTrendingAdds?.length || 0,
-                                  tone: reportData.waiverIntelligence
-                                    ?.availableTrendingAdds?.length
-                                    ? "good"
-                                    : "warn",
+                                  label: "Status",
+                                  value: "Shells",
+                                  tone: "neutral",
                                 },
                                 {
-                                  label: "Lineup Maps",
-                                  value:
-                                    reportData.managerPositionCounts?.length ||
-                                    0,
+                                  label: "Data",
+                                  value: "No fake reads",
                                   tone: "info",
                                 },
                                 {
-                                  label: "News Flags",
-                                  value: Object.values(
-                                    reportData.playerDetailsById || {}
-                                  ).filter(details => details.latestNews)
-                                    .length,
+                                  label: "Mode",
+                                  value: "Inventory",
                                   tone: "neutral",
                                 },
                               ]}

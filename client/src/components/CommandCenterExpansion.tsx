@@ -28,16 +28,30 @@ import { EmptyState, MetricPill, PlayerIdentityRow } from './reportPrimitives';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame } from './ManagerChampionships';
 import { TeamLogoPill } from './TeamLogoPill';
-import { getLeagueModeCopy, normalizeLeagueValueMode } from '@/lib/leagueValueMode';
+import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import { trpc } from '@/lib/trpc';
+import {
+  OVERVIEW_POSITIONS as POSITIONS,
+  buildOverviewPulseRead,
+  getOverviewDefaultManager as getDefaultManager,
+  getOverviewIntel as getIntel,
+  getOverviewLeagueSize as getLeagueSize,
+  getOverviewManagerOptions as getManagerOptions,
+  getOverviewNeedPosition as getNeedPosition,
+  getOverviewPositionGrade as getPositionGrade,
+  getOverviewPositionRank as getPositionRank,
+  getOverviewPower as getPower,
+  getOverviewRankGrade as getRankGrade,
+  getOverviewRow as getOverview,
+  getOverviewSurplusPosition as getSurplusPosition,
+  getOverviewValueTier as getValueTier,
+  type OverviewManagerIntelRow as ManagerIntelRow,
+  type OverviewPosition as Position,
+} from '@/lib/overviewInsights';
 
 type ManagerAvatars = ReportData['managerAvatars'];
-type ManagerIntelRow = NonNullable<ReportData['managerRosterIntelligence']>[number];
-type OverviewRow = ReportData['leagueOverview'][number];
-type PowerRow = NonNullable<ReportData['powerRankings']>[number];
-type Position = 'QB' | 'RB' | 'WR' | 'TE';
 type BlueprintSignal = 'buy' | 'hold' | 'sell';
 type BlueprintActionRow = {
   player: ManagerIntelPlayer;
@@ -58,7 +72,6 @@ type BlueprintTrendPoint = {
   y: number;
 };
 
-const POSITIONS: Position[] = ['QB', 'RB', 'WR', 'TE'];
 const BLUEPRINT_TIERS = ['Elite', 'Championship', 'Contending', 'Reload', 'Rebuild'];
 const WATCH_ALERT_PREFERENCES_KEY = 'dynasty-degenerates:watch-alert-preferences:v1';
 const PORTFOLIO_SNAPSHOT_KEY = 'dynasty-degenerates:portfolio-snapshots:v1';
@@ -495,76 +508,6 @@ function getTradePlanOutcomeStatus(data: ReportData, plan: ActionPlanRecord): Ac
   return null;
 }
 
-function getManagerOptions(data: ReportData): string[] {
-  const names = [
-    ...(data.managerRosterIntelligence || []).map((row) => row.manager),
-    ...(data.leagueOverview || []).map((row) => row.manager),
-  ];
-  return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
-}
-
-function getDefaultManager(data: ReportData): string {
-  return data.viewerManager
-    || [...(data.leagueOverview || [])].sort((a, b) => a.rank_value - b.rank_value)[0]?.manager
-    || data.managerRosterIntelligence?.[0]?.manager
-    || '';
-}
-
-function getIntel(data: ReportData, manager?: string | null): ManagerIntelRow | null {
-  if (!manager) return null;
-  return data.managerRosterIntelligence?.find((row) => row.manager === manager) || null;
-}
-
-function getOverview(data: ReportData, manager?: string | null): OverviewRow | null {
-  if (!manager) return null;
-  return data.leagueOverview?.find((row) => row.manager === manager) || null;
-}
-
-function getPower(data: ReportData, manager?: string | null): PowerRow | null {
-  if (!manager) return null;
-  return data.powerRankings?.find((row) => row.manager === manager) || null;
-}
-
-function getLeagueSize(data: ReportData): number {
-  return data.leagueDiagnostics?.teamCount || data.leagueOverview?.length || data.managerRosterIntelligence?.length || 12;
-}
-
-function getRankGrade(rank?: number | null, leagueSize = 12): number {
-  const numericRank = Number(rank);
-  if (!Number.isFinite(numericRank) || numericRank <= 0) return 5;
-  const percentile = 1 - (numericRank - 1) / Math.max(1, leagueSize - 1);
-  return clamp(Math.round(2 + percentile * 8), 1, 10);
-}
-
-function getValueTier(rank?: number | null, leagueSize = 12): string {
-  const grade = getRankGrade(rank, leagueSize);
-  if (grade >= 9) return 'Elite';
-  if (grade >= 7) return 'Championship';
-  if (grade >= 5) return 'Contending';
-  if (grade >= 3) return 'Reload';
-  return 'Rebuild';
-}
-
-function getPositionRank(overview: OverviewRow | null, position: Position): number | null {
-  if (!overview) return null;
-  if (position === 'QB') return overview.rank_qb;
-  if (position === 'RB') return overview.rank_rb;
-  if (position === 'WR') return overview.rank_wr;
-  return overview.rank_te;
-}
-
-function getPositionGrade(data: ReportData, intel: ManagerIntelRow | null, overview: OverviewRow | null, position: Position): string {
-  const directGrade = intel?.positionGrades?.[position]?.grade;
-  if (directGrade) return directGrade;
-  return String(getRankGrade(getPositionRank(overview, position), getLeagueSize(data)));
-}
-
-function getValueShare(data: ReportData, overview: OverviewRow | null): number | null {
-  if (!overview) return null;
-  const total = (data.leagueOverview || []).reduce((sum, row) => sum + (row.total_val || 0), 0);
-  return total > 0 ? (overview.total_val / total) * 100 : null;
-}
-
 function getFormatBadges(data: ReportData): string[] {
   const diagnostics = data.leagueDiagnostics;
   const teamCount = diagnostics?.teamCount || data.leagueOverview?.length;
@@ -727,52 +670,6 @@ function renderPlayerList(players: ManagerIntelPlayer[] | undefined, empty = 'No
   );
 }
 
-function getTopStrength(power: PowerRow | null, overview: OverviewRow | null): string {
-  if (!power && !overview) return 'No rank data';
-  const candidates = [
-    { label: 'Starter strength', value: power?.starterStrength || 0 },
-    { label: 'Roster value', value: power?.rosterValue || 0 },
-    { label: 'Positional balance', value: power?.positionalBalance || 0 },
-    { label: 'Draft capital', value: power?.draftCapital || 0 },
-    { label: 'Youth curve', value: power?.youthScore || 0 },
-    ...POSITIONS.map((position) => ({
-      label: `${position} room`,
-      value: 12 - (getPositionRank(overview, position) || 12),
-    })),
-  ];
-  return candidates.sort((a, b) => b.value - a.value)[0]?.label || 'No rank data';
-}
-
-function getBiggestWeakness(power: PowerRow | null, overview: OverviewRow | null): string {
-  if (!power && !overview) return 'No rank data';
-  const candidates = [
-    { label: 'Starter strength', value: power?.starterStrength ?? 50 },
-    { label: 'Roster value', value: power?.rosterValue ?? 50 },
-    { label: 'Positional balance', value: power?.positionalBalance ?? 50 },
-    { label: 'Draft capital', value: power?.draftCapital ?? 50 },
-    { label: 'Youth curve', value: power?.youthScore ?? 50 },
-    ...POSITIONS.map((position) => ({
-      label: `${position} room`,
-      value: 100 - (getPositionRank(overview, position) || 12) * 6,
-    })),
-  ];
-  return candidates.sort((a, b) => a.value - b.value)[0]?.label || 'No rank data';
-}
-
-function getNeedPosition(data: ReportData, manager: string): Position | null {
-  const direct = getIntel(data, manager)?.tradePlan?.needPosition;
-  if (direct && POSITIONS.includes(direct)) return direct;
-  const shortage = data.positionDepth?.find((row) => row.manager === manager && row.status === 'shortage');
-  return POSITIONS.includes(shortage?.position as Position) ? shortage?.position as Position : null;
-}
-
-function getSurplusPosition(data: ReportData, manager: string): Position | null {
-  const direct = getIntel(data, manager)?.tradePlan?.surplusPosition;
-  if (direct && POSITIONS.includes(direct)) return direct;
-  const surplus = data.positionDepth?.find((row) => row.manager === manager && row.status === 'excess');
-  return POSITIONS.includes(surplus?.position as Position) ? surplus?.position as Position : null;
-}
-
 function getBestTradeableAtPosition(intel: ManagerIntelRow | null, position: Position | null): ManagerIntelPlayer | null {
   if (!intel || !position) return null;
   return intel.tradeableDepth?.find((tile) => tile.position === position && tile.player)?.player
@@ -814,38 +711,11 @@ function isSuperflexLeague(data: ReportData): boolean {
 }
 
 function buildOverviewRead(data: ReportData) {
-  const manager = getDefaultManager(data);
-  const intel = getIntel(data, manager);
-  const overview = getOverview(data, manager);
-  const power = getPower(data, manager);
-  const leagueValueMode = normalizeLeagueValueMode(data.leagueDiagnostics?.valueMode || data.leagueValueMode);
-  const modeCopy = getLeagueModeCopy(leagueValueMode);
-  const biggestGap = data.positionDepth?.filter((row) => row.status === 'shortage')[0];
-  const bestTradePartner = buildTradePartners(data, manager)[0];
-  const lead = manager
-    ? `${manager} is the current command-center focus.`
-    : 'Run a league report with manager roster data to unlock team-specific reads.';
-  const valueLine = overview
-    ? `Value rank #${overview.rank_value}, ${getTopStrength(power, overview).toLowerCase()} as the best leverage point, and ${getBiggestWeakness(power, overview).toLowerCase()} as the first pressure test.`
-    : 'League overview ranks were not returned, so this read is limited to roster intelligence.';
-  const gapLine = biggestGap
-    ? `${biggestGap.manager} has the clearest ${biggestGap.position} shortage to exploit.`
-    : 'No league-wide shortage was severe enough to flag from position-depth data.';
-  const partnerLine = bestTradePartner
-    ? `Best first trade angle: ${bestTradePartner.manager}, because ${bestTradePartner.angle.toLowerCase()}`
-    : 'Trade partner matching needs more roster depth data.';
-
+  const read = buildOverviewPulseRead(data);
   return {
-    title: `${modeCopy.ownerTitle} Upgrade Path`,
-    body: `${lead} ${valueLine} ${gapLine} ${partnerLine}`,
-    chips: [
-      data.leagueDiagnostics?.aiConfidence
-        ? { label: data.leagueDiagnostics.aiConfidence.label, tone: data.leagueDiagnostics.aiConfidence.score >= 70 ? 'good' : data.leagueDiagnostics.aiConfidence.score >= 52 ? 'info' : 'warn' }
-        : null,
-      leagueValueMode === 'redraft' ? 'Season lens' : 'Dynasty lens',
-      data.powerRankings?.length ? 'Power ranks loaded' : { label: 'No power ranks', tone: 'warn' },
-      data.managerRosterIntelligence?.length ? 'Roster recon loaded' : { label: 'Roster recon missing', tone: 'warn' },
-    ].filter(Boolean) as AIReadChip[],
+    title: read.title,
+    body: read.body,
+    chips: read.chips as AIReadChip[],
   };
 }
 
@@ -859,7 +729,7 @@ export function OverviewAIPulse({
   return (
     <AIReadPanel
       title={read.title}
-      subtitle="Live league scan using returned Sleeper rosters, league-matched values, and stored movement windows."
+      subtitle="Narrative guide for the Overview stack; exact metrics stay with their owning tables."
       readType="League Exploit"
       confidence={confidence}
       confidenceNote={getAiConfidenceDisplayNote(data)}
@@ -955,7 +825,6 @@ export function MonthlyTeamBlueprint({
   const timeline = data.dynastyTimelines?.find((row) => row.manager === manager) || null;
   const counts = data.managerPositionCounts?.find((row) => row.manager === manager) || null;
   const leagueSize = getLeagueSize(data);
-  const valueShare = getValueShare(data, overview);
   const monthLabel = getMonthLabel();
   const risers = data.weeklyRisers?.filter((row) => row.owner === manager).slice(0, 3) || [];
   const fallers = data.weeklyFallers?.filter((row) => row.owner === manager).slice(0, 3) || [];
@@ -1032,13 +901,10 @@ export function MonthlyTeamBlueprint({
     ...((intel.pressurePoints || []).slice(0, 3)),
     intel.holes.summary !== 'No major roster hole flagged' ? intel.holes.summary : null,
   ].filter(Boolean) as string[];
-  const topStrength = getTopStrength(power, overview);
-  const biggestWeakness = getBiggestWeakness(power, overview);
   const needPosition = getNeedPosition(data, manager);
   const surplusPosition = getSurplusPosition(data, manager);
-  const bestTradePartner = tradePartners[0];
   const priorityText = topPriorities[0] || intel.tradePlan?.summary || 'No urgent roster action was returned.';
-  const pressureTitle = needPosition ? `${needPosition} depth` : biggestWeakness;
+  const pressureTitle = needPosition ? `${needPosition} depth` : 'Roster construction';
   const ageRows = POSITIONS.map((position) => {
     const age = intel.avgAgeByPosition?.[position] ?? null;
     const points = buildTrendPoints(managerHistory.map((snapshot) => ({
@@ -1058,10 +924,6 @@ export function MonthlyTeamBlueprint({
     month: snapshot.snapshotMonth,
     value: toFiniteNumber(snapshot.starterValuePct),
   })));
-  const valueRankTrendPoints = buildTrendPoints(managerHistory.map((snapshot) => ({
-    month: snapshot.snapshotMonth,
-    value: toFiniteNumber(snapshot.leagueOverview?.rank_value),
-  })));
   const overallGradeTrendPoints = buildTrendPoints(managerHistory.map((snapshot) => ({
     month: snapshot.snapshotMonth,
     value: toFiniteNumber(snapshot.powerRanking?.score) !== null
@@ -1078,12 +940,12 @@ export function MonthlyTeamBlueprint({
       invert: false,
     },
     {
-      label: 'Value Rank',
-      value: overview?.rank_value ? `#${overview.rank_value}` : '-',
-      points: valueRankTrendPoints,
-      delta: getTrendDelta(valueRankTrendPoints),
-      suffix: ' spots',
-      invert: true,
+      label: 'Action Lanes',
+      value: String(topPriorities.length || 1),
+      points: [],
+      delta: null,
+      suffix: '',
+      invert: false,
     },
     {
       label: 'Overall Grade',
@@ -1101,30 +963,29 @@ export function MonthlyTeamBlueprint({
   }));
   const monthlyReadItems = [
     {
-      label: 'Edge',
-      title: topStrength,
-      body: `${valueTier} value profile, ${formatPercent(intel.starterValuePct)} production share, and ${overview?.rank_value ? `#${overview.rank_value} roster value` : 'returned roster value context'}.`,
+      label: 'Direction',
+      title: timeline?.label || intel.timeline || intel.identity,
+      body: `${monthLabel} plan tier ${valueTier} with ${topPriorities.length || 1} returned priority lane${topPriorities.length === 1 ? '' : 's'} for this roster window.`,
     },
     {
-      label: 'Pressure',
+      label: 'Construction',
       title: pressureTitle,
       body: needPosition
-        ? `${needPosition} is the cleanest need signal. Use ${surplusPosition ? `${surplusPosition} depth` : 'bench value'} before touching the core starters.`
+        ? `${needPosition} is the clearest construction gap. Use ${surplusPosition ? `${surplusPosition} depth` : 'bench flexibility'} before touching the core players.`
         : priorityText,
     },
     {
       label: 'This month',
-      title: bestTradePartner ? `Talk to ${bestTradePartner.manager}` : 'Hold the line',
-      body: bestTradePartner ? bestTradePartner.angle : priorityText,
+      title: marketPosture,
+      body: `${buyPct}% buy, ${holdPct}% hold, and ${sellPct}% sell from returned roster signals. Trade partner specifics live in the trade finder.`,
     },
   ];
   const blueprintShareText = [
     `${manager} ${monthLabel} Team Blueprint`,
     `${leagueName || 'Sleeper League'}${leagueFormat ? ` · ${leagueFormat}` : ''}`,
     `Roster archetype: ${intel.identity || '-'}`,
-    `Value tier: ${valueTier}`,
-    `Overall grade: ${overallGrade}`,
-    `Top strength: ${topStrength}`,
+    `Plan tier: ${valueTier}`,
+    `Plan grade: ${overallGrade}`,
     `Market posture: ${marketPosture} (${buyPct}% buy, ${holdPct}% hold, ${sellPct}% sell)`,
     `Priority: ${topPriorities[0] || intel.tradePlan?.summary || 'No priority flag returned'}`,
     hasPartialHistory ? 'History note: partial returned history only.' : 'History note: returned history loaded.',
@@ -1280,16 +1141,16 @@ export function MonthlyTeamBlueprint({
                 <h4>Roster Identity</h4>
                 <div className="team-blueprint-metric-grid">
                   <MetricPill label="Roster archetype" value={intel.identity || '-'} tone="info" />
-                  <MetricPill label="Value archetype" value={power?.tier || timeline?.label || intel.timeline || '-'} tone="warn" />
-                  <MetricPill label="Value tier" value={valueTier} tone="good" />
-                  <MetricPill label="Overall grade" value={overallGrade} tone={overallGrade >= 7 ? 'good' : overallGrade <= 4 ? 'danger' : 'warn'} />
-                  <MetricPill label="Production share" value={formatPercent(intel.starterValuePct)} tone="info" />
-                  <MetricPill label="Value share" value={formatPercent(valueShare)} tone="neutral" />
-                  <MetricPill label="2-year outlook" value={timeline ? timeline.label : intel.timeline || '-'} tone="info" />
+                  <MetricPill label="Roster window" value={timeline ? timeline.label : intel.timeline || '-'} tone="info" />
+                  <MetricPill label="Plan tier" value={valueTier} tone="good" />
+                  <MetricPill label="Plan grade" value={overallGrade} tone={overallGrade >= 7 ? 'good' : overallGrade <= 4 ? 'danger' : 'warn'} />
+                  <MetricPill label="Priority count" value={topPriorities.length || 1} tone="info" />
+                  <MetricPill label="History" value={hasPartialHistory ? 'Partial' : 'Loaded'} tone={hasPartialHistory ? 'warn' : 'good'} />
+                  <MetricPill label="Snapshot" value={snapshotStatus?.status || 'live'} tone={snapshotStatus?.status === 'unavailable' ? 'warn' : 'neutral'} />
                 </div>
               </div>
-              <div className="team-blueprint-tier-ladder" aria-label={`Roster value tier ${valueTier}`}>
-                <span>Roster Value Tier</span>
+              <div className="team-blueprint-tier-ladder" aria-label={`Monthly plan tier ${valueTier}`}>
+                <span>Monthly Plan Tier</span>
                 {BLUEPRINT_TIERS.map((tier) => (
                   <strong key={tier} className={tier === valueTier ? 'team-blueprint-tier-active' : undefined}>
                     {tier}
@@ -1298,14 +1159,14 @@ export function MonthlyTeamBlueprint({
               </div>
               <div className="team-blueprint-stat-stack">
                 <span>
-                  <em>Production Share</em>
-                  <strong>{formatPercent(intel.starterValuePct)}</strong>
-                  <small>{power?.starterStrength ? `Starter score ${power.starterStrength}` : 'Starter value share'}</small>
+                  <em>Plan Focus</em>
+                  <strong>{topPriorities.length ? `${topPriorities.length} priorities` : intel.identity}</strong>
+                  <small>{topPriorities[0] || `${monthLabel} action lane`}</small>
                 </span>
                 <span>
-                  <em>Value Share</em>
-                  <strong>{formatPercent(valueShare)}</strong>
-                  <small>{overview?.rank_value ? `League rank #${overview.rank_value}` : 'League value share'}</small>
+                  <em>Plan Inputs</em>
+                  <strong>{hasPartialHistory ? 'Partial' : 'Loaded'}</strong>
+                  <small>{snapshotStatus?.month || monthLabel} snapshot context</small>
                 </span>
               </div>
             </section>
@@ -1662,11 +1523,11 @@ export function MonthlyTeamBlueprint({
               confidenceNote={getAiConfidenceDisplayNote(data, manager)}
               severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
               chips={[
-                `Value rank #${overview?.rank_value || '-'}`,
-                `${formatPercent(intel.starterValuePct)} starter share`,
+                monthLabel,
+                intel.timeline || intel.identity,
                 hasPartialHistory ? { label: 'Partial history', tone: 'warn' } : { label: 'History loaded', tone: 'good' },
               ]}
-              body={`${manager} profiles as ${intel.identity} with ${topStrength.toLowerCase()} as the cleanest advantage. The priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
+              body={`${manager} profiles as ${intel.identity}. The ${monthLabel} priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
               backgroundVariant="monthly"
               className="team-blueprint-ai"
             />
@@ -1701,8 +1562,6 @@ export function LeaguePowerRankings({
         const intel = getIntel(data, row.manager);
         const overview = getOverview(data, row.manager);
         const timeline = data.dynastyTimelines?.find((item) => item.manager === row.manager);
-        const strength = getTopStrength(row, overview);
-        const weakness = getBiggestWeakness(row, overview);
         const readiness = Math.round((row.starterStrength + row.rosterValue + row.positionalBalance) / 3);
         const chips: AIReadChip[] = [
           `Value #${overview?.rank_value || '-'}`,
@@ -1740,7 +1599,7 @@ export function LeaguePowerRankings({
                 confidence={getManagerReadConfidence(data, row.manager)}
                 severity={readiness >= 70 ? 'good' : readiness <= 45 ? 'warn' : 'info'}
                 chips={chips}
-                body={`${row.manager}'s best advantage is ${strength.toLowerCase()}. The biggest roster flaw is ${weakness.toLowerCase()}. ${intel?.summary || 'Roster intelligence was not returned for a deeper read.'}`}
+                body={`${row.manager} sits #${row.rank} in this league ordering with a ${row.score} composite score and ${readiness} readiness read. Use roster recon for player-level causes and next-move advice.`}
                 backgroundVariant="league"
               />
             </div>
@@ -1763,10 +1622,8 @@ export function TeamBreakdownRecon({
   const manager = selectedManager || managerOptions[0] || '';
   const intel = getIntel(data, manager);
   const overview = getOverview(data, manager);
-  const power = getPower(data, manager);
   const pickPortfolio = data.pickPortfolios?.find((row) => row.manager === manager) || null;
   const tradeTendency = data.tradeTendencies?.find((row) => row.manager === manager) || null;
-  const valueShare = getValueShare(data, overview);
 
   if (!managerOptions.length || !intel) {
     return (
@@ -1779,12 +1636,12 @@ export function TeamBreakdownRecon({
   }
 
   const strengths = [
-    getTopStrength(power, overview),
     ...(intel.untouchablePlayers || []).slice(0, 2).map((player) => player.name),
+    intel.youngCorePlayer?.name,
   ].filter(Boolean);
   const weaknesses = [
-    getBiggestWeakness(power, overview),
     ...(intel.pressurePoints || []).slice(0, 2),
+    intel.holes?.summary,
   ].filter(Boolean);
   const fragileAssets = [intel.oldestPlayer, intel.starterAvailability.riskiestStarter].filter(Boolean) as ManagerIntelPlayer[];
   const insulatedAssets = (intel.untouchablePlayers?.length ? intel.untouchablePlayers : [intel.youngCorePlayer]).filter(Boolean) as ManagerIntelPlayer[];
@@ -1804,7 +1661,7 @@ export function TeamBreakdownRecon({
         <ManagerNameWithAvatar avatarUrl={managerAvatars?.[manager]} managerName={manager} />
         <div>
           <span>{intel.identity}</span>
-          <strong>{power?.tier || intel.timeline}</strong>
+          <strong>{intel.timeline}</strong>
         </div>
       </div>
 
@@ -1814,7 +1671,7 @@ export function TeamBreakdownRecon({
           <div className="team-breakdown-metrics">
             <MetricPill label="Starter value" value={formatCompactValue(intel.starterSeasonValue || intel.starterValue)} tone="good" />
             <MetricPill label="Starter share" value={formatPercent(intel.starterValuePct)} tone="info" />
-            <MetricPill label="Power score" value={power?.score || '-'} tone="warn" />
+            <MetricPill label="Availability" value={intel.starterAvailability.riskLevel} tone={intel.starterAvailability.riskLevel === 'high' ? 'warn' : 'info'} />
           </div>
         </section>
         <section>
@@ -1838,11 +1695,11 @@ export function TeamBreakdownRecon({
           </div>
         </section>
         <section>
-          <h4>Age Curve / Value Share</h4>
+          <h4>Age Curve / Roster Window</h4>
           <div className="team-breakdown-metrics">
             <MetricPill label="Avg age" value={intel.avgAge ?? '-'} tone={intel.avgAge && intel.avgAge >= 27.5 ? 'warn' : 'info'} />
-            <MetricPill label="Value share" value={formatPercent(valueShare)} tone="info" />
-            <MetricPill label="Roster value rank" value={overview ? `#${overview.rank_value}` : '-'} tone="warn" />
+            <MetricPill label="Timeline" value={intel.timeline || '-'} tone="info" />
+            <MetricPill label="Age flags" value={intel.ageFlags?.length || 0} tone={intel.ageFlags?.length ? 'warn' : 'good'} />
           </div>
         </section>
         <section>
@@ -1880,7 +1737,7 @@ export function TeamBreakdownRecon({
           chips={[
             `Need: ${getNeedPosition(data, manager) || '-'}`,
             `Surplus: ${getSurplusPosition(data, manager) || '-'}`,
-            `Value share ${formatPercent(valueShare)}`,
+            intel.timeline || intel.identity,
           ]}
           body={intel.strategySummary || intel.tradePlan?.summary || intel.summary}
           backgroundVariant="roster"

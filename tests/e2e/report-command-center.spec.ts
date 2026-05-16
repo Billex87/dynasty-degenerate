@@ -110,6 +110,23 @@ test.describe("command center feature surfaces", () => {
     await loadCachedReport(page, cachedReport);
 
     await expect(page.locator(".overview-ai-pulse")).toBeVisible();
+    await expect(page.locator(".overview-ai-pulse")).toContainText(
+      "Narrative only"
+    );
+    await expect(page.locator(".overview-ai-pulse")).not.toContainText(
+      /Value rank #|Best first trade angle|shortage to exploit/i
+    );
+    const overviewSummaryText = (
+      await page
+        .locator(".report-tab-content details.report-disclosure > summary")
+        .allTextContents()
+    ).join("\n");
+    expect(overviewSummaryText).toContain("Monthly direction");
+    expect(overviewSummaryText).toContain("League ordering");
+    expect(overviewSummaryText).toContain("Owner Profiles");
+    expect(overviewSummaryText).not.toMatch(
+      /Top Team|Recon Teams|Depth Flags|Position Signals|Waiver Adds|News Flags|Starter Leader/i
+    );
     await expect(page.locator(".admin-premium-tab")).toHaveCount(0);
     await expect(page.locator(".admin-premium-section")).toHaveCount(5);
     const premiumSectionFlare = await page
@@ -218,7 +235,7 @@ test.describe("command center feature surfaces", () => {
     await page.getByRole("tab", { name: "Rankings" }).click();
     const adminValueSection = await openReportSection(
       page,
-      "Admin Eyes Only: Value Assumptions"
+      "Value Source Configuration"
     );
     await expect(
       adminValueSection.getByText("Confidence Drilldown")
@@ -323,7 +340,7 @@ test.describe("command center feature surfaces", () => {
     await loadCachedReport(page, cachedReport);
 
     await expect(
-      page.getByText(/Tester is the current command-center focus/i)
+      page.getByText(/Tester sets the starting lens for this Overview pass/i)
     ).toBeVisible();
 
     await page.getByRole("button", { name: /View as Tester/i }).click();
@@ -335,7 +352,7 @@ test.describe("command center feature surfaces", () => {
       page.getByRole("button", { name: /View as Rival/i })
     ).toBeVisible();
     await expect(
-      page.getByText(/Rival is the current command-center focus/i)
+      page.getByText(/Rival sets the starting lens for this Overview pass/i)
     ).toBeVisible();
 
     await page
@@ -353,7 +370,7 @@ test.describe("command center feature surfaces", () => {
       .getByRole("button", { name: /Return to admin report view/i })
       .click();
     await expect(
-      page.getByText(/Tester is the current command-center focus/i)
+      page.getByText(/Tester sets the starting lens for this Overview pass/i)
     ).toBeVisible();
     await expect(page.locator(".admin-premium-section")).toHaveCount(5);
   });

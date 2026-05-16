@@ -1,5 +1,5 @@
-export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v20';
-export const REPORT_CACHE_DATA_VERSION = 'draft-baseline-v2';
+export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v22';
+export const REPORT_CACHE_DATA_VERSION = 'ai-read-eligibility-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;
@@ -119,7 +119,7 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
     leagueLogo: null,
     leagueFormat: '4-Team Redraft PPR',
     activeTab: 'overview',
-    savedAt: Date.parse('2026-05-08T00:00:00.000Z'),
+    savedAt: Date.now(),
     reportData: {
       leagueValueMode: 'redraft',
       leagueDiagnostics: {
@@ -485,7 +485,7 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
     leagueLogo: null,
     leagueFormat: '10-Team Dynasty SF PPR',
     activeTab: 'overview',
-    savedAt: Date.parse('2026-05-08T00:00:00.000Z'),
+    savedAt: Date.now(),
     reportData: {
       leagueValueMode: 'dynasty',
       monthlyBlueprintSnapshot: {
