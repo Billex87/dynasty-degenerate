@@ -21,7 +21,7 @@
 - [x] Run the Neon transfer audit with production `DATABASE_URL` and record the main transfer drivers.
 - [x] Add transparent compression for large `leagueReportCache` payloads and a one-off compaction command for existing heavy cache rows.
 - [x] After the compaction command runs against production, re-run `pnpm audit:neon-transfer` and confirm the 18 MB `league-rankings-v11` rows are reduced.
-- [x] Add a dry-run stale `leagueReportCache` cleanup command that keeps current `league-report-v37` and `league-rankings-v11` rows, prints only row metadata and payload size, and requires explicit confirmation before deletion.
+- [x] Add a dry-run stale `leagueReportCache` cleanup command that keeps current report/rankings cache versions, prints only row metadata and payload size, and requires explicit confirmation before deletion.
 - [x] Run `pnpm cleanup:league-report-cache` against production, review the stale cache rows, and delete approved stale cache rows.
 - [x] Run one-off source-health history backfill with `ENABLE_SOURCE_HEALTH_BACKFILL=true` after production cached reports exist; production scan found no eligible cached-report diagnostics to backfill.
 - [x] Add and run an expired `leagueReportCache` cleanup mode for rows older than the 12-hour serving TTL.

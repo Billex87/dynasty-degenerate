@@ -2285,6 +2285,45 @@ function getSeasonArbitrage(player: ManagerIntelPlayer, allPlayers: Player, ktcV
   return getSeasonValue(player, allPlayers, ktcValues) - player.value;
 }
 
+function getBuyTargetRankLine(position: string, teamCount: number): number {
+  const leagueSize = Math.max(teamCount || 0, 12);
+  if (position === 'QB') return leagueSize * 2;
+  if (position === 'RB') return leagueSize * 3;
+  if (position === 'WR') return leagueSize * 4;
+  if (position === 'TE') return leagueSize;
+  return 0;
+}
+
+function isBuyTargetEligible(
+  player: ManagerIntelPlayer,
+  allPlayers: Player,
+  ktcValues: KTCValues,
+  teamCount: number
+): boolean {
+  if (!['QB', 'RB', 'WR', 'TE'].includes(player.pos)) return false;
+
+  const currentRank = getRankNumber(player.currentPositionRank);
+  const seasonRank = getRankNumber(player.seasonPositionRank);
+  const rank = currentRank || seasonRank;
+  const rankLine = getBuyTargetRankLine(player.pos, teamCount);
+  const seasonValue = getSeasonValue(player, allPlayers, ktcValues);
+
+  if (currentRank && currentRank > rankLine) return false;
+  if (!currentRank && seasonRank && seasonRank > rankLine) return false;
+
+  if (player.pos === 'TE') {
+    if (!rank) return player.value >= 3200 || seasonValue >= 3200;
+    if (currentRank && currentRank > Math.max(12, teamCount)) return false;
+    if (!currentRank && seasonRank && seasonRank > Math.max(12, teamCount)) return false;
+  }
+
+  if (!rank && player.value < 1800 && seasonValue < 1800 && !isLastSeasonStud(player.lastSeasonPositionRank)) {
+    return false;
+  }
+
+  return true;
+}
+
 function getNeedPosition({
   qbs,
   rbs,
@@ -3529,6 +3568,7 @@ export async function generateReport(
       .filter((player) => {
         if (primaryNeed && player.pos !== primaryNeed) return false;
         if (!primaryNeed && !['RB', 'WR', 'TE'].includes(player.pos)) return false;
+        if (!isBuyTargetEligible(player, allPlayers, ktcValues, teamCount)) return false;
         if (player.value < targetValueFloor) return false;
         if (player.value > targetBudget) return false;
         if (sellCandidate && player.owner === sellCandidate.owner) return false;
@@ -3549,6 +3589,7 @@ export async function generateReport(
         .filter((player) => {
           if (primaryNeed && player.pos !== primaryNeed) return false;
           if (!primaryNeed && !['RB', 'WR', 'TE'].includes(player.pos)) return false;
+          if (!isBuyTargetEligible(player, allPlayers, ktcValues, teamCount)) return false;
           if (player.value < targetValueFloor) return false;
           if (player.value > targetBudget) return false;
           return (player.age || 99) <= 25 || getSeasonValue(player, allPlayers, ktcValues) >= player.value * 0.72;
