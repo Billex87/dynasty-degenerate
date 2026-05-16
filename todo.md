@@ -147,10 +147,10 @@
 
 - [x] Audit every table in the Overview tab and list the exact job each one is supposed to do.
 - [x] Identify any repeated signals, summaries, or conclusions that are being shown on multiple tables and document the duplication ownership risk.
-- [ ] Remove the duplicated Overview readouts from the UI surfaces after the ownership mapping is applied.
+- [x] Remove the duplicated Overview readouts from the UI surfaces after the ownership mapping is applied.
 - [x] Define one primary message for each table so we can clearly decide what belongs there and what should live elsewhere.
-- [ ] Move overlapping readouts into the table that owns them, or pull them out entirely if they do not have a clear owner.
-- [ ] Make sure the Overview tab reads as a set of distinct layers of insight instead of multiple tables saying the same thing in different words.
+- [x] Move overlapping readouts into the table that owns them, or pull them out entirely if they do not have a clear owner.
+- [x] Make sure the Overview tab reads as a set of distinct layers of insight instead of multiple tables saying the same thing in different words.
 - [x] Add review pass for each Overview table after logic changes so duplicates do not creep back in during future feature work.
 - [x] Build an ownership matrix for every Overview surface with columns for surface, primary job, allowed readouts, banned overlap, and source-of-truth owner.
 - [x] Audit the full Overview stack in render order and assign one job to each surface:
@@ -175,11 +175,11 @@
   - [x] trade partner fit
   - [x] taxi promote/park/cut calls
   - [x] top-manager or best-team claims
-- [ ] If a concept has to appear in two places, rewrite one instance so it clearly answers a different question instead of repeating the same conclusion.
-- [ ] Move shared calculations into one source of truth and make the other surfaces reference that result rather than restating the same readout.
-- [ ] Compare the final Overview stack side-by-side after every logic change and remove any repeated phrasing, repeated ranks, repeated value tags, or repeated "best/worst" labels.
-- [ ] Add a regression check or snapshot test that fails if two Overview surfaces end up telling the same story with the same metric stack.
-- [ ] Require an explicit owner review for any new Overview metric so we do not reintroduce duplicate readouts when new features land.
+- [x] If a concept has to appear in two places, rewrite one instance so it clearly answers a different question instead of repeating the same conclusion.
+- [x] Move shared calculations into one source of truth and make the other surfaces reference that result rather than restating the same readout.
+- [x] Compare the final Overview stack side-by-side after every logic change and remove any repeated phrasing, repeated ranks, repeated value tags, or repeated "best/worst" labels.
+- [x] Add a regression check or snapshot test that fails if two Overview surfaces end up telling the same story with the same metric stack.
+- [x] Require an explicit owner review for any new Overview metric so we do not reintroduce duplicate readouts when new features land.
 
 ## May 14, 2026 - Projections / SOS Rollout
 
@@ -609,11 +609,11 @@
 ## Report UX / Tooling Roadmap
 
 ### ReportTables Split - Remaining Work
-- [ ] Split `TradeWarRoom` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module.
-- [ ] Split `TradeHistoryTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module.
-- [ ] Split `TradeProfitLeaderboardTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module.
-- [ ] Keep shared trade/value helpers centralized so split modules do not duplicate logic.
-- [ ] Run typecheck, unit tests, build, and focused e2e after each split.
+- [x] Split `TradeWarRoom` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module.
+- [x] Split `TradeHistoryTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module.
+- [x] Split `TradeProfitLeaderboardTable` out of `client/src/components/ReportTables.tsx` into a real lazy-loaded module.
+- [x] Keep shared trade/value helpers centralized so split modules do not duplicate logic.
+- [x] Run typecheck, unit tests, build, and focused e2e after each split.
 
 ### Dirty Worktree Reconciliation
 - [ ] Separate report UX and tooling changes from unrelated auth, OAuth, and server cleanup changes before committing.
@@ -631,10 +631,12 @@
 - [ ] Confirm deployed console logs do not show app errors on desktop or mobile.
 
 ### Bundle Cleanup
-- [ ] Use `pnpm run build:analyze` to inspect `dist/bundle-stats.html` before the next performance pass.
-- [ ] Reduce the remaining large `RecentTransactionsPanel` lazy chunk.
-- [ ] Check whether shared helpers pulled from `ReportTables.tsx` keep too much code in downstream chunks.
-- [ ] Consider extracting trade-ledger helpers into a non-React utility module once `TradeHistoryTable` and `TradeWarRoom` are split.
+- [x] Use `pnpm run build:analyze` to inspect `dist/bundle-stats.html` before the next performance pass.
+- [x] Reduce the remaining large `RecentTransactionsPanel` lazy chunk.
+- [x] Reduce the large `WaiverIntelligencePanel`, `TradeTheftDetector`, and `TradeMarketRadar` lazy chunks while leaving `SuccessCard3D` for last.
+- [x] Check whether shared helpers pulled from `ReportTables.tsx` keep too much code in downstream chunks.
+- [x] Reduce the deferred `SuccessCard3D` lazy chunk by removing the postprocessing bloom path and adding reduced-motion/non-WebGL fallback rendering.
+- [x] Consider extracting trade-ledger helpers into a non-React utility module once `TradeHistoryTable` and `TradeWarRoom` are split.
 
 ### Research / Product Ideas
 - [x] Investigate FantasyPros VORP rankings on [FantasyPros VORP](https://www.fantasypros.com/nfl/rankings/vorp.php), confirm how the metric is calculated, and decide whether it should inform any existing valuation or draft surfaces.
