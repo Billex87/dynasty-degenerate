@@ -31,6 +31,7 @@ import { buildRankingDraftBuzzDetail, buildRankingProfileDetail, buildRankingsMe
 import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueReportFileCacheMaxFiles, isLeagueReportCacheExpired, shouldPruneLeagueReportFileCacheEntry } from "./leagueReportCachePolicy";
 import { loadReportStaticInputs } from "./reportStaticInputs";
 import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
+import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -1335,11 +1336,6 @@ function normalizeSleeperPlayerIds(ids: Array<string | number | null | undefined
   return normalized;
 }
 
-function normalizeSleeperResearchPercent(value: unknown): number | null {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : null;
-}
-
 async function fetchSleeperLeagueUsageSummary(
   leagueId: string,
   season: string,
@@ -2130,28 +2126,13 @@ function buildPlayerDetailsMap(
   playerIds: Iterable<string>,
   players: Record<string, any>,
   rosterStatusByPlayerId: Record<string, string> = {},
-  prospectLookup?: ReturnType<typeof buildProspectLookup>,
   actualDepthChartsByPlayerId: Record<string, EspnDepthChartEntry> = {}
 ): Record<string, PlayerDetails> {
   return Object.fromEntries(
     Array.from(new Set(Array.from(playerIds).filter(Boolean)))
       .map((playerId) => {
         const details = getPlayerDetails(playerId, players[playerId], rosterStatusByPlayerId[playerId], actualDepthChartsByPlayerId[playerId]);
-        return [
-          playerId,
-          details && prospectLookup
-            ? {
-              ...details,
-              prospectProfile: findProspectProfile(
-                prospectLookup,
-                details.fullName,
-                details.position,
-                details.college,
-                details.rookieYear
-              ),
-            }
-            : details,
-        ];
+        return [playerId, details];
       })
       .filter((entry): entry is [string, PlayerDetails] => Boolean(entry[1]))
   );
@@ -4666,34 +4647,79 @@ export const appRouter = router({
               .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
           );
           const sleeperResearchSeasonType = String(leagueInfo.season_type || 'regular');
-          const [
-            availabilityHistoryById,
-            depthChartResult,
-            sleeperResearchByPlayerId,
-            pastSeasonUsageByPlayerId,
-          ] = await Promise.all([
-            fetchPlayerAvailabilityHistory(
-              detailPlayerIds,
-              players,
-              leagueInfo.scoring_settings,
-              lastCompletedSeason
-            ),
-            fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, getUserLoadSnapshotOptions()),
-            fetchSleeperPlayerResearchMap(sleeperResearchSeasonType, currentSeason),
-            prevLeagueId && pastSeasonData
-              ? fetchSleeperLeagueUsageSummary(
-                  prevLeagueId,
-                  pastSeasonData.label,
-                  pastSeasonData.rosterMap as Record<string, string>,
-                  pastRosterDisplayMap
-                )
-              : Promise.resolve({} as Record<string, SleeperLeagueUsageSummary>),
-          ]);
-          const latestNewsByPlayerId = buildLatestNewsByPlayerId(
-            detailPlayerIds,
-            players,
-            fantasyProsNews
-          );
+          const depthChartResultPromise = fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, getUserLoadSnapshotOptions());
+          const playerStaticEnrichmentPromise = loadReportPlayerStaticEnrichment({
+            leagueId: input.leagueId,
+            leagueValueProfileKey,
+            currentSeason,
+            lastCompletedSeason,
+            sleeperResearchSeasonType,
+            playerIds: detailPlayerIds,
+            forceRefresh,
+            buildEnrichment: async () => {
+              const [
+                availabilityHistoryById,
+                sleeperResearchByPlayerId,
+                pastSeasonUsageByPlayerId,
+              ] = await Promise.all([
+                fetchPlayerAvailabilityHistory(
+                  detailPlayerIds,
+                  players,
+                  leagueInfo.scoring_settings,
+                  lastCompletedSeason
+                ),
+                fetchSleeperPlayerResearchMap(sleeperResearchSeasonType, currentSeason),
+                prevLeagueId && pastSeasonData
+                  ? fetchSleeperLeagueUsageSummary(
+                      prevLeagueId,
+                      pastSeasonData.label,
+                      pastSeasonData.rosterMap as Record<string, string>,
+                      pastRosterDisplayMap
+                    )
+                  : Promise.resolve({} as Record<string, SleeperLeagueUsageSummary>),
+              ]);
+              const latestNewsByPlayerId = buildLatestNewsByPlayerId(
+                detailPlayerIds,
+                players,
+                fantasyProsNews
+              );
+              const prospectProfilesById = Object.fromEntries(
+                detailPlayerIds
+                  .map((playerId) => {
+                    const player = players[playerId];
+                    return [
+                      playerId,
+                      player
+                        ? findProspectProfile(
+                            prospectLookup,
+                            getPlayerName(playerId, players),
+                            player.position,
+                            player.college,
+                            player.metadata?.rookie_year ?? null
+                          )
+                        : null,
+                    ];
+                  })
+                  .filter((entry): entry is [string, NonNullable<PlayerDetails['prospectProfile']>] => Boolean(entry[1]))
+              );
+
+              return buildReportPlayerStaticEnrichment({
+                playerIds: detailPlayerIds,
+                currentSeason,
+                sleeperResearchSeasonType,
+                valueProfilesById,
+                lastSeasonPositionRanks,
+                availabilityHistoryById,
+                latestNewsByPlayerId,
+                sleeperResearchByPlayerId,
+                pastSeasonUsageByPlayerId,
+                playerScheduleProfiles: staticSections.playerScheduleProfiles,
+                similarTradeValuesById,
+                prospectProfilesById,
+              });
+            },
+          });
+          const depthChartResult = await depthChartResultPromise;
           const sourceDiagnosticRowCounts = [
             { sourceKey: 'ktc-blended-values-v1', rowCount: Object.keys(ktcValues || {}).length },
             { sourceKey: 'fantasypros-news-v1', rowCount: fantasyProsNews.length },
@@ -4702,19 +4728,22 @@ export const appRouter = router({
             { sourceKey: `sleeper-season-stats-v1:${lastCompletedSeason}`, rowCount: Object.keys(lastSeasonPositionRanks || {}).length },
             { sourceKey: 'prospect-snapshot:NFL Draft Buzz', rowCount: prospectContext.diagnostics.playerCount },
           ];
-          const sourceDiagnosticsSection = await loadReportSourceDiagnosticsSection({
-            leagueId: input.leagueId,
-            leagueValueProfileKey,
-            currentSeason,
-            lastCompletedSeason,
-            devyProfileKey: `devy_${leagueValueProfileKey}`,
-            rowCounts: sourceDiagnosticRowCounts,
-            forceRefresh,
-          });
+          const [sourceDiagnosticsSection, playerStaticEnrichment] = await Promise.all([
+            loadReportSourceDiagnosticsSection({
+              leagueId: input.leagueId,
+              leagueValueProfileKey,
+              currentSeason,
+              lastCompletedSeason,
+              devyProfileKey: `devy_${leagueValueProfileKey}`,
+              rowCounts: sourceDiagnosticRowCounts,
+              forceRefresh,
+            }),
+            playerStaticEnrichmentPromise,
+          ]);
           const sourceSnapshotDiagnostics = sourceDiagnosticsSection.sourceSnapshotDiagnostics;
           const actualDepthChartsByPlayerId = depthChartResult.playerDepthCharts;
-          const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, prospectLookup, actualDepthChartsByPlayerId);
-          markAnalyzeStep('player detail assembly');
+          const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, actualDepthChartsByPlayerId);
+          markAnalyzeStep(`player static enrichment ${playerStaticEnrichment.cacheStatus}`);
 
           const reportPayloadData = {
             ...reportData,
@@ -4731,23 +4760,7 @@ export const appRouter = router({
                 playerId,
                 {
                   ...details,
-                  valueProfile: valueProfilesById[playerId],
-                  lastSeasonPositionRank: lastSeasonPositionRanks[playerId]?.positionRank || null,
-                  lastSeasonFantasyPoints: lastSeasonPositionRanks[playerId]?.fantasyPoints ?? null,
-                  lastSeasonGames: lastSeasonPositionRanks[playerId]?.games ?? null,
-                  lastSeasonPointsPerGame: lastSeasonPositionRanks[playerId]?.pointsPerGame ?? null,
-                  lastSeasonYear: lastSeasonPositionRanks[playerId]?.season || null,
-                  availabilityHistory: availabilityHistoryById[playerId]?.availabilityHistory || [],
-                  latestNews: latestNewsByPlayerId[playerId] || null,
-                  avgGamesMissed: availabilityHistoryById[playerId]?.avgGamesMissed ?? null,
-                  availabilitySeasons: availabilityHistoryById[playerId]?.availabilitySeasons ?? 0,
-                  sleeperRosteredPct: normalizeSleeperResearchPercent(sleeperResearchByPlayerId[playerId]?.owned),
-                  sleeperStartedPct: normalizeSleeperResearchPercent(sleeperResearchByPlayerId[playerId]?.started),
-                  sleeperResearchSeason: currentSeason,
-                  sleeperResearchSeasonType,
-                  leagueUsage: pastSeasonUsageByPlayerId[playerId] || null,
-                  schedule: staticSections.playerScheduleProfiles[playerId] || details.schedule || null,
-                  similarTradeValues: similarTradeValuesById[playerId] || [],
+                  ...playerStaticEnrichment.playerEnrichmentById[playerId],
                 },
               ])
             ),

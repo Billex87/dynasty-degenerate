@@ -21,6 +21,7 @@ Current guardrails:
 - Server report-cache serving TTL defaults to 12 hours and can be tuned with `LEAGUE_REPORT_CACHE_TTL_HOURS`. The local file cache is pruned by the same TTL plus `LEAGUE_REPORT_FILE_CACHE_MAX_FILES` so stale fallback blobs do not accumulate.
 - `server/reportStaticInputs.ts` splits snapshot-backed report inputs from live Sleeper state. Normal report generation still refreshes Sleeper league/users/rosters/transactions/drafts/trends/matchups, but reuses cached nightly-backed values, weekly baseline values, FantasyPros news, DraftSharks/SOS, and prospect context when the static-input cache is fresh.
 - `server/reportStaticSections.ts` caches reusable static report output sections, starting with all-player schedule profiles and source-freshness diagnostics. Mixed report sections still recompose from fresh Sleeper state plus those cached static outputs.
+- `server/reportPlayerEnrichment.ts` caches player static enrichment maps by value profile, season window, and player-set signature. Normal cache hits skip rebuilding snapshot-backed value/news/history/schedule/prospect/similar-trade overlays; force refresh bypasses the cache when those static inputs need to be rebuilt immediately.
 
 ## Runtime Contract
 
@@ -31,3 +32,4 @@ Current guardrails:
 - Cache status checks should use metadata-only helpers/endpoints unless the caller needs to render the actual report.
 - Static report input cache hits must never skip live Sleeper current-state reads.
 - Static rendered-section cache hits must be limited to snapshot-backed outputs; roster, transaction, waiver, matchup, draft, and standings sections must continue to rebuild from live Sleeper reads.
+- Player enrichment cache hits must not provide live roster status, injury status, or display status. Those fields stay in the fresh base player-detail map.

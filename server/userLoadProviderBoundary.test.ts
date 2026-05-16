@@ -10,6 +10,8 @@ const reportStaticInputsPath = path.resolve(__dirname, "reportStaticInputs.ts");
 const reportStaticInputsSource = fs.readFileSync(reportStaticInputsPath, "utf8");
 const reportStaticSectionsPath = path.resolve(__dirname, "reportStaticSections.ts");
 const reportStaticSectionsSource = fs.readFileSync(reportStaticSectionsPath, "utf8");
+const reportPlayerEnrichmentPath = path.resolve(__dirname, "reportPlayerEnrichment.ts");
+const reportPlayerEnrichmentSource = fs.readFileSync(reportPlayerEnrichmentPath, "utf8");
 
 function extractSource(startMarker: string, endMarker: string): string {
   const start = routersSource.indexOf(startMarker);
@@ -29,6 +31,8 @@ describe("user-load provider boundary", () => {
     expect(analyzeSource).toContain("loadReportStaticInputs({");
     expect(analyzeSource).toContain("loadReportStaticSections({");
     expect(analyzeSource).toContain("loadReportSourceDiagnosticsSection({");
+    expect(analyzeSource).toContain("buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, actualDepthChartsByPlayerId)");
+    expect(analyzeSource).toContain("loadReportPlayerStaticEnrichment({");
     expect(analyzeSource).toContain("fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, getUserLoadSnapshotOptions())");
     expect(reportStaticInputsSource).toContain("loadBlendedKTCValues(input.leagueValueOptions, getUserLoadSnapshotOptions())");
     expect(reportStaticInputsSource).toContain("loadDraftSharksScheduleContext({");
@@ -36,6 +40,9 @@ describe("user-load provider boundary", () => {
     expect(reportStaticInputsSource).toContain("fetchFantasyProsNews(getUserLoadSnapshotOptions())");
     expect(reportStaticSectionsSource).toContain("buildPlayerScheduleProfiles({");
     expect(reportStaticSectionsSource).toContain("loadSourceSnapshotFreshnessDiagnostics({");
+    expect(reportPlayerEnrichmentSource).toContain("playerEnrichmentById");
+    expect(reportPlayerEnrichmentSource).not.toContain("rosterStatus");
+    expect(reportPlayerEnrichmentSource).not.toContain("injuryStatus");
   });
 
   it("keeps ranking and player-detail non-Sleeper enrichments snapshot-only", () => {
