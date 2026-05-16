@@ -2776,6 +2776,15 @@ function buildAdminValueDiagnostics(
           : "No active NFL team players were available for current role matching.",
         `${diagnostic.mismatchCount} Sleeper role tag${diagnostic.mismatchCount === 1 ? "" : "s"} differed from the current team chart.`,
         `Teams loaded: ${diagnostic.loadedTeams.length}/${diagnostic.requestedTeams.length}.`,
+        diagnostic.cacheMode
+          ? `Cache mode: ${diagnostic.cacheMode}${diagnostic.snapshotKey ? ` ${diagnostic.snapshotKey}` : ""}.`
+          : null,
+        diagnostic.lastWarmAt
+          ? `Last warm: ${new Date(diagnostic.lastWarmAt).toLocaleString()}.`
+          : null,
+        typeof diagnostic.staleTeamCount === "number" && diagnostic.staleTeamCount > 0
+          ? `${diagnostic.staleTeamCount} stale or missing team chart${diagnostic.staleTeamCount === 1 ? "" : "s"}.`
+          : null,
         `Role enrichment took ${Math.round(diagnostic.durationMs || 0)}ms.`,
         failedTeams.length
           ? `Needs retry for: ${failedTeams.join(", ")}.`

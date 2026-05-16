@@ -85,6 +85,9 @@ describe('ESPN depth chart parsing', () => {
     expect(diagnostics.mismatchCount).toBe(1);
     expect(diagnostics.loadedTeams).toEqual(['mia']);
     expect(diagnostics.failedTeams).toEqual(['dal']);
+    expect(diagnostics.staleTeamCount).toBe(1);
+    expect(diagnostics.retryCount).toBe(0);
+    expect(diagnostics.cacheMode).toBe('live');
     expect(diagnostics.durationMs).toBe(0);
   });
 
@@ -121,5 +124,9 @@ describe('ESPN depth chart parsing', () => {
       order: 1,
     });
     expect(result.diagnostics.loadedTeams).toEqual(['mia']);
+    expect(result.diagnostics.cacheMode).toBe('snapshot');
+    expect(result.diagnostics.snapshotKey).toBe('2026-05-15');
+    expect(result.diagnostics.lastWarmAt).toBe('2026-05-15T12:00:00Z');
+    expect(result.diagnostics.snapshotUpdatedAt).toBe('2026-05-15T12:00:00.000Z');
   });
 });

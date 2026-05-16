@@ -37,6 +37,12 @@ export interface DepthChartDiagnostics {
   requestedTeams: string[];
   loadedTeams: string[];
   failedTeams: string[];
+  staleTeamCount: number;
+  retryCount: number;
+  cacheMode: 'live' | 'snapshot';
+  snapshotKey: string | null;
+  lastWarmAt: string | null;
+  snapshotUpdatedAt: string | null;
   durationMs: number;
   generatedAt: string;
 }
@@ -69,6 +75,13 @@ type EspnDepthChartSnapshotPayload = {
   generatedAt: string;
   snapshotKey: string;
   teams: Record<string, EspnDepthChartEntry[]>;
+};
+
+type StoredEspnDepthCharts = {
+  chartsByTeam: Map<string, EspnTeamDepthChart | null>;
+  snapshotKey: string | null;
+  lastWarmAt: string | null;
+  snapshotUpdatedAt: string | null;
 };
 
 const ESPN_TEAM_ABBR_BY_SLEEPER_TEAM: Record<string, string> = {
@@ -301,7 +314,7 @@ function parseEspnDepthChartSnapshot(payload?: string | null): EspnDepthChartSna
   return parsed as EspnDepthChartSnapshotPayload;
 }
 
-async function loadStoredEspnDepthCharts(teams: string[]): Promise<Map<string, EspnTeamDepthChart | null>> {
+async function loadStoredEspnDepthCharts(teams: string[]): Promise<StoredEspnDepthCharts> {
   const stored = await findLatestProviderDataSnapshot(ESPN_DEPTH_CHART_SNAPSHOT_SOURCE_KEY);
   const snapshot = parseEspnDepthChartSnapshot(stored?.payload);
   const charts = new Map<string, EspnTeamDepthChart | null>();
@@ -311,7 +324,12 @@ async function loadStoredEspnDepthCharts(teams: string[]): Promise<Map<string, E
     charts.set(team, entries ? indexTeamDepthChart(team, entries) : null);
   }
 
-  return charts;
+  return {
+    chartsByTeam: charts,
+    snapshotKey: snapshot?.snapshotKey || stored?.snapshotKey || null,
+    lastWarmAt: snapshot?.generatedAt || null,
+    snapshotUpdatedAt: stored?.updatedAt?.toISOString() || null,
+  };
 }
 
 async function persistEspnDepthChartSnapshot(chartsByTeam: Map<string, EspnTeamDepthChart | null>, now = new Date()) {
@@ -422,7 +440,8 @@ export function buildDepthChartDiagnostics(
   players: Record<string, any>,
   chartsByTeam: Map<string, EspnTeamDepthChart | null>,
   playerDepthCharts: Record<string, EspnDepthChartEntry>,
-  durationMs = 0
+  durationMs = 0,
+  metadata: Partial<Pick<DepthChartDiagnostics, 'cacheMode' | 'snapshotKey' | 'lastWarmAt' | 'snapshotUpdatedAt' | 'retryCount'>> = {}
 ): DepthChartDiagnostics {
   const checkedPlayerIds = getPlayerIdsWithTeam(playerIds, players);
   const requestedTeams = Array.from(chartsByTeam.keys()).sort();
@@ -436,6 +455,12 @@ export function buildDepthChartDiagnostics(
     requestedTeams,
     loadedTeams,
     failedTeams,
+    staleTeamCount: failedTeams.length,
+    retryCount: metadata.retryCount ?? 0,
+    cacheMode: metadata.cacheMode || 'live',
+    snapshotKey: metadata.snapshotKey || null,
+    lastWarmAt: metadata.lastWarmAt || null,
+    snapshotUpdatedAt: metadata.snapshotUpdatedAt || null,
     durationMs: Math.max(0, Math.round(durationMs)),
     generatedAt: new Date().toISOString(),
   };
@@ -491,13 +516,20 @@ export async function fetchEspnDepthChartsForPlayersWithDiagnostics(
     };
   }
 
-  const chartsByTeam = options.sourceMode === 'snapshot'
+  const storedCharts = options.sourceMode === 'snapshot'
     ? await loadStoredEspnDepthCharts(uniqueTeams)
-    : new Map(await mapLimit(uniqueTeams, ESPN_DEPTH_CHART_CONCURRENCY, async (team) => [team, await fetchEspnTeamDepthChart(team)] as const));
+    : null;
+  const chartsByTeam = storedCharts?.chartsByTeam
+    || new Map(await mapLimit(uniqueTeams, ESPN_DEPTH_CHART_CONCURRENCY, async (team) => [team, await fetchEspnTeamDepthChart(team)] as const));
   const playerDepthCharts = matchEspnDepthChartsToPlayers(chartsByTeam, uniquePlayerIds, players);
   return {
     playerDepthCharts,
-    diagnostics: buildDepthChartDiagnostics(uniquePlayerIds, players, chartsByTeam, playerDepthCharts, Date.now() - startedAt),
+    diagnostics: buildDepthChartDiagnostics(uniquePlayerIds, players, chartsByTeam, playerDepthCharts, Date.now() - startedAt, {
+      cacheMode: options.sourceMode === 'snapshot' ? 'snapshot' : 'live',
+      snapshotKey: storedCharts?.snapshotKey || null,
+      lastWarmAt: storedCharts?.lastWarmAt || null,
+      snapshotUpdatedAt: storedCharts?.snapshotUpdatedAt || null,
+    }),
   };
 }
 

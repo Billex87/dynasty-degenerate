@@ -932,6 +932,12 @@ export interface DepthChartDiagnostics {
   requestedTeams: string[];
   loadedTeams: string[];
   failedTeams: string[];
+  staleTeamCount?: number;
+  retryCount?: number;
+  cacheMode?: 'live' | 'snapshot';
+  snapshotKey?: string | null;
+  lastWarmAt?: string | null;
+  snapshotUpdatedAt?: string | null;
   durationMs: number;
   generatedAt: string;
 }
