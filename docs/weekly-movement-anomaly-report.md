@@ -19,9 +19,13 @@ Useful commands:
 ```bash
 pnpm audit:weekly-movement
 pnpm audit:weekly-movement -- --limit=10
+pnpm audit:weekly-movement -- --source=db --limit=10
 pnpm audit:weekly-movement -- --profile=12_sf_ppr_base
+pnpm audit:weekly-movement -- --source=db --profile=12_sf_ppr_base
 pnpm audit:weekly-movement -- --current=2026-05-11 --baseline=2026-05-07
 ```
+
+Use `--source=db` only in an environment where `DATABASE_URL` is already available, such as a local shell that has loaded `.vercel/.env.production.local`. DB mode selects the latest `ktcSnapshots` row on or before the requested Vancouver date and still prints only metadata/anomaly rows, not full snapshot payloads.
 
 Anomaly reasons:
 
@@ -39,3 +43,12 @@ May 15, 2026 local run:
 - Total anomaly candidates: 204
 
 The local repo did not contain a May 14 or May 15 snapshot during this run, so the production/current-snapshot riser/faller recheck remains open until a newer stored snapshot is available in the runtime being audited.
+
+May 15, 2026 production DB run:
+
+- Command: `pnpm audit:weekly-movement -- --source=db --profile=12_sf_ppr_base --limit=10`
+- Current production snapshot: `2026-05-15`, stored at `2026-05-16T01:07:23.803Z`
+- Baseline production snapshot: `2026-05-08`, stored at `2026-05-09T01:24:31.083Z`
+- Compared players: 739
+- Total anomaly candidates: 221
+- Top flags were mostly low-baseline prospect jumps and source-set changes after FantasyPros/Flock/FantasyCalc coverage expanded.

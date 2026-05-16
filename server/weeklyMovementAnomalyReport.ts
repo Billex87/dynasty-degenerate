@@ -7,6 +7,7 @@ import {
   getWeeklyMomentumBaselineTargetDateKey,
 } from './valueBaselinePolicy';
 import { KTC_SNAPSHOT_DIR, loadLocalKtcSnapshotForDate } from './ktcLoader';
+import { getDb } from './db';
 
 type SnapshotValue = {
   name?: string;
@@ -45,10 +46,13 @@ export type WeeklyMovementAnomalyRow = {
 };
 
 export type WeeklyMovementAnomalySummary = {
+  sourceMode: 'local' | 'db';
   snapshotDir: string;
   valueProfileKey: string | null;
   currentDateKey: string | null;
+  currentSnapshotAt: string | null;
   baselineDateKey: string | null;
+  baselineSnapshotAt: string | null;
   baselineTargetDateKey: string;
   baselineFloorDateKey: string;
   comparedPlayers: number;
@@ -62,6 +66,12 @@ type AnomalyOptions = {
   extremePctChange?: number;
   lowBaselineValue?: number;
   sourceSwingMinAbsoluteChange?: number;
+};
+
+type KtcSnapshotSelection = {
+  dateKey: string | null;
+  snapshotAt: string | null;
+  values: SnapshotValues;
 };
 
 export function findWeeklyMovementAnomalies(
@@ -153,10 +163,13 @@ export function buildWeeklyMovementAnomalySummary(input: {
   const result = findWeeklyMovementAnomalies(currentValues, baselineValues, input.options);
 
   return {
+    sourceMode: 'local',
     snapshotDir,
     valueProfileKey,
     currentDateKey,
+    currentSnapshotAt: null,
     baselineDateKey,
+    baselineSnapshotAt: null,
     baselineTargetDateKey,
     baselineFloorDateKey: WEEKLY_MOMENTUM_BASELINE_FLOOR_DATE_KEY,
     comparedPlayers: result.comparedPlayers,
@@ -164,6 +177,99 @@ export function buildWeeklyMovementAnomalySummary(input: {
     limit,
     rows: result.rows.slice(0, limit),
   };
+}
+
+export async function buildWeeklyMovementAnomalySummaryFromDb(input: {
+  valueProfileKey?: string | null;
+  currentDateKey?: string | null;
+  baselineDateKey?: string | null;
+  now?: Date;
+  limit?: number;
+  options?: AnomalyOptions;
+} = {}): Promise<WeeklyMovementAnomalySummary> {
+  const valueProfileKey = input.valueProfileKey || null;
+  const limit = Math.max(1, Math.min(100, Math.floor(input.limit ?? 25)));
+  const todayKey = toDateKey(input.now || new Date());
+  const baselineTargetDateKey = getWeeklyMomentumBaselineTargetDateKey(7, input.now || new Date());
+  const [current, baseline] = await Promise.all([
+    loadDbSnapshotOnOrBefore(input.currentDateKey || todayKey, valueProfileKey),
+    loadDbSnapshotOnOrBefore(
+      input.baselineDateKey || baselineTargetDateKey,
+      valueProfileKey,
+      WEEKLY_MOMENTUM_BASELINE_FLOOR_DATE_KEY,
+    ),
+  ]);
+  const result = findWeeklyMovementAnomalies(current.values, baseline.values, input.options);
+
+  return {
+    sourceMode: 'db',
+    snapshotDir: '',
+    valueProfileKey,
+    currentDateKey: current.dateKey,
+    currentSnapshotAt: current.snapshotAt,
+    baselineDateKey: baseline.dateKey,
+    baselineSnapshotAt: baseline.snapshotAt,
+    baselineTargetDateKey,
+    baselineFloorDateKey: WEEKLY_MOMENTUM_BASELINE_FLOOR_DATE_KEY,
+    comparedPlayers: result.comparedPlayers,
+    totalAnomalies: result.rows.length,
+    limit,
+    rows: result.rows.slice(0, limit),
+  };
+}
+
+async function loadDbSnapshotOnOrBefore(
+  maxDateKey: string,
+  valueProfileKey?: string | null,
+  minDateKey?: string,
+): Promise<KtcSnapshotSelection> {
+  const sql = await getDb();
+  if (!sql) return { dateKey: null, snapshotAt: null, values: {} };
+
+  const rows = await sql`
+    SELECT
+      to_char("snapshotDate" AT TIME ZONE 'America/Vancouver', 'YYYY-MM-DD') AS "dateKey",
+      "snapshotDate",
+      "ktcData"
+    FROM "ktcSnapshots"
+    WHERE to_char("snapshotDate" AT TIME ZONE 'America/Vancouver', 'YYYY-MM-DD') <= ${maxDateKey}
+      AND (${minDateKey || null}::text IS NULL OR to_char("snapshotDate" AT TIME ZONE 'America/Vancouver', 'YYYY-MM-DD') >= ${minDateKey || null})
+    ORDER BY "snapshotDate" DESC
+    LIMIT 1
+  ` as Array<{ dateKey?: string | null; snapshotDate?: Date | string | null; ktcData?: string | null }>;
+
+  const row = rows[0];
+  if (!row?.ktcData) return { dateKey: null, snapshotAt: null, values: {} };
+  return {
+    dateKey: row.dateKey || null,
+    snapshotAt: row.snapshotDate ? new Date(row.snapshotDate).toISOString() : null,
+    values: parseSnapshotValues(row.ktcData, valueProfileKey || undefined),
+  };
+}
+
+function parseSnapshotValues(payload: string, valueProfileKey?: string): SnapshotValues {
+  try {
+    const parsed = JSON.parse(payload);
+    if (
+      valueProfileKey &&
+      parsed &&
+      typeof parsed === 'object' &&
+      parsed.blendedProfiles &&
+      typeof parsed.blendedProfiles === 'object' &&
+      parsed.blendedProfiles[valueProfileKey] &&
+      typeof parsed.blendedProfiles[valueProfileKey] === 'object'
+    ) {
+      return parsed.blendedProfiles[valueProfileKey] as SnapshotValues;
+    }
+    if (parsed && typeof parsed === 'object' && parsed.values && typeof parsed.values === 'object') {
+      return parsed.values as SnapshotValues;
+    }
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as SnapshotValues
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 function getPrimaryValue(row: SnapshotValue): number | null {
@@ -222,13 +328,16 @@ function toDateKey(date: Date): string {
 }
 
 function parseCliArgs(): {
+  sourceMode: 'local' | 'db';
   valueProfileKey: string | null;
   currentDateKey: string | null;
   baselineDateKey: string | null;
   limit: number;
 } {
   const getFlag = (name: string) => process.argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3) || null;
+  const sourceMode = getFlag('source') === 'db' ? 'db' : 'local';
   return {
+    sourceMode,
     valueProfileKey: getFlag('profile'),
     currentDateKey: getFlag('current'),
     baselineDateKey: getFlag('baseline'),
@@ -236,13 +345,27 @@ function parseCliArgs(): {
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+async function runCli() {
   const args = parseCliArgs();
-  const summary = buildWeeklyMovementAnomalySummary({
-    valueProfileKey: args.valueProfileKey,
-    currentDateKey: args.currentDateKey,
-    baselineDateKey: args.baselineDateKey,
-    limit: args.limit,
-  });
+  const summary = args.sourceMode === 'db'
+    ? await buildWeeklyMovementAnomalySummaryFromDb({
+      valueProfileKey: args.valueProfileKey,
+      currentDateKey: args.currentDateKey,
+      baselineDateKey: args.baselineDateKey,
+      limit: args.limit,
+    })
+    : buildWeeklyMovementAnomalySummary({
+      valueProfileKey: args.valueProfileKey,
+      currentDateKey: args.currentDateKey,
+      baselineDateKey: args.baselineDateKey,
+      limit: args.limit,
+    });
   console.log(JSON.stringify(summary, null, 2));
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runCli().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
 }
