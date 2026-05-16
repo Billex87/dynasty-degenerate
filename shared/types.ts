@@ -949,10 +949,17 @@ export interface TransactionBackfillDiagnostics {
   waiverOrFreeAgentCount: number;
   tradeProposalCount: number;
   completedTradeCount: number;
+  scannedLeagueIds?: string[];
+  failedLeagueCount?: number;
+  failedLeagueIds?: string[];
+  brokenPreviousLeagueChainCount?: number;
   leagues: Array<{
     leagueId: string;
     season: string;
     transactionCount: number;
+    previousLeagueId?: string | null;
+    status?: 'loaded' | 'failed' | 'invalid';
+    error?: string | null;
   }>;
   generatedAt: string;
 }

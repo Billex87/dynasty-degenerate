@@ -1172,6 +1172,9 @@ type HistoricalTransactionContext = {
   transactions: any[];
   rosterUserMap: Record<string, string>;
   rosterUserDisplayMap: Record<string, string>;
+  previousLeagueId: string | null;
+  status: 'loaded' | 'failed' | 'invalid';
+  error?: string | null;
 };
 
 async function fetchHistoricalTransactionContexts(
@@ -1190,7 +1193,19 @@ async function fetchHistoricalTransactionContexts(
         fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
         fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
       ]);
-      if (!leagueInfo || !Array.isArray(users) || !Array.isArray(rosters)) break;
+      if (!leagueInfo || !Array.isArray(users) || !Array.isArray(rosters)) {
+        contexts.push({
+          leagueId,
+          season: '',
+          transactions: [],
+          rosterUserMap: {},
+          rosterUserDisplayMap: {},
+          previousLeagueId: null,
+          status: 'invalid',
+          error: 'Invalid league, user, or roster response',
+        });
+        break;
+      }
       const userMap = Object.fromEntries(users.map((user: any) => [user.user_id, user]));
       const rosterUserMap = Object.fromEntries(
         rosters.map((roster: any) => [
@@ -1211,10 +1226,22 @@ async function fetchHistoricalTransactionContexts(
         transactions,
         rosterUserMap,
         rosterUserDisplayMap,
+        previousLeagueId: leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : null,
+        status: 'loaded',
       });
       leagueId = leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : '';
     } catch (error) {
       console.warn(`Failed to fetch historical Sleeper transactions for league ${leagueId}:`, error);
+      contexts.push({
+        leagueId,
+        season: '',
+        transactions: [],
+        rosterUserMap: {},
+        rosterUserDisplayMap: {},
+        previousLeagueId: null,
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
       break;
     }
   }
@@ -1224,6 +1251,7 @@ async function fetchHistoricalTransactionContexts(
 
 function buildTransactionBackfillDiagnostics(contexts: HistoricalTransactionContext[]): NonNullable<ReportData['transactionBackfillDiagnostics']> {
   const transactions = contexts.flatMap((context) => context.transactions);
+  const failedContexts = contexts.filter((context) => context.status === 'failed' || context.status === 'invalid');
   return {
     checkedLeagueCount: contexts.length,
     seasonCount: new Set(contexts.map((context) => context.season).filter(Boolean)).size,
@@ -1231,10 +1259,17 @@ function buildTransactionBackfillDiagnostics(contexts: HistoricalTransactionCont
     waiverOrFreeAgentCount: transactions.filter((transaction) => transaction?.status === 'complete' && ['waiver', 'free_agent'].includes(transaction?.type)).length,
     tradeProposalCount: transactions.filter((transaction) => transaction?.type === 'trade' && transaction?.status !== 'complete').length,
     completedTradeCount: transactions.filter((transaction) => transaction?.type === 'trade' && transaction?.status === 'complete').length,
+    scannedLeagueIds: contexts.map((context) => context.leagueId),
+    failedLeagueCount: failedContexts.length,
+    failedLeagueIds: failedContexts.map((context) => context.leagueId),
+    brokenPreviousLeagueChainCount: failedContexts.length,
     leagues: contexts.map((context) => ({
       leagueId: context.leagueId,
       season: context.season,
       transactionCount: context.transactions.length,
+      previousLeagueId: context.previousLeagueId,
+      status: context.status,
+      error: context.error || null,
     })),
     generatedAt: new Date().toISOString(),
   };

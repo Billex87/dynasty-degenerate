@@ -2808,7 +2808,13 @@ function buildAdminValueDiagnostics(
       note: [
         `${diagnostic.checkedLeagueCount} previous league${diagnostic.checkedLeagueCount === 1 ? "" : "s"} checked.`,
         `${diagnostic.waiverOrFreeAgentCount} waiver/free-agent moves and ${diagnostic.tradeProposalCount} non-complete trade signals were backfilled for manager behavior reads.`,
-      ].join(" "),
+        diagnostic.failedLeagueCount
+          ? `${diagnostic.failedLeagueCount} historical league link${diagnostic.failedLeagueCount === 1 ? "" : "s"} failed or returned unusable data.`
+          : null,
+        diagnostic.brokenPreviousLeagueChainCount
+          ? `${diagnostic.brokenPreviousLeagueChainCount} previous-league chain issue${diagnostic.brokenPreviousLeagueChainCount === 1 ? "" : "s"} need review.`
+          : null,
+      ].filter(Boolean).join(" "),
     });
   }
 
