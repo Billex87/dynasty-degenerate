@@ -223,10 +223,10 @@
 ## Draft Baseline / League Mode Roadmap
 
 - [x] After deployment, run the expanded production smoke checks for all four target leagues: `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`.
-- [ ] Re-check weekly risers and fallers on May 14 or May 15, 2026 after the temporary May 7 baseline floor ages out of the 7-day lookback.
+- [ ] Re-check weekly risers and fallers on May 14 or May 15, 2026 after the temporary May 7 baseline floor ages out of the 7-day lookback; local audit tooling is ready, but the local repo currently has no May 14/15 snapshot to compare.
 - [ ] If extreme weekly percentages still appear after the 7-day lookback catches up, investigate source volatility, tiny baseline/current values, and source identity mismatches.
-- [ ] Keep 2026 rookie draft labels as `Early Riser` and `Early Faller` through preseason, then switch to `Hit` and `Miss` when the season evaluation window opens.
-- [ ] Add an admin-only weekly movement anomaly report for extreme movers, low-denominator baselines, and suspicious source swings.
+- [x] Keep 2026 rookie draft labels as `Early Riser` and `Early Faller` through preseason, then switch to `Hit` and `Miss` when the season evaluation window opens.
+- [x] Add an admin-only weekly movement anomaly report for extreme movers, low-denominator baselines, and suspicious source swings.
 
 ## Waiver / Trade Intelligence Roadmap
 
