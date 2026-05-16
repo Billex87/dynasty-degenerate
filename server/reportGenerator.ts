@@ -2341,6 +2341,25 @@ function isAiReadPlayerEligible(player: ManagerIntelPlayer, teamCount: number): 
   return true;
 }
 
+function isWeeklyMomentumPlayerEligible(player: {
+  pos: string;
+  val_now: number;
+  currentPositionRank?: string | null;
+}, teamCount: number): boolean {
+  if (!['QB', 'RB', 'WR', 'TE'].includes(player.pos)) return false;
+
+  const currentRank = getRankNumber(player.currentPositionRank);
+
+  if (player.pos === 'TE') {
+    const usableTeLine = Math.max(12, teamCount || 0);
+    if (!currentRank || currentRank > usableTeLine) return false;
+  }
+
+  if (!currentRank && player.val_now < 1000) return false;
+
+  return true;
+}
+
 function getNeedPosition({
   qbs,
   rbs,
@@ -2656,12 +2675,21 @@ export async function generateReport(
       const lastWeekVal = getPrimarySnapshotValue(pid, ktcValuesLastWeek);
       if (currentWeeklyVal > 0 && lastWeekVal > 0) {
         const pct_change = getWeeklyMomentumPctChange(currentWeeklyVal, lastWeekVal);
-        if (pct_change !== null && pct_change !== 0) {
+        const currentPositionRank = getPrimaryRank(pid);
+        if (
+          pct_change !== null
+          && pct_change !== 0
+          && isWeeklyMomentumPlayerEligible({
+            pos,
+            val_now: currentWeeklyVal,
+            currentPositionRank,
+          }, currentSeasonData.rosters.length || 10)
+        ) {
           weeklyMomentum.push({
             name: getCachedPlayerName(pid),
             player_id: pid,
             playerDetails: getCachedPlayerDetails(pid, getRosterPlayerStatus(r, pid)),
-            currentPositionRank: getPrimaryRank(pid),
+            currentPositionRank,
             owner: name,
             pos,
             val_last: lastWeekVal,

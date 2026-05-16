@@ -702,13 +702,13 @@ describe('generateReport trade ledger', () => {
         steadygain: { name: 'Steady Gain', ktc_value: 9000, market_value_ktc: 9000 },
         smallbigpct: { name: 'Small Bigpct', ktc_value: 2500, market_value_ktc: 2500 },
         bigdrop: { name: 'Big Drop', ktc_value: 7000, market_value_ktc: 7000 },
-        smalldrop: { name: 'Small Drop', ktc_value: 2000, market_value_ktc: 2000 },
+        smalldrop: { name: 'Small Drop', ktc_value: 2000, market_value_ktc: 2000, position_rank: 'TE8' },
       },
       {
         steadygain: { name: 'Steady Gain', ktc_value: 8000 },
         smallbigpct: { name: 'Small Bigpct', ktc_value: 2000 },
         bigdrop: { name: 'Big Drop', ktc_value: 7600 },
-        smalldrop: { name: 'Small Drop', ktc_value: 2500 },
+        smalldrop: { name: 'Small Drop', ktc_value: 2500, position_rank: 'TE8' },
       }
     );
 
@@ -751,6 +751,36 @@ describe('generateReport trade ledger', () => {
       val_now: 3500,
       diff: 500,
     });
+  });
+
+  it('does not surface fringe tight ends in weekly momentum rows', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterMap: { 1: 'Manager A' },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['dallen', 'usableTe'] },
+        ],
+      },
+      null,
+      {
+        dallen: { first_name: 'Dallen', last_name: 'Bentley', position: 'TE', age: 22 },
+        usableTe: { first_name: 'Usable', last_name: 'Tightend', position: 'TE', age: 25 },
+      },
+      {
+        dallenbentley: { name: 'Dallen Bentley', ktc_value: 1500, market_value_ktc: 1500, position_rank: 'TE20' },
+        usabletightend: { name: 'Usable Tightend', ktc_value: 2500, market_value_ktc: 2500, position_rank: 'TE8' },
+      },
+      {
+        dallenbentley: { name: 'Dallen Bentley', ktc_value: 1000, position_rank: 'TE20' },
+        usabletightend: { name: 'Usable Tightend', ktc_value: 2100, position_rank: 'TE8' },
+      }
+    );
+
+    expect(report.weeklyRisers.map((player) => player.name)).toEqual(['Usable Tightend']);
+    expect(JSON.stringify(report.weeklyRisers)).not.toContain('Dallen Bentley');
+    expect(JSON.stringify(report.weeklyFallers)).not.toContain('Dallen Bentley');
   });
 
   it('scales starter counts by league size and redraft positional rank', async () => {

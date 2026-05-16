@@ -225,7 +225,7 @@
 
 - [x] After deployment, run the expanded production smoke checks for all four target leagues: `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`.
 - [x] Re-check weekly risers and fallers on May 14 or May 15, 2026 after the temporary May 7 baseline floor ages out of the 7-day lookback; production DB audit compared `2026-05-15` against `2026-05-08`.
-- [ ] Extreme weekly percentages still appear after the 7-day lookback catches up; investigate source volatility, tiny baseline/current values, and source identity mismatches. Production DB audit found 221 anomaly candidates, mostly low-baseline prospect jumps and source-set changes.
+- [x] Extreme weekly percentages still appear after the 7-day lookback catches up; investigated source volatility, tiny baseline/current values, and source identity mismatches. Weekly movement rows now reuse a report relevance gate so fringe/unranked TE20-style movement does not surface as user-facing risers/fallers.
 - [x] Keep 2026 rookie draft labels as `Early Riser` and `Early Faller` through preseason, then switch to `Hit` and `Miss` when the season evaluation window opens.
 - [x] Add an admin-only weekly movement anomaly report for extreme movers, low-denominator baselines, and suspicious source swings.
 

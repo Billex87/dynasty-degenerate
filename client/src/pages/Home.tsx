@@ -180,8 +180,8 @@ const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
   "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
-const REPORT_CACHE_DATA_VERSION = "ai-read-eligibility-v1";
-const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v22";
+const REPORT_CACHE_DATA_VERSION = "weekly-momentum-eligibility-v1";
+const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v23";
 const REPORT_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v10",
@@ -196,6 +196,7 @@ const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v19",
   "dynasty-degenerates:last-report:v20",
   "dynasty-degenerates:last-report:v21",
+  "dynasty-degenerates:last-report:v22",
 ];
 const LAST_LEAGUE_KEY = "dynasty-degenerates:last-league:v1";
 const SLEEPER_SESSION_KEY = "dynasty-degenerates:sleeper-session:v1";
