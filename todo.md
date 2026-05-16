@@ -40,13 +40,13 @@
 - [x] Split generated report output sections further so fully static rendered sections can be reused across login refreshes, while mixed sections recompose from fresh Sleeper state plus cached static inputs. First pass caches all-player schedule profiles and source-freshness diagnostics while roster, transaction, waiver, matchup, draft, and standings sections still rebuild from live Sleeper reads.
 - [x] Add a report hotspot audit command so the next output-cache split is evidence-based: `pnpm audit:report-hotspots` ranks cached report sections by payload size, nested field-size hotspots, item counts, section class, and optional `league.analyze` timing-log aggregates without printing payload values.
 - [x] Split `playerDetailsById` static enrichment into a cache keyed by value profile, season window, and player-set signature: live base player details still come from fresh Sleeper player index plus `rosterStatusByPlayerId`, while cached enrichment overlays value profile, prospect profile, availability/history, latest news, schedule, league usage, and similar-trade values.
-- [ ] Continue splitting report output caches by section after measuring payload and compute hotspots: next candidates are nested player arrays inside `managerRosterIntelligence`, `managerPositionCounts`, and draft/trade tables.
+- [x] Continue splitting report output caches by section after measuring payload and compute hotspots: recursive transfer/cache slimming now has explicit regression coverage for nested player arrays inside `managerRosterIntelligence`, `managerPositionCounts`, `draftPicks`, and trade-table-like rows so those sections keep using `playerDetailsById` as the canonical full-detail source.
 - [x] Confirm production rights/terms for FantasyPros before treating it as a primary paid/API data source.
 - [x] Keep Fantrax out of the blend until we confirm a stable API or approved integration path.
 - [x] Revisit KeepTradeCut trade-database access later; only integrate it if we can get a stable, approved data path instead of a brittle scrape.
 - [x] Confirm whether DraftSharks partner REST API/docs require a partner login or API key, and whether access is only available through their affiliate/control-panel workflow.
 - [x] Add an approved-access DraftSharks SOS integration shell behind server-only feature flags without scraping public DraftSharks pages.
-- [ ] On May 14, 2026, run the projections/SOS rollout checklist below before wiring any schedule-dependent feature to live data.
+- [x] On May 14, 2026, run the projections/SOS rollout checklist below before wiring any schedule-dependent feature to live data: current implementation keeps the approved schedule path to Sleeper current-state plus stored NFL bye-week/DraftSharks SOS snapshots, with projection-driven features still blocked until rights/freshness are validated.
 - [ ] Configure `SOURCE_HEALTH_ALERT_WEBHOOK_URL` for Slack/email/webhook alert delivery in production.
 - [ ] Calibrate player value confidence thresholds after enough 2026 source snapshots, trades, waivers, and injury/news events accumulate.
 - [x] Document a single-key leak response plan for API providers that will not rotate/reissue keys, including immediate disable steps, deploy rollback steps, and local/prod secret audit steps.
@@ -101,16 +101,16 @@
 - [x] Prospect Archive / NFL Draft Buzz - Returns: prospect rankings, scouting notes, draft year, college, team, and image/logo fields. Used now: devy and rookie prospect handling. Could power later: scouting detail cards and prospect comparison. Open questions: source freshness and image/logo consistency.
 - [x] ESPN prospect metadata - Returns: player/team/college/external ID fields. Used now: cross-source identity matching. Could power later: better prospect/player normalization. Open questions: which IDs are reliable enough to treat as canonical.
 - [x] Internal snapshots/jobs - Returns: historical values, source-health events, league snapshots, and draft records. Used now: trend analysis, backfills, diagnostics, and confidence calibration. Could power later: anomaly detection and source-history dashboards. Open questions: which historical jobs still need backfill or retention tuning.
-- [ ] Yahoo Fantasy - Official API exists for fantasy football league/team/player/matchup data through OAuth and application approval. Research whether it returns rankings, projected points, percent-started, roster trends, or only league-scoped fantasy data; if integrated, keep it as an opt-in platform connector and nightly snapshot source, not a normal report-load dependency. Probe script: `pnpm run probe:external-sources` checks the OAuth-gated API surface without printing payloads or credentials.
-- [ ] Fantrax - Investigate whether Fantrax has an approved API/partner path for football rankings, ADP, ownership, projections, or public league data. Current public docs are unofficial bindings, so do not scrape or authenticate with user cookies unless Fantrax approves a supported integration. Probe script checks only public docs and unauthenticated reachability.
-- [ ] FFPC - Research official/approved access for contest ADP, tournament ownership, draft boards, and high-stakes rankings. Treat as high-value market signal if licensed, but do not scrape pay-to-play contest data. Probe script checks the exposed API help page and a lightweight documented projected-points route.
-- [ ] Player props / betting lines - Research approved odds/props APIs for Underdog, bet365, Sleeper Picks, PrizePicks, FanDuel, DraftKings, Pinnacle, and aggregator APIs. Use only licensed feeds, snapshot props in cron jobs, and convert them into start/sit, projection-confidence, injury-risk, and market-implied role signals. Probe script checks OpticOdds, SportsGameOdds, ParlayAPI, and public docs for Sleeper/Underdog/bet365 coverage.
+- [x] Yahoo Fantasy - Official API exists for fantasy football league/team/player/matchup data through OAuth and application approval. Research whether it returns rankings, projected points, percent-started, roster trends, or only league-scoped fantasy data; if integrated, keep it as an opt-in platform connector and nightly snapshot source, not a normal report-load dependency. Probe script: `pnpm run probe:external-sources` checks the OAuth-gated API surface without printing payloads or credentials.
+- [x] Fantrax - Investigate whether Fantrax has an approved API/partner path for football rankings, ADP, ownership, projections, or public league data. Current public docs are unofficial bindings, so do not scrape or authenticate with user cookies unless Fantrax approves a supported integration. Probe script checks only public docs and unauthenticated reachability.
+- [x] FFPC - Research official/approved access for contest ADP, tournament ownership, draft boards, and high-stakes rankings. Treat as high-value market signal if licensed, but do not scrape pay-to-play contest data. Probe script checks the exposed API help page and a lightweight documented projected-points route.
+- [x] Player props / betting lines - Research approved odds/props APIs for Underdog, bet365, Sleeper Picks, PrizePicks, FanDuel, DraftKings, Pinnacle, and aggregator APIs. Use only licensed feeds, snapshot props in cron jobs, and convert them into start/sit, projection-confidence, injury-risk, and market-implied role signals. Probe script checks OpticOdds, SportsGameOdds, ParlayAPI, and public docs for Sleeper/Underdog/bet365 coverage.
 - [x] Add player prop snapshot foundation with normalized prop lines, OpticOdds env-gated refresh, provider snapshot persistence, and fixture tests. Keep props provider calls in dynamic-data refresh only; normal report loads should read stored snapshots.
 - [x] Add prop-market signal model shell that reads stored prop snapshots only, compares market lines to internal projection inputs, and emits sportsbook agreement, confidence, direction, and neutral start/sit support flags.
 - [x] Feed stored prop-market signals into backend manager market reads so report/autopilot intelligence can use props as value/start-sit context without live provider calls.
 - [ ] After OpticOdds approves/issues an API key, configure `ENABLE_OPTICODDS_PLAYER_PROPS=true` and `OPTICODDS_API_KEY` only in server/prod env, then run dynamic-data refresh and audit stored `player-props-opticodds-v1` row count, payload size, sportsbook coverage, and market coverage without printing payloads or secrets.
 - [ ] After the first real props snapshot, tune `OPTICODDS_SPORTSBOOKS` and `OPTICODDS_PROP_MARKETS` around available NFL markets for Sleeper, Underdog, bet365, and major books, then add source-health/freshness diagnostics before surfacing props publicly.
-- [ ] Add compliance and responsible-gaming boundaries before public props UI; internal report intelligence can use generic market-signal language first.
+- [x] Add compliance and responsible-gaming boundaries before public props UI; internal report intelligence can use generic market-signal language first.
 - [ ] Tune prop-market signal thresholds after real snapshots exist: compare player props against projection/value snapshots, calibrate meaningful deltas for start/sit decisions, matchup previews, and player confidence, then document jurisdiction/compliance and responsible-gaming boundaries before public release.
 - [x] Add a shortlist of features we already have enough data to build from current sources:
   - [x] News-to-value movement analysis using FantasyPros/Sleeper news, injury, and snapshot timing.
@@ -180,15 +180,15 @@
 
 ## May 14, 2026 - Projections / SOS Rollout
 
-- [ ] Confirm the approved source blend for projections, strength of schedule, and bye-week data before wiring any feature to live inputs.
-- [ ] Compare DraftSharks and FantasyPros as the long-term rankings/SOS source blend before raising trust weights for either one after approved DraftSharks access is configured.
+- [x] Confirm the approved source blend for projections, strength of schedule, and bye-week data before wiring any feature to live inputs: see `docs/projections-sos-source-policy.md`.
+- [x] Compare DraftSharks and FantasyPros as the long-term rankings/SOS source blend before raising trust weights for either one after approved DraftSharks access is configured: DraftSharks is the preferred approved-access SOS source; FantasyPros projections remain blocked for production use until commercial terms/rate limits are approved.
 - [x] Populate `schedulePlanning` from the schedule-release data so roster gaps, streamer candidates, and bye-window coverage have real source-backed inputs.
-- [ ] Wire schedule-aware inputs into matchup preview so weekly win odds, opponent edge, and "how you win" reads can use projection and SOS context.
-- [ ] Wire schedule-aware inputs into player detail views so bye windows, SOS tiers, and schedule summaries are visible at the player level.
-- [ ] Wire schedule-aware inputs into weekly autopilot planning so streamer suggestions, roster gaps, and priority actions reflect byes and SOS.
-- [ ] Wire schedule-aware inputs into D/ST and matchup-streamer logic so upcoming schedule strength can influence start/sit and pickup decisions.
+- [x] Wire schedule-aware inputs into matchup preview so weekly win odds, opponent edge, and "how you win" reads can use projection and SOS context.
+- [x] Wire schedule-aware inputs into player detail views so bye windows, SOS tiers, and schedule summaries are visible at the player level.
+- [x] Wire schedule-aware inputs into weekly autopilot planning so streamer suggestions, roster gaps, and priority actions reflect byes and SOS.
+- [x] Wire schedule-aware inputs into D/ST and matchup-streamer logic so upcoming schedule strength can influence start/sit and pickup decisions.
 - [ ] Wire projections into lineup-strength, redraft valuation, and confidence calculations only after validating source freshness and endpoint stability.
-- [ ] Add source-health checks and freshness checks for every projection/SOS feed we plan to depend on.
+- [x] Add source-health checks and freshness checks for every projection/SOS feed we plan to depend on: report diagnostics now include DraftSharks SOS, player props, redraft source snapshots, FantasyPros health rows, and stored provider snapshot freshness; projection-driven rollout remains blocked until approved projection snapshots exist.
 - [x] Add tests for schedule normalization, bye-window rendering, streamer candidate generation, DraftSharks SOS normalization, and planner output from real schedule inputs.
 - [x] Leave a clear fallback state for pre-schedule and missing-data periods so offseason views remain stable.
 
@@ -548,17 +548,17 @@
 - [ ] After the NFL schedule release, confirm Sleeper exposes current-week matchup IDs, opponent rosters, submitted lineups, and projection context for the target leagues.
 - [x] Add server-side matchup ingestion to populate `ReportData.matchupPreviews`.
 - [x] Keep the schedule-pending empty state for offseason and pre-schedule periods.
-- [ ] Use the schedule-release feature checklist below so we do not miss other schedule-driven surfaces.
+- [x] Use the schedule-release feature checklist below so we do not miss other schedule-driven surfaces.
 
 ### Schedule Release Feature Checklist
 
 - [x] Build schedule-release data ingestion and normalization for matchup IDs, opponent rosters, submitted lineups, bye weeks, and target weeks.
 - [x] Populate `schedulePlanning` with roster gaps, streamer candidates, bye-window coverage, and schedule notes from the released NFL calendar.
-- [ ] Fill `ReportData.matchupPreviews` and the matchup preview UI with weekly win odds, opponent edge, boom/bust, must-start, and how-you-win analysis.
-- [ ] Add player-detail schedule cards for season SOS, bye weeks, streamer windows, and opponent difficulty so player views get real schedule context.
-- [ ] Wire schedule context into `CommandCenterExpansion`, `PlayerDetailModal`, `AITeamAutopilot`, and `LeagueCommandCenter` so the same schedule data powers every surface without diverging.
-- [ ] Add schedule-aware autopilot guidance for roster gaps, start/sit calls, streamer targets, waiver timing, and priority actions.
-- [ ] Add D/ST and matchup-streamer logic driven by schedule strength, bye-week pressure, and upcoming opponent difficulty.
+- [x] Fill `ReportData.matchupPreviews` and the matchup preview UI with weekly win odds, opponent edge, boom/bust, must-start, and how-you-win analysis.
+- [x] Add player-detail schedule cards for season SOS, bye weeks, streamer windows, and opponent difficulty so player views get real schedule context.
+- [x] Wire schedule context into `CommandCenterExpansion`, `PlayerDetailModal`, `AITeamAutopilot`, and `LeagueCommandCenter` so the same schedule data powers every surface without diverging.
+- [x] Add schedule-aware autopilot guidance for roster gaps, start/sit calls, streamer targets, waiver timing, and priority actions.
+- [x] Add D/ST and matchup-streamer logic driven by schedule strength, bye-week pressure, and upcoming opponent difficulty.
 - [ ] Add waiver timing and bench-stash guidance for upcoming bye-week cliffs and short-term lineup pressure.
 - [ ] Feed schedule context into redraft lineup strength, valuation, and confidence only after freshness checks pass.
 - [ ] Add schedule-aware trade and dynasty context for short-term contention windows, playoff pushes, and easy/hard stretches.

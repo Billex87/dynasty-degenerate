@@ -77,6 +77,95 @@ describe('report payload slimming', () => {
     });
   });
 
+  it('compacts nested playerDetails in roster, position, draft, and trade sections', () => {
+    const detailedPlayer = {
+      fullName: 'Player One',
+      team: 'BUF',
+      position: 'QB',
+      age: 25,
+      valueProfile: { dynastyValue: 1000, seasonValue: 900 },
+      availabilityHistory: [{ season: '2025', games: 16, gamesMissed: 1 }],
+      latestNews: { title: 'Long note', source: 'FantasyPros' },
+      similarTradeValues: [{ playerId: '2', name: 'Peer', value: 980 }],
+    };
+    const report = {
+      ...createReport(),
+      playerDetailsById: {
+        '1': detailedPlayer,
+      },
+      managerRosterIntelligence: [{
+        manager: 'Manager A',
+        starters: [{
+          player_id: '1',
+          name: 'Player One',
+          pos: 'QB',
+          value: 1000,
+          playerDetails: detailedPlayer,
+        }],
+      }],
+      managerPositionCounts: [{
+        manager: 'Manager A',
+        QB: 1,
+        QB_starters: 1,
+        RB: 0,
+        RB_starters: 0,
+        WR: 0,
+        WR_starters: 0,
+        TE: 0,
+        TE_starters: 0,
+        starterPlayers: [{
+          player_id: '1',
+          name: 'Player One',
+          pos: 'QB',
+          value: 1000,
+          playerDetails: detailedPlayer,
+        }],
+        starterGroups: [{
+          key: 'QB',
+          label: 'QB',
+          count: 1,
+          players: [{
+            player_id: '1',
+            name: 'Player One',
+            pos: 'QB',
+            value: 1000,
+            playerDetails: detailedPlayer,
+          }],
+        }],
+      }],
+      draftPicks: [{
+        player_id: '1',
+        playerName: 'Player One',
+        playerDetails: detailedPlayer,
+      }],
+      tradeHistory: [{
+        team_a: 'Manager A',
+        team_b: 'Manager B',
+        date: '2026-05-15',
+        teamAAdds: [{
+          player_id: '1',
+          name: 'Player One',
+          playerDetails: detailedPlayer,
+        }],
+      }],
+    } as unknown as ReportData;
+
+    const result = slimReportDataForTransfer(report);
+    const payload = result.payload as any;
+
+    expect(result.stats.compactedEmbeddedPlayerDetails).toBe(6);
+    expect(payload.managerRosterIntelligence?.[0]?.starters?.[0]?.playerDetails).toMatchObject({
+      fullName: 'Player One',
+      team: 'BUF',
+      position: 'QB',
+    });
+    expect(payload.managerRosterIntelligence?.[0]?.starters?.[0]?.playerDetails).not.toHaveProperty('valueProfile');
+    expect(payload.managerPositionCounts[0].starterPlayers?.[0]?.playerDetails).not.toHaveProperty('availabilityHistory');
+    expect(payload.managerPositionCounts[0].starterGroups?.[0]?.players?.[0]?.playerDetails).not.toHaveProperty('latestNews');
+    expect(payload.draftPicks?.[0]?.playerDetails).not.toHaveProperty('similarTradeValues');
+    expect(payload.tradeHistory[0].teamAAdds?.[0]?.playerDetails).not.toHaveProperty('valueProfile');
+  });
+
   it('slims cached analyze payloads without mutating unrelated payloads', () => {
     const cached = {
       leagueId: '123',

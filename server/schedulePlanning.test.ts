@@ -149,4 +149,50 @@ describe('schedule planning', () => {
     expect(previews[0].projectedPoints).toBeGreaterThan(0);
     expect(previews[0].positionEdges?.length).toBeGreaterThan(0);
   });
+
+  it('uses stored schedule profiles in matchup projections and notes', () => {
+    const neutral = buildMatchupPreviews({
+      season: '2026',
+      week: 1,
+      rosters: [
+        { roster_id: 1, players: ['phiQb', 'carRb'], starters: ['phiQb', 'carRb'] },
+        { roster_id: 2, players: ['detWr', 'kcRb'], starters: ['detWr', 'kcRb'] },
+      ],
+      rosterMap: { 1: 'Bill', 2: 'Opponent' },
+      players,
+      ktcValues,
+      matchups: [
+        { roster_id: 1, matchup_id: 10, starters: ['phiQb', 'carRb'], points: 0 },
+        { roster_id: 2, matchup_id: 10, starters: ['detWr', 'kcRb'], points: 0 },
+      ],
+    });
+    const scheduled = buildMatchupPreviews({
+      season: '2026',
+      week: 1,
+      rosters: [
+        { roster_id: 1, players: ['phiQb', 'carRb'], starters: ['phiQb', 'carRb'] },
+        { roster_id: 2, players: ['detWr', 'kcRb'], starters: ['detWr', 'kcRb'] },
+      ],
+      rosterMap: { 1: 'Bill', 2: 'Opponent' },
+      players,
+      ktcValues,
+      playerSchedules: {
+        phiQb: { seasonSOS: 80, scheduleTier: 'elite' },
+        carRb: { seasonSOS: 75, scheduleTier: 'easy' },
+        detWr: { seasonSOS: 30, scheduleTier: 'hard' },
+        kcRb: { seasonSOS: 35, scheduleTier: 'hard' },
+      },
+      matchups: [
+        { roster_id: 1, matchup_id: 10, starters: ['phiQb', 'carRb'], points: 0 },
+        { roster_id: 2, matchup_id: 10, starters: ['detWr', 'kcRb'], points: 0 },
+      ],
+    });
+
+    const neutralBill = neutral.find((preview) => preview.manager === 'Bill');
+    const scheduledBill = scheduled.find((preview) => preview.manager === 'Bill');
+    expect(scheduledBill?.projectedPoints || 0).toBeGreaterThan(neutralBill?.projectedPoints || 0);
+    expect(scheduledBill?.winProbability || 0).toBeGreaterThan(neutralBill?.winProbability || 0);
+    expect(scheduledBill?.positionEdges?.[0]?.note).toContain('stored bye/SOS profiles');
+    expect(scheduledBill?.howToWin).toContain('stored bye/SOS context');
+  });
 });

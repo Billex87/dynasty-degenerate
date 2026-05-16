@@ -326,17 +326,42 @@ function getMatchupProjection(input: {
   playerIds: string[];
   players: Record<string, SchedulePlayer>;
   ktcValues: KTCValues;
+  playerSchedules?: Record<string, PlayerScheduleProfile>;
 }): number | null {
   const values = input.playerIds
     .map((playerId) => getScheduleValue(playerId, input.players, input.ktcValues))
     .filter((value) => value > 0);
   if (!values.length) return null;
-  const raw = 62 + values.reduce((sum, value) => sum + value, 0) / 950;
+  const raw = 62
+    + values.reduce((sum, value) => sum + value, 0) / 950
+    + getScheduleProjectionAdjustment(input.playerIds, input.playerSchedules);
   return Math.round(raw * 10) / 10;
 }
 
 function logisticWinProbability(edge: number): number {
   return Math.round((1 / (1 + Math.exp(-edge / 12))) * 1000) / 10;
+}
+
+function getScheduleProjectionAdjustment(playerIds: string[], playerSchedules?: Record<string, PlayerScheduleProfile>): number {
+  if (!playerSchedules) return 0;
+  const adjustments = playerIds
+    .map((playerId) => playerSchedules[playerId])
+    .filter((schedule): schedule is PlayerScheduleProfile => Boolean(schedule))
+    .map((schedule) => {
+      const sosAdjustment = typeof schedule.seasonSOS === 'number'
+        ? Math.max(-1.5, Math.min(1.5, (schedule.seasonSOS - 50) / 25))
+        : 0;
+      const tierAdjustment = schedule.scheduleTier === 'elite'
+        ? 1
+        : schedule.scheduleTier === 'easy'
+          ? 0.5
+          : schedule.scheduleTier === 'hard'
+            ? -0.75
+            : 0;
+      return sosAdjustment + tierAdjustment;
+    });
+  if (!adjustments.length) return 0;
+  return Math.max(-4, Math.min(4, adjustments.reduce((sum, value) => sum + value, 0) / Math.max(1, Math.sqrt(adjustments.length))));
 }
 
 function toStarterPlayer(
@@ -365,6 +390,7 @@ export function buildMatchupPreviews(input: {
   rosterMap: Record<number, string>;
   players: Record<string, SchedulePlayer>;
   ktcValues: KTCValues;
+  playerSchedules?: Record<string, PlayerScheduleProfile>;
 }): MatchupPreview[] {
   if (!SUPPORTED_SEASONS.has(String(input.season)) || !Number.isFinite(input.week) || input.week <= 0) return [];
   if (!Array.isArray(input.matchups) || input.matchups.length === 0) return [];
@@ -395,10 +421,10 @@ export function buildMatchupPreviews(input: {
       const actualOpponentPoints = Number(opponent.points);
       const projectedPoints = Number.isFinite(actualPoints) && actualPoints > 0
         ? Math.round(actualPoints * 10) / 10
-        : getMatchupProjection({ playerIds: starterIds, players: input.players, ktcValues: input.ktcValues });
+        : getMatchupProjection({ playerIds: starterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
       const opponentProjectedPoints = Number.isFinite(actualOpponentPoints) && actualOpponentPoints > 0
         ? Math.round(actualOpponentPoints * 10) / 10
-        : getMatchupProjection({ playerIds: opponentStarterIds, players: input.players, ktcValues: input.ktcValues });
+        : getMatchupProjection({ playerIds: opponentStarterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
       const edge = projectedPoints !== null && opponentProjectedPoints !== null
         ? Math.round((projectedPoints - opponentProjectedPoints) * 10) / 10
         : null;
@@ -429,14 +455,14 @@ export function buildMatchupPreviews(input: {
             managerProjected: Math.round(managerProjected * 10) / 10,
             opponentProjected: Math.round(opponentProjected * 10) / 10,
             edge: Math.round((managerProjected - opponentProjected) * 10) / 10,
-            note: `${position} schedule/value edge from submitted Sleeper lineup context.`,
+            note: `${position} schedule/value edge from submitted Sleeper lineup context${input.playerSchedules ? ' and stored bye/SOS profiles' : ''}.`,
           };
         }).filter((row) => row.managerProjected || row.opponentProjected),
         howToWin: edge === null
           ? `Sleeper returned matchup ${row.matchup_id || ''}, but lineup projection inputs are still thin.`
           : edge >= 0
-            ? `Protect the ${edge.toFixed(1)} point schedule/value edge against ${opponentManager}; avoid unnecessary streamer risk.`
-            : `Close a ${Math.abs(edge).toFixed(1)} point schedule/value gap against ${opponentManager} through lineup upgrades and streamer checks.`,
+            ? `Protect the ${edge.toFixed(1)} point schedule/value edge against ${opponentManager}; use stored bye/SOS context before taking streamer risk.`
+            : `Close a ${Math.abs(edge).toFixed(1)} point schedule/value gap against ${opponentManager} through lineup upgrades, streamer checks, and stored bye/SOS context.`,
         source: 'Sleeper + Dynasty Degenerates schedule model',
         updatedAt: new Date().toISOString(),
       });

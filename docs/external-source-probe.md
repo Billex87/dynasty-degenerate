@@ -45,3 +45,28 @@ The normalized line shape stores player identity, fixture/event metadata, market
 `server/playerPropSignals.ts` is the read-only signal layer over those snapshots. It compares stored market lines against internal projection inputs, then returns market direction, sportsbook agreement, confidence, and neutral start/sit support flags. It intentionally reads snapshots only; provider calls remain limited to the dynamic-data refresh path.
 
 Report generation now folds stored prop-market signals into manager `marketSignals` when a signal matches a rostered player. This gives Autopilot/report intelligence a value and start/sit context hook without adding live odds calls to normal report loads.
+
+## Latest Metadata Probe - 2026-05-15
+
+Command:
+
+```sh
+pnpm run probe:external-sources
+```
+
+Credential state during the probe: `YAHOO_ACCESS_TOKEN`, `OPTICODDS_API_KEY`, `SPORTSGAMEODDS_API_KEY`, and `PARLAY_API_KEY` were not configured.
+
+Metadata-only results:
+
+| Source | Result | Integration Decision |
+| --- | --- | --- |
+| Yahoo Fantasy | Developer portal reachable; Fantasy game API returned `401` without OAuth token. | Keep as an opt-in OAuth platform connector and snapshot source only after app approval. |
+| Sleeper Fantasy | Official NFL state endpoint reachable. | Keep live calls limited to user/league current-state checks on login/report load. |
+| Sleeper Picks | No official public props API confirmed. | Use licensed odds/props aggregators rather than direct Sleeper Picks endpoints. |
+| OpticOdds | Sportsbooks API returned credentials-required; docs mention target books including Sleeper, bet365, and Underdog. | Primary props candidate once `OPTICODDS_API_KEY` is issued. |
+| SportsGameOdds | NFL events API returned credentials-required; docs mention player props and bookmaker grouping. | Secondary props candidate if OpticOdds coverage is insufficient. |
+| ParlayAPI | NFL props API returned credentials-required; docs mention Sleeper, Underdog, player props, and DFS apps. | Secondary props candidate for book/app coverage comparison. |
+| Underdog Fantasy | No direct public developer API confirmed; aggregator docs reachable. | Do not scrape direct/internal endpoints. |
+| bet365 | No direct public API confirmed. | Use licensed odds aggregators only. |
+| FFPC | API help page reachable; lightweight projected-points route returned `415`. | Treat as approval/partner-gated until a documented auth and usage path is confirmed. |
+| Fantrax | Unofficial docs and unauthenticated app surface reachable. | Do not use cookie-auth/private endpoints without Fantrax approval. |

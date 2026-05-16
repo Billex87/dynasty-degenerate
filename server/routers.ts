@@ -4441,6 +4441,7 @@ export const appRouter = router({
             rosterMap: rosterUserMap,
             players,
             ktcValues,
+            playerSchedules: staticSections.playerScheduleProfiles,
           });
           markAnalyzeStep('schedule planning');
 
