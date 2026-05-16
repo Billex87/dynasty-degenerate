@@ -44,6 +44,7 @@ const LONG_TERM_STALE_HOURS = 90 * 24;
 
 const PROVIDER_LABELS: Record<string, string> = {
   'fantasypros-news-v1': 'FantasyPros news snapshot',
+  'sportsdataio-news-v1': 'SportsDataIO/RotoBaller news snapshot',
   'espn-depth-charts-v1': 'ESPN depth-chart snapshot',
   'draftsharks-sos-v1': 'DraftSharks SOS snapshot',
   'player-props-opticodds-v1': 'OpticOdds player props snapshot',
@@ -212,6 +213,13 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       source: PROVIDER_LABELS['fantasypros-news-v1'],
       tableName: 'providerDataSnapshots',
       staleAfterHours: DAILY_STALE_HOURS,
+    },
+    {
+      sourceKey: 'sportsdataio-news-v1',
+      source: PROVIDER_LABELS['sportsdataio-news-v1'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: 'info',
     },
     {
       sourceKey: 'espn-depth-charts-v1',

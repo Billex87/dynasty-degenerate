@@ -3,10 +3,10 @@ import path from 'path';
 import { listLeagueReportCacheEntries } from './db';
 import { loadDraftSharksScheduleContext } from './draftSharksSchedule';
 import { warmEspnDepthChartsForTeams } from './espnDepthCharts';
-import { fetchFantasyProsNews } from './fantasyPros';
 import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth } from './fantasyProsHealth';
 import { loadBlendedKTCValues, loadLatestLocalWeeklyMomentumSnapshot } from './ktcLoader';
 import { attachLeagueAiConfidence, persistLeagueAiConfidenceSnapshot } from './leagueAiConfidence';
+import { loadPlayerNewsBundle } from './playerNews';
 import { refreshPlayerPropSnapshots } from './playerPropSnapshots';
 import { buildProspectLookup, loadProspectContext } from './prospectSource';
 import { buildRankingsBoard } from './rankingsBoard';
@@ -360,8 +360,8 @@ export async function warmDepthChartCacheFromCachedReports(options: {
 export async function refreshReportEnrichmentSnapshots(options: {
   backfillLimit?: number;
 } = {}) {
-  const [fantasyProsNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats, playerProps] = await Promise.all([
-    fetchFantasyProsNews({ persistSnapshot: true, forceRefresh: true }),
+  const [playerNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats, playerProps] = await Promise.all([
+    loadPlayerNewsBundle({ persistSnapshot: true, forceRefresh: true }),
     loadDraftSharksScheduleContext({
       season: String(new Date().getFullYear()),
       persistSnapshot: true,
@@ -375,7 +375,9 @@ export async function refreshReportEnrichmentSnapshots(options: {
   ]);
 
   return {
-    fantasyProsNewsCount: fantasyProsNews.length,
+    playerNewsCount: playerNews.sourceCounts.total,
+    fantasyProsNewsCount: playerNews.sourceCounts.fantasyPros,
+    sportsDataIoNewsCount: playerNews.sourceCounts.sportsDataIo,
     draftSharksStatus: draftSharksSchedule.status,
     draftSharksProfileCount: Object.keys(draftSharksSchedule.profiles || {}).length,
     depthChartWarmCache,

@@ -37,7 +37,7 @@ describe("user-load provider boundary", () => {
     expect(reportStaticInputsSource).toContain("loadBlendedKTCValues(input.leagueValueOptions, getUserLoadSnapshotOptions())");
     expect(reportStaticInputsSource).toContain("loadDraftSharksScheduleContext({");
     expect(reportStaticInputsSource).toContain("...getUserLoadSnapshotOptions()");
-    expect(reportStaticInputsSource).toContain("fetchFantasyProsNews(getUserLoadSnapshotOptions())");
+    expect(reportStaticInputsSource).toContain("loadPlayerNewsBundle(getUserLoadSnapshotOptions())");
     expect(reportStaticSectionsSource).toContain("buildPlayerScheduleProfiles({");
     expect(reportStaticSectionsSource).toContain("loadSourceSnapshotFreshnessDiagnostics({");
     expect(reportPlayerEnrichmentSource).toContain("playerEnrichmentById");
@@ -48,7 +48,7 @@ describe("user-load provider boundary", () => {
   it("keeps ranking and player-detail non-Sleeper enrichments snapshot-only", () => {
     expect(routersSource).toContain("loadBlendedKTCValues(leagueValueOptions, getUserLoadSnapshotOptions())");
     expect(routersSource).toContain("leagueValueCache.set(key, loadBlendedKTCValues(options, getUserLoadSnapshotOptions()))");
-    expect(routersSource).toContain("fetchFantasyProsLatestPlayerNews({");
+    expect(routersSource).toContain("fetchLatestPlayerNews({");
     expect(routersSource).toContain("...getUserLoadSnapshotOptions()");
     expect(routersSource).not.toContain("sourceMode: 'live'");
     expect(routersSource).not.toContain('sourceMode: "live"');

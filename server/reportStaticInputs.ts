@@ -1,15 +1,15 @@
 import { findLeagueReportCache, upsertLeagueReportCache } from './db';
 import { loadDraftSharksScheduleContext } from './draftSharksSchedule';
-import { fetchFantasyProsNews } from './fantasyPros';
 import { loadKTCValuesLastWeek, loadLatestLocalWeeklyMomentumSnapshot, loadBlendedKTCValues } from './ktcLoader';
 import { getKtcSnapshotFromDaysAgo } from './ktcSnapshotJob';
 import { getLeagueReportCacheTtlMs } from './leagueReportCachePolicy';
 import { getUserLoadSnapshotOptions } from './loadTimeProviderPolicy';
+import { loadPlayerNewsBundle, type PlayerNewsSourceCounts } from './playerNews';
 import { loadProspectContext } from './prospectSource';
 import type { KTCValues } from './reportGenerator';
 import type { ValueBlendOptions } from './valueBlend';
 
-const REPORT_STATIC_INPUTS_CACHE_VERSION = 'league-report-static-inputs-v1';
+const REPORT_STATIC_INPUTS_CACHE_VERSION = 'league-report-static-inputs-v2';
 
 export type ReportStaticInputs = {
   cacheKey: string;
@@ -19,7 +19,8 @@ export type ReportStaticInputs = {
   ktcValuesLastWeek: KTCValues;
   draftSharksScheduleContext: Awaited<ReturnType<typeof loadDraftSharksScheduleContext>>;
   prospectContext: Awaited<ReturnType<typeof loadProspectContext>>;
-  fantasyProsNews: Awaited<ReturnType<typeof fetchFantasyProsNews>>;
+  playerNews: Awaited<ReturnType<typeof loadPlayerNewsBundle>>['items'];
+  newsSourceCounts: PlayerNewsSourceCounts;
 };
 
 export function getReportStaticInputsCacheKey(input: {
@@ -48,7 +49,8 @@ export function isReportStaticInputsPayload(value: unknown): value is Omit<Repor
     isRecord(value.ktcValuesLastWeek) &&
     isRecord(value.draftSharksScheduleContext) &&
     isRecord(value.prospectContext) &&
-    Array.isArray(value.fantasyProsNews)
+    Array.isArray(value.playerNews) &&
+    isRecord(value.newsSourceCounts)
   );
 }
 
@@ -91,7 +93,7 @@ export async function loadReportStaticInputs(input: {
     ktcValuesLastWeek,
     draftSharksScheduleContext,
     prospectContext,
-    fantasyProsNews,
+    playerNewsBundle,
   ] = await Promise.all([
     loadBlendedKTCValues(input.leagueValueOptions, getUserLoadSnapshotOptions()),
     loadWeeklyBaselineValues(input.leagueValueProfileKey),
@@ -100,7 +102,7 @@ export async function loadReportStaticInputs(input: {
       ...getUserLoadSnapshotOptions(),
     }),
     loadProspectContext(),
-    fetchFantasyProsNews(getUserLoadSnapshotOptions()),
+    loadPlayerNewsBundle(getUserLoadSnapshotOptions()),
   ]);
 
   const payload: Omit<ReportStaticInputs, 'cacheStatus'> = {
@@ -110,7 +112,8 @@ export async function loadReportStaticInputs(input: {
     ktcValuesLastWeek,
     draftSharksScheduleContext,
     prospectContext,
-    fantasyProsNews,
+    playerNews: playerNewsBundle.items,
+    newsSourceCounts: playerNewsBundle.sourceCounts,
   };
 
   await upsertLeagueReportCache({

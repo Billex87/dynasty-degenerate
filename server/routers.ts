@@ -18,7 +18,7 @@ import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draf
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
-import { fetchFantasyProsLatestPlayerNews, findLatestFantasyProsNewsForPlayer, type FantasyProsNewsItem } from "./fantasyPros";
+import { fetchLatestPlayerNews, findLatestPlayerNewsForPlayer, type PlayerNewsItem } from "./playerNews";
 import { buildRankingsBoard } from "./rankingsBoard";
 import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persistLeagueAiConfidenceSnapshot } from "./leagueAiConfidence";
 import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
@@ -2666,7 +2666,7 @@ function buildSimilarTradeValueMap(
 function buildLatestNewsByPlayerId(
   playerIds: Iterable<string>,
   players: Record<string, any>,
-  newsItems: FantasyProsNewsItem[]
+  newsItems: PlayerNewsItem[]
 ): Record<string, NonNullable<PlayerDetails['latestNews']>> {
   const requestedIds = Array.from(new Set(Array.from(playerIds).filter(Boolean)));
   const entries: Array<[string, NonNullable<PlayerDetails['latestNews']>]> = [];
@@ -2675,7 +2675,7 @@ function buildLatestNewsByPlayerId(
     const player = players[playerId];
     if (!player) continue;
     const fullName = getPlayerName(playerId, players);
-    const matched = findLatestFantasyProsNewsForPlayer(fullName, newsItems);
+    const matched = findLatestPlayerNewsForPlayer(fullName, newsItems);
     if (!matched) continue;
     entries.push([playerId, {
       title: matched.title,
@@ -4259,7 +4259,8 @@ export const appRouter = router({
             ktcValuesLastWeek,
             draftSharksScheduleContext,
             prospectContext,
-            fantasyProsNews,
+            playerNews,
+            newsSourceCounts,
           } = staticInputs;
           markAnalyzeStep(`static snapshot inputs ${staticInputs.cacheStatus}`);
           const playoffWeekStartBySeason: Record<string, number> = {
@@ -4717,7 +4718,7 @@ export const appRouter = router({
               const latestNewsByPlayerId = buildLatestNewsByPlayerId(
                 detailPlayerIds,
                 players,
-                fantasyProsNews
+                playerNews
               );
               const prospectProfilesById = Object.fromEntries(
                 detailPlayerIds
@@ -4758,7 +4759,8 @@ export const appRouter = router({
           const depthChartResult = await depthChartResultPromise;
           const sourceDiagnosticRowCounts = [
             { sourceKey: 'ktc-blended-values-v1', rowCount: Object.keys(ktcValues || {}).length },
-            { sourceKey: 'fantasypros-news-v1', rowCount: fantasyProsNews.length },
+            { sourceKey: 'fantasypros-news-v1', rowCount: newsSourceCounts.fantasyPros },
+            { sourceKey: 'sportsdataio-news-v1', rowCount: newsSourceCounts.sportsDataIo },
             { sourceKey: 'espn-depth-charts-v1', rowCount: depthChartResult.diagnostics.loadedTeams.length },
             { sourceKey: 'draftsharks-sos-v1', rowCount: Object.keys(draftSharksScheduleContext.profiles || {}).length },
             { sourceKey: `sleeper-season-stats-v1:${lastCompletedSeason}`, rowCount: Object.keys(lastSeasonPositionRanks || {}).length },
@@ -4894,7 +4896,7 @@ export const appRouter = router({
         const playerName = input.playerName?.trim();
         if (!playerName) return { latestNews: null };
 
-        const latestNews = await fetchFantasyProsLatestPlayerNews({
+        const latestNews = await fetchLatestPlayerNews({
           playerName,
           team: input.team || null,
           position: input.position || null,

@@ -21,7 +21,7 @@ DraftSharks is the preferred first SOS source because the integration shell is p
 - `server/reportStaticInputs.ts` loads DraftSharks/SOS through snapshot mode for report loads.
 - `server/reportStaticSections.ts` caches player schedule profiles.
 - `server/schedulePlanning.ts` builds schedule planning, streamer candidates, bye windows, and matchup previews from Sleeper current-state plus stored schedule profiles.
-- `server/sourceSnapshotFreshness.ts` includes `draftsharks-sos-v1`, `player-props-opticodds-v1`, FantasyPros news, ESPN depth charts, redraft source snapshots, and Sleeper season-stat snapshots in report freshness diagnostics.
+- `server/sourceSnapshotFreshness.ts` includes `draftsharks-sos-v1`, `player-props-opticodds-v1`, FantasyPros news, SportsDataIO/RotoBaller news, ESPN depth charts, redraft source snapshots, and Sleeper season-stat snapshots in report freshness diagnostics.
 - `server/fantasyProsHealth.ts` emits endpoint-level health rows for FantasyPros API coverage without printing payloads or secrets.
 
 ## Blocked Before Projection-Driven Features
@@ -29,4 +29,3 @@ DraftSharks is the preferred first SOS source because the integration shell is p
 - FantasyPros projection endpoint terms/rate limits must be approved for production use.
 - A first real OpticOdds player-prop snapshot must be stored before prop thresholds are tuned.
 - Projection source/version metadata needs to be captured with stored snapshots before lineup-strength or confidence models should treat projections as first-class inputs.
-

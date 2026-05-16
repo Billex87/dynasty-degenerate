@@ -592,6 +592,8 @@
 
 ### News / Research Assistant
 - [ ] Confirm production FantasyPros news API coverage and rate limits.
+- [x] Add a snapshot-backed alternate news source path for SportsDataIO/RotoBaller so player news can merge FantasyPros plus licensed SportsDataIO news when `ENABLE_SPORTSDATAIO_NEWS=true` and `SPORTSDATAIO_API_KEY` are configured.
+- [ ] Validate SportsDataIO/RotoBaller news production package access, endpoint shape, rate limits, and player ID mapping before making it a required source-health signal.
 - [ ] Add `FANTASY_NERDS_API_KEY` to production env after confirming the live package returns current-season rows, then verify Fantasy Nerds redraft and dynasty diagnostics load cleanly.
 - [ ] Revisit GridIron Data once a key or package is available and decide whether it belongs in redraft projections, player news, or source health only.
 - [ ] Revisit MySportsFeeds if they approve access, and keep it out of the blend until endpoint coverage and licensing are confirmed.
