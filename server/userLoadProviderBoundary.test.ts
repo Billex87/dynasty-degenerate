@@ -8,6 +8,8 @@ const draftAnalysisPath = path.resolve(__dirname, "draftAnalysis.ts");
 const draftAnalysisSource = fs.readFileSync(draftAnalysisPath, "utf8");
 const reportStaticInputsPath = path.resolve(__dirname, "reportStaticInputs.ts");
 const reportStaticInputsSource = fs.readFileSync(reportStaticInputsPath, "utf8");
+const reportStaticSectionsPath = path.resolve(__dirname, "reportStaticSections.ts");
+const reportStaticSectionsSource = fs.readFileSync(reportStaticSectionsPath, "utf8");
 
 function extractSource(startMarker: string, endMarker: string): string {
   const start = routersSource.indexOf(startMarker);
@@ -25,11 +27,15 @@ describe("user-load provider boundary", () => {
     expect(urls.length).toBeGreaterThan(0);
     expect(urls.every((url) => ["api.sleeper.app", "api.sleeper.com", "sleepercdn.com"].includes(new URL(url).hostname))).toBe(true);
     expect(analyzeSource).toContain("loadReportStaticInputs({");
+    expect(analyzeSource).toContain("loadReportStaticSections({");
+    expect(analyzeSource).toContain("loadReportSourceDiagnosticsSection({");
     expect(analyzeSource).toContain("fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, getUserLoadSnapshotOptions())");
     expect(reportStaticInputsSource).toContain("loadBlendedKTCValues(input.leagueValueOptions, getUserLoadSnapshotOptions())");
     expect(reportStaticInputsSource).toContain("loadDraftSharksScheduleContext({");
     expect(reportStaticInputsSource).toContain("...getUserLoadSnapshotOptions()");
     expect(reportStaticInputsSource).toContain("fetchFantasyProsNews(getUserLoadSnapshotOptions())");
+    expect(reportStaticSectionsSource).toContain("buildPlayerScheduleProfiles({");
+    expect(reportStaticSectionsSource).toContain("loadSourceSnapshotFreshnessDiagnostics({");
   });
 
   it("keeps ranking and player-detail non-Sleeper enrichments snapshot-only", () => {

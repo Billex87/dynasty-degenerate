@@ -207,8 +207,9 @@ export function buildSchedulePlanningSummary(input: {
   ktcValues: KTCValues;
   rosterPositions?: string[];
   draftSharksContext?: DraftSharksScheduleContext | null;
+  playerSchedules?: Record<string, PlayerScheduleProfile>;
 }): SchedulePlanningSummary {
-  const playerSchedules = buildPlayerScheduleProfiles({
+  const playerSchedules = input.playerSchedules || buildPlayerScheduleProfiles({
     season: input.season,
     players: input.players,
     draftSharksContext: input.draftSharksContext,

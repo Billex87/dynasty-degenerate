@@ -22,15 +22,15 @@ import { fetchFantasyProsLatestPlayerNews, findLatestFantasyProsNewsForPlayer, t
 import { buildRankingsBoard } from "./rankingsBoard";
 import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persistLeagueAiConfidenceSnapshot } from "./leagueAiConfidence";
 import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
-import { buildMatchupPreviews, buildPlayerScheduleProfiles, buildSchedulePlanningSummary } from "./schedulePlanning";
+import { buildMatchupPreviews, buildSchedulePlanningSummary } from "./schedulePlanning";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
-import { loadSourceSnapshotFreshnessDiagnostics } from "./sourceSnapshotFreshness";
 import { slimCachedLeagueReportPayload } from "./reportPayloadSlimming";
 import { buildRankingDraftBuzzDetail, buildRankingProfileDetail, buildRankingsMetadata } from "./rankingPayloadViews";
 import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueReportFileCacheMaxFiles, isLeagueReportCacheExpired, shouldPruneLeagueReportFileCacheEntry } from "./leagueReportCachePolicy";
 import { loadReportStaticInputs } from "./reportStaticInputs";
+import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -4420,6 +4420,17 @@ export const appRouter = router({
             console.warn('Failed to fetch current-week Sleeper matchups:', error);
           }
           markAnalyzeStep('schedule inputs');
+          const staticSections = await loadReportStaticSections({
+            leagueId: input.leagueId,
+            leagueValueProfileKey,
+            currentSeason: currentSeasonLabel,
+            lastCompletedSeason,
+            players,
+            draftSharksScheduleContext,
+            prospectSourceDiagnostics: prospectContext.diagnostics,
+            forceRefresh,
+          });
+          markAnalyzeStep(`static rendered sections ${staticSections.cacheStatus}`);
           const reportData = await generateReport(
             currentSeasonData,
             pastSeasonData,
@@ -4439,6 +4450,7 @@ export const appRouter = router({
             ktcValues,
             rosterPositions: currentSeasonData.rosterPositions,
             draftSharksContext: draftSharksScheduleContext,
+            playerSchedules: staticSections.playerScheduleProfiles,
           });
           const matchupPreviews = buildMatchupPreviews({
             season: currentSeasonLabel,
@@ -4448,11 +4460,6 @@ export const appRouter = router({
             rosterMap: rosterUserMap,
             players,
             ktcValues,
-          });
-          const playerScheduleProfiles = buildPlayerScheduleProfiles({
-            season: currentSeasonLabel,
-            players,
-            draftSharksContext: draftSharksScheduleContext,
           });
           markAnalyzeStep('schedule planning');
 
@@ -4687,20 +4694,24 @@ export const appRouter = router({
             players,
             fantasyProsNews
           );
-          const sourceSnapshotDiagnostics = await loadSourceSnapshotFreshnessDiagnostics({
+          const sourceDiagnosticRowCounts = [
+            { sourceKey: 'ktc-blended-values-v1', rowCount: Object.keys(ktcValues || {}).length },
+            { sourceKey: 'fantasypros-news-v1', rowCount: fantasyProsNews.length },
+            { sourceKey: 'espn-depth-charts-v1', rowCount: depthChartResult.diagnostics.loadedTeams.length },
+            { sourceKey: 'draftsharks-sos-v1', rowCount: Object.keys(draftSharksScheduleContext.profiles || {}).length },
+            { sourceKey: `sleeper-season-stats-v1:${lastCompletedSeason}`, rowCount: Object.keys(lastSeasonPositionRanks || {}).length },
+            { sourceKey: 'prospect-snapshot:NFL Draft Buzz', rowCount: prospectContext.diagnostics.playerCount },
+          ];
+          const sourceDiagnosticsSection = await loadReportSourceDiagnosticsSection({
+            leagueId: input.leagueId,
+            leagueValueProfileKey,
             currentSeason,
-            previousSeason: lastCompletedSeason,
-            valueProfileKey: leagueValueProfileKey,
+            lastCompletedSeason,
             devyProfileKey: `devy_${leagueValueProfileKey}`,
-            rowCounts: [
-              { sourceKey: 'ktc-blended-values-v1', rowCount: Object.keys(ktcValues || {}).length },
-              { sourceKey: 'fantasypros-news-v1', rowCount: fantasyProsNews.length },
-              { sourceKey: 'espn-depth-charts-v1', rowCount: depthChartResult.diagnostics.loadedTeams.length },
-              { sourceKey: 'draftsharks-sos-v1', rowCount: Object.keys(draftSharksScheduleContext.profiles || {}).length },
-              { sourceKey: `sleeper-season-stats-v1:${lastCompletedSeason}`, rowCount: Object.keys(lastSeasonPositionRanks || {}).length },
-              { sourceKey: 'prospect-snapshot:NFL Draft Buzz', rowCount: prospectContext.diagnostics.playerCount },
-            ],
+            rowCounts: sourceDiagnosticRowCounts,
+            forceRefresh,
           });
+          const sourceSnapshotDiagnostics = sourceDiagnosticsSection.sourceSnapshotDiagnostics;
           const actualDepthChartsByPlayerId = depthChartResult.playerDepthCharts;
           const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, prospectLookup, actualDepthChartsByPlayerId);
           markAnalyzeStep('player detail assembly');
@@ -4709,7 +4720,7 @@ export const appRouter = router({
             ...reportData,
             sourceSnapshotDiagnostics,
             depthChartDiagnostics: depthChartResult.diagnostics,
-            prospectSourceDiagnostics: prospectContext.diagnostics,
+            prospectSourceDiagnostics: staticSections.prospectSourceDiagnostics,
             viewerManager,
             viewerManagerByUserId: userIdToManagerMap,
             currentStandings,
@@ -4735,7 +4746,7 @@ export const appRouter = router({
                   sleeperResearchSeason: currentSeason,
                   sleeperResearchSeasonType,
                   leagueUsage: pastSeasonUsageByPlayerId[playerId] || null,
-                  schedule: playerScheduleProfiles[playerId] || details.schedule || null,
+                  schedule: staticSections.playerScheduleProfiles[playerId] || details.schedule || null,
                   similarTradeValues: similarTradeValuesById[playerId] || [],
                 },
               ])

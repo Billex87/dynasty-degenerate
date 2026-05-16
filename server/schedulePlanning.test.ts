@@ -41,6 +41,7 @@ describe('schedule planning', () => {
   });
 
   it('flags bye-week roster gaps and available coverage candidates', () => {
+    const playerSchedules = buildPlayerScheduleProfiles({ season: '2026', players });
     const summary = buildSchedulePlanningSummary({
       season: '2026',
       currentWeek: 1,
@@ -53,6 +54,7 @@ describe('schedule planning', () => {
       players,
       ktcValues,
       rosterPositions: ['QB', 'RB', 'RB', 'WR'],
+      playerSchedules,
     });
 
     expect(summary.status).toBe('ready');
