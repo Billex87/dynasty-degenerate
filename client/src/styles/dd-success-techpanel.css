@@ -33,6 +33,79 @@
 .loading-success-scanline { display: none !important; }
 .loading-success-impact-core { display: none !important; }
 
+.success-card-3d-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(0, 212, 219, 0.2), transparent 35%),
+    radial-gradient(circle at 82% 90%, rgba(255, 106, 0, 0.18), transparent 38%),
+    linear-gradient(145deg, rgba(8, 22, 30, 0.92), rgba(2, 6, 23, 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgba(125, 247, 255, 0.28),
+    inset 0 0 2.4rem rgba(0, 212, 219, 0.12),
+    0 0 3rem rgba(0, 212, 219, 0.16);
+  opacity: 1;
+  transition: opacity 260ms ease;
+}
+
+.success-card-3d-fallback-exit {
+  opacity: 0;
+}
+
+.success-card-3d-fallback-panel,
+.success-card-3d-fallback-rail,
+.success-card-3d-fallback-scan {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.success-card-3d-fallback-panel {
+  inset: 0.62rem;
+  border: 1px solid rgba(125, 247, 255, 0.2);
+  border-radius: 0.85rem;
+  background:
+    linear-gradient(rgba(125, 247, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 180, 106, 0.045) 1px, transparent 1px);
+  background-size: 1rem 1rem;
+  opacity: 0.62;
+}
+
+.success-card-3d-fallback-rail {
+  left: 1.25rem;
+  right: 1.25rem;
+  height: 0.18rem;
+  border-radius: 999px;
+  filter: drop-shadow(0 0 0.8rem currentColor);
+}
+
+.success-card-3d-fallback-rail-top {
+  top: 0.95rem;
+  color: rgba(125, 247, 255, 0.82);
+  background: linear-gradient(90deg, transparent, rgba(125, 247, 255, 0.86), transparent);
+}
+
+.success-card-3d-fallback-rail-bottom {
+  bottom: 0.95rem;
+  color: rgba(255, 180, 106, 0.76);
+  background: linear-gradient(90deg, transparent, rgba(255, 180, 106, 0.84), transparent);
+}
+
+.success-card-3d-fallback-scan {
+  left: 0.9rem;
+  right: 0.9rem;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(125, 247, 255, 0.78), rgba(255, 180, 106, 0.66), transparent);
+  box-shadow:
+    0 0 1rem rgba(0, 212, 219, 0.35),
+    0 0 1.4rem rgba(255, 106, 0, 0.16);
+  opacity: 0.7;
+}
+
 /* DD logo emission — pulses with the 3D scene's breathing rhythm so
    the logo reads like a backlit emblem on the panel. */
 .loading-success-card .loading-success-icon,

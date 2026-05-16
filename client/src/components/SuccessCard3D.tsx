@@ -4,7 +4,6 @@
    The existing HTML text/icons sit on top of this canvas via z-index. */
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
@@ -18,16 +17,39 @@ export default function SuccessCard3D({
   exit = false,
   className,
 }: SuccessCard3DProps) {
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [sceneSupport, setSceneSupport] = useState({
+    ready: false,
+    reducedMotion: false,
+    canUseWebGL: false,
+  });
+  const [canvasFailed, setCanvasFailed] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReducedMotion(m.matches);
+    if (typeof window === "undefined" || !window.matchMedia) {
+      setSceneSupport({
+        ready: true,
+        reducedMotion: true,
+        canUseWebGL: false,
+      });
+      return;
+    }
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () =>
+      setSceneSupport({
+        ready: true,
+        reducedMotion: motionQuery.matches,
+        canUseWebGL: canUseWebGL(),
+      });
     update();
-    m.addEventListener("change", update);
-    return () => m.removeEventListener("change", update);
+    motionQuery.addEventListener("change", update);
+    return () => motionQuery.removeEventListener("change", update);
   }, []);
+
+  const shouldUseFallback =
+    !sceneSupport.ready ||
+    sceneSupport.reducedMotion ||
+    !sceneSupport.canUseWebGL ||
+    canvasFailed;
 
   return (
     <div
@@ -40,6 +62,9 @@ export default function SuccessCard3D({
         zIndex: 0,
       }}
     >
+      {shouldUseFallback ? (
+        <SuccessCardFallback exit={exit} />
+      ) : (
       <Canvas
         camera={{ position: [0, 0, 3.2], fov: 38 }}
         dpr={[1, 2]}
@@ -48,20 +73,52 @@ export default function SuccessCard3D({
           alpha: true,
           powerPreference: "high-performance",
         }}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener(
+            "webglcontextlost",
+            event => {
+              event.preventDefault();
+              setCanvasFailed(true);
+            },
+            { once: true }
+          );
+        }}
+        onError={() => setCanvasFailed(true)}
         style={{ background: "transparent" }}
       >
         <Suspense fallback={null}>
-          <Scene exit={exit} reducedMotion={reducedMotion} />
+          <Scene exit={exit} reducedMotion={false} />
         </Suspense>
-        <EffectComposer multisampling={0}>
-          <Bloom
-            intensity={1.8}
-            luminanceThreshold={0.28}
-            luminanceSmoothing={0.75}
-            mipmapBlur
-          />
-        </EffectComposer>
       </Canvas>
+      )}
+    </div>
+  );
+}
+
+function canUseWebGL(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    const context =
+      canvas.getContext("webgl2") || canvas.getContext("webgl");
+    if (!context) return false;
+    const loseContext = context.getExtension("WEBGL_lose_context");
+    loseContext?.loseContext();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function SuccessCardFallback({ exit }: { exit: boolean }) {
+  return (
+    <div
+      className={`success-card-3d-fallback${exit ? " success-card-3d-fallback-exit" : ""}`}
+      aria-hidden="true"
+    >
+      <span className="success-card-3d-fallback-panel" />
+      <span className="success-card-3d-fallback-rail success-card-3d-fallback-rail-top" />
+      <span className="success-card-3d-fallback-rail success-card-3d-fallback-rail-bottom" />
+      <span className="success-card-3d-fallback-scan" />
     </div>
   );
 }
