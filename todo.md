@@ -601,7 +601,7 @@
 
 ### Command Center Polish
 - [ ] Add deeper mobile QA for all premium cards after real matchup data lands.
-- [ ] Add E2E coverage for admin-only feature visibility.
+- [x] Add E2E coverage for admin-only feature visibility.
 - [ ] Add E2E coverage for local watch preference persistence.
 - [ ] Add E2E coverage for portfolio snapshot persistence.
 - [ ] Add E2E coverage for blueprint print and share controls where practical.
@@ -616,12 +616,12 @@
 - [x] Run typecheck, unit tests, build, and focused e2e after each split.
 
 ### Dirty Worktree Reconciliation
-- [ ] Separate report UX and tooling changes from unrelated auth, OAuth, and server cleanup changes before committing.
-- [ ] Review deleted auth and server files and confirm each deletion is intentional.
-- [ ] Review docs and todo changes separately from runtime code changes.
-- [ ] Keep `server/dynastySourceTrust.ts` and `server/valueBlend.ts` cleanup isolated from report UX work so typecheck fixes stay easy to verify.
-- [ ] Refresh the redraft trade-ledger screenshot regression whenever that UI is touched again.
-- [ ] Stage the final commit in logical groups instead of one mixed worktree commit.
+- [x] Separate report UX and tooling changes from unrelated auth, OAuth, and server cleanup changes before committing.
+- [x] Review deleted auth and server files and confirm each deletion is intentional.
+- [x] Review docs and todo changes separately from runtime code changes.
+- [x] Keep `server/dynastySourceTrust.ts` and `server/valueBlend.ts` cleanup isolated from report UX work so typecheck fixes stay easy to verify.
+- [x] Refresh the redraft trade-ledger screenshot regression whenever that UI is touched again.
+- [x] Stage the final commit in logical groups instead of one mixed worktree commit.
 
 ### Production Smoke After Deploy
 - [x] After deployment, run the manual `Production Smoke` GitHub workflow against `https://dynastydegens.com`.

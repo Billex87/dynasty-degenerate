@@ -375,6 +375,48 @@ test.describe("command center feature surfaces", () => {
     await expect(page.locator(".admin-premium-section")).toHaveCount(5);
   });
 
+  test("keeps admin-only feature surfaces tied to admin feature mode", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport);
+
+    await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
+    await expect(page.locator(".overview-ai-pulse")).toBeVisible();
+    await expect(page.locator(".admin-premium-section")).toHaveCount(5);
+
+    await page.getByRole("tab", { name: "Rankings" }).click();
+    await expect(page.locator(".admin-diagnostics-shell")).toBeVisible();
+    await expect(page.getByText("Admin Diagnostics")).toBeVisible();
+    await expect(page.getByText("Value Source Configuration")).toBeVisible();
+
+    await page.getByRole("tab", { name: "Trade History" }).click();
+    await expect(page.getByText("Trade browser read")).toBeVisible();
+    await expect(page.getByText("Hidden Sleeper Data Import")).toBeVisible();
+
+    await page
+      .getByRole("button", { name: /Switch to regular report view/i })
+      .click();
+
+    await expect(page.getByRole("tab", { name: "AI Autopilot" })).toHaveCount(
+      0
+    );
+    await expect(page.locator(".overview-ai-pulse")).toHaveCount(0);
+    await expect(page.locator(".admin-premium-section")).toHaveCount(0);
+    await expect(page.locator(".admin-diagnostics-shell")).toHaveCount(0);
+    await expect(page.getByText("Trade browser read")).toHaveCount(0);
+    await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
+
+    await page
+      .getByRole("button", { name: /Return to admin report view/i })
+      .click();
+
+    await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
+    await page.getByRole("tab", { name: "Trade History" }).click();
+    await expect(page.getByText("Trade browser read")).toBeVisible();
+    await expect(page.getByText("Hidden Sleeper Data Import")).toBeVisible();
+  });
+
   test("keeps command-center expansion hidden for regular report viewers", async ({
     page,
   }) => {
