@@ -126,6 +126,22 @@ function isCollegeOnlyModalPick(pick?: PlayerModalData | null, details?: PlayerD
   return pick?.isCollegeProspect ?? (!hasResolvedNflIdentity(pick, details) && Boolean(details?.prospectProfile));
 }
 
+function isPlayerAiReadEligible({
+  position,
+  currentRank,
+  valueProfile,
+}: {
+  position?: string | null;
+  currentRank?: string | null;
+  valueProfile?: PlayerDetails['valueProfile'];
+}) {
+  if (String(position || '').toUpperCase() !== 'TE') return true;
+
+  const dynastyRank = valueProfile?.dynastyPositionRank || valueProfile?.balancedPositionRank || currentRank || null;
+  const dynastyRankNumber = parseRankNumber(dynastyRank);
+  return Boolean(dynastyRankNumber && dynastyRankNumber <= 12);
+}
+
 export function PlayerDetailModal({
   isOpen,
   onClose,
@@ -375,29 +391,30 @@ export function PlayerDetailModal({
   const latestNews = playerNewsData?.latestNews ?? details?.latestNews ?? null;
   const hasMeaningfulNews = Boolean(latestNews?.title || latestNews?.summary);
   const prospectSummary = details?.prospectProfile?.summary || null;
-  const intelligenceNotes = buildPlayerIntelligenceNotes({
+  const playerAiReadEligible = isPlayerAiReadEligible({ position, currentRank, valueProfile });
+  const intelligenceNotes = playerAiReadEligible ? buildPlayerIntelligenceNotes({
     details,
     currentRank,
     currentValue,
     position,
     valueProfile,
     valueMode,
-  });
+  }) : [];
   const hasSleeperMarketSnapshot = Boolean(
     details && (
       (details.sleeperRosteredPct !== null && details.sleeperRosteredPct !== undefined)
       || (details.sleeperStartedPct !== null && details.sleeperStartedPct !== undefined)
     )
   );
-  const decisionLabels = buildPlayerDecisionLabels({
+  const decisionLabels = playerAiReadEligible ? buildPlayerDecisionLabels({
     details,
     currentRank,
     valueGain,
     position,
     valueProfile,
     valueMode,
-  });
-  const playerAiRead = buildPlayerAiRead({
+  }) : [];
+  const playerAiRead = playerAiReadEligible ? buildPlayerAiRead({
     playerName: pick.playerName,
     position,
     currentRank,
@@ -409,7 +426,7 @@ export function PlayerDetailModal({
     isCollegeProspect,
     prospectProfile,
     latestNews,
-  });
+  }) : null;
   const draftAuditRows = [
     pick.draftDecisionVerdict ? ['Draft Read', pick.draftDecisionVerdict] : null,
     pick.draftDecisionBoardRankLabel ? ['Board Read', pick.draftDecisionBoardRankLabel] : null,
@@ -834,7 +851,7 @@ export function PlayerDetailModal({
               </div>
             )}
 
-            {showAIRead && (
+            {showAIRead && playerAiRead && (
               <AIReadPanel
                 title={playerAiRead.title}
                 subtitle={playerAiRead.subtitle}

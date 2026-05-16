@@ -2324,6 +2324,23 @@ function isBuyTargetEligible(
   return true;
 }
 
+function isAiReadPlayerEligible(player: ManagerIntelPlayer, teamCount: number): boolean {
+  if (!['QB', 'RB', 'WR', 'TE'].includes(player.pos)) return false;
+
+  const currentRank = getRankNumber(player.currentPositionRank);
+
+  if (player.pos === 'TE') {
+    const usableTeLine = Math.max(12, teamCount || 0);
+    if (!currentRank || currentRank > usableTeLine) return false;
+  }
+
+  if (!currentRank && player.value < 1000 && !isLastSeasonStud(player.lastSeasonPositionRank)) {
+    return false;
+  }
+
+  return true;
+}
+
 function getNeedPosition({
   qbs,
   rbs,
@@ -3401,7 +3418,15 @@ export async function generateReport(
       TE: roundOne(average(rosterAssetPlayers.filter((player) => player.pos === 'TE').map((player) => player.age))),
     };
 
-    const byPos = (pos: string) => rosterPlayers
+    const teamCount = currentSeasonData.rosters.length || 10;
+    const aiReadRosterPlayers = rosterPlayers.filter((player) => isAiReadPlayerEligible(player, teamCount));
+    const aiReadRosterAssetPlayers = rosterAssetPlayers.filter((player) => isAiReadPlayerEligible(player, teamCount));
+    const aiReadMovableRosterPlayers = movableRosterPlayers.filter((player) => isAiReadPlayerEligible(player, teamCount));
+    const aiReadExternalPlayers = externalPlayers.filter((player) => isAiReadPlayerEligible(player, teamCount));
+    const aiReadStarters = starters.filter((player) => isAiReadPlayerEligible(player, teamCount));
+    const aiReadBench = bench.filter((player) => isAiReadPlayerEligible(player, teamCount));
+
+    const byPos = (pos: string) => aiReadRosterPlayers
       .filter((player) => player.pos === pos)
       .sort((a, b) => (getRankNumber(a.seasonPositionRank || a.currentPositionRank) || 999) - (getRankNumber(b.seasonPositionRank || b.currentPositionRank) || 999));
     const qbs = byPos('QB');
@@ -3411,7 +3436,6 @@ export async function generateReport(
     const rb2RankNumber = getRankNumber(rbs[1]?.seasonPositionRank || rbs[1]?.currentPositionRank);
     const wr2RankNumber = getRankNumber(wrs[1]?.seasonPositionRank || wrs[1]?.currentPositionRank);
     const te1RankNumber = getRankNumber(tes[0]?.seasonPositionRank || tes[0]?.currentPositionRank);
-    const teamCount = currentSeasonData.rosters.length || 10;
     const coreRbLine = Math.max(1, teamCount * 2);
     const coreWrLine = Math.max(1, teamCount * 2);
     const coreTeLine = Math.max(1, teamCount);
@@ -3471,8 +3495,8 @@ export async function generateReport(
     const isContenderBuild = contenderScore >= rebuildScore || contenderScore >= 65;
     const timeline = getTimelineLabel(contenderScore, rebuildScore, avgAge !== null ? Math.max(0, avgAge - 25) * 18 : 0);
     const usedInsightPlayerIds = new Set<string>();
-    const bestBenchStash = pickDistinctPlayer(bench, usedInsightPlayerIds);
-    const starterUpgradeCandidates = [...starters]
+    const bestBenchStash = pickDistinctPlayer(aiReadBench, usedInsightPlayerIds);
+    const starterUpgradeCandidates = [...aiReadStarters]
       .filter((player) => {
         const rank = getRankNumber(player.seasonPositionRank || player.currentPositionRank) || 999;
         const seasonValue = getSeasonValue(player, allPlayers, ktcValues);
@@ -3482,19 +3506,19 @@ export async function generateReport(
       .sort((a, b) => getSeasonValue(a, allPlayers, ktcValues) - getSeasonValue(b, allPlayers, ktcValues));
     const weakestStarter = pickDistinctPlayer(starterUpgradeCandidates, usedInsightPlayerIds);
     const oldestPlayer = pickDistinctPlayer(
-      [...rosterAssetPlayers]
+      [...aiReadRosterAssetPlayers]
         .filter((player) => player.value >= 1000)
         .sort((a, b) => (b.age || 0) - (a.age || 0)) || [],
       usedInsightPlayerIds
     );
     const youngCorePlayer = pickDistinctPlayer(
-      [...rosterAssetPlayers]
+      [...aiReadRosterAssetPlayers]
         .filter((player) => (player.age || 99) <= 25 && player.value >= 2500)
         .sort((a, b) => b.value - a.value),
       usedInsightPlayerIds
     );
     const breakoutCandidate = pickDistinctPlayer(
-      [...rosterAssetPlayers]
+      [...aiReadRosterAssetPlayers]
         .filter((player) => {
           const rank = getRankNumber(player.currentPositionRank) || 999;
           const eliteLine = player.pos === 'QB' || player.pos === 'TE' ? 8 : 18;
@@ -3504,7 +3528,7 @@ export async function generateReport(
       usedInsightPlayerIds
     );
     const lastSeasonStud = pickDistinctPlayer(
-      [...rosterAssetPlayers]
+      [...aiReadRosterAssetPlayers]
         .filter((player) => isLastSeasonStud(player.lastSeasonPositionRank))
         .sort((a, b) => {
           const rankDelta = (getRankNumber(a.lastSeasonPositionRank) || 999) - (getRankNumber(b.lastSeasonPositionRank) || 999);
@@ -3535,7 +3559,7 @@ export async function generateReport(
       acc[item.taxiAction] += 1;
       return acc;
     }, createTaxiCounts());
-    const sellPool = [...movableRosterPlayers]
+    const sellPool = [...aiReadMovableRosterPlayers]
       .filter((player) => {
         if (player.value < 900) return false;
         if (surplusPosition && player.pos !== surplusPosition) return false;
@@ -3552,7 +3576,7 @@ export async function generateReport(
       });
     const sellCandidate = pickDistinctPlayer(sellPool, usedInsightPlayerIds);
     const tradeChip = pickDistinctPlayer(
-      [...bench]
+      [...aiReadBench]
         .filter((player) => player.value >= 1000)
         .sort((a, b) => b.value - a.value),
       usedInsightPlayerIds
@@ -3564,7 +3588,7 @@ export async function generateReport(
     const targetValueFloor = tradeValueAnchor
       ? Math.max(500, Math.round(tradeValueAnchor * 0.72))
       : 700;
-    const buyTargetPool = [...externalPlayers]
+    const buyTargetPool = [...aiReadExternalPlayers]
       .filter((player) => {
         if (primaryNeed && player.pos !== primaryNeed) return false;
         if (!primaryNeed && !['RB', 'WR', 'TE'].includes(player.pos)) return false;
@@ -3585,7 +3609,7 @@ export async function generateReport(
       usedInsightPlayerIds
     );
     const fallbackBuyTarget = pickDistinctPlayer(
-      [...externalPlayers]
+      [...aiReadExternalPlayers]
         .filter((player) => {
           if (primaryNeed && player.pos !== primaryNeed) return false;
           if (!primaryNeed && !['RB', 'WR', 'TE'].includes(player.pos)) return false;
@@ -3617,18 +3641,18 @@ export async function generateReport(
       currentSeasonData.rosterPositions,
       teamCount
     );
-    const tradeableDepth = buildTradeableDepthTiles(bench);
+    const tradeableDepth = buildTradeableDepthTiles(aiReadBench);
     const injuryInsurance = pickDistinctPlayer(
-      [...bench]
+      [...aiReadBench]
         .filter((player) => ['RB', 'WR', 'TE'].includes(player.pos))
         .sort((a, b) => getCachedRedraftOnlyValue(b.player_id) - getCachedRedraftOnlyValue(a.player_id)),
       usedInsightPlayerIds
     );
     const similarValuePlayers = Object.fromEntries(
       (['QB', 'RB', 'WR', 'TE'] as const).map((pos) => {
-        const anchor = starters.find((player) => player.pos === pos) || rosterAssetPlayers.find((player) => player.pos === pos);
+        const anchor = aiReadStarters.find((player) => player.pos === pos) || aiReadRosterAssetPlayers.find((player) => player.pos === pos);
         if (!anchor) return [pos, null];
-        const closest = rosterAssetPlayers
+        const closest = aiReadRosterAssetPlayers
           .filter((player) => player.pos === pos && player.player_id !== anchor.player_id)
           .sort((a, b) => Math.abs(a.value - anchor.value) - Math.abs(b.value - anchor.value))[0] || null;
         return [pos, closest];

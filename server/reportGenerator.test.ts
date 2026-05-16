@@ -1194,6 +1194,71 @@ describe('generateReport trade ledger', () => {
     expect(managerA?.strategySummary).not.toContain('Dallen Bentley');
     expect(managerA?.chaosNotes?.join(' ')).not.toContain('Dallen Bentley');
   });
+
+  it('does not surface a fringe tight end in any manager AI read slot', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterPositions: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'BN'],
+        rosterMap: { 1: 'Manager A', 2: 'Manager B' },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['managerQb', 'managerRb', 'managerRb2', 'managerWr', 'managerWr2', 'dallen'] },
+          { roster_id: 2, owner_id: 'u2', players: ['otherQb', 'otherRb'] },
+        ],
+      },
+      null,
+      {
+        managerQb: { first_name: 'Manager', last_name: 'QB', position: 'QB', age: 24 },
+        managerRb: { first_name: 'Manager', last_name: 'RB', position: 'RB', age: 24 },
+        managerRb2: { first_name: 'Manager', last_name: 'RB2', position: 'RB', age: 24 },
+        managerWr: { first_name: 'Manager', last_name: 'WR', position: 'WR', age: 24 },
+        managerWr2: { first_name: 'Manager', last_name: 'WR2', position: 'WR', age: 24 },
+        dallen: { first_name: 'Dallen', last_name: 'Bentley', position: 'TE', age: 22 },
+        otherQb: { first_name: 'Other', last_name: 'QB', position: 'QB', age: 25 },
+        otherRb: { first_name: 'Other', last_name: 'RB', position: 'RB', age: 25 },
+      },
+      {
+        managerqb: { name: 'Manager QB', ktc_value: 5000, redraft_value: 5000, position_rank: 'QB10' },
+        managerrb: { name: 'Manager RB', ktc_value: 5000, redraft_value: 5000, position_rank: 'RB10' },
+        managerrb2: { name: 'Manager RB2', ktc_value: 4200, redraft_value: 4200, position_rank: 'RB18' },
+        managerwr: { name: 'Manager WR', ktc_value: 5000, redraft_value: 5000, position_rank: 'WR10' },
+        managerwr2: { name: 'Manager WR2', ktc_value: 4200, redraft_value: 4200, position_rank: 'WR18' },
+        dallenbentley: { name: 'Dallen Bentley', ktc_value: 1500, redraft_value: 1500, position_rank: 'TE20' },
+        otherqb: { name: 'Other QB', ktc_value: 4000, redraft_value: 4000, position_rank: 'QB18' },
+        otherrb: { name: 'Other RB', ktc_value: 3000, redraft_value: 3000, position_rank: 'RB30' },
+      },
+      {}
+    );
+
+    const managerA = report.managerRosterIntelligence.find((row) => row.manager === 'Manager A');
+    const aiReadPayload = JSON.stringify({
+      summary: managerA?.summary,
+      strategySummary: managerA?.strategySummary,
+      bestBenchStash: managerA?.bestBenchStash,
+      weakestStarter: managerA?.weakestStarter,
+      oldestPlayer: managerA?.oldestPlayer,
+      youngCorePlayer: managerA?.youngCorePlayer,
+      breakoutCandidate: managerA?.breakoutCandidate,
+      lastSeasonStud: managerA?.lastSeasonStud,
+      buyTarget: managerA?.buyTarget,
+      sellCandidate: managerA?.sellCandidate,
+      tradePlan: managerA?.tradePlan,
+      tradeBlueprints: managerA?.tradeBlueprints,
+      chaosNotes: managerA?.chaosNotes,
+      marketSignals: managerA?.marketSignals,
+      pressurePoints: managerA?.pressurePoints,
+      tradeChip: managerA?.tradeChip,
+      injuryInsurance: managerA?.injuryInsurance,
+      holes: managerA?.holes,
+      similarValuePlayers: managerA?.similarValuePlayers,
+    });
+
+    expect(managerA?.rosterPlayers?.some((player) => player.name === 'Dallen Bentley')).toBe(true);
+    expect(aiReadPayload).not.toContain('Dallen Bentley');
+    expect(managerA?.holes.te1Rank).toBeNull();
+    expect(managerA?.holes.summary).toContain('no ranked TE');
+  });
 });
 
 describe('generateReport taxi triage', () => {
