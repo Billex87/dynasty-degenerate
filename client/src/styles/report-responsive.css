@@ -2388,7 +2388,7 @@
   }
 
   :is(.manager-command-hero-metrics, .owner-intel-hero-metrics, .manager-command-hero-metrics-taxi, .starter-modal-metrics) {
-    grid-template-columns: repeat(auto-fit, minmax(min(4rem, 100%), 1fr)) !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(5.5rem, 100%), 1fr)) !important;
     gap: clamp(0.22rem, 0.9vw, 0.34rem) !important;
     width: 100% !important;
     max-width: 32rem !important;

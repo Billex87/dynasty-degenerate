@@ -8021,7 +8021,7 @@
     .owner-intel-hero-metrics,
     .manager-command-hero-metrics-taxi,
     .starter-modal .manager-command-hero-metrics.starter-modal-metrics {
-      grid-template-columns: repeat(auto-fit, minmax(min(4rem, 100%), 1fr)) !important;
+      grid-template-columns: repeat(auto-fit, minmax(min(5.5rem, 100%), 1fr)) !important;
       gap: clamp(0.22rem, 1vw, 0.36rem) !important;
       width: 100% !important;
       justify-self: stretch;

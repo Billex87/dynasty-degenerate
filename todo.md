@@ -1,6 +1,7 @@
 # Dynasty Degenerates - Project TODO
 
 - Canonical item-by-item execution prompt: [docs/todo-list-execution-prompt.md](docs/todo-list-execution-prompt.md)
+- Latest one-pass execution notes: [docs/todo-execution-notes-2026-05-16.md](docs/todo-execution-notes-2026-05-16.md)
 
 ## Premium UX / Three.js Roadmap
 
@@ -236,7 +237,7 @@
 - [x] Add historical Sleeper backfill observability showing scanned league IDs, transaction counts, seasons loaded, failures, and broken `previous_league_id` chains.
 - [x] Add depth-chart cache health diagnostics showing last warm time, loaded teams, failed teams, retry count, and stale team coverage.
 - [ ] Move recommendation outcome detection into a backend job so confidence can improve even when the user does not reopen the report UI.
-- [ ] Remove the legacy `trade-recommendation-outcomes:v1` localStorage migration read after shared action-plan storage has been live long enough.
+- [x] Remove the legacy `trade-recommendation-outcomes:v1` localStorage migration read after shared action-plan storage has been live long enough.
 
 ## Completed Features
 

@@ -3456,7 +3456,7 @@ function AdminValueDiagnosticsSection({
 
   return (
     <CollapsibleReportSection
-      title="Admin Eyes Only: Value Assumptions"
+      title="Value Source Configuration"
       kicker="Hidden diagnostics"
       previewAccessory={
         attentionSummary.count > 0 ? (
@@ -3540,7 +3540,7 @@ function AdminTrafficTelemetrySection() {
 
   return (
     <CollapsibleReportSection
-      title="Admin Eyes Only: Traffic & Abuse"
+      title="Traffic & Abuse Telemetry"
       kicker="Request telemetry"
       previewAccessory={
         priorityEvents.length > 0 ? (
@@ -3852,7 +3852,7 @@ function AdminSourceCoverageSection() {
 
   return (
     <CollapsibleReportSection
-      title="Admin Eyes Only: Source Coverage"
+      title="Source Coverage Matrix"
       kicker="Snapshot field map"
       previewAccessory={
         needsAttention.length > 0 ? (
@@ -4424,6 +4424,7 @@ export default function Home() {
   ] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
   const activeAnalysisLeagueIdRef = useRef<string | null>(null);
+  const autopilotAccessToastShownRef = useRef(false);
   const adminLoginMutation = trpc.auth.adminLogin.useMutation({
     onSuccess: async () => {
       setAdminPassphrase("");
@@ -5289,9 +5290,18 @@ export default function Home() {
     reportData && rankingsForReport
       ? { ...reportData, rankings: rankingsForReport }
       : reportData;
+  const showAutopilotAccessToast = () => {
+    if (autopilotAccessToastShownRef.current) return;
+    autopilotAccessToastShownRef.current = true;
+    toast.info("AI Autopilot is available in admin mode for now.");
+  };
   const handleReportTabChange = (nextTab: string) => {
-    const allowedNextTab =
-      nextTab === "autopilot" && !canViewAutopilotTab ? "overview" : nextTab;
+    const isBlockedAutopilotTab =
+      nextTab === "autopilot" && !canViewAutopilotTab;
+    if (isBlockedAutopilotTab) {
+      showAutopilotAccessToast();
+    }
+    const allowedNextTab = isBlockedAutopilotTab ? "overview" : nextTab;
     setActiveTab(allowedNextTab);
     updateReportTabUrl(allowedNextTab, leagueId);
   };
@@ -5302,6 +5312,7 @@ export default function Home() {
       !canViewAutopilotTab &&
       !authQuery.isLoading
     ) {
+      showAutopilotAccessToast();
       setActiveTab("overview");
       updateReportTabUrl("overview", leagueId);
       return;
@@ -5738,7 +5749,7 @@ export default function Home() {
                       Overview
                     </span>
                     <span className="report-tab-label-short" aria-hidden="true">
-                      View
+                      Home
                     </span>
                   </TabsTrigger>
 
@@ -5827,7 +5838,7 @@ export default function Home() {
                           <OverviewAIPulse data={reportDataForView} />
                           <CollapsibleReportSection
                             title="Monthly Team Blueprint"
-                            kicker="Roster blueprint report"
+                            kicker="Roster health, market signals, and action plan"
                             premium
                             previewMetrics={[
                               {
@@ -5851,8 +5862,8 @@ export default function Home() {
                                   ? "Partial"
                                   : "Current",
                                 tone: reportData.weeklyRisers?.length
-                                  ? "warn"
-                                  : "neutral",
+                                  ? "info"
+                                  : "warn",
                               },
                             ]}
                           >
@@ -6425,7 +6436,7 @@ export default function Home() {
                       )}
                       {canViewAdminFeatureExpansion && (
                         <CollapsibleReportSection
-                          title="Admin Eyes Only: Share Hidden Sleeper Data"
+                          title="Hidden Sleeper Data Import"
                           kicker="Share pending, cancelled, rejected, and waiver rows once. We remember this browser for this league."
                           previewMetrics={buildSleeperHiddenPreviewMetrics(
                             reportData
@@ -6557,7 +6568,7 @@ export default function Home() {
 
                       {canViewAdminFeatureExpansion && (
                         <CollapsibleReportSection
-                          title="Admin Eyes Only: Open Trade Offers"
+                          title="Pending Trade Offers"
                           kicker="Pending, declined, rejected, and cancelled Sleeper transactions"
                           previewMetrics={buildTradeProposalPreviewMetrics(
                             reportData

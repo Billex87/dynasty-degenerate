@@ -63,7 +63,6 @@ const BLUEPRINT_TIERS = ['Elite', 'Championship', 'Contending', 'Reload', 'Rebui
 const WATCH_ALERT_PREFERENCES_KEY = 'dynasty-degenerates:watch-alert-preferences:v1';
 const PORTFOLIO_SNAPSHOT_KEY = 'dynasty-degenerates:portfolio-snapshots:v1';
 const ACTION_PLAN_STORAGE_KEY = 'dynasty-degenerates:action-plans:v1';
-const TRADE_RECOMMENDATION_OUTCOME_KEY = 'dynasty-degenerates:trade-recommendation-outcomes:v1';
 
 type WatchAlertPreferences = {
   riseThresholdPct: number;
@@ -414,8 +413,7 @@ function writeJsonArrayToStorage<T>(key: string, value: T[]): void {
 
 function readTrackedTradePlans(): ActionPlanRecord[] {
   return mergeTrackedTradePlans(
-    readJsonArrayFromStorage<ActionPlanRecord>(ACTION_PLAN_STORAGE_KEY),
-    readJsonArrayFromStorage<ActionPlanRecord>(TRADE_RECOMMENDATION_OUTCOME_KEY)
+    readJsonArrayFromStorage<ActionPlanRecord>(ACTION_PLAN_STORAGE_KEY)
   ).slice(0, 80);
 }
 
@@ -427,7 +425,6 @@ function writeTrackedTradePlans(plans: ActionPlanRecord[]) {
     .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
     .slice(0, 100);
   writeJsonArrayToStorage(ACTION_PLAN_STORAGE_KEY, nextActionPlans);
-  writeJsonArrayToStorage(TRADE_RECOMMENDATION_OUTCOME_KEY, tradePlans);
 }
 
 function upsertTrackedTradePlan(plan: ActionPlanRecord): ActionPlanRecord[] {

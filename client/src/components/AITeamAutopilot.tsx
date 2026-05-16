@@ -357,7 +357,7 @@ export default function AITeamAutopilot({
         </div>
         <div>
           <span>Backend phase</span>
-          <strong>{data.dataStatus || 'Mock data'}</strong>
+          <strong>{data.dataStatus || 'Live'}</strong>
         </div>
       </div>
 
@@ -426,7 +426,7 @@ export default function AITeamAutopilot({
           </SectionShell>
         )}
 
-        <SectionShell eyebrow="Future Schedule/SOS TODO" title="Matchups come next" icon={CalendarClock}>
+        <SectionShell eyebrow="Matchup Planning" title="Schedule and SOS context" icon={CalendarClock}>
           <div className="autopilot-schedule-panel">
             <div className="autopilot-schedule-icon" aria-hidden="true">
               <Target className="h-7 w-7" />
@@ -442,7 +442,7 @@ export default function AITeamAutopilot({
             <div className="autopilot-future-stack">
               <span>
                 <Sparkles className="h-4 w-4" aria-hidden="true" />
-                Phase 5 input
+                Schedule signal
               </span>
               <strong>Strength of schedule</strong>
             </div>

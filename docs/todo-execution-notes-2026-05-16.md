@@ -1,0 +1,32 @@
+# Todo Execution Notes - 2026-05-16
+
+Scope: one practical pass through the remaining `todo.md` items after the AI-read and rookie-draft fixes. UI items received a single cleanup pass only so the larger premium/Three.js work can stay on the roadmap instead of consuming the whole session.
+
+## Completed In This Pass
+
+| Area                               | Result                                                                                                                                                                                                                      | Files                                                                                |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Autopilot stale labels             | Removed visible placeholder/product-internal copy from the AI Autopilot shell. Empty status now falls back to `Live`, schedule context is labeled as matchup planning, and the old phase badge is no longer shown to users. | `client/src/components/AITeamAutopilot.tsx`                                          |
+| Autopilot access feedback          | Added a one-time toast when a non-admin path tries to open the admin-only Autopilot tab, then returns the user to Overview.                                                                                                 | `client/src/pages/Home.tsx`                                                          |
+| Overview/dashboard copy polish     | Renamed the mobile Overview tab label from `View` to `Home`, replaced the generic Monthly Team Blueprint kicker, and changed the History preview tone so weekly risers read as informational instead of warning-style.      | `client/src/pages/Home.tsx`                                                          |
+| Admin surface naming               | Replaced several `Admin Eyes Only` section titles with specific operational labels so the admin sections read as product surfaces instead of internal placeholders.                                                         | `client/src/pages/Home.tsx`                                                          |
+| Mobile metric tile width           | Raised the mobile modal metric-grid minimum from `4rem` to `5.5rem` in the responsive/foundation styles so compact owner and starter metric tiles are less likely to become unreadable on narrow screens.                   | `client/src/styles/report-responsive.css`, `client/src/styles/report-foundation.css` |
+| Legacy action-plan storage cleanup | Removed the old `trade-recommendation-outcomes:v1` localStorage migration bridge now that shared action-plan storage has been live. The current action-plan key remains the only read/write path.                           | `client/src/components/CommandCenterExpansion.tsx`, `todo.md`                        |
+
+## Kept On The Roadmap
+
+| Item                               | Why It Was Not Claimed Done                                                                                                                                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Premium UI / Three.js roadmap      | These are meaningful visual rebuilds that need design iteration, Playwright screenshots, canvas checks, mobile fallback testing, and performance budgets. This pass only cleaned small UI copy/layout items. |
+| Billing/auth/Stripe                | The product plan exists, but implementing it safely needs provider choices, Stripe product IDs, webhook secrets, legal pages, entitlement rules, and abuse controls.                                         |
+| Props production rollout           | The code path is snapshot-first, but real OpticOdds/Sleeper/Underdog/bet365-style betting signals still require approved keys, real snapshots, coverage audits, and threshold tuning.                        |
+| FantasyPros remaining endpoints    | Rookie/ADP/projection/injury/news/player-points work should stay blocked until endpoint terms, rate limits, and snapshot behavior are verified for production use.                                           |
+| Overview duplicate-readout rewrite | The ownership matrix exists, but removing duplicate readouts safely means a focused Overview logic pass plus regression coverage to prevent repeated stories coming back.                                    |
+| Account-level persistence          | Watchlists, saved leagues, player shares, portfolio exposure, and saved report artifacts need account/auth infrastructure before they should replace local browser storage.                                  |
+| Exports and share links            | PDF/image/shareable report artifacts need a separate rendering and storage pass so exports look intentional and do not leak private league data.                                                             |
+| ReportTables module split          | The current split stubs still depend on helpers and state in `ReportTables.tsx`. A safe split should extract shared helpers first, then move one table module at a time with bundle verification.            |
+| E2E coverage expansion             | Admin visibility, local watch preferences, portfolio snapshots, and blueprint print/share flows still need Playwright coverage once the relevant surfaces are stable.                                        |
+
+## Next Best Target
+
+The highest-value next implementation target is the Overview duplicate-readout cleanup. It directly improves the report quality users see, uses the ownership matrix that is already written, and should make the AI reads feel more deliberate without needing new providers or billing infrastructure.
