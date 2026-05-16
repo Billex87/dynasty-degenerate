@@ -1,4 +1,4 @@
-export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v22';
+export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v23';
 export const REPORT_CACHE_DATA_VERSION = 'weekly-momentum-eligibility-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
