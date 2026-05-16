@@ -394,6 +394,7 @@
 - [x] Make entire rows in Draft Capital Efficiency table clickable to open manager picks modal
 - [x] Update ManagerDraftPicksModal to support player detail modal on player row clicks
 - [x] Player rows in manager picks modal open the same player detail modal as Draft Board
+- [x] Keep dynasty Draft Capital Efficiency stats and manager drilldowns scoped to rookie draft picks only, while leaving redraft recap and full draft boards on their broader draft data.
 - [x] All 22 tests passing after changes
 
 ### Starters Column in Draft Capital Efficiency

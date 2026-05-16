@@ -642,7 +642,8 @@ export async function analyzeDraftPicks(
 
     // Update manager stats
     const stats = managerStats.get(manager);
-    if (stats) {
+    const countsForDraftEfficiency = isRedraftAnalysis || draftKind === 'rookie';
+    if (stats && countsForDraftEfficiency) {
       stats.managerDisplayName = managerDisplayName;
       stats.totalPicks += 1;
 

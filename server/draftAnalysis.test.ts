@@ -100,6 +100,58 @@ describe('Draft Analysis', () => {
     expect(managerAStats?.misses).toBeDefined();
   });
 
+  it('keeps dynasty draft capital efficiency scoped to rookie drafts', async () => {
+    const result = await analyzeDraftPicks(
+      [
+        {
+          round: 1,
+          pick_no: 1,
+          player_id: 'rookie1',
+          picked_by: 'roster1',
+          season: '2026',
+          draft_id: 'rookie-draft',
+          draft_pick_count: 36,
+          user_id_to_manager_map: { roster1: 'Manager A' },
+        },
+        {
+          round: 1,
+          pick_no: 1,
+          player_id: 'startup1',
+          picked_by: 'roster1',
+          season: '2026',
+          draft_id: 'startup-draft',
+          draft_pick_count: 120,
+          user_id_to_manager_map: { roster1: 'Manager A' },
+        },
+      ] as any,
+      {
+        rookie1: { full_name: 'Rookie One', position: 'WR' },
+        startup1: { full_name: 'Startup One', position: 'QB' },
+      },
+      { roster1: 'Manager A' },
+      {
+        rookieone: { name: 'Rookie One', ktc_value: 3000, position_rank: 'WR30' },
+        startupone: { name: 'Startup One', ktc_value: 9000, position_rank: 'QB2' },
+      },
+      {},
+      undefined,
+      { rookieone: { name: 'Rookie One', ktc_value: 2000, position_rank_may2025: 'WR45' } },
+      { rookieone: { name: 'Rookie One', ktc_value: 3000, position_rank: 'WR30' } },
+      undefined,
+      {},
+      { leagueValueMode: 'dynasty' }
+    );
+
+    expect(result.draftPicks.map((pick) => pick.draftKind)).toEqual(['rookie', 'startup']);
+    expect(result.draftStats[0]).toMatchObject({
+      manager: 'Manager A',
+      totalPicks: 1,
+      avgKtcGain: 1000,
+      bestPick: expect.objectContaining({ playerName: 'Rookie One' }),
+      worstPick: expect.objectContaining({ playerName: 'Rookie One' }),
+    });
+  });
+
   it('should calculate ADP differences correctly', async () => {
     const mockDraftPicks = [
       {

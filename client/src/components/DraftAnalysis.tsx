@@ -274,6 +274,10 @@ export function DraftAnalysis({
     [draftPicks, managerRosterIntelligence]
   );
   const orderedDraftStats = useMemo(() => sortManagerDraftStatsByEfficiency(draftStats), [draftStats]);
+  const draftCapitalEfficiencyPicks = useMemo(
+    () => isRedraft ? draftPicks : draftPicks.filter((pick) => pick.draftKind === 'rookie'),
+    [draftPicks, isRedraft]
+  );
   const draftYears = useMemo(() => Object.keys(draftPicksByYear).sort(compareDraftGroupKeys), [draftPicksByYear]);
   useEffect(() => {
     const invalidYears = Array.from(openDraftYears).filter((year) => !draftYears.includes(year));
@@ -628,7 +632,7 @@ export function DraftAnalysis({
         onClose={() => setSelectedManager(null)}
         managerName={selectedManager || ''}
         managerDisplayName={selectedManager ? draftStats.find((stat) => stat.manager === selectedManager)?.managerDisplayName : undefined}
-        draftPicks={selectedManagerMode === 'audit' ? draftPicksWithDecisionAudit : draftPicks}
+        draftPicks={selectedManagerMode === 'audit' ? draftPicksWithDecisionAudit : draftCapitalEfficiencyPicks}
         managerAvatarUrl={selectedManager ? managerAvatars?.[selectedManager] : null}
         playerDetailsById={playerDetailsById}
         mode={selectedManagerMode}
