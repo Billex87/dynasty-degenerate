@@ -624,11 +624,11 @@
 - [ ] Stage the final commit in logical groups instead of one mixed worktree commit.
 
 ### Production Smoke After Deploy
-- [ ] After deployment, run the manual `Production Smoke` GitHub workflow against `https://dynastydegens.com`.
+- [x] After deployment, run the manual `Production Smoke` GitHub workflow against `https://dynastydegens.com`.
 - [x] Verify dynasty leagues `Skids Get Beat` and `The Fantasy Degenerates` still render dynasty copy, draft capital and main draft surfaces, rookie draft surfaces, and trade-value context correctly.
 - [x] Verify redraft leagues `test league` and `Gov Tech Grid Iron` still avoid dynasty-first copy and prioritize current-season values.
 - [x] Confirm internal draft baseline comparison dates are not exposed in the deployed report UI.
-- [ ] Confirm deployed console logs do not show app errors on desktop or mobile.
+- [x] Confirm deployed console logs do not show app errors on desktop or mobile.
 
 ### Bundle Cleanup
 - [x] Use `pnpm run build:analyze` to inspect `dist/bundle-stats.html` before the next performance pass.
