@@ -6,7 +6,6 @@ import {
   Bell,
   CalendarDays,
   ClipboardList,
-  Copy,
   Crosshair,
   ExternalLink,
   FileText,
@@ -980,30 +979,6 @@ export function MonthlyTeamBlueprint({
       body: `${buyPct}% buy, ${holdPct}% hold, and ${sellPct}% sell from returned roster signals. Trade partner specifics live in the trade finder.`,
     },
   ];
-  const blueprintShareText = [
-    `${manager} ${monthLabel} Team Blueprint`,
-    `${leagueName || 'Sleeper League'}${leagueFormat ? ` · ${leagueFormat}` : ''}`,
-    `Roster archetype: ${intel.identity || '-'}`,
-    `Plan tier: ${valueTier}`,
-    `Plan grade: ${overallGrade}`,
-    `Market posture: ${marketPosture} (${buyPct}% buy, ${holdPct}% hold, ${sellPct}% sell)`,
-    `Priority: ${topPriorities[0] || intel.tradePlan?.summary || 'No priority flag returned'}`,
-    hasPartialHistory ? 'History note: partial returned history only.' : 'History note: returned history loaded.',
-  ].join('\n');
-
-  const handleCopyBlueprint = async () => {
-    if (typeof navigator === 'undefined' || !navigator.clipboard) {
-      setShareStatus('Clipboard unavailable');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(blueprintShareText);
-      setShareStatus('Share text copied');
-    } catch {
-      setShareStatus('Clipboard blocked');
-    }
-  };
-
   const handlePrintBlueprint = () => {
     if (typeof window === 'undefined') return;
     setShareStatus('Opening print dialog');
@@ -1055,10 +1030,6 @@ export function MonthlyTeamBlueprint({
         </button>
         {generated && (
           <div className="team-blueprint-export-actions">
-            <button type="button" className="command-secondary-action" onClick={handleCopyBlueprint}>
-              <Copy className="h-4 w-4" aria-hidden="true" />
-              Copy Share Text
-            </button>
             <button type="button" className="command-secondary-action" onClick={handlePrintBlueprint}>
               <FileText className="h-4 w-4" aria-hidden="true" />
               Print / Save PDF

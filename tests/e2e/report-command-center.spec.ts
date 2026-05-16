@@ -11,9 +11,10 @@ async function loadCachedReport(
     typeof createCachedCommandCenterReport | typeof createCachedRedraftReport
   >,
   hash = "",
-  options: { admin?: boolean } = {}
+  options: { admin?: boolean; preserveLocalStorage?: boolean } = {}
 ) {
   const useAdminSession = options.admin !== false;
+  const preserveLocalStorage = options.preserveLocalStorage === true;
   const sleeperSessionKey = "dynasty-degenerates:sleeper-session:v1";
   const cachedUsersKey = "dynasty-degenerates:sleeper-user-history:v1";
   const adminUser = {
@@ -36,8 +37,17 @@ async function loadCachedReport(
     powerRank: null,
   };
   await page.addInitScript(
-    ({ key, value, sessionKey, usersKey, user, leagueOption, admin }) => {
-      window.localStorage.clear();
+    ({
+      key,
+      value,
+      sessionKey,
+      usersKey,
+      user,
+      leagueOption,
+      admin,
+      preserve,
+    }) => {
+      if (!preserve) window.localStorage.clear();
       window.localStorage.setItem(key, JSON.stringify(value));
       if (!admin) return;
       window.sessionStorage.setItem(
@@ -74,6 +84,7 @@ async function loadCachedReport(
       user: adminUser,
       leagueOption: league,
       admin: useAdminSession,
+      preserve: preserveLocalStorage,
     }
   );
   await page.goto(`/?leagueId=${cachedReport.leagueId}${hash}`, {
@@ -168,11 +179,11 @@ test.describe("command center feature surfaces", () => {
     await swapRead.getByText("Why this swap").first().click();
     await expect(swapRead.getByText(/Projected edge/i).first()).toBeVisible();
     await expect(
-      swapRead.getByRole("button", { name: /Copy swap/i }).first()
-    ).toBeVisible();
+      swapRead.getByRole("button", { name: /Copy swap/i })
+    ).toHaveCount(0);
     await expect(
-      swapRead.getByRole("button", { name: /Open Sleeper/i }).first()
-    ).toBeVisible();
+      swapRead.getByRole("button", { name: /Open Sleeper/i })
+    ).toHaveCount(0);
     await swapRead
       .getByRole("button", { name: /Save plan/i })
       .first()
@@ -283,18 +294,18 @@ test.describe("command center feature surfaces", () => {
       page.getByText(/Rival: 1 recent add\/drop move/i).first()
     ).toBeVisible();
     await expect(page.getByText("Drop Last Bench Spot").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Copy plan/i })).toHaveCount(
+      0
+    );
     await expect(
-      page.getByRole("button", { name: /Copy plan/i }).first()
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /Open Sleeper/i }).first()
-    ).toBeVisible();
+      page.getByRole("button", { name: /Open Sleeper/i })
+    ).toHaveCount(0);
     await page
-      .getByRole("button", { name: /Submit plan/i })
+      .getByRole("button", { name: /Save plan/i })
       .first()
       .click();
     await expect(
-      page.getByRole("button", { name: /Plan submitted/i }).first()
+      page.getByRole("button", { name: /Plan saved/i }).first()
     ).toBeVisible();
     await expect(page.getByText("Waiver Plan History").first()).toBeVisible();
     const submittedPlans = await page.evaluate(
@@ -392,7 +403,7 @@ test.describe("command center feature surfaces", () => {
 
     await page.getByRole("tab", { name: "Trade History" }).click();
     await expect(page.getByText("Trade browser read")).toBeVisible();
-    await expect(page.getByText("Hidden Sleeper Data Import")).toBeVisible();
+    await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
 
     await page
       .getByRole("button", { name: /Switch to regular report view/i })
@@ -414,7 +425,178 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
     await page.getByRole("tab", { name: "Trade History" }).click();
     await expect(page.getByText("Trade browser read")).toBeVisible();
-    await expect(page.getByText("Hidden Sleeper Data Import")).toBeVisible();
+    await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
+  });
+
+  test("persists assistant watch preferences locally across fresh app loads", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport);
+
+    let featureRadar = await openReportSection(page, "Assistant Feature Radar");
+    let watchCard = featureRadar
+      .locator(".assistant-feature-card")
+      .filter({ hasText: "Watch Alerts" })
+      .first();
+    const riseInput = watchCard.locator('input[type="number"]').nth(0);
+    const fallInput = watchCard.locator('input[type="number"]').nth(1);
+    await riseInput.fill("17");
+    await fallInput.fill("6");
+    await watchCard
+      .locator(".assistant-feature-list-row")
+      .filter({ hasText: "Depth Receiver" })
+      .getByRole("button", { name: "Watch" })
+      .click();
+    await expect(
+      watchCard.locator(".assistant-watch-controls em").getByText(
+        "Saved locally",
+        { exact: true }
+      )
+    ).toBeVisible();
+
+    const storedPreferences = await page.evaluate(() =>
+      JSON.parse(
+        window.localStorage.getItem(
+          "dynasty-degenerates:watch-alert-preferences:v1"
+        ) || "{}"
+      )
+    );
+    expect(storedPreferences).toMatchObject({
+      riseThresholdPct: 17,
+      fallThresholdPct: 6,
+    });
+    expect(storedPreferences.trackedPlayerIds).toContain("wr2");
+
+    const reloadedPage = await page.context().newPage();
+    await loadCachedReport(reloadedPage, cachedReport, "", {
+      preserveLocalStorage: true,
+    });
+    const reloadedPreferences = await reloadedPage.evaluate(() =>
+      JSON.parse(
+        window.localStorage.getItem(
+          "dynasty-degenerates:watch-alert-preferences:v1"
+        ) || "{}"
+      )
+    );
+    expect(reloadedPreferences).toMatchObject({
+      riseThresholdPct: 17,
+      fallThresholdPct: 6,
+    });
+    featureRadar = await openReportSection(
+      reloadedPage,
+      "Assistant Feature Radar"
+    );
+    watchCard = featureRadar
+      .locator(".assistant-feature-card")
+      .filter({ hasText: "Watch Alerts" })
+      .first();
+    await expect(watchCard.locator('input[type="number"]').nth(0)).toHaveValue(
+      "17"
+    );
+    await expect(watchCard.locator('input[type="number"]').nth(1)).toHaveValue(
+      "6"
+    );
+    await expect(
+      watchCard
+        .locator(".assistant-feature-list-row")
+        .filter({ hasText: "Depth Receiver" })
+        .getByRole("button", { name: "Watching" })
+    ).toBeVisible();
+    await reloadedPage.close();
+  });
+
+  test("persists portfolio snapshots locally across fresh app loads", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport);
+
+    let featureRadar = await openReportSection(page, "Assistant Feature Radar");
+    let portfolioCard = featureRadar
+      .locator(".assistant-feature-card")
+      .filter({ hasText: "Portfolio View" })
+      .first();
+    await portfolioCard.getByRole("button", { name: /Save Snapshot/i }).click();
+    await expect(portfolioCard.getByText("Portfolio snapshot saved")).toBeVisible();
+
+    const storedSnapshots = await page.evaluate(() =>
+      JSON.parse(
+        window.localStorage.getItem(
+          "dynasty-degenerates:portfolio-snapshots:v1"
+        ) || "[]"
+      )
+    );
+    expect(storedSnapshots).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          leagueName: cachedReport.leagueName,
+          manager: "Tester",
+          playerCount: expect.any(Number),
+        }),
+      ])
+    );
+
+    const reloadedPage = await page.context().newPage();
+    await loadCachedReport(reloadedPage, cachedReport, "", {
+      preserveLocalStorage: true,
+    });
+    featureRadar = await openReportSection(
+      reloadedPage,
+      "Assistant Feature Radar"
+    );
+    portfolioCard = featureRadar
+      .locator(".assistant-feature-card")
+      .filter({ hasText: "Portfolio View" })
+      .first();
+    await expect(
+      portfolioCard.getByText(/1 saved team snapshot/i)
+    ).toBeVisible();
+    await reloadedPage.close();
+  });
+
+  test("keeps blueprint export controls print-focused without clipboard copy", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport);
+    await page.evaluate(() => {
+      window.print = () => {
+        window.sessionStorage.setItem("blueprint-print-called", "true");
+      };
+    });
+
+    const blueprintSection = await openReportSection(
+      page,
+      "Monthly Team Blueprint"
+    );
+    await blueprintSection
+      .getByRole("button", { name: /Generate Team Blueprint/i })
+      .click();
+
+    await expect(
+      blueprintSection.getByRole("button", { name: /Copy Share Text/i })
+    ).toHaveCount(0);
+    await expect(
+      blueprintSection.getByRole("button", { name: /Print \/ Save PDF/i })
+    ).toBeVisible();
+    await expect(
+      blueprintSection.getByRole("button", { name: /Poster View/i })
+    ).toBeVisible();
+
+    await blueprintSection
+      .getByRole("button", { name: /Print \/ Save PDF/i })
+      .click();
+    await expect(
+      blueprintSection.getByText("Opening print dialog")
+    ).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          window.sessionStorage.getItem("blueprint-print-called")
+        )
+      )
+      .toBe("true");
   });
 
   test("keeps command-center expansion hidden for regular report viewers", async ({

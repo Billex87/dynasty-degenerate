@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Copy, ExternalLink } from "lucide-react";
 import type {
   ActionPlanRecord,
   ActionPlanStatus,
@@ -268,21 +267,6 @@ function useStoredWaiverBidHistory({ leagueId }: { leagueId?: string } = {}) {
   };
 }
 
-function copyTextToClipboard(value: string): void {
-  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText)
-    return;
-  navigator.clipboard.writeText(value).catch(() => undefined);
-}
-
-function openSleeperLeague(leagueId?: string): void {
-  if (!leagueId || typeof window === "undefined") return;
-  window.open(
-    `https://sleeper.com/leagues/${encodeURIComponent(leagueId)}`,
-    "_blank",
-    "noopener,noreferrer"
-  );
-}
-
 function parseFaabBidRange(label: string): { min: number; max: number } | null {
   const values = (label.match(/\d+/g) || [])
     .map(value => Number(value))
@@ -304,24 +288,6 @@ function formatActionPlanTimestamp(value?: number): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
-}
-
-function getActionPlanCopy(plan: StoredActionPlan): string {
-  const planKindLabel =
-    plan.kind === "lineup"
-      ? "Lineup"
-      : plan.kind === "trade"
-        ? "Trade"
-        : "Waiver";
-  return [
-    `${planKindLabel} action plan`,
-    plan.title,
-    plan.summary,
-    `Status: ${plan.status}`,
-    plan.manager ? `Manager: ${plan.manager}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
 }
 
 function getActionPlanKindLabel(kind: StoredActionPlan["kind"]): string {
@@ -355,12 +321,10 @@ function getWaiverPlanOutcomeStatus(
 
 function ActionPlanHistoryPanel({
   plans,
-  leagueId,
   isServerPersistenceEnabled,
   title = "Action History",
 }: {
   plans: StoredActionPlan[];
-  leagueId?: string;
   isServerPersistenceEnabled?: boolean;
   title?: string;
 }) {
@@ -390,23 +354,6 @@ function ActionPlanHistoryPanel({
               <small>
                 {formatActionPlanTimestamp(plan.updatedAt || plan.createdAt)}
               </small>
-            </div>
-            <div className="action-plan-history-actions">
-              <button
-                type="button"
-                onClick={() => copyTextToClipboard(getActionPlanCopy(plan))}
-                aria-label={`Copy ${plan.title}`}
-              >
-                <Copy aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                disabled={!leagueId}
-                onClick={() => openSleeperLeague(leagueId)}
-                aria-label={`Open Sleeper for ${plan.title}`}
-              >
-                <ExternalLink aria-hidden="true" />
-              </button>
             </div>
           </div>
         ))}
@@ -467,27 +414,6 @@ function getWaiverActionPlanId(
     normalizeManagerKey(manager),
     recommendation.player.player_id,
   ].join(":");
-}
-
-function getWaiverActionPlanCopy(
-  manager: string | null | undefined,
-  recommendation: WaiverRecommendation
-): string {
-  return [
-    `Waiver plan${manager ? ` for ${manager}` : ""}`,
-    `Add: ${recommendation.player.name}`,
-    `Bid: ${recommendation.bidRangeLabel} (${recommendation.bidConfidencePct}% confidence)`,
-    `Bid evidence: ${recommendation.bidEvidenceLabel}`,
-    recommendation.competitionRead
-      ? `Competition: ${recommendation.competitionRead.manager} ${recommendation.competitionRead.level.toLowerCase()} threat (${recommendation.competitionRead.bidHint}). ${recommendation.competitionRead.reason}`
-      : "Competition: no strong competing manager signal returned",
-    recommendation.dropCandidate
-      ? `Drop: ${recommendation.dropCandidate.name}`
-      : recommendation.claimPriority === "Add"
-        ? "Drop: no drop needed"
-        : "Drop: manual room needed",
-    `Reason: ${recommendation.reason}`,
-  ].join("\n");
 }
 
 function createWaiverActionPlan({
@@ -1837,7 +1763,6 @@ export default function WaiverIntelligencePanel({
       )}
       <ActionPlanHistoryPanel
         plans={waiverActionPlans}
-        leagueId={leagueId}
         isServerPersistenceEnabled={isServerPersistenceEnabled}
         title="Waiver Plan History"
       />
@@ -1866,9 +1791,6 @@ export default function WaiverIntelligencePanel({
                 plan => plan.id === waiverPlanId && plan.kind === "waiver"
               )
             : false;
-          const waiverPlanCopy = recommendation
-            ? getWaiverActionPlanCopy(viewerManager, recommendation)
-            : "";
           return (
             <article
               key={`${label}-${player.player_id}`}
@@ -2029,48 +1951,9 @@ export default function WaiverIntelligencePanel({
                         persistStoredWaiverBidHistory(bidHistoryItem);
                     }}
                   >
-                    {submittedPlan ? "Plan submitted" : "Submit plan"}
+                    {submittedPlan ? "Plan saved" : "Save plan"}
                     <span>{recommendation.bidConfidencePct}%</span>
                   </button>
-                  <div className="waiver-intel-plan-actions">
-                    <button
-                      type="button"
-                      className="waiver-intel-secondary-action"
-                      onClick={() => {
-                        copyTextToClipboard(waiverPlanCopy);
-                        persistStoredActionPlan(
-                          createWaiverActionPlan({
-                            leagueId,
-                            manager: viewerManager,
-                            recommendation,
-                            status: "copied",
-                          })
-                        );
-                      }}
-                    >
-                      <Copy aria-hidden="true" />
-                      Copy plan
-                    </button>
-                    <button
-                      type="button"
-                      className="waiver-intel-secondary-action"
-                      disabled={!leagueId}
-                      onClick={() => {
-                        persistStoredActionPlan(
-                          createWaiverActionPlan({
-                            leagueId,
-                            manager: viewerManager,
-                            recommendation,
-                            status: "opened",
-                          })
-                        );
-                        openSleeperLeague(leagueId);
-                      }}
-                    >
-                      <ExternalLink aria-hidden="true" />
-                      Open Sleeper
-                    </button>
-                  </div>
                 </div>
               )}
             </article>

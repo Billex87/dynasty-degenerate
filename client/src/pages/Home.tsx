@@ -102,9 +102,6 @@ const TradeHistoryTable = lazy(
 const TradeProposalSignalsTable = lazy(
   () => import("@/components/reportTables/TradeProposalSignalsTable")
 );
-const SleeperWaiverClaimsTable = lazy(
-  () => import("@/components/reportTables/SleeperWaiverClaimsTable")
-);
 const ManagerPositionCountsTable = lazy(
   () => import("@/components/reportTables/ManagerPositionCountsTable")
 );
@@ -208,8 +205,6 @@ const SLEEPER_USERNAME_HISTORY_KEY =
 const CACHED_SLEEPER_USERS_KEY = "dynasty-degenerates:sleeper-user-history:v1";
 const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
   "dynasty-degenerates:admin-unlock-dismissed:v1";
-const SLEEPER_HIDDEN_CONSENT_KEY =
-  "dynasty-degenerates:sleeper-hidden-consent:v1";
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
@@ -232,12 +227,6 @@ type LoadingTransitionPhase =
   | "kick"
   | "done";
 type OwnerIntelSortMode = "dynasty" | "contender" | "rebuilder";
-type SleeperHiddenConsentRecord = {
-  acknowledgedAt: number;
-  sharedAt: number | null;
-};
-type SleeperHiddenConsentMap = Record<string, SleeperHiddenConsentRecord>;
-
 function getKtcAdminIdentity(
   user?: SleeperUserSession | null,
   fallbackUsername?: string
@@ -247,61 +236,6 @@ function getKtcAdminIdentity(
 
 function normalizeViewerIdentifier(value?: string | null): string {
   return value?.trim().toLowerCase() || "";
-}
-
-function getSleeperHiddenConsentStorageKey(
-  leagueId?: string | null,
-  userKey?: string | null
-): string | null {
-  const normalizedLeagueId = String(leagueId || "").trim();
-  if (!normalizedLeagueId) return null;
-  const normalizedUserKey = normalizeViewerIdentifier(userKey);
-  return `${normalizedLeagueId}:${normalizedUserKey || "league"}`;
-}
-
-function readSleeperHiddenConsentMap(): SleeperHiddenConsentMap {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(SLEEPER_HIDDEN_CONSENT_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as SleeperHiddenConsentMap)
-      : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeSleeperHiddenConsentMap(map: SleeperHiddenConsentMap): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(
-      SLEEPER_HIDDEN_CONSENT_KEY,
-      JSON.stringify(map)
-    );
-  } catch {
-    // Local storage can be unavailable in privacy-restricted contexts.
-  }
-}
-
-function rememberSleeperHiddenConsent(input: {
-  leagueId: string;
-  userKey?: string | null;
-  sharedAt?: number | null;
-}): SleeperHiddenConsentMap {
-  const key = getSleeperHiddenConsentStorageKey(input.leagueId, input.userKey);
-  if (!key) return readSleeperHiddenConsentMap();
-
-  const next = {
-    ...readSleeperHiddenConsentMap(),
-    [key]: {
-      acknowledgedAt: Date.now(),
-      sharedAt: Number(input.sharedAt || Date.now()),
-    },
-  };
-  writeSleeperHiddenConsentMap(next);
-  return next;
 }
 
 type AdminAuthUser = {
@@ -1263,46 +1197,6 @@ function buildTradeProposalPreviewMetrics(
       tone: latestSignal
         ? getTradeProposalPreviewTone(latestSignal.status)
         : "neutral",
-    },
-  ];
-}
-
-function buildSleeperHiddenPreviewMetrics(
-  reportData: ReportData
-): PreviewMetric[] {
-  const snapshot = reportData.sleeperHiddenLeagueSnapshot || null;
-  const tradeSignals = [
-    ...(reportData.adminSleeperTradeProposalSignals || []),
-  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
-  const waiverSignals = [...(reportData.adminSleeperWaiverSignals || [])].sort(
-    (a, b) => Date.parse(b.date) - Date.parse(a.date)
-  );
-  const latestSignal =
-    [...tradeSignals, ...waiverSignals].sort(
-      (a, b) => Date.parse(b.date) - Date.parse(a.date)
-    )[0] || null;
-  const sharedAtLabel = snapshot?.sharedAt
-    ? new Date(snapshot.sharedAt).toLocaleDateString()
-    : null;
-
-  return [
-    {
-      label: "Trades",
-      value: tradeSignals.length || snapshot?.tradeCount || 0,
-      tone: tradeSignals.length || snapshot?.tradeCount || 0 ? "info" : "warn",
-    },
-    {
-      label: "Waivers",
-      value: waiverSignals.length || snapshot?.waiverCount || 0,
-      tone:
-        waiverSignals.length || snapshot?.waiverCount || 0 ? "info" : "warn",
-    },
-    {
-      label: "Latest",
-      value: latestSignal
-        ? formatTradeProposalPreviewDate(latestSignal.date)
-        : sharedAtLabel || "-",
-      tone: latestSignal || sharedAtLabel ? "good" : "neutral",
     },
   ];
 }
@@ -4201,9 +4095,6 @@ export default function Home() {
   const [reportDataCacheVersion, setReportDataCacheVersion] = useState<
     string | null
   >(null);
-  const [sleeperTradeCenterToken, setSleeperTradeCenterToken] = useState("");
-  const [sleeperHiddenConsentMap, setSleeperHiddenConsentMap] =
-    useState<SleeperHiddenConsentMap>(() => readSleeperHiddenConsentMap());
   const [activeTab, setActiveTab] = useState(
     () => getInitialReportTabFromUrl() || "overview"
   );
@@ -4363,14 +4254,6 @@ export default function Home() {
     setCachedSleeperUsers(nextUsers);
   };
 
-  const sleeperHiddenConsentKey = getSleeperHiddenConsentStorageKey(
-    leagueId,
-    sleeperUsername || viewerUsername || viewerUserId
-  );
-  const sleeperHiddenConsent = sleeperHiddenConsentKey
-    ? sleeperHiddenConsentMap[sleeperHiddenConsentKey] || null
-    : null;
-
   const analyzeMutation = trpc.league.analyze.useMutation({
     onSuccess: data => {
       clearSuccessTransitionTimers();
@@ -4423,42 +4306,6 @@ export default function Home() {
       showMutationErrorToast(error);
     },
   });
-
-  const hiddenSleeperTradeCenterMutation =
-    trpc.league.importSleeperTradeCenter.useMutation({
-      onSuccess: data => {
-        setReportData(current =>
-          current
-            ? {
-                ...current,
-                adminSleeperTradeProposalSignals: data.tradeProposalSignals,
-                adminSleeperWaiverSignals: data.waiverSignals,
-                sleeperHiddenLeagueSnapshot:
-                  data.sleeperHiddenLeagueSnapshot || {
-                    sharedBy: null,
-                    sharedAt: Date.now(),
-                    transactionCount: data.transactionCount,
-                    tradeCount: data.tradeCount,
-                    waiverCount: data.waiverCount,
-                  },
-              }
-            : current
-        );
-        const nextHiddenConsentMap = rememberSleeperHiddenConsent({
-          leagueId: data.leagueId,
-          userKey: sleeperUsername || viewerUsername || viewerUserId,
-          sharedAt: data.sleeperHiddenLeagueSnapshot?.sharedAt || Date.now(),
-        });
-        setSleeperHiddenConsentMap(nextHiddenConsentMap);
-        setSleeperTradeCenterToken("");
-        toast.success(
-          `Shared ${data.tradeCount} hidden trade row${data.tradeCount === 1 ? "" : "s"} and ${data.waiverCount} waiver claim${data.waiverCount === 1 ? "" : "s"} from Sleeper.`
-        );
-      },
-      onError: error => {
-        showMutationErrorToast(error);
-      },
-    });
 
   useEffect(
     () => () => {
@@ -4770,25 +4617,6 @@ export default function Home() {
     });
   };
 
-  const handleImportSleeperTradeCenter = () => {
-    const nextLeagueId = leagueId.trim();
-    const authToken = sleeperTradeCenterToken.trim();
-    if (!nextLeagueId) {
-      toast.error("Please load a league first");
-      return;
-    }
-    if (!authToken) {
-      toast.error("Please paste a Sleeper auth token");
-      return;
-    }
-    hiddenSleeperTradeCenterMutation.mutate({
-      leagueId: nextLeagueId,
-      authToken,
-      sharedBy:
-        sleeperUsername.trim() || viewerUsername || viewerUserId || null,
-    });
-  };
-
   const handleFindLeagues = async () => {
     const normalizedUsername = sleeperUsername.trim();
     if (!normalizedUsername) {
@@ -4912,7 +4740,6 @@ export default function Home() {
     setAdminViewMode(null);
     setAdminViewerManager(null);
     setAdminPassphrase("");
-    setSleeperTradeCenterToken("");
     setActiveTab("overview");
   };
 
@@ -5433,27 +5260,6 @@ export default function Home() {
       viewerManager: effectiveViewerManager,
     };
     const hasManagerViewOptions = reportManagerNames.length > 1;
-    const hiddenSleeperTradeSignals =
-      reportData.adminSleeperTradeProposalSignals;
-    const hiddenSleeperWaiverSignals = reportData.adminSleeperWaiverSignals;
-    const hiddenSleeperSnapshot =
-      reportData.sleeperHiddenLeagueSnapshot || null;
-    const hiddenSleeperImportLoaded =
-      hiddenSleeperTradeSignals !== undefined ||
-      hiddenSleeperWaiverSignals !== undefined ||
-      hiddenSleeperSnapshot !== null;
-    const hiddenSleeperBrowserConsent = Boolean(sleeperHiddenConsent);
-    const hiddenSleeperConsentResolved =
-      hiddenSleeperBrowserConsent || hiddenSleeperSnapshot !== null;
-    const hiddenSleeperShareButtonLabel =
-      hiddenSleeperBrowserConsent || hiddenSleeperSnapshot
-        ? "Refresh hidden rows"
-        : "Share hidden rows";
-    const hiddenSleeperShareStatusLabel = hiddenSleeperBrowserConsent
-      ? "Remembered on this browser"
-      : hiddenSleeperSnapshot
-        ? "Stored for this league"
-        : "One-time share";
     const showTradeMarketRadar =
       reportData.weeklyRisers.some(player => player.val_now >= 2500) ||
       reportData.weeklyFallers.some(player => player.val_now >= 1800);
@@ -6251,138 +6057,6 @@ export default function Home() {
                       {canViewAdminFeatureExpansion && (
                         <TradeBrowserRead data={reportDataForView} />
                       )}
-                      {canViewAdminFeatureExpansion && (
-                        <CollapsibleReportSection
-                          title="Hidden Sleeper Data Import"
-                          kicker="Share pending, cancelled, rejected, and waiver rows once. We remember this browser for this league."
-                          previewMetrics={buildSleeperHiddenPreviewMetrics(
-                            reportData
-                          )}
-                          defaultOpen={!hiddenSleeperConsentResolved}
-                        >
-                          <div className="space-y-6">
-                            <Card className="border-slate-800 bg-slate-950/70 p-4 shadow-inner shadow-cyan-950/20 sm:p-5">
-                              <form
-                                className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
-                                onSubmit={event => {
-                                  event.preventDefault();
-                                  handleImportSleeperTradeCenter();
-                                }}
-                              >
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                                    Hidden Sleeper Feed
-                                  </p>
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className="text-lg font-semibold text-white">
-                                      {hiddenSleeperShareButtonLabel}
-                                    </h3>
-                                    <span className="command-mini-badge command-mini-badge-info">
-                                      {hiddenSleeperShareStatusLabel}
-                                    </span>
-                                  </div>
-                                  <p className="max-w-2xl text-sm leading-6 text-slate-300">
-                                    Paste a live Sleeper auth token from an
-                                    authenticated browser session. We store the
-                                    resulting hidden rows for this league and do
-                                    not keep the token.
-                                  </p>
-                                  {hiddenSleeperSnapshot && (
-                                    <p className="text-xs leading-5 text-slate-400">
-                                      {hiddenSleeperSnapshot.sharedBy
-                                        ? `Shared by ${hiddenSleeperSnapshot.sharedBy}`
-                                        : "Shared by this browser"}
-                                      {hiddenSleeperSnapshot.sharedAt
-                                        ? ` · ${new Date(hiddenSleeperSnapshot.sharedAt).toLocaleString()}`
-                                        : ""}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="flex flex-col gap-2 sm:min-w-[22rem] sm:flex-row sm:items-center">
-                                  <Input
-                                    type="password"
-                                    value={sleeperTradeCenterToken}
-                                    onChange={event =>
-                                      setSleeperTradeCenterToken(
-                                        event.target.value
-                                      )
-                                    }
-                                    placeholder="Sleeper auth token"
-                                    autoComplete="off"
-                                    spellCheck={false}
-                                    className="w-full bg-slate-950/80 sm:min-w-[18rem]"
-                                  />
-                                  <Button
-                                    type="submit"
-                                    disabled={
-                                      hiddenSleeperTradeCenterMutation.isPending
-                                    }
-                                    className="shrink-0 whitespace-nowrap bg-gradient-to-r from-cyan-500 to-orange-500 text-slate-950 hover:from-cyan-400 hover:to-orange-400"
-                                  >
-                                    {hiddenSleeperTradeCenterMutation.isPending
-                                      ? "Sharing..."
-                                      : hiddenSleeperShareButtonLabel}
-                                  </Button>
-                                </div>
-                              </form>
-                            </Card>
-
-                            <div className="space-y-6">
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-3">
-                                  <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                                    Hidden Trade Center Rows
-                                  </span>
-                                  <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    {hiddenSleeperImportLoaded
-                                      ? "Shared"
-                                      : "Run share to populate"}
-                                  </span>
-                                </div>
-                                {hiddenSleeperTradeSignals !== undefined ? (
-                                  <TradeProposalSignalsTable
-                                    data={hiddenSleeperTradeSignals}
-                                    managerAvatars={reportData.managerAvatars}
-                                  />
-                                ) : (
-                                  <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
-                                    No hidden trade-center rows have been shared
-                                    yet. Paste a token above to load pending,
-                                    rejected, and cancelled trade offers.
-                                  </Card>
-                                )}
-                              </div>
-
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-3">
-                                  <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
-                                    Hidden Waiver Claims
-                                  </span>
-                                  <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    {hiddenSleeperImportLoaded
-                                      ? "Shared"
-                                      : "Run share to populate"}
-                                  </span>
-                                </div>
-                                {hiddenSleeperWaiverSignals !== undefined ? (
-                                  <SleeperWaiverClaimsTable
-                                    data={hiddenSleeperWaiverSignals}
-                                    managerAvatars={reportData.managerAvatars}
-                                  />
-                                ) : (
-                                  <Card className="border-slate-800 bg-slate-950/70 p-5 text-sm text-slate-300">
-                                    No hidden waiver claims have been shared yet.
-                                    This table will show the player claims and
-                                    FAAB bids from Sleeper once the token is
-                                    loaded.
-                                  </Card>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CollapsibleReportSection>
-                      )}
-
                       {canViewAdminFeatureExpansion && (
                         <CollapsibleReportSection
                           title="Pending Trade Offers"

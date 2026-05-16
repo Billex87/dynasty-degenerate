@@ -20,9 +20,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   ChevronDown,
-  Copy,
   Crown,
-  ExternalLink,
   LockKeyhole,
   Save,
   Scissors,
@@ -283,21 +281,6 @@ function useStoredWaiverBidHistory({ leagueId }: { leagueId?: string } = {}) {
     ),
     persistStoredWaiverBidHistory,
   };
-}
-
-function copyTextToClipboard(value: string): void {
-  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText)
-    return;
-  navigator.clipboard.writeText(value).catch(() => undefined);
-}
-
-function openSleeperLeague(leagueId?: string): void {
-  if (!leagueId || typeof window === "undefined") return;
-  window.open(
-    `https://sleeper.com/leagues/${encodeURIComponent(leagueId)}`,
-    "_blank",
-    "noopener,noreferrer"
-  );
 }
 
 function parseFaabBidRange(label: string): { min: number; max: number } | null {
@@ -6610,28 +6593,6 @@ function getLineupActionPlanId(
   ].join(":");
 }
 
-function getLineupActionPlanCopy(
-  manager: string | null | undefined,
-  recommendation: LineupSwapRecommendation
-): string {
-  const topOption = recommendation.options[0];
-  const pointEdge = formatProjectedPointEdge(
-    topOption?.projectedPointEdge ?? null
-  );
-  return [
-    `Lineup plan${manager ? ` for ${manager}` : ""}`,
-    `Replace: ${recommendation.starterOut.name}`,
-    topOption ? `Start: ${topOption.player.name}` : null,
-    `Slot: ${recommendation.groupLabel}`,
-    topOption
-      ? `Confidence: ${topOption.confidencePct}%${pointEdge ? ` (${pointEdge})` : ""}`
-      : null,
-    topOption?.reason ? `Why: ${topOption.reason}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
 function createLineupActionPlan({
   leagueId,
   manager,
@@ -6690,24 +6651,6 @@ function formatActionPlanTimestamp(value?: number): string {
   }).format(date);
 }
 
-function getActionPlanCopy(plan: StoredActionPlan): string {
-  const planKindLabel =
-    plan.kind === "lineup"
-      ? "Lineup"
-      : plan.kind === "trade"
-        ? "Trade"
-        : "Waiver";
-  return [
-    `${planKindLabel} action plan`,
-    plan.title,
-    plan.summary,
-    `Status: ${plan.status}`,
-    plan.manager ? `Manager: ${plan.manager}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
 function getActionPlanKindLabel(kind: StoredActionPlan["kind"]): string {
   if (kind === "lineup") return "Lineup";
   if (kind === "trade") return "Trade";
@@ -6739,12 +6682,10 @@ function getWaiverPlanOutcomeStatus(
 
 function ActionPlanHistoryPanel({
   plans,
-  leagueId,
   isServerPersistenceEnabled,
   title = "Action History",
 }: {
   plans: StoredActionPlan[];
-  leagueId?: string;
   isServerPersistenceEnabled?: boolean;
   title?: string;
 }) {
@@ -6774,23 +6715,6 @@ function ActionPlanHistoryPanel({
               <small>
                 {formatActionPlanTimestamp(plan.updatedAt || plan.createdAt)}
               </small>
-            </div>
-            <div className="action-plan-history-actions">
-              <button
-                type="button"
-                onClick={() => copyTextToClipboard(getActionPlanCopy(plan))}
-                aria-label={`Copy ${plan.title}`}
-              >
-                <Copy aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                disabled={!leagueId}
-                onClick={() => openSleeperLeague(leagueId)}
-                aria-label={`Open Sleeper for ${plan.title}`}
-              >
-                <ExternalLink aria-hidden="true" />
-              </button>
             </div>
           </div>
         ))}
@@ -7852,7 +7776,6 @@ export function LeagueCommandCenter({
                     ) : null}
                     <ActionPlanHistoryPanel
                       plans={selectedActionPlans}
-                      leagueId={leagueId}
                       isServerPersistenceEnabled={isServerPersistenceEnabled}
                     />
                     {lineupSwapRecommendations.length ? (
@@ -7868,10 +7791,6 @@ export function LeagueCommandCenter({
                             );
                             const planSaved = storedActionPlans.some(
                               plan => plan.id === planId
-                            );
-                            const planCopy = getLineupActionPlanCopy(
-                              selectedManager,
-                              recommendation
                             );
                             return (
                               <div
@@ -7945,43 +7864,6 @@ export function LeagueCommandCenter({
                                   >
                                     <Save aria-hidden="true" />
                                     {planSaved ? "Plan saved" : "Save plan"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="manager-command-swap-action"
-                                    onClick={() => {
-                                      copyTextToClipboard(planCopy);
-                                      persistStoredActionPlan(
-                                        createLineupActionPlan({
-                                          leagueId,
-                                          manager: selectedManager,
-                                          recommendation,
-                                          status: "copied",
-                                        })
-                                      );
-                                    }}
-                                  >
-                                    <Copy aria-hidden="true" />
-                                    Copy swap
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="manager-command-swap-action"
-                                    disabled={!leagueId}
-                                    onClick={() => {
-                                      persistStoredActionPlan(
-                                        createLineupActionPlan({
-                                          leagueId,
-                                          manager: selectedManager,
-                                          recommendation,
-                                          status: "opened",
-                                        })
-                                      );
-                                      openSleeperLeague(leagueId);
-                                    }}
-                                  >
-                                    <ExternalLink aria-hidden="true" />
-                                    Open Sleeper
                                   </button>
                                 </div>
                               </div>

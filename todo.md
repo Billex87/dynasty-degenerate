@@ -602,9 +602,9 @@
 ### Command Center Polish
 - [ ] Add deeper mobile QA for all premium cards after real matchup data lands.
 - [x] Add E2E coverage for admin-only feature visibility.
-- [ ] Add E2E coverage for local watch preference persistence.
-- [ ] Add E2E coverage for portfolio snapshot persistence.
-- [ ] Add E2E coverage for blueprint print and share controls where practical.
+- [x] Add E2E coverage for local watch preference persistence.
+- [x] Add E2E coverage for portfolio snapshot persistence.
+- [x] Add E2E coverage for blueprint print and share controls where practical.
 
 ## Report UX / Tooling Roadmap
 
