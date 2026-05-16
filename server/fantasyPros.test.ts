@@ -83,6 +83,49 @@ describe('FantasyPros API client', () => {
     expect(rows.maliknabers.seasonValue).toBeUndefined();
   });
 
+  it('normalizes rookie and ADP ranking types without treating them as dynasty values', () => {
+    const rookieRows = normalizeFantasyProsRankingsPayload({
+      year: 2026,
+      players: [{
+        player_name: 'Ashton Jeanty',
+        player_position_id: 'RB',
+        player_team_id: 'LV',
+        rank_ecr: 3,
+        pos_rank: 'RB1',
+      }],
+    }, {
+      season: '2026',
+      rankingType: 'ROOKIES',
+    });
+    const adpRows = normalizeFantasyProsRankingsPayload({
+      year: 2026,
+      players: [{
+        player_name: 'Jahmyr Gibbs',
+        player_position_id: 'RB',
+        player_team_id: 'DET',
+        adp: 7.4,
+        pos_rank: 'RB4',
+      }],
+    }, {
+      season: '2026',
+      rankingType: 'ADP',
+    });
+
+    expect(rookieRows.ashtonjeanty).toMatchObject({
+      rankingType: 'ROOKIES',
+      overallRank: 3,
+      positionRank: 'RB1',
+    });
+    expect(rookieRows.ashtonjeanty.dynastyValue).toBeUndefined();
+    expect(adpRows.jahmyrgibbs).toMatchObject({
+      rankingType: 'ADP',
+      adp: 7.4,
+      overallRank: 7.4,
+      positionRank: 'RB4',
+    });
+    expect(adpRows.jahmyrgibbs.adpValue).toBeGreaterThan(0);
+  });
+
   it('requests FantasyPros Dynasty rankings with the documented consensus endpoint', async () => {
     process.env.FANTASYPROS_API_KEY = 'test-fantasypros-key';
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({
@@ -183,5 +226,30 @@ describe('FantasyPros API client', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(news).toHaveLength(1);
     expect(latestNews?.title).toBe('Bijan Robinson workload rising');
+  });
+
+  it('normalizes upstream news URLs when provided', async () => {
+    process.env.FANTASYPROS_API_KEY = 'test-fantasypros-key';
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      news: [{
+        headline: 'Practice report update',
+        description: 'Returned to practice.',
+        article_url: 'https://example.test/news',
+        player_name: 'Tee Higgins',
+        published_at: '2026-05-15T12:00:00Z',
+      }],
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const news = await fetchFantasyProsNews({ sourceMode: 'live', forceRefresh: true });
+
+    expect(news[0]).toMatchObject({
+      title: 'Practice report update',
+      url: 'https://example.test/news',
+      playerName: 'Tee Higgins',
+    });
   });
 });

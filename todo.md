@@ -57,8 +57,8 @@
 
 ## Monetization / Auth Roadmap
 
-- [ ] Keep the public funnel low-friction: allow unauthenticated users to run a limited free Sleeper report before asking them to create an account.
-- [ ] Define the first pricing model before building billing gates: Free, Pro, League Pass, and Elite tiers.
+- [x] Keep the public funnel low-friction: allow unauthenticated users to run a limited free Sleeper report before asking them to create an account.
+- [x] Define the first pricing model before building billing gates: Free, Pro, League Pass, and Elite tiers.
 - [ ] Add passwordless email magic-link auth for normal users, reusing the existing first-party `users` table and session-cookie flow instead of introducing password storage.
 - [ ] Add a transactional email provider for magic links, billing notifications, and later alert delivery; keep provider keys server-side only.
 - [ ] Add account-linking support so a signed-in user can save Sleeper usernames, favorite leagues, recent reports, and notification preferences.
@@ -73,7 +73,7 @@
 - [ ] Add paid-feature telemetry for conversion, trial-to-paid movement, active subscribers, MRR, churn, failed payments, report usage, and upgrade prompt performance.
 - [ ] Add an admin billing board for active plans, failed payments, entitlement overrides, revenue metrics, and suspicious usage.
 - [ ] Add legal/compliance pages before charging: Terms, Privacy Policy, Refund/Cancellation Policy, and data-source disclosures.
-- [ ] Do not use personal/non-commercial API keys inside paid/public feature outputs unless we have provider approval or a commercial license for that source.
+- [x] Do not use personal/non-commercial API keys inside paid/public feature outputs unless we have provider approval or a commercial license for that source.
 - [ ] Add tests for auth token expiry, magic-link replay protection, webhook signature verification, entitlement checks, usage limits, and paid/free report boundaries.
 
 ## Source Audit / Feature Roadmap
@@ -123,18 +123,19 @@
 ## AI Logic / Signal Engineering Roadmap
 
 - [ ] Build a historical player cohort engine that compares value, production, age, draft capital, and role across all players by position, format, and season.
-- [ ] Add age/value curves so AI can tell whether a player is early, normal, or late relative to their position's typical peak and decline window.
+- [x] Add age/value curves so AI can tell whether a player is early, normal, or late relative to their position's typical peak and decline window.
 - [ ] Measure production peaks and decline slopes by season, age, and game window so the readouts can flag when a player has already peaked, is peaking now, or is still climbing.
 - [ ] Add breakout and falloff detection for year-over-year changes in snap share, targets, rush attempts, routes, touchdowns, and efficiency.
 - [ ] Build player archetype and comp clusters using size, athletic profile, draft capital, usage profile, and scoring shape so the AI can explain similar historical outcomes instead of just raw ranks.
 - [ ] Add rolling trend, volatility, and momentum features across 3/6/12/24 game and season windows so the readouts distinguish sustained growth from short spikes.
 - [ ] Separate opportunity-driven value from talent-driven value by modeling team context, depth-chart changes, injuries, QB changes, offensive environment, and role shifts.
-- [ ] Add age-adjusted market-vs-production deltas so we can spot players whose market value is lagging or overstating what the production curve says.
-- [ ] Build position-specific aging models for QB, RB, WR, and TE, since the same age means different things by position and role.
+- [x] Add age-adjusted market-vs-production deltas so we can spot players whose market value is lagging or overstating what the production curve says.
+- [x] Build position-specific aging models for QB, RB, WR, and TE, since the same age means different things by position and role.
 - [ ] Add historical outcome buckets such as breakout, sustain, fade, injury-cliff, and late-career rebound, then map current players into those buckets for AI reads.
+- [x] Add a first-pass player cohort signal engine with position age phases, market-vs-production deltas, current outcome buckets, confidence gating, same-position peer rows, and explanation traces without adding provider calls.
 - [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts.
 - [ ] Surface a short explanation trace in the UI so each AI read can show the top reasons the model thinks a player is undervalued, overvalued, peaking, or declining.
-- [ ] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.
+- [x] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.
 - [ ] Add league-context modifiers for dynasty, redraft, superflex, and format-specific scoring so the logic stays format-aware.
 - [ ] Create anomaly rules for unusual cases like age-curve outliers, late breakouts, injury comebacks, small-sample spikes, and role-driven production jumps.
 - [ ] Build a reusable comparison layer that can answer "who has this player most resembled historically at the same age, usage, and value?" for deeper AI readouts.
@@ -143,35 +144,36 @@
 
 ## Overview Tab / Readout Clarity Roadmap
 
-- [ ] Audit every table in the Overview tab and list the exact job each one is supposed to do.
-- [ ] Identify any repeated signals, summaries, or conclusions that are being shown on multiple tables and remove the duplication.
-- [ ] Define one primary message for each table so we can clearly decide what belongs there and what should live elsewhere.
+- [x] Audit every table in the Overview tab and list the exact job each one is supposed to do.
+- [x] Identify any repeated signals, summaries, or conclusions that are being shown on multiple tables and document the duplication ownership risk.
+- [ ] Remove the duplicated Overview readouts from the UI surfaces after the ownership mapping is applied.
+- [x] Define one primary message for each table so we can clearly decide what belongs there and what should live elsewhere.
 - [ ] Move overlapping readouts into the table that owns them, or pull them out entirely if they do not have a clear owner.
 - [ ] Make sure the Overview tab reads as a set of distinct layers of insight instead of multiple tables saying the same thing in different words.
-- [ ] Add review pass for each Overview table after logic changes so duplicates do not creep back in during future feature work.
-- [ ] Build an ownership matrix for every Overview surface with columns for surface, primary job, allowed readouts, banned overlap, and source-of-truth owner.
-- [ ] Audit the full Overview stack in render order and assign one job to each surface:
-  - [ ] `OverviewAIPulse`: narrative summary only; it should set the league story, not repeat table metrics.
-  - [ ] `Monthly Team Blueprint`: long-horizon roster plan only; keep it focused on team direction, age curve, and roster construction.
-  - [ ] `League Power Rankings`: league-wide strength/value ordering only; do not duplicate owner-level advice or roster-blueprint language.
-  - [ ] `Team Breakdown & Roster Recon`: strengths, leaks, surplus, and next move only; it should explain the roster, not re-rank the league.
-  - [ ] `Trade Finder, Partners & League Exploits`: trade opportunities, partner matching, and league pressure points only; do not repeat roster-health or power-rank copy.
-  - [ ] `Assistant Feature Radar`: placeholder/shell inventory only; it should never echo active analysis from the real readouts.
-  - [ ] `OwnerIntelMatrix`: owner identity, roster identity, comp lanes, and strategy tags only; keep it as the owner-level source of truth.
-  - [ ] `LeagueCommandCenter` in roster mode: projected starters, bench depth, step-ins, season read, and injury insurance only.
-  - [ ] `LeagueCommandCenter` in taxi mode: taxi promote/park/cut decisions only.
-  - [ ] `Manager Position Counts`: position depth and imbalance only; keep it as the single owner for count-based roster gaps.
-- [ ] Define the duplicated concepts that must have one clear owner and no copy-paste repetition:
-  - [ ] league value rank
-  - [ ] starter count / starter room
-  - [ ] bench depth
-  - [ ] age and age flags
-  - [ ] roster health
-  - [ ] position imbalance
-  - [ ] tradeable depth
-  - [ ] trade partner fit
-  - [ ] taxi promote/park/cut calls
-  - [ ] top-manager or best-team claims
+- [x] Add review pass for each Overview table after logic changes so duplicates do not creep back in during future feature work.
+- [x] Build an ownership matrix for every Overview surface with columns for surface, primary job, allowed readouts, banned overlap, and source-of-truth owner.
+- [x] Audit the full Overview stack in render order and assign one job to each surface:
+  - [x] `OverviewAIPulse`: narrative summary only; it should set the league story, not repeat table metrics.
+  - [x] `Monthly Team Blueprint`: long-horizon roster plan only; keep it focused on team direction, age curve, and roster construction.
+  - [x] `League Power Rankings`: league-wide strength/value ordering only; do not duplicate owner-level advice or roster-blueprint language.
+  - [x] `Team Breakdown & Roster Recon`: strengths, leaks, surplus, and next move only; it should explain the roster, not re-rank the league.
+  - [x] `Trade Finder, Partners & League Exploits`: trade opportunities, partner matching, and league pressure points only; do not repeat roster-health or power-rank copy.
+  - [x] `Assistant Feature Radar`: placeholder/shell inventory only; it should never echo active analysis from the real readouts.
+  - [x] `OwnerIntelMatrix`: owner identity, roster identity, comp lanes, and strategy tags only; keep it as the owner-level source of truth.
+  - [x] `LeagueCommandCenter` in roster mode: projected starters, bench depth, step-ins, season read, and injury insurance only.
+  - [x] `LeagueCommandCenter` in taxi mode: taxi promote/park/cut decisions only.
+  - [x] `Manager Position Counts`: position depth and imbalance only; keep it as the single owner for count-based roster gaps.
+- [x] Define the duplicated concepts that must have one clear owner and no copy-paste repetition:
+  - [x] league value rank
+  - [x] starter count / starter room
+  - [x] bench depth
+  - [x] age and age flags
+  - [x] roster health
+  - [x] position imbalance
+  - [x] tradeable depth
+  - [x] trade partner fit
+  - [x] taxi promote/park/cut calls
+  - [x] top-manager or best-team claims
 - [ ] If a concept has to appear in two places, rewrite one instance so it clearly answers a different question instead of repeating the same conclusion.
 - [ ] Move shared calculations into one source of truth and make the other surfaces reference that result rather than restating the same readout.
 - [ ] Compare the final Overview stack side-by-side after every logic change and remove any repeated phrasing, repeated ranks, repeated value tags, or repeated "best/worst" labels.
@@ -204,16 +206,16 @@
 - [x] Wire FantasyPros `DEVY` rankings into the devy/prospect blend and compare against Flock, KTC Devy, and Prospect Archive before raising its weight.
 - [ ] Wire FantasyPros `ROOKIES` rankings into rookie/prospect valuations and rookie draft decision reads.
 - [ ] Wire FantasyPros `ADP`, `DYNADP`, and `RKADP` into draft-cost context, value-over-cost reads, and admin source diagnostics.
-- [ ] Keep FantasyPros `DRAFT` and `ROS` rankings in the redraft/current-season space only, with scoring-aware `PPR`, `HALF`, and `STD` profiles.
+- [x] Keep FantasyPros `DRAFT` and `ROS` rankings in the redraft/current-season space only, with scoring-aware `PPR`, `HALF`, and `STD` profiles.
 - [ ] Add FantasyPros projections after validating the endpoint under normal rate limits; use weekly, preseason, and rest-of-season projections for lineup strength, matchup preview, and redraft valuation support.
 - [ ] Use FantasyPros player-points history to validate prior-season production, weekly consistency, and value-confidence calibration.
 - [ ] Use FantasyPros injuries and practice-report probabilities in player availability, lineup risk, and AI confidence notes.
 - [ ] Use FantasyPros news categories for player-specific news, injury, transaction, rumor, and breaking-news context, then connect news timestamps to value movement when snapshots overlap.
-- [ ] Normalize or enrich `latestNews.url` from upstream news payloads so the player modal's latest-news card stays clickable whenever the source provides a link.
+- [x] Normalize or enrich `latestNews.url` from upstream news payloads so the player modal's latest-news card stays clickable whenever the source provides a link.
 - [ ] Use FantasyPros player IDs and external IDs to improve cross-source identity matching for ESPN, Yahoo, MFL, Fleaflicker, Fantrax, NFL, CBS, DraftKings, and other platform IDs.
 - [ ] Add expert metadata and expert publication timestamps to admin diagnostics so stale or thin expert sets lower source trust automatically.
 - [ ] Evaluate the FantasyPros compare-players endpoint for player modal context and trade comparison explainers.
-- [ ] Add cache/rate-limit protection for FantasyPros calls so report generation does not hammer the API during refresh jobs.
+- [x] Add cache/rate-limit protection for FantasyPros calls so report generation does not hammer the API during refresh jobs.
 - [x] Add admin-only visibility for FantasyPros endpoint coverage, effective weights, trust movement, stale data, and high-impact valuation changes.
 - [ ] Add FantasyPros to the per-player source trace UI so admins can see exactly whether `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, ADP, news, injuries, or player-points affected a player read.
 - [ ] Add unit tests for each FantasyPros payload normalizer and integration tests for dynasty, redraft, devy, rookie, ADP, injury, news, projection, and player-points diagnostics.
