@@ -6568,6 +6568,27 @@
   margin-top: 0.4rem;
 }
 
+.ai-read-trace {
+  display: grid;
+  gap: 0.34rem;
+  margin-top: 0.15rem;
+}
+
+.ai-read-trace-kicker {
+  color: rgba(191, 219, 254, 0.86);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ai-read-trace-list {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+  padding-left: 1rem;
+}
+
 .ai-read-actions {
   display: flex;
   flex-wrap: wrap;

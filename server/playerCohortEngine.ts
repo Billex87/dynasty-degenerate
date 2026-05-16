@@ -1,30 +1,4 @@
-import type { PlayerDetails } from '../shared/types';
-
-export type PlayerCohortPhase = 'early' | 'prime' | 'late-prime' | 'decline' | 'unknown';
-export type PlayerCohortOutcomeBucket = 'breakout' | 'sustain' | 'fade-risk' | 'injury-risk' | 'market-over-production' | 'market-under-production' | 'thin-signal';
-
-export type PlayerCohortProfile = {
-  playerId: string;
-  name: string;
-  position: string;
-  age: number | null;
-  value: number | null;
-  lastSeasonPointsPerGame: number | null;
-  agePhase: PlayerCohortPhase;
-  productionScore: number | null;
-  marketScore: number | null;
-  marketProductionDelta: number | null;
-  outcomeBucket: PlayerCohortOutcomeBucket;
-  confidence: number;
-  peers: Array<{
-    playerId: string;
-    name: string;
-    age: number | null;
-    value: number | null;
-    lastSeasonPointsPerGame: number | null;
-  }>;
-  trace: string[];
-};
+import type { PlayerCohortDraftCapital, PlayerCohortOutcomeBucket, PlayerCohortPhase, PlayerCohortProfile, PlayerDetails } from '../shared/types';
 
 const AGE_CURVES: Record<string, { earlyMax: number; primeMax: number; latePrimeMax: number }> = {
   QB: { earlyMax: 26, primeMax: 32, latePrimeMax: 36 },
@@ -112,6 +86,74 @@ function sourceCount(details: PlayerDetails): number {
   );
 }
 
+function getDraftCapital(details: PlayerDetails): PlayerCohortDraftCapital {
+  const round = positive(details.nflDraftRound);
+  const pick = positive(details.nflDraftPick);
+  const yearsExp = numeric(details.yearsExp);
+  const hasDraftSignal = round !== null || pick !== null;
+  const hasNflSignal = hasDraftSignal || (details.rookieYear !== null && details.rookieYear !== undefined) || yearsExp !== null;
+  const tier = (round !== null && round <= 1) || (pick !== null && pick <= 32)
+    ? 'premium'
+    : (round !== null && round <= 3) || (pick !== null && pick <= 100)
+    ? 'day-two'
+    : (round !== null && round <= 7) || pick !== null
+    ? 'late-round'
+    : hasNflSignal
+    ? 'undrafted'
+    : 'unknown';
+
+  const basePatience = tier === 'premium'
+    ? 88
+    : tier === 'day-two'
+    ? 72
+    : tier === 'late-round'
+    ? 48
+    : tier === 'undrafted'
+    ? 34
+    : null;
+  const experienceAdjustment = yearsExp === null
+    ? 0
+    : yearsExp <= 0
+    ? 8
+    : yearsExp === 1
+    ? 2
+    : yearsExp === 2
+    ? -8
+    : -16;
+  const patienceScore = basePatience === null ? null : Math.round(clamp(basePatience + experienceAdjustment, 18, 96));
+  const opportunityWindow = patienceScore === null
+    ? 'unknown'
+    : patienceScore >= 76
+    ? 'protected-runway'
+    : patienceScore >= 46
+    ? 'prove-it-window'
+    : 'short-leash';
+  const label = round !== null
+    ? `Round ${round}${pick !== null ? `, pick ${pick}` : ''}`
+    : pick !== null
+    ? `Pick ${pick}`
+    : tier === 'undrafted'
+    ? 'Undrafted/low-capital profile'
+    : 'Draft capital unknown';
+  const note = opportunityWindow === 'protected-runway'
+    ? 'Draft capital should buy patience, so weak early production is a warning flag, not an automatic opportunity loss.'
+    : opportunityWindow === 'prove-it-window'
+    ? 'Draft capital gives some runway, but role and production need to show up before the market keeps paying.'
+    : opportunityWindow === 'short-leash'
+    ? 'Low draft capital usually means opportunity has to be earned quickly through role, health, or production.'
+    : 'Draft-capital runway is not available, so opportunity confidence stays conservative.';
+
+  return {
+    round,
+    pick,
+    tier,
+    label,
+    opportunityWindow,
+    patienceScore,
+    note,
+  };
+}
+
 function getOutcomeBucket(input: {
   agePhase: PlayerCohortPhase;
   productionScore: number | null;
@@ -132,12 +174,14 @@ function getOutcomeBucket(input: {
 function getConfidence(details: PlayerDetails, productionScore: number | null, marketScore: number | null): number {
   const sources = sourceCount(details);
   const availability = details.availabilitySeasons || 0;
+  const draftCapital = getDraftCapital(details);
   return Math.round(clamp(
     28
     + Math.min(30, sources * 6)
     + (productionScore === null ? 0 : 16)
     + (marketScore === null ? 0 : 14)
-    + Math.min(12, availability * 4),
+    + Math.min(12, availability * 4)
+    + (draftCapital.tier === 'unknown' ? 0 : draftCapital.tier === 'premium' ? 6 : 3),
     0,
     100,
   ));
@@ -150,9 +194,11 @@ function buildTrace(input: {
   productionScore: number | null;
   marketProductionDelta: number | null;
   outcomeBucket: PlayerCohortOutcomeBucket;
+  draftCapital: PlayerCohortDraftCapital;
 }): string[] {
   return [
     input.agePhase !== 'unknown' ? `Age phase: ${input.agePhase}.` : 'Age phase is unavailable.',
+    `Draft capital: ${input.draftCapital.label}; ${input.draftCapital.note}`,
     input.value !== null ? `Primary value: ${input.value}.` : 'Primary value is unavailable.',
     input.productionScore !== null ? `Production score: ${input.productionScore}.` : 'Production score is unavailable.',
     input.marketProductionDelta !== null ? `Market vs production delta: ${input.marketProductionDelta}.` : 'Market-production delta is unavailable.',
@@ -179,6 +225,7 @@ export function buildPlayerCohortProfiles(input: {
       const agePhase = getAgePhase(position, age);
       const productionScore = getProductionScore(position, lastSeasonPointsPerGame, lastSeasonGames);
       const marketScore = getMarketScore(value);
+      const draftCapital = getDraftCapital(details);
       const marketProductionDelta = marketScore !== null && productionScore !== null
         ? marketScore - productionScore
         : null;
@@ -208,6 +255,7 @@ export function buildPlayerCohortProfiles(input: {
           marketProductionDelta,
           outcomeBucket,
           confidence,
+          draftCapital,
           peers: [],
           trace: [] as string[],
         },
@@ -245,10 +293,10 @@ export function buildPlayerCohortProfiles(input: {
         productionScore: row.profile.productionScore,
         marketProductionDelta: row.profile.marketProductionDelta,
         outcomeBucket: row.profile.outcomeBucket,
+        draftCapital: row.profile.draftCapital,
       }),
     };
   }
 
   return profilesById;
 }
-

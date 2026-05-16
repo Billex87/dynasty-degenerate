@@ -135,7 +135,7 @@
 - [ ] Add historical outcome buckets such as breakout, sustain, fade, injury-cliff, and late-career rebound, then map current players into those buckets for AI reads.
 - [x] Add a first-pass player cohort signal engine with position age phases, market-vs-production deltas, current outcome buckets, confidence gating, same-position peer rows, and explanation traces without adding provider calls.
 - [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts.
-- [ ] Surface a short explanation trace in the UI so each AI read can show the top reasons the model thinks a player is undervalued, overvalued, peaking, or declining.
+- [x] Surface a short explanation trace in the UI so each player AI read can show the top reasons the model thinks a player is undervalued, overvalued, peaking, or declining, including draft-capital runway so high picks and late/undrafted profiles are judged with different opportunity patience.
 - [x] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.
 - [ ] Add league-context modifiers for dynasty, redraft, superflex, and format-specific scoring so the logic stays format-aware.
 - [ ] Create anomaly rules for unusual cases like age-curve outliers, late breakouts, injury comebacks, small-sample spikes, and role-driven production jumps.

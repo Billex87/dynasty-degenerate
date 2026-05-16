@@ -14,6 +14,9 @@ describe('player cohort engine', () => {
           fullName: 'Young Breakout',
           position: 'WR',
           age: 23,
+          nflDraftRound: 1,
+          nflDraftPick: 18,
+          yearsExp: 1,
           lastSeasonPointsPerGame: 16,
           lastSeasonGames: 16,
           availabilitySeasons: 2,
@@ -64,8 +67,41 @@ describe('player cohort engine', () => {
       expect.objectContaining({ playerId: 'wr2', name: 'Prime Peer' }),
     ]);
     expect(profiles.wr1.trace.join(' ')).toContain('Age phase: early');
+    expect(profiles.wr1.trace.join(' ')).toContain('Draft capital: Round 1, pick 18');
+    expect(profiles.wr1.draftCapital).toMatchObject({
+      tier: 'premium',
+      opportunityWindow: 'protected-runway',
+    });
     expect(profiles.wr1.confidence).toBeGreaterThanOrEqual(70);
     expect(profiles.rb1.outcomeBucket).toBe('injury-risk');
+  });
+
+  it('keeps late or undrafted profiles on a shorter opportunity leash', () => {
+    const profiles = buildPlayerCohortProfiles({
+      playerDetailsById: {
+        late: player({
+          fullName: 'Late Round Bet',
+          position: 'RB',
+          age: 24,
+          nflDraftRound: 6,
+          nflDraftPick: 190,
+          yearsExp: 2,
+          lastSeasonPointsPerGame: 6,
+          lastSeasonGames: 10,
+          availabilitySeasons: 1,
+          valueProfile: {
+            dynastyValue: 1200,
+            marketKtc: 1200,
+          },
+        }),
+      },
+    });
+
+    expect(profiles.late.draftCapital).toMatchObject({
+      tier: 'late-round',
+      opportunityWindow: 'short-leash',
+    });
+    expect(profiles.late.trace.join(' ')).toContain('Low draft capital usually means opportunity has to be earned quickly');
   });
 
   it('keeps thin players conservative when value or production is missing', () => {
@@ -85,4 +121,3 @@ describe('player cohort engine', () => {
     expect(profiles.te1.trace).toContain('Production score is unavailable.');
   });
 });
-

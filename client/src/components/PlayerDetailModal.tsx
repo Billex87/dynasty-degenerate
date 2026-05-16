@@ -1479,6 +1479,8 @@ function buildPlayerAiRead({
   const scheduleSummary = formatScheduleSummary(details?.schedule || null);
   const scheduleStreamerWeeks = formatScheduleWeekList(details?.schedule?.streamerWeeks);
   const scheduleAvoidWeeks = formatScheduleWeekList(details?.schedule?.avoidWeeks);
+  const cohort = details?.playerCohort || null;
+  const draftCapital = cohort?.draftCapital || null;
 
   if (isCollegeProspect) {
     const score = prospectProfile?.rating ? `Prospect score ${prospectProfile.rating}` : 'Prospect file';
@@ -1505,6 +1507,20 @@ function buildPlayerAiRead({
   if (scheduleSummary) chips.push(scheduleSummary);
   if (scheduleStreamerWeeks) chips.push(`Stream ${scheduleStreamerWeeks}`);
   if (scheduleAvoidWeeks) chips.push(`Avoid ${scheduleAvoidWeeks}`);
+  if (cohort?.outcomeBucket) chips.push(formatCohortOutcomeLabel(cohort.outcomeBucket));
+  if (draftCapital && draftCapital.tier !== 'unknown') {
+    chips.push({
+      label: draftCapital.label,
+      tone: draftCapital.opportunityWindow === 'protected-runway'
+        ? 'good'
+        : draftCapital.opportunityWindow === 'short-leash'
+        ? 'warn'
+        : 'info',
+    });
+  }
+  if (draftCapital?.patienceScore !== null && draftCapital?.patienceScore !== undefined) {
+    chips.push(`Runway ${draftCapital.patienceScore}%`);
+  }
 
   const isRedraft = valueMode === 'redraft';
   const veteranAge = position === 'RB' ? 27 : position === 'WR' ? 29 : position === 'TE' ? 30 : position === 'QB' ? 33 : 30;
@@ -1543,6 +1559,17 @@ function buildPlayerAiRead({
     body = `${latestNews.title || 'Latest player news'} is attached to this player. Treat news as context, then verify whether the value or role signal actually changed.`;
   }
 
+  if (cohort) {
+    const cohortRead = buildCohortReadCopy(playerName, cohort);
+    if (cohortRead) {
+      readType = cohortRead.readType || readType;
+      severity = cohortRead.severity || severity;
+      body = cohortRead.copy;
+    } else if (draftCapital?.opportunityWindow === 'protected-runway') {
+      body = `${body} ${draftCapital.note}`;
+    }
+  }
+
   if (scheduleSummary) {
     if (body === `${playerName} is best evaluated through roster context, not raw value alone.` && !latestNews?.title) {
       readType = 'Schedule Lens';
@@ -1557,13 +1584,113 @@ function buildPlayerAiRead({
     title: `${playerName} AI read`,
     subtitle: isRedraft ? 'Current-season and lineup-context lens.' : 'Dynasty market, season profile, age curve, and availability lens.',
     readType,
-    confidence: valueProfile ? Math.min(86, valueConfidence.score + 8) : Math.min(62, valueConfidence.score + 18),
+    confidence: Math.min(
+      cohort?.confidence ?? 100,
+      valueProfile ? Math.min(86, valueConfidence.score + 8) : Math.min(62, valueConfidence.score + 18)
+    ),
     confidenceNote: valueConfidence.note,
     severity,
     chips,
-    body,
+    body: renderPlayerAiReadBody(body, cohort?.trace || []),
     backgroundVariant: severity === 'warn' ? 'market' as const : 'blueprint' as const,
   };
+}
+
+function formatCohortOutcomeLabel(bucket: NonNullable<PlayerDetails['playerCohort']>['outcomeBucket']): AIReadChip {
+  const labels: Record<typeof bucket, { label: string; tone: 'neutral' | 'good' | 'info' | 'warn' | 'danger' }> = {
+    breakout: { label: 'Breakout profile', tone: 'good' },
+    sustain: { label: 'Sustain profile', tone: 'info' },
+    'fade-risk': { label: 'Fade risk', tone: 'warn' },
+    'injury-risk': { label: 'Injury risk', tone: 'warn' },
+    'market-over-production': { label: 'Market ahead', tone: 'warn' },
+    'market-under-production': { label: 'Production ahead', tone: 'good' },
+    'thin-signal': { label: 'Thin signal', tone: 'warn' },
+  };
+  return labels[bucket] || { label: bucket, tone: 'neutral' };
+}
+
+function buildCohortReadCopy(
+  playerName: string,
+  cohort: NonNullable<PlayerDetails['playerCohort']>
+): { copy: string; readType?: string; severity?: 'neutral' | 'good' | 'info' | 'warn' | 'danger' } | null {
+  const draftNote = cohort.draftCapital?.note;
+  const draftPrefix = cohort.draftCapital?.opportunityWindow === 'protected-runway'
+    ? 'The draft slot should keep the opportunity door open'
+    : cohort.draftCapital?.opportunityWindow === 'short-leash'
+    ? 'The draft slot does not buy much patience'
+    : cohort.draftCapital?.opportunityWindow === 'prove-it-window'
+    ? 'The draft slot buys some patience'
+    : null;
+
+  switch (cohort.outcomeBucket) {
+    case 'breakout':
+      return {
+        readType: 'Breakout Signal',
+        severity: 'good',
+        copy: `${playerName} is pairing an early-career age phase with production that already clears the position baseline. ${draftPrefix ? `${draftPrefix}, so role growth matters more than one short value dip.` : 'Keep the read tied to role growth, not just the current rank.'}`,
+      };
+    case 'market-under-production':
+      return {
+        readType: 'Market Signal',
+        severity: 'good',
+        copy: `${playerName}'s production score is running ahead of the market score. ${draftPrefix ? `${draftPrefix}, which makes this a cleaner patience or buy-window read if the role is stable.` : 'The model wants the market price checked against the actual scoring profile.'}`,
+      };
+    case 'market-over-production':
+      return {
+        readType: 'Price Check',
+        severity: 'warn',
+        copy: `${playerName}'s market score is ahead of the production score. ${draftNote || 'That does not make the player bad, but it means the price is carrying some assumption the stat line has not fully earned.'}`,
+      };
+    case 'fade-risk':
+      return {
+        readType: 'Trade Window',
+        severity: 'warn',
+        copy: `${playerName} is in a later age phase while the market still prices meaningful value. Treat this as a liquidity check before the production curve makes the decision for you.`,
+      };
+    case 'injury-risk':
+      return {
+        readType: 'Availability Risk',
+        severity: 'warn',
+        copy: `${playerName} has enough missed-game history to tax the read. ${draftPrefix ? `${draftPrefix}, but availability still has to be priced into lineup reliance and trade return.` : 'Do not let the name value hide the weekly fragility.'}`,
+      };
+    case 'thin-signal':
+      return {
+        readType: 'Thin Signal',
+        severity: cohort.draftCapital?.opportunityWindow === 'protected-runway' ? 'info' : 'warn',
+        copy: `${playerName} does not have enough value and production evidence for a loud read yet. ${draftNote || 'Keep confidence conservative until role, production, or market inputs improve.'}`,
+      };
+    case 'sustain':
+      return {
+        readType: 'Hold Check',
+        severity: 'info',
+        copy: `${playerName} looks closer to a sustain profile than a forced buy or sell. Use the trace below to check whether age, value, production, and draft runway are all telling the same story.`,
+      };
+    default:
+      return null;
+  }
+}
+
+function renderPlayerAiReadBody(body: string, trace: string[]) {
+  const cleanedTrace = trace
+    .filter(Boolean)
+    .filter((item) => !/^Outcome bucket:/i.test(item))
+    .slice(0, 4);
+
+  if (!cleanedTrace.length) return body;
+
+  return (
+    <>
+      <p>{body}</p>
+      <div className="ai-read-trace">
+        <strong className="ai-read-trace-kicker">Why this fired</strong>
+        <ul className="ai-read-trace-list">
+          {cleanedTrace.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </>
+  );
 }
 
 function buildPlayerDecisionLabels({

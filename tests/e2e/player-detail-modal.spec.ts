@@ -136,20 +136,23 @@ test.describe('player detail modal', () => {
     await openRankings(page);
 
     const dialog = await openPlayerModal(page, 'Sample Starter');
-    const headerStrip = dialog.locator('div.grid.w-full.grid-cols-1.gap-2.sm\\:grid-cols-3').first();
-    const headerStripText = await headerStrip.locator('span').evaluateAll((nodes) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean).join(' '));
 
     const heroTextAlign = await dialog.locator('.athletic-headline').evaluate((node) => getComputedStyle(node.parentElement!).textAlign);
     expect(heroTextAlign).toBe('center');
+    const dialogText = (await dialog.textContent()) || '';
 
-    await expect(headerStrip).toBeVisible();
-    expect(headerStripText).toContain('College: Clemson');
-    expect(headerStripText).toContain('40 Time: 4.41s');
-    expect(headerStripText).toContain('Birthday: Jan 1, 2000');
+    await expect(dialog.getByText('College')).toBeVisible();
+    await expect(dialog.getByText('40 Time')).toBeVisible();
+    await expect(dialog.getByText('Birthday')).toBeVisible();
+    expect(dialogText).toContain('4.41s');
+    expect(dialogText).toContain('Jan 1, 2000');
     await expect(dialog.getByText('Source Inputs', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Latest News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Why this fired')).toBeVisible();
+    await expect(dialog.getByText(/Draft capital: Round 1, pick 18/i)).toBeVisible();
+    await expect(dialog.getByText('Runway 90%')).toBeVisible();
     await expect(dialog.locator('p').filter({ hasText: 'Availability: 2025: 14 GP' }).first()).toBeVisible();
     await expect(dialog.getByText('AVAILABLE')).toHaveCount(0);
 
@@ -167,9 +170,9 @@ test.describe('player detail modal', () => {
     await expect(dialog).toHaveCount(0);
 
     const fallbackDialog = await openPlayerModal(page, 'Depth Receiver');
-    const fallbackHeaderStrip = fallbackDialog.locator('div.grid.w-full.grid-cols-1.gap-2.sm\\:grid-cols-3').first();
-    const fallbackHeaderText = await fallbackHeaderStrip.locator('span').evaluateAll((nodes) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean).join(' '));
-    expect(fallbackHeaderText).toContain('40 Time: -');
+    const fallbackDialogText = (await fallbackDialog.textContent()) || '';
+    await expect(fallbackDialog.getByText('40 Time')).toBeVisible();
+    expect(fallbackDialogText).toContain('40 Time-');
   });
 
   test('hides admin-only source inputs in regular view', async ({ page }) => {

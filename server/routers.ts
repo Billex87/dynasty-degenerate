@@ -32,6 +32,7 @@ import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueRepor
 import { loadReportStaticInputs } from "./reportStaticInputs";
 import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
 import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
+import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -577,7 +578,7 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v40';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v41';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
 const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
 const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
@@ -4781,6 +4782,19 @@ export const appRouter = router({
           const sourceSnapshotDiagnostics = sourceDiagnosticsSection.sourceSnapshotDiagnostics;
           const actualDepthChartsByPlayerId = depthChartResult.playerDepthCharts;
           const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, actualDepthChartsByPlayerId);
+          const enrichedPlayerDetailsById = Object.fromEntries(
+            Object.entries(playerDetailsById).map(([playerId, details]) => [
+              playerId,
+              {
+                ...details,
+                ...playerStaticEnrichment.playerEnrichmentById[playerId],
+              },
+            ])
+          );
+          const playerCohortsById = buildPlayerCohortProfiles({
+            playerDetailsById: enrichedPlayerDetailsById,
+            mode: leagueValueMode === 'redraft' ? 'redraft' : 'dynasty',
+          });
           markAnalyzeStep(`player static enrichment ${playerStaticEnrichment.cacheStatus}`);
 
           const reportPayloadData = {
@@ -4794,11 +4808,11 @@ export const appRouter = router({
             managerAvatars: buildManagerAvatarMap(users),
             managerChampionships,
             playerDetailsById: Object.fromEntries(
-              Object.entries(playerDetailsById).map(([playerId, details]) => [
+              Object.entries(enrichedPlayerDetailsById).map(([playerId, details]) => [
                 playerId,
                 {
                   ...details,
-                  ...playerStaticEnrichment.playerEnrichmentById[playerId],
+                  playerCohort: playerCohortsById[playerId] || null,
                 },
               ])
             ),

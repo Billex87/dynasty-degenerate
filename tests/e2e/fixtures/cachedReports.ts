@@ -1,5 +1,5 @@
 export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v23';
-export const REPORT_CACHE_DATA_VERSION = 'weekly-momentum-eligibility-v1';
+export const REPORT_CACHE_DATA_VERSION = 'player-cohort-explanations-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;
@@ -82,6 +82,9 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
       position: 'RB',
       team: 'BUF',
       age: 25,
+      nflDraftRound: 1,
+      nflDraftPick: 18,
+      yearsExp: 1,
       valueProfile: {
         dynastyValue: 8600,
         seasonValue: 5000,
@@ -91,6 +94,38 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
         seasonPositionRank: 'RB1',
         fantasyProsPositionRank: 'RB2',
         sources: ['Current-season model'],
+      },
+      playerCohort: {
+        playerId: 'player-1',
+        name: 'Sample Starter',
+        position: 'RB',
+        age: 25,
+        value: 5000,
+        lastSeasonPointsPerGame: 15.4,
+        agePhase: 'prime',
+        productionScore: 62,
+        marketScore: 59,
+        marketProductionDelta: -3,
+        outcomeBucket: 'sustain',
+        confidence: 76,
+        draftCapital: {
+          round: 1,
+          pick: 18,
+          tier: 'premium',
+          label: 'Round 1, pick 18',
+          opportunityWindow: 'protected-runway',
+          patienceScore: 90,
+          note: 'Draft capital should buy patience, so weak early production is a warning flag, not an automatic opportunity loss.',
+        },
+        peers: [],
+        trace: [
+          'Age phase: prime.',
+          'Draft capital: Round 1, pick 18; Draft capital should buy patience, so weak early production is a warning flag, not an automatic opportunity loss.',
+          'Primary value: 5000.',
+          'Production score: 62.',
+          'Market vs production delta: -3.',
+          'Outcome bucket: sustain.',
+        ],
       },
     },
     'player-2': {

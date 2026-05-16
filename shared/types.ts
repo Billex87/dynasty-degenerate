@@ -683,6 +683,45 @@ export interface DraftPick {
   draftDecisionAltPickLabel?: string | null;
 }
 
+export type PlayerCohortPhase = 'early' | 'prime' | 'late-prime' | 'decline' | 'unknown';
+export type PlayerCohortOutcomeBucket = 'breakout' | 'sustain' | 'fade-risk' | 'injury-risk' | 'market-over-production' | 'market-under-production' | 'thin-signal';
+export type PlayerDraftCapitalTier = 'premium' | 'day-two' | 'late-round' | 'undrafted' | 'unknown';
+export type PlayerOpportunityWindow = 'protected-runway' | 'prove-it-window' | 'short-leash' | 'unknown';
+
+export interface PlayerCohortDraftCapital {
+  round: number | null;
+  pick: number | null;
+  tier: PlayerDraftCapitalTier;
+  label: string;
+  opportunityWindow: PlayerOpportunityWindow;
+  patienceScore: number | null;
+  note: string;
+}
+
+export interface PlayerCohortProfile {
+  playerId: string;
+  name: string;
+  position: string;
+  age: number | null;
+  value: number | null;
+  lastSeasonPointsPerGame: number | null;
+  agePhase: PlayerCohortPhase;
+  productionScore: number | null;
+  marketScore: number | null;
+  marketProductionDelta: number | null;
+  outcomeBucket: PlayerCohortOutcomeBucket;
+  confidence: number;
+  draftCapital: PlayerCohortDraftCapital;
+  peers: Array<{
+    playerId: string;
+    name: string;
+    age: number | null;
+    value: number | null;
+    lastSeasonPointsPerGame: number | null;
+  }>;
+  trace: string[];
+}
+
 export interface PlayerDetails {
   playerId?: string;
   fullName?: string;
@@ -798,6 +837,7 @@ export interface PlayerDetails {
     label?: string;
   }>;
   prospectProfile?: ProspectProfile | null;
+  playerCohort?: PlayerCohortProfile | null;
   externalIds?: Record<string, string | number | null | undefined>;
 }
 
