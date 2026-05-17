@@ -595,6 +595,19 @@ export interface WaiverIntelligence {
   bestAvailableByPosition: Record<'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF', TrendingPlayer | null>;
   bestTaxiStashes: TrendingPlayer[];
   recentlyDroppedValuable: TrendingPlayer[];
+  omittedCandidates?: WaiverOmittedCandidate[];
+}
+
+export interface WaiverOmittedCandidate {
+  player_id: string;
+  name: string;
+  pos: string;
+  team: string | null;
+  value: number | null;
+  rank: string | null;
+  sourceCount: number;
+  reason: string;
+  action: 'omit' | 'review';
 }
 
 export interface MatchupPositionEdge {

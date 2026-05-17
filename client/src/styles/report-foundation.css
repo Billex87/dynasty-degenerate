@@ -8019,6 +8019,72 @@
     color: #cbd5e1;
   }
 
+  .waiver-intel-source-review {
+    border: 1px solid rgba(251, 191, 36, 0.24);
+    border-radius: 0.85rem;
+    background: rgba(15, 23, 42, 0.54);
+    padding: 0.68rem 0.78rem;
+  }
+
+  .waiver-intel-source-review summary {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: #fde68a;
+    font-size: 0.72rem;
+    font-weight: 900;
+    line-height: 1.2;
+    list-style: none;
+  }
+
+  .waiver-intel-source-review summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .waiver-intel-source-review summary span {
+    color: #fbbf24;
+    font-size: 0.58rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .waiver-intel-source-review-list {
+    display: grid;
+    gap: 0.5rem;
+    padding-top: 0.7rem;
+  }
+
+  .waiver-intel-source-review-row {
+    display: grid;
+    gap: 0.22rem;
+    border-top: 1px solid rgba(251, 191, 36, 0.14);
+    padding-top: 0.5rem;
+  }
+
+  .waiver-intel-source-review-row span {
+    color: #f8fafc;
+    font-size: 0.74rem;
+    font-weight: 850;
+  }
+
+  .waiver-intel-source-review-row em {
+    color: #cbd5e1;
+    font-size: 0.62rem;
+    font-style: normal;
+    font-weight: 800;
+  }
+
+  .waiver-intel-source-review-row p {
+    margin: 0;
+    color: #fed7aa;
+    font-size: 0.68rem;
+    font-weight: 760;
+    line-height: 1.32;
+  }
+
   @keyframes manager-command-swap-shake {
     0%, 78%, 100% {
       transform: translate3d(0, 0, 0);

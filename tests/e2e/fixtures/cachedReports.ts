@@ -1,5 +1,5 @@
 export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v24';
-export const REPORT_CACHE_DATA_VERSION = 'player-situation-delta-v1';
+export const REPORT_CACHE_DATA_VERSION = 'waiver-trust-gate-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;
@@ -792,6 +792,19 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
         bestAvailableByPosition: { QB: null, RB: null, WR: { player_id: 'waiver1', name: 'Waiver Receiver', playerDetails: playerDetailsById.waiver1, currentPositionRank: 'WR42', pos: 'WR', team: 'NYJ', owner: null, count: 500, ktcValue: 2800 }, TE: null, K: null, DEF: null },
         bestTaxiStashes: [],
         recentlyDroppedValuable: [],
+        omittedCandidates: [
+          {
+            player_id: 'dallen',
+            name: 'Dallen Bentley',
+            pos: 'TE',
+            team: null,
+            value: 800,
+            rank: 'TE45',
+            sourceCount: 1,
+            reason: 'No active NFL team on the Sleeper player record.',
+            action: 'omit' as const,
+          },
+        ],
       },
       recentTransactions: [
         { id: 'tx-waiver-1', date: '2026-05-08T00:00:00.000Z', manager: 'Rival', type: 'Waiver', bidAmount: 5, addedPlayer: { player_id: 'wr2', name: 'Depth Receiver', playerDetails: playerDetailsById.wr2, currentPositionRank: 'WR34', pos: 'WR', team: 'HOU', ktcValue: 3000 }, droppedPlayer: null, alternativeDrop: null, note: 'Winning claim logged.', losingBidsAvailable: false },

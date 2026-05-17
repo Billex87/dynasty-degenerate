@@ -181,7 +181,7 @@ const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
   "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
-const REPORT_CACHE_DATA_VERSION = "player-situation-delta-v1";
+const REPORT_CACHE_DATA_VERSION = "waiver-trust-gate-v1";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v24";
 const REPORT_LOAD_TELEMETRY_KEY =
   "dynasty-degenerates:report-load-telemetry:v1";

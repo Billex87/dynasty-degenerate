@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import type { LeagueValueMode } from '@/lib/leagueValueMode';
 import { buildAutopilotData, clampPercent, getDirectionTone, getRiskTone } from '@/lib/autopilot/buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from '@/lib/autopilot/mockData';
-import type { AutopilotData, AutopilotMode, AutopilotRecommendation, AutopilotScore, AutopilotTone, LeaguePowerRow, PlayerProjection, WeeklyActionPlan } from '@/lib/autopilot/types';
+import type { AutopilotData, AutopilotMode, AutopilotRecommendation, AutopilotScore, AutopilotTone, FuturePickTrajectory, LeaguePowerRow, PlayerProjection, WeeklyActionPlan, WeeklyRecapRead } from '@/lib/autopilot/types';
 import type { ReportData } from '@shared/types';
 
 function asArray<T>(value: T[] | undefined, fallback: T[] = []): T[] {
@@ -305,6 +305,83 @@ function WeeklyActionPlanCard({ plan }: { plan?: WeeklyActionPlan }) {
   );
 }
 
+function WeeklyRecapCard({ recap }: { recap?: WeeklyRecapRead }) {
+  if (!recap) return null;
+
+  return (
+    <div className="autopilot-weekly-recap">
+      <div className="autopilot-weekly-recap-lead">
+        <span>Best weekly correction</span>
+        <strong>{recap.headline}</strong>
+        <p>{recap.summary}</p>
+      </div>
+      {recap.startSitCalls.length > 0 && (
+        <div className="autopilot-recap-call-grid">
+          {recap.startSitCalls.map((call) => (
+            <article key={`${call.start}-${call.sit}`} className={cn('autopilot-recap-call', `autopilot-tone-${call.tone}`)}>
+              <span>Start over</span>
+              <div>
+                <strong>{call.start}</strong>
+                <MoveRight className="h-4 w-4" aria-hidden="true" />
+                <em>{call.sit}</em>
+              </div>
+              <ConfidenceMeter value={call.confidence} tone={call.tone} compact />
+              <p>{call.note}</p>
+            </article>
+          ))}
+        </div>
+      )}
+      <div className="autopilot-recap-notes">
+        {[...recap.waiverNotes, ...recap.tradeNotes].slice(0, 4).map((note) => (
+          <p key={note}>{note}</p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FuturePickTrajectoryCard({ trajectory }: { trajectory?: FuturePickTrajectory }) {
+  if (!trajectory) return null;
+  const maxValue = Math.max(...trajectory.points.map((point) => point.value), 1);
+
+  return (
+    <div className="autopilot-pick-trajectory">
+      <div className="autopilot-pick-trajectory-summary">
+        <span>{trajectory.manager} pick market</span>
+        <strong>{trajectory.currentRank ? `Pick value rank #${trajectory.currentRank}` : 'Pick value tracking'}</strong>
+        <p>{trajectory.note}</p>
+      </div>
+      <div className="autopilot-pick-chart" aria-label="Future pick value trajectory">
+        {trajectory.points.map((point) => (
+          <span key={point.label}>
+            <i style={{ height: `${Math.max(10, (point.value / maxValue) * 100)}%` }} />
+            <em>{point.label}</em>
+            <strong>{point.value.toLocaleString()}</strong>
+          </span>
+        ))}
+      </div>
+      <div className="autopilot-pick-tier-read">
+        <span>Likely rookie range</span>
+        <strong>{trajectory.likelyRookieRange}</strong>
+      </div>
+      {trajectory.picks.length > 0 && (
+        <div className="autopilot-pick-list">
+          {trajectory.picks.map((pick) => (
+            <article key={pick.label}>
+              <div>
+                <strong>{pick.label}</strong>
+                <span>{pick.projectedBand} slot</span>
+              </div>
+              <p>{pick.rookieTier}</p>
+              <em>{pick.value.toLocaleString()}</em>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProjectionRow({ projection }: { projection: PlayerProjection }) {
   const tone = getDirectionTone(projection.direction);
   const Icon = projection.direction === 'Rising' ? TrendingUp : projection.direction === 'Falling' ? TrendingDown : Activity;
@@ -468,6 +545,7 @@ export default function AITeamAutopilot({
       <div className="autopilot-main-grid">
         <SectionShell eyebrow="Weekly Action Plan" title="Start-over calls" icon={ListChecks}>
           <WeeklyActionPlanCard plan={data.weeklyPlan} />
+          <WeeklyRecapCard recap={data.weeklyRecap} />
           <div className="autopilot-card-grid">
             {data.lineup.map((recommendation) => (
               <RecommendationCard
@@ -477,6 +555,12 @@ export default function AITeamAutopilot({
             ))}
           </div>
         </SectionShell>
+
+        {mode === 'dynasty' && data.futurePickTrajectory && (
+          <SectionShell eyebrow="Future Pick Market" title="Pick value and rookie range" icon={LineChart}>
+            <FuturePickTrajectoryCard trajectory={data.futurePickTrajectory} />
+          </SectionShell>
+        )}
 
         <SectionShell eyebrow="Waiver Wire Targets" title="Pickups, drops, and FAAB posture" icon={Zap}>
           <div className="autopilot-card-grid">

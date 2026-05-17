@@ -15,11 +15,13 @@ import type {
   AutopilotRecommendation,
   AutopilotScore,
   AutopilotTone,
+  FuturePickTrajectory,
   LeaguePowerRow,
   ManagerTendencyProfile,
   PlayerProjection,
   ValueDirection,
   WeeklyActionPlan,
+  WeeklyRecapRead,
 } from './types';
 
 type AutopilotPlayerLike = {
@@ -826,6 +828,111 @@ function buildWeeklyActionPlan(
   };
 }
 
+function buildWeeklyRecapRead(
+  weeklyPlan: WeeklyActionPlan | undefined,
+  waivers: AutopilotRecommendation[],
+  trades: AutopilotRecommendation[],
+  mode: AutopilotMode,
+  manager: string,
+): WeeklyRecapRead | undefined {
+  if (!weeklyPlan && !waivers.length && !trades.length) return undefined;
+
+  const starter = weeklyPlan?.starterToReview || null;
+  const startSitCalls = starter
+    ? (weeklyPlan?.options || []).slice(0, 3).map((option) => ({
+      sit: starter.player,
+      start: option.player,
+      confidence: option.confidence,
+      note: `Start ${option.player} over ${starter.player}: ${option.note}`,
+      tone: option.tone,
+    }))
+    : [];
+
+  const topWaivers = waivers.slice(0, 2).map((recommendation) => {
+    const secondary = recommendation.secondary ? ` (${recommendation.secondary})` : '';
+    return `${recommendation.action}: ${recommendation.player}${secondary}. ${recommendation.summary}`;
+  });
+
+  const tradeNotes = trades.slice(0, 2).map((recommendation) => {
+    const partner = recommendation.secondary ? ` ${recommendation.secondary}` : '';
+    return `${recommendation.action} ${recommendation.player}${partner}. ${recommendation.summary}`;
+  });
+
+  const topCall = startSitCalls[0];
+  return {
+    headline: topCall
+      ? `Start ${topCall.start} over ${topCall.sit}`
+      : mode === 'redraft'
+        ? `${manager} weekly recap`
+        : `${manager} dynasty week-in-review`,
+    summary: topCall
+      ? `${topCall.note} This is a dynamic recap call, so it should tighten after games once actual usage and points are available.`
+      : 'No lineup swap is forced yet; the recap focuses on waiver and trade moves until weekly result data lands.',
+    startSitCalls,
+    waiverNotes: topWaivers,
+    tradeNotes,
+  };
+}
+
+function getProjectedPickBand(originalOwner: string, data: ReportData): string {
+  const leagueSize = getLeagueSize(data);
+  const standing = data.currentStandings?.find((row) => sameManager(row.manager, originalOwner));
+  const rank = standing?.rank || null;
+  if (!rank) return 'unplaced';
+  if (rank > Math.ceil(leagueSize * 0.67)) return 'early';
+  if (rank > Math.ceil(leagueSize * 0.34)) return 'mid';
+  return 'late';
+}
+
+function getRookieTierForPick(round: number, band: string) {
+  if (round <= 1) {
+    if (band === 'early') return 'Top rookie tier: early 1st QB/RB/WR profiles';
+    if (band === 'mid') return 'Middle rookie tier: Round 1 skill-position targets';
+    if (band === 'late') return 'Late 1st tier: falling first-round values or premium TEs';
+    return 'Round 1 rookie tier until standings create a slot band';
+  }
+  if (round === 2) return 'Round 2 rookie tier: role bets, productive WRs, and RB depth shots';
+  if (round === 3) return 'Round 3 rookie tier: athletic bets, landing-spot winners, and taxi stashes';
+  return 'Late rookie tier: taxi stashes and waiver-equivalent bets';
+}
+
+function buildFuturePickTrajectory(data: ReportData, manager: string): FuturePickTrajectory | undefined {
+  const portfolios = [...(data.pickPortfolios || [])].sort((a, b) => (b.totalValue || 0) - (a.totalValue || 0));
+  if (!portfolios.length) return undefined;
+  const portfolio = portfolios.find((row) => sameManager(row.manager, manager)) || portfolios[0];
+  if (!portfolio) return undefined;
+  const currentRank = portfolios.findIndex((row) => sameManager(row.manager, portfolio.manager)) + 1 || null;
+  const picks = (portfolio.futurePicks || []).slice(0, 8).map((pick) => {
+    const projectedBand = getProjectedPickBand(pick.originalOwner, data);
+    return {
+      label: pick.label,
+      projectedBand,
+      rookieTier: getRookieTierForPick(pick.round, projectedBand),
+      value: pick.value,
+    };
+  });
+  const projectedSlots = portfolio.projectedSlots || [];
+  const currentValue = portfolio.totalValue || 0;
+  const points = [
+    { label: 'Now', value: currentValue },
+    { label: '2026', value: portfolio.value2026 || 0 },
+    { label: '2027', value: portfolio.value2027 || 0 },
+  ].filter((point) => point.value > 0);
+  const likelyRookieRange = picks[0]?.rookieTier || projectedSlots[0] || 'Future rookie tier will sharpen once pick slots move with standings.';
+
+  return {
+    manager: portfolio.manager,
+    currentRank,
+    currentValue,
+    likelyRookieRange,
+    note: projectedSlots.length
+      ? `Known projected slots: ${projectedSlots.slice(0, 4).join(', ')}. Future picks should reprice as standings move during the season.`
+      : 'Future pick graph is using current portfolio value and owner standings bands until exact rookie slots are known.',
+    picks,
+    points: points.length ? points : [{ label: 'Now', value: currentValue }],
+  };
+}
+
 function collectWaiverCandidates(data: ReportData, mode: AutopilotMode, intel?: ManagerRosterIntelligence | null): TrendingPlayer[] {
   const waiver = data.waiverIntelligence;
   if (!waiver) return [];
@@ -1190,6 +1297,10 @@ export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuil
   const waivers = capRecommendationCards(reportData, focusManager, buildWaiverRecommendations(reportData, mode, focusManager, fallback.waivers));
   const trades = capRecommendationCards(reportData, focusManager, buildTradeRecommendations(reportData, mode, focusManager, fallback.trades));
   const projections = capPlayerProjections(reportData, focusManager, buildPlayerProjections(reportData, mode, focusManager, fallback.projections));
+  const weeklyRecap = buildWeeklyRecapRead(weeklyPlan, waivers, trades, mode, focusManager);
+  const futurePickTrajectory = mode === 'dynasty'
+    ? buildFuturePickTrajectory(reportData, focusManager)
+    : undefined;
 
   return {
     mode,
@@ -1202,9 +1313,11 @@ export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuil
     systemRead: buildSystemRead(reportData),
     lineup,
     weeklyPlan,
+    weeklyRecap,
     waivers,
     trades,
     projections,
+    futurePickTrajectory,
     power: buildPowerRows(reportData, mode, fallback.power),
     managerTendency,
     scheduleTodo: buildScheduleTodo(reportData, mode),

@@ -449,6 +449,22 @@ function buildTradeWarRankMaps(
   return rankMaps;
 }
 
+function buildTradeWarPickRankMap(
+  managers: string[],
+  assetsByManager: Map<string, TradeWarAsset[]>
+) {
+  const ranked = managers
+    .map(manager => ({
+      manager,
+      value: (assetsByManager.get(manager) || [])
+        .filter(isTradeWarPickAsset)
+        .reduce((sum, asset) => sum + (asset.value || 0), 0),
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  return new Map(ranked.map((row, index) => [row.manager, index + 1]));
+}
+
 function formatTradeWarRankShift(label: string, before: number, after: number) {
   const delta = before - after;
   if (delta === 0) return `${label} #${before}`;
@@ -1423,6 +1439,9 @@ export default function TradeWarRoom({
   const [sideBIds, setSideBIds] = useState<string[]>([]);
   const [queryA, setQueryA] = useState("");
   const [queryB, setQueryB] = useState("");
+  const [openInventoryManagers, setOpenInventoryManagers] = useState<
+    Set<string>
+  >(new Set());
   const [mobilePickerOpen, setMobilePickerOpen] = useState<{
     A: boolean;
     B: boolean;
@@ -1574,6 +1593,10 @@ export default function TradeWarRoom({
   const baselineRankMaps = React.useMemo(
     () => buildTradeWarRankMaps(baselineMetricsByManager),
     [baselineMetricsByManager]
+  );
+  const pickRankByManager = React.useMemo(
+    () => buildTradeWarPickRankMap(managers, assetsByManager),
+    [assetsByManager, managers]
   );
   const simulatedRankMaps = React.useMemo(
     () => buildTradeWarRankMaps(simulatedMetricsByManager),
@@ -1831,26 +1854,29 @@ export default function TradeWarRoom({
     </div>
   );
 
-  const renderManagerAssetBoard = () => (
-    <div className="trade-war-manager-board">
+  const renderManagerRankInventory = () => (
+    <div className="trade-war-manager-board trade-war-manager-rank-inventory">
       <div className="trade-war-manager-board-head">
         <div>
-          <span>Manager Asset Board</span>
-          <strong>League trade inventory</strong>
+          <span>Manager Rank Inventory</span>
+          <strong>League roster scanner</strong>
         </div>
         <p>
-          Open a manager to scan QBs, RBs, WRs, TEs, and picks with position
-          rank, league asset rank, and trade-lens value.
+          Open any manager to scan every QB, RB, WR, TE, and pick with headshots,
+          position rank, overall asset rank, and trade-lens value.
         </p>
       </div>
       <div className="trade-war-manager-board-grid">
         {managers.map(manager => {
           const assets = assetsByManager.get(manager) || [];
           const buckets = getTradeWarPositionBuckets(assets);
+          const ranks = baselineRankMaps.get(manager);
           const powerRow = powerByManager.get(manager);
           const overviewRow = leagueOverviewByManager.get(manager);
           const pickRow = pickPortfolioByManager.get(manager);
           const standing = currentStandings?.find(row => row.manager === manager);
+          const pickRank = pickRankByManager.get(manager);
+          const isOpen = openInventoryManagers.has(manager);
           const totalValue = assets.reduce(
             (sum, asset) => sum + getTradeWarAssetValue(asset, mode),
             0
@@ -1865,6 +1891,19 @@ export default function TradeWarRoom({
           return (
             <details
               key={manager}
+              open={isOpen}
+              onToggle={event => {
+                const nextOpen = event.currentTarget.open;
+                setOpenInventoryManagers(current => {
+                  const next = new Set(current);
+                  if (nextOpen) {
+                    next.add(manager);
+                  } else {
+                    next.delete(manager);
+                  }
+                  return next;
+                });
+              }}
               className={`trade-war-manager-board-card ${selectedManagerNames.has(manager) ? "trade-war-manager-board-selected" : ""}`}
             >
               <summary>
@@ -1889,10 +1928,11 @@ export default function TradeWarRoom({
                     </em>
                   </span>
                 </span>
-                <span className="trade-war-manager-board-bars" aria-label={`${manager} roster counts`}>
+                <span className="trade-war-manager-board-bars" aria-label={`${manager} position room ranks`}>
                   {(["QB", "RB", "WR", "TE", "PICK"] as const).map(key => (
                     <i key={key} className={`trade-war-bar-${key.toLowerCase()}`}>
-                      {buckets[key].length}
+                      <small>{key === "PICK" ? "Picks" : key}</small>
+                      #{key === "PICK" ? pickRank || "-" : ranks?.[key] || "-"}
                     </i>
                   ))}
                 </span>
@@ -1910,40 +1950,61 @@ export default function TradeWarRoom({
                   <span>Picks {formatCompactValue(pickRow?.totalValue || 0)}</span>
                 )}
               </div>
-              <div className="trade-war-manager-board-sections">
-                {sectionRows.map(([label, rows]) => (
-                  <div key={label} className="trade-war-manager-board-section">
-                    <div className="trade-war-manager-board-section-head">
-                      <strong>{label}</strong>
-                      <span>{rows.length}</span>
-                    </div>
-                    {rows.length ? (
-                      rows
-                        .sort(
-                          (a, b) =>
-                            getTradeWarAssetValue(b, mode) -
-                            getTradeWarAssetValue(a, mode)
-                        )
-                        .slice(0, 8)
-                        .map(asset => (
-                          <button
-                            key={asset.player_id}
-                            type="button"
-                            className="trade-war-manager-board-asset"
-                            onClick={() => openAssetModal(asset)}
-                          >
-                            <span>{asset.name}</span>
-                            <em>{getTradeWarAssetRank(asset, mode) || asset.pos}</em>
-                            <b>#{overallAssetRankById.get(asset.player_id) || "-"}</b>
-                            <strong>{formatCompactValue(getTradeWarAssetValue(asset, mode))}</strong>
-                          </button>
-                        ))
-                    ) : (
-                      <p>No returned assets.</p>
-                    )}
-                  </div>
-                ))}
+              <div className="trade-war-manager-lens-ranks">
+                <span>
+                  <em>Dynasty</em>
+                  <strong>#{ranks?.Value || "-"}</strong>
+                </span>
+                <span>
+                  <em>Contender</em>
+                  <strong>#{ranks?.Contender || "-"}</strong>
+                </span>
+                <span>
+                  <em>Rebuilder</em>
+                  <strong>#{ranks?.Rebuild || "-"}</strong>
+                </span>
               </div>
+              {isOpen && (
+                <div className="trade-war-manager-board-sections">
+                  {sectionRows.map(([label, rows]) => (
+                    <div key={label} className="trade-war-manager-board-section">
+                      <div className="trade-war-manager-board-section-head">
+                        <strong>{label}</strong>
+                        <span>
+                          {label === "PICKS"
+                            ? `Rank #${pickRank || "-"}`
+                            : `Room #${ranks?.[label] || "-"}`}
+                        </span>
+                      </div>
+                      {rows.length ? (
+                        rows
+                          .sort(
+                            (a, b) =>
+                              getTradeWarAssetValue(b, mode) -
+                              getTradeWarAssetValue(a, mode)
+                          )
+                          .map(asset => (
+                            <button
+                              key={asset.player_id}
+                              type="button"
+                              className="trade-war-manager-board-asset"
+                              onClick={() => openAssetModal(asset)}
+                            >
+                              <div className="trade-war-manager-board-player">
+                                <TradeWarAssetLabel asset={asset} />
+                              </div>
+                              <em>{getTradeWarAssetRank(asset, mode) || asset.pos}</em>
+                              <b>Ovr #{overallAssetRankById.get(asset.player_id) || "-"}</b>
+                              <strong>{formatCompactValue(getTradeWarAssetValue(asset, mode))}</strong>
+                            </button>
+                          ))
+                      ) : (
+                        <p>No returned assets.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </details>
           );
         })}
@@ -2351,7 +2412,7 @@ export default function TradeWarRoom({
         </div>
       </div>
 
-      {renderManagerAssetBoard()}
+      {renderManagerRankInventory()}
 
       <div className="trade-war-manager-selects">
         <label>

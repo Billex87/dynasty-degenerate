@@ -49,6 +49,10 @@ pids
 server/redraft-snapshots/*.json
 server/devy-source-snapshots/*.json
 server/league-ai-confidence-snapshots/*.json
+server/value-history-archive/*.json
+server/value-history-archive/*.json.gz
+server/value-history-archive/*.tar.gz
+server/value-history-archive/*.sha256
 .cache/source-health/*.jsonl
 
 # Coverage directory used by tools like istanbul

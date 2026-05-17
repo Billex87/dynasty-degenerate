@@ -834,12 +834,24 @@ test.describe("command center feature surfaces", () => {
 
     await page.getByRole("tab", { name: "Trade History" }).click();
     const tradeWarRoom = await openReportSection(page, "Trade War Room");
-    await expect(tradeWarRoom.getByText("Manager Asset Board")).toBeVisible();
+    await expect(tradeWarRoom.getByText("Manager Rank Inventory")).toBeVisible();
     const testerAssetCard = tradeWarRoom
       .locator(".trade-war-manager-board-card")
       .filter({ hasText: "Tester" })
       .first();
     await testerAssetCard.locator("summary").click();
+    await expect(testerAssetCard.locator(".trade-war-bar-qb")).toContainText("#");
+    await expect(testerAssetCard.locator(".trade-war-manager-lens-ranks")).toContainText("Dynasty");
+    await expect(testerAssetCard.locator(".trade-war-manager-lens-ranks")).toContainText("Contender");
+    await expect(testerAssetCard.locator(".trade-war-manager-lens-ranks")).toContainText("Rebuilder");
+    await expect(testerAssetCard.getByText("Sample Quarterback")).toBeVisible();
+    await expect(
+      testerAssetCard
+        .locator(".trade-war-manager-board-asset")
+        .filter({ hasText: "Sample Quarterback" })
+        .locator(".interactive-identity-avatar")
+        .first()
+    ).toBeVisible();
     await expect(
       testerAssetCard.locator(".trade-war-manager-board-section-head").filter({ hasText: "PICKS" })
     ).toBeVisible();
@@ -997,6 +1009,10 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Weekly Action Plan")).toBeVisible();
     await expect(page.getByText("Take me out")).toBeVisible();
     await expect(page.getByText("Sample Tight End").first()).toBeVisible();
+    await expect(page.getByText("Best weekly correction")).toBeVisible();
+    await expect(page.getByText(/Start .* over Sample Tight End/).first()).toBeVisible();
+    await expect(page.getByText("Future Pick Market")).toBeVisible();
+    await expect(page.getByText("Likely rookie range")).toBeVisible();
     await expect(page.getByText("Trade screenshot view").first()).toBeVisible();
     await page
       .getByRole("button", { name: /Trade screenshot view/i })
@@ -1086,6 +1102,14 @@ test.describe("command center feature surfaces", () => {
       page.getByRole("tab", { name: "Weekly Momentum" })
     ).toBeVisible();
     await expect(page.getByText("Waiver Intelligence")).toBeVisible();
+    await openReportSection(page, "Waiver Intelligence");
+    await expect(page.getByText("1 waiver ideas omitted")).toBeVisible();
+    await expect(page.getByText("Dallen Bentley")).toBeHidden();
+    await page.getByText("1 waiver ideas omitted").click();
+    await expect(page.getByText("Dallen Bentley")).toBeVisible();
+    await expect(
+      page.getByText("No active NFL team on the Sleeper player record.")
+    ).toBeVisible();
     await expect(page.getByText("Recent Transactions")).toBeVisible();
     await expect(page.getByText("Top 10 Weekly Risers")).toBeVisible();
     await expect(page.getByText("Top 10 Weekly Fallers")).toBeVisible();

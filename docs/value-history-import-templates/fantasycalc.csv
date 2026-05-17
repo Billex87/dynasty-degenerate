@@ -1,0 +1,2 @@
+date,playerName,playerId,position,format,value,fantasyCalcValue,overallRank,positionRank,team,sourceUrl,notes
+2026-05-17,Sample Player,provider-player-id,WR,12_sf_ppr_base,5000,5000,42,WR18,BUF,https://example.com/export,approved export row

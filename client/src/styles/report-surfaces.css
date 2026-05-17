@@ -350,10 +350,22 @@ button.player-team-tile:focus-visible {
 .trade-war-manager-board-bars i {
   display: grid;
   place-items: center;
+  gap: 0.05rem;
   color: #020617;
   font-size: 0.68rem;
   font-style: normal;
   font-weight: 950;
+  line-height: 1;
+}
+
+.trade-war-manager-board-bars small {
+  display: block;
+  color: rgba(2, 6, 23, 0.72);
+  font-size: 0.46rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .trade-war-bar-qb { background: #2dd4bf; }
@@ -377,6 +389,49 @@ button.player-team-tile:focus-visible {
   color: #cbd5e1;
   font-size: 0.66rem;
   font-weight: 900;
+}
+
+.trade-war-manager-lens-ranks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  padding: 0 0.72rem 0.72rem;
+}
+
+.trade-war-manager-lens-ranks span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  min-width: 0;
+  border: 1px solid rgba(251, 146, 60, 0.16);
+  border-radius: 0.66rem;
+  background: rgba(15, 23, 42, 0.58);
+  padding: 0.36rem 0.52rem;
+}
+
+.trade-war-manager-lens-ranks em,
+.trade-war-manager-lens-ranks strong {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-manager-lens-ranks em {
+  color: #94a3b8;
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.trade-war-manager-lens-ranks strong {
+  color: #fb923c;
+  font-size: 0.9rem;
+  font-weight: 950;
 }
 
 .trade-war-manager-board-sections {
@@ -421,10 +476,10 @@ button.player-team-tile:focus-visible {
 
 .trade-war-manager-board-asset {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(9rem, 1fr) auto auto auto;
   align-items: center;
   gap: 0.38rem;
-  min-height: 2rem;
+  min-height: 2.35rem;
   border: 1px solid rgba(34, 211, 238, 0.12);
   border-radius: 0.58rem;
   background: rgba(15, 23, 42, 0.62);
@@ -433,6 +488,7 @@ button.player-team-tile:focus-visible {
 }
 
 .trade-war-manager-board-asset span,
+.trade-war-manager-board-asset div,
 .trade-war-manager-board-asset em,
 .trade-war-manager-board-asset b,
 .trade-war-manager-board-asset strong {
@@ -443,7 +499,21 @@ button.player-team-tile:focus-visible {
   white-space: nowrap;
 }
 
-.trade-war-manager-board-asset span {
+.trade-war-manager-board-player {
+  display: block;
+}
+
+.trade-war-manager-board-player .player-chip {
+  gap: 0.42rem;
+}
+
+.trade-war-manager-board-player .interactive-identity-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.trade-war-manager-board-player .interactive-identity-name,
+.trade-war-manager-board-asset > span {
   color: #f8fafc;
   font-size: 0.72rem;
   font-weight: 900;
@@ -1190,6 +1260,10 @@ button.player-team-tile:focus-visible {
 
   .trade-war-manager-board-bars {
     grid-column: 1 / -1;
+  }
+
+  .trade-war-manager-lens-ranks {
+    grid-template-columns: 1fr;
   }
 
   .trade-war-manager-board-sections {

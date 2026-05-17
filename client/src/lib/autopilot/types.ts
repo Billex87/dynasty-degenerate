@@ -74,6 +74,38 @@ export type WeeklyActionPlan = {
   summary: string;
 };
 
+export type WeeklyRecapRead = {
+  headline: string;
+  summary: string;
+  startSitCalls: Array<{
+    sit: string;
+    start: string;
+    confidence: number;
+    note: string;
+    tone: AutopilotTone;
+  }>;
+  waiverNotes: string[];
+  tradeNotes: string[];
+};
+
+export type FuturePickTrajectory = {
+  manager: string;
+  currentRank: number | null;
+  currentValue: number;
+  likelyRookieRange: string;
+  note: string;
+  picks: Array<{
+    label: string;
+    projectedBand: string;
+    rookieTier: string;
+    value: number;
+  }>;
+  points: Array<{
+    label: string;
+    value: number;
+  }>;
+};
+
 export type AutopilotData = {
   mode: AutopilotMode;
   focusManager?: string;
@@ -90,9 +122,11 @@ export type AutopilotData = {
   systemRead: AutopilotScore[];
   lineup: AutopilotRecommendation[];
   weeklyPlan?: WeeklyActionPlan;
+  weeklyRecap?: WeeklyRecapRead;
   waivers: AutopilotRecommendation[];
   trades: AutopilotRecommendation[];
   projections: PlayerProjection[];
+  futurePickTrajectory?: FuturePickTrajectory;
   power: LeaguePowerRow[];
   managerTendency?: ManagerTendencyProfile;
   scheduleTodo: string[];

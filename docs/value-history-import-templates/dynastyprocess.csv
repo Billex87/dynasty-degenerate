@@ -1,0 +1,2 @@
+date,playerName,playerId,position,format,value,dynastyProcessValue,overallRank,positionRank,sourceUrl,notes
+2026-05-17,Sample Player,provider-player-id,QB,superflex,5000,5000,42,QB18,https://example.com/export,approved CSV snapshot row

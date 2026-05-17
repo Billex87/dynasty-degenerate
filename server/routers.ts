@@ -56,7 +56,7 @@ import {
 } from "./valueBlend";
 import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence } from "../shared/types";
+import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence, WaiverOmittedCandidate } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -590,7 +590,7 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v45';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v46';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
 const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
 const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
@@ -2488,6 +2488,104 @@ function getWaiverCandidateValue(
   return getPlayerValueForLeagueMode(playerId, players, ktcValues, leagueValueMode, valueProfilesById);
 }
 
+const WAIVER_AI_RANK_LIMITS: Record<WaiverLineupPosition, number> = {
+  QB: 40,
+  RB: 90,
+  WR: 105,
+  TE: 24,
+  K: 20,
+  DEF: 20,
+};
+
+function getWaiverCandidateSourceCount(profile?: PlayerDetails['valueProfile']): number {
+  if (!profile) return 0;
+  const sourceKeys = new Set<string>((profile.sources || []).filter(Boolean));
+  [
+    ['KTC', profile.marketKtc],
+    ['FlockFantasy', profile.flockFantasy],
+    ['FantasyPros', profile.fantasyProsDynasty || profile.fantasyProsSeasonValue],
+    ['FantasyCalc', profile.fantasyCalcDynasty || profile.fantasyCalcRedraft],
+    ['DynastyProcess', profile.dynastyProcess],
+    ['DynastyNerds', profile.dynastyNerds],
+    ['FantasyNerds', profile.fantasyNerds],
+  ].forEach(([source, value]) => {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      sourceKeys.add(String(source));
+    }
+  });
+  return sourceKeys.size;
+}
+
+function buildWaiverCandidateOmission({
+  playerId,
+  player,
+  position,
+  value,
+  rank,
+  sourceCount,
+  reason,
+}: {
+  playerId: string;
+  player: Record<string, any>;
+  position: WaiverLineupPosition;
+  value: number;
+  rank: string | null;
+  sourceCount: number;
+  reason: string;
+}): WaiverOmittedCandidate {
+  return {
+    player_id: playerId,
+    name: getPlayerName(playerId, { [playerId]: player }),
+    pos: position,
+    team: player?.team || null,
+    value: value || null,
+    rank,
+    sourceCount,
+    reason,
+    action: 'omit',
+  };
+}
+
+function getWaiverCandidateOmissionReason({
+  player,
+  position,
+  value,
+  rank,
+  sourceCount,
+  leagueValueMode,
+}: {
+  player: Record<string, any>;
+  position: WaiverLineupPosition;
+  value: number;
+  rank: string | null;
+  sourceCount: number;
+  leagueValueMode: LeagueValueMode;
+}): string | null {
+  if (position !== 'DEF' && !player?.team) {
+    return 'No active NFL team on the Sleeper player record.';
+  }
+
+  const rankNumber = getWaiverRankNumber(rank);
+  const rankLimit = WAIVER_AI_RANK_LIMITS[position];
+  if (rankNumber && rankNumber > rankLimit) {
+    return `Outside the trusted ${position} waiver rank window (${rank}).`;
+  }
+
+  if (position === 'K' || position === 'DEF') return null;
+
+  const isRookie = Number(player?.metadata?.rookie_year || player?.rookie_year || 0) >= new Date().getFullYear();
+  const lowValueCutoff = leagueValueMode === 'redraft' ? 900 : 1200;
+  if (sourceCount <= 1 && value < lowValueCutoff && !isRookie) {
+    return 'Thin single-source value below the waiver trust threshold.';
+  }
+
+  if (sourceCount === 0 && !rankNumber) {
+    return 'No usable value source or positional rank for waiver analysis.';
+  }
+
+  return null;
+}
+
 function getKtcPosition(data: KTCValues[string]): 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | null {
   const position = data?.position_rank?.match(/^[A-Z]+/)?.[0]
     || data?.flock_position_rank?.match(/^[A-Z]+/)?.[0]
@@ -2928,6 +3026,7 @@ function buildWaiverIntelligence(
   const availableAdds = trendingAdds.filter((player) => !player.owner);
   const rosteredAdds = trendingAdds.filter((player) => player.owner);
   const sortedAvailableAdds = [...availableAdds].sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0));
+  const omittedCandidates: WaiverOmittedCandidate[] = [];
   const availablePlayerPool: TrendingPlayer[] = Object.entries(players)
     .map(([playerId, player]): TrendingPlayer | null => {
       if (!playerId || ownerByPlayerId[playerId]) return null;
@@ -2960,6 +3059,29 @@ function buildWaiverIntelligence(
         options.lastSeasonPositionRanks
       );
       if (value <= 0 && !(rank && (waiverPosition === 'K' || waiverPosition === 'DEF'))) return null;
+      const sourceCount = getWaiverCandidateSourceCount(valueProfilesById?.[playerId]);
+      const omissionReason = getWaiverCandidateOmissionReason({
+        player,
+        position: waiverPosition,
+        value,
+        rank,
+        sourceCount,
+        leagueValueMode,
+      });
+      if (omissionReason) {
+        if (omittedCandidates.length < 40) {
+          omittedCandidates.push(buildWaiverCandidateOmission({
+            playerId,
+            player,
+            position: waiverPosition,
+            value,
+            rank,
+            sourceCount,
+            reason: omissionReason,
+          }));
+        }
+        return null;
+      }
       return {
         player_id: playerId,
         name: getPlayerName(playerId, players),
@@ -2974,6 +3096,10 @@ function buildWaiverIntelligence(
     })
     .filter((player): player is TrendingPlayer => Boolean(player))
     .sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0));
+  const omittedCandidateIds = new Set(omittedCandidates.map((player) => player.player_id));
+  const trustedAvailableAdds = availableAdds.filter((player) => !omittedCandidateIds.has(player.player_id));
+  const trustedSortedAvailableAdds = sortedAvailableAdds.filter((player) => !omittedCandidateIds.has(player.player_id));
+  const rankedAvailableCandidates = availablePlayerPool.length ? availablePlayerPool : trustedSortedAvailableAdds;
   const usedPlayerIds = new Set<string>();
 
   const takeBestUnique = (players: TrendingPlayer[]) => {
@@ -2982,16 +3108,16 @@ function buildWaiverIntelligence(
     return next;
   };
 
-  const highestKtcAvailable = takeBestUnique(availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds);
+  const highestKtcAvailable = takeBestUnique(rankedAvailableCandidates);
   const bestAvailableByPosition = {
-    QB: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'QB')),
-    RB: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'RB')),
-    WR: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'WR')),
-    TE: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'TE')),
-    K: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'K')),
-    DEF: takeBestUnique((availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds).filter((player) => player.pos === 'DEF')),
+    QB: takeBestUnique(rankedAvailableCandidates.filter((player) => player.pos === 'QB')),
+    RB: takeBestUnique(rankedAvailableCandidates.filter((player) => player.pos === 'RB')),
+    WR: takeBestUnique(rankedAvailableCandidates.filter((player) => player.pos === 'WR')),
+    TE: takeBestUnique(rankedAvailableCandidates.filter((player) => player.pos === 'TE')),
+    K: takeBestUnique(rankedAvailableCandidates.filter((player) => player.pos === 'K')),
+    DEF: takeBestUnique(rankedAvailableCandidates.filter((player) => player.pos === 'DEF')),
   };
-  const bestTaxiStashes = (availablePlayerPool.length ? availablePlayerPool : sortedAvailableAdds)
+  const bestTaxiStashes = rankedAvailableCandidates
     .filter((player) => {
       const rookieYear = Number(player.playerDetails?.rookieYear || 0);
       return rookieYear === new Date().getFullYear() && !usedPlayerIds.has(player.player_id);
@@ -3000,7 +3126,7 @@ function buildWaiverIntelligence(
 
   return {
     rosteredTrendingAdds: rosteredAdds,
-    availableTrendingAdds: availableAdds,
+    availableTrendingAdds: trustedAvailableAdds,
     highestKtcAvailable,
     bestAvailableByPosition,
     bestTaxiStashes,
@@ -3008,6 +3134,7 @@ function buildWaiverIntelligence(
       .filter((player) => (player.ktcValue || 0) > 0)
       .sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))
       .slice(0, 8),
+    omittedCandidates,
   };
 }
 

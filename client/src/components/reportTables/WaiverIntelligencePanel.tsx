@@ -1971,6 +1971,32 @@ export default function WaiverIntelligencePanel({
           </small>
         </div>
       )}
+      {data.omittedCandidates?.length ? (
+        <details className="waiver-intel-source-review">
+          <summary>
+            <span>Admin source review</span>
+            <strong>{data.omittedCandidates.length} waiver ideas omitted</strong>
+          </summary>
+          <div className="waiver-intel-source-review-list">
+            {data.omittedCandidates.slice(0, 8).map(candidate => (
+              <div
+                key={candidate.player_id}
+                className="waiver-intel-source-review-row"
+              >
+                <span>
+                  {candidate.name} · {candidate.pos}
+                  {candidate.team ? ` · ${candidate.team}` : ""}
+                </span>
+                <em>
+                  {candidate.rank || "No rank"} · {candidate.sourceCount} source
+                  {candidate.sourceCount === 1 ? "" : "s"}
+                </em>
+                <p>{candidate.reason}</p>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
       <div
         className="player-tile-grid waiver-intel-grid balanced-tile-grid"
         style={getBalancedGridStyle(cards.length)}
