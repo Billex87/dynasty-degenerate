@@ -25,8 +25,103 @@ import { cn } from '@/lib/utils';
 import type { LeagueValueMode } from '@/lib/leagueValueMode';
 import { buildAutopilotData, clampPercent, getDirectionTone, getRiskTone } from '@/lib/autopilot/buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from '@/lib/autopilot/mockData';
-import type { AutopilotMode, AutopilotRecommendation, AutopilotScore, AutopilotTone, LeaguePowerRow, PlayerProjection, WeeklyActionPlan } from '@/lib/autopilot/types';
+import type { AutopilotData, AutopilotMode, AutopilotRecommendation, AutopilotScore, AutopilotTone, LeaguePowerRow, PlayerProjection, WeeklyActionPlan } from '@/lib/autopilot/types';
 import type { ReportData } from '@shared/types';
+
+function asArray<T>(value: T[] | undefined, fallback: T[] = []): T[] {
+  return Array.isArray(value) ? value : fallback;
+}
+
+function normalizeRecommendation(
+  recommendation: Partial<AutopilotRecommendation>,
+  fallback: AutopilotRecommendation,
+  index: number,
+): AutopilotRecommendation {
+  return {
+    ...fallback,
+    ...recommendation,
+    id: recommendation.id || fallback.id || `autopilot-rec-${index}`,
+    type: recommendation.type || fallback.type || 'Recommendation',
+    player: recommendation.player || fallback.player || 'Player to review',
+    action: recommendation.action || fallback.action || 'Review',
+    confidence: Number.isFinite(recommendation.confidence) ? recommendation.confidence! : fallback.confidence,
+    risk: recommendation.risk || fallback.risk || 'Medium',
+    upside: recommendation.upside || fallback.upside || 'Medium',
+    summary: recommendation.summary || fallback.summary || 'More context is needed before this recommendation is high confidence.',
+    reasons: asArray(recommendation.reasons, fallback.reasons),
+    signals: asArray(recommendation.signals, fallback.signals),
+    tone: recommendation.tone || fallback.tone || 'info',
+  };
+}
+
+function normalizeRecommendations(
+  recommendations: AutopilotRecommendation[] | undefined,
+  fallback: AutopilotRecommendation[],
+): AutopilotRecommendation[] {
+  if (!Array.isArray(recommendations)) return fallback;
+  return recommendations.map((recommendation, index) =>
+    normalizeRecommendation(recommendation, fallback[index] || fallback[0], index)
+  );
+}
+
+function normalizeWeeklyPlan(
+  plan: WeeklyActionPlan | undefined,
+  fallback: WeeklyActionPlan | undefined,
+): WeeklyActionPlan | undefined {
+  if (!plan && !fallback) return undefined;
+  const source = plan || fallback;
+  if (!source) return undefined;
+  return {
+    ...source,
+    starterToReview: source.starterToReview || null,
+    options: asArray(source.options, fallback?.options),
+    summary: source.summary || fallback?.summary || 'The weekly action plan will get sharper once more context is available.',
+  };
+}
+
+function normalizeAutopilotData(
+  data: AutopilotData | undefined,
+  fallback: AutopilotData,
+  mode: AutopilotMode,
+): AutopilotData {
+  const direction = data?.direction || fallback.direction;
+  return {
+    ...fallback,
+    ...data,
+    mode,
+    headline: data?.headline || fallback.headline,
+    direction: {
+      ...fallback.direction,
+      ...direction,
+      scores: asArray(direction?.scores, fallback.direction.scores),
+      actionPlan: asArray(direction?.actionPlan, fallback.direction.actionPlan),
+    },
+    systemRead: asArray(data?.systemRead, fallback.systemRead),
+    lineup: normalizeRecommendations(data?.lineup, fallback.lineup),
+    weeklyPlan: normalizeWeeklyPlan(data?.weeklyPlan, fallback.weeklyPlan),
+    waivers: normalizeRecommendations(data?.waivers, fallback.waivers),
+    trades: normalizeRecommendations(data?.trades, fallback.trades),
+    projections: asArray(data?.projections, fallback.projections).map((projection, index) => ({
+      ...fallback.projections[index],
+      ...projection,
+      player: projection.player || fallback.projections[index]?.player || 'Player to review',
+      position: projection.position || fallback.projections[index]?.position || 'FLEX',
+      direction: projection.direction || fallback.projections[index]?.direction || 'Stable',
+      currentValue: projection.currentValue || fallback.projections[index]?.currentValue || 'Value pending',
+      projectedMove: projection.projectedMove || fallback.projections[index]?.projectedMove || 'Hold',
+      confidence: Number.isFinite(projection.confidence) ? projection.confidence : fallback.projections[index]?.confidence || 50,
+      signals: asArray(projection.signals, fallback.projections[index]?.signals),
+    })),
+    power: asArray(data?.power, fallback.power),
+    managerTendency: data?.managerTendency
+      ? {
+        ...data.managerTendency,
+        signals: asArray(data.managerTendency.signals),
+      }
+      : fallback.managerTendency,
+    scheduleTodo: asArray(data?.scheduleTodo, fallback.scheduleTodo),
+  };
+}
 
 function ConfidenceMeter({
   value,
@@ -284,10 +379,19 @@ export default function AITeamAutopilot({
 }) {
   const initialMode = leagueValueMode === 'redraft' ? 'redraft' : 'dynasty';
   const [mode, setMode] = useState<AutopilotMode>(initialMode);
-  const data = useMemo(
-    () => buildAutopilotData({ reportData, mode, fallback: AUTOPILOT_MOCK_DATA[mode] }),
-    [mode, reportData]
-  );
+  const data = useMemo(() => {
+    const fallback = AUTOPILOT_MOCK_DATA[mode];
+    try {
+      return normalizeAutopilotData(
+        buildAutopilotData({ reportData, mode, fallback }),
+        fallback,
+        mode,
+      );
+    } catch (error) {
+      console.error('AI Autopilot failed to build report data.', error);
+      return fallback;
+    }
+  }, [mode, reportData]);
   const allRecommendations = useMemo(
     () => [...data.lineup, ...data.waivers, ...data.trades],
     [data]
@@ -345,7 +449,7 @@ export default function AITeamAutopilot({
       <div className="autopilot-command-strip">
         <div>
           <span>Weekly plan</span>
-          <strong>{data.weeklyPlan?.options.length ? `${data.weeklyPlan.options.length} start-over options` : 'No forced swap'}</strong>
+          <strong>{data.weeklyPlan?.options?.length ? `${data.weeklyPlan.options.length} start-over options` : 'No forced swap'}</strong>
         </div>
         <div>
           <span>Recommendation set</span>

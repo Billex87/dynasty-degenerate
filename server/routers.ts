@@ -4212,7 +4212,10 @@ export const appRouter = router({
               userAgent,
               note: "Served cached league report",
             });
-            return cloneReportWithViewerManager(cachedReportWithHiddenData, input.viewerUserId) as any;
+            return {
+              ...(cloneReportWithViewerManager(cachedReportWithHiddenData, input.viewerUserId) as any),
+              reportCacheStatus: 'hit' as const,
+            };
           }
 
           assertRateLimit(ctx.req as any, {
@@ -4993,7 +4996,10 @@ export const appRouter = router({
             console.warn('Failed to cache league report:', cacheError);
           }
 
-          return analyzePayload;
+          return {
+            ...analyzePayload,
+            reportCacheStatus: 'miss' as const,
+          };
         } catch (error) {
           if (error instanceof TRPCError) throw error;
           console.error('League analysis error:', error);

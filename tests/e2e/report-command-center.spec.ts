@@ -1016,6 +1016,30 @@ test.describe("command center feature surfaces", () => {
     ).toBeVisible();
   });
 
+  test("keeps AI Autopilot stable when a report payload has partial new fields", async ({
+    page,
+  }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", error => pageErrors.push(error.message));
+    const cachedReport = createCachedCommandCenterReport();
+    cachedReport.reportData.schedulePlanning = {
+      source: "partial-cache",
+      status: "ready",
+      updatedAt: null,
+      rosterGaps: [],
+      streamerCandidates: {},
+      byeWeekNotes: [],
+    } as any;
+
+    await loadCachedReport(page, cachedReport, "#autopilot");
+
+    await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
+    await expect(page.getByText("AI Team Autopilot")).toBeVisible();
+    await expect(page.getByText("Tester dynasty cockpit")).toBeVisible();
+    await expect(page.getByText("Live report data")).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+
   test("does not expose AI Autopilot to regular report viewers", async ({
     page,
   }) => {

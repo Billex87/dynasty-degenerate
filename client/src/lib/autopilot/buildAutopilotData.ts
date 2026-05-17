@@ -49,6 +49,10 @@ type AutopilotBuildInput = {
   fallback: AutopilotData;
 };
 
+function asArray<T>(value: T[] | undefined | null): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
 function normalizeManagerName(value?: string | null) {
   return String(value || '').trim().toLowerCase();
 }
@@ -754,7 +758,7 @@ function buildWeeklyActionPlan(
   pushOption(intel?.breakoutCandidate, 66, 'Breakout profile worth starting over a low-ceiling slot.', 'info');
   pushOption(intel?.injuryInsurance, 62, 'Insurance option if injury news opens touches.', 'warn');
 
-  (data.schedulePlanning?.streamerCandidates || [])
+  asArray(data.schedulePlanning?.streamerCandidates)
     .slice(0, 3)
     .forEach((candidate: ScheduleStreamerCandidate) => {
       const candidateWeeks = formatWeekList(candidate.targetWeeks);
@@ -1128,12 +1132,12 @@ function buildPowerRows(data: ReportData, mode: AutopilotMode, fallback: LeagueP
 function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
   const sleeperResearchTodo = buildSleeperResearchTodo(mode);
   const schedulePlanning = data.schedulePlanning;
-  const rosterGaps = [...(schedulePlanning?.rosterGaps || [])].sort((a, b) => {
+  const rosterGaps = asArray(schedulePlanning?.rosterGaps).sort((a, b) => {
     const severityRank: Record<'low' | 'medium' | 'high', number> = { low: 0, medium: 1, high: 2 };
     return (severityRank[b.severity] || 0) - (severityRank[a.severity] || 0);
   });
-  const streamerCandidate = schedulePlanning?.streamerCandidates?.[0] || null;
-  const firstByeWeek = [...(schedulePlanning?.byeWeekNotes || [])].sort((a, b) => a.week - b.week)[0] || null;
+  const streamerCandidate = asArray(schedulePlanning?.streamerCandidates)[0] || null;
+  const firstByeWeek = asArray(schedulePlanning?.byeWeekNotes).sort((a, b) => a.week - b.week)[0] || null;
 
   if (schedulePlanning?.status === 'ready' || rosterGaps.length || streamerCandidate || firstByeWeek) {
     return [

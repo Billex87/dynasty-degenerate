@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import {
   PremiumFxLayer,
   type PremiumFxVariant,
@@ -182,6 +183,8 @@ const DYNASTY_LOGO_SRC =
   "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
 const REPORT_CACHE_DATA_VERSION = "player-situation-delta-v1";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v24";
+const REPORT_LOAD_TELEMETRY_KEY =
+  "dynasty-degenerates:report-load-telemetry:v1";
 const REPORT_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v10",
@@ -229,6 +232,98 @@ type LoadingTransitionPhase =
   | "kick"
   | "done";
 type OwnerIntelSortMode = "dynasty" | "contender" | "rebuilder";
+type ReportLoadSource = "browser-cache" | "server";
+type ReportLoadCacheStatus = "browser" | "hit" | "miss" | "unknown";
+type ReportLoadTelemetryEvent = {
+  leagueId: string;
+  leagueName?: string | null;
+  activeTab: string;
+  source: ReportLoadSource;
+  cacheStatus: ReportLoadCacheStatus;
+  requestMs: number | null;
+  visibleMs: number;
+  payloadVersion: string;
+  createdAt: string;
+};
+
+type NavigatorPerformanceHints = Navigator & {
+  connection?: {
+    saveData?: boolean;
+  };
+  deviceMemory?: number;
+};
+
+function shouldRenderSuccessCard3D() {
+  if (typeof window === "undefined") return false;
+  const navigatorHints = window.navigator as NavigatorPerformanceHints;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    return false;
+  }
+  if (navigatorHints.connection?.saveData) return false;
+  if (
+    typeof navigatorHints.deviceMemory === "number" &&
+    navigatorHints.deviceMemory <= 4
+  ) {
+    return false;
+  }
+  return window.innerWidth >= 768;
+}
+
+function persistReportLoadTelemetry(event: ReportLoadTelemetryEvent) {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = JSON.parse(
+      window.localStorage.getItem(REPORT_LOAD_TELEMETRY_KEY) || "[]"
+    ) as ReportLoadTelemetryEvent[];
+    window.localStorage.setItem(
+      REPORT_LOAD_TELEMETRY_KEY,
+      JSON.stringify([event, ...existing].slice(0, 25))
+    );
+    window.dispatchEvent(
+      new CustomEvent("dynasty-degenerates:report-load-telemetry", {
+        detail: event,
+      })
+    );
+    if (!import.meta.env.PROD) {
+      console.info("[ReportLoadTelemetry]", event);
+    }
+  } catch {
+    // Timing telemetry should never block report rendering.
+  }
+}
+
+function AutopilotErrorFallback({
+  error,
+  onRetry,
+}: {
+  error: Error | null;
+  onRetry: () => void;
+}) {
+  return (
+    <section className="autopilot-dashboard autopilot-error-fallback">
+      <div className="autopilot-hero">
+        <div className="autopilot-hero-copy">
+          <span className="autopilot-system-badge">
+            <Bot className="h-4 w-4" aria-hidden="true" />
+            AI Team Autopilot
+          </span>
+          <h2>Autopilot read paused</h2>
+          <p>
+            The rest of the report is still available while this tab recovers
+            from an unexpected readout issue.
+          </p>
+        </div>
+        <Button type="button" onClick={onRetry} variant="outline">
+          Retry Autopilot
+        </Button>
+      </div>
+      {error?.message && (
+        <p className="autopilot-footer-read">Issue: {error.message}</p>
+      )}
+    </section>
+  );
+}
+
 function getKtcAdminIdentity(
   user?: SleeperUserSession | null,
   fallbackUsername?: string
@@ -4546,6 +4641,14 @@ export default function Home() {
   ] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
   const activeAnalysisLeagueIdRef = useRef<string | null>(null);
+  const reportLoadStartedAtRef = useRef<number | null>(null);
+  const analyzeRequestStartedAtRef = useRef<{
+    leagueId: string;
+    startedAt: number;
+  } | null>(null);
+  const appBootStartedAtRef = useRef(
+    typeof performance !== "undefined" ? performance.now() : Date.now()
+  );
   const autopilotAccessToastShownRef = useRef(false);
   const adminLoginMutation = trpc.auth.adminLogin.useMutation({
     onSuccess: async () => {
@@ -4577,6 +4680,29 @@ export default function Home() {
     successTransitionTimerRefs.current.push(timer);
   };
 
+  const queueReportVisibleTelemetry = (
+    event: Omit<ReportLoadTelemetryEvent, "createdAt" | "visibleMs">
+  ) => {
+    if (typeof window === "undefined") return;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const startedAt =
+          event.source === "browser-cache"
+            ? appBootStartedAtRef.current
+            : reportLoadStartedAtRef.current || performance.now();
+        persistReportLoadTelemetry({
+          ...event,
+          visibleMs: Math.round(performance.now() - startedAt),
+          createdAt: new Date().toISOString(),
+        });
+        if (event.source === "server") {
+          reportLoadStartedAtRef.current = null;
+          analyzeRequestStartedAtRef.current = null;
+        }
+      });
+    });
+  };
+
   const leaguePreviewMutation = trpc.league.getLeaguePreview.useMutation();
 
   const beginAnalysisLoading = async (
@@ -4584,6 +4710,7 @@ export default function Home() {
     extraKnownLeagues: SleeperLeagueOption[] = []
   ) => {
     activeAnalysisLeagueIdRef.current = nextLeagueId;
+    reportLoadStartedAtRef.current = performance.now();
     const knownLeague = findKnownSleeperLeague(
       nextLeagueId,
       userLeagues,
@@ -4663,8 +4790,24 @@ export default function Home() {
   };
 
   const analyzeMutation = trpc.league.analyze.useMutation({
+    onMutate: variables => {
+      analyzeRequestStartedAtRef.current = {
+        leagueId: variables.leagueId,
+        startedAt: performance.now(),
+      };
+    },
     onSuccess: data => {
       clearSuccessTransitionTimers();
+      const responseCompletedAt = performance.now();
+      const analyzeRequest = analyzeRequestStartedAtRef.current;
+      const analyzeStartedAt =
+        analyzeRequest && analyzeRequest.leagueId === data.leagueId
+          ? analyzeRequest.startedAt
+          : null;
+      const requestMs =
+        analyzeStartedAt === null
+          ? null
+          : Math.round(responseCompletedAt - analyzeStartedAt);
       activeAnalysisLeagueIdRef.current = data.leagueId;
       setLeagueId(data.leagueId);
       setLeagueName(data.leagueName);
@@ -4681,12 +4824,40 @@ export default function Home() {
         leagueFormat: data.leagueFormat,
         leagueLogo: data.leagueLogo,
       });
-      setLoadingTransitionPhase("success");
       updateReportTabUrl(activeTab, data.leagueId);
+      if (data.reportCacheStatus === "hit") {
+        setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
+        setReportData(data.reportData);
+        setLoadingTransitionPhase("done");
+        setIsLoading(false);
+        setAnalysisCompleteMessage(null);
+        setPendingAnalysisLeague(null);
+        activeAnalysisLeagueIdRef.current = null;
+        queueReportVisibleTelemetry({
+          leagueId: data.leagueId,
+          leagueName: data.leagueName,
+          activeTab,
+          source: "server",
+          cacheStatus: "hit",
+          requestMs,
+          payloadVersion: REPORT_CACHE_DATA_VERSION,
+        });
+        return;
+      }
+      setLoadingTransitionPhase("success");
       queueSuccessTransitionTimer(() => {
         setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
         setReportData(data.reportData);
         setLoadingTransitionPhase("reveal");
+        queueReportVisibleTelemetry({
+          leagueId: data.leagueId,
+          leagueName: data.leagueName,
+          activeTab,
+          source: "server",
+          cacheStatus: data.reportCacheStatus || "unknown",
+          requestMs,
+          payloadVersion: REPORT_CACHE_DATA_VERSION,
+        });
       }, REPORT_SUCCESS_REVEAL_DELAY_MS);
       queueSuccessTransitionTimer(() => {
         setLoadingTransitionPhase("kick");
@@ -4706,6 +4877,8 @@ export default function Home() {
     },
     onError: error => {
       clearSuccessTransitionTimers();
+      reportLoadStartedAtRef.current = null;
+      analyzeRequestStartedAtRef.current = null;
       setAnalysisCompleteMessage(null);
       setPendingAnalysisLeague(null);
       activeAnalysisLeagueIdRef.current = null;
@@ -4888,6 +5061,15 @@ export default function Home() {
           setActiveTab(urlTab || parsed.activeTab || "overview");
           setReportDataCacheVersion(parsed.cacheVersion);
           setReportData(parsed.reportData);
+          queueReportVisibleTelemetry({
+            leagueId: parsed.leagueId,
+            leagueName: parsed.leagueName,
+            activeTab: urlTab || parsed.activeTab || "overview",
+            source: "browser-cache",
+            cacheStatus: "browser",
+            requestMs: null,
+            payloadVersion: parsed.cacheVersion || REPORT_CACHE_DATA_VERSION,
+          });
           setLeagueIdHistory(
             rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId)
           );
@@ -5534,9 +5716,11 @@ export default function Home() {
               role="status"
               aria-live="polite"
             >
-              <Suspense fallback={null}>
-                <SuccessCard3D exit={loadingTransitionPhase === "kick"} />
-              </Suspense>
+              {shouldRenderSuccessCard3D() && (
+                <Suspense fallback={null}>
+                  <SuccessCard3D exit={loadingTransitionPhase === "kick"} />
+                </Suspense>
+              )}
               <span
                 className="loading-success-impact-core"
                 aria-hidden="true"
@@ -6211,12 +6395,21 @@ export default function Home() {
                       value="autopilot"
                       className="report-tab-content"
                     >
-                      <AITeamAutopilot
-                        reportData={reportDataForView}
-                        leagueName={leagueName}
-                        leagueFormat={leagueFormat}
-                        leagueValueMode={leagueValueMode}
-                      />
+                      <ErrorBoundary
+                        fallback={(error, reset) => (
+                          <AutopilotErrorFallback
+                            error={error}
+                            onRetry={reset}
+                          />
+                        )}
+                      >
+                        <AITeamAutopilot
+                          reportData={reportDataForView}
+                          leagueName={leagueName}
+                          leagueFormat={leagueFormat}
+                          leagueValueMode={leagueValueMode}
+                        />
+                      </ErrorBoundary>
                     </TabsContent>
                   )}
 
