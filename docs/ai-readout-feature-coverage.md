@@ -42,7 +42,7 @@ This checklist keeps AI features useful, distinct, and traceable. A new readout 
 ## Rankings / Player Detail
 
 - [x] Rankings can expose AI read chips that open the player modal.
-- [x] Player Detail has an AI read with value confidence, cohort trace, schedule context, draft-capital runway, and cohort evidence calibration.
+- [x] Player Detail has an AI read with value confidence, cohort trace, schedule context, draft-capital runway, cohort evidence calibration, and first-pass situation-delta role/opportunity labels.
 - [ ] Add richer ranking-table microreads for value tier, source disagreement, confidence, and roster fit.
 - [ ] Add "similar historical profile" reads after cohort similarity is backtested.
 - [ ] Add provider projection trace only after projection snapshots are approved.

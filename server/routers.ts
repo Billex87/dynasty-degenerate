@@ -34,6 +34,7 @@ import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./
 import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
 import { buildPlayerValueTimelineMap } from "./playerValueTimeline";
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
+import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import {
   buildNflverseDraftCapitalBySleeperId,
   enrichPlayerDetailsWithNflverseDraftCapital,
@@ -589,7 +590,7 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v44';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v45';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
 const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
 const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
@@ -4896,6 +4897,18 @@ export const appRouter = router({
             playerDetailsById: enrichedPlayerDetailsById,
             mode: leagueValueMode === 'redraft' ? 'redraft' : 'dynasty',
           });
+          const playerDetailsWithCohortsById = Object.fromEntries(
+            Object.entries(enrichedPlayerDetailsById).map(([playerId, details]) => [
+              playerId,
+              {
+                ...details,
+                playerCohort: playerCohortsById[playerId] || null,
+              },
+            ])
+          );
+          const playerSituationDeltasById = buildPlayerSituationDeltas({
+            playerDetailsById: playerDetailsWithCohortsById,
+          });
           markAnalyzeStep(`player static enrichment ${playerStaticEnrichment.cacheStatus}`);
 
           const reportPayloadData = {
@@ -4909,11 +4922,11 @@ export const appRouter = router({
             managerAvatars: buildManagerAvatarMap(users),
             managerChampionships,
             playerDetailsById: Object.fromEntries(
-              Object.entries(enrichedPlayerDetailsById).map(([playerId, details]) => [
+              Object.entries(playerDetailsWithCohortsById).map(([playerId, details]) => [
                 playerId,
                 {
                   ...details,
-                  playerCohort: playerCohortsById[playerId] || null,
+                  playerSituationDelta: playerSituationDeltasById[playerId] || null,
                 },
               ])
             ),

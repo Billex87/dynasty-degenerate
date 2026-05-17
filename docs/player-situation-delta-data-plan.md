@@ -123,7 +123,7 @@ Use short, explainable labels that can appear in player detail, waiver, trade, a
 7. Add a broader official transaction feed or licensed provider if we want waiver claims, releases, reserve-list moves, and exact free-agent signing dates instead of inferred non-trade labels.
 6. Add public advanced-efficiency snapshots from Next Gen Stats, PFR advanced stats, FTN charting, and participation/personnel. Mark route-derived participation as estimated.
 7. Add a curated coaching-staff snapshot with team, head coach, offensive coordinator, play caller if known, previous team, first season, source URL, and verified date.
-8. Build the `playerSituationDelta` scorer and attach it to player detail AI traces, waiver reads, trade chips, and rankings confidence.
+8. Done first pass: build the `playerSituationDelta` scorer and attach it to player detail AI traces with action labels, confidence caps, feature coverage diagnostics, and cache-versioned report payloads.
 9. Backtest the labels against historical seasons before letting the UI make strong claims.
 10. Add a licensed route/YPRR source only after approved terms and endpoint coverage are confirmed.
 

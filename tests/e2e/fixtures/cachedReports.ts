@@ -1,5 +1,5 @@
 export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v24';
-export const REPORT_CACHE_DATA_VERSION = 'trade-value-calibration-v1';
+export const REPORT_CACHE_DATA_VERSION = 'player-situation-delta-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;
@@ -459,7 +459,41 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
     wr1: { playerId: 'wr1', fullName: 'Sample Receiver', position: 'WR', team: 'DAL', age: 24, valueProfile: { dynastyValue: 6400, seasonValue: 6100, dynastyPositionRank: 'WR6', weeklyProjection: 17.2, sources: ['KTC'] } },
     te1: { playerId: 'te1', fullName: 'Sample Tight End', position: 'TE', team: 'ATL', age: 25, valueProfile: { dynastyValue: 4100, seasonValue: 3800, dynastyPositionRank: 'TE7', weeklyProjection: 8.3, sources: ['KTC'] } },
     te2: { playerId: 'te2', fullName: 'Replacement Tight End', position: 'TE', team: 'LAC', age: 24, valueProfile: { dynastyValue: 4300, seasonValue: 5100, dynastyPositionRank: 'TE5', seasonPositionRank: 'TE5', weeklyProjection: 12.4, sources: ['KTC'] } },
-    wr2: { playerId: 'wr2', fullName: 'Depth Receiver', position: 'WR', team: 'HOU', age: 23, valueProfile: { dynastyValue: 3000, seasonValue: 2600, dynastyPositionRank: 'WR34', sources: ['KTC'] }, valueTimeline: valueTimeline('wr2', 2000, 3000, 'WR34', true) },
+    wr2: {
+      playerId: 'wr2',
+      fullName: 'Depth Receiver',
+      position: 'WR',
+      team: 'HOU',
+      age: 23,
+      valueProfile: { dynastyValue: 3000, seasonValue: 2600, dynastyPositionRank: 'WR34', sources: ['KTC'] },
+      valueTimeline: valueTimeline('wr2', 2000, 3000, 'WR34', true),
+      playerSituationDelta: {
+        playerId: 'wr2',
+        name: 'Depth Receiver',
+        position: 'WR',
+        score: 74,
+        confidence: 78,
+        primaryLabel: 'role-boost',
+        labels: ['role-boost', 'vacated-opportunity'],
+        action: 'buy',
+        summary: 'Depth Receiver carries a role boost read because room opened is supported by stored usage, room, or runway context.',
+        trace: [
+          'Depth Receiver carries a role boost read because room opened is supported by stored usage, room, or runway context.',
+          'Room opened: Roster room: target volume opened for the top returning receiver.',
+        ],
+        missingSignals: [],
+        cautionFlags: [],
+        components: [
+          {
+            key: 'same-position-room',
+            label: 'Room opened',
+            score: 86,
+            direction: 'boost',
+            trace: 'Roster room: target volume opened for the top returning receiver.',
+          },
+        ],
+      },
+    },
     waiver1: { playerId: 'waiver1', fullName: 'Waiver Receiver', position: 'WR', team: 'NYJ', age: 24, valueProfile: { dynastyValue: 2800, seasonValue: 3400, dynastyPositionRank: 'WR42', seasonPositionRank: 'WR31', sources: ['KTC'] } },
     drop1: { playerId: 'drop1', fullName: 'Last Bench Spot', position: 'WR', team: 'CAR', age: 29, valueProfile: { dynastyValue: 500, seasonValue: 300, dynastyPositionRank: 'WR96', seasonPositionRank: 'WR104', sources: ['KTC'] } },
   };

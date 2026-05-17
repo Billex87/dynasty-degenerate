@@ -755,6 +755,47 @@ export interface PlayerCohortProfile {
   trace: string[];
 }
 
+export type PlayerSituationDeltaLabel =
+  | 'role-boost'
+  | 'role-threat'
+  | 'crowded-room'
+  | 'vacated-opportunity'
+  | 'scheme-boost'
+  | 'scheme-risk'
+  | 'new-team-uncertainty'
+  | 'fragile-breakout'
+  | 'veteran-runway'
+  | 'opportunity-cliff'
+  | 'draft-capital-patience'
+  | 'late-capital-urgency'
+  | 'source-limited-route-read';
+
+export type PlayerSituationDeltaAction = 'buy' | 'hold' | 'sell' | 'stash' | 'monitor' | 'avoid';
+
+export interface PlayerSituationDeltaComponent {
+  key: 'prior-opportunity' | 'team-volume' | 'same-position-room' | 'investment-runway' | 'efficiency-quality' | 'availability' | 'market-movement';
+  label: string;
+  score: number;
+  direction: 'boost' | 'risk' | 'neutral';
+  trace: string;
+}
+
+export interface PlayerSituationDeltaProfile {
+  playerId: string;
+  name: string;
+  position: string;
+  score: number;
+  confidence: number;
+  primaryLabel: PlayerSituationDeltaLabel;
+  labels: PlayerSituationDeltaLabel[];
+  action: PlayerSituationDeltaAction;
+  summary: string;
+  trace: string[];
+  missingSignals: string[];
+  cautionFlags: string[];
+  components: PlayerSituationDeltaComponent[];
+}
+
 export interface PlayerDetails {
   playerId?: string;
   fullName?: string;
@@ -1194,6 +1235,7 @@ export interface PlayerDetails {
   }>;
   prospectProfile?: ProspectProfile | null;
   playerCohort?: PlayerCohortProfile | null;
+  playerSituationDelta?: PlayerSituationDeltaProfile | null;
   externalIds?: Record<string, string | number | null | undefined>;
 }
 

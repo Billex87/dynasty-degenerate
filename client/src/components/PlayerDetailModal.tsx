@@ -2112,6 +2112,7 @@ function buildPlayerAiRead({
   const scheduleStreamerWeeks = formatScheduleWeekList(details?.schedule?.streamerWeeks);
   const scheduleAvoidWeeks = formatScheduleWeekList(details?.schedule?.avoidWeeks);
   const cohort = details?.playerCohort || null;
+  const situationDelta = details?.playerSituationDelta || null;
   const draftCapital = cohort?.draftCapital || null;
   const situationValueEvidence = buildSituationValueEvidence({
     playerName,
@@ -2148,6 +2149,18 @@ function buildPlayerAiRead({
   if (scheduleAvoidWeeks) chips.push(`Avoid ${scheduleAvoidWeeks}`);
   if (cohort?.outcomeBucket) chips.push(formatCohortOutcomeLabel(cohort.outcomeBucket));
   if (cohort?.calibration) chips.push(formatCohortEvidenceLabel(cohort.calibration.evidenceGrade));
+  if (situationDelta) {
+    chips.push(formatSituationDeltaLabel(situationDelta.primaryLabel));
+    chips.push(`Delta ${situationDelta.score}`);
+    chips.push({
+      label: situationDelta.action.toUpperCase(),
+      tone: situationDelta.action === 'buy' || situationDelta.action === 'stash'
+        ? 'good'
+        : situationDelta.action === 'sell' || situationDelta.action === 'avoid'
+        ? 'warn'
+        : 'info',
+    });
+  }
   if (draftCapital && draftCapital.tier !== 'unknown') {
     chips.push({
       label: draftCapital.label,
@@ -2213,6 +2226,26 @@ function buildPlayerAiRead({
     }
   }
 
+  if (situationDelta) {
+    const deltaRead = buildSituationDeltaReadCopy(playerName, situationDelta);
+    if (deltaRead) {
+      if (deltaRead.severity === 'warn' || deltaRead.severity === 'danger') {
+        readType = deltaRead.readType;
+        severity = deltaRead.severity;
+      } else if (deltaRead.severity === 'good' && severity !== 'warn' && severity !== 'danger') {
+        readType = deltaRead.readType;
+        severity = deltaRead.severity;
+      } else if (body === `${playerName} is best evaluated through roster context, not raw value alone.`) {
+        readType = deltaRead.readType;
+        severity = deltaRead.severity;
+      }
+
+      body = body === `${playerName} is best evaluated through roster context, not raw value alone.`
+        ? deltaRead.copy
+        : `${body} ${deltaRead.copy}`;
+    }
+  }
+
   if (situationValueEvidence) {
     if (situationValueEvidence.severity === 'warn') {
       readType = situationValueEvidence.readType;
@@ -2247,16 +2280,19 @@ function buildPlayerAiRead({
     readType,
     confidence: Math.min(
       cohort?.confidence ?? 100,
+      situationDelta?.confidence ?? 100,
       valueProfile
         ? Math.min(90, valueConfidence.score + 8 + (situationValueEvidence?.confidenceBoost || 0))
         : Math.min(66, valueConfidence.score + 18 + (situationValueEvidence?.confidenceBoost || 0))
     ),
-    confidenceNote: cohort?.calibration?.note
-      ? `${valueConfidence.note} ${cohort.calibration.note}`
-      : valueConfidence.note,
+    confidenceNote: [
+      valueConfidence.note,
+      cohort?.calibration?.note || null,
+      situationDelta ? `Situation delta confidence ${situationDelta.confidence}; ${situationDelta.missingSignals.length ? `missing ${situationDelta.missingSignals.slice(0, 2).join(' and ')}` : 'first-pass inputs present'}.` : null,
+    ].filter(Boolean).join(' '),
     severity,
     chips,
-    body: renderPlayerAiReadBody(body, cohort?.trace || []),
+    body: renderPlayerAiReadBody(body, [...(situationDelta?.trace || []), ...(cohort?.trace || [])]),
     backgroundVariant: severity === 'warn' ? 'market' as const : 'blueprint' as const,
   };
 }
@@ -2282,6 +2318,105 @@ function formatCohortEvidenceLabel(grade: NonNullable<PlayerDetails['playerCohor
     blocked: { label: 'Blocked evidence', tone: 'danger' },
   };
   return labels[grade] || { label: grade, tone: 'neutral' };
+}
+
+function formatSituationDeltaLabel(label: NonNullable<PlayerDetails['playerSituationDelta']>['primaryLabel']): AIReadChip {
+  const labels: Record<typeof label, { label: string; tone: 'neutral' | 'good' | 'info' | 'warn' | 'danger' }> = {
+    'role-boost': { label: 'Role boost', tone: 'good' },
+    'role-threat': { label: 'Role threat', tone: 'warn' },
+    'crowded-room': { label: 'Crowded room', tone: 'warn' },
+    'vacated-opportunity': { label: 'Vacated opp', tone: 'good' },
+    'scheme-boost': { label: 'Scheme boost', tone: 'good' },
+    'scheme-risk': { label: 'Scheme risk', tone: 'warn' },
+    'new-team-uncertainty': { label: 'New team', tone: 'info' },
+    'fragile-breakout': { label: 'Fragile breakout', tone: 'warn' },
+    'veteran-runway': { label: 'Veteran runway', tone: 'info' },
+    'opportunity-cliff': { label: 'Opp cliff', tone: 'danger' },
+    'draft-capital-patience': { label: 'Draft patience', tone: 'good' },
+    'late-capital-urgency': { label: 'Urgency', tone: 'warn' },
+    'source-limited-route-read': { label: 'Source-limited', tone: 'warn' },
+  };
+  return labels[label] || { label, tone: 'neutral' };
+}
+
+function buildSituationDeltaReadCopy(
+  playerName: string,
+  delta: NonNullable<PlayerDetails['playerSituationDelta']>
+): { copy: string; readType: string; severity: 'neutral' | 'good' | 'info' | 'warn' | 'danger' } | null {
+  const summary = delta.summary || `${playerName}'s role context needs a conservative read.`;
+
+  switch (delta.primaryLabel) {
+    case 'role-boost':
+    case 'vacated-opportunity':
+      return {
+        readType: 'Role Boost',
+        severity: 'good',
+        copy: `${summary} This is the kind of situation change that can make a player more valuable before the market fully catches up.`,
+      };
+    case 'scheme-boost':
+      return {
+        readType: 'Scheme Lens',
+        severity: 'good',
+        copy: `${summary} The scheme context is helping the role, so the read should not stop at last year's raw value.`,
+      };
+    case 'draft-capital-patience':
+      return {
+        readType: 'Runway Check',
+        severity: 'info',
+        copy: `${summary} Draft capital should keep the patience window open unless the role evidence keeps deteriorating.`,
+      };
+    case 'role-threat':
+    case 'crowded-room':
+      return {
+        readType: 'Role Threat',
+        severity: 'warn',
+        copy: `${summary} Do not treat the name value as insulated unless the next usage window proves the room did not actually squeeze him.`,
+      };
+    case 'fragile-breakout':
+      return {
+        readType: 'Fragile Breakout',
+        severity: 'warn',
+        copy: `${summary} The market may be paying for a breakout before the underlying role quality has fully earned it.`,
+      };
+    case 'opportunity-cliff':
+      return {
+        readType: 'Opportunity Cliff',
+        severity: 'danger',
+        copy: `${summary} This is a sell-window or avoid-overpay warning unless price already reflects the runway risk.`,
+      };
+    case 'late-capital-urgency':
+      return {
+        readType: 'Runway Check',
+        severity: 'warn',
+        copy: `${summary} Low-capital profiles need faster proof, so stash language should stay conditional on actual usage.`,
+      };
+    case 'scheme-risk':
+      return {
+        readType: 'Scheme Risk',
+        severity: 'warn',
+        copy: `${summary} The offense context is a drag, so confidence should stay capped until volume offsets it.`,
+      };
+    case 'new-team-uncertainty':
+      return {
+        readType: 'New Team Lens',
+        severity: 'info',
+        copy: `${summary} New-team context needs role confirmation before the read gets louder.`,
+      };
+    case 'veteran-runway':
+      return {
+        readType: 'Runway Check',
+        severity: 'info',
+        copy: `${summary} Veteran investment gives some insulation, but usage still needs to match the contract signal.`,
+      };
+    case 'source-limited-route-read':
+      return {
+        readType: 'Source-Limited Read',
+        severity: 'warn',
+        copy: `${summary} Route-level evidence is not exact here, so the read stays cautious and should rely on targets, snaps, room, and value movement.`,
+      };
+    default:
+      return null;
+  }
 }
 
 function buildCohortReadCopy(

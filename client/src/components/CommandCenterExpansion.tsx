@@ -2740,6 +2740,19 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
       : null,
     tradeCalibrationCoverage.lowBaseWatch ? `${tradeCalibrationCoverage.lowBaseWatch} low-base` : null,
   ].filter(Boolean).join(', ');
+  const situationDeltas = Object.values(data.playerDetailsById || {})
+    .map((details) => details.playerSituationDelta)
+    .filter(Boolean);
+  const strongSituationReads = situationDeltas.filter((delta) => (delta?.confidence || 0) >= 70 && delta?.primaryLabel !== 'source-limited-route-read');
+  const situationSignalCopy = [
+    strongSituationReads.length ? `${strongSituationReads.length} strong` : null,
+    situationDeltas.filter((delta) => delta?.primaryLabel === 'role-boost' || delta?.primaryLabel === 'vacated-opportunity').length
+      ? `${situationDeltas.filter((delta) => delta?.primaryLabel === 'role-boost' || delta?.primaryLabel === 'vacated-opportunity').length} role boost`
+      : null,
+    situationDeltas.filter((delta) => delta?.primaryLabel === 'role-threat' || delta?.primaryLabel === 'crowded-room' || delta?.primaryLabel === 'opportunity-cliff').length
+      ? `${situationDeltas.filter((delta) => delta?.primaryLabel === 'role-threat' || delta?.primaryLabel === 'crowded-room' || delta?.primaryLabel === 'opportunity-cliff').length} risk`
+      : null,
+  ].filter(Boolean).join(', ');
 
   return [
     {
@@ -2795,6 +2808,18 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
         ? `${tradeCalibrationCoverage.timelinePlayers}/${tradeCalibrationCoverage.totalPlayers} players have stored value timelines for trade readouts${tradeCalibrationSignalCopy ? `; ${tradeCalibrationSignalCopy}.` : '; no strong riser/faller label fired.'}`
         : 'Trade readouts can still use value and fit, but no stored value timelines were returned for calibration labels.',
       tone: tradeCalibrationCoverage.signalPlayers ? 'good' : tradeCalibrationCoverage.timelinePlayers ? 'info' : 'warn',
+    },
+    {
+      label: 'Situation Delta',
+      status: situationDeltas.length
+        ? strongSituationReads.length
+          ? 'Backed'
+          : 'Partial'
+        : 'Missing',
+      note: situationDeltas.length
+        ? `${situationDeltas.length}/${Object.keys(data.playerDetailsById || {}).length} players have opportunity delta reads${situationSignalCopy ? `; ${situationSignalCopy}.` : '; all reads are source-limited or neutral.'}`
+        : 'Player detail reads can still use value and cohort context, but no situation-delta scorer output was returned.',
+      tone: strongSituationReads.length ? 'good' : situationDeltas.length ? 'info' : 'warn',
     },
     {
       label: 'Research Assistant',

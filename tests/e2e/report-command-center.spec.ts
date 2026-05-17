@@ -823,6 +823,14 @@ test.describe("command center feature surfaces", () => {
     await expect(tradeCalibrationRow.getByText("Backed")).toBeVisible();
     await expect(tradeCalibrationRow).toContainText("1/8 players");
     await expect(tradeCalibrationRow).toContainText("1 riser");
+    const situationDeltaRow = featureRadar
+      .locator(".assistant-feature-coverage-row")
+      .filter({ hasText: "Situation Delta" });
+    await expect(situationDeltaRow).toBeVisible();
+    await expect(situationDeltaRow.getByText("Backed")).toBeVisible();
+    await expect(situationDeltaRow).toContainText("1/8 players");
+    await expect(situationDeltaRow).toContainText("1 strong");
+    await expect(situationDeltaRow).toContainText("1 role boost");
 
     await page.getByRole("tab", { name: "Trade History" }).click();
     await expect(page.getByText("Full Trade Ledger").first()).toBeVisible();
