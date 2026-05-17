@@ -8,18 +8,20 @@ This archive is the frozen raw source history used to regenerate player value ti
 
 - `server/value-history-archive/one-time-source-history.json`
   - Raw source archive from direct KTC player pages, direct Flock player history endpoints, official DynastyProcess GitHub `values-players.csv` commit history, direct FantasyCalc player history endpoints, FantasyPros API ranking snapshots, and local stored Dynasty Nerds/Fantasy Nerds source snapshots.
-  - 2,317 players.
+  - Identity-normalized after source merge so high-confidence suffix/name variants share one player record.
+  - Keeps kicker, defense, IDP, and other ranked assets so league formats that use them can still value them.
+  - 2,296 players.
   - 2,076,916 raw player/date/source/format points.
-  - SHA-256: `f04f5ea107fb61e6c49fa426234a8789cc4cb5015b1d24202c6109ce71e9cba7`
+  - SHA-256: `95dfc725e50d49cb2db5b361245dfbf8e98c1b8b9bf7c4ff930207376f2718de`
 - `server/value-history-archive/player-value-history-audit.json`
   - Audit report for the raw archive.
   - Passed with zero warnings and zero errors.
-  - SHA-256: `63b227f95d82664cb576ee71dfcc8ef7a40e11c6bbec291f90fba7557831b3ab`
+  - SHA-256: `45ea9497ac72752aa4c611228e1fd2ffd3ce62c634912cfe1076f7e053ace1c7`
 - `server/value-history-archive/source-coverage-audit.json`
   - Source coverage report for the raw archive.
   - KeepTradeCut, Flock Fantasy, FantasyCalc, FantasyPros, DynastyProcess, Dynasty Nerds, and Fantasy Nerds are present.
   - Dynasty Nerds/Fantasy Nerds history is partial local stored-source snapshot coverage, not full source-native direct history.
-  - SHA-256: `aa870968b945afd389fa966416d0a1bfab8acfe345a5bb241037698562849bd2`
+  - SHA-256: `d0f10dccb42f9dad41f889779baa75f322ba96baea1755e79b945713933c39a3`
 - `server/value-history-archive/fantasycalc-history.json`
   - Source-specific FantasyCalc archive from direct player history endpoints.
   - 461 players.
@@ -43,13 +45,15 @@ This archive is the frozen raw source history used to regenerate player value ti
   - SHA-256: `6e3dd6aa7eea0a05d980ad984a6c84010099862016666cf33b14ac6e52b22fb2`
 - `server/value-history-archive/player-value-history-reblended.json`
   - Derived timeline using current default weights.
-  - 2,317 players.
-  - 1,274,938 blended player/date/format points.
-  - SHA-256: `3eb317a6caec73b107c92726bec9ed8b2bd69fbdd8cbab3cd7af9c030e86580d`
+  - 2,296 players.
+  - 1,268,594 blended player/date/format points.
+  - SHA-256: `f3b1ebbbe99bb225319e8c9f4d0efa625b213ed1d04464acf84d4b7abbb1d6ba`
 
 ## Policy
 
 Keep `one-time-source-history.json` as the source of truth. Do not edit it by hand.
+
+After merging any imported source archive, run `pnpm normalize:value-history:identities` against the merged output before audit/reblend. The normalizer only performs high-confidence identity cleanup: suffix variants, explicit known aliases, same-position grouping, and unknown-position inference when a single matching known position exists. It keeps kicker, team defense, IDP, and other ranked rows by default. Use `ONLY_CORE_DYNASTY_ASSETS=1` only for a temporary QB/RB/WR/TE/pick-focused audit output, not for the canonical archive.
 
 Every current or future weighted provider should be tracked in `scripts/value-history-source-registry.mjs` before it can affect the blend. Sources should use one of these capture paths:
 
@@ -101,6 +105,8 @@ A local compressed backup bundle was created at:
 - SHA-256: `2e46d29f3d1dc1e78b29be8f3a4e5b0073f534018fc2887efb286809bb56b213`
 - `server/value-history-archive/value-history-archive-2026-05-17-all-weighted-sources.tar.gz`
 - SHA-256: `25e1049080f04ff519bfa9efbc800f032b846dede49215a6f49ae03c087e5875`
+- `server/value-history-archive/value-history-archive-2026-05-17-normalized-all-weighted-sources.tar.gz`
+- SHA-256: `06f88eb5efd359708cad8abc1e5141e490e183e5578a3d0c099e672c3cf7ebbc`
 
 The bundles and `.sha256` manifests are gitignored. Copies are also stored under `/Volumes/Mac HD/BuiltByBill/dynasty-degenerate-value-history-backups/`.
 

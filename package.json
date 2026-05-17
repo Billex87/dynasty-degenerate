@@ -21,6 +21,7 @@
     "backfill:value-history:sources": "node scripts/backfill-historical-value-sources.mjs",
     "audit:value-history": "node scripts/audit-player-value-history.mjs",
     "audit:value-history:sources": "node scripts/audit-value-history-source-coverage.mjs",
+    "normalize:value-history:identities": "node scripts/normalize-value-history-identities.mjs",
     "reblend:value-history": "node scripts/reblend-player-value-history.mjs",
     "format": "prettier --write .",
     "test": "vitest run",

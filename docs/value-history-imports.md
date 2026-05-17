@@ -41,7 +41,7 @@ OUT_FILE=server/value-history-archive/fantasycalc-approved-history.json \
 pnpm import:value-history
 ```
 
-Merge one or more approved import archives with the immutable KTC/Flock base archive:
+Merge one or more approved import archives with the immutable source-history archive:
 
 ```bash
 BASE_ARCHIVE_FILE=server/value-history-archive/one-time-source-history.json \
@@ -50,13 +50,23 @@ OUT_FILE=server/value-history-archive/one-time-source-history-merged.json \
 pnpm merge:value-history
 ```
 
-Audit, then reblend from the merged archive:
+Normalize high-confidence player identity variants before promoting the merged archive:
 
 ```bash
 ARCHIVE_FILE=server/value-history-archive/one-time-source-history-merged.json \
+OUT_FILE=server/value-history-archive/one-time-source-history-normalized.json \
+pnpm normalize:value-history:identities
+```
+
+The identity normalizer keeps kicker, defense, IDP, and other ranked rows by default. Use `ONLY_CORE_DYNASTY_ASSETS=1` only for temporary core-dynasty audits, not for the canonical archive.
+
+Audit, then reblend from the normalized archive:
+
+```bash
+ARCHIVE_FILE=server/value-history-archive/one-time-source-history-normalized.json \
 pnpm audit:value-history
 
-ARCHIVE_FILE=server/value-history-archive/one-time-source-history-merged.json \
+ARCHIVE_FILE=server/value-history-archive/one-time-source-history-normalized.json \
 OUT_FILE=server/value-history-archive/player-value-history-reblended.json \
 BLEND_NAME=current-default-weights \
 pnpm reblend:value-history
@@ -86,8 +96,9 @@ For every remaining weighted source:
 1. Confirm the exact source path and terms before importing rows.
 2. Capture raw source-native values with source URL, capture method, format, date, and provider identifiers.
 3. Preserve source-specific archives as gitignored raw files.
-4. Merge into a derived combined archive only after audit passes.
-5. Reblend from the combined raw archive so future weight changes stay reproducible.
+4. Merge into a derived combined archive only after source-specific audit passes.
+5. Normalize identities so suffix/name variants collapse without loose similar-name guessing.
+6. Reblend from the combined raw archive so future weight changes stay reproducible.
 
 Archived direct/source-history targets:
 
