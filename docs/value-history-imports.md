@@ -63,3 +63,39 @@ pnpm reblend:value-history
 ```
 
 Keep every imported source archive and merged archive gitignored. The committed artifacts are the scripts, templates, checksums, and docs.
+
+## Local Snapshot Baseline
+
+Before looking for external historical exports, capture the provider values we already stored in our own local blended snapshots:
+
+```bash
+VALUE_PROFILE_KEYS=12_sf_ppr_base,12_sf_ppr_tep_0_5,12_sf_ppr_tep_1_0,12_sf_ppr_tep_1_5,12_one_qb_ppr_base,12_one_qb_ppr_tep_0_5,12_one_qb_ppr_tep_1_0,12_one_qb_ppr_tep_1_5 \
+SOURCES=fantasyCalc,fantasyPros,dynastyProcess,dynastyNerds,fantasyNerds \
+OUT_FILE=server/value-history-archive/local-weighted-source-history.json \
+pnpm export:value-history:sources
+```
+
+This produces source-specific raw points from the stored snapshot columns only. It does not call provider sites.
+
+Treat this as a baseline, not as a complete provider backfill. It preserves the provider-specific columns already captured by Dynasty Degen snapshots, but the higher-confidence path is still to backfill each weighted provider one at a time from a direct historical page, official export, licensed API, or official versioned data repository.
+
+## Provider-by-Provider Backfill Standard
+
+For every remaining weighted source:
+
+1. Confirm the exact source path and terms before importing rows.
+2. Capture raw source-native values with source URL, capture method, format, date, and provider identifiers.
+3. Preserve source-specific archives as gitignored raw files.
+4. Merge into a derived combined archive only after audit passes.
+5. Reblend from the combined raw archive so future weight changes stay reproducible.
+
+Current best next target:
+
+- DynastyProcess: official GitHub `files/values-players.csv` history can be replayed from commits and mapped to source-native 1QB/Superflex values. It does not expose TEP-specific values, so do not fabricate TEP rows.
+
+Blocked until approved direct history/export path:
+
+- FantasyCalc
+- FantasyPros
+- Dynasty Nerds
+- Fantasy Nerds

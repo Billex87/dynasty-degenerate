@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const rootDir = process.cwd();
 const outputPath = process.env.OUT_FILE
@@ -30,21 +31,28 @@ const FLOCK_FORMATS = String(process.env.FLOCK_FORMATS || 'SUPERFLEX,ONEQB,PROSP
   .split(',')
   .map((format) => format.trim())
   .filter(Boolean);
+const DYNASTYPROCESS_REPO_URL = process.env.DYNASTYPROCESS_REPO_URL || 'https://github.com/dynastyprocess/data.git';
+const DYNASTYPROCESS_REPO_DIR = process.env.DYNASTYPROCESS_REPO_DIR
+  ? path.resolve(rootDir, process.env.DYNASTYPROCESS_REPO_DIR)
+  : path.join(rootDir, '.cache', 'value-history', 'dynastyprocess-data');
+const maxDynastyProcessCommits = Math.max(0, Number(process.env.MAX_DYNASTYPROCESS_COMMITS || 0));
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log([
     'Backfill one-time historical player values from direct source player pages/API payloads.',
     '',
     'Environment:',
-    '  SOURCES=ktc,flock',
+    '  SOURCES=ktc,flock,dynastyprocess',
     '  FROM_DATE=2022-05-17',
     '  TO_DATE=2026-05-17',
     '  YEARS_BACK=4',
     '  MAX_PLAYERS=0          # 0 means no cap',
     '  MAX_FLOCK_PLAYERS=0    # defaults to MAX_PLAYERS when set',
+    '  MAX_DYNASTYPROCESS_COMMITS=0',
     '  START_AFTER=bijan-robinson-1414',
     '  INCLUDE_CURRENT=1',
     '  FLOCK_FORMATS=SUPERFLEX,ONEQB,PROSPECTS_SF,PROSPECTS',
+    '  DYNASTYPROCESS_REPO_DIR=.cache/value-history/dynastyprocess-data',
     '  DELAY_MS=900',
     '  RETRY_ATTEMPTS=5',
     '  RETRY_BASE_MS=1200',
@@ -90,10 +98,55 @@ function parseKtcDate(value) {
   return `${fullYear}-${raw.slice(2, 4)}-${raw.slice(4, 6)}`;
 }
 
+function parseCsv(text) {
+  const rows = [];
+  let current = '';
+  let row = [];
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (char === '"' && next === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      row.push(current);
+      current = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') index += 1;
+      row.push(current);
+      if (row.some((cell) => cell.trim())) rows.push(row);
+      row = [];
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  row.push(current);
+  if (row.some((cell) => cell.trim())) rows.push(row);
+  if (rows.length < 2) return [];
+
+  const headers = rows[0].map((header) => header.replace(/^\uFEFF/, '').replace(/^"|"$/g, '').trim());
+  return rows.slice(1).map((cells) => Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? ''])));
+}
+
 function inDateWindow(date) {
   if (!date) return false;
   const parsed = new Date(`${date}T00:00:00.000Z`);
   return parsed >= fromDate && parsed <= now;
+}
+
+function runGit(args, options = {}) {
+  return execFileSync('git', args, {
+    cwd: options.cwd || rootDir,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', options.quiet ? 'ignore' : 'pipe'],
+    maxBuffer: 1024 * 1024 * 128,
+  });
 }
 
 async function fetchText(url, label) {
@@ -129,6 +182,138 @@ async function fetchText(url, label) {
 async function fetchJson(url, label) {
   const text = await fetchText(url, label);
   return JSON.parse(text);
+}
+
+function ensureDynastyProcessRepo() {
+  if (fs.existsSync(path.join(DYNASTYPROCESS_REPO_DIR, '.git'))) {
+    runGit(['fetch', '--quiet', 'origin', 'master'], { cwd: DYNASTYPROCESS_REPO_DIR, quiet: true });
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(DYNASTYPROCESS_REPO_DIR), { recursive: true });
+  runGit(['clone', '--quiet', '--filter=blob:none', '--no-checkout', DYNASTYPROCESS_REPO_URL, DYNASTYPROCESS_REPO_DIR], { quiet: true });
+}
+
+function getDynastyProcessCommits() {
+  const output = runGit([
+    'log',
+    '--reverse',
+    `--since=${dateKey(fromDate)}T00:00:00Z`,
+    `--until=${dateKey(now)}T23:59:59Z`,
+    '--format=%H%x09%cI',
+    '--',
+    'files/values-players.csv',
+  ], { cwd: DYNASTYPROCESS_REPO_DIR });
+
+  const commits = output
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, committedAt] = line.split('\t');
+      return { hash, committedAt };
+    });
+
+  return maxDynastyProcessCommits ? commits.slice(0, maxDynastyProcessCommits) : commits;
+}
+
+function cleanDateValue(value, fallbackDate) {
+  const raw = String(value || '').trim();
+  const direct = raw.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (direct) return direct;
+  return fallbackDate;
+}
+
+function mapDynastyProcessPoint(row, commit, profile) {
+  const name = String(row.player || row.mergename || '').trim();
+  const position = String(row.pos || '').trim() || null;
+  const value = toNumber(row[profile.valueColumn]);
+  const date = cleanDateValue(row.scrape_date, String(commit.committedAt || '').slice(0, 10));
+  if (!name || !value || !date || !inDateWindow(date)) return null;
+
+  const overallRank = toNumber(row[profile.rankColumn]);
+  const positionRank = toNumber(row.ecr_pos);
+  return {
+    key: cleanName(name),
+    name,
+    position,
+    sourceIds: { fantasyProsId: row.fp_id || null },
+    point: {
+      date,
+      value,
+      rank: getKtcRank(position, positionRank),
+      overallRank,
+      sources: ['DynastyProcess'],
+      importedSource: 'dynastyprocess-github-values-players',
+      format: profile.format,
+      market: {},
+      expert: { dynastyProcess: value },
+      sourceMeta: {
+        historyMethod: 'official-github-values-players-commit-history',
+        sourceUrl: 'https://github.com/dynastyprocess/data/blob/master/files/values-players.csv',
+        sourceLicense: 'GPL-3.0',
+        commit: commit.hash,
+        committedAt: commit.committedAt,
+        scrapeDate: row.scrape_date || null,
+        ecrOverall: overallRank,
+        ecrPosition: positionRank,
+        note: 'DynastyProcess does not publish TEP-specific values in values-players.csv; archived points keep the source-native 1QB and Superflex formats only.',
+      },
+    },
+  };
+}
+
+async function backfillDynastyProcess(players, manifest) {
+  manifest.dynastyprocess = {
+    mode: 'official-github-values-players-commit-history',
+    repoUrl: DYNASTYPROCESS_REPO_URL,
+    repoDir: path.relative(rootDir, DYNASTYPROCESS_REPO_DIR),
+    filePath: 'files/values-players.csv',
+    sourceUrl: 'https://github.com/dynastyprocess/data',
+    sourceLicense: 'GPL-3.0',
+    formats: ['one_qb_ppr', 'sf_ppr'],
+    errors: [],
+  };
+
+  ensureDynastyProcessRepo();
+  const commits = getDynastyProcessCommits();
+  manifest.dynastyprocess.commitCount = commits.length;
+  manifest.dynastyprocess.sampledOnly = Boolean(maxDynastyProcessCommits);
+
+  if (dryRun) return;
+
+  const profiles = [
+    { format: 'one_qb_ppr', valueColumn: 'value_1qb', rankColumn: 'ecr_1qb' },
+    { format: 'sf_ppr', valueColumn: 'value_2qb', rankColumn: 'ecr_2qb' },
+  ];
+
+  for (let index = 0; index < commits.length; index += 1) {
+    const commit = commits[index];
+    try {
+      const csv = runGit(['show', `${commit.hash}:files/values-players.csv`], { cwd: DYNASTYPROCESS_REPO_DIR });
+      const rows = parseCsv(csv);
+      const headers = rows[0] ? Object.keys(rows[0]) : [];
+      if (!headers.includes('player') || !headers.includes('value_1qb') || !headers.includes('value_2qb')) {
+        manifest.dynastyprocess.errors.push({ commit: commit.hash, committedAt: commit.committedAt, error: 'missing expected player/value_1qb/value_2qb columns' });
+        continue;
+      }
+
+      let pointCount = 0;
+      for (const row of rows) {
+        for (const profile of profiles) {
+          const mapped = mapDynastyProcessPoint(row, commit, profile);
+          if (!mapped) continue;
+          mergePoint(players, mapped);
+          pointCount += 1;
+        }
+      }
+
+      manifest.dynastyprocess.lastProcessed = { index: index + 1, commit: commit.hash, committedAt: commit.committedAt, pointCount };
+      if ((index + 1) % 25 === 0) console.log(`DynastyProcess git history: ${index + 1}/${commits.length}`);
+    } catch (error) {
+      manifest.dynastyprocess.errors.push({ commit: commit.hash, committedAt: commit.committedAt, error: String(error.message || error) });
+    }
+  }
 }
 
 function extractJsVar(html, varName) {
@@ -688,6 +873,7 @@ async function main() {
 
   if (sources.has('ktc')) await backfillKtc(players, manifest);
   if (sources.has('flock')) await backfillFlock(players, manifest);
+  if (sources.has('dynastyprocess')) await backfillDynastyProcess(players, manifest);
 
   const archivePlayers = Array.from(players.values()).map((player) => ({
     ...player,

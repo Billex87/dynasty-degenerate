@@ -54,10 +54,10 @@ export const VALUE_HISTORY_SOURCES = [
     label: 'DynastyProcess',
     archiveSourceNames: ['DynastyProcess'],
     currentWeight: DEFAULT_VALUE_HISTORY_WEIGHTS.dynastyProcess,
-    status: 'import-ready',
-    captureMode: 'approved-csv-snapshot-history',
+    status: 'archived',
+    captureMode: 'official-github-values-players-commit-history',
     formats: ['superflex', 'one_qb'],
-    note: 'Public CSV is already normalized for current blends. Historical rows should be imported as frozen CSV snapshots when approved.',
+    note: 'Backfilled from the official DynastyProcess data repo values-players.csv commit history. Source does not publish TEP-specific values.',
   },
   {
     key: 'dynastyNerds',

@@ -76,11 +76,16 @@ async function main() {
 
   if (!archive.schemaVersion) errors.push('Archive is missing schemaVersion.');
   if (manifest.dryRun) errors.push('Archive was generated in dry-run mode.');
-  if (manifest.ktc?.sampledOnly || Object.values(manifest.flock?.formats || {}).some((format) => format?.sampledOnly)) {
+  if (
+    manifest.ktc?.sampledOnly ||
+    manifest.dynastyprocess?.sampledOnly ||
+    Object.values(manifest.flock?.formats || {}).some((format) => format?.sampledOnly)
+  ) {
     warnings.push('Archive appears to be a sampled run, not a full backfill.');
   }
   if (manifest.ktc?.errors?.length) warnings.push(`KTC reported ${manifest.ktc.errors.length} collection errors.`);
   if (manifest.flock?.errors?.length) warnings.push(`Flock reported ${manifest.flock.errors.length} collection errors.`);
+  if (manifest.dynastyprocess?.errors?.length) warnings.push(`DynastyProcess reported ${manifest.dynastyprocess.errors.length} collection errors.`);
 
   for await (const player of streamArchivePlayers(archivePath)) {
     playerCount += 1;
@@ -142,6 +147,7 @@ async function main() {
     manifestErrors: {
       ktc: manifest.ktc?.errors || [],
       flock: manifest.flock?.errors || [],
+      dynastyprocess: manifest.dynastyprocess?.errors || [],
     },
     warnings,
     errors,
