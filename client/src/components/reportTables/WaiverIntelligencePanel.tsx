@@ -296,14 +296,38 @@ function getActionPlanKindLabel(kind: StoredActionPlan["kind"]): string {
   return "Waiver";
 }
 
-function getWaiverPlanOutcomeStatus(
+type WaiverPlanOutcomeRead = {
+  status: Extract<StoredActionPlanStatus, "won" | "lost">;
+  evidenceSummary: string;
+  aftermathSummary: string | null;
+  aftermathSignature: string;
+  valueDelta: number | null;
+};
+
+function getRecentTransactionPlayerValue(
+  player?: RecentTransactionPlayer | null
+): number | null {
+  if (!player) return null;
+  const value =
+    player.ktcValue ??
+    player.playerDetails?.valueProfile?.dynastyValue ??
+    player.playerDetails?.valueProfile?.seasonValue ??
+    player.playerDetails?.valueProfile?.balancedValue ??
+    null;
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.round(value)
+    : null;
+}
+
+export function getWaiverPlanOutcomeRead(
   plan: StoredActionPlan,
   recentTransactions?: ReportData["recentTransactions"]
-): StoredActionPlanStatus | null {
+): WaiverPlanOutcomeRead | null {
   if (
     plan.kind !== "waiver" ||
     !plan.playerId ||
-    ["won", "lost"].includes(plan.status)
+    (["won", "lost"].includes(plan.status) &&
+      plan.payload?.outcomeAftermathSignature)
   )
     return null;
   const matchingAdd =
@@ -313,10 +337,89 @@ function getWaiverPlanOutcomeStatus(
       )
       .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0] || null;
   if (!matchingAdd) return null;
-  return normalizeManagerKey(matchingAdd.manager) ===
-    normalizeManagerKey(plan.manager)
-    ? "won"
-    : "lost";
+  const status =
+    normalizeManagerKey(matchingAdd.manager) === normalizeManagerKey(plan.manager)
+      ? "won"
+      : "lost";
+  const addedValue = getRecentTransactionPlayerValue(matchingAdd.addedPlayer);
+  const droppedValue = getRecentTransactionPlayerValue(
+    matchingAdd.droppedPlayer ||
+      (plan.payload?.dropCandidate as RecentTransactionPlayer | null)
+  );
+  const valueDelta =
+    addedValue !== null && droppedValue !== null
+      ? Math.round(addedValue - droppedValue)
+      : null;
+  const matchingAddDate = Date.parse(matchingAdd.date);
+  const laterDrop = (recentTransactions || []).find(transaction => {
+    const transactionDate = Date.parse(transaction.date);
+    return (
+      status === "won" &&
+      normalizeManagerKey(transaction.manager) === normalizeManagerKey(plan.manager) &&
+      transaction.droppedPlayer?.player_id === plan.playerId &&
+      Number.isFinite(transactionDate) &&
+      (!Number.isFinite(matchingAddDate) || transactionDate > matchingAddDate)
+    );
+  });
+  const aftermathSummary =
+    status === "lost"
+      ? `Lost to ${matchingAdd.manager}; use the competition read to decide whether the bid range was too light.`
+      : laterDrop
+        ? `${matchingAdd.addedPlayer?.name || "The add"} was later dropped on ${laterDrop.date}, so this claim looks like short-term churn.`
+        : valueDelta !== null
+          ? `Won claim with ${valueDelta >= 0 ? "+" : ""}${formatCompactValue(valueDelta)} value delta versus the recorded drop.`
+          : "Won claim; returned transactions did not include enough added/drop value for aftermath scoring.";
+  return {
+    status,
+    evidenceSummary: `${matchingAdd.type} add found on ${matchingAdd.date} for ${matchingAdd.addedPlayer?.name || "the saved player"}.`,
+    aftermathSummary,
+    aftermathSignature: [
+      status,
+      matchingAdd.id,
+      matchingAdd.droppedPlayer?.player_id || "no-drop",
+      laterDrop?.id || "held",
+      valueDelta ?? "no-delta",
+    ].join(":"),
+    valueDelta,
+  };
+}
+
+function getWaiverPlanOutcomeStatus(
+  plan: StoredActionPlan,
+  recentTransactions?: ReportData["recentTransactions"]
+): StoredActionPlanStatus | null {
+  return getWaiverPlanOutcomeRead(plan, recentTransactions)?.status || null;
+}
+
+export function buildWaiverOutcomeLearning(plans: StoredActionPlan[]) {
+  const waiverPlans = plans.filter(plan => plan.kind === "waiver");
+  if (!waiverPlans.length) return null;
+  const won = waiverPlans.filter(plan => plan.status === "won").length;
+  const lost = waiverPlans.filter(plan => plan.status === "lost").length;
+  const open = waiverPlans.length - won - lost;
+  const resolved = won + lost;
+  const winRate = resolved ? Math.round((won / resolved) * 100) : null;
+  const aftermathPlans = waiverPlans.filter(plan => plan.payload?.outcomeAftermathSummary);
+  const positiveAftermath = aftermathPlans.filter(plan => {
+    const delta = Number(plan.payload?.outcomeValueDelta);
+    return Number.isFinite(delta) && delta > 0;
+  }).length;
+  const churned = aftermathPlans.filter(plan =>
+    /later dropped|short-term churn/i.test(String(plan.payload?.outcomeAftermathSummary || ""))
+  ).length;
+  const read =
+    winRate === null
+      ? "Saved claims are waiting for returned transaction outcomes."
+      : churned > 0
+        ? "Some won claims churned back off the roster; tighten drop discipline before chasing similar adds."
+      : aftermathPlans.length && positiveAftermath >= aftermathPlans.length
+        ? "Resolved waiver claims are producing positive add/drop value deltas."
+      : winRate >= 65
+        ? "Recent saved waiver plans are clearing at a strong rate."
+        : lost >= won
+          ? "Recent saved waiver plans are losing too often; raise bid ranges or pivot to quieter players."
+          : "Waiver outcomes are mixed; use competition reads before submitting aggressive bids.";
+  return { won, lost, open, winRate, read, aftermathCount: aftermathPlans.length, positiveAftermath, churned };
 }
 
 function ActionPlanHistoryPanel({
@@ -376,7 +479,10 @@ type WaiverRecommendation = {
   bidEvidenceLabel: string;
   competitionRead: WaiverCompetitionRead | null;
   dropCandidate: ManagerIntelPlayer | null;
+  dropAlternatives: ManagerIntelPlayer[];
   dropReason: string | null;
+  dropValueDelta: number | null;
+  dropConfidencePct: number;
   claimPriority: "Add" | "Add/Drop" | "Watchlist";
 };
 
@@ -456,6 +562,14 @@ function createWaiverActionPlan({
             position: recommendation.dropCandidate.pos,
           }
         : null,
+      dropAlternatives: recommendation.dropAlternatives.map(player => ({
+        playerId: player.player_id,
+        name: player.name,
+        position: player.pos,
+      })),
+      dropValueDelta: recommendation.dropValueDelta,
+      dropConfidencePct: recommendation.dropConfidencePct,
+      dropReason: recommendation.dropReason,
       reason: recommendation.reason,
     },
   };
@@ -1317,55 +1431,113 @@ function getWaiverDropRead({
   player,
   viewerIntel,
   openRosterSpots,
+  addValue,
+  leagueValueMode,
 }: {
   player: TrendingPlayer;
   viewerIntel?: OwnerIntelRow | null;
   openRosterSpots: number;
+  addValue: number;
+  leagueValueMode: "dynasty" | "redraft";
 }): Pick<
   WaiverRecommendation,
-  "dropCandidate" | "dropReason" | "claimPriority"
+  | "dropCandidate"
+  | "dropAlternatives"
+  | "dropReason"
+  | "dropValueDelta"
+  | "dropConfidencePct"
+  | "claimPriority"
 > {
   if (openRosterSpots > 0) {
     return {
       dropCandidate: null,
+      dropAlternatives: [],
       dropReason:
         "Active roster space is available, so no forced drop is needed.",
+      dropValueDelta: null,
+      dropConfidencePct: 88,
       claimPriority: "Add",
     };
   }
 
+  const getDropValue = (candidate: ManagerIntelPlayer) =>
+    Math.round(
+      leagueValueMode === "redraft"
+        ? candidate.seasonValue || candidate.value || 0
+        : candidate.value || candidate.seasonValue || 0
+    );
   const candidates = [...(viewerIntel?.droppablePlayers || [])]
     .filter(candidate => candidate.player_id !== player.player_id)
     .filter(candidate => candidate.playerDetails?.rosterStatus !== "Taxi")
+    .map(candidate => {
+      const samePositionBonus = candidate.pos === player.pos ? 120 : 0;
+      const value = getDropValue(candidate);
+      const rank =
+        parsePositionRankValue(
+          candidate.seasonPositionRank || candidate.currentPositionRank
+        ) || 999;
+      const upgrade = Math.round(addValue - value);
+      const score =
+        samePositionBonus +
+        Math.max(0, upgrade / 9) +
+        Math.max(0, rank - 55) * 1.4 -
+        value / 110;
+      return { candidate, value, rank, upgrade, score };
+    })
     .sort((a, b) => {
-      const samePositionA = a.pos === player.pos ? -120 : 0;
-      const samePositionB = b.pos === player.pos ? -120 : 0;
       const aRank =
-        parsePositionRankValue(a.seasonPositionRank || a.currentPositionRank) ||
-        999;
+        parsePositionRankValue(
+          a.candidate.seasonPositionRank || a.candidate.currentPositionRank
+        ) || 999;
       const bRank =
-        parsePositionRankValue(b.seasonPositionRank || b.currentPositionRank) ||
-        999;
+        parsePositionRankValue(
+          b.candidate.seasonPositionRank || b.candidate.currentPositionRank
+        ) || 999;
       return (
-        samePositionA - samePositionB ||
-        (a.seasonValue || a.value || 0) - (b.seasonValue || b.value || 0) ||
+        b.score - a.score ||
+        a.value - b.value ||
         bRank - aRank
       );
     });
-  const dropCandidate = candidates[0] || null;
+  const best = candidates[0] || null;
+  const dropCandidate = best?.candidate || null;
 
   if (!dropCandidate) {
     return {
       dropCandidate: null,
+      dropAlternatives: [],
       dropReason:
         "No clean drop candidate is returned, so keep this as a watchlist claim unless you manually create room.",
+      dropValueDelta: null,
+      dropConfidencePct: 42,
       claimPriority: "Watchlist",
     };
   }
 
+  const dropAlternatives = candidates
+    .slice(1, 3)
+    .map(candidate => candidate.candidate);
+  const samePositionCopy =
+    dropCandidate.pos === player.pos
+      ? ` and clears the same ${player.pos} roster lane`
+      : "";
+  const upgradeCopy =
+    best.upgrade > 0
+      ? ` The model sees about ${formatCompactValue(best.upgrade)} more ${leagueValueMode === "redraft" ? "season" : "dynasty"} value coming in than going out.`
+      : best.upgrade < -150
+        ? ` This is not a clean value-upgrade cut, so only use it if the roster role matters more than stored value.`
+        : " The value exchange is close, so roster construction is the deciding factor.";
   return {
     dropCandidate,
-    dropReason: `${dropCandidate.name} is the lowest-friction cut from the returned droppable list${dropCandidate.pos === player.pos ? ` and clears the same ${player.pos} roster lane` : ""}.`,
+    dropAlternatives,
+    dropReason: `${dropCandidate.name} is the lowest-friction cut from the returned droppable list${samePositionCopy}.${upgradeCopy}`,
+    dropValueDelta: best.upgrade,
+    dropConfidencePct: clampPercentValue(
+      54 +
+        (dropCandidate.pos === player.pos ? 10 : 0) +
+        Math.min(18, Math.max(-6, best.upgrade / 180)) +
+        Math.min(10, dropAlternatives.length * 3)
+    ),
     claimPriority: "Add/Drop",
   };
 }
@@ -1532,6 +1704,10 @@ function buildWaiverRecommendationContext({
         player,
         viewerIntel,
         openRosterSpots,
+        addValue: Math.round(
+          isDynastyLeague ? dynastyValue || seasonValue : seasonValue || dynastyValue
+        ),
+        leagueValueMode,
       });
 
       return {
@@ -1667,21 +1843,31 @@ export default function WaiverIntelligencePanel({
       .filter(plan => plan.kind === "waiver")
       .filter(plan => !leagueId || !plan.leagueId || plan.leagueId === leagueId)
       .forEach(plan => {
-        const outcomeStatus = getWaiverPlanOutcomeStatus(
+        const outcomeRead = getWaiverPlanOutcomeRead(
           plan,
           recentTransactions
         );
-        if (!outcomeStatus || outcomeStatus === plan.status) return;
+        if (
+          !outcomeRead ||
+          (outcomeRead.status === plan.status &&
+            plan.payload?.outcomeAftermathSignature ===
+              outcomeRead.aftermathSignature)
+        )
+          return;
         persistStoredActionPlan({
           ...plan,
-          status: outcomeStatus,
+          status: outcomeRead.status,
           summary:
-            outcomeStatus === "won"
-              ? `${plan.summary} Outcome: your roster added this player.`
-              : `${plan.summary} Outcome: another manager added this player first.`,
+            outcomeRead.status === "won"
+              ? `${plan.summary} Outcome: your roster added this player. ${outcomeRead.aftermathSummary || ""}`.trim()
+              : `${plan.summary} Outcome: another manager added this player first. ${outcomeRead.aftermathSummary || ""}`.trim(),
           payload: {
             ...plan.payload,
-            outcomeStatus,
+            outcomeStatus: outcomeRead.status,
+            outcomeEvidenceSummary: outcomeRead.evidenceSummary,
+            outcomeAftermathSummary: outcomeRead.aftermathSummary,
+            outcomeAftermathSignature: outcomeRead.aftermathSignature,
+            outcomeValueDelta: outcomeRead.valueDelta,
             outcomeCheckedAt: Date.now(),
           },
         });
@@ -1752,6 +1938,7 @@ export default function WaiverIntelligencePanel({
         normalizeManagerKey(plan.manager) === normalizeManagerKey(viewerManager)
     )
     .slice(0, 5);
+  const waiverOutcomeLearning = buildWaiverOutcomeLearning(waiverActionPlans);
 
   return (
     <div className="waiver-intel-panel">
@@ -1766,6 +1953,24 @@ export default function WaiverIntelligencePanel({
         isServerPersistenceEnabled={isServerPersistenceEnabled}
         title="Waiver Plan History"
       />
+      {waiverOutcomeLearning && (
+        <div className="waiver-outcome-learning">
+          <span>Outcome learning</span>
+          <strong>
+            {waiverOutcomeLearning.winRate === null
+              ? "Learning"
+              : `${waiverOutcomeLearning.winRate}% won`}
+          </strong>
+          <p>{waiverOutcomeLearning.read}</p>
+          <small>
+            {waiverOutcomeLearning.won} won / {waiverOutcomeLearning.lost} lost /{" "}
+            {waiverOutcomeLearning.open} pending
+            {waiverOutcomeLearning.aftermathCount
+              ? ` / ${waiverOutcomeLearning.aftermathCount} aftermath read`
+              : ""}
+          </small>
+        </div>
+      )}
       <div
         className="player-tile-grid waiver-intel-grid balanced-tile-grid"
         style={getBalancedGridStyle(cards.length)}
@@ -1929,6 +2134,14 @@ export default function WaiverIntelligencePanel({
                     {recommendation.competitionRead?.reason ||
                       "No strong competing manager signal returned."}
                   </p>
+                  <p className="waiver-intel-drop-read">
+                    {recommendation.dropReason}
+                    {recommendation.dropAlternatives.length
+                      ? ` Backup cuts: ${recommendation.dropAlternatives
+                          .map(player => player.name)
+                          .join(", ")}.`
+                      : ""}
+                  </p>
                   <button
                     type="button"
                     className="waiver-intel-submit-plan"
@@ -1952,7 +2165,10 @@ export default function WaiverIntelligencePanel({
                     }}
                   >
                     {submittedPlan ? "Plan saved" : "Save plan"}
-                    <span>{recommendation.bidConfidencePct}%</span>
+                    <span>
+                      {recommendation.bidConfidencePct}% bid /{" "}
+                      {recommendation.dropConfidencePct}% drop
+                    </span>
                   </button>
                 </div>
               )}

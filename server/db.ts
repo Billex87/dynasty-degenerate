@@ -1321,7 +1321,7 @@ export async function listMonthlyRosterBlueprintSnapshots(input: {
 function normalizeActionPlanRow(row: any): ActionPlanRecord | null {
   try {
     const kind = row.kind === "waiver" || row.kind === "trade" ? row.kind : "lineup";
-    const status = ["submitted", "copied", "opened", "tracked", "won", "lost", "acted", "blocked"].includes(row.status)
+    const status = ["submitted", "copied", "opened", "tracked", "won", "lost", "acted", "blocked", "stale"].includes(row.status)
       ? row.status
       : "saved";
     return {

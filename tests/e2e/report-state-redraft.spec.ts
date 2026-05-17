@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createCachedRedraftReport, REPORT_CACHE_KEY } from './fixtures/cachedReports';
+import { createCachedRedraftNoDraftReport, createCachedRedraftReport, REPORT_CACHE_KEY } from './fixtures/cachedReports';
 
 async function loadCachedReport(page: import('@playwright/test').Page, leagueId: string, hash: string) {
   const cachedReport = createCachedRedraftReport(leagueId);
@@ -143,6 +143,28 @@ test.describe('shareable report control state', () => {
     await expect(page.getByRole('button', { name: /#1 Sample Starter/ })).toHaveCount(0);
     await openDraftYear(page, '2026 Main Draft');
     await expect(page.getByRole('button', { name: /#1 Sample Starter/ })).toBeVisible();
+  });
+
+  test('hides draft history for redraft leagues with no draft data yet', async ({ page }) => {
+    const cachedReport = createCachedRedraftNoDraftReport();
+    await loadCachedReportPayload(page, cachedReport, '#draft');
+
+    await expect(page).toHaveURL(new RegExp(`leagueId=${cachedReport.leagueId}$`));
+    await expect(page.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: 'Draft History' })).toHaveCount(0);
+    await expect(page.getByText('No draft data available')).toHaveCount(0);
+
+    await page.getByRole('tab', { name: 'Rankings' }).click();
+    await openFullRosterRankings(page);
+    await expect(page.getByRole('button', { name: /#1 .*Sample Starter/ })).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Weekly Momentum' }).click();
+    await expect(page.getByRole('tab', { name: 'Weekly Momentum' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByText('Top 10 Weekly Risers')).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Trade History' }).click();
+    await expect(page.getByText('Trade Value Leaderboard')).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Draft History' })).toHaveCount(0);
   });
 
   test('shows early rookie market labels without exposing comparison dates', async ({ page }) => {

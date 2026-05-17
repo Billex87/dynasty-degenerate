@@ -135,14 +135,18 @@
 
 .autopilot-hero h2 {
   margin: 0.45rem 0 0;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--autopilot-orange);
   font-family: var(--font-athletic);
-  font-size: clamp(2rem, 5vw, 4.6rem);
+  font-size: clamp(1.5rem, 6vw, 4.2rem);
   font-weight: 1000;
   letter-spacing: 0;
   line-height: 0.88;
+  overflow-wrap: break-word;
   text-transform: uppercase;
   text-wrap: balance;
+  word-break: break-word;
 }
 
 .autopilot-hero p {
@@ -199,9 +203,15 @@
 
 .autopilot-status-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: clamp(0.55rem, 1.2vw, 0.85rem);
   margin-bottom: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+@media (min-width: 1180px) {
+  .autopilot-status-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 .autopilot-score-tile {
@@ -777,11 +787,14 @@
   margin-top: 0.24rem;
   overflow: hidden;
   color: #fff;
-  font-size: 0.88rem;
+  font-size: clamp(0.74rem, 1vw, 0.88rem);
   font-weight: 1000;
   line-height: 1.05;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  hyphens: none;
+  overflow-wrap: normal;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 .autopilot-start-option p {
@@ -1404,7 +1417,7 @@
   }
 
   .autopilot-hero h2 {
-    font-size: clamp(1.72rem, 10.5vw, 2.85rem);
+    font-size: clamp(1.5rem, 6vw, 2.85rem);
   }
 
   .autopilot-system-badge,
@@ -1495,7 +1508,11 @@
 
 @media (max-width: 390px) {
   .report-shell .report-tabs.report-tabs-six .report-tab {
-    font-size: 0;
+    flex-direction: column;
+    min-height: 2.58rem;
+    gap: 0.1rem;
+    font-size: 0.52rem;
+    line-height: 1;
   }
 
   .report-shell .report-tabs.report-tabs-six .report-tab svg {
@@ -1503,8 +1520,18 @@
     height: 0.92rem;
   }
 
-  .report-shell .report-tabs.report-tabs-six .report-tab span {
+  .report-shell .report-tabs.report-tabs-six .report-tab .report-tab-label-full {
     display: none;
+  }
+
+  .report-shell .report-tabs.report-tabs-six .report-tab .report-tab-label-short {
+    display: inline;
+    max-width: 100%;
+    overflow: hidden;
+    color: inherit;
+    font-size: 0.5rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .autopilot-direction-scores {

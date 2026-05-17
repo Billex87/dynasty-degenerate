@@ -35,6 +35,27 @@ interface DraftAnalysisProps {
 type ManagerDraftModalMode = 'portfolio' | 'audit';
 type SortColumn = 'pick' | 'currentValue' | 'valueChange' | null;
 type SortDirection = 'asc' | 'desc';
+type RookieMismatchTone = 'buy' | 'sell' | 'watch' | 'hold';
+type RookieMismatchRow = {
+  id: string;
+  pick: DraftPick;
+  playerName: string;
+  position: string;
+  team?: string | null;
+  manager: string;
+  currentValue: number;
+  marketDelta: number;
+  marketDeltaPct: number | null;
+  profileScore: number;
+  opportunityScore: number;
+  runwayScore: number;
+  marketScore: number;
+  mismatchScore: number;
+  label: string;
+  tone: RookieMismatchTone;
+  aiRead: string;
+  chips: string[];
+};
 const DRAFT_SORT_COLUMNS: readonly Exclude<SortColumn, null>[] = ['pick', 'currentValue', 'valueChange'];
 const DRAFT_SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 
@@ -53,6 +74,184 @@ function getDraftCurrentValue(pick: DraftPick, leagueValueMode: LeagueValueMode)
     return Math.round(seasonValue || 0);
   }
   return Math.round(pick.currentKtcValue || 0);
+}
+
+function getTimelineDelta(details?: PlayerDetails): { delta: number; deltaPct: number | null } {
+  const summary = details?.valueTimeline?.summary;
+  if (!summary) return { delta: 0, deltaPct: null };
+  return {
+    delta: Math.round(summary.delta || 0),
+    deltaPct: summary.deltaPct ?? null,
+  };
+}
+
+function getPlayerCurrentValue(pick: DraftPick, details: PlayerDetails | undefined, leagueValueMode: LeagueValueMode): number {
+  const draftValue = getDraftCurrentValue(pick, leagueValueMode);
+  if (draftValue) return draftValue;
+  if (leagueValueMode === 'redraft') {
+    return Math.round(details?.valueProfile?.seasonValue || details?.valueProfile?.fantasyProsSeasonValue || details?.valueProfile?.fantasyCalcRedraft || 0);
+  }
+  return Math.round(details?.valueProfile?.dynastyValue || details?.valueProfile?.balancedValue || details?.valueProfile?.marketKtc || 0);
+}
+
+function getDraftCapitalProfileScore(pick: DraftPick, details?: PlayerDetails): number {
+  const round = Number(details?.nflDraftRound ?? pick.round);
+  const overallPick = Number(details?.nflDraftPick || 0);
+  const rookiePick = Number(pick.pick || 0);
+  let score = 44;
+
+  if (Number.isFinite(overallPick) && overallPick > 0) {
+    score = overallPick <= 32 ? 94 : overallPick <= 64 ? 82 : overallPick <= 100 ? 68 : overallPick <= 160 ? 52 : 38;
+  } else if (Number.isFinite(round) && round > 0) {
+    score = round === 1 ? 88 : round === 2 ? 74 : round === 3 ? 60 : round <= 5 ? 44 : 32;
+  } else if (Number.isFinite(rookiePick) && rookiePick > 0) {
+    score = rookiePick <= 6 ? 84 : rookiePick <= 12 ? 74 : rookiePick <= 24 ? 56 : 40;
+  }
+
+  const prospect = details?.prospectProfile;
+  if (prospect?.overallRank) score += clampNumber(18 - Math.floor(prospect.overallRank / 12), 0, 18);
+  if (prospect?.rating) score += clampNumber(Math.round((Number(prospect.rating) - 70) / 4), -4, 10);
+  if (details?.athleticProfile?.forty && ['RB', 'WR'].includes((details.position || pick.playerPos || '').toUpperCase())) {
+    score += details.athleticProfile.forty <= 4.45 ? 5 : details.athleticProfile.forty >= 4.65 ? -5 : 0;
+  }
+
+  return Math.round(clampNumber(score, 1, 99));
+}
+
+function getOpportunityMismatchScore(details?: PlayerDetails): { score: number; label: string } {
+  const delta = details?.rosterRoom?.opportunityDelta;
+  if (!delta) return { score: 50, label: 'Opportunity unclear' };
+
+  let score = 50;
+  if (delta.qualitySignal === 'major-opening') score += 28;
+  if (delta.qualitySignal === 'minor-opening') score += 16;
+  if (delta.qualitySignal === 'squeeze') score -= 16;
+  if (delta.qualitySignal === 'major-squeeze') score -= 28;
+  if (delta.incumbentOpportunitySignal === 'major-promotion') score += 18;
+  if (delta.incumbentOpportunitySignal === 'minor-promotion') score += 10;
+  if (delta.incumbentOpportunitySignal === 'blocked') score -= 18;
+  score += clampNumber(Math.round((delta.netOpportunityScore || 0) / 3), -16, 16);
+
+  const label = delta.qualitySignal === 'major-opening'
+    ? 'Major room opened'
+    : delta.qualitySignal === 'minor-opening'
+      ? 'Room opened'
+      : delta.qualitySignal === 'major-squeeze'
+        ? 'Major squeeze'
+        : delta.qualitySignal === 'squeeze'
+          ? 'Room squeeze'
+          : delta.incumbentOpportunitySignal === 'blocked'
+            ? 'Blocked runway'
+            : 'Stable room';
+
+  return { score: Math.round(clampNumber(score, 1, 99)), label };
+}
+
+function getRunwayScore(pick: DraftPick, details?: PlayerDetails): { score: number; label: string } {
+  const cohortDraft = details?.playerCohort?.draftCapital;
+  if (cohortDraft?.patienceScore !== null && cohortDraft?.patienceScore !== undefined) {
+    return {
+      score: Math.round(clampNumber(cohortDraft.patienceScore, 1, 99)),
+      label: cohortDraft.opportunityWindow === 'protected-runway'
+        ? 'Protected runway'
+        : cohortDraft.opportunityWindow === 'short-leash'
+          ? 'Short leash'
+          : 'Prove-it window',
+    };
+  }
+
+  const round = Number(details?.nflDraftRound ?? pick.round);
+  const age = Number(details?.age || 0);
+  let score = Number.isFinite(round) && round > 0
+    ? round === 1 ? 90 : round === 2 ? 74 : round === 3 ? 58 : round <= 5 ? 42 : 30
+    : 46;
+  if (Number.isFinite(age) && age > 0) score += age <= 22 ? 8 : age <= 24 ? 3 : age >= 27 ? -12 : 0;
+  if (details?.contractProfile?.investmentTier === 'premium') score += 12;
+  if (details?.contractProfile?.investmentTier === 'fringe') score -= 10;
+
+  const finalScore = Math.round(clampNumber(score, 1, 99));
+  return {
+    score: finalScore,
+    label: finalScore >= 76 ? 'Protected runway' : finalScore <= 42 ? 'Short leash' : 'Prove-it window',
+  };
+}
+
+function getMarketScore(currentValue: number, marketDeltaPct: number | null): number {
+  const valueScore = clampNumber(Math.round(currentValue / 95), 0, 72);
+  const heatScore = marketDeltaPct === null ? 0 : clampNumber(Math.round(marketDeltaPct * 0.72), -20, 28);
+  return Math.round(clampNumber(valueScore + heatScore, 1, 99));
+}
+
+function getMismatchLabel(score: number, opportunityScore: number, marketDeltaPct: number | null): { label: string; tone: RookieMismatchTone } {
+  if (score >= 26) return { label: 'Underpriced breakout', tone: 'buy' };
+  if (score >= 14) return { label: 'Situation riser', tone: 'buy' };
+  if (score <= -24) return { label: 'Market too hot', tone: 'sell' };
+  if (score <= -12 && opportunityScore <= 42) return { label: 'Opportunity blocked', tone: 'sell' };
+  if (marketDeltaPct !== null && marketDeltaPct >= 25 && score < 6) return { label: 'Regression trap', tone: 'watch' };
+  return { label: 'Hold with context', tone: 'hold' };
+}
+
+function buildRookieValuationMismatches({
+  draftPicks,
+  playerDetailsById,
+  leagueValueMode,
+}: {
+  draftPicks: DraftPick[];
+  playerDetailsById?: Record<string, PlayerDetails>;
+  leagueValueMode: LeagueValueMode;
+}): RookieMismatchRow[] {
+  const seen = new Set<string>();
+  return draftPicks
+    .filter((pick) => pick.player_id && pick.playerName && pick.playerName !== 'Unknown')
+    .flatMap((pick) => {
+      const details = pick.playerDetails || (pick.player_id ? playerDetailsById?.[pick.player_id] : undefined);
+      const isYoungOrRookie = Number(details?.yearsExp ?? 99) <= 3 || Number(details?.rookieYear || pick.draftYear || 0) >= new Date().getFullYear() - 2 || pick.draftKind === 'rookie';
+      if (!isYoungOrRookie || !pick.player_id || seen.has(pick.player_id)) return [];
+      seen.add(pick.player_id);
+
+      const currentValue = getPlayerCurrentValue(pick, details, leagueValueMode);
+      const timeline = getTimelineDelta(details);
+      const fallbackDelta = Math.round(pick.valueGain || 0);
+      const marketDelta = timeline.delta || fallbackDelta;
+      const marketDeltaPct = timeline.deltaPct ?? (pick.ktcValue ? Math.round((fallbackDelta / pick.ktcValue) * 1000) / 10 : null);
+      const profileScore = getDraftCapitalProfileScore(pick, details);
+      const opportunity = getOpportunityMismatchScore(details);
+      const runway = getRunwayScore(pick, details);
+      const marketScore = getMarketScore(currentValue, marketDeltaPct);
+      const supportScore = Math.round((profileScore * 0.34) + (opportunity.score * 0.38) + (runway.score * 0.28));
+      const mismatchScore = Math.round(supportScore - marketScore);
+      const label = getMismatchLabel(mismatchScore, opportunity.score, marketDeltaPct);
+      const chips = [
+        `${profileScore} profile`,
+        `${opportunity.score} opportunity`,
+        `${runway.score} runway`,
+        marketDelta ? `${marketDelta > 0 ? '+' : ''}${marketDelta.toLocaleString()} market` : 'Flat market',
+      ];
+      const aiRead = `${label.label}: profile ${profileScore}, opportunity ${opportunity.score}, and runway ${runway.score} compare against a market score of ${marketScore}. ${opportunity.label}${marketDeltaPct !== null ? `; market is ${marketDeltaPct >= 0 ? 'up' : 'down'} ${Math.abs(marketDeltaPct)}%.` : '.'}`;
+
+      return [{
+        id: pick.player_id,
+        pick,
+        playerName: pick.playerName,
+        position: pick.playerPos,
+        team: details?.team ?? null,
+        manager: pick.manager,
+        currentValue,
+        marketDelta,
+        marketDeltaPct,
+        profileScore,
+        opportunityScore: opportunity.score,
+        runwayScore: runway.score,
+        marketScore,
+        mismatchScore,
+        label: label.label,
+        tone: label.tone,
+        aiRead,
+        chips,
+      }];
+    })
+    .sort((a, b) => Math.abs(b.mismatchScore) - Math.abs(a.mismatchScore) || b.currentValue - a.currentValue)
+    .slice(0, 8);
 }
 
 function renderPreviewManagerIdentity(
@@ -316,6 +515,14 @@ export function DraftAnalysis({
   const draftPicksWithDecisionAudit = useMemo(() => {
     return draftPicks.map((pick) => attachDraftDecisionAudit(pick, draftDecisionAuditByPick.get(getDraftPickKey(pick))));
   }, [draftDecisionAuditByPick, draftPicks]);
+  const rookieValuationMismatches = useMemo(() => {
+    return buildRookieValuationMismatches({
+      draftPicks: sortedDraftPicks,
+      playerDetailsById,
+      leagueValueMode,
+    });
+  }, [leagueValueMode, playerDetailsById, sortedDraftPicks]);
+  const topRookieMismatch = rookieValuationMismatches[0] || null;
   const openManagerPortfolio = (manager: string) => {
     setSelectedManagerMode('portfolio');
     setSelectedManager(manager);
@@ -344,6 +551,9 @@ export function DraftAnalysis({
       draftDecisionAuditByPick.get(getDraftPickKey(pick)),
       leagueValueMode,
     ));
+  };
+  const openMismatchPlayer = (row: RookieMismatchRow) => {
+    openDraftPlayer(row.pick);
   };
 
   if (!draftPicks || draftPicks.length === 0) {
@@ -505,6 +715,67 @@ export function DraftAnalysis({
         </DraftCollapsibleSection>
       )}
       </div>
+
+      {rookieValuationMismatches.length > 0 && !isRedraft && (
+        <DraftCollapsibleSection
+          title="Rookie Valuation Mismatch"
+          kicker="Market price vs profile, opportunity, and runway"
+          previewMetrics={[
+            topRookieMismatch ? { label: 'Top Flag', value: topRookieMismatch.playerName, tone: topRookieMismatch.tone === 'buy' ? 'good' : topRookieMismatch.tone === 'sell' ? 'danger' : 'warn' } : null,
+            { label: 'Players Graded', value: rookieValuationMismatches.length, tone: 'info' },
+            topRookieMismatch ? { label: 'Mismatch', value: `${topRookieMismatch.mismatchScore > 0 ? '+' : ''}${topRookieMismatch.mismatchScore}`, tone: Math.abs(topRookieMismatch.mismatchScore) >= 20 ? 'warn' : 'info' } : null,
+          ].filter(Boolean) as PreviewMetric[]}
+          open
+        >
+          <div className="rookie-mismatch-board">
+            <div className="rookie-mismatch-board-head">
+              <p>
+                This compares current value against draft capital, prospect context, roster-room change, depth pressure, and patience runway. Big positive gaps point to underpriced upside; big negative gaps point to market heat that needs more proof.
+              </p>
+            </div>
+            <div className="rookie-mismatch-list">
+              {rookieValuationMismatches.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  className={`rookie-mismatch-row rookie-mismatch-row-${row.tone}`}
+                  style={getTeamTileStyle(row.team)}
+                  onClick={() => openMismatchPlayer(row)}
+                  aria-label={`Open ${row.playerName} valuation mismatch detail`}
+                >
+                  <span className="rookie-mismatch-player">
+                    <PlayerNameWithHeadshot
+                      playerId={row.pick.player_id}
+                      playerName={row.playerName}
+                      team={row.team}
+                      position={row.position}
+                    />
+                    <span className="rookie-mismatch-label">{row.label}</span>
+                  </span>
+                  <span className="rookie-mismatch-score" data-label="Mismatch">
+                    {row.mismatchScore > 0 ? '+' : ''}{row.mismatchScore}
+                    <small>gap</small>
+                  </span>
+                  <span className="rookie-mismatch-metrics" data-label="Scores">
+                    <span><strong>{row.profileScore}</strong> Profile</span>
+                    <span><strong>{row.opportunityScore}</strong> Opp</span>
+                    <span><strong>{row.runwayScore}</strong> Runway</span>
+                    <span><strong>{row.marketScore}</strong> Market</span>
+                  </span>
+                  <span className="rookie-mismatch-market" data-label="Market">
+                    <strong>{row.currentValue ? row.currentValue.toLocaleString() : '-'}</strong>
+                    <em>{row.marketDelta > 0 ? '+' : ''}{row.marketDelta.toLocaleString()}{row.marketDeltaPct !== null ? ` / ${row.marketDeltaPct > 0 ? '+' : ''}${row.marketDeltaPct}%` : ''}</em>
+                  </span>
+                  <span className="rookie-mismatch-read">{row.aiRead}</span>
+                  <span className="rookie-mismatch-chip-row">
+                    {row.chips.map((chip) => <em key={chip}>{chip}</em>)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </DraftCollapsibleSection>
+      )}
 
       {/* Full Draft Board */}
       <div className="draft-year-card-grid">

@@ -31,6 +31,7 @@ import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import { trpc } from '@/lib/trpc';
+import { buildTradeValueCalibrationCoverage } from '@/lib/tradeValueCalibration';
 import {
   OVERVIEW_POSITIONS as POSITIONS,
   buildOverviewPulseRead,
@@ -476,8 +477,16 @@ function getTradePlanId(
   ].join(':');
 }
 
-function getTradePlanOutcomeStatus(data: ReportData, plan: ActionPlanRecord): ActionPlanRecord['status'] | null {
-  if (plan.kind !== 'trade' || ['acted', 'blocked'].includes(plan.status)) return null;
+type TradePlanOutcomeRead = {
+  status: Extract<ActionPlanRecord['status'], 'acted' | 'blocked' | 'stale'>;
+  source: 'trade-history' | 'proposal-signal' | 'aging-window';
+  evidenceSummary: string;
+};
+
+const TRADE_PLAN_STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
+
+export function getTradePlanOutcomeRead(data: ReportData, plan: ActionPlanRecord, now = Date.now()): TradePlanOutcomeRead | null {
+  if (plan.kind !== 'trade' || ['acted', 'blocked', 'stale'].includes(plan.status)) return null;
   const sourceManager = String(plan.payload?.sourceManager || plan.manager || '');
   const targetManager = String(plan.payload?.targetManager || '');
   const createdAt = Number(plan.createdAt || 0);
@@ -488,7 +497,13 @@ function getTradePlanOutcomeStatus(data: ReportData, plan: ActionPlanRecord): Ac
       && [trade.team_a, trade.team_b].some((manager) => normalizeNameKey(manager) === normalizeNameKey(sourceManager))
       && [trade.team_a, trade.team_b].some((manager) => normalizeNameKey(manager) === normalizeNameKey(targetManager));
   });
-  if (completedTrade) return 'acted';
+  if (completedTrade) {
+    return {
+      status: 'acted',
+      source: 'trade-history',
+      evidenceSummary: `Completed trade found on ${completedTrade.date} between ${completedTrade.team_a} and ${completedTrade.team_b}.`,
+    };
+  }
 
   const targetPlayerId = String(plan.payload?.targetPlayerId || plan.playerId || '');
   const targetPlayerNameKey = normalizeTradePlayerKey(String(plan.payload?.targetPlayerName || ''));
@@ -503,8 +518,54 @@ function getTradePlanOutcomeStatus(data: ReportData, plan: ActionPlanRecord): Ac
         || signal.playerNames.some((name) => normalizeTradePlayerKey(name) === targetPlayerNameKey);
     return afterPlan && includesManagers && includesPlayer && /declin|reject|cancel|veto|fail|expire/i.test(signal.status);
   });
-  if (blockedSignal) return 'blocked';
+  if (blockedSignal) {
+    return {
+      status: 'blocked',
+      source: 'proposal-signal',
+      evidenceSummary: `${blockedSignal.status || 'Non-complete'} proposal signal found on ${blockedSignal.date}.`,
+    };
+  }
+  const ageMs = createdAt ? now - createdAt : 0;
+  if (Number.isFinite(ageMs) && ageMs >= TRADE_PLAN_STALE_AFTER_MS) {
+    return {
+      status: 'stale',
+      source: 'aging-window',
+      evidenceSummary: 'No completed trade or blocked proposal signal appeared within 14 days of tracking this read.',
+    };
+  }
   return null;
+}
+
+function getTradePlanOutcomeStatus(data: ReportData, plan: ActionPlanRecord): ActionPlanRecord['status'] | null {
+  return getTradePlanOutcomeRead(data, plan)?.status || null;
+}
+
+export function buildTradeOutcomeLearning(plans: ActionPlanRecord[]) {
+  const tradePlans = plans.filter(plan => plan.kind === 'trade');
+  if (!tradePlans.length) return null;
+  const acted = tradePlans.filter(plan => plan.status === 'acted').length;
+  const blocked = tradePlans.filter(plan => plan.status === 'blocked').length;
+  const stale = tradePlans.filter(plan => plan.status === 'stale').length;
+  const open = tradePlans.length - acted - blocked - stale;
+  const completed = acted + blocked + stale;
+  const actedRate = completed ? Math.round((acted / completed) * 100) : null;
+  const strongestPattern = actedRate === null
+    ? 'Not enough outcomes yet'
+    : actedRate >= 60
+      ? 'Current trade reads are converting into completed ledger activity.'
+      : stale > acted && stale >= blocked
+        ? 'Tracked reads are aging out; use smaller asks, clearer deadlines, or quieter managers.'
+      : blocked >= acted
+        ? 'Tracked reads are meeting resistance; lower first asks or use smaller sweeteners.'
+        : 'Mixed outcomes; keep using manager-fit and resistance notes before pushing value.';
+  return {
+    acted,
+    blocked,
+    stale,
+    open,
+    actedRate,
+    strongestPattern,
+  };
 }
 
 function getFormatBadges(data: ReportData): string[] {
@@ -1530,13 +1591,12 @@ export function LeaguePowerRankings({
   return (
     <div className="league-power-grid balanced-tile-grid" style={getBalancedGridStyle(rows.length)}>
       {rows.map((row) => {
-        const intel = getIntel(data, row.manager);
         const overview = getOverview(data, row.manager);
         const timeline = data.dynastyTimelines?.find((item) => item.manager === row.manager);
         const readiness = Math.round((row.starterStrength + row.rosterValue + row.positionalBalance) / 3);
         const chips: AIReadChip[] = [
+          `League #${row.rank}`,
           `Value #${overview?.rank_value || '-'}`,
-          `Starters ${row.starterStrength}`,
           timeline?.label || row.tier,
         ];
 
@@ -1552,16 +1612,14 @@ export function LeaguePowerRankings({
             </summary>
             <div className="league-power-body">
               <div className="league-power-metrics">
-                <MetricPill label="Roster value" value={overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} tone="info" />
-                <MetricPill label="Starter rank" value={row.starterStrength} tone="good" />
-                <MetricPill label="Bench" value={intel ? formatCompactValue(intel.benchValue) : '-'} />
-                <MetricPill label="QB" value={overview ? `#${overview.rank_qb}` : '-'} />
-                <MetricPill label="RB" value={overview ? `#${overview.rank_rb}` : '-'} />
-                <MetricPill label="WR" value={overview ? `#${overview.rank_wr}` : '-'} />
-                <MetricPill label="TE" value={overview ? `#${overview.rank_te}` : '-'} />
-                <MetricPill label="Draft capital" value={row.draftCapital} tone="warn" />
+                <MetricPill label="Power slot" value={`#${row.rank}`} tone="info" />
+                <MetricPill label="Value slot" value={overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} tone="info" />
+                <MetricPill label="Tier" value={row.tier} tone="neutral" />
+                <MetricPill label="Window" value={timeline?.label || row.tier} tone="info" />
+                <MetricPill label="Balance score" value={row.positionalBalance} tone={row.positionalBalance >= 70 ? 'good' : row.positionalBalance <= 45 ? 'warn' : 'info'} />
+                <MetricPill label="Draft curve" value={row.draftCapital} tone="warn" />
                 <MetricPill label="Youth curve" value={row.youthScore} tone="info" />
-                <MetricPill label="Playoff readiness" value={readiness} tone={readiness >= 70 ? 'good' : readiness <= 45 ? 'danger' : 'warn'} />
+                <MetricPill label="Readiness score" value={readiness} tone={readiness >= 70 ? 'good' : readiness <= 45 ? 'danger' : 'warn'} />
               </div>
               <AIReadPanel
                 compact
@@ -1570,7 +1628,13 @@ export function LeaguePowerRankings({
                 confidence={getManagerReadConfidence(data, row.manager)}
                 severity={readiness >= 70 ? 'good' : readiness <= 45 ? 'warn' : 'info'}
                 chips={chips}
-                body={`${row.manager} sits #${row.rank} in this league ordering with a ${row.score} composite score and ${readiness} readiness read. Use roster recon for player-level causes and next-move advice.`}
+                body={`${row.manager} owns league power slot #${row.rank} with a ${row.score} composite score and ${readiness} readiness score. This card stays ranking-only; use roster recon for roster causes and Trade Finder for deal paths.`}
+                traceItems={[
+                  `Power rank #${row.rank} from composite score ${row.score}.`,
+                  `Value slot ${overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} sets the market-order signal.`,
+                  `Readiness score ${readiness} blends starter strength, roster value, and positional balance.`,
+                  `Window source: ${timeline?.label || row.tier}.`,
+                ]}
                 backgroundVariant="league"
               />
             </div>
@@ -1616,6 +1680,7 @@ export function TeamBreakdownRecon({
   ].filter(Boolean);
   const fragileAssets = [intel.oldestPlayer, intel.starterAvailability.riskiestStarter].filter(Boolean) as ManagerIntelPlayer[];
   const insulatedAssets = (intel.untouchablePlayers?.length ? intel.untouchablePlayers : [intel.youngCorePlayer]).filter(Boolean) as ManagerIntelPlayer[];
+  const rosterHealthRead = `${manager} shows ${strengths.slice(0, 2).join(' and ') || intel.identity || 'a returned roster identity'} as the stable base, with ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'} as the roster-health watch. This read stops at roster causes; use Trade Finder for specific partners, packages, and trade targets.`;
 
   return (
     <div className="team-breakdown-recon">
@@ -1650,7 +1715,7 @@ export function TeamBreakdownRecon({
           <div className="team-breakdown-metrics">
             <MetricPill label="Bench value" value={formatCompactValue(intel.benchValue)} />
             <MetricPill label="Best stash" value={getPlayerLabel(intel.bestBenchStash)} tone="info" />
-            <MetricPill label="Trade chip" value={getPlayerLabel(intel.tradeChip)} tone="warn" />
+            <MetricPill label="Depth flags" value={weaknesses.length} tone={weaknesses.length ? 'warn' : 'good'} />
           </div>
         </section>
         <section>
@@ -1686,8 +1751,8 @@ export function TeamBreakdownRecon({
           {renderPlayerList(insulatedAssets, 'No insulated asset list returned.', 4)}
         </section>
         <section>
-          <h4>Sell Candidates</h4>
-          {renderPlayerList([intel.sellCandidate, ...fragileAssets].filter(Boolean) as ManagerIntelPlayer[], 'No sell candidates returned.', 4)}
+          <h4>Fragility Watch</h4>
+          {renderPlayerList(fragileAssets, 'No fragile assets returned.', 4)}
         </section>
         <section>
           <h4>Roster Recon</h4>
@@ -1710,7 +1775,13 @@ export function TeamBreakdownRecon({
             `Surplus: ${getSurplusPosition(data, manager) || '-'}`,
             intel.timeline || intel.identity,
           ]}
-          body={intel.strategySummary || intel.tradePlan?.summary || intel.summary}
+          body={rosterHealthRead}
+          traceItems={[
+            `Stable base: ${strengths.slice(0, 2).join(' and ') || intel.identity || 'returned roster identity'}.`,
+            `Roster watch: ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'}.`,
+            `Need/surplus lens: ${getNeedPosition(data, manager) || '-'} need, ${getSurplusPosition(data, manager) || '-'} surplus.`,
+            `Health evidence: ${intel.starterAvailability.riskLevel} availability risk and ${fragileAssets.length} fragile asset flag${fragileAssets.length === 1 ? '' : 's'}.`,
+          ]}
           backgroundVariant="roster"
           className="team-breakdown-ai"
         />
@@ -1776,22 +1847,27 @@ export function TradePartnerFinder({
 
   useEffect(() => {
     trackedTradePlans.forEach((plan) => {
-      const outcomeStatus = getTradePlanOutcomeStatus(data, plan);
-      if (!outcomeStatus || outcomeStatus === plan.status) return;
+      const outcomeRead = getTradePlanOutcomeRead(data, plan);
+      if (!outcomeRead || outcomeRead.status === plan.status) return;
       persistTrackedTradePlan({
         ...plan,
-        status: outcomeStatus,
-        summary: outcomeStatus === 'acted'
+        status: outcomeRead.status,
+        summary: outcomeRead.status === 'acted'
           ? `${plan.summary} Outcome: a completed trade with this manager is now in the ledger.`
-          : `${plan.summary} Outcome: a non-complete trade signal is now in the ledger.`,
+          : outcomeRead.status === 'blocked'
+            ? `${plan.summary} Outcome: a non-complete trade signal is now in the ledger.`
+            : `${plan.summary} Outcome: no matching completed or blocked trade signal appeared within 14 days.`,
         payload: {
           ...plan.payload,
-          outcomeStatus,
+          outcomeStatus: outcomeRead.status,
+          outcomeSource: outcomeRead.source,
+          outcomeEvidenceSummary: outcomeRead.evidenceSummary,
           outcomeCheckedAt: Date.now(),
         },
       });
     });
   }, [data, trackedTradePlans, isServerPersistenceEnabled]);
+  const tradeOutcomeLearning = buildTradeOutcomeLearning(visibleTrackedTradePlans);
 
   const trackTradePlan = (recommendation: ReturnType<typeof buildTradePartners>[number]) => {
     const plan: ActionPlanRecord = {
@@ -1845,6 +1921,20 @@ export function TradePartnerFinder({
           ))}
         </div>
       )}
+      {tradeOutcomeLearning && (
+        <div className="trade-outcome-learning">
+          <span>Outcome learning</span>
+          <strong>
+            {tradeOutcomeLearning.actedRate === null
+              ? 'Learning'
+              : `${tradeOutcomeLearning.actedRate}% acted`}
+          </strong>
+          <p>{tradeOutcomeLearning.strongestPattern}</p>
+          <small>
+            {tradeOutcomeLearning.acted} acted / {tradeOutcomeLearning.blocked} blocked / {tradeOutcomeLearning.stale} stale / {tradeOutcomeLearning.open} still tracked
+          </small>
+        </div>
+      )}
       <div className="trade-partner-grid balanced-tile-grid" style={getBalancedGridStyle(recommendations.length)}>
         {recommendations.map((recommendation) => (
           <article key={recommendation.manager} className="trade-partner-card">
@@ -1866,6 +1956,12 @@ export function TradePartnerFinder({
               severity={recommendation.confidence >= 75 ? 'good' : recommendation.confidence <= 55 ? 'warn' : 'info'}
               chips={[recommendation.label, recommendation.need ? `${recommendation.need} need` : 'No clear need', recommendation.resistanceRead.chip].filter(Boolean) as AIReadChip[]}
               body={recommendation.aiRead}
+              traceItems={[
+                recommendation.need ? `${recommendation.manager} returned a ${recommendation.need} need.` : `${recommendation.manager} did not return a clean positional need.`,
+                recommendation.surplus ? `${recommendation.manager} has ${recommendation.surplus} surplus to ask about.` : 'No surplus position was returned for the target manager.',
+                recommendation.youOffer ? `Your matching offer lane starts with ${recommendation.youOffer.name}.` : 'No clean outgoing fit was returned.',
+                `Resistance note: ${recommendation.resistanceRead.note || recommendation.resistanceRead.chip}.`,
+              ]}
               actions={[{ label: 'Track trade read', onClick: () => trackTradePlan(recommendation) }]}
               backgroundVariant="trade"
             />
@@ -2003,6 +2099,12 @@ export function TradeFinderGenerator({
           : packages.length
             ? `The cleanest starting point is ${packages[0].label.toLowerCase()} with a value gap of ${gap >= 0 ? '+' : ''}${formatCompactValue(gap)} from your side. Roster fit still matters more than calculator symmetry.${targetResistance.note ? ` ${targetResistance.note}` : ''}`
             : 'Returned roster data does not contain enough tradeable player detail to generate a responsible package.'}
+        traceItems={[
+          selectedAway ? `Outgoing asset: ${selectedAway.name} at ${formatCompactValue(awayValue)} value.` : 'No outgoing asset was returned.',
+          selectedTarget ? `Target asset: ${selectedTarget.name} at ${formatCompactValue(targetValue)} value.` : 'No target asset was returned.',
+          `Raw value gap: ${gap >= 0 ? '+' : ''}${formatCompactValue(gap)} from your side.`,
+          `Target resistance: ${targetResistance.note || targetResistance.chip}.`,
+        ]}
         backgroundVariant="trade"
       />
 
@@ -2156,6 +2258,12 @@ export function LeagueExploits({
             severity={exploit.tone}
             chips={[exploit.exploit, exploit.manager]}
             body={`${exploit.suggestedMove}. ${exploit.why}`}
+            traceItems={[
+              `Exploit owner: ${exploit.exploit}.`,
+              `Manager signal: ${exploit.manager}.`,
+              `Why: ${exploit.why}`,
+              `Risk check: ${exploit.risk}`,
+            ]}
             backgroundVariant="league"
           />
         </article>
@@ -2229,6 +2337,14 @@ export function TradeBrowserRead({
 }
 
 type AssistantTone = 'good' | 'info' | 'warn' | 'danger' | 'neutral';
+type AssistantActionQueueRow = {
+  id: string;
+  lane: string;
+  action: string;
+  detail: string;
+  priority: number;
+  tone: AssistantTone;
+};
 
 function getStarterValue(player: ManagerStarterPlayer | ManagerIntelPlayer | TrendingPlayer | null | undefined): number {
   if (!player) return 0;
@@ -2399,6 +2515,102 @@ function buildNewsRows(data: ReportData, selectedManager: string) {
   return [...rosterNews, ...globalNews].slice(0, 6);
 }
 
+function buildOwnerActionQueue({
+  data,
+  manager,
+  watchSignals,
+  rookieSignals,
+  benchPressure,
+  bestWaiver,
+  intel,
+  portfolio,
+}: {
+  data: ReportData;
+  manager: string;
+  watchSignals: ReturnType<typeof buildWatchSignals>;
+  rookieSignals: ReturnType<typeof buildRookieSignals>;
+  benchPressure: ManagerStarterPlayer[];
+  bestWaiver: TrendingPlayer | null;
+  intel: ManagerIntelRow | null;
+  portfolio: ReturnType<typeof buildPortfolioExposure>;
+}): AssistantActionQueueRow[] {
+  const rows: AssistantActionQueueRow[] = [];
+  const addRow = (row: AssistantActionQueueRow | null) => {
+    if (!row || rows.some(item => item.id === row.id)) return;
+    rows.push(row);
+  };
+  const topPartner = buildTradePartners(data, manager)[0];
+  const topWatch = watchSignals[0] || null;
+  const topRookie = rookieSignals.find(row => row.manager === manager) || rookieSignals[0] || null;
+  const dropCandidate = intel?.droppablePlayers?.[0] || null;
+  const tradeNeed = getNeedPosition(data, manager);
+
+  addRow(benchPressure[0]
+    ? {
+        id: `lineup-${benchPressure[0].player_id}`,
+        lane: 'Lineup',
+        action: `Review ${benchPressure[0].name}`,
+        detail: `${benchPressure[0].name} is the highest returned bench-pressure player against the submitted/projected starter map.`,
+        priority: 90,
+        tone: 'warn',
+      }
+    : null);
+  addRow(bestWaiver
+    ? {
+        id: `waiver-${bestWaiver.player_id}`,
+        lane: 'Waiver',
+        action: `Check ${bestWaiver.name}`,
+        detail: dropCandidate
+          ? `${bestWaiver.name} is the best available signal here; ${dropCandidate.name} is the first returned low-friction drop candidate.`
+          : `${bestWaiver.name} is the best available signal here; no automatic drop candidate was returned.`,
+        priority: 84,
+        tone: 'good',
+      }
+    : null);
+  addRow(topPartner
+    ? {
+        id: `trade-${topPartner.manager}`,
+        lane: 'Trade',
+        action: `Open with ${topPartner.manager}`,
+        detail: `${topPartner.label}: ${topPartner.angle}. ${topPartner.resistanceRead?.note || 'Use the trade war room for exact player and pick math.'}`,
+        priority: topPartner.confidence,
+        tone: topPartner.confidence >= 70 ? 'good' : topPartner.confidence >= 48 ? 'info' : 'warn',
+      }
+    : null);
+  addRow(topWatch
+    ? {
+        id: `watch-${topWatch.id}`,
+        lane: 'Market',
+        action: `${topWatch.label}: ${topWatch.name}`,
+        detail: `${topWatch.name} moved ${topWatch.pctChange >= 0 ? '+' : ''}${topWatch.pctChange.toFixed(1)}%; decide whether this is a buy window, sell window, or watch-only move.`,
+        priority: Math.min(86, 58 + Math.abs(topWatch.pctChange)),
+        tone: topWatch.tone,
+      }
+    : null);
+  addRow(topRookie
+    ? {
+        id: `rookie-${topRookie.id}`,
+        lane: 'Draft',
+        action: `${topRookie.signal}: ${topRookie.name}`,
+        detail: `${topRookie.context}. Draft capital and value movement are the only prospect inputs used here.`,
+        priority: topRookie.score,
+        tone: topRookie.score >= 76 ? 'good' : topRookie.score <= 42 ? 'warn' : 'info',
+      }
+    : null);
+  addRow((portfolio.topThreeShare || 0) >= 55
+    ? {
+        id: 'portfolio-concentration',
+        lane: 'Portfolio',
+        action: 'Reduce top-heavy exposure',
+        detail: `Top three assets carry ${formatPercent(portfolio.topThreeShare)} of this roster value; avoid adding more fragility unless it directly solves ${tradeNeed || 'a starting-slot need'}.`,
+        priority: Math.round(portfolio.topThreeShare || 0),
+        tone: 'warn',
+      }
+    : null);
+
+  return rows.sort((a, b) => b.priority - a.priority).slice(0, 5);
+}
+
 function buildPortfolioExposure(data: ReportData, selectedManager: string) {
   const players = getManagerPlayerPool(getIntel(data, selectedManager));
   const positionRows = POSITIONS.map((position) => {
@@ -2514,8 +2726,28 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
   const prospectCount = getRankingRows(data).filter((row) => row.isDevy || row.prospectProfile).length;
   const hasMatchupPreview = Boolean(options?.matchupPreviewAvailable);
   const hasSleeperStarterMap = Boolean(data.managerPositionCounts?.some((row) => row.starterSource === 'Sleeper'));
+  const tradeCalibrationCoverage = buildTradeValueCalibrationCoverage(
+    Object.values(data.playerDetailsById || {}).map((details) => ({
+      name: details.fullName || details.playerId || 'Unknown player',
+      playerDetails: details,
+    }))
+  );
+  const tradeCalibrationSignalCopy = [
+    tradeCalibrationCoverage.confirmedRisers ? `${tradeCalibrationCoverage.confirmedRisers} riser${tradeCalibrationCoverage.confirmedRisers === 1 ? '' : 's'}` : null,
+    tradeCalibrationCoverage.confirmedFallers ? `${tradeCalibrationCoverage.confirmedFallers} faller${tradeCalibrationCoverage.confirmedFallers === 1 ? '' : 's'}` : null,
+    tradeCalibrationCoverage.watchRisers || tradeCalibrationCoverage.watchFallers
+      ? `${tradeCalibrationCoverage.watchRisers + tradeCalibrationCoverage.watchFallers} watch`
+      : null,
+    tradeCalibrationCoverage.lowBaseWatch ? `${tradeCalibrationCoverage.lowBaseWatch} low-base` : null,
+  ].filter(Boolean).join(', ');
 
   return [
+    {
+      label: 'Owner Action Queue',
+      status: selectedPlayerCount || data.waiverIntelligence || data.tradeTendencies?.length ? 'Backed' : 'Missing',
+      note: 'Ranks the next owner move from lineup pressure, waivers, trade partners, market movement, draft signals, and exposure risk.',
+      tone: selectedPlayerCount || data.waiverIntelligence || data.tradeTendencies?.length ? 'good' : 'warn',
+    },
     {
       label: 'Watch Alerts',
       status: (data.weeklyRisers?.length || data.weeklyFallers?.length) ? 'Backed' : 'Missing',
@@ -2551,6 +2783,18 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
       status: (data.draftPicks?.length || prospectCount) ? 'Backed' : 'Missing',
       note: 'Uses draft slots, current value, value movement, and returned prospect ranks only.',
       tone: (data.draftPicks?.length || prospectCount) ? 'good' : 'warn',
+    },
+    {
+      label: 'Trade Calibration',
+      status: tradeCalibrationCoverage.timelinePlayers
+        ? tradeCalibrationCoverage.signalPlayers
+          ? 'Backed'
+          : 'Timeline only'
+        : 'Missing',
+      note: tradeCalibrationCoverage.timelinePlayers
+        ? `${tradeCalibrationCoverage.timelinePlayers}/${tradeCalibrationCoverage.totalPlayers} players have stored value timelines for trade readouts${tradeCalibrationSignalCopy ? `; ${tradeCalibrationSignalCopy}.` : '; no strong riser/faller label fired.'}`
+        : 'Trade readouts can still use value and fit, but no stored value timelines were returned for calibration labels.',
+      tone: tradeCalibrationCoverage.signalPlayers ? 'good' : tradeCalibrationCoverage.timelinePlayers ? 'info' : 'warn',
     },
     {
       label: 'Research Assistant',
@@ -2633,6 +2877,16 @@ export function AssistantFeatureShells({
     .sort((a, b) => getStarterValue(b) - getStarterValue(a))
     .slice(0, 4);
   const bestWaiver = waiverAdds[0] || data.waiverIntelligence?.highestKtcAvailable || null;
+  const actionQueue = useMemo(() => buildOwnerActionQueue({
+    data,
+    manager,
+    watchSignals,
+    rookieSignals,
+    benchPressure,
+    bestWaiver,
+    intel,
+    portfolio,
+  }), [bestWaiver, benchPressure, data, intel, manager, portfolio, rookieSignals, watchSignals]);
   const matchupPreview = getMatchupPreview(data, manager);
   const matchupDataAvailable = Boolean(matchupPreview);
   const alertingWatchSignals = watchSignals.filter((signal) => {
@@ -2768,6 +3022,51 @@ export function AssistantFeatureShells({
             </span>
           ))}
         </div>
+      </section>
+
+      <section className="assistant-feature-card assistant-action-queue-card">
+        <div className="assistant-feature-card-head">
+          <span><ClipboardList className="h-4 w-4" aria-hidden="true" /> Owner Action Queue</span>
+          <strong>{actionQueue.length ? `${actionQueue.length} moves` : 'No moves'}</strong>
+        </div>
+        {actionQueue.length ? (
+          <div className="assistant-action-queue-list">
+            {actionQueue.map((row, index) => (
+              <span key={row.id} className={`assistant-action-queue-row assistant-action-queue-${row.tone}`}>
+                <b>{index + 1}</b>
+                <em>{row.lane}</em>
+                <strong>{row.action}</strong>
+                <small>{row.detail}</small>
+                <i>{row.priority}%</i>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="command-module-empty-copy">No returned lineup, waiver, trade, market, draft, or exposure signal is strong enough to queue.</p>
+        )}
+        <AIReadPanel
+          title="Next best owner action"
+          readType="League Exploit"
+          confidence={getModuleConfidence(actionQueue.length ? 46 : 30, [
+            [actionQueue.length > 0, scaledEvidence(actionQueue.length, 5, 18)],
+            [Boolean(intel), 10],
+            [Boolean(data.waiverIntelligence), 8],
+            [Boolean(data.tradeTendencies?.length), 8],
+            [Boolean(watchSignals.length), 6],
+            [Boolean(rookieSignals.length), 5],
+          ])}
+          severity={actionQueue[0]?.tone === 'danger' ? 'warn' : actionQueue.length ? 'info' : 'warn'}
+          chips={[
+            actionQueue[0]?.lane || { label: 'No queued move', tone: 'warn' },
+            `${benchPressure.length} lineup flags`,
+            bestWaiver ? 'Waiver target found' : { label: 'No waiver target', tone: 'warn' },
+          ]}
+          body={actionQueue[0]
+            ? `${actionQueue[0].action} is the top queued move for ${manager}. ${actionQueue[0].detail}`
+            : 'The queue stays empty when the report does not return enough evidence for a concrete owner action.'}
+          backgroundVariant="league"
+          compact
+        />
       </section>
 
       <div className="assistant-shell-grid">

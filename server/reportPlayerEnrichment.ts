@@ -4,7 +4,7 @@ import { getLeagueReportCacheTtlMs } from './leagueReportCachePolicy';
 import type { PlayerDetails, PlayerScheduleProfile, ProspectProfile } from '../shared/types';
 import type { LastSeasonPlayerRank } from './reportGenerator';
 
-const REPORT_PLAYER_ENRICHMENT_CACHE_VERSION = 'league-report-player-enrichment-v1';
+const REPORT_PLAYER_ENRICHMENT_CACHE_VERSION = 'league-report-player-enrichment-v3';
 
 type PlayerAvailabilityHistory = {
   availabilityHistory?: PlayerDetails['availabilityHistory'];
@@ -22,6 +22,7 @@ type LeagueUsageSummary = NonNullable<PlayerDetails['leagueUsage']>;
 export type ReportPlayerStaticEnrichment = Pick<
   PlayerDetails,
   | 'valueProfile'
+  | 'valueTimeline'
   | 'lastSeasonPositionRank'
   | 'lastSeasonFantasyPoints'
   | 'lastSeasonGames'
@@ -29,6 +30,7 @@ export type ReportPlayerStaticEnrichment = Pick<
   | 'lastSeasonYear'
   | 'availabilityHistory'
   | 'latestNews'
+  | 'newsValueMovement'
   | 'avgGamesMissed'
   | 'availabilitySeasons'
   | 'sleeperRosteredPct'
@@ -103,9 +105,11 @@ export function buildReportPlayerStaticEnrichment(input: {
   currentSeason: string;
   sleeperResearchSeasonType: string;
   valueProfilesById: Record<string, PlayerDetails['valueProfile']>;
+  valueTimelinesById?: Record<string, NonNullable<PlayerDetails['valueTimeline']>>;
   lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank>;
   availabilityHistoryById: Record<string, PlayerAvailabilityHistory>;
   latestNewsByPlayerId: Record<string, NonNullable<PlayerDetails['latestNews']>>;
+  newsValueMovementByPlayerId?: Record<string, NonNullable<PlayerDetails['newsValueMovement']>>;
   sleeperResearchByPlayerId: Record<string, SleeperResearchSnapshot>;
   pastSeasonUsageByPlayerId: Record<string, LeagueUsageSummary>;
   playerScheduleProfiles: Record<string, PlayerScheduleProfile>;
@@ -120,6 +124,7 @@ export function buildReportPlayerStaticEnrichment(input: {
         playerId,
         {
           valueProfile: input.valueProfilesById[playerId],
+          valueTimeline: input.valueTimelinesById?.[playerId] || null,
           lastSeasonPositionRank: lastSeasonRank?.positionRank || null,
           lastSeasonFantasyPoints: lastSeasonRank?.fantasyPoints ?? null,
           lastSeasonGames: lastSeasonRank?.games ?? null,
@@ -127,6 +132,7 @@ export function buildReportPlayerStaticEnrichment(input: {
           lastSeasonYear: lastSeasonRank?.season || null,
           availabilityHistory: availability?.availabilityHistory || [],
           latestNews: input.latestNewsByPlayerId[playerId] || null,
+          newsValueMovement: input.newsValueMovementByPlayerId?.[playerId] || null,
           avgGamesMissed: availability?.avgGamesMissed ?? null,
           availabilitySeasons: availability?.availabilitySeasons ?? 0,
           sleeperRosteredPct: normalizeSleeperResearchPercent(input.sleeperResearchByPlayerId[playerId]?.owned),

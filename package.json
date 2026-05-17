@@ -25,6 +25,8 @@
     "audit:neon-transfer": "node scripts/audit-neon-transfer.mjs",
     "audit:report-payload": "node scripts/audit-report-payload.mjs",
     "audit:report-hotspots": "node scripts/audit-report-hotspots.mjs",
+    "audit:situation-delta-sources": "node scripts/audit-situation-delta-sources.mjs",
+    "audit:rookie-label-backtest": "tsx server/rookieLabelBacktest.ts",
     "audit:weekly-movement": "tsx server/weeklyMovementAnomalyReport.ts",
     "compact:league-report-cache": "node scripts/compact-league-report-cache.mjs",
     "cleanup:league-report-cache": "node scripts/cleanup-league-report-cache.mjs",

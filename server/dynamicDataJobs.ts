@@ -7,6 +7,8 @@ import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth } from '.
 import { loadBlendedKTCValues, loadLatestLocalWeeklyMomentumSnapshot } from './ktcLoader';
 import { attachLeagueAiConfidence, persistLeagueAiConfidenceSnapshot } from './leagueAiConfidence';
 import { loadPlayerNewsBundle } from './playerNews';
+import { loadNflverseDraftCapitalSnapshot } from './nflverseDraftCapital';
+import { loadNflversePlayerContext } from './nflversePlayerContext';
 import { refreshPlayerPropSnapshots } from './playerPropSnapshots';
 import { buildProspectLookup, loadProspectContext } from './prospectSource';
 import { buildRankingsBoard } from './rankingsBoard';
@@ -359,8 +361,10 @@ export async function warmDepthChartCacheFromCachedReports(options: {
 
 export async function refreshReportEnrichmentSnapshots(options: {
   backfillLimit?: number;
+  season?: string;
 } = {}) {
-  const [playerNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats, playerProps] = await Promise.all([
+  const season = options.season || String(new Date().getFullYear() - 1);
+  const [playerNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats, playerProps, nflverseDraftCapital, nflversePlayerContext] = await Promise.all([
     loadPlayerNewsBundle({ persistSnapshot: true, forceRefresh: true }),
     loadDraftSharksScheduleContext({
       season: String(new Date().getFullYear()),
@@ -372,6 +376,8 @@ export async function refreshReportEnrichmentSnapshots(options: {
     }),
     refreshSleeperSeasonStatsSnapshots(),
     refreshPlayerPropSnapshots(),
+    loadNflverseDraftCapitalSnapshot({ persistSnapshot: true, forceRefresh: true }),
+    loadNflversePlayerContext({ season, persistSnapshot: true, forceRefresh: true }),
   ]);
 
   return {
@@ -383,6 +389,8 @@ export async function refreshReportEnrichmentSnapshots(options: {
     depthChartWarmCache,
     sleeperSeasonStats,
     playerProps,
+    nflverseDraftCapitalRows: nflverseDraftCapital.rowCount,
+    nflversePlayerContextRows: Object.fromEntries(nflversePlayerContext.rowCounts.map((row) => [row.sourceKey, row.rowCount])),
   };
 }
 

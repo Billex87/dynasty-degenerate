@@ -16,6 +16,16 @@ async function loadCachedReport(page: import('@playwright/test').Page, cachedRep
   await page.goto(`/?leagueId=${cachedReport.leagueId}${hash}`, { waitUntil: 'domcontentloaded' });
 }
 
+async function openReportDisclosure(page: import('@playwright/test').Page, title: string) {
+  const section = page.locator('details.report-disclosure').filter({ hasText: title }).first();
+  await expect(section).toBeVisible();
+  if (!(await section.evaluate(node => node.open))) {
+    await section.locator('summary.report-disclosure-summary').click();
+  }
+  await expect(section).toHaveAttribute('open', '');
+  return section;
+}
+
 test.describe('cached report visual regression', () => {
   test('redraft rankings viewport remains visually stable', async ({ page }) => {
     await loadCachedReport(page, createCachedRedraftReport('visual-rankings-redraft-league'), '#rankings');
@@ -29,8 +39,8 @@ test.describe('cached report visual regression', () => {
 
   test('redraft draft recap expanded viewport remains visually stable', async ({ page }) => {
     await loadCachedReport(page, createCachedRedraftReport('visual-draft-redraft-league'), '#draft');
-    await page.getByRole('button', { name: /2026 Draft Recap/ }).click();
-    await expect(page.getByRole('button', { name: /#1 Sample Starter/ })).toBeVisible();
+    const draftSection = await openReportDisclosure(page, '2026 Main Draft');
+    await expect(draftSection.getByRole('button', { name: /#1 Sample Starter/ })).toBeVisible();
     await expect(page).toHaveScreenshot('redraft-draft-expanded-viewport.png', {
       animations: 'disabled',
       mask: [page.locator('img')],

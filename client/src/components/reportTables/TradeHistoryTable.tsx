@@ -313,7 +313,9 @@ export default function TradeHistoryTable({
                                   >
                                     <span>Balancing Piece</span>
                                     <strong>
-                                      {fairnessSuggestion.player.name}
+                                      {fairnessSuggestion.assetKind === "pick"
+                                        ? fairnessSuggestion.pick?.label
+                                        : fairnessSuggestion.player?.name}
                                     </strong>
                                   </span>
                                 )}

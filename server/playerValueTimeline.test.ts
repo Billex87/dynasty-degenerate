@@ -1,0 +1,163 @@
+import { describe, expect, it, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+  listLocalKtcSnapshotDateKeysSince: vi.fn(),
+  loadLocalKtcSnapshotForDate: vi.fn(),
+}));
+
+vi.mock('./ktcLoader', () => ({
+  listLocalKtcSnapshotDateKeysSince: mocks.listLocalKtcSnapshotDateKeysSince,
+  loadLocalKtcSnapshotForDate: mocks.loadLocalKtcSnapshotForDate,
+}));
+
+import { buildPlayerValueTimelineMap } from './playerValueTimeline';
+
+describe('player value timeline', () => {
+  it('builds compact stored snapshot timelines and flags source-set changes', () => {
+    mocks.listLocalKtcSnapshotDateKeysSince.mockReturnValue(['2026-05-07', '2026-05-11']);
+    mocks.loadLocalKtcSnapshotForDate.mockImplementation((date: string) => ({
+      malachifields: {
+        name: 'Malachi Fields',
+        ktc_value: date === '2026-05-07' ? 1200 : 1500,
+        dynasty_value: date === '2026-05-07' ? 1200 : 1500,
+        position_rank: date === '2026-05-07' ? 'WR110' : 'WR101',
+        value_sources: date === '2026-05-07' ? ['KTC'] : ['KTC', 'FantasyCalc'],
+        market_value_ktc: date === '2026-05-07' ? 1200 : 1500,
+      },
+    }));
+
+    const result = buildPlayerValueTimelineMap({
+      playerIds: ['p1'],
+      players: {
+        p1: {
+          first_name: 'Malachi',
+          last_name: 'Fields',
+          position: 'WR',
+        },
+      },
+      valueProfileKey: '12_sf_ppr_base',
+      now: new Date('2026-05-12T12:00:00.000Z'),
+    });
+
+    expect(result.p1).toMatchObject({
+      profileKey: '12_sf_ppr_base',
+      source: 'stored-value-snapshots',
+      summary: {
+        startValue: 1200,
+        endValue: 1500,
+        delta: 300,
+        deltaPct: 25,
+        sourceSetChanged: true,
+      },
+    });
+    expect(result.p1.points).toHaveLength(2);
+    expect(result.p1.points[1]).toMatchObject({
+      date: '2026-05-11',
+      rank: 'WR101',
+      sourceCount: 2,
+    });
+  });
+
+  it('skips players without enough stored points', () => {
+    mocks.listLocalKtcSnapshotDateKeysSince.mockReturnValue(['2026-05-07']);
+    mocks.loadLocalKtcSnapshotForDate.mockReturnValue({
+      demondclaiborne: {
+        name: 'Demond Claiborne',
+        ktc_value: 1000,
+        dynasty_value: 1000,
+      },
+    });
+
+    const result = buildPlayerValueTimelineMap({
+      playerIds: ['p1'],
+      players: {
+        p1: {
+          first_name: 'Demond',
+          last_name: 'Claiborne',
+        },
+      },
+      valueProfileKey: '12_sf_ppr_base',
+    });
+
+    expect(result).toEqual({});
+  });
+
+  it('adds latest-point event markers from enriched player context', () => {
+    mocks.listLocalKtcSnapshotDateKeysSince.mockReturnValue(['2026-05-07', '2026-05-11']);
+    mocks.loadLocalKtcSnapshotForDate.mockImplementation((date: string) => ({
+      jadarianprice: {
+        name: 'Jadarian Price',
+        ktc_value: date === '2026-05-07' ? 4100 : 5200,
+        dynasty_value: date === '2026-05-07' ? 4100 : 5200,
+        position_rank: date === '2026-05-07' ? 'RB24' : 'RB18',
+        value_sources: ['KTC', 'FantasyCalc'],
+      },
+    }));
+
+    const result = buildPlayerValueTimelineMap({
+      playerIds: ['p1'],
+      players: {
+        p1: {
+          first_name: 'Jadarian',
+          last_name: 'Price',
+        },
+      },
+      playerDetailsById: {
+        p1: {
+          fullName: 'Jadarian Price',
+          position: 'RB',
+          nflDraftRound: 1,
+          nflDraftPick: 32,
+          nflDraftTeam: 'SEA',
+          rosterRoom: {
+            source: 'nflverse rosters/weekly rosters/depth charts/trades',
+            season: '2026',
+            previousSeason: '2025',
+            team: 'SEA',
+            position: 'RB',
+            currentCount: 4,
+            previousCount: 4,
+            netChange: 0,
+            additions: [],
+            losses: [],
+            rookieAdditions: [],
+            premiumAdditions: [],
+            depthChartTop: [],
+            opportunityDelta: {
+              vacatedTargets: 37,
+              vacatedCarries: 230,
+              vacatedReceptions: 22,
+              vacatedFantasyPointsPpr: 202.3,
+              addedPriorTargets: 17,
+              addedPriorCarries: 130,
+              addedPriorReceptions: 12,
+              addedPriorFantasyPointsPpr: 96.5,
+              vacatedImpactScore: 88,
+              addedThreatScore: 100,
+              netOpportunityScore: 0,
+              qualitySignal: 'minor-opening',
+              incumbentPromotionScore: 38,
+              incumbentOpportunitySignal: 'minor-promotion',
+              topVacatedPlayer: 'Kenneth Walker III',
+              topAddedThreat: 'Jadarian Price',
+              topReturningDepthPlayer: 'Zach Charbonnet',
+              note: 'SEA RB net opportunity stable.',
+            },
+            competitionLevel: 'normal',
+            vacatedOpportunitySignal: 'stable',
+            note: 'SEA RB room.',
+          },
+        },
+      },
+      valueProfileKey: '12_sf_ppr_base',
+    });
+
+    const events = result.p1.points.at(-1)?.events || [];
+    expect(result.p1.summary.eventCount).toBe(3);
+    expect(events.map((event) => event.label)).toEqual([
+      'Minor opening',
+      'Role bump',
+      'Premium draft capital',
+    ]);
+  });
+});

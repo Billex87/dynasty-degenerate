@@ -1,5 +1,5 @@
 import { Crown, X as XIcon } from "lucide-react";
-import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData } from "@shared/types";
+import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TradeTimePickAsset } from "@shared/types";
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { ChampionAvatarFrame } from "../ManagerChampionships";
@@ -8,6 +8,12 @@ import { TeamLogoPill } from "../TeamLogoPill";
 import { getPlayerAvailability } from "@/lib/playerStatus";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { normalizeLeagueValueMode, type LeagueValueMode } from "@/lib/leagueValueMode";
+import {
+  buildTradeValueCalibrationNote,
+  getPlayerTradeValueCalibration,
+  getStrongestTradeValueCalibration,
+  type TradeValueCalibration,
+} from "@/lib/tradeValueCalibration";
 import {
   buildPlayerModalData,
   formatCompactValue,
@@ -890,6 +896,7 @@ type TradeOutcomeAsset = {
   detail?: string | null;
   outcomeNote?: string | null;
   status?: string | null;
+  valueCalibration?: TradeValueCalibration | null;
   playerId?: string;
   children?: TradeOutcomeAsset[];
 };
@@ -1018,6 +1025,7 @@ function getOutcomeAssetsFromItems(
             rank,
             detail,
             status: getOutcomeAssetStatus(details),
+            valueCalibration: getPlayerTradeValueCalibration(details),
             playerId: playerItem.playerId,
           },
         ];
@@ -1064,6 +1072,7 @@ function getOutcomeAssetsFromItems(
             rank,
             detail: `${displayedPickLabel} selected by ${landedPick.manager || "unknown"}`,
             status: getOutcomeAssetStatus(details),
+            valueCalibration: getPlayerTradeValueCalibration(details),
             playerId: landedPick.player_id,
           },
         ];
@@ -1314,6 +1323,19 @@ function buildTradeOutcomeReview({
           `${asset.name} carries ${asset.status} risk/status on ${side.manager}'s outcome side.`
       )
   );
+  const valueCalibrationNotes = outcomeSides.flatMap(side =>
+    side.assets
+      .flatMap(asset => [asset, ...(asset.children || [])])
+      .filter(asset => asset.valueCalibration)
+      .slice(0, 2)
+      .map(asset =>
+        buildTradeValueCalibrationNote({
+          name: asset.name,
+          calibration: asset.valueCalibration!,
+          side: "neutral",
+        })
+      )
+  );
   const recordMetricValue =
     records.length === 2
       ? recordDelta!.wins === 0
@@ -1376,6 +1398,7 @@ function buildTradeOutcomeReview({
     notes: [
       recordNote,
       ...pickLineageNotes,
+      ...valueCalibrationNotes,
       ...(availabilityNotes.length
         ? availabilityNotes
         : [
@@ -1405,6 +1428,19 @@ function renderOutcomeAssetLine(asset: TradeOutcomeAsset) {
       <span>
         {asset.label}
         {childText}
+        {asset.valueCalibration &&
+          asset.valueCalibration.outcome !== "stable-hold" && (
+            <em
+              className={`command-mini-badge command-mini-badge-${asset.valueCalibration.tone}`}
+              title={buildTradeValueCalibrationNote({
+                name: asset.name,
+                calibration: asset.valueCalibration,
+                side: "neutral",
+              })}
+            >
+              {asset.valueCalibration.chip}
+            </em>
+          )}
       </span>
       <strong
         className={
@@ -1473,7 +1509,24 @@ function TradeOutcomePanel({ outcome }: { outcome: TradeOutcomeReview }) {
 export function getTradeFairnessSuggestionCopy(
   suggestion: TradeFairnessSuggestion
 ): string {
-  return `${suggestion.fromManager} should have added ${suggestion.player.name} to ${suggestion.toManager}'s side to make this trade closer to even.`;
+  const assetName =
+    suggestion.assetKind === "pick"
+      ? suggestion.pick?.label || "a controlled pick"
+      : suggestion.player?.name || "a controlled player";
+  const base = `${suggestion.fromManager} should have added ${assetName} to ${suggestion.toManager}'s side to make this trade closer to even.`;
+  if (suggestion.valueCalibration?.outcome === "confirmed-riser") {
+    return `${base} ${assetName} is a validated riser, so this is a premium make-whole ask, not filler.`;
+  }
+  if (suggestion.valueCalibration?.outcome === "watch-riser") {
+    return `${base} ${assetName} has a soft riser signal, so do not treat it like a disposable throw-in.`;
+  }
+  if (suggestion.valueCalibration?.outcome === "low-denominator-watch") {
+    return `${base} ${assetName} has a low-baseline value move, so this should stay a watch-list sweetener instead of a hard demand by itself.`;
+  }
+  if (suggestion.valueCalibration?.outcome === "confirmed-faller") {
+    return `${base} ${assetName} is a validated faller, so the receiving side should still require role or timeline context.`;
+  }
+  return base;
 }
 
 function TradeFairnessCard({
@@ -1489,9 +1542,11 @@ function TradeFairnessCard({
   playerDetailsById?: PlayerDetailsById;
   onPlayerClick?: (player: PlayerModalData) => void;
 }) {
-  const playerDetails =
-    suggestion.player.playerDetails ||
-    playerDetailsById?.[suggestion.player.player_id];
+  const playerDetails = suggestion.player
+    ? suggestion.player.playerDetails ||
+      playerDetailsById?.[suggestion.player.player_id]
+    : undefined;
+  const isPickSuggestion = suggestion.assetKind === "pick";
 
   return (
     <div className="trade-fairness-card">
@@ -1503,10 +1558,11 @@ function TradeFairnessCard({
         type="button"
         className="trade-fairness-player"
         style={getTeamTileStyle(playerDetails?.team)}
+        disabled={isPickSuggestion}
         onClick={event => {
           event.preventDefault();
           event.stopPropagation();
-          if (!onPlayerClick) return;
+          if (!onPlayerClick || !suggestion.player) return;
           onPlayerClick(
             buildPlayerModalData({
               playerId: suggestion.player.player_id,
@@ -1524,19 +1580,44 @@ function TradeFairnessCard({
           );
         }}
       >
-        <PlayerNameWithHeadshot
-          playerId={suggestion.player.player_id}
-          playerName={suggestion.player.name}
-          team={playerDetails?.team}
-          position={suggestion.player.pos}
-        />
-        {leagueValueMode === "redraft" ? (
+        {isPickSuggestion ? (
+          <span className="trade-fairness-pick">
+            <strong>{suggestion.pick?.label || "Controlled pick"}</strong>
+            <small>
+              {suggestion.pick?.originalOwner &&
+              suggestion.pick.originalOwner !== suggestion.fromManager
+                ? `Original: ${suggestion.pick.originalOwner}`
+                : "Trade-time pick inventory"}
+            </small>
+          </span>
+        ) : suggestion.player ? (
+          <PlayerNameWithHeadshot
+            playerId={suggestion.player.player_id}
+            playerName={suggestion.player.name}
+            team={playerDetails?.team}
+            position={suggestion.player.pos}
+          />
+        ) : null}
+        {suggestion.valueCalibration &&
+          suggestion.valueCalibration.outcome !== "stable-hold" && (
+            <span
+              className={`command-mini-badge command-mini-badge-${suggestion.valueCalibration.tone}`}
+              title={buildTradeValueCalibrationNote({
+                name: suggestion.player?.name || "Suggested asset",
+                calibration: suggestion.valueCalibration,
+                side: "outgoing",
+              })}
+            >
+              {suggestion.valueCalibration.chip}
+            </span>
+          )}
+        {leagueValueMode === "redraft" || isPickSuggestion ? (
           <span className="trade-fairness-value">
             {formatCompactValue(suggestion.displayValue)}
           </span>
         ) : (
           <PositionRankPill
-            rank={suggestion.displayRank || suggestion.player.pos}
+            rank={suggestion.displayRank || suggestion.player?.pos || "Player"}
           />
         )}
       </button>
@@ -2268,6 +2349,19 @@ function getTradeItemSignal(
   return { positions, positionValue, hasPick, playerNames };
 }
 
+function getTradeItemCalibrationAssets(
+  items: string,
+  playerDetailsById?: PlayerDetailsById
+) {
+  return splitTradeItems(items)
+    .map(item => parseTradePlayerItem(item.trim()))
+    .filter((player): player is NonNullable<ReturnType<typeof parseTradePlayerItem>> => Boolean(player))
+    .map(player => ({
+      name: player.playerName,
+      playerDetails: playerDetailsById?.[player.playerId],
+    }));
+}
+
 function getTradePositionNet(
   incoming: ReturnType<typeof getTradeItemSignal>,
   outgoing: ReturnType<typeof getTradeItemSignal>,
@@ -2382,10 +2476,27 @@ export type TradeFairnessSuggestion = {
   fromManager: string;
   toManager: string;
   gap: number;
-  player: ManagerIntelPlayer;
+  assetKind: "player" | "pick";
+  player?: ManagerIntelPlayer;
+  pick?: TradeTimePickAsset;
+  valueCalibration?: TradeValueCalibration | null;
   displayRank?: string | null;
   displayValue?: number | null;
 };
+
+type TradeFairnessCandidate =
+  | {
+      assetKind: "player";
+      player: ManagerIntelPlayer;
+      value: number;
+      valueCalibration: TradeValueCalibration | null;
+    }
+  | {
+      assetKind: "pick";
+      pick: TradeTimePickAsset;
+      value: number;
+      valueCalibration: null;
+    };
 
 function getFairnessPlayerValue(
   player: ManagerIntelPlayer,
@@ -2411,6 +2522,41 @@ function getFairnessPlayerRank(
   );
 }
 
+function getFairnessPickRank(pick: TradeTimePickAsset): string {
+  return `${pick.season} R${pick.round}`;
+}
+
+function isProtectedFairnessRiser(candidate: TradeFairnessCandidate): boolean {
+  return (
+    candidate.assetKind === "player" &&
+    (
+      candidate.valueCalibration?.outcome === "confirmed-riser" ||
+      candidate.valueCalibration?.outcome === "watch-riser"
+    )
+  );
+}
+
+function getFairnessCandidateScore(
+  candidate: TradeFairnessCandidate,
+  targetGap: number
+): number {
+  const distance = Math.abs(candidate.value - targetGap);
+  const overpayPenalty = candidate.value > targetGap ? (candidate.value - targetGap) * 0.35 : 0;
+  const kindPenalty = candidate.assetKind === "pick" ? -160 : 0;
+  const calibrationPenalty =
+    candidate.valueCalibration?.outcome === "confirmed-riser"
+      ? 900
+      : candidate.valueCalibration?.outcome === "watch-riser"
+        ? 425
+        : candidate.valueCalibration?.outcome === "low-denominator-watch"
+          ? 225
+          : candidate.valueCalibration?.outcome === "confirmed-faller"
+            ? -75
+            : 0;
+
+  return distance + overpayPenalty + kindPenalty + calibrationPenalty;
+}
+
 export function buildTradeFairnessSuggestion(
   row: ReportData["tradeHistory"][number],
   evaluation: TradeLedgerEvaluation,
@@ -2423,7 +2569,7 @@ export function buildTradeFairnessSuggestion(
   const winnerContext = getTradeContextForManager(row, winner);
   if (
     winnerContext?.source !== "historical-roster" ||
-    !winnerContext.rosterPlayers?.length
+    (!winnerContext.rosterPlayers?.length && !winnerContext.tradeTimePicks?.length)
   )
     return null;
 
@@ -2431,7 +2577,13 @@ export function buildTradeFairnessSuggestion(
     ...Array.from(getTradeItemPlayerIds(row.team_a_items)),
     ...Array.from(getTradeItemPlayerIds(row.team_b_items)),
   ]);
-  const candidates = winnerContext.rosterPlayers
+  const tradedPickKeys = new Set(
+    [...splitTradeItems(row.team_a_items), ...splitTradeItems(row.team_b_items)]
+      .map(item => parseTradePickItem(item.trim()))
+      .filter((pick): pick is NonNullable<ReturnType<typeof parseTradePickItem>> => Boolean(pick))
+      .map(pick => `${pick.draftYear}-${pick.round}-${pick.originalRosterId}`)
+  );
+  const playerCandidates = (winnerContext.rosterPlayers || [])
     .filter(
       player =>
         getFairnessPlayerValue(player, leagueValueMode) > 0 &&
@@ -2439,33 +2591,58 @@ export function buildTradeFairnessSuggestion(
         (!player.owner ||
           normalizeManagerKey(player.owner) === normalizeManagerKey(winner))
     )
+    .map(player => ({
+      assetKind: "player" as const,
+      player,
+      value: getFairnessPlayerValue(player, leagueValueMode),
+      valueCalibration: getPlayerTradeValueCalibration(player.playerDetails),
+    }));
+  const pickCandidates = (winnerContext.tradeTimePicks || [])
+    .filter(
+      pick =>
+        pick.value > 0 &&
+        normalizeManagerKey(pick.owner) === normalizeManagerKey(winner) &&
+        !tradedPickKeys.has(`${pick.season}-${pick.round}-${pick.originalRosterId}`)
+    )
+    .map(pick => ({
+      assetKind: "pick" as const,
+      pick,
+      value: pick.value,
+      valueCalibration: null,
+    }));
+  const candidates = [...playerCandidates, ...pickCandidates]
     .sort((a, b) => {
-      const valueA = getFairnessPlayerValue(a, leagueValueMode);
-      const valueB = getFairnessPlayerValue(b, leagueValueMode);
-      const distanceA = Math.abs(valueA - evaluation.pointGap);
-      const distanceB = Math.abs(valueB - evaluation.pointGap);
-      if (distanceA !== distanceB) return distanceA - distanceB;
-      return valueB - valueA;
+      const scoreA = getFairnessCandidateScore(a, evaluation.pointGap);
+      const scoreB = getFairnessCandidateScore(b, evaluation.pointGap);
+      if (scoreA !== scoreB) return scoreA - scoreB;
+      if (a.assetKind !== b.assetKind) return a.assetKind === "pick" ? -1 : 1;
+      return b.value - a.value;
     });
-  const player =
-    candidates.find(
-      candidate =>
-        getFairnessPlayerValue(candidate, leagueValueMode) <=
-        evaluation.pointGap + 450
-    ) ||
+  const balancedCandidates = candidates.filter(
+    candidate => candidate.value <= evaluation.pointGap + 450
+  );
+  const asset =
+    balancedCandidates.find(candidate => !isProtectedFairnessRiser(candidate)) ||
+    balancedCandidates[0] ||
     candidates[0] ||
     null;
-  if (!player) return null;
+  if (!asset) return null;
 
   return {
     fromManager: winner,
     toManager: loser,
     gap: evaluation.pointGap,
-    player,
-    displayRank: getFairnessPlayerRank(player, leagueValueMode),
+    assetKind: asset.assetKind,
+    player: asset.assetKind === "player" ? asset.player : undefined,
+    pick: asset.assetKind === "pick" ? asset.pick : undefined,
+    valueCalibration: asset.valueCalibration,
+    displayRank:
+      asset.assetKind === "pick"
+        ? getFairnessPickRank(asset.pick)
+        : getFairnessPlayerRank(asset.player, leagueValueMode),
     displayValue:
-      leagueValueMode === "redraft"
-        ? getFairnessPlayerValue(player, leagueValueMode)
+      leagueValueMode === "redraft" || asset.assetKind === "pick"
+        ? asset.value
         : null,
   };
 }
@@ -2664,6 +2841,12 @@ function renderTradeOverviewImpact({
   const soldSurplus = Boolean(surplus && outgoing.positions.has(surplus));
   const boughtSurplus = Boolean(surplus && incoming.positions.has(surplus));
   const needNet = getTradePositionNet(incoming, outgoing, need);
+  const incomingValueSignal = getStrongestTradeValueCalibration(
+    getTradeItemCalibrationAssets(incomingItems, playerDetailsById)
+  );
+  const outgoingValueSignal = getStrongestTradeValueCalibration(
+    getTradeItemCalibrationAssets(outgoingItems, playerDetailsById)
+  );
 
   const impactPills: Array<{
     label: string;
@@ -2701,6 +2884,18 @@ function renderTradeOverviewImpact({
     impactPills.push({ label: `Spent ${need}`, tone: "danger" });
   if (surplus && boughtSurplus)
     impactPills.push({ label: `Added More ${surplus}`, tone: "warn" });
+  if (incomingValueSignal) {
+    impactPills.push({
+      label: `Buying ${incomingValueSignal.calibration.chip}`,
+      tone: incomingValueSignal.calibration.tone,
+    });
+  }
+  if (outgoingValueSignal) {
+    impactPills.push({
+      label: `Selling ${outgoingValueSignal.calibration.chip}`,
+      tone: outgoingValueSignal.calibration.tone,
+    });
+  }
 
   const notes: string[] = [];
   if (need && boughtNeed && soldNeed) {
@@ -2733,6 +2928,24 @@ function renderTradeOverviewImpact({
   }
   if (!notes.length && intel?.holes.summary) {
     notes.push(intel.holes.summary);
+  }
+  if (incomingValueSignal) {
+    notes.push(
+      buildTradeValueCalibrationNote({
+        name: incomingValueSignal.asset.name,
+        calibration: incomingValueSignal.calibration,
+        side: "incoming",
+      })
+    );
+  }
+  if (outgoingValueSignal) {
+    notes.push(
+      buildTradeValueCalibrationNote({
+        name: outgoingValueSignal.asset.name,
+        calibration: outgoingValueSignal.calibration,
+        side: "outgoing",
+      })
+    );
   }
 
   if (impactPills.length === 0 && notes.length === 0) return null;

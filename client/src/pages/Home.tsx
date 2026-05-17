@@ -180,8 +180,8 @@ const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
   "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
-const REPORT_CACHE_DATA_VERSION = "player-cohort-explanations-v1";
-const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v23";
+const REPORT_CACHE_DATA_VERSION = "trade-value-calibration-v1";
+const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v24";
 const REPORT_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v10",
@@ -197,6 +197,7 @@ const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v20",
   "dynasty-degenerates:last-report:v21",
   "dynasty-degenerates:last-report:v22",
+  "dynasty-degenerates:last-report:v23",
 ];
 const LAST_LEAGUE_KEY = "dynasty-degenerates:last-league:v1";
 const SLEEPER_SESSION_KEY = "dynasty-degenerates:sleeper-session:v1";
@@ -345,6 +346,11 @@ function updateReportTabUrl(tab: string, leagueId?: string | null) {
   const nextHash = normalizedTab === "overview" ? "" : `#${normalizedTab}`;
   const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${nextHash}`;
   window.history.replaceState(null, "", nextUrl);
+}
+
+function hasDraftReportData(reportData?: ReportData | null): boolean {
+  if (!reportData) return false;
+  return (reportData.draftPicks || []).length > 0;
 }
 
 function formatPreviewNumber(value?: number | null): string {
@@ -1176,6 +1182,8 @@ function buildTradeProposalPreviewMetrics(
       []),
   ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
   const latestSignal = signals[0] || null;
+
+  if (!signals.length) return [];
 
   return [
     {
@@ -3143,6 +3151,402 @@ function AdminValueDiagnosticsTable({
   );
 }
 
+type AIReadoutDiagnosticTone = "good" | "info" | "warn" | "danger";
+
+type AIReadoutDiagnosticRow = {
+  id: string;
+  tab: string;
+  surface: string;
+  owner: string;
+  count: number;
+  hasConfidence: boolean;
+  hasTrace: boolean;
+  duplicateRisk: boolean;
+  sourceLimited: boolean;
+  note: string;
+  tone: AIReadoutDiagnosticTone;
+};
+
+function getAIReadoutDiagnosticTone(row: {
+  hasConfidence: boolean;
+  hasTrace: boolean;
+  duplicateRisk: boolean;
+  sourceLimited: boolean;
+}): AIReadoutDiagnosticTone {
+  if (row.duplicateRisk) return "danger";
+  if (!row.hasConfidence || !row.hasTrace || row.sourceLimited) return "warn";
+  return "good";
+}
+
+function buildAIReadoutRow(
+  row: Omit<AIReadoutDiagnosticRow, "tone">
+): AIReadoutDiagnosticRow {
+  return {
+    ...row,
+    tone: getAIReadoutDiagnosticTone(row),
+  };
+}
+
+function buildAIReadoutDiagnostics(reportData: ReportData) {
+  const managerCount =
+    reportData.managerRosterIntelligence?.length ||
+    reportData.leagueOverview?.length ||
+    0;
+  const hasLeagueConfidence = Boolean(reportData.leagueDiagnostics?.aiConfidence);
+  const hasManagerConfidence = Boolean(
+    reportData.leagueDiagnostics?.aiConfidence?.managerConfidence?.length
+  );
+  const hasRosterIntel = Boolean(reportData.managerRosterIntelligence?.length);
+  const hasRankings = Boolean(
+    reportData.rankings?.profiles?.[reportData.rankings.defaultProfileKey || ""]?.length ||
+      reportData.rankings?.dynastySf?.length ||
+      reportData.rankings?.redraftPpr?.length
+  );
+  const hasMarketMovement = Boolean(
+    reportData.weeklyRisers?.length || reportData.weeklyFallers?.length
+  );
+  const hasTrades = Boolean(
+    reportData.tradeHistory?.length ||
+      reportData.tradeTendencies?.length ||
+      reportData.tradeProposalSignals?.length
+  );
+  const hasWaivers = Boolean(
+    reportData.waiverIntelligence?.availableTrendingAdds?.length ||
+      reportData.recentTransactions?.length
+  );
+  const hasScheduleContext = Boolean(
+    reportData.matchupPreviews?.length ||
+      reportData.schedulePlanning?.rosterGaps?.length ||
+      reportData.schedulePlanning?.streamerCandidates?.length ||
+      reportData.schedulePlanning?.byeWeekNotes?.length
+  );
+  const hasDraftContext = Boolean(
+    reportData.draftPicks?.length || reportData.draftStats?.length
+  );
+
+  const rows = [
+    buildAIReadoutRow({
+      id: "overview-pulse",
+      tab: "Overview",
+      surface: "Overview AI Pulse",
+      owner: "League narrative",
+      count: 1,
+      hasConfidence: hasLeagueConfidence,
+      hasTrace: true,
+      duplicateRisk: false,
+      sourceLimited: !hasRosterIntel,
+      note: hasRosterIntel
+        ? "Narrative-only handoff; table metrics stay with their owners."
+        : "Roster intelligence is missing, so the league story stays limited.",
+    }),
+    buildAIReadoutRow({
+      id: "overview-blueprint",
+      tab: "Overview",
+      surface: "Monthly Team Blueprint",
+      owner: "Long-horizon roster plan",
+      count: managerCount ? 1 : 0,
+      hasConfidence: hasLeagueConfidence || hasManagerConfidence,
+      hasTrace: Boolean(reportData.monthlyBlueprintSnapshot || hasRosterIntel),
+      duplicateRisk: false,
+      sourceLimited: !reportData.monthlyBlueprintSnapshot,
+      note: reportData.monthlyBlueprintSnapshot
+        ? "Uses blueprint snapshot, roster construction, age curve, and plan cadence."
+        : "Blueprint can render from current data, but stored monthly history is not fully available.",
+    }),
+    buildAIReadoutRow({
+      id: "overview-power",
+      tab: "Overview",
+      surface: "League Power Rankings",
+      owner: "League ordering",
+      count: reportData.powerRankings?.length || 0,
+      hasConfidence: hasManagerConfidence || hasLeagueConfidence,
+      hasTrace: Boolean(reportData.powerRankings?.length),
+      duplicateRisk: false,
+      sourceLimited: !reportData.powerRankings?.length,
+      note: "Ranking-only read after ownership cleanup; roster causes and trade targets belong elsewhere.",
+    }),
+    buildAIReadoutRow({
+      id: "overview-recon",
+      tab: "Overview",
+      surface: "Team Breakdown & Roster Recon",
+      owner: "Roster health and leaks",
+      count: managerCount ? 1 : 0,
+      hasConfidence: hasManagerConfidence || hasLeagueConfidence,
+      hasTrace: hasRosterIntel,
+      duplicateRisk: false,
+      sourceLimited: !hasRosterIntel,
+      note: "Owns roster strengths, fragility, shortage, surplus, and roster-health next move.",
+    }),
+    buildAIReadoutRow({
+      id: "overview-trades",
+      tab: "Overview",
+      surface: "Trade Finder / Partner Reads",
+      owner: "Trade packages and partner fit",
+      count: Math.max(0, managerCount ? managerCount : 0),
+      hasConfidence: hasManagerConfidence || hasLeagueConfidence,
+      hasTrace: hasRosterIntel && hasTrades,
+      duplicateRisk: false,
+      sourceLimited: !hasTrades,
+      note: hasTrades
+        ? "Owns specific partners, packages, value gaps, resistance notes, and tracked outcomes."
+        : "Can infer roster fit, but returned trade history/tendencies are thin.",
+    }),
+    buildAIReadoutRow({
+      id: "autopilot-actions",
+      tab: "AI Autopilot",
+      surface: "Action Queue",
+      owner: "Do-now recommendations",
+      count: hasRosterIntel ? Math.min(6, Math.max(1, managerCount + 2)) : 0,
+      hasConfidence: hasLeagueConfidence,
+      hasTrace: hasRosterIntel,
+      duplicateRisk: false,
+      sourceLimited: !hasScheduleContext,
+      note: hasScheduleContext
+        ? "Actions can include schedule, roster, waiver, and trade context."
+        : "Schedule/projection traces stay limited until matchup data is stable.",
+    }),
+    buildAIReadoutRow({
+      id: "momentum-waivers",
+      tab: "Momentum",
+      surface: "Waiver Intelligence",
+      owner: "Claim/drop opportunity",
+      count: reportData.waiverIntelligence?.availableTrendingAdds?.length || 0,
+      hasConfidence: hasLeagueConfidence,
+      hasTrace: hasWaivers,
+      duplicateRisk: false,
+      sourceLimited: !hasWaivers,
+      note: hasWaivers
+        ? "Uses available players, drop alternatives, transactions, and roster need context."
+        : "No waiver or transaction payload was returned.",
+    }),
+    buildAIReadoutRow({
+      id: "momentum-market",
+      tab: "Momentum",
+      surface: "Trade Market Radar",
+      owner: "Movement buy/sell signal",
+      count: (reportData.weeklyRisers?.length || 0) + (reportData.weeklyFallers?.length || 0),
+      hasConfidence: hasLeagueConfidence,
+      hasTrace: hasMarketMovement,
+      duplicateRisk: false,
+      sourceLimited: !hasMarketMovement,
+      note: hasMarketMovement
+        ? "Owns weekly value movement context without duplicating roster-health reads."
+        : "No riser/faller payload was returned.",
+    }),
+    buildAIReadoutRow({
+      id: "rankings-market",
+      tab: "Rankings",
+      surface: "Ranking Board Market Signal",
+      owner: "Board-level market movement",
+      count: hasRankings ? 1 : 0,
+      hasConfidence: hasLeagueConfidence,
+      hasTrace: hasRankings,
+      duplicateRisk: false,
+      sourceLimited: !hasRankings,
+      note: hasRankings
+        ? "Owns board-level value and movement context."
+        : "Ranking rows are missing or still loading for this payload.",
+    }),
+    buildAIReadoutRow({
+      id: "trade-browser",
+      tab: "Trade History",
+      surface: "Trade Browser Read",
+      owner: "Ledger and tendency signal",
+      count: 1,
+      hasConfidence: hasLeagueConfidence,
+      hasTrace: hasTrades,
+      duplicateRisk: false,
+      sourceLimited: !hasTrades,
+      note: hasTrades
+        ? "Owns ledger size, biggest gaps, manager tendency, and outcome-learning context."
+        : "No trade history or proposal signals were returned.",
+    }),
+    buildAIReadoutRow({
+      id: "draft-history",
+      tab: "Draft",
+      surface: "Draft Capital Read",
+      owner: "Draft slot and opportunity runway",
+      count: hasDraftContext ? 1 : 0,
+      hasConfidence: hasLeagueConfidence,
+      hasTrace: hasDraftContext,
+      duplicateRisk: false,
+      sourceLimited: !hasDraftContext,
+      note: hasDraftContext
+        ? "Owns draft slot, opportunity runway, and draft-hit context."
+        : "Draft reads stay hidden or limited when no draft payload exists.",
+    }),
+  ];
+
+  const totalReadouts = rows.reduce((sum, row) => sum + row.count, 0);
+  const missingConfidence = rows.filter(row => row.count > 0 && !row.hasConfidence).length;
+  const missingTrace = rows.filter(row => row.count > 0 && !row.hasTrace).length;
+  const duplicateRisk = rows.filter(row => row.duplicateRisk).length;
+  const sourceLimited = rows.filter(row => row.count > 0 && row.sourceLimited).length;
+  const tabSummaries = Array.from(
+    rows.reduce((map, row) => {
+      const current = map.get(row.tab) || {
+        tab: row.tab,
+        count: 0,
+        warnings: 0,
+      };
+      current.count += row.count;
+      if (
+        row.count > 0 &&
+        (!row.hasConfidence || !row.hasTrace || row.duplicateRisk || row.sourceLimited)
+      ) {
+        current.warnings += 1;
+      }
+      map.set(row.tab, current);
+      return map;
+    }, new Map<string, { tab: string; count: number; warnings: number }>())
+  ).map(([, summary]) => summary);
+
+  return {
+    rows,
+    tabSummaries,
+    totalReadouts,
+    missingConfidence,
+    missingTrace,
+    duplicateRisk,
+    sourceLimited,
+  };
+}
+
+function AdminAIReadoutDiagnosticsSection({
+  reportData,
+}: {
+  reportData: ReportData;
+}) {
+  const diagnostics = buildAIReadoutDiagnostics(reportData);
+  const flaggedRows = diagnostics.rows.filter(
+    row =>
+      row.count > 0 &&
+      (!row.hasConfidence || !row.hasTrace || row.duplicateRisk || row.sourceLimited)
+  );
+
+  return (
+    <CollapsibleReportSection
+      title="AI Readout Coverage"
+      kicker="Confidence, traces, and duplicate-risk checks"
+      previewMetrics={[
+        {
+          label: "Readouts",
+          value: diagnostics.totalReadouts,
+          tone: diagnostics.totalReadouts ? "info" : "warn",
+        },
+        {
+          label: "Trace Flags",
+          value: diagnostics.missingTrace,
+          tone: diagnostics.missingTrace ? "warn" : "good",
+        },
+        {
+          label: "Dupes",
+          value: diagnostics.duplicateRisk,
+          tone: diagnostics.duplicateRisk ? "danger" : "good",
+        },
+      ]}
+      premium
+    >
+      <div className="admin-ai-readout-diagnostics">
+        <div className="admin-ai-readout-summary">
+          <span>
+            <strong>{diagnostics.totalReadouts}</strong>
+            <em>readouts tracked</em>
+          </span>
+          <span>
+            <strong>{diagnostics.missingConfidence}</strong>
+            <em>missing confidence</em>
+          </span>
+          <span>
+            <strong>{diagnostics.missingTrace}</strong>
+            <em>missing traces</em>
+          </span>
+          <span>
+            <strong>{diagnostics.duplicateRisk}</strong>
+            <em>duplicate-risk flags</em>
+          </span>
+          <span>
+            <strong>{diagnostics.sourceLimited}</strong>
+            <em>source-limited reads</em>
+          </span>
+        </div>
+
+        <div className="admin-ai-readout-tab-grid" aria-label="AI readout count by tab">
+          {diagnostics.tabSummaries.map(summary => (
+            <article key={summary.tab}>
+              <span>{summary.tab}</span>
+              <strong>{summary.count}</strong>
+              <em>{summary.warnings} flag{summary.warnings === 1 ? "" : "s"}</em>
+            </article>
+          ))}
+        </div>
+
+        <div className="admin-ai-readout-surface-grid" aria-label="AI readout surfaces">
+          {diagnostics.rows.map(row => (
+            <article
+              key={row.id}
+              className={`admin-ai-readout-row admin-ai-readout-row-${row.tone}`}
+            >
+              <div>
+                <span>{row.tab}</span>
+                <strong>{row.surface}</strong>
+              </div>
+              <p>{row.note}</p>
+              <div className="admin-ai-readout-chip-row">
+                <em>{row.count} readout{row.count === 1 ? "" : "s"}</em>
+                <em>{row.owner}</em>
+                <em>{row.hasConfidence ? "Confidence present" : "Missing confidence"}</em>
+                <em>{row.hasTrace ? "Trace present" : "Missing trace"}</em>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {flaggedRows.length > 0 ? (
+          <section
+            className="admin-ai-readout-flag-panel"
+            aria-label="AI readout coverage flags"
+          >
+            <div>
+              <span>Coverage Flags</span>
+              <strong>
+                {flaggedRows.length} readout surface
+                {flaggedRows.length === 1 ? "" : "s"} need review
+              </strong>
+            </div>
+            <div className="admin-ai-readout-row-grid">
+              {flaggedRows.map(row => (
+                <article
+                  key={row.id}
+                  className={`admin-ai-readout-row admin-ai-readout-row-${row.tone}`}
+                >
+                  <div>
+                    <span>{row.tab}</span>
+                    <strong>{row.surface}</strong>
+                  </div>
+                  <p>{row.note}</p>
+                  <div className="admin-ai-readout-chip-row">
+                    <em>{row.owner}</em>
+                    {!row.hasConfidence && <em>Missing confidence</em>}
+                    {!row.hasTrace && <em>Missing trace</em>}
+                    {row.duplicateRisk && <em>Duplicate risk</em>}
+                    {row.sourceLimited && <em>Source limited</em>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <p className="admin-ai-readout-clean">
+            All tracked readout surfaces have confidence, trace ownership, and
+            no duplicate-risk flags for this payload.
+          </p>
+        )}
+      </div>
+    </CollapsibleReportSection>
+  );
+}
+
 function AdminAttentionBadge({
   count,
   label,
@@ -4093,6 +4497,9 @@ export default function Home() {
     null
   );
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [reportScanCompletedAt, setReportScanCompletedAt] = useState<
+    number | null
+  >(null);
   const [reportDataCacheVersion, setReportDataCacheVersion] = useState<
     string | null
   >(null);
@@ -4915,15 +5322,32 @@ export default function Home() {
   const migratedActiveTab =
     activeTab === "projections" ? "rankings" : activeTab;
   const canViewAutopilotTab = canViewAdminFeatureExpansion;
+  const tabLeagueValueMode = normalizeLeagueValueMode(
+    reportData?.leagueDiagnostics?.valueMode || reportData?.leagueValueMode
+  );
+  const shouldShowDraftHistoryTab =
+    tabLeagueValueMode !== "redraft" || hasDraftReportData(reportData);
   const shouldDeferAutopilotUrlSync =
     migratedActiveTab === "autopilot" &&
     !canViewAutopilotTab &&
     authQuery.isLoading;
   const resolvedActiveTab =
-    migratedActiveTab === "autopilot" && !canViewAutopilotTab
+    migratedActiveTab === "draft" && !shouldShowDraftHistoryTab
+      ? "overview"
+      : migratedActiveTab === "autopilot" && !canViewAutopilotTab
       ? "overview"
       : migratedActiveTab;
-  const reportTabsClassName = `report-tabs ${canViewAutopilotTab ? "report-tabs-six" : "report-tabs-five"}`;
+  const visibleReportTabCount =
+    4 + (canViewAutopilotTab ? 1 : 0) + (shouldShowDraftHistoryTab ? 1 : 0);
+  const reportTabsClassName = `report-tabs report-tabs-${visibleReportTabCount === 6 ? "six" : visibleReportTabCount === 5 ? "five" : "four"}`;
+  const reportScanTooltip = reportScanCompletedAt
+    ? `League scan complete at ${new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(reportScanCompletedAt))}`
+    : "League scan complete";
   const rankingsQuery = trpc.league.rankingsMeta.useQuery(
     { leagueId },
     {
@@ -4974,6 +5398,18 @@ export default function Home() {
       updateReportTabUrl("rankings", leagueId);
     }
   }, [activeTab, authQuery.isLoading, canViewAutopilotTab, leagueId]);
+
+  useEffect(() => {
+    setReportScanCompletedAt(reportData ? Date.now() : null);
+  }, [reportData]);
+
+  useEffect(() => {
+    if (!reportData || activeTab !== "draft" || shouldShowDraftHistoryTab)
+      return;
+
+    setActiveTab("overview");
+    updateReportTabUrl("overview", leagueId);
+  }, [activeTab, leagueId, reportData, shouldShowDraftHistoryTab]);
 
   useEffect(() => {
     if (!reportData || !leagueId) return;
@@ -5299,6 +5735,7 @@ export default function Home() {
                     <span
                       className="report-live-indicator hidden md:inline-flex"
                       aria-label="League analysis loaded"
+                      title={reportScanTooltip}
                     >
                       <span aria-hidden="true" />
                       League scan complete
@@ -5445,19 +5882,27 @@ export default function Home() {
                     </span>
                   </TabsTrigger>
 
-                  <TabsTrigger
-                    value="draft"
-                    className="report-tab"
-                    aria-label="Draft History"
-                  >
-                    <ClipboardList className="h-4 w-4" aria-hidden="true" />
-                    <span className="report-tab-label-full" aria-hidden="true">
-                      Draft History
-                    </span>
-                    <span className="report-tab-label-short" aria-hidden="true">
-                      Draft
-                    </span>
-                  </TabsTrigger>
+                  {shouldShowDraftHistoryTab && (
+                    <TabsTrigger
+                      value="draft"
+                      className="report-tab"
+                      aria-label="Draft History"
+                    >
+                      <ClipboardList className="h-4 w-4" aria-hidden="true" />
+                      <span
+                        className="report-tab-label-full"
+                        aria-hidden="true"
+                      >
+                        Draft History
+                      </span>
+                      <span
+                        className="report-tab-label-short"
+                        aria-hidden="true"
+                      >
+                        Draft
+                      </span>
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 <Suspense fallback={<ReportSectionLoadingFallback />}>
@@ -6048,6 +6493,9 @@ export default function Home() {
                           <AdminValueDiagnosticsSection
                             reportData={reportDataForView}
                           />
+                          <AdminAIReadoutDiagnosticsSection
+                            reportData={reportDataForView}
+                          />
                         </section>
                       )}
                     </div>
@@ -6094,6 +6542,14 @@ export default function Home() {
                           leagueOverview={reportData.leagueOverview}
                           powerRankings={reportData.powerRankings}
                           dynastyTimelines={reportData.dynastyTimelines}
+                          pickPortfolios={reportData.pickPortfolios}
+                          tradeTendencies={reportData.tradeTendencies}
+                          tradeProposalSignals={[
+                            ...(reportData.tradeProposalSignals || []),
+                            ...(reportData.adminTradeProposalSignals || []),
+                            ...(reportData.adminSleeperTradeProposalSignals ||
+                              []),
+                          ]}
                           leagueId={leagueId}
                           leagueLogo={leagueLogo}
                           viewerManager={effectiveViewerManager}
@@ -6214,24 +6670,26 @@ export default function Home() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="draft" className="report-tab-content">
-                    <DraftAnalysis
-                      draftPicks={reportData.draftPicks || []}
-                      draftStats={reportData.draftStats || []}
-                      managerRosterIntelligence={
-                        reportData.managerRosterIntelligence
-                      }
-                      managerAvatars={reportData.managerAvatars}
-                      playerDetailsById={reportData.playerDetailsById}
-                      leagueId={leagueId}
-                      leagueLogo={leagueLogo}
-                      viewerManager={effectiveViewerManager}
-                      currentStandings={reportData.currentStandings}
-                      leagueOverview={reportData.leagueOverview}
-                      leagueValueMode={leagueValueMode}
-                      showAIReads={canViewAdminFeatureExpansion}
-                    />
-                  </TabsContent>
+                  {shouldShowDraftHistoryTab && (
+                    <TabsContent value="draft" className="report-tab-content">
+                      <DraftAnalysis
+                        draftPicks={reportData.draftPicks || []}
+                        draftStats={reportData.draftStats || []}
+                        managerRosterIntelligence={
+                          reportData.managerRosterIntelligence
+                        }
+                        managerAvatars={reportData.managerAvatars}
+                        playerDetailsById={reportData.playerDetailsById}
+                        leagueId={leagueId}
+                        leagueLogo={leagueLogo}
+                        viewerManager={effectiveViewerManager}
+                        currentStandings={reportData.currentStandings}
+                        leagueOverview={reportData.leagueOverview}
+                        leagueValueMode={leagueValueMode}
+                        showAIReads={canViewAdminFeatureExpansion}
+                      />
+                    </TabsContent>
+                  )}
                 </Suspense>
               </Tabs>
             </div>

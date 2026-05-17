@@ -325,6 +325,20 @@ export interface TradeTeamContext {
   source: 'historical-roster' | 'current-roster';
   reason: string;
   rosterPlayers?: ManagerIntelPlayer[];
+  tradeTimePicks?: TradeTimePickAsset[];
+}
+
+export interface TradeTimePickAsset {
+  id: string;
+  label: string;
+  season: string;
+  round: number;
+  originalRosterId: number;
+  originalOwner: string;
+  ownerRosterId: number;
+  owner: string;
+  value: number;
+  draftSlot?: number | null;
 }
 
 export interface PositionDepth {
@@ -563,6 +577,15 @@ export interface PickPortfolio {
   ownPicks: number;
   acquiredPicks: number;
   projectedSlots: string[];
+  futurePicks?: Array<{
+    id: string;
+    label: string;
+    manager: string;
+    originalOwner: string;
+    season: string;
+    round: number;
+    value: number;
+  }>;
 }
 
 export interface WaiverIntelligence {
@@ -685,6 +708,7 @@ export interface DraftPick {
 
 export type PlayerCohortPhase = 'early' | 'prime' | 'late-prime' | 'decline' | 'unknown';
 export type PlayerCohortOutcomeBucket = 'breakout' | 'sustain' | 'fade-risk' | 'injury-risk' | 'market-over-production' | 'market-under-production' | 'thin-signal';
+export type PlayerCohortEvidenceGrade = 'strong' | 'usable' | 'thin' | 'blocked';
 export type PlayerDraftCapitalTier = 'premium' | 'day-two' | 'late-round' | 'undrafted' | 'unknown';
 export type PlayerOpportunityWindow = 'protected-runway' | 'prove-it-window' | 'short-leash' | 'unknown';
 
@@ -711,6 +735,15 @@ export interface PlayerCohortProfile {
   marketProductionDelta: number | null;
   outcomeBucket: PlayerCohortOutcomeBucket;
   confidence: number;
+  calibration: {
+    evidenceGrade: PlayerCohortEvidenceGrade;
+    evidenceScore: number;
+    confidenceCap: number;
+    strongReadEligible: boolean;
+    missingSignals: string[];
+    cautionFlags: string[];
+    note: string;
+  };
   draftCapital: PlayerCohortDraftCapital;
   peers: Array<{
     playerId: string;
@@ -805,6 +838,38 @@ export interface PlayerDetails {
     fantasyProsSeasonValue?: number | null;
     sources?: string[];
   };
+  valueTimeline?: {
+    profileKey: string;
+    source: 'stored-value-snapshots';
+    points: Array<{
+      date: string;
+      value: number;
+      rank?: string | null;
+      sources: string[];
+      sourceCount: number;
+      events?: Array<{
+        type: 'news' | 'draft' | 'roster-room' | 'injury' | 'schedule' | 'source-change';
+        label: string;
+        tone: 'up' | 'down' | 'neutral' | 'warning';
+        detail?: string | null;
+      }>;
+      marketKtc?: number | null;
+      fantasyCalcDynasty?: number | null;
+      fantasyProsDynasty?: number | null;
+      dynastyProcess?: number | null;
+      dynastyNerds?: number | null;
+      flockFantasy?: number | null;
+    }>;
+    summary: {
+      startValue: number | null;
+      endValue: number | null;
+      delta: number | null;
+      deltaPct: number | null;
+      sourceSetChanged: boolean;
+      eventCount: number;
+      note: string;
+    };
+  } | null;
   lastSeasonPositionRank?: string | null;
   lastSeasonFantasyPoints?: number | null;
   lastSeasonGames?: number | null;
@@ -823,6 +888,297 @@ export interface PlayerDetails {
     source?: string | null;
     url?: string | null;
     publishedAt?: string | null;
+  } | null;
+  newsValueMovement?: {
+    newsTitle: string;
+    newsPublishedAt?: string | null;
+    currentValue: number | null;
+    previousValue: number | null;
+    valueDelta: number | null;
+    valueDeltaPct: number | null;
+    note: string;
+  } | null;
+  usageTrend?: {
+    season: string;
+    team?: string | null;
+    games: number;
+    targets: number;
+    carries: number;
+    receptions: number;
+    fantasyPointsPpr: number;
+    fantasyPointsPprPerGame: number | null;
+    avgTargetShare: number | null;
+    airYardsShare?: number | null;
+    wopr?: number | null;
+    avgOffenseSnapPct: number | null;
+    recentTargets: number;
+    recentCarries: number;
+    targetTrend: 'up' | 'down' | 'flat' | 'unknown';
+    carryTrend: 'up' | 'down' | 'flat' | 'unknown';
+    note: string;
+  } | null;
+  teamEnvironment?: {
+    source: 'nflverse team stats';
+    season: string;
+    team: string;
+    games: number;
+    passAttempts: number;
+    carries: number;
+    targets: number | null;
+    dropbacks: number;
+    designedPlayVolume: number;
+    passRate: number | null;
+    rushRate: number | null;
+    playsPerGame: number | null;
+    targetsPerGame: number | null;
+    passingEpa: number | null;
+    rushingEpa: number | null;
+    passRateRank: number | null;
+    rushRateRank: number | null;
+    neutralScriptPlays: number | null;
+    neutralScriptPassRate: number | null;
+    redZonePlays: number | null;
+    redZonePassRate: number | null;
+    redZoneRushRate: number | null;
+    nonGarbagePlays: number | null;
+    nonGarbagePassRate: number | null;
+    estimatedSecondsPerPlay: number | null;
+    paceRank: number | null;
+    noHuddleRate: number | null;
+    tendency: 'pass-heavy' | 'run-heavy' | 'balanced';
+    note: string;
+  } | null;
+  rosterRoom?: {
+    source: 'nflverse rosters/weekly rosters/depth charts/trades';
+    season: string;
+    previousSeason: string;
+    team: string;
+    position: string;
+    currentCount: number;
+    previousCount: number;
+    netChange: number;
+    additions: Array<{
+      name: string;
+      gsisId?: string | null;
+      sleeperId?: string | null;
+      draftRound?: number | null;
+      draftOverall?: number | null;
+      yearsExp?: number | null;
+      priorSeasonTeam?: string | null;
+      priorSeasonGames?: number | null;
+      priorSeasonTargets?: number | null;
+      priorSeasonCarries?: number | null;
+      priorSeasonReceptions?: number | null;
+      priorSeasonFantasyPointsPpr?: number | null;
+      priorSeasonFantasyPointsPprPerGame?: number | null;
+      priorSeasonAvgTargetShare?: number | null;
+      priorSeasonAirYardsShare?: number | null;
+      priorSeasonWopr?: number | null;
+      movementQualityTier?: 'star' | 'starter' | 'rotation' | 'depth' | 'unknown';
+      movementImpactScore?: number | null;
+      prospectRating?: number | null;
+      prospectOverallRank?: number | null;
+      prospectPositionRank?: number | null;
+      prospectDraftYear?: number | null;
+      movementType?: 'draft-pick' | 'trade' | 'free-agent-or-claim' | 'injury-return' | 'practice-squad-or-depth-churn' | 'roster-loss';
+      movementConfidence?: 'high' | 'medium' | 'low';
+      firstSeenWeek?: number | null;
+      lastSeenWeek?: number | null;
+      firstStatus?: string | null;
+      lastStatus?: string | null;
+      activeWeeks?: number | null;
+      practiceSquadWeeks?: number | null;
+      injuredReserveWeeks?: number | null;
+      tradeDate?: string | null;
+      tradeFromTeam?: string | null;
+      tradeToTeam?: string | null;
+      movementNote?: string | null;
+    }>;
+    losses: Array<{
+      name: string;
+      gsisId?: string | null;
+      sleeperId?: string | null;
+      draftRound?: number | null;
+      draftOverall?: number | null;
+      yearsExp?: number | null;
+      priorSeasonTeam?: string | null;
+      priorSeasonGames?: number | null;
+      priorSeasonTargets?: number | null;
+      priorSeasonCarries?: number | null;
+      priorSeasonReceptions?: number | null;
+      priorSeasonFantasyPointsPpr?: number | null;
+      priorSeasonFantasyPointsPprPerGame?: number | null;
+      priorSeasonAvgTargetShare?: number | null;
+      priorSeasonAirYardsShare?: number | null;
+      priorSeasonWopr?: number | null;
+      movementQualityTier?: 'star' | 'starter' | 'rotation' | 'depth' | 'unknown';
+      movementImpactScore?: number | null;
+      prospectRating?: number | null;
+      prospectOverallRank?: number | null;
+      prospectPositionRank?: number | null;
+      prospectDraftYear?: number | null;
+      movementType?: 'draft-pick' | 'trade' | 'free-agent-or-claim' | 'injury-return' | 'practice-squad-or-depth-churn' | 'roster-loss';
+      movementConfidence?: 'high' | 'medium' | 'low';
+      firstSeenWeek?: number | null;
+      lastSeenWeek?: number | null;
+      firstStatus?: string | null;
+      lastStatus?: string | null;
+      activeWeeks?: number | null;
+      practiceSquadWeeks?: number | null;
+      injuredReserveWeeks?: number | null;
+      tradeDate?: string | null;
+      tradeFromTeam?: string | null;
+      tradeToTeam?: string | null;
+      movementNote?: string | null;
+    }>;
+    rookieAdditions: Array<{
+      name: string;
+      gsisId?: string | null;
+      sleeperId?: string | null;
+      draftRound?: number | null;
+      draftOverall?: number | null;
+      yearsExp?: number | null;
+      priorSeasonTeam?: string | null;
+      priorSeasonGames?: number | null;
+      priorSeasonTargets?: number | null;
+      priorSeasonCarries?: number | null;
+      priorSeasonReceptions?: number | null;
+      priorSeasonFantasyPointsPpr?: number | null;
+      priorSeasonFantasyPointsPprPerGame?: number | null;
+      priorSeasonAvgTargetShare?: number | null;
+      priorSeasonAirYardsShare?: number | null;
+      priorSeasonWopr?: number | null;
+      movementQualityTier?: 'star' | 'starter' | 'rotation' | 'depth' | 'unknown';
+      movementImpactScore?: number | null;
+      prospectRating?: number | null;
+      prospectOverallRank?: number | null;
+      prospectPositionRank?: number | null;
+      prospectDraftYear?: number | null;
+      movementType?: 'draft-pick' | 'trade' | 'free-agent-or-claim' | 'injury-return' | 'practice-squad-or-depth-churn' | 'roster-loss';
+      movementConfidence?: 'high' | 'medium' | 'low';
+      firstSeenWeek?: number | null;
+      lastSeenWeek?: number | null;
+      firstStatus?: string | null;
+      lastStatus?: string | null;
+      activeWeeks?: number | null;
+      practiceSquadWeeks?: number | null;
+      injuredReserveWeeks?: number | null;
+      tradeDate?: string | null;
+      tradeFromTeam?: string | null;
+      tradeToTeam?: string | null;
+      movementNote?: string | null;
+    }>;
+    premiumAdditions: Array<{
+      name: string;
+      gsisId?: string | null;
+      sleeperId?: string | null;
+      draftRound?: number | null;
+      draftOverall?: number | null;
+      yearsExp?: number | null;
+      priorSeasonTeam?: string | null;
+      priorSeasonGames?: number | null;
+      priorSeasonTargets?: number | null;
+      priorSeasonCarries?: number | null;
+      priorSeasonReceptions?: number | null;
+      priorSeasonFantasyPointsPpr?: number | null;
+      priorSeasonFantasyPointsPprPerGame?: number | null;
+      priorSeasonAvgTargetShare?: number | null;
+      priorSeasonAirYardsShare?: number | null;
+      priorSeasonWopr?: number | null;
+      movementQualityTier?: 'star' | 'starter' | 'rotation' | 'depth' | 'unknown';
+      movementImpactScore?: number | null;
+      prospectRating?: number | null;
+      prospectOverallRank?: number | null;
+      prospectPositionRank?: number | null;
+      prospectDraftYear?: number | null;
+      movementType?: 'draft-pick' | 'trade' | 'free-agent-or-claim' | 'injury-return' | 'practice-squad-or-depth-churn' | 'roster-loss';
+      movementConfidence?: 'high' | 'medium' | 'low';
+      firstSeenWeek?: number | null;
+      lastSeenWeek?: number | null;
+      firstStatus?: string | null;
+      lastStatus?: string | null;
+      activeWeeks?: number | null;
+      practiceSquadWeeks?: number | null;
+      injuredReserveWeeks?: number | null;
+      tradeDate?: string | null;
+      tradeFromTeam?: string | null;
+      tradeToTeam?: string | null;
+      movementNote?: string | null;
+    }>;
+    depthChartTop: Array<{
+      name: string;
+      gsisId?: string | null;
+      rank?: number | null;
+      slot?: string | null;
+    }>;
+    movementTypes?: Array<'draft-pick' | 'trade' | 'free-agent-or-claim' | 'injury-return' | 'practice-squad-or-depth-churn' | 'roster-loss'>;
+    weeklyCoverage?: {
+      currentSeasonPlayers: number;
+      previousSeasonPlayers: number;
+    };
+    opportunityDelta?: {
+      vacatedTargets: number;
+      vacatedCarries: number;
+      vacatedReceptions: number;
+      vacatedFantasyPointsPpr: number;
+      addedPriorTargets: number;
+      addedPriorCarries: number;
+      addedPriorReceptions: number;
+      addedPriorFantasyPointsPpr: number;
+      vacatedImpactScore: number;
+      addedThreatScore: number;
+      netOpportunityScore: number;
+      qualitySignal: 'major-opening' | 'minor-opening' | 'stable' | 'squeeze' | 'major-squeeze';
+      incumbentPromotionScore?: number | null;
+      incumbentOpportunitySignal?: 'major-promotion' | 'minor-promotion' | 'stable' | 'blocked';
+      topVacatedPlayer?: string | null;
+      topAddedThreat?: string | null;
+      topReturningDepthPlayer?: string | null;
+      returningPromotionCandidates?: Array<{
+        name: string;
+        rank?: number | null;
+        score: number;
+        signal: 'major-promotion' | 'minor-promotion' | 'stable' | 'blocked';
+      }>;
+      note: string;
+    };
+    competitionLevel: 'thin' | 'normal' | 'crowded';
+    vacatedOpportunitySignal: 'opening' | 'stable' | 'squeeze';
+    note: string;
+  } | null;
+  injuryHistory?: {
+    season: string;
+    reportCount: number;
+    missedOrLimitedCount: number;
+    injuryTypes: string[];
+    latestStatus?: string | null;
+    note: string;
+  } | null;
+  athleticProfile?: {
+    source: 'nflverse combine';
+    draftYear: number | null;
+    height?: string | null;
+    weight?: number | null;
+    forty?: number | null;
+    vertical?: number | null;
+    broadJump?: number | null;
+    cone?: number | null;
+    shuttle?: number | null;
+    speedScore?: number | null;
+    note: string;
+  } | null;
+  contractProfile?: {
+    source: 'nflverse contracts';
+    team?: string | null;
+    yearSigned?: number | null;
+    years?: number | null;
+    value?: number | null;
+    apy?: number | null;
+    guaranteed?: number | null;
+    draftRound?: number | null;
+    draftOverall?: number | null;
+    investmentTier: 'premium' | 'solid' | 'fringe' | 'unknown';
+    note: string;
   } | null;
   avgGamesMissed?: number | null;
   availabilitySeasons?: number | null;
@@ -1200,7 +1556,7 @@ export interface SleeperDraftPick {
 }
 
 export type ActionPlanKind = 'lineup' | 'waiver' | 'trade';
-export type ActionPlanStatus = 'saved' | 'submitted' | 'copied' | 'opened' | 'tracked' | 'won' | 'lost' | 'acted' | 'blocked';
+export type ActionPlanStatus = 'saved' | 'submitted' | 'copied' | 'opened' | 'tracked' | 'won' | 'lost' | 'acted' | 'blocked' | 'stale';
 
 export interface ActionPlanRecord {
   id: string;

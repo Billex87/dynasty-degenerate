@@ -113,18 +113,151 @@ async function openReportSection(
   return section;
 }
 
+async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
+  const overflow = await page.evaluate(() =>
+    Math.max(
+      0,
+      document.documentElement.scrollWidth -
+        document.documentElement.clientWidth
+    )
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+}
+
+async function expectSuccessCanvasNonBlank(
+  page: import("@playwright/test").Page
+) {
+  const canvas = page.locator('[data-testid="success-card-3d-scene"] canvas');
+  await expect(canvas).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(900);
+  const box = await canvas.boundingBox();
+  expect(box?.width || 0).toBeGreaterThan(220);
+  expect(box?.height || 0).toBeGreaterThan(120);
+
+  const stats = await canvas.evaluate(node => {
+    const canvasNode = node as HTMLCanvasElement;
+    const gl =
+      canvasNode.getContext("webgl2") || canvasNode.getContext("webgl");
+    if (!gl) {
+      return {
+        hasContext: false,
+        litRatio: 0,
+        width: 0,
+        height: 0,
+      };
+    }
+
+    const width = gl.drawingBufferWidth;
+    const height = gl.drawingBufferHeight;
+    const pixels = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+    let samples = 0;
+    let litSamples = 0;
+    for (let index = 0; index < pixels.length; index += 64) {
+      samples += 1;
+      const red = pixels[index];
+      const green = pixels[index + 1];
+      const blue = pixels[index + 2];
+      const alpha = pixels[index + 3];
+      if (alpha > 4 && red + green + blue > 32) {
+        litSamples += 1;
+      }
+    }
+
+    return {
+      hasContext: true,
+      litRatio: samples ? litSamples / samples : 0,
+      width,
+      height,
+    };
+  });
+
+  expect(stats.hasContext).toBe(true);
+  expect(stats.width).toBeGreaterThan(220);
+  expect(stats.height).toBeGreaterThan(120);
+  expect(stats.litRatio).toBeGreaterThan(0.01);
+}
+
+async function expectCompactMobileAIRead(
+  page: import("@playwright/test").Page,
+  selector: string,
+  title: RegExp | string
+) {
+  const read = page.locator(selector).first();
+  await expect(read).toBeVisible();
+  await expect(read).not.toHaveAttribute("open", "");
+  await expect(read.locator(".ai-read-mobile-title")).toContainText(title);
+  await expect(read.locator(".ai-read-mobile-takeaway")).toBeVisible();
+  await expect(read.locator(".ai-read-mobile-toggle")).toContainText(
+    "Read more"
+  );
+  await expect(read.locator(".ai-read-mobile-expanded")).toBeHidden();
+
+  const collapsedBox = await read.boundingBox();
+  expect(collapsedBox?.height || 0).toBeLessThan(150);
+  await expectNoHorizontalOverflow(page);
+
+  await read.locator("summary").click();
+  await expect(read).toHaveAttribute("open", "");
+  await expect(read.locator(".ai-read-mobile-expanded")).toBeVisible();
+  await expect(read.locator(".ai-read-body")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await read.locator("summary").click();
+  await expect(read).not.toHaveAttribute("open", "");
+}
+
 test.describe("command center feature surfaces", () => {
+  test("renders the generated-report 3D success card on desktop and mobile", async ({
+    page,
+  }) => {
+    for (const viewport of [
+      { width: 1280, height: 820 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.goto("/?preview=success", { waitUntil: "domcontentloaded" });
+
+      await expect(page.getByText("Report Generated")).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "The Fantasy Degenerates" })
+      ).toBeVisible();
+      await expectSuccessCanvasNonBlank(page);
+      await expectNoHorizontalOverflow(page);
+    }
+  });
+
+  test("uses the generated-report fallback when reduced motion is requested", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/?preview=success", { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByText("Report Generated")).toBeVisible();
+    await expect(page.locator(".success-card-3d-fallback")).toBeVisible();
+    await expect(
+      page.locator('[data-testid="success-card-3d-scene"] canvas')
+    ).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("renders AI reads, blueprint generation, power rankings, roster recon, partners, and feature radar", async ({
     page,
   }) => {
     const cachedReport = createCachedCommandCenterReport();
     await loadCachedReport(page, cachedReport);
 
-    await expect(page.locator(".overview-ai-pulse")).toBeVisible();
-    await expect(page.locator(".overview-ai-pulse")).toContainText(
+    const overviewAiPulse = page.locator(
+      ".overview-ai-pulse.ai-read-panel-desktop"
+    );
+    await expect(overviewAiPulse).toBeVisible();
+    await expect(overviewAiPulse).toContainText(
       "Narrative only"
     );
-    await expect(page.locator(".overview-ai-pulse")).not.toContainText(
+    await expect(overviewAiPulse).not.toContainText(
       /Value rank #|Best first trade angle|shortage to exploit/i
     );
     const overviewSummaryText = (
@@ -151,17 +284,76 @@ test.describe("command center feature surfaces", () => {
     await openReportSection(page, "Monthly Team Blueprint");
     await page.locator("button.command-primary-action").click();
     await expect(page.getByText("The Monthly Blueprint")).toBeVisible();
-    await expect(page.getByText("Blueprint AI Summary")).toBeVisible();
+    await expect(
+      page
+        .locator(".team-blueprint-ai.ai-read-panel-desktop")
+        .getByText("Blueprint AI Summary")
+    ).toBeVisible();
     await expect(page.getByText("Stored 2026-05")).toBeVisible();
 
     await openReportSection(page, "League Power Rankings");
     await expect(page.locator(".league-power-card")).toHaveCount(2);
+    const leaguePowerCard = page.locator(".league-power-card").first();
+    if (!(await leaguePowerCard.evaluate(node => (node as HTMLDetailsElement).open))) {
+      await leaguePowerCard.locator(":scope > summary").click();
+    }
+    const leaguePowerMetrics = leaguePowerCard.locator(".league-power-metrics");
+    await expect(
+      leaguePowerMetrics.getByText("Power slot", { exact: true })
+    ).toBeVisible();
+    await leaguePowerCard
+      .locator("details.ai-read-panel-compact")
+      .evaluate(node => node.setAttribute("open", ""));
+    await expect(leaguePowerCard.getByText("ranking-only")).toBeVisible();
+    await expect(leaguePowerCard.getByText("Why this fired")).toBeVisible();
+    await expect(leaguePowerMetrics.getByText("QB", { exact: true })).toHaveCount(0);
+    await expect(
+      leaguePowerMetrics.getByText("Trade chip", { exact: true })
+    ).toHaveCount(0);
 
     await openReportSection(page, "Team Breakdown & Roster Recon");
-    await expect(page.locator(".team-breakdown-recon")).toBeVisible();
-    await expect(page.getByText("Suggested next move")).toBeVisible();
-    await openReportSection(page, "Projected Roster Board");
-    await page
+    const teamBreakdown = page.locator(".team-breakdown-recon");
+    await expect(teamBreakdown).toBeVisible();
+    await expect(teamBreakdown.getByText("Fragility Watch")).toBeVisible();
+    await expect(teamBreakdown.getByText("Sell Candidates")).toHaveCount(0);
+    await expect(teamBreakdown.getByText("Trade chip")).toHaveCount(0);
+    await expect(
+      page
+        .locator(".team-breakdown-recon .ai-read-panel-desktop")
+        .getByText("Suggested next move")
+    ).toBeVisible();
+    await expect(
+      page
+        .locator(".team-breakdown-recon .ai-read-panel-desktop")
+        .getByText(/use Trade Finder for specific partners/i)
+    ).toBeVisible();
+    await expect(
+      page
+        .locator(".team-breakdown-recon .ai-read-panel-desktop")
+        .getByText("Why this fired")
+    ).toBeVisible();
+    await openReportSection(page, "Owner Intel Lab");
+    await page.locator(".command-depth-tile").filter({ hasText: "Tester" }).click();
+    const ownerPcbSystem = page.getByTestId("owner-intel-pcb-system");
+    await expect(ownerPcbSystem).toBeVisible();
+    await expect(ownerPcbSystem.locator(".owner-intel-pcb-routes")).toBeVisible();
+    await expect(ownerPcbSystem.locator(".owner-intel-pcb-node")).toHaveCount(12);
+    await expect(
+      page
+        .locator(".owner-intel-read-grid .ai-read-panel-desktop")
+        .first()
+        .getByText("Why this fired")
+    ).toBeVisible();
+    const notesRail = ownerPcbSystem
+      .locator(".owner-intel-wild-notes.ai-read-panel-desktop")
+      .first();
+    await expect(notesRail.getByText("Dynasty AI Notes")).toBeVisible();
+    const pcbBox = await ownerPcbSystem.boundingBox();
+    const notesBox = await notesRail.boundingBox();
+    expect(notesBox?.width || 0).toBeGreaterThan((pcbBox?.width || 0) * 0.82);
+    await page.getByRole("button", { name: "Close Tester details" }).click();
+    const rosterBoardSection = await openReportSection(page, "Projected Roster Board");
+    await rosterBoardSection
       .locator(".command-depth-tile")
       .filter({ hasText: "Tester" })
       .click();
@@ -213,7 +405,12 @@ test.describe("command center feature surfaces", () => {
     await page.getByRole("button", { name: "Close Tester details" }).click();
 
     await openReportSection(page, "Trade Finder, Partners & League Exploits");
-    await expect(page.getByText("Fair trade finder")).toBeVisible();
+    await expect(
+      page
+        .locator(".ai-read-panel-desktop")
+        .filter({ hasText: "Fair trade finder" })
+        .first()
+    ).toBeVisible();
     await expect(
       page.locator(".trade-finder-package-card").first()
     ).toBeVisible();
@@ -222,6 +419,7 @@ test.describe("command center feature surfaces", () => {
       .locator(".trade-partner-card details.ai-read-panel-compact")
       .first();
     await tradePartnerRead.evaluate(node => node.setAttribute("open", ""));
+    await expect(tradePartnerRead.getByText("Why this fired")).toBeVisible();
     await tradePartnerRead
       .getByRole("button", { name: /Track trade read/i })
       .click();
@@ -282,6 +480,25 @@ test.describe("command center feature surfaces", () => {
       adminValueSection.getByText("Sleeper history backfill")
     ).toBeVisible();
     await expect(adminValueSection.getByText("14 transactions")).toBeVisible();
+    const aiReadoutSection = await openReportSection(
+      page,
+      "AI Readout Coverage"
+    );
+    await expect(aiReadoutSection.getByText("readouts tracked")).toBeVisible();
+    await expect(aiReadoutSection.getByText("duplicate-risk flags")).toBeVisible();
+    await expect(
+      aiReadoutSection
+        .getByLabel("AI readout count by tab")
+        .getByText("AI Autopilot")
+    ).toBeVisible();
+    await expect(
+      aiReadoutSection.getByText("Trade Finder / Partner Reads")
+    ).toBeVisible();
+    await expect(
+      aiReadoutSection
+        .getByLabel("AI readout coverage flags")
+        .getByText(/Schedule\/projection traces stay limited/i)
+    ).toBeVisible();
 
     await page.getByRole("tab", { name: "Momentum" }).click();
     await openReportSection(page, "Waiver Intelligence");
@@ -344,6 +561,75 @@ test.describe("command center feature surfaces", () => {
     expect(desktopOverflow).toBeLessThanOrEqual(1);
   });
 
+  test("keeps mobile AI reads compact across key report tabs", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport);
+
+    await expectCompactMobileAIRead(
+      page,
+      ".overview-ai-pulse.ai-read-panel-mobile",
+      "Owner Intel Lab Upgrade Path"
+    );
+
+    await openReportSection(page, "Monthly Team Blueprint");
+    await page.locator("button.command-primary-action").click();
+    await expect(page.getByText("The Monthly Blueprint")).toBeVisible();
+    await expectCompactMobileAIRead(
+      page,
+      ".team-blueprint-ai.ai-read-panel-mobile",
+      "Blueprint AI Summary"
+    );
+
+    await page.getByRole("tab", { name: "Rankings" }).click();
+    await openReportSection(page, "Full Roster Rankings");
+    await expectCompactMobileAIRead(
+      page,
+      ".rankings-ai-read.ai-read-panel-mobile",
+      "Ranking board market signal"
+    );
+
+    await page.getByRole("tab", { name: "Trade History" }).click();
+    await expectCompactMobileAIRead(
+      page,
+      ".trade-browser-ai-read.ai-read-panel-mobile",
+      "Trade browser read"
+    );
+  });
+
+  test("collapses AI reads into compact mobile cards", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport);
+
+    const desktopRead = page
+      .locator(".overview-ai-pulse.ai-read-panel-desktop")
+      .first();
+    const mobileRead = page
+      .locator(".overview-ai-pulse.ai-read-panel-mobile")
+      .first();
+
+    await expect(desktopRead).toBeHidden();
+    await expect(mobileRead).toBeVisible();
+    await expect(mobileRead).not.toHaveAttribute("open", "");
+    await expect(mobileRead.locator(".ai-read-mobile-title")).toBeVisible();
+    await expect(mobileRead.locator(".ai-read-mobile-takeaway")).toBeVisible();
+    await expect(mobileRead.locator(".ai-read-mobile-toggle")).toContainText(
+      "Read more"
+    );
+    await expect(mobileRead.locator(".ai-read-mobile-expanded")).toBeHidden();
+
+    const collapsedBox = await mobileRead.boundingBox();
+    expect(collapsedBox?.height || 0).toBeLessThan(150);
+
+    await mobileRead.locator("summary").click();
+    await expect(mobileRead).toHaveAttribute("open", "");
+    await expect(mobileRead.locator(".ai-read-mobile-expanded")).toBeVisible();
+    await expect(mobileRead.locator(".ai-read-body")).toBeVisible();
+  });
+
   test("lets admins return to regular view and switch the active manager view", async ({
     page,
   }) => {
@@ -351,7 +637,9 @@ test.describe("command center feature surfaces", () => {
     await loadCachedReport(page, cachedReport);
 
     await expect(
-      page.getByText(/Tester sets the starting lens for this Overview pass/i)
+      page
+        .locator(".overview-ai-pulse.ai-read-panel-desktop")
+        .getByText(/Tester sets the starting lens for this Overview pass/i)
     ).toBeVisible();
 
     await page.getByRole("button", { name: /View as Tester/i }).click();
@@ -363,7 +651,9 @@ test.describe("command center feature surfaces", () => {
       page.getByRole("button", { name: /View as Rival/i })
     ).toBeVisible();
     await expect(
-      page.getByText(/Rival sets the starting lens for this Overview pass/i)
+      page
+        .locator(".overview-ai-pulse.ai-read-panel-desktop")
+        .getByText(/Rival sets the starting lens for this Overview pass/i)
     ).toBeVisible();
 
     await page
@@ -381,7 +671,9 @@ test.describe("command center feature surfaces", () => {
       .getByRole("button", { name: /Return to admin report view/i })
       .click();
     await expect(
-      page.getByText(/Tester sets the starting lens for this Overview pass/i)
+      page
+        .locator(".overview-ai-pulse.ai-read-panel-desktop")
+        .getByText(/Tester sets the starting lens for this Overview pass/i)
     ).toBeVisible();
     await expect(page.locator(".admin-premium-section")).toHaveCount(5);
   });
@@ -393,7 +685,9 @@ test.describe("command center feature surfaces", () => {
     await loadCachedReport(page, cachedReport);
 
     await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
-    await expect(page.locator(".overview-ai-pulse")).toBeVisible();
+    await expect(
+      page.locator(".overview-ai-pulse.ai-read-panel-desktop")
+    ).toBeVisible();
     await expect(page.locator(".admin-premium-section")).toHaveCount(5);
 
     await page.getByRole("tab", { name: "Rankings" }).click();
@@ -402,7 +696,11 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Value Source Configuration")).toBeVisible();
 
     await page.getByRole("tab", { name: "Trade History" }).click();
-    await expect(page.getByText("Trade browser read")).toBeVisible();
+    await expect(
+      page
+        .locator(".trade-browser-ai-read.ai-read-panel-desktop")
+        .getByText("Trade browser read")
+    ).toBeVisible();
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
 
     await page
@@ -415,6 +713,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.locator(".overview-ai-pulse")).toHaveCount(0);
     await expect(page.locator(".admin-premium-section")).toHaveCount(0);
     await expect(page.locator(".admin-diagnostics-shell")).toHaveCount(0);
+    await expect(page.getByText("AI Readout Coverage")).toHaveCount(0);
     await expect(page.getByText("Trade browser read")).toHaveCount(0);
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
 
@@ -424,7 +723,11 @@ test.describe("command center feature surfaces", () => {
 
     await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
     await page.getByRole("tab", { name: "Trade History" }).click();
-    await expect(page.getByText("Trade browser read")).toBeVisible();
+    await expect(
+      page
+        .locator(".trade-browser-ai-read.ai-read-panel-desktop")
+        .getByText("Trade browser read")
+    ).toBeVisible();
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
   });
 
@@ -504,6 +807,40 @@ test.describe("command center feature surfaces", () => {
         .getByRole("button", { name: "Watching" })
     ).toBeVisible();
     await reloadedPage.close();
+  });
+
+  test("shows trade calibration coverage and ledger value-movement reads", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport);
+
+    const featureRadar = await openReportSection(page, "Assistant Feature Radar");
+    const tradeCalibrationRow = featureRadar
+      .locator(".assistant-feature-coverage-row")
+      .filter({ hasText: "Trade Calibration" });
+    await expect(tradeCalibrationRow).toBeVisible();
+    await expect(tradeCalibrationRow.getByText("Backed")).toBeVisible();
+    await expect(tradeCalibrationRow).toContainText("1/8 players");
+    await expect(tradeCalibrationRow).toContainText("1 riser");
+
+    await page.getByRole("tab", { name: "Trade History" }).click();
+    await expect(page.getByText("Full Trade Ledger").first()).toBeVisible();
+    await page.getByRole("button", { name: /Full Trade Ledger/ }).click();
+    const tradeLedgerDialog = page.getByRole("dialog", {
+      name: /Full Trade Ledger/,
+    });
+    await expect(tradeLedgerDialog.getByText("2026-05-01")).toBeVisible();
+    await tradeLedgerDialog
+      .getByRole("button", {
+        name: /Open trade detail for 2026-05-01: Tester and Rival/i,
+      })
+      .click();
+    const detailDialog = page.getByRole("dialog", {
+      name: /Trade Ledger Detail/i,
+    });
+    await expect(detailDialog.getByText("Riser +").first()).toBeVisible();
+    await expect(detailDialog.getByText(/validated riser/i).first()).toBeVisible();
   });
 
   test("persists portfolio snapshots locally across fresh app loads", async ({
@@ -709,10 +1046,15 @@ test.describe("command center feature surfaces", () => {
     );
     await loadCachedReport(page, cachedReport, "#trades");
 
-    await expect(page.getByText("Trade browser read")).toBeVisible();
-    await expect(page.getByText("0 trades")).toBeVisible();
     await expect(
-      page.getByText(
+      page
+        .locator(".trade-browser-ai-read.ai-read-panel-desktop")
+        .getByText("Trade browser read")
+    ).toBeVisible();
+    const tradeRead = page.locator(".trade-browser-ai-read.ai-read-panel-desktop");
+    await expect(tradeRead.getByText("0 trades")).toBeVisible();
+    await expect(
+      tradeRead.getByText(
         "No completed trades were returned. The browser shows an empty state instead of manufacturing trade history."
       )
     ).toBeVisible();

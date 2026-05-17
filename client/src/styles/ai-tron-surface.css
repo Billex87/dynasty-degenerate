@@ -50,6 +50,13 @@
   padding: 0.9rem 1rem !important;
 }
 
+@media (max-width: 760px) {
+  .ai-read-panel-r3f.ai-read-panel-mobile-compact {
+    min-height: auto !important;
+    padding: 0.48rem 0.54rem !important;
+  }
+}
+
 /* PCB substrate */
 .ai-surface-r3f::before,
 .ai-read-panel-r3f::before {
@@ -112,7 +119,7 @@
   inset: 0 !important;
   z-index: 2 !important;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
   border-radius: inherit;
   opacity: 1 !important;
   mix-blend-mode: screen;
@@ -1015,6 +1022,190 @@
   opacity: 0.26 !important;
 }
 
+.owner-intel-pcb-system {
+  --owner-pcb-cyan: rgba(var(--ai-board-cyan), 0.9);
+  --owner-pcb-cyan-soft: rgba(var(--ai-board-cyan), 0.16);
+  --owner-pcb-amber: rgba(var(--ai-board-copper-rgb), 0.88);
+  --owner-pcb-amber-soft: rgba(var(--ai-board-copper-rgb), 0.14);
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  margin-top: clamp(0.2rem, 0.7vw, 0.5rem);
+  padding: clamp(0.8rem, 1.35vw, 1.1rem);
+  border: 1px solid rgba(var(--ai-board-cyan), 0.18);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 10% 8%, rgba(var(--ai-board-cyan), 0.14), transparent 24%),
+    radial-gradient(circle at 90% 84%, rgba(var(--ai-board-copper-rgb), 0.13), transparent 27%),
+    linear-gradient(rgba(var(--ai-board-cyan), 0.034) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--ai-board-cyan), 0.026) 1px, transparent 1px),
+    linear-gradient(135deg, rgba(1, 8, 18, 0.96), rgba(2, 13, 24, 0.88) 44%, rgba(1, 6, 15, 0.98));
+  background-size:
+    auto,
+    auto,
+    22px 22px,
+    22px 22px,
+    auto;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.026),
+    inset 0 0 52px rgba(var(--ai-board-cyan), 0.05),
+    inset 0 0 68px rgba(var(--ai-board-copper-rgb), 0.035),
+    0 22px 58px rgba(0, 0, 0, 0.28),
+    0 0 32px rgba(var(--ai-board-cyan), 0.07);
+}
+
+.owner-intel-pcb-system::before,
+.owner-intel-pcb-system::after {
+  content: "";
+  position: absolute;
+  inset: 0.42rem;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 14px;
+  background:
+    linear-gradient(var(--owner-pcb-cyan), var(--owner-pcb-cyan)) left top / 5.8rem 1px no-repeat,
+    linear-gradient(var(--owner-pcb-cyan), var(--owner-pcb-cyan)) left top / 1px 4.4rem no-repeat,
+    linear-gradient(var(--owner-pcb-amber), var(--owner-pcb-amber)) right top / 5.2rem 1px no-repeat,
+    linear-gradient(var(--owner-pcb-amber), var(--owner-pcb-amber)) right top / 1px 4.2rem no-repeat,
+    linear-gradient(var(--owner-pcb-cyan), var(--owner-pcb-cyan)) left bottom / 4.8rem 1px no-repeat,
+    linear-gradient(var(--owner-pcb-cyan), var(--owner-pcb-cyan)) left bottom / 1px 3.5rem no-repeat,
+    linear-gradient(var(--owner-pcb-amber), var(--owner-pcb-amber)) right bottom / 5.8rem 1px no-repeat,
+    linear-gradient(var(--owner-pcb-amber), var(--owner-pcb-amber)) right bottom / 1px 4.4rem no-repeat;
+  opacity: 0.68;
+  filter:
+    drop-shadow(0 0 6px rgba(var(--ai-board-cyan), 0.28))
+    drop-shadow(0 0 8px rgba(var(--ai-board-copper-rgb), 0.16));
+}
+
+.owner-intel-pcb-system::after {
+  inset: 0.9rem;
+  border: 1px solid rgba(var(--ai-board-cyan), 0.07);
+  background:
+    radial-gradient(circle at 13% 15%, var(--owner-pcb-cyan) 0 2px, transparent 2.8px),
+    radial-gradient(circle at 87% 16%, var(--owner-pcb-amber) 0 2px, transparent 2.8px),
+    radial-gradient(circle at 16% 84%, var(--owner-pcb-amber) 0 2px, transparent 2.8px),
+    radial-gradient(circle at 84% 84%, var(--owner-pcb-cyan) 0 2px, transparent 2.8px);
+  opacity: 0.46;
+}
+
+.owner-intel-pcb-routes {
+  position: absolute;
+  inset: 0.55rem;
+  z-index: 0;
+  width: calc(100% - 1.1rem);
+  height: calc(100% - 1.1rem);
+  pointer-events: none;
+  overflow: visible;
+  opacity: 0.92;
+  filter:
+    drop-shadow(0 0 7px rgba(var(--ai-board-cyan), 0.19))
+    drop-shadow(0 0 12px rgba(var(--ai-board-copper-rgb), 0.11));
+}
+
+.owner-intel-pcb-route-bed path {
+  stroke: rgba(var(--ai-board-cyan), 0.18);
+  stroke-width: 0.34;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  vector-effect: non-scaling-stroke;
+}
+
+.owner-intel-pcb-route-bed path:nth-child(3n + 1) {
+  stroke: rgba(var(--ai-board-copper-rgb), 0.16);
+}
+
+.owner-intel-pcb-route {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 4.6 8.2;
+  animation: owner-intel-pcb-current 6.4s linear infinite;
+}
+
+.owner-intel-pcb-route-cyan {
+  stroke: var(--owner-pcb-cyan);
+  stroke-width: 0.55;
+}
+
+.owner-intel-pcb-route-amber {
+  stroke: var(--owner-pcb-amber);
+  stroke-width: 0.5;
+  animation-duration: 7.1s;
+  animation-direction: reverse;
+}
+
+.owner-intel-pcb-route-alt {
+  opacity: 0.76;
+  animation-duration: 8.2s;
+  animation-delay: -1.5s;
+}
+
+.owner-intel-pcb-node {
+  transform-origin: center;
+  animation: owner-intel-pcb-node 3.2s ease-in-out infinite;
+}
+
+.owner-intel-pcb-node-cyan {
+  fill: var(--owner-pcb-cyan);
+  filter: drop-shadow(0 0 3px rgba(var(--ai-board-cyan), 0.8));
+}
+
+.owner-intel-pcb-node-amber {
+  fill: var(--owner-pcb-amber);
+  filter: drop-shadow(0 0 3px rgba(var(--ai-board-copper-rgb), 0.82));
+  animation-delay: -1.2s;
+}
+
+.owner-intel-read-grid-pcb {
+  position: relative;
+  z-index: 2;
+  gap: clamp(0.82rem, 1.35vw, 1.15rem) !important;
+}
+
+.owner-intel-read-grid-pcb > .ai-read-panel-r3f,
+.owner-intel-read-grid-pcb > .owner-intel-ai-card {
+  border-color: rgba(var(--ai-board-cyan), 0.24) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    inset 0 0 34px rgba(1, 7, 18, 0.6),
+    0 0 0 1px rgba(0, 0, 0, 0.22),
+    0 0 26px rgba(var(--ai-board-cyan), 0.06) !important;
+}
+
+.owner-intel-read-grid-pcb > .ai-read-panel-r3f:nth-child(4n + 2),
+.owner-intel-read-grid-pcb > .owner-intel-ai-card:nth-child(4n + 2) {
+  border-color: rgba(var(--ai-board-copper-rgb), 0.25) !important;
+}
+
+.owner-intel-read-grid-pcb > .owner-intel-wild-notes.ai-read-panel-r3f {
+  margin-top: clamp(0.25rem, 0.8vw, 0.55rem);
+  border-color: rgba(var(--ai-board-copper-rgb), 0.3) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--ai-board-cyan), 0.06),
+    inset 0 0 42px rgba(var(--ai-board-cyan), 0.055),
+    inset 0 0 58px rgba(var(--ai-board-copper-rgb), 0.05),
+    0 0 34px rgba(var(--ai-board-copper-rgb), 0.08) !important;
+}
+
+@keyframes owner-intel-pcb-current {
+  to {
+    stroke-dashoffset: -74;
+  }
+}
+
+@keyframes owner-intel-pcb-node {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scale(0.84);
+  }
+
+  45% {
+    opacity: 1;
+    transform: scale(1.22);
+  }
+}
+
 .owner-intel-wild-notes.ai-read-panel-r3f {
   grid-column: 1 / -1 !important;
   justify-self: stretch !important;
@@ -1325,6 +1516,16 @@
 }
 
 @media (max-width: 720px) {
+  .manager-command-dialog .owner-intel-pcb-system {
+    margin-inline: -0.15rem;
+    padding: 0.65rem;
+    border-radius: 14px;
+  }
+
+  .manager-command-dialog .owner-intel-pcb-routes {
+    opacity: 0.42;
+  }
+
   .manager-command-dialog .owner-intel-read-grid {
     grid-template-columns: 1fr !important;
   }
@@ -1409,6 +1610,17 @@
 
   .manager-command-dialog .ai-panel-flow-nodes circle {
     opacity: 0.52;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .owner-intel-pcb-route,
+  .owner-intel-pcb-node {
+    animation: none !important;
+  }
+
+  .owner-intel-pcb-routes {
+    opacity: 0.5;
   }
 }
 

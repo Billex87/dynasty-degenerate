@@ -1,5 +1,5 @@
-export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v23';
-export const REPORT_CACHE_DATA_VERSION = 'player-cohort-explanations-v1';
+export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v24';
+export const REPORT_CACHE_DATA_VERSION = 'trade-value-calibration-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;
@@ -281,6 +281,20 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
   };
 }
 
+export function createCachedRedraftNoDraftReport(leagueId = 'redraft-no-draft-league') {
+  const cachedReport = createCachedRedraftReport(leagueId);
+  return {
+    ...cachedReport,
+    leagueName: 'No Draft Yet Redraft',
+    leagueFormat: '4-Team Redraft PPR - No Draft Yet',
+    reportData: {
+      ...cachedReport.reportData,
+      draftPicks: [],
+      draftStats: [],
+    },
+  } as ReturnType<typeof createCachedRedraftReport>;
+}
+
 export function createCachedRedraftTradeLedgerRegressionReport(leagueId = 'visual-redraft-trade-ledger') {
   const cachedReport = createCachedRedraftReport(leagueId);
   const tradeContext = {
@@ -404,13 +418,48 @@ export function createCachedRedraftTradeLedgerRegressionReport(leagueId = 'visua
 
 export function createCachedCommandCenterReport(leagueId = 'command-center-league') {
   const normalizedLeagueId = normalizeFixtureLeagueId(leagueId);
+  const valueTimeline = (
+    playerId: string,
+    startValue: number,
+    endValue: number,
+    rank: string,
+    sourceSetChanged = false
+  ) => ({
+    profileKey: 'dynasty-sf',
+    source: 'stored-value-snapshots' as const,
+    points: [
+      {
+        date: '2026-05-01',
+        value: startValue,
+        rank,
+        sources: ['KTC', 'FantasyCalc'],
+        sourceCount: 2,
+      },
+      {
+        date: '2026-05-11',
+        value: endValue,
+        rank,
+        sources: sourceSetChanged ? ['KTC', 'FantasyCalc', 'DynastyProcess'] : ['KTC', 'FantasyCalc'],
+        sourceCount: sourceSetChanged ? 3 : 2,
+      },
+    ],
+    summary: {
+      startValue,
+      endValue,
+      delta: endValue - startValue,
+      deltaPct: Math.round(((endValue - startValue) / startValue) * 1000) / 10,
+      sourceSetChanged,
+      eventCount: 0,
+      note: 'Stored value movement fixture for trade readout calibration.',
+    },
+  });
   const playerDetailsById = {
     qb1: { playerId: 'qb1', fullName: 'Sample Quarterback', position: 'QB', team: 'BAL', age: 27, gameLocked: true, valueProfile: { dynastyValue: 7200, seasonValue: 6900, dynastyPositionRank: 'QB4', weeklyProjection: 20.8, sources: ['KTC'] } },
     rb1: { playerId: 'rb1', fullName: 'Sample Runner', position: 'RB', team: 'GB', age: 25, valueProfile: { dynastyValue: 5400, seasonValue: 5600, dynastyPositionRank: 'RB9', weeklyProjection: 15.4, sources: ['KTC'] } },
     wr1: { playerId: 'wr1', fullName: 'Sample Receiver', position: 'WR', team: 'DAL', age: 24, valueProfile: { dynastyValue: 6400, seasonValue: 6100, dynastyPositionRank: 'WR6', weeklyProjection: 17.2, sources: ['KTC'] } },
     te1: { playerId: 'te1', fullName: 'Sample Tight End', position: 'TE', team: 'ATL', age: 25, valueProfile: { dynastyValue: 4100, seasonValue: 3800, dynastyPositionRank: 'TE7', weeklyProjection: 8.3, sources: ['KTC'] } },
     te2: { playerId: 'te2', fullName: 'Replacement Tight End', position: 'TE', team: 'LAC', age: 24, valueProfile: { dynastyValue: 4300, seasonValue: 5100, dynastyPositionRank: 'TE5', seasonPositionRank: 'TE5', weeklyProjection: 12.4, sources: ['KTC'] } },
-    wr2: { playerId: 'wr2', fullName: 'Depth Receiver', position: 'WR', team: 'HOU', age: 23, valueProfile: { dynastyValue: 3000, seasonValue: 2600, dynastyPositionRank: 'WR34', sources: ['KTC'] } },
+    wr2: { playerId: 'wr2', fullName: 'Depth Receiver', position: 'WR', team: 'HOU', age: 23, valueProfile: { dynastyValue: 3000, seasonValue: 2600, dynastyPositionRank: 'WR34', sources: ['KTC'] }, valueTimeline: valueTimeline('wr2', 2000, 3000, 'WR34', true) },
     waiver1: { playerId: 'waiver1', fullName: 'Waiver Receiver', position: 'WR', team: 'NYJ', age: 24, valueProfile: { dynastyValue: 2800, seasonValue: 3400, dynastyPositionRank: 'WR42', seasonPositionRank: 'WR31', sources: ['KTC'] } },
     drop1: { playerId: 'drop1', fullName: 'Last Bench Spot', position: 'WR', team: 'CAR', age: 29, valueProfile: { dynastyValue: 500, seasonValue: 300, dynastyPositionRank: 'WR96', seasonPositionRank: 'WR104', sources: ['KTC'] } },
   };
@@ -632,7 +681,7 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
       projectedRisers: [],
       projectedFallers: [],
       tradeProfitLeaderboard: [{ rank: 1, manager: 'Tester', profit: 600, wins: 1, trade_count: 1 }],
-      tradeHistory: [{ date: '2026-05-01', season: '2026', team_a: 'Tester', team_b: 'Rival', team_a_items: '2026 2nd', team_b_items: 'Depth Receiver', team_a_total: 2200, team_b_total: 3000, point_gap: 800, winner: 'Tester', winners: ['Tester'] }],
+      tradeHistory: [{ date: '2026-05-01', season: '2026', team_a: 'Tester', team_b: 'Rival', team_a_items: '2026 2nd', team_b_items: 'PLAYER:wr2|Depth Receiver|3000', team_a_total: 2200, team_b_total: 3000, point_gap: 800, winner: 'Tester', winners: ['Tester'] }],
       positionDepth: [
         { manager: 'Tester', position: 'WR', count: 8, status: 'excess' },
         { manager: 'Tester', position: 'RB', count: 4, status: 'shortage' },

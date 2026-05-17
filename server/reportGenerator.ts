@@ -31,6 +31,7 @@ import type {
   TaxiTriageAction,
   TaxiTriageItem,
   TradeTeamContext,
+  TradeTimePickAsset,
 } from '../shared/types';
 
 export interface KTCValues {
@@ -1537,6 +1538,7 @@ function buildHistoricalTradeTeamContext({
   maxStarterSeasonValue,
   maxTotalValue,
   rosterPlayers,
+  tradeTimePicks,
 }: {
   manager: string;
   date: string;
@@ -1546,6 +1548,7 @@ function buildHistoricalTradeTeamContext({
   maxStarterSeasonValue: number;
   maxTotalValue: number;
   rosterPlayers?: ManagerIntelPlayer[];
+  tradeTimePicks?: TradeTimePickAsset[];
 }): TradeTeamContext {
   const contenderScore = Math.round(
     (normalizeScore(starterSeasonValue, maxStarterSeasonValue) * 0.72)
@@ -1571,6 +1574,7 @@ function buildHistoricalTradeTeamContext({
     source: 'historical-roster',
     reason: `Pre-trade roster snapshot for ${manager} on ${date}: contender ${contenderScore}, rebuild ${rebuildScore}, age ${avgAge ?? '-'} from the season roster plus later trades rolled back.`,
     rosterPlayers,
+    tradeTimePicks,
   };
 }
 
@@ -1597,12 +1601,88 @@ function buildHistoricalTradeContextsForSeason(
   getPrimaryValue: (pid: string) => number,
   getPrimaryRank: (pid: string) => string | null,
   seasonPositionRankById: Record<string, string | null>,
+  tradePickIdentities: TradePickIdentityResolution,
 ): Map<number, Record<number, TradeTeamContext>> {
   const rosterState = new Map<number, Set<string>>(
     season.rosters.map((roster) => [roster.roster_id, new Set(getActivePlayerIds(roster))])
   );
+  const rosterIds = season.rosters.map((roster) => roster.roster_id);
+  const pickWindows = new Set<string>();
+  for (const trade of season.trades) {
+    for (const pick of trade.draft_picks || []) {
+      pickWindows.add(`${pick.season}:${pick.round}`);
+    }
+  }
+  for (const pick of season.finalTradedPicks || []) {
+    pickWindows.add(`${pick.season}:${pick.round}`);
+  }
+  const pickOwnerState = new Map<string, {
+    season: string;
+    round: number;
+    originalRosterId: number;
+    ownerRosterId: number;
+  }>();
+  for (const window of Array.from(pickWindows)) {
+    const [pickSeason, roundText] = window.split(':');
+    const round = Number(roundText);
+    if (!pickSeason || !Number.isFinite(round)) continue;
+    for (const originalRosterId of rosterIds) {
+      pickOwnerState.set(getTradePickIdentityKey(pickSeason, round, originalRosterId), {
+        season: pickSeason,
+        round,
+        originalRosterId,
+        ownerRosterId: originalRosterId,
+      });
+    }
+  }
+  for (const pick of season.finalTradedPicks || []) {
+    const originalRosterId = Number(pick.roster_id);
+    const ownerRosterId = Number(pick.owner_id);
+    const round = Number(pick.round);
+    if (!Number.isFinite(originalRosterId) || !Number.isFinite(ownerRosterId) || !Number.isFinite(round)) continue;
+    pickOwnerState.set(getTradePickIdentityKey(pick.season, round, originalRosterId), {
+      season: String(pick.season),
+      round,
+      originalRosterId,
+      ownerRosterId,
+    });
+  }
   const sortedTrades = [...season.trades].sort((a, b) => b.status_updated - a.status_updated);
   const contextsByTrade = new Map<number, Record<number, TradeTeamContext>>();
+
+  const getTradeTimePicksForRoster = (rosterId: number): TradeTimePickAsset[] => {
+    return Array.from(pickOwnerState.values())
+      .filter((pick) => pick.ownerRosterId === rosterId)
+      .map((pick) => {
+        const originalOwner = season.rosterMap[pick.originalRosterId] || 'Unknown';
+        const owner = season.rosterMap[pick.ownerRosterId] || 'Unknown';
+        const draftSlot = season.draftSlotsBySeason?.[String(pick.season)]?.[pick.originalRosterId] ?? null;
+        return {
+          id: `${pick.season}-${pick.round}-${pick.originalRosterId}`,
+          label: formatDraftPickLabel(
+            {
+              season: pick.season,
+              round: pick.round,
+              roster_id: pick.originalRosterId,
+              owner_id: pick.ownerRosterId,
+            },
+            season.rosterMap,
+            season.draftSlotsBySeason,
+            pick.originalRosterId
+          ),
+          season: pick.season,
+          round: pick.round,
+          originalRosterId: pick.originalRosterId,
+          originalOwner,
+          ownerRosterId: pick.ownerRosterId,
+          owner,
+          value: getPickValue(Number(pick.season), pick.round, ktcValues, draftSlot ?? undefined, season.rosters.length),
+          draftSlot,
+        };
+      })
+      .filter((pick) => pick.value > 0)
+      .sort((a, b) => Number(a.season) - Number(b.season) || a.round - b.round || b.value - a.value);
+  };
 
   const buildRosterSnapshot = () => {
     const rows = season.rosters.map((roster) => {
@@ -1636,13 +1716,14 @@ function buildHistoricalTradeContextsForSeason(
       const totalValue = players.reduce((sum, player) => sum + player.value, 0);
       const avgAge = roundOne(average(players.map((player) => player.playerDetails?.age ?? null)));
 
-      return {
-        rosterId: roster.roster_id,
-        manager: season.rosterMap[roster.roster_id] || 'Unknown',
-        starterSeasonValue,
-        totalValue,
-        avgAge,
-        rosterPlayers: players.map((player) => ({
+	    return {
+	      rosterId: roster.roster_id,
+	      manager: season.rosterMap[roster.roster_id] || 'Unknown',
+	      starterSeasonValue,
+	      totalValue,
+	      avgAge,
+	      tradeTimePicks: getTradeTimePicksForRoster(roster.roster_id),
+	      rosterPlayers: players.map((player) => ({
           player_id: player.player_id,
           name: player.name,
           pos: player.pos,
@@ -1665,12 +1746,31 @@ function buildHistoricalTradeContextsForSeason(
     if (participants.length !== 2) return;
 
     const [rosterA, rosterB] = participants;
-    for (const [pid, newRosterId] of Object.entries(trade.adds || {})) {
-      const oldRosterId = newRosterId === rosterA ? rosterB : rosterA;
-      rosterState.get(newRosterId)?.delete(pid);
-      if (!rosterState.has(oldRosterId)) rosterState.set(oldRosterId, new Set());
-      rosterState.get(oldRosterId)?.add(pid);
-    }
+	  for (const [pid, newRosterId] of Object.entries(trade.adds || {})) {
+	    const oldRosterId = newRosterId === rosterA ? rosterB : rosterA;
+	    rosterState.get(newRosterId)?.delete(pid);
+	    if (!rosterState.has(oldRosterId)) rosterState.set(oldRosterId, new Set());
+	    rosterState.get(oldRosterId)?.add(pid);
+	  }
+	  (trade.draft_picks || []).forEach((pick, pickIndex) => {
+	    const eventKey = getTradePickEventKey(trade, pick, pickIndex);
+	    const originalRosterId = tradePickIdentities.displayOriginalRosterIds.get(eventKey)
+	      ?? tradePickIdentities.originalRosterIds.get(eventKey)
+	      ?? pick.roster_id
+	      ?? null;
+	    const previousOwnerId = typeof pick.previous_owner_id === 'number'
+	      ? pick.previous_owner_id
+	      : [rosterA, rosterB].find((rosterId) => rosterId !== pick.owner_id) ?? null;
+	    if (originalRosterId === null || previousOwnerId === null) return;
+	    const round = Number(pick.round);
+	    if (!Number.isFinite(round)) return;
+	    pickOwnerState.set(getTradePickIdentityKey(pick.season, round, originalRosterId), {
+	      season: String(pick.season),
+	      round,
+	      originalRosterId,
+	      ownerRosterId: previousOwnerId,
+	    });
+	  });
 
     const snapshot = buildRosterSnapshot();
     const date = new Date(trade.status_updated).toISOString().split('T')[0];
@@ -1686,10 +1786,11 @@ function buildHistoricalTradeContextsForSeason(
         starterSeasonValue: row.starterSeasonValue,
         totalValue: row.totalValue,
         avgAge: row.avgAge,
-        maxStarterSeasonValue: snapshot.maxStarterSeasonValue,
-        maxTotalValue: snapshot.maxTotalValue,
-        rosterPlayers: row.rosterPlayers,
-      });
+	    maxStarterSeasonValue: snapshot.maxStarterSeasonValue,
+	    maxTotalValue: snapshot.maxTotalValue,
+	    rosterPlayers: row.rosterPlayers,
+	    tradeTimePicks: row.tradeTimePicks,
+	  });
     }
 
     contextsByTrade.set(trade.status_updated, tradeContexts);
@@ -2847,6 +2948,7 @@ export async function generateReport(
       getPrimaryValue,
       getPrimaryRank,
       seasonPositionRankById,
+      tradePickIdentities,
     );
 
     for (const tx of season.trades) {

@@ -32,7 +32,18 @@ import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueRepor
 import { loadReportStaticInputs } from "./reportStaticInputs";
 import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
 import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
+import { buildPlayerValueTimelineMap } from "./playerValueTimeline";
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
+import {
+  buildNflverseDraftCapitalBySleeperId,
+  enrichPlayerDetailsWithNflverseDraftCapital,
+  loadNflverseDraftCapitalSnapshot,
+  NFLVERSE_DRAFT_CAPITAL_SOURCE_KEY,
+} from "./nflverseDraftCapital";
+import {
+  enrichPlayerDetailsWithNflverseContext,
+  loadNflversePlayerContext,
+} from "./nflversePlayerContext";
 import {
   getFantasyProsScoringForPpr,
   getKtcProfileKeyForValueOptions,
@@ -75,7 +86,7 @@ const actionPlanSchema = z.object({
   updatedAt: z.number().finite().optional(),
   title: z.string().min(1).max(240),
   summary: z.string().max(1200),
-  status: z.enum(["saved", "submitted", "copied", "opened", "tracked", "won", "lost", "acted", "blocked"]),
+  status: z.enum(["saved", "submitted", "copied", "opened", "tracked", "won", "lost", "acted", "blocked", "stale"]),
   payload: z.record(z.string(), z.unknown()),
 }) satisfies z.ZodType<ActionPlanRecord>;
 const waiverBidHistorySchema = z.object({
@@ -578,7 +589,7 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v41';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v44';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
 const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
 const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
@@ -2690,6 +2701,45 @@ function buildLatestNewsByPlayerId(
   return Object.fromEntries(entries);
 }
 
+function buildNewsValueMovementByPlayerId(
+  playerIds: Iterable<string>,
+  players: Record<string, any>,
+  latestNewsByPlayerId: Record<string, NonNullable<PlayerDetails['latestNews']>>,
+  currentValues: KTCValues,
+  baselineValues: KTCValues,
+): Record<string, NonNullable<PlayerDetails['newsValueMovement']>> {
+  const entries: Array<[string, NonNullable<PlayerDetails['newsValueMovement']>]> = [];
+  for (const playerId of Array.from(new Set(Array.from(playerIds).filter(Boolean)))) {
+    const news = latestNewsByPlayerId[playerId];
+    if (!news?.title) continue;
+    const currentValue = getPlayerValue(playerId, players, currentValues);
+    const previousValue = getPlayerValue(playerId, players, baselineValues);
+    const valueDelta = currentValue && previousValue ? currentValue - previousValue : null;
+    const valueDeltaPct = valueDelta !== null && previousValue
+      ? Math.round((valueDelta / previousValue) * 1000) / 10
+      : null;
+    const note = valueDeltaPct === null
+      ? 'News is attached, but value movement is not available from the stored baseline snapshot.'
+      : Math.abs(valueDeltaPct) < 1
+      ? 'News is attached, but the stored value baseline has not meaningfully moved.'
+      : valueDeltaPct > 0
+      ? `News is attached and stored value is up ${valueDeltaPct}% from the baseline snapshot.`
+      : `News is attached and stored value is down ${Math.abs(valueDeltaPct)}% from the baseline snapshot.`;
+
+    entries.push([playerId, {
+      newsTitle: news.title,
+      newsPublishedAt: news.publishedAt || null,
+      currentValue: currentValue || null,
+      previousValue: previousValue || null,
+      valueDelta,
+      valueDeltaPct,
+      note,
+    }]);
+  }
+
+  return Object.fromEntries(entries);
+}
+
 async function fetchTrendingPlayers(
   type: 'add' | 'drop',
   players: Record<string, any>,
@@ -2775,6 +2825,17 @@ function buildPickPortfolios(
       ownPicks,
       acquiredPicks,
       projectedSlots,
+      futurePicks: future
+        .map((pick) => ({
+          id: `${pick.manager}-${pick.season}-${pick.round}-${pick.originalOwner}`,
+          label: `${pick.season} Round ${pick.round}${pick.originalOwner !== pick.manager ? ` (${pick.originalOwner})` : ''}`,
+          manager: pick.manager,
+          originalOwner: pick.originalOwner,
+          season: pick.season,
+          round: pick.round,
+          value: pick.value,
+        }))
+        .sort((a, b) => Number(a.season) - Number(b.season) || a.round - b.round),
     };
   }).sort((a, b) => b.totalValue - a.totalValue);
 }
@@ -4684,6 +4745,12 @@ export const appRouter = router({
               .map((playerId) => [playerId, allValueProfilesById[playerId]])
               .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
           );
+          const valueTimelinesById = buildPlayerValueTimelineMap({
+            playerIds: detailPlayerIds,
+            players,
+            valueProfileKey: leagueValueProfileKey,
+            leagueValueMode,
+          });
           const sleeperResearchSeasonType = String(leagueInfo.season_type || 'regular');
           const depthChartResultPromise = fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, getUserLoadSnapshotOptions());
           const playerStaticEnrichmentPromise = loadReportPlayerStaticEnrichment({
@@ -4721,6 +4788,13 @@ export const appRouter = router({
                 players,
                 playerNews
               );
+              const newsValueMovementByPlayerId = buildNewsValueMovementByPlayerId(
+                detailPlayerIds,
+                players,
+                latestNewsByPlayerId,
+                ktcValues,
+                ktcValuesLastWeek
+              );
               const prospectProfilesById = Object.fromEntries(
                 detailPlayerIds
                   .map((playerId) => {
@@ -4746,9 +4820,11 @@ export const appRouter = router({
                 currentSeason,
                 sleeperResearchSeasonType,
                 valueProfilesById,
+                valueTimelinesById,
                 lastSeasonPositionRanks,
                 availabilityHistoryById,
                 latestNewsByPlayerId,
+                newsValueMovementByPlayerId,
                 sleeperResearchByPlayerId,
                 pastSeasonUsageByPlayerId,
                 playerScheduleProfiles: staticSections.playerScheduleProfiles,
@@ -4758,12 +4834,16 @@ export const appRouter = router({
             },
           });
           const depthChartResult = await depthChartResultPromise;
+          const nflverseDraftCapital = await loadNflverseDraftCapitalSnapshot({ sourceMode: 'snapshot' });
+          const nflversePlayerContext = await loadNflversePlayerContext({ season: lastCompletedSeason, sourceMode: 'snapshot' });
           const sourceDiagnosticRowCounts = [
             { sourceKey: 'ktc-blended-values-v1', rowCount: Object.keys(ktcValues || {}).length },
             { sourceKey: 'fantasypros-news-v1', rowCount: newsSourceCounts.fantasyPros },
             { sourceKey: 'sportsdataio-news-v1', rowCount: newsSourceCounts.sportsDataIo },
             { sourceKey: 'espn-depth-charts-v1', rowCount: depthChartResult.diagnostics.loadedTeams.length },
             { sourceKey: 'draftsharks-sos-v1', rowCount: Object.keys(draftSharksScheduleContext.profiles || {}).length },
+            { sourceKey: NFLVERSE_DRAFT_CAPITAL_SOURCE_KEY, rowCount: nflverseDraftCapital.rowCount },
+            ...nflversePlayerContext.rowCounts,
             { sourceKey: `sleeper-season-stats-v1:${lastCompletedSeason}`, rowCount: Object.keys(lastSeasonPositionRanks || {}).length },
             { sourceKey: 'prospect-snapshot:NFL Draft Buzz', rowCount: prospectContext.diagnostics.playerCount },
           ];
@@ -4782,7 +4862,7 @@ export const appRouter = router({
           const sourceSnapshotDiagnostics = sourceDiagnosticsSection.sourceSnapshotDiagnostics;
           const actualDepthChartsByPlayerId = depthChartResult.playerDepthCharts;
           const playerDetailsById = buildPlayerDetailsMap(detailPlayerIds, players, rosterStatusByPlayerId, actualDepthChartsByPlayerId);
-          const enrichedPlayerDetailsById = Object.fromEntries(
+          const staticEnrichedPlayerDetailsById = Object.fromEntries(
             Object.entries(playerDetailsById).map(([playerId, details]) => [
               playerId,
               {
@@ -4791,6 +4871,27 @@ export const appRouter = router({
               },
             ])
           );
+          const draftEnrichedPlayerDetailsById = enrichPlayerDetailsWithNflverseDraftCapital(
+            staticEnrichedPlayerDetailsById,
+            buildNflverseDraftCapitalBySleeperId(nflverseDraftCapital)
+          );
+          const enrichedPlayerDetailsById = enrichPlayerDetailsWithNflverseContext(
+            draftEnrichedPlayerDetailsById,
+            nflversePlayerContext
+          );
+          const valueTimelinesWithEventsById = buildPlayerValueTimelineMap({
+            playerIds: detailPlayerIds,
+            players,
+            playerDetailsById: enrichedPlayerDetailsById,
+            valueProfileKey: leagueValueProfileKey,
+            leagueValueMode,
+          });
+          Object.entries(valueTimelinesWithEventsById).forEach(([playerId, valueTimeline]) => {
+            enrichedPlayerDetailsById[playerId] = {
+              ...enrichedPlayerDetailsById[playerId],
+              valueTimeline,
+            };
+          });
           const playerCohortsById = buildPlayerCohortProfiles({
             playerDetailsById: enrichedPlayerDetailsById,
             mode: leagueValueMode === 'redraft' ? 'redraft' : 'dynasty',

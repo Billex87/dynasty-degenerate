@@ -1,4 +1,4 @@
-import type { PlayerCohortDraftCapital, PlayerCohortOutcomeBucket, PlayerCohortPhase, PlayerCohortProfile, PlayerDetails } from '../shared/types';
+import type { PlayerCohortDraftCapital, PlayerCohortEvidenceGrade, PlayerCohortOutcomeBucket, PlayerCohortPhase, PlayerCohortProfile, PlayerDetails } from '../shared/types';
 
 const AGE_CURVES: Record<string, { earlyMax: number; primeMax: number; latePrimeMax: number }> = {
   QB: { earlyMax: 26, primeMax: 32, latePrimeMax: 36 },
@@ -86,6 +86,25 @@ function sourceCount(details: PlayerDetails): number {
   );
 }
 
+type PlayerCohortCalibration = PlayerCohortProfile['calibration'];
+
+function playerNameKey(name: unknown): string {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isTopReturningDepthPlayer(details: PlayerDetails): boolean {
+  const topReturning = details.rosterRoom?.opportunityDelta?.topReturningDepthPlayer;
+  return Boolean(topReturning && playerNameKey(topReturning) === playerNameKey(details.fullName));
+}
+
+function hasBreakoutOpportunitySignal(details: PlayerDetails): boolean {
+  const delta = details.rosterRoom?.opportunityDelta;
+  if (!delta) return false;
+  if ((delta.qualitySignal === 'major-opening' || delta.qualitySignal === 'minor-opening') && delta.vacatedImpactScore >= 40) return true;
+  return isTopReturningDepthPlayer(details)
+    && (delta.incumbentOpportunitySignal === 'major-promotion' || delta.incumbentOpportunitySignal === 'minor-promotion');
+}
+
 function getDraftCapital(details: PlayerDetails): PlayerCohortDraftCapital {
   const round = positive(details.nflDraftRound);
   const pick = positive(details.nflDraftPick);
@@ -161,30 +180,131 @@ function getOutcomeBucket(input: {
   marketProductionDelta: number | null;
   avgGamesMissed: number | null;
   availabilitySeasons: number | null;
+  breakoutOpportunitySignal?: boolean;
+  draftCapitalTier?: PlayerCohortDraftCapital['tier'];
 }): PlayerCohortOutcomeBucket {
   if (input.productionScore === null || input.marketScore === null || input.marketProductionDelta === null) return 'thin-signal';
   if ((input.avgGamesMissed || 0) >= 4 && (input.availabilitySeasons || 0) >= 2) return 'injury-risk';
   if ((input.agePhase === 'decline' || input.agePhase === 'late-prime') && input.marketScore >= 58 && input.productionScore < 55) return 'fade-risk';
+  if (
+    input.agePhase === 'early'
+    && input.breakoutOpportunitySignal
+    && (input.draftCapitalTier === 'premium' || input.draftCapitalTier === 'day-two' || (input.marketScore || 0) >= 45)
+  ) return 'breakout';
   if (input.marketProductionDelta >= 24) return 'market-over-production';
   if (input.marketProductionDelta <= -18) return 'market-under-production';
   if (input.agePhase === 'early' && input.productionScore >= 55) return 'breakout';
   return 'sustain';
 }
 
-function getConfidence(details: PlayerDetails, productionScore: number | null, marketScore: number | null): number {
+function getRawConfidence(details: PlayerDetails, productionScore: number | null, marketScore: number | null, draftCapital: PlayerCohortDraftCapital): number {
   const sources = sourceCount(details);
   const availability = details.availabilitySeasons || 0;
-  const draftCapital = getDraftCapital(details);
   return Math.round(clamp(
     28
     + Math.min(30, sources * 6)
     + (productionScore === null ? 0 : 16)
     + (marketScore === null ? 0 : 14)
     + Math.min(12, availability * 4)
-    + (draftCapital.tier === 'unknown' ? 0 : draftCapital.tier === 'premium' ? 6 : 3),
+    + (draftCapital.tier === 'unknown' ? 0 : draftCapital.tier === 'premium' ? 6 : 3)
+    + (details.usageTrend ? 5 : 0)
+    + (details.teamEnvironment ? 3 : 0)
+    + (details.rosterRoom ? 3 : 0)
+    + (details.rosterRoom?.opportunityDelta ? 3 : 0)
+    + (details.contractProfile?.investmentTier === 'premium' ? 4 : details.contractProfile?.investmentTier === 'solid' ? 2 : 0)
+    + (details.athleticProfile ? 2 : 0),
     0,
     100,
   ));
+}
+
+function buildCalibration(input: {
+  details: PlayerDetails;
+  value: number | null;
+  agePhase: PlayerCohortPhase;
+  productionScore: number | null;
+  marketScore: number | null;
+  marketProductionDelta: number | null;
+  draftCapital: PlayerCohortDraftCapital;
+}): PlayerCohortCalibration {
+  const sources = sourceCount(input.details);
+  const missingSignals: string[] = [];
+  const cautionFlags: string[] = [];
+  const hasIdentity = Boolean(input.details.externalIds?.gsis || input.details.externalIds?.pfr || input.details.externalIds?.espn || input.details.externalIds?.fantasyPros);
+
+  if (input.value === null || input.marketScore === null) missingSignals.push('market value');
+  if (input.productionScore === null) missingSignals.push('last-season production');
+  if (input.agePhase === 'unknown') missingSignals.push('age curve');
+  if (sources < 2) missingSignals.push('multi-source value support');
+  if (!input.details.usageTrend) missingSignals.push('usage/snap trend');
+  if (!input.details.teamEnvironment) missingSignals.push('team pass/run environment');
+  if (!input.details.rosterRoom) missingSignals.push('roster-room delta');
+  if (input.draftCapital.tier === 'unknown') missingSignals.push('draft-capital runway');
+  if (!hasIdentity) missingSignals.push('cross-source player ID');
+
+  if (input.details.injuryHistory && input.details.injuryHistory.missedOrLimitedCount >= 5) cautionFlags.push('recurring injury-report signal');
+  if (input.details.contractProfile?.investmentTier === 'fringe') cautionFlags.push('weak veteran contract insulation');
+  if (input.details.newsValueMovement?.valueDeltaPct === null) cautionFlags.push('news attached without value baseline movement');
+  if (input.marketProductionDelta !== null && Math.abs(input.marketProductionDelta) >= 30) cautionFlags.push('large market-production disagreement');
+  if (input.details.usageTrend?.targetTrend === 'down' || input.details.usageTrend?.carryTrend === 'down') cautionFlags.push('declining recent usage window');
+  if (input.details.rosterRoom?.competitionLevel === 'crowded') cautionFlags.push('crowded position room');
+  if (input.details.rosterRoom?.premiumAdditions.length) cautionFlags.push('premium same-position addition');
+  if (input.details.rosterRoom?.opportunityDelta?.qualitySignal === 'major-squeeze') cautionFlags.push('high-quality same-position addition pressure');
+  if (input.details.rosterRoom?.opportunityDelta?.incumbentOpportunitySignal === 'blocked' && isTopReturningDepthPlayer(input.details)) cautionFlags.push('returning role blocked by incoming production');
+  if (input.details.rosterRoom?.movementTypes?.includes('trade')) cautionFlags.push('same-position trade movement');
+  if (input.details.rosterRoom?.weeklyCoverage && input.details.rosterRoom.weeklyCoverage.currentSeasonPlayers + input.details.rosterRoom.weeklyCoverage.previousSeasonPlayers === 0) {
+    cautionFlags.push('roster movement timing unavailable');
+  }
+
+  const evidenceScore = Math.round(clamp(
+    12
+    + Math.min(24, sources * 8)
+    + (input.value === null ? 0 : 14)
+    + (input.productionScore === null ? 0 : 16)
+    + (input.agePhase === 'unknown' ? 0 : 10)
+    + (input.details.usageTrend ? 10 : 0)
+    + (input.details.teamEnvironment ? 6 : 0)
+    + (input.details.rosterRoom ? 6 : 0)
+    + (input.details.rosterRoom?.opportunityDelta ? 4 : 0)
+    + (input.draftCapital.tier === 'unknown' ? 0 : 8)
+    + (hasIdentity ? 6 : 0),
+    0,
+    100,
+  ));
+  const evidenceGrade: PlayerCohortEvidenceGrade = missingSignals.includes('market value') || missingSignals.includes('last-season production')
+    ? 'blocked'
+    : evidenceScore >= 78 && missingSignals.length <= 1
+    ? 'strong'
+    : evidenceScore >= 58 && missingSignals.length <= 3
+    ? 'usable'
+    : 'thin';
+  const confidenceCap = evidenceGrade === 'strong'
+    ? 92
+    : evidenceGrade === 'usable'
+    ? 78
+    : evidenceGrade === 'thin'
+    ? 58
+    : 46;
+  const strongReadEligible = evidenceGrade === 'strong' && cautionFlags.length <= 1;
+  const note = strongReadEligible
+    ? 'Strong read eligible: value, production, age, usage, and identity evidence are aligned enough for a louder player read.'
+    : evidenceGrade === 'blocked'
+    ? `Blocked from a strong read until ${missingSignals.slice(0, 2).join(' and ')} are available.`
+    : evidenceGrade === 'thin'
+    ? `Thin read: keep language cautious until ${missingSignals.slice(0, 3).join(', ') || 'more evidence'} improves.`
+    : cautionFlags.length
+    ? `Usable read, but confidence is capped by ${cautionFlags.slice(0, 2).join(' and ')}.`
+    : 'Usable read: enough evidence for direction, but not enough for max-confidence language.';
+
+  return {
+    evidenceGrade,
+    evidenceScore,
+    confidenceCap,
+    strongReadEligible,
+    missingSignals,
+    cautionFlags,
+    note,
+  };
 }
 
 function buildTrace(input: {
@@ -195,14 +315,27 @@ function buildTrace(input: {
   marketProductionDelta: number | null;
   outcomeBucket: PlayerCohortOutcomeBucket;
   draftCapital: PlayerCohortDraftCapital;
+  calibration: PlayerCohortCalibration;
 }): string[] {
   return [
+    `Calibration: ${input.calibration.note}`,
     input.agePhase !== 'unknown' ? `Age phase: ${input.agePhase}.` : 'Age phase is unavailable.',
     `Draft capital: ${input.draftCapital.label}; ${input.draftCapital.note}`,
+    input.details.contractProfile ? `Contract context: ${input.details.contractProfile.note}` : 'Contract context is unavailable.',
+    input.details.usageTrend ? `Usage trend: ${input.details.usageTrend.note}` : 'Usage trend is unavailable.',
+    input.details.teamEnvironment ? `Team environment: ${input.details.teamEnvironment.note}` : 'Team pass/run environment is unavailable.',
+    input.details.rosterRoom ? `Roster room: ${input.details.rosterRoom.note}` : 'Roster-room delta is unavailable.',
+    input.details.rosterRoom?.opportunityDelta ? `Opportunity math: ${input.details.rosterRoom.opportunityDelta.note}` : 'Opportunity math is unavailable.',
+    input.details.athleticProfile ? `Athletic profile: ${input.details.athleticProfile.note}` : 'Athletic profile is unavailable.',
+    input.details.injuryHistory ? `Injury history: ${input.details.injuryHistory.note}` : 'Injury history is unavailable.',
+    input.details.newsValueMovement ? `News/value movement: ${input.details.newsValueMovement.note}` : 'News/value movement is unavailable.',
     input.value !== null ? `Primary value: ${input.value}.` : 'Primary value is unavailable.',
     input.productionScore !== null ? `Production score: ${input.productionScore}.` : 'Production score is unavailable.',
     input.marketProductionDelta !== null ? `Market vs production delta: ${input.marketProductionDelta}.` : 'Market-production delta is unavailable.',
     `Outcome bucket: ${input.outcomeBucket}.`,
+    `Evidence grade: ${input.calibration.evidenceGrade}; evidence score ${input.calibration.evidenceScore}; confidence cap ${input.calibration.confidenceCap}.`,
+    input.calibration.missingSignals.length ? `Missing signals: ${input.calibration.missingSignals.join(', ')}.` : 'No major calibration gaps detected.',
+    input.calibration.cautionFlags.length ? `Caution flags: ${input.calibration.cautionFlags.join(', ')}.` : 'No major caution flags detected.',
     `${sourceCount(input.details)} value source signal${sourceCount(input.details) === 1 ? '' : 's'} attached.`,
   ];
 }
@@ -236,8 +369,22 @@ export function buildPlayerCohortProfiles(input: {
         marketProductionDelta,
         avgGamesMissed: numeric(details.avgGamesMissed),
         availabilitySeasons: numeric(details.availabilitySeasons),
+        breakoutOpportunitySignal: hasBreakoutOpportunitySignal(details),
+        draftCapitalTier: draftCapital.tier,
       });
-      const confidence = getConfidence(details, productionScore, marketScore);
+      const calibration = buildCalibration({
+        details,
+        value,
+        agePhase,
+        productionScore,
+        marketScore,
+        marketProductionDelta,
+        draftCapital,
+      });
+      const confidence = Math.min(
+        getRawConfidence(details, productionScore, marketScore, draftCapital),
+        calibration.confidenceCap
+      );
 
       return {
         playerId,
@@ -255,6 +402,7 @@ export function buildPlayerCohortProfiles(input: {
           marketProductionDelta,
           outcomeBucket,
           confidence,
+          calibration,
           draftCapital,
           peers: [],
           trace: [] as string[],
@@ -294,6 +442,7 @@ export function buildPlayerCohortProfiles(input: {
         marketProductionDelta: row.profile.marketProductionDelta,
         outcomeBucket: row.profile.outcomeBucket,
         draftCapital: row.profile.draftCapital,
+        calibration: row.profile.calibration,
       }),
     };
   }

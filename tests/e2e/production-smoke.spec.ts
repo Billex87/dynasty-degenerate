@@ -11,6 +11,9 @@ const redraftLeagueNames = parseLeagueNames(
   process.env.PRODUCTION_SMOKE_REDRAFT_LEAGUES || process.env.PRODUCTION_SMOKE_REDRAFT_LEAGUE,
   ['test league', 'Gov Tech Grid Iron'],
 );
+const redraftNoDraftLeagueNames = new Set(
+  parseLeagueNames(process.env.PRODUCTION_SMOKE_REDRAFT_NO_DRAFT_LEAGUES, []).map(normalizeLeagueName),
+);
 
 function parseLeagueNames(value: string | undefined, fallback: string[]) {
   const parsed = String(value || '')
@@ -18,6 +21,14 @@ function parseLeagueNames(value: string | undefined, fallback: string[]) {
     .map((leagueName) => leagueName.trim())
     .filter(Boolean);
   return parsed.length ? parsed : fallback;
+}
+
+function normalizeLeagueName(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function shouldExpectDraftHistory(leagueName: string) {
+  return !redraftNoDraftLeagueNames.has(normalizeLeagueName(leagueName));
 }
 
 test.describe('production smoke', () => {
@@ -77,14 +88,19 @@ test.describe('production smoke', () => {
       await page.getByRole('tab', { name: 'Rankings' }).click();
       await expect(page.getByText('Current-season player values', { exact: false })).toBeVisible();
 
-      await page.getByRole('tab', { name: 'Draft History' }).click();
-      await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
-      await expect(
-        page.getByText('Draft Recap', { exact: false })
-          .or(page.getByText('Main Draft', { exact: false }))
-          .or(page.getByText('Season value window', { exact: false }))
-          .first(),
-      ).toBeVisible();
+      if (shouldExpectDraftHistory(leagueName)) {
+        await page.getByRole('tab', { name: 'Draft History' }).click();
+        await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
+        await expect(
+          page.getByText('Draft Recap', { exact: false })
+            .or(page.getByText('Main Draft', { exact: false }))
+            .or(page.getByText('Season value window', { exact: false }))
+            .first(),
+        ).toBeVisible();
+      } else {
+        await expect(page.getByRole('tab', { name: 'Draft History' })).toHaveCount(0);
+        await expect(page.getByText('No draft data available')).toHaveCount(0);
+      }
 
       const bodyText = await page.locator('body').innerText();
       expect(bodyText).not.toContain('DYNASTY OWNER READS');

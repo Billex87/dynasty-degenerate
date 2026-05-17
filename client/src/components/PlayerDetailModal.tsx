@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -368,6 +368,7 @@ export function PlayerDetailModal({
     ?? valueProfile?.fantasyProsSeasonValue
     ?? (valueMode === 'redraft' ? currentValue : null);
   const valueConfidence = getPlayerValueConfidence({ valueProfile, mode: valueMode });
+  const valueTimeline = details?.valueTimeline || null;
   const sourceValueRows = valueProfile ? (
     isRedraftValueMode
       ? [
@@ -941,6 +942,9 @@ export function PlayerDetailModal({
                   <strong>{valueConfidence.label} · {valueConfidence.score}%</strong>
                   <p>{valueConfidence.note}</p>
                 </div>
+                {valueTimeline && valueTimeline.points.length >= 2 && (
+                  <PlayerValueTimelineCard timeline={valueTimeline} playerName={pick.playerName} teamColors={teamColors} tileAccent={tileAccent} showSourceAdmin={showAIRead} />
+                )}
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
                   <p className="text-center text-[0.68rem] font-bold leading-relaxed uppercase tracking-[0.16em] text-cyan-200/70">
                     {isRedraftValueMode
@@ -1337,6 +1341,429 @@ function formatValueLens(value: number | null | undefined) {
   return value.toLocaleString();
 }
 
+function formatValueDelta(value: number | null | undefined) {
+  if (value === null || value === undefined) return '-';
+  const prefix = value > 0 ? '+' : '';
+  return `${prefix}${formatValueLens(value)}`;
+}
+
+function formatTimelineDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function buildTimelineCoordinates(points: Array<{ value: number }>, width: number, height: number, padding = 8) {
+  if (points.length < 2) return [];
+  const values = points.map((point) => point.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(1, max - min);
+  const innerWidth = width - padding * 2;
+  const innerHeight = height - padding * 2;
+
+  return points.map((point, index) => ({
+    x: Math.round((padding + (index / Math.max(1, points.length - 1)) * innerWidth) * 10) / 10,
+    y: Math.round((padding + (1 - ((point.value - min) / range)) * innerHeight) * 10) / 10,
+  }));
+}
+
+function buildTimelinePath(points: Array<{ value: number }>, width: number, height: number, padding = 8) {
+  const coordinates = buildTimelineCoordinates(points, width, height, padding);
+  if (!coordinates.length) return '';
+  return coordinates
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ');
+}
+
+function formatTimelineSources(sources: string[]) {
+  if (!sources.length) return 'No source labels';
+  if (sources.length <= 3) return sources.join(', ');
+  return `${sources.slice(0, 3).join(', ')} +${sources.length - 3}`;
+}
+
+function formatTimelineSourceValue(value: number | null | undefined) {
+  return value ? formatValueLens(value) : '-';
+}
+
+type TimelinePoint = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['points']>[number];
+
+function buildTimelineSourceAudit(point: TimelinePoint) {
+  const sourceRows = [
+    { key: 'marketKtc', label: 'KTC', value: point.marketKtc },
+    { key: 'fantasyCalcDynasty', label: 'FantasyCalc', value: point.fantasyCalcDynasty },
+    { key: 'fantasyProsDynasty', label: 'FantasyPros', value: point.fantasyProsDynasty },
+    { key: 'dynastyProcess', label: 'DynastyProcess', value: point.dynastyProcess },
+    { key: 'dynastyNerds', label: 'Dynasty Nerds', value: point.dynastyNerds },
+    { key: 'flockFantasy', label: 'Flock', value: point.flockFantasy },
+  ].map((row) => {
+    const delta = row.value ? Math.round(row.value - point.value) : null;
+    return {
+      ...row,
+      delta,
+      tone: delta === null ? 'missing' : delta >= 350 ? 'high' : delta <= -350 ? 'low' : 'neutral',
+    };
+  });
+  const availableRows = sourceRows.filter((row) => row.value);
+  const high = availableRows.reduce<typeof availableRows[number] | null>((best, row) => (!best || (row.value || 0) > (best.value || 0) ? row : best), null);
+  const low = availableRows.reduce<typeof availableRows[number] | null>((best, row) => (!best || (row.value || 0) < (best.value || 0) ? row : best), null);
+  const spread = high?.value && low?.value ? Math.round(high.value - low.value) : null;
+
+  return {
+    sourceRows,
+    availableRows,
+    high,
+    low,
+    spread,
+  };
+}
+
+function formatSourceDelta(delta: number | null) {
+  if (delta === null) return 'Missing';
+  if (delta === 0) return 'Even';
+  return `${delta > 0 ? '+' : ''}${formatValueLens(delta)}`;
+}
+
+function PlayerValueTimelineCard({
+  timeline,
+  playerName,
+  teamColors,
+  tileAccent,
+  showSourceAdmin = false,
+}: {
+  timeline: NonNullable<PlayerDetails['valueTimeline']>;
+  playerName: string;
+  teamColors?: { primary: string; secondary: string; accent: string } | null;
+  tileAccent?: string;
+  showSourceAdmin?: boolean;
+}) {
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const firstPoint = timeline.points[0];
+  const lastPoint = timeline.points[timeline.points.length - 1];
+  const delta = timeline.summary.delta;
+  const isPositive = (delta || 0) > 0;
+  const isNegative = (delta || 0) < 0;
+  const strokeColor = isPositive ? '#34d399' : isNegative ? '#fb7185' : tileAccent || teamColors?.accent || '#67e8f9';
+  const path = useMemo(() => buildTimelinePath(timeline.points, 260, 86), [timeline.points]);
+  const deltaLabel = [
+    formatValueDelta(delta),
+    timeline.summary.deltaPct !== null && timeline.summary.deltaPct !== undefined
+      ? `${timeline.summary.deltaPct > 0 ? '+' : ''}${timeline.summary.deltaPct}%`
+      : null,
+  ].filter(Boolean).join(' / ');
+
+  return (
+    <>
+      <button
+        type="button"
+        className="player-value-timeline-trigger rounded-lg border p-3 text-left sm:p-4"
+        style={{
+          borderColor: teamColors ? `${tileAccent || teamColors.accent}26` : undefined,
+          background: teamColors
+            ? `linear-gradient(135deg, rgba(2,6,23,0.78), ${teamColors.primary}18 58%, ${teamColors.secondary}20)`
+            : undefined,
+        }}
+        onClick={() => setIsDetailOpen(true)}
+        aria-label={`Open ${playerName} value timeline detail`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[0.62rem] font-bold uppercase tracking-[0.16em] text-cyan-200/75">
+              Value Timeline
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-slate-100">
+              <span>{formatValueLens(firstPoint.value)}</span>
+              <span className="text-slate-500">to</span>
+              <span>{formatValueLens(lastPoint.value)}</span>
+              {lastPoint.rank && (
+                <span className={getPositionRankPillClass(lastPoint.rank)}>
+                  {lastPoint.rank}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="grid shrink-0 justify-items-end gap-1 text-right">
+            <div className={`text-sm font-black ${isPositive ? 'text-emerald-300' : isNegative ? 'text-rose-300' : 'text-slate-200'}`}>
+              {deltaLabel}
+            </div>
+            <span className="player-value-timeline-open-pill">Open detail</span>
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-md border border-white/10 bg-slate-950/45 p-2">
+          <svg
+            viewBox="0 0 260 86"
+            role="img"
+            aria-label={`Stored value timeline from ${formatValueLens(firstPoint.value)} to ${formatValueLens(lastPoint.value)}`}
+            className="h-[86px] w-full overflow-visible"
+            preserveAspectRatio="none"
+          >
+            <line x1="8" y1="72" x2="252" y2="72" stroke="rgba(148,163,184,0.24)" strokeWidth="1" />
+            <line x1="8" y1="12" x2="252" y2="12" stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
+            <path d={path} fill="none" stroke="rgba(15,23,42,0.85)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={path} fill="none" stroke={strokeColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            {buildTimelineCoordinates(timeline.points, 260, 86).map((point, index) => (
+              <circle
+                key={`${timeline.points[index].date}-${timeline.points[index].value}`}
+                cx={point.x}
+                cy={point.y}
+                r={index === 0 || index === timeline.points.length - 1 ? 3.5 : 2.2}
+                fill={index === timeline.points.length - 1 ? strokeColor : 'rgba(226,232,240,0.86)'}
+              />
+            ))}
+          </svg>
+          <div className="mt-1 flex items-center justify-between text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-400">
+            <span>{formatTimelineDate(firstPoint.date)}</span>
+            <span>{timeline.points.length} pts</span>
+            <span>{formatTimelineDate(lastPoint.date)}</span>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-300">
+          <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-1 text-cyan-100">
+            {lastPoint.sourceCount} sources
+          </span>
+          {timeline.summary.sourceSetChanged && (
+            <span className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-1 text-amber-100">
+              source mix changed
+            </span>
+          )}
+        </div>
+        {lastPoint.events?.length ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {lastPoint.events.map((event) => (
+              <span
+                key={`${event.type}-${event.label}`}
+                className={`player-value-event-chip player-value-event-chip-${event.tone}`}
+                title={event.detail || undefined}
+              >
+                {event.label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <p className="mt-2 text-xs leading-relaxed text-slate-400">
+          {timeline.summary.note}
+        </p>
+      </button>
+
+      <PlayerValueTimelineDetailDialog
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        playerName={playerName}
+        timeline={timeline}
+        strokeColor={strokeColor}
+        deltaLabel={deltaLabel}
+        showSourceAdmin={showSourceAdmin}
+      />
+    </>
+  );
+}
+
+function PlayerValueTimelineDetailDialog({
+  isOpen,
+  onClose,
+  playerName,
+  timeline,
+  strokeColor,
+  deltaLabel,
+  showSourceAdmin,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  playerName: string;
+  timeline: NonNullable<PlayerDetails['valueTimeline']>;
+  strokeColor: string;
+  deltaLabel: string;
+  showSourceAdmin: boolean;
+}) {
+  const firstPoint = timeline.points[0];
+  const lastPoint = timeline.points[timeline.points.length - 1];
+  const chartPoints = useMemo(() => buildTimelineCoordinates(timeline.points, 520, 178, 18), [timeline.points]);
+  const chartPath = useMemo(() => buildTimelinePath(timeline.points, 520, 178, 18), [timeline.points]);
+  const sourceAudit = useMemo(() => buildTimelineSourceAudit(lastPoint), [lastPoint]);
+  const eventList = timeline.points.flatMap((point) =>
+    (point.events || []).map((event) => ({
+      ...event,
+      date: point.date,
+      value: point.value,
+    }))
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="player-value-timeline-overlay"
+        className="player-value-timeline-modal max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl"
+      >
+        <div className="player-value-timeline-modal-inner">
+          <button type="button" className="manager-modal-close" onClick={onClose} aria-label={`Close ${playerName} value timeline detail`}>
+            <X />
+          </button>
+          <DialogHeader className="player-value-timeline-modal-header">
+            <p className="player-value-timeline-kicker">Stored Value Timeline</p>
+            <DialogTitle className="player-value-timeline-title">{playerName}</DialogTitle>
+            <DialogDescription className="player-value-timeline-description">
+              Blended market movement with source coverage, ranks, and situation markers attached to the latest stored point.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="player-value-timeline-modal-body">
+            <div className="player-value-timeline-metric-grid">
+              <TimelineMetric label="Start" value={formatValueLens(firstPoint.value)} note={formatTimelineDate(firstPoint.date)} />
+              <TimelineMetric label="Current" value={formatValueLens(lastPoint.value)} note={formatTimelineDate(lastPoint.date)} />
+              <TimelineMetric label="Move" value={deltaLabel} note={timeline.summary.sourceSetChanged ? 'Source mix changed' : 'Same source set'} />
+              <TimelineMetric label="Latest Rank" value={lastPoint.rank || '-'} note={`${lastPoint.sourceCount} sources`} />
+            </div>
+
+            <div className="player-value-timeline-chart-panel">
+              <svg
+                viewBox="0 0 520 178"
+                role="img"
+                aria-label={`${playerName} stored value timeline detail`}
+                className="player-value-timeline-chart"
+                preserveAspectRatio="none"
+              >
+                <line x1="18" y1="150" x2="502" y2="150" stroke="rgba(148,163,184,0.24)" strokeWidth="1" />
+                <line x1="18" y1="88" x2="502" y2="88" stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
+                <line x1="18" y1="26" x2="502" y2="26" stroke="rgba(148,163,184,0.16)" strokeWidth="1" />
+                <path d={chartPath} fill="none" stroke="rgba(15,23,42,0.9)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+                <path d={chartPath} fill="none" stroke={strokeColor} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                {chartPoints.map((point, index) => {
+                  const timelinePoint = timeline.points[index];
+                  const hasEvents = Boolean(timelinePoint.events?.length);
+                  return (
+                    <g key={`${timelinePoint.date}-${timelinePoint.value}`}>
+                      <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r={hasEvents ? 6.2 : index === 0 || index === timeline.points.length - 1 ? 4.6 : 3}
+                        fill={hasEvents ? 'rgba(251, 191, 36, 0.95)' : index === timeline.points.length - 1 ? strokeColor : 'rgba(226,232,240,0.92)'}
+                        stroke={hasEvents ? 'rgba(15,23,42,0.95)' : 'transparent'}
+                        strokeWidth={hasEvents ? 2 : 0}
+                      />
+                    </g>
+                  );
+                })}
+              </svg>
+              <div className="player-value-timeline-chart-footer">
+                <span>{formatTimelineDate(firstPoint.date)}</span>
+                <span>{timeline.points.length} stored snapshots</span>
+                <span>{formatTimelineDate(lastPoint.date)}</span>
+              </div>
+            </div>
+
+            {showSourceAdmin && (
+              <section className="player-value-timeline-section player-value-source-admin-panel">
+                <div className="player-value-timeline-section-header">
+                  <span>Admin Source Audit</span>
+                  <strong>{sourceAudit.availableRows.length}/6 live</strong>
+                </div>
+                <div className="player-value-source-audit-metrics">
+                  <TimelineMetric
+                    label="Spread"
+                    value={sourceAudit.spread !== null ? formatValueLens(sourceAudit.spread) : '-'}
+                    note="High vs low source"
+                  />
+                  <TimelineMetric
+                    label="High Source"
+                    value={sourceAudit.high?.label || '-'}
+                    note={sourceAudit.high?.value ? formatValueLens(sourceAudit.high.value) : 'Missing'}
+                  />
+                  <TimelineMetric
+                    label="Low Source"
+                    value={sourceAudit.low?.label || '-'}
+                    note={sourceAudit.low?.value ? formatValueLens(sourceAudit.low.value) : 'Missing'}
+                  />
+                  <TimelineMetric
+                    label="Coverage"
+                    value={`${lastPoint.sourceCount}`}
+                    note={timeline.summary.sourceSetChanged ? 'Source mix changed' : 'Stable source set'}
+                  />
+                </div>
+                <div className="player-value-source-audit-grid">
+                  {sourceAudit.sourceRows.map((row) => (
+                    <article key={row.key} className={`player-value-source-audit-row player-value-source-audit-row-${row.tone}`}>
+                      <span>{row.label}</span>
+                      <strong>{formatTimelineSourceValue(row.value)}</strong>
+                      <em>{formatSourceDelta(row.delta)} vs blend</em>
+                    </article>
+                  ))}
+                </div>
+                <p className="player-value-source-admin-note">
+                  Use this to debug whether the blended value moved because the market moved, a new source entered the blend, or one provider is pulling materially away from consensus.
+                </p>
+              </section>
+            )}
+
+            <section className="player-value-timeline-section">
+              <div className="player-value-timeline-section-header">
+                <span>Situation Markers</span>
+                <strong>{eventList.length || 0}</strong>
+              </div>
+              {eventList.length ? (
+                <div className="player-value-event-detail-grid">
+                  {eventList.map((event) => (
+                    <article key={`${event.date}-${event.type}-${event.label}`} className={`player-value-event-detail player-value-event-detail-${event.tone}`}>
+                      <div>
+                        <span>{formatTimelineDate(event.date)}</span>
+                        <strong>{event.label}</strong>
+                      </div>
+                      <p>{event.detail || 'Situation signal attached to this value point.'}</p>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="player-value-timeline-empty">No situation markers were attached to this timeline window.</p>
+              )}
+            </section>
+
+            <section className="player-value-timeline-section">
+              <div className="player-value-timeline-section-header">
+                <span>Snapshot Source History</span>
+                <strong>{timeline.points.length}</strong>
+              </div>
+              <div className="player-value-source-history">
+                {timeline.points.map((point) => (
+                  <article key={`${point.date}-${point.value}`} className="player-value-source-row">
+                    <div className="player-value-source-row-main">
+                      <span>{formatTimelineDate(point.date)}</span>
+                      <strong>{formatValueLens(point.value)}</strong>
+                      <em>{point.rank || 'No rank'}</em>
+                    </div>
+                    <p>{formatTimelineSources(point.sources)}</p>
+                    <div className="player-value-source-grid">
+                      <span>KTC <strong>{formatTimelineSourceValue(point.marketKtc)}</strong></span>
+                      <span>FC <strong>{formatTimelineSourceValue(point.fantasyCalcDynasty)}</strong></span>
+                      <span>FP <strong>{formatTimelineSourceValue(point.fantasyProsDynasty)}</strong></span>
+                      <span>DP <strong>{formatTimelineSourceValue(point.dynastyProcess)}</strong></span>
+                      <span>DN <strong>{formatTimelineSourceValue(point.dynastyNerds)}</strong></span>
+                      <span>Flock <strong>{formatTimelineSourceValue(point.flockFantasy)}</strong></span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <p className="player-value-timeline-note">{timeline.summary.note}</p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TimelineMetric({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <div className="player-value-timeline-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <em>{note}</em>
+    </div>
+  );
+}
+
 function formatCompleteValue(value: unknown, compactNumbers?: boolean) {
   if (value === null || value === undefined || value === '') return '-';
   if (typeof value === 'number') {
@@ -1438,6 +1865,211 @@ function parseHexColor(hex: string) {
   };
 }
 
+function clampAiReadScore(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getTimelineMovement(details?: PlayerDetails, fallbackValueGain?: number | null) {
+  const summary = details?.valueTimeline?.summary;
+  const delta = summary?.delta ?? fallbackValueGain ?? 0;
+  return {
+    delta: Math.round(delta || 0),
+    deltaPct: summary?.deltaPct ?? null,
+    sourceSetChanged: Boolean(summary?.sourceSetChanged),
+    eventCount: summary?.eventCount || 0,
+  };
+}
+
+function getAiReadProfileScore(details?: PlayerDetails, position?: string | null) {
+  const draftPick = Number(details?.nflDraftPick || 0);
+  const draftRound = Number(details?.nflDraftRound || details?.playerCohort?.draftCapital?.round || 0);
+  let score = 46;
+
+  if (Number.isFinite(draftPick) && draftPick > 0) {
+    score = draftPick <= 32 ? 94 : draftPick <= 64 ? 82 : draftPick <= 100 ? 68 : draftPick <= 160 ? 52 : 38;
+  } else if (Number.isFinite(draftRound) && draftRound > 0) {
+    score = draftRound === 1 ? 88 : draftRound === 2 ? 74 : draftRound === 3 ? 60 : draftRound <= 5 ? 44 : 32;
+  } else if (details?.playerCohort?.draftCapital?.tier === 'premium') {
+    score = 84;
+  } else if (details?.playerCohort?.draftCapital?.tier === 'day-two') {
+    score = 66;
+  }
+
+  const prospect = details?.prospectProfile;
+  if (prospect?.overallRank) score += clampAiReadScore(18 - Math.floor(prospect.overallRank / 12), 0, 18);
+  if (prospect?.rating) score += clampAiReadScore(Math.round((Number(prospect.rating) - 70) / 4), -4, 10);
+
+  const normalizedPosition = (position || details?.position || '').toUpperCase();
+  const forty = details?.athleticProfile?.forty || prospect?.fortyYardDash || null;
+  if (forty && ['RB', 'WR'].includes(normalizedPosition)) {
+    score += forty <= 4.45 ? 5 : forty >= 4.65 ? -5 : 0;
+  }
+
+  return Math.round(clampAiReadScore(score, 1, 99));
+}
+
+function getAiReadOpportunityScore(details?: PlayerDetails) {
+  const delta = details?.rosterRoom?.opportunityDelta;
+  if (!delta) return { score: 50, label: 'Opportunity unclear' };
+
+  let score = 50;
+  if (delta.qualitySignal === 'major-opening') score += 28;
+  if (delta.qualitySignal === 'minor-opening') score += 16;
+  if (delta.qualitySignal === 'squeeze') score -= 16;
+  if (delta.qualitySignal === 'major-squeeze') score -= 28;
+  if (delta.incumbentOpportunitySignal === 'major-promotion') score += 18;
+  if (delta.incumbentOpportunitySignal === 'minor-promotion') score += 10;
+  if (delta.incumbentOpportunitySignal === 'blocked') score -= 18;
+  score += clampAiReadScore(Math.round((delta.netOpportunityScore || 0) / 3), -16, 16);
+
+  const label = delta.qualitySignal === 'major-opening'
+    ? 'Major room opened'
+    : delta.qualitySignal === 'minor-opening'
+      ? 'Room opened'
+      : delta.qualitySignal === 'major-squeeze'
+        ? 'Major squeeze'
+        : delta.qualitySignal === 'squeeze'
+          ? 'Room squeeze'
+          : delta.incumbentOpportunitySignal === 'blocked'
+            ? 'Blocked runway'
+            : 'Stable room';
+
+  return { score: Math.round(clampAiReadScore(score, 1, 99)), label };
+}
+
+function getAiReadRunwayScore(details?: PlayerDetails) {
+  const cohortDraft = details?.playerCohort?.draftCapital;
+  if (cohortDraft?.patienceScore !== null && cohortDraft?.patienceScore !== undefined) {
+    return {
+      score: Math.round(clampAiReadScore(cohortDraft.patienceScore, 1, 99)),
+      label: cohortDraft.opportunityWindow === 'protected-runway'
+        ? 'Protected runway'
+        : cohortDraft.opportunityWindow === 'short-leash'
+          ? 'Short leash'
+          : 'Prove-it window',
+    };
+  }
+
+  const draftRound = Number(details?.nflDraftRound || 0);
+  const age = Number(details?.age || 0);
+  let score = Number.isFinite(draftRound) && draftRound > 0
+    ? draftRound === 1 ? 90 : draftRound === 2 ? 74 : draftRound === 3 ? 58 : draftRound <= 5 ? 42 : 30
+    : 46;
+  if (Number.isFinite(age) && age > 0) score += age <= 22 ? 8 : age <= 24 ? 3 : age >= 28 ? -12 : 0;
+  if (details?.contractProfile?.investmentTier === 'premium') score += 12;
+  if (details?.contractProfile?.investmentTier === 'fringe') score -= 10;
+
+  const finalScore = Math.round(clampAiReadScore(score, 1, 99));
+  return {
+    score: finalScore,
+    label: finalScore >= 76 ? 'Protected runway' : finalScore <= 42 ? 'Short leash' : 'Prove-it window',
+  };
+}
+
+function getAiReadMarketScore(currentValue: number | null | undefined, movementPct: number | null) {
+  const valueScore = clampAiReadScore(Math.round(Number(currentValue || 0) / 95), 0, 72);
+  const heatScore = movementPct === null ? 0 : clampAiReadScore(Math.round(movementPct * 0.72), -20, 28);
+  return Math.round(clampAiReadScore(valueScore + heatScore, 1, 99));
+}
+
+function buildSituationValueEvidence({
+  playerName,
+  position,
+  currentValue,
+  valueGain,
+  details,
+}: {
+  playerName: string;
+  position?: string | null;
+  currentValue?: number | null;
+  valueGain?: number | null;
+  details?: PlayerDetails;
+}): {
+  label: string;
+  readType: string;
+  severity: 'good' | 'info' | 'warn';
+  confidenceBoost: number;
+  chips: AIReadChip[];
+  copy: string;
+} | null {
+  if (!details?.valueTimeline && !details?.rosterRoom && !details?.playerCohort && !details?.prospectProfile) return null;
+
+  const movement = getTimelineMovement(details, valueGain);
+  const profileScore = getAiReadProfileScore(details, position);
+  const opportunity = getAiReadOpportunityScore(details);
+  const runway = getAiReadRunwayScore(details);
+  const marketScore = getAiReadMarketScore(currentValue, movement.deltaPct);
+  const supportScore = Math.round((profileScore * 0.34) + (opportunity.score * 0.38) + (runway.score * 0.28));
+  const gap = Math.round(supportScore - marketScore);
+  const movementLabel = movement.delta
+    ? `${movement.delta > 0 ? '+' : ''}${formatValueLens(movement.delta)}${movement.deltaPct !== null ? ` / ${movement.deltaPct > 0 ? '+' : ''}${movement.deltaPct}%` : ''}`
+    : 'flat market';
+  const evidenceParts = [
+    `profile ${profileScore}`,
+    `opportunity ${opportunity.score}`,
+    `runway ${runway.score}`,
+    `market ${marketScore}`,
+  ].join(', ');
+
+  if (gap >= 22) {
+    return {
+      label: 'Underpriced context',
+      readType: 'Mismatch Signal',
+      severity: 'good',
+      confidenceBoost: 7,
+      chips: [
+        { label: 'Mismatch +', tone: 'good' },
+        `Gap +${gap}`,
+        movement.eventCount ? `${movement.eventCount} markers` : opportunity.label,
+      ],
+      copy: `Situation/value check: ${playerName} still has support ahead of price (${evidenceParts}). Market movement is ${movementLabel}, but ${opportunity.label.toLowerCase()} and runway context keep the upside case alive.`,
+    };
+  }
+
+  if (gap <= -22 || (movement.deltaPct !== null && movement.deltaPct >= 24 && supportScore < marketScore + 4)) {
+    return {
+      label: 'Market heat check',
+      readType: 'Price Check',
+      severity: 'warn',
+      confidenceBoost: 5,
+      chips: [
+        { label: 'Heat check', tone: 'warn' },
+        `Gap ${gap}`,
+        movement.sourceSetChanged ? 'Source mix changed' : 'Price ahead',
+      ],
+      copy: `Situation/value check: the market is pricing more than the support stack has proven (${evidenceParts}). Market movement is ${movementLabel}, so the next read needs role confirmation instead of just accepting the value spike.`,
+    };
+  }
+
+  if (opportunity.score <= 40) {
+    return {
+      label: 'Opportunity blocked',
+      readType: 'Role Check',
+      severity: 'warn',
+      confidenceBoost: 4,
+      chips: [
+        { label: 'Blocked role', tone: 'warn' },
+        `Opp ${opportunity.score}`,
+        runway.label,
+      ],
+      copy: `Situation/value check: ${opportunity.label.toLowerCase()} is the limiter. ${playerName}'s profile/runway can still matter, but the current price needs a clearer path to touches before the read gets aggressive.`,
+    };
+  }
+
+  return {
+    label: 'Context hold',
+    readType: 'Situation Lens',
+    severity: 'info',
+    confidenceBoost: 3,
+    chips: [
+      { label: 'Context hold', tone: 'info' },
+      `Gap ${gap > 0 ? '+' : ''}${gap}`,
+      movement.sourceSetChanged ? 'Source mix changed' : opportunity.label,
+    ],
+    copy: `Situation/value check: support and market are close enough to avoid a forced call (${evidenceParts}). Market movement is ${movementLabel}; use the timeline markers to decide whether the move is earned or just price noise.`,
+  };
+}
+
 function buildPlayerAiRead({
   playerName,
   position,
@@ -1481,6 +2113,13 @@ function buildPlayerAiRead({
   const scheduleAvoidWeeks = formatScheduleWeekList(details?.schedule?.avoidWeeks);
   const cohort = details?.playerCohort || null;
   const draftCapital = cohort?.draftCapital || null;
+  const situationValueEvidence = buildSituationValueEvidence({
+    playerName,
+    position,
+    currentValue,
+    valueGain,
+    details,
+  });
 
   if (isCollegeProspect) {
     const score = prospectProfile?.rating ? `Prospect score ${prospectProfile.rating}` : 'Prospect file';
@@ -1508,6 +2147,7 @@ function buildPlayerAiRead({
   if (scheduleStreamerWeeks) chips.push(`Stream ${scheduleStreamerWeeks}`);
   if (scheduleAvoidWeeks) chips.push(`Avoid ${scheduleAvoidWeeks}`);
   if (cohort?.outcomeBucket) chips.push(formatCohortOutcomeLabel(cohort.outcomeBucket));
+  if (cohort?.calibration) chips.push(formatCohortEvidenceLabel(cohort.calibration.evidenceGrade));
   if (draftCapital && draftCapital.tier !== 'unknown') {
     chips.push({
       label: draftCapital.label,
@@ -1520,6 +2160,9 @@ function buildPlayerAiRead({
   }
   if (draftCapital?.patienceScore !== null && draftCapital?.patienceScore !== undefined) {
     chips.push(`Runway ${draftCapital.patienceScore}%`);
+  }
+  if (situationValueEvidence) {
+    chips.push(...situationValueEvidence.chips);
   }
 
   const isRedraft = valueMode === 'redraft';
@@ -1570,6 +2213,24 @@ function buildPlayerAiRead({
     }
   }
 
+  if (situationValueEvidence) {
+    if (situationValueEvidence.severity === 'warn') {
+      readType = situationValueEvidence.readType;
+      severity = 'warn';
+    } else if (situationValueEvidence.severity === 'good' && severity !== 'warn' && severity !== 'danger') {
+      readType = situationValueEvidence.readType;
+      severity = 'good';
+    } else if (body === `${playerName} is best evaluated through roster context, not raw value alone.`) {
+      readType = situationValueEvidence.readType;
+      severity = situationValueEvidence.severity;
+      body = situationValueEvidence.copy;
+    }
+
+    if (body !== situationValueEvidence.copy) {
+      body = `${body} ${situationValueEvidence.copy}`;
+    }
+  }
+
   if (scheduleSummary) {
     if (body === `${playerName} is best evaluated through roster context, not raw value alone.` && !latestNews?.title) {
       readType = 'Schedule Lens';
@@ -1586,9 +2247,13 @@ function buildPlayerAiRead({
     readType,
     confidence: Math.min(
       cohort?.confidence ?? 100,
-      valueProfile ? Math.min(86, valueConfidence.score + 8) : Math.min(62, valueConfidence.score + 18)
+      valueProfile
+        ? Math.min(90, valueConfidence.score + 8 + (situationValueEvidence?.confidenceBoost || 0))
+        : Math.min(66, valueConfidence.score + 18 + (situationValueEvidence?.confidenceBoost || 0))
     ),
-    confidenceNote: valueConfidence.note,
+    confidenceNote: cohort?.calibration?.note
+      ? `${valueConfidence.note} ${cohort.calibration.note}`
+      : valueConfidence.note,
     severity,
     chips,
     body: renderPlayerAiReadBody(body, cohort?.trace || []),
@@ -1607,6 +2272,16 @@ function formatCohortOutcomeLabel(bucket: NonNullable<PlayerDetails['playerCohor
     'thin-signal': { label: 'Thin signal', tone: 'warn' },
   };
   return labels[bucket] || { label: bucket, tone: 'neutral' };
+}
+
+function formatCohortEvidenceLabel(grade: NonNullable<PlayerDetails['playerCohort']>['calibration']['evidenceGrade']): AIReadChip {
+  const labels: Record<typeof grade, { label: string; tone: 'neutral' | 'good' | 'info' | 'warn' | 'danger' }> = {
+    strong: { label: 'Strong evidence', tone: 'good' },
+    usable: { label: 'Usable evidence', tone: 'info' },
+    thin: { label: 'Thin evidence', tone: 'warn' },
+    blocked: { label: 'Blocked evidence', tone: 'danger' },
+  };
+  return labels[grade] || { label: grade, tone: 'neutral' };
 }
 
 function buildCohortReadCopy(

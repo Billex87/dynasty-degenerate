@@ -48,6 +48,11 @@ const PROVIDER_LABELS: Record<string, string> = {
   'espn-depth-charts-v1': 'ESPN depth-chart snapshot',
   'draftsharks-sos-v1': 'DraftSharks SOS snapshot',
   'player-props-opticodds-v1': 'OpticOdds player props snapshot',
+  'nflverse-draft-capital-v1': 'nflverse draft-capital snapshot',
+  'nflverse-team-environment-v1': 'nflverse team-environment snapshot',
+  'nflverse-roster-room-v1': 'nflverse roster-room snapshot',
+  'nflverse-combine-v1': 'nflverse combine snapshot',
+  'nflverse-contracts-v1': 'nflverse contracts snapshot',
 };
 
 function hoursBetween(now: Date, then: Date | null): number | null {
@@ -189,6 +194,7 @@ export function buildSourceSnapshotFreshnessDiagnostics(input: BuildInput): Sour
 
 export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): Promise<SourceSnapshotFreshnessDiagnostic[]> {
   const previousSeason = input.previousSeason || String(Number(input.currentSeason) - 1);
+  const rosterRoomSeason = Number.isFinite(Number(previousSeason)) ? String(Number(previousSeason) + 1) : previousSeason;
   const expectedSources: ExpectedSnapshotSource[] = [
     {
       sourceKey: 'ktc-blended-values-v1',
@@ -239,6 +245,48 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       tableName: 'providerDataSnapshots',
       staleAfterHours: DAILY_STALE_HOURS,
       missingLevel: 'warn',
+    },
+    {
+      sourceKey: 'nflverse-draft-capital-v1',
+      source: PROVIDER_LABELS['nflverse-draft-capital-v1'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: WEEKLY_STALE_HOURS,
+    },
+    {
+      sourceKey: `nflverse-usage-v1:${previousSeason}`,
+      source: `nflverse usage snapshot: ${previousSeason}`,
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: LONG_TERM_STALE_HOURS,
+    },
+    {
+      sourceKey: `nflverse-team-environment-v1:${previousSeason}`,
+      source: `nflverse team-environment snapshot: ${previousSeason}`,
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: LONG_TERM_STALE_HOURS,
+    },
+    {
+      sourceKey: `nflverse-roster-room-v1:${rosterRoomSeason}`,
+      source: `nflverse roster-room snapshot: ${rosterRoomSeason}`,
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: WEEKLY_STALE_HOURS,
+    },
+    {
+      sourceKey: `nflverse-injuries-v1:${previousSeason}`,
+      source: `nflverse injury snapshot: ${previousSeason}`,
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: LONG_TERM_STALE_HOURS,
+    },
+    {
+      sourceKey: 'nflverse-combine-v1',
+      source: PROVIDER_LABELS['nflverse-combine-v1'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: MONTHLY_STALE_HOURS,
+    },
+    {
+      sourceKey: 'nflverse-contracts-v1',
+      source: PROVIDER_LABELS['nflverse-contracts-v1'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: MONTHLY_STALE_HOURS,
     },
     {
       sourceKey: `sleeper-season-stats-v1:${previousSeason}`,

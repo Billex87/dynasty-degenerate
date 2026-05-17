@@ -32,6 +32,25 @@ const baseInput = {
   valueProfilesById: {
     p1: { dynastyValue: 5000, sources: ['FantasyCalc'] },
   },
+  valueTimelinesById: {
+    p1: {
+      profileKey: '12_sf_ppr_base',
+      source: 'stored-value-snapshots' as const,
+      points: [
+        { date: '2026-05-07', value: 4500, rank: 'WR18', sources: ['FantasyCalc'], sourceCount: 1 },
+        { date: '2026-05-15', value: 5000, rank: 'WR12', sources: ['FantasyCalc'], sourceCount: 1 },
+      ],
+      summary: {
+        startValue: 4500,
+        endValue: 5000,
+        delta: 500,
+        deltaPct: 11.1,
+        sourceSetChanged: false,
+        eventCount: 0,
+        note: 'Stored value history uses the same source set at the start and end of this window.',
+      },
+    },
+  },
   lastSeasonPositionRanks: {
     p1: {
       positionRank: 'WR12',
@@ -106,7 +125,7 @@ describe('report player static enrichment', () => {
     });
 
     expect(first).toBe(second);
-    expect(first).toMatch(/^league-report-player-enrichment-v1:12_sf_ppr_base:2026:2025:regular:[a-f0-9]{16}:sources$/);
+    expect(first).toMatch(/^league-report-player-enrichment-v3:12_sf_ppr_base:2026:2025:regular:[a-f0-9]{16}:sources$/);
   });
 
   it('builds static enrichment without live roster status fields', () => {
@@ -114,6 +133,7 @@ describe('report player static enrichment', () => {
 
     expect(result.p1).toMatchObject({
       valueProfile: { dynastyValue: 5000 },
+      valueTimeline: { summary: { delta: 500 } },
       lastSeasonPositionRank: 'WR12',
       avgGamesMissed: 1,
       sleeperRosteredPct: 81.2,
@@ -134,12 +154,13 @@ describe('report player static enrichment', () => {
       schedule: null,
       similarTradeValues: [],
       prospectProfile: null,
+      valueTimeline: null,
     });
   });
 
   it('returns cached enrichment without upserting', async () => {
     const cachedPayload = {
-      cacheKey: 'league-report-player-enrichment-v1:cached',
+      cacheKey: 'league-report-player-enrichment-v3:cached',
       generatedAt: '2026-05-15T00:00:00.000Z',
       playerEnrichmentById: {
         p1: { valueProfile: { dynastyValue: 5000 } },
@@ -151,7 +172,7 @@ describe('report player static enrichment', () => {
     const result = await loadReportPlayerStaticEnrichment({ ...baseInput, buildEnrichment });
 
     expect(result).toEqual({ ...cachedPayload, cacheStatus: 'hit' });
-    expect(mocks.findLeagueReportCache).toHaveBeenCalledWith(expect.stringMatching(/^league-report-player-enrichment-v1:/), 12 * 60 * 60 * 1000);
+    expect(mocks.findLeagueReportCache).toHaveBeenCalledWith(expect.stringMatching(/^league-report-player-enrichment-v3:/), 12 * 60 * 60 * 1000);
     expect(buildEnrichment).not.toHaveBeenCalled();
     expect(mocks.upsertLeagueReportCache).not.toHaveBeenCalled();
   });
@@ -189,7 +210,7 @@ describe('report player static enrichment', () => {
 
   it('accepts only player enrichment payloads', () => {
     expect(isReportPlayerStaticEnrichmentPayload({
-      cacheKey: 'league-report-player-enrichment-v1:cached',
+      cacheKey: 'league-report-player-enrichment-v3:cached',
       generatedAt: '2026-05-15T00:00:00.000Z',
       playerEnrichmentById: {},
     })).toBe(true);

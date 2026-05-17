@@ -440,6 +440,28 @@ button.player-team-tile:focus-visible {
   font-weight: 950;
 }
 
+.trade-war-pick-label {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+  color: #f8fafc;
+  font-weight: 950;
+}
+
+.trade-war-pick-label > span,
+.trade-war-pick-label > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-pick-label > small {
+  color: #67e8f9;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
 .trade-war-owner {
   display: inline-flex;
   min-width: 0;
@@ -570,6 +592,210 @@ button.player-team-tile:focus-visible {
   gap: 0.45rem;
 }
 
+.trade-war-negotiation-panel {
+  grid-column: 1 / -1;
+}
+
+.trade-war-package-panel {
+  grid-column: 1 / -1;
+}
+
+.trade-war-package-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.62rem;
+  margin-top: 0.65rem;
+}
+
+.trade-war-package-card {
+  display: grid;
+  min-width: 0;
+  gap: 0.48rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 0.88rem;
+  background: rgba(2, 6, 23, 0.46);
+  padding: 0.68rem;
+}
+
+.trade-war-package-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.trade-war-package-head strong,
+.trade-war-package-head em {
+  min-width: 0;
+  line-height: 1.12;
+}
+
+.trade-war-package-head strong {
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-package-head em {
+  flex: 0 0 auto;
+  color: #fb923c;
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trade-war-package-card p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.74rem;
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+.trade-war-package-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+}
+
+.trade-war-package-chips span {
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.3);
+  padding: 0.2rem 0.42rem;
+  color: #a5f3fc;
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.trade-war-package-apply {
+  justify-self: start;
+  min-height: 1.9rem;
+  border: 1px solid rgba(52, 211, 153, 0.34);
+  border-radius: 999px;
+  background: rgba(6, 78, 59, 0.28);
+  padding: 0.32rem 0.58rem;
+  color: #bbf7d0;
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trade-war-package-good {
+  border-color: rgba(52, 211, 153, 0.26);
+}
+
+.trade-war-package-warn {
+  border-color: rgba(251, 191, 36, 0.26);
+}
+
+.trade-war-package-danger {
+  border-color: rgba(251, 113, 133, 0.28);
+}
+
+.trade-war-negotiation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+}
+
+.trade-war-negotiation-card {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 0.85rem;
+  background: rgba(2, 6, 23, 0.42);
+  padding: 0.68rem;
+}
+
+.trade-war-negotiation-card > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+}
+
+.trade-war-negotiation-card strong,
+.trade-war-negotiation-card em,
+.trade-war-negotiation-card b {
+  min-width: 0;
+  line-height: 1.12;
+}
+
+.trade-war-negotiation-card strong {
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 0.86rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-negotiation-card em {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.trade-war-negotiation-card b {
+  align-self: start;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.4);
+  padding: 0.32rem 0.45rem;
+  color: #a5f3fc;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.trade-war-negotiation-chips {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.trade-war-negotiation-chips span {
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.64);
+  padding: 0.22rem 0.45rem;
+  color: #cbd5e1;
+  font-size: 0.64rem;
+  font-weight: 900;
+}
+
+.trade-war-negotiation-card p {
+  grid-column: 1 / -1;
+  margin-top: 0;
+  font-size: 0.76rem;
+  line-height: 1.36;
+}
+
+.trade-war-negotiation-good {
+  border-color: rgba(52, 211, 153, 0.26);
+}
+
+.trade-war-negotiation-warn {
+  border-color: rgba(251, 191, 36, 0.26);
+}
+
+.trade-war-negotiation-danger {
+  border-color: rgba(251, 113, 133, 0.28);
+}
+
 @media (max-width: 760px) {
   .trade-war-top,
   .trade-war-manager-selects,
@@ -595,6 +821,10 @@ button.player-team-tile:focus-visible {
   .trade-war-mode-tabs button {
     flex: 1 1 0;
     padding-inline: 0.45rem;
+  }
+
+  .trade-war-negotiation-grid {
+    grid-template-columns: 1fr;
   }
 
   .trade-war-selected-assets,
@@ -6237,6 +6467,32 @@ body,
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (min-width: 640px) and (max-width: 760px) {
+  .report-shell .report-tabs {
+    gap: 0.22rem;
+    padding: 0.28rem;
+  }
+
+  .report-shell .report-tab {
+    gap: 0.24rem;
+    padding-inline: 0.28rem;
+    font-size: clamp(0.6rem, 1.45vw, 0.72rem);
+  }
+
+  .report-shell .report-tab svg {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  .report-shell .report-tab-label-full {
+    display: none;
+  }
+
+  .report-shell .report-tab-label-short {
+    display: inline;
+  }
 }
 
 .report-shell .report-tab-content {

@@ -5,11 +5,11 @@
 
 ## Premium UX / Three.js Roadmap
 
-- [ ] Bring the Owner Intel / AI Tron readout grid up to the `best.png` reference quality: flowing circuit-board light paths around each tile, distinct per-card routing, cyan/orange node glow, stronger edge/corner rails, clean readable text lanes, and a full-width Dynasty AI Notes bottom rail with connected mini-modules that feels like one powered PCB system instead of separate generic cards.
-- [ ] Rebuild the loading and report-generated modals as true Three.js scenes, not just CSS polish. Target a premium fantasy-football command-center feel: a cinematic 3D football fly-by on a real low-to-high arc, a depth-field loading stage, a textured league-logo coin/medallion, and a physical `REPORT GENERATED` stamp slam with ripple shockwaves, subtle camera thud, light sweep, and restrained glow.
-- [ ] Revisit the full-screen `SuccessTakeover` report-generated modal after the mobile crash is resolved. It is temporarily removed from the live render path; before re-enabling it, consolidate it with the existing loading-dialog success card so users only see one report-generated experience, avoid `RectAreaLightUniformsLib`/`rectAreaLight` mobile failures, add a non-WebGL fallback, and verify with mobile Playwright screenshots.
-- [ ] Keep the experience responsive and production-safe: code-native readable text/actions, desktop/tablet/mobile framing, reduced-motion fallback, graceful non-WebGL fallback, and no blocking of report generation if the 3D scene fails.
-- [ ] Add visual QA coverage for the modal rebuild with Playwright screenshots and canvas checks across desktop and mobile viewports so the animation is nonblank, correctly framed, and visibly 3D before shipping.
+- [x] Bring the Owner Intel / AI Tron readout grid up to the `best.png` reference quality: flowing circuit-board light paths around each tile, distinct per-card routing, cyan/orange node glow, stronger edge/corner rails, clean readable text lanes, and a full-width Dynasty AI Notes bottom rail with connected mini-modules that feels like one powered PCB system instead of separate generic cards.
+- [x] Rebuild the loading and report-generated modals as true Three.js scenes, not just CSS polish. Target a premium fantasy-football command-center feel: a cinematic 3D football fly-by on a real low-to-high arc, a depth-field loading stage, a textured league-logo coin/medallion, and a physical `REPORT GENERATED` stamp slam with ripple shockwaves, subtle camera thud, light sweep, and restrained glow.
+- [x] Revisit the full-screen `SuccessTakeover` report-generated modal after the mobile crash is resolved. It is temporarily removed from the live render path; before re-enabling it, consolidate it with the existing loading-dialog success card so users only see one report-generated experience, avoid `RectAreaLightUniformsLib`/`rectAreaLight` mobile failures, add a non-WebGL fallback, and verify with mobile Playwright screenshots.
+- [x] Keep the experience responsive and production-safe: code-native readable text/actions, desktop/tablet/mobile framing, reduced-motion fallback, graceful non-WebGL fallback, and no blocking of report generation if the 3D scene fails.
+- [x] Add visual QA coverage for the modal rebuild with Playwright screenshots and canvas checks across desktop and mobile viewports so the animation is nonblank, correctly framed, and visibly 3D before shipping.
 - [ ] Evaluate a subtle Three.js command-center backdrop for the generated report shell: layered 3D field/grid depth, premium tron-line movement, light sweeps, and parallax that make the report feel alive without reducing table readability or hurting scroll performance.
 - [ ] Upgrade player detail moments with restrained 3D depth where it adds signal: player/value medallion, confidence ring, market-movement pulse, and source-weight orbit that visually explains why the AI read is high or low confidence.
 - [ ] Explore Three.js reveal treatments for high-value intelligence modules such as Waiver Intelligence, Trade War Room, Weekly Momentum, and Rankings: small 3D radar/scanner/market-map scenes that support the data instead of replacing it.
@@ -126,26 +126,41 @@
 - [ ] Build a historical player cohort engine that compares value, production, age, draft capital, and role across all players by position, format, and season.
 - [x] Add age/value curves so AI can tell whether a player is early, normal, or late relative to their position's typical peak and decline window.
 - [ ] Measure production peaks and decline slopes by season, age, and game window so the readouts can flag when a player has already peaked, is peaking now, or is still climbing.
-- [ ] Add breakout and falloff detection for year-over-year changes in snap share, targets, rush attempts, routes, touchdowns, and efficiency.
-- [ ] Build player archetype and comp clusters using size, athletic profile, draft capital, usage profile, and scoring shape so the AI can explain similar historical outcomes instead of just raw ranks.
+- [x] Add a first snapshot-backed nflverse usage trend layer for targets, carries, receptions, PPR production, target share, and offense snap percentage so player/cohort reads can identify role growth or decline without live report-load calls.
+- [x] Add nflverse combine and contract context snapshots so player AI reads can distinguish size/speed archetypes and veteran investment runway from pure market value.
+- [ ] Expand breakout and falloff detection into full year-over-year changes in snap share, targets, rush attempts, routes, touchdowns, and efficiency after route participation is available from an approved/stable source.
+- [x] Build first-pass player archetype inputs using size, athletic profile, draft capital, contract investment, usage profile, and scoring shape so the AI can explain similar historical outcomes instead of just raw ranks.
 - [ ] Add rolling trend, volatility, and momentum features across 3/6/12/24 game and season windows so the readouts distinguish sustained growth from short spikes.
 - [ ] Separate opportunity-driven value from talent-driven value by modeling team context, depth-chart changes, injuries, QB changes, offensive environment, and role shifts.
+- [ ] Build the all-player Player Situation Delta engine from stored public snapshots so rookies, sophomores, veterans on new teams, and veterans whose teams changed around them get role/opportunity reads instead of rookie-only context. See `docs/player-situation-delta-data-plan.md`.
+- [x] Migrate the nflverse usage snapshot from the legacy combined `player_stats.csv` source to season-specific `stats_player` releases so current target share, air-yard share, WOPR, carries, targets, and fantasy production stay fresh.
+- [x] Add team-environment snapshots from nflverse `stats_team` and `pbp` so AI reads can account for team pass rate, rush rate, neutral-script pass rate, red-zone tendency, non-garbage pass rate, estimated pace, target volume, play volume, and offensive tendency without live report-load calls.
+- [x] Add first-pass roster-room delta snapshots from nflverse rosters and depth charts so reads can identify same-position additions, losses, rookie/premium additions, crowded rooms, and vacated opportunity.
+- [x] Expand roster-room deltas with weekly rosters and transaction typing so additions/losses can distinguish draft picks, inferred free-agent/claim movement, trades, injury returns, practice-squad churn, and offseason/camp noise.
+- [x] Quality-weight roster movement with prior-season targets, carries, receptions, PPR production, target share, WOPR, movement impact score, net opportunity score, and incumbent promotion score so JSN-style breakout windows account for whether added/lost players were actually meaningful.
+- [ ] Add a broader official transaction source so roster-room deltas can stop inferring non-trade movement and can explicitly classify free-agent signings, releases, waiver claims, reserve-list moves, and exact signing dates.
+- [ ] Add public advanced-efficiency snapshots from nflverse Next Gen Stats, PFR advanced stats, FTN charting, and participation/personnel data while explicitly labeling any route-derived public signal as estimated.
+- [ ] Add a curated coach/offensive coordinator/play-caller snapshot with source URLs, verified dates, prior roles, and confidence flags so scheme-change reads can account for new coaching staffs without relying on stale memory.
+- [ ] Keep exact routes run, route share, targets per route run, and yards per route run gated until an approved licensed source provides route-volume data; use target share, air-yard share, WOPR, NGS, PFR advanced, and estimated route participation as public-data fallbacks.
 - [x] Add age-adjusted market-vs-production deltas so we can spot players whose market value is lagging or overstating what the production curve says.
 - [x] Build position-specific aging models for QB, RB, WR, and TE, since the same age means different things by position and role.
-- [ ] Add historical outcome buckets such as breakout, sustain, fade, injury-cliff, and late-career rebound, then map current players into those buckets for AI reads.
+- [x] Add snapshot-backed injury-history context from nflverse injury reports so player reads can separate clean availability from recurring limited/out-style report signals.
+- [ ] Add deeper historical outcome buckets such as breakout, sustain, fade, injury-cliff, and late-career rebound, then map current players into those buckets for AI reads.
 - [x] Add a first-pass player cohort signal engine with position age phases, market-vs-production deltas, current outcome buckets, confidence gating, same-position peer rows, and explanation traces without adding provider calls.
 - [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts.
 - [x] Surface a short explanation trace in the UI so each player AI read can show the top reasons the model thinks a player is undervalued, overvalued, peaking, or declining, including draft-capital runway so high picks and late/undrafted profiles are judged with different opportunity patience.
 - [x] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.
+- [x] Add player-cohort calibration metadata so every player AI read carries an evidence grade, confidence cap, strong-read eligibility flag, missing-signal list, and caution flags before the UI can present it as a high-confidence take.
 - [ ] Add league-context modifiers for dynasty, redraft, superflex, and format-specific scoring so the logic stays format-aware.
 - [ ] Create anomaly rules for unusual cases like age-curve outliers, late breakouts, injury comebacks, small-sample spikes, and role-driven production jumps.
 - [ ] Build a reusable comparison layer that can answer "who has this player most resembled historically at the same age, usage, and value?" for deeper AI readouts.
-- [ ] Expand the source-history layer to preserve enough season-by-season and week-by-week snapshots to support long-term curve and cohort analysis.
-- [ ] Add admin diagnostics for model inputs so we can inspect which age, usage, market, and production signals drove a specific readout.
+- [x] Expand the source-history layer with compact nflverse usage, injury, combine, and contract snapshots stored in `providerDataSnapshots`.
+- [x] Add admin diagnostics/freshness coverage for nflverse usage, injury, combine, and contract snapshots so model inputs are visible without raw payloads.
 
 ## Overview Tab / Readout Clarity Roadmap
 
 - [x] Audit every table in the Overview tab and list the exact job each one is supposed to do.
+- [x] Add cross-tab AI readout feature coverage checklist: see `docs/ai-readout-feature-coverage.md`.
 - [x] Identify any repeated signals, summaries, or conclusions that are being shown on multiple tables and document the duplication ownership risk.
 - [x] Remove the duplicated Overview readouts from the UI surfaces after the ownership mapping is applied.
 - [x] Define one primary message for each table so we can clearly decide what belongs there and what should live elsewhere.
@@ -180,6 +195,7 @@
 - [x] Compare the final Overview stack side-by-side after every logic change and remove any repeated phrasing, repeated ranks, repeated value tags, or repeated "best/worst" labels.
 - [x] Add a regression check or snapshot test that fails if two Overview surfaces end up telling the same story with the same metric stack.
 - [x] Require an explicit owner review for any new Overview metric so we do not reintroduce duplicate readouts when new features land.
+- [x] Enforce the ownership matrix in rendered Overview copy: Power Rankings stays league-ordering only, Team Breakdown stops naming trade chips/sell candidates, and Trade Finder owns specific trade packages/targets.
 
 ## May 14, 2026 - Projections / SOS Rollout
 
@@ -194,6 +210,94 @@
 - [x] Add source-health checks and freshness checks for every projection/SOS feed we plan to depend on: report diagnostics now include DraftSharks SOS, player props, redraft source snapshots, FantasyPros health rows, and stored provider snapshot freshness; projection-driven rollout remains blocked until approved projection snapshots exist.
 - [x] Add tests for schedule normalization, bye-window rendering, streamer candidate generation, DraftSharks SOS normalization, and planner output from real schedule inputs.
 - [x] Leave a clear fallback state for pre-schedule and missing-data periods so offseason views remain stable.
+
+## Future Full NFL Schedule + Player Projection Roadmap
+
+### Source Access And Policy Gates
+
+- [ ] Confirm the approved full NFL schedule source before using it in production: prefer an official or licensed endpoint that returns season, week, game date/time, home team, away team, venue, neutral-site flag, game status, and source update timestamp.
+- [ ] Confirm the approved weekly player projection source before using projections in public reports: FantasyPros, DraftSharks, SportsDataIO, Fantasy Nerds, or another licensed provider is acceptable only after production terms, rate limits, redistribution rules, and freshness guarantees are documented.
+- [ ] Keep normal user-triggered report loads snapshot-backed for full schedule and projection data; live calls during login/report generation should remain limited to Sleeper current league state.
+- [ ] Add feature flags for each projection source and projection type: weekly, rest-of-season, preseason, playoff weeks, position-specific projections, team defense projections, kicker projections, and injury-adjusted projections.
+- [ ] Add source policy docs for projection display language so the UI never labels internal estimates as provider projections and never implies unavailable provider data is present.
+- [ ] Add rollout kill switches so bad projection snapshots, stale schedules, or broken source mappings can disable projection-influenced reads without breaking base reports.
+
+### Full NFL Schedule Snapshot Layer
+
+- [ ] Add a normalized `nflScheduleGames` snapshot model keyed by `season`, `week`, `gameId`, `homeTeam`, `awayTeam`, `startsAt`, `gameStatus`, and `sourceVersion`.
+- [ ] Store schedule metadata with `source`, `sourceUrl` or provider key, `fetchedAt`, `publishedAt`, `seasonType`, `rowCount`, `checksum`, and parser version.
+- [ ] Normalize team codes across Sleeper, provider schedule feeds, FantasyPros, DraftSharks, ESPN, SportsDataIO, and internal abbreviations so `JAC/JAX`, `ARI/ARZ`, `LA/LAR/LAC`, and Washington naming drift do not break joins.
+- [ ] Capture home/away, short-rest, long-rest, travel distance bucket, dome/outdoor, weather-sensitive stadium, international game, neutral site, division game, conference game, and projected playoff-week relevance.
+- [ ] Add schedule versioning so corrections, flex scheduling, postponed games, and kickoff changes can be audited without mutating historical reads silently.
+- [ ] Add diagnostics that compare the stored schedule against Sleeper matchup weeks and provider projection weeks so mismatched season/week boundaries are visible before projections are trusted.
+- [ ] Add fallback behavior for missing game rows: keep bye-week planning, neutral SOS, and internal value reads available while clearly suppressing projection-specific claims.
+
+### Player Projection Snapshot Layer
+
+- [ ] Add a normalized `playerProjectionSnapshots` model keyed by `season`, `week`, `playerId`, `source`, `scoringProfile`, `projectionType`, and `sourceVersion`.
+- [ ] Store core projection fields: projected fantasy points, passing/rushing/receiving volume, touchdowns, receptions, targets, carries, routes if available, snaps if available, turnovers, field-goal attempts, defensive stats, and confidence or expert-count metadata when provided.
+- [ ] Store source freshness fields: `fetchedAt`, `publishedAt`, `validForWeek`, `providerUpdatedAt`, `rowCount`, `positionCoverage`, `missingStarterCount`, `sourceError`, and `staleReason`.
+- [ ] Support scoring-specific projections for PPR, half-PPR, standard, superflex, TE premium, six-point passing touchdown, and custom league settings where provider data supports it.
+- [ ] Add projection history retention so weekly projection accuracy, source bias, stale reads, and positional calibration can be measured after games complete.
+- [ ] Add player identity mapping diagnostics for every projected row: Sleeper player ID, provider player ID, full name, team, position, status, rookie flag, and confidence score.
+- [ ] Add a quarantine path for ambiguous player matches, retired players, duplicate names, team changes, practice-squad players, and rookies without stable provider IDs.
+
+### Schedule + Projection Join Model
+
+- [ ] Build a projection context join that links `playerProjectionSnapshots` to the full NFL schedule by player team, week, opponent, home/away, bye status, and game environment.
+- [ ] Add opponent defensive context once approved data exists: positional fantasy points allowed, pace, pass/rush funnel, pressure rate, explosive-play allowance, red-zone weakness, and D/ST turnover/sack opportunity.
+- [ ] Add weather and game environment hooks for late-week updates: wind, precipitation, temperature, dome/outdoor, Vegas total if licensed, implied team total if licensed, and postponement risk.
+- [ ] Add team depth-chart context so projections can be weighted by role stability, injury replacements, starter status, backup pressure, and snap-share trend.
+- [ ] Add draft-capital and contract-context opportunity weighting so early NFL draft picks, premium rookie picks, and highly paid veterans are understood as likely to get longer opportunity runways than fringe players with similar short-term production.
+- [ ] Add rookie ramp and opportunity-patience rules by draft round, position, team investment, camp role, depth-chart opening, and historical team behavior so AI reads do not overreact to one quiet early game.
+- [ ] Add projection-to-value bridge fields that separate dynasty value, redraft weekly projection, rest-of-season projection, long-term role security, and opportunity runway.
+- [ ] Add explainability traces that show which projection, schedule, opponent, injury, draft-capital, and role signals changed a player read.
+
+### Product Surfaces To Upgrade
+
+- [ ] Upgrade matchup previews from internal schedule/value estimates to source-backed projected points once projection snapshots pass freshness gates.
+- [ ] Add lineup-strength reads that compare current starters, optimal starters, bench alternatives, opponent starters, positional edges, floor/ceiling gap, and projected win probability.
+- [ ] Add start/sit recommendations that explain projection edge, schedule edge, floor/ceiling, injury risk, draft-capital patience, and when the recommendation is too close to call.
+- [ ] Add redraft valuation support that blends weekly projection, rest-of-season projection, role trend, injury/news status, schedule stretch, bye timing, and replacement-level availability.
+- [ ] Add dynasty contention context that separates "start now", "hold through development", "sell on projection spike", "buy before role growth", and "do not panic because draft capital buys runway".
+- [ ] Add rookie and sophomore development reads that explicitly account for draft position, NFL team investment, early usage, depth-chart barriers, and how long similar players usually get opportunities.
+- [ ] Add waiver-wire priority changes based on upcoming schedule, projected usage, bye coverage, injury fill-in windows, and whether the role has multi-week staying power.
+- [ ] Add trade recommendation context that distinguishes projected short-term points from dynasty value, playoff schedule leverage, contender/rebuilder fit, and fragile projection spikes.
+- [ ] Add Autopilot actions that can say exactly why to start, bench, claim, stash, trade for, trade away, or hold a player based on the joined schedule/projection context.
+- [ ] Add player-detail projection cards for weekly outlook, ROS outlook, schedule stretch, opponent notes, role security, draft-capital runway, confidence, and source freshness.
+- [ ] Add Overview badges or notes only when projection/schedule context changes the conclusion; avoid duplicating the same read across matchup, roster, and owner tables.
+- [ ] Add playoff-week views for contenders: Weeks 15-17 projected lineup strength, opponent difficulty, bye/bench pressure, handcuff value, and stash recommendations.
+- [ ] Add D/ST streamer and kicker streamer projection support only if the source coverage is stable enough; otherwise keep those reads schedule/SOS based.
+
+### AI Readout Rules
+
+- [ ] Teach AI readouts to distinguish provider projections, internal projections, schedule estimates, market-implied signals, and dynasty values in plain language.
+- [ ] Add confidence language that drops when projection snapshots are stale, player identity is uncertain, injury status is unresolved, or source coverage is thin.
+- [ ] Add "opportunity runway" explanations for rookies, high-draft-capital players, and expensive veterans so recommendations account for how long a team is likely to keep giving chances.
+- [ ] Add guardrails against overreacting to one-week projection swings when draft capital, contract, role, and long-term value all point the other way.
+- [ ] Add guardrails against blindly trusting draft capital when projection decline, usage collapse, depth-chart loss, or injury recurrence shows the opportunity window may be closing.
+- [ ] Add source trace text that can answer "why did the AI say this?" with the exact schedule week, opponent, projection source, projection timestamp, and biggest changing signals.
+- [ ] Add fallback copy for missing projections that says the app is using schedule/value context only, not true weekly projections.
+
+### Admin Tooling, QA, And Observability
+
+- [ ] Add admin diagnostics for schedule snapshot health: current season/week coverage, games per week, missing teams, bye weeks, source timestamp, checksum changes, and parser warnings.
+- [ ] Add admin diagnostics for projection snapshot health: player coverage by position/team/source, stale rows, missing starters, duplicate identities, scoring-profile gaps, and source error rates.
+- [ ] Add admin diff tooling that compares two projection snapshots and highlights the biggest player moves, team-level shifts, injury-driven changes, and suspicious provider swings.
+- [ ] Add source accuracy backtests after games finish: projected vs actual by source, position, week, home/away, opponent strength, rookie status, and draft-capital bucket.
+- [ ] Add regression tests for schedule parsing, team-code normalization, projection normalization, identity matching, scoring conversion, stale-source fallback, and user-load provider guards.
+- [ ] Add Playwright coverage for Overview, Matchup Preview, Player Detail, Autopilot, Rankings, waiver, trade, and playoff schedule surfaces with projection-enabled and projection-disabled states.
+- [ ] Add data seeding fixtures for one normal week, one bye-heavy week, one injury-heavy week, one rookies-heavy roster, and one playoff matchup week.
+- [ ] Add performance budgets so projection joins do not slow report generation; prefer precomputed static sections and cached projection contexts over per-user recomputation.
+- [ ] Add cache-version bumps when projection or schedule display semantics change so users do not see stale local report cards.
+
+### Release Gates
+
+- [ ] Do not enable projection-driven lineup strength until the schedule snapshot, projection snapshot, source freshness metadata, identity matching, and fallback copy all pass diagnostics.
+- [ ] Do not enable projection-driven trade or dynasty recommendations until the AI readout can separate short-term projection movement from long-term dynasty value and draft-capital runway.
+- [ ] Do not enable projection-driven push/email/watch alerts until stale-source handling, opt-out controls, and alert-rate limits are in place.
+- [ ] Do not show provider names in public-facing projection claims unless the source agreement allows user-facing attribution.
+- [ ] Ship first to admin-only traces, then internal leagues, then a limited production flag, then general availability after two or more clean weekly refresh cycles.
 
 ## FantasyPros Integration Roadmap
 
@@ -234,6 +338,7 @@
 - [ ] Review waiver `won/lost` and trade `acted/blocked` outcomes after enough real samples accumulate, then tune confidence weights against actual results.
 - [ ] Track in-season usage trends over the course of the season, especially targets, rush attempts, and snap share, so waiver calculations can surface players whose role is growing before the box score catches up.
 - [ ] Add an admin accuracy panel for prediction quality by module: waiver bid range, waiver competition, trade resistance, and depth-chart role confidence.
+- [x] Extend Full Trade Ledger balancing-piece suggestions from trade-time players to trade-time picks by reconstructing historical pick inventory per roster/date; never suggest a pick unless that manager actually controlled it at the time of the deal.
 - [x] Add historical Sleeper backfill observability showing scanned league IDs, transaction counts, seasons loaded, failures, and broken `previous_league_id` chains.
 - [x] Add depth-chart cache health diagnostics showing last warm time, loaded teams, failed teams, retry count, and stale team coverage.
 - [ ] Move recommendation outcome detection into a backend job so confidence can improve even when the user does not reopen the report UI.
@@ -252,6 +357,7 @@
 
 ### Draft History Tab
 - [x] Draft History tab created with Full Draft Board and Draft Capital Efficiency tables
+- [x] Redraft Draft History now stays visible for prior-year draft history when draft data exists, while no-draft redraft leagues hide the empty draft surface and fall back to Overview from `#draft`.
 - [x] Draft data fetching updated to pull from both current and previous league seasons
 - [x] Filter added to only include rookie drafts with fewer than 100 picks
 - [x] Manager names correctly resolved using user_id-to-name mapping
@@ -598,11 +704,25 @@
 - [ ] Revisit GridIron Data once a key or package is available and decide whether it belongs in redraft projections, player news, or source health only.
 - [ ] Revisit MySportsFeeds if they approve access, and keep it out of the blend until endpoint coverage and licensing are confirmed.
 - [ ] Add source and status diagnostics when news payloads are unavailable.
-- [ ] Add value-movement-after-news analysis when news timestamps and value snapshots overlap.
+- [x] Add first-pass value-movement-after-news analysis when player news exists and current/baseline value snapshots overlap; player detail AI traces now say whether news coincided with meaningful stored value movement.
 - [ ] Add role and depth-chart change detection when reliable source data exists.
+- [x] Add a snapshot-backed nflverse/ffverse draft-capital source so player detail and cohort AI reads can use public Sleeper/GSIS/FantasyPros/ESPN IDs, draft year, round, overall pick, draft team, and college without live provider calls during report loads.
+- [x] Add `pnpm audit:situation-delta-sources` to the normal source-audit review before Player Situation Delta work so public dataset coverage, prospect snapshot years, and missing licensed route data stay visible.
+
+### Player Value Timeline / Situation Delta
+- [x] Add first-pass player value timeline data to player detail payloads from stored blended value snapshots.
+- [x] Add a compact player detail graph showing stored blended value movement, latest rank, source count, and source-mix change warnings.
+- [x] Add event markers to the graph for draft picks, trades, injuries, depth-chart movement, vacated-opportunity openings, and roster-room squeezes.
+- [x] Add a rookie valuation mismatch table that compares current rookie price against prospect profile, draft investment, and roster-room opportunity.
+- [x] Add player-detail AI read copy that references value timeline movement directly when the value move is backed by situation-delta evidence.
+- [x] Add a source-history admin panel for individual players so we can inspect KTC, FantasyCalc, DynastyProcess, Flock, Dynasty Nerds, and blended-value disagreements over time.
+- [x] Backtest rookie riser/faller labels against the 2025 and 2026 draft-window baselines before making strong automated trade recommendations from them.
 
 ### Command Center Polish
 - [ ] Add deeper mobile QA for all premium cards after real matchup data lands.
+- [x] Collapse full AI readouts into compact mobile cards with one-line takeaways and Playwright coverage across Overview, Blueprint, Rankings, and Trade History.
+- [x] Add admin AI readout coverage diagnostics for readout count by tab, missing traces, missing confidence, duplicate-risk flags, and source-limited reads.
+- [x] Add visible "Why this fired" traces to owner-level AI readouts so roster, rank, trade, market, and source signals are explainable in the actual report UI.
 - [x] Add E2E coverage for admin-only feature visibility.
 - [x] Add E2E coverage for local watch preference persistence.
 - [x] Add E2E coverage for portfolio snapshot persistence.
@@ -629,6 +749,7 @@
 - [x] After deployment, run the manual `Production Smoke` GitHub workflow against `https://dynastydegens.com`.
 - [x] Verify dynasty leagues `Skids Get Beat` and `The Fantasy Degenerates` still render dynasty copy, draft capital and main draft surfaces, rookie draft surfaces, and trade-value context correctly.
 - [x] Verify redraft leagues `test league` and `Gov Tech Grid Iron` still avoid dynasty-first copy and prioritize current-season values.
+- [x] Verify redraft draft-tab semantics: `Gov Tech Grid Iron` keeps previous-year draft history, `test league` keeps current draft history, and cached no-draft redraft reports hide the empty Draft History tab.
 - [x] Confirm internal draft baseline comparison dates are not exposed in the deployed report UI.
 - [x] Confirm deployed console logs do not show app errors on desktop or mobile.
 
