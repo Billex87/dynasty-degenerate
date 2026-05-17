@@ -89,13 +89,13 @@ For every remaining weighted source:
 4. Merge into a derived combined archive only after audit passes.
 5. Reblend from the combined raw archive so future weight changes stay reproducible.
 
-Current best next target:
+Archived direct/source-history targets:
 
 - DynastyProcess: official GitHub `files/values-players.csv` history can be replayed from commits and mapped to source-native 1QB/Superflex values. It does not expose TEP-specific values, so do not fabricate TEP rows.
+- FantasyCalc: direct player history endpoints can be replayed for dynasty Superflex and 1QB profiles. The endpoint does not expose TEP, PPR, or team-count-specific history splits, so the archive keeps only the source-supported base profiles.
+- FantasyPros: API consensus ranking snapshots can be captured by season/type/scoring with source `last_updated` dates. Dynasty rows are stored in app 1QB/SF base PPR formats because the endpoint does not expose QB-format or TEP splits; redraft, ROS, ADP, devy, and rookie ranking snapshots stay in source-specific formats.
 
 Blocked until approved direct history/export path:
 
-- FantasyCalc
-- FantasyPros
 - Dynasty Nerds
 - Fantasy Nerds

@@ -86,6 +86,8 @@ async function main() {
   if (manifest.ktc?.errors?.length) warnings.push(`KTC reported ${manifest.ktc.errors.length} collection errors.`);
   if (manifest.flock?.errors?.length) warnings.push(`Flock reported ${manifest.flock.errors.length} collection errors.`);
   if (manifest.dynastyprocess?.errors?.length) warnings.push(`DynastyProcess reported ${manifest.dynastyprocess.errors.length} collection errors.`);
+  if (manifest.fantasycalc?.errors?.length) warnings.push(`FantasyCalc reported ${manifest.fantasycalc.errors.length} collection errors.`);
+  if (manifest.fantasypros?.errors?.length) warnings.push(`FantasyPros reported ${manifest.fantasypros.errors.length} collection errors.`);
 
   for await (const player of streamArchivePlayers(archivePath)) {
     playerCount += 1;
@@ -148,6 +150,8 @@ async function main() {
       ktc: manifest.ktc?.errors || [],
       flock: manifest.flock?.errors || [],
       dynastyprocess: manifest.dynastyprocess?.errors || [],
+      fantasycalc: manifest.fantasycalc?.errors || [],
+      fantasypros: manifest.fantasypros?.errors || [],
     },
     warnings,
     errors,

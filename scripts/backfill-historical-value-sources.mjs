@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { config as loadEnv } from 'dotenv';
+
+loadEnv({ path: '.env.local', override: false, quiet: true });
+loadEnv({ override: false, quiet: true });
 
 const rootDir = process.cwd();
 const outputPath = process.env.OUT_FILE
@@ -21,6 +25,7 @@ const retryAttempts = Math.max(1, Number(process.env.RETRY_ATTEMPTS || 5));
 const retryBaseMs = Math.max(250, Number(process.env.RETRY_BASE_MS || 1200));
 const maxPlayers = Math.max(0, Number(process.env.MAX_PLAYERS || 0));
 const maxFlockPlayers = Math.max(0, Number(process.env.MAX_FLOCK_PLAYERS || process.env.MAX_PLAYERS || 0));
+const maxFantasyCalcPlayers = Math.max(0, Number(process.env.MAX_FANTASYCALC_PLAYERS || process.env.MAX_PLAYERS || 0));
 const startAfter = String(process.env.START_AFTER || '').trim();
 const dryRun = process.env.DRY_RUN === '1';
 const includeCurrent = process.env.INCLUDE_CURRENT !== '0';
@@ -36,22 +41,44 @@ const DYNASTYPROCESS_REPO_DIR = process.env.DYNASTYPROCESS_REPO_DIR
   ? path.resolve(rootDir, process.env.DYNASTYPROCESS_REPO_DIR)
   : path.join(rootDir, '.cache', 'value-history', 'dynastyprocess-data');
 const maxDynastyProcessCommits = Math.max(0, Number(process.env.MAX_DYNASTYPROCESS_COMMITS || 0));
+const FANTASYCALC_FORMATS = String(process.env.FANTASYCALC_FORMATS || 'sf_ppr,one_qb_ppr')
+  .split(',')
+  .map((format) => format.trim())
+  .filter(Boolean);
+const FANTASYPROS_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
+const FANTASYPROS_SEASONS = String(process.env.FANTASYPROS_SEASONS || `${Math.max(2022, now.getUTCFullYear() - 4)},${Math.max(2023, now.getUTCFullYear() - 3)},${Math.max(2024, now.getUTCFullYear() - 2)},${Math.max(2025, now.getUTCFullYear() - 1)},${now.getUTCFullYear()}`)
+  .split(',')
+  .map((season) => season.trim())
+  .filter(Boolean);
+const FANTASYPROS_RANKING_TYPES = String(process.env.FANTASYPROS_RANKING_TYPES || 'DYNASTY,DRAFT,ADP,DYNADP,DEVY,ROOKIES')
+  .split(',')
+  .map((type) => type.trim().toUpperCase())
+  .filter(Boolean);
+const FANTASYPROS_SCORINGS = String(process.env.FANTASYPROS_SCORINGS || 'PPR')
+  .split(',')
+  .map((scoring) => scoring.trim().toUpperCase())
+  .filter(Boolean);
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log([
     'Backfill one-time historical player values from direct source player pages/API payloads.',
     '',
     'Environment:',
-    '  SOURCES=ktc,flock,dynastyprocess',
+    '  SOURCES=ktc,flock,dynastyprocess,fantasycalc,fantasypros',
     '  FROM_DATE=2022-05-17',
     '  TO_DATE=2026-05-17',
     '  YEARS_BACK=4',
     '  MAX_PLAYERS=0          # 0 means no cap',
     '  MAX_FLOCK_PLAYERS=0    # defaults to MAX_PLAYERS when set',
+    '  MAX_FANTASYCALC_PLAYERS=0',
     '  MAX_DYNASTYPROCESS_COMMITS=0',
     '  START_AFTER=bijan-robinson-1414',
     '  INCLUDE_CURRENT=1',
     '  FLOCK_FORMATS=SUPERFLEX,ONEQB,PROSPECTS_SF,PROSPECTS',
+    '  FANTASYCALC_FORMATS=sf_ppr,one_qb_ppr',
+    '  FANTASYPROS_SEASONS=2022,2023,2024,2025,2026',
+    '  FANTASYPROS_RANKING_TYPES=DYNASTY,DRAFT,ADP,DYNADP,DEVY,ROOKIES',
+    '  FANTASYPROS_SCORINGS=PPR',
     '  DYNASTYPROCESS_REPO_DIR=.cache/value-history/dynastyprocess-data',
     '  DELAY_MS=900',
     '  RETRY_ATTEMPTS=5',
@@ -60,7 +87,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     '  OUT_FILE=server/value-history-archive/one-time-source-history.json',
     '',
     'Output:',
-    '  Frozen raw archive with KTC direct all-time player graph points and Flock direct player history points.',
+    '  Frozen raw archive with direct provider history/API points.',
     '  Re-run pnpm reblend:value-history against the archive whenever blend weights change.',
   ].join('\n'));
   process.exit(0);
@@ -88,6 +115,67 @@ function rankToValue(rank, rankCap = 425) {
   if (!numericRank || numericRank <= 0) return null;
   const score = Math.max(0.015, (rankCap - numericRank + 1) / rankCap);
   return Math.max(50, Math.round(10000 * Math.pow(score, 1.55)));
+}
+
+function overallRankToValue(overallRank, replacement = 320) {
+  const rank = toNumber(overallRank);
+  if (!rank) return null;
+  return Math.max(100, Math.round(10000 * Math.pow(Math.max(0.025, (replacement - rank + 1) / replacement), 1.22)));
+}
+
+function positionRankToValue(positionRank, overallRank) {
+  if (!positionRank && !overallRank) return null;
+  const position = normalizePosition(String(positionRank || '').replace(/[0-9]/g, ''));
+  const rank = toNumber(String(positionRank || '').match(/\d+/)?.[0]) || toNumber(overallRank);
+  if (!rank) return null;
+
+  const replacementByPosition = {
+    QB: 30,
+    RB: 60,
+    WR: 72,
+    TE: 24,
+    K: 20,
+    DEF: 20,
+  };
+  const ceilingByPosition = {
+    QB: 9000,
+    RB: 9000,
+    WR: 9000,
+    TE: 9000,
+    K: 1200,
+    DEF: 1200,
+  };
+  const replacement = replacementByPosition[position || ''] || 140;
+  const ceiling = ceilingByPosition[position || ''] || 9000;
+  return Math.max(100, Math.round(ceiling * Math.pow(Math.max(0.04, (replacement - rank + 1) / replacement), 1.35)));
+}
+
+function stripHtml(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value !== 'string') return null;
+  return value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim() || null;
+}
+
+function normalizePosition(position) {
+  const normalized = String(position || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (!normalized) return null;
+  if (['DST', 'D', 'DEFENSE'].includes(normalized)) return 'DEF';
+  if (normalized === 'PK') return 'K';
+  return normalized;
+}
+
+function normalizePositionRank(positionRank, fallbackPosition) {
+  const rankNumber = String(positionRank || '').match(/\d+/)?.[0];
+  const rankPosition = normalizePosition(String(positionRank || '').replace(/\d+/g, '') || fallbackPosition);
+  if (!rankNumber || !rankPosition) return positionRank || null;
+  return `${rankPosition}${rankNumber}`;
 }
 
 function parseKtcDate(value) {
@@ -149,13 +237,13 @@ function runGit(args, options = {}) {
   });
 }
 
-async function fetchText(url, label) {
+async function fetchText(url, label, headers = {}) {
   let lastStatus = 0;
   let lastMessage = '';
 
   for (let attempt = 0; attempt < retryAttempts; attempt += 1) {
     try {
-      const response = await fetch(url, { headers: { 'User-Agent': userAgent } });
+      const response = await fetch(url, { headers: { 'User-Agent': userAgent, ...headers } });
       lastStatus = response.status;
       if (response.ok) return response.text();
 
@@ -179,8 +267,8 @@ async function fetchText(url, label) {
   throw new Error(`${label} ${lastStatus || lastMessage || 'failed'}`);
 }
 
-async function fetchJson(url, label) {
-  const text = await fetchText(url, label);
+async function fetchJson(url, label, headers = {}) {
+  const text = await fetchText(url, label, headers);
   return JSON.parse(text);
 }
 
@@ -859,6 +947,342 @@ async function backfillFlock(players, manifest) {
   }
 }
 
+function getFantasyCalcFormatConfig(format) {
+  if (format === 'sf_ppr') return { format, numQbs: 2 };
+  if (format === 'one_qb_ppr') return { format, numQbs: 1 };
+  return null;
+}
+
+function parseFantasyCalcDate(value) {
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return null;
+  const month = match[1].padStart(2, '0');
+  const day = match[2].padStart(2, '0');
+  return `${match[3]}-${month}-${day}`;
+}
+
+function mapFantasyCalcPlayer(row, format) {
+  const player = row?.player || {};
+  const name = String(player.name || '').trim();
+  const id = toNumber(player.id);
+  if (!name || !id) return null;
+  const position = normalizePosition(player.position) || player.position || null;
+  return {
+    id,
+    name,
+    key: cleanName(name),
+    position,
+    format,
+    currentValue: toNumber(row.value),
+    overallRank: toNumber(row.overallRank),
+    positionRank: toNumber(row.positionRank),
+    sourceIds: {
+      fantasyCalcId: id,
+      sleeperId: player.sleeperId || null,
+      mflId: player.mflId || null,
+      espnId: player.espnId || null,
+      fleaflickerId: player.fleaflickerId || null,
+    },
+  };
+}
+
+async function backfillFantasyCalc(players, manifest) {
+  manifest.fantasycalc = {
+    mode: 'direct-player-history-api',
+    sourceUrl: 'https://api.fantasycalc.com',
+    note: 'FantasyCalc exposes dated player value history through the same API used by its player detail pages. The history endpoint supports dynasty 1QB/Superflex but does not expose team-count, PPR, or TEP-specific history splits.',
+    formats: {},
+    errors: [],
+  };
+
+  if (dryRun) return;
+
+  for (const requestedFormat of FANTASYCALC_FORMATS) {
+    const config = getFantasyCalcFormatConfig(requestedFormat);
+    if (!config) {
+      manifest.fantasycalc.errors.push({ format: requestedFormat, error: 'unsupported FantasyCalc format' });
+      continue;
+    }
+
+    const currentUrl = `https://api.fantasycalc.com/values/current?isDynasty=true&numQbs=${config.numQbs}&numTeams=12&ppr=1`;
+    try {
+      const rows = await fetchJson(currentUrl, `FantasyCalc current ${config.format}`);
+      const mappedRows = (Array.isArray(rows) ? rows : [])
+        .map((row) => mapFantasyCalcPlayer(row, config.format))
+        .filter(Boolean);
+      const selectedRows = maxFantasyCalcPlayers ? mappedRows.slice(0, maxFantasyCalcPlayers) : mappedRows;
+      let historyPointCount = 0;
+      let currentPointCount = 0;
+
+      for (let index = 0; index < selectedRows.length; index += 1) {
+        const player = selectedRows[index];
+        try {
+          const historyUrl = `https://api.fantasycalc.com/trades/historical/${player.id}?isDynasty=true&numQbs=${config.numQbs}`;
+          const historyRows = await fetchJson(historyUrl, `FantasyCalc history ${player.id} ${config.format}`);
+          for (const row of Array.isArray(historyRows) ? historyRows : []) {
+            const date = parseFantasyCalcDate(row.date);
+            const value = toNumber(row.value);
+            if (!date || !value || !inDateWindow(date)) continue;
+            mergePoint(players, {
+              key: player.key,
+              name: player.name,
+              position: player.position,
+              sourceIds: player.sourceIds,
+              point: {
+                date,
+                value,
+                rank: getKtcRank(player.position, player.positionRank),
+                overallRank: player.overallRank,
+                sources: ['FantasyCalc'],
+                importedSource: 'fantasycalc-player-history-api',
+                format: config.format,
+                market: { fantasyCalc: value },
+                expert: {},
+                sourceMeta: {
+                  historyMethod: 'fantasycalc-player-history-api',
+                  sourceUrl: historyUrl,
+                  isDynasty: true,
+                  numQbs: config.numQbs,
+                  note: 'FantasyCalc history endpoint does not expose TEP, PPR, or team-count-specific history params; format is mapped from the available QB profile.',
+                },
+              },
+            });
+            historyPointCount += 1;
+          }
+
+          if (includeCurrent && player.currentValue && inDateWindow(currentDateKey())) {
+            mergePoint(players, {
+              key: player.key,
+              name: player.name,
+              position: player.position,
+              sourceIds: player.sourceIds,
+              point: {
+                date: currentDateKey(),
+                value: player.currentValue,
+                rank: getKtcRank(player.position, player.positionRank),
+                overallRank: player.overallRank,
+                sources: ['FantasyCalc'],
+                importedSource: 'fantasycalc-current-values-api',
+                format: config.format,
+                market: { fantasyCalc: player.currentValue },
+                expert: {},
+                sourceMeta: {
+                  historyMethod: 'fantasycalc-current-values-api',
+                  sourceUrl: currentUrl,
+                  isDynasty: true,
+                  numQbs: config.numQbs,
+                  currentPoint: true,
+                },
+              },
+            });
+            currentPointCount += 1;
+          }
+        } catch (error) {
+          manifest.fantasycalc.errors.push({ format: config.format, fantasyCalcId: player.id, playerName: player.name, error: String(error.message || error) });
+        }
+
+        if ((index + 1) % 50 === 0) console.log(`FantasyCalc ${config.format}: ${index + 1}/${selectedRows.length}`);
+        await sleep(delayMs);
+      }
+
+      manifest.fantasycalc.formats[config.format] = {
+        playerCount: selectedRows.length,
+        historyPointCount,
+        currentPointCount,
+        sampledOnly: Boolean(maxFantasyCalcPlayers),
+      };
+    } catch (error) {
+      manifest.fantasycalc.errors.push({ format: config.format, error: String(error.message || error) });
+    }
+
+    await sleep(delayMs);
+  }
+}
+
+function parseFantasyProsDate(rawDate, season, rankingType) {
+  const raw = String(rawDate || '').trim();
+  const direct = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (direct) return `${direct[1]}-${direct[2].padStart(2, '0')}-${direct[3].padStart(2, '0')}`;
+
+  const match = raw.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!match) return null;
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  const seasonYear = Number(season);
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth() + 1;
+  let year = seasonYear;
+
+  if (rankingType === 'DYNASTY' && month <= 2 && seasonYear < currentYear) {
+    year = seasonYear + 1;
+  } else if (seasonYear === currentYear && month > currentMonth + 1) {
+    year = currentYear - 1;
+  }
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function getFantasyProsFormatConfigs(rankingType, scoring) {
+  const scoringSuffix = scoring === 'PPR' ? 'ppr' : scoring === 'HALF' ? 'half_ppr' : 'standard';
+  if (rankingType === 'DYNASTY') {
+    if (scoring !== 'PPR') return [];
+    return ['sf_ppr', 'one_qb_ppr'].map((format) => ({ format, includeInBlend: true }));
+  }
+  if (rankingType === 'DYNADP') return [{ format: `fantasypros_dynadp_${scoringSuffix}`, includeInBlend: false }];
+  if (rankingType === 'ADP') return [{ format: `fantasypros_adp_${scoringSuffix}`, includeInBlend: false }];
+  if (rankingType === 'DRAFT') return [{ format: `redraft_${scoringSuffix}`, includeInBlend: false }];
+  if (rankingType === 'ROS') return [{ format: `ros_${scoringSuffix}`, includeInBlend: false }];
+  if (rankingType === 'DEVY') return [{ format: `devy_${scoringSuffix}`, includeInBlend: false }];
+  if (rankingType === 'ROOKIES') return [{ format: `rookie_${scoringSuffix}`, includeInBlend: false }];
+  return [{ format: `fantasypros_${rankingType.toLowerCase()}_${scoringSuffix}`, includeInBlend: false }];
+}
+
+function mapFantasyProsPlayer(row, payload, options) {
+  const name = stripHtml(row.player_name || row.name);
+  if (!name) return null;
+  const position = normalizePosition(stripHtml(row.player_position_id || row.position_id || row.position));
+  const overallRank = toNumber(row.rank_ecr ?? row.rank ?? row.rank_ave ?? row.rank_average ?? row.adp);
+  const positionRank = normalizePositionRank(stripHtml(row.pos_rank || row.position_rank), position);
+  const rankValue = overallRankToValue(overallRank);
+  const seasonValue = ['DRAFT', 'ROS', 'ADP'].includes(options.rankingType)
+    ? positionRankToValue(positionRank, overallRank) ?? rankValue
+    : null;
+  const dynastyValue = options.rankingType === 'DYNASTY' ? rankValue : null;
+  const adpValue = ['ADP', 'DYNADP', 'RKADP'].includes(options.rankingType) ? rankValue : null;
+  const value = dynastyValue ?? seasonValue ?? adpValue ?? rankValue;
+  if (!value) return null;
+
+  return {
+    key: cleanName(name),
+    name,
+    position: position || null,
+    team: stripHtml(row.player_team_id || row.team_id || row.team),
+    value,
+    dynastyValue,
+    seasonValue,
+    adpValue,
+    overallRank,
+    positionRank,
+    tier: toNumber(row.tier),
+    age: toNumber(row.player_age || row.age),
+    bestRank: toNumber(row.rank_min || row.best_rank),
+    worstRank: toNumber(row.rank_max || row.worst_rank),
+    averageRank: toNumber(row.rank_ave || row.rank_average),
+    stdDev: toNumber(row.rank_std || row.std_dev),
+    fantasyProsId: stripHtml(row.player_id || row.fantasypros_id || row.fp_id || row.id),
+    sourceIds: {
+      fantasyProsId: stripHtml(row.player_id || row.fantasypros_id || row.fp_id || row.id),
+    },
+  };
+}
+
+async function backfillFantasyPros(players, manifest) {
+  const apiKey = process.env.FANTASYPROS_API_KEY || '';
+  manifest.fantasypros = {
+    mode: 'licensed-api-consensus-rankings',
+    sourceUrl: FANTASYPROS_BASE_URL,
+    seasons: FANTASYPROS_SEASONS,
+    rankingTypes: FANTASYPROS_RANKING_TYPES,
+    scorings: FANTASYPROS_SCORINGS,
+    note: 'FantasyPros API exposes prior-season consensus ranking snapshots with source last_updated values. Dynasty ranking rows are duplicated into app 1QB/SF base PPR formats because the endpoint does not expose QB-format or TEP-specific splits.',
+    errors: [],
+    requests: [],
+  };
+
+  if (!apiKey) {
+    manifest.fantasypros.errors.push({ error: 'FANTASYPROS_API_KEY is not configured' });
+    return;
+  }
+  if (dryRun) return;
+
+  for (const season of FANTASYPROS_SEASONS) {
+    for (const rankingType of FANTASYPROS_RANKING_TYPES) {
+      for (const scoring of FANTASYPROS_SCORINGS) {
+        const params = new URLSearchParams({
+          position: 'ALL',
+          type: rankingType,
+          scoring,
+          week: '0',
+        });
+        const url = `${FANTASYPROS_BASE_URL}/NFL/${season}/consensus-rankings?${params.toString()}`;
+        try {
+          const payload = await fetchJson(url, `FantasyPros ${season} ${rankingType} ${scoring}`, { 'x-api-key': apiKey });
+          const snapshotDate = parseFantasyProsDate(payload?.last_updated, season, rankingType);
+          const rows = Array.isArray(payload?.players) ? payload.players : [];
+          let pointCount = 0;
+          let skippedNoDate = 0;
+          const formatConfigs = getFantasyProsFormatConfigs(rankingType, scoring);
+
+          if (!snapshotDate || !inDateWindow(snapshotDate)) {
+            skippedNoDate = rows.length;
+          } else {
+            for (const row of rows) {
+              const mapped = mapFantasyProsPlayer(row, payload, { rankingType, scoring });
+              if (!mapped) continue;
+              for (const formatConfig of formatConfigs) {
+                mergePoint(players, {
+                  key: mapped.key,
+                  name: mapped.name,
+                  position: mapped.position,
+                  sourceIds: mapped.sourceIds,
+                  point: {
+                    date: snapshotDate,
+                    value: mapped.value,
+                    rank: mapped.positionRank,
+                    overallRank: mapped.overallRank,
+                    tier: mapped.tier,
+                    sources: ['FantasyPros'],
+                    importedSource: `fantasypros-${rankingType.toLowerCase()}-${scoring.toLowerCase()}-rankings-api`,
+                    format: formatConfig.format,
+                    market: {},
+                    expert: formatConfig.includeInBlend ? { fantasyPros: mapped.dynastyValue || mapped.value } : {},
+                    sourceMeta: {
+                      historyMethod: 'fantasypros-consensus-rankings-api',
+                      sourceUrl: url,
+                      season: String(season),
+                      rankingType,
+                      scoring,
+                      rawLastUpdated: payload?.last_updated || null,
+                      totalExperts: toNumber(payload?.total_experts),
+                      bestRank: mapped.bestRank,
+                      worstRank: mapped.worstRank,
+                      averageRank: mapped.averageRank,
+                      stdDev: mapped.stdDev,
+                      age: mapped.age,
+                      team: mapped.team,
+                      adpValue: mapped.adpValue,
+                      seasonValue: mapped.seasonValue,
+                      datePolicy: rankingType === 'DYNASTY' ? 'jan-feb-dynasty-rankings-map-to-season-plus-one-for-completed-seasons' : 'ranking-season-year',
+                    },
+                  },
+                });
+                pointCount += 1;
+              }
+            }
+          }
+
+          manifest.fantasypros.requests.push({
+            season: String(season),
+            rankingType,
+            scoring,
+            lastUpdated: payload?.last_updated || null,
+            snapshotDate,
+            totalExperts: toNumber(payload?.total_experts),
+            playerCount: rows.length,
+            pointCount,
+            skippedNoDate,
+          });
+        } catch (error) {
+          manifest.fantasypros.errors.push({ season: String(season), rankingType, scoring, error: String(error.message || error) });
+        }
+
+        await sleep(delayMs);
+      }
+    }
+  }
+}
+
 async function main() {
   const players = new Map();
   const manifest = {
@@ -874,6 +1298,8 @@ async function main() {
   if (sources.has('ktc')) await backfillKtc(players, manifest);
   if (sources.has('flock')) await backfillFlock(players, manifest);
   if (sources.has('dynastyprocess')) await backfillDynastyProcess(players, manifest);
+  if (sources.has('fantasycalc')) await backfillFantasyCalc(players, manifest);
+  if (sources.has('fantasypros')) await backfillFantasyPros(players, manifest);
 
   const archivePlayers = Array.from(players.values()).map((player) => ({
     ...player,
