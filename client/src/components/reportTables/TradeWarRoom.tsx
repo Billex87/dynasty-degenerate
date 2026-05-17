@@ -691,6 +691,87 @@ function buildTradeWarSweetenerSuggestion({
   };
 }
 
+type TradeWarValueMatchIdea = {
+  id: string;
+  label: string;
+  targetManager: string;
+  sourceManager: string;
+  targetValue: number;
+  totalValue: number;
+  gap: number;
+  assets: TradeWarAsset[];
+};
+
+export function buildTradeWarValueMatchIdeas({
+  targetManager,
+  sourceManager,
+  targetAssets,
+  sourceAssets,
+  selectedAllIds,
+  mode,
+}: {
+  targetManager: string;
+  sourceManager: string;
+  targetAssets: TradeWarAsset[];
+  sourceAssets: TradeWarAsset[];
+  selectedAllIds: Set<string>;
+  mode: TradeWarMode;
+}): TradeWarValueMatchIdea[] {
+  const targetValue = targetAssets.reduce(
+    (sum, asset) => sum + getTradeWarAssetValue(asset, mode),
+    0
+  );
+  if (!targetValue) return [];
+
+  const candidates = sourceAssets
+    .filter(asset => !selectedAllIds.has(asset.player_id))
+    .filter(asset => getTradeWarAssetValue(asset, mode) > 0)
+    .sort((a, b) => getTradeWarAssetValue(b, mode) - getTradeWarAssetValue(a, mode));
+
+  const ideas: TradeWarValueMatchIdea[] = [];
+  candidates.forEach(asset => {
+    const totalValue = getTradeWarAssetValue(asset, mode);
+    ideas.push({
+      id: `${sourceManager}:${asset.player_id}`,
+      label: `${asset.name}`,
+      targetManager,
+      sourceManager,
+      targetValue,
+      totalValue,
+      gap: Math.abs(targetValue - totalValue),
+      assets: [asset],
+    });
+  });
+
+  for (let i = 0; i < candidates.length; i += 1) {
+    for (let j = i + 1; j < candidates.length; j += 1) {
+      const first = candidates[i];
+      const second = candidates[j];
+      const totalValue =
+        getTradeWarAssetValue(first, mode) + getTradeWarAssetValue(second, mode);
+      if (totalValue > targetValue * 1.75 && totalValue - targetValue > 1200) continue;
+      ideas.push({
+        id: `${sourceManager}:${first.player_id}:${second.player_id}`,
+        label: `${first.name} + ${second.name}`,
+        targetManager,
+        sourceManager,
+        targetValue,
+        totalValue,
+        gap: Math.abs(targetValue - totalValue),
+        assets: [first, second],
+      });
+    }
+  }
+
+  return ideas
+    .sort((a, b) => {
+      if (a.gap !== b.gap) return a.gap - b.gap;
+      if (a.assets.length !== b.assets.length) return a.assets.length - b.assets.length;
+      return b.totalValue - a.totalValue;
+    })
+    .slice(0, 4);
+}
+
 function buildTradeWarFitNotes({
   manager,
   row,
@@ -1243,6 +1324,27 @@ function TradeWarPlayerCard({
   );
 }
 
+function getTradeWarPositionBuckets(assets: TradeWarAsset[]) {
+  const buckets: Record<"QB" | "RB" | "WR" | "TE" | "PICK", TradeWarAsset[]> = {
+    QB: [],
+    RB: [],
+    WR: [],
+    TE: [],
+    PICK: [],
+  };
+  assets.forEach(asset => {
+    if (isTradeWarPickAsset(asset)) {
+      buckets.PICK.push(asset);
+      return;
+    }
+    const pos = String(asset.pos || "").toUpperCase();
+    if (pos === "QB" || pos === "RB" || pos === "WR" || pos === "TE") {
+      buckets[pos].push(asset);
+    }
+  });
+  return buckets;
+}
+
 export default function TradeWarRoom({
   data,
   managerAvatars,
@@ -1653,6 +1755,55 @@ export default function TradeWarRoom({
     () => new Map((dynastyTimelines || []).map(row => [row.manager, row])),
     [dynastyTimelines]
   );
+  const pickPortfolioByManager = React.useMemo(
+    () => new Map((pickPortfolios || []).map(row => [row.manager, row])),
+    [pickPortfolios]
+  );
+  const overallAssetRankById = React.useMemo(
+    () =>
+      new Map(
+        [...allAssets]
+          .sort(
+            (a, b) =>
+              getTradeWarAssetValue(b, mode) - getTradeWarAssetValue(a, mode)
+          )
+          .map((asset, index) => [asset.player_id, index + 1])
+      ),
+    [allAssets, mode]
+  );
+  const selectedManagerNames = React.useMemo(
+    () => new Set([managerA, managerB]),
+    [managerA, managerB]
+  );
+  const valueMatchIdeas = React.useMemo(
+    () => [
+      ...buildTradeWarValueMatchIdeas({
+        targetManager: managerA,
+        sourceManager: managerB,
+        targetAssets: sideAAssets,
+        sourceAssets: assetsByManager.get(managerB) || [],
+        selectedAllIds,
+        mode,
+      }),
+      ...buildTradeWarValueMatchIdeas({
+        targetManager: managerB,
+        sourceManager: managerA,
+        targetAssets: sideBAssets,
+        sourceAssets: assetsByManager.get(managerA) || [],
+        selectedAllIds,
+        mode,
+      }),
+    ],
+    [
+      assetsByManager,
+      managerA,
+      managerB,
+      mode,
+      selectedAllIds,
+      sideAAssets,
+      sideBAssets,
+    ]
+  );
 
   const renderNegotiationPanel = () => (
     <div className="trade-war-note-panel trade-war-negotiation-panel">
@@ -1677,6 +1828,181 @@ export default function TradeWarRoom({
           </div>
         ))}
       </div>
+    </div>
+  );
+
+  const renderManagerAssetBoard = () => (
+    <div className="trade-war-manager-board">
+      <div className="trade-war-manager-board-head">
+        <div>
+          <span>Manager Asset Board</span>
+          <strong>League trade inventory</strong>
+        </div>
+        <p>
+          Open a manager to scan QBs, RBs, WRs, TEs, and picks with position
+          rank, league asset rank, and trade-lens value.
+        </p>
+      </div>
+      <div className="trade-war-manager-board-grid">
+        {managers.map(manager => {
+          const assets = assetsByManager.get(manager) || [];
+          const buckets = getTradeWarPositionBuckets(assets);
+          const powerRow = powerByManager.get(manager);
+          const overviewRow = leagueOverviewByManager.get(manager);
+          const pickRow = pickPortfolioByManager.get(manager);
+          const standing = currentStandings?.find(row => row.manager === manager);
+          const totalValue = assets.reduce(
+            (sum, asset) => sum + getTradeWarAssetValue(asset, mode),
+            0
+          );
+          const sectionRows = [
+            ["QB", buckets.QB],
+            ["RB", buckets.RB],
+            ["WR", buckets.WR],
+            ["TE", buckets.TE],
+            ["PICKS", buckets.PICK],
+          ] as const;
+          return (
+            <details
+              key={manager}
+              className={`trade-war-manager-board-card ${selectedManagerNames.has(manager) ? "trade-war-manager-board-selected" : ""}`}
+            >
+              <summary>
+                <span className="trade-war-manager-board-rank">
+                  {powerRow ? `#${powerRow.rank}` : "-"}
+                </span>
+                <span className="trade-war-manager-board-lockup">
+                  <ChampionAvatarFrame
+                    managerName={manager}
+                    className="trade-war-owner-avatar"
+                  >
+                    {managerAvatars?.[manager] ? (
+                      <img src={managerAvatars[manager] || ""} alt={manager} />
+                    ) : (
+                      <span>{manager.trim()[0]?.toUpperCase() || "?"}</span>
+                    )}
+                  </ChampionAvatarFrame>
+                  <span>
+                    <strong>{manager}</strong>
+                    <em>
+                      {powerRow?.tier || "Manager"} · {formatCompactValue(totalValue)}
+                    </em>
+                  </span>
+                </span>
+                <span className="trade-war-manager-board-bars" aria-label={`${manager} roster counts`}>
+                  {(["QB", "RB", "WR", "TE", "PICK"] as const).map(key => (
+                    <i key={key} className={`trade-war-bar-${key.toLowerCase()}`}>
+                      {buckets[key].length}
+                    </i>
+                  ))}
+                </span>
+              </summary>
+              <div className="trade-war-manager-board-meta">
+                <span>Power {powerRow?.score ?? "-"}</span>
+                <span>Value #{overviewRow?.rank_value ?? "-"}</span>
+                <span>
+                  Record{" "}
+                  {standing
+                    ? `${standing.wins}-${standing.losses}${standing.ties ? `-${standing.ties}` : ""}`
+                    : "-"}
+                </span>
+                {leagueValueMode === "dynasty" && (
+                  <span>Picks {formatCompactValue(pickRow?.totalValue || 0)}</span>
+                )}
+              </div>
+              <div className="trade-war-manager-board-sections">
+                {sectionRows.map(([label, rows]) => (
+                  <div key={label} className="trade-war-manager-board-section">
+                    <div className="trade-war-manager-board-section-head">
+                      <strong>{label}</strong>
+                      <span>{rows.length}</span>
+                    </div>
+                    {rows.length ? (
+                      rows
+                        .sort(
+                          (a, b) =>
+                            getTradeWarAssetValue(b, mode) -
+                            getTradeWarAssetValue(a, mode)
+                        )
+                        .slice(0, 8)
+                        .map(asset => (
+                          <button
+                            key={asset.player_id}
+                            type="button"
+                            className="trade-war-manager-board-asset"
+                            onClick={() => openAssetModal(asset)}
+                          >
+                            <span>{asset.name}</span>
+                            <em>{getTradeWarAssetRank(asset, mode) || asset.pos}</em>
+                            <b>#{overallAssetRankById.get(asset.player_id) || "-"}</b>
+                            <strong>{formatCompactValue(getTradeWarAssetValue(asset, mode))}</strong>
+                          </button>
+                        ))
+                    ) : (
+                      <p>No returned assets.</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </details>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderValueMatchPanel = () => (
+    <div className="trade-war-note-panel trade-war-value-match-panel">
+      <span>Value Match Finder</span>
+      {valueMatchIdeas.length ? (
+        <div className="trade-war-value-match-grid">
+          {valueMatchIdeas.map(idea => (
+            <div key={idea.id} className="trade-war-value-match-card">
+              <div className="trade-war-value-match-head">
+                <strong>{idea.sourceManager} can match</strong>
+                <em>{formatCompactValue(idea.totalValue)} · gap {formatCompactValue(idea.gap)}</em>
+              </div>
+              <p>
+                Closest return for {idea.targetManager}'s{" "}
+                {formatCompactValue(idea.targetValue)} package.
+              </p>
+              <div className="trade-war-value-match-assets">
+                {idea.assets.map(asset => (
+                  <button
+                    key={asset.player_id}
+                    type="button"
+                    className="trade-war-value-match-asset"
+                    onClick={() => openAssetModal(asset)}
+                  >
+                    <span>{asset.name}</span>
+                    <em>{getTradeWarAssetRank(asset, mode) || asset.pos}</em>
+                    <strong>{formatCompactValue(getTradeWarAssetValue(asset, mode))}</strong>
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="trade-war-package-apply"
+                onClick={() => {
+                  const ids = idea.assets.map(asset => asset.player_id);
+                  if (idea.sourceManager === managerA) {
+                    setSideAIds(ids);
+                  } else if (idea.sourceManager === managerB) {
+                    setSideBIds(ids);
+                  }
+                }}
+              >
+                Use match
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p>
+          Add one player or pick to either side and this will suggest the
+          closest matching player or two-piece package from the other manager.
+        </p>
+      )}
     </div>
   );
 
@@ -2025,6 +2351,8 @@ export default function TradeWarRoom({
         </div>
       </div>
 
+      {renderManagerAssetBoard()}
+
       <div className="trade-war-manager-selects">
         <label>
           <span>Side A</span>
@@ -2132,6 +2460,7 @@ export default function TradeWarRoom({
       <div className="trade-war-read-grid">
         {renderRankPanel(managerA, beforeA, afterA)}
         {renderRankPanel(managerB, beforeB, afterB)}
+        {renderValueMatchPanel()}
         {renderPackageBuilderPanel()}
         <div className="trade-war-note-panel">
           <span>Roster Fit</span>

@@ -833,6 +833,29 @@ test.describe("command center feature surfaces", () => {
     await expect(situationDeltaRow).toContainText("1 role boost");
 
     await page.getByRole("tab", { name: "Trade History" }).click();
+    const tradeWarRoom = await openReportSection(page, "Trade War Room");
+    await expect(tradeWarRoom.getByText("Manager Asset Board")).toBeVisible();
+    const testerAssetCard = tradeWarRoom
+      .locator(".trade-war-manager-board-card")
+      .filter({ hasText: "Tester" })
+      .first();
+    await testerAssetCard.locator("summary").click();
+    await expect(
+      testerAssetCard.locator(".trade-war-manager-board-section-head").filter({ hasText: "PICKS" })
+    ).toBeVisible();
+    await expect(testerAssetCard.getByText("2027 1st")).toBeVisible();
+    await expect(tradeWarRoom.getByText("Value Match Finder")).toBeVisible();
+    await tradeWarRoom.locator(".trade-war-side").first().locator("input").fill("Depth Receiver");
+    await tradeWarRoom
+      .locator(".trade-war-side")
+      .first()
+      .getByRole("button", { name: /Depth Receiver/i })
+      .first()
+      .click();
+    const valueMatchPanel = tradeWarRoom.locator(".trade-war-value-match-panel");
+    await expect(valueMatchPanel.getByText(/Rival can match/i).first()).toBeVisible();
+    await expect(valueMatchPanel.getByText("2026 1st").first()).toBeVisible();
+
     await expect(page.getByText("Full Trade Ledger").first()).toBeVisible();
     await page.getByRole("button", { name: /Full Trade Ledger/ }).click();
     const tradeLedgerDialog = page.getByRole("dialog", {
