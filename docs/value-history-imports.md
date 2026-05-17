@@ -94,8 +94,10 @@ Archived direct/source-history targets:
 - DynastyProcess: official GitHub `files/values-players.csv` history can be replayed from commits and mapped to source-native 1QB/Superflex values. It does not expose TEP-specific values, so do not fabricate TEP rows.
 - FantasyCalc: direct player history endpoints can be replayed for dynasty Superflex and 1QB profiles. The endpoint does not expose TEP, PPR, or team-count-specific history splits, so the archive keeps only the source-supported base profiles.
 - FantasyPros: API consensus ranking snapshots can be captured by season/type/scoring with source `last_updated` dates. Dynasty rows are stored in app 1QB/SF base PPR formats because the endpoint does not expose QB-format or TEP splits; redraft, ROS, ADP, devy, and rookie ranking snapshots stay in source-specific formats.
+- Dynasty Nerds: local stored source snapshots preserve the Dynasty Nerds columns we already captured in Dynasty Degen value snapshots. The public page exposes current `DR_DATA`, but no direct public historical series was confirmed, so do not label this as a full source-native backfill.
+- Fantasy Nerds: local stored source snapshots preserve the Fantasy Nerds columns we already captured in Dynasty Degen value snapshots. The public API requires a real key and the public `TEST` key returns stale sample rows, so do not import `TEST` rows as history.
 
 Blocked until approved direct history/export path:
 
-- Dynasty Nerds
-- Fantasy Nerds
+- Full source-native Dynasty Nerds history beyond stored local snapshots.
+- Full source-native Fantasy Nerds history beyond stored local snapshots or a real API/export key.

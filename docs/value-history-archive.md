@@ -7,19 +7,19 @@ This archive is the frozen raw source history used to regenerate player value ti
 ## Stored Files
 
 - `server/value-history-archive/one-time-source-history.json`
-  - Raw source archive from direct KTC player pages, direct Flock player history endpoints, official DynastyProcess GitHub `values-players.csv` commit history, direct FantasyCalc player history endpoints, and FantasyPros API ranking snapshots.
-  - 2,316 players.
-  - 2,071,550 raw player/date/source/format points.
-  - SHA-256: `08695ae2e8788c7bff1a7aad5d4b550c314df8c3f2ff851bce16bcb8d07ba698`
+  - Raw source archive from direct KTC player pages, direct Flock player history endpoints, official DynastyProcess GitHub `values-players.csv` commit history, direct FantasyCalc player history endpoints, FantasyPros API ranking snapshots, and local stored Dynasty Nerds/Fantasy Nerds source snapshots.
+  - 2,317 players.
+  - 2,076,916 raw player/date/source/format points.
+  - SHA-256: `f04f5ea107fb61e6c49fa426234a8789cc4cb5015b1d24202c6109ce71e9cba7`
 - `server/value-history-archive/player-value-history-audit.json`
   - Audit report for the raw archive.
   - Passed with zero warnings and zero errors.
-  - SHA-256: `114e7ddb4511807c25b5d3f1eb43f6b1e00cec4b533cef1fe350bb002933e0e1`
+  - SHA-256: `63b227f95d82664cb576ee71dfcc8ef7a40e11c6bbec291f90fba7557831b3ab`
 - `server/value-history-archive/source-coverage-audit.json`
   - Source coverage report for the raw archive.
-  - KeepTradeCut, Flock Fantasy, FantasyCalc, FantasyPros, and DynastyProcess are present.
-  - Dynasty Nerds and Fantasy Nerds remain import-ready until a direct approved history/export path is confirmed.
-  - SHA-256: `7e9bae52497540e493156883e07ff91ee903e94c0efd3bc329601705e368c9b7`
+  - KeepTradeCut, Flock Fantasy, FantasyCalc, FantasyPros, DynastyProcess, Dynasty Nerds, and Fantasy Nerds are present.
+  - Dynasty Nerds/Fantasy Nerds history is partial local stored-source snapshot coverage, not full source-native direct history.
+  - SHA-256: `aa870968b945afd389fa966416d0a1bfab8acfe345a5bb241037698562849bd2`
 - `server/value-history-archive/fantasycalc-history.json`
   - Source-specific FantasyCalc archive from direct player history endpoints.
   - 461 players.
@@ -35,11 +35,17 @@ This archive is the frozen raw source history used to regenerate player value ti
   - 1,268 players.
   - 221,759 raw player/date/source/format points.
   - SHA-256: `d861bc9b7c4153cda30a54deda260704731a091c6f233be843557969cacfac3a`
+- `server/value-history-archive/local-nerds-source-history.json`
+  - Source-specific partial archive from locally stored Dynasty Degen source snapshots for Dynasty Nerds and Fantasy Nerds columns.
+  - 358 players.
+  - 5,366 raw player/date/source/format points.
+  - Includes 5,286 Dynasty Nerds points and 80 Fantasy Nerds points.
+  - SHA-256: `6e3dd6aa7eea0a05d980ad984a6c84010099862016666cf33b14ac6e52b22fb2`
 - `server/value-history-archive/player-value-history-reblended.json`
   - Derived timeline using current default weights.
-  - 2,316 players.
-  - 1,269,644 blended player/date/format points.
-  - SHA-256: `6f50d1b3e284b64df8c41a4147ed61fbdee4b6163d11d477e0ade0c60228b1a0`
+  - 2,317 players.
+  - 1,274,938 blended player/date/format points.
+  - SHA-256: `3eb317a6caec73b107c92726bec9ed8b2bd69fbdd8cbab3cd7af9c030e86580d`
 
 ## Policy
 
@@ -93,6 +99,8 @@ A local compressed backup bundle was created at:
 - SHA-256: `b62afd89955e933769bce7efe82c6f95179f86ea8ae2b72a80b724377af2bca1`
 - `server/value-history-archive/value-history-archive-2026-05-17-fantasycalc-fantasypros.tar.gz`
 - SHA-256: `2e46d29f3d1dc1e78b29be8f3a4e5b0073f534018fc2887efb286809bb56b213`
+- `server/value-history-archive/value-history-archive-2026-05-17-all-weighted-sources.tar.gz`
+- SHA-256: `25e1049080f04ff519bfa9efbc800f032b846dede49215a6f49ae03c087e5875`
 
 The bundles and `.sha256` manifests are gitignored. Copies are also stored under `/Volumes/Mac HD/BuiltByBill/dynasty-degenerate-value-history-backups/`.
 
