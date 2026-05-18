@@ -105,6 +105,10 @@ function getFormatBucket(league, rosters) {
   ].join('_');
 }
 
+function getLeagueSize(league, rosters = []) {
+  return Number(league?.total_rosters || league?.settings?.num_teams || rosters.length || 0) || null;
+}
+
 function pickBestDraft(drafts = [], league) {
   const season = String(league?.season || '');
   const completeDrafts = drafts.filter(draft => String(draft?.status || '').toLowerCase() === 'complete');
@@ -164,6 +168,7 @@ function getDraftPicksForRoster(picks = [], rosterId) {
 }
 
 function classifyStrategy(sequence = []) {
+  if (!sequence.length) return 'unknown';
   const first = sequence[0];
   const second = sequence[1];
   const firstFour = sequence.slice(0, 4);
@@ -182,65 +187,124 @@ function classifyStrategy(sequence = []) {
   return 'other';
 }
 
-function makeEmptyAggregate(rounds) {
+function getDraftSlotBucket(slot, leagueSize) {
+  const normalizedSlot = Number(slot || 0);
+  const normalizedLeagueSize = Number(leagueSize || 0);
+  if (!normalizedSlot || !normalizedLeagueSize) return 'unknown';
+  const ratio = normalizedSlot / normalizedLeagueSize;
+  if (ratio <= 1 / 3) return 'early';
+  if (ratio <= 2 / 3) return 'middle';
+  return 'late';
+}
+
+function getSequencePrefix(sequence, length) {
+  return sequence.slice(0, length).join('-') || 'unknown';
+}
+
+function makeOutcomeCounters() {
   return {
-    generatedAt: new Date().toISOString(),
-    rounds,
-    source: 'sleeper_known_league_ids',
-    privacy: 'aggregate_only_no_raw_league_user_or_player_rows',
-    inputLeagueCount: 0,
     eligibleLeagueCount: 0,
-    skipped: {},
-    totals: {
-      championFirstPickPosition: {},
-      championPositionSequence: {},
-      championStrategy: {},
-      championDraftSlot: {},
-      topPointsFirstPickPosition: {},
-    },
-    byFormatBucket: {},
+    championFirstPickPosition: {},
+    championFirstTwoPositionSequence: {},
+    championFirstThreePositionSequence: {},
+    championPositionSequence: {},
+    championStrategy: {},
+    championDraftSlot: {},
+    championDraftSlotBucket: {},
+    championFirstPickByDraftSlotBucket: {},
+    championStrategyByDraftSlotBucket: {},
+    topPointsFirstPickPosition: {},
+    topPointsPositionSequence: {},
+    topPointsStrategy: {},
+    topPointsDraftSlot: {},
+    topPointsDraftSlotBucket: {},
+    championTopPointsFirstPickMatch: {},
   };
 }
 
-function getBucket(aggregate, key) {
-  if (!aggregate.byFormatBucket[key]) {
-    aggregate.byFormatBucket[key] = {
-      eligibleLeagueCount: 0,
-      championFirstPickPosition: {},
-      championPositionSequence: {},
-      championStrategy: {},
-      championDraftSlot: {},
-      topPointsFirstPickPosition: {},
-    };
+function makeEmptyAggregate(rounds) {
+  return {
+    generatedAt: new Date().toISOString(),
+    dataVersion: 'redraft-draft-outcomes-v2',
+    rounds,
+    source: 'sleeper_known_league_ids',
+    privacy: 'aggregate_only_no_raw_league_user_or_player_rows',
+    strategyModelFields: [
+      'season',
+      'formatBucket',
+      'draftType',
+      'championFirstPickPosition',
+      'championFirstTwoPositionSequence',
+      'championFirstThreePositionSequence',
+      'championPositionSequence',
+      'championStrategy',
+      'championDraftSlot',
+      'championDraftSlotBucket',
+      'topPointsFirstPickPosition',
+      'topPointsPositionSequence',
+      'topPointsStrategy',
+    ],
+    inputLeagueCount: 0,
+    eligibleLeagueCount: 0,
+    skipped: {},
+    totals: makeOutcomeCounters(),
+    byFormatBucket: {},
+    bySeason: {},
+    byDraftType: {},
+  };
+}
+
+function getBucket(collection, key) {
+  const normalizedKey = key || 'unknown';
+  if (!collection[normalizedKey]) {
+    collection[normalizedKey] = makeOutcomeCounters();
   }
-  return aggregate.byFormatBucket[key];
+  return collection[normalizedKey];
+}
+
+function incrementNested(counter, outerKey, innerKey) {
+  const normalizedOuterKey = outerKey || 'unknown';
+  const normalizedInnerKey = innerKey || 'unknown';
+  if (!counter[normalizedOuterKey]) counter[normalizedOuterKey] = {};
+  increment(counter[normalizedOuterKey], normalizedInnerKey);
+}
+
+function addLeagueToCounters(counters, leagueSummary) {
+  const championSequence = leagueSummary.championSequence;
+  const topPointsSequence = leagueSummary.topPointsSequence;
+  const championStrategy = classifyStrategy(championSequence);
+  const topPointsStrategy = classifyStrategy(topPointsSequence);
+  const championDraftSlotKey = String(leagueSummary.championDraftSlot || 'unknown');
+  const championDraftSlotBucket = getDraftSlotBucket(leagueSummary.championDraftSlot, leagueSummary.leagueSize);
+  const topPointsDraftSlotKey = String(leagueSummary.topPointsDraftSlot || 'unknown');
+  const topPointsDraftSlotBucket = getDraftSlotBucket(leagueSummary.topPointsDraftSlot, leagueSummary.leagueSize);
+  const championFirstPick = championSequence[0] || 'unknown';
+  const topPointsFirstPick = topPointsSequence[0] || 'unknown';
+
+  counters.eligibleLeagueCount += 1;
+  increment(counters.championFirstPickPosition, championFirstPick);
+  increment(counters.championFirstTwoPositionSequence, getSequencePrefix(championSequence, 2));
+  increment(counters.championFirstThreePositionSequence, getSequencePrefix(championSequence, 3));
+  increment(counters.championPositionSequence, getSequencePrefix(championSequence, leagueSummary.rounds));
+  increment(counters.championStrategy, championStrategy);
+  increment(counters.championDraftSlot, championDraftSlotKey);
+  increment(counters.championDraftSlotBucket, championDraftSlotBucket);
+  incrementNested(counters.championFirstPickByDraftSlotBucket, championDraftSlotBucket, championFirstPick);
+  incrementNested(counters.championStrategyByDraftSlotBucket, championDraftSlotBucket, championStrategy);
+  increment(counters.topPointsFirstPickPosition, topPointsFirstPick);
+  increment(counters.topPointsPositionSequence, getSequencePrefix(topPointsSequence, leagueSummary.rounds));
+  increment(counters.topPointsStrategy, topPointsStrategy);
+  increment(counters.topPointsDraftSlot, topPointsDraftSlotKey);
+  increment(counters.topPointsDraftSlotBucket, topPointsDraftSlotBucket);
+  increment(counters.championTopPointsFirstPickMatch, championFirstPick === topPointsFirstPick ? 'same' : 'different');
 }
 
 function addLeagueToAggregate(aggregate, leagueSummary) {
-  const {
-    formatBucket,
-    championSequence,
-    championDraftSlot,
-    topPointsSequence,
-  } = leagueSummary;
-  const sequenceKey = championSequence.join('-');
-  const strategy = classifyStrategy(championSequence);
-  const bucket = getBucket(aggregate, formatBucket);
-
   aggregate.eligibleLeagueCount += 1;
-  bucket.eligibleLeagueCount += 1;
-
-  increment(aggregate.totals.championFirstPickPosition, championSequence[0]);
-  increment(aggregate.totals.championPositionSequence, sequenceKey);
-  increment(aggregate.totals.championStrategy, strategy);
-  increment(aggregate.totals.championDraftSlot, String(championDraftSlot || 'unknown'));
-  increment(aggregate.totals.topPointsFirstPickPosition, topPointsSequence[0]);
-
-  increment(bucket.championFirstPickPosition, championSequence[0]);
-  increment(bucket.championPositionSequence, sequenceKey);
-  increment(bucket.championStrategy, strategy);
-  increment(bucket.championDraftSlot, String(championDraftSlot || 'unknown'));
-  increment(bucket.topPointsFirstPickPosition, topPointsSequence[0]);
+  addLeagueToCounters(aggregate.totals, leagueSummary);
+  addLeagueToCounters(getBucket(aggregate.byFormatBucket, leagueSummary.formatBucket), leagueSummary);
+  addLeagueToCounters(getBucket(aggregate.bySeason, leagueSummary.season), leagueSummary);
+  addLeagueToCounters(getBucket(aggregate.byDraftType, leagueSummary.draftType), leagueSummary);
 }
 
 async function analyzeLeague(leagueId, rounds) {
@@ -272,9 +336,14 @@ async function analyzeLeague(leagueId, rounds) {
   if (championPicks.length < rounds) return { skipped: 'not_enough_champion_picks' };
 
   return {
+    season: String(league?.season || draft?.season || 'unknown'),
     formatBucket: getFormatBucket(league, rosters),
+    draftType: String(draft?.type || 'unknown'),
+    leagueSize: getLeagueSize(league, rosters),
+    rounds,
     championSequence: championPicks.slice(0, rounds).map(pick => pick.position),
     championDraftSlot: championPicks[0]?.draftSlot || null,
+    topPointsDraftSlot: topPointsPicks[0]?.draftSlot || null,
     topPointsSequence: topPointsPicks.slice(0, rounds).map(pick => pick.position),
   };
 }

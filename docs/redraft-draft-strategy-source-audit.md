@@ -81,6 +81,8 @@ pnpm analyze:redraft-draft-network --username <sleeper-username> --depth 2 --com
 
 Depth `1` scans the seed manager plus managers from the seed manager's leagues. Depth `2` also scans managers discovered from those managers' leagues. The default season set excludes the active calendar season because champion outcomes are not known yet.
 
+The retained aggregate artifact is versioned as `redraft-draft-outcomes-v2`. It keeps model-ready counts by total, format bucket, season, and draft type. Each bucket retains champion first-pick position, first-two/first-three/full opening sequences, strategy classification, exact draft slot, early/middle/late draft-slot bucket, first-pick-by-slot counts, strategy-by-slot counts, top-points roster sequence/strategy, and whether the champion and top-points roster started with the same position. It still does not retain raw league, user, roster, or player rows.
+
 ### 3. Redraft Player Outcome Labels
 
 Use FantasyPros/Fantasy Nerds/MFL/Fleaflicker redraft snapshots, FantasyPros player-points history, Sleeper stats, and public ADP/stat datasets to label player outcomes:
