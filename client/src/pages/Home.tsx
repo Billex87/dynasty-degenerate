@@ -72,6 +72,7 @@ import {
   buildRosterStarterPreview,
   buildTaxiTriagePreview,
 } from "@/lib/overviewInsights";
+import { sanitizeCachedReport } from "@/lib/reportCacheSanitizer";
 import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { getPositionRankClass } from "@/lib/positionRank";
 import { UNAUTHED_ERR_MSG } from "@shared/const";
@@ -181,8 +182,8 @@ const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
   "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
-const REPORT_CACHE_DATA_VERSION = "draft-state-v1";
-const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v24";
+const REPORT_CACHE_DATA_VERSION = "semantic-report-guards-v1";
+const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v25";
 const REPORT_CACHE_DB_NAME = "dynasty-degenerates-report-cache";
 const REPORT_CACHE_DB_VERSION = 1;
 const REPORT_CACHE_DB_STORE = "reports";
@@ -206,6 +207,7 @@ const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v21",
   "dynasty-degenerates:last-report:v22",
   "dynasty-degenerates:last-report:v23",
+  "dynasty-degenerates:last-report:v24",
 ];
 const LAST_LEAGUE_KEY = "dynasty-degenerates:last-league:v1";
 const SLEEPER_SESSION_KEY = "dynasty-degenerates:sleeper-session:v1";
@@ -1496,7 +1498,10 @@ async function readIndexedDbReportCache(
     const transaction = db.transaction(REPORT_CACHE_DB_STORE, "readonly");
     const store = transaction.objectStore(REPORT_CACHE_DB_STORE);
     const request = store.get(getReportCacheDbKey(leagueId));
-    request.onsuccess = () => resolve((request.result as CachedReport) || null);
+    request.onsuccess = () => {
+      const cachedReport = (request.result as CachedReport) || null;
+      resolve(cachedReport ? sanitizeCachedReport(cachedReport) : null);
+    };
     request.onerror = () => resolve(null);
     transaction.oncomplete = () => db.close();
     transaction.onerror = () => {
@@ -1509,12 +1514,13 @@ async function readIndexedDbReportCache(
 async function writeIndexedDbReportCache(report: CachedReport): Promise<void> {
   const db = await openReportCacheDb();
   if (!db) return;
+  const sanitizedReport = sanitizeCachedReport(report);
 
   await new Promise<void>(resolve => {
     const transaction = db.transaction(REPORT_CACHE_DB_STORE, "readwrite");
     const store = transaction.objectStore(REPORT_CACHE_DB_STORE);
-    store.put(report, REPORT_CACHE_KEY);
-    store.put(report, getReportCacheDbKey(report.leagueId));
+    store.put(sanitizedReport, REPORT_CACHE_KEY);
+    store.put(sanitizedReport, getReportCacheDbKey(sanitizedReport.leagueId));
     transaction.oncomplete = () => {
       db.close();
       resolve();
@@ -1558,7 +1564,7 @@ async function readBrowserReportCache(
   try {
     const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
     if (cachedReport) {
-      const parsed = JSON.parse(cachedReport) as CachedReport;
+      const parsed = sanitizeCachedReport(JSON.parse(cachedReport) as CachedReport);
       if (!normalizedLeagueId || parsed.leagueId === normalizedLeagueId) {
         return parsed;
       }
@@ -1570,9 +1576,10 @@ async function readBrowserReportCache(
 }
 
 function writeBrowserReportCache(report: CachedReport) {
-  void writeIndexedDbReportCache(report);
+  const sanitizedReport = sanitizeCachedReport(report);
+  void writeIndexedDbReportCache(sanitizedReport);
   try {
-    localStorage.setItem(REPORT_CACHE_KEY, JSON.stringify(report));
+    localStorage.setItem(REPORT_CACHE_KEY, JSON.stringify(sanitizedReport));
   } catch {
     localStorage.removeItem(REPORT_CACHE_KEY);
   }
@@ -5540,21 +5547,22 @@ export default function Home() {
     cachedReport: CachedReport,
     nextActiveTab?: string | null
   ) => {
-    const tab = nextActiveTab || cachedReport.activeTab || "overview";
-    setLeagueId(cachedReport.leagueId);
-    setLeagueName(cachedReport.leagueName);
-    setLeagueLogo(cachedReport.leagueLogo);
-    setLeagueFormat(cachedReport.leagueFormat);
+    const sanitizedReport = sanitizeCachedReport(cachedReport);
+    const tab = nextActiveTab || sanitizedReport.activeTab || "overview";
+    setLeagueId(sanitizedReport.leagueId);
+    setLeagueName(sanitizedReport.leagueName);
+    setLeagueLogo(sanitizedReport.leagueLogo);
+    setLeagueFormat(sanitizedReport.leagueFormat);
     setActiveTab(tab);
-    setReportDataCacheVersion(cachedReport.cacheVersion || REPORT_CACHE_DATA_VERSION);
-    setReportData(cachedReport.reportData);
+    setReportDataCacheVersion(sanitizedReport.cacheVersion || REPORT_CACHE_DATA_VERSION);
+    setReportData(sanitizedReport.reportData);
     setAnalysisCompleteMessage(null);
     setPendingAnalysisLeague(null);
     setLoadingTransitionPhase("done");
     setIsLoading(false);
-    updateReportTabUrl(tab, cachedReport.leagueId);
+    updateReportTabUrl(tab, sanitizedReport.leagueId);
     setLeagueIdHistory(
-      rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, cachedReport.leagueId)
+      rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, sanitizedReport.leagueId)
     );
   };
 

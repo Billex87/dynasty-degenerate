@@ -47,6 +47,8 @@
     "audit:neon-transfer": "node scripts/audit-neon-transfer.mjs",
     "audit:report-payload": "node scripts/audit-report-payload.mjs",
     "audit:report-hotspots": "node scripts/audit-report-hotspots.mjs",
+    "audit:report-semantics": "tsx scripts/audit-report-semantics.ts",
+    "validate:report": "pnpm run audit:report-semantics && pnpm run check && pnpm test",
     "audit:situation-delta-sources": "node scripts/audit-situation-delta-sources.mjs",
     "analyze:redraft-draft-winners": "node scripts/analyze-redraft-draft-winners.mjs",
     "analyze:redraft-draft-network": "node scripts/analyze-redraft-draft-network.mjs",

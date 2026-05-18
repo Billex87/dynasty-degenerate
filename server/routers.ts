@@ -3216,7 +3216,7 @@ function buildFuturePickInventory({
     .filter((pick): pick is { manager: string; originalOwner: string; season: string; round: number; value: number } => Boolean(pick));
 }
 
-function buildWaiverIntelligence(
+export function buildWaiverIntelligence(
   trendingAdds: TrendingPlayer[],
   trendingDrops: TrendingPlayer[],
   players: Record<string, any>,
@@ -3338,6 +3338,7 @@ function buildWaiverIntelligence(
     bestAvailableByPosition,
     bestTaxiStashes,
     recentlyDroppedValuable: [...trendingDrops]
+      .filter((player) => !omittedCandidateIds.has(player.player_id))
       .filter((player) => (player.ktcValue || 0) > 0)
       .sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))
       .slice(0, 8),

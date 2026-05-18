@@ -40,7 +40,7 @@ Use this before pushing larger report UI changes.
 ## Commands
 
 ```bash
-pnpm check
+pnpm run validate:report
 pnpm build
 git diff --check
 ```

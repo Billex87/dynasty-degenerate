@@ -1,5 +1,5 @@
-export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v24';
-export const REPORT_CACHE_DATA_VERSION = 'draft-state-v1';
+export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v25';
+export const REPORT_CACHE_DATA_VERSION = 'semantic-report-guards-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;
