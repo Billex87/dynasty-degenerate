@@ -11,6 +11,7 @@ import type { PlayerDetails } from '../shared/types';
 const DEFAULT_TIMELINE_DAYS = 120;
 const MAX_TIMELINE_POINTS = 24;
 const DEFAULT_TIMELINE_INDEX_PATH = path.join(process.cwd(), 'server', 'value-history-archive', 'player-value-history-timeline-index.json');
+const DEFAULT_TIMELINE_SHARDS_DIR = path.join(process.cwd(), 'server', 'value-history-archive', 'player-value-history-shards');
 
 type KtcValueRow = KTCValues[string];
 type TimelinePoint = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['points']>[number];
@@ -38,6 +39,8 @@ type TimelineIndexCache = {
 };
 
 let timelineIndexCache: TimelineIndexCache | null | undefined;
+let timelineShardAvailabilityCache: { dir: string; available: boolean } | undefined;
+const timelineShardCache = new Map<string, TimelineIndexCache | null>();
 
 export type HistoricalPlayerValueLookup = {
   playerName: string;
@@ -94,7 +97,77 @@ function getTimelineIndex(): TimelineIndexCache | null {
   return timelineIndexCache;
 }
 
+function getTimelineShardDir(): string {
+  return process.env.VALUE_TIMELINE_SHARDS_DIR || DEFAULT_TIMELINE_SHARDS_DIR;
+}
+
+function hasTimelineShards(): boolean {
+  if (process.env.NODE_ENV === 'test' && process.env.USE_VALUE_TIMELINE_INDEX !== '1') return false;
+  const dir = getTimelineShardDir();
+  if (timelineShardAvailabilityCache?.dir === dir) return timelineShardAvailabilityCache.available;
+  const available = fs.existsSync(path.join(dir, 'manifest.json'));
+  timelineShardAvailabilityCache = { dir, available };
+  return available;
+}
+
+function getShardKey(value: string): string {
+  const normalized = cleanName(value);
+  return normalized.slice(0, 2) || '__';
+}
+
+function getTimelineShard(shardKey: string): TimelineIndexCache | null {
+  if (!hasTimelineShards()) return null;
+  const shardCacheKey = `${getTimelineShardDir()}:${shardKey}`;
+  if (timelineShardCache.has(shardCacheKey)) return timelineShardCache.get(shardCacheKey) || null;
+
+  const shardPath = path.join(getTimelineShardDir(), `${shardKey}.json`);
+  if (!fs.existsSync(shardPath)) {
+    timelineShardCache.set(shardCacheKey, null);
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(fs.readFileSync(shardPath, 'utf8')) as {
+      generatedAt?: string;
+      players?: Record<string, TimelineIndexPlayer>;
+    };
+    const players = payload.players || {};
+    const lookup = new Map<string, TimelineIndexPlayer>();
+    for (const [key, player] of Object.entries(players)) {
+      const keys = new Set([
+        key,
+        player.key,
+        cleanName(player.name),
+        ...playerNameKeyVariants(cleanName(player.name)),
+        ...(player.lookupKeys || []),
+      ].map(cleanName).filter(Boolean));
+      keys.forEach((lookupKey) => lookup.set(lookupKey, player));
+    }
+    const shard = { generatedAt: payload.generatedAt, players, lookup };
+    timelineShardCache.set(shardCacheKey, shard);
+    return shard;
+  } catch (error) {
+    console.warn(`[PlayerValueTimeline] Failed to load timeline shard ${shardKey}:`, error);
+    timelineShardCache.set(shardCacheKey, null);
+    return null;
+  }
+}
+
+function getShardedIndexedPlayerForName(playerName: string): TimelineIndexPlayer | null {
+  if (!hasTimelineShards()) return null;
+  const variants = Array.from(new Set(playerNameKeyVariants(cleanName(playerName)).map(cleanName).filter(Boolean)));
+  for (const variant of variants) {
+    const shard = getTimelineShard(getShardKey(variant));
+    const match = shard?.lookup.get(variant);
+    if (match) return match;
+  }
+  return null;
+}
+
 function getIndexedPlayerForName(playerName: string): TimelineIndexPlayer | null {
+  const shardedMatch = getShardedIndexedPlayerForName(playerName);
+  if (shardedMatch) return shardedMatch;
+
   const index = getTimelineIndex();
   if (!index) return null;
   const variants = Array.from(new Set(playerNameKeyVariants(cleanName(playerName)).map(cleanName).filter(Boolean)));

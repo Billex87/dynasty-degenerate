@@ -164,9 +164,104 @@ describe('player value timeline', () => {
     ]);
   });
 
+  it('uses sharded historical value history without loading the full graph index', () => {
+    const previousUseIndex = process.env.USE_VALUE_TIMELINE_INDEX;
+    const previousIndexFile = process.env.VALUE_TIMELINE_INDEX_FILE;
+    const previousShardDir = process.env.VALUE_TIMELINE_SHARDS_DIR;
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'value-timeline-shards-'));
+    fs.writeFileSync(path.join(tempDir, 'manifest.json'), JSON.stringify({
+      schemaVersion: 1,
+      shardCount: 1,
+      shards: [{ key: 'ma', file: 'ma.json', playerCount: 1 }],
+    }));
+    fs.writeFileSync(path.join(tempDir, 'ma.json'), JSON.stringify({
+      players: {
+        malachifields: {
+          key: 'malachifields',
+          name: 'Malachi Fields',
+          position: 'WR',
+          lookupKeys: ['malachifields'],
+          formats: {
+            sf_ppr: {
+              format: 'sf_ppr',
+              rawPointCount: 3,
+              asOfPoints: [
+                { date: '2026-01-01', value: 1100, rank: 'WR120', overallRank: 230, sources: ['marketKtc'], sourceCount: 1 },
+                { date: '2026-04-01', value: 1700, rank: 'WR86', overallRank: 160, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+              ],
+              windows: {
+                all: {
+                  key: 'all',
+                  label: 'All',
+                  days: null,
+                  pointCount: 2,
+                  startDate: '2026-01-01',
+                  endDate: '2026-04-01',
+                  startValue: 1100,
+                  endValue: 1700,
+                  delta: 600,
+                  deltaPct: 54.5,
+                  points: [
+                    { date: '2026-01-01', value: 1100, rank: 'WR120', overallRank: 230, sources: ['marketKtc'], sourceCount: 1 },
+                    { date: '2026-04-01', value: 1700, rank: 'WR86', overallRank: 160, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+    }));
+
+    process.env.USE_VALUE_TIMELINE_INDEX = '1';
+    process.env.VALUE_TIMELINE_SHARDS_DIR = tempDir;
+    process.env.VALUE_TIMELINE_INDEX_FILE = path.join(tempDir, 'missing-full-index.json');
+    mocks.listLocalKtcSnapshotDateKeysSince.mockReturnValue([]);
+
+    const result = buildPlayerValueTimelineMap({
+      playerIds: ['p1'],
+      players: {
+        p1: {
+          first_name: 'Malachi',
+          last_name: 'Fields',
+          position: 'WR',
+        },
+      },
+      valueProfileKey: '12_sf_ppr_base',
+      daysBack: 500,
+    });
+
+    expect(result.p1).toMatchObject({
+      source: 'historical-value-index',
+      selectedWindow: 'all',
+      allTimePointCount: 3,
+      summary: {
+        startValue: 1100,
+        endValue: 1700,
+        delta: 600,
+      },
+    });
+    expect(getHistoricalPlayerValueAtDate({
+      playerName: 'Malachi Fields',
+      date: '2026-03-31',
+      valueProfileKey: '12_sf_ppr_base',
+      leagueValueMode: 'dynasty',
+    })).toMatchObject({
+      value: 1700,
+      valueDate: '2026-04-01',
+      daysAway: 1,
+    });
+
+    process.env.USE_VALUE_TIMELINE_INDEX = previousUseIndex;
+    process.env.VALUE_TIMELINE_INDEX_FILE = previousIndexFile;
+    process.env.VALUE_TIMELINE_SHARDS_DIR = previousShardDir;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
   it('uses the historical timeline index when available', () => {
     const previousUseIndex = process.env.USE_VALUE_TIMELINE_INDEX;
     const previousIndexFile = process.env.VALUE_TIMELINE_INDEX_FILE;
+    const previousShardDir = process.env.VALUE_TIMELINE_SHARDS_DIR;
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'value-timeline-index-'));
     const indexFile = path.join(tempDir, 'index.json');
     fs.writeFileSync(indexFile, JSON.stringify({
@@ -238,6 +333,7 @@ describe('player value timeline', () => {
 
     process.env.USE_VALUE_TIMELINE_INDEX = '1';
     process.env.VALUE_TIMELINE_INDEX_FILE = indexFile;
+    process.env.VALUE_TIMELINE_SHARDS_DIR = path.join(tempDir, 'missing-shards');
     mocks.listLocalKtcSnapshotDateKeysSince.mockReturnValue([]);
 
     const result = buildPlayerValueTimelineMap({
@@ -287,6 +383,7 @@ describe('player value timeline', () => {
 
     process.env.USE_VALUE_TIMELINE_INDEX = previousUseIndex;
     process.env.VALUE_TIMELINE_INDEX_FILE = previousIndexFile;
+    process.env.VALUE_TIMELINE_SHARDS_DIR = previousShardDir;
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 });

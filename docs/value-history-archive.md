@@ -56,6 +56,11 @@ This archive is the frozen raw source history used to regenerate player value ti
   - Compact derived index for player modal charts and historical trade-date value lookup.
   - 1,724 players, 8,746 player-format timelines, 414,528 compact window points, and 508,216 as-of lookup points.
   - SHA-256: `e2643cdd6506d6877990ae0d17b60f11ec0deb0db47a251833c89ea9569a7168`
+- `server/value-history-archive/player-value-history-shards/`
+  - Sharded derived index for production player graphs and trade-date value lookup.
+  - Keeps the same graph windows and as-of lookup points as the full timeline index, but report generation reads only the shard matching the requested player name.
+  - Generated locally as 179 shard files plus `manifest.json`.
+  - Total local size is about 115 MB, but the largest shard is about 10 MB and most requests only touch a few shards.
 
 ## Policy
 
@@ -94,6 +99,16 @@ ARCHIVE_FILE=server/value-history-archive/player-value-history-reblended.json \
 OUT_FILE=server/value-history-archive/player-value-history-timeline-index.json \
 pnpm index:value-history:timelines
 ```
+
+To refresh the production-oriented sharded history store after reblending, rerun:
+
+```bash
+ARCHIVE_FILE=server/value-history-archive/player-value-history-reblended.json \
+OUT_DIR=server/value-history-archive/player-value-history-shards \
+pnpm index:value-history:shards
+```
+
+The sharded store is the preferred runtime path for historical player graphs and trade-date values. The full `player-value-history-timeline-index.json` remains useful for local inspection and one-file backups, but normal report generation should avoid loading the full file when shards are available. The raw archive and reblended archive should stay offline/generated; production should mount, upload, or restore the shard directory as a generated artifact rather than calling external providers during user traffic.
 
 Before using a regenerated archive in product logic, rerun:
 
