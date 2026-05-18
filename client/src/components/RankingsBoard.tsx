@@ -23,7 +23,7 @@ import { getPlayerValueConfidence } from '@/lib/playerValueConfidence';
 import { readBooleanParam, readCsvParam, readEnumParam, readNumberParam, getUrlSearchParam, replaceUrlSearchParams } from '@/lib/reportUrlState';
 
 type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | 'PICK';
-type SortMode = 'rank' | 'value' | 'movement';
+type SortMode = 'rank' | 'value' | 'movement' | 'confidence';
 type DraftBuzzPosition = Exclude<PositionFilter, 'K' | 'DEF' | 'PICK'>;
 type SortDirection = 'asc' | 'desc';
 type DraftBuzzSortKey = 'class' | 'rank' | 'player' | 'team' | 'school' | 'position' | 'score' | 'forty' | 'height' | 'weight';
@@ -50,7 +50,7 @@ type RankingsTableConfig = {
 
 const PAGE_SIZE = 25;
 const DRAFT_BUZZ_PAGE_SIZE = 25;
-const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement'];
+const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement', 'confidence'];
 const SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 const POSITION_FILTER_KEYS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'PICK'] as const;
 const DRAFT_BUZZ_POSITIONS: DraftBuzzPosition[] = ['QB', 'RB', 'WR', 'TE'];
@@ -541,10 +541,16 @@ function getRankingSearchPlaceholder(board: RankingsTableConfig['board'], league
     : 'Search player, team, manager, college, position, rank, value, movement';
 }
 
-function RankingValueRow({ player, config, playerDetailsById, managerAvatars, viewerManager, onSelect, showAIReads }: { player: RankingPlayer; config: RankingsTableConfig; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelect: (player: RankingPlayer) => void; showAIReads?: boolean }) {
-  const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
-  const isRedraftRankingRow = config.leagueValueMode === 'redraft' || player.sources?.some(isRedraftSourceLabel);
-  const rankingValueProfile: PlayerDetails['valueProfile'] | undefined = details?.valueProfile || (!player.isDevy && !player.isPick ? {
+function getRankingValueProfile(
+  player: RankingPlayer,
+  details: PlayerDetails | undefined,
+  leagueValueMode: LeagueValueMode,
+): PlayerDetails['valueProfile'] | undefined {
+  if (details?.valueProfile) return details.valueProfile;
+  if (player.isDevy || player.isPick) return undefined;
+
+  const isRedraftRankingRow = leagueValueMode === 'redraft' || player.sources?.some(isRedraftSourceLabel);
+  return {
     dynastyValue: isRedraftRankingRow ? null : player.value,
     seasonValue: isRedraftRankingRow ? player.seasonValue ?? player.value : player.seasonValue ?? player.fantasyProsValue ?? null,
     dynastyPositionRank: isRedraftRankingRow ? null : player.positionRank || player.pos,
@@ -560,7 +566,12 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     dynastyDealerBenchmark: isRedraftRankingRow ? null : player.dynastyDealerBenchmark || null,
     fantasyProsSeasonValue: player.fantasyProsValue || null,
     sources: player.sources || [],
-  } : undefined);
+  };
+}
+
+function RankingValueRow({ player, config, playerDetailsById, managerAvatars, viewerManager, onSelect, showAIReads }: { player: RankingPlayer; config: RankingsTableConfig; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelect: (player: RankingPlayer) => void; showAIReads?: boolean }) {
+  const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
+  const rankingValueProfile = getRankingValueProfile(player, details, config.leagueValueMode);
   const prospectPills = player.isDevy && player.prospectProfile ? ([
     player.prospectProfile.role ? { kind: 'role', label: player.prospectProfile.role } : null,
     player.prospectProfile.fortyYardDash ? { kind: 'forty', label: `40 Yd: ${formatDraftBuzzForty(player.prospectProfile.fortyYardDash)}` } : null,
@@ -687,7 +698,7 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
               className={`ranking-value-confidence-chip ranking-value-confidence-chip-${valueConfidence.tone}`}
               title={valueConfidence.note}
             >
-              Value {valueConfidence.score}%
+              Confidence {valueConfidence.score}%
             </span>
           ) : null}
         </div>
@@ -1080,6 +1091,20 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
+    const confidenceScoreCache = new Map<string, number>();
+    const getConfidenceScore = (player: RankingPlayer) => {
+      const cacheKey = player.id || player.player_id || player.name;
+      const cached = confidenceScoreCache.get(cacheKey);
+      if (cached !== undefined) return cached;
+      const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
+      const valueProfile = getRankingValueProfile(player, details, config.leagueValueMode);
+      const score = player.isDevy || player.isPick
+        ? 0
+        : getPlayerValueConfidence({ valueProfile, mode: config.leagueValueMode }).score;
+      confidenceScoreCache.set(cacheKey, score);
+      return score;
+    };
+
     return rows
       .filter(player => {
         if (config.hidePicks && player.isPick) return false;
@@ -1108,6 +1133,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
           return bValue - aValue || a.overallRank - b.overallRank;
         }
         if (sortMode === 'movement') return Math.abs(b.movement || 0) - Math.abs(a.movement || 0) || a.overallRank - b.overallRank;
+        if (sortMode === 'confidence') return getConfidenceScore(b) - getConfidenceScore(a) || a.overallRank - b.overallRank;
         return a.overallRank - b.overallRank;
       });
   }, [canIncludePicksWithOverall, config.board, config.hidePicks, config.leagueValueMode, deferredQuery, includePicksWithOverall, playerDetailsById, rows, selectedDraftClass, selectedPositions, sortMode]);
@@ -1227,6 +1253,9 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
             </button>
             <button type="button" className={sortMode === 'movement' ? 'active' : ''} aria-pressed={sortMode === 'movement'} onClick={() => setSortMode('movement')}>
               7-Day
+            </button>
+            <button type="button" className={sortMode === 'confidence' ? 'active' : ''} aria-pressed={sortMode === 'confidence'} onClick={() => setSortMode('confidence')}>
+              Confidence
             </button>
           </div>
         ) : null}

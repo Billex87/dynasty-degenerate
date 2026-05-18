@@ -96,11 +96,11 @@ test.describe('shareable report control state', () => {
     await page.getByRole('button', { name: 'Season' }).click();
     await page.locator('.rankings-position-toggle button[aria-label="WR"]').click();
 
-    await expect(page).toHaveURL(/rankSearch=Depth/);
-    await expect(page).toHaveURL(/rankSort=value/);
-    await expect(page).toHaveURL(/rankPositions=WR/);
+    await expect(page).toHaveURL(/redraftSearch=Depth/);
+    await expect(page).toHaveURL(/redraftSort=value/);
+    await expect(page).toHaveURL(/redraftPositions=WR/);
     await expect(page.getByRole('button', { name: /#2 .*Depth Receiver/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /#1 .*Sample Starter/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /#1 .*Bijan Robinson/ })).toHaveCount(0);
 
     await page.reload();
     await openFullRosterRankings(page);
@@ -108,20 +108,25 @@ test.describe('shareable report control state', () => {
     await expect(search).toHaveValue('Depth');
     await expect(page.locator('.rankings-position-toggle button[aria-label="WR"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('button', { name: 'Season' })).toHaveAttribute('aria-pressed', 'true');
+    const confidenceSort = page.locator('.rankings-sort-toggle').getByRole('button', { name: 'Confidence' });
+    await confidenceSort.click();
+    await expect(page).toHaveURL(/redraftSort=confidence/);
+    await expect(confidenceSort).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('opens redraft player details with season value first and keyboard close support', async ({ page }) => {
     await loadCachedReport(page, 'modal-redraft-league', '#rankings');
     await openFullRosterRankings(page);
 
-    await expect(page.locator('.ranking-value-confidence-chip').first()).toBeVisible();
-    await page.getByRole('button', { name: /Sample Starter/ }).click();
+    await expect(page.locator('.ranking-value-confidence-chip').first()).toHaveText(/Confidence \d+%/);
+    await page.getByRole('button', { name: /Bijan Robinson/ }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('.player-modal-metric-season-value')).toBeVisible();
     await expect(dialog.locator('.player-modal-metric-dynasty-value')).toHaveCount(0);
-    await expect(dialog.getByText('Value Confidence', { exact: true })).toBeVisible();
-    await expect(dialog.getByText(/value confidence from/i)).toBeVisible();
+    await expect(dialog.getByText('Degen Read', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Market Price', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Degen Gap', { exact: true })).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
@@ -137,12 +142,12 @@ test.describe('shareable report control state', () => {
     await expect(page).toHaveURL(/draftSort=currentValue/);
     await expect(page).toHaveURL(/draftDir=desc/);
     await expect(page.getByText('Season value window').first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /#1 Sample Starter/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /#1 Bijan Robinson/ })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole('button', { name: /#1 Sample Starter/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /#1 Bijan Robinson/ })).toHaveCount(0);
     await openDraftYear(page, '2026 Main Draft');
-    await expect(page.getByRole('button', { name: /#1 Sample Starter/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /#1 Bijan Robinson/ })).toBeVisible();
   });
 
   test('hides draft history for redraft leagues with no draft data yet', async ({ page }) => {
@@ -156,7 +161,7 @@ test.describe('shareable report control state', () => {
 
     await page.getByRole('tab', { name: 'Rankings' }).click();
     await openFullRosterRankings(page);
-    await expect(page.getByRole('button', { name: /#1 .*Sample Starter/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /#1 .*Bijan Robinson/ })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Weekly Momentum' }).click();
     await expect(page.getByRole('tab', { name: 'Weekly Momentum' })).toHaveAttribute('aria-selected', 'true');

@@ -23,7 +23,7 @@ The report stores this at `reportData.leagueDiagnostics.aiConfidence`. UI confid
 - `managerConfidence` breaks the score down by manager, so a manager with no trade/transaction/snapshot history can remain low confidence even when the overall league confidence is stronger.
 - Trade and transaction history is recency weighted. Recent manager behavior matters more than old behavior.
 - AI recommendation confidence is capped by league and manager confidence, so player cards, waiver reads, trade reads, projections, and weekly actions cannot look more certain than the evidence behind the league.
-- Player cards also show a separate value-confidence read. That score is derived from available player value sources, primary-source count, source agreement/spread, and rank coverage. It is intentionally separate from league AI confidence because a league can be well understood while a specific player value is still thin.
+- Player cards and full rankings also show separate value framing: `Market Price` is the weighted source value, `Degen Read` is the context layer, `Degen Gap` is the adjustment direction, and `Confidence` is derived from available value sources, primary-source count, source agreement/spread, and rank coverage. Rankings can sort by this player value confidence so high-trust prices can be separated from thin market reads. It is intentionally separate from league AI confidence because a league can be well understood while a specific player value is still thin.
 
 ## Storage
 

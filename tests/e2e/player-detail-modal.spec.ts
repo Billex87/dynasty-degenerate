@@ -321,16 +321,19 @@ test.describe('player detail modal', () => {
     await availabilityDialog.getByRole('button', { name: /Close Bijan Robinson 2025 weekly availability log/i }).click();
     await expect(availabilityDialog).toHaveCount(0);
 
-    await expect(dialog.getByText('Dynasty Value Trend')).toHaveCount(0);
-    await expect(dialog.getByText('Current Redraft Trend')).toBeVisible();
+    await expect(dialog.getByText('Degen Read', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Market Price', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Degen Gap', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Dynasty Market Price Trend')).toHaveCount(0);
+    await expect(dialog.getByText('Current Redraft Market Price Trend')).toBeVisible();
     await dialog.getByRole('button', { name: /Open Bijan Robinson value timeline detail/i }).click();
-    const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Timeline' });
+    const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Market Price Timeline' });
     await expect(timelineDialog.getByRole('tab', { name: /1M/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /3M/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /6M/i })).toHaveAttribute('aria-selected', 'true');
     await expect(timelineDialog.getByRole('tab', { name: /1Y/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /All/i })).toBeVisible();
-    await expect(timelineDialog.getByText('Current Redraft Timeline')).toBeVisible();
+    await expect(timelineDialog.getByText('Current Redraft Market Price Timeline')).toBeVisible();
     await expect(timelineDialog.getByText('All-Time Range')).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: 'Value' })).toHaveAttribute('aria-selected', 'true');
     const selectedPoint = timelineDialog.locator('.player-value-selected-point');

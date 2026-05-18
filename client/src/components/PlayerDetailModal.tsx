@@ -15,6 +15,7 @@ import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getC
 import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
 import { getDraftKind, getDraftKindLabel, getDraftWindowLabel } from '@/lib/draftDisplay';
 import { getPlayerValueConfidence } from '@/lib/playerValueConfidence';
+import { getPlayerValueFraming, PLAYER_VALUE_LANGUAGE } from '@/lib/playerValueFraming';
 import { loadStaticPlayerValueTimeline } from '@/lib/playerValueHistoryShards';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
@@ -437,6 +438,14 @@ export function PlayerDetailModal({
     ?? valueProfile?.fantasyProsSeasonValue
     ?? (valueMode === 'redraft' ? currentValue : null);
   const valueConfidence = getPlayerValueConfidence({ valueProfile, mode: valueMode });
+  const valueFraming = getPlayerValueFraming({
+    valueProfile,
+    mode: valueMode,
+    currentValue,
+    valueGain,
+    details,
+    confidence: valueConfidence,
+  });
   const valueTimeline = details?.valueTimeline || null;
   const hasReportValueTimeline = Boolean(valueTimeline && valueTimeline.points.length >= 2);
   const shouldShowDynastyTimeline = !isRedraftValueMode && hasReportValueTimeline;
@@ -1100,10 +1109,33 @@ export function PlayerDetailModal({
                     </>
                   )}
                 </div>
-                <div className={`player-value-confidence-card player-value-confidence-card-${valueConfidence.tone}`}>
-                  <span>Value Confidence</span>
-                  <strong>{valueConfidence.label} · {valueConfidence.score}%</strong>
-                  <p>{valueConfidence.note}</p>
+                <div className={`player-value-confidence-card player-value-confidence-card-${valueFraming.tone}`}>
+                  <div className="player-value-framing-head">
+                    <span>{PLAYER_VALUE_LANGUAGE.degenRead}</span>
+                    <strong>{valueFraming.readLabel}</strong>
+                  </div>
+                  <div className="player-value-framing-metrics">
+                    <div className="player-value-framing-metric">
+                      <span>{PLAYER_VALUE_LANGUAGE.marketPrice}</span>
+                      <strong>{formatValueLens(valueFraming.marketPrice)}</strong>
+                    </div>
+                    <div className="player-value-framing-metric">
+                      <span>{PLAYER_VALUE_LANGUAGE.degenGap}</span>
+                      <strong className={valueFraming.degenGap && valueFraming.degenGap > 0 ? 'text-emerald-200' : valueFraming.degenGap && valueFraming.degenGap < 0 ? 'text-amber-200' : ''}>
+                        {valueFraming.degenGap === 0 ? '0' : formatValueDelta(valueFraming.degenGap)}
+                      </strong>
+                    </div>
+                    <div className="player-value-framing-metric">
+                      <span>{PLAYER_VALUE_LANGUAGE.confidence}</span>
+                      <strong>{valueConfidence.label} · {valueConfidence.score}%</strong>
+                    </div>
+                  </div>
+                  <p>{valueFraming.note}</p>
+                  {valueFraming.rangeLow !== null && valueFraming.rangeHigh !== null && (
+                    <em className="player-value-framing-range">
+                      Range {formatValueLens(valueFraming.rangeLow)} - {formatValueLens(valueFraming.rangeHigh)}
+                    </em>
+                  )}
                 </div>
                 {shouldShowTimelineGrid && (
                   <div className={`player-value-graph-grid ${shouldShowDynastyTimeline && shouldShowRedraftTimeline ? 'player-value-graph-grid-compare' : ''}`}>
@@ -1115,8 +1147,8 @@ export function PlayerDetailModal({
                         tileAccent={tileAccent}
                         showSourceAdmin={showAIRead}
                         leagueValueMode={valueMode}
-                        title="Dynasty Value Trend"
-                        detailTitle="Dynasty Value Timeline"
+                        title="Dynasty Market Price Trend"
+                        detailTitle="Dynasty Market Price Timeline"
                         serverTimeline={serverDynastyValueTimeline}
                         isServerHydrating={isDynastyTimelineFetching}
                       />
@@ -1137,8 +1169,8 @@ export function PlayerDetailModal({
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
                   <p className="text-center text-[0.68rem] font-bold leading-relaxed uppercase tracking-[0.16em] text-cyan-200/70">
                     {isRedraftValueMode
-                      ? 'Season rank uses current-season outlook, expert baselines, team role, and league format.'
-                      : 'Our rank score weighs dynasty market, current-season outlook, expert baselines, and team-window fit.'}
+                      ? 'Market Price uses current-season outlook, expert baselines, team role, and league format.'
+                      : 'Market Price weighs dynasty market, current-season outlook, expert baselines, and team-window fit.'}
                     {valueProfile.fantasyProsPositionRank ? ` Expert season baseline: ${valueProfile.fantasyProsPositionRank}.` : ''}
                   </p>
                 )}
@@ -2012,9 +2044,9 @@ function RedraftValueTimelinePanel({
         tileAccent={tileAccent}
         showSourceAdmin={showSourceAdmin}
         leagueValueMode="redraft"
-        title="Current Redraft Trend"
-        detailTitle="Current Redraft Timeline"
-        detailDescription="Current-season value movement from the report payload. Static redraft history shards were not available for this player."
+        title="Current Redraft Market Price Trend"
+        detailTitle="Current Redraft Market Price Timeline"
+        detailDescription="Current-season Market Price movement from the report payload. Static redraft history shards were not available for this player."
         disableStaticHydration
       />
     );
@@ -2051,9 +2083,9 @@ function RedraftValueTimelinePanel({
         tileAccent={tileAccent}
         showSourceAdmin={showSourceAdmin}
         leagueValueMode="redraft"
-        title={`${activeScope.label} Redraft Trend`}
-        detailTitle={`${activeScope.label} Redraft Timeline`}
-        detailDescription={`${activeScope.sourceLabel} redraft history with value, positional rank, high/low, and movement windows from static player shards.`}
+        title={`${activeScope.label} Redraft Market Price Trend`}
+        detailTitle={`${activeScope.label} Redraft Market Price Timeline`}
+        detailDescription={`${activeScope.sourceLabel} redraft history with Market Price, positional rank, high/low, and movement windows from static player shards.`}
         disableStaticHydration
       />
 
@@ -2332,7 +2364,7 @@ function PlayerValueTimelineDetailDialog({
             <DialogDescription className="player-value-timeline-description">
               {description || (isHydrating
                 ? 'Loading the full chart history from static value shards.'
-                : 'Blended market movement with source coverage, positional rank, all-time high/low, and situation markers.')}
+                : 'Market Price movement with source coverage, positional rank, all-time high/low, and situation markers.')}
             </DialogDescription>
           </DialogHeader>
 
@@ -2944,11 +2976,19 @@ function buildPlayerAiRead({
   const seasonRankNumber = parseRankNumber(seasonRank);
   const dynastyRankNumber = parseRankNumber(dynastyRank);
   const rankSplit = seasonRankNumber && dynastyRankNumber ? seasonRankNumber - dynastyRankNumber : null;
+  const valueConfidence = getPlayerValueConfidence({ valueProfile, mode: valueMode || 'dynasty' });
+  const valueFraming = getPlayerValueFraming({
+    valueProfile,
+    mode: valueMode || 'dynasty',
+    currentValue,
+    valueGain,
+    details,
+    confidence: valueConfidence,
+  });
   const chips: AIReadChip[] = [
     currentRank || position || 'No rank',
-    currentValue ? `Value ${formatValueLens(currentValue)}` : { label: 'No value', tone: 'warn' },
+    valueFraming.marketPrice ? `${PLAYER_VALUE_LANGUAGE.marketPrice} ${formatValueLens(valueFraming.marketPrice)}` : { label: 'No value', tone: 'warn' },
   ];
-  const valueConfidence = getPlayerValueConfidence({ valueProfile, mode: valueMode || 'dynasty' });
   const scheduleSummary = formatScheduleSummary(details?.schedule || null);
   const scheduleStreamerWeeks = formatScheduleWeekList(details?.schedule?.streamerWeeks);
   const scheduleAvoidWeeks = formatScheduleWeekList(details?.schedule?.avoidWeeks);
@@ -2983,6 +3023,16 @@ function buildPlayerAiRead({
 
   if (valueGain !== null && valueGain !== undefined) {
     chips.push(valueGain > 0 ? `Trend +${formatValueLens(valueGain)}` : valueGain < 0 ? `Trend ${formatValueLens(valueGain)}` : 'Stable trend');
+  }
+  if (valueFraming.degenGap !== null) {
+    chips.push({
+      label: `${PLAYER_VALUE_LANGUAGE.degenGap} ${valueFraming.degenGap === 0 ? '0' : formatValueDelta(valueFraming.degenGap)}`,
+      tone: valueFraming.degenGap > 0 ? 'good' : valueFraming.degenGap < 0 ? 'warn' : 'neutral',
+    });
+    chips.push({
+      label: `${PLAYER_VALUE_LANGUAGE.degenRead}: ${valueFraming.readLabel}`,
+      tone: valueFraming.tone === 'danger' ? 'warn' : valueFraming.tone,
+    });
   }
   if (age !== null && age !== undefined) chips.push(`${age} yrs`);
   if (latestNews?.title) chips.push('News attached');
@@ -3171,7 +3221,7 @@ function buildPlayerAiRead({
         : Math.min(66, valueConfidence.score + 18 + (situationValueEvidence?.confidenceBoost || 0))
     ),
     confidenceNote: [
-      valueConfidence.note,
+      valueFraming.note,
       redraftHistoryContext?.confidenceNote || null,
       cohort?.calibration?.note || null,
       cohort?.historicalComps ? `Historical comps confidence ${cohort.historicalComps.confidence}; ${cohort.historicalComps.summary}` : null,

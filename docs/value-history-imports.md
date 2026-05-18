@@ -100,7 +100,7 @@ pnpm export:value-history:sources
 
 This produces source-specific raw points from the stored snapshot columns only. It does not call provider sites.
 
-Treat both exports as baselines, not as complete provider backfills. The cached blended history is our app-owned historical value by profile. The weighted-source export preserves provider-specific columns already captured by Dynasty Degen snapshots. The higher-confidence provider path is still to backfill each weighted provider one at a time from a direct historical page, official export, licensed API, or official versioned data repository.
+Treat both exports as baselines, not as complete provider backfills. The cached blended history is our app-owned historical `Market Price` by profile. The weighted-source export preserves provider-specific columns already captured by Dynasty Degen snapshots. The higher-confidence provider path is still to backfill each weighted provider one at a time from a direct historical page, official export, licensed API, or official versioned data repository.
 
 After promotion, merge the cached blended archive as a separate import only when you want local fallback points available to derived timelines:
 

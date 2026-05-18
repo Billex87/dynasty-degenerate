@@ -151,6 +151,8 @@
 - [x] Add offline player-cohort backtesting against historical seasons to measure archetype sample size, positive rate, regression/collapse risk, median next-year movement, and failure modes; see `docs/player-season-outcome-model.md`.
 - [x] Publish compact player-cohort calibration receipts so player AI reads can cite historical sample size, failure risk, and median next-year movement without loading raw modeling rows or example players at runtime.
 - [x] Add admin-only player receipt audit diagnostics so visible/internal historical receipts, display reasons, bucket summaries, and bad-read guardrails can be reviewed before stronger AI copy ships.
+- [x] Add player-value framing language: `Market Price` for the weighted source value, `Degen Read` for the context layer, `Degen Gap` for the directional adjustment, and `Confidence` for source trust.
+- [x] Add full-rankings value confidence visibility and sorting so users can separate high-trust prices from thin market reads.
 - [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts; start from `docs/player-season-outcome-model.md`.
 - [x] Surface a short explanation trace in the UI so each player AI read can show the top reasons the model thinks a player is undervalued, overvalued, peaking, or declining, including draft-capital runway so high picks and late/undrafted profiles are judged with different opportunity patience.
 - [x] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.
@@ -718,6 +720,7 @@
 ### Player Value Timeline / Situation Delta
 - [x] Add first-pass player value timeline data to player detail payloads from stored blended value snapshots.
 - [x] Add a compact player detail graph showing stored blended value movement, latest rank, source count, and source-mix change warnings.
+- [x] Keep player value timelines anchored to historical `Market Price` movement while the `Degen Gap` layer explains context-based buy/sell pressure without replacing the weighted value.
 - [x] Add event markers to the graph for draft picks, trades, injuries, depth-chart movement, vacated-opportunity openings, and roster-room squeezes.
 - [ ] After the next production KTC/value scrape runs, verify it writes both `ktcSnapshots` and normalized `playerValueSnapshots`, including row counts, latest snapshot timestamps, and a few sample players such as Drake London and Bijan Robinson.
 - [ ] After one full seven-day window of new scrapes, re-check Weekly Momentum risers/fallers and confirm current values compare against the DB snapshot from seven days earlier, not deleted local `server/ktc-snapshots` files or stale fallback data.
