@@ -125,6 +125,7 @@
 
 - [ ] Build a historical player cohort engine that compares value, production, age, draft capital, and role across all players by position, format, and season.
 - [x] Add age/value curves so AI can tell whether a player is early, normal, or late relative to their position's typical peak and decline window.
+- [x] Add an offline player-season outcome builder from nflverse stats so production seasons can be labeled as first-season, progression, breakout, sustain, regression, collapse, or low-signal without putting raw modeling data on pages.
 - [ ] Measure production peaks and decline slopes by season, age, and game window so the readouts can flag when a player has already peaked, is peaking now, or is still climbing.
 - [x] Add a first snapshot-backed nflverse usage trend layer for targets, carries, receptions, PPR production, target share, and offense snap percentage so player/cohort reads can identify role growth or decline without live report-load calls.
 - [x] Add nflverse combine and contract context snapshots so player AI reads can distinguish size/speed archetypes and veteran investment runway from pure market value.
@@ -147,7 +148,7 @@
 - [x] Add snapshot-backed injury-history context from nflverse injury reports so player reads can separate clean availability from recurring limited/out-style report signals.
 - [ ] Add deeper historical outcome buckets such as breakout, sustain, fade, injury-cliff, and late-career rebound, then map current players into those buckets for AI reads.
 - [x] Add a first-pass player cohort signal engine with position age phases, market-vs-production deltas, current outcome buckets, confidence gating, same-position peer rows, and explanation traces without adding provider calls.
-- [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts.
+- [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts; start from `docs/player-season-outcome-model.md`.
 - [x] Surface a short explanation trace in the UI so each player AI read can show the top reasons the model thinks a player is undervalued, overvalued, peaking, or declining, including draft-capital runway so high picks and late/undrafted profiles are judged with different opportunity patience.
 - [x] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.
 - [x] Add player-cohort calibration metadata so every player AI read carries an evidence grade, confidence cap, strong-read eligibility flag, missing-signal list, and caution flags before the UI can present it as a high-confidence take.
