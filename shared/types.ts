@@ -775,7 +775,37 @@ export interface PlayerCohortProfile {
     age: number | null;
     value: number | null;
     lastSeasonPointsPerGame: number | null;
+    similarity?: number;
+    outcomeBucket?: PlayerCohortOutcomeBucket;
+    matchReasons?: string[];
+    resultSignal?: string;
   }>;
+  historicalComps?: {
+    archetype: string;
+    summary: string;
+    sampleSize: number;
+    confidence: number;
+    averageSimilarity: number | null;
+    consensusOutcome: PlayerCohortOutcomeBucket | null;
+    signals: Array<{
+      key: string;
+      label: string;
+      score: number;
+      tone: 'good' | 'info' | 'warn' | 'danger' | 'neutral';
+      detail: string;
+    }>;
+    closest: Array<{
+      playerId: string;
+      name: string;
+      age: number | null;
+      value: number | null;
+      lastSeasonPointsPerGame: number | null;
+      similarity: number;
+      outcomeBucket: PlayerCohortOutcomeBucket;
+      matchReasons: string[];
+      resultSignal: string;
+    }>;
+  };
   trace: string[];
 }
 

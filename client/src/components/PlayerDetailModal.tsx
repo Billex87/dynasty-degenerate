@@ -943,6 +943,60 @@ export function PlayerDetailModal({
               />
             )}
 
+            {!isCollegeProspect && details?.playerCohort?.historicalComps && (
+              <div className="mx-auto max-w-4xl space-y-2 rounded-lg border border-cyan-300/15 bg-slate-950/45 p-3 shadow-inner shadow-white/[0.02] sm:p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="player-modal-section-kicker text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
+                      Historical Profile Lens
+                    </p>
+                    <h4 className="mt-1 text-base font-black text-slate-100 sm:text-lg">
+                      {details.playerCohort.historicalComps.archetype}
+                    </h4>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-1.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-slate-300">
+                    <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-1 text-cyan-100">
+                      {details.playerCohort.historicalComps.sampleSize} profile sample
+                    </span>
+                    <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-1 text-emerald-100">
+                      {details.playerCohort.historicalComps.confidence}% comp confidence
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm font-semibold leading-relaxed text-slate-300">
+                  {details.playerCohort.historicalComps.summary}
+                </p>
+                {details.playerCohort.historicalComps.closest.length > 0 && (
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {details.playerCohort.historicalComps.closest.slice(0, 3).map((comp) => (
+                      <article key={comp.playerId} className="rounded-lg border border-white/10 bg-slate-900/55 p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <PlayerNameWithHeadshot
+                            playerId={comp.playerId}
+                            playerName={comp.name}
+                            position={details.playerCohort?.position}
+                          />
+                          <span className="rounded-full border border-fuchsia-300/25 bg-fuchsia-400/10 px-2 py-1 text-[0.62rem] font-black text-fuchsia-100">
+                            {comp.similarity}%
+                          </span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1.5 text-[0.62rem] font-black uppercase tracking-[0.1em] text-slate-400">
+                          <span>{comp.resultSignal}</span>
+                          {comp.value !== null && <span>{formatValueLens(comp.value)}</span>}
+                          {comp.lastSeasonPointsPerGame !== null && <span>{comp.lastSeasonPointsPerGame} PPG</span>}
+                        </div>
+                        {comp.matchReasons.length > 0 && (
+                          <p className="mt-2 text-xs font-semibold leading-snug text-slate-400">
+                            {comp.matchReasons.join(' · ')}
+                          </p>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {isCollegeProspect && prospectProfile?.summary ? (
               <div className="mx-auto max-w-xl rounded-2xl border border-cyan-300/15 bg-slate-950/45 p-3 text-center shadow-inner shadow-white/[0.02] sm:p-4">
                 <p className="text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/85">
@@ -2895,6 +2949,13 @@ function buildPlayerAiRead({
   if (scheduleAvoidWeeks) chips.push(`Avoid ${scheduleAvoidWeeks}`);
   if (cohort?.outcomeBucket) chips.push(formatCohortOutcomeLabel(cohort.outcomeBucket));
   if (cohort?.calibration) chips.push(formatCohortEvidenceLabel(cohort.calibration.evidenceGrade));
+  if (cohort?.historicalComps) {
+    chips.push({
+      label: `Comps ${cohort.historicalComps.averageSimilarity !== null ? `${cohort.historicalComps.averageSimilarity}%` : cohort.historicalComps.sampleSize}`,
+      tone: cohort.historicalComps.confidence >= 70 ? 'good' : cohort.historicalComps.confidence >= 48 ? 'info' : 'warn',
+    });
+    if (cohort.historicalComps.consensusOutcome) chips.push(formatCohortOutcomeLabel(cohort.historicalComps.consensusOutcome));
+  }
   if (situationDelta) {
     chips.push(formatSituationDeltaLabel(situationDelta.primaryLabel));
     chips.push(`Delta ${situationDelta.score}`);
@@ -2966,12 +3027,23 @@ function buildPlayerAiRead({
 
   if (cohort) {
     const cohortRead = buildCohortReadCopy(playerName, cohort);
+    const historicalRead = buildHistoricalCompReadCopy(playerName, cohort.historicalComps);
     if (cohortRead) {
       readType = cohortRead.readType || readType;
       severity = cohortRead.severity || severity;
       body = cohortRead.copy;
     } else if (draftCapital?.opportunityWindow === 'protected-runway') {
       body = `${body} ${draftCapital.note}`;
+    }
+    if (historicalRead) {
+      if (historicalRead.severity === 'good' && severity !== 'warn' && severity !== 'danger') {
+        readType = historicalRead.readType;
+        severity = 'good';
+      } else if ((historicalRead.severity === 'warn' || historicalRead.severity === 'danger') && severity !== 'danger') {
+        readType = historicalRead.readType;
+        severity = historicalRead.severity;
+      }
+      body = `${body} ${historicalRead.copy}`;
     }
   }
 
@@ -3043,6 +3115,7 @@ function buildPlayerAiRead({
       valueConfidence.note,
       redraftHistoryContext?.confidenceNote || null,
       cohort?.calibration?.note || null,
+      cohort?.historicalComps ? `Historical comps confidence ${cohort.historicalComps.confidence}; ${cohort.historicalComps.summary}` : null,
       situationDelta ? `Situation delta confidence ${situationDelta.confidence}; ${situationDelta.missingSignals.length ? `missing ${situationDelta.missingSignals.slice(0, 2).join(' and ')}` : 'first-pass inputs present'}.` : null,
     ].filter(Boolean).join(' '),
     severity,
@@ -3172,6 +3245,57 @@ function buildSituationDeltaReadCopy(
     default:
       return null;
   }
+}
+
+function buildHistoricalCompReadCopy(
+  playerName: string,
+  comps?: NonNullable<PlayerDetails['playerCohort']>['historicalComps']
+): { copy: string; readType: string; severity: 'neutral' | 'good' | 'info' | 'warn' | 'danger' } | null {
+  if (!comps) return null;
+  const closest = comps.closest.slice(0, 3);
+  const compNames = closest.length
+    ? closest.map((comp) => `${comp.name} (${comp.similarity}%)`).join(', ')
+    : null;
+  const consensus = comps.consensusOutcome ? formatCohortOutcomeLabel(comps.consensusOutcome) : null;
+  const consensusLabel = consensus ? (typeof consensus === 'string' ? consensus : consensus.label) : null;
+  const topSignal = [...comps.signals].sort((a, b) => b.score - a.score)[0] || null;
+  const riskSignal = [...comps.signals]
+    .filter((signal) => signal.tone === 'warn' || signal.tone === 'danger')
+    .sort((a, b) => b.score - a.score)[0] || null;
+  const severity: 'neutral' | 'good' | 'info' | 'warn' | 'danger' =
+    comps.consensusOutcome === 'breakout' || comps.consensusOutcome === 'market-under-production'
+      ? 'good'
+      : comps.consensusOutcome === 'fade-risk' || comps.consensusOutcome === 'injury-risk' || comps.consensusOutcome === 'market-over-production'
+      ? 'warn'
+      : comps.confidence < 42
+      ? 'warn'
+      : 'info';
+  const readType = severity === 'good'
+    ? 'Historical Edge'
+    : severity === 'warn'
+    ? 'Historical Caution'
+    : 'Historical Lens';
+  const confidenceCopy = comps.confidence >= 70
+    ? 'The comp set is strong enough to influence the read.'
+    : comps.confidence >= 48
+    ? 'The comp set is useful, but not strong enough by itself.'
+    : 'The comp set is thin, so this should only soften or cap the read.';
+  const signalCopy = topSignal
+    ? `Top historical signal is ${topSignal.label.toLowerCase()} at ${topSignal.score}.`
+    : 'No single historical signal separated.';
+  const cautionCopy = riskSignal && riskSignal.key !== topSignal?.key
+    ? ` Main caution is ${riskSignal.label.toLowerCase()} at ${riskSignal.score}.`
+    : '';
+  const compCopy = compNames
+    ? `Closest comps: ${compNames}.`
+    : 'No close same-position comps were reliable enough to display.';
+  const consensusCopy = consensusLabel ? `Consensus comp outcome: ${consensusLabel.toLowerCase()}.` : 'Consensus comp outcome is mixed.';
+
+  return {
+    readType,
+    severity,
+    copy: `${playerName}'s historical comp lens tags him as ${comps.archetype.toLowerCase()}. ${consensusCopy} ${compCopy} ${signalCopy}${cautionCopy} ${confidenceCopy}`.replace(/\s+/g, ' ').trim(),
+  };
 }
 
 function buildCohortReadCopy(

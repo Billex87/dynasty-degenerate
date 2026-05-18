@@ -86,7 +86,193 @@ function sourceCount(details: PlayerDetails): number {
   );
 }
 
+function scoreSignal(key: string, label: string, score: number | null, detail: string, tone?: HistoricalCompSignal['tone']): HistoricalCompSignal | null {
+  if (score === null || !Number.isFinite(score)) return null;
+  const rounded = Math.round(clamp(score, 0, 100));
+  return {
+    key,
+    label,
+    score: rounded,
+    tone: tone || (rounded >= 72 ? 'good' : rounded >= 48 ? 'info' : rounded >= 28 ? 'warn' : 'danger'),
+    detail,
+  };
+}
+
+function getUsageScore(details: PlayerDetails, position: string): number | null {
+  const usage = details.usageTrend;
+  if (!usage) return null;
+  const targetShare = usage.avgTargetShare !== null && usage.avgTargetShare !== undefined ? usage.avgTargetShare * 100 : null;
+  const snapPct = usage.avgOffenseSnapPct !== null && usage.avgOffenseSnapPct !== undefined ? usage.avgOffenseSnapPct * 100 : null;
+  const ppg = usage.fantasyPointsPprPerGame;
+  const wopr = usage.wopr !== null && usage.wopr !== undefined ? usage.wopr * 100 : null;
+  const trendBoost = usage.targetTrend === 'up' || usage.carryTrend === 'up'
+    ? 8
+    : usage.targetTrend === 'down' || usage.carryTrend === 'down'
+    ? -8
+    : 0;
+
+  if (position === 'RB') {
+    const carryWork = clamp((usage.carries / Math.max(1, usage.games)) * 9, 0, 52);
+    const receivingWork = clamp((usage.receptions / Math.max(1, usage.games)) * 10, 0, 30);
+    return Math.round(clamp(carryWork + receivingWork + (ppg || 0) * 1.8 + trendBoost, 0, 100));
+  }
+
+  if (position === 'QB') {
+    const rushWork = clamp((usage.carries / Math.max(1, usage.games)) * 8, 0, 32);
+    return Math.round(clamp((ppg || 0) * 3 + rushWork + trendBoost, 0, 100));
+  }
+
+  const receivingScore = [
+    targetShare !== null ? targetShare * 2.1 : null,
+    snapPct !== null ? snapPct * 0.24 : null,
+    wopr !== null ? wopr * 0.42 : null,
+    ppg !== null && ppg !== undefined ? ppg * (position === 'TE' ? 4.2 : 3.2) : null,
+  ].filter((value): value is number => value !== null && Number.isFinite(value));
+
+  if (!receivingScore.length) return null;
+  return Math.round(clamp(receivingScore.reduce((sum, value) => sum + value, 0) + trendBoost, 0, 100));
+}
+
+function getOpportunityScore(details: PlayerDetails): number | null {
+  const room = details.rosterRoom;
+  if (!room) return null;
+  const delta = room.opportunityDelta;
+  const base = room.competitionLevel === 'thin'
+    ? 62
+    : room.competitionLevel === 'crowded'
+    ? 38
+    : 50;
+  const deltaScore = delta
+    ? clamp(50 + delta.netOpportunityScore * 0.42 + (delta.incumbentPromotionScore || 0) * 0.35, 0, 100)
+    : base;
+  const qualityBoost = delta?.qualitySignal === 'major-opening'
+    ? 18
+    : delta?.qualitySignal === 'minor-opening'
+    ? 9
+    : delta?.qualitySignal === 'major-squeeze'
+    ? -18
+    : delta?.qualitySignal === 'squeeze'
+    ? -9
+    : 0;
+  return Math.round(clamp((deltaScore + base) / 2 + qualityBoost, 0, 100));
+}
+
+function getTeamFitScore(details: PlayerDetails, position: string): number | null {
+  const env = details.teamEnvironment;
+  if (!env) return null;
+  const passRate = env.nonGarbagePassRate ?? env.neutralScriptPassRate ?? env.passRate;
+  const pace = env.paceRank ? clamp(38 - env.paceRank, 0, 32) : 14;
+  if (position === 'QB' || position === 'WR' || position === 'TE') {
+    const passScore = passRate !== null && passRate !== undefined ? clamp((passRate - 0.46) * 210, 0, 60) : 30;
+    return Math.round(clamp(24 + passScore + pace, 0, 100));
+  }
+  const rushRate = env.rushRate ?? (passRate !== null && passRate !== undefined ? 1 - passRate : null);
+  const rushScore = rushRate !== null && rushRate !== undefined ? clamp((rushRate - 0.34) * 220, 0, 58) : 28;
+  const redZoneRush = env.redZoneRushRate !== null && env.redZoneRushRate !== undefined ? clamp((env.redZoneRushRate - 0.36) * 95, 0, 24) : 10;
+  return Math.round(clamp(22 + rushScore + redZoneRush + pace * 0.55, 0, 100));
+}
+
+function getInjuryRiskScore(details: PlayerDetails): number | null {
+  const history = details.injuryHistory;
+  const avgMissed = numeric(details.avgGamesMissed);
+  if (!history && avgMissed === null) return null;
+  const reportPressure = history ? clamp(history.missedOrLimitedCount * 8, 0, 62) : 0;
+  const missedPressure = avgMissed !== null ? clamp(avgMissed * 11, 0, 56) : 0;
+  return Math.round(clamp(Math.max(reportPressure, missedPressure), 0, 100));
+}
+
+function getProspectScore(details: PlayerDetails, draftCapital: PlayerCohortDraftCapital): number | null {
+  const prospect = details.prospectProfile;
+  const rating = numeric(prospect?.rating);
+  const overallRank = numeric(prospect?.overallRank ?? prospect?.averageOverallRank ?? prospect?.fantasyProsDevyRank);
+  const positionRankText = prospect?.fantasyProsDevyPositionRank || (prospect?.positionRank ? `${prospect.position}${prospect.positionRank}` : null);
+  const positionRank = positionRankText ? Number(String(positionRankText).replace(/^[A-Z]+/i, '')) : null;
+  const pieces = [
+    rating !== null ? clamp(rating, 0, 100) : null,
+    overallRank !== null ? clamp(100 - overallRank, 0, 100) : null,
+    positionRank !== null && Number.isFinite(positionRank) ? clamp(92 - positionRank * 8, 0, 100) : null,
+    draftCapital.patienceScore,
+  ].filter((value): value is number => value !== null && Number.isFinite(value));
+  if (!pieces.length) return null;
+  return Math.round(pieces.reduce((sum, value) => sum + value, 0) / pieces.length);
+}
+
+function getAthleticScore(details: PlayerDetails, position: string): number | null {
+  const athletic = details.athleticProfile;
+  if (!athletic) return null;
+  const speedScore = numeric(athletic.speedScore);
+  const forty = numeric(athletic.forty);
+  const vertical = numeric(athletic.vertical);
+  const broad = numeric(athletic.broadJump);
+  const pieces = [
+    speedScore !== null ? clamp((speedScore - 78) * 2.7, 0, 100) : null,
+    forty !== null
+      ? position === 'QB'
+        ? clamp((5.05 - forty) * 75, 0, 100)
+        : clamp((4.85 - forty) * 145, 0, 100)
+      : null,
+    vertical !== null ? clamp((vertical - 25) * 6.1, 0, 100) : null,
+    broad !== null ? clamp((broad - 100) * 3.8, 0, 100) : null,
+  ].filter((value): value is number => value !== null && Number.isFinite(value));
+  if (!pieces.length) return null;
+  return Math.round(pieces.reduce((sum, value) => sum + value, 0) / pieces.length);
+}
+
+function getValueMomentumScore(details: PlayerDetails): number | null {
+  const deltaPct = numeric(details.valueTimeline?.summary?.deltaPct);
+  if (deltaPct === null) return null;
+  return Math.round(clamp(50 + deltaPct * 1.35, 0, 100));
+}
+
+function buildFeatureVector(input: {
+  details: PlayerDetails;
+  age: number | null;
+  value: number | null;
+  productionScore: number | null;
+  marketProductionDelta: number | null;
+  draftCapital: PlayerCohortDraftCapital;
+  position: string;
+}): CohortFeatureVector {
+  return {
+    age: input.age,
+    valueScore: getMarketScore(input.value),
+    productionScore: input.productionScore,
+    marketProductionDelta: input.marketProductionDelta,
+    draftPatience: input.draftCapital.patienceScore,
+    usageScore: getUsageScore(input.details, input.position),
+    opportunityScore: getOpportunityScore(input.details),
+    teamFitScore: getTeamFitScore(input.details, input.position),
+    injuryRiskScore: getInjuryRiskScore(input.details),
+    prospectScore: getProspectScore(input.details, input.draftCapital),
+    athleticScore: getAthleticScore(input.details, input.position),
+    valueMomentumScore: getValueMomentumScore(input.details),
+  };
+}
+
 type PlayerCohortCalibration = PlayerCohortProfile['calibration'];
+type HistoricalCompSignal = NonNullable<PlayerCohortProfile['historicalComps']>['signals'][number];
+
+type CohortFeatureVector = {
+  age: number | null;
+  valueScore: number | null;
+  productionScore: number | null;
+  marketProductionDelta: number | null;
+  draftPatience: number | null;
+  usageScore: number | null;
+  opportunityScore: number | null;
+  teamFitScore: number | null;
+  injuryRiskScore: number | null;
+  prospectScore: number | null;
+  athleticScore: number | null;
+  valueMomentumScore: number | null;
+};
+
+type BaseProfileRow = {
+  playerId: string;
+  details: PlayerDetails;
+  features: CohortFeatureVector;
+  profile: PlayerCohortProfile;
+};
 
 function playerNameKey(name: unknown): string {
   return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -216,6 +402,172 @@ function getRawConfidence(details: PlayerDetails, productionScore: number | null
     0,
     100,
   ));
+}
+
+function featureSimilarity(a: number | null, b: number | null, maxDistance: number): number | null {
+  if (a === null || b === null || !Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return clamp(1 - Math.abs(a - b) / maxDistance, 0, 1);
+}
+
+function getSimilarityScore(a: CohortFeatureVector, b: CohortFeatureVector): { score: number; usedWeight: number } {
+  const weighted = [
+    { value: featureSimilarity(a.age, b.age, 7), weight: 1.1 },
+    { value: featureSimilarity(a.valueScore, b.valueScore, 42), weight: 1.2 },
+    { value: featureSimilarity(a.productionScore, b.productionScore, 38), weight: 1.15 },
+    { value: featureSimilarity(a.marketProductionDelta, b.marketProductionDelta, 48), weight: 0.9 },
+    { value: featureSimilarity(a.draftPatience, b.draftPatience, 48), weight: 0.9 },
+    { value: featureSimilarity(a.usageScore, b.usageScore, 42), weight: 1.2 },
+    { value: featureSimilarity(a.opportunityScore, b.opportunityScore, 48), weight: 1.2 },
+    { value: featureSimilarity(a.teamFitScore, b.teamFitScore, 42), weight: 0.7 },
+    { value: featureSimilarity(a.injuryRiskScore, b.injuryRiskScore, 52), weight: 0.65 },
+    { value: featureSimilarity(a.prospectScore, b.prospectScore, 44), weight: 0.8 },
+    { value: featureSimilarity(a.athleticScore, b.athleticScore, 44), weight: 0.55 },
+    { value: featureSimilarity(a.valueMomentumScore, b.valueMomentumScore, 54), weight: 0.75 },
+  ];
+  const usable = weighted.filter((item): item is { value: number; weight: number } => item.value !== null);
+  if (!usable.length) return { score: 0, usedWeight: 0 };
+  const totalWeight = usable.reduce((sum, item) => sum + item.weight, 0);
+  const score = usable.reduce((sum, item) => sum + item.value * item.weight, 0) / totalWeight;
+  return {
+    score: Math.round(clamp(score * 100, 0, 100)),
+    usedWeight: Math.round(totalWeight * 10) / 10,
+  };
+}
+
+function closeEnough(a: number | null, b: number | null, maxDistance: number): boolean {
+  if (a === null || b === null) return false;
+  return Math.abs(a - b) <= maxDistance;
+}
+
+function buildMatchReasons(row: BaseProfileRow, candidate: BaseProfileRow): string[] {
+  const reasons: string[] = [];
+  if (row.profile.agePhase === candidate.profile.agePhase && row.profile.agePhase !== 'unknown') reasons.push(`same ${row.profile.agePhase} age phase`);
+  if (closeEnough(row.features.valueScore, candidate.features.valueScore, 12)) reasons.push('similar market tier');
+  if (closeEnough(row.features.productionScore, candidate.features.productionScore, 12)) reasons.push('similar production baseline');
+  if (closeEnough(row.features.usageScore, candidate.features.usageScore, 14)) reasons.push('similar usage shape');
+  if (closeEnough(row.features.opportunityScore, candidate.features.opportunityScore, 16)) reasons.push('similar opportunity window');
+  if (row.profile.draftCapital.tier === candidate.profile.draftCapital.tier && row.profile.draftCapital.tier !== 'unknown') reasons.push(`${row.profile.draftCapital.tier} draft-capital match`);
+  if (closeEnough(row.features.prospectScore, candidate.features.prospectScore, 14)) reasons.push('similar prospect/buzz signal');
+  if (closeEnough(row.features.athleticScore, candidate.features.athleticScore, 16)) reasons.push('similar athletic profile');
+  if (closeEnough(row.features.valueMomentumScore, candidate.features.valueMomentumScore, 16)) reasons.push('similar value momentum');
+  return reasons.slice(0, 6);
+}
+
+function resultSignalFor(profile: PlayerCohortProfile): string {
+  switch (profile.outcomeBucket) {
+    case 'breakout':
+      return 'Riser-style profile';
+    case 'market-under-production':
+      return 'Production outran price';
+    case 'market-over-production':
+      return 'Price outran production';
+    case 'fade-risk':
+      return 'Fade-risk profile';
+    case 'injury-risk':
+      return 'Availability-tax profile';
+    case 'sustain':
+      return 'Hold/sustain profile';
+    default:
+      return 'Thin-signal comp';
+  }
+}
+
+function dominantOutcome(comps: Array<{ outcomeBucket: PlayerCohortOutcomeBucket }>): PlayerCohortOutcomeBucket | null {
+  if (!comps.length) return null;
+  const counts = new Map<PlayerCohortOutcomeBucket, number>();
+  comps.forEach((comp) => counts.set(comp.outcomeBucket, (counts.get(comp.outcomeBucket) || 0) + 1));
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+
+function buildArchetype(row: BaseProfileRow): string {
+  const { profile, features, details } = row;
+  const phase = profile.agePhase === 'unknown' ? '' : `${profile.agePhase.replace('-', ' ')} `;
+  if (profile.outcomeBucket === 'breakout' && (features.opportunityScore || 0) >= 62) return `${phase}${profile.position} opportunity riser`;
+  if (profile.outcomeBucket === 'breakout') return `${phase}${profile.position} growth profile`;
+  if (profile.outcomeBucket === 'market-over-production') return `${profile.position} market heat check`;
+  if (profile.outcomeBucket === 'market-under-production') return `${profile.position} production discount`;
+  if (profile.outcomeBucket === 'fade-risk') return `${profile.position} curve-risk veteran`;
+  if (profile.outcomeBucket === 'injury-risk') return `${profile.position} availability-tax profile`;
+  if ((features.prospectScore || 0) >= 72 || details.prospectProfile?.rating) return `${profile.position} prospect-backed runway`;
+  if ((features.teamFitScore || 0) >= 72) return `${profile.position} environment boost`;
+  return `${phase}${profile.position} sustain profile`.trim();
+}
+
+function buildHistoricalSignals(row: BaseProfileRow): HistoricalCompSignal[] {
+  const details = row.details;
+  const features = row.features;
+  return [
+    scoreSignal('value', 'Market Value', features.valueScore, row.profile.value !== null ? `Current blended value ${row.profile.value}.` : 'No blended value available.'),
+    scoreSignal('production', 'Production Baseline', features.productionScore, row.profile.lastSeasonPointsPerGame !== null ? `${row.profile.lastSeasonPointsPerGame} PPG in the latest completed season.` : 'No latest-season production baseline.'),
+    scoreSignal('usage', 'Usage Shape', features.usageScore, details.usageTrend?.note || 'No usage trend snapshot.', features.usageScore !== null && features.usageScore >= 68 ? 'good' : undefined),
+    scoreSignal('opportunity', 'Opportunity Math', features.opportunityScore, details.rosterRoom?.opportunityDelta?.note || details.rosterRoom?.note || 'No roster-room delta snapshot.'),
+    scoreSignal('runway', 'Draft Runway', features.draftPatience, row.profile.draftCapital.note, row.profile.draftCapital.opportunityWindow === 'protected-runway' ? 'good' : row.profile.draftCapital.opportunityWindow === 'short-leash' ? 'warn' : undefined),
+    scoreSignal('prospect', 'Buzz / Devy Prior', features.prospectScore, details.prospectProfile?.rating ? `Draft Buzz/prospect rating ${details.prospectProfile.rating}.` : 'Prospect prior from draft capital and profile data.'),
+    scoreSignal('athletic', 'Athletic Fit', features.athleticScore, details.athleticProfile?.note || 'No combine profile attached.'),
+    scoreSignal('team', 'Team Environment', features.teamFitScore, details.teamEnvironment?.note || 'No team environment snapshot.'),
+    scoreSignal('momentum', 'Value Momentum', features.valueMomentumScore, details.valueTimeline?.summary?.note || 'No value timeline movement available.'),
+    scoreSignal('risk', 'Availability Risk', features.injuryRiskScore, details.injuryHistory?.note || (details.avgGamesMissed !== null && details.avgGamesMissed !== undefined ? `${details.avgGamesMissed} average missed games.` : 'No injury risk signal.'), features.injuryRiskScore !== null && features.injuryRiskScore >= 55 ? 'warn' : 'info'),
+  ].filter((signal): signal is HistoricalCompSignal => Boolean(signal));
+}
+
+function buildHistoricalComps(row: BaseProfileRow, baseProfiles: BaseProfileRow[], peerLimit: number): NonNullable<PlayerCohortProfile['historicalComps']> {
+  const sample = baseProfiles.filter((candidate) => candidate.playerId !== row.playerId && candidate.profile.position === row.profile.position);
+  const scored = sample
+    .map((candidate) => ({
+      candidate,
+      ...getSimilarityScore(row.features, candidate.features),
+    }))
+    .filter((item) => item.usedWeight >= 2.4)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(3, peerLimit));
+  const closest = scored.map(({ candidate, score }) => ({
+    playerId: candidate.playerId,
+    name: candidate.profile.name,
+    age: candidate.profile.age,
+    value: candidate.profile.value,
+    lastSeasonPointsPerGame: candidate.profile.lastSeasonPointsPerGame,
+    similarity: score,
+    outcomeBucket: candidate.profile.outcomeBucket,
+    matchReasons: buildMatchReasons(row, candidate),
+    resultSignal: resultSignalFor(candidate.profile),
+  }));
+  const averageSimilarity = closest.length
+    ? Math.round(closest.reduce((sum, comp) => sum + comp.similarity, 0) / closest.length)
+    : null;
+  const consensusOutcome = dominantOutcome(closest);
+  const signals = buildHistoricalSignals(row);
+  const strongestSignal = [...signals].sort((a, b) => b.score - a.score)[0] || null;
+  const riskSignal = [...signals].filter((signal) => signal.tone === 'warn' || signal.tone === 'danger').sort((a, b) => b.score - a.score)[0] || null;
+  const confidence = Math.round(clamp(
+    28
+    + Math.min(30, sample.length * 5)
+    + (averageSimilarity !== null ? averageSimilarity * 0.28 : 0)
+    + Math.min(18, signals.length * 2)
+    - (row.profile.calibration.evidenceGrade === 'blocked' ? 24 : row.profile.calibration.evidenceGrade === 'thin' ? 10 : 0),
+    0,
+    row.profile.calibration.confidenceCap,
+  ));
+  const archetype = buildArchetype(row);
+  const compText = closest.length
+    ? `Closest stored comps average ${averageSimilarity}% similarity across ${sample.length} same-position profiles; consensus outcome is ${consensusOutcome || 'mixed'}.`
+    : `No reliable same-position comp sample was available, so this read leans on direct player signals instead of peer history.`;
+  const signalText = strongestSignal
+    ? `Top signal is ${strongestSignal.label.toLowerCase()} (${strongestSignal.score}).`
+    : 'No top signal separated from the sample.';
+  const riskText = riskSignal && riskSignal.key !== strongestSignal?.key
+    ? ` Main caution is ${riskSignal.label.toLowerCase()} (${riskSignal.score}).`
+    : '';
+
+  return {
+    archetype,
+    summary: `${archetype}: ${compText} ${signalText}${riskText}`.replace(/\s+/g, ' ').trim(),
+    sampleSize: sample.length,
+    confidence,
+    averageSimilarity,
+    consensusOutcome,
+    signals,
+    closest,
+  };
 }
 
 function buildCalibration(input: {
@@ -348,7 +700,7 @@ export function buildPlayerCohortProfiles(input: {
   const mode = input.mode || 'dynasty';
   const peerLimit = Math.max(0, Math.min(12, Math.floor(input.peerLimit ?? 5)));
   const baseProfiles = Object.entries(input.playerDetailsById || {})
-    .map(([playerId, details]) => {
+    .map(([playerId, details]): BaseProfileRow | null => {
       const position = String(details.position || '').toUpperCase();
       if (!AGE_CURVES[position]) return null;
       const age = numeric(details.age);
@@ -385,10 +737,20 @@ export function buildPlayerCohortProfiles(input: {
         getRawConfidence(details, productionScore, marketScore, draftCapital),
         calibration.confidenceCap
       );
+      const features = buildFeatureVector({
+        details,
+        age,
+        value,
+        productionScore,
+        marketProductionDelta,
+        draftCapital,
+        position,
+      });
 
       return {
         playerId,
         details,
+        features,
         profile: {
           playerId,
           name: details.fullName || playerId,
@@ -405,15 +767,19 @@ export function buildPlayerCohortProfiles(input: {
           calibration,
           draftCapital,
           peers: [],
+          historicalComps: undefined,
           trace: [] as string[],
         },
       };
     })
-    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+    .filter((row): row is BaseProfileRow => Boolean(row));
 
   const profilesById: Record<string, PlayerCohortProfile> = {};
   for (const row of baseProfiles) {
-    const peers = baseProfiles
+    const historicalComps = buildHistoricalComps(row, baseProfiles, peerLimit);
+    const peers = historicalComps.closest.length
+      ? historicalComps.closest
+      : baseProfiles
       .filter((candidate) => candidate.playerId !== row.playerId && candidate.profile.position === row.profile.position)
       .map((candidate) => ({
         candidate,
@@ -434,16 +800,23 @@ export function buildPlayerCohortProfiles(input: {
     profilesById[row.playerId] = {
       ...row.profile,
       peers,
-      trace: buildTrace({
-        details: row.details,
-        value: row.profile.value,
-        agePhase: row.profile.agePhase,
-        productionScore: row.profile.productionScore,
-        marketProductionDelta: row.profile.marketProductionDelta,
-        outcomeBucket: row.profile.outcomeBucket,
-        draftCapital: row.profile.draftCapital,
-        calibration: row.profile.calibration,
-      }),
+      historicalComps,
+      trace: [
+        ...buildTrace({
+          details: row.details,
+          value: row.profile.value,
+          agePhase: row.profile.agePhase,
+          productionScore: row.profile.productionScore,
+          marketProductionDelta: row.profile.marketProductionDelta,
+          outcomeBucket: row.profile.outcomeBucket,
+          draftCapital: row.profile.draftCapital,
+          calibration: row.profile.calibration,
+        }),
+        `Historical comps: ${historicalComps.summary}`,
+        historicalComps.closest.length
+          ? `Closest comps: ${historicalComps.closest.slice(0, 3).map((comp) => `${comp.name} (${comp.similarity}%, ${comp.resultSignal})`).join('; ')}.`
+          : 'Closest comps are unavailable.',
+      ],
     };
   }
 

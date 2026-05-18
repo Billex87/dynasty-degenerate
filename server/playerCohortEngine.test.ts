@@ -164,6 +164,18 @@ describe('player cohort engine', () => {
     expect(profiles.wr1.confidence).toBeGreaterThanOrEqual(70);
     expect(profiles.wr1.trace.join(' ')).toContain('Strong read eligible');
     expect(profiles.wr1.trace.join(' ')).toContain('Opportunity math: BUF WR net opportunity major-opening');
+    expect(profiles.wr1.historicalComps).toMatchObject({
+      archetype: 'early WR opportunity riser',
+      sampleSize: 1,
+      consensusOutcome: 'sustain',
+    });
+    expect(profiles.wr1.historicalComps?.closest[0]).toMatchObject({
+      playerId: 'wr2',
+      name: 'Prime Peer',
+      resultSignal: 'Hold/sustain profile',
+    });
+    expect(profiles.wr1.historicalComps?.signals.map((signal) => signal.label)).toContain('Opportunity Math');
+    expect(profiles.wr1.trace.join(' ')).toContain('Historical comps: early WR opportunity riser');
     expect(profiles.rb1.outcomeBucket).toBe('injury-risk');
   });
 
@@ -284,5 +296,92 @@ describe('player cohort engine', () => {
     expect(profiles.te1.confidence).toBeLessThanOrEqual(profiles.te1.calibration.confidenceCap);
     expect(profiles.te1.trace).toContain('Primary value is unavailable.');
     expect(profiles.te1.trace).toContain('Production score is unavailable.');
+  });
+
+  it('uses prospect buzz and athletic context when matching younger profiles', () => {
+    const profiles = buildPlayerCohortProfiles({
+      playerDetailsById: {
+        rbA: player({
+          fullName: 'Explosive Rookie Back',
+          position: 'RB',
+          age: 22,
+          nflDraftRound: 1,
+          nflDraftPick: 24,
+          yearsExp: 1,
+          lastSeasonPointsPerGame: 9.4,
+          lastSeasonGames: 10,
+          valueProfile: {
+            dynastyValue: 3700,
+            marketKtc: 3650,
+            fantasyCalcDynasty: 3800,
+            sources: ['KTC', 'FantasyCalc'],
+          },
+          prospectProfile: {
+            source: 'NFL Draft Buzz',
+            name: 'Explosive Rookie Back',
+            position: 'RB',
+            rating: 89,
+            overallRank: 18,
+            positionRank: 2,
+            draftYear: 2025,
+          },
+          athleticProfile: {
+            source: 'nflverse combine',
+            draftYear: 2025,
+            forty: 4.39,
+            vertical: 39,
+            broadJump: 128,
+            speedScore: 112,
+            note: 'Combine profile loaded with 112 speed score.',
+          },
+        }),
+        rbB: player({
+          fullName: 'Similar Rookie Back',
+          position: 'RB',
+          age: 22,
+          nflDraftRound: 1,
+          nflDraftPick: 29,
+          yearsExp: 1,
+          lastSeasonPointsPerGame: 8.9,
+          lastSeasonGames: 11,
+          valueProfile: {
+            dynastyValue: 3550,
+            marketKtc: 3500,
+            fantasyCalcDynasty: 3600,
+            sources: ['KTC', 'FantasyCalc'],
+          },
+          prospectProfile: {
+            source: 'NFL Draft Buzz',
+            name: 'Similar Rookie Back',
+            position: 'RB',
+            rating: 87,
+            overallRank: 21,
+            positionRank: 3,
+            draftYear: 2025,
+          },
+          athleticProfile: {
+            source: 'nflverse combine',
+            draftYear: 2025,
+            forty: 4.42,
+            vertical: 38,
+            broadJump: 126,
+            speedScore: 109,
+            note: 'Combine profile loaded with 109 speed score.',
+          },
+        }),
+      },
+    });
+
+    const comp = profiles.rbA.historicalComps?.closest[0];
+    expect(comp).toMatchObject({
+      playerId: 'rbB',
+      name: 'Similar Rookie Back',
+    });
+    expect(comp?.matchReasons).toContain('similar prospect/buzz signal');
+    expect(comp?.matchReasons).toContain('similar athletic profile');
+    expect(profiles.rbA.historicalComps?.signals.map((signal) => signal.label)).toEqual(
+      expect.arrayContaining(['Buzz / Devy Prior', 'Athletic Fit'])
+    );
+    expect(profiles.rbA.trace.join(' ')).toContain('Historical comps: RB market heat check');
   });
 });
