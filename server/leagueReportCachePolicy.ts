@@ -1,5 +1,5 @@
-const DEFAULT_CACHE_TTL_HOURS = 12;
-const DEFAULT_FILE_CACHE_MAX_FILES = 50;
+const DEFAULT_CACHE_TTL_HOURS = 72;
+const DEFAULT_FILE_CACHE_MAX_FILES = 250;
 
 function readPositiveNumber(value: string | undefined, fallback: number): number {
   const parsed = Number.parseFloat(value || '');

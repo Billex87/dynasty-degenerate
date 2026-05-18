@@ -25,8 +25,8 @@
 - [x] Add a dry-run stale `leagueReportCache` cleanup command that keeps current report/rankings cache versions, prints only row metadata and payload size, and requires explicit confirmation before deletion.
 - [x] Run `pnpm cleanup:league-report-cache` against production, review the stale cache rows, and delete approved stale cache rows.
 - [x] Run one-off source-health history backfill with `ENABLE_SOURCE_HEALTH_BACKFILL=true` after production cached reports exist; production scan found no eligible cached-report diagnostics to backfill.
-- [x] Add and run an expired `leagueReportCache` cleanup mode for rows older than the 12-hour serving TTL.
-- [x] Align browser report cache with the 12-hour server cache and avoid the extra `league.rankings` request when the loaded report already includes rankings.
+- [x] Add and run an expired `leagueReportCache` cleanup mode for rows older than the serving TTL.
+- [x] Align browser report cache with the server cache and avoid the extra `league.rankings` request when the loaded report already includes rankings.
 - [x] Switch interactive value/ranking generation to latest stored source snapshots so normal report/ranking/rank lookup loads do not call KTC, FantasyCalc, DynastyProcess, Flock, DynastyNerds, FantasyNerds, FantasyPros dynasty/devy, or redraft ranking providers.
 - [x] Move remaining non-Sleeper report enrichments to provider snapshots: FantasyPros news, ESPN depth charts, and DraftSharks/SOS now refresh through dynamic-data jobs and read stored snapshots during user-triggered report/player-detail loads.
 - [x] Move static Sleeper season stats and historical availability reads to persisted nightly snapshots so normal report loads only live-check current league state, transactions, drafts, trends, matchups, and player index changes.

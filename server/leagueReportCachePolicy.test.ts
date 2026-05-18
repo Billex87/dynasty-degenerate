@@ -8,9 +8,10 @@ import {
 } from './leagueReportCachePolicy';
 
 describe('league report cache policy', () => {
-  it('uses the 12 hour serving TTL by default', () => {
-    expect(getLeagueReportCacheTtlHours({} as NodeJS.ProcessEnv)).toBe(12);
-    expect(getLeagueReportCacheTtlMs({} as NodeJS.ProcessEnv)).toBe(12 * 60 * 60 * 1000);
+  it('uses the 72 hour serving TTL by default', () => {
+    expect(getLeagueReportCacheTtlHours({} as NodeJS.ProcessEnv)).toBe(72);
+    expect(getLeagueReportCacheTtlMs({} as NodeJS.ProcessEnv)).toBe(72 * 60 * 60 * 1000);
+    expect(getLeagueReportFileCacheMaxFiles({} as NodeJS.ProcessEnv)).toBe(250);
   });
 
   it('allows explicit TTL and file-retention tuning', () => {
