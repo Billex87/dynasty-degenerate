@@ -11,3 +11,11 @@ pnpm analyze:redraft-draft-network --username <sleeper-username> --depth 2 --com
 ```
 
 Before committing a refreshed baseline, remove seed user identifiers from the `.cache` output and keep only the aggregate payload.
+
+Build the smaller app-facing rules file from the sanitized baseline with:
+
+```bash
+pnpm build:redraft-strategy-rules
+```
+
+`redraft-strategy-rules-v1.json` is the fast Draft Coach input. The larger baseline stays as the evidence layer for recalibration.

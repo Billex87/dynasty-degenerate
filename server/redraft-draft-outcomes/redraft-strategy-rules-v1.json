@@ -1,0 +1,4748 @@
+{
+  "rulesVersion": "redraft-strategy-rules-v1",
+  "generatedAt": "2026-05-18T04:02:35.916Z",
+  "sourceCorpusId": "redraft-draft-outcomes-v2-baseline-2026-05-18",
+  "sourceGeneratedAt": "2026-05-18T03:56:40.056Z",
+  "sourceDataVersion": "redraft-draft-outcomes-v2",
+  "privacy": "derived_from_sanitized_aggregate_counts_only",
+  "thresholds": {
+    "minPublicRuleSample": 20,
+    "confidenceLevels": {
+      "strong": "At least 150 leagues plus a clear top lean.",
+      "medium": "At least 100 leagues plus a useful top lean or separation.",
+      "directional": "At least 50 leagues, usable as a soft prior.",
+      "thin": "At least 20 leagues, show only with caution.",
+      "research_only": "Below public-rule threshold."
+    }
+  },
+  "corpusSummary": {
+    "eligibleLeagueCount": 1487,
+    "formatBucketCount": 85,
+    "retainedRuleCount": 13,
+    "seasons": [
+      "2022",
+      "2023",
+      "2024",
+      "2025"
+    ],
+    "draftTypes": [
+      "auction",
+      "linear",
+      "snake"
+    ]
+  },
+  "rules": [
+    {
+      "formatBucket": "12_team_ppr_sf_tep",
+      "format": {
+        "teamCount": 12,
+        "scoring": "team",
+        "qbFormat": "superflex",
+        "tightEndPremium": true
+      },
+      "sampleSize": 329,
+      "confidence": "directional",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "QB",
+            "count": 120,
+            "share": 0.3647
+          },
+          {
+            "key": "RB",
+            "count": 107,
+            "share": 0.3252
+          },
+          {
+            "key": "WR",
+            "count": 79,
+            "share": 0.2401
+          },
+          {
+            "key": "TE",
+            "count": 23,
+            "share": 0.0699
+          }
+        ],
+        "notes": [
+          "Prioritize elite QB access early when the tier is available."
+        ]
+      },
+      "avoidNotes": [],
+      "topStrategies": [
+        {
+          "key": "elite QB early",
+          "count": 108,
+          "share": 0.3283
+        },
+        {
+          "key": "zero RB",
+          "count": 57,
+          "share": 0.1733
+        },
+        {
+          "key": "RB-RB",
+          "count": 45,
+          "share": 0.1368
+        },
+        {
+          "key": "hero RB",
+          "count": 33,
+          "share": 0.1003
+        },
+        {
+          "key": "WR-WR",
+          "count": 29,
+          "share": 0.0881
+        },
+        {
+          "key": "other",
+          "count": 20,
+          "share": 0.0608
+        },
+        {
+          "key": "early TE",
+          "count": 19,
+          "share": 0.0578
+        },
+        {
+          "key": "balanced",
+          "count": 18,
+          "share": 0.0547
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "RB-RB",
+            "count": 45,
+            "share": 0.1368
+          },
+          {
+            "key": "RB-WR",
+            "count": 40,
+            "share": 0.1216
+          },
+          {
+            "key": "QB-WR",
+            "count": 36,
+            "share": 0.1094
+          },
+          {
+            "key": "QB-QB",
+            "count": 33,
+            "share": 0.1003
+          },
+          {
+            "key": "QB-RB",
+            "count": 30,
+            "share": 0.0912
+          },
+          {
+            "key": "WR-WR",
+            "count": 29,
+            "share": 0.0881
+          },
+          {
+            "key": "WR-RB",
+            "count": 27,
+            "share": 0.0821
+          },
+          {
+            "key": "QB-TE",
+            "count": 21,
+            "share": 0.0638
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "QB-WR-RB",
+            "count": 19,
+            "share": 0.0578
+          },
+          {
+            "key": "RB-RB-RB",
+            "count": 19,
+            "share": 0.0578
+          },
+          {
+            "key": "RB-WR-WR",
+            "count": 18,
+            "share": 0.0547
+          },
+          {
+            "key": "QB-QB-WR",
+            "count": 14,
+            "share": 0.0426
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 14,
+            "share": 0.0426
+          },
+          {
+            "key": "RB-WR-RB",
+            "count": 13,
+            "share": 0.0395
+          },
+          {
+            "key": "QB-QB-RB",
+            "count": 12,
+            "share": 0.0365
+          },
+          {
+            "key": "WR-RB-RB",
+            "count": 12,
+            "share": 0.0365
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "QB-RB-WR-RB",
+            "count": 7,
+            "share": 0.0213
+          },
+          {
+            "key": "QB-WR-RB-RB",
+            "count": 7,
+            "share": 0.0213
+          },
+          {
+            "key": "RB-RB-RB-QB",
+            "count": 7,
+            "share": 0.0213
+          },
+          {
+            "key": "RB-WR-RB-RB",
+            "count": 7,
+            "share": 0.0213
+          },
+          {
+            "key": "RB-WR-WR-WR",
+            "count": 7,
+            "share": 0.0213
+          },
+          {
+            "key": "WR-RB-RB-QB",
+            "count": 7,
+            "share": 0.0213
+          },
+          {
+            "key": "WR-WR-RB-QB",
+            "count": 7,
+            "share": 0.0213
+          },
+          {
+            "key": "QB-QB-WR-WR",
+            "count": 6,
+            "share": 0.0182
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 119,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 50,
+              "share": 0.4202
+            },
+            {
+              "key": "zero RB",
+              "count": 22,
+              "share": 0.1849
+            },
+            {
+              "key": "RB-RB",
+              "count": 13,
+              "share": 0.1092
+            },
+            {
+              "key": "hero RB",
+              "count": 11,
+              "share": 0.0924
+            }
+          ],
+          "note": "early slots most often produced elite QB early builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 108,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 32,
+              "share": 0.2963
+            },
+            {
+              "key": "zero RB",
+              "count": 17,
+              "share": 0.1574
+            },
+            {
+              "key": "RB-RB",
+              "count": 15,
+              "share": 0.1389
+            },
+            {
+              "key": "WR-WR",
+              "count": 13,
+              "share": 0.1204
+            }
+          ],
+          "note": "middle slots most often produced elite QB early builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 102,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 26,
+              "share": 0.2549
+            },
+            {
+              "key": "zero RB",
+              "count": 18,
+              "share": 0.1765
+            },
+            {
+              "key": "RB-RB",
+              "count": 17,
+              "share": 0.1667
+            },
+            {
+              "key": "hero RB",
+              "count": 12,
+              "share": 0.1176
+            }
+          ],
+          "note": "late slots most often produced elite QB early builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "QB",
+            "count": 121,
+            "share": 0.3678
+          },
+          {
+            "key": "RB",
+            "count": 112,
+            "share": 0.3404
+          },
+          {
+            "key": "WR",
+            "count": 74,
+            "share": 0.2249
+          },
+          {
+            "key": "TE",
+            "count": 22,
+            "share": 0.0669
+          }
+        ],
+        "strategies": [
+          {
+            "key": "elite QB early",
+            "count": 122,
+            "share": 0.3708
+          },
+          {
+            "key": "zero RB",
+            "count": 48,
+            "share": 0.1459
+          },
+          {
+            "key": "RB-RB",
+            "count": 39,
+            "share": 0.1185
+          },
+          {
+            "key": "hero RB",
+            "count": 28,
+            "share": 0.0851
+          },
+          {
+            "key": "early TE",
+            "count": 25,
+            "share": 0.076
+          },
+          {
+            "key": "WR-WR",
+            "count": 24,
+            "share": 0.0729
+          },
+          {
+            "key": "other",
+            "count": 22,
+            "share": 0.0669
+          },
+          {
+            "key": "balanced",
+            "count": 21,
+            "share": 0.0638
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 242,
+            "share": 0.7356
+          },
+          {
+            "key": "different",
+            "count": 87,
+            "share": 0.2644
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "12_team_ppr_1qb_base",
+      "format": {
+        "teamCount": 12,
+        "scoring": "team",
+        "qbFormat": "one_qb",
+        "tightEndPremium": false
+      },
+      "sampleSize": 236,
+      "confidence": "strong",
+      "recommendationStrength": "strong",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "RB",
+            "count": 130,
+            "share": 0.5508
+          },
+          {
+            "key": "WR",
+            "count": 101,
+            "share": 0.428
+          },
+          {
+            "key": "TE",
+            "count": 3,
+            "share": 0.0127
+          },
+          {
+            "key": "QB",
+            "count": 2,
+            "share": 0.0085
+          }
+        ],
+        "notes": [
+          "Avoid QB in the first round unless the room is extremely unusual.",
+          "The first-round build should usually start with RB or WR."
+        ]
+      },
+      "avoidNotes": [
+        "Do not let 1QB rankings pull a quarterback into Round 1.",
+        "Do not chase tight end early unless the board clearly falls into an elite tier.",
+        "Zero RB exists in the sample, but it is not the default path for this format."
+      ],
+      "topStrategies": [
+        {
+          "key": "RB-RB",
+          "count": 56,
+          "share": 0.2373
+        },
+        {
+          "key": "balanced",
+          "count": 42,
+          "share": 0.178
+        },
+        {
+          "key": "elite QB early",
+          "count": 31,
+          "share": 0.1314
+        },
+        {
+          "key": "hero RB",
+          "count": 31,
+          "share": 0.1314
+        },
+        {
+          "key": "WR-WR",
+          "count": 31,
+          "share": 0.1314
+        },
+        {
+          "key": "other",
+          "count": 24,
+          "share": 0.1017
+        },
+        {
+          "key": "early TE",
+          "count": 19,
+          "share": 0.0805
+        },
+        {
+          "key": "zero RB",
+          "count": 2,
+          "share": 0.0085
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "RB-RB",
+            "count": 56,
+            "share": 0.2373
+          },
+          {
+            "key": "RB-WR",
+            "count": 56,
+            "share": 0.2373
+          },
+          {
+            "key": "WR-RB",
+            "count": 55,
+            "share": 0.2331
+          },
+          {
+            "key": "WR-WR",
+            "count": 31,
+            "share": 0.1314
+          },
+          {
+            "key": "RB-TE",
+            "count": 12,
+            "share": 0.0508
+          },
+          {
+            "key": "WR-QB",
+            "count": 10,
+            "share": 0.0424
+          },
+          {
+            "key": "RB-QB",
+            "count": 6,
+            "share": 0.0254
+          },
+          {
+            "key": "WR-TE",
+            "count": 5,
+            "share": 0.0212
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "RB-RB-WR",
+            "count": 30,
+            "share": 0.1271
+          },
+          {
+            "key": "RB-WR-WR",
+            "count": 22,
+            "share": 0.0932
+          },
+          {
+            "key": "WR-RB-WR",
+            "count": 20,
+            "share": 0.0847
+          },
+          {
+            "key": "RB-WR-RB",
+            "count": 18,
+            "share": 0.0763
+          },
+          {
+            "key": "WR-RB-RB",
+            "count": 18,
+            "share": 0.0763
+          },
+          {
+            "key": "RB-RB-RB",
+            "count": 12,
+            "share": 0.0508
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 12,
+            "share": 0.0508
+          },
+          {
+            "key": "WR-WR-WR",
+            "count": 12,
+            "share": 0.0508
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "RB-RB-WR-WR",
+            "count": 21,
+            "share": 0.089
+          },
+          {
+            "key": "RB-WR-RB-WR",
+            "count": 13,
+            "share": 0.0551
+          },
+          {
+            "key": "WR-RB-RB-WR",
+            "count": 12,
+            "share": 0.0508
+          },
+          {
+            "key": "RB-RB-RB-WR",
+            "count": 10,
+            "share": 0.0424
+          },
+          {
+            "key": "RB-WR-WR-RB",
+            "count": 10,
+            "share": 0.0424
+          },
+          {
+            "key": "WR-WR-WR-RB",
+            "count": 8,
+            "share": 0.0339
+          },
+          {
+            "key": "RB-RB-QB-WR",
+            "count": 7,
+            "share": 0.0297
+          },
+          {
+            "key": "WR-RB-WR-RB",
+            "count": 7,
+            "share": 0.0297
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 88,
+          "topStrategies": [
+            {
+              "key": "RB-RB",
+              "count": 25,
+              "share": 0.2841
+            },
+            {
+              "key": "balanced",
+              "count": 17,
+              "share": 0.1932
+            },
+            {
+              "key": "elite QB early",
+              "count": 12,
+              "share": 0.1364
+            },
+            {
+              "key": "hero RB",
+              "count": 12,
+              "share": 0.1364
+            }
+          ],
+          "note": "early slots most often produced RB-RB builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 84,
+          "topStrategies": [
+            {
+              "key": "RB-RB",
+              "count": 21,
+              "share": 0.25
+            },
+            {
+              "key": "WR-WR",
+              "count": 18,
+              "share": 0.2143
+            },
+            {
+              "key": "balanced",
+              "count": 13,
+              "share": 0.1548
+            },
+            {
+              "key": "elite QB early",
+              "count": 10,
+              "share": 0.119
+            }
+          ],
+          "note": "middle slots most often produced RB-RB builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 64,
+          "topStrategies": [
+            {
+              "key": "balanced",
+              "count": 12,
+              "share": 0.1875
+            },
+            {
+              "key": "hero RB",
+              "count": 10,
+              "share": 0.1563
+            },
+            {
+              "key": "RB-RB",
+              "count": 10,
+              "share": 0.1563
+            },
+            {
+              "key": "elite QB early",
+              "count": 9,
+              "share": 0.1406
+            }
+          ],
+          "note": "late slots most often produced balanced builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "RB",
+            "count": 138,
+            "share": 0.5847
+          },
+          {
+            "key": "WR",
+            "count": 89,
+            "share": 0.3771
+          },
+          {
+            "key": "QB",
+            "count": 6,
+            "share": 0.0254
+          },
+          {
+            "key": "TE",
+            "count": 3,
+            "share": 0.0127
+          }
+        ],
+        "strategies": [
+          {
+            "key": "RB-RB",
+            "count": 72,
+            "share": 0.3051
+          },
+          {
+            "key": "hero RB",
+            "count": 33,
+            "share": 0.1398
+          },
+          {
+            "key": "balanced",
+            "count": 32,
+            "share": 0.1356
+          },
+          {
+            "key": "other",
+            "count": 30,
+            "share": 0.1271
+          },
+          {
+            "key": "WR-WR",
+            "count": 28,
+            "share": 0.1186
+          },
+          {
+            "key": "elite QB early",
+            "count": 22,
+            "share": 0.0932
+          },
+          {
+            "key": "early TE",
+            "count": 16,
+            "share": 0.0678
+          },
+          {
+            "key": "zero RB",
+            "count": 3,
+            "share": 0.0127
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 154,
+            "share": 0.6525
+          },
+          {
+            "key": "different",
+            "count": 82,
+            "share": 0.3475
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "10_team_ppr_sf_tep",
+      "format": {
+        "teamCount": 10,
+        "scoring": "team",
+        "qbFormat": "superflex",
+        "tightEndPremium": true
+      },
+      "sampleSize": 193,
+      "confidence": "directional",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "RB",
+            "count": 65,
+            "share": 0.3368
+          },
+          {
+            "key": "QB",
+            "count": 59,
+            "share": 0.3057
+          },
+          {
+            "key": "WR",
+            "count": 54,
+            "share": 0.2798
+          },
+          {
+            "key": "TE",
+            "count": 15,
+            "share": 0.0777
+          }
+        ],
+        "notes": [
+          "Prioritize elite QB access early when the tier is available."
+        ]
+      },
+      "avoidNotes": [],
+      "topStrategies": [
+        {
+          "key": "elite QB early",
+          "count": 64,
+          "share": 0.3316
+        },
+        {
+          "key": "RB-RB",
+          "count": 34,
+          "share": 0.1762
+        },
+        {
+          "key": "WR-WR",
+          "count": 20,
+          "share": 0.1036
+        },
+        {
+          "key": "zero RB",
+          "count": 19,
+          "share": 0.0984
+        },
+        {
+          "key": "other",
+          "count": 18,
+          "share": 0.0933
+        },
+        {
+          "key": "early TE",
+          "count": 14,
+          "share": 0.0725
+        },
+        {
+          "key": "balanced",
+          "count": 13,
+          "share": 0.0674
+        },
+        {
+          "key": "hero RB",
+          "count": 11,
+          "share": 0.057
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "RB-RB",
+            "count": 34,
+            "share": 0.1762
+          },
+          {
+            "key": "WR-RB",
+            "count": 24,
+            "share": 0.1244
+          },
+          {
+            "key": "QB-RB",
+            "count": 22,
+            "share": 0.114
+          },
+          {
+            "key": "WR-WR",
+            "count": 20,
+            "share": 0.1036
+          },
+          {
+            "key": "QB-WR",
+            "count": 19,
+            "share": 0.0984
+          },
+          {
+            "key": "RB-WR",
+            "count": 18,
+            "share": 0.0933
+          },
+          {
+            "key": "QB-QB",
+            "count": 10,
+            "share": 0.0518
+          },
+          {
+            "key": "RB-QB",
+            "count": 10,
+            "share": 0.0518
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "RB-RB-RB",
+            "count": 17,
+            "share": 0.0881
+          },
+          {
+            "key": "WR-RB-RB",
+            "count": 12,
+            "share": 0.0622
+          },
+          {
+            "key": "RB-WR-RB",
+            "count": 11,
+            "share": 0.057
+          },
+          {
+            "key": "QB-RB-WR",
+            "count": 10,
+            "share": 0.0518
+          },
+          {
+            "key": "QB-RB-RB",
+            "count": 9,
+            "share": 0.0466
+          },
+          {
+            "key": "RB-RB-WR",
+            "count": 9,
+            "share": 0.0466
+          },
+          {
+            "key": "QB-WR-WR",
+            "count": 8,
+            "share": 0.0415
+          },
+          {
+            "key": "WR-RB-WR",
+            "count": 8,
+            "share": 0.0415
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "RB-RB-RB-RB",
+            "count": 9,
+            "share": 0.0466
+          },
+          {
+            "key": "WR-RB-WR-WR",
+            "count": 7,
+            "share": 0.0363
+          },
+          {
+            "key": "QB-RB-WR-RB",
+            "count": 6,
+            "share": 0.0311
+          },
+          {
+            "key": "RB-RB-RB-WR",
+            "count": 6,
+            "share": 0.0311
+          },
+          {
+            "key": "RB-WR-RB-WR",
+            "count": 6,
+            "share": 0.0311
+          },
+          {
+            "key": "WR-RB-RB-WR",
+            "count": 6,
+            "share": 0.0311
+          },
+          {
+            "key": "QB-WR-RB-RB",
+            "count": 5,
+            "share": 0.0259
+          },
+          {
+            "key": "RB-RB-TE-RB",
+            "count": 4,
+            "share": 0.0207
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 67,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 20,
+              "share": 0.2985
+            },
+            {
+              "key": "other",
+              "count": 12,
+              "share": 0.1791
+            },
+            {
+              "key": "WR-WR",
+              "count": 10,
+              "share": 0.1493
+            },
+            {
+              "key": "RB-RB",
+              "count": 7,
+              "share": 0.1045
+            }
+          ],
+          "note": "early slots most often produced elite QB early builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 57,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 21,
+              "share": 0.3684
+            },
+            {
+              "key": "RB-RB",
+              "count": 12,
+              "share": 0.2105
+            },
+            {
+              "key": "zero RB",
+              "count": 6,
+              "share": 0.1053
+            },
+            {
+              "key": "WR-WR",
+              "count": 5,
+              "share": 0.0877
+            }
+          ],
+          "note": "middle slots most often produced elite QB early builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 69,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 23,
+              "share": 0.3333
+            },
+            {
+              "key": "RB-RB",
+              "count": 15,
+              "share": 0.2174
+            },
+            {
+              "key": "zero RB",
+              "count": 8,
+              "share": 0.1159
+            },
+            {
+              "key": "early TE",
+              "count": 5,
+              "share": 0.0725
+            }
+          ],
+          "note": "late slots most often produced elite QB early builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "QB",
+            "count": 74,
+            "share": 0.3834
+          },
+          {
+            "key": "RB",
+            "count": 71,
+            "share": 0.3679
+          },
+          {
+            "key": "WR",
+            "count": 38,
+            "share": 0.1969
+          },
+          {
+            "key": "TE",
+            "count": 10,
+            "share": 0.0518
+          }
+        ],
+        "strategies": [
+          {
+            "key": "elite QB early",
+            "count": 79,
+            "share": 0.4093
+          },
+          {
+            "key": "RB-RB",
+            "count": 38,
+            "share": 0.1969
+          },
+          {
+            "key": "zero RB",
+            "count": 18,
+            "share": 0.0933
+          },
+          {
+            "key": "WR-WR",
+            "count": 15,
+            "share": 0.0777
+          },
+          {
+            "key": "balanced",
+            "count": 12,
+            "share": 0.0622
+          },
+          {
+            "key": "other",
+            "count": 12,
+            "share": 0.0622
+          },
+          {
+            "key": "hero RB",
+            "count": 11,
+            "share": 0.057
+          },
+          {
+            "key": "early TE",
+            "count": 8,
+            "share": 0.0415
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 118,
+            "share": 0.6114
+          },
+          {
+            "key": "different",
+            "count": 75,
+            "share": 0.3886
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "10_team_ppr_1qb_base",
+      "format": {
+        "teamCount": 10,
+        "scoring": "team",
+        "qbFormat": "one_qb",
+        "tightEndPremium": false
+      },
+      "sampleSize": 100,
+      "confidence": "medium",
+      "recommendationStrength": "medium",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "RB",
+            "count": 56,
+            "share": 0.56
+          },
+          {
+            "key": "WR",
+            "count": 39,
+            "share": 0.39
+          },
+          {
+            "key": "TE",
+            "count": 4,
+            "share": 0.04
+          },
+          {
+            "key": "QB",
+            "count": 1,
+            "share": 0.01
+          }
+        ],
+        "notes": [
+          "Avoid QB in the first round unless the room is extremely unusual.",
+          "The first-round build should usually start with RB or WR."
+        ]
+      },
+      "avoidNotes": [
+        "Do not let 1QB rankings pull a quarterback into Round 1.",
+        "Do not chase tight end early unless the board clearly falls into an elite tier.",
+        "Zero RB exists in the sample, but it is not the default path for this format."
+      ],
+      "topStrategies": [
+        {
+          "key": "RB-RB",
+          "count": 30,
+          "share": 0.3
+        },
+        {
+          "key": "other",
+          "count": 17,
+          "share": 0.17
+        },
+        {
+          "key": "balanced",
+          "count": 15,
+          "share": 0.15
+        },
+        {
+          "key": "WR-WR",
+          "count": 13,
+          "share": 0.13
+        },
+        {
+          "key": "early TE",
+          "count": 12,
+          "share": 0.12
+        },
+        {
+          "key": "elite QB early",
+          "count": 7,
+          "share": 0.07
+        },
+        {
+          "key": "hero RB",
+          "count": 4,
+          "share": 0.04
+        },
+        {
+          "key": "zero RB",
+          "count": 2,
+          "share": 0.02
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "RB-RB",
+            "count": 30,
+            "share": 0.3
+          },
+          {
+            "key": "WR-RB",
+            "count": 22,
+            "share": 0.22
+          },
+          {
+            "key": "RB-WR",
+            "count": 21,
+            "share": 0.21
+          },
+          {
+            "key": "WR-WR",
+            "count": 13,
+            "share": 0.13
+          },
+          {
+            "key": "RB-QB",
+            "count": 3,
+            "share": 0.03
+          },
+          {
+            "key": "WR-QB",
+            "count": 3,
+            "share": 0.03
+          },
+          {
+            "key": "RB-TE",
+            "count": 2,
+            "share": 0.02
+          },
+          {
+            "key": "TE-WR",
+            "count": 2,
+            "share": 0.02
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "RB-RB-WR",
+            "count": 18,
+            "share": 0.18
+          },
+          {
+            "key": "RB-WR-RB",
+            "count": 11,
+            "share": 0.11
+          },
+          {
+            "key": "WR-RB-WR",
+            "count": 9,
+            "share": 0.09
+          },
+          {
+            "key": "RB-RB-RB",
+            "count": 8,
+            "share": 0.08
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 8,
+            "share": 0.08
+          },
+          {
+            "key": "RB-WR-WR",
+            "count": 7,
+            "share": 0.07
+          },
+          {
+            "key": "WR-RB-RB",
+            "count": 7,
+            "share": 0.07
+          },
+          {
+            "key": "RB-RB-TE",
+            "count": 4,
+            "share": 0.04
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "RB-RB-WR-WR",
+            "count": 9,
+            "share": 0.09
+          },
+          {
+            "key": "RB-WR-RB-WR",
+            "count": 6,
+            "share": 0.06
+          },
+          {
+            "key": "RB-RB-RB-WR",
+            "count": 5,
+            "share": 0.05
+          },
+          {
+            "key": "RB-WR-WR-RB",
+            "count": 5,
+            "share": 0.05
+          },
+          {
+            "key": "WR-WR-RB-WR",
+            "count": 5,
+            "share": 0.05
+          },
+          {
+            "key": "RB-RB-WR-QB",
+            "count": 4,
+            "share": 0.04
+          },
+          {
+            "key": "WR-RB-WR-QB",
+            "count": 4,
+            "share": 0.04
+          },
+          {
+            "key": "RB-RB-TE-WR",
+            "count": 3,
+            "share": 0.03
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 34,
+          "topStrategies": [
+            {
+              "key": "RB-RB",
+              "count": 15,
+              "share": 0.4412
+            },
+            {
+              "key": "balanced",
+              "count": 5,
+              "share": 0.1471
+            },
+            {
+              "key": "early TE",
+              "count": 5,
+              "share": 0.1471
+            },
+            {
+              "key": "other",
+              "count": 3,
+              "share": 0.0882
+            }
+          ],
+          "note": "early slots most often produced RB-RB builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 28,
+          "topStrategies": [
+            {
+              "key": "other",
+              "count": 7,
+              "share": 0.25
+            },
+            {
+              "key": "WR-WR",
+              "count": 6,
+              "share": 0.2143
+            },
+            {
+              "key": "balanced",
+              "count": 4,
+              "share": 0.1429
+            },
+            {
+              "key": "elite QB early",
+              "count": 4,
+              "share": 0.1429
+            }
+          ],
+          "note": "middle slots most often produced other builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 38,
+          "topStrategies": [
+            {
+              "key": "RB-RB",
+              "count": 12,
+              "share": 0.3158
+            },
+            {
+              "key": "other",
+              "count": 7,
+              "share": 0.1842
+            },
+            {
+              "key": "balanced",
+              "count": 6,
+              "share": 0.1579
+            },
+            {
+              "key": "WR-WR",
+              "count": 5,
+              "share": 0.1316
+            }
+          ],
+          "note": "late slots most often produced RB-RB builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "RB",
+            "count": 50,
+            "share": 0.5
+          },
+          {
+            "key": "WR",
+            "count": 49,
+            "share": 0.49
+          },
+          {
+            "key": "TE",
+            "count": 1,
+            "share": 0.01
+          }
+        ],
+        "strategies": [
+          {
+            "key": "other",
+            "count": 21,
+            "share": 0.21
+          },
+          {
+            "key": "RB-RB",
+            "count": 21,
+            "share": 0.21
+          },
+          {
+            "key": "WR-WR",
+            "count": 17,
+            "share": 0.17
+          },
+          {
+            "key": "balanced",
+            "count": 14,
+            "share": 0.14
+          },
+          {
+            "key": "early TE",
+            "count": 11,
+            "share": 0.11
+          },
+          {
+            "key": "hero RB",
+            "count": 9,
+            "share": 0.09
+          },
+          {
+            "key": "elite QB early",
+            "count": 7,
+            "share": 0.07
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 60,
+            "share": 0.6
+          },
+          {
+            "key": "different",
+            "count": 40,
+            "share": 0.4
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "8_team_ppr_sf_tep",
+      "format": {
+        "teamCount": 8,
+        "scoring": "team",
+        "qbFormat": "superflex",
+        "tightEndPremium": true
+      },
+      "sampleSize": 71,
+      "confidence": "directional",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "RB",
+            "count": 31,
+            "share": 0.4366
+          },
+          {
+            "key": "TE",
+            "count": 14,
+            "share": 0.1972
+          },
+          {
+            "key": "WR",
+            "count": 14,
+            "share": 0.1972
+          },
+          {
+            "key": "QB",
+            "count": 11,
+            "share": 0.1549
+          },
+          {
+            "key": "DEF",
+            "count": 1,
+            "share": 0.0141
+          }
+        ],
+        "notes": [
+          "Keep QB in the early mix, but do not force it over clear RB/WR value.",
+          "Elite TE is viable, but only when the player is a true tier separator."
+        ]
+      },
+      "avoidNotes": [
+        "Zero RB exists in the sample, but it is not the default path for this format."
+      ],
+      "topStrategies": [
+        {
+          "key": "early TE",
+          "count": 18,
+          "share": 0.2535
+        },
+        {
+          "key": "RB-RB",
+          "count": 14,
+          "share": 0.1972
+        },
+        {
+          "key": "elite QB early",
+          "count": 13,
+          "share": 0.1831
+        },
+        {
+          "key": "other",
+          "count": 7,
+          "share": 0.0986
+        },
+        {
+          "key": "balanced",
+          "count": 6,
+          "share": 0.0845
+        },
+        {
+          "key": "WR-WR",
+          "count": 6,
+          "share": 0.0845
+        },
+        {
+          "key": "zero RB",
+          "count": 4,
+          "share": 0.0563
+        },
+        {
+          "key": "hero RB",
+          "count": 3,
+          "share": 0.0423
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "RB-RB",
+            "count": 14,
+            "share": 0.1972
+          },
+          {
+            "key": "RB-WR",
+            "count": 13,
+            "share": 0.1831
+          },
+          {
+            "key": "TE-WR",
+            "count": 7,
+            "share": 0.0986
+          },
+          {
+            "key": "TE-RB",
+            "count": 6,
+            "share": 0.0845
+          },
+          {
+            "key": "WR-WR",
+            "count": 6,
+            "share": 0.0845
+          },
+          {
+            "key": "QB-QB",
+            "count": 4,
+            "share": 0.0563
+          },
+          {
+            "key": "QB-RB",
+            "count": 4,
+            "share": 0.0563
+          },
+          {
+            "key": "WR-RB",
+            "count": 4,
+            "share": 0.0563
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "RB-RB-RB",
+            "count": 6,
+            "share": 0.0845
+          },
+          {
+            "key": "RB-WR-RB",
+            "count": 6,
+            "share": 0.0845
+          },
+          {
+            "key": "RB-RB-WR",
+            "count": 5,
+            "share": 0.0704
+          },
+          {
+            "key": "RB-WR-WR",
+            "count": 5,
+            "share": 0.0704
+          },
+          {
+            "key": "QB-QB-RB",
+            "count": 4,
+            "share": 0.0563
+          },
+          {
+            "key": "TE-RB-RB",
+            "count": 4,
+            "share": 0.0563
+          },
+          {
+            "key": "TE-WR-RB",
+            "count": 3,
+            "share": 0.0423
+          },
+          {
+            "key": "TE-WR-WR",
+            "count": 3,
+            "share": 0.0423
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "QB-QB-RB-RB",
+            "count": 3,
+            "share": 0.0423
+          },
+          {
+            "key": "RB-RB-RB-WR",
+            "count": 3,
+            "share": 0.0423
+          },
+          {
+            "key": "RB-WR-WR-RB",
+            "count": 3,
+            "share": 0.0423
+          },
+          {
+            "key": "TE-WR-WR-RB",
+            "count": 3,
+            "share": 0.0423
+          },
+          {
+            "key": "RB-RB-RB-RB",
+            "count": 2,
+            "share": 0.0282
+          },
+          {
+            "key": "RB-RB-WR-RB",
+            "count": 2,
+            "share": 0.0282
+          },
+          {
+            "key": "RB-RB-WR-WR",
+            "count": 2,
+            "share": 0.0282
+          },
+          {
+            "key": "RB-WR-RB-QB",
+            "count": 2,
+            "share": 0.0282
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 17,
+          "topStrategies": [
+            {
+              "key": "early TE",
+              "count": 5,
+              "share": 0.2941
+            },
+            {
+              "key": "balanced",
+              "count": 4,
+              "share": 0.2353
+            },
+            {
+              "key": "RB-RB",
+              "count": 3,
+              "share": 0.1765
+            },
+            {
+              "key": "WR-WR",
+              "count": 3,
+              "share": 0.1765
+            }
+          ],
+          "note": "early slots most often produced early TE builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 33,
+          "topStrategies": [
+            {
+              "key": "early TE",
+              "count": 8,
+              "share": 0.2424
+            },
+            {
+              "key": "elite QB early",
+              "count": 7,
+              "share": 0.2121
+            },
+            {
+              "key": "RB-RB",
+              "count": 7,
+              "share": 0.2121
+            },
+            {
+              "key": "other",
+              "count": 4,
+              "share": 0.1212
+            }
+          ],
+          "note": "middle slots most often produced early TE builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 21,
+          "topStrategies": [
+            {
+              "key": "early TE",
+              "count": 5,
+              "share": 0.2381
+            },
+            {
+              "key": "elite QB early",
+              "count": 5,
+              "share": 0.2381
+            },
+            {
+              "key": "RB-RB",
+              "count": 4,
+              "share": 0.1905
+            },
+            {
+              "key": "other",
+              "count": 2,
+              "share": 0.0952
+            }
+          ],
+          "note": "late slots most often produced early TE builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "RB",
+            "count": 33,
+            "share": 0.4648
+          },
+          {
+            "key": "WR",
+            "count": 14,
+            "share": 0.1972
+          },
+          {
+            "key": "QB",
+            "count": 12,
+            "share": 0.169
+          },
+          {
+            "key": "TE",
+            "count": 11,
+            "share": 0.1549
+          },
+          {
+            "key": "DEF",
+            "count": 1,
+            "share": 0.0141
+          }
+        ],
+        "strategies": [
+          {
+            "key": "elite QB early",
+            "count": 18,
+            "share": 0.2535
+          },
+          {
+            "key": "RB-RB",
+            "count": 16,
+            "share": 0.2254
+          },
+          {
+            "key": "early TE",
+            "count": 12,
+            "share": 0.169
+          },
+          {
+            "key": "other",
+            "count": 7,
+            "share": 0.0986
+          },
+          {
+            "key": "WR-WR",
+            "count": 6,
+            "share": 0.0845
+          },
+          {
+            "key": "balanced",
+            "count": 5,
+            "share": 0.0704
+          },
+          {
+            "key": "hero RB",
+            "count": 5,
+            "share": 0.0704
+          },
+          {
+            "key": "zero RB",
+            "count": 2,
+            "share": 0.0282
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 44,
+            "share": 0.6197
+          },
+          {
+            "key": "different",
+            "count": 27,
+            "share": 0.3803
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "12_team_ppr_sf_base",
+      "format": {
+        "teamCount": 12,
+        "scoring": "team",
+        "qbFormat": "superflex",
+        "tightEndPremium": false
+      },
+      "sampleSize": 70,
+      "confidence": "directional",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "QB",
+            "count": 24,
+            "share": 0.3429
+          },
+          {
+            "key": "WR",
+            "count": 24,
+            "share": 0.3429
+          },
+          {
+            "key": "RB",
+            "count": 20,
+            "share": 0.2857
+          },
+          {
+            "key": "TE",
+            "count": 2,
+            "share": 0.0286
+          }
+        ],
+        "notes": [
+          "Prioritize elite QB access early when the tier is available."
+        ]
+      },
+      "avoidNotes": [
+        "Do not chase tight end early unless the board clearly falls into an elite tier."
+      ],
+      "topStrategies": [
+        {
+          "key": "elite QB early",
+          "count": 28,
+          "share": 0.4
+        },
+        {
+          "key": "other",
+          "count": 9,
+          "share": 0.1286
+        },
+        {
+          "key": "balanced",
+          "count": 8,
+          "share": 0.1143
+        },
+        {
+          "key": "RB-RB",
+          "count": 7,
+          "share": 0.1
+        },
+        {
+          "key": "WR-WR",
+          "count": 6,
+          "share": 0.0857
+        },
+        {
+          "key": "zero RB",
+          "count": 6,
+          "share": 0.0857
+        },
+        {
+          "key": "early TE",
+          "count": 3,
+          "share": 0.0429
+        },
+        {
+          "key": "hero RB",
+          "count": 3,
+          "share": 0.0429
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "QB-WR",
+            "count": 12,
+            "share": 0.1714
+          },
+          {
+            "key": "WR-RB",
+            "count": 11,
+            "share": 0.1571
+          },
+          {
+            "key": "RB-WR",
+            "count": 9,
+            "share": 0.1286
+          },
+          {
+            "key": "QB-RB",
+            "count": 7,
+            "share": 0.1
+          },
+          {
+            "key": "RB-RB",
+            "count": 7,
+            "share": 0.1
+          },
+          {
+            "key": "WR-QB",
+            "count": 6,
+            "share": 0.0857
+          },
+          {
+            "key": "WR-WR",
+            "count": 6,
+            "share": 0.0857
+          },
+          {
+            "key": "RB-QB",
+            "count": 4,
+            "share": 0.0571
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "RB-WR-RB",
+            "count": 6,
+            "share": 0.0857
+          },
+          {
+            "key": "WR-RB-WR",
+            "count": 6,
+            "share": 0.0857
+          },
+          {
+            "key": "QB-WR-RB",
+            "count": 5,
+            "share": 0.0714
+          },
+          {
+            "key": "QB-WR-WR",
+            "count": 4,
+            "share": 0.0571
+          },
+          {
+            "key": "QB-RB-RB",
+            "count": 3,
+            "share": 0.0429
+          },
+          {
+            "key": "QB-RB-WR",
+            "count": 3,
+            "share": 0.0429
+          },
+          {
+            "key": "RB-RB-QB",
+            "count": 3,
+            "share": 0.0429
+          },
+          {
+            "key": "RB-RB-WR",
+            "count": 3,
+            "share": 0.0429
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "QB-WR-WR-RB",
+            "count": 3,
+            "share": 0.0429
+          },
+          {
+            "key": "RB-WR-RB-WR",
+            "count": 3,
+            "share": 0.0429
+          },
+          {
+            "key": "WR-WR-RB-WR",
+            "count": 3,
+            "share": 0.0429
+          },
+          {
+            "key": "QB-RB-RB-WR",
+            "count": 2,
+            "share": 0.0286
+          },
+          {
+            "key": "QB-RB-WR-TE",
+            "count": 2,
+            "share": 0.0286
+          },
+          {
+            "key": "QB-WR-RB-WR",
+            "count": 2,
+            "share": 0.0286
+          },
+          {
+            "key": "RB-RB-QB-WR",
+            "count": 2,
+            "share": 0.0286
+          },
+          {
+            "key": "RB-WR-RB-RB",
+            "count": 2,
+            "share": 0.0286
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 21,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 9,
+              "share": 0.4286
+            },
+            {
+              "key": "hero RB",
+              "count": 3,
+              "share": 0.1429
+            },
+            {
+              "key": "other",
+              "count": 3,
+              "share": 0.1429
+            },
+            {
+              "key": "early TE",
+              "count": 2,
+              "share": 0.0952
+            }
+          ],
+          "note": "early slots most often produced elite QB early builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 33,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 14,
+              "share": 0.4242
+            },
+            {
+              "key": "other",
+              "count": 5,
+              "share": 0.1515
+            },
+            {
+              "key": "RB-RB",
+              "count": 5,
+              "share": 0.1515
+            },
+            {
+              "key": "balanced",
+              "count": 4,
+              "share": 0.1212
+            }
+          ],
+          "note": "middle slots most often produced elite QB early builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 16,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 5,
+              "share": 0.3125
+            },
+            {
+              "key": "WR-WR",
+              "count": 4,
+              "share": 0.25
+            },
+            {
+              "key": "balanced",
+              "count": 3,
+              "share": 0.1875
+            },
+            {
+              "key": "zero RB",
+              "count": 2,
+              "share": 0.125
+            }
+          ],
+          "note": "late slots most often produced elite QB early builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "QB",
+            "count": 23,
+            "share": 0.3286
+          },
+          {
+            "key": "WR",
+            "count": 23,
+            "share": 0.3286
+          },
+          {
+            "key": "RB",
+            "count": 22,
+            "share": 0.3143
+          },
+          {
+            "key": "TE",
+            "count": 2,
+            "share": 0.0286
+          }
+        ],
+        "strategies": [
+          {
+            "key": "elite QB early",
+            "count": 32,
+            "share": 0.4571
+          },
+          {
+            "key": "other",
+            "count": 9,
+            "share": 0.1286
+          },
+          {
+            "key": "RB-RB",
+            "count": 7,
+            "share": 0.1
+          },
+          {
+            "key": "balanced",
+            "count": 6,
+            "share": 0.0857
+          },
+          {
+            "key": "zero RB",
+            "count": 6,
+            "share": 0.0857
+          },
+          {
+            "key": "hero RB",
+            "count": 5,
+            "share": 0.0714
+          },
+          {
+            "key": "WR-WR",
+            "count": 4,
+            "share": 0.0571
+          },
+          {
+            "key": "early TE",
+            "count": 1,
+            "share": 0.0143
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 47,
+            "share": 0.6714
+          },
+          {
+            "key": "different",
+            "count": 23,
+            "share": 0.3286
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "12_team_half_ppr_1qb_base",
+      "format": {
+        "teamCount": 12,
+        "scoring": "half_ppr",
+        "qbFormat": "one_qb",
+        "tightEndPremium": false
+      },
+      "sampleSize": 69,
+      "confidence": "directional",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "RB",
+            "count": 41,
+            "share": 0.5942
+          },
+          {
+            "key": "WR",
+            "count": 26,
+            "share": 0.3768
+          },
+          {
+            "key": "TE",
+            "count": 2,
+            "share": 0.029
+          }
+        ],
+        "notes": [
+          "Avoid QB in the first round unless the room is extremely unusual.",
+          "The first-round build should usually start with RB or WR."
+        ]
+      },
+      "avoidNotes": [
+        "Do not let 1QB rankings pull a quarterback into Round 1.",
+        "Do not chase tight end early unless the board clearly falls into an elite tier."
+      ],
+      "topStrategies": [
+        {
+          "key": "RB-RB",
+          "count": 14,
+          "share": 0.2029
+        },
+        {
+          "key": "hero RB",
+          "count": 13,
+          "share": 0.1884
+        },
+        {
+          "key": "balanced",
+          "count": 11,
+          "share": 0.1594
+        },
+        {
+          "key": "other",
+          "count": 9,
+          "share": 0.1304
+        },
+        {
+          "key": "WR-WR",
+          "count": 9,
+          "share": 0.1304
+        },
+        {
+          "key": "elite QB early",
+          "count": 8,
+          "share": 0.1159
+        },
+        {
+          "key": "early TE",
+          "count": 5,
+          "share": 0.0725
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "RB-WR",
+            "count": 24,
+            "share": 0.3478
+          },
+          {
+            "key": "RB-RB",
+            "count": 14,
+            "share": 0.2029
+          },
+          {
+            "key": "WR-RB",
+            "count": 13,
+            "share": 0.1884
+          },
+          {
+            "key": "WR-WR",
+            "count": 9,
+            "share": 0.1304
+          },
+          {
+            "key": "WR-QB",
+            "count": 3,
+            "share": 0.0435
+          },
+          {
+            "key": "RB-TE",
+            "count": 2,
+            "share": 0.029
+          },
+          {
+            "key": "TE-WR",
+            "count": 2,
+            "share": 0.029
+          },
+          {
+            "key": "RB-QB",
+            "count": 1,
+            "share": 0.0145
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "RB-WR-RB",
+            "count": 9,
+            "share": 0.1304
+          },
+          {
+            "key": "RB-WR-WR",
+            "count": 7,
+            "share": 0.1014
+          },
+          {
+            "key": "WR-RB-WR",
+            "count": 7,
+            "share": 0.1014
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 6,
+            "share": 0.087
+          },
+          {
+            "key": "RB-RB-WR",
+            "count": 5,
+            "share": 0.0725
+          },
+          {
+            "key": "RB-WR-TE",
+            "count": 5,
+            "share": 0.0725
+          },
+          {
+            "key": "RB-RB-QB",
+            "count": 4,
+            "share": 0.058
+          },
+          {
+            "key": "RB-RB-RB",
+            "count": 3,
+            "share": 0.0435
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "RB-WR-RB-WR",
+            "count": 7,
+            "share": 0.1014
+          },
+          {
+            "key": "WR-WR-RB-RB",
+            "count": 5,
+            "share": 0.0725
+          },
+          {
+            "key": "RB-RB-QB-WR",
+            "count": 4,
+            "share": 0.058
+          },
+          {
+            "key": "RB-RB-WR-WR",
+            "count": 4,
+            "share": 0.058
+          },
+          {
+            "key": "WR-RB-WR-TE",
+            "count": 4,
+            "share": 0.058
+          },
+          {
+            "key": "RB-WR-WR-QB",
+            "count": 3,
+            "share": 0.0435
+          },
+          {
+            "key": "RB-RB-RB-WR",
+            "count": 2,
+            "share": 0.029
+          },
+          {
+            "key": "RB-TE-WR-WR",
+            "count": 2,
+            "share": 0.029
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 22,
+          "topStrategies": [
+            {
+              "key": "hero RB",
+              "count": 6,
+              "share": 0.2727
+            },
+            {
+              "key": "RB-RB",
+              "count": 6,
+              "share": 0.2727
+            },
+            {
+              "key": "WR-WR",
+              "count": 3,
+              "share": 0.1364
+            },
+            {
+              "key": "early TE",
+              "count": 2,
+              "share": 0.0909
+            }
+          ],
+          "note": "early slots most often produced hero RB builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 24,
+          "topStrategies": [
+            {
+              "key": "balanced",
+              "count": 4,
+              "share": 0.1667
+            },
+            {
+              "key": "hero RB",
+              "count": 4,
+              "share": 0.1667
+            },
+            {
+              "key": "other",
+              "count": 4,
+              "share": 0.1667
+            },
+            {
+              "key": "WR-WR",
+              "count": 4,
+              "share": 0.1667
+            }
+          ],
+          "note": "middle slots most often produced balanced builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 23,
+          "topStrategies": [
+            {
+              "key": "balanced",
+              "count": 6,
+              "share": 0.2609
+            },
+            {
+              "key": "RB-RB",
+              "count": 5,
+              "share": 0.2174
+            },
+            {
+              "key": "elite QB early",
+              "count": 3,
+              "share": 0.1304
+            },
+            {
+              "key": "hero RB",
+              "count": 3,
+              "share": 0.1304
+            }
+          ],
+          "note": "late slots most often produced balanced builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "RB",
+            "count": 36,
+            "share": 0.5217
+          },
+          {
+            "key": "WR",
+            "count": 31,
+            "share": 0.4493
+          },
+          {
+            "key": "TE",
+            "count": 2,
+            "share": 0.029
+          }
+        ],
+        "strategies": [
+          {
+            "key": "hero RB",
+            "count": 12,
+            "share": 0.1739
+          },
+          {
+            "key": "RB-RB",
+            "count": 12,
+            "share": 0.1739
+          },
+          {
+            "key": "WR-WR",
+            "count": 11,
+            "share": 0.1594
+          },
+          {
+            "key": "balanced",
+            "count": 9,
+            "share": 0.1304
+          },
+          {
+            "key": "elite QB early",
+            "count": 9,
+            "share": 0.1304
+          },
+          {
+            "key": "early TE",
+            "count": 8,
+            "share": 0.1159
+          },
+          {
+            "key": "other",
+            "count": 8,
+            "share": 0.1159
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 55,
+            "share": 0.7971
+          },
+          {
+            "key": "different",
+            "count": 14,
+            "share": 0.2029
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "12_team_ppr_1qb_tep",
+      "format": {
+        "teamCount": 12,
+        "scoring": "team",
+        "qbFormat": "one_qb",
+        "tightEndPremium": true
+      },
+      "sampleSize": 43,
+      "confidence": "thin",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "RB",
+            "count": 21,
+            "share": 0.4884
+          },
+          {
+            "key": "WR",
+            "count": 18,
+            "share": 0.4186
+          },
+          {
+            "key": "TE",
+            "count": 3,
+            "share": 0.0698
+          },
+          {
+            "key": "QB",
+            "count": 1,
+            "share": 0.0233
+          }
+        ],
+        "notes": [
+          "Avoid QB in the first round unless the room is extremely unusual.",
+          "The first-round build should usually start with RB or WR."
+        ]
+      },
+      "avoidNotes": [
+        "Do not let 1QB rankings pull a quarterback into Round 1."
+      ],
+      "topStrategies": [
+        {
+          "key": "other",
+          "count": 8,
+          "share": 0.186
+        },
+        {
+          "key": "hero RB",
+          "count": 7,
+          "share": 0.1628
+        },
+        {
+          "key": "RB-RB",
+          "count": 7,
+          "share": 0.1628
+        },
+        {
+          "key": "elite QB early",
+          "count": 6,
+          "share": 0.1395
+        },
+        {
+          "key": "WR-WR",
+          "count": 6,
+          "share": 0.1395
+        },
+        {
+          "key": "early TE",
+          "count": 5,
+          "share": 0.1163
+        },
+        {
+          "key": "balanced",
+          "count": 4,
+          "share": 0.093
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "RB-WR",
+            "count": 12,
+            "share": 0.2791
+          },
+          {
+            "key": "WR-RB",
+            "count": 9,
+            "share": 0.2093
+          },
+          {
+            "key": "RB-RB",
+            "count": 7,
+            "share": 0.1628
+          },
+          {
+            "key": "WR-WR",
+            "count": 6,
+            "share": 0.1395
+          },
+          {
+            "key": "RB-TE",
+            "count": 2,
+            "share": 0.0465
+          },
+          {
+            "key": "WR-TE",
+            "count": 2,
+            "share": 0.0465
+          },
+          {
+            "key": "QB-RB",
+            "count": 1,
+            "share": 0.0233
+          },
+          {
+            "key": "TE-RB",
+            "count": 1,
+            "share": 0.0233
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "WR-RB-WR",
+            "count": 5,
+            "share": 0.1163
+          },
+          {
+            "key": "RB-RB-WR",
+            "count": 4,
+            "share": 0.093
+          },
+          {
+            "key": "RB-WR-RB",
+            "count": 4,
+            "share": 0.093
+          },
+          {
+            "key": "RB-WR-WR",
+            "count": 4,
+            "share": 0.093
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 4,
+            "share": 0.093
+          },
+          {
+            "key": "RB-RB-QB",
+            "count": 2,
+            "share": 0.0465
+          },
+          {
+            "key": "RB-WR-QB",
+            "count": 2,
+            "share": 0.0465
+          },
+          {
+            "key": "RB-WR-TE",
+            "count": 2,
+            "share": 0.0465
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "RB-RB-WR-WR",
+            "count": 3,
+            "share": 0.0698
+          },
+          {
+            "key": "WR-WR-RB-RB",
+            "count": 3,
+            "share": 0.0698
+          },
+          {
+            "key": "RB-RB-QB-WR",
+            "count": 2,
+            "share": 0.0465
+          },
+          {
+            "key": "RB-WR-RB-QB",
+            "count": 2,
+            "share": 0.0465
+          },
+          {
+            "key": "RB-WR-RB-RB",
+            "count": 2,
+            "share": 0.0465
+          },
+          {
+            "key": "RB-WR-WR-QB",
+            "count": 2,
+            "share": 0.0465
+          },
+          {
+            "key": "WR-RB-RB-WR",
+            "count": 2,
+            "share": 0.0465
+          },
+          {
+            "key": "WR-RB-WR-TE",
+            "count": 2,
+            "share": 0.0465
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 17,
+          "topStrategies": [
+            {
+              "key": "other",
+              "count": 6,
+              "share": 0.3529
+            },
+            {
+              "key": "RB-RB",
+              "count": 4,
+              "share": 0.2353
+            },
+            {
+              "key": "elite QB early",
+              "count": 2,
+              "share": 0.1176
+            },
+            {
+              "key": "hero RB",
+              "count": 2,
+              "share": 0.1176
+            }
+          ],
+          "note": "early slots most often produced other builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 13,
+          "topStrategies": [
+            {
+              "key": "early TE",
+              "count": 3,
+              "share": 0.2308
+            },
+            {
+              "key": "hero RB",
+              "count": 3,
+              "share": 0.2308
+            },
+            {
+              "key": "WR-WR",
+              "count": 3,
+              "share": 0.2308
+            },
+            {
+              "key": "elite QB early",
+              "count": 2,
+              "share": 0.1538
+            }
+          ],
+          "note": "middle slots most often produced early TE builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 13,
+          "topStrategies": [
+            {
+              "key": "balanced",
+              "count": 3,
+              "share": 0.2308
+            },
+            {
+              "key": "elite QB early",
+              "count": 2,
+              "share": 0.1538
+            },
+            {
+              "key": "hero RB",
+              "count": 2,
+              "share": 0.1538
+            },
+            {
+              "key": "other",
+              "count": 2,
+              "share": 0.1538
+            }
+          ],
+          "note": "late slots most often produced balanced builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "WR",
+            "count": 24,
+            "share": 0.5581
+          },
+          {
+            "key": "RB",
+            "count": 13,
+            "share": 0.3023
+          },
+          {
+            "key": "QB",
+            "count": 4,
+            "share": 0.093
+          },
+          {
+            "key": "TE",
+            "count": 2,
+            "share": 0.0465
+          }
+        ],
+        "strategies": [
+          {
+            "key": "WR-WR",
+            "count": 10,
+            "share": 0.2326
+          },
+          {
+            "key": "elite QB early",
+            "count": 8,
+            "share": 0.186
+          },
+          {
+            "key": "RB-RB",
+            "count": 6,
+            "share": 0.1395
+          },
+          {
+            "key": "balanced",
+            "count": 5,
+            "share": 0.1163
+          },
+          {
+            "key": "other",
+            "count": 5,
+            "share": 0.1163
+          },
+          {
+            "key": "early TE",
+            "count": 4,
+            "share": 0.093
+          },
+          {
+            "key": "hero RB",
+            "count": 4,
+            "share": 0.093
+          },
+          {
+            "key": "zero RB",
+            "count": 1,
+            "share": 0.0233
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 28,
+            "share": 0.6512
+          },
+          {
+            "key": "different",
+            "count": 15,
+            "share": 0.3488
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "14_team_ppr_1qb_base",
+      "format": {
+        "teamCount": 14,
+        "scoring": "team",
+        "qbFormat": "one_qb",
+        "tightEndPremium": false
+      },
+      "sampleSize": 28,
+      "confidence": "thin",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "RB",
+            "count": 14,
+            "share": 0.5
+          },
+          {
+            "key": "WR",
+            "count": 11,
+            "share": 0.3929
+          },
+          {
+            "key": "QB",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "TE",
+            "count": 1,
+            "share": 0.0357
+          }
+        ],
+        "notes": [
+          "The first-round build should usually start with RB or WR."
+        ]
+      },
+      "avoidNotes": [
+        "Do not chase tight end early unless the board clearly falls into an elite tier.",
+        "Zero RB exists in the sample, but it is not the default path for this format."
+      ],
+      "topStrategies": [
+        {
+          "key": "other",
+          "count": 5,
+          "share": 0.1786
+        },
+        {
+          "key": "RB-RB",
+          "count": 5,
+          "share": 0.1786
+        },
+        {
+          "key": "hero RB",
+          "count": 4,
+          "share": 0.1429
+        },
+        {
+          "key": "WR-WR",
+          "count": 4,
+          "share": 0.1429
+        },
+        {
+          "key": "early TE",
+          "count": 3,
+          "share": 0.1071
+        },
+        {
+          "key": "elite QB early",
+          "count": 3,
+          "share": 0.1071
+        },
+        {
+          "key": "balanced",
+          "count": 2,
+          "share": 0.0714
+        },
+        {
+          "key": "zero RB",
+          "count": 2,
+          "share": 0.0714
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "RB-WR",
+            "count": 6,
+            "share": 0.2143
+          },
+          {
+            "key": "RB-RB",
+            "count": 5,
+            "share": 0.1786
+          },
+          {
+            "key": "WR-RB",
+            "count": 5,
+            "share": 0.1786
+          },
+          {
+            "key": "WR-WR",
+            "count": 4,
+            "share": 0.1429
+          },
+          {
+            "key": "QB-WR",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "RB-TE",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "WR-TE",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "RB-QB",
+            "count": 1,
+            "share": 0.0357
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "RB-WR-RB",
+            "count": 4,
+            "share": 0.1429
+          },
+          {
+            "key": "WR-RB-WR",
+            "count": 3,
+            "share": 0.1071
+          },
+          {
+            "key": "RB-RB-QB",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "RB-RB-WR",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "QB-WR-RB",
+            "count": 1,
+            "share": 0.0357
+          },
+          {
+            "key": "QB-WR-WR",
+            "count": 1,
+            "share": 0.0357
+          },
+          {
+            "key": "RB-QB-TE",
+            "count": 1,
+            "share": 0.0357
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "RB-WR-RB-QB",
+            "count": 3,
+            "share": 0.1071
+          },
+          {
+            "key": "RB-RB-QB-WR",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "WR-RB-WR-WR",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "QB-WR-RB-TE",
+            "count": 1,
+            "share": 0.0357
+          },
+          {
+            "key": "QB-WR-WR-TE",
+            "count": 1,
+            "share": 0.0357
+          },
+          {
+            "key": "RB-QB-TE-WR",
+            "count": 1,
+            "share": 0.0357
+          },
+          {
+            "key": "RB-RB-RB-WR",
+            "count": 1,
+            "share": 0.0357
+          },
+          {
+            "key": "RB-RB-WR-RB",
+            "count": 1,
+            "share": 0.0357
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 5,
+          "topStrategies": [
+            {
+              "key": "hero RB",
+              "count": 2,
+              "share": 0.4
+            },
+            {
+              "key": "early TE",
+              "count": 1,
+              "share": 0.2
+            },
+            {
+              "key": "WR-WR",
+              "count": 1,
+              "share": 0.2
+            },
+            {
+              "key": "zero RB",
+              "count": 1,
+              "share": 0.2
+            }
+          ],
+          "note": "early slots most often produced hero RB builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 12,
+          "topStrategies": [
+            {
+              "key": "other",
+              "count": 3,
+              "share": 0.25
+            },
+            {
+              "key": "RB-RB",
+              "count": 3,
+              "share": 0.25
+            },
+            {
+              "key": "early TE",
+              "count": 2,
+              "share": 0.1667
+            },
+            {
+              "key": "WR-WR",
+              "count": 2,
+              "share": 0.1667
+            }
+          ],
+          "note": "middle slots most often produced other builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 11,
+          "topStrategies": [
+            {
+              "key": "balanced",
+              "count": 2,
+              "share": 0.1818
+            },
+            {
+              "key": "elite QB early",
+              "count": 2,
+              "share": 0.1818
+            },
+            {
+              "key": "hero RB",
+              "count": 2,
+              "share": 0.1818
+            },
+            {
+              "key": "other",
+              "count": 2,
+              "share": 0.1818
+            }
+          ],
+          "note": "late slots most often produced balanced builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "WR",
+            "count": 14,
+            "share": 0.5
+          },
+          {
+            "key": "RB",
+            "count": 13,
+            "share": 0.4643
+          },
+          {
+            "key": "TE",
+            "count": 1,
+            "share": 0.0357
+          }
+        ],
+        "strategies": [
+          {
+            "key": "other",
+            "count": 7,
+            "share": 0.25
+          },
+          {
+            "key": "WR-WR",
+            "count": 7,
+            "share": 0.25
+          },
+          {
+            "key": "elite QB early",
+            "count": 5,
+            "share": 0.1786
+          },
+          {
+            "key": "early TE",
+            "count": 4,
+            "share": 0.1429
+          },
+          {
+            "key": "hero RB",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "RB-RB",
+            "count": 2,
+            "share": 0.0714
+          },
+          {
+            "key": "balanced",
+            "count": 1,
+            "share": 0.0357
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 18,
+            "share": 0.6429
+          },
+          {
+            "key": "different",
+            "count": 10,
+            "share": 0.3571
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "10_team_ppr_sf_base",
+      "format": {
+        "teamCount": 10,
+        "scoring": "team",
+        "qbFormat": "superflex",
+        "tightEndPremium": false
+      },
+      "sampleSize": 26,
+      "confidence": "thin",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "QB",
+            "count": 10,
+            "share": 0.3846
+          },
+          {
+            "key": "RB",
+            "count": 8,
+            "share": 0.3077
+          },
+          {
+            "key": "WR",
+            "count": 8,
+            "share": 0.3077
+          }
+        ],
+        "notes": [
+          "Prioritize elite QB access early when the tier is available."
+        ]
+      },
+      "avoidNotes": [
+        "Do not chase tight end early unless the board clearly falls into an elite tier."
+      ],
+      "topStrategies": [
+        {
+          "key": "elite QB early",
+          "count": 10,
+          "share": 0.3846
+        },
+        {
+          "key": "balanced",
+          "count": 3,
+          "share": 0.1154
+        },
+        {
+          "key": "other",
+          "count": 3,
+          "share": 0.1154
+        },
+        {
+          "key": "RB-RB",
+          "count": 3,
+          "share": 0.1154
+        },
+        {
+          "key": "zero RB",
+          "count": 3,
+          "share": 0.1154
+        },
+        {
+          "key": "hero RB",
+          "count": 2,
+          "share": 0.0769
+        },
+        {
+          "key": "WR-WR",
+          "count": 2,
+          "share": 0.0769
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "QB-RB",
+            "count": 5,
+            "share": 0.1923
+          },
+          {
+            "key": "WR-RB",
+            "count": 5,
+            "share": 0.1923
+          },
+          {
+            "key": "QB-WR",
+            "count": 4,
+            "share": 0.1538
+          },
+          {
+            "key": "RB-WR",
+            "count": 4,
+            "share": 0.1538
+          },
+          {
+            "key": "RB-RB",
+            "count": 3,
+            "share": 0.1154
+          },
+          {
+            "key": "WR-WR",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "QB-QB",
+            "count": 1,
+            "share": 0.0385
+          },
+          {
+            "key": "RB-QB",
+            "count": 1,
+            "share": 0.0385
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "QB-RB-RB",
+            "count": 4,
+            "share": 0.1538
+          },
+          {
+            "key": "QB-WR-WR",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "RB-RB-WR",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "WR-RB-RB",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "WR-RB-WR",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "QB-QB-WR",
+            "count": 1,
+            "share": 0.0385
+          },
+          {
+            "key": "QB-RB-WR",
+            "count": 1,
+            "share": 0.0385
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "QB-RB-RB-TE",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "QB-QB-WR-WR",
+            "count": 1,
+            "share": 0.0385
+          },
+          {
+            "key": "QB-RB-RB-QB",
+            "count": 1,
+            "share": 0.0385
+          },
+          {
+            "key": "QB-RB-RB-WR",
+            "count": 1,
+            "share": 0.0385
+          },
+          {
+            "key": "QB-RB-WR-TE",
+            "count": 1,
+            "share": 0.0385
+          },
+          {
+            "key": "QB-WR-RB-WR",
+            "count": 1,
+            "share": 0.0385
+          },
+          {
+            "key": "QB-WR-TE-WR",
+            "count": 1,
+            "share": 0.0385
+          },
+          {
+            "key": "QB-WR-WR-QB",
+            "count": 1,
+            "share": 0.0385
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 7,
+          "topStrategies": [
+            {
+              "key": "RB-RB",
+              "count": 3,
+              "share": 0.4286
+            },
+            {
+              "key": "elite QB early",
+              "count": 2,
+              "share": 0.2857
+            },
+            {
+              "key": "other",
+              "count": 1,
+              "share": 0.1429
+            },
+            {
+              "key": "zero RB",
+              "count": 1,
+              "share": 0.1429
+            }
+          ],
+          "note": "early slots most often produced RB-RB builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 7,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 5,
+              "share": 0.7143
+            },
+            {
+              "key": "balanced",
+              "count": 1,
+              "share": 0.1429
+            },
+            {
+              "key": "other",
+              "count": 1,
+              "share": 0.1429
+            }
+          ],
+          "note": "middle slots most often produced elite QB early builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 12,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 3,
+              "share": 0.25
+            },
+            {
+              "key": "balanced",
+              "count": 2,
+              "share": 0.1667
+            },
+            {
+              "key": "hero RB",
+              "count": 2,
+              "share": 0.1667
+            },
+            {
+              "key": "WR-WR",
+              "count": 2,
+              "share": 0.1667
+            }
+          ],
+          "note": "late slots most often produced elite QB early builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "RB",
+            "count": 11,
+            "share": 0.4231
+          },
+          {
+            "key": "QB",
+            "count": 10,
+            "share": 0.3846
+          },
+          {
+            "key": "WR",
+            "count": 5,
+            "share": 0.1923
+          }
+        ],
+        "strategies": [
+          {
+            "key": "elite QB early",
+            "count": 12,
+            "share": 0.4615
+          },
+          {
+            "key": "balanced",
+            "count": 6,
+            "share": 0.2308
+          },
+          {
+            "key": "hero RB",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "RB-RB",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "WR-WR",
+            "count": 2,
+            "share": 0.0769
+          },
+          {
+            "key": "other",
+            "count": 1,
+            "share": 0.0385
+          },
+          {
+            "key": "zero RB",
+            "count": 1,
+            "share": 0.0385
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 18,
+            "share": 0.6923
+          },
+          {
+            "key": "different",
+            "count": 8,
+            "share": 0.3077
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "10_team_ppr_1qb_tep",
+      "format": {
+        "teamCount": 10,
+        "scoring": "team",
+        "qbFormat": "one_qb",
+        "tightEndPremium": true
+      },
+      "sampleSize": 23,
+      "confidence": "thin",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "RB",
+            "count": 12,
+            "share": 0.5217
+          },
+          {
+            "key": "WR",
+            "count": 11,
+            "share": 0.4783
+          }
+        ],
+        "notes": [
+          "Avoid QB in the first round unless the room is extremely unusual.",
+          "The first-round build should usually start with RB or WR."
+        ]
+      },
+      "avoidNotes": [
+        "Do not let 1QB rankings pull a quarterback into Round 1."
+      ],
+      "topStrategies": [
+        {
+          "key": "WR-WR",
+          "count": 6,
+          "share": 0.2609
+        },
+        {
+          "key": "balanced",
+          "count": 5,
+          "share": 0.2174
+        },
+        {
+          "key": "RB-RB",
+          "count": 5,
+          "share": 0.2174
+        },
+        {
+          "key": "early TE",
+          "count": 2,
+          "share": 0.087
+        },
+        {
+          "key": "hero RB",
+          "count": 2,
+          "share": 0.087
+        },
+        {
+          "key": "other",
+          "count": 2,
+          "share": 0.087
+        },
+        {
+          "key": "elite QB early",
+          "count": 1,
+          "share": 0.0435
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "RB-WR",
+            "count": 6,
+            "share": 0.2609
+          },
+          {
+            "key": "WR-WR",
+            "count": 6,
+            "share": 0.2609
+          },
+          {
+            "key": "RB-RB",
+            "count": 5,
+            "share": 0.2174
+          },
+          {
+            "key": "WR-RB",
+            "count": 5,
+            "share": 0.2174
+          },
+          {
+            "key": "RB-TE",
+            "count": 1,
+            "share": 0.0435
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "RB-RB-WR",
+            "count": 3,
+            "share": 0.1304
+          },
+          {
+            "key": "RB-WR-RB",
+            "count": 3,
+            "share": 0.1304
+          },
+          {
+            "key": "WR-RB-RB",
+            "count": 3,
+            "share": 0.1304
+          },
+          {
+            "key": "RB-RB-TE",
+            "count": 2,
+            "share": 0.087
+          },
+          {
+            "key": "RB-WR-WR",
+            "count": 2,
+            "share": 0.087
+          },
+          {
+            "key": "WR-WR-QB",
+            "count": 2,
+            "share": 0.087
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 2,
+            "share": 0.087
+          },
+          {
+            "key": "WR-WR-WR",
+            "count": 2,
+            "share": 0.087
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "RB-WR-RB-WR",
+            "count": 3,
+            "share": 0.1304
+          },
+          {
+            "key": "RB-RB-TE-QB",
+            "count": 2,
+            "share": 0.087
+          },
+          {
+            "key": "RB-RB-WR-WR",
+            "count": 2,
+            "share": 0.087
+          },
+          {
+            "key": "WR-RB-RB-QB",
+            "count": 2,
+            "share": 0.087
+          },
+          {
+            "key": "WR-WR-RB-RB",
+            "count": 2,
+            "share": 0.087
+          },
+          {
+            "key": "RB-RB-WR-TE",
+            "count": 1,
+            "share": 0.0435
+          },
+          {
+            "key": "RB-TE-WR-RB",
+            "count": 1,
+            "share": 0.0435
+          },
+          {
+            "key": "RB-WR-TE-WR",
+            "count": 1,
+            "share": 0.0435
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 8,
+          "topStrategies": [
+            {
+              "key": "early TE",
+              "count": 2,
+              "share": 0.25
+            },
+            {
+              "key": "other",
+              "count": 2,
+              "share": 0.25
+            },
+            {
+              "key": "WR-WR",
+              "count": 2,
+              "share": 0.25
+            },
+            {
+              "key": "balanced",
+              "count": 1,
+              "share": 0.125
+            }
+          ],
+          "note": "early slots most often produced early TE builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 7,
+          "topStrategies": [
+            {
+              "key": "RB-RB",
+              "count": 3,
+              "share": 0.4286
+            },
+            {
+              "key": "balanced",
+              "count": 2,
+              "share": 0.2857
+            },
+            {
+              "key": "elite QB early",
+              "count": 1,
+              "share": 0.1429
+            },
+            {
+              "key": "WR-WR",
+              "count": 1,
+              "share": 0.1429
+            }
+          ],
+          "note": "middle slots most often produced RB-RB builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 8,
+          "topStrategies": [
+            {
+              "key": "WR-WR",
+              "count": 3,
+              "share": 0.375
+            },
+            {
+              "key": "balanced",
+              "count": 2,
+              "share": 0.25
+            },
+            {
+              "key": "RB-RB",
+              "count": 2,
+              "share": 0.25
+            },
+            {
+              "key": "hero RB",
+              "count": 1,
+              "share": 0.125
+            }
+          ],
+          "note": "late slots most often produced WR-WR builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "WR",
+            "count": 15,
+            "share": 0.6522
+          },
+          {
+            "key": "RB",
+            "count": 7,
+            "share": 0.3043
+          },
+          {
+            "key": "TE",
+            "count": 1,
+            "share": 0.0435
+          }
+        ],
+        "strategies": [
+          {
+            "key": "WR-WR",
+            "count": 8,
+            "share": 0.3478
+          },
+          {
+            "key": "other",
+            "count": 4,
+            "share": 0.1739
+          },
+          {
+            "key": "early TE",
+            "count": 3,
+            "share": 0.1304
+          },
+          {
+            "key": "RB-RB",
+            "count": 3,
+            "share": 0.1304
+          },
+          {
+            "key": "balanced",
+            "count": 2,
+            "share": 0.087
+          },
+          {
+            "key": "elite QB early",
+            "count": 1,
+            "share": 0.0435
+          },
+          {
+            "key": "hero RB",
+            "count": 1,
+            "share": 0.0435
+          },
+          {
+            "key": "zero RB",
+            "count": 1,
+            "share": 0.0435
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 13,
+            "share": 0.5652
+          },
+          {
+            "key": "different",
+            "count": 10,
+            "share": 0.4348
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "8_team_ppr_1qb_base",
+      "format": {
+        "teamCount": 8,
+        "scoring": "team",
+        "qbFormat": "one_qb",
+        "tightEndPremium": false
+      },
+      "sampleSize": 21,
+      "confidence": "thin",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "WR",
+            "count": 11,
+            "share": 0.5238
+          },
+          {
+            "key": "RB",
+            "count": 9,
+            "share": 0.4286
+          },
+          {
+            "key": "QB",
+            "count": 1,
+            "share": 0.0476
+          }
+        ],
+        "notes": [
+          "Avoid QB in the first round unless the room is extremely unusual.",
+          "The first-round build should usually start with RB or WR."
+        ]
+      },
+      "avoidNotes": [
+        "Do not let 1QB rankings pull a quarterback into Round 1.",
+        "Do not chase tight end early unless the board clearly falls into an elite tier."
+      ],
+      "topStrategies": [
+        {
+          "key": "WR-WR",
+          "count": 6,
+          "share": 0.2857
+        },
+        {
+          "key": "RB-RB",
+          "count": 5,
+          "share": 0.2381
+        },
+        {
+          "key": "elite QB early",
+          "count": 4,
+          "share": 0.1905
+        },
+        {
+          "key": "balanced",
+          "count": 2,
+          "share": 0.0952
+        },
+        {
+          "key": "early TE",
+          "count": 2,
+          "share": 0.0952
+        },
+        {
+          "key": "hero RB",
+          "count": 1,
+          "share": 0.0476
+        },
+        {
+          "key": "other",
+          "count": 1,
+          "share": 0.0476
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "WR-WR",
+            "count": 6,
+            "share": 0.2857
+          },
+          {
+            "key": "RB-RB",
+            "count": 5,
+            "share": 0.2381
+          },
+          {
+            "key": "WR-RB",
+            "count": 4,
+            "share": 0.1905
+          },
+          {
+            "key": "RB-WR",
+            "count": 3,
+            "share": 0.1429
+          },
+          {
+            "key": "QB-RB",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-QB",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "WR-TE",
+            "count": 1,
+            "share": 0.0476
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "RB-RB-WR",
+            "count": 4,
+            "share": 0.1905
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 3,
+            "share": 0.1429
+          },
+          {
+            "key": "WR-WR-WR",
+            "count": 2,
+            "share": 0.0952
+          },
+          {
+            "key": "QB-RB-TE",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-QB-WR",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-RB-RB",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-WR-QB",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-WR-RB",
+            "count": 1,
+            "share": 0.0476
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "RB-RB-WR-WR",
+            "count": 2,
+            "share": 0.0952
+          },
+          {
+            "key": "WR-WR-RB-TE",
+            "count": 2,
+            "share": 0.0952
+          },
+          {
+            "key": "QB-RB-TE-WR",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-QB-WR-RB",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-RB-RB-QB",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-RB-WR-QB",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-RB-WR-TE",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "RB-WR-QB-RB",
+            "count": 1,
+            "share": 0.0476
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 6,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 3,
+              "share": 0.5
+            },
+            {
+              "key": "RB-RB",
+              "count": 2,
+              "share": 0.3333
+            },
+            {
+              "key": "other",
+              "count": 1,
+              "share": 0.1667
+            }
+          ],
+          "note": "early slots most often produced elite QB early builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 7,
+          "topStrategies": [
+            {
+              "key": "RB-RB",
+              "count": 2,
+              "share": 0.2857
+            },
+            {
+              "key": "WR-WR",
+              "count": 2,
+              "share": 0.2857
+            },
+            {
+              "key": "balanced",
+              "count": 1,
+              "share": 0.1429
+            },
+            {
+              "key": "elite QB early",
+              "count": 1,
+              "share": 0.1429
+            }
+          ],
+          "note": "middle slots most often produced RB-RB builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 8,
+          "topStrategies": [
+            {
+              "key": "WR-WR",
+              "count": 4,
+              "share": 0.5
+            },
+            {
+              "key": "early TE",
+              "count": 2,
+              "share": 0.25
+            },
+            {
+              "key": "balanced",
+              "count": 1,
+              "share": 0.125
+            },
+            {
+              "key": "RB-RB",
+              "count": 1,
+              "share": 0.125
+            }
+          ],
+          "note": "late slots most often produced WR-WR builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "WR",
+            "count": 10,
+            "share": 0.4762
+          },
+          {
+            "key": "RB",
+            "count": 8,
+            "share": 0.381
+          },
+          {
+            "key": "QB",
+            "count": 3,
+            "share": 0.1429
+          }
+        ],
+        "strategies": [
+          {
+            "key": "elite QB early",
+            "count": 4,
+            "share": 0.1905
+          },
+          {
+            "key": "balanced",
+            "count": 3,
+            "share": 0.1429
+          },
+          {
+            "key": "hero RB",
+            "count": 3,
+            "share": 0.1429
+          },
+          {
+            "key": "other",
+            "count": 3,
+            "share": 0.1429
+          },
+          {
+            "key": "RB-RB",
+            "count": 3,
+            "share": 0.1429
+          },
+          {
+            "key": "WR-WR",
+            "count": 3,
+            "share": 0.1429
+          },
+          {
+            "key": "early TE",
+            "count": 1,
+            "share": 0.0476
+          },
+          {
+            "key": "zero RB",
+            "count": 1,
+            "share": 0.0476
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 12,
+            "share": 0.5714
+          },
+          {
+            "key": "different",
+            "count": 9,
+            "share": 0.4286
+          }
+        ]
+      }
+    },
+    {
+      "formatBucket": "12_team_half_ppr_sf_tep",
+      "format": {
+        "teamCount": 12,
+        "scoring": "half_ppr",
+        "qbFormat": "superflex",
+        "tightEndPremium": true
+      },
+      "sampleSize": 20,
+      "confidence": "thin",
+      "recommendationStrength": "close_call",
+      "firstRoundLean": {
+        "positions": [
+          {
+            "key": "QB",
+            "count": 9,
+            "share": 0.45
+          },
+          {
+            "key": "WR",
+            "count": 6,
+            "share": 0.3
+          },
+          {
+            "key": "RB",
+            "count": 4,
+            "share": 0.2
+          },
+          {
+            "key": "TE",
+            "count": 1,
+            "share": 0.05
+          }
+        ],
+        "notes": [
+          "Prioritize elite QB access early when the tier is available."
+        ]
+      },
+      "avoidNotes": [],
+      "topStrategies": [
+        {
+          "key": "elite QB early",
+          "count": 6,
+          "share": 0.3
+        },
+        {
+          "key": "WR-WR",
+          "count": 4,
+          "share": 0.2
+        },
+        {
+          "key": "early TE",
+          "count": 3,
+          "share": 0.15
+        },
+        {
+          "key": "zero RB",
+          "count": 3,
+          "share": 0.15
+        },
+        {
+          "key": "balanced",
+          "count": 2,
+          "share": 0.1
+        },
+        {
+          "key": "hero RB",
+          "count": 1,
+          "share": 0.05
+        },
+        {
+          "key": "other",
+          "count": 1,
+          "share": 0.05
+        }
+      ],
+      "topOpeningSequences": {
+        "firstTwo": [
+          {
+            "key": "QB-RB",
+            "count": 4,
+            "share": 0.2
+          },
+          {
+            "key": "WR-WR",
+            "count": 4,
+            "share": 0.2
+          },
+          {
+            "key": "QB-WR",
+            "count": 3,
+            "share": 0.15
+          },
+          {
+            "key": "RB-TE",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "RB-WR",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "WR-RB",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "QB-QB",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "QB-TE",
+            "count": 1,
+            "share": 0.05
+          }
+        ],
+        "firstThree": [
+          {
+            "key": "QB-RB-RB",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "QB-WR-QB",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "RB-WR-WR",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "WR-RB-WR",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "WR-WR-RB",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "QB-QB-WR",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "QB-RB-QB",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "QB-RB-WR",
+            "count": 1,
+            "share": 0.05
+          }
+        ],
+        "firstFour": [
+          {
+            "key": "QB-WR-QB-WR",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "QB-QB-WR-RB",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "QB-RB-QB-WR",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "QB-RB-RB-RB",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "QB-RB-RB-TE",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "QB-RB-WR-WR",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "QB-TE-WR-WR",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "QB-WR-RB-TE",
+            "count": 1,
+            "share": 0.05
+          }
+        ]
+      },
+      "draftSlotNotes": [
+        {
+          "slotBucket": "early",
+          "sampleSize": 3,
+          "topStrategies": [
+            {
+              "key": "zero RB",
+              "count": 2,
+              "share": 0.6667
+            },
+            {
+              "key": "WR-WR",
+              "count": 1,
+              "share": 0.3333
+            }
+          ],
+          "note": "early slots most often produced zero RB builds in this sample."
+        },
+        {
+          "slotBucket": "middle",
+          "sampleSize": 8,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 3,
+              "share": 0.375
+            },
+            {
+              "key": "early TE",
+              "count": 2,
+              "share": 0.25
+            },
+            {
+              "key": "balanced",
+              "count": 1,
+              "share": 0.125
+            },
+            {
+              "key": "other",
+              "count": 1,
+              "share": 0.125
+            }
+          ],
+          "note": "middle slots most often produced elite QB early builds in this sample."
+        },
+        {
+          "slotBucket": "late",
+          "sampleSize": 9,
+          "topStrategies": [
+            {
+              "key": "elite QB early",
+              "count": 3,
+              "share": 0.3333
+            },
+            {
+              "key": "WR-WR",
+              "count": 3,
+              "share": 0.3333
+            },
+            {
+              "key": "balanced",
+              "count": 1,
+              "share": 0.1111
+            },
+            {
+              "key": "early TE",
+              "count": 1,
+              "share": 0.1111
+            }
+          ],
+          "note": "late slots most often produced elite QB early builds in this sample."
+        }
+      ],
+      "topPointsCrossCheck": {
+        "firstPickPositions": [
+          {
+            "key": "QB",
+            "count": 9,
+            "share": 0.45
+          },
+          {
+            "key": "WR",
+            "count": 6,
+            "share": 0.3
+          },
+          {
+            "key": "RB",
+            "count": 4,
+            "share": 0.2
+          },
+          {
+            "key": "TE",
+            "count": 1,
+            "share": 0.05
+          }
+        ],
+        "strategies": [
+          {
+            "key": "elite QB early",
+            "count": 8,
+            "share": 0.4
+          },
+          {
+            "key": "early TE",
+            "count": 4,
+            "share": 0.2
+          },
+          {
+            "key": "WR-WR",
+            "count": 4,
+            "share": 0.2
+          },
+          {
+            "key": "hero RB",
+            "count": 2,
+            "share": 0.1
+          },
+          {
+            "key": "other",
+            "count": 1,
+            "share": 0.05
+          },
+          {
+            "key": "zero RB",
+            "count": 1,
+            "share": 0.05
+          }
+        ],
+        "championTopPointsFirstPickMatch": [
+          {
+            "key": "same",
+            "count": 13,
+            "share": 0.65
+          },
+          {
+            "key": "different",
+            "count": 7,
+            "share": 0.35
+          }
+        ]
+      }
+    }
+  ]
+}
