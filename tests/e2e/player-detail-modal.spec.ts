@@ -35,6 +35,15 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
       status: 'Active',
       jersey: '9',
     },
+    athleticProfile: {
+      source: 'nflverse combine',
+      draftYear: 2021,
+      forty: 4.41,
+      vertical: 36.5,
+      broadJump: 125,
+      speedScore: 105.2,
+      note: 'Combine profile loaded with 105.2 speed score.',
+    },
     latestNews: {
       title: 'Travis Etienne Jr. signing with Saints',
       source: 'FantasyPros',
@@ -288,8 +297,10 @@ test.describe('player detail modal', () => {
 
     await expect(dialog.getByText('College')).toBeVisible();
     await expect(dialog.getByText('40 Time')).toBeVisible();
+    await expect(dialog.getByText('Vertical')).toBeVisible();
     await expect(dialog.getByText('Birthday')).toBeVisible();
     expect(dialogText).toContain('4.41s');
+    expect(dialogText).toContain('36.5"');
     expect(dialogText).toContain('Jan 1, 2000');
     await expect(dialog.getByText('Source Inputs', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
@@ -350,6 +361,8 @@ test.describe('player detail modal', () => {
     const fallbackDialogText = (await fallbackDialog.textContent()) || '';
     await expect(fallbackDialog.getByText('40 Time')).toBeVisible();
     expect(fallbackDialogText).toContain('40 Time-');
+    await expect(fallbackDialog.getByText('Vertical')).toBeVisible();
+    expect(fallbackDialogText).toContain('Vertical-');
   });
 
   test('hides admin-only source inputs in regular view', async ({ page }) => {
