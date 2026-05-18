@@ -150,6 +150,29 @@ test.describe('shareable report control state', () => {
     await expect(page.getByRole('button', { name: /#1 Bijan Robinson/ })).toBeVisible();
   });
 
+  test('keeps draft history visible for legacy redraft cache with current main draft picks', async ({ page }) => {
+    const currentSeason = String(new Date().getFullYear());
+    const cachedReport = createCachedRedraftReport('legacy-current-draft-redraft-league');
+    const reportData = cachedReport.reportData as any;
+
+    reportData.draftPicks = reportData.draftPicks.map((pick: any) => ({
+      ...pick,
+      draftYear: currentSeason,
+      draftKind: 'main',
+    }));
+    delete reportData.leagueDiagnostics.currentSeason;
+    delete reportData.leagueDiagnostics.hasCurrentSeasonMainDraft;
+    delete reportData.leagueDiagnostics.currentSeasonMainDraftPickCount;
+    delete reportData.leagueDiagnostics.currentSeasonMainDraftPickedPlayerCount;
+    delete reportData.leagueDiagnostics.currentSeasonMainDraftStatus;
+
+    await loadCachedReportPayload(page, cachedReport, '#draft');
+
+    await expect(page.getByRole('tab', { name: 'Draft History' })).toBeVisible();
+    await openDraftYear(page, `${currentSeason} Main Draft`);
+    await expect(page.getByRole('button', { name: /#1 Bijan Robinson/ })).toBeVisible();
+  });
+
   test('hides draft history for redraft leagues with no draft data yet', async ({ page }) => {
     const cachedReport = createCachedRedraftNoDraftReport();
     await loadCachedReportPayload(page, cachedReport, '#draft');

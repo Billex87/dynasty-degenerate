@@ -479,8 +479,10 @@ function hasDraftReportData(reportData?: ReportData | null): boolean {
     return diagnostics.hasCurrentSeasonMainDraft;
   }
 
-  const currentSeason = diagnostics?.currentSeason;
-  if (!currentSeason) return false;
+  // Older cached reports may have current draft picks but no draft diagnostics.
+  const currentSeason = String(
+    diagnostics?.currentSeason || new Date().getFullYear()
+  );
 
   return draftPicks.some(pick => {
     const draftYear = pick.draftYear ? String(pick.draftYear) : "";
