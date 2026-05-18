@@ -380,8 +380,8 @@ describe('player cohort engine', () => {
     expect(comp?.matchReasons).toContain('similar prospect/buzz signal');
     expect(comp?.matchReasons).toContain('similar athletic profile');
     expect(profiles.rbA.historicalComps?.signals.map((signal) => signal.label)).toEqual(
-      expect.arrayContaining(['Buzz / Devy Prior', 'Athletic Fit'])
+      expect.arrayContaining(['Buzz / Devy Prior', 'Athletic Fit', 'Price vs Production Gap'])
     );
-    expect(profiles.rbA.trace.join(' ')).toContain('Historical comps: RB market heat check');
+    expect(profiles.rbA.trace.join(' ')).toContain('Historical comps: early RB prospect heat check');
   });
 });

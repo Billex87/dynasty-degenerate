@@ -224,6 +224,24 @@ function getValueMomentumScore(details: PlayerDetails): number | null {
   return Math.round(clamp(50 + deltaPct * 1.35, 0, 100));
 }
 
+function getContractScore(details: PlayerDetails): number | null {
+  const contract = details.contractProfile;
+  if (!contract) return null;
+  const tierScore = contract.investmentTier === 'premium'
+    ? 86
+    : contract.investmentTier === 'solid'
+    ? 66
+    : contract.investmentTier === 'fringe'
+    ? 26
+    : 44;
+  const years = numeric(contract.years);
+  const guarantee = numeric(contract.guaranteed);
+  const value = numeric(contract.value);
+  const runwayBoost = years !== null ? clamp((years - 1) * 6, 0, 14) : 0;
+  const guaranteeBoost = guarantee !== null && value !== null && value > 0 ? clamp((guarantee / value) * 18, 0, 18) : 0;
+  return Math.round(clamp(tierScore + runwayBoost + guaranteeBoost, 0, 100));
+}
+
 function buildFeatureVector(input: {
   details: PlayerDetails;
   age: number | null;
@@ -246,6 +264,7 @@ function buildFeatureVector(input: {
     prospectScore: getProspectScore(input.details, input.draftCapital),
     athleticScore: getAthleticScore(input.details, input.position),
     valueMomentumScore: getValueMomentumScore(input.details),
+    contractScore: getContractScore(input.details),
   };
 }
 
@@ -265,6 +284,7 @@ type CohortFeatureVector = {
   prospectScore: number | null;
   athleticScore: number | null;
   valueMomentumScore: number | null;
+  contractScore: number | null;
 };
 
 type BaseProfileRow = {
@@ -423,6 +443,7 @@ function getSimilarityScore(a: CohortFeatureVector, b: CohortFeatureVector): { s
     { value: featureSimilarity(a.prospectScore, b.prospectScore, 44), weight: 0.8 },
     { value: featureSimilarity(a.athleticScore, b.athleticScore, 44), weight: 0.55 },
     { value: featureSimilarity(a.valueMomentumScore, b.valueMomentumScore, 54), weight: 0.75 },
+    { value: featureSimilarity(a.contractScore, b.contractScore, 48), weight: 0.65 },
   ];
   const usable = weighted.filter((item): item is { value: number; weight: number } => item.value !== null);
   if (!usable.length) return { score: 0, usedWeight: 0 };
@@ -450,6 +471,7 @@ function buildMatchReasons(row: BaseProfileRow, candidate: BaseProfileRow): stri
   if (closeEnough(row.features.prospectScore, candidate.features.prospectScore, 14)) reasons.push('similar prospect/buzz signal');
   if (closeEnough(row.features.athleticScore, candidate.features.athleticScore, 16)) reasons.push('similar athletic profile');
   if (closeEnough(row.features.valueMomentumScore, candidate.features.valueMomentumScore, 16)) reasons.push('similar value momentum');
+  if (closeEnough(row.features.contractScore, candidate.features.contractScore, 16)) reasons.push('similar contract runway');
   return reasons.slice(0, 6);
 }
 
@@ -482,21 +504,54 @@ function dominantOutcome(comps: Array<{ outcomeBucket: PlayerCohortOutcomeBucket
 function buildArchetype(row: BaseProfileRow): string {
   const { profile, features, details } = row;
   const phase = profile.agePhase === 'unknown' ? '' : `${profile.agePhase.replace('-', ' ')} `;
+  const hasProspectRunway = profile.agePhase === 'early'
+    && ((features.prospectScore || 0) >= 72 || (features.athleticScore || 0) >= 78 || profile.draftCapital.opportunityWindow === 'protected-runway');
+  const hasContractRunway = (features.contractScore || 0) >= 72;
   if (profile.outcomeBucket === 'breakout' && (features.opportunityScore || 0) >= 62) return `${phase}${profile.position} opportunity riser`;
   if (profile.outcomeBucket === 'breakout') return `${phase}${profile.position} growth profile`;
+  if (profile.outcomeBucket === 'market-over-production' && hasProspectRunway) return `${phase}${profile.position} prospect heat check`;
+  if (profile.outcomeBucket === 'market-over-production' && hasContractRunway) return `${phase}${profile.position} paid-runway heat check`;
   if (profile.outcomeBucket === 'market-over-production') return `${profile.position} market heat check`;
   if (profile.outcomeBucket === 'market-under-production') return `${profile.position} production discount`;
   if (profile.outcomeBucket === 'fade-risk') return `${profile.position} curve-risk veteran`;
   if (profile.outcomeBucket === 'injury-risk') return `${profile.position} availability-tax profile`;
-  if ((features.prospectScore || 0) >= 72 || details.prospectProfile?.rating) return `${profile.position} prospect-backed runway`;
+  if (hasProspectRunway || details.prospectProfile?.rating) return `${phase}${profile.position} prospect-backed runway`.trim();
+  if (hasContractRunway) return `${phase}${profile.position} contract-backed runway`.trim();
   if ((features.teamFitScore || 0) >= 72) return `${profile.position} environment boost`;
   return `${phase}${profile.position} sustain profile`.trim();
+}
+
+function buildMarketGapSignal(row: BaseProfileRow): HistoricalCompSignal | null {
+  const delta = row.profile.marketProductionDelta;
+  if (delta === null || !Number.isFinite(delta)) return null;
+  const pressure = Math.round(clamp(50 + Math.abs(delta) * 1.15, 0, 100));
+  const tone: HistoricalCompSignal['tone'] = delta >= 24
+    ? 'warn'
+    : delta <= -18
+    ? 'good'
+    : Math.abs(delta) <= 8
+    ? 'neutral'
+    : 'info';
+  const detail = delta > 0
+    ? `Market score is ${Math.round(delta)} points ahead of the production score; the price needs role, prospect, contract, or environment support.`
+    : delta < 0
+    ? `Production score is ${Math.abs(Math.round(delta))} points ahead of the market score; check for an underpriced scoring profile.`
+    : 'Market and production scores are even.';
+
+  return {
+    key: 'market-gap',
+    label: 'Price vs Production Gap',
+    score: pressure,
+    tone,
+    detail,
+  };
 }
 
 function buildHistoricalSignals(row: BaseProfileRow): HistoricalCompSignal[] {
   const details = row.details;
   const features = row.features;
   return [
+    buildMarketGapSignal(row),
     scoreSignal('value', 'Market Value', features.valueScore, row.profile.value !== null ? `Current blended value ${row.profile.value}.` : 'No blended value available.'),
     scoreSignal('production', 'Production Baseline', features.productionScore, row.profile.lastSeasonPointsPerGame !== null ? `${row.profile.lastSeasonPointsPerGame} PPG in the latest completed season.` : 'No latest-season production baseline.'),
     scoreSignal('usage', 'Usage Shape', features.usageScore, details.usageTrend?.note || 'No usage trend snapshot.', features.usageScore !== null && features.usageScore >= 68 ? 'good' : undefined),
@@ -504,6 +559,7 @@ function buildHistoricalSignals(row: BaseProfileRow): HistoricalCompSignal[] {
     scoreSignal('runway', 'Draft Runway', features.draftPatience, row.profile.draftCapital.note, row.profile.draftCapital.opportunityWindow === 'protected-runway' ? 'good' : row.profile.draftCapital.opportunityWindow === 'short-leash' ? 'warn' : undefined),
     scoreSignal('prospect', 'Buzz / Devy Prior', features.prospectScore, details.prospectProfile?.rating ? `Draft Buzz/prospect rating ${details.prospectProfile.rating}.` : 'Prospect prior from draft capital and profile data.'),
     scoreSignal('athletic', 'Athletic Fit', features.athleticScore, details.athleticProfile?.note || 'No combine profile attached.'),
+    scoreSignal('contract', 'Contract / Team Investment', features.contractScore, details.contractProfile?.note || 'No contract investment snapshot.'),
     scoreSignal('team', 'Team Environment', features.teamFitScore, details.teamEnvironment?.note || 'No team environment snapshot.'),
     scoreSignal('momentum', 'Value Momentum', features.valueMomentumScore, details.valueTimeline?.summary?.note || 'No value timeline movement available.'),
     scoreSignal('risk', 'Availability Risk', features.injuryRiskScore, details.injuryHistory?.note || (details.avgGamesMissed !== null && details.avgGamesMissed !== undefined ? `${details.avgGamesMissed} average missed games.` : 'No injury risk signal.'), features.injuryRiskScore !== null && features.injuryRiskScore >= 55 ? 'warn' : 'info'),
@@ -518,9 +574,9 @@ function buildHistoricalComps(row: BaseProfileRow, baseProfiles: BaseProfileRow[
       ...getSimilarityScore(row.features, candidate.features),
     }))
     .filter((item) => item.usedWeight >= 2.4)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, Math.max(3, peerLimit));
-  const closest = scored.map(({ candidate, score }) => ({
+    .sort((a, b) => b.score - a.score);
+  const reliableSampleSize = scored.length;
+  const closest = scored.slice(0, Math.max(3, peerLimit)).map(({ candidate, score }) => ({
     playerId: candidate.playerId,
     name: candidate.profile.name,
     age: candidate.profile.age,
@@ -540,7 +596,7 @@ function buildHistoricalComps(row: BaseProfileRow, baseProfiles: BaseProfileRow[
   const riskSignal = [...signals].filter((signal) => signal.tone === 'warn' || signal.tone === 'danger').sort((a, b) => b.score - a.score)[0] || null;
   const confidence = Math.round(clamp(
     28
-    + Math.min(30, sample.length * 5)
+    + Math.min(30, reliableSampleSize * 7)
     + (averageSimilarity !== null ? averageSimilarity * 0.28 : 0)
     + Math.min(18, signals.length * 2)
     - (row.profile.calibration.evidenceGrade === 'blocked' ? 24 : row.profile.calibration.evidenceGrade === 'thin' ? 10 : 0),
@@ -549,8 +605,10 @@ function buildHistoricalComps(row: BaseProfileRow, baseProfiles: BaseProfileRow[
   ));
   const archetype = buildArchetype(row);
   const compText = closest.length
-    ? `Closest stored comps average ${averageSimilarity}% similarity across ${sample.length} same-position profiles; consensus outcome is ${consensusOutcome || 'mixed'}.`
-    : `No reliable same-position comp sample was available, so this read leans on direct player signals instead of peer history.`;
+    ? `Closest stored comps average ${averageSimilarity}% similarity across ${reliableSampleSize} reliable same-position comps (${sample.length} profiles checked); consensus outcome is ${consensusOutcome || 'mixed'}.`
+    : sample.length
+    ? `No reliable same-position comp sample was available from ${sample.length} profiles checked, so this read leans on direct player signals instead of peer history.`
+    : `No same-position comp sample was available, so this read leans on direct player signals instead of peer history.`;
   const signalText = strongestSignal
     ? `Top signal is ${strongestSignal.label.toLowerCase()} (${strongestSignal.score}).`
     : 'No top signal separated from the sample.';
@@ -561,7 +619,7 @@ function buildHistoricalComps(row: BaseProfileRow, baseProfiles: BaseProfileRow[
   return {
     archetype,
     summary: `${archetype}: ${compText} ${signalText}${riskText}`.replace(/\s+/g, ' ').trim(),
-    sampleSize: sample.length,
+    sampleSize: reliableSampleSize,
     confidence,
     averageSimilarity,
     consensusOutcome,

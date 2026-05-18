@@ -44,7 +44,8 @@ This checklist keeps AI features useful, distinct, and traceable. A new readout 
 - [x] Rankings can expose AI read chips that open the player modal.
 - [x] Player Detail has an AI read with value confidence, cohort trace, schedule context, draft-capital runway, cohort evidence calibration, and first-pass situation-delta role/opportunity labels.
 - [ ] Add richer ranking-table microreads for value tier, source disagreement, confidence, and roster fit.
-- [ ] Add "similar historical profile" reads after cohort similarity is backtested.
+- [x] Add "similar historical profile" reads with cohort confidence, closest comps, and signal traces in the player modal.
+- [ ] Promote the historical comp lens with season-by-season backtest diagnostics once the full historical season warehouse is complete.
 - [ ] Add provider projection trace only after projection snapshots are approved.
 
 ## Trades

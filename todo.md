@@ -153,7 +153,8 @@
 - [x] Add player-cohort calibration metadata so every player AI read carries an evidence grade, confidence cap, strong-read eligibility flag, missing-signal list, and caution flags before the UI can present it as a high-confidence take.
 - [ ] Add league-context modifiers for dynasty, redraft, superflex, and format-specific scoring so the logic stays format-aware.
 - [ ] Create anomaly rules for unusual cases like age-curve outliers, late breakouts, injury comebacks, small-sample spikes, and role-driven production jumps.
-- [ ] Build a reusable comparison layer that can answer "who has this player most resembled historically at the same age, usage, and value?" for deeper AI readouts.
+- [x] Build a reusable comparison layer that can answer "who has this player most resembled historically at the same age, usage, and value?" for deeper AI readouts.
+- [ ] Promote the reusable comparison layer with full season-by-season backtest diagnostics once the historical season warehouse is complete.
 - [x] Expand the source-history layer with compact nflverse usage, injury, combine, and contract snapshots stored in `providerDataSnapshots`.
 - [x] Add admin diagnostics/freshness coverage for nflverse usage, injury, combine, and contract snapshots so model inputs are visible without raw payloads.
 
