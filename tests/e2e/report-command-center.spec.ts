@@ -428,8 +428,12 @@ test.describe("command center feature surfaces", () => {
     await expect(
       page.getByText("Monthly Team Blueprint").first()
     ).toBeVisible();
-    await openReportSection(page, "Monthly Team Blueprint");
-    await page.locator("button.command-primary-action").click();
+    const blueprintSection = await openReportSection(page, "Monthly Team Blueprint");
+    await expect(blueprintSection.locator(".team-blueprint-lab select")).toHaveCount(0);
+    await expect(
+      blueprintSection.getByRole("button", { name: /View Monthly Blueprint/i })
+    ).toBeVisible();
+    await blueprintSection.locator("button.command-primary-action").click();
     await expect(page.getByText("The Monthly Blueprint")).toBeVisible();
     await expect(
       page
@@ -461,6 +465,7 @@ test.describe("command center feature surfaces", () => {
     await openReportSection(page, "Team Breakdown & Roster Recon");
     const teamBreakdown = page.locator(".team-breakdown-recon");
     await expect(teamBreakdown).toBeVisible();
+    await expect(teamBreakdown.locator(".command-module-toolbar select")).toHaveCount(0);
     await expect(teamBreakdown.getByText("Fragility Watch")).toBeVisible();
     await expect(teamBreakdown.getByText("Sell Candidates")).toHaveCount(0);
     await expect(teamBreakdown.getByText("Trade chip")).toHaveCount(0);
@@ -559,7 +564,10 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText(/Locks in/i).first()).toBeVisible();
     await page.getByRole("button", { name: "Close Tester details" }).click();
 
-    await openReportSection(page, "Trade Finder, Partners & League Exploits");
+    const tradeFinderSection = await openReportSection(page, "Trade Finder, Partners & League Exploits");
+    await expect(
+      tradeFinderSection.locator("label").filter({ hasText: "Your team" })
+    ).toHaveCount(0);
     await expect(
       page
         .locator(".ai-read-panel-desktop")
@@ -593,7 +601,10 @@ test.describe("command center feature surfaces", () => {
     ).toBeTruthy();
     await expect(page.locator(".league-exploit-card").first()).toBeVisible();
 
-    await openReportSection(page, "Assistant Feature Radar");
+    const featureRadarSection = await openReportSection(page, "Assistant Feature Radar");
+    await expect(
+      featureRadarSection.locator("label").filter({ hasText: "Assistant focus" })
+    ).toHaveCount(0);
     await expect(page.locator(".assistant-shell-grid")).toBeVisible();
 
     await page.getByRole("tab", { name: "Rankings" }).click();
@@ -1196,7 +1207,7 @@ test.describe("command center feature surfaces", () => {
     await expect(
       blueprintSection
         .locator(".ai-read-actions button")
-        .filter({ hasText: "Create Monthly AI Blueprint" })
+        .filter({ hasText: "Blueprint Locked Until Draft" })
         .first()
     ).toBeDisabled();
 

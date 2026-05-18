@@ -222,6 +222,30 @@ function getMonthlyConfidence(data: ReportData, manager: string, hasPartialHisto
   return capByAiConfidence(data, rawConfidence, manager, 14);
 }
 
+function getFocusedManager(data: ReportData, managerOptions = getManagerOptions(data)): string {
+  return getDefaultManager(data) || managerOptions[0] || '';
+}
+
+function CommandModuleFocus({
+  label,
+  manager,
+  avatarUrl,
+}: {
+  label: string;
+  manager: string;
+  avatarUrl?: string | null;
+}) {
+  return (
+    <div className="command-module-focus" aria-label={`${label}: ${manager}`}>
+      <span className="command-module-focus-label">{label}</span>
+      <div className="command-module-focus-value">
+        <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <ManagerNameWithAvatar avatarUrl={avatarUrl} managerName={manager} />
+      </div>
+    </div>
+  );
+}
+
 function getManagerReadConfidence(data: ReportData, manager: string): number {
   const rawConfidence = confidenceFromEvidence(36, [
     [Boolean(getIntel(data, manager)), 16],
@@ -906,11 +930,10 @@ export function MonthlyTeamBlueprint({
   managerAvatars?: ManagerAvatars;
 }) {
   const managerOptions = getManagerOptions(data);
-  const [selectedManager, setSelectedManager] = useState(getDefaultManager(data));
   const [generated, setGenerated] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const reportRef = useRef<HTMLElement | null>(null);
-  const manager = selectedManager || managerOptions[0] || '';
+  const manager = getFocusedManager(data, managerOptions);
   const intel = getIntel(data, manager);
   const overview = getOverview(data, manager);
   const power = getPower(data, manager);
@@ -954,7 +977,7 @@ export function MonthlyTeamBlueprint({
             `${managerOptions.length || data.leagueDiagnostics?.teamCount || 'League'} teams`,
           ]}
           body="This redraft league does not have a current-season main draft payload yet, so the monthly blueprint is locked instead of generating a report from empty or historical inputs."
-          actions={[{ label: 'Create Monthly AI Blueprint', disabled: true }]}
+          actions={[{ label: 'Blueprint Locked Until Draft', disabled: true }]}
           backgroundVariant="monthly"
         />
       </div>
@@ -1134,14 +1157,11 @@ export function MonthlyTeamBlueprint({
   return (
     <div className="team-blueprint-lab">
       <div className="command-module-toolbar">
-        <label>
-          <span>Team</span>
-          <select value={manager} onChange={(event) => setSelectedManager(event.target.value)}>
-            {managerOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </label>
+        <CommandModuleFocus
+          label="Team"
+          manager={manager}
+          avatarUrl={managerAvatars?.[manager]}
+        />
         <button type="button" className="command-primary-action" onClick={() => setGenerated(true)}>
           <FileText className="h-4 w-4" aria-hidden="true" />
           {generated ? 'Regenerate Team Blueprint' : 'Generate Team Blueprint'}
@@ -1179,7 +1199,7 @@ export function MonthlyTeamBlueprint({
             `${managerOptions.length} teams`,
           ]}
           body={`Generate ${manager}'s ${monthLabel} roster blueprint. The report will show only returned data; missing history is flagged instead of filled in with fake trend lines.`}
-          actions={[{ label: 'Create Monthly AI Blueprint', onClick: () => setGenerated(true) }]}
+          actions={[{ label: 'View Monthly Blueprint', onClick: () => setGenerated(true) }]}
           backgroundVariant="monthly"
         />
       ) : (
@@ -1728,8 +1748,7 @@ export function TeamBreakdownRecon({
   managerAvatars?: ManagerAvatars;
 }) {
   const managerOptions = getManagerOptions(data);
-  const [selectedManager, setSelectedManager] = useState(getDefaultManager(data));
-  const manager = selectedManager || managerOptions[0] || '';
+  const manager = getFocusedManager(data, managerOptions);
   const intel = getIntel(data, manager);
   const overview = getOverview(data, manager);
   const pickPortfolio = data.pickPortfolios?.find((row) => row.manager === manager) || null;
@@ -1766,12 +1785,11 @@ export function TeamBreakdownRecon({
   return (
     <div className="team-breakdown-recon">
       <div className="command-module-toolbar">
-        <label>
-          <span>Manager</span>
-          <select value={manager} onChange={(event) => setSelectedManager(event.target.value)}>
-            {managerOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-        </label>
+        <CommandModuleFocus
+          label="Manager"
+          manager={manager}
+          avatarUrl={managerAvatars?.[manager]}
+        />
       </div>
 
       <div className="team-breakdown-hero">
@@ -1891,7 +1909,6 @@ export function TradePartnerFinder({
   leagueId?: string;
 }) {
   const managerOptions = getManagerOptions(data);
-  const [selectedManager, setSelectedManager] = useState(getDefaultManager(data));
   const [localTrackedTradePlans, setLocalTrackedTradePlans] = useState<ActionPlanRecord[]>(() => readTrackedTradePlans());
   const utils = trpc.useUtils();
   const authQuery = trpc.auth.me.useQuery(undefined, {
@@ -1914,7 +1931,7 @@ export function TradePartnerFinder({
       await utils.actionPlans.list.invalidate({ leagueId });
     },
   });
-  const manager = selectedManager || managerOptions[0] || '';
+  const manager = getFocusedManager(data, managerOptions);
   const recommendations = useMemo(() => buildTradePartners(data, manager).slice(0, 8), [data, manager]);
   const trackedTradePlans = useMemo(
     () => mergeTrackedTradePlans(localTrackedTradePlans, serverTrackedTradePlansQuery.data?.plans || []),
@@ -1991,12 +2008,11 @@ export function TradePartnerFinder({
   return (
     <div className="trade-partner-finder">
       <div className="command-module-toolbar">
-        <label>
-          <span>Your team</span>
-          <select value={manager} onChange={(event) => setSelectedManager(event.target.value)}>
-            {managerOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-        </label>
+        <CommandModuleFocus
+          label="Your team"
+          manager={manager}
+          avatarUrl={managerAvatars?.[manager]}
+        />
       </div>
       {visibleTrackedTradePlans.length > 0 && (
         <div className="trade-outcome-strip" aria-label="Tracked trade recommendation outcomes">
@@ -2069,9 +2085,10 @@ export function TradeFinderGenerator({
   data: ReportData;
 }) {
   const managerOptions = getManagerOptions(data);
-  const defaultManager = getDefaultManager(data);
-  const [sourceManager, setSourceManager] = useState(defaultManager);
-  const [targetManager, setTargetManager] = useState(managerOptions.find((manager) => manager !== defaultManager) || managerOptions[0] || '');
+  const managerOptionsKey = managerOptions.join('|');
+  const sourceManager = getFocusedManager(data, managerOptions);
+  const fallbackTargetManager = managerOptions.find((manager) => manager !== sourceManager) || managerOptions[0] || '';
+  const [targetManager, setTargetManager] = useState(fallbackTargetManager);
   const [mode, setMode] = useState('Value neutral');
   const sourceIntel = getIntel(data, sourceManager);
   const targetIntel = getIntel(data, targetManager);
@@ -2127,6 +2144,16 @@ export function TradeFinderGenerator({
     } : null,
   ].filter(Boolean) as Array<{ label: string; give: ManagerIntelPlayer[]; receive: ManagerIntelPlayer[]; gap: number; confidence: number; note: string }> : [];
 
+  useEffect(() => {
+    setTargetManager((current) => (
+      current && current !== sourceManager && managerOptions.includes(current)
+        ? current
+        : fallbackTargetManager
+    ));
+    setAwayPlayerId('');
+    setTargetPlayerId('');
+  }, [fallbackTargetManager, managerOptionsKey, sourceManager]);
+
   if (managerOptions.length < 2) {
     return <EmptyState className="command-module-empty" title="Trade finder needs at least two managers" />;
   }
@@ -2134,17 +2161,7 @@ export function TradeFinderGenerator({
   return (
     <div className="trade-finder-generator">
       <div className="command-module-toolbar command-module-toolbar-wide">
-        <label>
-          <span>Your team</span>
-          <select value={sourceManager} onChange={(event) => {
-            const next = event.target.value;
-            setSourceManager(next);
-            if (next === targetManager) setTargetManager(managerOptions.find((manager) => manager !== next) || '');
-            setAwayPlayerId('');
-          }}>
-            {managerOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-        </label>
+        <CommandModuleFocus label="Your team" manager={sourceManager} />
         <label>
           <span>Target team</span>
           <select value={targetManager} onChange={(event) => {
@@ -2970,12 +2987,11 @@ export function AssistantFeatureShells({
   leagueId?: string;
 }) {
   const managerOptions = getManagerOptions(data);
-  const [selectedManager, setSelectedManager] = useState(getDefaultManager(data));
   const [watchPreferences, setWatchPreferences] = useState<WatchAlertPreferences>(() => readWatchAlertPreferences());
   const [watchStatus, setWatchStatus] = useState<string | null>(null);
   const [portfolioSnapshots, setPortfolioSnapshots] = useState<PortfolioSnapshot[]>(() => readPortfolioSnapshots());
   const [portfolioStatus, setPortfolioStatus] = useState<string | null>(null);
-  const manager = selectedManager || managerOptions[0] || '';
+  const manager = getFocusedManager(data, managerOptions);
   const leagueValueMode = normalizeLeagueValueMode(data.leagueDiagnostics?.valueMode || data.leagueValueMode);
   const watchSignals = useMemo(() => buildWatchSignals(data, manager), [data, manager]);
   const rookieSignals = useMemo(() => buildRookieSignals(data), [data]);
@@ -3118,12 +3134,7 @@ export function AssistantFeatureShells({
   return (
     <div className="assistant-feature-stack">
       <div className="command-module-toolbar">
-        <label>
-          <span>Assistant focus</span>
-          <select value={manager} onChange={(event) => setSelectedManager(event.target.value)}>
-            {managerOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-        </label>
+        <CommandModuleFocus label="Assistant focus" manager={manager} />
       </div>
 
       <section className="assistant-feature-coverage">
