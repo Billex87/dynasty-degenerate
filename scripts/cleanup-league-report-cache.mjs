@@ -10,8 +10,8 @@ const cleanupMode = process.env.LEAGUE_REPORT_CACHE_CLEANUP_MODE || 'versions';
 const servingTtlHours = Number.parseFloat(process.env.LEAGUE_REPORT_CACHE_TTL_HOURS || '12') || 12;
 const maxAgeHours = Number.parseFloat(process.env.LEAGUE_REPORT_CACHE_CLEANUP_MAX_AGE_HOURS || String(servingTtlHours)) || servingTtlHours;
 
-const CURRENT_LEAGUE_REPORT_VERSION = 47;
-const CURRENT_LEAGUE_RANKINGS_VERSION = 12;
+const CURRENT_LEAGUE_REPORT_VERSION = 48;
+const CURRENT_LEAGUE_RANKINGS_VERSION = 13;
 
 function formatBytes(value) {
   const bytes = Number(value || 0);

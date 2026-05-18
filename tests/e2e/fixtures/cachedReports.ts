@@ -1,5 +1,5 @@
 export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v25';
-export const REPORT_CACHE_DATA_VERSION = 'combine-athletic-metrics-v1';
+export const REPORT_CACHE_DATA_VERSION = 'combine-athletic-metrics-v2';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;

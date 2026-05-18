@@ -17,7 +17,7 @@ describe('league report cache compression', () => {
     const rows = Array.from({ length: 3500 }, (_, index) => ({
       id: `rank-${index}`,
       name: `Player ${index}`,
-      source: 'league-rankings-v12',
+      source: 'league-rankings-v13',
       note: 'Repeated rankings data should compress before it is written to the persistent cache.',
     }));
     const payload = { rankings: { profiles: { devy_sf_ppr: rows } } };

@@ -206,6 +206,34 @@ async function loadStoredSeasonFallback<T>(prefix: string, season: string): Prom
   return exact;
 }
 
+function hasExpandedAthleticMetrics(snapshot: Snapshot<NflverseAthleticRow>): boolean {
+  return snapshot.rows.some((row) => (
+    row.vertical !== null && row.vertical !== undefined
+  ) || (
+    row.broadJump !== null && row.broadJump !== undefined
+  ) || (
+    row.bench !== null && row.bench !== undefined
+  ) || (
+    row.cone !== null && row.cone !== undefined
+  ) || (
+    row.shuttle !== null && row.shuttle !== undefined
+  ));
+}
+
+async function fetchAthleticSnapshot(
+  options: Omit<ContextOptions, 'season'>,
+  persistByDefault = false
+): Promise<Snapshot<NflverseAthleticRow>> {
+  const url = process.env.NFLVERSE_COMBINE_URL || COMBINE_URL;
+  const snapshot = buildSnapshot({
+    source: 'nflverse combine',
+    sourceUrl: url,
+    rows: normalizeNflverseAthleticRows(parseCsv(await fetchText(url))),
+  });
+  if (options.persistSnapshot || persistByDefault) await persist(NFLVERSE_COMBINE_SOURCE_KEY, snapshot);
+  return snapshot;
+}
+
 function latestAvailableUsageSeason(rows: Array<Record<string, unknown>>, requestedSeason: string): string {
   const requested = Number(requestedSeason);
   const seasons = new Set<number>();
@@ -1476,16 +1504,19 @@ async function loadInjurySnapshot(options: ContextOptions): Promise<Snapshot<Nfl
 }
 
 async function loadAthleticSnapshot(options: Omit<ContextOptions, 'season'>): Promise<Snapshot<NflverseAthleticRow>> {
-  if (options.sourceMode === 'snapshot') return loadStored<NflverseAthleticRow>(NFLVERSE_COMBINE_SOURCE_KEY);
+  if (options.sourceMode === 'snapshot') {
+    const stored = await loadStored<NflverseAthleticRow>(NFLVERSE_COMBINE_SOURCE_KEY);
+    if (stored.rows.length && hasExpandedAthleticMetrics(stored)) return stored;
+
+    try {
+      return await fetchAthleticSnapshot(options, true);
+    } catch (error) {
+      console.warn('[nflverse] Failed to refresh missing or legacy combine snapshot:', error);
+      return stored;
+    }
+  }
   try {
-    const url = process.env.NFLVERSE_COMBINE_URL || COMBINE_URL;
-    const snapshot = buildSnapshot({
-      source: 'nflverse combine',
-      sourceUrl: url,
-      rows: normalizeNflverseAthleticRows(parseCsv(await fetchText(url))),
-    });
-    if (options.persistSnapshot) await persist(NFLVERSE_COMBINE_SOURCE_KEY, snapshot);
-    return snapshot;
+    return await fetchAthleticSnapshot(options);
   } catch (error) {
     console.warn('[nflverse] Failed to refresh combine snapshot:', error);
     return loadStored<NflverseAthleticRow>(NFLVERSE_COMBINE_SOURCE_KEY);
