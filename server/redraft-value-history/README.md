@@ -16,7 +16,8 @@ Generated files:
 - `redraft-value-trends-v1.json`: precomputed latest, high, low, and 30/90/180/365-day movement windows for fast UI reads.
 - `redraft-value-history-manifest-v1.json`: small runtime-safe manifest with counts, date ranges, file paths, and load policy.
 - `redraft-value-history-audit.json`: source, ranking-type, scoring, phase, player, point, and date-range counts.
+- `player-redraft-value-shards/`: player-key prefix shards used by backend/player-modal hydration.
 
 Keep this archive separate from the dynasty value-history archive. Redraft values reset by season and are intended for draft cost, rest-of-season movement, current-season player graphs, and redraft Draft Coach context.
 
-Do not eagerly import the full archive or trends file into client bundles. Future UI work should read the manifest first and then hydrate a player-specific shard or backend response.
+Do not eagerly import the full archive or trends file into client bundles. UI work should read through the backend player lookup, which hydrates a single player shard and keeps provider history out of report payloads.

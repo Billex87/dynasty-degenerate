@@ -905,7 +905,7 @@ export interface PlayerDetails {
   };
   valueTimeline?: {
     profileKey: string;
-    source: 'stored-value-snapshots' | 'historical-value-index';
+    source: 'stored-value-snapshots' | 'historical-value-index' | 'redraft-value-history';
     selectedWindow?: '1m' | '3m' | '6m' | '1y' | 'all';
     availableWindows?: Array<{
       key: '1m' | '3m' | '6m' | '1y' | 'all';

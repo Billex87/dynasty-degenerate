@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-17T23:23:08.264Z",
+  "shardStrategy": "first normalized player-key character",
+  "shardCount": 27,
+  "playerCount": 1623,
+  "pointCount": 13348,
+  "shards": [
+    {
+      "shardKey": "4",
+      "file": "4.json",
+      "playerCount": 1,
+      "pointCount": 3
+    },
+    {
+      "shardKey": "a",
+      "file": "a.json",
+      "playerCount": 89,
+      "pointCount": 683
+    },
+    {
+      "shardKey": "b",
+      "file": "b.json",
+      "playerCount": 94,
+      "pointCount": 796
+    },
+    {
+      "shardKey": "c",
+      "file": "c.json",
+      "playerCount": 147,
+      "pointCount": 1278
+    },
+    {
+      "shardKey": "d",
+      "file": "d.json",
+      "playerCount": 163,
+      "pointCount": 1412
+    },
+    {
+      "shardKey": "e",
+      "file": "e.json",
+      "playerCount": 45,
+      "pointCount": 377
+    },
+    {
+      "shardKey": "f",
+      "file": "f.json",
+      "playerCount": 7,
+      "pointCount": 51
+    },
+    {
+      "shardKey": "g",
+      "file": "g.json",
+      "playerCount": 38,
+      "pointCount": 344
+    },
+    {
+      "shardKey": "h",
+      "file": "h.json",
+      "playerCount": 21,
+      "pointCount": 185
+    },
+    {
+      "shardKey": "i",
+      "file": "i.json",
+      "playerCount": 23,
+      "pointCount": 217
+    },
+    {
+      "shardKey": "j",
+      "file": "j.json",
+      "playerCount": 269,
+      "pointCount": 2315
+    },
+    {
+      "shardKey": "k",
+      "file": "k.json",
+      "playerCount": 103,
+      "pointCount": 810
+    },
+    {
+      "shardKey": "l",
+      "file": "l.json",
+      "playerCount": 46,
+      "pointCount": 297
+    },
+    {
+      "shardKey": "m",
+      "file": "m.json",
+      "playerCount": 120,
+      "pointCount": 939
+    },
+    {
+      "shardKey": "n",
+      "file": "n.json",
+      "playerCount": 41,
+      "pointCount": 324
+    },
+    {
+      "shardKey": "o",
+      "file": "o.json",
+      "playerCount": 12,
+      "pointCount": 108
+    },
+    {
+      "shardKey": "p",
+      "file": "p.json",
+      "playerCount": 41,
+      "pointCount": 273
+    },
+    {
+      "shardKey": "q",
+      "file": "q.json",
+      "playerCount": 9,
+      "pointCount": 71
+    },
+    {
+      "shardKey": "r",
+      "file": "r.json",
+      "playerCount": 76,
+      "pointCount": 552
+    },
+    {
+      "shardKey": "s",
+      "file": "s.json",
+      "playerCount": 64,
+      "pointCount": 460
+    },
+    {
+      "shardKey": "t",
+      "file": "t.json",
+      "playerCount": 160,
+      "pointCount": 1374
+    },
+    {
+      "shardKey": "u",
+      "file": "u.json",
+      "playerCount": 1,
+      "pointCount": 3
+    },
+    {
+      "shardKey": "v",
+      "file": "v.json",
+      "playerCount": 4,
+      "pointCount": 28
+    },
+    {
+      "shardKey": "w",
+      "file": "w.json",
+      "playerCount": 17,
+      "pointCount": 163
+    },
+    {
+      "shardKey": "x",
+      "file": "x.json",
+      "playerCount": 10,
+      "pointCount": 85
+    },
+    {
+      "shardKey": "y",
+      "file": "y.json",
+      "playerCount": 1,
+      "pointCount": 10
+    },
+    {
+      "shardKey": "z",
+      "file": "z.json",
+      "playerCount": 21,
+      "pointCount": 190
+    }
+  ]
+}

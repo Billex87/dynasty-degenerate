@@ -33,6 +33,7 @@ import { loadReportStaticInputs } from "./reportStaticInputs";
 import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
 import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
 import { buildPlayerValueTimelineMap, loadStoredValueTimelineSnapshotsForPlayers, slimPlayerValueTimelineForReport } from "./playerValueTimeline";
+import { getRedraftValueTimelineForPlayer } from "./redraftValueTimeline";
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import {
@@ -5179,6 +5180,25 @@ export const appRouter = router({
             url: latestNews.url || null,
             publishedAt: latestNews.publishedAt || null,
           } : null,
+        };
+      }),
+    redraftValueTimeline: publicProcedure
+      .input(z.object({
+        leagueId: sleeperLeagueIdSchema.optional(),
+        playerName: z.string().trim().min(1).max(120),
+      }))
+      .query(({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'players.redraftValueTimeline',
+          max: 80,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId || input.playerName,
+          message: 'Too many redraft value timeline requests. Please wait a few minutes and try again.',
+        });
+
+        return {
+          timeline: getRedraftValueTimelineForPlayer(input.playerName),
         };
       }),
     seasonGameLog: publicProcedure

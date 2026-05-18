@@ -37,7 +37,8 @@
   "outputs": {
     "archive": "server/redraft-value-history/redraft-value-history-v1.json",
     "trends": "server/redraft-value-history/redraft-value-trends-v1.json",
-    "manifest": "server/redraft-value-history/redraft-value-history-manifest-v1.json"
+    "manifest": "server/redraft-value-history/redraft-value-history-manifest-v1.json",
+    "shards": "server/redraft-value-history/player-redraft-value-shards"
   },
   "playerCount": 1623,
   "pointCount": 13348,

@@ -5,7 +5,8 @@
   "files": {
     "archive": "server/redraft-value-history/redraft-value-history-v1.json",
     "trends": "server/redraft-value-history/redraft-value-trends-v1.json",
-    "manifest": "server/redraft-value-history/redraft-value-history-manifest-v1.json"
+    "manifest": "server/redraft-value-history/redraft-value-history-manifest-v1.json",
+    "shards": "server/redraft-value-history/player-redraft-value-shards"
   },
   "playerCount": 1623,
   "pointCount": 13348,
@@ -34,9 +35,10 @@
     "draftRank": 2274,
     "restOfSeason": 1745
   },
+  "shardCount": 27,
   "loadPolicy": {
     "defaultRuntimeInput": "Read this manifest or a future player-specific shard first; do not eagerly import the full archive or trends file into client bundles.",
     "fullArchiveUse": "Maintenance jobs, audits, recalibration, and backend-only graph hydration.",
-    "trendsUse": "Backend-only or lazy per-player UI hydration until player-specific shards are added."
+    "trendsUse": "Backend-only audits and recalibration; use the player-redraft-value-shards directory for runtime player hydration."
   }
 }

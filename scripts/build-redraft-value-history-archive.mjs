@@ -12,6 +12,7 @@ const archivePath = path.join(outputDir, 'redraft-value-history-v1.json');
 const trendsPath = path.join(outputDir, 'redraft-value-trends-v1.json');
 const manifestPath = path.join(outputDir, 'redraft-value-history-manifest-v1.json');
 const auditPath = path.join(outputDir, 'redraft-value-history-audit.json');
+const shardsDir = path.join(outputDir, 'player-redraft-value-shards');
 
 const redraftRankingTypes = new Set(['DRAFT', 'ADP', 'ROS']);
 const playablePositions = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DST', 'DEF']);
@@ -390,6 +391,57 @@ function writePlayerArchive(filePath, data) {
   fs.writeFileSync(filePath, `${lines.join('\n')}\n`);
 }
 
+function getPlayerShardKey(playerKey) {
+  return normalizePlayerKey(playerKey).slice(0, 1) || '_';
+}
+
+function writePlayerShards(players, generatedAt) {
+  fs.rmSync(shardsDir, { recursive: true, force: true });
+  fs.mkdirSync(shardsDir, { recursive: true });
+
+  const shards = new Map();
+  for (const player of players) {
+    const shardKey = getPlayerShardKey(player.key || player.name);
+    if (!shards.has(shardKey)) shards.set(shardKey, {});
+    shards.get(shardKey)[player.key] = player;
+  }
+
+  const manifestShards = [];
+  for (const [shardKey, shardPlayers] of [...shards.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const playerEntries = Object.entries(shardPlayers).sort(([a], [b]) => a.localeCompare(b));
+    const payload = {
+      schemaVersion: 1,
+      generatedAt,
+      shardKey,
+      playerCount: playerEntries.length,
+      pointCount: playerEntries.reduce((sum, [, player]) => sum + (player.points?.length || 0), 0),
+      players: Object.fromEntries(playerEntries),
+    };
+    writePlayerArchive(path.join(shardsDir, `${shardKey}.json`), {
+      ...payload,
+      players: playerEntries.map(([, player]) => player),
+    });
+    manifestShards.push({
+      shardKey,
+      file: `${shardKey}.json`,
+      playerCount: payload.playerCount,
+      pointCount: payload.pointCount,
+    });
+  }
+
+  writeJson(path.join(shardsDir, 'manifest.json'), {
+    schemaVersion: 1,
+    generatedAt,
+    shardStrategy: 'first normalized player-key character',
+    shardCount: manifestShards.length,
+    playerCount: players.length,
+    pointCount: players.reduce((sum, player) => sum + player.points.length, 0),
+    shards: manifestShards,
+  });
+
+  return manifestShards;
+}
+
 function recordGeneratedAt(audit, value) {
   if (!value) return;
   const date = new Date(value);
@@ -431,6 +483,7 @@ function main() {
 
   const pointCount = players.reduce((sum, player) => sum + player.points.length, 0);
   const trends = buildTrends(players);
+  const shardManifest = writePlayerShards(players, audit.generatedAt);
 
   const archive = {
     schemaVersion: 1,
@@ -467,6 +520,7 @@ function main() {
       archive: path.relative(rootDir, archivePath),
       trends: path.relative(rootDir, trendsPath),
       manifest: path.relative(rootDir, manifestPath),
+      shards: path.relative(rootDir, shardsDir),
     },
     playerCount: players.length,
     pointCount,
@@ -492,10 +546,11 @@ function main() {
     pointCountsBySource: auditOutput.pointCountsBySource,
     pointCountsByRankingType: auditOutput.pointCountsByRankingType,
     pointCountsByPhase: auditOutput.pointCountsByPhase,
+    shardCount: shardManifest.length,
     loadPolicy: {
       defaultRuntimeInput: 'Read this manifest or a future player-specific shard first; do not eagerly import the full archive or trends file into client bundles.',
       fullArchiveUse: 'Maintenance jobs, audits, recalibration, and backend-only graph hydration.',
-      trendsUse: 'Backend-only or lazy per-player UI hydration until player-specific shards are added.',
+      trendsUse: 'Backend-only audits and recalibration; use the player-redraft-value-shards directory for runtime player hydration.',
     },
   };
 
@@ -509,6 +564,7 @@ function main() {
     trends: path.relative(rootDir, trendsPath),
     manifest: path.relative(rootDir, manifestPath),
     audit: path.relative(rootDir, auditPath),
+    shardCount: shardManifest.length,
     playerCount: players.length,
     pointCount,
     dateRange: auditOutput.dateRange,

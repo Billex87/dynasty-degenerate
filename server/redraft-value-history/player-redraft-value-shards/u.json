@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-17T23:23:08.264Z",
+  "shardKey": "u",
+  "playerCount": 1,
+  "pointCount": 3,
+  "players": [
+    {"key":"ulyssesbentley","name":"Ulysses Bentley","position":"RB","team":"IND","points":[{"date":"2026-05-11","season":"2026","phase":"currentSeasonSnapshot","source":"MFL Rankings","sourceKey":"redraft-source-snapshot:mflRankings","rankingType":"CURRENT","scoring":null,"value":100,"overallRank":135,"positionRank":"RB135","position":"RB","team":"IND","tier":null,"expertCount":null,"averageRank":null,"bestRank":null,"worstRank":null,"stdDev":null,"projectedPoints":null,"sourceMeta":{"snapshotKey":"2026-05-11","snapshotSource":"mflRankings","derivedBlend":false,"playerKey":"ulyssesbentley"}},{"date":"2026-05-13","season":"2026","phase":"currentSeasonSnapshot","source":"MFL Rankings","sourceKey":"redraft-source-snapshot:mflRankings","rankingType":"CURRENT","scoring":null,"value":100,"overallRank":135,"positionRank":"RB135","position":"RB","team":"IND","tier":null,"expertCount":null,"averageRank":null,"bestRank":null,"worstRank":null,"stdDev":null,"projectedPoints":null,"sourceMeta":{"snapshotKey":"2026-05-13","snapshotSource":"mflRankings","derivedBlend":false,"playerKey":"ulyssesbentley"}},{"date":"2026-05-14","season":"2026","phase":"currentSeasonSnapshot","source":"MFL Rankings","sourceKey":"redraft-source-snapshot:mflRankings","rankingType":"CURRENT","scoring":null,"value":100,"overallRank":136,"positionRank":"RB136","position":"RB","team":"IND","tier":null,"expertCount":null,"averageRank":null,"bestRank":null,"worstRank":null,"stdDev":null,"projectedPoints":null,"sourceMeta":{"snapshotKey":"2026-05-14","snapshotSource":"mflRankings","derivedBlend":false,"playerKey":"ulyssesbentley"}}]}
+  ]
+}

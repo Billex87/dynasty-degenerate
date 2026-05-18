@@ -59,6 +59,31 @@ const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; acce
 
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 type PlayerSchedule = NonNullable<PlayerDetails['schedule']>;
+type PlayerValueTimeline = NonNullable<PlayerDetails['valueTimeline']>;
+type TimelineWindowKey = NonNullable<PlayerValueTimeline['selectedWindow']>;
+type RedraftValueTimelineScope = {
+  key: 'CURRENT' | 'DRAFT' | 'ADP' | 'ROS';
+  label: string;
+  sourceLabel: string;
+  latest: PlayerValueTimeline['points'][number] | null;
+  high: PlayerValueTimeline['points'][number] | null;
+  low: PlayerValueTimeline['points'][number] | null;
+  pointCount: number;
+  selectedWindow: TimelineWindowKey;
+  availableWindows: PlayerValueTimeline['availableWindows'];
+  windows: PlayerValueTimeline['windows'];
+  points: PlayerValueTimeline['points'];
+  summary: PlayerValueTimeline['summary'];
+};
+type RedraftValueTimelineData = {
+  playerName: string;
+  matchedName: string;
+  position?: string | null;
+  team?: string | null;
+  generatedAt?: string | null;
+  source: 'redraft-value-history-shards';
+  scopes: RedraftValueTimelineScope[];
+};
 
 function getProspectSourceLabel(source?: string | null): string | null {
   if (!source) return null;
@@ -183,6 +208,18 @@ export function PlayerDetailModal({
       staleTime: 1000 * 60 * 15,
     }
   );
+  const queryValueMode = normalizeLeagueValueMode(pick?.valueMode || 'dynasty');
+  const { data: redraftTimelineData, isFetching: isRedraftTimelineFetching } = trpc.players.redraftValueTimeline.useQuery(
+    {
+      leagueId: leagueId || undefined,
+      playerName: pick?.playerName || '',
+    },
+    {
+      enabled: isOpen && queryValueMode === 'redraft' && Boolean(pick?.playerName) && !queryIsCollegeProspect,
+      staleTime: 1000 * 60 * 30,
+      refetchOnWindowFocus: false,
+    }
+  );
   const { data: seasonGameLog, isFetching: isSeasonGameLogFetching } = trpc.players.seasonGameLog.useQuery(
     {
       leagueId: leagueId || '',
@@ -245,6 +282,7 @@ export function PlayerDetailModal({
   const valueProfile = details?.valueProfile;
   const valueMode = normalizeLeagueValueMode(pick.valueMode || 'dynasty');
   const isRedraftValueMode = valueMode === 'redraft';
+  const redraftValueTimeline = (redraftTimelineData?.timeline || null) as RedraftValueTimelineData | null;
   const draftKindLabel = (pick.round !== undefined || pick.pick !== undefined || pick.draftKind || pick.draftPickCount)
     ? getDraftKindLabel(getDraftKind(pick, valueMode))
     : null;
@@ -278,9 +316,11 @@ export function PlayerDetailModal({
     : getPlayerAvailability(details);
   const leagueUsage = details?.leagueUsage || null;
   const hasLeagueUsage = Boolean(leagueUsage && (leagueUsage.ownedGames > 0 || leagueUsage.startedGames > 0));
+  const verticalJump = formatVerticalJump(details?.athleticProfile?.vertical);
   const prospectHeaderInfoRows = [
     ['College', prospectCollege || details?.college || '-'],
     ['40 Time', formatFortyTime(prospectProfile?.fortyYardDash)],
+    ['Vertical', verticalJump],
     ['Birthday', formatBirthday(details?.birthDate) || '-'],
   ] as const;
   const playerBioRows = !isCollegeProspect ? [
@@ -291,6 +331,7 @@ export function PlayerDetailModal({
       />
     ) : '-'],
     ['40 Time', formatFortyTime(prospectProfile?.fortyYardDash)],
+    ['Vertical', verticalJump],
     ['Birthday', formatBirthday(details?.birthDate) || '-'],
   ] as const : [];
   const physicalRows = [
@@ -428,6 +469,7 @@ export function PlayerDetailModal({
     isCollegeProspect,
     prospectProfile,
     latestNews,
+    redraftTimeline: redraftValueTimeline,
   }) : null;
   const draftAuditRows = [
     pick.draftDecisionVerdict ? ['Draft Read', pick.draftDecisionVerdict] : null,
@@ -592,7 +634,7 @@ export function PlayerDetailModal({
                     </span>
                   </div>
                   {isCollegeProspect && (
-                    <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
                       {prospectHeaderInfoRows.map(([label, value]) => (
                         <InlineInfoTile
                           key={label}
@@ -954,6 +996,16 @@ export function PlayerDetailModal({
                     leagueValueMode={valueMode}
                   />
                 )}
+                {isRedraftValueMode && (
+                  <RedraftValueTimelinePanel
+                    timeline={redraftValueTimeline}
+                    playerName={pick.playerName}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                    showSourceAdmin={showAIRead}
+                    isLoading={isRedraftTimelineFetching}
+                  />
+                )}
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
                   <p className="text-center text-[0.68rem] font-bold leading-relaxed uppercase tracking-[0.16em] text-cyan-200/70">
                     {isRedraftValueMode
@@ -974,7 +1026,7 @@ export function PlayerDetailModal({
                 </div>
               )}
               {playerBioRows.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                   {playerBioRows.map(([label, value]) => (
                     <InfoTile
                       key={String(label)}
@@ -1404,6 +1456,13 @@ function formatFortyTime(value: number | string | null | undefined) {
   return `${trimmed}s`;
 }
 
+function formatVerticalJump(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') return '-';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-';
+  return `${numeric.toFixed(1).replace(/\.0$/, '')}"`;
+}
+
 function formatSleeperNewsUpdated(value: PlayerDetails['sleeperNewsUpdated']) {
   if (!value) return null;
   const numeric = Number(value);
@@ -1633,6 +1692,119 @@ function useHydratedValueTimeline({
   return { timeline: hydratedTimeline || timeline, isHydrating };
 }
 
+function redraftScopeToTimeline(scope: RedraftValueTimelineScope): PlayerValueTimeline {
+  return {
+    profileKey: `redraft_${scope.key.toLowerCase()}`,
+    source: 'redraft-value-history',
+    selectedWindow: scope.selectedWindow,
+    availableWindows: scope.availableWindows,
+    windows: scope.windows,
+    extremes: {
+      high: scope.high,
+      low: scope.low,
+    },
+    allTimePointCount: scope.pointCount,
+    points: scope.points,
+    summary: scope.summary,
+  };
+}
+
+function getPreferredRedraftScope(scopes: RedraftValueTimelineScope[]) {
+  return scopes.find((scope) => scope.key === 'CURRENT')
+    || scopes.find((scope) => scope.key === 'ROS')
+    || scopes.find((scope) => scope.key === 'DRAFT')
+    || scopes.find((scope) => scope.key === 'ADP')
+    || scopes[0]
+    || null;
+}
+
+function RedraftValueTimelinePanel({
+  timeline,
+  playerName,
+  teamColors,
+  tileAccent,
+  showSourceAdmin,
+  isLoading,
+}: {
+  timeline: RedraftValueTimelineData | null;
+  playerName: string;
+  teamColors?: { primary: string; secondary: string; accent: string } | null;
+  tileAccent?: string;
+  showSourceAdmin?: boolean;
+  isLoading?: boolean;
+}) {
+  const scopes = timeline?.scopes?.filter((scope) => scope.points.length >= 1) || [];
+  const preferredScope = getPreferredRedraftScope(scopes);
+  const [activeScopeKey, setActiveScopeKey] = useState<RedraftValueTimelineScope['key'] | null>(preferredScope?.key || null);
+
+  useEffect(() => {
+    if (!preferredScope) {
+      setActiveScopeKey(null);
+      return;
+    }
+    if (!scopes.some((scope) => scope.key === activeScopeKey)) {
+      setActiveScopeKey(preferredScope.key);
+    }
+  }, [activeScopeKey, preferredScope, scopes]);
+
+  if (isLoading && !timeline) {
+    return (
+      <div className="player-value-confidence-card player-value-confidence-card-info">
+        <span>Redraft History</span>
+        <strong>Loading player shard</strong>
+        <p>Pulling the redraft value timeline without loading the full archive into the report.</p>
+      </div>
+    );
+  }
+
+  if (!preferredScope) return null;
+
+  const activeScope = scopes.find((scope) => scope.key === activeScopeKey) || preferredScope;
+  const activeTimeline = redraftScopeToTimeline(activeScope);
+  const latest = activeScope.latest;
+  const high = activeScope.high;
+  const low = activeScope.low;
+
+  return (
+    <div className="space-y-2">
+      <div className="player-value-window-tabs" role="tablist" aria-label={`${playerName} redraft value source`}>
+        {scopes.map((scope) => (
+          <button
+            key={scope.key}
+            type="button"
+            className={`player-value-window-tab ${activeScope.key === scope.key ? 'player-value-window-tab-active' : ''}`}
+            onClick={() => setActiveScopeKey(scope.key)}
+            role="tab"
+            aria-selected={activeScope.key === scope.key}
+          >
+            <span>{scope.label}</span>
+            <strong>{scope.latest?.rank || formatValueLens(scope.latest?.value || 0)}</strong>
+          </button>
+        ))}
+      </div>
+
+      <PlayerValueTimelineCard
+        timeline={activeTimeline}
+        playerName={playerName}
+        teamColors={teamColors}
+        tileAccent={tileAccent}
+        showSourceAdmin={showSourceAdmin}
+        leagueValueMode="redraft"
+        title={`${activeScope.label} Redraft Trend`}
+        detailTitle={`${activeScope.label} Redraft Timeline`}
+        detailDescription={`${activeScope.sourceLabel} redraft history with value, positional rank, high/low, and movement windows from static player shards.`}
+        disableStaticHydration
+      />
+
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <InfoTile label="Latest" value={latest?.rank || formatValueLens(latest?.value || 0)} teamColors={teamColors} tileAccent={tileAccent} />
+        <InfoTile label="High" value={high ? `${formatValueLens(high.value)} ${high.rank || ''}`.trim() : '-'} teamColors={teamColors} tileAccent={tileAccent} />
+        <InfoTile label="Low" value={low ? `${formatValueLens(low.value)} ${low.rank || ''}`.trim() : '-'} teamColors={teamColors} tileAccent={tileAccent} />
+      </div>
+    </div>
+  );
+}
+
 function PlayerValueTimelineCard({
   timeline,
   playerName,
@@ -1640,17 +1812,25 @@ function PlayerValueTimelineCard({
   tileAccent,
   showSourceAdmin = false,
   leagueValueMode,
+  title = 'Value Timeline',
+  detailTitle = 'Value Timeline',
+  detailDescription,
+  disableStaticHydration = false,
 }: {
-  timeline: NonNullable<PlayerDetails['valueTimeline']>;
+  timeline: PlayerValueTimeline;
   playerName: string;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   showSourceAdmin?: boolean;
   leagueValueMode?: LeagueValueMode;
+  title?: string;
+  detailTitle?: string;
+  detailDescription?: string;
+  disableStaticHydration?: boolean;
 }) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const hydrated = useHydratedValueTimeline({
-    enabled: isDetailOpen,
+    enabled: isDetailOpen && !disableStaticHydration,
     playerName,
     timeline,
     leagueValueMode,
@@ -1686,7 +1866,7 @@ function PlayerValueTimelineCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[0.62rem] font-bold uppercase tracking-[0.16em] text-cyan-200/75">
-              Value Timeline
+              {title}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-slate-100">
               <span>{formatValueLens(firstPoint.value)}</span>
@@ -1768,6 +1948,8 @@ function PlayerValueTimelineCard({
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
         playerName={playerName}
+        title={detailTitle}
+        description={detailDescription}
         timeline={hydrated.timeline}
         strokeColor={strokeColor}
         deltaLabel={deltaLabel}
@@ -1782,6 +1964,8 @@ function PlayerValueTimelineDetailDialog({
   isOpen,
   onClose,
   playerName,
+  title = 'Value Timeline',
+  description,
   timeline,
   strokeColor,
   deltaLabel,
@@ -1791,7 +1975,9 @@ function PlayerValueTimelineDetailDialog({
   isOpen: boolean;
   onClose: () => void;
   playerName: string;
-  timeline: NonNullable<PlayerDetails['valueTimeline']>;
+  title?: string;
+  description?: string;
+  timeline: PlayerValueTimeline;
   strokeColor: string;
   deltaLabel: string;
   showSourceAdmin: boolean;
@@ -1855,12 +2041,12 @@ function PlayerValueTimelineDetailDialog({
             <X />
           </button>
           <DialogHeader className="player-value-timeline-modal-header">
-            <p className="player-value-timeline-kicker">Value Timeline</p>
+            <p className="player-value-timeline-kicker">{title}</p>
             <DialogTitle className="player-value-timeline-title">{playerName}</DialogTitle>
             <DialogDescription className="player-value-timeline-description">
-              {isHydrating
+              {description || (isHydrating
                 ? 'Loading the full chart history from static value shards.'
-                : 'Blended market movement with source coverage, positional rank, all-time high/low, and situation markers.'}
+                : 'Blended market movement with source coverage, positional rank, all-time high/low, and situation markers.')}
             </DialogDescription>
           </DialogHeader>
 
@@ -2337,6 +2523,31 @@ function getAiReadMarketScore(currentValue: number | null | undefined, movementP
   return Math.round(clampAiReadScore(valueScore + heatScore, 1, 99));
 }
 
+function buildRedraftTimelineReadContext(timeline?: RedraftValueTimelineData | null) {
+  if (!timeline?.scopes?.length) return null;
+  const scope = getPreferredRedraftScope(timeline.scopes);
+  if (!scope?.latest) return null;
+
+  const latest = scope.latest;
+  const activeWindow = scope.windows?.[scope.selectedWindow] || scope.windows?.all || null;
+  const delta = activeWindow?.delta ?? scope.summary.delta;
+  const deltaPct = activeWindow?.deltaPct ?? scope.summary.deltaPct;
+  const moveLabel = [
+    formatValueDelta(delta),
+    deltaPct !== null && deltaPct !== undefined ? `${deltaPct > 0 ? '+' : ''}${deltaPct}%` : null,
+  ].filter(Boolean).join(' / ');
+  const highLow = [
+    scope.high ? `high ${formatValueLens(scope.high.value)}${scope.high.rank ? ` (${scope.high.rank})` : ''} on ${formatTimelineDate(scope.high.date)}` : null,
+    scope.low ? `low ${formatValueLens(scope.low.value)}${scope.low.rank ? ` (${scope.low.rank})` : ''} on ${formatTimelineDate(scope.low.date)}` : null,
+  ].filter(Boolean).join('; ');
+
+  return {
+    chip: `${scope.label} ${latest.rank || formatValueLens(latest.value)}`,
+    confidenceNote: `Redraft ${scope.label.toLowerCase()} history loaded from local player shards; no provider call was made.`,
+    copy: `Redraft history: ${scope.label} sits at ${formatValueLens(latest.value)}${latest.rank ? ` / ${latest.rank}` : ''}. ${moveLabel ? `Window move is ${moveLabel}.` : ''} ${highLow ? `Range check: ${highLow}.` : ''}`.replace(/\s+/g, ' ').trim(),
+  };
+}
+
 function buildSituationValueEvidence({
   playerName,
   position,
@@ -2447,6 +2658,7 @@ function buildPlayerAiRead({
   isCollegeProspect,
   prospectProfile,
   latestNews,
+  redraftTimeline,
 }: {
   playerName: string;
   position?: string | null;
@@ -2459,6 +2671,7 @@ function buildPlayerAiRead({
   isCollegeProspect?: boolean;
   prospectProfile?: PlayerDetails['prospectProfile'];
   latestNews?: PlayerDetails['latestNews'];
+  redraftTimeline?: RedraftValueTimelineData | null;
 }) {
   const rankNumber = parseRankNumber(currentRank);
   const age = details?.age;
@@ -2486,6 +2699,7 @@ function buildPlayerAiRead({
     valueGain,
     details,
   });
+  const redraftHistoryContext = valueMode === 'redraft' ? buildRedraftTimelineReadContext(redraftTimeline) : null;
 
   if (isCollegeProspect) {
     const score = prospectProfile?.rating ? `Prospect score ${prospectProfile.rating}` : 'Prospect file';
@@ -2541,6 +2755,9 @@ function buildPlayerAiRead({
   }
   if (situationValueEvidence) {
     chips.push(...situationValueEvidence.chips);
+  }
+  if (redraftHistoryContext) {
+    chips.push({ label: redraftHistoryContext.chip, tone: 'info' });
   }
 
   const isRedraft = valueMode === 'redraft';
@@ -2638,6 +2855,11 @@ function buildPlayerAiRead({
       body = `${body} Schedule context: ${scheduleSummary}.`;
     }
   }
+  if (redraftHistoryContext) {
+    body = body === `${playerName} is best evaluated through roster context, not raw value alone.`
+      ? redraftHistoryContext.copy
+      : `${body} ${redraftHistoryContext.copy}`;
+  }
 
   return {
     title: `${playerName} AI read`,
@@ -2652,6 +2874,7 @@ function buildPlayerAiRead({
     ),
     confidenceNote: [
       valueConfidence.note,
+      redraftHistoryContext?.confidenceNote || null,
       cohort?.calibration?.note || null,
       situationDelta ? `Situation delta confidence ${situationDelta.confidence}; ${situationDelta.missingSignals.length ? `missing ${situationDelta.missingSignals.slice(0, 2).join(' and ')}` : 'first-pass inputs present'}.` : null,
     ].filter(Boolean).join(' '),

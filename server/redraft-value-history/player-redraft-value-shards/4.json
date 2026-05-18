@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-17T23:23:08.264Z",
+  "shardKey": "4",
+  "playerCount": 1,
+  "pointCount": 3,
+  "players": [
+    {"key":"49ersdst","name":"49ers D/ST","position":"DST","team":"SF","points":[{"date":"2026-05-11","season":"2026","phase":"currentSeasonSnapshot","source":"ESPN Fantasy","sourceKey":"redraft-source-snapshot:espnFantasy","rankingType":"ADP","scoring":null,"value":100,"overallRank":426,"positionRank":"DEF426","position":"DST","team":"SF","tier":null,"expertCount":null,"averageRank":167.64,"bestRank":null,"worstRank":null,"stdDev":null,"projectedPoints":null,"sourceMeta":{"snapshotKey":"2026-05-11","snapshotSource":"espnFantasy","derivedBlend":false,"playerKey":"49ersdst"}},{"date":"2026-05-13","season":"2026","phase":"currentSeasonSnapshot","source":"ESPN Fantasy","sourceKey":"redraft-source-snapshot:espnFantasy","rankingType":"ADP","scoring":null,"value":100,"overallRank":426,"positionRank":"DEF426","position":"DST","team":"SF","tier":null,"expertCount":null,"averageRank":167.97,"bestRank":null,"worstRank":null,"stdDev":null,"projectedPoints":null,"sourceMeta":{"snapshotKey":"2026-05-13","snapshotSource":"espnFantasy","derivedBlend":false,"playerKey":"49ersdst"}},{"date":"2026-05-14","season":"2026","phase":"currentSeasonSnapshot","source":"ESPN Fantasy","sourceKey":"redraft-source-snapshot:espnFantasy","rankingType":"ADP","scoring":null,"value":100,"overallRank":424,"positionRank":"DEF424","position":"DST","team":"SF","tier":null,"expertCount":null,"averageRank":167.94,"bestRank":null,"worstRank":null,"stdDev":null,"projectedPoints":null,"sourceMeta":{"snapshotKey":"2026-05-14","snapshotSource":"espnFantasy","derivedBlend":false,"playerKey":"49ersdst"}}]}
+  ]
+}
