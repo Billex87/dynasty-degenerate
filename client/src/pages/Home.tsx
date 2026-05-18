@@ -188,7 +188,9 @@ const REPORT_CACHE_DB_VERSION = 1;
 const REPORT_CACHE_DB_STORE = "reports";
 const REPORT_LOAD_TELEMETRY_KEY =
   "dynasty-degenerates:report-load-telemetry:v1";
-const REPORT_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const REPORT_CACHE_MAX_AGE_MS = 72 * 60 * 60 * 1000;
+const REPORT_BACKGROUND_REFRESH_AFTER_MS = 60 * 60 * 1000;
+const REPORT_CACHE_PREFETCH_DEBOUNCE_MS = 10 * 60 * 1000;
 const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v10",
   "dynasty-degenerates:last-report:v11",
@@ -237,6 +239,7 @@ type LoadingTransitionPhase =
 type OwnerIntelSortMode = "dynasty" | "contender" | "rebuilder";
 type ReportLoadSource = "browser-cache" | "server";
 type ReportLoadCacheStatus = "browser" | "hit" | "miss" | "unknown";
+type ReportAnalysisMode = "blocking" | "background";
 type ReportLoadTelemetryEvent = {
   leagueId: string;
   leagueName?: string | null;
@@ -1399,6 +1402,31 @@ function isFreshTimestamp(value: unknown, maxAgeMs: number): boolean {
   return Date.now() - value <= maxAgeMs;
 }
 
+function getReportCacheDbKey(leagueId?: string | null): string {
+  const normalizedLeagueId = String(leagueId || "").trim();
+  return normalizedLeagueId
+    ? `${REPORT_CACHE_KEY}:${normalizedLeagueId}`
+    : REPORT_CACHE_KEY;
+}
+
+function isUsableCachedReport(
+  report: CachedReport | null,
+  leagueId?: string | null
+): boolean {
+  if (!report) return false;
+  const normalizedLeagueId = String(leagueId || "").trim();
+  return (
+    report.cacheVersion === REPORT_CACHE_DATA_VERSION &&
+    (!normalizedLeagueId || report.leagueId === normalizedLeagueId) &&
+    isFreshTimestamp(report.savedAt, REPORT_CACHE_MAX_AGE_MS)
+  );
+}
+
+function shouldBackgroundRefreshCachedReport(report: CachedReport | null) {
+  if (!report || !isUsableCachedReport(report)) return false;
+  return Date.now() - report.savedAt >= REPORT_BACKGROUND_REFRESH_AFTER_MS;
+}
+
 function openReportCacheDb(): Promise<IDBDatabase | null> {
   if (typeof window === "undefined" || !("indexedDB" in window)) {
     return Promise.resolve(null);
@@ -1421,14 +1449,16 @@ function openReportCacheDb(): Promise<IDBDatabase | null> {
   });
 }
 
-async function readIndexedDbReportCache(): Promise<CachedReport | null> {
+async function readIndexedDbReportCache(
+  leagueId?: string | null
+): Promise<CachedReport | null> {
   const db = await openReportCacheDb();
   if (!db) return null;
 
   return new Promise(resolve => {
     const transaction = db.transaction(REPORT_CACHE_DB_STORE, "readonly");
     const store = transaction.objectStore(REPORT_CACHE_DB_STORE);
-    const request = store.get(REPORT_CACHE_KEY);
+    const request = store.get(getReportCacheDbKey(leagueId));
     request.onsuccess = () => resolve((request.result as CachedReport) || null);
     request.onerror = () => resolve(null);
     transaction.oncomplete = () => db.close();
@@ -1445,7 +1475,9 @@ async function writeIndexedDbReportCache(report: CachedReport): Promise<void> {
 
   await new Promise<void>(resolve => {
     const transaction = db.transaction(REPORT_CACHE_DB_STORE, "readwrite");
-    transaction.objectStore(REPORT_CACHE_DB_STORE).put(report, REPORT_CACHE_KEY);
+    const store = transaction.objectStore(REPORT_CACHE_DB_STORE);
+    store.put(report, REPORT_CACHE_KEY);
+    store.put(report, getReportCacheDbKey(report.leagueId));
     transaction.oncomplete = () => {
       db.close();
       resolve();
@@ -1457,13 +1489,15 @@ async function writeIndexedDbReportCache(report: CachedReport): Promise<void> {
   });
 }
 
-async function clearIndexedDbReportCache(): Promise<void> {
+async function clearIndexedDbReportCache(leagueId?: string | null): Promise<void> {
   const db = await openReportCacheDb();
   if (!db) return;
 
   await new Promise<void>(resolve => {
     const transaction = db.transaction(REPORT_CACHE_DB_STORE, "readwrite");
-    transaction.objectStore(REPORT_CACHE_DB_STORE).delete(REPORT_CACHE_KEY);
+    const store = transaction.objectStore(REPORT_CACHE_DB_STORE);
+    store.delete(REPORT_CACHE_KEY);
+    if (leagueId) store.delete(getReportCacheDbKey(leagueId));
     transaction.oncomplete = () => {
       db.close();
       resolve();
@@ -1475,19 +1509,27 @@ async function clearIndexedDbReportCache(): Promise<void> {
   });
 }
 
-function clearBrowserReportCache() {
+function clearBrowserReportCache(leagueId?: string | null) {
   localStorage.removeItem(REPORT_CACHE_KEY);
-  void clearIndexedDbReportCache();
+  void clearIndexedDbReportCache(leagueId);
 }
 
-async function readBrowserReportCache(): Promise<CachedReport | null> {
+async function readBrowserReportCache(
+  leagueId?: string | null
+): Promise<CachedReport | null> {
+  const normalizedLeagueId = String(leagueId || "").trim();
   try {
     const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
-    if (cachedReport) return JSON.parse(cachedReport) as CachedReport;
+    if (cachedReport) {
+      const parsed = JSON.parse(cachedReport) as CachedReport;
+      if (!normalizedLeagueId || parsed.leagueId === normalizedLeagueId) {
+        return parsed;
+      }
+    }
   } catch {
     localStorage.removeItem(REPORT_CACHE_KEY);
   }
-  return readIndexedDbReportCache();
+  return readIndexedDbReportCache(normalizedLeagueId || undefined);
 }
 
 function writeBrowserReportCache(report: CachedReport) {
@@ -4710,6 +4752,7 @@ export default function Home() {
   const [ownerIntelSortMode, setOwnerIntelSortMode] =
     useState<OwnerIntelSortMode>("dynasty");
   const [isLoading, setIsLoading] = useState(false);
+  const [isReportRefreshing, setIsReportRefreshing] = useState(false);
   const [analysisCompleteMessage, setAnalysisCompleteMessage] = useState<{
     leagueName: string;
     leagueFormat: string;
@@ -4749,6 +4792,9 @@ export default function Home() {
     leagueId: string;
     startedAt: number;
   } | null>(null);
+  const analysisModeRef = useRef<ReportAnalysisMode>("blocking");
+  const backgroundRefreshLeagueIdRef = useRef<string | null>(null);
+  const lastBackgroundRefreshAtRef = useRef<Record<string, number>>({});
   const appBootStartedAtRef = useRef(
     typeof performance !== "undefined" ? performance.now() : Date.now()
   );
@@ -4812,6 +4858,7 @@ export default function Home() {
     nextLeagueId: string,
     extraKnownLeagues: SleeperLeagueOption[] = []
   ) => {
+    analysisModeRef.current = "blocking";
     activeAnalysisLeagueIdRef.current = nextLeagueId;
     reportLoadStartedAtRef.current = performance.now();
     const knownLeague = findKnownSleeperLeague(
@@ -4901,6 +4948,7 @@ export default function Home() {
     },
     onSuccess: data => {
       clearSuccessTransitionTimers();
+      const analysisMode = analysisModeRef.current;
       const responseCompletedAt = performance.now();
       const analyzeRequest = analyzeRequestStartedAtRef.current;
       const analyzeStartedAt =
@@ -4911,6 +4959,35 @@ export default function Home() {
         analyzeStartedAt === null
           ? null
           : Math.round(responseCompletedAt - analyzeStartedAt);
+      if (
+        analysisMode === "background" &&
+        backgroundRefreshLeagueIdRef.current === data.leagueId
+      ) {
+        activeAnalysisLeagueIdRef.current = data.leagueId;
+        setLeagueId(data.leagueId);
+        setLeagueName(data.leagueName);
+        setLeagueLogo(data.leagueLogo);
+        setLeagueFormat(data.leagueFormat);
+        rememberCurrentUserLeagueShortcut(data.leagueId);
+        setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
+        setReportData(data.reportData);
+        setIsReportRefreshing(false);
+        setAnalysisCompleteMessage(null);
+        setPendingAnalysisLeague(null);
+        backgroundRefreshLeagueIdRef.current = null;
+        activeAnalysisLeagueIdRef.current = null;
+        analysisModeRef.current = "blocking";
+        queueReportVisibleTelemetry({
+          leagueId: data.leagueId,
+          leagueName: data.leagueName,
+          activeTab,
+          source: "server",
+          cacheStatus: data.reportCacheStatus || "unknown",
+          requestMs,
+          payloadVersion: REPORT_CACHE_DATA_VERSION,
+        });
+        return;
+      }
       activeAnalysisLeagueIdRef.current = data.leagueId;
       setLeagueId(data.leagueId);
       setLeagueName(data.leagueName);
@@ -4980,6 +5057,17 @@ export default function Home() {
     },
     onError: error => {
       clearSuccessTransitionTimers();
+      if (analysisModeRef.current === "background") {
+        setIsReportRefreshing(false);
+        backgroundRefreshLeagueIdRef.current = null;
+        activeAnalysisLeagueIdRef.current = null;
+        analyzeRequestStartedAtRef.current = null;
+        analysisModeRef.current = "blocking";
+        if (reportData) {
+          toast.warning("Could not refresh the report. Keeping the current view.");
+          return;
+        }
+      }
       reportLoadStartedAtRef.current = null;
       analyzeRequestStartedAtRef.current = null;
       setAnalysisCompleteMessage(null);
@@ -4997,6 +5085,72 @@ export default function Home() {
     },
     []
   );
+
+  const applyCachedReport = (
+    cachedReport: CachedReport,
+    nextActiveTab?: string | null
+  ) => {
+    const tab = nextActiveTab || cachedReport.activeTab || "overview";
+    setLeagueId(cachedReport.leagueId);
+    setLeagueName(cachedReport.leagueName);
+    setLeagueLogo(cachedReport.leagueLogo);
+    setLeagueFormat(cachedReport.leagueFormat);
+    setActiveTab(tab);
+    setReportDataCacheVersion(cachedReport.cacheVersion || REPORT_CACHE_DATA_VERSION);
+    setReportData(cachedReport.reportData);
+    setAnalysisCompleteMessage(null);
+    setPendingAnalysisLeague(null);
+    setLoadingTransitionPhase("done");
+    setIsLoading(false);
+    updateReportTabUrl(tab, cachedReport.leagueId);
+    setLeagueIdHistory(
+      rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, cachedReport.leagueId)
+    );
+  };
+
+  const refreshReportInBackground = (
+    nextLeagueId: string,
+    nextViewerUserId?: string | null
+  ) => {
+    const normalizedLeagueId = nextLeagueId.trim();
+    if (!normalizedLeagueId) return;
+    const lastRefreshAt = lastBackgroundRefreshAtRef.current[normalizedLeagueId] || 0;
+    if (Date.now() - lastRefreshAt < REPORT_CACHE_PREFETCH_DEBOUNCE_MS) return;
+    lastBackgroundRefreshAtRef.current[normalizedLeagueId] = Date.now();
+    analysisModeRef.current = "background";
+    backgroundRefreshLeagueIdRef.current = normalizedLeagueId;
+    activeAnalysisLeagueIdRef.current = normalizedLeagueId;
+    setIsReportRefreshing(true);
+    analyzeMutation.mutate({
+      leagueId: normalizedLeagueId,
+      viewerUserId: nextViewerUserId || undefined,
+    });
+  };
+
+  const restoreFreshCachedReportForLeague = async (
+    nextLeagueId: string,
+    nextActiveTab?: string | null,
+    nextViewerUserId?: string | null
+  ) => {
+    const cachedReport = await readBrowserReportCache(nextLeagueId);
+    if (!cachedReport || !isUsableCachedReport(cachedReport, nextLeagueId)) {
+      return false;
+    }
+    applyCachedReport(cachedReport, nextActiveTab);
+    queueReportVisibleTelemetry({
+      leagueId: cachedReport.leagueId,
+      leagueName: cachedReport.leagueName,
+      activeTab: nextActiveTab || cachedReport.activeTab || "overview",
+      source: "browser-cache",
+      cacheStatus: "browser",
+      requestMs: null,
+      payloadVersion: cachedReport.cacheVersion || REPORT_CACHE_DATA_VERSION,
+    });
+    if (shouldBackgroundRefreshCachedReport(cachedReport)) {
+      refreshReportInBackground(cachedReport.leagueId, nextViewerUserId);
+    }
+    return true;
+  };
 
   const userLeagueRanksMutation = trpc.league.getUserLeagueRanks.useMutation({
     onSuccess: data => {
@@ -5084,7 +5238,6 @@ export default function Home() {
     const restoreCachedSession = async () => {
       let restoredViewerUserId: string | null = null;
       let restoredLeagues: SleeperLeagueOption[] = [];
-      let sleeperSessionSavedAt: number | null = null;
       const urlLeagueId = getInitialReportLeagueIdFromUrl();
       const urlTab = getInitialReportTabFromUrl();
       try {
@@ -5105,7 +5258,6 @@ export default function Home() {
           const restoredHasAdminPermissions =
             parsed.user?.hasAdminPermissions === true ||
             parsed.user?.isPrivilegedReportViewer === true;
-          sleeperSessionSavedAt = parsed.savedAt || null;
           setSleeperUsername(parsed.username || "");
           restoredViewerUserId = parsed.user?.userId || null;
           setViewerUserId(restoredViewerUserId);
@@ -5143,30 +5295,13 @@ export default function Home() {
 
       try {
         STALE_REPORT_CACHE_KEYS.forEach(key => localStorage.removeItem(key));
-        const parsed = await readBrowserReportCache();
+        const parsed = await readBrowserReportCache(urlLeagueId || undefined);
         if (isCancelled) return;
         if (parsed) {
-          const cachedReportIsFresh = isFreshTimestamp(
-            parsed.savedAt,
-            REPORT_CACHE_MAX_AGE_MS
-          );
-          const sleeperSessionIsFresh =
-            sleeperSessionSavedAt === null
-              ? true
-              : isFreshTimestamp(sleeperSessionSavedAt, REPORT_CACHE_MAX_AGE_MS);
           if (
-            parsed.cacheVersion === REPORT_CACHE_DATA_VERSION &&
-            (!urlLeagueId || parsed.leagueId === urlLeagueId) &&
-            cachedReportIsFresh &&
-            sleeperSessionIsFresh
+            isUsableCachedReport(parsed, urlLeagueId || parsed.leagueId)
           ) {
-            setLeagueId(parsed.leagueId);
-            setLeagueName(parsed.leagueName);
-            setLeagueLogo(parsed.leagueLogo);
-            setLeagueFormat(parsed.leagueFormat);
-            setActiveTab(urlTab || parsed.activeTab || "overview");
-            setReportDataCacheVersion(parsed.cacheVersion);
-            setReportData(parsed.reportData);
+            applyCachedReport(parsed, urlTab || parsed.activeTab || "overview");
             queueReportVisibleTelemetry({
               leagueId: parsed.leagueId,
               leagueName: parsed.leagueName,
@@ -5176,12 +5311,12 @@ export default function Home() {
               requestMs: null,
               payloadVersion: parsed.cacheVersion || REPORT_CACHE_DATA_VERSION,
             });
-            setLeagueIdHistory(
-              rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId)
-            );
+            if (shouldBackgroundRefreshCachedReport(parsed)) {
+              refreshReportInBackground(parsed.leagueId, restoredViewerUserId);
+            }
             return;
           }
-          clearBrowserReportCache();
+          clearBrowserReportCache(parsed.leagueId);
         }
 
         if (urlLeagueId) {
@@ -5209,6 +5344,36 @@ export default function Home() {
           );
           if (!lastLeagueIsFresh) {
             localStorage.removeItem(LAST_LEAGUE_KEY);
+            return;
+          }
+          const cachedLastLeagueReport = await readBrowserReportCache(parsed.leagueId);
+          if (isCancelled) return;
+          if (
+            cachedLastLeagueReport &&
+            isUsableCachedReport(cachedLastLeagueReport, parsed.leagueId)
+          ) {
+            applyCachedReport(
+              cachedLastLeagueReport,
+              urlTab || cachedLastLeagueReport.activeTab || "overview"
+            );
+            queueReportVisibleTelemetry({
+              leagueId: cachedLastLeagueReport.leagueId,
+              leagueName: cachedLastLeagueReport.leagueName,
+              activeTab:
+                urlTab || cachedLastLeagueReport.activeTab || "overview",
+              source: "browser-cache",
+              cacheStatus: "browser",
+              requestMs: null,
+              payloadVersion:
+                cachedLastLeagueReport.cacheVersion ||
+                REPORT_CACHE_DATA_VERSION,
+            });
+            if (shouldBackgroundRefreshCachedReport(cachedLastLeagueReport)) {
+              refreshReportInBackground(
+                cachedLastLeagueReport.leagueId,
+                restoredViewerUserId
+              );
+            }
             return;
           }
           setLeagueId(parsed.leagueId);
@@ -5283,22 +5448,11 @@ export default function Home() {
     )
       return;
 
-    clearBrowserReportCache();
+    clearBrowserReportCache(leagueId);
     STALE_REPORT_CACHE_KEYS.forEach(key => localStorage.removeItem(key));
-    setReportData(null);
     setReportDataCacheVersion(null);
     setAnalysisCompleteMessage(null);
-    setPendingAnalysisLeague({
-      leagueName,
-      leagueFormat,
-      leagueLogo,
-    });
-    setLoadingTransitionPhase("loading");
-    setIsLoading(true);
-    analyzeMutation.mutate({
-      leagueId,
-      viewerUserId: viewerUserId || undefined,
-    });
+    refreshReportInBackground(leagueId, viewerUserId);
     // This intentionally runs when a preserved React Fast Refresh state has report data
     // from an older browser cache version.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5310,11 +5464,28 @@ export default function Home() {
       toast.error("Please enter a league ID");
       return;
     }
+    if (
+      reportData &&
+      nextLeagueId === leagueId.trim() &&
+      reportDataCacheVersion === REPORT_CACHE_DATA_VERSION
+    ) {
+      refreshReportInBackground(nextLeagueId, viewerUserId);
+      return;
+    }
     if (nextLeagueId !== leagueId.trim()) {
       setAdminViewerManager(null);
     }
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
+    if (
+      await restoreFreshCachedReportForLeague(
+        nextLeagueId,
+        getInitialReportTabFromUrl() || "overview",
+        viewerUserId
+      )
+    ) {
+      return;
+    }
     void beginAnalysisLoading(nextLeagueId).finally(() => {
       if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
       analyzeMutation.mutate({
@@ -5466,14 +5637,23 @@ export default function Home() {
     setIsChangeLeagueModalOpen(true);
   };
 
-  const handleAnalyzeLeagueOption = (nextLeagueId: string) => {
+  const handleAnalyzeLeagueOption = async (nextLeagueId: string) => {
     setIsLeaguePickerOpen(false);
+    if (
+      await restoreFreshCachedReportForLeague(
+        nextLeagueId,
+        "overview",
+        viewerUserId
+      )
+    ) {
+      return;
+    }
     clearBrowserReportCache();
     setReportData(null);
     handleAnalyze(nextLeagueId);
   };
 
-  const handleCachedLeagueShortcutSelect = (nextLeagueId: string) => {
+  const handleCachedLeagueShortcutSelect = async (nextLeagueId: string) => {
     const cachedUser = findCachedSleeperUser(
       cachedSleeperUsers,
       viewerUserId,
@@ -5526,10 +5706,19 @@ export default function Home() {
 
     setIsLeaguePickerOpen(false);
     setIsChangeLeagueModalOpen(false);
-    clearBrowserReportCache();
-    setReportData(null);
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
+    if (
+      await restoreFreshCachedReportForLeague(
+        nextLeagueId,
+        "overview",
+        cachedUser?.userId || viewerUserId
+      )
+    ) {
+      return;
+    }
+    clearBrowserReportCache();
+    setReportData(null);
     void beginAnalysisLoading(nextLeagueId, cachedUser?.leagues || []).finally(
       () => {
         if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
@@ -5701,6 +5890,48 @@ export default function Home() {
   useEffect(() => {
     setReportScanCompletedAt(reportData ? Date.now() : null);
   }, [reportData]);
+
+  useEffect(() => {
+    if (
+      !reportData ||
+      !leagueId ||
+      reportDataCacheVersion !== REPORT_CACHE_DATA_VERSION ||
+      isLoading ||
+      isReportRefreshing
+    ) {
+      return;
+    }
+
+    const getAgeMs = () =>
+      Date.now() - (reportScanCompletedAt || Date.now());
+    const refreshIfNeeded = () => {
+      if (getAgeMs() < REPORT_BACKGROUND_REFRESH_AFTER_MS) return;
+      refreshReportInBackground(leagueId, viewerUserId);
+    };
+    const delay = Math.max(
+      REPORT_BACKGROUND_REFRESH_AFTER_MS - getAgeMs(),
+      REPORT_CACHE_PREFETCH_DEBOUNCE_MS
+    );
+    const timer = window.setTimeout(refreshIfNeeded, delay);
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") refreshIfNeeded();
+    };
+    window.addEventListener("focus", refreshIfNeeded);
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", refreshIfNeeded);
+      document.removeEventListener("visibilitychange", handleVisible);
+    };
+  }, [
+    isLoading,
+    isReportRefreshing,
+    leagueId,
+    reportData,
+    reportDataCacheVersion,
+    reportScanCompletedAt,
+    viewerUserId,
+  ]);
 
   useEffect(() => {
     if (!reportData || activeTab !== "draft" || shouldShowDraftHistoryTab)
@@ -6034,12 +6265,20 @@ export default function Home() {
                       </h2>
                     </div>
                     <span
-                      className="report-live-indicator hidden md:inline-flex"
-                      aria-label="League analysis loaded"
-                      title={reportScanTooltip}
+                      className={`report-live-indicator hidden md:inline-flex ${isReportRefreshing ? "report-live-indicator-refreshing" : ""}`}
+                      aria-label={
+                        isReportRefreshing
+                          ? "League analysis refreshing"
+                          : "League analysis loaded"
+                      }
+                      title={
+                        isReportRefreshing
+                          ? "Refreshing league data in the background"
+                          : reportScanTooltip
+                      }
                     >
                       <span aria-hidden="true" />
-                      League scan complete
+                      {isReportRefreshing ? "Updating league data" : "League scan complete"}
                     </span>
                   </div>
 

@@ -5488,6 +5488,18 @@ body {
   animation: dd-live-pulse 2.2s var(--dd-ease) infinite;
 }
 
+.report-live-indicator-refreshing {
+  color: rgba(251, 191, 36, 0.84);
+}
+
+.report-live-indicator-refreshing > span {
+  background: rgb(251, 191, 36);
+  box-shadow:
+    0 0 0 0 rgba(251, 191, 36, 0.34),
+    0 0 14px rgba(251, 191, 36, 0.5);
+  animation: dd-refresh-pulse 1.4s var(--dd-ease) infinite;
+}
+
 @keyframes dd-live-pulse {
   0%,
   100% {
@@ -5499,6 +5511,18 @@ body {
     box-shadow:
       0 0 0 0.35rem rgba(52, 211, 153, 0),
       0 0 20px rgba(52, 211, 153, 0.6);
+  }
+}
+
+@keyframes dd-refresh-pulse {
+  0%,
+  100% {
+    transform: scale(0.86);
+    opacity: 0.78;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 1;
   }
 }
 
