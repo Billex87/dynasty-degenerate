@@ -67,6 +67,7 @@ const LOW_CONFIDENCE_FLOCK_FALLBACK_VALUE_MAX = 25;
 
 export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshots');
 const KTC_STATIC_DIR = path.join(process.cwd(), 'server', 'ktc-static');
+const VALUE_HISTORY_SHARDS_DIR = path.join(process.cwd(), 'server', 'value-history-archive', 'player-value-history-shards');
 
 function getSnapshotDateKey(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -75,6 +76,10 @@ function getSnapshotDateKey(date: Date): string {
     month: '2-digit',
     day: '2-digit',
   }).format(date);
+}
+
+function cleanTimelineKey(value: string) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
 export async function loadKTCValues(): Promise<KTCValues> {
@@ -460,11 +465,125 @@ export function loadLatestLocalKtcSnapshotDaysAgo(daysAgo: number, valueProfileK
 
 export function loadLatestLocalWeeklyMomentumSnapshot(valueProfileKey?: string, daysAgo = 7): KTCValues {
   const targetDateKey = getWeeklyMomentumBaselineTargetDateKey(daysAgo);
-  return loadLatestLocalKtcSnapshotOnOrBeforeDateKey(
+  const localSnapshot = loadLatestLocalKtcSnapshotOnOrBeforeDateKey(
     targetDateKey,
     valueProfileKey,
     WEEKLY_MOMENTUM_BASELINE_FLOOR_DATE_KEY
   );
+  if (Object.keys(localSnapshot).length > 0) return localSnapshot;
+
+  return loadHistoricalWeeklyMomentumSnapshot(targetDateKey, valueProfileKey);
+}
+
+type HistoricalTimelineFormat = {
+  format: string;
+  rawPointCount?: number;
+  asOfPoints?: any[];
+  windows?: Record<string, any>;
+};
+
+function getHistoricalPointOnOrBefore(format: HistoricalTimelineFormat, targetDateKey: string) {
+  const points = (Array.isArray(format.asOfPoints) && format.asOfPoints.length
+    ? format.asOfPoints
+    : format.windows?.all?.points || []
+  ).filter((point: any) => /^\d{4}-\d{2}-\d{2}$/.test(String(point?.date || '')) && Number.isFinite(Number(point?.value)))
+    .sort((a: any, b: any) => String(a.date).localeCompare(String(b.date)));
+
+  let selected: any = null;
+  for (const point of points) {
+    if (point.date <= targetDateKey) selected = point;
+    if (point.date > targetDateKey) break;
+  }
+  return selected;
+}
+
+function isUsableHistoricalBaselinePoint(point: any) {
+  return Boolean(point && (Number(point.sourceCount || 0) >= 2 || (Array.isArray(point.sources) && point.sources.length >= 2)));
+}
+
+function getHistoricalBaselinePoint(
+  formats: Record<string, any>,
+  targetDateKey: string,
+  valueProfileKey?: string
+): any | null {
+  if (!formats || typeof formats !== 'object') return null;
+  const requestedKey = String(valueProfileKey || '').trim();
+  const preferredKeys = [
+    requestedKey,
+    requestedKey.includes('one_qb') ? 'one_qb_ppr' : 'sf_ppr',
+    requestedKey.includes('one_qb') ? 'sf_ppr' : 'one_qb_ppr',
+  ].filter(Boolean);
+  const candidates = [
+    ...preferredKeys.flatMap((key) => formats[key] ? [formats[key]] : []),
+    ...Object.values(formats)
+      .filter((format): format is HistoricalTimelineFormat => Boolean(format && typeof format === 'object'))
+      .sort((a, b) => Number(b.rawPointCount || 0) - Number(a.rawPointCount || 0)),
+  ];
+
+  const seen = new Set<HistoricalTimelineFormat>();
+  let fallbackPoint: any = null;
+  for (const format of candidates) {
+    if (seen.has(format)) continue;
+    seen.add(format);
+    const point = getHistoricalPointOnOrBefore(format, targetDateKey);
+    if (!point) continue;
+    if (isUsableHistoricalBaselinePoint(point)) return point;
+    fallbackPoint = fallbackPoint || point;
+  }
+
+  return fallbackPoint;
+}
+
+function historicalPointToKtcRow(player: any, point: any): KTCValues[string] | null {
+  const value = Math.round(Number(point?.value));
+  if (!Number.isFinite(value) || value <= 0) return null;
+
+  return {
+    name: player?.name || point?.name || '',
+    ktc_value: value,
+    dynasty_value: value,
+    true_value: value,
+    position_rank: point?.rank || null,
+    market_value_ktc: point?.marketKtc ?? null,
+    market_value_fantasycalc: point?.fantasyCalcDynasty ?? null,
+    expert_value_fantasypros: point?.fantasyProsDynasty ?? null,
+    expert_value_dynastyprocess: point?.dynastyProcess ?? null,
+    expert_value_dynastynerds: point?.dynastyNerds ?? null,
+    expert_value_flock: point?.flockFantasy ?? null,
+    value_sources: Array.isArray(point?.sources) ? point.sources : [],
+  };
+}
+
+function loadHistoricalWeeklyMomentumSnapshot(targetDateKey: string, valueProfileKey?: string): KTCValues {
+  try {
+    const manifestPath = path.join(VALUE_HISTORY_SHARDS_DIR, 'manifest.json');
+    if (!fs.existsSync(manifestPath)) return {};
+
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    const shards = Array.isArray(manifest?.shards) ? manifest.shards : [];
+    const values: KTCValues = {};
+
+    for (const shard of shards) {
+      const shardFile = typeof shard?.file === 'string' ? shard.file : '';
+      if (!/^[a-z0-9_/-]+\.json$/i.test(shardFile)) continue;
+      const shardPath = path.join(VALUE_HISTORY_SHARDS_DIR, shardFile);
+      if (!fs.existsSync(shardPath)) continue;
+
+      const payload = JSON.parse(fs.readFileSync(shardPath, 'utf-8'));
+      for (const [playerKey, player] of Object.entries<any>(payload?.players || {})) {
+        const point = getHistoricalBaselinePoint(player?.formats || {}, targetDateKey, valueProfileKey);
+        const row = historicalPointToKtcRow(player, point);
+        if (!row) continue;
+
+        values[cleanTimelineKey(playerKey || player?.key || row.name)] = row;
+      }
+    }
+
+    return values;
+  } catch (error) {
+    console.error('Failed to load historical weekly momentum snapshot:', error);
+    return {};
+  }
 }
 
 export function saveLocalKtcSnapshot(date: Date, ktcData: unknown): string | null {

@@ -110,9 +110,15 @@ describe('weekly momentum baseline policy', () => {
     expect(isWeeklyMomentumBaselineFloorActive(7, new Date('2026-05-16T12:00:00-07:00'))).toBe(false);
   });
 
-  it('loads the May 7 local snapshot while the real seven-day target is earlier', () => {
+  it('loads the historical weekly fallback without checked-in local snapshots', () => {
     const baseline = loadLatestLocalWeeklyMomentumSnapshot('12_sf_ppr_base');
-    expect(baseline.bijanrobinson?.value_sources).toEqual(expect.arrayContaining(['FlockFantasy', 'DynastyNerds']));
+    expect(Object.keys(baseline).length).toBeGreaterThan(1000);
+    expect(baseline.bijanrobinson).toMatchObject({
+      name: 'Bijan Robinson',
+      ktc_value: expect.any(Number),
+      position_rank: 'RB1',
+      value_sources: expect.arrayContaining(['marketKtc', 'fantasyCalc']),
+    });
   });
 
   it('drops movement percentages with tiny denominator baselines', () => {

@@ -11,6 +11,7 @@ const outputPath = process.env.OUT_FILE
   : path.join(rootDir, 'server', 'value-history-archive', 'player-value-history-timeline-index.json');
 
 const WINDOW_CONFIGS = [
+  { key: '1m', label: '1M', days: 31, maxPoints: 12 },
   { key: '3m', label: '3M', days: 92, maxPoints: 18 },
   { key: '6m', label: '6M', days: 183, maxPoints: 26 },
   { key: '1y', label: '1Y', days: 366, maxPoints: 38 },
@@ -26,7 +27,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     '  ARCHIVE_FILE=server/value-history-archive/player-value-history-reblended.json',
     '  OUT_FILE=server/value-history-archive/player-value-history-timeline-index.json',
     '',
-    'The index is small enough for report generation and keeps 3M/6M/1Y/all-time windows, high/low records, and a denser as-of lookup series for historical trades.',
+    'The index is small enough for report generation and keeps 1M/3M/6M/1Y/all-time windows, high/low records, and a denser as-of lookup series for historical trades.',
   ].join('\n'));
   process.exit(0);
 }

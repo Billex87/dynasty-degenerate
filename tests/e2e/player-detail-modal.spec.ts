@@ -55,11 +55,30 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
       source: 'historical-value-index',
       selectedWindow: '6m',
       availableWindows: [
+        { key: '1m', label: '1M', days: 31, pointCount: 3, startDate: '2026-04-20', endDate: '2026-05-17', startValue: 5000, endValue: 5200, delta: 200, deltaPct: 4 },
         { key: '3m', label: '3M', days: 92, pointCount: 3, startDate: '2026-02-17', endDate: '2026-05-17', startValue: 4300, endValue: 5200, delta: 900, deltaPct: 20.9 },
         { key: '6m', label: '6M', days: 183, pointCount: 4, startDate: '2025-11-17', endDate: '2026-05-17', startValue: 3900, endValue: 5200, delta: 1300, deltaPct: 33.3 },
+        { key: '1y', label: '1Y', days: 366, pointCount: 4, startDate: '2025-05-01', endDate: '2026-05-17', startValue: 3400, endValue: 5200, delta: 1800, deltaPct: 52.9 },
         { key: 'all', label: 'All', days: null, pointCount: 5, startDate: '2024-09-01', endDate: '2026-05-17', startValue: 2800, endValue: 5200, delta: 2400, deltaPct: 85.7 },
       ],
       windows: {
+        '1m': {
+          key: '1m',
+          label: '1M',
+          days: 31,
+          pointCount: 3,
+          startDate: '2026-04-20',
+          endDate: '2026-05-17',
+          startValue: 5000,
+          endValue: 5200,
+          delta: 200,
+          deltaPct: 4,
+          points: [
+            { date: '2026-04-20', value: 5000, rank: 'RB6', overallRank: 31, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+            { date: '2026-05-01', value: 5100, rank: 'RB6', overallRank: 30, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+            { date: '2026-05-17', value: 5200, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+          ],
+        },
         '3m': {
           key: '3m',
           label: '3M',
@@ -91,6 +110,24 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
           points: [
             { date: '2025-11-17', value: 3900, rank: 'RB14', overallRank: 58, sources: ['marketKtc'], sourceCount: 1 },
             { date: '2026-02-17', value: 4300, rank: 'RB9', overallRank: 42, sources: ['marketKtc'], sourceCount: 1 },
+            { date: '2026-04-01', value: 4800, rank: 'RB7', overallRank: 35, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+            { date: '2026-05-17', value: 5200, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+          ],
+        },
+        '1y': {
+          key: '1y',
+          label: '1Y',
+          days: 366,
+          pointCount: 4,
+          startDate: '2025-05-01',
+          endDate: '2026-05-17',
+          startValue: 3400,
+          endValue: 5200,
+          delta: 1800,
+          deltaPct: 52.9,
+          points: [
+            { date: '2025-05-01', value: 3400, rank: 'RB19', overallRank: 74, sources: ['marketKtc'], sourceCount: 1 },
+            { date: '2025-11-17', value: 3900, rank: 'RB14', overallRank: 58, sources: ['marketKtc'], sourceCount: 1 },
             { date: '2026-04-01', value: 4800, rank: 'RB7', overallRank: 35, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
             { date: '2026-05-17', value: 5200, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
           ],
@@ -148,6 +185,16 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
         note: 'Historical value archive includes source coverage changes.',
       },
     },
+  });
+
+  const valueTimeline = player1.valueTimeline as NonNullable<typeof player1.valueTimeline>;
+  const attachSourceValues = (point: any) => {
+    point.marketKtc = point.value - 75;
+    point.fantasyCalcDynasty = point.sources.includes('fantasyCalc') ? point.value + 50 : null;
+  };
+  valueTimeline.points.forEach(attachSourceValues);
+  Object.values(valueTimeline.windows || {}).forEach((window) => {
+    window.points.forEach(attachSourceValues);
   });
 
   Object.assign(player2, {
@@ -264,10 +311,20 @@ test.describe('player detail modal', () => {
     await expect(availabilityDialog).toHaveCount(0);
 
     await dialog.getByRole('button', { name: /Open Sample Starter value timeline detail/i }).click();
-    const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Stored Value Timeline' });
+    const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Source Movement' });
+    await expect(timelineDialog.getByRole('tab', { name: /1M/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /3M/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /6M/i })).toHaveAttribute('aria-selected', 'true');
+    await expect(timelineDialog.getByRole('tab', { name: /1Y/i })).toBeVisible();
     await expect(timelineDialog.getByText('All-Time Range')).toBeVisible();
+    await expect(timelineDialog.getByRole('tab', { name: 'Value' })).toHaveAttribute('aria-selected', 'true');
+    await timelineDialog.getByRole('tab', { name: 'Position Rank' }).click();
+    await expect(timelineDialog.getByRole('tab', { name: 'Position Rank' })).toHaveAttribute('aria-selected', 'true');
+    await expect(timelineDialog.getByText('4 rank points')).toBeVisible();
+    await expect(timelineDialog.getByText('Snapshot Source History')).toHaveCount(0);
+    const sourceCharts = timelineDialog.locator('.player-value-source-chart-grid');
+    await expect(sourceCharts.getByText('KTC')).toBeVisible();
+    await expect(sourceCharts.getByText('FantasyCalc')).toBeVisible();
     await expect(timelineDialog.getByText('Highest')).toBeVisible();
     await expect(timelineDialog.getByText('May 17, 2026 / RB5')).toBeVisible();
     await timelineDialog.getByRole('tab', { name: /All/i }).click();

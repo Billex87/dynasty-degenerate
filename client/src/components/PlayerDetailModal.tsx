@@ -1486,27 +1486,44 @@ function buildTimelinePath(points: Array<{ value: number }>, width: number, heig
     .join(' ');
 }
 
-function formatTimelineSources(sources: string[]) {
-  if (!sources.length) return 'No source labels';
-  if (sources.length <= 3) return sources.join(', ');
-  return `${sources.slice(0, 3).join(', ')} +${sources.length - 3}`;
-}
-
 function formatTimelineSourceValue(value: number | null | undefined) {
   return value ? formatValueLens(value) : '-';
 }
 
 type TimelinePoint = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['points']>[number];
 
+const timelineSourceFields = [
+  { key: 'marketKtc', label: 'KTC', color: '#67e8f9' },
+  { key: 'fantasyCalcDynasty', label: 'FantasyCalc', color: '#a78bfa' },
+  { key: 'fantasyProsDynasty', label: 'FantasyPros', color: '#fbbf24' },
+  { key: 'dynastyProcess', label: 'DynastyProcess', color: '#34d399' },
+  { key: 'dynastyNerds', label: 'Dynasty Nerds', color: '#60a5fa' },
+  { key: 'flockFantasy', label: 'Flock', color: '#fb7185' },
+] as const;
+
+function buildTimelineSourceSeries(points: TimelinePoint[]) {
+  return timelineSourceFields
+    .map((source) => {
+      const series = points.flatMap((point) => {
+        const value = Number(point[source.key]);
+        return Number.isFinite(value) && value > 0 ? [{ date: point.date, value }] : [];
+      });
+      const first = series[0] || null;
+      const last = series[series.length - 1] || null;
+      return {
+        ...source,
+        points: series,
+        first,
+        last,
+        delta: first && last ? Math.round(last.value - first.value) : null,
+      };
+    })
+    .filter((source) => source.points.length >= 2);
+}
+
 function buildTimelineSourceAudit(point: TimelinePoint) {
-  const sourceRows = [
-    { key: 'marketKtc', label: 'KTC', value: point.marketKtc },
-    { key: 'fantasyCalcDynasty', label: 'FantasyCalc', value: point.fantasyCalcDynasty },
-    { key: 'fantasyProsDynasty', label: 'FantasyPros', value: point.fantasyProsDynasty },
-    { key: 'dynastyProcess', label: 'DynastyProcess', value: point.dynastyProcess },
-    { key: 'dynastyNerds', label: 'Dynasty Nerds', value: point.dynastyNerds },
-    { key: 'flockFantasy', label: 'Flock', value: point.flockFantasy },
-  ].map((row) => {
+  const sourceRows = timelineSourceFields.map((source) => {
+    const row = { key: source.key, label: source.label, value: point[source.key] };
     const delta = row.value ? Math.round(row.value - point.value) : null;
     return {
       ...row,
@@ -1548,6 +1565,26 @@ function formatTimelineRank(point?: TimelinePoint | null) {
   return point.rank || (point.overallRank ? `#${point.overallRank}` : '-');
 }
 
+function getPositionRankNumber(point?: TimelinePoint | null) {
+  const match = String(point?.rank || '').match(/\d+/);
+  if (!match) return null;
+  const numeric = Number(match[0]);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function buildPositionRankChartPoints(points: TimelinePoint[]) {
+  return points.flatMap((point) => {
+    const rank = getPositionRankNumber(point);
+    if (!rank) return [];
+    return [{
+      date: point.date,
+      rank,
+      rankLabel: point.rank || `#${rank}`,
+      value: -rank,
+    }];
+  });
+}
+
 function useHydratedValueTimeline({
   enabled,
   playerName,
@@ -1566,7 +1603,7 @@ function useHydratedValueTimeline({
     let cancelled = false;
     setHydratedTimeline(null);
 
-    if (!enabled || timeline.source !== 'historical-value-index') {
+    if (!enabled) {
       setIsHydrating(false);
       return () => {
         cancelled = true;
@@ -1760,7 +1797,8 @@ function PlayerValueTimelineDetailDialog({
   showSourceAdmin: boolean;
   isHydrating?: boolean;
 }) {
-  const [activeWindowKey, setActiveWindowKey] = useState<'3m' | '6m' | '1y' | 'all'>(timeline.selectedWindow || '6m');
+  const [activeWindowKey, setActiveWindowKey] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>(timeline.selectedWindow || '6m');
+  const [chartMode, setChartMode] = useState<'value' | 'rank'>('value');
   useEffect(() => {
     const nextKey = timeline.selectedWindow || '6m';
     if (!timeline.windows?.[activeWindowKey] && timeline.windows?.[nextKey]) {
@@ -1779,9 +1817,17 @@ function PlayerValueTimelineDetailDialog({
       ? `${activeDeltaPct > 0 ? '+' : ''}${activeDeltaPct}%`
       : null,
   ].filter(Boolean).join(' / ') || deltaLabel;
-  const chartPoints = useMemo(() => buildTimelineCoordinates(activePoints, 520, 178, 18), [activePoints]);
-  const chartPath = useMemo(() => buildTimelinePath(activePoints, 520, 178, 18), [activePoints]);
+  const rankChartPoints = useMemo(() => buildPositionRankChartPoints(activePoints), [activePoints]);
+  const hasRankChart = rankChartPoints.length >= 2;
+  useEffect(() => {
+    if (chartMode === 'rank' && !hasRankChart) setChartMode('value');
+  }, [chartMode, hasRankChart]);
+  const visibleChartMode = chartMode === 'rank' && hasRankChart ? 'rank' : 'value';
+  const chartInputPoints = visibleChartMode === 'rank' ? rankChartPoints : activePoints;
+  const chartPoints = useMemo(() => buildTimelineCoordinates(chartInputPoints, 520, 178, 18), [chartInputPoints]);
+  const chartPath = useMemo(() => buildTimelinePath(chartInputPoints, 520, 178, 18), [chartInputPoints]);
   const sourceAudit = useMemo(() => buildTimelineSourceAudit(lastPoint), [lastPoint]);
+  const sourceSeries = useMemo(() => buildTimelineSourceSeries(activePoints), [activePoints]);
   const eventList = activePoints.flatMap((point) =>
     (point.events || []).map((event) => ({
       ...event,
@@ -1791,6 +1837,11 @@ function PlayerValueTimelineDetailDialog({
   );
   const visibleWindows = timeline.availableWindows?.filter((window) => timeline.windows?.[window.key]?.points?.length) || [];
   const yearlyExtremes = timeline.yearlyExtremes?.slice(-4).reverse() || [];
+  const firstRankPoint = rankChartPoints[0] || null;
+  const lastRankPoint = rankChartPoints[rankChartPoints.length - 1] || null;
+  const chartSummaryLabel = visibleChartMode === 'rank'
+    ? `${firstRankPoint?.rankLabel || '-'} to ${lastRankPoint?.rankLabel || '-'}`
+    : `${formatValueLens(firstPoint.value)} to ${formatValueLens(lastPoint.value)}`;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -1804,12 +1855,12 @@ function PlayerValueTimelineDetailDialog({
             <X />
           </button>
           <DialogHeader className="player-value-timeline-modal-header">
-            <p className="player-value-timeline-kicker">Stored Value Timeline</p>
+            <p className="player-value-timeline-kicker">Value Timeline</p>
             <DialogTitle className="player-value-timeline-title">{playerName}</DialogTitle>
             <DialogDescription className="player-value-timeline-description">
               {isHydrating
-                ? 'Loading the full cached chart history from static shards.'
-                : 'Blended market movement with source coverage, positional rank, all-time high/low, and situation markers attached to the latest stored point.'}
+                ? 'Loading the full chart history from static value shards.'
+                : 'Blended market movement with source coverage, positional rank, all-time high/low, and situation markers.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -1840,10 +1891,38 @@ function PlayerValueTimelineDetailDialog({
             </div>
 
             <div className="player-value-timeline-chart-panel">
+              <div className="player-value-chart-toolbar">
+                <div className="player-value-chart-toolbar-copy">
+                  <span>Main Graph</span>
+                  <strong>{chartSummaryLabel}</strong>
+                </div>
+                <div className="player-value-chart-mode-toggle" role="tablist" aria-label={`${playerName} timeline metric`}>
+                  <button
+                    type="button"
+                    className={`player-value-chart-mode-button ${visibleChartMode === 'value' ? 'player-value-chart-mode-button-active' : ''}`}
+                    onClick={() => setChartMode('value')}
+                    role="tab"
+                    aria-selected={visibleChartMode === 'value'}
+                  >
+                    Value
+                  </button>
+                  <button
+                    type="button"
+                    className={`player-value-chart-mode-button ${visibleChartMode === 'rank' ? 'player-value-chart-mode-button-active' : ''}`}
+                    onClick={() => hasRankChart && setChartMode('rank')}
+                    role="tab"
+                    aria-selected={visibleChartMode === 'rank'}
+                    disabled={!hasRankChart}
+                    title={hasRankChart ? 'Show positional rank movement' : 'Not enough positional rank history'}
+                  >
+                    Position Rank
+                  </button>
+                </div>
+              </div>
               <svg
                 viewBox="0 0 520 178"
                 role="img"
-                aria-label={`${playerName} stored value timeline detail`}
+                aria-label={`${playerName} ${visibleChartMode === 'rank' ? 'positional rank' : 'value'} timeline detail`}
                 className="player-value-timeline-chart"
                 preserveAspectRatio="none"
               >
@@ -1856,23 +1935,23 @@ function PlayerValueTimelineDetailDialog({
                   const timelinePoint = activePoints[index];
                   const hasEvents = Boolean(timelinePoint.events?.length);
                   return (
-                    <g key={`${timelinePoint.date}-${timelinePoint.value}`}>
+                    <g key={`${visibleChartMode}-${timelinePoint.date}-${timelinePoint.value}`}>
                       <circle
                         cx={point.x}
                         cy={point.y}
-                        r={hasEvents ? 6.2 : index === 0 || index === timeline.points.length - 1 ? 4.6 : 3}
-                        fill={hasEvents ? 'rgba(251, 191, 36, 0.95)' : index === timeline.points.length - 1 ? strokeColor : 'rgba(226,232,240,0.92)'}
+                        r={visibleChartMode === 'value' && hasEvents ? 6.2 : index === 0 || index === chartPoints.length - 1 ? 4.6 : 3}
+                        fill={visibleChartMode === 'value' && hasEvents ? 'rgba(251, 191, 36, 0.95)' : index === chartPoints.length - 1 ? strokeColor : 'rgba(226,232,240,0.92)'}
                         stroke={hasEvents ? 'rgba(15,23,42,0.95)' : 'transparent'}
-                        strokeWidth={hasEvents ? 2 : 0}
+                        strokeWidth={visibleChartMode === 'value' && hasEvents ? 2 : 0}
                       />
                     </g>
                   );
                 })}
               </svg>
               <div className="player-value-timeline-chart-footer">
-                <span>{formatTimelineDate(firstPoint.date)}</span>
-                <span>{activeWindow?.pointCount || activePoints.length} stored snapshots</span>
-                <span>{formatTimelineDate(lastPoint.date)}</span>
+                <span>{formatTimelineDate(visibleChartMode === 'rank' ? firstRankPoint?.date || firstPoint.date : firstPoint.date)}</span>
+                <span>{visibleChartMode === 'rank' ? `${rankChartPoints.length} rank points` : `${activeWindow?.pointCount || activePoints.length} chart points`}</span>
+                <span>{formatTimelineDate(visibleChartMode === 'rank' ? lastRankPoint?.date || lastPoint.date : lastPoint.date)}</span>
               </div>
             </div>
 
@@ -1943,6 +2022,51 @@ function PlayerValueTimelineDetailDialog({
               </section>
             )}
 
+            {sourceSeries.length > 0 && (
+              <section className="player-value-timeline-section">
+                <div className="player-value-timeline-section-header">
+                  <span>Source Movement</span>
+                  <strong>{sourceSeries.length}</strong>
+                </div>
+                <div className="player-value-source-chart-grid">
+                  {sourceSeries.map((source) => {
+                    const sourcePath = buildTimelinePath(source.points, 180, 58, 6);
+                    const sourceCoordinates = buildTimelineCoordinates(source.points, 180, 58, 6);
+                    const deltaTone = source.delta === null ? 'neutral' : source.delta > 0 ? 'up' : source.delta < 0 ? 'down' : 'neutral';
+
+                    return (
+                      <article key={source.key} className={`player-value-source-chart player-value-source-chart-${deltaTone}`}>
+                        <div className="player-value-source-chart-header">
+                          <span>{source.label}</span>
+                          <strong>{formatTimelineSourceValue(source.last?.value)}</strong>
+                        </div>
+                        <svg viewBox="0 0 180 58" role="img" aria-label={`${source.label} value movement`} className="player-value-source-chart-svg" preserveAspectRatio="none">
+                          <line x1="6" y1="50" x2="174" y2="50" stroke="rgba(148,163,184,0.18)" strokeWidth="1" />
+                          <line x1="6" y1="9" x2="174" y2="9" stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
+                          <path d={sourcePath} fill="none" stroke="rgba(15,23,42,0.9)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d={sourcePath} fill="none" stroke={source.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                          {sourceCoordinates.map((point, index) => (
+                            <circle
+                              key={`${source.key}-${source.points[index].date}-${source.points[index].value}`}
+                              cx={point.x}
+                              cy={point.y}
+                              r={index === source.points.length - 1 ? 3.5 : 2.1}
+                              fill={index === source.points.length - 1 ? source.color : 'rgba(226,232,240,0.76)'}
+                            />
+                          ))}
+                        </svg>
+                        <div className="player-value-source-chart-footer">
+                          <span>{formatTimelineDate(source.first?.date || firstPoint.date)}</span>
+                          <strong>{source.delta !== null ? formatValueDelta(source.delta) : '-'}</strong>
+                          <span>{formatTimelineDate(source.last?.date || lastPoint.date)}</span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             <section className="player-value-timeline-section">
               <div className="player-value-timeline-section-header">
                 <span>Situation Markers</span>
@@ -1963,33 +2087,6 @@ function PlayerValueTimelineDetailDialog({
               ) : (
                 <p className="player-value-timeline-empty">No situation markers were attached to this timeline window.</p>
               )}
-            </section>
-
-            <section className="player-value-timeline-section">
-              <div className="player-value-timeline-section-header">
-                <span>Snapshot Source History</span>
-                <strong>{activePoints.length}</strong>
-              </div>
-              <div className="player-value-source-history">
-                {activePoints.map((point) => (
-                  <article key={`${point.date}-${point.value}`} className="player-value-source-row">
-                    <div className="player-value-source-row-main">
-                      <span>{formatTimelineDate(point.date)}</span>
-                      <strong>{formatValueLens(point.value)}</strong>
-                      <em>{formatTimelineRank(point)}</em>
-                    </div>
-                    <p>{formatTimelineSources(point.sources)}</p>
-                    <div className="player-value-source-grid">
-                      <span>KTC <strong>{formatTimelineSourceValue(point.marketKtc)}</strong></span>
-                      <span>FC <strong>{formatTimelineSourceValue(point.fantasyCalcDynasty)}</strong></span>
-                      <span>FP <strong>{formatTimelineSourceValue(point.fantasyProsDynasty)}</strong></span>
-                      <span>DP <strong>{formatTimelineSourceValue(point.dynastyProcess)}</strong></span>
-                      <span>DN <strong>{formatTimelineSourceValue(point.dynastyNerds)}</strong></span>
-                      <span>Flock <strong>{formatTimelineSourceValue(point.flockFantasy)}</strong></span>
-                    </div>
-                  </article>
-                ))}
-              </div>
             </section>
 
             <p className="player-value-timeline-note">{timeline.summary.note}</p>

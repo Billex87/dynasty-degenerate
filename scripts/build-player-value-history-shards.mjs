@@ -11,6 +11,7 @@ const outputDir = process.env.OUT_DIR
   : path.join(rootDir, 'server', 'value-history-archive', 'player-value-history-shards');
 
 const WINDOW_CONFIGS = [
+  { key: '1m', label: '1M', days: 31, maxPoints: 12 },
   { key: '3m', label: '3M', days: 92, maxPoints: 18 },
   { key: '6m', label: '6M', days: 183, maxPoints: 26 },
   { key: '1y', label: '1Y', days: 366, maxPoints: 38 },

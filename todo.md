@@ -714,6 +714,10 @@
 - [x] Add first-pass player value timeline data to player detail payloads from stored blended value snapshots.
 - [x] Add a compact player detail graph showing stored blended value movement, latest rank, source count, and source-mix change warnings.
 - [x] Add event markers to the graph for draft picks, trades, injuries, depth-chart movement, vacated-opportunity openings, and roster-room squeezes.
+- [ ] After the next production KTC/value scrape runs, verify it writes both `ktcSnapshots` and normalized `playerValueSnapshots`, including row counts, latest snapshot timestamps, and a few sample players such as Drake London and Bijan Robinson.
+- [ ] After one full seven-day window of new scrapes, re-check Weekly Momentum risers/fallers and confirm current values compare against the DB snapshot from seven days earlier, not deleted local `server/ktc-snapshots` files or stale fallback data.
+- [ ] Production-smoke the player value timeline modal after the new scrape: confirm 1M/3M/6M/1Y/All windows update, the graph includes the newest point, and normal users see graph-first movement instead of the old snapshot source-history list.
+- [ ] Replace or intentionally retire the skipped dynasty snapshot replay fixture now that checked-in `server/ktc-snapshots` JSON files have been removed.
 - [x] Add a rookie valuation mismatch table that compares current rookie price against prospect profile, draft investment, and roster-room opportunity.
 - [x] Add player-detail AI read copy that references value timeline movement directly when the value move is backed by situation-delta evidence.
 - [x] Add a source-history admin panel for individual players so we can inspect KTC, FantasyCalc, DynastyProcess, Flock, Dynasty Nerds, and blended-value disagreements over time.

@@ -5,19 +5,39 @@ import {
   listLocalKtcSnapshotDateKeysSince,
   loadLocalKtcSnapshotForDate,
 } from './ktcLoader';
+import { findPlayerValueSnapshotsSince } from './db';
 import type { KTCValues } from './reportGenerator';
 import type { PlayerDetails } from '../shared/types';
 
 const DEFAULT_TIMELINE_DAYS = 120;
 const MAX_TIMELINE_POINTS = 24;
+const TIMELINE_OVERLAY_DAYS = 400;
+const WINDOW_POINT_LIMITS: Record<TimelineWindowKey, number> = {
+  '1m': 12,
+  '3m': 18,
+  '6m': 26,
+  '1y': 38,
+  all: 72,
+};
+const TIMELINE_WINDOW_DEFINITIONS: Array<{ key: TimelineWindowKey; label: string; days: number | null }> = [
+  { key: '1m', label: '1M', days: 31 },
+  { key: '3m', label: '3M', days: 92 },
+  { key: '6m', label: '6M', days: 183 },
+  { key: '1y', label: '1Y', days: 366 },
+  { key: 'all', label: 'All', days: null },
+];
 const DEFAULT_TIMELINE_INDEX_PATH = path.join(process.cwd(), 'server', 'value-history-archive', 'player-value-history-timeline-index.json');
 const DEFAULT_TIMELINE_SHARDS_DIR = path.join(process.cwd(), 'server', 'value-history-archive', 'player-value-history-shards');
 
 type KtcValueRow = KTCValues[string];
 type TimelinePoint = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['points']>[number];
 type TimelineEvent = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['points'][number]['events']>[number];
-type TimelineWindowKey = '3m' | '6m' | '1y' | 'all';
+type TimelineWindowKey = '1m' | '3m' | '6m' | '1y' | 'all';
 type TimelineWindow = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['windows']>[TimelineWindowKey];
+type StoredValueTimelineSnapshot = {
+  date: string;
+  values: KTCValues;
+};
 type TimelineIndexPlayer = {
   key: string;
   name: string;
@@ -207,6 +227,46 @@ function getTimelineValue(row: KtcValueRow, mode: 'dynasty' | 'redraft' | 'keepe
   return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : null;
 }
 
+function getSnapshotTimelinePointForPlayer(
+  playerName: string,
+  date: string,
+  values: KTCValues,
+  mode: 'dynasty' | 'redraft' | 'keeper'
+): TimelinePoint | null {
+  const row = getSnapshotRowForPlayer(playerName, values);
+  if (!row) return null;
+  const value = getTimelineValue(row.data, mode);
+  if (!value) return null;
+
+  return {
+    date,
+    value,
+    rank: row.data.position_rank || row.data.flock_position_rank || row.data.dynastynerds_position_rank || null,
+    sources: row.data.value_sources || [],
+    sourceCount: row.data.value_sources?.length || 0,
+    marketKtc: row.data.market_value_ktc ?? null,
+    fantasyCalcDynasty: row.data.market_value_fantasycalc ?? null,
+    fantasyProsDynasty: row.data.expert_value_fantasypros ?? null,
+    dynastyProcess: row.data.expert_value_dynastyprocess ?? null,
+    dynastyNerds: row.data.expert_value_dynastynerds ?? null,
+    flockFantasy: row.data.expert_value_flock ?? null,
+  };
+}
+
+function buildSnapshotTimelinePoints(
+  playerName: string,
+  snapshots: StoredValueTimelineSnapshot[],
+  mode: 'dynasty' | 'redraft' | 'keeper'
+): TimelinePoint[] {
+  const pointsByDate = new Map<string, TimelinePoint>();
+  for (const snapshot of snapshots) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshot.date)) continue;
+    const point = getSnapshotTimelinePointForPlayer(playerName, snapshot.date, snapshot.values, mode);
+    if (point) pointsByDate.set(snapshot.date, point);
+  }
+  return Array.from(pointsByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function compactPoints<T>(points: T[], maxPoints: number): T[] {
   if (points.length <= maxPoints) return points;
   const keepIndexes = new Set<number>([0, points.length - 1]);
@@ -219,6 +279,108 @@ function compactPoints<T>(points: T[], maxPoints: number): T[] {
 
 function getSourceSignature(sources: string[]) {
   return sources.slice().sort().join('|');
+}
+
+function dateMinusDays(dateKey: string, days: number) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function mergeTimelinePoints(basePoints: TimelinePoint[], overlayPoints: TimelinePoint[]): TimelinePoint[] {
+  const pointsByDate = new Map<string, TimelinePoint>();
+  [...basePoints, ...overlayPoints].forEach((point) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(point.date) && Number.isFinite(Number(point.value))) {
+      pointsByDate.set(point.date, { ...point, events: undefined });
+    }
+  });
+  return Array.from(pointsByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function getAllIndexedPoints(formatTimeline: TimelineIndexPlayer['formats'][string]): TimelinePoint[] {
+  if (Array.isArray(formatTimeline.asOfPoints) && formatTimeline.asOfPoints.length) {
+    return formatTimeline.asOfPoints;
+  }
+
+  const pointsByDate = new Map<string, TimelinePoint>();
+  for (const window of Object.values(formatTimeline.windows || {})) {
+    for (const point of window.points || []) {
+      pointsByDate.set(point.date, point);
+    }
+  }
+  return Array.from(pointsByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function summarizeTimelinePoints(points: TimelinePoint[]) {
+  const start = points[0];
+  const end = points[points.length - 1];
+  const delta = end.value - start.value;
+  const deltaPct = start.value ? Math.round((delta / start.value) * 1000) / 10 : null;
+  return { start, end, delta, deltaPct };
+}
+
+function attachEventsToLastPoint(points: TimelinePoint[], events: TimelineEvent[]): TimelinePoint[] {
+  if (!events.length || !points.length) return points;
+  const next: TimelinePoint[] = points.map((point) => ({ ...point, events: undefined }));
+  next[next.length - 1] = {
+    ...next[next.length - 1],
+    events,
+  };
+  return next;
+}
+
+function buildWindowFromPoints(
+  key: TimelineWindowKey,
+  windowConfig: { label: string; days: number | null },
+  allPoints: TimelinePoint[],
+  latestDate: string,
+  events: TimelineEvent[]
+): NonNullable<TimelineWindow> | null {
+  const startDate = windowConfig.days ? dateMinusDays(latestDate, windowConfig.days) : '';
+  const filtered = allPoints.filter((point) => !startDate || point.date >= startDate);
+  if (filtered.length < 2) return null;
+
+  const points = attachEventsToLastPoint(compactPoints(filtered, WINDOW_POINT_LIMITS[key] || MAX_TIMELINE_POINTS), events);
+  const { start, end, delta, deltaPct } = summarizeTimelinePoints(points);
+  return {
+    key,
+    label: windowConfig.label,
+    days: windowConfig.days,
+    pointCount: filtered.length,
+    startDate: start.date,
+    endDate: end.date,
+    startValue: start.value,
+    endValue: end.value,
+    delta,
+    deltaPct,
+    points,
+  };
+}
+
+function getTimelineExtremes(points: TimelinePoint[]) {
+  if (!points.length) return undefined;
+  return points.reduce(
+    (extremes, point) => ({
+      high: point.value > extremes.high.value ? point : extremes.high,
+      low: point.value < extremes.low.value ? point : extremes.low,
+    }),
+    { high: points[0], low: points[0] }
+  );
+}
+
+function getYearlyTimelineExtremes(points: TimelinePoint[]) {
+  const byYear = new Map<string, { year: string; high: TimelinePoint; low: TimelinePoint }>();
+  for (const point of points) {
+    const year = point.date.slice(0, 4);
+    const current = byYear.get(year);
+    if (!current) {
+      byYear.set(year, { year, high: point, low: point });
+      continue;
+    }
+    if (point.value > current.high.value) current.high = point;
+    if (point.value < current.low.value) current.low = point;
+  }
+  return Array.from(byYear.values()).sort((a, b) => a.year.localeCompare(b.year));
 }
 
 function getPreferredTimelineFormats(valueProfileKey: string, mode: 'dynasty' | 'redraft' | 'keeper') {
@@ -243,9 +405,31 @@ function selectTimelineFormat(
 ) {
   const formats = indexedPlayer.formats || {};
   for (const format of getPreferredTimelineFormats(valueProfileKey, mode)) {
+    if (formats[format] && isRichTimelineFormat(formats[format], mode)) return formats[format];
+  }
+
+  const richFallback = Object.values(formats)
+    .filter((format) => isRichTimelineFormat(format, mode))
+    .sort((a, b) => getTimelineFormatPointCount(b) - getTimelineFormatPointCount(a))[0];
+  if (richFallback) return richFallback;
+
+  for (const format of getPreferredTimelineFormats(valueProfileKey, mode)) {
     if (formats[format]) return formats[format];
   }
   return Object.values(formats).sort((a, b) => (b.rawPointCount || 0) - (a.rawPointCount || 0))[0] || null;
+}
+
+function getTimelineFormatPointCount(format: TimelineIndexPlayer['formats'][string]) {
+  const windowPointCounts = Object.values(format.windows || {}).map((window) => window.pointCount || window.points?.length || 0);
+  return Math.max(format.rawPointCount || 0, ...windowPointCounts, 0);
+}
+
+function isRichTimelineFormat(
+  format: TimelineIndexPlayer['formats'][string],
+  mode: 'dynasty' | 'redraft' | 'keeper'
+) {
+  if (mode === 'redraft') return true;
+  return getTimelineFormatPointCount(format) >= 10;
 }
 
 function parseUtcDateKey(dateKey: string): number | null {
@@ -322,9 +506,11 @@ function selectTimelineWindow(
   windows: Record<TimelineWindowKey, NonNullable<TimelineWindow>>,
   daysBack: number
 ): TimelineWindowKey {
+  if (daysBack <= 45 && windows['1m']) return '1m';
   if (daysBack <= 100 && windows['3m']) return '3m';
   if (daysBack <= 220 && windows['6m']) return '6m';
   if (daysBack <= 430 && windows['1y']) return '1y';
+  if (daysBack > 430 && windows.all) return 'all';
   if (windows['6m']) return '6m';
   if (windows['1y']) return '1y';
   if (windows.all) return 'all';
@@ -348,28 +534,50 @@ function buildTimelineFromIndex(input: {
   leagueValueMode: 'dynasty' | 'redraft' | 'keeper';
   daysBack: number;
   details?: PlayerDetails;
+  recentStoredSnapshots?: StoredValueTimelineSnapshot[];
 }): NonNullable<PlayerDetails['valueTimeline']> | null {
   const indexedPlayer = getIndexedPlayerForName(input.playerName);
   if (!indexedPlayer) return null;
   const formatTimeline = selectTimelineFormat(indexedPlayer, input.valueProfileKey, input.leagueValueMode);
   if (!formatTimeline) return null;
   const events = buildTimelineEvents(input.details);
+  const snapshotPoints = buildSnapshotTimelinePoints(input.playerName, input.recentStoredSnapshots || [], input.leagueValueMode);
+  const indexedPoints = getAllIndexedPoints(formatTimeline);
+  const mergedPoints = mergeTimelinePoints(indexedPoints, snapshotPoints);
+  const latestDate = mergedPoints.at(-1)?.date || Object.values(formatTimeline.windows || {}).at(-1)?.endDate || '';
+  const sourceWindows = formatTimeline.windows || {};
   const windows = Object.fromEntries(
-    Object.entries(formatTimeline.windows || {}).map(([key, window]) => [
-      key,
-      cloneWindowWithEvents(window as NonNullable<TimelineWindow>, events),
-    ])
+    TIMELINE_WINDOW_DEFINITIONS.flatMap((definition) => {
+      const sourceWindow = sourceWindows[definition.key];
+      const rebuilt = latestDate
+        ? buildWindowFromPoints(
+          definition.key,
+          { label: sourceWindow?.label || definition.label, days: sourceWindow?.days ?? definition.days },
+          mergedPoints,
+          latestDate,
+          events
+        )
+        : null;
+      if (rebuilt) return [[definition.key, rebuilt]];
+      if (sourceWindow) return [[definition.key, cloneWindowWithEvents(sourceWindow as NonNullable<TimelineWindow>, events)]];
+      return [];
+    })
   ) as NonNullable<PlayerDetails['valueTimeline']>['windows'];
-  const selectedWindow = selectTimelineWindow(formatTimeline.windows, input.daysBack);
+  const selectedWindow = selectTimelineWindow(
+    (windows || formatTimeline.windows) as Record<TimelineWindowKey, NonNullable<TimelineWindow>>,
+    input.daysBack
+  );
   const selected = windows?.[selectedWindow] || windows?.all || Object.values(windows || {})[0];
   if (!selected || selected.points.length < 2) return null;
 
   const start = selected.points[0];
   const end = selected.points[selected.points.length - 1];
   const sourceSetChanged = getSourceSignature(start.sources) !== getSourceSignature(end.sources);
+  const hasStoredOverlay = snapshotPoints.length > 0;
   const note = sourceSetChanged
-    ? 'Historical value archive includes source coverage changes; read movement as market plus source-mix context.'
-    : 'Historical value archive uses a stable source set at the start and end of this window.';
+    ? `${hasStoredOverlay ? 'Historical archive plus stored scrape snapshots include' : 'Historical value archive includes'} source coverage changes; read movement as market plus source-mix context.`
+    : `${hasStoredOverlay ? 'Historical archive plus stored scrape snapshots use' : 'Historical value archive uses'} a stable source set at the start and end of this window.`;
+  const extremes = mergedPoints.length ? getTimelineExtremes(mergedPoints) : formatTimeline.extremes || undefined;
 
   return {
     profileKey: input.valueProfileKey,
@@ -388,9 +596,9 @@ function buildTimelineFromIndex(input: {
       deltaPct: window.deltaPct,
     })),
     windows,
-    extremes: formatTimeline.extremes || undefined,
-    yearlyExtremes: formatTimeline.yearlyExtremes || [],
-    allTimePointCount: formatTimeline.rawPointCount || selected.pointCount,
+    extremes,
+    yearlyExtremes: mergedPoints.length ? getYearlyTimelineExtremes(mergedPoints) : formatTimeline.yearlyExtremes || [],
+    allTimePointCount: Math.max(formatTimeline.rawPointCount || 0, mergedPoints.length, selected.pointCount),
     points: selected.points,
     summary: {
       startValue: start.value,
@@ -506,6 +714,86 @@ function buildTimelineEvents(details?: PlayerDetails): TimelineEvent[] {
   return events.slice(0, 5);
 }
 
+function getPlayerValueSnapshotLookupKeys(input: {
+  playerIds: Iterable<string>;
+  players: Record<string, any>;
+}): string[] {
+  const keys = new Set<string>();
+  for (const playerId of Array.from(input.playerIds).filter(Boolean)) {
+    const playerName = getPlayerDisplayName(input.players[playerId]);
+    if (!playerName) continue;
+    playerNameKeyVariants(cleanName(playerName)).map(cleanName).filter(Boolean).forEach((key) => keys.add(key));
+  }
+  return Array.from(keys);
+}
+
+function rowsToStoredSnapshots(rows: Awaited<ReturnType<typeof findPlayerValueSnapshotsSince>>): StoredValueTimelineSnapshot[] {
+  const snapshotsByDate = new Map<string, KTCValues>();
+  const optionalNumber = (value: number | null | undefined) => (
+    Number.isFinite(Number(value)) ? Number(value) : undefined
+  );
+  for (const row of rows) {
+    const date = row.dateKey;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const values = snapshotsByDate.get(date) || {};
+    const sourceValues = row.sourceValues || {};
+    values[row.playerKey] = {
+      name: row.name,
+      ktc_value: row.value,
+      dynasty_value: row.value,
+      true_value: row.value,
+      position_rank: row.rank || undefined,
+      market_value_ktc: optionalNumber(sourceValues.marketKtc),
+      market_value_fantasycalc: optionalNumber(sourceValues.fantasyCalcDynasty),
+      expert_value_fantasypros: optionalNumber(sourceValues.fantasyProsDynasty),
+      expert_value_dynastyprocess: optionalNumber(sourceValues.dynastyProcess),
+      expert_value_dynastynerds: optionalNumber(sourceValues.dynastyNerds),
+      expert_value_fantasynerds: optionalNumber(sourceValues.fantasyNerds),
+      expert_value_flock: optionalNumber(sourceValues.flockFantasy),
+      value_sources: Array.isArray(row.sources) ? row.sources : [],
+    };
+    snapshotsByDate.set(date, values);
+  }
+
+  return Array.from(snapshotsByDate.entries())
+    .map(([date, values]) => ({ date, values }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function loadLocalStoredValueTimelineSnapshotsSince(startDate: Date, valueProfileKey: string): StoredValueTimelineSnapshot[] {
+  return listLocalKtcSnapshotDateKeysSince(startDate).map((date) => ({
+    date,
+    values: loadLocalKtcSnapshotForDate(date, valueProfileKey),
+  }));
+}
+
+export async function loadStoredValueTimelineSnapshotsForPlayers(input: {
+  playerIds: Iterable<string>;
+  players: Record<string, any>;
+  valueProfileKey: string;
+  now?: Date;
+  daysBack?: number;
+}): Promise<StoredValueTimelineSnapshot[]> {
+  const now = input.now || new Date();
+  const startDate = new Date(now);
+  startDate.setDate(startDate.getDate() - (input.daysBack || TIMELINE_OVERLAY_DAYS));
+  const playerKeys = getPlayerValueSnapshotLookupKeys(input);
+  if (!playerKeys.length) return [];
+
+  try {
+    const rows = await findPlayerValueSnapshotsSince({
+      profileKey: input.valueProfileKey,
+      playerKeys,
+      targetDate: startDate,
+    });
+    if (rows.length > 0) return rowsToStoredSnapshots(rows);
+  } catch (error) {
+    console.warn('[PlayerValueTimeline] Failed to load stored player value snapshots:', error);
+  }
+
+  return loadLocalStoredValueTimelineSnapshotsSince(startDate, input.valueProfileKey);
+}
+
 export function buildPlayerValueTimelineMap(input: {
   playerIds: Iterable<string>;
   players: Record<string, any>;
@@ -514,12 +802,13 @@ export function buildPlayerValueTimelineMap(input: {
   leagueValueMode?: 'dynasty' | 'redraft' | 'keeper';
   daysBack?: number;
   now?: Date;
+  recentStoredSnapshots?: StoredValueTimelineSnapshot[];
 }): Record<string, NonNullable<PlayerDetails['valueTimeline']>> {
   const now = input.now || new Date();
   const startDate = new Date(now);
   const daysBack = input.daysBack || DEFAULT_TIMELINE_DAYS;
   startDate.setDate(startDate.getDate() - daysBack);
-  const snapshotDates = listLocalKtcSnapshotDateKeysSince(startDate);
+  const recentStoredSnapshots = input.recentStoredSnapshots || loadLocalStoredValueTimelineSnapshotsSince(startDate, input.valueProfileKey);
   const mode = input.leagueValueMode || 'dynasty';
   const timelines: Record<string, NonNullable<PlayerDetails['valueTimeline']>> = {};
 
@@ -532,31 +821,14 @@ export function buildPlayerValueTimelineMap(input: {
       leagueValueMode: mode,
       daysBack,
       details: input.playerDetailsById?.[playerId],
+      recentStoredSnapshots,
     });
     if (indexedTimeline) {
       timelines[playerId] = indexedTimeline;
       continue;
     }
 
-    const points: TimelinePoint[] = snapshotDates.flatMap((date) => {
-      const row = getSnapshotRowForPlayer(playerName, loadLocalKtcSnapshotForDate(date, input.valueProfileKey));
-      if (!row) return [];
-      const value = getTimelineValue(row.data, mode);
-      if (!value) return [];
-      return [{
-        date,
-        value,
-        rank: row.data.position_rank || row.data.flock_position_rank || row.data.dynastynerds_position_rank || null,
-        sources: row.data.value_sources || [],
-        sourceCount: row.data.value_sources?.length || 0,
-        marketKtc: row.data.market_value_ktc ?? null,
-        fantasyCalcDynasty: row.data.market_value_fantasycalc ?? null,
-        fantasyProsDynasty: row.data.expert_value_fantasypros ?? null,
-        dynastyProcess: row.data.expert_value_dynastyprocess ?? null,
-        dynastyNerds: row.data.expert_value_dynastynerds ?? null,
-        flockFantasy: row.data.expert_value_flock ?? null,
-      }];
-    });
+    const points = buildSnapshotTimelinePoints(playerName, recentStoredSnapshots, mode);
 
     const compacted = compactPoints(points, MAX_TIMELINE_POINTS);
     if (compacted.length < 2) continue;

@@ -13,6 +13,7 @@
     "refresh:draftbuzz-indexed": "node scripts/build-nfl-draft-buzz-indexed-supplement.mjs",
     "export:login-attempts": "tsx server/exportLoginAttempts.ts",
     "audit:ktc-snapshots": "node scripts/audit-ktc-snapshots.mjs",
+    "backfill:player-value-snapshots": "tsx scripts/backfill-player-value-snapshots.ts",
     "export:value-history": "node scripts/export-player-value-history.mjs",
     "export:value-history:sources": "node scripts/export-local-weighted-source-history.mjs",
     "import:value-history": "node scripts/import-approved-player-value-history.mjs",

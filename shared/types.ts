@@ -906,9 +906,9 @@ export interface PlayerDetails {
   valueTimeline?: {
     profileKey: string;
     source: 'stored-value-snapshots' | 'historical-value-index';
-    selectedWindow?: '3m' | '6m' | '1y' | 'all';
+    selectedWindow?: '1m' | '3m' | '6m' | '1y' | 'all';
     availableWindows?: Array<{
-      key: '3m' | '6m' | '1y' | 'all';
+      key: '1m' | '3m' | '6m' | '1y' | 'all';
       label: string;
       days: number | null;
       pointCount: number;
@@ -919,8 +919,8 @@ export interface PlayerDetails {
       delta: number;
       deltaPct: number | null;
     }>;
-    windows?: Partial<Record<'3m' | '6m' | '1y' | 'all', {
-      key: '3m' | '6m' | '1y' | 'all';
+    windows?: Partial<Record<'1m' | '3m' | '6m' | '1y' | 'all', {
+      key: '1m' | '3m' | '6m' | '1y' | 'all';
       label: string;
       days: number | null;
       pointCount: number;

@@ -135,7 +135,7 @@ describe('loadStaticPlayerValueTimeline', () => {
     expect(timeline?.points).toHaveLength(3);
     expect(timeline?.windows?.all?.points[2].events?.[0]?.label).toBe('Room opened');
     expect(timeline?.summary.note).toBe('Fallback report note.');
-    expect(timeline?.availableWindows?.map((window) => window.key)).toEqual(['all']);
+    expect(timeline?.availableWindows?.map((window) => window.key)).toEqual(['1m', '3m', '6m', '1y', 'all']);
     expect(timeline?.extremes?.high?.date).toBe('2026-05-17');
     expect(timeline?.yearlyExtremes?.[0]?.high?.value).toBe(900);
   });

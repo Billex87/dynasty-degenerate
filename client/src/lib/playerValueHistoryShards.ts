@@ -27,6 +27,20 @@ type StaticTimelineShard = {
 };
 
 const shardCache = new Map<string, Promise<StaticTimelineShard | null>>();
+const WINDOW_POINT_LIMITS: Record<TimelineWindowKey, number> = {
+  '1m': 12,
+  '3m': 18,
+  '6m': 26,
+  '1y': 38,
+  all: 72,
+};
+const TIMELINE_WINDOW_DEFINITIONS: Array<{ key: TimelineWindowKey; label: string; days: number | null }> = [
+  { key: '1m', label: '1M', days: 31 },
+  { key: '3m', label: '3M', days: 92 },
+  { key: '6m', label: '6M', days: 183 },
+  { key: '1y', label: '1Y', days: 366 },
+  { key: 'all', label: 'All', days: null },
+];
 
 function getShardBaseUrl() {
   const configured = String(import.meta.env.VITE_VALUE_HISTORY_SHARDS_BASE_URL || '').trim();
@@ -102,12 +116,34 @@ function getPreferredTimelineFormats(
   ].filter(Boolean);
 }
 
+function getTimelineFormatPointCount(format: StaticTimelineFormat) {
+  const windowPointCounts = Object.values(format.windows || {}).map((window) => window.pointCount || window.points?.length || 0);
+  return Math.max(format.rawPointCount || 0, ...windowPointCounts, 0);
+}
+
+function isRichTimelineFormat(
+  format: StaticTimelineFormat,
+  leagueValueMode: 'dynasty' | 'redraft' | 'keeper'
+) {
+  if (leagueValueMode === 'redraft') return true;
+  return getTimelineFormatPointCount(format) >= 10;
+}
+
 function selectTimelineFormat(
   player: StaticTimelinePlayer,
   valueProfileKey: string,
   leagueValueMode: 'dynasty' | 'redraft' | 'keeper'
 ) {
   const formats = player.formats || {};
+  for (const format of getPreferredTimelineFormats(valueProfileKey, leagueValueMode)) {
+    if (formats[format] && isRichTimelineFormat(formats[format], leagueValueMode)) return formats[format];
+  }
+
+  const richFallback = Object.values(formats)
+    .filter((format) => isRichTimelineFormat(format, leagueValueMode))
+    .sort((a, b) => getTimelineFormatPointCount(b) - getTimelineFormatPointCount(a))[0];
+  if (richFallback) return richFallback;
+
   for (const format of getPreferredTimelineFormats(valueProfileKey, leagueValueMode)) {
     if (formats[format]) return formats[format];
   }
@@ -126,21 +162,89 @@ function selectTimelineWindow(
   return (Object.keys(windows)[0] as TimelineWindowKey) || 'all';
 }
 
+function dateMinusDays(dateKey: string, days: number) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function compactPoints<T>(points: T[], maxPoints: number): T[] {
+  if (points.length <= maxPoints) return points;
+  const keepIndexes = new Set<number>([0, points.length - 1]);
+  const innerSlots = Math.max(0, maxPoints - keepIndexes.size);
+  for (let index = 1; index <= innerSlots; index += 1) {
+    keepIndexes.add(Math.round((index * (points.length - 1)) / (innerSlots + 1)));
+  }
+  return points.filter((_, index) => keepIndexes.has(index));
+}
+
+function getAllTimelinePoints(format: StaticTimelineFormat): TimelinePoint[] {
+  if (format.asOfPoints?.length) return format.asOfPoints;
+  const pointsByDate = new Map<string, TimelinePoint>();
+  Object.values(format.windows || {}).forEach((window) => {
+    (window.points || []).forEach((point) => pointsByDate.set(point.date, point));
+  });
+  return Array.from(pointsByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function buildDerivedWindow(
+  definition: { key: TimelineWindowKey; label: string; days: number | null },
+  baseWindow: TimelineWindow | undefined,
+  points: TimelinePoint[]
+): TimelineWindow | null {
+  const latestDate = points.at(-1)?.date;
+  if (!latestDate) return null;
+  const startDate = definition.days ? dateMinusDays(latestDate, definition.days) : '';
+  const filtered = points.filter((point) => !startDate || point.date >= startDate);
+  if (filtered.length < 2) return null;
+
+  const compacted = compactPoints(filtered, WINDOW_POINT_LIMITS[definition.key]);
+  const start = compacted[0];
+  const end = compacted[compacted.length - 1];
+  const delta = end.value - start.value;
+  return {
+    key: definition.key,
+    label: baseWindow?.label || definition.label,
+    days: baseWindow?.days ?? definition.days,
+    pointCount: filtered.length,
+    startDate: start.date,
+    endDate: end.date,
+    startValue: start.value,
+    endValue: end.value,
+    delta,
+    deltaPct: start.value ? Math.round((delta / start.value) * 1000) / 10 : null,
+    points: compacted,
+  };
+}
+
+function buildTimelineWindows(format: StaticTimelineFormat): Record<TimelineWindowKey, TimelineWindow> {
+  const allPoints = getAllTimelinePoints(format);
+  return Object.fromEntries(
+    TIMELINE_WINDOW_DEFINITIONS.flatMap((definition) => {
+      const baseWindow = format.windows?.[definition.key];
+      const derivedWindow = buildDerivedWindow(definition, baseWindow, allPoints);
+      if (derivedWindow) return [[definition.key, derivedWindow]];
+      if (baseWindow) return [[definition.key, baseWindow]];
+      return [];
+    })
+  ) as Record<TimelineWindowKey, TimelineWindow>;
+}
+
 function sourceSignature(sources?: string[]) {
   return (sources || []).slice().sort().join('|');
 }
 
 function mergeFallbackEvents(
-  format: StaticTimelineFormat,
+  windows: Record<TimelineWindowKey, TimelineWindow>,
   fallbackTimeline?: PlayerValueTimeline | null
 ) {
   const fallbackLastPoint = fallbackTimeline?.points?.[fallbackTimeline.points.length - 1];
   const events = fallbackLastPoint?.events || [];
-  if (!events.length) return format.windows;
+  if (!events.length) return windows;
   const fallbackDate = fallbackLastPoint?.date;
 
   return Object.fromEntries(
-    Object.entries(format.windows || {}).map(([key, window]) => {
+    Object.entries(windows || {}).map(([key, window]) => {
       const points = (window.points || []).map(point => ({ ...point }));
       if (points.length) {
         const eventIndex = fallbackDate ? points.findIndex(point => point.date === fallbackDate) : -1;
@@ -171,7 +275,7 @@ export async function loadStaticPlayerValueTimeline(input: {
     );
     if (!format?.windows) return null;
 
-    const windows = mergeFallbackEvents(format, input.fallbackTimeline);
+    const windows = mergeFallbackEvents(buildTimelineWindows(format), input.fallbackTimeline);
     const selectedWindow = selectTimelineWindow(windows, input.selectedWindow);
     const selected = windows[selectedWindow] || windows.all || Object.values(windows)[0];
     if (!selected?.points?.length) return null;

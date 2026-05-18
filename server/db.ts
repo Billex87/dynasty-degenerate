@@ -58,6 +58,27 @@ export type StoredLoginAttempt = LoginAttemptEvent & {
   createdAt: Date;
 };
 
+export type PlayerValueSnapshotInsert = {
+  snapshotDate: string;
+  profileKey: string;
+  playerKey: string;
+  name: string;
+  value: number;
+  rank?: string | null;
+  sourceCount: number;
+  sources: string[];
+  sourceValues: Record<string, number | null>;
+};
+
+export type StoredPlayerValueSnapshot = PlayerValueSnapshotInsert & {
+  dateKey: string;
+};
+
+export type StoredKtcSnapshotPayload = {
+  snapshotDate: Date;
+  ktcData: string;
+};
+
 export type MonthlyReportGenerationReservation = {
   allowed: boolean;
   userKey: string;
@@ -149,6 +170,32 @@ async function ensureSchema(sql: SqlClient) {
       await sql`
         CREATE INDEX IF NOT EXISTS "ktcSnapshots_snapshotDate_idx"
         ON "ktcSnapshots" ("snapshotDate" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "playerValueSnapshots" (
+          id SERIAL PRIMARY KEY,
+          "snapshotDate" TIMESTAMPTZ NOT NULL,
+          "profileKey" VARCHAR(64) NOT NULL,
+          "playerKey" TEXT NOT NULL,
+          name TEXT NOT NULL,
+          value INTEGER NOT NULL,
+          rank TEXT,
+          "sourceCount" INTEGER NOT NULL DEFAULT 0,
+          sources JSONB NOT NULL DEFAULT '[]'::jsonb,
+          "sourceValues" JSONB NOT NULL DEFAULT '{}'::jsonb,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "playerValueSnapshots_unique_snapshot_player"
+        ON "playerValueSnapshots" ("snapshotDate", "profileKey", "playerKey")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "playerValueSnapshots_profile_player_date_idx"
+        ON "playerValueSnapshots" ("profileKey", "playerKey", "snapshotDate" DESC)
       `;
 
       await sql`
@@ -548,6 +595,59 @@ export async function insertKtcSnapshot(snapshotDate: Date, ktcData: string) {
   return true;
 }
 
+export async function insertPlayerValueSnapshots(rows: PlayerValueSnapshotInsert[]) {
+  const sql = await getDb();
+  if (!sql || rows.length === 0) return false;
+
+  const chunkSize = 2000;
+  for (let index = 0; index < rows.length; index += chunkSize) {
+    const chunk = rows.slice(index, index + chunkSize);
+    await sql`
+      INSERT INTO "playerValueSnapshots" (
+        "snapshotDate",
+        "profileKey",
+        "playerKey",
+        name,
+        value,
+        rank,
+        "sourceCount",
+        sources,
+        "sourceValues"
+      )
+      SELECT
+        x."snapshotDate",
+        x."profileKey",
+        x."playerKey",
+        x.name,
+        x.value,
+        x.rank,
+        x."sourceCount",
+        x.sources,
+        x."sourceValues"
+      FROM jsonb_to_recordset(${JSON.stringify(chunk)}::jsonb) AS x(
+        "snapshotDate" timestamptz,
+        "profileKey" text,
+        "playerKey" text,
+        name text,
+        value integer,
+        rank text,
+        "sourceCount" integer,
+        sources jsonb,
+        "sourceValues" jsonb
+      )
+      ON CONFLICT ("snapshotDate", "profileKey", "playerKey") DO UPDATE SET
+        name = EXCLUDED.name,
+        value = EXCLUDED.value,
+        rank = EXCLUDED.rank,
+        "sourceCount" = EXCLUDED."sourceCount",
+        sources = EXCLUDED.sources,
+        "sourceValues" = EXCLUDED."sourceValues"
+    `;
+  }
+
+  return true;
+}
+
 export async function findKtcSnapshotOnOrBefore(targetDate: Date) {
   const sql = await getDb();
   if (!sql) return null;
@@ -579,6 +679,25 @@ export async function findKtcSnapshotBetween(startDate: Date, targetDate: Date) 
   return result[0]?.ktcData ?? null;
 }
 
+export async function listKtcSnapshotPayloadsSince(targetDate: Date): Promise<StoredKtcSnapshotPayload[]> {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const result = await sql`
+    SELECT "snapshotDate", "ktcData"
+    FROM "ktcSnapshots"
+    WHERE "snapshotDate" >= ${targetDate}
+    ORDER BY "snapshotDate" ASC
+  ` as Array<Record<string, any>>;
+
+  return result
+    .map((row) => ({
+      snapshotDate: row.snapshotDate instanceof Date ? row.snapshotDate : new Date(row.snapshotDate),
+      ktcData: String(row.ktcData || ''),
+    }))
+    .filter((row) => Number.isFinite(row.snapshotDate.getTime()) && row.ktcData.length > 0);
+}
+
 export async function listKtcSnapshotDateKeysSince(targetDate: Date): Promise<string[]> {
   const sql = await getDb();
   if (!sql) return [];
@@ -593,6 +712,79 @@ export async function listKtcSnapshotDateKeysSince(targetDate: Date): Promise<st
   return result
     .map((row) => row.day || null)
     .filter((day): day is string => Boolean(day));
+}
+
+export async function findPlayerValueSnapshotsSince(input: {
+  profileKey: string;
+  playerKeys: string[];
+  targetDate: Date;
+}): Promise<StoredPlayerValueSnapshot[]> {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const playerKeys = Array.from(new Set(input.playerKeys.map((key) => String(key || '').trim()).filter(Boolean)));
+  if (!playerKeys.length) return [];
+
+  const result = await sql`
+    WITH requested_players AS (
+      SELECT value::text AS "playerKey"
+      FROM jsonb_array_elements_text(${JSON.stringify(playerKeys)}::jsonb)
+    ),
+    daily_values AS (
+      SELECT DISTINCT ON (
+        pvs."playerKey",
+        to_char(pvs."snapshotDate" AT TIME ZONE 'America/Vancouver', 'YYYY-MM-DD')
+      )
+        to_char(pvs."snapshotDate" AT TIME ZONE 'America/Vancouver', 'YYYY-MM-DD') AS "dateKey",
+        pvs."snapshotDate",
+        pvs."profileKey",
+        pvs."playerKey",
+        pvs.name,
+        pvs.value,
+        pvs.rank,
+        pvs."sourceCount",
+        pvs.sources,
+        pvs."sourceValues"
+      FROM "playerValueSnapshots" pvs
+      INNER JOIN requested_players rp
+        ON rp."playerKey" = pvs."playerKey"
+      WHERE pvs."profileKey" = ${input.profileKey}
+        AND pvs."snapshotDate" >= ${input.targetDate}
+      ORDER BY
+        pvs."playerKey",
+        to_char(pvs."snapshotDate" AT TIME ZONE 'America/Vancouver', 'YYYY-MM-DD'),
+        pvs."snapshotDate" DESC
+    )
+    SELECT *
+    FROM daily_values
+    ORDER BY "dateKey" ASC, "playerKey" ASC
+  ` as Array<Record<string, any>>;
+
+  const parseJsonColumn = <T>(value: unknown, fallback: T): T => {
+    if (typeof value !== "string") return (value as T) || fallback;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
+  };
+
+  return result
+    .map((row) => ({
+      snapshotDate: row.snapshotDate instanceof Date
+        ? row.snapshotDate.toISOString()
+        : new Date(row.snapshotDate).toISOString(),
+      dateKey: String(row.dateKey || ''),
+      profileKey: String(row.profileKey || ''),
+      playerKey: String(row.playerKey || ''),
+      name: String(row.name || ''),
+      value: Number(row.value),
+      rank: row.rank ?? null,
+      sourceCount: Number(row.sourceCount || 0),
+      sources: parseJsonColumn<string[]>(row.sources, []),
+      sourceValues: parseJsonColumn<Record<string, number | null>>(row.sourceValues, {}),
+    }))
+    .filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.dateKey) && Number.isFinite(row.value) && row.value > 0);
 }
 
 export async function upsertProspectSnapshot(source: string, snapshotMonth: string, prospectData: string) {

@@ -1,4 +1,4 @@
-import { findKtcSnapshotBetween, findKtcSnapshotOnOrBefore, getDb, insertKtcSnapshot } from './db';
+import { findKtcSnapshotBetween, findKtcSnapshotOnOrBefore, getDb, insertKtcSnapshot, insertPlayerValueSnapshots, type PlayerValueSnapshotInsert } from './db';
 import { loadKTCValues, loadLiveKTCValueProfiles, loadLiveKTCValues, saveLocalKtcSnapshot } from './ktcLoader';
 import { getWeeklyMomentumBaselineFloorStartDate, getWeeklyMomentumBaselineTargetDate } from './valueBaselinePolicy';
 import {
@@ -85,6 +85,79 @@ type KtcSnapshotPayload = {
   };
   blendedProfiles: Record<string, KTCValueMap>;
 };
+
+function cleanSnapshotPlayerKey(value: string) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function getSnapshotNumericValue(value: KTCValueMap[string]): number | null {
+  const numeric = Number(value.dynasty_value ?? value.ktc_value ?? value.true_value ?? 0);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : null;
+}
+
+function getSnapshotSourceValues(value: KTCValueMap[string]): Record<string, number | null> {
+  return {
+    marketKtc: value.market_value_ktc ?? null,
+    fantasyCalcDynasty: value.market_value_fantasycalc ?? null,
+    fantasyProsDynasty: value.expert_value_fantasypros ?? null,
+    dynastyProcess: value.expert_value_dynastyprocess ?? null,
+    dynastyNerds: value.expert_value_dynastynerds ?? null,
+    fantasyNerds: value.expert_value_fantasynerds ?? null,
+    flockFantasy: value.expert_value_flock ?? null,
+    dynastyDealerBenchmark: value.benchmark_value_dynastydealer ?? null,
+  };
+}
+
+export function buildPlayerValueSnapshotRows(
+  snapshotDate: Date,
+  blendedProfiles: Record<string, KTCValueMap>
+): PlayerValueSnapshotInsert[] {
+  const snapshotDateIso = snapshotDate.toISOString();
+  const rows: PlayerValueSnapshotInsert[] = [];
+
+  for (const [profileKey, values] of Object.entries(blendedProfiles || {})) {
+    for (const [rawPlayerKey, value] of Object.entries(values || {})) {
+      const playerKey = cleanSnapshotPlayerKey(rawPlayerKey || value.name);
+      const numericValue = getSnapshotNumericValue(value);
+      if (!playerKey || !numericValue) continue;
+
+      const sources = Array.isArray(value.value_sources) ? value.value_sources : [];
+      rows.push({
+        snapshotDate: snapshotDateIso,
+        profileKey,
+        playerKey,
+        name: value.name || rawPlayerKey,
+        value: numericValue,
+        rank: value.position_rank || value.flock_position_rank || value.dynastynerds_position_rank || null,
+        sourceCount: sources.length,
+        sources,
+        sourceValues: getSnapshotSourceValues(value),
+      });
+    }
+  }
+
+  return rows;
+}
+
+export function buildPlayerValueSnapshotRowsFromPayload(
+  snapshotDate: Date,
+  payload: unknown
+): PlayerValueSnapshotInsert[] {
+  const snapshotPayload = payload as Partial<KtcSnapshotPayload> | null;
+  const blendedProfiles = snapshotPayload?.blendedProfiles && typeof snapshotPayload.blendedProfiles === 'object'
+    ? snapshotPayload.blendedProfiles
+    : {};
+  const defaultProfile = snapshotPayload?.defaultProfile || DEFAULT_VALUE_SOURCE_PROFILE_KEY;
+  const values = snapshotPayload?.values && typeof snapshotPayload.values === 'object'
+    ? snapshotPayload.values
+    : {};
+  const profiles = {
+    ...blendedProfiles,
+    ...(Object.keys(blendedProfiles[defaultProfile] || {}).length > 0 ? {} : { [defaultProfile]: values }),
+  };
+
+  return buildPlayerValueSnapshotRows(snapshotDate, profiles);
+}
 
 function normalizeSnapshotData(data: unknown): KTCValueMap {
   if (!data || typeof data !== 'object') return {};
@@ -353,8 +426,15 @@ export async function storeKtcSnapshot() {
     }
 
     await insertKtcSnapshot(snapshotDate, JSON.stringify(snapshotPayload));
+    const playerValueRows = buildPlayerValueSnapshotRowsFromPayload(snapshotDate, snapshotPayload);
+    if (playerValueRows.length > 0) {
+      await insertPlayerValueSnapshots(playerValueRows);
+    }
 
     console.log(`[KTC Snapshot] Successfully stored snapshot for ${snapshotDate.toISOString()}`);
+    if (playerValueRows.length > 0) {
+      console.log(`[KTC Snapshot] Stored ${playerValueRows.length} player value graph points`);
+    }
     if (localFilePath) {
       console.log(`[KTC Snapshot] Also saved local snapshot to ${localFilePath}`);
     }

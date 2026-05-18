@@ -32,7 +32,7 @@ import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueRepor
 import { loadReportStaticInputs } from "./reportStaticInputs";
 import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
 import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
-import { buildPlayerValueTimelineMap, slimPlayerValueTimelineForReport } from "./playerValueTimeline";
+import { buildPlayerValueTimelineMap, loadStoredValueTimelineSnapshotsForPlayers, slimPlayerValueTimelineForReport } from "./playerValueTimeline";
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import {
@@ -4876,11 +4876,17 @@ export const appRouter = router({
               .map((playerId) => [playerId, allValueProfilesById[playerId]])
               .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
           );
+          const recentStoredValueTimelineSnapshots = await loadStoredValueTimelineSnapshotsForPlayers({
+            playerIds: detailPlayerIds,
+            players,
+            valueProfileKey: leagueValueProfileKey,
+          });
           const valueTimelinesById = buildPlayerValueTimelineMap({
             playerIds: detailPlayerIds,
             players,
             valueProfileKey: leagueValueProfileKey,
             leagueValueMode,
+            recentStoredSnapshots: recentStoredValueTimelineSnapshots,
           });
           const sleeperResearchSeasonType = String(leagueInfo.season_type || 'regular');
           const depthChartResultPromise = fetchEspnDepthChartsForPlayersWithDiagnostics(detailPlayerIds, players, getUserLoadSnapshotOptions());
@@ -5016,6 +5022,7 @@ export const appRouter = router({
             playerDetailsById: enrichedPlayerDetailsById,
             valueProfileKey: leagueValueProfileKey,
             leagueValueMode,
+            recentStoredSnapshots: recentStoredValueTimelineSnapshots,
           });
           Object.entries(valueTimelinesWithEventsById).forEach(([playerId, valueTimeline]) => {
             enrichedPlayerDetailsById[playerId] = {

@@ -5,6 +5,9 @@ import { storeKtcSnapshot, getKtcSnapshotFromDaysAgo } from './ktcSnapshotJob';
 vi.mock('./db', () => ({
   getDb: vi.fn(() => Promise.resolve(null)),
   findKtcSnapshotBetween: vi.fn(() => Promise.resolve(null)),
+  findKtcSnapshotOnOrBefore: vi.fn(() => Promise.resolve(null)),
+  insertKtcSnapshot: vi.fn(() => Promise.resolve(true)),
+  insertPlayerValueSnapshots: vi.fn(() => Promise.resolve(true)),
 }));
 
 vi.mock('./ktcLoader', () => ({
