@@ -41,6 +41,8 @@
     "audit:report-payload": "node scripts/audit-report-payload.mjs",
     "audit:report-hotspots": "node scripts/audit-report-hotspots.mjs",
     "audit:situation-delta-sources": "node scripts/audit-situation-delta-sources.mjs",
+    "analyze:redraft-draft-winners": "node scripts/analyze-redraft-draft-winners.mjs",
+    "analyze:redraft-draft-network": "node scripts/analyze-redraft-draft-network.mjs",
     "audit:rookie-label-backtest": "tsx server/rookieLabelBacktest.ts",
     "audit:weekly-movement": "tsx server/weeklyMovementAnomalyReport.ts",
     "compact:league-report-cache": "node scripts/compact-league-report-cache.mjs",
