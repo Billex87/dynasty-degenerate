@@ -23,6 +23,7 @@ import { readBooleanParam, readCsvParam, readEnumParam, readNumberParam, getUrlS
 
 type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | 'PICK';
 type SortMode = 'rank' | 'value' | 'movement';
+type MovementSortDirection = 'down' | 'up';
 type DraftBuzzPosition = Exclude<PositionFilter, 'K' | 'DEF' | 'PICK'>;
 type SortDirection = 'asc' | 'desc';
 type DraftBuzzSortKey = 'class' | 'rank' | 'player' | 'team' | 'school' | 'position' | 'score' | 'forty' | 'height' | 'weight';
@@ -50,6 +51,7 @@ type RankingsTableConfig = {
 const PAGE_SIZE = 25;
 const DRAFT_BUZZ_PAGE_SIZE = 25;
 const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement'];
+const MOVEMENT_SORT_DIRECTIONS: readonly MovementSortDirection[] = ['down', 'up'];
 const SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 const POSITION_FILTER_KEYS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'PICK'] as const;
 const DRAFT_BUZZ_POSITIONS: DraftBuzzPosition[] = ['QB', 'RB', 'WR', 'TE'];
@@ -1030,6 +1032,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   const [includePicksWithOverall, setIncludePicksWithOverall] = useState(() => canIncludePicksWithOverall && readBooleanParam(`${urlPrefix}Picks`));
   const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(() => readNumberParam(`${urlPrefix}Class`));
   const [sortMode, setSortMode] = useState<SortMode>(() => readEnumParam(`${urlPrefix}Sort`, SORT_MODES, 'rank'));
+  const [movementSortDirection, setMovementSortDirection] = useState<MovementSortDirection>(() => readEnumParam(`${urlPrefix}Movement`, MOVEMENT_SORT_DIRECTIONS, 'down'));
   const [query, setQuery] = useState(() => getUrlSearchParam(`${urlPrefix}Search`) || '');
   const deferredQuery = useDeferredValue(query);
   const [page, setPage] = useState(1);
@@ -1044,6 +1047,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
       setIncludePicksWithOverall(canIncludePicksWithOverall && readBooleanParam(`${urlPrefix}Picks`));
       setSelectedDraftClass(readNumberParam(`${urlPrefix}Class`));
       setSortMode(readEnumParam(`${urlPrefix}Sort`, SORT_MODES, 'rank'));
+      setMovementSortDirection(readEnumParam(`${urlPrefix}Movement`, MOVEMENT_SORT_DIRECTIONS, 'down'));
       setQuery(getUrlSearchParam(`${urlPrefix}Search`) || '');
       setPage(1);
     }
@@ -1109,10 +1113,16 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
           const bValue = config.leagueValueMode === 'redraft' ? b.seasonValue ?? b.fantasyProsValue ?? b.value : b.value;
           return bValue - aValue || a.overallRank - b.overallRank;
         }
-        if (sortMode === 'movement') return Math.abs(b.movement || 0) - Math.abs(a.movement || 0) || a.overallRank - b.overallRank;
+        if (sortMode === 'movement') {
+          const aMovement = a.movement || 0;
+          const bMovement = b.movement || 0;
+          return movementSortDirection === 'up'
+            ? bMovement - aMovement || a.overallRank - b.overallRank
+            : aMovement - bMovement || a.overallRank - b.overallRank;
+        }
         return a.overallRank - b.overallRank;
       });
-  }, [canIncludePicksWithOverall, config.board, config.hidePicks, config.leagueValueMode, deferredQuery, includePicksWithOverall, playerDetailsById, rows, selectedDraftClass, selectedPositions, sortMode]);
+  }, [canIncludePicksWithOverall, config.board, config.hidePicks, config.leagueValueMode, deferredQuery, includePicksWithOverall, movementSortDirection, playerDetailsById, rows, selectedDraftClass, selectedPositions, sortMode]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -1120,7 +1130,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
 
   useEffect(() => {
     setPage(1);
-  }, [includePicksWithOverall, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode]);
+  }, [includePicksWithOverall, movementSortDirection, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode]);
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
@@ -1135,10 +1145,22 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         [`${urlPrefix}Picks`]: includePicksWithOverall && selectedPositions.length === 0,
         [`${urlPrefix}Class`]: selectedDraftClass,
         [`${urlPrefix}Sort`]: sortMode === 'rank' ? null : sortMode,
+        [`${urlPrefix}Movement`]: sortMode === 'movement' ? movementSortDirection : null,
       },
       { onlyForHash: '#rankings' },
     );
-  }, [includePicksWithOverall, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode, urlPrefix]);
+  }, [includePicksWithOverall, movementSortDirection, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode, urlPrefix]);
+
+  const handleMovementSortClick = () => {
+    if (sortMode === 'movement') {
+      setMovementSortDirection(direction => direction === 'down' ? 'up' : 'down');
+      return;
+    }
+    setSortMode('movement');
+    setMovementSortDirection('down');
+  };
+  const MovementSortIcon = movementSortDirection === 'up' ? TrendingUp : TrendingDown;
+  const movementSortLabel = movementSortDirection === 'up' ? '7-Day risers' : '7-Day fallers';
 
   const togglePosition = (position: PositionFilter) => {
     if (position === 'PICK') {
@@ -1227,8 +1249,16 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
             <button type="button" className={sortMode === 'value' ? 'active' : ''} aria-pressed={sortMode === 'value'} onClick={() => setSortMode('value')}>
               {config.leagueValueMode === 'redraft' ? 'Season' : 'Value'}
             </button>
-            <button type="button" className={sortMode === 'movement' ? 'active' : ''} aria-pressed={sortMode === 'movement'} onClick={() => setSortMode('movement')}>
-              7-Day
+            <button
+              type="button"
+              className={`rankings-movement-sort-button ${sortMode === 'movement' ? 'active' : ''}`}
+              aria-pressed={sortMode === 'movement'}
+              aria-label={`Sort by ${movementSortLabel}`}
+              title={`Sort by ${movementSortLabel}`}
+              onClick={handleMovementSortClick}
+            >
+              <span>7-Day</span>
+              <MovementSortIcon className="rankings-sort-direction-icon" aria-hidden="true" />
             </button>
           </div>
         ) : null}

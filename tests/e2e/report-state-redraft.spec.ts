@@ -87,11 +87,26 @@ async function openDraftYear(page: import('@playwright/test').Page, title: strin
 
 test.describe('shareable report control state', () => {
   test('syncs ranking search, sort, and filters into the URL and restores them', async ({ page }) => {
-    const cachedReport = await loadCachedReport(page, 'rank-state-redraft-league', '#rankings');
+    const cachedReport = createCachedRedraftReport('rank-state-redraft-league');
+    const rankingRows = cachedReport.reportData.rankings.profiles['redraft-ppr'];
+    Object.assign(rankingRows[0] as any, { movement: -25, movementLabel: '-25', movementDirection: 'down' });
+    Object.assign(rankingRows[1] as any, { movement: 10, movementLabel: '+10', movementDirection: 'up' });
+    await loadCachedReportPayload(page, cachedReport, '#rankings');
     await openFullRosterRankings(page);
 
     const search = page.getByPlaceholder('Search player');
     await expect(search).toBeVisible();
+    const movementSort = page.locator('.rankings-sort-toggle').getByRole('button', { name: /7-Day/ });
+    await movementSort.click();
+    await expect(page).toHaveURL(/redraftSort=movement/);
+    await expect(page).toHaveURL(/redraftMovement=down/);
+    await expect(movementSort).toHaveAttribute('aria-label', /fallers/);
+    await expect(page.locator('.value-board__row').first()).toContainText('Bijan Robinson');
+    await movementSort.click();
+    await expect(page).toHaveURL(/redraftMovement=up/);
+    await expect(movementSort).toHaveAttribute('aria-label', /risers/);
+    await expect(page.locator('.value-board__row').first()).toContainText('Depth Receiver');
+
     await search.fill('Depth');
     await page.getByRole('button', { name: 'Season' }).click();
     await page.locator('.rankings-position-toggle button[aria-label="WR"]').click();

@@ -1834,6 +1834,20 @@
   display: contents;
 }
 
+.rankings-movement-sort-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+}
+
+.rankings-sort-direction-icon {
+  width: 0.82rem;
+  height: 0.82rem;
+  flex: 0 0 auto;
+  stroke-width: 3;
+}
+
 .draftbuzz-table__logo-cell {
   display: inline-flex;
   min-width: 0;
