@@ -75,6 +75,17 @@ Every current or future weighted provider should be tracked in `scripts/value-hi
 - `benchmark-only`: source is useful context, but not part of the default weighted blend.
 - `future`: source is planned, but should not affect weights until the raw history and source-health path exists.
 
+The app-owned cached blended profiles are handled separately from provider-native source history. Use:
+
+```bash
+VALUE_PROFILE_KEYS=12_sf_ppr_base,12_sf_ppr_tep_0_5,12_sf_ppr_tep_1_0,12_sf_ppr_tep_1_5,12_one_qb_ppr_base,12_one_qb_ppr_tep_0_5,12_one_qb_ppr_tep_1_0,12_one_qb_ppr_tep_1_5 \
+OUT_FILE=server/value-history-archive/local-cache-blended-history.json \
+AUDIT_FILE=server/value-history-archive/local-cache-blended-history-audit.json \
+pnpm promote:value-history:cached
+```
+
+This archive represents Dynasty Degen's own stored profile values by date and format. Keep it as fallback history for TEP/profile gaps and trade-date lookups; do not treat it as another independent provider signal when recalibrating source weights.
+
 When weights change, rerun:
 
 ```bash

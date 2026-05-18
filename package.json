@@ -16,6 +16,7 @@
     "backfill:player-value-snapshots": "tsx scripts/backfill-player-value-snapshots.ts",
     "export:value-history": "node scripts/export-player-value-history.mjs",
     "export:value-history:sources": "node scripts/export-local-weighted-source-history.mjs",
+    "promote:value-history:cached": "node scripts/promote-cached-value-history.mjs",
     "import:value-history": "node scripts/import-approved-player-value-history.mjs",
     "merge:value-history": "node scripts/merge-value-history-archives.mjs",
     "backtest:value-history": "node scripts/backtest-player-value-history.mjs",

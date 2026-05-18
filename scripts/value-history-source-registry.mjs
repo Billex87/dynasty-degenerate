@@ -90,6 +90,16 @@ export const VALUE_HISTORY_SOURCES = [
     note: 'Stored as benchmark context, not part of default weighted blended value today.',
   },
   {
+    key: 'dynastyDegenCache',
+    label: 'Dynasty Degen cached blend',
+    archiveSourceNames: ['DynastyDegenCache'],
+    currentWeight: 0,
+    status: 'benchmark-only',
+    captureMode: 'app-owned-cached-blended-profile',
+    formats: ['12_sf_ppr_base', '12_sf_ppr_tep_0_5', '12_sf_ppr_tep_1_0', '12_sf_ppr_tep_1_5', '12_one_qb_ppr_base', '12_one_qb_ppr_tep_0_5', '12_one_qb_ppr_tep_1_0', '12_one_qb_ppr_tep_1_5'],
+    note: 'Promoted from Dynasty Degen cached blended profile snapshots as app-owned fallback history. It fills local profile/date gaps and is not a source-native provider weight.',
+  },
+  {
     key: 'futureLicensedRouteData',
     label: 'Future route/usage provider',
     archiveSourceNames: ['FantasyPointsData', 'PFF', 'FTN', 'SportsDataIO', 'FantasyData'],

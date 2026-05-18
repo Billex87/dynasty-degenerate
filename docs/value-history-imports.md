@@ -76,7 +76,20 @@ Keep every imported source archive and merged archive gitignored. The committed 
 
 ## Local Snapshot Baseline
 
-Before looking for external historical exports, capture the provider values we already stored in our own local blended snapshots:
+Before looking for external historical exports, capture both forms of value history we already own locally.
+
+First, promote the app-owned blended profile values. This captures what Dynasty Degen itself valued every player/pick at for each stored profile, including SF/1QB and TEP variants:
+
+```bash
+VALUE_PROFILE_KEYS=12_sf_ppr_base,12_sf_ppr_tep_0_5,12_sf_ppr_tep_1_0,12_sf_ppr_tep_1_5,12_one_qb_ppr_base,12_one_qb_ppr_tep_0_5,12_one_qb_ppr_tep_1_0,12_one_qb_ppr_tep_1_5 \
+OUT_FILE=server/value-history-archive/local-cache-blended-history.json \
+AUDIT_FILE=server/value-history-archive/local-cache-blended-history-audit.json \
+pnpm promote:value-history:cached
+```
+
+This produces app-owned fallback history from the stored profile values only. It does not call provider sites, and it should be used to fill profile/date gaps, power trade-date lookups, and preserve TEP-specific local value history where a provider does not publish a true source-native TEP history.
+
+Then capture the provider values we already stored inside those same local blended snapshots:
 
 ```bash
 VALUE_PROFILE_KEYS=12_sf_ppr_base,12_sf_ppr_tep_0_5,12_sf_ppr_tep_1_0,12_sf_ppr_tep_1_5,12_one_qb_ppr_base,12_one_qb_ppr_tep_0_5,12_one_qb_ppr_tep_1_0,12_one_qb_ppr_tep_1_5 \
@@ -87,7 +100,33 @@ pnpm export:value-history:sources
 
 This produces source-specific raw points from the stored snapshot columns only. It does not call provider sites.
 
-Treat this as a baseline, not as a complete provider backfill. It preserves the provider-specific columns already captured by Dynasty Degen snapshots, but the higher-confidence path is still to backfill each weighted provider one at a time from a direct historical page, official export, licensed API, or official versioned data repository.
+Treat both exports as baselines, not as complete provider backfills. The cached blended history is our app-owned historical value by profile. The weighted-source export preserves provider-specific columns already captured by Dynasty Degen snapshots. The higher-confidence provider path is still to backfill each weighted provider one at a time from a direct historical page, official export, licensed API, or official versioned data repository.
+
+After promotion, merge the cached blended archive as a separate import only when you want local fallback points available to derived timelines:
+
+```bash
+BASE_ARCHIVE_FILE=server/value-history-archive/one-time-source-history-normalized.json \
+IMPORT_FILES=server/value-history-archive/local-cache-blended-history.json \
+OUT_FILE=server/value-history-archive/one-time-source-history-with-cache-blend.json \
+pnpm merge:value-history
+```
+
+Then audit and rebuild derived products from the merged archive:
+
+```bash
+ARCHIVE_FILE=server/value-history-archive/one-time-source-history-with-cache-blend.json \
+OUT_FILE=server/value-history-archive/player-value-history-cache-blend-audit.json \
+pnpm audit:value-history
+
+ARCHIVE_FILE=server/value-history-archive/one-time-source-history-with-cache-blend.json \
+OUT_FILE=server/value-history-archive/player-value-history-reblended-with-cache-blend.json \
+BLEND_NAME=cache-promoted-local-profile-history \
+pnpm reblend:value-history
+
+ARCHIVE_FILE=server/value-history-archive/player-value-history-reblended-with-cache-blend.json \
+OUT_DIR=server/value-history-archive/player-value-history-shards \
+pnpm index:value-history:shards
+```
 
 ## Provider-by-Provider Backfill Standard
 
