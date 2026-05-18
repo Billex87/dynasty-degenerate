@@ -103,6 +103,11 @@ describe('hasUsableBlendedSnapshotValues', () => {
 });
 
 describe('weekly momentum baseline policy', () => {
+  afterEach(() => {
+    clearKTCCache();
+    vi.restoreAllMocks();
+  });
+
   it('floors the temporary weekly comparison baseline to May 7, 2026', () => {
     expect(getWeeklyMomentumBaselineTargetDateKey(7, new Date('2026-05-11T12:00:00-07:00'))).toBe('2026-05-07');
     expect(getWeeklyMomentumBaselineTargetDateKey(7, new Date('2026-05-16T12:00:00-07:00'))).toBe('2026-05-09');
@@ -111,8 +116,64 @@ describe('weekly momentum baseline policy', () => {
   });
 
   it('loads the historical weekly fallback without checked-in local snapshots', () => {
+    const originalExistsSync = fs.existsSync.bind(fs);
+    const originalReadFileSync = fs.readFileSync.bind(fs);
+    const manifest = {
+      shards: [{ file: 'weekly_fixture.json' }],
+    };
+    const shard = {
+      players: {
+        bijanrobinson: {
+          name: 'Bijan Robinson',
+          formats: {
+            sf_ppr: {
+              rawPointCount: 1,
+              asOfPoints: [{
+                date: '2026-05-07',
+                value: 7800,
+                rank: 'RB1',
+                sourceCount: 2,
+                sources: ['marketKtc', 'fantasyCalc'],
+                marketKtc: 7820,
+                fantasyCalcDynasty: 7780,
+              }],
+            },
+          },
+        },
+        jamarrchase: {
+          name: "Ja'Marr Chase",
+          formats: {
+            sf_ppr: {
+              rawPointCount: 1,
+              asOfPoints: [{
+                date: '2026-05-07',
+                value: 7600,
+                rank: 'WR1',
+                sourceCount: 2,
+                sources: ['marketKtc', 'fantasyCalc'],
+              }],
+            },
+          },
+        },
+      },
+    };
+
+    vi.spyOn(fs, 'existsSync').mockImplementation((candidatePath) => {
+      const path = String(candidatePath);
+      if (path.includes('ktc-snapshots')) return false;
+      if (path.endsWith('player-value-history-shards/manifest.json')) return true;
+      if (path.endsWith('player-value-history-shards/weekly_fixture.json')) return true;
+      return originalExistsSync(candidatePath);
+    });
+    vi.spyOn(fs, 'readFileSync').mockImplementation((candidatePath, options) => {
+      const path = String(candidatePath);
+      if (path.endsWith('player-value-history-shards/manifest.json')) return JSON.stringify(manifest) as any;
+      if (path.endsWith('player-value-history-shards/weekly_fixture.json')) return JSON.stringify(shard) as any;
+      return originalReadFileSync(candidatePath as any, options as any);
+    });
+
     const baseline = loadLatestLocalWeeklyMomentumSnapshot('12_sf_ppr_base');
-    expect(Object.keys(baseline).length).toBeGreaterThan(1000);
+    expect(Object.keys(baseline).length).toBe(2);
     expect(baseline.bijanrobinson).toMatchObject({
       name: 'Bijan Robinson',
       ktc_value: expect.any(Number),
