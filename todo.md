@@ -150,6 +150,7 @@
 - [x] Add a first-pass player cohort signal engine with position age phases, market-vs-production deltas, current outcome buckets, confidence gating, same-position peer rows, and explanation traces without adding provider calls.
 - [x] Add offline player-cohort backtesting against historical seasons to measure archetype sample size, positive rate, regression/collapse risk, median next-year movement, and failure modes; see `docs/player-season-outcome-model.md`.
 - [x] Publish compact player-cohort calibration receipts so player AI reads can cite historical sample size, failure risk, and median next-year movement without loading raw modeling rows or example players at runtime.
+- [x] Add admin-only player receipt audit diagnostics so visible/internal historical receipts, display reasons, bucket summaries, and bad-read guardrails can be reviewed before stronger AI copy ships.
 - [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts; start from `docs/player-season-outcome-model.md`.
 - [x] Surface a short explanation trace in the UI so each player AI read can show the top reasons the model thinks a player is undervalued, overvalued, peaking, or declining, including draft-capital runway so high picks and late/undrafted profiles are judged with different opportunity patience.
 - [x] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.

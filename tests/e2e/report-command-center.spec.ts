@@ -499,6 +499,27 @@ test.describe("command center feature surfaces", () => {
         .getByLabel("AI readout coverage flags")
         .getByText(/Schedule\/projection traces stay limited/i)
     ).toBeVisible();
+    const receiptAuditSection = await openReportSection(
+      page,
+      "Player Receipt Audit"
+    );
+    await expect(receiptAuditSection.getByText("bucket matches")).toBeVisible();
+    await expect(
+      receiptAuditSection
+        .getByLabel("Player receipt audit rows")
+        .getByText("Depth Receiver · WR")
+    ).toBeVisible();
+    await expect(
+      receiptAuditSection
+        .getByLabel("Player receipt audit rows")
+        .getByText("WR progression with feature usage")
+    ).toBeVisible();
+    await expect(
+      receiptAuditSection
+        .getByLabel("Player receipt guardrail flags")
+        .getByText(/missing production baseline/i)
+        .first()
+    ).toBeVisible();
 
     await page.getByRole("tab", { name: "Momentum" }).click();
     await openReportSection(page, "Waiver Intelligence");
@@ -714,6 +735,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.locator(".admin-premium-section")).toHaveCount(0);
     await expect(page.locator(".admin-diagnostics-shell")).toHaveCount(0);
     await expect(page.getByText("AI Readout Coverage")).toHaveCount(0);
+    await expect(page.getByText("Player Receipt Audit")).toHaveCount(0);
     await expect(page.getByText("Trade browser read")).toHaveCount(0);
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
 
