@@ -74,7 +74,7 @@ type PositionBaseline = {
   featureVolume: number;
 };
 
-const POSITION_BASELINES: Record<PlayerSeasonPosition, PositionBaseline> = {
+export const PLAYER_SEASON_POSITION_BASELINES: Record<PlayerSeasonPosition, PositionBaseline> = {
   QB: { replacementPpg: 12, usablePpg: 16.5, strongPpg: 20, elitePpg: 23.5, rotationVolume: 275, starterVolume: 500, featureVolume: 650 },
   RB: { replacementPpg: 7, usablePpg: 10, strongPpg: 14, elitePpg: 19, rotationVolume: 95, starterVolume: 190, featureVolume: 285 },
   WR: { replacementPpg: 7, usablePpg: 10, strongPpg: 14, elitePpg: 19, rotationVolume: 45, starterVolume: 90, featureVolume: 140 },
@@ -93,15 +93,15 @@ function round(value: number, digits = 1): number {
 
 function productionScore(position: PlayerSeasonPosition, ppg: number | null, games: number): number {
   if (ppg === null || games <= 0) return 0;
-  const baseline = POSITION_BASELINES[position];
+  const baseline = PLAYER_SEASON_POSITION_BASELINES[position];
   const ppgScore = ((ppg - baseline.replacementPpg) / Math.max(1, baseline.elitePpg - baseline.replacementPpg)) * 100;
   const gamesMultiplier = clamp(games / 14, 0.35, 1);
   return Math.round(clamp(ppgScore, 0, 100) * gamesMultiplier);
 }
 
-function productionTier(position: PlayerSeasonPosition, ppg: number | null, games: number): ProductionTier {
+export function getPlayerSeasonProductionTier(position: PlayerSeasonPosition, ppg: number | null, games: number): ProductionTier {
   if (ppg === null || games < 5) return 'low-signal';
-  const baseline = POSITION_BASELINES[position];
+  const baseline = PLAYER_SEASON_POSITION_BASELINES[position];
   if (ppg >= baseline.elitePpg) return 'elite';
   if (ppg >= baseline.strongPpg) return 'strong';
   if (ppg >= baseline.usablePpg) return 'usable';
@@ -117,7 +117,7 @@ function weightedOpportunity(row: PlayerSeasonInput): number {
 }
 
 function roleScore(row: PlayerSeasonInput): number {
-  const baseline = POSITION_BASELINES[row.position];
+  const baseline = PLAYER_SEASON_POSITION_BASELINES[row.position];
   const volume = weightedOpportunity(row);
   const volumeScore = ((volume - baseline.rotationVolume) / Math.max(1, baseline.featureVolume - baseline.rotationVolume)) * 100;
   const shareBoost = row.position === 'WR' || row.position === 'TE'
@@ -128,14 +128,14 @@ function roleScore(row: PlayerSeasonInput): number {
   return Math.round(clamp(volumeScore + shareBoost, 0, 100));
 }
 
-function roleTier(position: PlayerSeasonPosition, score: number): RoleTier {
+export function getPlayerSeasonRoleTier(position: PlayerSeasonPosition, score: number): RoleTier {
   if (score >= 78) return 'feature';
   if (score >= 48) return 'starter';
   if (score >= (position === 'K' ? 15 : 22)) return 'rotation';
   return 'thin';
 }
 
-function trajectory(input: {
+export function getPlayerSeasonTrajectory(input: {
   position: PlayerSeasonPosition;
   currentScore: number;
   previousScore: number | null;
@@ -158,7 +158,7 @@ function trajectory(input: {
 
 export function buildPlayerSeasonOutcomeRows(seasons: PlayerSeasonInput[]): PlayerSeasonOutcomeRow[] {
   const normalized: DerivedPlayerSeason[] = seasons
-    .filter((row) => row.playerKey && row.playerName && row.season && POSITION_BASELINES[row.position])
+    .filter((row) => row.playerKey && row.playerName && row.season && PLAYER_SEASON_POSITION_BASELINES[row.position])
     .map((row) => {
       const ppg = row.games > 0 ? round(row.fantasyPointsPpr / row.games, 2) : null;
       const prodScore = productionScore(row.position, ppg, row.games);
@@ -167,9 +167,9 @@ export function buildPlayerSeasonOutcomeRows(seasons: PlayerSeasonInput[]): Play
         input: row,
         fantasyPointsPprPerGame: ppg,
         productionScore: prodScore,
-        productionTier: productionTier(row.position, ppg, row.games),
+        productionTier: getPlayerSeasonProductionTier(row.position, ppg, row.games),
         roleScore: role,
-        roleTier: roleTier(row.position, role),
+        roleTier: getPlayerSeasonRoleTier(row.position, role),
         weightedOpportunity: round(weightedOpportunity(row), 2),
       };
     });
@@ -190,7 +190,7 @@ export function buildPlayerSeasonOutcomeRows(seasons: PlayerSeasonInput[]): Play
       const next = sorted[index + 1] || null;
       const previousIsAdjacent = previous && previous.input.season === current.input.season - 1 ? previous : null;
       const nextIsAdjacent = next && next.input.season === current.input.season + 1 ? next : null;
-      const trajectoryFromPrevious = trajectory({
+      const trajectoryFromPrevious = getPlayerSeasonTrajectory({
         position: current.input.position,
         currentScore: current.productionScore,
         previousScore: previousIsAdjacent?.productionScore ?? null,
@@ -199,7 +199,7 @@ export function buildPlayerSeasonOutcomeRows(seasons: PlayerSeasonInput[]): Play
         currentGames: current.input.games,
         previousGames: previousIsAdjacent?.input.games ?? null,
       });
-      const nextSeasonOutcome = nextIsAdjacent ? trajectory({
+      const nextSeasonOutcome = nextIsAdjacent ? getPlayerSeasonTrajectory({
         position: current.input.position,
         currentScore: nextIsAdjacent.productionScore,
         previousScore: current.productionScore,

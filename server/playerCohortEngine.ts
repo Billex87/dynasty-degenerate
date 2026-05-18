@@ -1,4 +1,5 @@
 import type { PlayerCohortDraftCapital, PlayerCohortEvidenceGrade, PlayerCohortOutcomeBucket, PlayerCohortPhase, PlayerCohortProfile, PlayerDetails } from '../shared/types';
+import { attachPlayerSeasonOutcomeReceipts, type CompactPlayerSeasonCalibration } from './playerCohortCalibrationReceipts';
 
 const AGE_CURVES: Record<string, { earlyMax: number; primeMax: number; latePrimeMax: number }> = {
   QB: { earlyMax: 26, primeMax: 32, latePrimeMax: 36 },
@@ -754,6 +755,7 @@ export function buildPlayerCohortProfiles(input: {
   playerDetailsById: Record<string, PlayerDetails>;
   mode?: 'dynasty' | 'redraft';
   peerLimit?: number;
+  seasonOutcomeCalibration?: CompactPlayerSeasonCalibration | null;
 }): Record<string, PlayerCohortProfile> {
   const mode = input.mode || 'dynasty';
   const peerLimit = Math.max(0, Math.min(12, Math.floor(input.peerLimit ?? 5)));
@@ -824,6 +826,7 @@ export function buildPlayerCohortProfiles(input: {
           confidence,
           calibration,
           draftCapital,
+          seasonOutcomeReceipt: null,
           peers: [],
           historicalComps: undefined,
           trace: [] as string[],
@@ -878,5 +881,9 @@ export function buildPlayerCohortProfiles(input: {
     };
   }
 
-  return profilesById;
+  return attachPlayerSeasonOutcomeReceipts({
+    profilesById,
+    playerDetailsById: input.playerDetailsById,
+    calibration: input.seasonOutcomeCalibration,
+  });
 }

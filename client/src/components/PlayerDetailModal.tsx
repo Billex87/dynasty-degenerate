@@ -966,6 +966,39 @@ export function PlayerDetailModal({
                 <p className="text-sm font-semibold leading-relaxed text-slate-300">
                   {details.playerCohort.historicalComps.summary}
                 </p>
+                {details.playerCohort.seasonOutcomeReceipt?.displayEligible && (
+                  <div className="rounded-lg border border-amber-300/20 bg-amber-400/10 p-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-amber-200/85">
+                          Historical Receipt
+                        </p>
+                        <p className="mt-1 text-sm font-black text-amber-50">
+                          {details.playerCohort.seasonOutcomeReceipt.label}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 text-[0.62rem] font-black uppercase tracking-[0.1em] text-amber-100">
+                        <span className="rounded-full border border-amber-200/25 bg-black/20 px-2 py-1">
+                          {details.playerCohort.seasonOutcomeReceipt.sampleSize} samples
+                        </span>
+                        <span className="rounded-full border border-amber-200/25 bg-black/20 px-2 py-1">
+                          {details.playerCohort.seasonOutcomeReceipt.confidenceGrade}
+                        </span>
+                        <span className="rounded-full border border-amber-200/25 bg-black/20 px-2 py-1">
+                          {details.playerCohort.seasonOutcomeReceipt.recommendation}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-sm font-semibold leading-relaxed text-amber-50/85">
+                      {details.playerCohort.seasonOutcomeReceipt.summary}
+                    </p>
+                    <div className="mt-2 grid gap-2 text-[0.68rem] font-black uppercase tracking-[0.1em] text-amber-100/85 sm:grid-cols-3">
+                      <span>Improved {formatNullablePercent(details.playerCohort.seasonOutcomeReceipt.improvedOrSustainedRate)}</span>
+                      <span>Failure {formatNullablePercent(details.playerCohort.seasonOutcomeReceipt.materialFailureRate)}</span>
+                      <span>Median {formatSignedNumber(details.playerCohort.seasonOutcomeReceipt.medianNextProductionDelta)}</span>
+                    </div>
+                  </div>
+                )}
                 {details.playerCohort.historicalComps.closest.length > 0 && (
                   <div className="grid gap-2 sm:grid-cols-3">
                     {details.playerCohort.historicalComps.closest.slice(0, 3).map((comp) => (
@@ -1603,6 +1636,15 @@ function formatValueDelta(value: number | null | undefined) {
   if (value === null || value === undefined) return '-';
   const prefix = value > 0 ? '+' : '';
   return `${prefix}${formatValueLens(value)}`;
+}
+
+function formatNullablePercent(value: number | null | undefined) {
+  return value === null || value === undefined ? 'n/a' : `${value}%`;
+}
+
+function formatSignedNumber(value: number | null | undefined) {
+  if (value === null || value === undefined) return 'n/a';
+  return `${value >= 0 ? '+' : ''}${value}`;
 }
 
 function formatTimelineDate(value: string) {
@@ -2956,6 +2998,9 @@ function buildPlayerAiRead({
     });
     if (cohort.historicalComps.consensusOutcome) chips.push(formatCohortOutcomeLabel(cohort.historicalComps.consensusOutcome));
   }
+  if (cohort?.seasonOutcomeReceipt?.displayEligible) {
+    chips.push(formatSeasonOutcomeReceiptChip(cohort.seasonOutcomeReceipt));
+  }
   if (situationDelta) {
     chips.push(formatSituationDeltaLabel(situationDelta.primaryLabel));
     chips.push(`Delta ${situationDelta.score}`);
@@ -3028,6 +3073,7 @@ function buildPlayerAiRead({
   if (cohort) {
     const cohortRead = buildCohortReadCopy(playerName, cohort);
     const historicalRead = buildHistoricalCompReadCopy(playerName, cohort.historicalComps);
+    const seasonReceiptRead = buildSeasonOutcomeReceiptReadCopy(playerName, cohort.seasonOutcomeReceipt);
     if (cohortRead) {
       readType = cohortRead.readType || readType;
       severity = cohortRead.severity || severity;
@@ -3044,6 +3090,19 @@ function buildPlayerAiRead({
         severity = historicalRead.severity;
       }
       body = `${body} ${historicalRead.copy}`;
+    }
+    if (seasonReceiptRead) {
+      if (seasonReceiptRead.severity === 'danger') {
+        readType = seasonReceiptRead.readType;
+        severity = 'danger';
+      } else if (seasonReceiptRead.severity === 'warn' && severity !== 'danger') {
+        readType = seasonReceiptRead.readType;
+        severity = severity === 'good' && !seasonReceiptRead.forceSeverity ? severity : 'warn';
+      } else if (seasonReceiptRead.severity === 'good' && severity !== 'warn' && severity !== 'danger') {
+        readType = seasonReceiptRead.readType;
+        severity = 'good';
+      }
+      body = `${body} ${seasonReceiptRead.copy}`;
     }
   }
 
@@ -3116,6 +3175,7 @@ function buildPlayerAiRead({
       redraftHistoryContext?.confidenceNote || null,
       cohort?.calibration?.note || null,
       cohort?.historicalComps ? `Historical comps confidence ${cohort.historicalComps.confidence}; ${cohort.historicalComps.summary}` : null,
+      cohort?.seasonOutcomeReceipt ? `Season outcome receipt ${cohort.seasonOutcomeReceipt.confidenceGrade}; ${cohort.seasonOutcomeReceipt.note} ${cohort.seasonOutcomeReceipt.summary}` : null,
       situationDelta ? `Situation delta confidence ${situationDelta.confidence}; ${situationDelta.missingSignals.length ? `missing ${situationDelta.missingSignals.slice(0, 2).join(' and ')}` : 'first-pass inputs present'}.` : null,
     ].filter(Boolean).join(' '),
     severity,
@@ -3146,6 +3206,21 @@ function formatCohortEvidenceLabel(grade: NonNullable<PlayerDetails['playerCohor
     blocked: { label: 'Blocked evidence', tone: 'danger' },
   };
   return labels[grade] || { label: grade, tone: 'neutral' };
+}
+
+function formatSeasonOutcomeReceiptChip(receipt: NonNullable<PlayerDetails['playerCohort']>['seasonOutcomeReceipt']): AIReadChip {
+  if (!receipt) return { label: 'Receipt n/a', tone: 'neutral' };
+  const tone = receipt.stance === 'upside-supported'
+    ? 'good'
+    : receipt.recommendation === 'fade-risk'
+    ? 'danger'
+    : receipt.stance === 'risk-supported'
+    ? 'warn'
+    : 'info';
+  return {
+    label: `Receipt ${receipt.sampleSize}x`,
+    tone,
+  };
 }
 
 function formatSituationDeltaLabel(label: NonNullable<PlayerDetails['playerSituationDelta']>['primaryLabel']): AIReadChip {
@@ -3296,6 +3371,45 @@ function buildHistoricalCompReadCopy(
     severity,
     copy: `${playerName}'s historical comp lens tags him as ${comps.archetype.toLowerCase()}. ${consensusCopy} ${compCopy} ${signalCopy}${cautionCopy} ${confidenceCopy}`.replace(/\s+/g, ' ').trim(),
   };
+}
+
+function buildSeasonOutcomeReceiptReadCopy(
+  playerName: string,
+  receipt?: NonNullable<PlayerDetails['playerCohort']>['seasonOutcomeReceipt']
+): { copy: string; readType: string; severity: 'neutral' | 'good' | 'info' | 'warn' | 'danger'; forceSeverity?: boolean } | null {
+  if (!receipt?.displayEligible) return null;
+  const failureCopy = receipt.materialFailureRate !== null
+    ? `${receipt.materialFailureRate}% material failure`
+    : 'material failure not available';
+  const positiveCopy = receipt.improvedOrSustainedRate !== null
+    ? `${receipt.improvedOrSustainedRate}% improved/sustained`
+    : 'improved/sustained rate unavailable';
+  const medianCopy = receipt.medianNextProductionDelta !== null
+    ? `median next production ${formatSignedNumber(receipt.medianNextProductionDelta)}`
+    : 'median next production unavailable';
+  const failureMode = receipt.primaryFailureMode?.label
+    ? ` The common miss was ${receipt.primaryFailureMode.label.toLowerCase()} (${receipt.primaryFailureMode.rate}%).`
+    : '';
+
+  if (receipt.stance === 'upside-supported') {
+    return {
+      readType: 'Historical Receipt',
+      severity: 'good',
+      copy: `Historical receipt for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${positiveCopy} and ${medianCopy}. That backs the positive read only if the current role and value signals stay aligned.`,
+    };
+  }
+
+  if (receipt.stance === 'risk-supported') {
+    const forceSeverity = receipt.recommendation === 'fade-risk' || (receipt.materialFailureRate || 0) >= 45;
+    return {
+      readType: forceSeverity ? 'Receipt Warning' : 'Receipt Check',
+      severity: forceSeverity ? 'warn' : 'info',
+      forceSeverity,
+      copy: `Historical receipt for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${failureCopy}, ${positiveCopy}, and ${medianCopy}.${failureMode} Treat this as a confidence cap, not an automatic sell command.`,
+    };
+  }
+
+  return null;
 }
 
 function buildCohortReadCopy(

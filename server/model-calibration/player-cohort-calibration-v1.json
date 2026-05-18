@@ -1,0 +1,3430 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-18T14:40:35.492Z",
+  "sourceGeneratedAt": "2026-05-18T14:25:04.152Z",
+  "sourceRows": 4888,
+  "calibratedRows": 1515,
+  "bucketCount": 241,
+  "outputPolicy": "compact-runtime-calibration-only; raw player-season rows and player examples stay offline",
+  "minSampleSize": 6,
+  "buckets": [
+    {
+      "key": "WR:strong:feature:sustain",
+      "label": "WR proven feature scorer",
+      "position": "WR",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 44,
+      "improvedOrSustainedRate": 54.5,
+      "breakoutOrProgressionRate": 4.5,
+      "regressionOrCollapseRate": 45.5,
+      "failureRiskRate": 36.4,
+      "medianNextProductionDelta": -11,
+      "medianNextRoleDelta": -10,
+      "confidence": 71,
+      "confidenceGrade": "strong",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 36.4
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 29.5
+        }
+      ],
+      "summary": "WR proven feature scorer: 44 historical samples, 54.5% improved/sustained, 45.5% regressed/collapsed, 36.4% material failure risk, -11 median production score. Recommendation: caution. Main failure mode: production collapse (36.4%)."
+    },
+    {
+      "key": "WR:replacement:rotation:sustain",
+      "label": "WR replacement production / rotation role",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 31,
+      "improvedOrSustainedRate": 83.9,
+      "breakoutOrProgressionRate": 22.6,
+      "regressionOrCollapseRate": 9.7,
+      "failureRiskRate": 16.1,
+      "medianNextProductionDelta": -1,
+      "medianNextRoleDelta": -22,
+      "confidence": 85,
+      "confidenceGrade": "strong",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 16.1
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 6.5
+        }
+      ],
+      "summary": "WR replacement production / rotation role: 31 historical samples, 83.9% improved/sustained, 9.7% regressed/collapsed, 16.1% material failure risk, -1 median production score. Recommendation: neutral. Main failure mode: role loss (16.1%)."
+    },
+    {
+      "key": "WR:replacement:thin:sustain",
+      "label": "WR replacement production / thin role",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 27,
+      "improvedOrSustainedRate": 85.2,
+      "breakoutOrProgressionRate": 3.7,
+      "regressionOrCollapseRate": 11.1,
+      "failureRiskRate": 14.8,
+      "medianNextProductionDelta": -3,
+      "medianNextRoleDelta": 0,
+      "confidence": 86,
+      "confidenceGrade": "usable",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 11.1
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 3.7
+        }
+      ],
+      "summary": "WR replacement production / thin role: 27 historical samples, 85.2% improved/sustained, 11.1% regressed/collapsed, 14.8% material failure risk, -3 median production score. Recommendation: neutral. Main failure mode: role loss (11.1%)."
+    },
+    {
+      "key": "WR:usable:feature:first-season",
+      "label": "WR usable production / feature role",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 24,
+      "improvedOrSustainedRate": 58.3,
+      "breakoutOrProgressionRate": 25,
+      "regressionOrCollapseRate": 41.7,
+      "failureRiskRate": 41.7,
+      "medianNextProductionDelta": -3,
+      "medianNextRoleDelta": -7.5,
+      "confidence": 66,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 37.5
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 29.2
+        }
+      ],
+      "summary": "WR usable production / feature role: 24 historical samples, 58.3% improved/sustained, 41.7% regressed/collapsed, 41.7% material failure risk, -3 median production score. Recommendation: caution. Main failure mode: role loss (37.5%)."
+    },
+    {
+      "key": "WR:replacement:rotation:first-season",
+      "label": "WR replacement production / rotation role",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 23,
+      "improvedOrSustainedRate": 73.9,
+      "breakoutOrProgressionRate": 13,
+      "regressionOrCollapseRate": 17.4,
+      "failureRiskRate": 26.1,
+      "medianNextProductionDelta": -4,
+      "medianNextRoleDelta": -22,
+      "confidence": 76,
+      "confidenceGrade": "usable",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 26.1
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 8.7
+        }
+      ],
+      "summary": "WR replacement production / rotation role: 23 historical samples, 73.9% improved/sustained, 17.4% regressed/collapsed, 26.1% material failure risk, -4 median production score. Recommendation: neutral. Main failure mode: role loss (26.1%)."
+    },
+    {
+      "key": "WR:usable:feature:sustain",
+      "label": "WR usable production / feature role",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 22,
+      "improvedOrSustainedRate": 72.7,
+      "breakoutOrProgressionRate": 31.8,
+      "regressionOrCollapseRate": 27.3,
+      "failureRiskRate": 27.3,
+      "medianNextProductionDelta": 6.5,
+      "medianNextRoleDelta": 0,
+      "confidence": 73,
+      "confidenceGrade": "usable",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 22.7
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 18.2
+        }
+      ],
+      "summary": "WR usable production / feature role: 22 historical samples, 72.7% improved/sustained, 27.3% regressed/collapsed, 27.3% material failure risk, +6.5 median production score. Recommendation: neutral. Main failure mode: production collapse (22.7%)."
+    },
+    {
+      "key": "WR:replacement:starter:first-season",
+      "label": "WR volume without production",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 22,
+      "improvedOrSustainedRate": 68.2,
+      "breakoutOrProgressionRate": 36.4,
+      "regressionOrCollapseRate": 22.7,
+      "failureRiskRate": 31.8,
+      "medianNextProductionDelta": 3,
+      "medianNextRoleDelta": 1,
+      "confidence": 71,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 31.8
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 27.3
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 9.1
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 4.5
+        }
+      ],
+      "summary": "WR volume without production: 22 historical samples, 68.2% improved/sustained, 22.7% regressed/collapsed, 31.8% material failure risk, +3 median production score. Recommendation: caution. Main failure mode: volume without production (31.8%)."
+    },
+    {
+      "key": "TE:replacement:thin:first-season",
+      "label": "TE replacement production / thin role",
+      "position": "TE",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 21,
+      "improvedOrSustainedRate": 95.2,
+      "breakoutOrProgressionRate": 23.8,
+      "regressionOrCollapseRate": 0,
+      "failureRiskRate": 4.8,
+      "medianNextProductionDelta": -1,
+      "medianNextRoleDelta": 0,
+      "confidence": 83,
+      "confidenceGrade": "usable",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 4.8
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 4.8
+        }
+      ],
+      "summary": "TE replacement production / thin role: 21 historical samples, 95.2% improved/sustained, 0% regressed/collapsed, 4.8% material failure risk, -1 median production score. Recommendation: neutral. Main failure mode: role loss (4.8%)."
+    },
+    {
+      "key": "RB:strong:feature:sustain",
+      "label": "RB proven feature scorer",
+      "position": "RB",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 21,
+      "improvedOrSustainedRate": 42.9,
+      "breakoutOrProgressionRate": 9.5,
+      "regressionOrCollapseRate": 42.9,
+      "failureRiskRate": 38.1,
+      "medianNextProductionDelta": -20,
+      "medianNextRoleDelta": -5,
+      "confidence": 65,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 38.1
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 38.1
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 14.3
+        }
+      ],
+      "summary": "RB proven feature scorer: 21 historical samples, 42.9% improved/sustained, 42.9% regressed/collapsed, 38.1% material failure risk, -20 median production score. Recommendation: caution. Main failure mode: role loss (38.1%)."
+    },
+    {
+      "key": "WR:usable:starter:first-season",
+      "label": "WR usable production / starter role",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 21,
+      "improvedOrSustainedRate": 47.6,
+      "breakoutOrProgressionRate": 23.8,
+      "regressionOrCollapseRate": 47.6,
+      "failureRiskRate": 52.4,
+      "medianNextProductionDelta": -17,
+      "medianNextRoleDelta": -1,
+      "confidence": 63,
+      "confidenceGrade": "usable",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 47.6
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 38.1
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 4.8
+        }
+      ],
+      "summary": "WR usable production / starter role: 21 historical samples, 47.6% improved/sustained, 47.6% regressed/collapsed, 52.4% material failure risk, -17 median production score. Recommendation: fade-risk. Main failure mode: production collapse (47.6%)."
+    },
+    {
+      "key": "WR:strong:feature:progression",
+      "label": "WR progression with feature usage",
+      "position": "WR",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 20,
+      "improvedOrSustainedRate": 30,
+      "breakoutOrProgressionRate": 5,
+      "regressionOrCollapseRate": 70,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -21,
+      "medianNextRoleDelta": -3,
+      "confidence": 75,
+      "confidenceGrade": "usable",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 50
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 45
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 35
+        }
+      ],
+      "summary": "WR progression with feature usage: 20 historical samples, 30% improved/sustained, 70% regressed/collapsed, 50% material failure risk, -21 median production score. Recommendation: fade-risk. Main failure mode: breakout pullback (50%)."
+    },
+    {
+      "key": "WR:strong:feature:breakout",
+      "label": "WR breakout with feature usage",
+      "position": "WR",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 20,
+      "improvedOrSustainedRate": 40,
+      "breakoutOrProgressionRate": 10,
+      "regressionOrCollapseRate": 60,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -20,
+      "medianNextRoleDelta": -12,
+      "confidence": 69,
+      "confidenceGrade": "usable",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 50
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 50
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 30
+        }
+      ],
+      "summary": "WR breakout with feature usage: 20 historical samples, 40% improved/sustained, 60% regressed/collapsed, 50% material failure risk, -20 median production score. Recommendation: fade-risk. Main failure mode: production collapse (50%)."
+    },
+    {
+      "key": "WR:strong:feature:first-season",
+      "label": "WR proven feature scorer",
+      "position": "WR",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 20,
+      "improvedOrSustainedRate": 55,
+      "breakoutOrProgressionRate": 30,
+      "regressionOrCollapseRate": 40,
+      "failureRiskRate": 30,
+      "medianNextProductionDelta": -3.5,
+      "medianNextRoleDelta": 0,
+      "confidence": 60,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 30
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 15
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 5
+        }
+      ],
+      "summary": "WR proven feature scorer: 20 historical samples, 55% improved/sustained, 40% regressed/collapsed, 30% material failure risk, -3.5 median production score. Recommendation: caution. Main failure mode: production collapse (30%)."
+    },
+    {
+      "key": "WR:replacement:starter:progression",
+      "label": "WR progression with starter usage",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 18,
+      "improvedOrSustainedRate": 22.2,
+      "breakoutOrProgressionRate": 16.7,
+      "regressionOrCollapseRate": 72.2,
+      "failureRiskRate": 77.8,
+      "medianNextProductionDelta": -16,
+      "medianNextRoleDelta": -54.5,
+      "confidence": 72,
+      "confidenceGrade": "usable",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 77.8
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 77.8
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 77.8
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 22.2
+        }
+      ],
+      "summary": "WR progression with starter usage: 18 historical samples, 22.2% improved/sustained, 72.2% regressed/collapsed, 77.8% material failure risk, -16 median production score. Recommendation: fade-risk. Main failure mode: role loss (77.8%)."
+    },
+    {
+      "key": "RB:usable:feature:breakout",
+      "label": "RB breakout with feature usage",
+      "position": "RB",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 18,
+      "improvedOrSustainedRate": 44.4,
+      "breakoutOrProgressionRate": 27.8,
+      "regressionOrCollapseRate": 55.6,
+      "failureRiskRate": 55.6,
+      "medianNextProductionDelta": -16,
+      "medianNextRoleDelta": -22,
+      "confidence": 61,
+      "confidenceGrade": "usable",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 55.6
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 55.6
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 44.4
+        }
+      ],
+      "summary": "RB breakout with feature usage: 18 historical samples, 44.4% improved/sustained, 55.6% regressed/collapsed, 55.6% material failure risk, -16 median production score. Recommendation: fade-risk. Main failure mode: role loss (55.6%)."
+    },
+    {
+      "key": "RB:replacement:starter:first-season",
+      "label": "RB volume without production",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 18,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 38.9,
+      "regressionOrCollapseRate": 38.9,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -7.5,
+      "medianNextRoleDelta": -16,
+      "confidence": 57,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 50
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 38.9
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 11.1
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 5.6
+        }
+      ],
+      "summary": "RB volume without production: 18 historical samples, 50% improved/sustained, 38.9% regressed/collapsed, 50% material failure risk, -7.5 median production score. Recommendation: caution. Main failure mode: volume without production (50%)."
+    },
+    {
+      "key": "WR:usable:starter:sustain",
+      "label": "WR usable production / starter role",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 17,
+      "improvedOrSustainedRate": 29.4,
+      "breakoutOrProgressionRate": 17.6,
+      "regressionOrCollapseRate": 64.7,
+      "failureRiskRate": 70.6,
+      "medianNextProductionDelta": -20,
+      "medianNextRoleDelta": -27,
+      "confidence": 68,
+      "confidenceGrade": "usable",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 58.8
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 52.9
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 5.9
+        }
+      ],
+      "summary": "WR usable production / starter role: 17 historical samples, 29.4% improved/sustained, 64.7% regressed/collapsed, 70.6% material failure risk, -20 median production score. Recommendation: fade-risk. Main failure mode: production collapse (58.8%)."
+    },
+    {
+      "key": "RB:strong:feature:first-season",
+      "label": "RB proven feature scorer",
+      "position": "RB",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 17,
+      "improvedOrSustainedRate": 35.3,
+      "breakoutOrProgressionRate": 23.5,
+      "regressionOrCollapseRate": 58.8,
+      "failureRiskRate": 52.9,
+      "medianNextProductionDelta": -21,
+      "medianNextRoleDelta": -25,
+      "confidence": 65,
+      "confidenceGrade": "usable",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 52.9
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 47.1
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 5.9
+        }
+      ],
+      "summary": "RB proven feature scorer: 17 historical samples, 35.3% improved/sustained, 58.8% regressed/collapsed, 52.9% material failure risk, -21 median production score. Recommendation: fade-risk. Main failure mode: production collapse (52.9%)."
+    },
+    {
+      "key": "RB:strong:feature:breakout",
+      "label": "RB breakout with feature usage",
+      "position": "RB",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 16,
+      "improvedOrSustainedRate": 25,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 75,
+      "failureRiskRate": 62.5,
+      "medianNextProductionDelta": -27.5,
+      "medianNextRoleDelta": -16.5,
+      "confidence": 74,
+      "confidenceGrade": "usable",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 62.5
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 62.5
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 50
+        }
+      ],
+      "summary": "RB breakout with feature usage: 16 historical samples, 25% improved/sustained, 75% regressed/collapsed, 62.5% material failure risk, -27.5 median production score. Recommendation: fade-risk. Main failure mode: production collapse (62.5%)."
+    },
+    {
+      "key": "WR:replacement:thin:first-season",
+      "label": "WR replacement production / thin role",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 15,
+      "improvedOrSustainedRate": 100,
+      "breakoutOrProgressionRate": 26.7,
+      "regressionOrCollapseRate": 0,
+      "failureRiskRate": 0,
+      "medianNextProductionDelta": 0,
+      "medianNextRoleDelta": 9,
+      "confidence": 74,
+      "confidenceGrade": "usable",
+      "recommendation": "neutral",
+      "primaryFailureModes": [],
+      "summary": "WR replacement production / thin role: 15 historical samples, 100% improved/sustained, 0% regressed/collapsed, 0% material failure risk, +0 median production score. Recommendation: neutral. No dominant failure mode."
+    },
+    {
+      "key": "WR:replacement:starter:sustain",
+      "label": "WR volume without production",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 15,
+      "improvedOrSustainedRate": 60,
+      "breakoutOrProgressionRate": 6.7,
+      "regressionOrCollapseRate": 40,
+      "failureRiskRate": 40,
+      "medianNextProductionDelta": -6,
+      "medianNextRoleDelta": -39,
+      "confidence": 54,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 40
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 6.7
+        }
+      ],
+      "summary": "WR volume without production: 15 historical samples, 60% improved/sustained, 40% regressed/collapsed, 40% material failure risk, -6 median production score. Recommendation: caution. Main failure mode: volume without production (40%)."
+    },
+    {
+      "key": "RB:usable:feature:first-season",
+      "label": "RB usable production / feature role",
+      "position": "RB",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 15,
+      "improvedOrSustainedRate": 46.7,
+      "breakoutOrProgressionRate": 13.3,
+      "regressionOrCollapseRate": 46.7,
+      "failureRiskRate": 53.3,
+      "medianNextProductionDelta": -11,
+      "medianNextRoleDelta": -54,
+      "confidence": 51,
+      "confidenceGrade": "usable",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 53.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 40
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 6.7
+        }
+      ],
+      "summary": "RB usable production / feature role: 15 historical samples, 46.7% improved/sustained, 46.7% regressed/collapsed, 53.3% material failure risk, -11 median production score. Recommendation: fade-risk. Main failure mode: role loss (53.3%)."
+    },
+    {
+      "key": "TE:replacement:thin:sustain",
+      "label": "TE replacement production / thin role",
+      "position": "TE",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 14,
+      "improvedOrSustainedRate": 78.6,
+      "breakoutOrProgressionRate": 21.4,
+      "regressionOrCollapseRate": 0,
+      "failureRiskRate": 21.4,
+      "medianNextProductionDelta": -5,
+      "medianNextRoleDelta": 0,
+      "confidence": 69,
+      "confidenceGrade": "usable",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 21.4
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 7.1
+        }
+      ],
+      "summary": "TE replacement production / thin role: 14 historical samples, 78.6% improved/sustained, 0% regressed/collapsed, 21.4% material failure risk, -5 median production score. Recommendation: neutral. Main failure mode: availability / low-signal follow-up (21.4%)."
+    },
+    {
+      "key": "RB:replacement:rotation:sustain",
+      "label": "RB replacement production / rotation role",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 14,
+      "improvedOrSustainedRate": 71.4,
+      "breakoutOrProgressionRate": 14.3,
+      "regressionOrCollapseRate": 14.3,
+      "failureRiskRate": 28.6,
+      "medianNextProductionDelta": -7.5,
+      "medianNextRoleDelta": -24.5,
+      "confidence": 64,
+      "confidenceGrade": "usable",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 28.6
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 14.3
+        }
+      ],
+      "summary": "RB replacement production / rotation role: 14 historical samples, 71.4% improved/sustained, 14.3% regressed/collapsed, 28.6% material failure risk, -7.5 median production score. Recommendation: neutral. Main failure mode: role loss (28.6%)."
+    },
+    {
+      "key": "RB:replacement:thin:first-season",
+      "label": "RB replacement production / thin role",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 14,
+      "improvedOrSustainedRate": 64.3,
+      "breakoutOrProgressionRate": 28.6,
+      "regressionOrCollapseRate": 0,
+      "failureRiskRate": 35.7,
+      "medianNextProductionDelta": -2,
+      "medianNextRoleDelta": 0,
+      "confidence": 63,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 35.7
+        }
+      ],
+      "summary": "RB replacement production / thin role: 14 historical samples, 64.3% improved/sustained, 0% regressed/collapsed, 35.7% material failure risk, -2 median production score. Recommendation: caution. Main failure mode: availability / low-signal follow-up (35.7%)."
+    },
+    {
+      "key": "RB:replacement:thin:sustain",
+      "label": "RB replacement production / thin role",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 14,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 7.1,
+      "regressionOrCollapseRate": 14.3,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -5.5,
+      "medianNextRoleDelta": -0.5,
+      "confidence": 57,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 35.7
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 14.3
+        }
+      ],
+      "summary": "RB replacement production / thin role: 14 historical samples, 50% improved/sustained, 14.3% regressed/collapsed, 50% material failure risk, -5.5 median production score. Recommendation: caution. Main failure mode: availability / low-signal follow-up (35.7%)."
+    },
+    {
+      "key": "QB:usable:feature:sustain",
+      "label": "QB usable production / feature role",
+      "position": "QB",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 14,
+      "improvedOrSustainedRate": 64.3,
+      "breakoutOrProgressionRate": 28.6,
+      "regressionOrCollapseRate": 35.7,
+      "failureRiskRate": 35.7,
+      "medianNextProductionDelta": -8.5,
+      "medianNextRoleDelta": -0.5,
+      "confidence": 56,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 21.4
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 14.3
+        }
+      ],
+      "summary": "QB usable production / feature role: 14 historical samples, 64.3% improved/sustained, 35.7% regressed/collapsed, 35.7% material failure risk, -8.5 median production score. Recommendation: caution. Main failure mode: role loss (21.4%)."
+    },
+    {
+      "key": "QB:replacement:feature:first-season",
+      "label": "QB volume without production",
+      "position": "QB",
+      "productionTier": "replacement",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 14,
+      "improvedOrSustainedRate": 57.1,
+      "breakoutOrProgressionRate": 28.6,
+      "regressionOrCollapseRate": 35.7,
+      "failureRiskRate": 42.9,
+      "medianNextProductionDelta": -6.5,
+      "medianNextRoleDelta": -21,
+      "confidence": 53,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 42.9
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 35.7
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 28.6
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 7.1
+        }
+      ],
+      "summary": "QB volume without production: 14 historical samples, 57.1% improved/sustained, 35.7% regressed/collapsed, 42.9% material failure risk, -6.5 median production score. Recommendation: caution. Main failure mode: volume without production (42.9%)."
+    },
+    {
+      "key": "TE:usable:feature:breakout",
+      "label": "TE breakout with feature usage",
+      "position": "TE",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 14,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 28.6,
+      "regressionOrCollapseRate": 42.9,
+      "failureRiskRate": 42.9,
+      "medianNextProductionDelta": -7.5,
+      "medianNextRoleDelta": -11,
+      "confidence": 50,
+      "confidenceGrade": "usable",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 42.9
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 42.9
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 28.6
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 7.1
+        }
+      ],
+      "summary": "TE breakout with feature usage: 14 historical samples, 50% improved/sustained, 42.9% regressed/collapsed, 42.9% material failure risk, -7.5 median production score. Recommendation: caution. Main failure mode: production collapse (42.9%)."
+    },
+    {
+      "key": "RB:usable:starter:breakout",
+      "label": "RB breakout with starter usage",
+      "position": "RB",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 13,
+      "improvedOrSustainedRate": 38.5,
+      "breakoutOrProgressionRate": 23.1,
+      "regressionOrCollapseRate": 53.8,
+      "failureRiskRate": 61.5,
+      "medianNextProductionDelta": -33,
+      "medianNextRoleDelta": -33,
+      "confidence": 62,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 61.5
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 61.5
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 61.5
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 7.7
+        }
+      ],
+      "summary": "RB breakout with starter usage: 13 historical samples, 38.5% improved/sustained, 53.8% regressed/collapsed, 61.5% material failure risk, -33 median production score. Recommendation: fade-risk. Main failure mode: role loss (61.5%)."
+    },
+    {
+      "key": "RB:usable:feature:sustain",
+      "label": "RB usable production / feature role",
+      "position": "RB",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 13,
+      "improvedOrSustainedRate": 69.2,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 15.4,
+      "failureRiskRate": 30.8,
+      "medianNextProductionDelta": -9,
+      "medianNextRoleDelta": -21,
+      "confidence": 62,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 30.8
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 30.8
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 15.4
+        }
+      ],
+      "summary": "RB usable production / feature role: 13 historical samples, 69.2% improved/sustained, 15.4% regressed/collapsed, 30.8% material failure risk, -9 median production score. Recommendation: caution. Main failure mode: role loss (30.8%)."
+    },
+    {
+      "key": "TE:replacement:rotation:sustain",
+      "label": "TE replacement production / rotation role",
+      "position": "TE",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 13,
+      "improvedOrSustainedRate": 69.2,
+      "breakoutOrProgressionRate": 7.7,
+      "regressionOrCollapseRate": 30.8,
+      "failureRiskRate": 30.8,
+      "medianNextProductionDelta": -5,
+      "medianNextRoleDelta": -24,
+      "confidence": 56,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 30.8
+        }
+      ],
+      "summary": "TE replacement production / rotation role: 13 historical samples, 69.2% improved/sustained, 30.8% regressed/collapsed, 30.8% material failure risk, -5 median production score. Recommendation: caution. Main failure mode: role loss (30.8%)."
+    },
+    {
+      "key": "QB:replacement:feature:sustain",
+      "label": "QB volume without production",
+      "position": "QB",
+      "productionTier": "replacement",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 13,
+      "improvedOrSustainedRate": 53.8,
+      "breakoutOrProgressionRate": 15.4,
+      "regressionOrCollapseRate": 46.2,
+      "failureRiskRate": 46.2,
+      "medianNextProductionDelta": -8,
+      "medianNextRoleDelta": -32,
+      "confidence": 49,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 46.2
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 46.2
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 30.8
+        }
+      ],
+      "summary": "QB volume without production: 13 historical samples, 53.8% improved/sustained, 46.2% regressed/collapsed, 46.2% material failure risk, -8 median production score. Recommendation: caution. Main failure mode: role loss (46.2%)."
+    },
+    {
+      "key": "WR:usable:feature:breakout",
+      "label": "WR breakout with feature usage",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 12,
+      "improvedOrSustainedRate": 41.7,
+      "breakoutOrProgressionRate": 8.3,
+      "regressionOrCollapseRate": 50,
+      "failureRiskRate": 58.3,
+      "medianNextProductionDelta": -29.5,
+      "medianNextRoleDelta": -55,
+      "confidence": 57,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 58.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 58.3
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 58.3
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 8.3
+        }
+      ],
+      "summary": "WR breakout with feature usage: 12 historical samples, 41.7% improved/sustained, 50% regressed/collapsed, 58.3% material failure risk, -29.5 median production score. Recommendation: fade-risk. Main failure mode: role loss (58.3%)."
+    },
+    {
+      "key": "RB:strong:feature:progression",
+      "label": "RB progression with feature usage",
+      "position": "RB",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 12,
+      "improvedOrSustainedRate": 41.7,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 58.3,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": -18,
+      "medianNextRoleDelta": -3,
+      "confidence": 54,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 33.3
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 33.3
+        }
+      ],
+      "summary": "RB progression with feature usage: 12 historical samples, 41.7% improved/sustained, 58.3% regressed/collapsed, 33.3% material failure risk, -18 median production score. Recommendation: caution. Main failure mode: role loss (33.3%)."
+    },
+    {
+      "key": "TE:usable:feature:sustain",
+      "label": "TE usable production / feature role",
+      "position": "TE",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 11,
+      "improvedOrSustainedRate": 27.3,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 72.7,
+      "failureRiskRate": 72.7,
+      "medianNextProductionDelta": -21,
+      "medianNextRoleDelta": -35,
+      "confidence": 62,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 63.6
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 63.6
+        }
+      ],
+      "summary": "TE usable production / feature role: 11 historical samples, 27.3% improved/sustained, 72.7% regressed/collapsed, 72.7% material failure risk, -21 median production score. Recommendation: fade-risk. Main failure mode: role loss (63.6%)."
+    },
+    {
+      "key": "TE:replacement:starter:sustain",
+      "label": "TE volume without production",
+      "position": "TE",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 11,
+      "improvedOrSustainedRate": 81.8,
+      "breakoutOrProgressionRate": 18.2,
+      "regressionOrCollapseRate": 18.2,
+      "failureRiskRate": 18.2,
+      "medianNextProductionDelta": -7,
+      "medianNextRoleDelta": -4,
+      "confidence": 61,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 18.2
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 18.2
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 9.1
+        }
+      ],
+      "summary": "TE volume without production: 11 historical samples, 81.8% improved/sustained, 18.2% regressed/collapsed, 18.2% material failure risk, -7 median production score. Recommendation: neutral. Main failure mode: role loss (18.2%)."
+    },
+    {
+      "key": "RB:replacement:rotation:first-season",
+      "label": "RB replacement production / rotation role",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 11,
+      "improvedOrSustainedRate": 81.8,
+      "breakoutOrProgressionRate": 36.4,
+      "regressionOrCollapseRate": 9.1,
+      "failureRiskRate": 18.2,
+      "medianNextProductionDelta": 0,
+      "medianNextRoleDelta": 2,
+      "confidence": 60,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 18.2
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 9.1
+        }
+      ],
+      "summary": "RB replacement production / rotation role: 11 historical samples, 81.8% improved/sustained, 9.1% regressed/collapsed, 18.2% material failure risk, +0 median production score. Recommendation: neutral. Main failure mode: role loss (18.2%)."
+    },
+    {
+      "key": "QB:replacement:starter:sustain",
+      "label": "QB volume without production",
+      "position": "QB",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 11,
+      "improvedOrSustainedRate": 63.6,
+      "breakoutOrProgressionRate": 18.2,
+      "regressionOrCollapseRate": 9.1,
+      "failureRiskRate": 36.4,
+      "medianNextProductionDelta": -2,
+      "medianNextRoleDelta": -48,
+      "confidence": 56,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 36.4
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 36.4
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 27.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 9.1
+        }
+      ],
+      "summary": "QB volume without production: 11 historical samples, 63.6% improved/sustained, 9.1% regressed/collapsed, 36.4% material failure risk, -2 median production score. Recommendation: caution. Main failure mode: role loss (36.4%)."
+    },
+    {
+      "key": "WR:usable:feature:collapse",
+      "label": "WR rebound or cliff check",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 11,
+      "improvedOrSustainedRate": 54.5,
+      "breakoutOrProgressionRate": 18.2,
+      "regressionOrCollapseRate": 36.4,
+      "failureRiskRate": 45.5,
+      "medianNextProductionDelta": -13,
+      "medianNextRoleDelta": -37,
+      "confidence": 51,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 45.5
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 27.3
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 9.1
+        }
+      ],
+      "summary": "WR rebound or cliff check: 11 historical samples, 54.5% improved/sustained, 36.4% regressed/collapsed, 45.5% material failure risk, -13 median production score. Recommendation: fade-risk. Main failure mode: role loss (45.5%)."
+    },
+    {
+      "key": "WR:usable:starter:breakout",
+      "label": "WR breakout with starter usage",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 11,
+      "improvedOrSustainedRate": 63.6,
+      "breakoutOrProgressionRate": 18.2,
+      "regressionOrCollapseRate": 36.4,
+      "failureRiskRate": 36.4,
+      "medianNextProductionDelta": -8,
+      "medianNextRoleDelta": -6,
+      "confidence": 51,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 36.4
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 36.4
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 27.3
+        }
+      ],
+      "summary": "WR breakout with starter usage: 11 historical samples, 63.6% improved/sustained, 36.4% regressed/collapsed, 36.4% material failure risk, -8 median production score. Recommendation: caution. Main failure mode: production collapse (36.4%)."
+    },
+    {
+      "key": "QB:usable:feature:first-season",
+      "label": "QB usable production / feature role",
+      "position": "QB",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 11,
+      "improvedOrSustainedRate": 63.6,
+      "breakoutOrProgressionRate": 18.2,
+      "regressionOrCollapseRate": 36.4,
+      "failureRiskRate": 36.4,
+      "medianNextProductionDelta": -6,
+      "medianNextRoleDelta": 0,
+      "confidence": 50,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 36.4
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 9.1
+        }
+      ],
+      "summary": "QB usable production / feature role: 11 historical samples, 63.6% improved/sustained, 36.4% regressed/collapsed, 36.4% material failure risk, -6 median production score. Recommendation: caution. Main failure mode: production collapse (36.4%)."
+    },
+    {
+      "key": "WR:elite:feature:sustain",
+      "label": "WR proven feature scorer",
+      "position": "WR",
+      "productionTier": "elite",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 11,
+      "improvedOrSustainedRate": 54.5,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 36.4,
+      "failureRiskRate": 36.4,
+      "medianNextProductionDelta": -12,
+      "medianNextRoleDelta": 0,
+      "confidence": 50,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 36.4
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 27.3
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 9.1
+        }
+      ],
+      "summary": "WR proven feature scorer: 11 historical samples, 54.5% improved/sustained, 36.4% regressed/collapsed, 36.4% material failure risk, -12 median production score. Recommendation: caution. Main failure mode: production collapse (36.4%)."
+    },
+    {
+      "key": "WR:usable:feature:regression",
+      "label": "WR rebound or cliff check",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 11,
+      "improvedOrSustainedRate": 54.5,
+      "breakoutOrProgressionRate": 9.1,
+      "regressionOrCollapseRate": 36.4,
+      "failureRiskRate": 45.5,
+      "medianNextProductionDelta": 3,
+      "medianNextRoleDelta": -18,
+      "confidence": 46,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 36.4
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 36.4
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 9.1
+        }
+      ],
+      "summary": "WR rebound or cliff check: 11 historical samples, 54.5% improved/sustained, 36.4% regressed/collapsed, 45.5% material failure risk, +3 median production score. Recommendation: caution. Main failure mode: role loss (36.4%)."
+    },
+    {
+      "key": "QB:usable:feature:breakout",
+      "label": "QB breakout with feature usage",
+      "position": "QB",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 10,
+      "improvedOrSustainedRate": 10,
+      "breakoutOrProgressionRate": 10,
+      "regressionOrCollapseRate": 90,
+      "failureRiskRate": 70,
+      "medianNextProductionDelta": -32.5,
+      "medianNextRoleDelta": -10.5,
+      "confidence": 75,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 70
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 70
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 50
+        }
+      ],
+      "summary": "QB breakout with feature usage: 10 historical samples, 10% improved/sustained, 90% regressed/collapsed, 70% material failure risk, -32.5 median production score. Recommendation: fade-risk. Main failure mode: production collapse (70%)."
+    },
+    {
+      "key": "RB:elite:feature:sustain",
+      "label": "RB proven feature scorer",
+      "position": "RB",
+      "productionTier": "elite",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 10,
+      "improvedOrSustainedRate": 20,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 60,
+      "failureRiskRate": 80,
+      "medianNextProductionDelta": -35,
+      "medianNextRoleDelta": 0,
+      "confidence": 65,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 80
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 40
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 20
+        }
+      ],
+      "summary": "RB proven feature scorer: 10 historical samples, 20% improved/sustained, 60% regressed/collapsed, 80% material failure risk, -35 median production score. Recommendation: fade-risk. Main failure mode: production collapse (80%)."
+    },
+    {
+      "key": "TE:replacement:rotation:first-season",
+      "label": "TE replacement production / rotation role",
+      "position": "TE",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 10,
+      "improvedOrSustainedRate": 90,
+      "breakoutOrProgressionRate": 40,
+      "regressionOrCollapseRate": 10,
+      "failureRiskRate": 10,
+      "medianNextProductionDelta": 6.5,
+      "medianNextRoleDelta": -8,
+      "confidence": 63,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 10
+        }
+      ],
+      "summary": "TE replacement production / rotation role: 10 historical samples, 90% improved/sustained, 10% regressed/collapsed, 10% material failure risk, +6.5 median production score. Recommendation: neutral. Main failure mode: role loss (10%)."
+    },
+    {
+      "key": "WR:replacement:rotation:collapse",
+      "label": "WR rebound or cliff check",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 10,
+      "improvedOrSustainedRate": 80,
+      "breakoutOrProgressionRate": 40,
+      "regressionOrCollapseRate": 10,
+      "failureRiskRate": 20,
+      "medianNextProductionDelta": 3,
+      "medianNextRoleDelta": -9,
+      "confidence": 59,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 20
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 10
+        }
+      ],
+      "summary": "WR rebound or cliff check: 10 historical samples, 80% improved/sustained, 10% regressed/collapsed, 20% material failure risk, +3 median production score. Recommendation: neutral. Main failure mode: role loss (20%)."
+    },
+    {
+      "key": "WR:usable:rotation:first-season",
+      "label": "WR usable production / rotation role",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 10,
+      "improvedOrSustainedRate": 30,
+      "breakoutOrProgressionRate": 10,
+      "regressionOrCollapseRate": 60,
+      "failureRiskRate": 70,
+      "medianNextProductionDelta": -17,
+      "medianNextRoleDelta": -10,
+      "confidence": 54,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 50
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 40
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 10
+        }
+      ],
+      "summary": "WR usable production / rotation role: 10 historical samples, 30% improved/sustained, 60% regressed/collapsed, 70% material failure risk, -17 median production score. Recommendation: fade-risk. Main failure mode: role loss (50%)."
+    },
+    {
+      "key": "WR:strong:starter:sustain",
+      "label": "WR strong production / starter role",
+      "position": "WR",
+      "productionTier": "strong",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 10,
+      "improvedOrSustainedRate": 40,
+      "breakoutOrProgressionRate": 10,
+      "regressionOrCollapseRate": 60,
+      "failureRiskRate": 60,
+      "medianNextProductionDelta": -22.5,
+      "medianNextRoleDelta": -5.5,
+      "confidence": 54,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 60
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 50
+        }
+      ],
+      "summary": "WR strong production / starter role: 10 historical samples, 40% improved/sustained, 60% regressed/collapsed, 60% material failure risk, -22.5 median production score. Recommendation: fade-risk. Main failure mode: production collapse (60%)."
+    },
+    {
+      "key": "WR:strong:feature:regression",
+      "label": "WR proven feature scorer",
+      "position": "WR",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 10,
+      "improvedOrSustainedRate": 70,
+      "breakoutOrProgressionRate": 40,
+      "regressionOrCollapseRate": 30,
+      "failureRiskRate": 30,
+      "medianNextProductionDelta": 2.5,
+      "medianNextRoleDelta": 0,
+      "confidence": 50,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 30
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 20
+        }
+      ],
+      "summary": "WR proven feature scorer: 10 historical samples, 70% improved/sustained, 30% regressed/collapsed, 30% material failure risk, +2.5 median production score. Recommendation: caution. Main failure mode: production collapse (30%)."
+    },
+    {
+      "key": "QB:usable:feature:progression",
+      "label": "QB progression with feature usage",
+      "position": "QB",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 10,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 10,
+      "regressionOrCollapseRate": 40,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -17,
+      "medianNextRoleDelta": 0,
+      "confidence": 48,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 50
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 50
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 40
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 10
+        }
+      ],
+      "summary": "QB progression with feature usage: 10 historical samples, 50% improved/sustained, 40% regressed/collapsed, 50% material failure risk, -17 median production score. Recommendation: fade-risk. Main failure mode: production collapse (50%)."
+    },
+    {
+      "key": "WR:elite:feature:progression",
+      "label": "WR progression with feature usage",
+      "position": "WR",
+      "productionTier": "elite",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 10,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 50,
+      "failureRiskRate": 30,
+      "medianNextProductionDelta": -14.5,
+      "medianNextRoleDelta": 0,
+      "confidence": 45,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 30
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 30
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 30
+        }
+      ],
+      "summary": "WR progression with feature usage: 10 historical samples, 50% improved/sustained, 50% regressed/collapsed, 30% material failure risk, -14.5 median production score. Recommendation: caution. Main failure mode: role loss (30%)."
+    },
+    {
+      "key": "WR:strong:feature:late-career-rebound",
+      "label": "WR proven feature scorer",
+      "position": "WR",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "late-career-rebound",
+      "sampleSize": 9,
+      "improvedOrSustainedRate": 33.3,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 66.7,
+      "failureRiskRate": 44.4,
+      "medianNextProductionDelta": -24,
+      "medianNextRoleDelta": 0,
+      "confidence": 57,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 44.4
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        }
+      ],
+      "summary": "WR proven feature scorer: 9 historical samples, 33.3% improved/sustained, 66.7% regressed/collapsed, 44.4% material failure risk, -24 median production score. Recommendation: fade-risk. Main failure mode: production collapse (44.4%)."
+    },
+    {
+      "key": "WR:replacement:rotation:progression",
+      "label": "WR replacement production / rotation role",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 9,
+      "improvedOrSustainedRate": 66.7,
+      "breakoutOrProgressionRate": 11.1,
+      "regressionOrCollapseRate": 22.2,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": -11,
+      "medianNextRoleDelta": -7,
+      "confidence": 54,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 33.3
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 22.2
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 11.1
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 11.1
+        }
+      ],
+      "summary": "WR replacement production / rotation role: 9 historical samples, 66.7% improved/sustained, 22.2% regressed/collapsed, 33.3% material failure risk, -11 median production score. Recommendation: caution. Main failure mode: breakout pullback (33.3%)."
+    },
+    {
+      "key": "RB:replacement:rotation:progression",
+      "label": "RB replacement production / rotation role",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 9,
+      "improvedOrSustainedRate": 33.3,
+      "breakoutOrProgressionRate": 22.2,
+      "regressionOrCollapseRate": 66.7,
+      "failureRiskRate": 66.7,
+      "medianNextProductionDelta": -11,
+      "medianNextRoleDelta": -24,
+      "confidence": 51,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 66.7
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 66.7
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 11.1
+        }
+      ],
+      "summary": "RB replacement production / rotation role: 9 historical samples, 33.3% improved/sustained, 66.7% regressed/collapsed, 66.7% material failure risk, -11 median production score. Recommendation: fade-risk. Main failure mode: role loss (66.7%)."
+    },
+    {
+      "key": "TE:replacement:rotation:progression",
+      "label": "TE replacement production / rotation role",
+      "position": "TE",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 9,
+      "improvedOrSustainedRate": 33.3,
+      "breakoutOrProgressionRate": 33.3,
+      "regressionOrCollapseRate": 66.7,
+      "failureRiskRate": 66.7,
+      "medianNextProductionDelta": -12,
+      "medianNextRoleDelta": -25,
+      "confidence": 51,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 66.7
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 66.7
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 11.1
+        }
+      ],
+      "summary": "TE replacement production / rotation role: 9 historical samples, 33.3% improved/sustained, 66.7% regressed/collapsed, 66.7% material failure risk, -12 median production score. Recommendation: fade-risk. Main failure mode: role loss (66.7%)."
+    },
+    {
+      "key": "RB:usable:starter:first-season",
+      "label": "RB usable production / starter role",
+      "position": "RB",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 9,
+      "improvedOrSustainedRate": 44.4,
+      "breakoutOrProgressionRate": 22.2,
+      "regressionOrCollapseRate": 55.6,
+      "failureRiskRate": 55.6,
+      "medianNextProductionDelta": -21,
+      "medianNextRoleDelta": 10,
+      "confidence": 49,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 55.6
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        }
+      ],
+      "summary": "RB usable production / starter role: 9 historical samples, 44.4% improved/sustained, 55.6% regressed/collapsed, 55.6% material failure risk, -21 median production score. Recommendation: fade-risk. Main failure mode: production collapse (55.6%)."
+    },
+    {
+      "key": "RB:replacement:rotation:collapse",
+      "label": "RB rebound or cliff check",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 9,
+      "improvedOrSustainedRate": 55.6,
+      "breakoutOrProgressionRate": 22.2,
+      "regressionOrCollapseRate": 33.3,
+      "failureRiskRate": 44.4,
+      "medianNextProductionDelta": -8,
+      "medianNextRoleDelta": -24,
+      "confidence": 46,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 44.4
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 22.2
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 11.1
+        }
+      ],
+      "summary": "RB rebound or cliff check: 9 historical samples, 55.6% improved/sustained, 33.3% regressed/collapsed, 44.4% material failure risk, -8 median production score. Recommendation: caution. Main failure mode: role loss (44.4%)."
+    },
+    {
+      "key": "TE:elite:feature:sustain",
+      "label": "TE proven feature scorer",
+      "position": "TE",
+      "productionTier": "elite",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 9,
+      "improvedOrSustainedRate": 66.7,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 33.3,
+      "failureRiskRate": 22.2,
+      "medianNextProductionDelta": 0,
+      "medianNextRoleDelta": 0,
+      "confidence": 46,
+      "confidenceGrade": "thin",
+      "recommendation": "lean-positive",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 22.2
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 11.1
+        }
+      ],
+      "summary": "TE proven feature scorer: 9 historical samples, 66.7% improved/sustained, 33.3% regressed/collapsed, 22.2% material failure risk, +0 median production score. Recommendation: lean-positive. Main failure mode: production collapse (22.2%)."
+    },
+    {
+      "key": "TE:strong:feature:breakout",
+      "label": "TE breakout with feature usage",
+      "position": "TE",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 9,
+      "improvedOrSustainedRate": 44.4,
+      "breakoutOrProgressionRate": 11.1,
+      "regressionOrCollapseRate": 55.6,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": -10,
+      "medianNextRoleDelta": -14,
+      "confidence": 44,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 33.3
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 33.3
+        }
+      ],
+      "summary": "TE breakout with feature usage: 9 historical samples, 44.4% improved/sustained, 55.6% regressed/collapsed, 33.3% material failure risk, -10 median production score. Recommendation: caution. Main failure mode: role loss (33.3%)."
+    },
+    {
+      "key": "TE:replacement:starter:first-season",
+      "label": "TE volume without production",
+      "position": "TE",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 87.5,
+      "breakoutOrProgressionRate": 62.5,
+      "regressionOrCollapseRate": 12.5,
+      "failureRiskRate": 12.5,
+      "medianNextProductionDelta": 33.5,
+      "medianNextRoleDelta": 36,
+      "confidence": 71,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 12.5
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 12.5
+        }
+      ],
+      "summary": "TE volume without production: 8 historical samples, 87.5% improved/sustained, 12.5% regressed/collapsed, 12.5% material failure risk, +33.5 median production score. Recommendation: neutral. Main failure mode: role loss (12.5%)."
+    },
+    {
+      "key": "WR:replacement:rotation:regression",
+      "label": "WR rebound or cliff check",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 100,
+      "breakoutOrProgressionRate": 25,
+      "regressionOrCollapseRate": 0,
+      "failureRiskRate": 0,
+      "medianNextProductionDelta": 0,
+      "medianNextRoleDelta": -24,
+      "confidence": 63,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [],
+      "summary": "WR rebound or cliff check: 8 historical samples, 100% improved/sustained, 0% regressed/collapsed, 0% material failure risk, +0 median production score. Recommendation: neutral. No dominant failure mode."
+    },
+    {
+      "key": "QB:strong:feature:sustain",
+      "label": "QB proven feature scorer",
+      "position": "QB",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 25,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 62.5,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -37,
+      "medianNextRoleDelta": 0,
+      "confidence": 62,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 50
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 25
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 12.5
+        }
+      ],
+      "summary": "QB proven feature scorer: 8 historical samples, 25% improved/sustained, 62.5% regressed/collapsed, 50% material failure risk, -37 median production score. Recommendation: fade-risk. Main failure mode: production collapse (50%)."
+    },
+    {
+      "key": "WR:replacement:thin:collapse",
+      "label": "WR rebound or cliff check",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 87.5,
+      "breakoutOrProgressionRate": 25,
+      "regressionOrCollapseRate": 0,
+      "failureRiskRate": 12.5,
+      "medianNextProductionDelta": -3.5,
+      "medianNextRoleDelta": -4,
+      "confidence": 61,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 12.5
+        }
+      ],
+      "summary": "WR rebound or cliff check: 8 historical samples, 87.5% improved/sustained, 0% regressed/collapsed, 12.5% material failure risk, -3.5 median production score. Recommendation: neutral. Main failure mode: availability / low-signal follow-up (12.5%)."
+    },
+    {
+      "key": "RB:usable:starter:collapse",
+      "label": "RB rebound or cliff check",
+      "position": "RB",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 25,
+      "breakoutOrProgressionRate": 12.5,
+      "regressionOrCollapseRate": 62.5,
+      "failureRiskRate": 75,
+      "medianNextProductionDelta": -32.5,
+      "medianNextRoleDelta": -43.5,
+      "confidence": 60,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 75
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 75
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 12.5
+        }
+      ],
+      "summary": "RB rebound or cliff check: 8 historical samples, 25% improved/sustained, 62.5% regressed/collapsed, 75% material failure risk, -32.5 median production score. Recommendation: fade-risk. Main failure mode: role loss (75%)."
+    },
+    {
+      "key": "QB:replacement:feature:collapse",
+      "label": "QB volume without production",
+      "position": "QB",
+      "productionTier": "replacement",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 87.5,
+      "breakoutOrProgressionRate": 12.5,
+      "regressionOrCollapseRate": 12.5,
+      "failureRiskRate": 12.5,
+      "medianNextProductionDelta": 6.5,
+      "medianNextRoleDelta": -32.5,
+      "confidence": 59,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 12.5
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 12.5
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 12.5
+        }
+      ],
+      "summary": "QB volume without production: 8 historical samples, 87.5% improved/sustained, 12.5% regressed/collapsed, 12.5% material failure risk, +6.5 median production score. Recommendation: neutral. Main failure mode: role loss (12.5%)."
+    },
+    {
+      "key": "RB:usable:feature:regression",
+      "label": "RB rebound or cliff check",
+      "position": "RB",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 25,
+      "breakoutOrProgressionRate": 12.5,
+      "regressionOrCollapseRate": 62.5,
+      "failureRiskRate": 75,
+      "medianNextProductionDelta": -26,
+      "medianNextRoleDelta": -79.5,
+      "confidence": 57,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 75
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 62.5
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 12.5
+        }
+      ],
+      "summary": "RB rebound or cliff check: 8 historical samples, 25% improved/sustained, 62.5% regressed/collapsed, 75% material failure risk, -26 median production score. Recommendation: fade-risk. Main failure mode: production collapse (75%)."
+    },
+    {
+      "key": "QB:strong:feature:progression",
+      "label": "QB progression with feature usage",
+      "position": "QB",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 12.5,
+      "regressionOrCollapseRate": 37.5,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -18.5,
+      "medianNextRoleDelta": 0,
+      "confidence": 47,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 50
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 50
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 37.5
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 12.5
+        }
+      ],
+      "summary": "QB progression with feature usage: 8 historical samples, 50% improved/sustained, 37.5% regressed/collapsed, 50% material failure risk, -18.5 median production score. Recommendation: fade-risk. Main failure mode: production collapse (50%)."
+    },
+    {
+      "key": "TE:usable:starter:sustain",
+      "label": "TE usable production / starter role",
+      "position": "TE",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 62.5,
+      "breakoutOrProgressionRate": 50,
+      "regressionOrCollapseRate": 37.5,
+      "failureRiskRate": 37.5,
+      "medianNextProductionDelta": 12,
+      "medianNextRoleDelta": 20,
+      "confidence": 47,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 37.5
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 37.5
+        }
+      ],
+      "summary": "TE usable production / starter role: 8 historical samples, 62.5% improved/sustained, 37.5% regressed/collapsed, 37.5% material failure risk, +12 median production score. Recommendation: caution. Main failure mode: role loss (37.5%)."
+    },
+    {
+      "key": "RB:replacement:thin:collapse",
+      "label": "RB rebound or cliff check",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 37.5,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 0,
+      "failureRiskRate": 62.5,
+      "medianNextProductionDelta": -2.5,
+      "medianNextRoleDelta": -3,
+      "confidence": 46,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 62.5
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 25
+        }
+      ],
+      "summary": "RB rebound or cliff check: 8 historical samples, 37.5% improved/sustained, 0% regressed/collapsed, 62.5% material failure risk, -2.5 median production score. Recommendation: caution. Main failure mode: availability / low-signal follow-up (62.5%)."
+    },
+    {
+      "key": "WR:usable:starter:collapse",
+      "label": "WR rebound or cliff check",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 62.5,
+      "breakoutOrProgressionRate": 37.5,
+      "regressionOrCollapseRate": 25,
+      "failureRiskRate": 37.5,
+      "medianNextProductionDelta": 2.5,
+      "medianNextRoleDelta": -17.5,
+      "confidence": 46,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 37.5
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 37.5
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 12.5
+        }
+      ],
+      "summary": "WR rebound or cliff check: 8 historical samples, 62.5% improved/sustained, 25% regressed/collapsed, 37.5% material failure risk, +2.5 median production score. Recommendation: caution. Main failure mode: role loss (37.5%)."
+    },
+    {
+      "key": "WR:usable:feature:progression",
+      "label": "WR progression with feature usage",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 62.5,
+      "breakoutOrProgressionRate": 25,
+      "regressionOrCollapseRate": 37.5,
+      "failureRiskRate": 37.5,
+      "medianNextProductionDelta": -5.5,
+      "medianNextRoleDelta": -3,
+      "confidence": 44,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 37.5
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 37.5
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 12.5
+        }
+      ],
+      "summary": "WR progression with feature usage: 8 historical samples, 62.5% improved/sustained, 37.5% regressed/collapsed, 37.5% material failure risk, -5.5 median production score. Recommendation: caution. Main failure mode: role loss (37.5%)."
+    },
+    {
+      "key": "RB:elite:feature:progression",
+      "label": "RB progression with feature usage",
+      "position": "RB",
+      "productionTier": "elite",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 8,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 50,
+      "failureRiskRate": 37.5,
+      "medianNextProductionDelta": -10.5,
+      "medianNextRoleDelta": 0,
+      "confidence": 40,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 37.5
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 37.5
+        }
+      ],
+      "summary": "RB progression with feature usage: 8 historical samples, 50% improved/sustained, 50% regressed/collapsed, 37.5% material failure risk, -10.5 median production score. Recommendation: caution. Main failure mode: production collapse (37.5%)."
+    },
+    {
+      "key": "WR:replacement:thin:regression",
+      "label": "WR rebound or cliff check",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 100,
+      "breakoutOrProgressionRate": 14.3,
+      "regressionOrCollapseRate": 0,
+      "failureRiskRate": 0,
+      "medianNextProductionDelta": -6,
+      "medianNextRoleDelta": 0,
+      "confidence": 64,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [],
+      "summary": "WR rebound or cliff check: 7 historical samples, 100% improved/sustained, 0% regressed/collapsed, 0% material failure risk, -6 median production score. Recommendation: neutral. No dominant failure mode."
+    },
+    {
+      "key": "RB:replacement:starter:collapse",
+      "label": "RB volume without production",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 85.7,
+      "breakoutOrProgressionRate": 57.1,
+      "regressionOrCollapseRate": 14.3,
+      "failureRiskRate": 14.3,
+      "medianNextProductionDelta": 21,
+      "medianNextRoleDelta": 27,
+      "confidence": 63,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 14.3
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 14.3
+        }
+      ],
+      "summary": "RB volume without production: 7 historical samples, 85.7% improved/sustained, 14.3% regressed/collapsed, 14.3% material failure risk, +21 median production score. Recommendation: neutral. Main failure mode: role loss (14.3%)."
+    },
+    {
+      "key": "QB:elite:feature:progression",
+      "label": "QB progression with feature usage",
+      "position": "QB",
+      "productionTier": "elite",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 14.3,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 85.7,
+      "failureRiskRate": 28.6,
+      "medianNextProductionDelta": -22,
+      "medianNextRoleDelta": 0,
+      "confidence": 63,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 28.6
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 28.6
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 14.3
+        }
+      ],
+      "summary": "QB progression with feature usage: 7 historical samples, 14.3% improved/sustained, 85.7% regressed/collapsed, 28.6% material failure risk, -22 median production score. Recommendation: caution. Main failure mode: production collapse (28.6%)."
+    },
+    {
+      "key": "TE:usable:starter:breakout",
+      "label": "TE breakout with starter usage",
+      "position": "TE",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "breakout",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 28.6,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 71.4,
+      "failureRiskRate": 71.4,
+      "medianNextProductionDelta": -32,
+      "medianNextRoleDelta": -31,
+      "confidence": 60,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 71.4
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 71.4
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 71.4
+        }
+      ],
+      "summary": "TE breakout with starter usage: 7 historical samples, 28.6% improved/sustained, 71.4% regressed/collapsed, 71.4% material failure risk, -32 median production score. Recommendation: fade-risk. Main failure mode: role loss (71.4%)."
+    },
+    {
+      "key": "TE:usable:starter:first-season",
+      "label": "TE usable production / starter role",
+      "position": "TE",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 28.6,
+      "breakoutOrProgressionRate": 14.3,
+      "regressionOrCollapseRate": 71.4,
+      "failureRiskRate": 71.4,
+      "medianNextProductionDelta": -27,
+      "medianNextRoleDelta": -50,
+      "confidence": 57,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 71.4
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 57.1
+        }
+      ],
+      "summary": "TE usable production / starter role: 7 historical samples, 28.6% improved/sustained, 71.4% regressed/collapsed, 71.4% material failure risk, -27 median production score. Recommendation: fade-risk. Main failure mode: role loss (71.4%)."
+    },
+    {
+      "key": "RB:strong:feature:late-career-rebound",
+      "label": "RB proven feature scorer",
+      "position": "RB",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "late-career-rebound",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 28.6,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 71.4,
+      "failureRiskRate": 42.9,
+      "medianNextProductionDelta": -20,
+      "medianNextRoleDelta": 0,
+      "confidence": 54,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 42.9
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 28.6
+        }
+      ],
+      "summary": "RB proven feature scorer: 7 historical samples, 28.6% improved/sustained, 71.4% regressed/collapsed, 42.9% material failure risk, -20 median production score. Recommendation: fade-risk. Main failure mode: production collapse (42.9%)."
+    },
+    {
+      "key": "TE:usable:feature:first-season",
+      "label": "TE usable production / feature role",
+      "position": "TE",
+      "productionTier": "usable",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 42.9,
+      "breakoutOrProgressionRate": 28.6,
+      "regressionOrCollapseRate": 57.1,
+      "failureRiskRate": 57.1,
+      "medianNextProductionDelta": -19,
+      "medianNextRoleDelta": -22,
+      "confidence": 46,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 57.1
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 42.9
+        }
+      ],
+      "summary": "TE usable production / feature role: 7 historical samples, 42.9% improved/sustained, 57.1% regressed/collapsed, 57.1% material failure risk, -19 median production score. Recommendation: fade-risk. Main failure mode: role loss (57.1%)."
+    },
+    {
+      "key": "TE:replacement:rotation:collapse",
+      "label": "TE rebound or cliff check",
+      "position": "TE",
+      "productionTier": "replacement",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 57.1,
+      "breakoutOrProgressionRate": 28.6,
+      "regressionOrCollapseRate": 28.6,
+      "failureRiskRate": 42.9,
+      "medianNextProductionDelta": 3,
+      "medianNextRoleDelta": -10,
+      "confidence": 43,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 42.9
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 14.3
+        }
+      ],
+      "summary": "TE rebound or cliff check: 7 historical samples, 57.1% improved/sustained, 28.6% regressed/collapsed, 42.9% material failure risk, +3 median production score. Recommendation: caution. Main failure mode: role loss (42.9%)."
+    },
+    {
+      "key": "WR:replacement:starter:collapse",
+      "label": "WR volume without production",
+      "position": "WR",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 42.9,
+      "breakoutOrProgressionRate": 28.6,
+      "regressionOrCollapseRate": 14.3,
+      "failureRiskRate": 57.1,
+      "medianNextProductionDelta": -3,
+      "medianNextRoleDelta": -50,
+      "confidence": 43,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 57.1
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 57.1
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 42.9
+        }
+      ],
+      "summary": "WR volume without production: 7 historical samples, 42.9% improved/sustained, 14.3% regressed/collapsed, 57.1% material failure risk, -3 median production score. Recommendation: caution. Main failure mode: role loss (57.1%)."
+    },
+    {
+      "key": "TE:replacement:starter:collapse",
+      "label": "TE volume without production",
+      "position": "TE",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 7,
+      "improvedOrSustainedRate": 57.1,
+      "breakoutOrProgressionRate": 42.9,
+      "regressionOrCollapseRate": 28.6,
+      "failureRiskRate": 42.9,
+      "medianNextProductionDelta": -4,
+      "medianNextRoleDelta": 1,
+      "confidence": 43,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 42.9
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 42.9
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 28.6
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 14.3
+        }
+      ],
+      "summary": "TE volume without production: 7 historical samples, 57.1% improved/sustained, 28.6% regressed/collapsed, 42.9% material failure risk, -4 median production score. Recommendation: caution. Main failure mode: role loss (42.9%)."
+    },
+    {
+      "key": "RB:replacement:starter:progression",
+      "label": "RB progression with starter usage",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 16.7,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 83.3,
+      "failureRiskRate": 83.3,
+      "medianNextProductionDelta": -21.5,
+      "medianNextRoleDelta": -63,
+      "confidence": 60,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 83.3
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 83.3
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 83.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 66.7
+        }
+      ],
+      "summary": "RB progression with starter usage: 6 historical samples, 16.7% improved/sustained, 83.3% regressed/collapsed, 83.3% material failure risk, -21.5 median production score. Recommendation: fade-risk. Main failure mode: role loss (83.3%)."
+    },
+    {
+      "key": "TE:strong:feature:first-season",
+      "label": "TE proven feature scorer",
+      "position": "TE",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 16.7,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 66.7,
+      "failureRiskRate": 66.7,
+      "medianNextProductionDelta": -30.5,
+      "medianNextRoleDelta": -29.5,
+      "confidence": 59,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 66.7
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 16.7
+        }
+      ],
+      "summary": "TE proven feature scorer: 6 historical samples, 16.7% improved/sustained, 66.7% regressed/collapsed, 66.7% material failure risk, -30.5 median production score. Recommendation: fade-risk. Main failure mode: production collapse (66.7%)."
+    },
+    {
+      "key": "QB:replacement:feature:regression",
+      "label": "QB volume without production",
+      "position": "QB",
+      "productionTier": "replacement",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 83.3,
+      "breakoutOrProgressionRate": 33.3,
+      "regressionOrCollapseRate": 16.7,
+      "failureRiskRate": 16.7,
+      "medianNextProductionDelta": 6.5,
+      "medianNextRoleDelta": -3,
+      "confidence": 53,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 16.7
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 16.7
+        }
+      ],
+      "summary": "QB volume without production: 6 historical samples, 83.3% improved/sustained, 16.7% regressed/collapsed, 16.7% material failure risk, +6.5 median production score. Recommendation: neutral. Main failure mode: role loss (16.7%)."
+    },
+    {
+      "key": "RB:replacement:thin:regression",
+      "label": "RB rebound or cliff check",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 83.3,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 16.7,
+      "failureRiskRate": 16.7,
+      "medianNextProductionDelta": -7,
+      "medianNextRoleDelta": -4.5,
+      "confidence": 53,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 16.7
+        }
+      ],
+      "summary": "RB rebound or cliff check: 6 historical samples, 83.3% improved/sustained, 16.7% regressed/collapsed, 16.7% material failure risk, -7 median production score. Recommendation: neutral. Main failure mode: production collapse (16.7%)."
+    },
+    {
+      "key": "QB:replacement:thin:first-season",
+      "label": "QB replacement production / thin role",
+      "position": "QB",
+      "productionTier": "replacement",
+      "roleTier": "thin",
+      "trajectoryFromPrevious": "first-season",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 66.7,
+      "breakoutOrProgressionRate": 33.3,
+      "regressionOrCollapseRate": 0,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": 1.5,
+      "medianNextRoleDelta": 0,
+      "confidence": 51,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 33.3
+        }
+      ],
+      "summary": "QB replacement production / thin role: 6 historical samples, 66.7% improved/sustained, 0% regressed/collapsed, 33.3% material failure risk, +1.5 median production score. Recommendation: caution. Main failure mode: availability / low-signal follow-up (33.3%)."
+    },
+    {
+      "key": "QB:replacement:starter:regression",
+      "label": "QB volume without production",
+      "position": "QB",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 83.3,
+      "breakoutOrProgressionRate": 33.3,
+      "regressionOrCollapseRate": 16.7,
+      "failureRiskRate": 16.7,
+      "medianNextProductionDelta": -2.5,
+      "medianNextRoleDelta": -45,
+      "confidence": 51,
+      "confidenceGrade": "thin",
+      "recommendation": "neutral",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 16.7
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 16.7
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 16.7
+        }
+      ],
+      "summary": "QB volume without production: 6 historical samples, 83.3% improved/sustained, 16.7% regressed/collapsed, 16.7% material failure risk, -2.5 median production score. Recommendation: neutral. Main failure mode: role loss (16.7%)."
+    },
+    {
+      "key": "RB:elite:feature:late-career-rebound",
+      "label": "RB proven feature scorer",
+      "position": "RB",
+      "productionTier": "elite",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "late-career-rebound",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 83.3,
+      "breakoutOrProgressionRate": 0,
+      "regressionOrCollapseRate": 16.7,
+      "failureRiskRate": 16.7,
+      "medianNextProductionDelta": 0,
+      "medianNextRoleDelta": 0,
+      "confidence": 50,
+      "confidenceGrade": "thin",
+      "recommendation": "lean-positive",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 16.7
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 16.7
+        }
+      ],
+      "summary": "RB proven feature scorer: 6 historical samples, 83.3% improved/sustained, 16.7% regressed/collapsed, 16.7% material failure risk, +0 median production score. Recommendation: lean-positive. Main failure mode: role loss (16.7%)."
+    },
+    {
+      "key": "WR:usable:starter:regression",
+      "label": "WR rebound or cliff check",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 66.7,
+      "breakoutOrProgressionRate": 16.7,
+      "regressionOrCollapseRate": 16.7,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": -8.5,
+      "medianNextRoleDelta": -6,
+      "confidence": 49,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 33.3
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 16.7
+        }
+      ],
+      "summary": "WR rebound or cliff check: 6 historical samples, 66.7% improved/sustained, 16.7% regressed/collapsed, 33.3% material failure risk, -8.5 median production score. Recommendation: caution. Main failure mode: role loss (33.3%)."
+    },
+    {
+      "key": "RB:strong:feature:collapse",
+      "label": "RB proven feature scorer",
+      "position": "RB",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 66.7,
+      "breakoutOrProgressionRate": 16.7,
+      "regressionOrCollapseRate": 16.7,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": -8.5,
+      "medianNextRoleDelta": 0,
+      "confidence": 49,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 33.3
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 16.7
+        }
+      ],
+      "summary": "RB proven feature scorer: 6 historical samples, 66.7% improved/sustained, 16.7% regressed/collapsed, 33.3% material failure risk, -8.5 median production score. Recommendation: caution. Main failure mode: role loss (33.3%)."
+    },
+    {
+      "key": "TE:strong:feature:sustain",
+      "label": "TE proven feature scorer",
+      "position": "TE",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 66.7,
+      "breakoutOrProgressionRate": 33.3,
+      "regressionOrCollapseRate": 33.3,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": -8,
+      "medianNextRoleDelta": 4.5,
+      "confidence": 45,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 33.3
+        }
+      ],
+      "summary": "TE proven feature scorer: 6 historical samples, 66.7% improved/sustained, 33.3% regressed/collapsed, 33.3% material failure risk, -8 median production score. Recommendation: caution. Main failure mode: role loss (33.3%)."
+    },
+    {
+      "key": "RB:replacement:starter:sustain",
+      "label": "RB volume without production",
+      "position": "RB",
+      "productionTier": "replacement",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 66.7,
+      "breakoutOrProgressionRate": 16.7,
+      "regressionOrCollapseRate": 33.3,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": -6.5,
+      "medianNextRoleDelta": -46,
+      "confidence": 44,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        },
+        {
+          "key": "volume-without-production",
+          "label": "Volume without production",
+          "rate": 33.3
+        }
+      ],
+      "summary": "RB volume without production: 6 historical samples, 66.7% improved/sustained, 33.3% regressed/collapsed, 33.3% material failure risk, -6.5 median production score. Recommendation: caution. Main failure mode: role loss (33.3%)."
+    },
+    {
+      "key": "WR:usable:rotation:progression",
+      "label": "WR usable production / rotation role",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 16.7,
+      "regressionOrCollapseRate": 33.3,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -14,
+      "medianNextRoleDelta": -25,
+      "confidence": 43,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 50
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 50
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 50
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 16.7
+        }
+      ],
+      "summary": "WR usable production / rotation role: 6 historical samples, 50% improved/sustained, 33.3% regressed/collapsed, 50% material failure risk, -14 median production score. Recommendation: fade-risk. Main failure mode: role loss (50%)."
+    },
+    {
+      "key": "TE:strong:feature:progression",
+      "label": "TE progression with feature usage",
+      "position": "TE",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "progression",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 16.7,
+      "regressionOrCollapseRate": 50,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -20,
+      "medianNextRoleDelta": -23.5,
+      "confidence": 41,
+      "confidenceGrade": "thin",
+      "recommendation": "fade-risk",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 50
+        },
+        {
+          "key": "breakout-pullback",
+          "label": "Breakout pullback",
+          "rate": 50
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        }
+      ],
+      "summary": "TE progression with feature usage: 6 historical samples, 50% improved/sustained, 50% regressed/collapsed, 50% material failure risk, -20 median production score. Recommendation: fade-risk. Main failure mode: production collapse (50%)."
+    },
+    {
+      "key": "TE:usable:starter:collapse",
+      "label": "TE rebound or cliff check",
+      "position": "TE",
+      "productionTier": "usable",
+      "roleTier": "starter",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 66.7,
+      "breakoutOrProgressionRate": 33.3,
+      "regressionOrCollapseRate": 33.3,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": -1,
+      "medianNextRoleDelta": 23.5,
+      "confidence": 41,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 33.3
+        }
+      ],
+      "summary": "TE rebound or cliff check: 6 historical samples, 66.7% improved/sustained, 33.3% regressed/collapsed, 33.3% material failure risk, -1 median production score. Recommendation: caution. Main failure mode: production collapse (33.3%)."
+    },
+    {
+      "key": "RB:usable:rotation:collapse",
+      "label": "RB rebound or cliff check",
+      "position": "RB",
+      "productionTier": "usable",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "collapse",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 50,
+      "regressionOrCollapseRate": 33.3,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": 6,
+      "medianNextRoleDelta": 2.5,
+      "confidence": 39,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 50
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 16.7
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 16.7
+        }
+      ],
+      "summary": "RB rebound or cliff check: 6 historical samples, 50% improved/sustained, 33.3% regressed/collapsed, 50% material failure risk, +6 median production score. Recommendation: caution. Main failure mode: role loss (50%)."
+    },
+    {
+      "key": "WR:usable:rotation:sustain",
+      "label": "WR usable production / rotation role",
+      "position": "WR",
+      "productionTier": "usable",
+      "roleTier": "rotation",
+      "trajectoryFromPrevious": "sustain",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 33.3,
+      "regressionOrCollapseRate": 33.3,
+      "failureRiskRate": 50,
+      "medianNextProductionDelta": -1.5,
+      "medianNextRoleDelta": 6,
+      "confidence": 37,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 33.3
+        },
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 33.3
+        },
+        {
+          "key": "availability-or-low-signal",
+          "label": "Availability / low-signal follow-up",
+          "rate": 16.7
+        }
+      ],
+      "summary": "WR usable production / rotation role: 6 historical samples, 50% improved/sustained, 33.3% regressed/collapsed, 50% material failure risk, -1.5 median production score. Recommendation: caution. Main failure mode: role loss (33.3%)."
+    },
+    {
+      "key": "RB:strong:feature:regression",
+      "label": "RB proven feature scorer",
+      "position": "RB",
+      "productionTier": "strong",
+      "roleTier": "feature",
+      "trajectoryFromPrevious": "regression",
+      "sampleSize": 6,
+      "improvedOrSustainedRate": 50,
+      "breakoutOrProgressionRate": 16.7,
+      "regressionOrCollapseRate": 50,
+      "failureRiskRate": 33.3,
+      "medianNextProductionDelta": -11.5,
+      "medianNextRoleDelta": -4,
+      "confidence": 37,
+      "confidenceGrade": "thin",
+      "recommendation": "caution",
+      "primaryFailureModes": [
+        {
+          "key": "production-collapse",
+          "label": "Production collapse",
+          "rate": 33.3
+        },
+        {
+          "key": "role-loss",
+          "label": "Role loss",
+          "rate": 16.7
+        }
+      ],
+      "summary": "RB proven feature scorer: 6 historical samples, 50% improved/sustained, 50% regressed/collapsed, 33.3% material failure risk, -11.5 median production score. Recommendation: caution. Main failure mode: production collapse (33.3%)."
+    }
+  ]
+}

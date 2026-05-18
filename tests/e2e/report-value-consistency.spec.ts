@@ -19,7 +19,7 @@ test.describe('redraft value consistency', () => {
     await loadCachedReport(page, 'value-consistency-rankings-redraft', '#rankings');
     await openFullRosterRankings(page);
 
-    const rankingRow = page.getByRole('button', { name: /#1 .*Sample Starter/ });
+    const rankingRow = page.getByRole('button', { name: /#1 .*Bijan Robinson/ });
     await expect(rankingRow).toBeVisible();
     await expect(rankingRow).toContainText('5,000');
 
@@ -34,7 +34,7 @@ test.describe('redraft value consistency', () => {
     await loadCachedReport(page, 'value-consistency-draft-redraft', '#draft');
 
     await page.locator('.report-disclosure-summary').filter({ hasText: '2026 Main Draft' }).click();
-    const draftRow = page.getByRole('button', { name: /#1 Sample Starter/ });
+    const draftRow = page.getByRole('button', { name: /#1 Bijan Robinson/ });
     await expect(draftRow).toBeVisible();
     await expect(draftRow).toContainText('5,000');
 

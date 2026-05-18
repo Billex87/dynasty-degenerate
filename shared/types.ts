@@ -746,6 +746,34 @@ export interface PlayerCohortDraftCapital {
   note: string;
 }
 
+export interface PlayerCohortSeasonOutcomeReceipt {
+  key: string;
+  label: string;
+  recommendation: 'amplify' | 'lean-positive' | 'neutral' | 'caution' | 'fade-risk';
+  stance: 'upside-supported' | 'risk-supported' | 'neutral-reference';
+  confidence: number;
+  confidenceGrade: 'strong' | 'usable' | 'thin' | 'blocked';
+  sampleSize: number;
+  displayEligible: boolean;
+  productionTier: 'elite' | 'strong' | 'usable' | 'replacement' | 'low-signal';
+  roleTier: 'feature' | 'starter' | 'rotation' | 'thin';
+  trajectoryFromPrevious: 'first-season' | 'breakout' | 'progression' | 'sustain' | 'regression' | 'collapse' | 'late-career-rebound' | 'low-signal';
+  improvedOrSustainedRate: number | null;
+  breakoutOrProgressionRate: number | null;
+  regressionOrCollapseRate: number | null;
+  materialFailureRate: number | null;
+  medianNextProductionDelta: number | null;
+  medianNextRoleDelta: number | null;
+  primaryFailureMode?: {
+    key: string;
+    label: string;
+    rate: number;
+  } | null;
+  summary: string;
+  note: string;
+  derivedFrom: string[];
+}
+
 export interface PlayerCohortProfile {
   playerId: string;
   name: string;
@@ -769,6 +797,7 @@ export interface PlayerCohortProfile {
     note: string;
   };
   draftCapital: PlayerCohortDraftCapital;
+  seasonOutcomeReceipt?: PlayerCohortSeasonOutcomeReceipt | null;
   peers: Array<{
     playerId: string;
     name: string;

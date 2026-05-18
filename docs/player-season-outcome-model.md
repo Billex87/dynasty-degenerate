@@ -20,6 +20,7 @@ Run:
 ```sh
 pnpm build:player-season-outcomes
 pnpm backtest:player-cohorts
+pnpm publish:player-cohort-calibration
 ```
 
 Useful options:
@@ -28,6 +29,7 @@ Useful options:
 START_SEASON=2017 END_SEASON=2025 pnpm build:player-season-outcomes
 SEASONS=2021,2022,2023 WRITE_ROWS=0 pnpm build:player-season-outcomes
 OUT_DIR=/path/outside/repo/player-season-outcomes pnpm build:player-season-outcomes
+MIN_SAMPLE_SIZE=6 pnpm publish:player-cohort-calibration
 ```
 
 ## Source
@@ -78,3 +80,9 @@ The calibration output includes:
 - primary failure modes such as role loss, production collapse, efficiency-spike pullback, and breakout pullback
 
 This is the evidence layer that should eventually inform player AI confidence. Keep it offline until we intentionally promote a compact, versioned summary.
+
+## Runtime Receipts
+
+`pnpm publish:player-cohort-calibration` promotes only compact bucket summaries into `server/model-calibration/player-cohort-calibration-v1.json`.
+
+That runtime artifact strips raw player-season rows and example players. Player cards can consume it as a conservative "historical receipt" when the current player maps to a calibrated production/role/trajectory bucket with enough sample size. Thin, neutral, or blocked buckets remain internal traces and should not become loud user-facing copy.
