@@ -25,6 +25,7 @@
     "index:value-history:shards": "node scripts/build-player-value-history-shards.mjs",
     "build:redraft-value-history": "node scripts/build-redraft-value-history-archive.mjs",
     "build:player-season-outcomes": "tsx scripts/build-player-season-outcomes.ts",
+    "backtest:player-cohorts": "tsx scripts/backtest-player-cohorts.ts",
     "audit:value-history:shards": "node scripts/audit-value-history-shards.mjs",
     "audit:value-history:movement": "node scripts/audit-value-history-movement.mjs",
     "upload:value-history:shards": "node scripts/upload-value-history-shards.mjs",

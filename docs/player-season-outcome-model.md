@@ -19,6 +19,7 @@ Run:
 
 ```sh
 pnpm build:player-season-outcomes
+pnpm backtest:player-cohorts
 ```
 
 Useful options:
@@ -55,3 +56,25 @@ The site should eventually consume only derived calibration summaries, such as:
 - confidence caps when samples are thin
 
 Do not expose the raw row file in the UI.
+
+## Cohort Backtest
+
+After building player-season outcomes, run `pnpm backtest:player-cohorts`.
+
+The backtest groups eligible player-seasons by position, production tier, role tier, and prior-year trajectory, then measures the next-year outcome distribution. It writes:
+
+- `.cache/modeling/player-cohort-backtest/calibration.json`
+- `.cache/modeling/player-cohort-backtest/summary.md`
+
+The calibration output includes:
+
+- improved/sustained rate
+- breakout/progression rate
+- regression/collapse rate
+- material failure rate, which separates normal mean reversion from true production/role failure
+- median next-year production and role movement
+- confidence grade
+- recommendation (`amplify`, `lean-positive`, `neutral`, `caution`, `fade-risk`)
+- primary failure modes such as role loss, production collapse, efficiency-spike pullback, and breakout pullback
+
+This is the evidence layer that should eventually inform player AI confidence. Keep it offline until we intentionally promote a compact, versioned summary.
