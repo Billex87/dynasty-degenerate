@@ -48,6 +48,14 @@ This archive is the frozen raw source history used to regenerate player value ti
   - 2,296 players.
   - 1,268,594 blended player/date/format points.
   - SHA-256: `f3b1ebbbe99bb225319e8c9f4d0efa625b213ed1d04464acf84d4b7abbb1d6ba`
+- `server/value-history-archive/value-history-weight-calibration.json`
+  - Derived weight-calibration report from raw source values versus later cross-source consensus.
+  - 942,831 future comparisons at a 180-day horizon.
+  - SHA-256: `da409688f5708e74ee77f973e8ed76e153743e6746ff2f6673544cb50a34d172`
+- `server/value-history-archive/player-value-history-timeline-index.json`
+  - Compact derived index for player modal charts.
+  - 1,724 players, 8,746 player-format timelines, 414,528 compact window points.
+  - SHA-256: `834cbdd24977646126e796ae28534510a8a062c2a1673cc4f829e0a88c869ab8`
 
 ## Policy
 
@@ -69,6 +77,22 @@ ARCHIVE_FILE=server/value-history-archive/one-time-source-history.json \
 OUT_FILE=server/value-history-archive/player-value-history-reblended.json \
 BLEND_NAME=current-default-weights \
 pnpm reblend:value-history
+```
+
+To review whether weights should change before mutating defaults, rerun:
+
+```bash
+ARCHIVE_FILE=server/value-history-archive/one-time-source-history.json \
+OUT_FILE=server/value-history-archive/value-history-weight-calibration.json \
+pnpm calibrate:value-history:weights
+```
+
+To refresh the compact player graph index after reblending, rerun:
+
+```bash
+ARCHIVE_FILE=server/value-history-archive/player-value-history-reblended.json \
+OUT_FILE=server/value-history-archive/player-value-history-timeline-index.json \
+pnpm index:value-history:timelines
 ```
 
 Before using a regenerated archive in product logic, rerun:

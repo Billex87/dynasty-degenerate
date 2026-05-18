@@ -894,11 +894,95 @@ export interface PlayerDetails {
   };
   valueTimeline?: {
     profileKey: string;
-    source: 'stored-value-snapshots';
+    source: 'stored-value-snapshots' | 'historical-value-index';
+    selectedWindow?: '3m' | '6m' | '1y' | 'all';
+    availableWindows?: Array<{
+      key: '3m' | '6m' | '1y' | 'all';
+      label: string;
+      days: number | null;
+      pointCount: number;
+      startDate: string;
+      endDate: string;
+      startValue: number;
+      endValue: number;
+      delta: number;
+      deltaPct: number | null;
+    }>;
+    windows?: Partial<Record<'3m' | '6m' | '1y' | 'all', {
+      key: '3m' | '6m' | '1y' | 'all';
+      label: string;
+      days: number | null;
+      pointCount: number;
+      startDate: string;
+      endDate: string;
+      startValue: number;
+      endValue: number;
+      delta: number;
+      deltaPct: number | null;
+      points: Array<{
+        date: string;
+        value: number;
+        rank?: string | null;
+        overallRank?: number | null;
+        sources: string[];
+        sourceCount: number;
+        events?: Array<{
+          type: 'news' | 'draft' | 'roster-room' | 'injury' | 'schedule' | 'source-change';
+          label: string;
+          tone: 'up' | 'down' | 'neutral' | 'warning';
+          detail?: string | null;
+        }>;
+        marketKtc?: number | null;
+        fantasyCalcDynasty?: number | null;
+        fantasyProsDynasty?: number | null;
+        dynastyProcess?: number | null;
+        dynastyNerds?: number | null;
+        flockFantasy?: number | null;
+      }>;
+    }>>;
+    extremes?: {
+      high: {
+        date: string;
+        value: number;
+        rank?: string | null;
+        overallRank?: number | null;
+        sources: string[];
+        sourceCount: number;
+      } | null;
+      low: {
+        date: string;
+        value: number;
+        rank?: string | null;
+        overallRank?: number | null;
+        sources: string[];
+        sourceCount: number;
+      } | null;
+    };
+    yearlyExtremes?: Array<{
+      year: string;
+      high: {
+        date: string;
+        value: number;
+        rank?: string | null;
+        overallRank?: number | null;
+        sources: string[];
+        sourceCount: number;
+      } | null;
+      low: {
+        date: string;
+        value: number;
+        rank?: string | null;
+        overallRank?: number | null;
+        sources: string[];
+        sourceCount: number;
+      } | null;
+    }>;
+    allTimePointCount?: number;
     points: Array<{
       date: string;
       value: number;
       rank?: string | null;
+      overallRank?: number | null;
       sources: string[];
       sourceCount: number;
       events?: Array<{

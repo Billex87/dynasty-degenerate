@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { cleanName, playerNameKeyVariants } from './leagueAnalysis';
 import {
   listLocalKtcSnapshotDateKeysSince,
@@ -8,14 +10,83 @@ import type { PlayerDetails } from '../shared/types';
 
 const DEFAULT_TIMELINE_DAYS = 120;
 const MAX_TIMELINE_POINTS = 24;
+const DEFAULT_TIMELINE_INDEX_PATH = path.join(process.cwd(), 'server', 'value-history-archive', 'player-value-history-timeline-index.json');
 
 type KtcValueRow = KTCValues[string];
 type TimelinePoint = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['points']>[number];
 type TimelineEvent = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['points'][number]['events']>[number];
+type TimelineWindowKey = '3m' | '6m' | '1y' | 'all';
+type TimelineWindow = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['windows']>[TimelineWindowKey];
+type TimelineIndexPlayer = {
+  key: string;
+  name: string;
+  position?: string | null;
+  lookupKeys?: string[];
+  formats: Record<string, {
+    format: string;
+    rawPointCount: number;
+    windows: Record<TimelineWindowKey, NonNullable<TimelineWindow>>;
+    extremes?: NonNullable<PlayerDetails['valueTimeline']>['extremes'];
+    yearlyExtremes?: NonNullable<PlayerDetails['valueTimeline']>['yearlyExtremes'];
+  }>;
+};
+type TimelineIndexCache = {
+  generatedAt?: string;
+  players: Record<string, TimelineIndexPlayer>;
+  lookup: Map<string, TimelineIndexPlayer>;
+};
+
+let timelineIndexCache: TimelineIndexCache | null | undefined;
 
 function getPlayerDisplayName(player: Record<string, any> | undefined): string | null {
   if (!player) return null;
   return player.full_name || `${player.first_name || ''} ${player.last_name || ''}`.trim() || null;
+}
+
+function getTimelineIndex(): TimelineIndexCache | null {
+  if (process.env.NODE_ENV === 'test' && process.env.USE_VALUE_TIMELINE_INDEX !== '1') return null;
+  if (timelineIndexCache !== undefined) return timelineIndexCache;
+  const indexPath = process.env.VALUE_TIMELINE_INDEX_FILE || DEFAULT_TIMELINE_INDEX_PATH;
+  if (!fs.existsSync(indexPath)) {
+    timelineIndexCache = null;
+    return timelineIndexCache;
+  }
+
+  try {
+    const payload = JSON.parse(fs.readFileSync(indexPath, 'utf8')) as {
+      generatedAt?: string;
+      players?: Record<string, TimelineIndexPlayer>;
+    };
+    const players = payload.players || {};
+    const lookup = new Map<string, TimelineIndexPlayer>();
+    for (const [key, player] of Object.entries(players)) {
+      const keys = new Set([
+        key,
+        player.key,
+        cleanName(player.name),
+        ...playerNameKeyVariants(cleanName(player.name)),
+        ...(player.lookupKeys || []),
+      ].map(cleanName).filter(Boolean));
+      keys.forEach((lookupKey) => lookup.set(lookupKey, player));
+    }
+    timelineIndexCache = { generatedAt: payload.generatedAt, players, lookup };
+  } catch (error) {
+    console.warn('[PlayerValueTimeline] Failed to load timeline index:', error);
+    timelineIndexCache = null;
+  }
+
+  return timelineIndexCache;
+}
+
+function getIndexedPlayerForName(playerName: string): TimelineIndexPlayer | null {
+  const index = getTimelineIndex();
+  if (!index) return null;
+  const variants = Array.from(new Set(playerNameKeyVariants(cleanName(playerName)).map(cleanName).filter(Boolean)));
+  for (const variant of variants) {
+    const match = index.lookup.get(variant);
+    if (match) return match;
+  }
+  return null;
 }
 
 function getSnapshotRowForPlayer(
@@ -59,6 +130,119 @@ function compactPoints<T>(points: T[], maxPoints: number): T[] {
 
 function getSourceSignature(sources: string[]) {
   return sources.slice().sort().join('|');
+}
+
+function getPreferredTimelineFormats(valueProfileKey: string, mode: 'dynasty' | 'redraft' | 'keeper') {
+  const key = String(valueProfileKey || '').toLowerCase();
+  if (mode === 'redraft') return ['redraft_ppr', 'ros_ppr', 'fantasypros_adp_ppr', 'sf_ppr', 'one_qb_ppr'];
+
+  const qbPrefix = key.includes('one_qb') ? 'one_qb' : 'sf';
+  const tep = key.match(/tep_(0_5|1_0|1_5)/)?.[1] || '';
+  return [
+    key,
+    tep ? `${qbPrefix}_ppr_tep_${tep}` : '',
+    `${qbPrefix}_ppr`,
+    qbPrefix === 'sf' ? 'superflex' : 'oneqb',
+    qbPrefix === 'sf' ? 'one_qb_ppr' : 'sf_ppr',
+  ].filter(Boolean);
+}
+
+function selectTimelineFormat(
+  indexedPlayer: TimelineIndexPlayer,
+  valueProfileKey: string,
+  mode: 'dynasty' | 'redraft' | 'keeper'
+) {
+  const formats = indexedPlayer.formats || {};
+  for (const format of getPreferredTimelineFormats(valueProfileKey, mode)) {
+    if (formats[format]) return formats[format];
+  }
+  return Object.values(formats).sort((a, b) => (b.rawPointCount || 0) - (a.rawPointCount || 0))[0] || null;
+}
+
+function selectTimelineWindow(
+  windows: Record<TimelineWindowKey, NonNullable<TimelineWindow>>,
+  daysBack: number
+): TimelineWindowKey {
+  if (daysBack <= 100 && windows['3m']) return '3m';
+  if (daysBack <= 220 && windows['6m']) return '6m';
+  if (daysBack <= 430 && windows['1y']) return '1y';
+  if (windows['6m']) return '6m';
+  if (windows['1y']) return '1y';
+  if (windows.all) return 'all';
+  return (Object.keys(windows)[0] as TimelineWindowKey) || 'all';
+}
+
+function cloneWindowWithEvents(window: NonNullable<TimelineWindow>, events: TimelineEvent[]) {
+  const points: TimelinePoint[] = (window.points || []).map((point) => ({ ...point, events: undefined }));
+  if (events.length && points.length) {
+    points[points.length - 1] = {
+      ...points[points.length - 1],
+      events,
+    };
+  }
+  return { ...window, points };
+}
+
+function buildTimelineFromIndex(input: {
+  playerName: string;
+  valueProfileKey: string;
+  leagueValueMode: 'dynasty' | 'redraft' | 'keeper';
+  daysBack: number;
+  details?: PlayerDetails;
+}): NonNullable<PlayerDetails['valueTimeline']> | null {
+  const indexedPlayer = getIndexedPlayerForName(input.playerName);
+  if (!indexedPlayer) return null;
+  const formatTimeline = selectTimelineFormat(indexedPlayer, input.valueProfileKey, input.leagueValueMode);
+  if (!formatTimeline) return null;
+  const events = buildTimelineEvents(input.details);
+  const windows = Object.fromEntries(
+    Object.entries(formatTimeline.windows || {}).map(([key, window]) => [
+      key,
+      cloneWindowWithEvents(window as NonNullable<TimelineWindow>, events),
+    ])
+  ) as NonNullable<PlayerDetails['valueTimeline']>['windows'];
+  const selectedWindow = selectTimelineWindow(formatTimeline.windows, input.daysBack);
+  const selected = windows?.[selectedWindow] || windows?.all || Object.values(windows || {})[0];
+  if (!selected || selected.points.length < 2) return null;
+
+  const start = selected.points[0];
+  const end = selected.points[selected.points.length - 1];
+  const sourceSetChanged = getSourceSignature(start.sources) !== getSourceSignature(end.sources);
+  const note = sourceSetChanged
+    ? 'Historical value archive includes source coverage changes; read movement as market plus source-mix context.'
+    : 'Historical value archive uses a stable source set at the start and end of this window.';
+
+  return {
+    profileKey: input.valueProfileKey,
+    source: 'historical-value-index',
+    selectedWindow,
+    availableWindows: Object.values(windows || {}).map((window) => ({
+      key: window.key,
+      label: window.label,
+      days: window.days,
+      pointCount: window.pointCount,
+      startDate: window.startDate,
+      endDate: window.endDate,
+      startValue: window.startValue,
+      endValue: window.endValue,
+      delta: window.delta,
+      deltaPct: window.deltaPct,
+    })),
+    windows,
+    extremes: formatTimeline.extremes || undefined,
+    yearlyExtremes: formatTimeline.yearlyExtremes || [],
+    allTimePointCount: formatTimeline.rawPointCount || selected.pointCount,
+    points: selected.points,
+    summary: {
+      startValue: start.value,
+      endValue: end.value,
+      delta: selected.delta,
+      deltaPct: selected.deltaPct,
+      sourceSetChanged,
+      eventCount: events.length,
+      note,
+    },
+  };
 }
 
 function formatEventNumber(value: number | null | undefined, suffix = ''): string | null {
@@ -174,7 +358,8 @@ export function buildPlayerValueTimelineMap(input: {
 }): Record<string, NonNullable<PlayerDetails['valueTimeline']>> {
   const now = input.now || new Date();
   const startDate = new Date(now);
-  startDate.setDate(startDate.getDate() - (input.daysBack || DEFAULT_TIMELINE_DAYS));
+  const daysBack = input.daysBack || DEFAULT_TIMELINE_DAYS;
+  startDate.setDate(startDate.getDate() - daysBack);
   const snapshotDates = listLocalKtcSnapshotDateKeysSince(startDate);
   const mode = input.leagueValueMode || 'dynasty';
   const timelines: Record<string, NonNullable<PlayerDetails['valueTimeline']>> = {};
@@ -182,6 +367,17 @@ export function buildPlayerValueTimelineMap(input: {
   for (const playerId of Array.from(new Set(Array.from(input.playerIds).filter(Boolean)))) {
     const playerName = getPlayerDisplayName(input.players[playerId]);
     if (!playerName) continue;
+    const indexedTimeline = buildTimelineFromIndex({
+      playerName,
+      valueProfileKey: input.valueProfileKey,
+      leagueValueMode: mode,
+      daysBack,
+      details: input.playerDetailsById?.[playerId],
+    });
+    if (indexedTimeline) {
+      timelines[playerId] = indexedTimeline;
+      continue;
+    }
 
     const points: TimelinePoint[] = snapshotDates.flatMap((date) => {
       const row = getSnapshotRowForPlayer(playerName, loadLocalKtcSnapshotForDate(date, input.valueProfileKey));

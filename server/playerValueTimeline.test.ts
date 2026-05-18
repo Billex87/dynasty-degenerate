@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -159,5 +162,112 @@ describe('player value timeline', () => {
       'Role bump',
       'Premium draft capital',
     ]);
+  });
+
+  it('uses the historical timeline index when available', () => {
+    const previousUseIndex = process.env.USE_VALUE_TIMELINE_INDEX;
+    const previousIndexFile = process.env.VALUE_TIMELINE_INDEX_FILE;
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'value-timeline-index-'));
+    const indexFile = path.join(tempDir, 'index.json');
+    fs.writeFileSync(indexFile, JSON.stringify({
+      players: {
+        malachifields: {
+          key: 'malachifields',
+          name: 'Malachi Fields',
+          position: 'WR',
+          lookupKeys: ['malachifields'],
+          formats: {
+            sf_ppr: {
+              format: 'sf_ppr',
+              rawPointCount: 3,
+              windows: {
+                '6m': {
+                  key: '6m',
+                  label: '6M',
+                  days: 183,
+                  pointCount: 3,
+                  startDate: '2025-12-01',
+                  endDate: '2026-05-17',
+                  startValue: 1200,
+                  endValue: 1800,
+                  delta: 600,
+                  deltaPct: 50,
+                  points: [
+                    { date: '2025-12-01', value: 1200, rank: 'WR110', overallRank: 220, sources: ['marketKtc'], sourceCount: 1 },
+                    { date: '2026-03-01', value: 1500, rank: 'WR98', overallRank: 190, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+                    { date: '2026-05-17', value: 1800, rank: 'WR80', overallRank: 150, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+                  ],
+                },
+                all: {
+                  key: 'all',
+                  label: 'All',
+                  days: null,
+                  pointCount: 3,
+                  startDate: '2025-12-01',
+                  endDate: '2026-05-17',
+                  startValue: 1200,
+                  endValue: 1800,
+                  delta: 600,
+                  deltaPct: 50,
+                  points: [
+                    { date: '2025-12-01', value: 1200, rank: 'WR110', overallRank: 220, sources: ['marketKtc'], sourceCount: 1 },
+                    { date: '2026-03-01', value: 1500, rank: 'WR98', overallRank: 190, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+                    { date: '2026-05-17', value: 1800, rank: 'WR80', overallRank: 150, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+                  ],
+                },
+              },
+              extremes: {
+                high: { date: '2026-05-17', value: 1800, rank: 'WR80', overallRank: 150, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+                low: { date: '2025-12-01', value: 1200, rank: 'WR110', overallRank: 220, sources: ['marketKtc'], sourceCount: 1 },
+              },
+              yearlyExtremes: [{
+                year: '2026',
+                high: { date: '2026-05-17', value: 1800, rank: 'WR80', overallRank: 150, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+                low: { date: '2026-03-01', value: 1500, rank: 'WR98', overallRank: 190, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+              }],
+            },
+          },
+        },
+      },
+    }));
+
+    process.env.USE_VALUE_TIMELINE_INDEX = '1';
+    process.env.VALUE_TIMELINE_INDEX_FILE = indexFile;
+    mocks.listLocalKtcSnapshotDateKeysSince.mockReturnValue([]);
+
+    const result = buildPlayerValueTimelineMap({
+      playerIds: ['p1'],
+      players: {
+        p1: {
+          first_name: 'Malachi',
+          last_name: 'Fields',
+          position: 'WR',
+        },
+      },
+      valueProfileKey: '12_sf_ppr_base',
+      daysBack: 180,
+    });
+
+    expect(result.p1).toMatchObject({
+      source: 'historical-value-index',
+      selectedWindow: '6m',
+      allTimePointCount: 3,
+      summary: {
+        startValue: 1200,
+        endValue: 1800,
+        delta: 600,
+        deltaPct: 50,
+      },
+      extremes: {
+        high: { date: '2026-05-17', value: 1800, rank: 'WR80' },
+        low: { date: '2025-12-01', value: 1200, rank: 'WR110' },
+      },
+    });
+    expect(result.p1.availableWindows?.map((window) => window.key)).toEqual(['6m', 'all']);
+    expect(result.p1.points.at(-1)).toMatchObject({ rank: 'WR80', overallRank: 150 });
+
+    process.env.USE_VALUE_TIMELINE_INDEX = previousUseIndex;
+    process.env.VALUE_TIMELINE_INDEX_FILE = previousIndexFile;
+    fs.rmSync(tempDir, { recursive: true, force: true });
   });
 });

@@ -19,6 +19,8 @@
     "merge:value-history": "node scripts/merge-value-history-archives.mjs",
     "backtest:value-history": "node scripts/backtest-player-value-history.mjs",
     "backfill:value-history:sources": "node scripts/backfill-historical-value-sources.mjs",
+    "calibrate:value-history:weights": "node scripts/calibrate-value-history-weights.mjs",
+    "index:value-history:timelines": "node scripts/build-value-history-timeline-index.mjs",
     "audit:value-history": "node scripts/audit-player-value-history.mjs",
     "audit:value-history:sources": "node scripts/audit-value-history-source-coverage.mjs",
     "normalize:value-history:identities": "node scripts/normalize-value-history-identities.mjs",

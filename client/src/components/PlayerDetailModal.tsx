@@ -1353,6 +1353,12 @@ function formatTimelineDate(value: string) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function formatTimelineDateWithYear(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function buildTimelineCoordinates(points: Array<{ value: number }>, width: number, height: number, padding = 8) {
   if (points.length < 2) return [];
   const values = points.map((point) => point.value);
@@ -1422,6 +1428,20 @@ function formatSourceDelta(delta: number | null) {
   if (delta === null) return 'Missing';
   if (delta === 0) return 'Even';
   return `${delta > 0 ? '+' : ''}${formatValueLens(delta)}`;
+}
+
+function buildTimelineWindowDeltaLabel(window: NonNullable<NonNullable<PlayerDetails['valueTimeline']>['availableWindows']>[number]) {
+  return [
+    formatValueDelta(window.delta),
+    window.deltaPct !== null && window.deltaPct !== undefined
+      ? `${window.deltaPct > 0 ? '+' : ''}${window.deltaPct}%`
+      : null,
+  ].filter(Boolean).join(' / ');
+}
+
+function formatTimelineRank(point?: TimelinePoint | null) {
+  if (!point) return '-';
+  return point.rank || (point.overallRank ? `#${point.overallRank}` : '-');
 }
 
 function PlayerValueTimelineCard({
@@ -1577,18 +1597,31 @@ function PlayerValueTimelineDetailDialog({
   deltaLabel: string;
   showSourceAdmin: boolean;
 }) {
-  const firstPoint = timeline.points[0];
-  const lastPoint = timeline.points[timeline.points.length - 1];
-  const chartPoints = useMemo(() => buildTimelineCoordinates(timeline.points, 520, 178, 18), [timeline.points]);
-  const chartPath = useMemo(() => buildTimelinePath(timeline.points, 520, 178, 18), [timeline.points]);
+  const [activeWindowKey, setActiveWindowKey] = useState<'3m' | '6m' | '1y' | 'all'>(timeline.selectedWindow || '6m');
+  const activeWindow = timeline.windows?.[activeWindowKey] || timeline.windows?.[timeline.selectedWindow || '6m'] || timeline.windows?.all || null;
+  const activePoints = activeWindow?.points?.length ? activeWindow.points : timeline.points;
+  const firstPoint = activePoints[0];
+  const lastPoint = activePoints[activePoints.length - 1];
+  const activeDelta = activeWindow?.delta ?? timeline.summary.delta;
+  const activeDeltaPct = activeWindow?.deltaPct ?? timeline.summary.deltaPct;
+  const activeDeltaLabel = [
+    formatValueDelta(activeDelta),
+    activeDeltaPct !== null && activeDeltaPct !== undefined
+      ? `${activeDeltaPct > 0 ? '+' : ''}${activeDeltaPct}%`
+      : null,
+  ].filter(Boolean).join(' / ') || deltaLabel;
+  const chartPoints = useMemo(() => buildTimelineCoordinates(activePoints, 520, 178, 18), [activePoints]);
+  const chartPath = useMemo(() => buildTimelinePath(activePoints, 520, 178, 18), [activePoints]);
   const sourceAudit = useMemo(() => buildTimelineSourceAudit(lastPoint), [lastPoint]);
-  const eventList = timeline.points.flatMap((point) =>
+  const eventList = activePoints.flatMap((point) =>
     (point.events || []).map((event) => ({
       ...event,
       date: point.date,
       value: point.value,
     }))
   );
+  const visibleWindows = timeline.availableWindows?.filter((window) => timeline.windows?.[window.key]?.points?.length) || [];
+  const yearlyExtremes = timeline.yearlyExtremes?.slice(-4).reverse() || [];
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -1605,16 +1638,34 @@ function PlayerValueTimelineDetailDialog({
             <p className="player-value-timeline-kicker">Stored Value Timeline</p>
             <DialogTitle className="player-value-timeline-title">{playerName}</DialogTitle>
             <DialogDescription className="player-value-timeline-description">
-              Blended market movement with source coverage, ranks, and situation markers attached to the latest stored point.
+              Blended market movement with source coverage, positional rank, all-time high/low, and situation markers attached to the latest stored point.
             </DialogDescription>
           </DialogHeader>
 
           <div className="player-value-timeline-modal-body">
+            {visibleWindows.length > 1 && (
+              <div className="player-value-window-tabs" role="tablist" aria-label={`${playerName} value timeline range`}>
+                {visibleWindows.map((window) => (
+                  <button
+                    key={window.key}
+                    type="button"
+                    className={`player-value-window-tab ${activeWindowKey === window.key ? 'player-value-window-tab-active' : ''}`}
+                    onClick={() => setActiveWindowKey(window.key)}
+                    role="tab"
+                    aria-selected={activeWindowKey === window.key}
+                  >
+                    <span>{window.label}</span>
+                    <strong>{buildTimelineWindowDeltaLabel(window)}</strong>
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="player-value-timeline-metric-grid">
               <TimelineMetric label="Start" value={formatValueLens(firstPoint.value)} note={formatTimelineDate(firstPoint.date)} />
               <TimelineMetric label="Current" value={formatValueLens(lastPoint.value)} note={formatTimelineDate(lastPoint.date)} />
-              <TimelineMetric label="Move" value={deltaLabel} note={timeline.summary.sourceSetChanged ? 'Source mix changed' : 'Same source set'} />
-              <TimelineMetric label="Latest Rank" value={lastPoint.rank || '-'} note={`${lastPoint.sourceCount} sources`} />
+              <TimelineMetric label="Move" value={activeDeltaLabel} note={timeline.summary.sourceSetChanged ? 'Source mix changed' : 'Same source set'} />
+              <TimelineMetric label="Latest Rank" value={formatTimelineRank(lastPoint)} note={`${lastPoint.sourceCount} sources`} />
             </div>
 
             <div className="player-value-timeline-chart-panel">
@@ -1631,7 +1682,7 @@ function PlayerValueTimelineDetailDialog({
                 <path d={chartPath} fill="none" stroke="rgba(15,23,42,0.9)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
                 <path d={chartPath} fill="none" stroke={strokeColor} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
                 {chartPoints.map((point, index) => {
-                  const timelinePoint = timeline.points[index];
+                  const timelinePoint = activePoints[index];
                   const hasEvents = Boolean(timelinePoint.events?.length);
                   return (
                     <g key={`${timelinePoint.date}-${timelinePoint.value}`}>
@@ -1649,10 +1700,34 @@ function PlayerValueTimelineDetailDialog({
               </svg>
               <div className="player-value-timeline-chart-footer">
                 <span>{formatTimelineDate(firstPoint.date)}</span>
-                <span>{timeline.points.length} stored snapshots</span>
+                <span>{activeWindow?.pointCount || activePoints.length} stored snapshots</span>
                 <span>{formatTimelineDate(lastPoint.date)}</span>
               </div>
             </div>
+
+            {(timeline.extremes?.high || timeline.extremes?.low) && (
+              <section className="player-value-timeline-section">
+                <div className="player-value-timeline-section-header">
+                  <span>All-Time Range</span>
+                  <strong>{timeline.allTimePointCount || activeWindow?.pointCount || activePoints.length} pts</strong>
+                </div>
+                <div className="player-value-extreme-grid">
+                  <TimelineExtremeCard label="Highest" point={timeline.extremes?.high || null} tone="high" />
+                  <TimelineExtremeCard label="Lowest" point={timeline.extremes?.low || null} tone="low" />
+                </div>
+                {yearlyExtremes.length > 0 && (
+                  <div className="player-value-yearly-extremes">
+                    {yearlyExtremes.map((row) => (
+                      <article key={row.year}>
+                        <span>{row.year}</span>
+                        <strong>H {row.high ? formatValueLens(row.high.value) : '-'}</strong>
+                        <em>L {row.low ? formatValueLens(row.low.value) : '-'}</em>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
             {showSourceAdmin && (
               <section className="player-value-timeline-section player-value-source-admin-panel">
@@ -1722,15 +1797,15 @@ function PlayerValueTimelineDetailDialog({
             <section className="player-value-timeline-section">
               <div className="player-value-timeline-section-header">
                 <span>Snapshot Source History</span>
-                <strong>{timeline.points.length}</strong>
+                <strong>{activePoints.length}</strong>
               </div>
               <div className="player-value-source-history">
-                {timeline.points.map((point) => (
+                {activePoints.map((point) => (
                   <article key={`${point.date}-${point.value}`} className="player-value-source-row">
                     <div className="player-value-source-row-main">
                       <span>{formatTimelineDate(point.date)}</span>
                       <strong>{formatValueLens(point.value)}</strong>
-                      <em>{point.rank || 'No rank'}</em>
+                      <em>{formatTimelineRank(point)}</em>
                     </div>
                     <p>{formatTimelineSources(point.sources)}</p>
                     <div className="player-value-source-grid">
@@ -1761,6 +1836,28 @@ function TimelineMetric({ label, value, note }: { label: string; value: string; 
       <strong>{value}</strong>
       <em>{note}</em>
     </div>
+  );
+}
+
+function TimelineExtremeCard({
+  label,
+  point,
+  tone,
+}: {
+  label: string;
+  point: TimelinePoint | null;
+  tone: 'high' | 'low';
+}) {
+  return (
+    <article className={`player-value-extreme-card player-value-extreme-card-${tone}`}>
+      <span>{label}</span>
+      <strong>{point ? formatValueLens(point.value) : '-'}</strong>
+      <em>
+        {point
+          ? `${formatTimelineDateWithYear(point.date)} / ${formatTimelineRank(point)}`
+          : 'No historical point'}
+      </em>
+    </article>
   );
 }
 

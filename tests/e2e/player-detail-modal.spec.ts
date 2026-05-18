@@ -50,6 +50,104 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
       seasonValue: 5000,
       sources: ['Current-season model', 'FantasyPros Season', 'FantasyCalc Redraft'],
     },
+    valueTimeline: {
+      profileKey: '12_sf_ppr_base',
+      source: 'historical-value-index',
+      selectedWindow: '6m',
+      availableWindows: [
+        { key: '3m', label: '3M', days: 92, pointCount: 3, startDate: '2026-02-17', endDate: '2026-05-17', startValue: 4300, endValue: 5200, delta: 900, deltaPct: 20.9 },
+        { key: '6m', label: '6M', days: 183, pointCount: 4, startDate: '2025-11-17', endDate: '2026-05-17', startValue: 3900, endValue: 5200, delta: 1300, deltaPct: 33.3 },
+        { key: 'all', label: 'All', days: null, pointCount: 5, startDate: '2024-09-01', endDate: '2026-05-17', startValue: 2800, endValue: 5200, delta: 2400, deltaPct: 85.7 },
+      ],
+      windows: {
+        '3m': {
+          key: '3m',
+          label: '3M',
+          days: 92,
+          pointCount: 3,
+          startDate: '2026-02-17',
+          endDate: '2026-05-17',
+          startValue: 4300,
+          endValue: 5200,
+          delta: 900,
+          deltaPct: 20.9,
+          points: [
+            { date: '2026-02-17', value: 4300, rank: 'RB9', overallRank: 42, sources: ['marketKtc'], sourceCount: 1 },
+            { date: '2026-04-01', value: 4800, rank: 'RB7', overallRank: 35, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+            { date: '2026-05-17', value: 5200, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+          ],
+        },
+        '6m': {
+          key: '6m',
+          label: '6M',
+          days: 183,
+          pointCount: 4,
+          startDate: '2025-11-17',
+          endDate: '2026-05-17',
+          startValue: 3900,
+          endValue: 5200,
+          delta: 1300,
+          deltaPct: 33.3,
+          points: [
+            { date: '2025-11-17', value: 3900, rank: 'RB14', overallRank: 58, sources: ['marketKtc'], sourceCount: 1 },
+            { date: '2026-02-17', value: 4300, rank: 'RB9', overallRank: 42, sources: ['marketKtc'], sourceCount: 1 },
+            { date: '2026-04-01', value: 4800, rank: 'RB7', overallRank: 35, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+            { date: '2026-05-17', value: 5200, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+          ],
+        },
+        all: {
+          key: 'all',
+          label: 'All',
+          days: null,
+          pointCount: 5,
+          startDate: '2024-09-01',
+          endDate: '2026-05-17',
+          startValue: 2800,
+          endValue: 5200,
+          delta: 2400,
+          deltaPct: 85.7,
+          points: [
+            { date: '2024-09-01', value: 2800, rank: 'RB28', overallRank: 122, sources: ['marketKtc'], sourceCount: 1 },
+            { date: '2025-05-01', value: 3400, rank: 'RB19', overallRank: 74, sources: ['marketKtc'], sourceCount: 1 },
+            { date: '2025-11-17', value: 3900, rank: 'RB14', overallRank: 58, sources: ['marketKtc'], sourceCount: 1 },
+            { date: '2026-04-01', value: 4800, rank: 'RB7', overallRank: 35, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+            { date: '2026-05-17', value: 5200, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+          ],
+        },
+      },
+      extremes: {
+        high: { date: '2026-05-17', value: 5200, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+        low: { date: '2024-09-01', value: 2800, rank: 'RB28', overallRank: 122, sources: ['marketKtc'], sourceCount: 1 },
+      },
+      yearlyExtremes: [
+        {
+          year: '2025',
+          high: { date: '2025-11-17', value: 3900, rank: 'RB14', overallRank: 58, sources: ['marketKtc'], sourceCount: 1 },
+          low: { date: '2025-05-01', value: 3400, rank: 'RB19', overallRank: 74, sources: ['marketKtc'], sourceCount: 1 },
+        },
+        {
+          year: '2026',
+          high: { date: '2026-05-17', value: 5200, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+          low: { date: '2026-02-17', value: 4300, rank: 'RB9', overallRank: 42, sources: ['marketKtc'], sourceCount: 1 },
+        },
+      ],
+      allTimePointCount: 5,
+      points: [
+        { date: '2025-11-17', value: 3900, rank: 'RB14', overallRank: 58, sources: ['marketKtc'], sourceCount: 1 },
+        { date: '2026-02-17', value: 4300, rank: 'RB9', overallRank: 42, sources: ['marketKtc'], sourceCount: 1 },
+        { date: '2026-04-01', value: 4800, rank: 'RB7', overallRank: 35, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+        { date: '2026-05-17', value: 5200, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+      ],
+      summary: {
+        startValue: 3900,
+        endValue: 5200,
+        delta: 1300,
+        deltaPct: 33.3,
+        sourceSetChanged: true,
+        eventCount: 0,
+        note: 'Historical value archive includes source coverage changes.',
+      },
+    },
   });
 
   Object.assign(player2, {
@@ -150,11 +248,24 @@ test.describe('player detail modal', () => {
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Latest News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('Why this fired')).toBeVisible();
-    await expect(dialog.getByText(/Draft capital: Round 1, pick 18/i)).toBeVisible();
-    await expect(dialog.getByText('Runway 90%')).toBeVisible();
+    await expect(dialog.getByText('Why this fired').first()).toBeVisible();
+    await expect(dialog.getByText(/Draft capital: Round 1, pick 18/i).first()).toBeVisible();
+    await expect(dialog.getByText('Runway 90%').first()).toBeVisible();
     await expect(dialog.locator('p').filter({ hasText: 'Availability: 2025: 14 GP' }).first()).toBeVisible();
     await expect(dialog.getByText('AVAILABLE')).toHaveCount(0);
+
+    await dialog.getByRole('button', { name: /Open Sample Starter value timeline detail/i }).click();
+    const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Stored Value Timeline' });
+    await expect(timelineDialog.getByRole('tab', { name: /3M/i })).toBeVisible();
+    await expect(timelineDialog.getByRole('tab', { name: /6M/i })).toHaveAttribute('aria-selected', 'true');
+    await expect(timelineDialog.getByText('All-Time Range')).toBeVisible();
+    await expect(timelineDialog.getByText('Highest')).toBeVisible();
+    await expect(timelineDialog.getByText('May 17, 2026 / RB5')).toBeVisible();
+    await timelineDialog.getByRole('tab', { name: /All/i }).click();
+    await expect(timelineDialog.getByRole('tab', { name: /All/i })).toHaveAttribute('aria-selected', 'true');
+    await expect(timelineDialog.getByText('Sep 1').first()).toBeVisible();
+    await timelineDialog.getByRole('button', { name: /Close Sample Starter value timeline detail/i }).click();
+    await expect(timelineDialog).toHaveCount(0);
 
     const newsLink = dialog.locator('a[href="https://example.com/news/travis-etienne-saints"]');
     await expect(newsLink).toHaveAttribute('target', '_blank');
