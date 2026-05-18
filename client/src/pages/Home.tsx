@@ -261,6 +261,9 @@ type NavigatorPerformanceHints = Navigator & {
 
 function shouldRenderSuccessCard3D() {
   if (typeof window === "undefined") return false;
+  if (new URLSearchParams(window.location.search).get("preview") === "success") {
+    return true;
+  }
   const navigatorHints = window.navigator as NavigatorPerformanceHints;
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
     return false;
