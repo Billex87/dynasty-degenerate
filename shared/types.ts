@@ -948,6 +948,7 @@ export interface PlayerDetails {
         fantasyProsDynasty?: number | null;
         dynastyProcess?: number | null;
         dynastyNerds?: number | null;
+        fantasyNerds?: number | null;
         flockFantasy?: number | null;
       }>;
     }>>;
@@ -1007,6 +1008,7 @@ export interface PlayerDetails {
       fantasyProsDynasty?: number | null;
       dynastyProcess?: number | null;
       dynastyNerds?: number | null;
+      fantasyNerds?: number | null;
       flockFantasy?: number | null;
     }>;
     summary: {

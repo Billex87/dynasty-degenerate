@@ -32,7 +32,7 @@ import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueRepor
 import { loadReportStaticInputs } from "./reportStaticInputs";
 import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
 import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
-import { buildPlayerValueTimelineMap, loadStoredValueTimelineSnapshotsForPlayers, slimPlayerValueTimelineForReport } from "./playerValueTimeline";
+import { buildPlayerValueTimelineMap, getPlayerValueTimelineForPlayer, loadStoredValueTimelineSnapshotsForPlayers, slimPlayerValueTimelineForReport } from "./playerValueTimeline";
 import { getRedraftValueTimelineForPlayer } from "./redraftValueTimeline";
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
@@ -77,6 +77,7 @@ const sleeperLeagueIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter
 const sleeperUserIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a valid Sleeper user ID');
 const sleeperUsernameSchema = z.string().trim().min(1).max(64);
 const sleeperAuthTokenSchema = z.string().trim().min(1).max(4096);
+const valueTimelineWindowSchema = z.enum(['1m', '3m', '6m', '1y', 'all']);
 const actionPlanSchema = z.object({
   id: z.string().min(1).max(256),
   kind: z.enum(["lineup", "waiver", "trade"]),
@@ -5199,6 +5200,45 @@ export const appRouter = router({
 
         return {
           timeline: getRedraftValueTimelineForPlayer(input.playerName),
+        };
+      }),
+    valueTimeline: publicProcedure
+      .input(z.object({
+        leagueId: sleeperLeagueIdSchema.optional(),
+        playerName: z.string().trim().min(1).max(120),
+        valueProfileKey: z.string().trim().min(1).max(120).default('12_sf_ppr_base'),
+        leagueValueMode: z.enum(['dynasty', 'keeper']).default('dynasty'),
+        selectedWindow: valueTimelineWindowSchema.optional(),
+      }))
+      .query(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'players.valueTimeline',
+          max: 80,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId || input.playerName,
+          message: 'Too many player value timeline requests. Please wait a few minutes and try again.',
+        });
+
+        const playerId = '__player__';
+        const recentStoredSnapshots = await loadStoredValueTimelineSnapshotsForPlayers({
+          playerIds: [playerId],
+          players: {
+            [playerId]: {
+              full_name: input.playerName,
+            },
+          },
+          valueProfileKey: input.valueProfileKey,
+        });
+
+        return {
+          timeline: getPlayerValueTimelineForPlayer({
+            playerName: input.playerName,
+            valueProfileKey: input.valueProfileKey,
+            leagueValueMode: input.leagueValueMode,
+            selectedWindow: input.selectedWindow,
+            recentStoredSnapshots,
+          }),
         };
       }),
     seasonGameLog: publicProcedure

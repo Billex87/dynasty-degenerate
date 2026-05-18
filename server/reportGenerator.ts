@@ -2463,6 +2463,65 @@ function isWeeklyMomentumPlayerEligible(player: {
   return true;
 }
 
+function positiveNumber(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function getWeeklyMomentumSourceValue(row: KTCValues[string], source: keyof ReturnType<typeof getDynastySourceWeights>): number | null {
+  if (source === 'ktc') return positiveNumber(row.market_value_ktc);
+  if (source === 'fantasyCalc') return positiveNumber(row.market_value_fantasycalc);
+  if (source === 'fantasyPros') return positiveNumber(row.expert_value_fantasypros);
+  if (source === 'dynastyProcess') return positiveNumber(row.expert_value_dynastyprocess);
+  if (source === 'dynastyNerds') return positiveNumber(row.expert_value_dynastynerds);
+  if (source === 'fantasyNerds') return positiveNumber(row.expert_value_fantasynerds);
+  if (source === 'flock') return positiveNumber(row.expert_value_flock);
+  return null;
+}
+
+function getStableWeeklyMomentumValues(input: {
+  currentRow: KTCValues[string] | null;
+  baselineRow: KTCValues[string] | null;
+  currentFallback: number;
+  baselineFallback: number;
+  sourceWeights: ReturnType<typeof getDynastySourceWeights>;
+}): { currentValue: number; baselineValue: number; sourceCount: number; sourceSetChanged: boolean } {
+  const sourceKeys = Object.keys(input.sourceWeights) as Array<keyof ReturnType<typeof getDynastySourceWeights>>;
+  const commonSources = input.currentRow && input.baselineRow
+    ? sourceKeys.flatMap((source) => {
+      const currentValue = getWeeklyMomentumSourceValue(input.currentRow as KTCValues[string], source);
+      const baselineValue = getWeeklyMomentumSourceValue(input.baselineRow as KTCValues[string], source);
+      const weight = Number(input.sourceWeights[source] || 0);
+      if (!currentValue || !baselineValue || weight <= 0) return [];
+      return [{ source, currentValue, baselineValue, weight }];
+    })
+    : [];
+
+  if (!commonSources.length) {
+    return {
+      currentValue: input.currentFallback,
+      baselineValue: input.baselineFallback,
+      sourceCount: 0,
+      sourceSetChanged: false,
+    };
+  }
+
+  const totalWeight = commonSources.reduce((sum, row) => sum + row.weight, 0) || 1;
+  const currentValue = Math.round(commonSources.reduce((sum, row) => sum + row.currentValue * row.weight, 0) / totalWeight);
+  const baselineValue = Math.round(commonSources.reduce((sum, row) => sum + row.baselineValue * row.weight, 0) / totalWeight);
+  const currentSources = new Set((input.currentRow?.value_sources || []).map((source) => source.toLowerCase()));
+  const baselineSources = new Set((input.baselineRow?.value_sources || []).map((source) => source.toLowerCase()));
+  const sourceSetChanged = currentSources.size !== baselineSources.size
+    || Array.from(currentSources).some((source) => !baselineSources.has(source));
+
+  return {
+    currentValue,
+    baselineValue,
+    sourceCount: commonSources.length,
+    sourceSetChanged,
+  };
+}
+
 function getNeedPosition({
   qbs,
   rbs,
@@ -2609,12 +2668,18 @@ export async function generateReport(
     ppr: getScoringNumber(currentSeasonData.scoringSettings, 'rec'),
     tep: getTightEndPremium(currentSeasonData.scoringSettings),
   });
+  const weeklyMomentumSourceWeights = getDynastySourceWeights({
+    numQbs: normalizeNumQbsForDiagnostics(lineupProfile),
+    ppr: getScoringNumber(currentSeasonData.scoringSettings, 'rec'),
+    tep: getTightEndPremium(currentSeasonData.scoringSettings),
+  });
   const seasonPositionRankById = buildSeasonPositionRanks(
     currentSeasonData.rosters.flatMap(getRosterPlayerIds),
     allPlayers,
     ktcValues
   );
   const primarySnapshotValueCache = new WeakMap<KTCValues, Map<string, number>>();
+  const primarySnapshotRowCache = new WeakMap<KTCValues, Map<string, KTCValues[string] | null>>();
   const primaryRankCache = new Map<string, string | null>();
   const redraftValueCache = new Map<string, number>();
   const redraftOnlyValueCache = new Map<string, number>();
@@ -2675,6 +2740,34 @@ export async function generateReport(
       snapshotCache.set(pid, value);
     }
     return snapshotCache.get(pid) || 0;
+  };
+  const getPrimarySnapshotRow = (pid: string, snapshot: KTCValues): KTCValues[string] | null => {
+    let snapshotCache = primarySnapshotRowCache.get(snapshot);
+    if (!snapshotCache) {
+      snapshotCache = new Map();
+      primarySnapshotRowCache.set(snapshot, snapshotCache);
+    }
+    if (snapshotCache.has(pid)) return snapshotCache.get(pid) || null;
+
+    const playerName = getCachedPlayerName(pid);
+    const variants = Array.from(new Set(playerNameKeyVariants(cleanName(playerName)).map(cleanName).filter(Boolean)));
+    let best: { row: KTCValues[string]; score: number } | null = null;
+    for (const [candidateKey, row] of Object.entries(snapshot || {})) {
+      const candidateKeys = [
+        candidateKey,
+        row.name,
+        ...playerNameKeyVariants(cleanName(candidateKey)),
+        ...playerNameKeyVariants(cleanName(row.name || '')),
+      ].map(cleanName).filter(Boolean);
+      if (!candidateKeys.some((key) => variants.includes(key))) continue;
+      const sourceScore = (row.value_sources?.length || 0) * 100000;
+      const valueScore = Number(row.dynasty_value ?? row.ktc_value ?? row.true_value ?? row.redraft_value ?? 0);
+      const score = sourceScore + valueScore;
+      if (!best || score > best.score) best = { row, score };
+    }
+
+    snapshotCache.set(pid, best?.row || null);
+    return best?.row || null;
   };
   const getPrimaryValue = (pid: string) => {
     return getPrimarySnapshotValue(pid, ktcValues);
@@ -2812,8 +2905,17 @@ export async function generateReport(
       const p2027 = projectValue(val, pos, age, 1);
       v2027 += p2027;
 
-      const currentWeeklyVal = getPrimarySnapshotValue(pid, ktcValues);
-      const lastWeekVal = getPrimarySnapshotValue(pid, ktcValuesLastWeek);
+      const currentFallbackWeeklyVal = getPrimarySnapshotValue(pid, ktcValues);
+      const lastWeekFallbackVal = getPrimarySnapshotValue(pid, ktcValuesLastWeek);
+      const weeklyComparison = getStableWeeklyMomentumValues({
+        currentRow: getPrimarySnapshotRow(pid, ktcValues),
+        baselineRow: getPrimarySnapshotRow(pid, ktcValuesLastWeek),
+        currentFallback: currentFallbackWeeklyVal,
+        baselineFallback: lastWeekFallbackVal,
+        sourceWeights: weeklyMomentumSourceWeights,
+      });
+      const currentWeeklyVal = weeklyComparison.currentValue;
+      const lastWeekVal = weeklyComparison.baselineValue;
       if (currentWeeklyVal > 0 && lastWeekVal > 0) {
         const pct_change = getWeeklyMomentumPctChange(currentWeeklyVal, lastWeekVal);
         const currentPositionRank = getPrimaryRank(pid);

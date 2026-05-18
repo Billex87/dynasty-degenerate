@@ -71,14 +71,26 @@ async function fetchShard(shardKey: string): Promise<StaticTimelineShard | null>
   if (typeof fetch !== 'function') return null;
   const baseUrl = getShardBaseUrl();
   const cacheKey = `${baseUrl}:${shardKey}`;
-  if (!shardCache.has(cacheKey)) {
-    shardCache.set(cacheKey, fetch(`${baseUrl}/${shardKey}.json`, {
-      cache: 'force-cache',
+  const cached = shardCache.get(cacheKey);
+  if (cached) return cached;
+
+  const request = fetch(`${baseUrl}/${shardKey}.json`, {
+    cache: 'no-cache',
+  })
+    .then(response => {
+      if (!response.ok) {
+        shardCache.delete(cacheKey);
+        return null;
+      }
+      return response.json() as Promise<StaticTimelineShard>;
     })
-      .then(response => response.ok ? response.json() as Promise<StaticTimelineShard> : null)
-      .catch(() => null));
-  }
-  return shardCache.get(cacheKey) || null;
+    .catch(() => {
+      shardCache.delete(cacheKey);
+      return null;
+    });
+
+  shardCache.set(cacheKey, request);
+  return request;
 }
 
 function findPlayerInShard(shard: StaticTimelineShard | null, playerName: string) {

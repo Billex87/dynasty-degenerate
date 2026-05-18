@@ -76,6 +76,9 @@ const allWindow = {
       overallRank: 212,
       sources: ['fantasyPros', 'flockFantasy'],
       sourceCount: 2,
+      marketKtc: 850,
+      fantasyNerds: 875,
+      flockFantasy: 950,
     },
   ],
 };
@@ -129,13 +132,14 @@ describe('loadStaticPlayerValueTimeline', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith('/assets/value-history/player-value-history-shards/ma.json', {
-      cache: 'force-cache',
+      cache: 'no-cache',
     });
     expect(timeline?.source).toBe('historical-value-index');
     expect(timeline?.points).toHaveLength(3);
     expect(timeline?.windows?.all?.points[2].events?.[0]?.label).toBe('Room opened');
     expect(timeline?.summary.note).toBe('Fallback report note.');
     expect(timeline?.availableWindows?.map((window) => window.key)).toEqual(['1m', '3m', '6m', '1y', 'all']);
+    expect(timeline?.points[2]).toMatchObject({ marketKtc: 850, fantasyNerds: 875, flockFantasy: 950 });
     expect(timeline?.extremes?.high?.date).toBe('2026-05-17');
     expect(timeline?.yearlyExtremes?.[0]?.high?.value).toBe(900);
   });
@@ -149,5 +153,46 @@ describe('loadStaticPlayerValueTimeline', () => {
     });
 
     expect(timeline).toBeNull();
+  });
+
+  it('retries a shard after a missing response instead of caching the miss', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          players: {
+            retryplayer: {
+              key: 'retryplayer',
+              name: 'Retry Player',
+              position: 'WR',
+              lookupKeys: ['retryplayer'],
+              formats: {
+                sf_ppr: {
+                  format: 'sf_ppr',
+                  rawPointCount: 3,
+                  windows: {
+                    all: allWindow,
+                  },
+                },
+              },
+            },
+          },
+        }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await loadStaticPlayerValueTimeline({
+      playerName: 'Retry Player',
+      valueProfileKey: '12_sf_ppr_base',
+    })).toBeNull();
+
+    const timeline = await loadStaticPlayerValueTimeline({
+      playerName: 'Retry Player',
+      valueProfileKey: '12_sf_ppr_base',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(timeline?.source).toBe('historical-value-index');
   });
 });

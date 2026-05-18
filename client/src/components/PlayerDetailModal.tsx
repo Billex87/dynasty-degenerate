@@ -219,6 +219,22 @@ export function PlayerDetailModal({
     }
   );
   const queryValueMode = inferPlayerModalValueMode(pick, queryDetails);
+  const dynastyTimelineProfileKey = queryDetails?.valueTimeline?.profileKey || '12_sf_ppr_base';
+  const dynastyTimelineSelectedWindow = queryDetails?.valueTimeline?.selectedWindow;
+  const { data: dynastyTimelineData, isFetching: isDynastyTimelineFetching } = trpc.players.valueTimeline.useQuery(
+    {
+      leagueId: leagueId || undefined,
+      playerName: pick?.playerName || '',
+      valueProfileKey: dynastyTimelineProfileKey,
+      leagueValueMode: 'dynasty',
+      selectedWindow: dynastyTimelineSelectedWindow || undefined,
+    },
+    {
+      enabled: isOpen && queryValueMode !== 'redraft' && Boolean(pick?.playerName) && !queryIsCollegeProspect && Boolean(queryDetails?.valueTimeline),
+      staleTime: 1000 * 60 * 30,
+      refetchOnWindowFocus: false,
+    }
+  );
   const { data: redraftTimelineData, isFetching: isRedraftTimelineFetching } = trpc.players.redraftValueTimeline.useQuery(
     {
       leagueId: leagueId || undefined,
@@ -292,6 +308,7 @@ export function PlayerDetailModal({
   const valueProfile = details?.valueProfile;
   const valueMode = queryValueMode;
   const isRedraftValueMode = valueMode === 'redraft';
+  const serverDynastyValueTimeline = (dynastyTimelineData?.timeline || null) as PlayerValueTimeline | null;
   const redraftValueTimeline = (redraftTimelineData?.timeline || null) as RedraftValueTimelineData | null;
   const draftKindLabel = (pick.round !== undefined || pick.pick !== undefined || pick.draftKind || pick.draftPickCount)
     ? getDraftKindLabel(getDraftKind(pick, valueMode))
@@ -1013,6 +1030,8 @@ export function PlayerDetailModal({
                         leagueValueMode={valueMode}
                         title="Dynasty Value Trend"
                         detailTitle="Dynasty Value Timeline"
+                        serverTimeline={serverDynastyValueTimeline}
+                        isServerHydrating={isDynastyTimelineFetching}
                       />
                     )}
                     {shouldShowRedraftTimeline && (
@@ -1579,6 +1598,7 @@ const timelineSourceFields = [
   { key: 'fantasyProsDynasty', label: 'FantasyPros', color: '#fbbf24' },
   { key: 'dynastyProcess', label: 'DynastyProcess', color: '#34d399' },
   { key: 'dynastyNerds', label: 'Dynasty Nerds', color: '#60a5fa' },
+  { key: 'fantasyNerds', label: 'Fantasy Nerds', color: '#f472b6' },
   { key: 'flockFantasy', label: 'Flock', color: '#fb7185' },
 ] as const;
 
@@ -1678,19 +1698,102 @@ function buildPositionRankChartPoints(points: TimelinePoint[]) {
   });
 }
 
+function getTimelineHistoryScore(timeline?: PlayerValueTimeline | null) {
+  if (!timeline) return 0;
+  const windowPointCount = Math.max(
+    0,
+    ...Object.values(timeline.windows || {}).map((window) => window.pointCount || window.points?.length || 0)
+  );
+  return Math.max(timeline.allTimePointCount || 0, windowPointCount, timeline.points?.length || 0);
+}
+
+function getTimelineAvailableWindowCount(timeline?: PlayerValueTimeline | null) {
+  if (!timeline) return 0;
+  return Object.values(timeline.windows || {}).filter((window) => (window.points?.length || 0) >= 2).length;
+}
+
+function mergeFallbackTimelineEvents(candidate: PlayerValueTimeline, fallback: PlayerValueTimeline) {
+  const fallbackPoint = fallback.points.at(-1);
+  const fallbackEvents = fallbackPoint?.events || [];
+  if (!fallbackEvents.length) return candidate;
+
+  const mergeEventsIntoPoints = (points: TimelinePoint[]) => {
+    if (!points.length) return points;
+    const targetIndex = fallbackPoint?.date
+      ? points.findIndex((point) => point.date === fallbackPoint.date)
+      : -1;
+    const eventIndex = targetIndex >= 0 ? targetIndex : points.length - 1;
+    return points.map((point, index) => (
+      index === eventIndex
+        ? { ...point, events: point.events?.length ? point.events : fallbackEvents }
+        : point
+    ));
+  };
+
+  const windows = candidate.windows
+    ? Object.fromEntries(
+      Object.entries(candidate.windows).map(([key, window]) => [
+        key,
+        {
+          ...window,
+          points: mergeEventsIntoPoints(window.points || []),
+        },
+      ])
+    ) as PlayerValueTimeline['windows']
+    : candidate.windows;
+
+  return {
+    ...candidate,
+    points: mergeEventsIntoPoints(candidate.points),
+    windows,
+    summary: {
+      ...candidate.summary,
+      eventCount: Math.max(candidate.summary.eventCount || 0, fallback.summary.eventCount || fallbackEvents.length),
+    },
+  };
+}
+
+function getPreferredValueTimeline(
+  candidate: PlayerValueTimeline | null | undefined,
+  fallback: PlayerValueTimeline
+) {
+  if (!candidate?.points?.length) return fallback;
+  const candidateWindowCount = getTimelineAvailableWindowCount(candidate);
+  const fallbackWindowCount = getTimelineAvailableWindowCount(fallback);
+  if (candidateWindowCount > fallbackWindowCount) return mergeFallbackTimelineEvents(candidate, fallback);
+
+  const candidateScore = getTimelineHistoryScore(candidate);
+  const fallbackScore = getTimelineHistoryScore(fallback);
+  if (candidateScore > fallbackScore) return mergeFallbackTimelineEvents(candidate, fallback);
+
+  if (candidate.source === 'historical-value-index' && fallback.source !== 'historical-value-index' && candidateScore >= fallbackScore) {
+    return mergeFallbackTimelineEvents(candidate, fallback);
+  }
+
+  return fallback;
+}
+
 function useHydratedValueTimeline({
   enabled,
   playerName,
   timeline,
   leagueValueMode,
+  serverTimeline,
+  isServerHydrating = false,
 }: {
   enabled: boolean;
   playerName: string;
   timeline: NonNullable<PlayerDetails['valueTimeline']>;
   leagueValueMode?: LeagueValueMode;
+  serverTimeline?: PlayerValueTimeline | null;
+  isServerHydrating?: boolean;
 }) {
   const [hydratedTimeline, setHydratedTimeline] = useState<NonNullable<PlayerDetails['valueTimeline']> | null>(null);
   const [isHydrating, setIsHydrating] = useState(false);
+  const fallbackTimeline = useMemo(
+    () => getPreferredValueTimeline(serverTimeline, timeline),
+    [serverTimeline, timeline]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1706,10 +1809,10 @@ function useHydratedValueTimeline({
     setIsHydrating(true);
     loadStaticPlayerValueTimeline({
       playerName,
-      valueProfileKey: timeline.profileKey,
+      valueProfileKey: fallbackTimeline.profileKey,
       leagueValueMode: leagueValueMode === 'redraft' ? 'redraft' : 'dynasty',
-      selectedWindow: timeline.selectedWindow,
-      fallbackTimeline: timeline,
+      selectedWindow: fallbackTimeline.selectedWindow,
+      fallbackTimeline,
     })
       .then((nextTimeline) => {
         if (!cancelled) setHydratedTimeline(nextTimeline);
@@ -1721,9 +1824,12 @@ function useHydratedValueTimeline({
     return () => {
       cancelled = true;
     };
-  }, [enabled, leagueValueMode, playerName, timeline]);
+  }, [enabled, fallbackTimeline, leagueValueMode, playerName]);
 
-  return { timeline: hydratedTimeline || timeline, isHydrating };
+  return {
+    timeline: getPreferredValueTimeline(hydratedTimeline, fallbackTimeline),
+    isHydrating: isHydrating || isServerHydrating,
+  };
 }
 
 function redraftScopeToTimeline(scope: RedraftValueTimelineScope): PlayerValueTimeline {
@@ -1875,6 +1981,8 @@ function PlayerValueTimelineCard({
   detailTitle = 'Value Timeline',
   detailDescription,
   disableStaticHydration = false,
+  serverTimeline,
+  isServerHydrating = false,
 }: {
   timeline: PlayerValueTimeline;
   playerName: string;
@@ -1886,25 +1994,33 @@ function PlayerValueTimelineCard({
   detailTitle?: string;
   detailDescription?: string;
   disableStaticHydration?: boolean;
+  serverTimeline?: PlayerValueTimeline | null;
+  isServerHydrating?: boolean;
 }) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const displayTimeline = useMemo(
+    () => getPreferredValueTimeline(serverTimeline, timeline),
+    [serverTimeline, timeline]
+  );
   const hydrated = useHydratedValueTimeline({
     enabled: isDetailOpen && !disableStaticHydration,
     playerName,
-    timeline,
+    timeline: displayTimeline,
     leagueValueMode,
+    serverTimeline,
+    isServerHydrating,
   });
-  const firstPoint = timeline.points[0];
-  const lastPoint = timeline.points[timeline.points.length - 1];
-  const delta = timeline.summary.delta;
+  const firstPoint = displayTimeline.points[0];
+  const lastPoint = displayTimeline.points[displayTimeline.points.length - 1];
+  const delta = displayTimeline.summary.delta;
   const isPositive = (delta || 0) > 0;
   const isNegative = (delta || 0) < 0;
   const strokeColor = isPositive ? '#34d399' : isNegative ? '#fb7185' : tileAccent || teamColors?.accent || '#67e8f9';
-  const path = useMemo(() => buildTimelinePath(timeline.points, 260, 86), [timeline.points]);
+  const path = useMemo(() => buildTimelinePath(displayTimeline.points, 260, 86), [displayTimeline.points]);
   const deltaLabel = [
     formatValueDelta(delta),
-    timeline.summary.deltaPct !== null && timeline.summary.deltaPct !== undefined
-      ? `${timeline.summary.deltaPct > 0 ? '+' : ''}${timeline.summary.deltaPct}%`
+    displayTimeline.summary.deltaPct !== null && displayTimeline.summary.deltaPct !== undefined
+      ? `${displayTimeline.summary.deltaPct > 0 ? '+' : ''}${displayTimeline.summary.deltaPct}%`
       : null,
   ].filter(Boolean).join(' / ');
 
@@ -1958,19 +2074,19 @@ function PlayerValueTimelineCard({
             <line x1="8" y1="12" x2="252" y2="12" stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
             <path d={path} fill="none" stroke="rgba(15,23,42,0.85)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
             <path d={path} fill="none" stroke={strokeColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            {buildTimelineCoordinates(timeline.points, 260, 86).map((point, index) => (
+            {buildTimelineCoordinates(displayTimeline.points, 260, 86).map((point, index) => (
               <circle
-                key={`${timeline.points[index].date}-${timeline.points[index].value}`}
+                key={`${displayTimeline.points[index].date}-${displayTimeline.points[index].value}`}
                 cx={point.x}
                 cy={point.y}
-                r={index === 0 || index === timeline.points.length - 1 ? 3.5 : 2.2}
-                fill={index === timeline.points.length - 1 ? strokeColor : 'rgba(226,232,240,0.86)'}
+                r={index === 0 || index === displayTimeline.points.length - 1 ? 3.5 : 2.2}
+                fill={index === displayTimeline.points.length - 1 ? strokeColor : 'rgba(226,232,240,0.86)'}
               />
             ))}
           </svg>
           <div className="mt-1 flex items-center justify-between text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-400">
             <span>{formatTimelineDate(firstPoint.date)}</span>
-            <span>{timeline.points.length} pts</span>
+            <span>{displayTimeline.points.length} pts</span>
             <span>{formatTimelineDate(lastPoint.date)}</span>
           </div>
         </div>
@@ -1979,7 +2095,7 @@ function PlayerValueTimelineCard({
           <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-1 text-cyan-100">
             {lastPoint.sourceCount} sources
           </span>
-          {timeline.summary.sourceSetChanged && (
+          {displayTimeline.summary.sourceSetChanged && (
             <span className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-1 text-amber-100">
               source mix changed
             </span>
@@ -1999,7 +2115,7 @@ function PlayerValueTimelineCard({
           </div>
         ) : null}
         <p className="mt-2 text-xs leading-relaxed text-slate-400">
-          {timeline.summary.note}
+          {displayTimeline.summary.note}
         </p>
       </button>
 

@@ -1,11 +1,11 @@
 export const DEFAULT_VALUE_HISTORY_WEIGHTS = {
-  marketKtc: 0.19,
-  fantasyCalc: 0.15,
-  fantasyPros: 0.06,
-  dynastyProcess: 0.05,
-  dynastyNerds: 0.23,
-  fantasyNerds: 0.07,
-  flockFantasy: 0.25,
+  marketKtc: 0.248,
+  fantasyCalc: 0.181,
+  fantasyPros: 0.033,
+  dynastyProcess: 0.053,
+  dynastyNerds: 0.228,
+  fantasyNerds: 0.069,
+  flockFantasy: 0.188,
 };
 
 export const VALUE_HISTORY_SOURCES = [

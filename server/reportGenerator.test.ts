@@ -753,6 +753,66 @@ describe('generateReport trade ledger', () => {
     });
   });
 
+  it('compares weekly momentum on sources present in both snapshots', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        trades: [],
+        rosterMap: { 1: 'Manager A' },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['sourceNoise', 'realMove'] },
+        ],
+      },
+      null,
+      {
+        sourceNoise: { first_name: 'Source', last_name: 'Noise', position: 'WR', age: 25 },
+        realMove: { first_name: 'Real', last_name: 'Move', position: 'RB', age: 24 },
+      },
+      {
+        sourcenoise: {
+          name: 'Source Noise',
+          ktc_value: 2000,
+          dynasty_value: 2000,
+          market_value_ktc: 1000,
+          expert_value_flock: 5000,
+          value_sources: ['KTC', 'FlockFantasy'],
+        },
+        realmove: {
+          name: 'Real Move',
+          ktc_value: 1400,
+          dynasty_value: 1400,
+          market_value_ktc: 1400,
+          value_sources: ['KTC'],
+        },
+      },
+      {
+        sourcenoise: {
+          name: 'Source Noise',
+          ktc_value: 1000,
+          dynasty_value: 1000,
+          market_value_ktc: 1000,
+          value_sources: ['KTC'],
+        },
+        realmove: {
+          name: 'Real Move',
+          ktc_value: 1000,
+          dynasty_value: 1000,
+          market_value_ktc: 1000,
+          value_sources: ['KTC'],
+        },
+      }
+    );
+
+    expect(report.weeklyRisers.map((player) => player.name)).toEqual(['Real Move']);
+    expect(report.weeklyRisers[0]).toMatchObject({
+      val_last: 1000,
+      val_now: 1400,
+      diff: 400,
+    });
+    expect(JSON.stringify(report.weeklyRisers)).not.toContain('Source Noise');
+    expect(JSON.stringify(report.weeklyFallers)).not.toContain('Source Noise');
+  });
+
   it('does not surface fringe tight ends in weekly momentum rows', async () => {
     const report = await generateReport(
       {

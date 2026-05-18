@@ -13,7 +13,7 @@ vi.mock('./ktcLoader', () => ({
   loadLocalKtcSnapshotForDate: mocks.loadLocalKtcSnapshotForDate,
 }));
 
-import { buildPlayerValueTimelineMap, getHistoricalPlayerValueAtDate } from './playerValueTimeline';
+import { buildPlayerValueTimelineMap, getHistoricalPlayerValueAtDate, getPlayerValueTimelineForPlayer } from './playerValueTimeline';
 
 describe('player value timeline', () => {
   it('builds compact stored snapshot timelines and flags source-set changes', () => {
@@ -250,6 +250,19 @@ describe('player value timeline', () => {
       value: 1700,
       valueDate: '2026-04-01',
       daysAway: 1,
+    });
+    expect(getPlayerValueTimelineForPlayer({
+      playerName: 'Malachi Fields',
+      valueProfileKey: '12_sf_ppr_base',
+      selectedWindow: 'all',
+    })).toMatchObject({
+      source: 'historical-value-index',
+      selectedWindow: 'all',
+      allTimePointCount: 3,
+      summary: {
+        startValue: 1100,
+        endValue: 1700,
+      },
     });
 
     process.env.USE_VALUE_TIMELINE_INDEX = previousUseIndex;

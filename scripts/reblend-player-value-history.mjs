@@ -12,8 +12,21 @@ const outputPath = process.env.OUT_FILE
   : path.join(rootDir, 'server', 'value-history-archive', 'player-value-history-reblended.json');
 const weightSpec = process.env.WEIGHTS || '';
 const blendName = process.env.BLEND_NAME || 'ad-hoc-reblend';
+const sourceMaturityRampDays = Number(process.env.SOURCE_MATURITY_RAMP_DAYS || 90);
+const sourceMaturityMinFactor = Number(process.env.SOURCE_MATURITY_MIN_FACTOR || 0.15);
+const rankNormalizationWeight = Number(process.env.HISTORICAL_RANK_NORMALIZATION_WEIGHT || 1);
+const rankCurveLookbackDays = Number(process.env.RANK_CURVE_LOOKBACK_DAYS || 21);
 
 const defaultWeights = getDefaultValueHistoryWeights();
+const SOURCE_VALUE_FIELDS = {
+  marketKtc: 'marketKtc',
+  fantasyCalc: 'fantasyCalcDynasty',
+  fantasyPros: 'fantasyProsDynasty',
+  dynastyProcess: 'dynastyProcess',
+  dynastyNerds: 'dynastyNerds',
+  fantasyNerds: 'fantasyNerds',
+  flockFantasy: 'flockFantasy',
+};
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log([
@@ -24,6 +37,10 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     '  OUT_FILE=server/value-history-archive/player-value-history-reblended.json',
     '  BLEND_NAME=2026-05-new-weights',
     '  WEIGHTS=\'{"marketKtc":0.16,"fantasyCalc":0.1,"fantasyPros":0.12,"dynastyProcess":0.02,"dynastyNerds":0.21,"fantasyNerds":0.07,"flockFantasy":0.32}\'',
+    '  SOURCE_MATURITY_RAMP_DAYS=90',
+    '  SOURCE_MATURITY_MIN_FACTOR=0.15',
+    '  HISTORICAL_RANK_NORMALIZATION_WEIGHT=1',
+    '  RANK_CURVE_LOOKBACK_DAYS=21',
     '',
     'The raw archive is not modified. This writes a derived blend that can be regenerated any time weights change.',
   ].join('\n'));
@@ -127,7 +144,138 @@ function getSourceValues(point) {
   };
 }
 
-function blendPoint(point, weights) {
+function daysBetween(startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00.000Z`).getTime();
+  const end = new Date(`${endDate}T00:00:00.000Z`).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0;
+  return Math.max(0, Math.round((end - start) / 86_400_000));
+}
+
+function dateMinusDays(dateKey, days) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildSourceFirstSeen(points) {
+  const firstSeen = new Map();
+  for (const point of points) {
+    const values = getSourceValues(point);
+    for (const [source, value] of Object.entries(values)) {
+      if (source === 'fallback' || !value) continue;
+      const key = `${point.format || 'default'}|${source}`;
+      const current = firstSeen.get(key);
+      if (!current || point.date < current) firstSeen.set(key, point.date);
+    }
+  }
+  return firstSeen;
+}
+
+function getSourceMaturityFactor(point, source, firstSeen, sourceCount) {
+  if (sourceCount <= 1 || sourceMaturityRampDays <= 0) return 1;
+  const firstDate = firstSeen.get(`${point.format || 'default'}|${source}`);
+  if (!firstDate) return 1;
+  const ageDays = daysBetween(firstDate, point.date);
+  if (ageDays >= sourceMaturityRampDays) return 1;
+  const minFactor = Math.max(0, Math.min(1, sourceMaturityMinFactor));
+  return minFactor + (1 - minFactor) * (ageDays / sourceMaturityRampDays);
+}
+
+function parsePositionRank(rank, fallbackPosition) {
+  const match = String(rank || '').toUpperCase().match(/\b(QB|RB|WR|TE)\s*([0-9]{1,3})\b/);
+  if (match) return { position: match[1], rank: Number(match[2]) };
+  const position = String(fallbackPosition || '').toUpperCase();
+  const overallRank = Number(rank);
+  if (['QB', 'RB', 'WR', 'TE'].includes(position) && Number.isFinite(overallRank) && overallRank > 0) {
+    return { position, rank: overallRank };
+  }
+  return null;
+}
+
+function median(values) {
+  const sorted = values.filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => a - b);
+  if (!sorted.length) return null;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function formatCurveKey(format, position) {
+  return `${format || 'default'}|${position}`;
+}
+
+function getCurveValue(curves, format, position, rank) {
+  const curve = curves?.get(formatCurveKey(format, position));
+  if (!curve) return null;
+  if (curve.has(rank)) return curve.get(rank);
+
+  for (let offset = 1; offset <= 5; offset += 1) {
+    const nearby = [
+      curve.get(rank - offset),
+      curve.get(rank + offset),
+    ].filter(Boolean);
+    const value = median(nearby);
+    if (value) return value;
+  }
+
+  return null;
+}
+
+function normalizeValueToRankCurve(point, blendedValue, rankCurves) {
+  if (!rankCurves || rankNormalizationWeight <= 0) return blendedValue;
+  const parsedRank = parsePositionRank(point.rank, point.position);
+  if (!parsedRank) return blendedValue;
+  const rankValue = getCurveValue(rankCurves, point.format, parsedRank.position, parsedRank.rank);
+  if (!rankValue) return blendedValue;
+  const weight = Math.max(0, Math.min(1, rankNormalizationWeight));
+  return Math.round((blendedValue * (1 - weight)) + (rankValue * weight));
+}
+
+function attachSourceValues(target, values) {
+  for (const [source, field] of Object.entries(SOURCE_VALUE_FIELDS)) {
+    const value = values[source];
+    if (value) target[field] = Math.round(value);
+  }
+  return target;
+}
+
+function buildRankCurvePoint(points, position) {
+  const sorted = points
+    .filter((point) => point?.date)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const latest = sorted.at(-1);
+  if (!latest) return null;
+
+  const startDate = dateMinusDays(latest.date, rankCurveLookbackDays);
+  const recent = sorted.filter((point) => point.date >= startDate);
+  const sourceValues = {};
+  for (const point of recent) {
+    const values = getSourceValues(point);
+    for (const [source, value] of Object.entries(values)) {
+      if (source === 'fallback' || !value) continue;
+      sourceValues[source] = value;
+    }
+  }
+
+  return {
+    ...latest,
+    position,
+    market: {
+      ktc: sourceValues.marketKtc || null,
+      fantasyCalc: sourceValues.fantasyCalc || null,
+    },
+    expert: {
+      fantasyPros: sourceValues.fantasyPros || null,
+      dynastyProcess: sourceValues.dynastyProcess || null,
+      dynastyNerds: sourceValues.dynastyNerds || null,
+      fantasyNerds: sourceValues.fantasyNerds || null,
+      flockFantasy: sourceValues.flockFantasy || null,
+    },
+    value: latest.value,
+    sourcePoints: Object.values(sourceValues).filter(Boolean).length || latest.sourcePoints || 1,
+  };
+}
+
+function blendPoint(point, weights, sourceFirstSeen, rankCurves) {
   const values = getSourceValues(point);
   const weighted = Object.entries(weights)
     .map(([source, weight]) => ({
@@ -147,27 +295,89 @@ function blendPoint(point, weights) {
       sourcePointCount: point.sourcePoints || 1,
       importedSources: point.importedSources || [],
     };
+    return attachSourceValues(fallbackPoint, values);
   }
 
-  const totalWeight = weighted.reduce((sum, row) => sum + row.weight, 0);
-  const value = weighted.reduce((sum, row) => sum + row.value * row.weight, 0) / totalWeight;
-  return {
+  const adjusted = weighted.map((row) => ({
+    ...row,
+    weight: row.weight * getSourceMaturityFactor(point, row.source, sourceFirstSeen, weighted.length),
+  })).filter((row) => row.weight > 0);
+  const rowsForBlend = adjusted.length ? adjusted : weighted;
+  const totalWeight = rowsForBlend.reduce((sum, row) => sum + row.weight, 0);
+  const value = rowsForBlend.reduce((sum, row) => sum + row.value * row.weight, 0) / totalWeight;
+  const normalizedValue = normalizeValueToRankCurve(point, Math.round(value), rankCurves);
+  const blendedPoint = {
     date: point.date,
     format: point.format || null,
-    value: Math.round(value),
-    sourceCount: weighted.length,
-    sourcesUsed: weighted.map((row) => row.source),
-    sourcePointCount: point.sourcePoints || weighted.length,
+    value: normalizedValue,
+    sourceCount: rowsForBlend.length,
+    sourcesUsed: rowsForBlend.map((row) => row.source),
+    sourcePointCount: point.sourcePoints || rowsForBlend.length,
     importedSources: point.importedSources || [],
     rank: point.rank || null,
     overallRank: point.overallRank || null,
   };
+  return attachSourceValues(blendedPoint, values);
 }
 
-async function* buildReblendedPlayers(filePath, weights, counters) {
+async function buildRankCurves(filePath, weights) {
+  const latestByPlayerFormat = [];
+
   for await (const player of streamArchivePlayers(filePath)) {
-    const points = aggregatePlayerPoints(player.points || [])
-      .map((point) => blendPoint(point, weights))
+    const aggregatedPoints = aggregatePlayerPoints(player.points || []).map((point) => ({
+      ...point,
+      position: player.position || null,
+    }));
+    const byFormat = new Map();
+
+    for (const point of aggregatedPoints) {
+      const rows = byFormat.get(point.format) || [];
+      rows.push(point);
+      byFormat.set(point.format, rows);
+    }
+
+    for (const [format, points] of byFormat) {
+      const rankCurvePoint = buildRankCurvePoint(points, player.position || null);
+      if (!rankCurvePoint) continue;
+      const blended = blendPoint(rankCurvePoint, weights, new Map(), null);
+      if (blended.value) latestByPlayerFormat.push({ ...rankCurvePoint, format, blendedValue: blended.value });
+    }
+  }
+
+  const rawCurves = new Map();
+  for (const point of latestByPlayerFormat) {
+    const parsedRank = parsePositionRank(point.rank, point.position);
+    if (!parsedRank || !point.blendedValue) continue;
+    const key = formatCurveKey(point.format, parsedRank.position);
+    const rows = rawCurves.get(key) || new Map();
+    const values = rows.get(parsedRank.rank) || [];
+    values.push(point.blendedValue);
+    rows.set(parsedRank.rank, values);
+    rawCurves.set(key, rows);
+  }
+
+  const curves = new Map();
+  for (const [key, rows] of rawCurves) {
+    const curve = new Map();
+    for (const [rank, values] of rows) {
+      const value = median(values);
+      if (value) curve.set(rank, Math.round(value));
+    }
+    curves.set(key, curve);
+  }
+
+  return curves;
+}
+
+async function* buildReblendedPlayers(filePath, weights, counters, rankCurves) {
+  for await (const player of streamArchivePlayers(filePath)) {
+    const aggregatedPoints = aggregatePlayerPoints(player.points || []).map((point) => ({
+      ...point,
+      position: player.position || null,
+    }));
+    const sourceFirstSeen = buildSourceFirstSeen(aggregatedPoints);
+    const points = aggregatedPoints
+      .map((point) => blendPoint(point, weights, sourceFirstSeen, rankCurves))
       .filter((point) => point.date && point.value)
       .sort((a, b) => a.date.localeCompare(b.date) || String(a.format || '').localeCompare(String(b.format || '')));
 
@@ -183,9 +393,9 @@ async function* buildReblendedPlayers(filePath, weights, counters) {
   }
 }
 
-async function countReblendedPlayers(filePath, weights) {
+async function countReblendedPlayers(filePath, weights, rankCurves) {
   const counters = { playerCount: 0, pointCount: 0 };
-  for await (const _player of buildReblendedPlayers(filePath, weights, counters)) {
+  for await (const _player of buildReblendedPlayers(filePath, weights, counters, rankCurves)) {
     // Counting pass only. The write pass streams the actual player records.
   }
   return counters;
@@ -195,7 +405,8 @@ async function main() {
   if (!fs.existsSync(archivePath)) throw new Error(`Archive not found: ${archivePath}`);
   const archive = await readArchiveHeader(archivePath);
   const weights = parseWeights();
-  const counters = await countReblendedPlayers(archivePath, weights);
+  const rankCurves = rankNormalizationWeight > 0 ? await buildRankCurves(archivePath, weights) : null;
+  const counters = await countReblendedPlayers(archivePath, weights, rankCurves);
 
   const result = {
     schemaVersion: 1,
@@ -207,11 +418,16 @@ async function main() {
     playerCount: counters.playerCount,
     pointCount: counters.pointCount,
     policy: {
-      note: 'Derived blend only. The raw historical source archive remains the source of truth.',
+      sourceMaturityRampDays,
+      sourceMaturityMinFactor,
+      rankNormalizationWeight,
+      rankCurveLookbackDays,
+      rankCurveCount: rankCurves?.size || 0,
+      note: 'Derived blend only. The raw historical source archive remains the source of truth. Source weights are renormalized to available sources, newly appearing sources ramp into multi-source blends, and historical points with positional ranks are anchored toward the current rank/value curve so old source scales do not create fake movement.',
     },
   };
 
-  await writeArchive(outputPath, result, buildReblendedPlayers(archivePath, weights, { playerCount: 0, pointCount: 0 }));
+  await writeArchive(outputPath, result, buildReblendedPlayers(archivePath, weights, { playerCount: 0, pointCount: 0 }, rankCurves));
   console.log(`Reblended ${counters.pointCount} points for ${counters.playerCount} players to ${path.relative(rootDir, outputPath)}`);
 }
 

@@ -19,6 +19,13 @@ const WINDOW_POINT_LIMITS: Record<TimelineWindowKey, number> = {
   '1y': 38,
   all: 72,
 };
+const TIMELINE_DAYS_BACK_BY_WINDOW: Record<TimelineWindowKey, number> = {
+  '1m': 45,
+  '3m': 100,
+  '6m': 220,
+  '1y': 430,
+  all: 5000,
+};
 const TIMELINE_WINDOW_DEFINITIONS: Array<{ key: TimelineWindowKey; label: string; days: number | null }> = [
   { key: '1m', label: '1M', days: 31 },
   { key: '3m', label: '3M', days: 92 },
@@ -249,6 +256,7 @@ function getSnapshotTimelinePointForPlayer(
     fantasyProsDynasty: row.data.expert_value_fantasypros ?? null,
     dynastyProcess: row.data.expert_value_dynastyprocess ?? null,
     dynastyNerds: row.data.expert_value_dynastynerds ?? null,
+    fantasyNerds: row.data.expert_value_fantasynerds ?? null,
     flockFantasy: row.data.expert_value_flock ?? null,
   };
 }
@@ -867,6 +875,35 @@ export function buildPlayerValueTimelineMap(input: {
   }
 
   return timelines;
+}
+
+export function getPlayerValueTimelineForPlayer(input: {
+  playerName: string;
+  valueProfileKey: string;
+  leagueValueMode?: 'dynasty' | 'redraft' | 'keeper';
+  selectedWindow?: TimelineWindowKey;
+  details?: PlayerDetails;
+  recentStoredSnapshots?: StoredValueTimelineSnapshot[];
+}): NonNullable<PlayerDetails['valueTimeline']> | null {
+  const playerName = input.playerName.trim();
+  if (!playerName) return null;
+
+  const playerId = '__player__';
+  const timelines = buildPlayerValueTimelineMap({
+    playerIds: [playerId],
+    players: {
+      [playerId]: {
+        full_name: playerName,
+      },
+    },
+    playerDetailsById: input.details ? { [playerId]: input.details } : undefined,
+    valueProfileKey: input.valueProfileKey,
+    leagueValueMode: input.leagueValueMode || 'dynasty',
+    daysBack: TIMELINE_DAYS_BACK_BY_WINDOW[input.selectedWindow || '6m'],
+    recentStoredSnapshots: input.recentStoredSnapshots,
+  });
+
+  return timelines[playerId] || null;
 }
 
 export function slimPlayerValueTimelineForReport(

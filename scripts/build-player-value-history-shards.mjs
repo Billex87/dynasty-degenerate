@@ -18,6 +18,15 @@ const WINDOW_CONFIGS = [
   { key: 'all', label: 'All', days: null, maxPoints: 72 },
 ];
 const MAX_AS_OF_POINTS = Number(process.env.MAX_AS_OF_POINTS || 260);
+const SOURCE_VALUE_FIELDS = [
+  'marketKtc',
+  'fantasyCalcDynasty',
+  'fantasyProsDynasty',
+  'dynastyProcess',
+  'dynastyNerds',
+  'fantasyNerds',
+  'flockFantasy',
+];
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log([
@@ -54,7 +63,7 @@ function getPointRank(point) {
 }
 
 function slimPoint(point) {
-  return {
+  const slimmed = {
     date: point.date,
     value: Math.round(Number(point.value)),
     rank: getPointRank(point),
@@ -62,6 +71,11 @@ function slimPoint(point) {
     sourceCount: Number(point.sourceCount || point.sourcesUsed?.length || 0),
     sources: Array.isArray(point.sourcesUsed) ? point.sourcesUsed : [],
   };
+  for (const field of SOURCE_VALUE_FIELDS) {
+    const value = Number(point[field]);
+    if (Number.isFinite(value) && value > 0) slimmed[field] = Math.round(value);
+  }
+  return slimmed;
 }
 
 function summarizeWindow(points, config, latestDate) {
