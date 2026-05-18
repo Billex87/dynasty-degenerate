@@ -32,7 +32,7 @@ import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueRepor
 import { loadReportStaticInputs } from "./reportStaticInputs";
 import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
 import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
-import { buildPlayerValueTimelineMap } from "./playerValueTimeline";
+import { buildPlayerValueTimelineMap, slimPlayerValueTimelineForReport } from "./playerValueTimeline";
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import {
@@ -5020,7 +5020,7 @@ export const appRouter = router({
           Object.entries(valueTimelinesWithEventsById).forEach(([playerId, valueTimeline]) => {
             enrichedPlayerDetailsById[playerId] = {
               ...enrichedPlayerDetailsById[playerId],
-              valueTimeline,
+              valueTimeline: slimPlayerValueTimelineForReport(valueTimeline),
             };
           });
           const playerCohortsById = buildPlayerCohortProfiles({

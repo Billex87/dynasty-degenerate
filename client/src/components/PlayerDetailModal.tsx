@@ -15,6 +15,7 @@ import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getC
 import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
 import { getDraftKind, getDraftKindLabel, getDraftWindowLabel } from '@/lib/draftDisplay';
 import { getPlayerValueConfidence } from '@/lib/playerValueConfidence';
+import { loadStaticPlayerValueTimeline } from '@/lib/playerValueHistoryShards';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
@@ -467,6 +468,7 @@ export function PlayerDetailModal({
   };
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         showCloseButton={false}
@@ -943,7 +945,14 @@ export function PlayerDetailModal({
                   <p>{valueConfidence.note}</p>
                 </div>
                 {valueTimeline && valueTimeline.points.length >= 2 && (
-                  <PlayerValueTimelineCard timeline={valueTimeline} playerName={pick.playerName} teamColors={teamColors} tileAccent={tileAccent} showSourceAdmin={showAIRead} />
+                  <PlayerValueTimelineCard
+                    timeline={valueTimeline}
+                    playerName={pick.playerName}
+                    teamColors={teamColors}
+                    tileAccent={tileAccent}
+                    showSourceAdmin={showAIRead}
+                    leagueValueMode={valueMode}
+                  />
                 )}
                 {valueProfile.sources && valueProfile.sources.length > 0 && (
                   <p className="text-center text-[0.68rem] font-bold leading-relaxed uppercase tracking-[0.16em] text-cyan-200/70">
@@ -1135,8 +1144,9 @@ export function PlayerDetailModal({
                           key={item.season}
                           type="button"
                           className={`player-availability-card ${isActive ? 'is-active' : ''}`}
-                          aria-expanded={isActive}
-                          onClick={() => setExpandedAvailabilitySeason((current) => (current === item.season ? null : item.season))}
+                          aria-haspopup="dialog"
+                          aria-label={`Open ${pick.playerName} ${item.season} weekly availability log`}
+                          onClick={() => setExpandedAvailabilitySeason(item.season)}
                         >
                           <span className="player-availability-card-kicker">Year</span>
                           <strong className="player-availability-card-year">{item.season}</strong>
@@ -1162,44 +1172,6 @@ export function PlayerDetailModal({
                       );
                     })}
                   </div>
-                  {expandedAvailabilitySeason ? (
-                    <div className="player-availability-log-panel">
-                      <div className="player-availability-log-header">
-                        <div>
-                          <span className="player-availability-log-kicker">Weekly Log</span>
-                          <h5>{selectedAvailabilityHistory?.season || expandedAvailabilitySeason}</h5>
-                          <p>
-                            {selectedAvailabilityHistory
-                              ? `${formatSeasonStatValue(selectedAvailabilityHistory.games)} GP · ${formatSeasonStatValue(selectedAvailabilityHistory.gamesMissed)} missed · ${formatSeasonStatValue(selectedAvailabilityHistory.pointsPerGame)} PPG${selectedAvailabilityHistory.positionRank ? ` · ${selectedAvailabilityHistory.positionRank}` : ''}`
-                              : 'Loading weekly game data from Sleeper.'}
-                          </p>
-                        </div>
-                        {isSeasonGameLogFetching ? (
-                          <span className="player-availability-log-loading">Loading...</span>
-                        ) : null}
-                      </div>
-                      {seasonGameLog?.weeklyGames?.length ? (
-                        <div className="player-availability-log-list">
-                          {seasonGameLog.weeklyGames.map((game) => (
-                            <div key={`${expandedAvailabilitySeason}-${game.week}`} className="player-availability-log-row">
-                              <div className="player-availability-log-meta">
-                                <strong>Week {game.week}</strong>
-                                <span>{game.positionRank || '-'}</span>
-                              </div>
-                              <strong className="player-availability-log-points">
-                                {formatSeasonStatValue(game.fantasyPoints)} pts
-                              </strong>
-                              <p className="player-availability-log-stats">{game.statLine}</p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : isSeasonGameLogFetching ? (
-                        <p className="player-availability-log-empty">Loading weekly game log from Sleeper...</p>
-                      ) : (
-                        <p className="player-availability-log-empty">No weekly game log was returned for that season.</p>
-                      )}
-                    </div>
-                  ) : null}
                 </div>
               ) : null}
               {!isCollegeProspect && hasLeagueUsage && leagueUsage ? (
@@ -1246,6 +1218,138 @@ export function PlayerDetailModal({
               </div>
             )}
 
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    <AvailabilitySeasonLogDialog
+      isOpen={Boolean(expandedAvailabilitySeason)}
+      onClose={() => setExpandedAvailabilitySeason(null)}
+      playerName={pick.playerName}
+      season={expandedAvailabilitySeason || ''}
+      history={selectedAvailabilityHistory}
+      seasonGameLog={seasonGameLog}
+      isFetching={isSeasonGameLogFetching}
+    />
+    </>
+  );
+}
+
+type AvailabilitySeasonGameLog = {
+  weeklyGames?: Array<{
+    week: number;
+    fantasyPoints: number | null;
+    positionRank: string | null;
+    statLine: string;
+  }>;
+  gamesPlayed?: number;
+  gamesMissed?: number;
+  fantasyPoints?: number | null;
+  pointsPerGame?: number | null;
+  positionRank?: string | null;
+} | null;
+
+function AvailabilitySeasonLogDialog({
+  isOpen,
+  onClose,
+  playerName,
+  season,
+  history,
+  seasonGameLog,
+  isFetching,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  playerName: string;
+  season: string;
+  history: NonNullable<PlayerDetails['availabilityHistory']>[number] | null;
+  seasonGameLog?: AvailabilitySeasonGameLog;
+  isFetching: boolean;
+}) {
+  const games = seasonGameLog?.weeklyGames || [];
+  const gamesPlayed = seasonGameLog?.gamesPlayed ?? history?.games ?? null;
+  const gamesMissed = seasonGameLog?.gamesMissed ?? history?.gamesMissed ?? null;
+  const pointsPerGame = seasonGameLog?.pointsPerGame ?? history?.pointsPerGame ?? null;
+  const positionRank = seasonGameLog?.positionRank || history?.positionRank || null;
+  const fantasyPoints = seasonGameLog?.fantasyPoints ?? (
+    gamesPlayed !== null && gamesPlayed !== undefined && pointsPerGame !== null && pointsPerGame !== undefined
+      ? Math.round(Number(gamesPlayed) * Number(pointsPerGame) * 10) / 10
+      : null
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="player-availability-log-overlay"
+        className="player-availability-log-modal max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-2xl"
+      >
+        <div className="player-availability-log-modal-inner">
+          <button type="button" className="manager-modal-close" onClick={onClose} aria-label={`Close ${playerName} ${season} weekly availability log`}>
+            <X />
+          </button>
+          <DialogHeader className="player-availability-log-modal-header">
+            <p className="player-availability-log-kicker">Weekly Availability Log</p>
+            <DialogTitle className="player-availability-log-title">
+              {playerName} {season}
+            </DialogTitle>
+            <DialogDescription className="player-availability-log-description">
+              Season availability, weekly fantasy points, and position finish context pulled into one focused view.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="player-availability-log-modal-body">
+            <section className="player-availability-log-summary">
+              <div>
+                <span>Season Snapshot</span>
+                <strong>
+                  {formatSeasonStatValue(gamesPlayed)} GP
+                  {gamesMissed !== null && gamesMissed !== undefined ? ` / ${formatSeasonStatValue(gamesMissed)} missed` : ''}
+                </strong>
+                <p>
+                  {positionRank ? `${positionRank} finish` : 'Position finish unavailable'}
+                  {pointsPerGame !== null && pointsPerGame !== undefined ? ` with ${formatSeasonStatValue(pointsPerGame)} PPG` : ''}
+                  {fantasyPoints !== null && fantasyPoints !== undefined ? ` and ${formatSeasonStatValue(fantasyPoints)} total points.` : '.'}
+                </p>
+              </div>
+              {isFetching ? (
+                <span className="player-availability-log-loading">Loading</span>
+              ) : null}
+            </section>
+
+            <div className="player-availability-log-metric-grid">
+              <TimelineMetric label="Games" value={formatSeasonStatValue(gamesPlayed)} note="played" />
+              <TimelineMetric label="Missed" value={formatSeasonStatValue(gamesMissed)} note="games" />
+              <TimelineMetric label="PPG" value={formatSeasonStatValue(pointsPerGame)} note="fantasy points" />
+              <TimelineMetric label="Rank" value={positionRank || '-'} note="position" />
+            </div>
+
+            <section className="player-availability-log-section">
+              <div className="player-availability-log-section-header">
+                <span>Weekly Log</span>
+                <strong>{games.length || 0}</strong>
+              </div>
+              {games.length ? (
+                <div className="player-availability-log-list">
+                  {games.map((game) => (
+                    <div key={`${season}-${game.week}`} className="player-availability-log-row">
+                      <div className="player-availability-log-meta">
+                        <strong>Week {game.week}</strong>
+                        <span>{game.positionRank || '-'}</span>
+                      </div>
+                      <strong className="player-availability-log-points">
+                        {formatSeasonStatValue(game.fantasyPoints)} pts
+                      </strong>
+                      <p className="player-availability-log-stats">{game.statLine}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : isFetching ? (
+                <p className="player-availability-log-empty">Loading weekly game log from Sleeper...</p>
+              ) : (
+                <p className="player-availability-log-empty">No weekly game log was returned for that season.</p>
+              )}
+            </section>
           </div>
         </div>
       </DialogContent>
@@ -1444,20 +1548,76 @@ function formatTimelineRank(point?: TimelinePoint | null) {
   return point.rank || (point.overallRank ? `#${point.overallRank}` : '-');
 }
 
+function useHydratedValueTimeline({
+  enabled,
+  playerName,
+  timeline,
+  leagueValueMode,
+}: {
+  enabled: boolean;
+  playerName: string;
+  timeline: NonNullable<PlayerDetails['valueTimeline']>;
+  leagueValueMode?: LeagueValueMode;
+}) {
+  const [hydratedTimeline, setHydratedTimeline] = useState<NonNullable<PlayerDetails['valueTimeline']> | null>(null);
+  const [isHydrating, setIsHydrating] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setHydratedTimeline(null);
+
+    if (!enabled || timeline.source !== 'historical-value-index') {
+      setIsHydrating(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setIsHydrating(true);
+    loadStaticPlayerValueTimeline({
+      playerName,
+      valueProfileKey: timeline.profileKey,
+      leagueValueMode: leagueValueMode === 'redraft' ? 'redraft' : 'dynasty',
+      selectedWindow: timeline.selectedWindow,
+      fallbackTimeline: timeline,
+    })
+      .then((nextTimeline) => {
+        if (!cancelled) setHydratedTimeline(nextTimeline);
+      })
+      .finally(() => {
+        if (!cancelled) setIsHydrating(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, leagueValueMode, playerName, timeline]);
+
+  return { timeline: hydratedTimeline || timeline, isHydrating };
+}
+
 function PlayerValueTimelineCard({
   timeline,
   playerName,
   teamColors,
   tileAccent,
   showSourceAdmin = false,
+  leagueValueMode,
 }: {
   timeline: NonNullable<PlayerDetails['valueTimeline']>;
   playerName: string;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   showSourceAdmin?: boolean;
+  leagueValueMode?: LeagueValueMode;
 }) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const hydrated = useHydratedValueTimeline({
+    enabled: isDetailOpen,
+    playerName,
+    timeline,
+    leagueValueMode,
+  });
   const firstPoint = timeline.points[0];
   const lastPoint = timeline.points[timeline.points.length - 1];
   const delta = timeline.summary.delta;
@@ -1571,10 +1731,11 @@ function PlayerValueTimelineCard({
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
         playerName={playerName}
-        timeline={timeline}
+        timeline={hydrated.timeline}
         strokeColor={strokeColor}
         deltaLabel={deltaLabel}
         showSourceAdmin={showSourceAdmin}
+        isHydrating={hydrated.isHydrating}
       />
     </>
   );
@@ -1588,6 +1749,7 @@ function PlayerValueTimelineDetailDialog({
   strokeColor,
   deltaLabel,
   showSourceAdmin,
+  isHydrating = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -1596,8 +1758,15 @@ function PlayerValueTimelineDetailDialog({
   strokeColor: string;
   deltaLabel: string;
   showSourceAdmin: boolean;
+  isHydrating?: boolean;
 }) {
   const [activeWindowKey, setActiveWindowKey] = useState<'3m' | '6m' | '1y' | 'all'>(timeline.selectedWindow || '6m');
+  useEffect(() => {
+    const nextKey = timeline.selectedWindow || '6m';
+    if (!timeline.windows?.[activeWindowKey] && timeline.windows?.[nextKey]) {
+      setActiveWindowKey(nextKey);
+    }
+  }, [activeWindowKey, timeline.selectedWindow, timeline.windows]);
   const activeWindow = timeline.windows?.[activeWindowKey] || timeline.windows?.[timeline.selectedWindow || '6m'] || timeline.windows?.all || null;
   const activePoints = activeWindow?.points?.length ? activeWindow.points : timeline.points;
   const firstPoint = activePoints[0];
@@ -1638,7 +1807,9 @@ function PlayerValueTimelineDetailDialog({
             <p className="player-value-timeline-kicker">Stored Value Timeline</p>
             <DialogTitle className="player-value-timeline-title">{playerName}</DialogTitle>
             <DialogDescription className="player-value-timeline-description">
-              Blended market movement with source coverage, positional rank, all-time high/low, and situation markers attached to the latest stored point.
+              {isHydrating
+                ? 'Loading the full cached chart history from static shards.'
+                : 'Blended market movement with source coverage, positional rank, all-time high/low, and situation markers attached to the latest stored point.'}
             </DialogDescription>
           </DialogHeader>
 

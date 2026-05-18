@@ -253,6 +253,15 @@ test.describe('player detail modal', () => {
     await expect(dialog.getByText('Runway 90%').first()).toBeVisible();
     await expect(dialog.locator('p').filter({ hasText: 'Availability: 2025: 14 GP' }).first()).toBeVisible();
     await expect(dialog.getByText('AVAILABLE')).toHaveCount(0);
+    await dialog.getByRole('button', { name: /Open Sample Starter 2025 weekly availability log/i }).click();
+    const availabilityDialog = page.getByRole('dialog').filter({ hasText: 'Weekly Availability Log' });
+    await expect(availabilityDialog.getByRole('heading', { name: /Sample Starter 2025/i })).toBeVisible();
+    await expect(availabilityDialog.getByText('Season Snapshot')).toBeVisible();
+    await expect(availabilityDialog.getByText(/14 GP \/ 3 missed/i)).toBeVisible();
+    await expect(availabilityDialog.getByText('16.4', { exact: true })).toBeVisible();
+    await expect(dialog.locator('.player-availability-log-panel')).toHaveCount(0);
+    await availabilityDialog.getByRole('button', { name: /Close Sample Starter 2025 weekly availability log/i }).click();
+    await expect(availabilityDialog).toHaveCount(0);
 
     await dialog.getByRole('button', { name: /Open Sample Starter value timeline detail/i }).click();
     const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Stored Value Timeline' });

@@ -54,6 +54,7 @@ server/value-history-archive/*.json.gz
 server/value-history-archive/*.tar.gz
 server/value-history-archive/*.sha256
 server/value-history-archive/player-value-history-shards/
+client/public/assets/value-history/player-value-history-shards/
 .cache/source-health/*.jsonl
 
 # Coverage directory used by tools like istanbul

@@ -22,6 +22,8 @@
     "calibrate:value-history:weights": "node scripts/calibrate-value-history-weights.mjs",
     "index:value-history:timelines": "node scripts/build-value-history-timeline-index.mjs",
     "index:value-history:shards": "node scripts/build-player-value-history-shards.mjs",
+    "audit:value-history:shards": "node scripts/audit-value-history-shards.mjs",
+    "upload:value-history:shards": "node scripts/upload-value-history-shards.mjs",
     "audit:value-history": "node scripts/audit-player-value-history.mjs",
     "audit:value-history:sources": "node scripts/audit-value-history-source-coverage.mjs",
     "normalize:value-history:identities": "node scripts/normalize-value-history-identities.mjs",

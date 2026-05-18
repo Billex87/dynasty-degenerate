@@ -108,7 +108,37 @@ OUT_DIR=server/value-history-archive/player-value-history-shards \
 pnpm index:value-history:shards
 ```
 
-The sharded store is the preferred runtime path for historical player graphs and trade-date values. The full `player-value-history-timeline-index.json` remains useful for local inspection and one-file backups, but normal report generation should avoid loading the full file when shards are available. The raw archive and reblended archive should stay offline/generated; production should mount, upload, or restore the shard directory as a generated artifact rather than calling external providers during user traffic.
+To refresh a static/CDN-ready copy for browser-side graph hydration, rerun:
+
+```bash
+ARCHIVE_FILE=server/value-history-archive/player-value-history-reblended.json \
+OUT_DIR=client/public/assets/value-history/player-value-history-shards \
+pnpm index:value-history:shards
+```
+
+Audit either shard directory before using it:
+
+```bash
+SHARD_DIR=server/value-history-archive/player-value-history-shards \
+pnpm audit:value-history:shards
+
+SHARD_DIR=client/public/assets/value-history/player-value-history-shards \
+pnpm audit:value-history:shards
+```
+
+Upload the generated shard directory to S3/R2-compatible object storage with a dry run first:
+
+```bash
+SHARD_DIR=server/value-history-archive/player-value-history-shards \
+VALUE_HISTORY_SHARDS_BUCKET=your-bucket \
+VALUE_HISTORY_SHARDS_PREFIX=value-history/player-value-history-shards \
+DRY_RUN=1 \
+pnpm upload:value-history:shards
+```
+
+Set `DRY_RUN=0` only after the dry-run file count and total size match the audit output. The uploader gives `manifest.json` a short CDN cache window and shard files a long immutable cache window.
+
+The sharded store is the preferred runtime path for historical player graphs and trade-date values. The full `player-value-history-timeline-index.json` remains useful for local inspection and one-file backups, but normal report generation should avoid loading the full file when shards are available. The report payload keeps only the selected timeline window; the player modal hydrates full windows, all-time range, and yearly extremes from `/assets/value-history/player-value-history-shards` when the user opens the chart. Set `VITE_VALUE_HISTORY_SHARDS_BASE_URL` when the shards are hosted outside the app, such as an object store or CDN. If that URL is not same-origin, the production CSP `connect-src` must explicitly allow the CDN host. The raw archive and reblended archive should stay offline/generated; production should mount, upload, or restore the shard directory as a generated artifact rather than calling external providers during user traffic.
 
 Before using a regenerated archive in product logic, rerun:
 

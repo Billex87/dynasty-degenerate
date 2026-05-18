@@ -596,3 +596,31 @@ export function buildPlayerValueTimelineMap(input: {
 
   return timelines;
 }
+
+export function slimPlayerValueTimelineForReport(
+  timeline: NonNullable<PlayerDetails['valueTimeline']>
+): NonNullable<PlayerDetails['valueTimeline']> {
+  if (timeline.source !== 'historical-value-index') return timeline;
+
+  const selectedWindow =
+    timeline.selectedWindow && timeline.windows?.[timeline.selectedWindow]
+      ? timeline.selectedWindow
+      : timeline.windows?.['6m']
+        ? '6m'
+        : timeline.windows?.['3m']
+          ? '3m'
+          : timeline.windows?.['1y']
+            ? '1y'
+            : timeline.windows?.all
+              ? 'all'
+              : null;
+  const selected = selectedWindow ? timeline.windows?.[selectedWindow] : null;
+
+  return {
+    ...timeline,
+    selectedWindow: selectedWindow || timeline.selectedWindow,
+    points: selected?.points?.length ? selected.points : timeline.points,
+    windows: undefined,
+    yearlyExtremes: undefined,
+  };
+}
