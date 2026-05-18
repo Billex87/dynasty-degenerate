@@ -1152,6 +1152,9 @@ export function PlayerDetailModal({
                       <PlayerValueTimelineCard
                         timeline={valueTimeline}
                         playerName={pick.playerName}
+                        playerImageUrl={playerImageSrc}
+                        team={team}
+                        playerPosition={position}
                         teamColors={teamColors}
                         tileAccent={tileAccent}
                         showSourceAdmin={showAIRead}
@@ -1167,6 +1170,9 @@ export function PlayerDetailModal({
                         timeline={redraftValueTimeline}
                         fallbackTimeline={isRedraftValueMode ? valueTimeline : null}
                         playerName={pick.playerName}
+                        playerImageUrl={playerImageSrc}
+                        team={team}
+                        playerPosition={position}
                         teamColors={teamColors}
                         tileAccent={tileAccent}
                         showSourceAdmin={showAIRead}
@@ -1714,6 +1720,11 @@ function formatValueLens(value: number | null | undefined) {
   return value.toLocaleString();
 }
 
+function formatTimelineExactValue(value: number | null | undefined) {
+  if (value === null || value === undefined) return '-';
+  return Math.round(value).toLocaleString();
+}
+
 function formatValueDelta(value: number | null | undefined) {
   if (value === null || value === undefined) return '-';
   const prefix = value > 0 ? '+' : '';
@@ -1811,6 +1822,7 @@ function formatSourceDelta(delta: number | null) {
 }
 
 function buildTimelineWindowDeltaLabel(window: { delta: number | null; deltaPct: number | null }) {
+  if (window.delta === 0 && (window.deltaPct === 0 || window.deltaPct === null || window.deltaPct === undefined)) return 'Flat';
   return [
     formatValueDelta(window.delta),
     window.deltaPct !== null && window.deltaPct !== undefined
@@ -1832,6 +1844,9 @@ type TimelineWindowTab = {
   label: string;
   delta: number | null;
   deltaPct: number | null;
+  pointCount: number;
+  startDate?: string | null;
+  endDate?: string | null;
   isAvailable: boolean;
 };
 
@@ -1846,9 +1861,21 @@ function getTimelineWindowTabs(timeline: PlayerValueTimeline): TimelineWindowTab
       label: availableWindow?.label || timelineWindowLabels[key],
       delta: availableWindow?.delta ?? storedWindow?.delta ?? null,
       deltaPct: availableWindow?.deltaPct ?? storedWindow?.deltaPct ?? null,
-      isAvailable: points.length > 0 || (key === 'all' && timeline.points.length > 0),
+      pointCount: availableWindow?.pointCount ?? storedWindow?.pointCount ?? points.length,
+      startDate: availableWindow?.startDate ?? storedWindow?.startDate ?? points[0]?.date ?? null,
+      endDate: availableWindow?.endDate ?? storedWindow?.endDate ?? points.at(-1)?.date ?? null,
+      isAvailable: points.length >= 2 || (key === 'all' && timeline.points.length >= 2),
     };
   });
+}
+
+function formatTimelineWindowRange(window: TimelineWindowTab) {
+  if (!window.isAvailable) return 'No history yet';
+  const pointLabel = `${window.pointCount || 0} pt${window.pointCount === 1 ? '' : 's'}`;
+  if (!window.startDate || !window.endDate) return pointLabel;
+  const start = formatTimelineDate(window.startDate);
+  const end = formatTimelineDate(window.endDate);
+  return start === end ? `${start} · ${pointLabel}` : `${start} to ${end} · ${pointLabel}`;
 }
 
 function formatTimelineRank(point?: TimelinePoint | null) {
@@ -1874,6 +1901,35 @@ function buildPositionRankChartPoints(points: TimelinePoint[]) {
       value: -rank,
     }];
   });
+}
+
+function getTimelineChartAxisLabels(
+  mode: 'value' | 'rank',
+  valuePoints: TimelinePoint[],
+  rankPoints: ReturnType<typeof buildPositionRankChartPoints>
+) {
+  if (mode === 'rank' && rankPoints.length) {
+    const best = rankPoints.reduce((current, point) => (point.rank < current.rank ? point : current), rankPoints[0]);
+    const worst = rankPoints.reduce((current, point) => (point.rank > current.rank ? point : current), rankPoints[0]);
+    return {
+      top: `Best ${best.rankLabel}`,
+      bottom: `Worst ${worst.rankLabel}`,
+    };
+  }
+
+  const values = valuePoints.map((point) => point.value).filter((value) => Number.isFinite(value));
+  if (!values.length) return { top: '-', bottom: '-' };
+  return {
+    top: `High ${formatValueLens(Math.max(...values))}`,
+    bottom: `Low ${formatValueLens(Math.min(...values))}`,
+  };
+}
+
+function getChartPointPopoverClass(point: { x: number } | null) {
+  if (!point) return '';
+  if (point.x < 110) return 'player-value-point-popover-left';
+  if (point.x > 410) return 'player-value-point-popover-right';
+  return '';
 }
 
 function getTimelineHistoryScore(timeline?: PlayerValueTimeline | null) {
@@ -2040,6 +2096,9 @@ function RedraftValueTimelinePanel({
   timeline,
   fallbackTimeline,
   playerName,
+  playerImageUrl,
+  team,
+  playerPosition,
   teamColors,
   tileAccent,
   showSourceAdmin,
@@ -2048,6 +2107,9 @@ function RedraftValueTimelinePanel({
   timeline: RedraftValueTimelineData | null;
   fallbackTimeline?: PlayerValueTimeline | null;
   playerName: string;
+  playerImageUrl?: string | null;
+  team?: string | null;
+  playerPosition?: string | null;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   showSourceAdmin?: boolean;
@@ -2090,6 +2152,9 @@ function RedraftValueTimelinePanel({
           },
         }}
         playerName={playerName}
+        playerImageUrl={playerImageUrl}
+        team={team}
+        playerPosition={playerPosition}
         teamColors={teamColors}
         tileAccent={tileAccent}
         showSourceAdmin={showSourceAdmin}
@@ -2129,6 +2194,9 @@ function RedraftValueTimelinePanel({
       <PlayerValueTimelineCard
         timeline={activeTimeline}
         playerName={playerName}
+        playerImageUrl={playerImageUrl}
+        team={team}
+        playerPosition={playerPosition}
         teamColors={teamColors}
         tileAccent={tileAccent}
         showSourceAdmin={showSourceAdmin}
@@ -2151,6 +2219,9 @@ function RedraftValueTimelinePanel({
 function PlayerValueTimelineCard({
   timeline,
   playerName,
+  playerImageUrl,
+  team,
+  playerPosition,
   teamColors,
   tileAccent,
   showSourceAdmin = false,
@@ -2164,6 +2235,9 @@ function PlayerValueTimelineCard({
 }: {
   timeline: PlayerValueTimeline;
   playerName: string;
+  playerImageUrl?: string | null;
+  team?: string | null;
+  playerPosition?: string | null;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   showSourceAdmin?: boolean;
@@ -2301,6 +2375,11 @@ function PlayerValueTimelineCard({
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
         playerName={playerName}
+        playerImageUrl={playerImageUrl}
+        team={team}
+        playerPosition={playerPosition}
+        teamColors={teamColors}
+        tileAccent={tileAccent}
         title={detailTitle}
         description={detailDescription}
         timeline={hydrated.timeline}
@@ -2317,6 +2396,11 @@ function PlayerValueTimelineDetailDialog({
   isOpen,
   onClose,
   playerName,
+  playerImageUrl,
+  team,
+  playerPosition,
+  teamColors,
+  tileAccent,
   title = 'Value Timeline',
   description,
   timeline,
@@ -2328,6 +2412,11 @@ function PlayerValueTimelineDetailDialog({
   isOpen: boolean;
   onClose: () => void;
   playerName: string;
+  playerImageUrl?: string | null;
+  team?: string | null;
+  playerPosition?: string | null;
+  teamColors?: { primary: string; secondary: string; accent: string } | null;
+  tileAccent?: string;
   title?: string;
   description?: string;
   timeline: PlayerValueTimeline;
@@ -2350,12 +2439,7 @@ function PlayerValueTimelineDetailDialog({
   const lastPoint = activePoints[activePoints.length - 1];
   const activeDelta = activeWindow?.delta ?? timeline.summary.delta;
   const activeDeltaPct = activeWindow?.deltaPct ?? timeline.summary.deltaPct;
-  const activeDeltaLabel = [
-    formatValueDelta(activeDelta),
-    activeDeltaPct !== null && activeDeltaPct !== undefined
-      ? `${activeDeltaPct > 0 ? '+' : ''}${activeDeltaPct}%`
-      : null,
-  ].filter(Boolean).join(' / ') || deltaLabel;
+  const activeDeltaLabel = buildTimelineWindowDeltaLabel({ delta: activeDelta, deltaPct: activeDeltaPct }) || deltaLabel || 'No move';
   const rankChartPoints = useMemo(() => buildPositionRankChartPoints(activePoints), [activePoints]);
   const hasRankChart = rankChartPoints.length >= 2;
   useEffect(() => {
@@ -2370,17 +2454,10 @@ function PlayerValueTimelineDetailDialog({
   const chartPoints = useMemo(() => buildTimelineCoordinates(chartInputPoints, 520, 178, 18), [chartInputPoints]);
   const chartPath = useMemo(() => buildTimelinePath(chartInputPoints, 520, 178, 18), [chartInputPoints]);
   useEffect(() => {
-    if (!chartTimelinePoints.length) {
-      setSelectedPointIndex(null);
-      return;
-    }
-    setSelectedPointIndex((current) => (
-      current === null || current < 0 || current >= chartTimelinePoints.length
-        ? chartTimelinePoints.length - 1
-        : current
-    ));
+    setSelectedPointIndex(chartTimelinePoints.length ? chartTimelinePoints.length - 1 : null);
   }, [activeWindowKey, chartTimelinePoints.length, visibleChartMode]);
   const selectedTimelinePoint = selectedPointIndex !== null ? chartTimelinePoints[selectedPointIndex] || null : null;
+  const selectedChartPoint = selectedPointIndex !== null ? chartPoints[selectedPointIndex] || null : null;
   const sourceAudit = useMemo(() => buildTimelineSourceAudit(lastPoint), [lastPoint]);
   const eventList = activePoints.flatMap((point) =>
     (point.events || []).map((event) => ({
@@ -2393,9 +2470,18 @@ function PlayerValueTimelineDetailDialog({
   const yearlyExtremes = timeline.yearlyExtremes?.slice(-4).reverse() || [];
   const firstRankPoint = rankChartPoints[0] || null;
   const lastRankPoint = rankChartPoints[rankChartPoints.length - 1] || null;
+  const chartAxisLabels = getTimelineChartAxisLabels(visibleChartMode, activePoints, rankChartPoints);
   const chartSummaryLabel = visibleChartMode === 'rank'
     ? `${firstRankPoint?.rankLabel || '-'} to ${lastRankPoint?.rankLabel || '-'}`
     : `${formatValueLens(firstPoint.value)} to ${formatValueLens(lastPoint.value)}`;
+  const latestRankLabel = formatTimelineRank(lastPoint);
+  const headerBackground = teamColors
+    ? `radial-gradient(circle at 12% 0%, ${teamColors.primary}80, transparent 34%), radial-gradient(circle at 92% 10%, ${teamColors.secondary}88, transparent 32%), linear-gradient(135deg, ${teamColors.primary} 0%, #070b13 50%, ${teamColors.secondary} 100%)`
+    : undefined;
+  const headerAccent = tileAccent || teamColors?.accent || '#67e8f9';
+  const selectedSourceLabel = selectedTimelinePoint?.sourceCount
+    ? `${selectedTimelinePoint.sourceCount} source${selectedTimelinePoint.sourceCount === 1 ? '' : 's'}`
+    : 'No source count';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -2408,13 +2494,52 @@ function PlayerValueTimelineDetailDialog({
           <button type="button" className="manager-modal-close" onClick={onClose} aria-label={`Close ${playerName} value timeline detail`}>
             <X />
           </button>
-          <DialogHeader className="player-value-timeline-modal-header">
-            <p className="player-value-timeline-kicker">{title}</p>
-            <DialogTitle className="player-value-timeline-title">{playerName}</DialogTitle>
+          <DialogHeader
+            className="player-value-timeline-modal-header"
+            style={{
+              background: headerBackground,
+              borderColor: `${headerAccent}33`,
+            }}
+          >
+            <div className="player-value-identity-row">
+              <div
+                className="player-value-identity-photo"
+                style={{
+                  borderColor: `${headerAccent}66`,
+                  boxShadow: `0 18px 42px ${headerAccent}18`,
+                }}
+              >
+                {playerImageUrl ? (
+                  <img src={playerImageUrl} alt={playerName} />
+                ) : (
+                  <span>{playerName.slice(0, 1)}</span>
+                )}
+              </div>
+              <div className="player-value-identity-copy">
+                <p className="player-value-timeline-kicker">{title}</p>
+                <DialogTitle className="player-value-timeline-title">{playerName}</DialogTitle>
+                <div className="player-value-identity-meta">
+                  <TeamLogoPill team={team} showText className="player-value-identity-team-pill" />
+                  {playerPosition && playerPosition !== '-' && (
+                    <span className={getPositionRankPillClass(playerPosition, 'player-value-identity-position-pill')}>
+                      {playerPosition}
+                    </span>
+                  )}
+                  {latestRankLabel !== '-' && (
+                    <span className={getPositionRankPillClass(latestRankLabel, 'player-value-identity-rank-pill')}>
+                      {latestRankLabel}
+                    </span>
+                  )}
+                  <span className="player-value-identity-value-pill">
+                    Value {formatTimelineExactValue(lastPoint.value)}
+                  </span>
+                </div>
+              </div>
+            </div>
             <DialogDescription className="player-value-timeline-description">
               {description || (isHydrating
                 ? 'Loading the full chart history from static value shards.'
-                : 'Market Price movement with source coverage, positional rank, all-time high/low, and situation markers.')}
+                : 'Market Price movement by range with value, positional rank, and all-time high/low.')}
             </DialogDescription>
           </DialogHeader>
 
@@ -2434,6 +2559,7 @@ function PlayerValueTimelineDetailDialog({
                   >
                     <span>{window.label}</span>
                     <strong>{window.isAvailable ? buildTimelineWindowDeltaLabel(window) || 'No move' : isHydrating ? 'Loading' : 'No data'}</strong>
+                    <small>{window.isAvailable ? formatTimelineWindowRange(window) : 'Not enough points'}</small>
                   </button>
                 ))}
               </div>
@@ -2475,47 +2601,78 @@ function PlayerValueTimelineDetailDialog({
                   </button>
                 </div>
               </div>
-              <svg
-                viewBox="0 0 520 178"
-                role="img"
-                aria-label={`${playerName} ${visibleChartMode === 'rank' ? 'positional rank' : 'value'} timeline detail`}
-                className="player-value-timeline-chart"
-                preserveAspectRatio="none"
-              >
-                <line x1="18" y1="150" x2="502" y2="150" stroke="rgba(148,163,184,0.24)" strokeWidth="1" />
-                <line x1="18" y1="88" x2="502" y2="88" stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
-                <line x1="18" y1="26" x2="502" y2="26" stroke="rgba(148,163,184,0.16)" strokeWidth="1" />
-                <path d={chartPath} fill="none" stroke="rgba(15,23,42,0.9)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
-                <path d={chartPath} fill="none" stroke={strokeColor} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-                {chartPoints.map((point, index) => {
-                  const timelinePoint = chartTimelinePoints[index];
-                  const hasEvents = Boolean(timelinePoint.events?.length);
-                  return (
-                    <g key={`${visibleChartMode}-${timelinePoint.date}-${timelinePoint.value}`}>
-                      <circle
-                        cx={point.x}
-                        cy={point.y}
-                        r={selectedPointIndex === index ? 6.8 : visibleChartMode === 'value' && hasEvents ? 6.2 : index === 0 || index === chartPoints.length - 1 ? 4.6 : 3}
-                        fill={selectedPointIndex === index ? '#f8fafc' : visibleChartMode === 'value' && hasEvents ? 'rgba(251, 191, 36, 0.95)' : index === chartPoints.length - 1 ? strokeColor : 'rgba(226,232,240,0.92)'}
-                        stroke={hasEvents ? 'rgba(15,23,42,0.95)' : 'transparent'}
-                        strokeWidth={visibleChartMode === 'value' && hasEvents ? 2 : 0}
-                        className="player-value-chart-point"
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${formatTimelineDate(timelinePoint.date)} value ${formatValueLens(timelinePoint.value)} rank ${formatTimelineRank(timelinePoint)}`}
-                        onClick={() => setSelectedPointIndex(index)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            setSelectedPointIndex(index);
-                          }
-                        }}
-                      />
-                      <title>{`${formatTimelineDate(timelinePoint.date)}: ${formatValueLens(timelinePoint.value)}${formatTimelineRank(timelinePoint) !== '-' ? ` / ${formatTimelineRank(timelinePoint)}` : ''}`}</title>
-                    </g>
-                  );
-                })}
-              </svg>
+              <div className="player-value-chart-stage">
+                <span className="player-value-chart-axis-label player-value-chart-axis-label-top">{chartAxisLabels.top}</span>
+                <span className="player-value-chart-axis-label player-value-chart-axis-label-bottom">{chartAxisLabels.bottom}</span>
+                <svg
+                  viewBox="0 0 520 178"
+                  role="img"
+                  aria-label={`${playerName} ${visibleChartMode === 'rank' ? 'positional rank' : 'value'} timeline detail`}
+                  className="player-value-timeline-chart"
+                  preserveAspectRatio="none"
+                >
+                  <line x1="18" y1="150" x2="502" y2="150" stroke="rgba(148,163,184,0.24)" strokeWidth="1" />
+                  <line x1="18" y1="88" x2="502" y2="88" stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
+                  <line x1="18" y1="26" x2="502" y2="26" stroke="rgba(148,163,184,0.16)" strokeWidth="1" />
+                  {selectedChartPoint && (
+                    <line
+                      x1={selectedChartPoint.x}
+                      y1="18"
+                      x2={selectedChartPoint.x}
+                      y2="160"
+                      stroke="rgba(226,232,240,0.26)"
+                      strokeDasharray="4 5"
+                      strokeWidth="1.2"
+                    />
+                  )}
+                  <path d={chartPath} fill="none" stroke="rgba(15,23,42,0.9)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={chartPath} fill="none" stroke={strokeColor} strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                  {chartPoints.map((point, index) => {
+                    const timelinePoint = chartTimelinePoints[index];
+                    const hasEvents = showSourceAdmin && Boolean(timelinePoint.events?.length);
+                    return (
+                      <g key={`${visibleChartMode}-${timelinePoint.date}-${timelinePoint.value}`}>
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          r={selectedPointIndex === index ? 7.2 : visibleChartMode === 'value' && hasEvents ? 6.2 : index === 0 || index === chartPoints.length - 1 ? 4.8 : 3.4}
+                          fill={selectedPointIndex === index ? '#f8fafc' : visibleChartMode === 'value' && hasEvents ? 'rgba(251, 191, 36, 0.95)' : index === chartPoints.length - 1 ? strokeColor : 'rgba(226,232,240,0.92)'}
+                          stroke={selectedPointIndex === index ? strokeColor : hasEvents ? 'rgba(15,23,42,0.95)' : 'rgba(15,23,42,0.55)'}
+                          strokeWidth={selectedPointIndex === index ? 2.4 : visibleChartMode === 'value' && hasEvents ? 2 : 1}
+                          className="player-value-chart-point"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${formatTimelineDate(timelinePoint.date)} value ${formatTimelineExactValue(timelinePoint.value)} rank ${formatTimelineRank(timelinePoint)}`}
+                          onMouseEnter={() => setSelectedPointIndex(index)}
+                          onFocus={() => setSelectedPointIndex(index)}
+                          onClick={() => setSelectedPointIndex(index)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              setSelectedPointIndex(index);
+                            }
+                          }}
+                        />
+                        <title>{`${formatTimelineDate(timelinePoint.date)}: ${formatTimelineExactValue(timelinePoint.value)}${formatTimelineRank(timelinePoint) !== '-' ? ` / ${formatTimelineRank(timelinePoint)}` : ''}`}</title>
+                      </g>
+                    );
+                  })}
+                </svg>
+                {selectedTimelinePoint && selectedChartPoint && (
+                  <div
+                    className={`player-value-point-popover ${getChartPointPopoverClass(selectedChartPoint)}`.trim()}
+                    style={{
+                      left: `${(selectedChartPoint.x / 520) * 100}%`,
+                      top: `${(selectedChartPoint.y / 178) * 100}%`,
+                    }}
+                  >
+                    <span>{formatTimelineDateWithYear(selectedTimelinePoint.date)}</span>
+                    <strong>{formatTimelineExactValue(selectedTimelinePoint.value)}</strong>
+                    <em>{formatTimelineRank(selectedTimelinePoint)}</em>
+                    <small>{selectedSourceLabel}</small>
+                  </div>
+                )}
+              </div>
               <div className="player-value-timeline-chart-footer">
                 <span>{formatTimelineDate(visibleChartMode === 'rank' ? firstRankPoint?.date || firstPoint.date : firstPoint.date)}</span>
                 <span>{visibleChartMode === 'rank' ? `${rankChartPoints.length} rank points` : `${activeWindow?.pointCount || activePoints.length} chart points`}</span>
@@ -2523,10 +2680,10 @@ function PlayerValueTimelineDetailDialog({
               </div>
               {selectedTimelinePoint && (
                 <div className="player-value-selected-point">
-                  <span>{formatTimelineDate(selectedTimelinePoint.date)}</span>
-                  <strong>{formatValueLens(selectedTimelinePoint.value)}</strong>
+                  <span>{formatTimelineDateWithYear(selectedTimelinePoint.date)}</span>
+                  <strong>{formatTimelineExactValue(selectedTimelinePoint.value)}</strong>
                   <em>{formatTimelineRank(selectedTimelinePoint)}</em>
-                  <small>{selectedTimelinePoint.sourceCount} sources</small>
+                  <small>{selectedSourceLabel}</small>
                 </div>
               )}
             </div>
@@ -2598,12 +2755,12 @@ function PlayerValueTimelineDetailDialog({
               </section>
             )}
 
-            <section className="player-value-timeline-section">
-              <div className="player-value-timeline-section-header">
-                <span>Situation Markers</span>
-                <strong>{eventList.length || 0}</strong>
-              </div>
-              {eventList.length ? (
+            {showSourceAdmin && eventList.length > 0 && (
+              <section className="player-value-timeline-section">
+                <div className="player-value-timeline-section-header">
+                  <span>Context Signals</span>
+                  <strong>{eventList.length}</strong>
+                </div>
                 <div className="player-value-event-detail-grid">
                   {eventList.map((event) => (
                     <article key={`${event.date}-${event.type}-${event.label}`} className={`player-value-event-detail player-value-event-detail-${event.tone}`}>
@@ -2615,10 +2772,8 @@ function PlayerValueTimelineDetailDialog({
                     </article>
                   ))}
                 </div>
-              ) : (
-                <p className="player-value-timeline-empty">No situation markers were attached to this timeline window.</p>
-              )}
-            </section>
+              </section>
+            )}
 
             <p className="player-value-timeline-note">{timeline.summary.note}</p>
           </div>
