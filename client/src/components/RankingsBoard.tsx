@@ -26,7 +26,7 @@ type SortMode = 'rank' | 'value' | 'movement';
 type MovementSortDirection = 'down' | 'up';
 type DraftBuzzPosition = Exclude<PositionFilter, 'K' | 'DEF' | 'PICK'>;
 type SortDirection = 'asc' | 'desc';
-type DraftBuzzSortKey = 'class' | 'rank' | 'player' | 'team' | 'school' | 'position' | 'score' | 'forty' | 'height' | 'weight';
+type DraftBuzzSortKey = 'class' | 'rank' | 'player' | 'team' | 'school' | 'position' | 'score' | 'forty' | 'vertical' | 'height' | 'weight';
 type DraftBuzzSort = {
   key: DraftBuzzSortKey;
   direction: SortDirection;
@@ -55,7 +55,7 @@ const MOVEMENT_SORT_DIRECTIONS: readonly MovementSortDirection[] = ['down', 'up'
 const SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 const POSITION_FILTER_KEYS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'PICK'] as const;
 const DRAFT_BUZZ_POSITIONS: DraftBuzzPosition[] = ['QB', 'RB', 'WR', 'TE'];
-const DRAFT_BUZZ_SORT_KEYS: readonly DraftBuzzSortKey[] = ['class', 'rank', 'player', 'team', 'school', 'position', 'score', 'forty', 'height', 'weight'];
+const DRAFT_BUZZ_SORT_KEYS: readonly DraftBuzzSortKey[] = ['class', 'rank', 'player', 'team', 'school', 'position', 'score', 'forty', 'vertical', 'height', 'weight'];
 const DRAFT_BUZZ_SORT_COLUMNS: Array<{ key: DraftBuzzSortKey; label: string }> = [
   { key: 'class', label: 'Class' },
   { key: 'rank', label: 'Rank' },
@@ -65,6 +65,7 @@ const DRAFT_BUZZ_SORT_COLUMNS: Array<{ key: DraftBuzzSortKey; label: string }> =
   { key: 'position', label: 'Pos' },
   { key: 'score', label: 'Score' },
   { key: 'forty', label: '40' },
+  { key: 'vertical', label: 'Vert' },
   { key: 'height', label: 'Height' },
   { key: 'weight', label: 'Weight' },
 ];
@@ -303,6 +304,17 @@ function formatDraftBuzzForty(value?: number | null): string {
   return `${(Math.floor((forty + Number.EPSILON) * 100) / 100).toFixed(2)}s`;
 }
 
+function getDraftBuzzVertical(entry: DraftBuzzScoreboardEntry): number | null {
+  const vertical = Number(entry.athleticProfile?.vertical);
+  return Number.isFinite(vertical) && vertical > 0 ? vertical : null;
+}
+
+function formatDraftBuzzVertical(value?: number | null): string {
+  const vertical = Number(value);
+  if (!Number.isFinite(vertical) || vertical <= 0) return '-';
+  return `${vertical.toFixed(Number.isInteger(vertical) ? 0 : 1)}"`;
+}
+
 function formatDraftBuzzRank(value?: number | null, prefix = '#'): string {
   const rank = Number(value);
   if (!Number.isFinite(rank) || rank <= 0) return '-';
@@ -367,6 +379,7 @@ function compareDraftBuzzRows(a: DraftBuzzScoreboardEntry, b: DraftBuzzScoreboar
   if (key === 'position') result = compareNullableText(getDraftBuzzPositionRankLabel(a), getDraftBuzzPositionRankLabel(b), direction);
   if (key === 'score') result = compareNullableMetric(a.rating || null, b.rating || null, direction);
   if (key === 'forty') result = compareNullableMetric(a.fortyYardDash ?? null, b.fortyYardDash ?? null, direction);
+  if (key === 'vertical') result = compareNullableMetric(getDraftBuzzVertical(a), getDraftBuzzVertical(b), direction);
   if (key === 'height') result = compareNullableMetric(parseDraftBuzzHeight(a.height), parseDraftBuzzHeight(b.height), direction);
   if (key === 'weight') result = compareNullableMetric(parseDraftBuzzWeight(a.weight), parseDraftBuzzWeight(b.weight), direction);
 
@@ -833,7 +846,7 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
         if (selectedPositions.length && !selectedPositions.includes(row.position as DraftBuzzPosition)) return false;
         if (!normalizedQuery) return true;
 
-        return [row.name, row.college, row.nflTeam, row.team, row.position, row.draftYear, row.rating, row.fortyYardDash, row.height, row.weight, getDraftBuzzPositionRankLabel(row)].some(value =>
+        return [row.name, row.college, row.nflTeam, row.team, row.position, row.draftYear, row.rating, row.fortyYardDash, getDraftBuzzVertical(row), row.height, row.weight, getDraftBuzzPositionRankLabel(row)].some(value =>
           String(value || '')
             .toLowerCase()
             .includes(normalizedQuery)
@@ -981,16 +994,18 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
               <span className="draftbuzz-table__school">
                 <DraftBuzzSchoolLogo entry={player} />
               </span>
-              <span className={getRankClass(player.position)}>{getDraftBuzzPositionRankLabel(player)}</span>
-              <strong className="draftbuzz-table__score">{formatDraftBuzzScore(player.rating)}</strong>
+              <span className={`draftbuzz-table__meta-chip ${getRankClass(player.position)}`}>{getDraftBuzzPositionRankLabel(player)}</span>
+              <strong className="draftbuzz-table__meta-chip draftbuzz-table__score">{formatDraftBuzzScore(player.rating)}</strong>
             </span>
             <span className="draftbuzz-table__forty">{formatDraftBuzzForty(player.fortyYardDash)}</span>
+            <span className="draftbuzz-table__vertical">{formatDraftBuzzVertical(getDraftBuzzVertical(player))}</span>
             <span className="draftbuzz-table__height">{formatDraftBuzzTrait(player.height)}</span>
             <span className="draftbuzz-table__weight">{formatDraftBuzzTrait(player.weight)}</span>
             <span className="draftbuzz-table__mobile-measurables" aria-label={`${player.name} measurables`}>
-              <span>40 Yd: {formatDraftBuzzForty(player.fortyYardDash)}</span>
-              <span>HT {formatDraftBuzzTrait(player.height)}</span>
-              <span>WT {formatDraftBuzzTrait(player.weight)}</span>
+              <span className="draftbuzz-table__meta-chip">40 {formatDraftBuzzForty(player.fortyYardDash)}</span>
+              <span className="draftbuzz-table__meta-chip">VJ {formatDraftBuzzVertical(getDraftBuzzVertical(player))}</span>
+              <span className="draftbuzz-table__meta-chip">HT {formatDraftBuzzTrait(player.height)}</span>
+              <span className="draftbuzz-table__meta-chip">WT {formatDraftBuzzTrait(player.weight)}</span>
             </span>
           </button>
         ))}
@@ -1320,7 +1335,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
           <span>Rank</span>
           <span>Player</span>
           <span>{config.board === 'devy' ? 'School' : 'Team'}</span>
-          <span>{config.board === 'devy' ? 'Pos Rank' : 'Pos Rank'}</span>
+          <span>{config.board === 'devy' ? 'Pos' : 'Pos Rank'}</span>
           <span>{config.board === 'devy' ? 'Class' : 'Age'}</span>
           {config.board !== 'devy' ? <span>Last Year</span> : null}
           <span>{config.board === 'devy' ? 'Projection' : 'Manager'}</span>

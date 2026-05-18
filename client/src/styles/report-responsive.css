@@ -1668,6 +1668,7 @@
     minmax(3.7rem, 0.32fr)
     minmax(3.85rem, 0.34fr)
     minmax(3.45rem, 0.3fr)
+    minmax(3.45rem, 0.3fr)
     minmax(3.7rem, 0.3fr)
     minmax(4.25rem, 0.34fr);
   align-items: center;
@@ -1766,6 +1767,7 @@
 .draftbuzz-table__class,
 .draftbuzz-table__rank,
 .draftbuzz-table__forty,
+.draftbuzz-table__vertical,
 .draftbuzz-table__height,
 .draftbuzz-table__weight {
   min-width: 0;
@@ -1786,6 +1788,7 @@
 
 .draftbuzz-table__header > span:nth-child(n + 4),
 .draftbuzz-table__forty,
+.draftbuzz-table__vertical,
 .draftbuzz-table__height,
 .draftbuzz-table__weight {
   justify-self: center;
@@ -2041,6 +2044,7 @@
       minmax(2.7rem, 0.26fr)
       minmax(3.1rem, 0.28fr)
       minmax(3.25rem, 0.3fr)
+      minmax(2.8rem, 0.26fr)
       minmax(2.8rem, 0.26fr)
       minmax(3rem, 0.26fr)
       minmax(3.25rem, 0.28fr);
@@ -5349,12 +5353,11 @@
   }
 
   .draftbuzz-table__row {
-    grid-template-columns: minmax(0, 1fr) max-content !important;
+    grid-template-columns: max-content minmax(0, 1fr) max-content !important;
     grid-template-areas:
-      "player topmeta"
-      "team measures"
-      ". year" !important;
-    min-height: 5.55rem;
+      "player player topmeta"
+      "team measures year" !important;
+    min-height: 5.1rem;
     align-items: center;
     gap: 0.42rem 0.42rem;
     padding: 0.58rem 0.62rem !important;
@@ -5395,6 +5398,7 @@
 
   .draftbuzz-table__rank,
   .draftbuzz-table__forty,
+  .draftbuzz-table__vertical,
   .draftbuzz-table__height,
   .draftbuzz-table__weight {
     display: none !important;
@@ -5439,9 +5443,7 @@
 
   .draftbuzz-table__score {
     align-self: start;
-    min-height: 1.9rem;
-    min-width: 3.2rem;
-    font-size: 0.86rem;
+    min-width: 2.75rem;
     box-shadow: 0 0 16px rgba(251, 191, 36, 0.14);
   }
 
@@ -5464,11 +5466,8 @@
 
   .draftbuzz-table__class {
     grid-area: year !important;
-    align-self: end;
+    align-self: center;
     justify-self: end;
-    color: #a5f3fc;
-    font-size: 0.64rem;
-    font-weight: 1000;
   }
 
   .draftbuzz-table__logo-cell {
@@ -5491,27 +5490,42 @@
   .draftbuzz-table__mobile-measurables {
     display: flex;
     grid-area: measures !important;
+    width: 100%;
     min-width: 0;
     flex-wrap: nowrap;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    justify-self: stretch;
     gap: 0.16rem;
   }
 
+  .draftbuzz-table__meta-chip,
+  .draftbuzz-table__class,
   .draftbuzz-table__mobile-measurables span {
     display: inline-flex;
-    min-height: 1.05rem;
+    min-height: 1.2rem;
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(34, 211, 238, 0.16);
     border-radius: 999px;
     background: rgba(2, 6, 23, 0.5);
-    padding: 0.08rem 0.22rem;
+    padding: 0.1rem 0.3rem;
     color: #c4f1ff;
-    font-size: 0.44rem;
+    font-size: 0.52rem;
     font-weight: 1000;
+    letter-spacing: 0;
     line-height: 1;
     white-space: nowrap;
+  }
+
+  .draftbuzz-table__top-meta > .ranking-card-rank-pill {
+    min-height: 1.2rem;
+    padding: 0.1rem 0.34rem;
+    font-size: 0.52rem;
+  }
+
+  .draftbuzz-table__top-meta > .draftbuzz-table__score {
+    color: #fef3c7;
   }
 }
 
@@ -10577,6 +10591,8 @@
     gap: 0.16rem;
   }
 
+  .draftbuzz-table__meta-chip,
+  .draftbuzz-table__class,
   .value-board__row-devy .ranking-devy-line span,
   .draftbuzz-table__mobile-measurables span {
     min-height: 1.16rem;
@@ -10621,6 +10637,8 @@
     max-width: min(52vw, 10.8rem);
   }
 
+  .draftbuzz-table__meta-chip,
+  .draftbuzz-table__class,
   .value-board__row-devy .ranking-devy-line span,
   .draftbuzz-table__mobile-measurables span {
     padding-inline: 0.2rem;
@@ -11044,5 +11062,211 @@
 
   .report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-compact {
     font-size: 0.64rem;
+  }
+}
+
+/* Rankings mobile row system: player identity first, key rank/value data on the top rail, context below. */
+@media (max-width: 767px) {
+  .report-shell .rankings-player-grid .value-board__row,
+  .report-shell .draftbuzz-table__row {
+    align-items: center;
+    gap: 0.38rem 0.42rem;
+    padding: 0.56rem 0.62rem !important;
+  }
+
+  .report-shell .rankings-player-grid :is(.ranking-player-identity, .player-chip),
+  .report-shell .draftbuzz-table__player .ranking-player-identity {
+    gap: 0.42rem;
+  }
+
+  .report-shell .rankings-player-grid :is(.ranking-player-identity > span:last-child, .player-chip > span:last-child),
+  .report-shell .draftbuzz-table__player .ranking-player-identity > span:last-child {
+    color: #f8fafc;
+    font-size: 0.94rem !important;
+    font-weight: 1000;
+    letter-spacing: 0;
+    line-height: 1.04;
+  }
+
+  .report-shell .rankings-player-grid :is(.value-board__rank, .value-board__value, .ranking-card-rank-pill, .ranking-movement-pill, .ranking-trend-pill, .ranking-ai-read-chip),
+  .report-shell .rankings-player-grid .value-board__row-devy :is(.value-board__prospect-score, .ranking-devy-class-pill, .ranking-devy-line span),
+  .report-shell .draftbuzz-table :is(.draftbuzz-table__class, .draftbuzz-table__meta-chip, .draftbuzz-table__mobile-measurables span) {
+    min-height: 1.22rem;
+    border-radius: 999px;
+    padding: 0.1rem 0.32rem;
+    font-size: 0.52rem;
+    font-weight: 1000;
+    letter-spacing: 0;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .report-shell .rankings-player-grid .value-board__value-label,
+  .report-shell .value-board__rows-devy .value-board__team-label,
+  .report-shell .draftbuzz-table__logo-label {
+    display: none !important;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__row {
+    grid-template-columns: minmax(0, 1fr) max-content max-content max-content !important;
+    grid-template-areas:
+      "player movement value rank"
+      "meta previous-season trend manager" !important;
+    min-height: 4.9rem;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__player {
+    align-self: start;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__player :is(.player-chip, .ranking-player-identity) {
+    width: min(100%, 12.75rem) !important;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__mobile-meta {
+    align-self: end;
+    gap: 0.22rem;
+    padding-right: 0;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__meta .ranking-card-rank-pill {
+    border: 1px solid rgba(34, 211, 238, 0.28) !important;
+    background: rgba(2, 6, 23, 0.58) !important;
+    color: #a5f3fc;
+    box-shadow: none;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) :is(.value-board__age-pill, .value-board__age-empty, .ranking-last-season-summary-pill, .ranking-last-season-empty) {
+    min-height: 0;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    color: #cbd5e1;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__previous-season {
+    justify-self: start;
+    align-self: end;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-pill {
+    align-items: flex-start;
+    gap: 0.04rem;
+    text-align: left;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-full {
+    display: none;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-summary-compact {
+    display: block;
+    color: #a5f3fc;
+    font-size: 0.68rem;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__manager {
+    align-self: end;
+    justify-self: end;
+    position: static;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy {
+    grid-template-columns: max-content minmax(0, 1fr) max-content max-content !important;
+    grid-template-areas:
+      "player player posrank buzz"
+      "team traits year year" !important;
+    min-height: 5.05rem;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .value-board__player {
+    grid-area: player !important;
+    align-self: start;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .value-board__value {
+    grid-area: posrank !important;
+    min-width: 2.75rem;
+    align-self: start;
+    justify-self: end;
+    color: inherit;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .value-board__value strong {
+    font-size: 0.58rem;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .value-board__prospect-score {
+    grid-area: buzz !important;
+    min-width: 2.86rem;
+    align-self: start;
+    justify-self: end;
+    box-shadow: 0 0 14px rgba(251, 191, 36, 0.14);
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .value-board__team {
+    grid-area: team !important;
+    align-self: end;
+    justify-self: start;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .ranking-devy-line {
+    grid-area: traits !important;
+    width: 100%;
+    max-width: 100%;
+    align-self: end;
+    justify-content: flex-start;
+    gap: 0.16rem;
+    overflow: hidden;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .ranking-devy-line span {
+    flex: 0 1 auto;
+    max-width: 4.4rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .value-board__age {
+    grid-area: year !important;
+    align-self: end;
+    justify-self: end;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .ranking-devy-class-pill {
+    min-width: 2.55rem;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 390px) {
+  .report-shell .rankings-player-grid :is(.ranking-player-identity > span:last-child, .player-chip > span:last-child),
+  .report-shell .draftbuzz-table__player .ranking-player-identity > span:last-child {
+    font-size: 0.9rem !important;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__row {
+    min-height: 5.15rem;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .value-board__player :is(.player-chip, .ranking-player-identity) {
+    width: min(100%, 11.4rem) !important;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy {
+    grid-template-columns: max-content minmax(0, 1fr) max-content max-content !important;
+    gap: 0.34rem 0.34rem;
+  }
+
+  .report-shell .value-board__rows-devy .value-board__row-devy .ranking-devy-line span,
+  .report-shell .draftbuzz-table :is(.draftbuzz-table__class, .draftbuzz-table__meta-chip, .draftbuzz-table__mobile-measurables span) {
+    padding-inline: 0.24rem;
+    font-size: 0.5rem;
   }
 }
