@@ -17,9 +17,10 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
     selectedProfileKey: 'redraft-ppr',
     selectedProfileLabel: 'Current-season PPR',
     defaultProfileKey: 'redraft-ppr',
+    defaultRedraftProfileKey: 'redraft-ppr',
     defaultDevyProfileKey: null,
     profileOptions: [
-      { key: 'redraft-ppr', label: 'Current-season PPR', board: 'dynasty', qbFormat: 'one_qb', tep: 0 },
+      { key: 'redraft-ppr', label: 'Current-season PPR', board: 'redraft', qbFormat: 'one_qb', tep: 0 },
     ],
     sourceWeightProfiles: {
       'redraft-ppr': {
@@ -34,7 +35,7 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
         {
           id: 'player-1',
           player_id: 'player-1',
-          name: 'Sample Starter',
+          name: 'Bijan Robinson',
           pos: 'RB',
           team: 'BUF',
           age: 25,
@@ -78,7 +79,7 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
   const playerDetailsById = {
     'player-1': {
       playerId: 'player-1',
-      fullName: 'Sample Starter',
+      fullName: 'Bijan Robinson',
       position: 'RB',
       team: 'BUF',
       age: 25,
@@ -97,7 +98,7 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
       },
       playerCohort: {
         playerId: 'player-1',
-        name: 'Sample Starter',
+        name: 'Bijan Robinson',
         position: 'RB',
         age: 25,
         value: 5000,
@@ -220,7 +221,7 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
           currentValueDate: '2026-12-09',
           pick: 1,
           player_id: 'player-1',
-          playerName: 'Sample Starter',
+          playerName: 'Bijan Robinson',
           playerPos: 'RB',
           manager: 'Tester',
           managerDisplayName: 'Tester',

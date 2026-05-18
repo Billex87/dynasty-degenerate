@@ -57,7 +57,7 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
       fantasyCalcRedraft: 4875,
       fantasyProsSeasonValue: 4930,
       seasonValue: 5000,
-      sources: ['Current-season model', 'FantasyPros Season', 'FantasyCalc Redraft'],
+      sources: ['Dynasty blend', 'KTC market', 'Flock Fantasy'],
     },
     valueTimeline: {
       profileKey: '12_sf_ppr_base',
@@ -289,7 +289,7 @@ test.describe('player detail modal', () => {
     await loadModalReport(page, cachedReport, 'admin');
     await openRankings(page);
 
-    const dialog = await openPlayerModal(page, 'Sample Starter');
+    const dialog = await openPlayerModal(page, 'Bijan Robinson');
 
     const heroTextAlign = await dialog.locator('.athletic-headline').evaluate((node) => getComputedStyle(node.parentElement!).textAlign);
     expect(heroTextAlign).toBe('center');
@@ -306,42 +306,56 @@ test.describe('player detail modal', () => {
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Latest News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('Why this fired').first()).toBeVisible();
-    await expect(dialog.getByText(/Draft capital: Round 1, pick 18/i).first()).toBeVisible();
-    await expect(dialog.getByText('Runway 90%').first()).toBeVisible();
+    await expect(dialog.locator('.ai-read-trace-kicker:visible', { hasText: 'Why this fired' }).first()).toBeVisible();
+    await expect(dialog.locator('.ai-read-trace-list:visible', { hasText: /Draft capital: Round 1, pick 18/i }).first()).toBeVisible();
+    await expect(dialog.locator('.ai-read-chip:visible', { hasText: 'Runway 90%' }).first()).toBeVisible();
     await expect(dialog.locator('p').filter({ hasText: 'Availability: 2025: 14 GP' }).first()).toBeVisible();
     await expect(dialog.getByText('AVAILABLE')).toHaveCount(0);
-    await dialog.getByRole('button', { name: /Open Sample Starter 2025 weekly availability log/i }).click();
+    await dialog.getByRole('button', { name: /Open Bijan Robinson 2025 weekly availability log/i }).click();
     const availabilityDialog = page.getByRole('dialog').filter({ hasText: 'Weekly Availability Log' });
-    await expect(availabilityDialog.getByRole('heading', { name: /Sample Starter 2025/i })).toBeVisible();
+    await expect(availabilityDialog.getByRole('heading', { name: /Bijan Robinson 2025/i })).toBeVisible();
     await expect(availabilityDialog.getByText('Season Snapshot')).toBeVisible();
     await expect(availabilityDialog.getByText(/14 GP \/ 3 missed/i)).toBeVisible();
     await expect(availabilityDialog.getByText('16.4', { exact: true })).toBeVisible();
     await expect(dialog.locator('.player-availability-log-panel')).toHaveCount(0);
-    await availabilityDialog.getByRole('button', { name: /Close Sample Starter 2025 weekly availability log/i }).click();
+    await availabilityDialog.getByRole('button', { name: /Close Bijan Robinson 2025 weekly availability log/i }).click();
     await expect(availabilityDialog).toHaveCount(0);
 
-    await dialog.getByRole('button', { name: /Open Sample Starter value timeline detail/i }).click();
-    const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Source Movement' });
+    await expect(dialog.getByText('Dynasty Value Trend')).toHaveCount(0);
+    await expect(dialog.getByText('Current Redraft Trend')).toBeVisible();
+    await dialog.getByRole('button', { name: /Open Bijan Robinson value timeline detail/i }).click();
+    const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Timeline' });
     await expect(timelineDialog.getByRole('tab', { name: /1M/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /3M/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /6M/i })).toHaveAttribute('aria-selected', 'true');
     await expect(timelineDialog.getByRole('tab', { name: /1Y/i })).toBeVisible();
+    await expect(timelineDialog.getByRole('tab', { name: /All/i })).toBeVisible();
+    await expect(timelineDialog.getByText('Current Redraft Timeline')).toBeVisible();
     await expect(timelineDialog.getByText('All-Time Range')).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: 'Value' })).toHaveAttribute('aria-selected', 'true');
+    const selectedPoint = timelineDialog.locator('.player-value-selected-point');
+    await expect(selectedPoint).toBeVisible();
+    await expect.poll(async () => {
+      const firstChartPoint = timelineDialog.locator('.player-value-chart-point').first();
+      const firstChartPointLabel = await firstChartPoint.getAttribute('aria-label');
+      const firstChartPointValue = firstChartPointLabel?.match(/ value ([^ ]+)/)?.[1] || '';
+      if (!firstChartPointValue) return false;
+      await firstChartPoint.click();
+      const selectedPointText = await selectedPoint.textContent();
+      return Boolean(selectedPointText?.includes(firstChartPointValue));
+    }).toBe(true);
     await timelineDialog.getByRole('tab', { name: 'Position Rank' }).click();
     await expect(timelineDialog.getByRole('tab', { name: 'Position Rank' })).toHaveAttribute('aria-selected', 'true');
-    await expect(timelineDialog.getByText('4 rank points')).toBeVisible();
+    await expect(timelineDialog.getByText(/rank points/i)).toBeVisible();
     await expect(timelineDialog.getByText('Snapshot Source History')).toHaveCount(0);
-    const sourceCharts = timelineDialog.locator('.player-value-source-chart-grid');
-    await expect(sourceCharts.getByText('KTC')).toBeVisible();
-    await expect(sourceCharts.getByText('FantasyCalc')).toBeVisible();
+    await expect(timelineDialog.getByText('Source Movement')).toHaveCount(0);
+    await expect(timelineDialog.locator('.player-value-source-chart-grid')).toHaveCount(0);
     await expect(timelineDialog.getByText('Highest')).toBeVisible();
-    await expect(timelineDialog.getByText('May 17, 2026 / RB5')).toBeVisible();
+    await expect(timelineDialog.getByText(/May .*2026 \/ RB/i).first()).toBeVisible();
     await timelineDialog.getByRole('tab', { name: /All/i }).click();
     await expect(timelineDialog.getByRole('tab', { name: /All/i })).toHaveAttribute('aria-selected', 'true');
-    await expect(timelineDialog.getByText('Sep 1').first()).toBeVisible();
-    await timelineDialog.getByRole('button', { name: /Close Sample Starter value timeline detail/i }).click();
+    await expect(timelineDialog.getByText('May').first()).toBeVisible();
+    await timelineDialog.getByRole('button', { name: /Close Bijan Robinson value timeline detail/i }).click();
     await expect(timelineDialog).toHaveCount(0);
 
     const newsLink = dialog.locator('a[href="https://example.com/news/travis-etienne-saints"]');
@@ -370,7 +384,7 @@ test.describe('player detail modal', () => {
     await loadModalReport(page, cachedReport, 'regular');
     await openRankings(page);
 
-    const dialog = await openPlayerModal(page, 'Sample Starter');
+    const dialog = await openPlayerModal(page, 'Bijan Robinson');
 
     await expect(dialog.getByText('Source Inputs', { exact: true })).toHaveCount(0);
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();

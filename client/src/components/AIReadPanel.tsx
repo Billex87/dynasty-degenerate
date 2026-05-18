@@ -52,6 +52,7 @@ export interface AIReadPanelProps {
   body: ReactNode;
   actions?: AIReadAction[];
   compact?: boolean;
+  mobileDefaultOpen?: boolean;
   backgroundVariant?: AIReadBackgroundVariant;
   className?: string;
 }
@@ -581,7 +582,7 @@ export function AIReadPanel({
         <AIReadPanelContent {...props} severity={severity} backgroundVariant={backgroundVariant} />
       </article>
 
-      <details className={cn(rootClassName, 'ai-read-panel-mobile', 'ai-read-panel-mobile-compact')}>
+      <details className={cn(rootClassName, 'ai-read-panel-mobile', 'ai-read-panel-mobile-compact')} open={props.mobileDefaultOpen}>
         <AIReadChrome primary={primaryChrome} routeKey={circuitKey} />
         <AITronSurface theme={tronTheme} density="small" routeKey={circuitKey} />
 

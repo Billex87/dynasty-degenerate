@@ -8906,6 +8906,19 @@
     border-color: rgba(251, 113, 133, 0.3);
   }
 
+  .player-value-graph-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+  }
+
+  @media (min-width: 1024px) {
+    .player-value-graph-grid-compare {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
+  }
+
   .player-value-timeline-trigger {
     display: block;
     width: 100%;
@@ -9055,6 +9068,18 @@
     background: rgba(8, 47, 73, 0.44);
   }
 
+  .player-value-window-tab:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+    transform: none;
+  }
+
+  .player-value-window-tab:disabled:hover {
+    border-color: rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.5);
+    transform: none;
+  }
+
   .player-value-window-tab span {
     color: #67e8f9;
     font-size: 0.58rem;
@@ -9194,6 +9219,16 @@
     overflow: visible;
   }
 
+  .player-value-chart-point {
+    cursor: pointer;
+    outline: none;
+  }
+
+  .player-value-chart-point:focus-visible {
+    stroke: rgba(103, 232, 249, 0.9);
+    stroke-width: 3;
+  }
+
   .player-value-timeline-chart-footer {
     display: flex;
     align-items: center;
@@ -9205,6 +9240,51 @@
     letter-spacing: 0.08em;
     line-height: 1.1;
     text-transform: uppercase;
+  }
+
+  .player-value-selected-point {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid rgba(34, 211, 238, 0.18);
+    border-radius: 0.7rem;
+    background: rgba(8, 47, 73, 0.24);
+    padding: 0.55rem 0.62rem;
+    color: #cbd5e1;
+    font-size: 0.68rem;
+    font-weight: 850;
+    line-height: 1.15;
+  }
+
+  .player-value-selected-point span,
+  .player-value-selected-point small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .player-value-selected-point strong {
+    color: #f8fafc;
+    font-size: 0.92rem;
+    font-weight: 950;
+  }
+
+  .player-value-selected-point em {
+    border: 1px solid rgba(244, 114, 182, 0.35);
+    border-radius: 999px;
+    background: rgba(190, 24, 93, 0.16);
+    color: #f9a8d4;
+    font-size: 0.66rem;
+    font-style: normal;
+    font-weight: 950;
+    padding: 0.12rem 0.42rem;
+  }
+
+  .player-value-selected-point small {
+    color: #94a3b8;
+    text-align: right;
   }
 
   .player-value-source-admin-panel {
@@ -9628,6 +9708,16 @@
   @media (max-width: 480px) {
     .player-value-timeline-description {
       display: none;
+    }
+
+    .player-value-selected-point {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .player-value-selected-point strong,
+    .player-value-selected-point em,
+    .player-value-selected-point small {
+      justify-self: start;
     }
   }
 

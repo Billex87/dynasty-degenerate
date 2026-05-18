@@ -6962,7 +6962,7 @@ export default function Home() {
                               leagueId={leagueId}
                               leagueLogo={leagueLogo}
                               viewerManager={effectiveViewerManager}
-                              board="dynasty"
+                              board={isRedraftReport ? "redraft" : "dynasty"}
                               hidePicks={isRedraftReport}
                               leagueValueMode={leagueValueMode}
                               showAIReads={canViewAdminFeatureExpansion}
