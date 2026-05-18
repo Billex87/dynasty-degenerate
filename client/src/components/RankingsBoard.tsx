@@ -1161,6 +1161,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   };
   const MovementSortIcon = movementSortDirection === 'up' ? TrendingUp : TrendingDown;
   const movementSortLabel = movementSortDirection === 'up' ? '7-Day risers' : '7-Day fallers';
+  const movementSortText = movementSortDirection === 'up' ? '7-Day Up' : '7-Day Down';
 
   const togglePosition = (position: PositionFilter) => {
     if (position === 'PICK') {
@@ -1257,7 +1258,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
               title={`Sort by ${movementSortLabel}`}
               onClick={handleMovementSortClick}
             >
-              <span>7-Day</span>
+              <span>{movementSortText}</span>
               <MovementSortIcon className="rankings-sort-direction-icon" aria-hidden="true" />
             </button>
           </div>

@@ -1839,6 +1839,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.22rem;
+  white-space: nowrap;
 }
 
 .rankings-sort-direction-icon {

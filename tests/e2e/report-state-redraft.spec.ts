@@ -101,10 +101,12 @@ test.describe('shareable report control state', () => {
     await expect(page).toHaveURL(/redraftSort=movement/);
     await expect(page).toHaveURL(/redraftMovement=down/);
     await expect(movementSort).toHaveAttribute('aria-label', /fallers/);
+    await expect(movementSort).toContainText('7-Day Down');
     await expect(page.locator('.value-board__row').first()).toContainText('Bijan Robinson');
     await movementSort.click();
     await expect(page).toHaveURL(/redraftMovement=up/);
     await expect(movementSort).toHaveAttribute('aria-label', /risers/);
+    await expect(movementSort).toContainText('7-Day Up');
     await expect(page.locator('.value-board__row').first()).toContainText('Depth Receiver');
 
     await search.fill('Depth');
