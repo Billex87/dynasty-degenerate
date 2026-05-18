@@ -311,6 +311,17 @@ export interface TradeData {
   winners?: string[];
   team_a_context?: TradeTeamContext;
   team_b_context?: TradeTeamContext;
+  value_context?: TradeValueContext;
+}
+
+export interface TradeValueContext {
+  source: 'historical-value-index' | 'stored-trade-snapshot' | 'current-value';
+  profileKey?: string | null;
+  playerAssetCount: number;
+  historicalPlayerAssetCount: number;
+  fallbackPlayerAssetCount: number;
+  maxDaysAway?: number | null;
+  note: string;
 }
 
 export interface TradeTeamContext {
@@ -1623,6 +1634,16 @@ export interface ReportData {
     trade_count: number;
   }>;
   tradeHistory: TradeData[];
+  tradeHistoryValueAudit?: {
+    source: 'historical-value-index';
+    profileKey: string;
+    playerAssetCount: number;
+    historicalPlayerAssetCount: number;
+    fallbackPlayerAssetCount: number;
+    maxDaysAway: number;
+    coveragePct: number | null;
+    note: string;
+  };
   tradeProposalSignals?: TradeProposalSignal[];
   adminTradeProposalSignals?: TradeProposalSignal[];
   adminSleeperTradeProposalSignals?: TradeProposalSignal[];

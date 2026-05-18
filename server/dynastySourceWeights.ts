@@ -97,84 +97,84 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
 
   if (isSuperflex && isTep) {
     return {
-      flock: 0.29,
-      fantasyPros: 0.12,
-      dynastyNerds: 0.25,
+      flock: 0.23,
+      fantasyPros: 0.06,
+      dynastyNerds: 0.27,
       fantasyNerds: 0.07,
-      ktc: 0.17,
-      fantasyCalc: 0.08,
-      dynastyProcess: 0.02,
+      ktc: 0.19,
+      fantasyCalc: 0.13,
+      dynastyProcess: 0.05,
     };
   }
 
   if (isSuperflex && isStandard) {
     return {
-      flock: 0.30,
-      fantasyPros: 0.12,
+      flock: 0.24,
+      fantasyPros: 0.06,
       dynastyNerds: 0.23,
       fantasyNerds: 0.07,
-      ktc: 0.14,
-      fantasyCalc: 0.12,
-      dynastyProcess: 0.02,
+      ktc: 0.18,
+      fantasyCalc: 0.17,
+      dynastyProcess: 0.05,
     };
   }
 
   if (isSuperflex) {
     return {
-      flock: 0.32,
-      fantasyPros: 0.12,
-      dynastyNerds: 0.21,
+      flock: 0.25,
+      fantasyPros: 0.06,
+      dynastyNerds: 0.22,
       fantasyNerds: 0.07,
-      ktc: 0.16,
-      fantasyCalc: 0.10,
-      dynastyProcess: 0.02,
+      ktc: 0.19,
+      fantasyCalc: 0.16,
+      dynastyProcess: 0.05,
     };
   }
 
   if (isTep && isStandard) {
     return {
-      flock: 0.25,
-      fantasyPros: 0.12,
-      dynastyNerds: 0.23,
+      flock: 0.22,
+      fantasyPros: 0.06,
+      dynastyNerds: 0.25,
       fantasyNerds: 0.07,
-      ktc: 0.23,
-      fantasyCalc: 0.08,
-      dynastyProcess: 0.02,
+      ktc: 0.24,
+      fantasyCalc: 0.11,
+      dynastyProcess: 0.05,
     };
   }
 
   if (isTep) {
     return {
-      flock: 0.28,
-      fantasyPros: 0.12,
-      dynastyNerds: 0.20,
+      flock: 0.23,
+      fantasyPros: 0.06,
+      dynastyNerds: 0.23,
       fantasyNerds: 0.07,
-      ktc: 0.23,
-      fantasyCalc: 0.08,
-      dynastyProcess: 0.02,
+      ktc: 0.24,
+      fantasyCalc: 0.12,
+      dynastyProcess: 0.05,
     };
   }
 
   if (isStandard) {
     return {
-      flock: 0.28,
-      fantasyPros: 0.12,
+      flock: 0.23,
+      fantasyPros: 0.06,
       dynastyNerds: 0.25,
       fantasyNerds: 0.07,
-      ktc: 0.14,
-      fantasyCalc: 0.12,
-      dynastyProcess: 0.02,
+      ktc: 0.17,
+      fantasyCalc: 0.17,
+      dynastyProcess: 0.05,
     };
   }
 
   return {
-    flock: 0.32,
-    fantasyPros: 0.12,
+    flock: 0.25,
+    fantasyPros: 0.06,
     dynastyNerds: 0.23,
     fantasyNerds: 0.07,
-    ktc: 0.14,
-    fantasyCalc: 0.10,
-    dynastyProcess: 0.02,
+    ktc: 0.19,
+    fantasyCalc: 0.15,
+    dynastyProcess: 0.05,
   };
 }
 
@@ -183,13 +183,13 @@ export function getDynastySourceWeightEntries(
   sourceTrust: DynastySourceWeightTrustMap = {},
 ): DynastySourceWeightEntry[] {
   const notes: Record<DynastySourceWeightKey, string> = {
-    flock: 'Primary dynasty/rookie rankings signal when available.',
-    fantasyPros: 'API-backed FantasyPros dynasty ECR support; kept below format-aware sources because the public ranking type is not league-format specific.',
+    flock: 'Primary expert-ranking anchor when available; trimmed after the historical calibration so it does not overpower market movement.',
+    fantasyPros: 'API-backed FantasyPros dynasty ECR support; reduced because historical error was higher and the public ranking type is not league-format specific.',
     dynastyNerds: 'Format-aware expert/community support, including Standard, SF, and SF TEP buckets.',
     fantasyNerds: 'API-backed consensus dynasty ranking support; kept modest because the endpoint is not league-format specific.',
-    ktc: 'Market/liquidity signal. Useful, but kept below the ranking anchors to avoid crowd-noise whiplash.',
-    fantasyCalc: 'Secondary market value support with team/QB/PPR format knobs.',
-    dynastyProcess: 'Small stabilizer/fallback source because it is broad and public, but less current for our use case.',
+    ktc: 'Market/liquidity signal raised by the historical calibration, but still balanced against ranking anchors to avoid crowd-noise whiplash.',
+    fantasyCalc: 'Secondary market value support with team/QB/PPR format knobs; raised because the archive gives it enough forward samples.',
+    dynastyProcess: 'Small stabilizer/fallback source because it is broad and public, with a larger baseline after calibration.',
   };
 
   const effectiveWeights = (Object.keys(SOURCE_LABELS) as DynastySourceWeightKey[]).map((key) => (

@@ -13,7 +13,7 @@ vi.mock('./ktcLoader', () => ({
   loadLocalKtcSnapshotForDate: mocks.loadLocalKtcSnapshotForDate,
 }));
 
-import { buildPlayerValueTimelineMap } from './playerValueTimeline';
+import { buildPlayerValueTimelineMap, getHistoricalPlayerValueAtDate } from './playerValueTimeline';
 
 describe('player value timeline', () => {
   it('builds compact stored snapshot timelines and flags source-set changes', () => {
@@ -180,6 +180,11 @@ describe('player value timeline', () => {
             sf_ppr: {
               format: 'sf_ppr',
               rawPointCount: 3,
+              asOfPoints: [
+                { date: '2025-12-01', value: 1200, rank: 'WR110', overallRank: 220, sources: ['marketKtc'], sourceCount: 1 },
+                { date: '2026-03-01', value: 1500, rank: 'WR98', overallRank: 190, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+                { date: '2026-05-17', value: 1800, rank: 'WR80', overallRank: 150, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2 },
+              ],
               windows: {
                 '6m': {
                   key: '6m',
@@ -265,6 +270,20 @@ describe('player value timeline', () => {
     });
     expect(result.p1.availableWindows?.map((window) => window.key)).toEqual(['6m', 'all']);
     expect(result.p1.points.at(-1)).toMatchObject({ rank: 'WR80', overallRank: 150 });
+
+    const asOfValue = getHistoricalPlayerValueAtDate({
+      playerName: 'Malachi Fields',
+      date: '2026-03-03',
+      valueProfileKey: '12_sf_ppr_base',
+      leagueValueMode: 'dynasty',
+    });
+    expect(asOfValue).toMatchObject({
+      value: 1500,
+      valueDate: '2026-03-01',
+      daysAway: 2,
+      format: 'sf_ppr',
+      source: 'historical-value-index',
+    });
 
     process.env.USE_VALUE_TIMELINE_INDEX = previousUseIndex;
     process.env.VALUE_TIMELINE_INDEX_FILE = previousIndexFile;

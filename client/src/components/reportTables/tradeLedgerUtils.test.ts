@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ManagerIntelPlayer, TradeData } from "@shared/types";
 import {
+  buildTradeLedgerEvaluation,
   buildTradeFairnessSuggestion,
   getTradeFairnessSuggestionCopy,
   type TradeLedgerEvaluation,
@@ -109,6 +110,28 @@ function evaluation(pointGap = 1000): TradeLedgerEvaluation {
 }
 
 describe("trade fairness suggestions", () => {
+  it("uses trade-date player values for dynasty ledger evaluation", () => {
+    const row: TradeData = {
+      date: "2026-05-01",
+      season: "2026",
+      team_a: "Buyer",
+      team_b: "Seller",
+      team_a_items: "PLAYER:future|Future Riser|3500|2200|2026-05-01",
+      team_b_items: "PLAYER:veteran|Current Vet|2400|2600|2026-05-01",
+      team_a_total: 2200,
+      team_b_total: 2600,
+      point_gap: 400,
+      winner: "Seller",
+      winners: ["Seller"],
+    };
+
+    const result = buildTradeLedgerEvaluation(row, undefined, undefined, undefined, [], "dynasty");
+
+    expect(result.teamA.total).toBe(2200);
+    expect(result.teamB.total).toBe(2600);
+    expect(result.winners).toEqual(["Seller"]);
+  });
+
   it("prefers non-riser make-whole assets over a closer validated riser", () => {
     const closeRiser = player("riser", "Close Riser", 1000, valueTimeline(1800, 2800));
     const cleanAsset = player("clean", "Clean Make-Whole", 1150);

@@ -674,7 +674,7 @@ describe('generateReport trade ledger', () => {
 
     const trade = report.tradeHistory[0];
     expect(trade.team_a).toBe('AwwQQ');
-    expect(trade.team_a_items.split(',').map(item => item.trim())).toContain('PLAYER:london|Drake London|8500');
+    expect(trade.team_a_items.split(',').map(item => item.trim()).some((item) => item.startsWith('PLAYER:london|Drake London|8500'))).toBe(true);
     expect(trade.team_b).toBe('mynameisbillex');
     expect(trade.team_b_items).toContain('PLAYER:smith|DeVonta Smith|6000');
     expect(trade.team_b_items).toContain('PICK:2026 AwwQQ 1st (1.08)|3928');

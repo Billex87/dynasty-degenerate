@@ -25,6 +25,7 @@ type TimelineIndexPlayer = {
   formats: Record<string, {
     format: string;
     rawPointCount: number;
+    asOfPoints?: TimelinePoint[];
     windows: Record<TimelineWindowKey, NonNullable<TimelineWindow>>;
     extremes?: NonNullable<PlayerDetails['valueTimeline']>['extremes'];
     yearlyExtremes?: NonNullable<PlayerDetails['valueTimeline']>['yearlyExtremes'];
@@ -37,6 +38,21 @@ type TimelineIndexCache = {
 };
 
 let timelineIndexCache: TimelineIndexCache | null | undefined;
+
+export type HistoricalPlayerValueLookup = {
+  playerName: string;
+  matchedName: string;
+  format: string;
+  requestedDate: string;
+  valueDate: string;
+  daysAway: number;
+  value: number;
+  rank?: string | null;
+  overallRank?: number | null;
+  sourceCount: number;
+  sources: string[];
+  source: 'historical-value-index';
+};
 
 function getPlayerDisplayName(player: Record<string, any> | undefined): string | null {
   if (!player) return null;
@@ -157,6 +173,76 @@ function selectTimelineFormat(
     if (formats[format]) return formats[format];
   }
   return Object.values(formats).sort((a, b) => (b.rawPointCount || 0) - (a.rawPointCount || 0))[0] || null;
+}
+
+function parseUtcDateKey(dateKey: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || ''))) return null;
+  const time = new Date(`${dateKey}T00:00:00.000Z`).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+
+function daysBetween(dateA: string, dateB: string): number | null {
+  const a = parseUtcDateKey(dateA);
+  const b = parseUtcDateKey(dateB);
+  if (a === null || b === null) return null;
+  return Math.round(Math.abs(a - b) / 86_400_000);
+}
+
+export function getHistoricalPlayerValueAtDate(input: {
+  playerName: string;
+  date: string;
+  valueProfileKey: string;
+  leagueValueMode?: 'dynasty' | 'redraft' | 'keeper';
+  maxDaysAway?: number;
+}): HistoricalPlayerValueLookup | null {
+  const mode = input.leagueValueMode || 'dynasty';
+  if (mode === 'redraft') return null;
+  const requestedDate = String(input.date || '').slice(0, 10);
+  if (!parseUtcDateKey(requestedDate)) return null;
+
+  const indexedPlayer = getIndexedPlayerForName(input.playerName);
+  if (!indexedPlayer) return null;
+  const formatTimeline = selectTimelineFormat(indexedPlayer, input.valueProfileKey, mode);
+  if (!formatTimeline) return null;
+
+  const points = (formatTimeline.asOfPoints?.length
+    ? formatTimeline.asOfPoints
+    : formatTimeline.windows?.all?.points || []
+  ).filter((point) => parseUtcDateKey(point.date) && Number.isFinite(Number(point.value)));
+  if (!points.length) return null;
+
+  let closest: TimelinePoint | null = null;
+  let closestDaysAway = Number.POSITIVE_INFINITY;
+  for (const point of points) {
+    const pointDaysAway = daysBetween(requestedDate, point.date);
+    if (pointDaysAway === null) continue;
+    if (
+      pointDaysAway < closestDaysAway ||
+      (pointDaysAway === closestDaysAway && closest && point.date <= requestedDate && closest.date > requestedDate)
+    ) {
+      closest = point;
+      closestDaysAway = pointDaysAway;
+    }
+  }
+
+  if (!closest || !Number.isFinite(closestDaysAway)) return null;
+  const maxDaysAway = Number(input.maxDaysAway ?? 45);
+  if (maxDaysAway >= 0 && closestDaysAway > maxDaysAway) return null;
+
+  return {
+    playerName: input.playerName,
+    matchedName: indexedPlayer.name,
+    format: formatTimeline.format,
+    requestedDate,
+    valueDate: closest.date,
+    daysAway: closestDaysAway,
+    value: Math.round(Number(closest.value)),
+    rank: closest.rank || null,
+    overallRank: closest.overallRank ?? null,
+    sourceCount: closest.sourceCount || closest.sources?.length || 0,
+    sources: closest.sources || [],
+    source: 'historical-value-index',
+  };
 }
 
 function selectTimelineWindow(

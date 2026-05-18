@@ -21,7 +21,7 @@ This archive is the frozen raw source history used to regenerate player value ti
   - Source coverage report for the raw archive.
   - KeepTradeCut, Flock Fantasy, FantasyCalc, FantasyPros, DynastyProcess, Dynasty Nerds, and Fantasy Nerds are present.
   - Dynasty Nerds/Fantasy Nerds history is partial local stored-source snapshot coverage, not full source-native direct history.
-  - SHA-256: `d0f10dccb42f9dad41f889779baa75f322ba96baea1755e79b945713933c39a3`
+  - SHA-256: `67c2f2c8ab9a92be6c0f4dcf308a5620cc87733223566b3a758149d8adeecfca`
 - `server/value-history-archive/fantasycalc-history.json`
   - Source-specific FantasyCalc archive from direct player history endpoints.
   - 461 players.
@@ -44,18 +44,18 @@ This archive is the frozen raw source history used to regenerate player value ti
   - Includes 5,286 Dynasty Nerds points and 80 Fantasy Nerds points.
   - SHA-256: `6e3dd6aa7eea0a05d980ad984a6c84010099862016666cf33b14ac6e52b22fb2`
 - `server/value-history-archive/player-value-history-reblended.json`
-  - Derived timeline using current default weights.
+  - Derived timeline using audited 2026-05-17 default weights.
   - 2,296 players.
   - 1,268,594 blended player/date/format points.
-  - SHA-256: `f3b1ebbbe99bb225319e8c9f4d0efa625b213ed1d04464acf84d4b7abbb1d6ba`
+  - SHA-256: `c4595f627d38448639f65c0061098be5b39b4dfd21239466eb3c2a59ac2790ee`
 - `server/value-history-archive/value-history-weight-calibration.json`
   - Derived weight-calibration report from raw source values versus later cross-source consensus.
   - 942,831 future comparisons at a 180-day horizon.
-  - SHA-256: `da409688f5708e74ee77f973e8ed76e153743e6746ff2f6673544cb50a34d172`
+  - SHA-256: `18ba46cb77a2ec15741246463d8b391b40d3ee42a67bd0e762c0c0def00da472`
 - `server/value-history-archive/player-value-history-timeline-index.json`
-  - Compact derived index for player modal charts.
-  - 1,724 players, 8,746 player-format timelines, 414,528 compact window points.
-  - SHA-256: `834cbdd24977646126e796ae28534510a8a062c2a1673cc4f829e0a88c869ab8`
+  - Compact derived index for player modal charts and historical trade-date value lookup.
+  - 1,724 players, 8,746 player-format timelines, 414,528 compact window points, and 508,216 as-of lookup points.
+  - SHA-256: `e2643cdd6506d6877990ae0d17b60f11ec0deb0db47a251833c89ea9569a7168`
 
 ## Policy
 
@@ -75,7 +75,7 @@ When weights change, rerun:
 ```bash
 ARCHIVE_FILE=server/value-history-archive/one-time-source-history.json \
 OUT_FILE=server/value-history-archive/player-value-history-reblended.json \
-BLEND_NAME=current-default-weights \
+BLEND_NAME=audited-2026-05-17-weights \
 pnpm reblend:value-history
 ```
 

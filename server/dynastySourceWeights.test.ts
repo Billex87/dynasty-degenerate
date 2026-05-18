@@ -6,18 +6,18 @@ function totalWeight(weights: ReturnType<typeof getDynastySourceWeights>): numbe
 }
 
 describe('dynasty source weights', () => {
-  it('keeps Flock as the top source in regular superflex dynasty', () => {
+  it('uses the audited blend in regular superflex dynasty', () => {
     const weights = getDynastySourceWeights({ numQbs: 2, ppr: 1, tep: 0 });
 
     expect(totalWeight(weights)).toBeCloseTo(1);
     expect(weights).toMatchObject({
-      flock: 0.32,
-      fantasyPros: 0.12,
-      dynastyNerds: 0.21,
+      flock: 0.25,
+      fantasyPros: 0.06,
+      dynastyNerds: 0.22,
       fantasyNerds: 0.07,
-      ktc: 0.16,
-      fantasyCalc: 0.10,
-      dynastyProcess: 0.02,
+      ktc: 0.19,
+      fantasyCalc: 0.16,
+      dynastyProcess: 0.05,
     });
   });
 
@@ -26,13 +26,13 @@ describe('dynasty source weights', () => {
 
     expect(totalWeight(weights)).toBeCloseTo(1);
     expect(weights).toMatchObject({
-      flock: 0.29,
-      fantasyPros: 0.12,
-      dynastyNerds: 0.25,
+      flock: 0.23,
+      fantasyPros: 0.06,
+      dynastyNerds: 0.27,
       fantasyNerds: 0.07,
-      ktc: 0.17,
-      fantasyCalc: 0.08,
-      dynastyProcess: 0.02,
+      ktc: 0.19,
+      fantasyCalc: 0.13,
+      dynastyProcess: 0.05,
     });
   });
 
@@ -51,6 +51,6 @@ describe('dynasty source weights', () => {
 
   it('formats weights for admin diagnostics and the rankings board', () => {
     expect(formatDynastySourceWeights(getDynastySourceWeights({ numQbs: 1, ppr: 0, tep: 0 })))
-      .toBe('Flock Fantasy 28%, FantasyPros Dynasty 12%, Dynasty Nerds 25%, Fantasy Nerds 7%, KTC 14%, FantasyCalc 12%, DynastyProcess 2%');
+      .toBe('Flock Fantasy 23%, FantasyPros Dynasty 6%, Dynasty Nerds 25%, Fantasy Nerds 7%, KTC 17%, FantasyCalc 17%, DynastyProcess 5%');
   });
 });

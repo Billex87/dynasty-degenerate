@@ -20,6 +20,7 @@ import {
 } from './dynastySourceTrust';
 import { isFantasyNerdsTestDataActive } from './fantasyNerds';
 import { loadStoredPlayerPropMarketSignals, type PlayerPropMarketSignal } from './playerPropSignals';
+import { getHistoricalPlayerValueAtDate, type HistoricalPlayerValueLookup } from './playerValueTimeline';
 import type {
   LeagueValueMode,
   ManagerIntelPlayer,
@@ -32,6 +33,7 @@ import type {
   TaxiTriageItem,
   TradeTeamContext,
   TradeTimePickAsset,
+  TradeValueContext,
 } from '../shared/types';
 
 export interface KTCValues {
@@ -1097,7 +1099,7 @@ function buildLeagueDiagnostics(
         : []),
       'Dynasty Nerds PPR, Superflex, Standard, and Superflex TEP rankings with player values, Sleeper IDs, and movement',
       `Active dynasty source weights: ${sourceWeightLabel}`,
-      'FantasyCalc format values and DynastyProcess 1QB/SF values support the dynasty blend at smaller weights',
+      'FantasyCalc format values and DynastyProcess 1QB/SF values support the audited dynasty blend as market/stabilizer inputs',
       fantasyProsSeasonCoverage > 0
         ? `FantasyPros Draft/season ranks and points stored for ${fantasyProsSeasonCoverage} players, but used only for season/redraft and projected-lineup context.`
         : 'FantasyPros season-rank support is wired, but no season values were present in this snapshot.',
@@ -1112,7 +1114,7 @@ function buildLeagueDiagnostics(
       `Selected value profile: ${selectedValueProfile}. League analysis no longer uses the old default 12-team SF PPR blend when the league settings point elsewhere.`,
       `Daily snapshots now track ${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended format profiles across team count, QB format, reception scoring, and TEP bucket.`,
       'Daily storage includes raw source profiles for KTC, Flock Fantasy, FantasyPros Dynasty, Dynasty Nerds, Fantasy Nerds, FantasyCalc, DynastyProcess, FantasyPros season ranks, and Dynasty Dealer benchmark values before the app builds league-matched blends.',
-      'Flock Fantasy is treated as the highest-priority dynasty/rookie rankings source where the public rankings endpoint returns data. FantasyPros Dynasty and Fantasy Nerds add API-backed consensus support at modest weights because those endpoints are not league-format specific. Dynasty Nerds remains the secondary format-aware source. Redraft stays projection/season-source driven.',
+      'The audited dynasty blend balances Flock Fantasy and Dynasty Nerds expert rankings with KTC/FantasyCalc market movement. FantasyPros Dynasty and Fantasy Nerds add API-backed consensus support at modest weights because those endpoints are not league-format specific. Redraft stays projection/season-source driven.',
       'Expansion queue for primary data coverage: GridIron/DataSportsGroup-style season projection sources, MySportsFeeds if approved, LeagueLogs value/news verification, and a dedicated player-news feed. These stay out of the blend until they are reliably stored and attributable.',
       normalizeNumQbsForDiagnostics(lineupProfile) === 2 && tightEndPremium > 0
         ? 'Dynasty Nerds has a direct Superflex TEP source for this format bucket.'
@@ -2602,6 +2604,11 @@ export async function generateReport(
   const useSeasonAsPrimary = leagueValueMode === 'redraft';
   const starterThresholds = getStarterThresholds(currentSeasonData.rosters.length || 10);
   const lineupProfile = getLineupSlotProfile(currentSeasonData.rosterPositions);
+  const tradeValueProfileKey = currentSeasonData.valueBlendProfileKey || getValueSourceProfileKey({
+    numQbs: normalizeNumQbsForDiagnostics(lineupProfile),
+    ppr: getScoringNumber(currentSeasonData.scoringSettings, 'rec'),
+    tep: getTightEndPremium(currentSeasonData.scoringSettings),
+  });
   const seasonPositionRankById = buildSeasonPositionRanks(
     currentSeasonData.rosters.flatMap(getRosterPlayerIds),
     allPlayers,
@@ -2687,6 +2694,39 @@ export async function generateReport(
       tradeSnapshotCache[tradeDate] = loadLatestLocalKtcSnapshotBefore(new Date(tradeDate));
     }
     return tradeSnapshotCache[tradeDate];
+  };
+  const tradeHistoryValueAudit = {
+    profileKey: tradeValueProfileKey,
+    source: 'historical-value-index' as const,
+    playerAssetCount: 0,
+    historicalPlayerAssetCount: 0,
+    fallbackPlayerAssetCount: 0,
+    maxDaysAway: 0,
+  };
+  const getPlayerTradeValue = (
+    pid: string,
+    tradeDate: string,
+    snapshot: KTCValues
+  ): { value: number; historical: HistoricalPlayerValueLookup | null; fallbackValue: number } => {
+    const fallbackValue = getPrimarySnapshotValue(pid, snapshot) || getPrimaryValue(pid);
+    if (leagueValueMode === 'redraft') return { value: fallbackValue, historical: null, fallbackValue };
+
+    const historical = getHistoricalPlayerValueAtDate({
+      playerName: getCachedPlayerName(pid),
+      date: tradeDate,
+      valueProfileKey: tradeValueProfileKey,
+      leagueValueMode,
+      maxDaysAway: 45,
+    });
+    tradeHistoryValueAudit.playerAssetCount += 1;
+    if (historical?.value) {
+      tradeHistoryValueAudit.historicalPlayerAssetCount += 1;
+      tradeHistoryValueAudit.maxDaysAway = Math.max(tradeHistoryValueAudit.maxDaysAway, historical.daysAway);
+      return { value: historical.value, historical, fallbackValue };
+    }
+
+    tradeHistoryValueAudit.fallbackPlayerAssetCount += 1;
+    return { value: fallbackValue, historical: null, fallbackValue };
   };
   const teamData: Record<
     string,
@@ -2881,6 +2921,7 @@ export async function generateReport(
     winners: string[];
     team_a_context?: TradeTeamContext;
     team_b_context?: TradeTeamContext;
+    value_context?: TradeValueContext;
   }> = [];
   const tradeSeasons = [currentSeasonData, ...(pastSeasonData ? [pastSeasonData] : [])];
   const tradePickIdentities = buildTradePickOriginalRosterIdMap(tradeSeasons);
@@ -2896,11 +2937,12 @@ export async function generateReport(
 
     for (const [pid, rosterId] of Object.entries(flipResolution.returnTrade.adds || {})) {
       if (Number(rosterId) !== flipResolution.fromRosterId) continue;
+      const returnTradeValue = getPlayerTradeValue(pid, returnDate, returnTradeSnapshot);
       assets.push(encodePlayerItem(
         pid,
         getCachedPlayerName(pid),
         getPrimaryValue(pid),
-        getPrimarySnapshotValue(pid, returnTradeSnapshot),
+        returnTradeValue.value,
         returnDate
       ));
     }
@@ -2955,26 +2997,63 @@ export async function generateReport(
       const dt = new Date(tx.status_updated).toISOString().split('T')[0];
       const sideData: Record<
         number,
-        { items: string[]; vals: number[]; pickValue: number; veteranValue: number }
+        {
+          items: string[];
+          vals: number[];
+          pickValue: number;
+          veteranValue: number;
+          historicalPlayerAssets: number;
+          fallbackPlayerAssets: number;
+          maxHistoricalDaysAway: number;
+        }
       > = {};
 
       const adds = tx.adds || {};
       for (const [pid, rid] of Object.entries(adds)) {
-        if (!sideData[rid]) sideData[rid] = { items: [], vals: [], pickValue: 0, veteranValue: 0 };
+        if (!sideData[rid]) {
+          sideData[rid] = {
+            items: [],
+            vals: [],
+            pickValue: 0,
+            veteranValue: 0,
+            historicalPlayerAssets: 0,
+            fallbackPlayerAssets: 0,
+            maxHistoricalDaysAway: 0,
+          };
+        }
         const val = getPrimaryValue(pid);
         const tradeSnapshot = getTradeSnapshot(dt);
-        const tradeDateValue = getPrimarySnapshotValue(pid, tradeSnapshot);
-        sideData[rid].items.push(encodePlayerItem(pid, getCachedPlayerName(pid), val, tradeDateValue, dt));
-        sideData[rid].vals.push(val);
+        const tradeDateValue = getPlayerTradeValue(pid, dt, tradeSnapshot);
+        sideData[rid].items.push(encodePlayerItem(pid, getCachedPlayerName(pid), val, tradeDateValue.value, dt));
+        sideData[rid].vals.push(tradeDateValue.value || val);
+        if (tradeDateValue.historical) {
+          sideData[rid].historicalPlayerAssets += 1;
+          sideData[rid].maxHistoricalDaysAway = Math.max(
+            sideData[rid].maxHistoricalDaysAway,
+            tradeDateValue.historical.daysAway
+          );
+        } else {
+          sideData[rid].fallbackPlayerAssets += 1;
+        }
         if ((allPlayers[pid]?.age || 0) >= 27) {
-          sideData[rid].veteranValue += val;
+          sideData[rid].veteranValue += tradeDateValue.value || val;
         }
       }
 
       const picks = tx.draft_picks || [];
       picks.forEach((pick, pickIndex) => {
         const rid = pick.owner_id;
-        if (!sideData[rid]) sideData[rid] = { items: [], vals: [], pickValue: 0, veteranValue: 0 };
+        if (!sideData[rid]) {
+          sideData[rid] = {
+            items: [],
+            vals: [],
+            pickValue: 0,
+            veteranValue: 0,
+            historicalPlayerAssets: 0,
+            fallbackPlayerAssets: 0,
+            maxHistoricalDaysAway: 0,
+          };
+        }
         const eventKey = getTradePickEventKey(tx, pick, pickIndex);
         const originalRosterId = tradePickIdentities.displayOriginalRosterIds.get(eventKey)
           ?? tradePickIdentities.originalRosterIds.get(eventKey)
@@ -3056,6 +3135,8 @@ export async function generateReport(
           managerWins[winner] = (managerWins[winner] || 0) + 1;
         });
         const historicalContext = historicalTradeContexts.get(tx.status_updated);
+        const historicalPlayerAssets = sideData[r1].historicalPlayerAssets + sideData[r2].historicalPlayerAssets;
+        const fallbackPlayerAssets = sideData[r1].fallbackPlayerAssets + sideData[r2].fallbackPlayerAssets;
 
         tradeRows.push({
           date: dt,
@@ -3071,6 +3152,17 @@ export async function generateReport(
           winners,
           team_a_context: historicalContext?.[r1],
           team_b_context: historicalContext?.[r2],
+          value_context: {
+            source: historicalPlayerAssets > 0 ? 'historical-value-index' : 'stored-trade-snapshot',
+            profileKey: tradeValueProfileKey,
+            playerAssetCount: historicalPlayerAssets + fallbackPlayerAssets,
+            historicalPlayerAssetCount: historicalPlayerAssets,
+            fallbackPlayerAssetCount: fallbackPlayerAssets,
+            maxDaysAway: Math.max(sideData[r1].maxHistoricalDaysAway, sideData[r2].maxHistoricalDaysAway),
+            note: historicalPlayerAssets > 0
+              ? 'Player assets use the closest archived blended value to the trade date when available; missing matches fall back to the closest stored local snapshot.'
+              : 'Player assets fall back to the closest stored local snapshot because no archived historical value matched this trade.',
+          },
         });
       }
     }
@@ -4062,6 +4154,15 @@ export async function generateReport(
     projectedFallers,
     tradeProfitLeaderboard,
     tradeHistory: sortedTradeHistory,
+    tradeHistoryValueAudit: {
+      ...tradeHistoryValueAudit,
+      coveragePct: tradeHistoryValueAudit.playerAssetCount
+        ? Math.round((tradeHistoryValueAudit.historicalPlayerAssetCount / tradeHistoryValueAudit.playerAssetCount) * 1000) / 10
+        : null,
+      note: leagueValueMode === 'redraft'
+        ? 'Redraft trade history keeps the current-season value lens.'
+        : 'Dynasty trade history uses the closest archived player value to each trade date when available, then falls back to the closest stored local snapshot.',
+    },
     positionDepth,
     managerPositionCounts,
     managerRosterIntelligence,

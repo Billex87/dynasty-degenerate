@@ -31,6 +31,54 @@ export type RookieValueBaseline = {
   values: RookieValueMap;
 };
 
+export type RookieDraftBaselinePolicy = {
+  year: string;
+  draftStartDate: string;
+  draftEndDate: string;
+  baselineDate: string;
+  rule: string;
+};
+
+const ROOKIE_BASELINE_RULE = 'First Monday after NFL Draft weekend, then closest available archived value on or after that date when the exact date is missing.';
+
+const rookieDraftBaselinePolicies: Record<string, RookieDraftBaselinePolicy> = {
+  '2022': {
+    year: '2022',
+    draftStartDate: '2022-04-28',
+    draftEndDate: '2022-04-30',
+    baselineDate: '2022-05-02',
+    rule: ROOKIE_BASELINE_RULE,
+  },
+  '2023': {
+    year: '2023',
+    draftStartDate: '2023-04-27',
+    draftEndDate: '2023-04-29',
+    baselineDate: '2023-05-01',
+    rule: ROOKIE_BASELINE_RULE,
+  },
+  '2024': {
+    year: '2024',
+    draftStartDate: '2024-04-25',
+    draftEndDate: '2024-04-27',
+    baselineDate: '2024-04-29',
+    rule: ROOKIE_BASELINE_RULE,
+  },
+  '2025': {
+    year: '2025',
+    draftStartDate: '2025-04-24',
+    draftEndDate: '2025-04-26',
+    baselineDate: '2025-04-28',
+    rule: ROOKIE_BASELINE_RULE,
+  },
+  '2026': {
+    year: '2026',
+    draftStartDate: '2026-04-23',
+    draftEndDate: '2026-04-25',
+    baselineDate: '2026-04-27',
+    rule: ROOKIE_BASELINE_RULE,
+  },
+};
+
 const rookie2025Snapshot = rookieBlendSnapshot2025 as RookieValueBaseline;
 const rookie2026Snapshot = ktcSnapshot20260507 as { generatedAt?: string; values?: RookieValueMap };
 const rookie2026Values = rookie2026Snapshot.values || (rookieValues2026 as RookieValueMap);
@@ -76,4 +124,16 @@ export function getRookieValueBaselineMetadata(year: string): Omit<RookieValueBa
   if (!baseline) return undefined;
   const { values: _values, ...metadata } = baseline;
   return metadata;
+}
+
+export function getRookieDraftBaselinePolicy(year: string | number): RookieDraftBaselinePolicy | undefined {
+  return rookieDraftBaselinePolicies[String(year)];
+}
+
+export function getRookieDraftBaselineDate(year: string | number): string | undefined {
+  return getRookieDraftBaselinePolicy(year)?.baselineDate;
+}
+
+export function getRookieDraftBaselinePolicies(): Record<string, RookieDraftBaselinePolicy> {
+  return { ...rookieDraftBaselinePolicies };
 }

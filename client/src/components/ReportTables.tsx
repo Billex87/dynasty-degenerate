@@ -1011,7 +1011,7 @@ function getTradeLedgerPlayerValue(
       playerItem.value
     );
   }
-  return playerItem.value;
+  return playerItem.tradeDateValue ?? playerItem.value;
 }
 
 function getTradeLedgerPlayerRank(

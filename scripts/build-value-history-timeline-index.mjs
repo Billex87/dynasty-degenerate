@@ -16,6 +16,7 @@ const WINDOW_CONFIGS = [
   { key: '1y', label: '1Y', days: 366, maxPoints: 38 },
   { key: 'all', label: 'All', days: null, maxPoints: 72 },
 ];
+const MAX_AS_OF_POINTS = Number(process.env.MAX_AS_OF_POINTS || 260);
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log([
@@ -25,7 +26,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     '  ARCHIVE_FILE=server/value-history-archive/player-value-history-reblended.json',
     '  OUT_FILE=server/value-history-archive/player-value-history-timeline-index.json',
     '',
-    'The index is small enough for report generation and keeps 3M/6M/1Y/all-time windows plus high/low records.',
+    'The index is small enough for report generation and keeps 3M/6M/1Y/all-time windows, high/low records, and a denser as-of lookup series for historical trades.',
   ].join('\n'));
   process.exit(0);
 }
@@ -137,6 +138,7 @@ async function main() {
   let playerCount = 0;
   let formatCount = 0;
   let windowPointCount = 0;
+  let asOfPointCount = 0;
 
   for await (const player of streamArchivePlayers(archivePath)) {
     const formatRows = {};
@@ -154,11 +156,15 @@ async function main() {
           })
       );
       if (!Object.keys(windows).length) continue;
+      const asOfPoints = compactPoints(rows, MAX_AS_OF_POINTS).map(slimPoint);
+      asOfPointCount += asOfPoints.length;
       formatRows[format] = {
         format,
         firstDate: rows[0].date,
         lastDate: latestDate,
         rawPointCount: rows.length,
+        asOfPointCount: rows.length,
+        asOfPoints,
         windows,
         extremes: summarizeExtremes(rows),
         yearlyExtremes: summarizeYearlyExtremes(rows),
@@ -186,13 +192,15 @@ async function main() {
     playerCount,
     formatCount,
     windowPointCount,
+    asOfPointCount,
+    maxAsOfPoints: MAX_AS_OF_POINTS,
     windows: WINDOW_CONFIGS,
     players,
   };
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(result)}\n`);
-  console.log(`Indexed ${playerCount} players, ${formatCount} format timelines, ${windowPointCount} compact window points.`);
+  console.log(`Indexed ${playerCount} players, ${formatCount} format timelines, ${windowPointCount} compact window points, ${asOfPointCount} as-of lookup points.`);
   console.log(`Wrote ${path.relative(rootDir, outputPath)}`);
 }
 

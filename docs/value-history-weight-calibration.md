@@ -18,23 +18,35 @@ Result:
 
 - Horizon: 180 days.
 - Future comparisons: 942,831.
-- Calibration report SHA-256: `da409688f5708e74ee77f973e8ed76e153743e6746ff2f6673544cb50a34d172`.
+- Calibration report SHA-256: `18ba46cb77a2ec15741246463d8b391b40d3ee42a67bd0e762c0c0def00da472`.
 
 | Source | Samples | Error | Direction hit | Current | Suggested |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| KeepTradeCut | 760,440 | 59.8% | 81.8% | 0.14 | 0.194 |
-| FantasyCalc | 115,816 | 93.2% | 60.7% | 0.10 | 0.155 |
-| FantasyPros | 3,403 | 224.7% | 24.5% | 0.12 | 0.058 |
-| DynastyProcess | 192,655 | 184.0% | 34.8% | 0.02 | 0.051 |
-| Dynasty Nerds | 0 | n/a | n/a | 0.23 | 0.223 |
-| Fantasy Nerds | 0 | n/a | n/a | 0.07 | 0.068 |
-| Flock Fantasy | 419,084 | 84.3% | 37.5% | 0.32 | 0.252 |
+| KeepTradeCut | 760,440 | 59.8% | 81.8% | 0.19 | 0.248 |
+| FantasyCalc | 115,816 | 93.2% | 60.7% | 0.15 | 0.181 |
+| FantasyPros | 3,403 | 224.7% | 24.5% | 0.06 | 0.033 |
+| DynastyProcess | 192,655 | 184.0% | 34.8% | 0.05 | 0.053 |
+| Dynasty Nerds | 0 | n/a | n/a | 0.23 | 0.228 |
+| Fantasy Nerds | 0 | n/a | n/a | 0.07 | 0.069 |
+| Flock Fantasy | 419,084 | 84.3% | 37.5% | 0.25 | 0.188 |
 
 ## Recommendation
 
-Do not auto-apply the suggested weights yet. The direct historical sources are now measurable, but Dynasty Nerds and Fantasy Nerds do not have a forward test window because their archive coverage is local stored snapshots only. Keep current production weights until either:
+The production and historical default weights now use the audited 2026-05-17 blend:
 
-- we accept a cautious manual adjustment after reviewing report behavior, or
+- KeepTradeCut: 0.19
+- FantasyCalc: 0.15
+- FantasyPros: 0.06
+- DynastyProcess: 0.05
+- Dynasty Nerds: 0.23
+- Fantasy Nerds: 0.07
+- Flock Fantasy: 0.25
+
+This is a controlled move toward the measurable calibration signal: more KTC, FantasyCalc, and DynastyProcess; less FantasyPros and Flock Fantasy; Dynasty Nerds and Fantasy Nerds held roughly stable because they do not yet have enough forward local snapshot history.
+
+Do not chase the latest suggested weights automatically. The rerun still wants more KTC/FantasyCalc and less Flock/FantasyPros, but Dynasty Nerds and Fantasy Nerds still do not have a forward test window because their archive coverage is local stored snapshots only. Revisit another adjustment after:
+
+- we review report behavior with the audited blend, and
 - enough future local snapshots accumulate to test Dynasty Nerds/Fantasy Nerds against outcomes.
 
-The current evidence supports a future manual test blend that gives more weight to KTC and FantasyCalc, less to FantasyPros and Flock, and keeps Dynasty Nerds/Fantasy Nerds roughly stable until forward evidence exists.
+The current evidence supports a possible future manual test blend closer to KTC 0.25, FantasyCalc 0.18, Flock 0.19, FantasyPros 0.03, while keeping the Nerds sources stable until forward evidence exists.

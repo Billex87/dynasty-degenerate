@@ -68,7 +68,7 @@ pnpm audit:value-history
 
 ARCHIVE_FILE=server/value-history-archive/one-time-source-history-normalized.json \
 OUT_FILE=server/value-history-archive/player-value-history-reblended.json \
-BLEND_NAME=current-default-weights \
+BLEND_NAME=audited-2026-05-17-weights \
 pnpm reblend:value-history
 ```
 
