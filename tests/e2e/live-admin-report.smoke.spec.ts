@@ -5,8 +5,11 @@ const sleeperUsername = process.env.LIVE_SLEEPER_USERNAME || 'mynameisbillex';
 const adminPassphrase = process.env.ADMIN_LOGIN_PASSWORD || process.env.ADMIN_PASSWORD || '';
 const dynastyLeagueName = process.env.LIVE_ADMIN_DYNASTY_LEAGUE || 'The Fantasy Degenerates';
 const redraftDraftLeagueName = process.env.LIVE_ADMIN_REDRAFT_DRAFT_LEAGUE || 'test league';
-const redraftPreviousDraftLeagueName =
-  process.env.LIVE_ADMIN_REDRAFT_PREVIOUS_DRAFT_LEAGUE || process.env.LIVE_ADMIN_REDRAFT_LEAGUE || 'Gov Tech Grid Iron';
+const redraftNoDraftLeagueName =
+  process.env.LIVE_ADMIN_REDRAFT_NO_DRAFT_LEAGUE ||
+  process.env.LIVE_ADMIN_REDRAFT_PREVIOUS_DRAFT_LEAGUE ||
+  process.env.LIVE_ADMIN_REDRAFT_LEAGUE ||
+  'Gov Tech Grid Iron';
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -123,9 +126,9 @@ test.describe('live admin report smoke', () => {
     await expect(page.locator('body')).toContainText(/Dynasty|SF|PPR/i);
   });
 
-  test(`${redraftPreviousDraftLeagueName} admin report keeps previous draft history`, async ({ page }) => {
-    await runLeagueReport(page, redraftPreviousDraftLeagueName);
-    await expectAdminSurfaces(page, { shouldShowDraftHistory: true });
+  test(`${redraftNoDraftLeagueName} admin report hides draft history until current draft exists`, async ({ page }) => {
+    await runLeagueReport(page, redraftNoDraftLeagueName);
+    await expectAdminSurfaces(page, { shouldShowDraftHistory: false });
     await page.getByRole('tab', { name: 'Rankings' }).click();
     await expect(page.getByText(/Current-season player values/i).first()).toBeVisible();
   });

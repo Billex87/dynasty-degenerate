@@ -34,6 +34,7 @@ const PLAYER_NAME_ALIAS_GROUPS = [
   ['zonovanknight', 'bamknight'],
   ['gabrieldavis', 'gabedavis'],
   ['marquisebrown', 'hollywoodbrown'],
+  ['nicholassingleton', 'nicksingleton'],
 ] as const;
 const PLAYER_NAME_CANONICAL_ALIAS_BY_KEY: Map<string, string> = new Map(
   PLAYER_NAME_ALIAS_GROUPS.flatMap((group) => group.map((key) => [key, group[0]] as const))

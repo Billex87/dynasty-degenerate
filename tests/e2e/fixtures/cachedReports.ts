@@ -1,5 +1,5 @@
 export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v24';
-export const REPORT_CACHE_DATA_VERSION = 'waiver-trust-gate-v1';
+export const REPORT_CACHE_DATA_VERSION = 'draft-state-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;
@@ -161,6 +161,11 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
       leagueDiagnostics: {
         teamCount: 4,
         valueMode: 'redraft',
+        currentSeason: '2026',
+        hasCurrentSeasonMainDraft: true,
+        currentSeasonMainDraftPickCount: 2,
+        currentSeasonMainDraftPickedPlayerCount: 2,
+        currentSeasonMainDraftStatus: 'complete',
         rosterSlots: [],
         starterSlots: ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX'],
         lineupSlotSummary: '1 QB, 2 RB, 2 WR, 1 TE, 1 Flex',
@@ -290,6 +295,13 @@ export function createCachedRedraftNoDraftReport(leagueId = 'redraft-no-draft-le
     leagueFormat: '4-Team Redraft PPR - No Draft Yet',
     reportData: {
       ...cachedReport.reportData,
+      leagueDiagnostics: {
+        ...cachedReport.reportData.leagueDiagnostics,
+        hasCurrentSeasonMainDraft: false,
+        currentSeasonMainDraftPickCount: 0,
+        currentSeasonMainDraftPickedPlayerCount: 0,
+        currentSeasonMainDraftStatus: 'not_started',
+      },
       draftPicks: [],
       draftStats: [],
     },
@@ -570,6 +582,21 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
             trace: 'Roster room: target volume opened for the top returning receiver.',
           },
         ],
+        freshness: {
+          grade: 'fresh',
+          score: 82,
+          latestEventAt: null,
+          signals: ['usage 2025', 'roster room 2026', 'rolling usage windows'],
+          note: 'Situation read is backed by recent or multi-source football context.',
+        },
+        dynamicSignals: [
+          {
+            type: 'roster-room',
+            label: 'Major room opening',
+            direction: 'boost',
+            detail: 'Target volume opened for the top returning receiver.',
+          },
+        ],
       },
     },
     waiver1: { playerId: 'waiver1', fullName: 'Waiver Receiver', position: 'WR', team: 'NYJ', age: 24, valueProfile: { dynastyValue: 2800, seasonValue: 3400, dynastyPositionRank: 'WR42', seasonPositionRank: 'WR31', sources: ['KTC'] } },
@@ -624,6 +651,19 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
     chaosNotes: [],
     marketSignals: ['WR depth can be converted into RB production.'],
     pressurePoints: ['RB depth', 'TE volatility'],
+    situationSummary: {
+      playerCount: 7,
+      backedCount: 1,
+      strongCount: 1,
+      boostCount: 1,
+      riskCount: 0,
+      staleCount: 0,
+      sourceLimitedCount: 0,
+      topBoostPlayer: 'Depth Receiver',
+      topRiskPlayer: null,
+      note: 'Depth Receiver is the best backed roster riser; no backed situation risks are flagging.',
+      signals: ['1 backed situation read', '1 boost read', '0 risk reads'],
+    },
     rosterHealthScore: 82,
     positionGrades: {
       QB: { rank: 1, grade: '9', note: 'Elite' },
@@ -694,6 +734,7 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
       leagueDiagnostics: {
         teamCount: 10,
         valueMode: 'dynasty',
+        currentSeason: '2026',
         rosterSlots: ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'SUPER_FLEX', 'BN'],
         starterSlots: ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'SUPER_FLEX'],
         lineupSlotSummary: '1 QB, 2 RB, 2 WR, 1 TE, Flex, Superflex',
@@ -792,8 +833,11 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
       ],
       projectedRisers: [],
       projectedFallers: [],
-      tradeProfitLeaderboard: [{ rank: 1, manager: 'Tester', profit: 600, wins: 1, trade_count: 1 }],
-      tradeHistory: [{ date: '2026-05-01', season: '2026', team_a: 'Tester', team_b: 'Rival', team_a_items: '2026 2nd', team_b_items: 'PLAYER:wr2|Depth Receiver|3000', team_a_total: 2200, team_b_total: 3000, point_gap: 800, winner: 'Tester', winners: ['Tester'] }],
+      tradeProfitLeaderboard: [
+        { rank: 1, manager: 'Rival', profit: 800, wins: 1, trade_count: 1 },
+        { rank: 2, manager: 'Tester', profit: -800, wins: 0, trade_count: 1 },
+      ],
+      tradeHistory: [{ date: '2026-05-01', season: '2026', team_a: 'Tester', team_b: 'Rival', team_a_items: '2026 2nd', team_b_items: 'PLAYER:wr2|Depth Receiver|3000', team_a_total: 2200, team_b_total: 3000, point_gap: 800, winner: 'Rival', winners: ['Rival'] }],
       positionDepth: [
         { manager: 'Tester', position: 'WR', count: 8, status: 'excess' },
         { manager: 'Tester', position: 'RB', count: 4, status: 'shortage' },
@@ -821,7 +865,10 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
         { manager: 'Rival', activePlayerCount: 15, reservePlayerCount: 0, taxiPlayerCount: 0, totalRosterPlayerCount: 15, QB: 4, QB_starters: 2, RB: 5, RB_starters: 2, WR: 4, WR_starters: 2, TE: 2, TE_starters: 1, starterPlayers: [], lineupPlayers: [], rosterPlayers: [] },
       ],
       managerRosterIntelligence: [testerIntel, rivalIntel],
-      tradeTendencies: [{ manager: 'Tester', tradeCount: 1, wins: 1, winPct: 100, profit: 600, avgGap: 600, favoritePartner: 'Rival', overpaysForPicks: false, overpaysForVeterans: false }],
+      tradeTendencies: [
+        { manager: 'Tester', tradeCount: 1, wins: 0, winPct: 0, profit: -800, avgGap: 800, favoritePartner: 'Rival', overpaysForPicks: false, overpaysForVeterans: false },
+        { manager: 'Rival', tradeCount: 1, wins: 1, winPct: 100, profit: 800, avgGap: 800, favoritePartner: 'Tester', overpaysForPicks: false, overpaysForVeterans: false },
+      ],
       powerRankings: [
         { rank: 1, manager: 'Tester', score: 84, tier: 'Contender', starterStrength: 88, rosterValue: 91, positionalBalance: 74, draftCapital: 58, youthScore: 72, tradeEfficiency: 80 },
         { rank: 2, manager: 'Rival', score: 70, tier: 'Reloading', starterStrength: 68, rosterValue: 82, positionalBalance: 56, draftCapital: 92, youthScore: 84, tradeEfficiency: 60 },

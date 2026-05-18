@@ -139,14 +139,18 @@
   overflow: hidden;
   color: var(--autopilot-orange);
   font-family: var(--font-athletic);
-  font-size: clamp(1.5rem, 6vw, 4.2rem);
+  font-size: clamp(1.35rem, 4.4vw, 4.2rem);
   font-weight: 1000;
   letter-spacing: 0;
-  line-height: 0.88;
-  overflow-wrap: break-word;
+  line-height: 0.96;
+  overflow-wrap: normal;
   text-transform: uppercase;
   text-wrap: balance;
-  word-break: break-word;
+  word-break: normal;
+}
+
+.autopilot-headline-manager {
+  white-space: nowrap;
 }
 
 .autopilot-hero p {
@@ -203,7 +207,7 @@
 
 .autopilot-status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: clamp(0.55rem, 1.2vw, 0.85rem);
   margin-bottom: clamp(0.9rem, 2vw, 1.2rem);
 }
@@ -1607,7 +1611,7 @@
   }
 
   .autopilot-hero h2 {
-    font-size: clamp(1.5rem, 6vw, 2.85rem);
+    font-size: clamp(1.32rem, 5vw, 2.45rem);
   }
 
   .autopilot-system-badge,
@@ -1622,12 +1626,15 @@
     letter-spacing: 0.13em;
   }
 
-  .autopilot-status-grid,
   .autopilot-command-strip,
   .autopilot-card-grid,
   .autopilot-weekly-plan,
   .autopilot-tendency-scores {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .autopilot-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .autopilot-direction-read h3 {

@@ -181,7 +181,7 @@ const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
   "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
-const REPORT_CACHE_DATA_VERSION = "waiver-trust-gate-v1";
+const REPORT_CACHE_DATA_VERSION = "draft-state-v1";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v24";
 const REPORT_CACHE_DB_NAME = "dynasty-degenerates-report-cache";
 const REPORT_CACHE_DB_VERSION = 1;
@@ -218,7 +218,7 @@ const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
-const MAX_REPORT_HEADER_LEAGUES = 4;
+const MAX_REPORT_HEADER_LEAGUES = 5;
 const LEAGUE_VIEW_MANAGER_VALUE = "__league__";
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = "2026-05-07";
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
@@ -462,7 +462,33 @@ function updateReportTabUrl(tab: string, leagueId?: string | null) {
 
 function hasDraftReportData(reportData?: ReportData | null): boolean {
   if (!reportData) return false;
-  return (reportData.draftPicks || []).length > 0;
+  const draftPicks = reportData.draftPicks || [];
+  const draftStats = reportData.draftStats || [];
+  const leagueValueMode = normalizeLeagueValueMode(
+    reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
+  );
+
+  if (leagueValueMode !== "redraft") {
+    return draftPicks.length > 0 || draftStats.length > 0;
+  }
+
+  const diagnostics = reportData.leagueDiagnostics;
+  if (typeof diagnostics?.hasCurrentSeasonMainDraft === "boolean") {
+    return diagnostics.hasCurrentSeasonMainDraft;
+  }
+
+  const currentSeason = diagnostics?.currentSeason;
+  if (!currentSeason) return false;
+
+  return draftPicks.some(pick => {
+    const draftYear = pick.draftYear ? String(pick.draftYear) : "";
+    const draftKind = pick.draftKind || "main";
+    const hasPlayer =
+      Boolean(pick.player_id) ||
+      (Boolean(pick.playerName) && pick.playerName !== "Unknown");
+
+    return draftYear === currentSeason && draftKind === "main" && hasPlayer;
+  });
 }
 
 function formatPreviewNumber(value?: number | null): string {
@@ -3474,6 +3500,15 @@ function buildAIReadoutDiagnostics(reportData: ReportData) {
   const hasDraftContext = Boolean(
     reportData.draftPicks?.length || reportData.draftStats?.length
   );
+  const situationDeltas = Object.values(reportData.playerDetailsById || {})
+    .map(details => details.playerSituationDelta)
+    .filter(Boolean);
+  const freshSituationDeltas = situationDeltas.filter(delta =>
+    delta?.freshness?.grade === "fresh" || delta?.freshness?.grade === "usable"
+  );
+  const staleSituationDeltas = situationDeltas.filter(delta =>
+    delta?.freshness?.grade === "stale" || delta?.freshness?.grade === "missing"
+  );
 
   const rows = [
     buildAIReadoutRow({
@@ -3551,10 +3586,24 @@ function buildAIReadoutDiagnostics(reportData: ReportData) {
       hasConfidence: hasLeagueConfidence,
       hasTrace: hasRosterIntel,
       duplicateRisk: false,
-      sourceLimited: !hasScheduleContext,
-      note: hasScheduleContext
-        ? "Actions can include schedule, roster, waiver, and trade context."
-        : "Schedule/projection traces stay limited until matchup data is stable.",
+      sourceLimited: !hasScheduleContext && !freshSituationDeltas.length,
+      note: hasScheduleContext || freshSituationDeltas.length
+        ? "Actions can include schedule, roster, waiver, trade, and player situation context."
+        : "Schedule/projection and player situation traces stay limited until matchup or role data is stable.",
+    }),
+    buildAIReadoutRow({
+      id: "player-situation",
+      tab: "Player Detail",
+      surface: "Player Situation Reads",
+      owner: "Usage, depth, news, injury, and role context",
+      count: situationDeltas.length,
+      hasConfidence: situationDeltas.length > 0,
+      hasTrace: situationDeltas.some(delta => Boolean(delta?.trace?.length || delta?.dynamicSignals?.length)),
+      duplicateRisk: false,
+      sourceLimited: !freshSituationDeltas.length || staleSituationDeltas.length > freshSituationDeltas.length,
+      note: situationDeltas.length
+        ? `${freshSituationDeltas.length}/${situationDeltas.length} player situation reads have fresh or usable context; ${staleSituationDeltas.length} are stale or missing.`
+        : "No player situation-delta payload was returned.",
     }),
     buildAIReadoutRow({
       id: "momentum-waivers",
@@ -6764,7 +6813,7 @@ export default function Home() {
                       Overview
                     </span>
                     <span className="report-tab-label-short" aria-hidden="true">
-                      Home
+                      Overview
                     </span>
                   </TabsTrigger>
 
@@ -6785,7 +6834,7 @@ export default function Home() {
                         className="report-tab-label-short"
                         aria-hidden="true"
                       >
-                        Auto
+                        Autopilot
                       </span>
                     </TabsTrigger>
                   )}
@@ -6800,7 +6849,7 @@ export default function Home() {
                       Weekly Momentum
                     </span>
                     <span className="report-tab-label-short" aria-hidden="true">
-                      Trend
+                      Momentum
                     </span>
                   </TabsTrigger>
                   <TabsTrigger
@@ -7671,10 +7720,15 @@ export default function Home() {
                             ? "Switch to regular report view"
                             : "Return to admin report view"
                         }
+                        title={
+                          canViewAdminFeatureExpansion
+                            ? "Hide admin-only AI annotations and diagnostics"
+                            : "Show admin-only AI annotations and diagnostics"
+                        }
                       >
                         <span className="report-header-action-label">
                           {canViewAdminFeatureExpansion
-                            ? "Regular View"
+                            ? "Regular Report"
                             : "Admin Tools"}
                         </span>
                       </Button>
@@ -7691,9 +7745,10 @@ export default function Home() {
                       onClick={handleAnalyzeAnotherLeague}
                       variant="outline"
                       className="report-header-action report-footer-primary-action !w-full sm:!w-auto"
+                      aria-label="Switch to another league report"
                     >
                       <span className="report-header-action-label">
-                        Analyze Another League
+                        Switch League
                       </span>
                     </Button>
                   </div>

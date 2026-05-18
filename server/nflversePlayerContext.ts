@@ -68,6 +68,8 @@ type Snapshot<T> = {
 
 type ContextOptions = {
   season: string;
+  rosterRoomSeason?: string;
+  rosterRoomPreviousSeason?: string;
   sourceMode?: 'live' | 'snapshot';
   persistSnapshot?: boolean;
   forceRefresh?: boolean;
@@ -99,10 +101,6 @@ function num(value: unknown): number | null {
   if (!raw) return null;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function add(sum: number, value: unknown): number {
-  return sum + (num(value) || 0);
 }
 
 function average(values: number[]): number | null {
@@ -266,6 +264,13 @@ export function normalizeNflverseUsageRows(input: {
     targetShares: number[];
     weeklyTargets: Array<{ week: number; targets: number }>;
     weeklyCarries: Array<{ week: number; carries: number }>;
+    weeklyUsage: Array<{
+      week: number;
+      targets: number;
+      carries: number;
+      receptions: number;
+      fantasyPointsPpr: number;
+    }>;
   }>();
 
   for (const row of input.statsRows) {
@@ -291,14 +296,17 @@ export function normalizeNflverseUsageRows(input: {
       targetShares: [],
       weeklyTargets: [],
       weeklyCarries: [],
+      weeklyUsage: [],
     };
     if (week > 0) current.weeks.add(week);
     const targets = num(row.targets) || 0;
     const carries = num(row.carries) || 0;
+    const receptions = num(row.receptions) || 0;
+    const fantasyPointsPpr = num(row.fantasy_points_ppr) || 0;
     current.targets += targets;
     current.carries += carries;
-    current.receptions = add(current.receptions, row.receptions);
-    current.fantasyPointsPpr = add(current.fantasyPointsPpr, row.fantasy_points_ppr);
+    current.receptions += receptions;
+    current.fantasyPointsPpr += fantasyPointsPpr;
     current.airYardsShare = num(row.air_yards_share) ?? current.airYardsShare;
     current.wopr = num(row.wopr) ?? current.wopr;
     const targetShare = num(row.target_share);
@@ -306,6 +314,7 @@ export function normalizeNflverseUsageRows(input: {
     if (week > 0) {
       current.weeklyTargets.push({ week, targets });
       current.weeklyCarries.push({ week, carries });
+      current.weeklyUsage.push({ week, targets, carries, receptions, fantasyPointsPpr });
     }
     byGsis.set(gsisId, current);
   }
@@ -340,6 +349,33 @@ export function normalizeNflverseUsageRows(input: {
     const avgOffenseSnapPct = average(snapByName.get(nameKey(row.playerName)) || []);
     const targetTrend = hasWeeklyWindows ? trend(firstTargets, recentTargets) : 'unknown';
     const carryTrend = hasWeeklyWindows ? trend(firstCarries, recentCarries) : 'unknown';
+    const seasonTargetsPerGame = games ? row.targets / games : 0;
+    const seasonCarriesPerGame = games ? row.carries / games : 0;
+    const sortedUsage = row.weeklyUsage.sort((a, b) => a.week - b.week);
+    const rollingWindows = [3, 6, 12, 24].flatMap((windowGames) => {
+      const windowRows = sortedUsage.slice(-windowGames);
+      if (!windowRows.length) return [];
+      const windowCount = windowRows.length;
+      const targets = windowRows.reduce((sum, item) => sum + item.targets, 0);
+      const carries = windowRows.reduce((sum, item) => sum + item.carries, 0);
+      const receptions = windowRows.reduce((sum, item) => sum + item.receptions, 0);
+      const points = windowRows.reduce((sum, item) => sum + item.fantasyPointsPpr, 0);
+      const targetsPerGame = Math.round((targets / windowCount) * 10) / 10;
+      const carriesPerGame = Math.round((carries / windowCount) * 10) / 10;
+      const targetDeltaPerGame = Math.round((targetsPerGame - seasonTargetsPerGame) * 10) / 10;
+      const carryDeltaPerGame = Math.round((carriesPerGame - seasonCarriesPerGame) * 10) / 10;
+      return [{
+        games: windowGames,
+        weeks: windowRows.map((item) => item.week),
+        targetsPerGame,
+        carriesPerGame,
+        receptionsPerGame: Math.round((receptions / windowCount) * 10) / 10,
+        fantasyPointsPprPerGame: Math.round((points / windowCount) * 10) / 10,
+        targetDeltaPerGame,
+        carryDeltaPerGame,
+        note: `Last ${windowCount} tracked game${windowCount === 1 ? '' : 's'}: ${targetsPerGame} targets/g (${targetDeltaPerGame >= 0 ? '+' : ''}${targetDeltaPerGame} vs season), ${carriesPerGame} carries/g (${carryDeltaPerGame >= 0 ? '+' : ''}${carryDeltaPerGame} vs season).`,
+      }];
+    });
     return {
       gsisId,
       playerName: row.playerName,
@@ -358,6 +394,7 @@ export function normalizeNflverseUsageRows(input: {
       avgOffenseSnapPct,
       recentTargets: hasWeeklyWindows ? recentTargets : row.targets,
       recentCarries: hasWeeklyWindows ? recentCarries : row.carries,
+      rollingWindows,
       targetTrend,
       carryTrend,
       note: hasWeeklyWindows
@@ -1276,16 +1313,17 @@ async function loadTeamEnvironmentSnapshot(options: ContextOptions): Promise<Sna
 }
 
 async function loadRosterRoomSnapshot(options: ContextOptions): Promise<Snapshot<NflverseRosterRoomRow>> {
-  const season = nextSeason(options.season);
+  const season = options.rosterRoomSeason || nextSeason(options.season);
+  const previousSeason = options.rosterRoomPreviousSeason || options.season;
   if (options.sourceMode === 'snapshot') return loadStoredSeasonFallback<NflverseRosterRoomRow>(NFLVERSE_ROSTER_ROOM_SOURCE_PREFIX, season);
   try {
     const currentRosterUrl = inferRostersSourceUrl(season);
-    const previousRosterUrl = inferRostersSourceUrl(options.season);
+    const previousRosterUrl = inferRostersSourceUrl(previousSeason);
     const currentWeeklyRosterUrl = inferWeeklyRostersSourceUrl(season);
-    const previousWeeklyRosterUrl = inferWeeklyRostersSourceUrl(options.season);
+    const previousWeeklyRosterUrl = inferWeeklyRostersSourceUrl(previousSeason);
     const depthChartUrl = inferDepthChartsSourceUrl(season);
     const tradesUrl = inferTradesSourceUrl();
-    const usageUrl = inferUsageSourceUrl(options.season);
+    const usageUrl = inferUsageSourceUrl(previousSeason);
     const [currentRosterRows, previousRosterRows, currentWeeklyRosterRows, previousWeeklyRosterRows, depthChartRows, tradeRows, previousSeasonUsageRows, prospectContext] = await Promise.all([
       fetchText(currentRosterUrl).then(parseCsv),
       fetchText(previousRosterUrl).then(parseCsv).catch((error) => {
@@ -1307,7 +1345,7 @@ async function loadRosterRoomSnapshot(options: ContextOptions): Promise<Snapshot
       }),
       fetchText(usageUrl).then(parseCsv).then((statsRows) => normalizeNflverseUsageRows({
         statsRows,
-        season: options.season,
+        season: previousSeason,
       })).catch((error) => {
         console.warn('[nflverse] Failed to refresh prior usage roster room quality:', error);
         return [];
@@ -1331,7 +1369,7 @@ async function loadRosterRoomSnapshot(options: ContextOptions): Promise<Snapshot
         depthChartRows,
         tradeRows,
         season,
-        previousSeason: options.season,
+        previousSeason,
       }),
     });
     if (options.persistSnapshot) await persist(sourceKey(NFLVERSE_ROSTER_ROOM_SOURCE_PREFIX, season), snapshot);

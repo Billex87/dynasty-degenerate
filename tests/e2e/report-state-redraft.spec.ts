@@ -172,6 +172,29 @@ test.describe('shareable report control state', () => {
     await expect(page.getByRole('tab', { name: 'Draft History' })).toHaveCount(0);
   });
 
+  test('hides draft history for redraft leagues when only prior-season draft data exists', async ({ page }) => {
+    const cachedReport = createCachedRedraftReport('prior-draft-redraft-league');
+    const reportData = cachedReport.reportData as any;
+    reportData.draftPicks = reportData.draftPicks.map((pick: any) => ({
+      ...pick,
+      draftYear: '2025',
+      draftKind: 'main',
+    }));
+    reportData.leagueDiagnostics = {
+      ...reportData.leagueDiagnostics,
+      hasCurrentSeasonMainDraft: false,
+      currentSeasonMainDraftPickCount: 0,
+      currentSeasonMainDraftPickedPlayerCount: 0,
+      currentSeasonMainDraftStatus: 'not_started',
+    };
+
+    await loadCachedReportPayload(page, cachedReport, '#draft');
+
+    await expect(page).toHaveURL(new RegExp(`leagueId=${cachedReport.leagueId}$`));
+    await expect(page.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: 'Draft History' })).toHaveCount(0);
+  });
+
   test('shows early rookie market labels without exposing comparison dates', async ({ page }) => {
     const cachedReport = createCachedDynastyRookieReport();
     await loadCachedReportPayload(page, cachedReport, '#draft');

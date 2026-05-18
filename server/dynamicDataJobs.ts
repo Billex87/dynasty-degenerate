@@ -363,7 +363,12 @@ export async function refreshReportEnrichmentSnapshots(options: {
   backfillLimit?: number;
   season?: string;
 } = {}) {
-  const season = options.season || String(new Date().getFullYear() - 1);
+  const now = new Date();
+  const currentSeason = String(now.getFullYear());
+  const previousSeason = String(now.getFullYear() - 1);
+  const season = options.season || (now.getMonth() >= 8 ? currentSeason : previousSeason);
+  const rosterRoomSeason = season === currentSeason ? currentSeason : String(Number(season) + 1);
+  const rosterRoomPreviousSeason = season === currentSeason ? previousSeason : season;
   const [playerNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats, playerProps, nflverseDraftCapital, nflversePlayerContext] = await Promise.all([
     loadPlayerNewsBundle({ persistSnapshot: true, forceRefresh: true }),
     loadDraftSharksScheduleContext({
@@ -377,7 +382,13 @@ export async function refreshReportEnrichmentSnapshots(options: {
     refreshSleeperSeasonStatsSnapshots(),
     refreshPlayerPropSnapshots(),
     loadNflverseDraftCapitalSnapshot({ persistSnapshot: true, forceRefresh: true }),
-    loadNflversePlayerContext({ season, persistSnapshot: true, forceRefresh: true }),
+    loadNflversePlayerContext({
+      season,
+      rosterRoomSeason,
+      rosterRoomPreviousSeason,
+      persistSnapshot: true,
+      forceRefresh: true,
+    }),
   ]);
 
   return {

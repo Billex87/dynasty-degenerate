@@ -1,5 +1,6 @@
 import type { ReportData } from "@shared/types";
 import { getLeagueModeCopy, normalizeLeagueValueMode, type LeagueValueMode } from "./leagueValueMode";
+import { isPlaceholderManagerName } from "./managerDisplay";
 
 export type OverviewPosition = "QB" | "RB" | "WR" | "TE";
 export type OverviewManagerIntelRow = NonNullable<
@@ -16,21 +17,36 @@ export type OverviewReadChip =
 
 export const OVERVIEW_POSITIONS: OverviewPosition[] = ["QB", "RB", "WR", "TE"];
 
+function shouldHidePlaceholderManagers(data: ReportData): boolean {
+  return normalizeLeagueValueMode(
+    data.leagueDiagnostics?.valueMode || data.leagueValueMode
+  ) === "redraft";
+}
+
+function isVisibleOverviewManager(data: ReportData, manager?: string | null): boolean {
+  return !(shouldHidePlaceholderManagers(data) && isPlaceholderManagerName(manager));
+}
+
 export function getOverviewManagerOptions(data: ReportData): string[] {
   const names = [
     ...(data.managerRosterIntelligence || []).map(row => row.manager),
     ...(data.leagueOverview || []).map(row => row.manager),
   ];
-  return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  return Array.from(new Set(names))
+    .filter(manager => isVisibleOverviewManager(data, manager))
+    .sort((a, b) => a.localeCompare(b));
 }
 
 export function getOverviewDefaultManager(data: ReportData): string {
+  if (data.viewerManager && isVisibleOverviewManager(data, data.viewerManager)) {
+    return data.viewerManager;
+  }
+
   return (
-    data.viewerManager ||
     [...(data.leagueOverview || [])].sort(
       (a, b) => a.rank_value - b.rank_value
-    )[0]?.manager ||
-    data.managerRosterIntelligence?.[0]?.manager ||
+    ).find(row => isVisibleOverviewManager(data, row.manager))?.manager ||
+    data.managerRosterIntelligence?.find(row => isVisibleOverviewManager(data, row.manager))?.manager ||
     ""
   );
 }
@@ -189,6 +205,7 @@ export function buildOverviewPulseRead(data: ReportData): {
     manager,
     leagueValueMode,
     chips: [
+      { label: "Start Here", tone: "good" },
       data.leagueDiagnostics?.aiConfidence
         ? {
             label: data.leagueDiagnostics.aiConfidence.label,

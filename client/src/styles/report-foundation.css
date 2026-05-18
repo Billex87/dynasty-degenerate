@@ -4706,6 +4706,12 @@
     box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
   }
 
+  @media (max-width: 1400px) and (min-width: 640px) {
+    .report-league-lockup > div {
+      max-width: min(40vw, 24rem);
+    }
+  }
+
   .report-tabs {
     position: relative;
     z-index: 10;
@@ -14611,22 +14617,25 @@
 
     .report-league-lockup > div {
       min-width: 0;
-      max-width: 100%;
+      max-width: min(48vw, 24rem);
     }
 
     .report-league-lockup p {
-      overflow: visible !important;
-      text-overflow: clip !important;
-      white-space: normal !important;
       line-height: 1.05;
     }
 
     .report-league-lockup p:first-child {
+      overflow: hidden !important;
       font-size: clamp(0.72rem, 3.2vw, 0.86rem);
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
     }
 
     .report-league-lockup p:last-child {
+      overflow: visible !important;
       font-size: clamp(0.58rem, 2.45vw, 0.7rem);
+      text-overflow: clip !important;
+      white-space: normal !important;
     }
 
     .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {

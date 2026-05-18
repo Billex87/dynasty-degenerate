@@ -733,9 +733,15 @@ function collectWaiverCandidates(
   data: NonNullable<ReportData["waiverIntelligence"]>
 ): TrendingPlayer[] {
   const byId = new Map<string, TrendingPlayer>();
+  const omittedCandidateIds = new Set(
+    (data.omittedCandidates || [])
+      .filter(candidate => candidate.action === "omit")
+      .map(candidate => candidate.player_id)
+  );
   const addPlayer = (player: TrendingPlayer | null | undefined) => {
     if (!player?.player_id || player.owner || !isWaiverPosition(player.pos))
       return;
+    if (omittedCandidateIds.has(player.player_id)) return;
     if (!byId.has(player.player_id)) byId.set(player.player_id, player);
   };
 
@@ -1890,6 +1896,11 @@ export default function WaiverIntelligencePanel({
       index,
     ])
   );
+  const omittedCandidateIds = new Set(
+    (data.omittedCandidates || [])
+      .filter(candidate => candidate.action === "omit")
+      .map(candidate => candidate.player_id)
+  );
   const baseCards = [
     { label: "Highest Available", player: data.highestKtcAvailable },
     ...Object.entries(data.bestAvailableByPosition).map(([pos, player]) => ({
@@ -1902,9 +1913,11 @@ export default function WaiverIntelligencePanel({
           label: `Taxi Stash ${index + 1}`,
           player,
         }))),
-  ].filter((card): card is { label: string; player: TrendingPlayer } =>
-    Boolean(card.player)
-  );
+  ].filter((card): card is { label: string; player: TrendingPlayer } => {
+    const playerId = card.player?.player_id;
+    if (!playerId) return false;
+    return !omittedCandidateIds.has(playerId);
+  });
   const basePlayerIds = new Set(baseCards.map(card => card.player.player_id));
   const suggestedCards = recommendationContext.recommendations
     .filter(

@@ -113,6 +113,112 @@ async function openReportSection(
   return section;
 }
 
+async function expectVisibleOverviewPulse(
+  page: import("@playwright/test").Page,
+  text: RegExp | string
+) {
+  await expect(
+    page.locator(".overview-ai-pulse:visible").filter({ hasText: text }).first()
+  ).toBeVisible();
+}
+
+function createRedraftCommandCenterReport(
+  leagueId: string,
+  hasCurrentSeasonMainDraft: boolean
+) {
+  const cachedReport = createCachedCommandCenterReport(leagueId);
+  const reportData = cachedReport.reportData as any;
+  cachedReport.leagueName = hasCurrentSeasonMainDraft
+    ? "Test Redraft Command"
+    : "Gov Tech Grid Iron";
+  cachedReport.leagueFormat = hasCurrentSeasonMainDraft
+    ? "4-Team Redraft PPR"
+    : "4-Team Redraft PPR - No Draft Yet";
+  reportData.leagueValueMode = "redraft";
+  reportData.leagueDiagnostics = {
+    ...reportData.leagueDiagnostics,
+    valueMode: "redraft",
+    currentSeason: "2026",
+    hasCurrentSeasonMainDraft,
+    currentSeasonMainDraftPickCount: hasCurrentSeasonMainDraft ? 2 : 0,
+    currentSeasonMainDraftPickedPlayerCount: hasCurrentSeasonMainDraft ? 2 : 0,
+    currentSeasonMainDraftStatus: hasCurrentSeasonMainDraft
+      ? "complete"
+      : "not_started",
+  };
+
+  if (!hasCurrentSeasonMainDraft) {
+    reportData.draftPicks = [];
+    reportData.draftStats = [];
+  }
+
+  const placeholderIntel = {
+    ...reportData.managerRosterIntelligence[0],
+    manager: "Unknown",
+    identity: "Future focused",
+    timeline: "Rebuild",
+    summary: "Unassigned roster slot should not render in redraft tables.",
+  };
+  reportData.managerRosterIntelligence = [
+    ...reportData.managerRosterIntelligence,
+    placeholderIntel,
+  ];
+  reportData.managerPositionCounts = [
+    ...reportData.managerPositionCounts,
+    {
+      ...reportData.managerPositionCounts[0],
+      manager: "Unknown",
+      starterPlayers: [],
+      lineupPlayers: [],
+      rosterPlayers: [],
+    },
+  ];
+  reportData.leagueOverview = [
+    ...reportData.leagueOverview,
+    {
+      manager: "Unknown",
+      total_val: 0,
+      rank_qb: 3,
+      rank_rb: 3,
+      rank_wr: 3,
+      rank_te: 3,
+      rank_value: 3,
+      rank_2027: 3,
+    },
+  ];
+  reportData.powerRankings = [
+    ...reportData.powerRankings.map((row: any) => ({
+      ...row,
+      tier: "Rebuild Mode",
+    })),
+    {
+      rank: 3,
+      manager: "Unknown",
+      score: 35,
+      tier: "Rebuild Mode",
+      starterStrength: 0,
+      rosterValue: 0,
+      positionalBalance: 0,
+      draftCapital: 0,
+      youthScore: 0,
+      tradeEfficiency: 0,
+    },
+  ];
+  reportData.dynastyTimelines = [
+    ...reportData.dynastyTimelines,
+    {
+      manager: "Unknown",
+      contenderScore: 5,
+      outlook2027: 5,
+      agingRisk: 10,
+      rebuildScore: 95,
+      label: "Future focused",
+    },
+  ];
+
+  return cachedReport;
+}
+
 async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
   const overflow = await page.evaluate(() =>
     Math.max(
@@ -378,6 +484,14 @@ test.describe("command center feature surfaces", () => {
     const ownerPcbSystem = page.getByTestId("owner-intel-pcb-system");
     await expect(ownerPcbSystem).toBeVisible();
     await expect(ownerPcbSystem.locator(".owner-intel-pcb-routes")).toBeVisible();
+    const situationRadarRead = ownerPcbSystem
+      .locator(".ai-read-panel-desktop")
+      .filter({ hasText: "AI Situation Radar" })
+      .first();
+    await expect(situationRadarRead).toBeVisible();
+    await expect(situationRadarRead).toContainText(
+      /Depth Receiver is the best backed roster riser/i
+    );
     await expect(ownerPcbSystem.locator(".owner-intel-pcb-node")).toHaveCount(12);
     await expect(
       page
@@ -526,7 +640,7 @@ test.describe("command center feature surfaces", () => {
       "AI Readout Coverage"
     );
     await expect(aiReadoutSection.getByText("readouts tracked")).toBeVisible();
-    await expect(aiReadoutSection.getByText("duplicate-risk flags")).toBeVisible();
+    await expect(aiReadoutSection.getByText("duplicate-risk flags", { exact: true })).toBeVisible();
     await expect(
       aiReadoutSection
         .getByLabel("AI readout count by tab")
@@ -536,9 +650,13 @@ test.describe("command center feature surfaces", () => {
       aiReadoutSection.getByText("Trade Finder / Partner Reads")
     ).toBeVisible();
     await expect(
-      aiReadoutSection
-        .getByLabel("AI readout coverage flags")
-        .getByText(/Schedule\/projection traces stay limited/i)
+      aiReadoutSection.getByText("Player Situation Reads", { exact: true })
+    ).toBeVisible();
+    await expect(
+      aiReadoutSection.getByText(/player situation reads have fresh or usable context/i)
+    ).toBeVisible();
+    await expect(
+      aiReadoutSection.getByText(/All tracked readout surfaces have confidence/i)
     ).toBeVisible();
     const receiptAuditSection = await openReportSection(
       page,
@@ -698,11 +816,10 @@ test.describe("command center feature surfaces", () => {
     const cachedReport = createCachedCommandCenterReport();
     await loadCachedReport(page, cachedReport);
 
-    await expect(
-      page
-        .locator(".overview-ai-pulse.ai-read-panel-desktop")
-        .getByText(/Tester sets the starting lens for this Overview pass/i)
-    ).toBeVisible();
+    await expectVisibleOverviewPulse(
+      page,
+      /Tester sets the starting lens for this Overview pass/i
+    );
 
     await page.getByRole("button", { name: /View as Tester/i }).click();
     await page
@@ -712,11 +829,10 @@ test.describe("command center feature surfaces", () => {
     await expect(
       page.getByRole("button", { name: /View as Rival/i })
     ).toBeVisible();
-    await expect(
-      page
-        .locator(".overview-ai-pulse.ai-read-panel-desktop")
-        .getByText(/Rival sets the starting lens for this Overview pass/i)
-    ).toBeVisible();
+    await expectVisibleOverviewPulse(
+      page,
+      /Rival sets the starting lens for this Overview pass/i
+    );
 
     await page
       .getByRole("button", { name: /Switch to regular report view/i })
@@ -732,11 +848,10 @@ test.describe("command center feature surfaces", () => {
     await page
       .getByRole("button", { name: /Return to admin report view/i })
       .click();
-    await expect(
-      page
-        .locator(".overview-ai-pulse.ai-read-panel-desktop")
-        .getByText(/Tester sets the starting lens for this Overview pass/i)
-    ).toBeVisible();
+    await expectVisibleOverviewPulse(
+      page,
+      /Tester sets the starting lens for this Overview pass/i
+    );
     await expect(page.locator(".admin-premium-section")).toHaveCount(5);
   });
 
@@ -1059,6 +1174,63 @@ test.describe("command center feature surfaces", () => {
     ).toHaveCount(0);
   });
 
+  test("locks pre-draft redraft blueprints and suppresses dynasty-only owner copy", async ({
+    page,
+  }) => {
+    const cachedReport = createRedraftCommandCenterReport(
+      "predraft-redraft-command-league",
+      false
+    );
+    await loadCachedReport(page, cachedReport);
+
+    const blueprintSection = await openReportSection(
+      page,
+      "Monthly Team Blueprint"
+    );
+    await expect(
+      blueprintSection
+        .locator(".ai-read-panel:visible")
+        .filter({ hasText: "Available after the draft" })
+        .first()
+    ).toBeVisible();
+    await expect(
+      blueprintSection
+        .locator(".ai-read-actions button")
+        .filter({ hasText: "Create Monthly AI Blueprint" })
+        .first()
+    ).toBeDisabled();
+
+    const powerSection = await openReportSection(page, "League Power Rankings");
+    await expect(powerSection.locator(".league-power-card")).toHaveCount(2);
+    await expect(
+      powerSection.getByText("1 open roster is not assigned yet.")
+    ).toBeVisible();
+    await expect(powerSection).not.toContainText(/Unknown|REBUILD MODE/i);
+
+    const rosterReconSection = await openReportSection(
+      page,
+      "Team Breakdown & Roster Recon"
+    );
+    await expect(rosterReconSection).not.toContainText(
+      /Future focused|REBUILD MODE/i
+    );
+  });
+
+  test("locks AI Autopilot to redraft lens for redraft-only leagues", async ({
+    page,
+  }) => {
+    const cachedReport = createRedraftCommandCenterReport(
+      "autopilot-redraft-command-league",
+      true
+    );
+    await loadCachedReport(page, cachedReport, "#autopilot");
+
+    await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
+    await expect(page.getByText("Tester win-now cockpit")).toBeVisible();
+    await expect(page.getByText("Tester dynasty cockpit")).toHaveCount(0);
+    await expect(page.locator(".autopilot-mode-toggle")).toHaveCount(0);
+  });
+
   test("shows live-data AI Autopilot only for admin view", async ({ page }) => {
     const cachedReport = createCachedCommandCenterReport();
     await loadCachedReport(page, cachedReport, "#autopilot");
@@ -1073,7 +1245,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Take me out")).toBeVisible();
     await expect(page.getByText("Sample Tight End").first()).toBeVisible();
     await expect(page.getByText("Best weekly correction")).toBeVisible();
-    await expect(page.getByText(/Start .* over Sample Tight End/).first()).toBeVisible();
+    await expect(page.getByText(/Start Replacement Tight End over Sample Tight End/).first()).toBeVisible();
     await expect(page.getByText("Future Pick Market")).toBeVisible();
     await expect(page.getByText("Likely rookie range")).toBeVisible();
     await expect(page.getByText("Trade screenshot view").first()).toBeVisible();
@@ -1086,6 +1258,16 @@ test.describe("command center feature surfaces", () => {
     ).toBeVisible();
     await expect(page.getByText("Manager Tendency Model")).toBeVisible();
     await expect(page.getByText("Thin history")).toBeVisible();
+    await page
+      .locator(".autopilot-recommendation-card")
+      .filter({ hasText: "Depth Receiver" })
+      .locator("details.autopilot-reasoning")
+      .first()
+      .locator("summary")
+      .click();
+    await expect(
+      page.getByText(/Role Boost \(78% confidence, fresh context\)/i).first()
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "Redraft" }).click();
     await expect(page.getByText("Tester win-now cockpit")).toBeVisible();
@@ -1159,6 +1341,22 @@ test.describe("command center feature surfaces", () => {
     page,
   }) => {
     const cachedReport = createCachedCommandCenterReport();
+    const omittedCandidate =
+      cachedReport.reportData.waiverIntelligence?.omittedCandidates?.[0];
+    if (omittedCandidate && cachedReport.reportData.waiverIntelligence) {
+      cachedReport.reportData.waiverIntelligence.bestTaxiStashes = [
+        {
+          player_id: omittedCandidate.player_id,
+          name: omittedCandidate.name,
+          pos: omittedCandidate.pos,
+          team: omittedCandidate.team,
+          owner: null,
+          count: 0,
+          ktcValue: omittedCandidate.value,
+          currentPositionRank: omittedCandidate.rank,
+        },
+      ];
+    }
     await loadCachedReport(page, cachedReport, "#momentum");
 
     await expect(

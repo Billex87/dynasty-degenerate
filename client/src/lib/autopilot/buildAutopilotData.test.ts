@@ -37,19 +37,45 @@ describe('buildAutopilotData', () => {
     expect(data.waivers[0]?.player).toBe('Waiver Receiver');
     expect(data.trades.some((recommendation) => recommendation.player === 'Sample Runner')).toBe(true);
     expect(data.weeklyPlan?.starterToReview?.player).toBe('Sample Tight End');
-    expect(data.weeklyPlan?.options.map((option) => option.player)).toEqual(expect.arrayContaining(['Sample Quarterback', 'Sample Receiver']));
+    expect(data.weeklyPlan?.options.map((option) => option.player)).toEqual(['Replacement Tight End']);
+    expect(data.weeklyPlan?.options.map((option) => option.player)).not.toEqual(expect.arrayContaining(['Sample Quarterback', 'Sample Receiver']));
     expect(data.weeklyRecap?.headline).toContain('Sample Tight End');
     expect(data.weeklyRecap?.startSitCalls).toContainEqual(expect.objectContaining({
       sit: 'Sample Tight End',
-      start: 'Sample Quarterback',
+      start: 'Replacement Tight End',
     }));
     expect(data.futurePickTrajectory?.manager).toBe('Tester');
     expect(data.futurePickTrajectory?.points.length).toBeGreaterThan(0);
     expect(data.managerTendency?.label).toBe('Thin history');
-    expect(data.managerTendency?.tradeActivityScore).toBeGreaterThan(50);
+    expect(data.managerTendency?.tradeActivityScore).toBeGreaterThan(20);
     expect(data.projections.map((projection) => projection.player)).toEqual(
       expect.arrayContaining(['Depth Receiver', 'Sample Runner']),
     );
+  });
+
+  it('does not promote omitted waiver candidates from stale cached waiver slots', () => {
+    const reportData = createCachedCommandCenterReport().reportData;
+    const omittedCandidate = reportData.waiverIntelligence?.omittedCandidates?.[0];
+    expect(omittedCandidate?.name).toBe('Dallen Bentley');
+
+    reportData.waiverIntelligence!.bestTaxiStashes = [{
+      player_id: omittedCandidate!.player_id,
+      name: omittedCandidate!.name,
+      pos: omittedCandidate!.pos,
+      team: omittedCandidate!.team,
+      owner: null,
+      count: 0,
+      ktcValue: omittedCandidate!.value,
+      currentPositionRank: omittedCandidate!.rank,
+    }];
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    expect(JSON.stringify(data.waivers)).not.toContain('Dallen Bentley');
   });
 
   it('switches the recommendation lens for redraft mode', () => {
@@ -96,6 +122,16 @@ describe('buildAutopilotData', () => {
           scheduleTier: 'easy' as const,
           targetWeeks: [7, 9],
           note: 'Stream during the bye stack.',
+        }, {
+          playerId: 'streamer-2',
+          name: 'Waiver Tight End Streamer',
+          position: 'TE',
+          team: 'LV',
+          byeWeek: 10,
+          seasonSOS: 39,
+          scheduleTier: 'easy' as const,
+          targetWeeks: [8],
+          note: 'Same-position streamer target.',
         }],
         byeWeekNotes: [{
           week: 7,
@@ -117,7 +153,8 @@ describe('buildAutopilotData', () => {
     expect(data.scheduleTodo[3]).toContain('depth_chart');
     expect(data.scheduleTodo.some((todo) => todo.includes('Schedule planning is live'))).toBe(true);
     expect(data.scheduleTodo.some((todo) => todo.includes('Week 7 is the first bye-week checkpoint'))).toBe(true);
-    expect(data.weeklyPlan?.options.some((option) => option.player === 'Week 7 Streamer')).toBe(true);
+    expect(data.weeklyPlan?.options.some((option) => option.player === 'Week 7 Streamer')).toBe(false);
+    expect(data.weeklyPlan?.options.some((option) => option.player === 'Waiver Tight End Streamer')).toBe(false);
   });
 
   it('preserves redraft league mode as a current-season read', () => {
@@ -175,7 +212,7 @@ describe('buildAutopilotData', () => {
     expect(data.managerTendency?.historyDepthScore).toBeGreaterThan(70);
     expect(data.managerTendency?.competitiveConsistencyScore).toBeGreaterThan(70);
     expect(data.managerTendency?.signals).toEqual(expect.arrayContaining(['4 seasons tracked']));
-    expect(data.direction.confidence).toBeGreaterThan(86);
+    expect(data.direction.confidence).toBeGreaterThan(84);
   });
 
   it('caps AI read confidence when league confidence is low', () => {

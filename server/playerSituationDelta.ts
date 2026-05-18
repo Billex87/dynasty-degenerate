@@ -1,6 +1,8 @@
 import type { PlayerDetails, PlayerSituationDeltaComponent, PlayerSituationDeltaLabel, PlayerSituationDeltaProfile } from '../shared/types';
 
 type Direction = PlayerSituationDeltaComponent['direction'];
+type PlayerSituationDynamicSignal = PlayerSituationDeltaProfile['dynamicSignals'][number];
+type PlayerSituationFreshness = PlayerSituationDeltaProfile['freshness'];
 
 const SUPPORTED_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE']);
 
@@ -74,6 +76,237 @@ function getPrimaryValue(details: PlayerDetails): number | null {
 
 function getRecentValueDelta(details: PlayerDetails): number | null {
   return numeric(details.valueTimeline?.summary?.deltaPct);
+}
+
+function parseDateMs(value?: string | number | null): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = typeof value === 'number' ? value : Date.parse(value);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed < 10_000_000_000 ? parsed * 1000 : parsed;
+}
+
+function daysSince(value?: string | number | null): number | null {
+  const parsed = parseDateMs(value);
+  if (parsed === null) return null;
+  return Math.max(0, Math.floor((Date.now() - parsed) / 86_400_000));
+}
+
+function addDynamicSignal(
+  signals: PlayerSituationDynamicSignal[],
+  signal: PlayerSituationDynamicSignal | null
+) {
+  if (!signal) return;
+  const key = `${signal.type}:${signal.label}:${signal.detail}`.toLowerCase();
+  if (signals.some((existing) => `${existing.type}:${existing.label}:${existing.detail}`.toLowerCase() === key)) return;
+  signals.push(signal);
+}
+
+function buildDynamicSignals(details: PlayerDetails): PlayerSituationDynamicSignal[] {
+  const signals: PlayerSituationDynamicSignal[] = [];
+  const delta = details.rosterRoom?.opportunityDelta;
+  const rollingWindow = details.usageTrend?.rollingWindows?.find((window) => window.games === 3)
+    || details.usageTrend?.rollingWindows?.[0]
+    || null;
+
+  if (delta?.qualitySignal === 'major-opening' || delta?.qualitySignal === 'minor-opening') {
+    addDynamicSignal(signals, {
+      type: 'roster-room',
+      label: delta.qualitySignal === 'major-opening' ? 'Major room opening' : 'Room opening',
+      direction: 'boost',
+      detail: delta.note,
+    });
+  }
+  if (delta?.qualitySignal === 'major-squeeze' || delta?.qualitySignal === 'squeeze') {
+    addDynamicSignal(signals, {
+      type: 'roster-room',
+      label: delta.qualitySignal === 'major-squeeze' ? 'Major room squeeze' : 'Room squeeze',
+      direction: 'risk',
+      detail: delta.topAddedThreat ? `${delta.topAddedThreat} is the top added threat. ${delta.note}` : delta.note,
+    });
+  }
+  if (details.rosterRoom?.premiumAdditions?.length) {
+    const addition = details.rosterRoom.premiumAdditions[0];
+    addDynamicSignal(signals, {
+      type: 'roster-room',
+      label: 'Premium competition added',
+      direction: 'risk',
+      detail: `${addition.name} adds same-position pressure${addition.movementQualityTier ? ` as a ${addition.movementQualityTier} profile` : ''}.`,
+      eventAt: addition.tradeDate || null,
+    });
+  }
+  if (details.rosterRoom?.movementTypes?.includes('free-agent-or-claim')) {
+    addDynamicSignal(signals, {
+      type: 'source',
+      label: 'Inferred free-agent/claim movement',
+      direction: 'neutral',
+      detail: 'Roster-room movement is real, but the exact non-trade transaction type is inferred until an official transaction feed is added.',
+    });
+  }
+
+  if (details.usageTrend?.targetTrend === 'up' || details.usageTrend?.carryTrend === 'up') {
+    addDynamicSignal(signals, {
+      type: 'usage',
+      label: 'Usage climbing',
+      direction: 'boost',
+      detail: details.usageTrend.note,
+    });
+  }
+  if (details.usageTrend?.targetTrend === 'down' || details.usageTrend?.carryTrend === 'down') {
+    addDynamicSignal(signals, {
+      type: 'usage',
+      label: 'Usage slipping',
+      direction: 'risk',
+      detail: details.usageTrend.note,
+    });
+  }
+  if (rollingWindow) {
+    const targetDelta = numeric(rollingWindow.targetDeltaPerGame) || 0;
+    const carryDelta = numeric(rollingWindow.carryDeltaPerGame) || 0;
+    const direction: PlayerSituationDynamicSignal['direction'] = targetDelta >= 1.5 || carryDelta >= 2.5
+      ? 'boost'
+      : targetDelta <= -1.5 || carryDelta <= -2.5
+      ? 'risk'
+      : 'neutral';
+    if (direction !== 'neutral') {
+      addDynamicSignal(signals, {
+        type: 'usage',
+        label: direction === 'boost' ? 'Rolling role spike' : 'Rolling role dip',
+        direction,
+        detail: rollingWindow.note,
+      });
+    }
+  }
+
+  if (details.injuryStatus && !['healthy', 'active'].includes(String(details.injuryStatus).toLowerCase())) {
+    addDynamicSignal(signals, {
+      type: 'injury',
+      label: 'Current injury flag',
+      direction: 'risk',
+      detail: `Current status is ${details.injuryStatus}.`,
+    });
+  }
+  if (details.injuryHistory?.latestStatus && !/healthy|active/i.test(details.injuryHistory.latestStatus)) {
+    addDynamicSignal(signals, {
+      type: 'injury',
+      label: 'Practice-report drag',
+      direction: 'risk',
+      detail: details.injuryHistory.note,
+    });
+  }
+
+  if (details.latestNews?.title) {
+    const movement = details.newsValueMovement;
+    const valueDelta = numeric(movement?.valueDelta);
+    addDynamicSignal(signals, {
+      type: 'news',
+      label: valueDelta !== null && valueDelta !== 0 ? 'News moved value' : 'News attached',
+      direction: valueDelta === null ? 'neutral' : valueDelta > 0 ? 'boost' : valueDelta < 0 ? 'risk' : 'neutral',
+      detail: movement?.note || details.latestNews.summary || details.latestNews.title,
+      eventAt: details.latestNews.publishedAt || movement?.newsPublishedAt || null,
+    });
+  }
+
+  const marketDelta = getRecentValueDelta(details);
+  if (marketDelta !== null && Math.abs(marketDelta) >= 8) {
+    addDynamicSignal(signals, {
+      type: 'market',
+      label: marketDelta > 0 ? 'Market repricing up' : 'Market repricing down',
+      direction: marketDelta > 0 ? 'boost' : 'risk',
+      detail: details.valueTimeline?.summary?.note || `${marketDelta}% recent value movement.`,
+    });
+  }
+  if (details.valueTimeline?.summary?.sourceSetChanged) {
+    addDynamicSignal(signals, {
+      type: 'source',
+      label: 'Source mix changed',
+      direction: 'neutral',
+      detail: 'Stored value history changed source coverage, so market movement should be read with source-mix context.',
+    });
+  }
+
+  return signals.slice(0, 8);
+}
+
+function buildFreshnessProfile(
+  details: PlayerDetails,
+  dynamicSignals: PlayerSituationDynamicSignal[],
+  missingSignals: string[],
+  cautionFlags: string[]
+): PlayerSituationFreshness {
+  let score = 28;
+  const signals: string[] = [];
+
+  if (details.usageTrend) {
+    score += 12;
+    signals.push(`usage ${details.usageTrend.season}`);
+    if (details.usageTrend.rollingWindows?.length) {
+      score += 7;
+      signals.push('rolling usage windows');
+    }
+  }
+  if (details.rosterRoom?.opportunityDelta) {
+    score += 14;
+    signals.push(`roster room ${details.rosterRoom.season}`);
+  } else if (details.rosterRoom) {
+    score += 8;
+    signals.push(`roster room ${details.rosterRoom.season}`);
+  }
+  if (details.teamEnvironment) {
+    score += 6;
+    signals.push(`team environment ${details.teamEnvironment.season}`);
+  }
+  if (details.injuryHistory || details.injuryStatus) {
+    score += details.injuryStatus ? 8 : 5;
+    signals.push(details.injuryStatus ? 'current injury status' : 'injury history');
+  }
+  if (details.valueTimeline) {
+    score += 6;
+    signals.push('stored value timeline');
+  }
+  if (details.latestNews?.title) {
+    const ageDays = daysSince(details.latestNews.publishedAt);
+    score += ageDays === null ? 5 : ageDays <= 7 ? 13 : ageDays <= 30 ? 9 : 4;
+    signals.push(ageDays === null ? 'player news' : `player news ${ageDays}d old`);
+  }
+  if (details.schedule) {
+    score += 4;
+    signals.push('schedule context');
+  }
+  if (dynamicSignals.length) {
+    score += Math.min(12, dynamicSignals.length * 2);
+  }
+
+  score -= Math.min(18, missingSignals.length * 3);
+  score -= Math.min(10, cautionFlags.length * 2);
+  const roundedScore = round(score);
+  const datedSignals = dynamicSignals
+    .map((signal) => signal.eventAt)
+    .concat(details.latestNews?.publishedAt || null)
+    .filter((value): value is string => Boolean(value));
+  const latestEventAt = datedSignals
+    .map((value) => ({ value, ms: parseDateMs(value) || 0 }))
+    .sort((a, b) => b.ms - a.ms)[0]?.value || null;
+  const grade: PlayerSituationFreshness['grade'] = roundedScore >= 72
+    ? 'fresh'
+    : roundedScore >= 56
+    ? 'usable'
+    : roundedScore >= 40
+    ? 'stale'
+    : 'missing';
+
+  return {
+    grade,
+    score: roundedScore,
+    latestEventAt,
+    signals: Array.from(new Set(signals)).slice(0, 6),
+    note: grade === 'fresh'
+      ? 'Situation read is backed by recent or multi-source football context.'
+      : grade === 'usable'
+      ? 'Situation read is usable, but at least one role, news, injury, or source input is thinner than ideal.'
+      : grade === 'stale'
+      ? 'Situation read is stale or incomplete enough that confidence should stay capped.'
+      : 'Situation read is missing too many football-context inputs for a strong recommendation.',
+  };
 }
 
 function getPriorOpportunityComponent(details: PlayerDetails, position: string): PlayerSituationDeltaComponent | null {
@@ -408,15 +641,27 @@ export function buildPlayerSituationDelta(details: PlayerDetails, playerId: stri
     .map((item) => item.label);
   if (details.rosterRoom?.movementTypes?.includes('free-agent-or-claim')) cautionFlags.push('inferred free-agent/claim movement');
   if (!details.rosterRoom?.opportunityDelta && details.rosterRoom) cautionFlags.push('roster-room movement lacks quality weighting');
+  const dynamicSignals = buildDynamicSignals(details);
+  const freshness = buildFreshnessProfile(details, dynamicSignals, missingSignals, cautionFlags);
 
   const score = round(
     components.reduce((sum, item) => sum + item.score, 0) / components.length
   );
-  const confidence = round(
-    34
-    + Math.min(42, components.length * 7)
-    - Math.min(24, missingSignals.length * 4)
-    - Math.min(12, cautionFlags.length * 2)
+  const freshnessCap = freshness.grade === 'fresh'
+    ? 100
+    : freshness.grade === 'usable'
+    ? 82
+    : freshness.grade === 'stale'
+    ? 62
+    : 48;
+  const confidence = Math.min(
+    round(
+      34
+      + Math.min(42, components.length * 7)
+      - Math.min(24, missingSignals.length * 4)
+      - Math.min(12, cautionFlags.length * 2)
+    ),
+    freshnessCap
   );
   const labels = deriveLabels(details, components, confidence);
   const sortedLabels = labels.sort((a, b) => {
@@ -465,6 +710,8 @@ export function buildPlayerSituationDelta(details: PlayerDetails, playerId: stri
     missingSignals,
     cautionFlags,
     components,
+    freshness,
+    dynamicSignals,
   };
 }
 

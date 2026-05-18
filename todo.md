@@ -132,6 +132,7 @@
 - [ ] Expand breakout and falloff detection into full year-over-year changes in snap share, targets, rush attempts, routes, touchdowns, and efficiency after route participation is available from an approved/stable source.
 - [x] Build first-pass player archetype inputs using size, athletic profile, draft capital, contract investment, usage profile, and scoring shape so the AI can explain similar historical outcomes instead of just raw ranks.
 - [ ] Add rolling trend, volatility, and momentum features across 3/6/12/24 game and season windows so the readouts distinguish sustained growth from short spikes.
+- [x] Add first-pass 3/6/12/24 game usage windows from nflverse weekly `stats_player` rows so situation reads and manager summaries can notice role spikes/dips before the market value changes.
 - [ ] Separate opportunity-driven value from talent-driven value by modeling team context, depth-chart changes, injuries, QB changes, offensive environment, and role shifts.
 - [x] Build the all-player Player Situation Delta engine from stored public snapshots so rookies, sophomores, veterans on new teams, and veterans whose teams changed around them get role/opportunity reads instead of rookie-only context. See `docs/player-situation-delta-data-plan.md`.
 - [x] Migrate the nflverse usage snapshot from the legacy combined `player_stats.csv` source to season-specific `stats_player` releases so current target share, air-yard share, WOPR, carries, targets, and fantasy production stay fresh.
@@ -155,6 +156,7 @@
 - [x] Add full-rankings value confidence visibility and sorting so users can separate high-trust prices from thin market reads.
 - [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts; start from `docs/player-season-outcome-model.md`.
 - [x] Surface a short explanation trace in the UI so each player AI read can show the top reasons the model thinks a player is undervalued, overvalued, peaking, or declining, including draft-capital runway so high picks and late/undrafted profiles are judged with different opportunity patience.
+- [x] Add shared player situation freshness and dynamic-signal fields, then aggregate them into manager roster reads so manager copy can react to usage, news, injury, depth-chart, and roster-room changes without duplicating player-level text.
 - [x] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.
 - [x] Add player-cohort calibration metadata so every player AI read carries an evidence grade, confidence cap, strong-read eligibility flag, missing-signal list, and caution flags before the UI can present it as a high-confidence take.
 - [ ] Add league-context modifiers for dynasty, redraft, superflex, and format-specific scoring so the logic stays format-aware.

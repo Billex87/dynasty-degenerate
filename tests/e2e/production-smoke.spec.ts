@@ -12,7 +12,7 @@ const redraftLeagueNames = parseLeagueNames(
   ['test league', 'Gov Tech Grid Iron'],
 );
 const redraftNoDraftLeagueNames = new Set(
-  parseLeagueNames(process.env.PRODUCTION_SMOKE_REDRAFT_NO_DRAFT_LEAGUES, []).map(normalizeLeagueName),
+  parseLeagueNames(process.env.PRODUCTION_SMOKE_REDRAFT_NO_DRAFT_LEAGUES, ['Gov Tech Grid Iron']).map(normalizeLeagueName),
 );
 
 function parseLeagueNames(value: string | undefined, fallback: string[]) {

@@ -222,6 +222,8 @@ describe('player situation delta', () => {
     expect(delta?.primaryLabel).toBe('role-threat');
     expect(delta?.labels).toContain('crowded-room');
     expect(delta?.action).toBe('monitor');
+    expect(delta?.dynamicSignals.some((signal) => signal.label === 'Premium competition added')).toBe(true);
+    expect(delta?.freshness.signals).toContain('roster room 2026');
   });
 
   it('detects an aging running back opportunity cliff', () => {
@@ -300,6 +302,37 @@ describe('player situation delta', () => {
     expect(delta?.primaryLabel).toBe('fragile-breakout');
     expect(delta?.action).toBe('sell');
     expect(delta?.confidence).toBeLessThan(70);
+  });
+
+  it('exposes rolling usage and news as dynamic freshness signals', () => {
+    const delta = buildPlayerSituationDelta(player({
+      latestNews: {
+        title: 'Test Player taking first-team reps',
+        summary: 'Beat notes point to a larger role.',
+        source: 'Fixture',
+        publishedAt: new Date().toISOString(),
+      },
+      usageTrend: usage({
+        rollingWindows: [{
+          games: 3,
+          weeks: [15, 16, 17],
+          targetsPerGame: 8.3,
+          carriesPerGame: 0,
+          receptionsPerGame: 5.7,
+          fantasyPointsPprPerGame: 17.2,
+          targetDeltaPerGame: 3.1,
+          carryDeltaPerGame: 0,
+          note: 'Last 3 tracked games: 8.3 targets/g (+3.1 vs season), 0 carries/g (+0 vs season).',
+        }],
+      }),
+      teamEnvironment: teamEnvironment(),
+      rosterRoom: rosterRoom(),
+    }), 'wr-news');
+
+    expect(delta?.dynamicSignals.map((signal) => signal.label)).toContain('Rolling role spike');
+    expect(delta?.dynamicSignals.map((signal) => signal.label)).toContain('News attached');
+    expect(delta?.freshness.grade).toMatch(/fresh|usable/);
+    expect(delta?.freshness.signals).toContain('rolling usage windows');
   });
 
   it('builds a map and skips unsupported positions', () => {

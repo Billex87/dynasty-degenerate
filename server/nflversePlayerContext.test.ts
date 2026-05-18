@@ -128,6 +128,14 @@ describe('nflverse player context', () => {
       targetTrend: 'up',
       carryTrend: 'up',
     });
+    expect(enriched.usageTrend?.rollingWindows?.[0]).toMatchObject({
+      games: 3,
+      weeks: [2, 3, 4],
+      targetsPerGame: 3.7,
+      carriesPerGame: 13.3,
+      targetDeltaPerGame: 0.7,
+      carryDeltaPerGame: 1.8,
+    });
     expect(enriched.usageTrend?.avgOffenseSnapPct).toBeCloseTo(0.765);
     expect(enriched.teamEnvironment).toMatchObject({
       team: 'ARI',

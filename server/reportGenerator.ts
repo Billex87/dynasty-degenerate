@@ -1065,6 +1065,7 @@ function buildLeagueDiagnostics(
   return {
     teamCount,
     valueMode: leagueValueMode,
+    currentSeason: currentSeasonData.label,
     redraftTradeWindowEndDate,
     rosterSlots: currentSeasonData.rosterPositions || [],
     starterSlots,

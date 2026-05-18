@@ -29,6 +29,7 @@ import { ChampionAvatarFrame } from './ManagerChampionships';
 import { TeamLogoPill } from './TeamLogoPill';
 import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
+import { isPlaceholderManagerName } from '@/lib/managerDisplay';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import { trpc } from '@/lib/trpc';
 import { buildTradeValueCalibrationCoverage } from '@/lib/tradeValueCalibration';
@@ -860,6 +861,39 @@ function buildTradePartners(data: ReportData, sourceManager: string) {
   }).sort((a, b) => b.confidence - a.confidence);
 }
 
+function isRedraftReportData(data: ReportData): boolean {
+  return normalizeLeagueValueMode(
+    data.leagueDiagnostics?.valueMode || data.leagueValueMode
+  ) === 'redraft';
+}
+
+function hasCurrentSeasonMainDraft(data: ReportData): boolean {
+  const diagnostics = data.leagueDiagnostics;
+  if (typeof diagnostics?.hasCurrentSeasonMainDraft === 'boolean') {
+    return diagnostics.hasCurrentSeasonMainDraft;
+  }
+
+  const currentSeason = diagnostics?.currentSeason;
+  if (!currentSeason) return false;
+
+  return (data.draftPicks || []).some((pick) => {
+    const draftYear = pick.draftYear ? String(pick.draftYear) : '';
+    const draftKind = pick.draftKind || 'main';
+    const hasPlayer =
+      Boolean(pick.player_id) ||
+      (Boolean(pick.playerName) && pick.playerName !== 'Unknown');
+
+    return draftYear === currentSeason && draftKind === 'main' && hasPlayer;
+  });
+}
+
+function getRedraftPowerLabel(row: NonNullable<ReportData['powerRankings']>[number]): string {
+  if (row.starterStrength >= 70) return 'Playoff push';
+  if (row.starterStrength >= 55) return 'Weekly contender';
+  if (row.starterStrength > 0) return 'Needs starter help';
+  return 'Preseason roster';
+}
+
 export function MonthlyTeamBlueprint({
   data,
   leagueName,
@@ -893,6 +927,8 @@ export function MonthlyTeamBlueprint({
   const snapshotStatus = data.monthlyBlueprintSnapshot;
   const formatBadges = getFormatBadges(data);
   const monthlyConfidence = getMonthlyConfidence(data, manager, hasPartialHistory);
+  const isRedraft = isRedraftReportData(data);
+  const isPreDraftRedraft = isRedraft && !hasCurrentSeasonMainDraft(data);
 
   if (!managerOptions.length || !intel) {
     return (
@@ -901,6 +937,27 @@ export function MonthlyTeamBlueprint({
         title="Team blueprint needs roster intelligence"
         description="The report did not return manager roster intelligence, so this blueprint cannot be generated without inventing data."
       />
+    );
+  }
+
+  if (isPreDraftRedraft) {
+    return (
+      <div className="team-blueprint-lab">
+        <AIReadPanel
+          title="Available after the draft"
+          subtitle="Once the current draft is complete, this section can use roster, draft, trade, and value movement data."
+          readType="Monthly Blueprint"
+          confidence={null}
+          severity="warn"
+          chips={[
+            { label: 'Current draft pending', tone: 'warn' },
+            `${managerOptions.length || data.leagueDiagnostics?.teamCount || 'League'} teams`,
+          ]}
+          body="This redraft league does not have a current-season main draft payload yet, so the monthly blueprint is locked instead of generating a report from empty or historical inputs."
+          actions={[{ label: 'Create Monthly AI Blueprint', disabled: true }]}
+          backgroundVariant="monthly"
+        />
+      </div>
     );
   }
 
@@ -1577,70 +1634,88 @@ export function LeaguePowerRankings({
   data: ReportData;
   managerAvatars?: ManagerAvatars;
 }) {
-  const rows = [...(data.powerRankings || [])].sort((a, b) => a.rank - b.rank || b.score - a.score);
+  const isRedraft = isRedraftReportData(data);
+  const allRows = [...(data.powerRankings || [])].sort((a, b) => a.rank - b.rank || b.score - a.score);
+  const placeholderRows = isRedraft ? allRows.filter((row) => isPlaceholderManagerName(row.manager)) : [];
+  const rows = isRedraft
+    ? allRows.filter((row) => !isPlaceholderManagerName(row.manager))
+    : allRows;
+
   if (!rows.length) {
     return (
       <EmptyState
         className="command-module-empty"
-        title="Power rankings are not available"
-        description="This report did not include power rankings. Re-run the league analysis after roster intelligence finishes."
+        title={placeholderRows.length ? 'Assigned rosters are not available yet' : 'Power rankings are not available'}
+        description={placeholderRows.length
+          ? 'This pre-draft redraft league only returned open roster slots, so the table is waiting for assigned managers.'
+          : 'This report did not include power rankings. Re-run the league analysis after roster intelligence finishes.'}
       />
     );
   }
 
   return (
-    <div className="league-power-grid balanced-tile-grid" style={getBalancedGridStyle(rows.length)}>
-      {rows.map((row) => {
-        const overview = getOverview(data, row.manager);
-        const timeline = data.dynastyTimelines?.find((item) => item.manager === row.manager);
-        const readiness = Math.round((row.starterStrength + row.rosterValue + row.positionalBalance) / 3);
-        const chips: AIReadChip[] = [
-          `League #${row.rank}`,
-          `Value #${overview?.rank_value || '-'}`,
-          timeline?.label || row.tier,
-        ];
+    <div className="league-power-shell">
+      {placeholderRows.length > 0 && (
+        <p className="league-power-open-roster-note">
+          {placeholderRows.length} open roster{placeholderRows.length === 1 ? '' : 's'} {placeholderRows.length === 1 ? 'is' : 'are'} not assigned yet.
+        </p>
+      )}
+      <div className="league-power-grid balanced-tile-grid" style={getBalancedGridStyle(rows.length)}>
+        {rows.map((row) => {
+          const overview = getOverview(data, row.manager);
+          const timeline = data.dynastyTimelines?.find((item) => item.manager === row.manager);
+          const readiness = Math.round((row.starterStrength + row.rosterValue + row.positionalBalance) / 3);
+          const redraftPowerLabel = getRedraftPowerLabel(row);
+          const subtitle = isRedraft ? redraftPowerLabel : row.tier;
+          const chips: AIReadChip[] = [
+            `League #${row.rank}`,
+            `Value #${overview?.rank_value || '-'}`,
+            isRedraft ? redraftPowerLabel : timeline?.label || row.tier,
+          ];
 
-        return (
-          <details key={row.manager} className={`league-power-card ${viewerOwnedHighlightClass(row.manager, data.viewerManager)}`}>
-            <summary>
-              <span className="league-power-rank">#{row.rank}</span>
-              <span className="league-power-manager">
-                <ManagerNameWithAvatar avatarUrl={managerAvatars?.[row.manager]} managerName={row.manager} />
-                <em>{row.tier}</em>
-              </span>
-              <span className="league-power-score">{row.score}</span>
-            </summary>
-            <div className="league-power-body">
-              <div className="league-power-metrics">
-                <MetricPill label="Power slot" value={`#${row.rank}`} tone="info" />
-                <MetricPill label="Value slot" value={overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} tone="info" />
-                <MetricPill label="Tier" value={row.tier} tone="neutral" />
-                <MetricPill label="Window" value={timeline?.label || row.tier} tone="info" />
-                <MetricPill label="Balance score" value={row.positionalBalance} tone={row.positionalBalance >= 70 ? 'good' : row.positionalBalance <= 45 ? 'warn' : 'info'} />
-                <MetricPill label="Draft curve" value={row.draftCapital} tone="warn" />
-                <MetricPill label="Youth curve" value={row.youthScore} tone="info" />
-                <MetricPill label="Readiness score" value={readiness} tone={readiness >= 70 ? 'good' : readiness <= 45 ? 'danger' : 'warn'} />
+          return (
+            <details key={`${row.rank}-${row.manager}`} className={`league-power-card ${viewerOwnedHighlightClass(row.manager, data.viewerManager)}`}>
+              <summary>
+                <span className="league-power-rank">#{row.rank}</span>
+                <span className="league-power-manager">
+                  <ManagerNameWithAvatar avatarUrl={managerAvatars?.[row.manager]} managerName={row.manager} />
+                  <em>{subtitle}</em>
+                </span>
+                <span className="league-power-score">{row.score}</span>
+              </summary>
+              <div className="league-power-body">
+                <div className="league-power-metrics">
+                  <MetricPill label="Power slot" value={`#${row.rank}`} tone="info" />
+                  <MetricPill label="Value slot" value={overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} tone="info" />
+                  <MetricPill label={isRedraft ? 'Season tier' : 'Tier'} value={subtitle} tone="neutral" />
+                  {!isRedraft && <MetricPill label="Window" value={timeline?.label || row.tier} tone="info" />}
+                  <MetricPill label="Starter strength" value={row.starterStrength} tone={row.starterStrength >= 70 ? 'good' : row.starterStrength <= 45 ? 'warn' : 'info'} />
+                  <MetricPill label="Balance score" value={row.positionalBalance} tone={row.positionalBalance >= 70 ? 'good' : row.positionalBalance <= 45 ? 'warn' : 'info'} />
+                  {!isRedraft && <MetricPill label="Draft curve" value={row.draftCapital} tone="warn" />}
+                  {!isRedraft && <MetricPill label="Youth curve" value={row.youthScore} tone="info" />}
+                  <MetricPill label="Readiness score" value={readiness} tone={readiness >= 70 ? 'good' : readiness <= 45 ? 'danger' : 'warn'} />
+                </div>
+                <AIReadPanel
+                  compact
+                  title={`${row.manager} power read`}
+                  readType={isRedraft ? 'Weekly Power' : 'Contender Path'}
+                  confidence={getManagerReadConfidence(data, row.manager)}
+                  severity={readiness >= 70 ? 'good' : readiness <= 45 ? 'warn' : 'info'}
+                  chips={chips}
+                  body={`${row.manager} owns league power slot #${row.rank} with a ${row.score} composite score and ${readiness} readiness score. This card stays ranking-only; use roster recon for roster causes and Trade Finder for deal paths.`}
+                  traceItems={[
+                    `Power rank #${row.rank} from composite score ${row.score}.`,
+                    `Value slot ${overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} sets the market-order signal.`,
+                    `Readiness score ${readiness} blends starter strength, roster value, and positional balance.`,
+                    isRedraft ? `Season tier: ${redraftPowerLabel}.` : `Window source: ${timeline?.label || row.tier}.`,
+                  ]}
+                  backgroundVariant="league"
+                />
               </div>
-              <AIReadPanel
-                compact
-                title={`${row.manager} power read`}
-                readType="Contender Path"
-                confidence={getManagerReadConfidence(data, row.manager)}
-                severity={readiness >= 70 ? 'good' : readiness <= 45 ? 'warn' : 'info'}
-                chips={chips}
-                body={`${row.manager} owns league power slot #${row.rank} with a ${row.score} composite score and ${readiness} readiness score. This card stays ranking-only; use roster recon for roster causes and Trade Finder for deal paths.`}
-                traceItems={[
-                  `Power rank #${row.rank} from composite score ${row.score}.`,
-                  `Value slot ${overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} sets the market-order signal.`,
-                  `Readiness score ${readiness} blends starter strength, roster value, and positional balance.`,
-                  `Window source: ${timeline?.label || row.tier}.`,
-                ]}
-                backgroundVariant="league"
-              />
-            </div>
-          </details>
-        );
-      })}
+            </details>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1659,6 +1734,7 @@ export function TeamBreakdownRecon({
   const overview = getOverview(data, manager);
   const pickPortfolio = data.pickPortfolios?.find((row) => row.manager === manager) || null;
   const tradeTendency = data.tradeTendencies?.find((row) => row.manager === manager) || null;
+  const isRedraft = isRedraftReportData(data);
 
   if (!managerOptions.length || !intel) {
     return (
@@ -1680,7 +1756,12 @@ export function TeamBreakdownRecon({
   ].filter(Boolean);
   const fragileAssets = [intel.oldestPlayer, intel.starterAvailability.riskiestStarter].filter(Boolean) as ManagerIntelPlayer[];
   const insulatedAssets = (intel.untouchablePlayers?.length ? intel.untouchablePlayers : [intel.youngCorePlayer]).filter(Boolean) as ManagerIntelPlayer[];
-  const rosterHealthRead = `${manager} shows ${strengths.slice(0, 2).join(' and ') || intel.identity || 'a returned roster identity'} as the stable base, with ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'} as the roster-health watch. This read stops at roster causes; use Trade Finder for specific partners, packages, and trade targets.`;
+  const redraftProfile = overview?.rank_value
+    ? `current-season value #${overview.rank_value}`
+    : 'current-season roster read';
+  const rosterHealthRead = isRedraft
+    ? `${manager} shows ${strengths.slice(0, 2).join(' and ') || redraftProfile} as the weekly scoring base, with ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'} as the roster-health watch. This read stays current-season only; use Trade Finder for specific partners, packages, and trade targets.`
+    : `${manager} shows ${strengths.slice(0, 2).join(' and ') || intel.identity || 'a returned roster identity'} as the stable base, with ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'} as the roster-health watch. This read stops at roster causes; use Trade Finder for specific partners, packages, and trade targets.`;
 
   return (
     <div className="team-breakdown-recon">
@@ -1696,8 +1777,8 @@ export function TeamBreakdownRecon({
       <div className="team-breakdown-hero">
         <ManagerNameWithAvatar avatarUrl={managerAvatars?.[manager]} managerName={manager} />
         <div>
-          <span>{intel.identity}</span>
-          <strong>{intel.timeline}</strong>
+          <span>{isRedraft ? 'Season roster profile' : intel.identity}</span>
+          <strong>{isRedraft ? redraftProfile : intel.timeline}</strong>
         </div>
       </div>
 
@@ -1731,11 +1812,21 @@ export function TeamBreakdownRecon({
           </div>
         </section>
         <section>
-          <h4>Age Curve / Roster Window</h4>
+          <h4>{isRedraft ? 'Season Roster Shape' : 'Age Curve / Roster Window'}</h4>
           <div className="team-breakdown-metrics">
-            <MetricPill label="Avg age" value={intel.avgAge ?? '-'} tone={intel.avgAge && intel.avgAge >= 27.5 ? 'warn' : 'info'} />
-            <MetricPill label="Timeline" value={intel.timeline || '-'} tone="info" />
-            <MetricPill label="Age flags" value={intel.ageFlags?.length || 0} tone={intel.ageFlags?.length ? 'warn' : 'good'} />
+            {isRedraft ? (
+              <>
+                <MetricPill label="Value rank" value={overview ? `#${overview.rank_value}` : '-'} tone="info" />
+                <MetricPill label="Starter share" value={formatPercent(intel.starterValuePct)} tone="info" />
+                <MetricPill label="Risk flags" value={fragileAssets.length} tone={fragileAssets.length ? 'warn' : 'good'} />
+              </>
+            ) : (
+              <>
+                <MetricPill label="Avg age" value={intel.avgAge ?? '-'} tone={intel.avgAge && intel.avgAge >= 27.5 ? 'warn' : 'info'} />
+                <MetricPill label="Timeline" value={intel.timeline || '-'} tone="info" />
+                <MetricPill label="Age flags" value={intel.ageFlags?.length || 0} tone={intel.ageFlags?.length ? 'warn' : 'good'} />
+              </>
+            )}
           </div>
         </section>
         <section>
@@ -1767,17 +1858,17 @@ export function TeamBreakdownRecon({
         </section>
         <AIReadPanel
           title={`${manager} suggested next move`}
-          readType={intel.timeline?.toLowerCase().includes('rebuild') ? 'Rebuild Path' : 'Contender Path'}
+          readType={isRedraft ? 'Season Roster Read' : intel.timeline?.toLowerCase().includes('rebuild') ? 'Rebuild Path' : 'Contender Path'}
           confidence={getManagerReadConfidence(data, manager)}
           severity={weaknesses.length > 2 ? 'warn' : 'info'}
           chips={[
             `Need: ${getNeedPosition(data, manager) || '-'}`,
             `Surplus: ${getSurplusPosition(data, manager) || '-'}`,
-            intel.timeline || intel.identity,
+            isRedraft ? redraftProfile : intel.timeline || intel.identity,
           ]}
           body={rosterHealthRead}
           traceItems={[
-            `Stable base: ${strengths.slice(0, 2).join(' and ') || intel.identity || 'returned roster identity'}.`,
+            `Stable base: ${strengths.slice(0, 2).join(' and ') || (isRedraft ? redraftProfile : intel.identity) || 'returned roster identity'}.`,
             `Roster watch: ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'}.`,
             `Need/surplus lens: ${getNeedPosition(data, manager) || '-'} need, ${getSurplusPosition(data, manager) || '-'} surplus.`,
             `Health evidence: ${intel.starterAvailability.riskLevel} availability risk and ${fragileAssets.length} fragile asset flag${fragileAssets.length === 1 ? '' : 's'}.`,
@@ -2744,8 +2835,10 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
     .map((details) => details.playerSituationDelta)
     .filter(Boolean);
   const strongSituationReads = situationDeltas.filter((delta) => (delta?.confidence || 0) >= 70 && delta?.primaryLabel !== 'source-limited-route-read');
+  const freshSituationReads = situationDeltas.filter((delta) => delta?.freshness?.grade === 'fresh' || delta?.freshness?.grade === 'usable');
   const situationSignalCopy = [
     strongSituationReads.length ? `${strongSituationReads.length} strong` : null,
+    freshSituationReads.length ? `${freshSituationReads.length} fresh/usable` : null,
     situationDeltas.filter((delta) => delta?.primaryLabel === 'role-boost' || delta?.primaryLabel === 'vacated-opportunity').length
       ? `${situationDeltas.filter((delta) => delta?.primaryLabel === 'role-boost' || delta?.primaryLabel === 'vacated-opportunity').length} role boost`
       : null,
@@ -2819,7 +2912,7 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
       note: situationDeltas.length
         ? `${situationDeltas.length}/${Object.keys(data.playerDetailsById || {}).length} players have opportunity delta reads${situationSignalCopy ? `; ${situationSignalCopy}.` : '; all reads are source-limited or neutral.'}`
         : 'Player detail reads can still use value and cohort context, but no situation-delta scorer output was returned.',
-      tone: strongSituationReads.length ? 'good' : situationDeltas.length ? 'info' : 'warn',
+      tone: strongSituationReads.length || freshSituationReads.length ? 'good' : situationDeltas.length ? 'info' : 'warn',
     },
     {
       label: 'Research Assistant',

@@ -80,6 +80,7 @@ import {
   compareManagersByViewerAndStanding,
   sortRowsByViewerAndStanding,
 } from "@/lib/managerOrdering";
+import { isPlaceholderManagerName } from "@/lib/managerDisplay";
 import { viewerOwnedHighlightClass } from "@/lib/viewerHighlight";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 
@@ -5036,6 +5037,47 @@ function buildDynastyPickLeverage(
   };
 }
 
+function buildDynastySituationRadar(row: OwnerIntelRow): DynastyAiSuggestion | null {
+  const summary = row.situationSummary;
+  if (!summary?.backedCount) return null;
+  const topBoost = summary.topBoostPlayer;
+  const topRisk = summary.topRiskPlayer;
+
+  if (summary.riskCount > summary.boostCount && topRisk) {
+    return {
+      title: "AI Situation Radar",
+      tone: "warn",
+      theme: "risk",
+      copy: `${summary.note} Do not treat this as a pure market-value roster; role pressure is showing up before the trade card should get more aggressive.`,
+    };
+  }
+
+  if (summary.boostCount && topBoost) {
+    return {
+      title: "AI Situation Radar",
+      tone: "good",
+      theme: "upside",
+      copy: `${summary.note} That gives this manager a reason to hold or price the upside above a flat blended-value number.`,
+    };
+  }
+
+  if (summary.sourceLimitedCount || summary.staleCount) {
+    return {
+      title: "AI Situation Radar",
+      tone: "warn",
+      theme: "risk",
+      copy: `${summary.note} Keep the read capped until usage, news, injury, or depth-chart context refreshes.`,
+    };
+  }
+
+  return {
+    title: "AI Situation Radar",
+    tone: "neutral",
+    theme: "neutral",
+    copy: `${summary.note} No strong role swing is forcing action, so trades should stay anchored to roster construction and market value.`,
+  };
+}
+
 function buildDynastyRiskRadar(row: OwnerIntelRow): DynastyAiSuggestion {
   const riskStarter = row.starterAvailability?.riskiestStarter;
   const insurance = row.injuryInsurance;
@@ -5152,6 +5194,7 @@ function buildDynastyAiSuggestions({
     },
     buildDynastyWindowGuardrail(row, pickRow, buildLabel),
     buildDynastyPickLeverage(pickRow),
+    buildDynastySituationRadar(row),
     buildDynastyRosterChurn(row),
     buildDynastyRiskRadar(row),
     buildDynastyOfferFilter(row, overviewRow),
@@ -5252,8 +5295,11 @@ function buildSeasonRosterRead({
   const missingCopy = missingGroups.length
     ? `Lineup fill warning: ${missingGroups.map(group => group.label).join(", ")} needs a better season-rank option.`
     : `${starterCount} ${starterSourceLabel} fill from ranked active players.`;
+  const situationCopy = selectedIntel?.situationSummary?.backedCount
+    ? `Football context: ${selectedIntel.situationSummary.note}`
+    : "Football-context role reads are still thin for this roster, so the season read stays rank/value driven.";
 
-  return `${missingCopy} ${weakCopy} ${riskCopy} ${depthCopy}`;
+  return `${missingCopy} ${weakCopy} ${riskCopy} ${depthCopy} ${situationCopy}`;
 }
 
 function buildSeasonInsuranceRead(row?: OwnerIntelRow | null): string | null {
@@ -7034,7 +7080,12 @@ export function LeagueCommandCenter({
       data.leagueDiagnostics?.valueMode ||
       data.leagueValueMode
   );
+  const isRedraft = leagueValueMode === "redraft";
+  const isVisibleManager = (manager?: string | null) =>
+    !(isRedraft && isPlaceholderManagerName(manager));
+  const visibleIntel = intel.filter(row => isVisibleManager(row.manager));
   const starterDepth = (data.managerPositionCounts || [])
+    .filter(row => isVisibleManager(row.manager))
     .map(row => {
       const rowIntel = intel.find(item => item.manager === row.manager);
       const starterSeasonValue = (row.starterPlayers || []).reduce(
@@ -7070,7 +7121,7 @@ export function LeagueCommandCenter({
           leagueOverview: data.leagueOverview,
         })
     );
-  const taxiDepth = intel
+  const taxiDepth = visibleIntel
     .filter(row => row.taxiTriage?.items.length)
     .map(row => ({
       manager: row.manager,
@@ -7093,10 +7144,10 @@ export function LeagueCommandCenter({
       );
     });
   const selectedIntel = selectedManager
-    ? intel.find(row => row.manager === selectedManager)
+    ? visibleIntel.find(row => row.manager === selectedManager)
     : null;
   const selectedCounts = selectedManager
-    ? data.managerPositionCounts.find(row => row.manager === selectedManager)
+    ? data.managerPositionCounts.find(row => row.manager === selectedManager && isVisibleManager(row.manager))
     : null;
   const openManager = (manager: string) => setSelectedManager(manager);
   const openCommandPlayer = (player: CommandPlayer) => {
@@ -8522,13 +8573,16 @@ export function OwnerIntelMatrix({
   );
   const [selectedOwner, setSelectedOwner] = useState<string | null>(null);
   const intelRows = data.managerRosterIntelligence || [];
-  if (!intelRows.length) return null;
   const leagueValueMode = normalizeLeagueValueMode(
     leagueValueModeInput ||
       data.leagueDiagnostics?.valueMode ||
       data.leagueValueMode
   );
   const isRedraft = leagueValueMode === "redraft";
+  const visibleIntelRows = isRedraft
+    ? intelRows.filter(row => !isPlaceholderManagerName(row.manager))
+    : intelRows;
+  if (!visibleIntelRows.length) return null;
 
   const pickRows = data.pickPortfolios || [];
   const growthRows = data.managerRosterValueGrowth || [];
@@ -8557,7 +8611,7 @@ export function OwnerIntelMatrix({
       overviewRow: getOverviewRow(row.manager),
       growthRow: getGrowthRow(row.manager),
       maxGrowthValue,
-      leagueSize: intelRows.length,
+      leagueSize: visibleIntelRows.length,
     });
   const getSortScoreForRow = (row: OwnerIntelRow) => {
     const scoreLens = getScoreLensForRow(row);
@@ -8567,7 +8621,7 @@ export function OwnerIntelMatrix({
       return scoreLens.rebuilderScore ?? -1;
     return scoreLens.dynastyScore ?? -1;
   };
-  const orderedIntelRows = [...intelRows].sort((a, b) => {
+  const orderedIntelRows = [...visibleIntelRows].sort((a, b) => {
     const scoreDiff = getSortScoreForRow(b) - getSortScoreForRow(a);
     if (scoreDiff !== 0) return scoreDiff;
     const aRank =

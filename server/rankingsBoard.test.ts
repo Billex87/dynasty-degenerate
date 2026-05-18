@@ -132,6 +132,59 @@ describe('rankings board prospect fallback', () => {
     expect(board.dynastySf.find((row) => row.name === 'Deion Burks')?.player_id).toBe('13333');
   });
 
+  it('merges common first-name aliases across devy ranking sources', async () => {
+    const { getCurrentKTCDevyRankingProfiles } = await import('./liveKTCScraper');
+    const { loadFlockFantasyValueProfiles } = await import('./flockFantasy');
+    const futureYear = new Date().getFullYear() + 1;
+
+    vi.mocked(getCurrentKTCDevyRankingProfiles).mockResolvedValueOnce({
+      ...emptyKtcProfiles,
+      sf_ppr: {
+        nicksingleton: {
+          name: 'Nick Singleton',
+          position: 'RB',
+          position_rank: 'RB1',
+          rank: 1,
+          ktc_value: 6200,
+          college: 'Penn State',
+          draftYear: futureYear,
+        },
+      },
+    });
+    vi.mocked(loadFlockFantasyValueProfiles).mockResolvedValueOnce({
+      SUPERFLEX: {},
+      ONEQB: {},
+      PROSPECTS_SF: {
+        nicholassingleton: {
+          name: 'Nicholas Singleton',
+          position: 'RB',
+          positionRank: 'RB2',
+          overallRank: 2,
+          dynastyValue: 6000,
+          college: 'Penn State',
+          draftYear: futureYear,
+        },
+      },
+      PROSPECTS: {},
+    });
+    const { buildRankingsBoard } = await import('./rankingsBoard');
+
+    const board = await buildRankingsBoard({
+      players: {},
+      ktcValues: {},
+      ownerByPlayerId: {},
+      rosterStatusByPlayerId: {},
+    });
+    const singletonRows = board.devySf.filter((row) => /singleton/i.test(row.name));
+
+    expect(singletonRows).toHaveLength(1);
+    expect(singletonRows[0]).toMatchObject({
+      name: 'Nick Singleton',
+      pos: 'RB',
+    });
+    expect(singletonRows[0]?.sources).toEqual(expect.arrayContaining(['KTC', 'Flock']));
+  });
+
   it('keeps redraft profile rows separate from dynasty profile rows', async () => {
     const { loadRedraftRankingProfiles } = await import('./redraftRankings');
     vi.mocked(loadRedraftRankingProfiles).mockResolvedValueOnce({

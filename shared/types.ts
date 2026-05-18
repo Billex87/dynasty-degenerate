@@ -468,6 +468,19 @@ export interface ManagerRosterIntelligence {
   chaosNotes?: string[];
   marketSignals?: string[];
   pressurePoints?: string[];
+  situationSummary?: {
+    playerCount: number;
+    backedCount: number;
+    strongCount: number;
+    boostCount: number;
+    riskCount: number;
+    staleCount: number;
+    sourceLimitedCount: number;
+    topBoostPlayer?: string | null;
+    topRiskPlayer?: string | null;
+    note: string;
+    signals: string[];
+  };
   rosterHealthScore?: number;
   positionGrades?: Record<'QB' | 'RB' | 'WR' | 'TE', {
     rank: number | null;
@@ -863,6 +876,22 @@ export interface PlayerSituationDeltaComponent {
   trace: string;
 }
 
+export interface PlayerSituationFreshness {
+  grade: 'fresh' | 'usable' | 'stale' | 'missing';
+  score: number;
+  latestEventAt?: string | null;
+  signals: string[];
+  note: string;
+}
+
+export interface PlayerSituationDynamicSignal {
+  type: 'usage' | 'roster-room' | 'news' | 'injury' | 'schedule' | 'market' | 'source';
+  label: string;
+  direction: 'boost' | 'risk' | 'neutral';
+  detail: string;
+  eventAt?: string | null;
+}
+
 export interface PlayerSituationDeltaProfile {
   playerId: string;
   name: string;
@@ -877,6 +906,8 @@ export interface PlayerSituationDeltaProfile {
   missingSignals: string[];
   cautionFlags: string[];
   components: PlayerSituationDeltaComponent[];
+  freshness: PlayerSituationFreshness;
+  dynamicSignals: PlayerSituationDynamicSignal[];
 }
 
 export interface PlayerDetails {
@@ -1123,6 +1154,17 @@ export interface PlayerDetails {
     avgOffenseSnapPct: number | null;
     recentTargets: number;
     recentCarries: number;
+    rollingWindows?: Array<{
+      games: number;
+      weeks: number[];
+      targetsPerGame: number | null;
+      carriesPerGame: number | null;
+      receptionsPerGame: number | null;
+      fantasyPointsPprPerGame: number | null;
+      targetDeltaPerGame: number | null;
+      carryDeltaPerGame: number | null;
+      note: string;
+    }>;
     targetTrend: 'up' | 'down' | 'flat' | 'unknown';
     carryTrend: 'up' | 'down' | 'flat' | 'unknown';
     note: string;
@@ -1511,6 +1553,11 @@ export interface LeagueAiConfidence {
 export interface LeagueDiagnostics {
   teamCount: number;
   valueMode: LeagueValueMode;
+  currentSeason?: string;
+  hasCurrentSeasonMainDraft?: boolean;
+  currentSeasonMainDraftPickCount?: number;
+  currentSeasonMainDraftPickedPlayerCount?: number;
+  currentSeasonMainDraftStatus?: 'not_started' | 'in_progress' | 'complete' | 'unknown';
   redraftTradeWindowEndDate?: string | null;
   rosterSlots: string[];
   starterSlots: string[];

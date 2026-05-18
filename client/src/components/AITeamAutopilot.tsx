@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
@@ -443,6 +443,37 @@ function ModeButton({
   );
 }
 
+function renderBreakableHeadlineToken(value: string) {
+  if (value.length <= 16) return value;
+  const chunks = value.match(/.{1,12}/g) || [value];
+  return chunks.map((chunk, index) => (
+    <span key={`${chunk}-${index}`}>
+      {chunk}
+      {index < chunks.length - 1 ? <wbr /> : null}
+    </span>
+  ));
+}
+
+function renderAutopilotHeadline(headline: string, manager?: string | null) {
+  const normalizedManager = manager?.trim();
+  if (
+    !normalizedManager ||
+    !headline.toLowerCase().startsWith(normalizedManager.toLowerCase())
+  ) {
+    return headline;
+  }
+
+  const rest = headline.slice(normalizedManager.length);
+  return (
+    <>
+      <span className="autopilot-headline-manager">
+        {renderBreakableHeadlineToken(normalizedManager)}
+      </span>
+      {rest}
+    </>
+  );
+}
+
 export default function AITeamAutopilot({
   reportData,
   leagueName,
@@ -456,6 +487,14 @@ export default function AITeamAutopilot({
 }) {
   const initialMode = leagueValueMode === 'redraft' ? 'redraft' : 'dynasty';
   const [mode, setMode] = useState<AutopilotMode>(initialMode);
+  const isRedraftLocked = leagueValueMode === 'redraft';
+
+  useEffect(() => {
+    if (isRedraftLocked && mode !== 'redraft') {
+      setMode('redraft');
+    }
+  }, [isRedraftLocked, mode]);
+
   const data = useMemo(() => {
     const fallback = AUTOPILOT_MOCK_DATA[mode];
     try {
@@ -482,13 +521,15 @@ export default function AITeamAutopilot({
             <BrainCircuit className="h-4 w-4" aria-hidden="true" />
             AI Team Autopilot
           </span>
-          <h2>{data.headline}</h2>
+          <h2>{renderAutopilotHeadline(data.headline, data.focusManager)}</h2>
           <p>{data.focusManager ? `${data.focusManager} read` : leagueName || 'Selected league'}{leagueFormat ? ` · ${leagueFormat}` : ''}</p>
         </div>
-        <div className="autopilot-mode-toggle" aria-label="Autopilot league mode">
-          <ModeButton mode="dynasty" active={mode === 'dynasty'} onClick={setMode}>Dynasty</ModeButton>
-          <ModeButton mode="redraft" active={mode === 'redraft'} onClick={setMode}>Redraft</ModeButton>
-        </div>
+        {!isRedraftLocked && (
+          <div className="autopilot-mode-toggle" aria-label="Autopilot league mode">
+            <ModeButton mode="dynasty" active={mode === 'dynasty'} onClick={setMode}>Dynasty</ModeButton>
+            <ModeButton mode="redraft" active={mode === 'redraft'} onClick={setMode}>Redraft</ModeButton>
+          </div>
+        )}
       </div>
 
       <div className="autopilot-status-grid">

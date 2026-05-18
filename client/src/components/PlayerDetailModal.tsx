@@ -3054,6 +3054,22 @@ function buildPlayerAiRead({
   if (situationDelta) {
     chips.push(formatSituationDeltaLabel(situationDelta.primaryLabel));
     chips.push(`Delta ${situationDelta.score}`);
+    if (situationDelta.freshness) {
+      chips.push({
+        label: `Context ${situationDelta.freshness.grade}`,
+        tone: situationDelta.freshness.grade === 'fresh' || situationDelta.freshness.grade === 'usable'
+          ? 'good'
+          : situationDelta.freshness.grade === 'stale'
+          ? 'warn'
+          : 'neutral',
+      });
+    }
+    situationDelta.dynamicSignals?.slice(0, 2).forEach((signal) => {
+      chips.push({
+        label: signal.label,
+        tone: signal.direction === 'boost' ? 'good' : signal.direction === 'risk' ? 'warn' : 'info',
+      });
+    });
     chips.push({
       label: situationDelta.action.toUpperCase(),
       tone: situationDelta.action === 'buy' || situationDelta.action === 'stash'
@@ -3226,11 +3242,15 @@ function buildPlayerAiRead({
       cohort?.calibration?.note || null,
       cohort?.historicalComps ? `Historical comps confidence ${cohort.historicalComps.confidence}; ${cohort.historicalComps.summary}` : null,
       cohort?.seasonOutcomeReceipt ? `Season outcome receipt ${cohort.seasonOutcomeReceipt.confidenceGrade}; ${cohort.seasonOutcomeReceipt.note} ${cohort.seasonOutcomeReceipt.summary}` : null,
-      situationDelta ? `Situation delta confidence ${situationDelta.confidence}; ${situationDelta.missingSignals.length ? `missing ${situationDelta.missingSignals.slice(0, 2).join(' and ')}` : 'first-pass inputs present'}.` : null,
+      situationDelta ? `Situation delta confidence ${situationDelta.confidence}; ${situationDelta.freshness?.note || 'freshness unavailable'} ${situationDelta.missingSignals.length ? `Missing ${situationDelta.missingSignals.slice(0, 2).join(' and ')}.` : 'First-pass inputs present.'}` : null,
     ].filter(Boolean).join(' '),
     severity,
     chips,
-    body: renderPlayerAiReadBody(body, [...(situationDelta?.trace || []), ...(cohort?.trace || [])]),
+    body: renderPlayerAiReadBody(body, [
+      ...(situationDelta?.dynamicSignals || []).map((signal) => `${signal.label}: ${signal.detail}`),
+      ...(situationDelta?.trace || []),
+      ...(cohort?.trace || []),
+    ]),
     backgroundVariant: severity === 'warn' ? 'market' as const : 'blueprint' as const,
   };
 }

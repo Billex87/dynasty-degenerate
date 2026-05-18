@@ -14,6 +14,8 @@ describe('playerNameKeysMatch', () => {
     expect(playerNameKeysMatch('Bam Knight', 'Zonovan Knight')).toBe(true);
     expect(playerNameKeysMatch('Gabriel Davis', 'Gabe Davis')).toBe(true);
     expect(playerNameKeysMatch('Hollywood Brown', 'Marquise Brown')).toBe(true);
+    expect(playerNameKeysMatch('Nick Singleton', 'Nicholas Singleton')).toBe(true);
+    expect(playerNameKeysMatch('Nicholas Singleton', 'nicksingleton')).toBe(true);
     expect(playerNameKeysMatch('Deion Burks (Duplicate)', 'Deion Burks')).toBe(true);
   });
 });

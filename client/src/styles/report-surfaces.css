@@ -3979,7 +3979,7 @@ button.trade-manager-trade {
   --report-tile-padding: 0.78rem;
   --report-tile-gap: 0.56rem;
   --report-chip-font-size: 0.62rem;
-  --report-kicker-font-size: 0.62rem;
+  --report-kicker-font-size: 0.72rem;
   --report-manager-avatar-size: 4rem;
   --report-manager-title-size: 2.35rem;
   --report-manager-title-long-size: 2rem;
@@ -4184,7 +4184,7 @@ button.trade-manager-trade {
     --report-tile-padding: 0.58rem;
     --report-tile-gap: 0.42rem;
     --report-chip-font-size: 0.58rem;
-    --report-kicker-font-size: 0.56rem;
+    --report-kicker-font-size: 0.64rem;
     --report-manager-avatar-size: 3.15rem;
     --report-manager-title-size: 1.54rem;
     --report-manager-title-long-size: 1.2rem;

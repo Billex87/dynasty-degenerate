@@ -57,15 +57,220 @@ import {
 } from "./valueBlend";
 import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence, WaiverOmittedCandidate } from "../shared/types";
+import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence, WaiverOmittedCandidate } from "../shared/types";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
   return fallback.replace(/\d+$/, '') || fallback;
 }
 
+function buildCurrentSeasonMainDraftDiagnostics(
+  draftPicks: any[],
+  currentSeason: string
+): Pick<
+  NonNullable<ReportData['leagueDiagnostics']>,
+  | 'hasCurrentSeasonMainDraft'
+  | 'currentSeasonMainDraftPickCount'
+  | 'currentSeasonMainDraftPickedPlayerCount'
+  | 'currentSeasonMainDraftStatus'
+> {
+  const season = String(currentSeason || '').trim();
+  const currentSeasonMainPicks = (draftPicks || []).filter((pick) => {
+    const draftYear = String(pick?.draftYear || '').trim();
+    const draftKind = String(pick?.draftKind || 'main').toLowerCase();
+    return draftYear === season && draftKind === 'main';
+  });
+  const pickedPlayers = currentSeasonMainPicks.filter((pick) => {
+    const playerName = String(pick?.playerName || '').trim();
+    return Boolean(pick?.player_id) || (Boolean(playerName) && playerName.toLowerCase() !== 'unknown');
+  });
+  const expectedPickCount = Math.max(
+    0,
+    ...currentSeasonMainPicks
+      .map((pick) => Number(pick?.draftPickCount || 0))
+      .filter((value) => Number.isFinite(value))
+  );
+  const pickedCount = pickedPlayers.length;
+  const status: NonNullable<ReportData['leagueDiagnostics']>['currentSeasonMainDraftStatus'] =
+    pickedCount <= 0
+      ? 'not_started'
+      : expectedPickCount > 0 && pickedCount < expectedPickCount
+        ? 'in_progress'
+        : 'complete';
+
+  return {
+    hasCurrentSeasonMainDraft: pickedCount > 0,
+    currentSeasonMainDraftPickCount: currentSeasonMainPicks.length,
+    currentSeasonMainDraftPickedPlayerCount: pickedCount,
+    currentSeasonMainDraftStatus: status,
+  };
+}
+
 function getActionPlanUserKey(user: NonNullable<TrpcContext["user"]>): string {
   return user.openId || String(user.id);
+}
+
+function attachEnrichedPlayerDetails<T extends ManagerIntelPlayer | null | undefined>(
+  player: T,
+  playerDetailsById: Record<string, PlayerDetails>
+): T {
+  if (!player?.player_id) return player;
+  const enriched = playerDetailsById[player.player_id];
+  if (!enriched) return player;
+  return {
+    ...player,
+    playerDetails: {
+      ...(player.playerDetails || {}),
+      ...enriched,
+    },
+  } as T;
+}
+
+function attachEnrichedPlayerDetailsList<T extends ManagerIntelPlayer>(
+  players: T[] | undefined,
+  playerDetailsById: Record<string, PlayerDetails>
+): T[] | undefined {
+  return players?.map((player) => attachEnrichedPlayerDetails(player, playerDetailsById) as T);
+}
+
+function collectManagerSituationPlayers(row: ManagerRosterIntelligence): ManagerIntelPlayer[] {
+  const seen = new Set<string>();
+  const players = [
+    row.bestBenchStash,
+    row.weakestStarter,
+    row.oldestPlayer,
+    row.youngCorePlayer,
+    row.breakoutCandidate,
+    row.lastSeasonStud,
+    row.buyTarget,
+    row.sellCandidate,
+    row.tradeChip,
+    row.injuryInsurance,
+    row.starterAvailability.riskiestStarter,
+    ...(row.rosterPlayers || []),
+    ...(row.benchPlayers || []),
+    ...(row.taxiPlayers || []),
+    ...(row.reservePlayers || []),
+  ].filter((player): player is ManagerIntelPlayer => Boolean(player?.player_id));
+
+  return players.filter((player) => {
+    if (seen.has(player.player_id)) return false;
+    seen.add(player.player_id);
+    return true;
+  });
+}
+
+function buildManagerSituationSummary(row: ManagerRosterIntelligence): NonNullable<ManagerRosterIntelligence['situationSummary']> {
+  const players = collectManagerSituationPlayers(row);
+  const deltas = players
+    .map((player) => ({
+      player,
+      delta: player.playerDetails?.playerSituationDelta || null,
+    }))
+    .filter((entry) => entry.delta);
+  const strong = deltas.filter((entry) => (entry.delta?.confidence || 0) >= 70 && entry.delta?.primaryLabel !== 'source-limited-route-read');
+  const boosts = deltas.filter((entry) => entry.delta?.action === 'buy' || entry.delta?.action === 'stash' || entry.delta?.labels.includes('role-boost') || entry.delta?.labels.includes('vacated-opportunity'));
+  const risks = deltas.filter((entry) => entry.delta?.action === 'sell' || entry.delta?.action === 'avoid' || entry.delta?.labels.includes('role-threat') || entry.delta?.labels.includes('crowded-room') || entry.delta?.labels.includes('opportunity-cliff'));
+  const stale = deltas.filter((entry) => {
+    const grade = entry.delta?.freshness?.grade;
+    return grade === 'stale' || grade === 'missing';
+  });
+  const sourceLimited = deltas.filter((entry) => entry.delta?.labels.includes('source-limited-route-read'));
+  const topBoost = [...boosts].sort((a, b) => (b.delta?.score || 0) - (a.delta?.score || 0))[0] || null;
+  const topRisk = [...risks].sort((a, b) => (a.delta?.score || 100) - (b.delta?.score || 100))[0] || null;
+  const dynamicSignalLabels = deltas
+    .flatMap((entry) => entry.delta?.dynamicSignals || [])
+    .map((signal) => signal.label)
+    .filter(Boolean);
+  const signals = Array.from(new Set([
+    boosts.length ? `${boosts.length} role/opportunity boost${boosts.length === 1 ? '' : 's'}` : null,
+    risks.length ? `${risks.length} role-risk signal${risks.length === 1 ? '' : 's'}` : null,
+    stale.length ? `${stale.length} stale/thin situation read${stale.length === 1 ? '' : 's'}` : null,
+    ...dynamicSignalLabels,
+  ].filter(Boolean) as string[])).slice(0, 5);
+
+  return {
+    playerCount: players.length,
+    backedCount: deltas.length,
+    strongCount: strong.length,
+    boostCount: boosts.length,
+    riskCount: risks.length,
+    staleCount: stale.length,
+    sourceLimitedCount: sourceLimited.length,
+    topBoostPlayer: topBoost?.player.name || null,
+    topRiskPlayer: topRisk?.player.name || null,
+    note: deltas.length
+      ? `${deltas.length}/${players.length} roster assets have football-context reads; ${boosts.length} boost, ${risks.length} risk${topBoost?.player.name ? `, top boost ${topBoost.player.name}` : ''}${topRisk?.player.name ? `, main risk ${topRisk.player.name}` : ''}.`
+      : 'No roster assets have a situation-delta read yet, so manager copy should stay on value, age, and roster-shape context.',
+    signals,
+  };
+}
+
+function attachManagerSituationContext(
+  rows: ManagerRosterIntelligence[] | undefined,
+  playerDetailsById: Record<string, PlayerDetails>
+): ManagerRosterIntelligence[] | undefined {
+  return rows?.map((row) => {
+    const attach = <T extends ManagerIntelPlayer | null | undefined>(player: T) => attachEnrichedPlayerDetails(player, playerDetailsById);
+    const next: ManagerRosterIntelligence = {
+      ...row,
+      bestBenchStash: attach(row.bestBenchStash),
+      weakestStarter: attach(row.weakestStarter),
+      oldestPlayer: attach(row.oldestPlayer),
+      youngCorePlayer: attach(row.youngCorePlayer),
+      breakoutCandidate: attach(row.breakoutCandidate),
+      lastSeasonStud: attach(row.lastSeasonStud),
+      buyTarget: attach(row.buyTarget),
+      sellCandidate: attach(row.sellCandidate),
+      tradeChip: attach(row.tradeChip),
+      injuryInsurance: attach(row.injuryInsurance),
+      rosterPlayers: attachEnrichedPlayerDetailsList(row.rosterPlayers, playerDetailsById),
+      benchPlayers: attachEnrichedPlayerDetailsList(row.benchPlayers, playerDetailsById),
+      taxiPlayers: attachEnrichedPlayerDetailsList(row.taxiPlayers, playerDetailsById),
+      reservePlayers: attachEnrichedPlayerDetailsList(row.reservePlayers, playerDetailsById),
+      droppablePlayers: attachEnrichedPlayerDetailsList(row.droppablePlayers, playerDetailsById) || [],
+      untouchablePlayers: attachEnrichedPlayerDetailsList(row.untouchablePlayers, playerDetailsById) || [],
+      tradeBlueprints: row.tradeBlueprints?.map((blueprint) => ({
+        ...blueprint,
+        givePlayer: attach(blueprint.givePlayer),
+        getPlayer: attach(blueprint.getPlayer),
+      })),
+      tradeableDepth: row.tradeableDepth?.map((tile) => ({
+        ...tile,
+        player: attach(tile.player),
+      })),
+      benchBaseline: row.benchBaseline?.map((tile) => ({
+        ...tile,
+        player: attach(tile.player),
+        players: attachEnrichedPlayerDetailsList(tile.players, playerDetailsById),
+      })),
+      taxiTriage: {
+        ...row.taxiTriage,
+        items: attachEnrichedPlayerDetailsList(row.taxiTriage.items, playerDetailsById) || [],
+      },
+      similarValuePlayers: Object.fromEntries(
+        (Object.entries(row.similarValuePlayers) as Array<[keyof ManagerRosterIntelligence['similarValuePlayers'], ManagerIntelPlayer | null]>)
+          .map(([position, player]) => [position, attach(player)])
+      ) as ManagerRosterIntelligence['similarValuePlayers'],
+      starterAvailability: {
+        ...row.starterAvailability,
+        riskiestStarter: attach(row.starterAvailability.riskiestStarter),
+      },
+    };
+    const situationSummary = buildManagerSituationSummary(next);
+    return {
+      ...next,
+      situationSummary,
+      pressurePoints: Array.from(new Set([
+        situationSummary.riskCount ? `Situation risk: ${situationSummary.note}` : null,
+        ...(next.pressurePoints || []),
+      ].filter(Boolean) as string[])).slice(0, 6),
+      marketSignals: Array.from(new Set([
+        situationSummary.boostCount ? `Situation edge: ${situationSummary.note}` : null,
+        ...(next.marketSignals || []),
+      ].filter(Boolean) as string[])).slice(0, 6),
+    };
+  });
 }
 
 function getManagerDisplayName(name: string | undefined): string {
@@ -4974,7 +5179,14 @@ export const appRouter = router({
           });
           const depthChartResult = await depthChartResultPromise;
           const nflverseDraftCapital = await loadNflverseDraftCapitalSnapshot({ sourceMode: 'snapshot' });
-          const nflversePlayerContext = await loadNflversePlayerContext({ season: lastCompletedSeason, sourceMode: 'snapshot' });
+          const useCurrentUsageContext = /regular|post/i.test(sleeperResearchSeasonType)
+            && Number(currentSeason) > Number(lastCompletedSeason);
+          const nflversePlayerContext = await loadNflversePlayerContext({
+            season: useCurrentUsageContext ? currentSeason : lastCompletedSeason,
+            rosterRoomSeason: currentSeason,
+            rosterRoomPreviousSeason: lastCompletedSeason,
+            sourceMode: 'snapshot',
+          });
           const sourceDiagnosticRowCounts = [
             { sourceKey: 'ktc-blended-values-v1', rowCount: Object.keys(ktcValues || {}).length },
             { sourceKey: 'fantasypros-news-v1', rowCount: newsSourceCounts.fantasyPros },
@@ -5048,10 +5260,30 @@ export const appRouter = router({
           const playerSituationDeltasById = buildPlayerSituationDeltas({
             playerDetailsById: playerDetailsWithCohortsById,
           });
+          const playerDetailsWithSituationById = Object.fromEntries(
+            Object.entries(playerDetailsWithCohortsById).map(([playerId, details]) => [
+              playerId,
+              {
+                ...details,
+                playerSituationDelta: playerSituationDeltasById[playerId] || null,
+              },
+            ])
+          );
           markAnalyzeStep(`player static enrichment ${playerStaticEnrichment.cacheStatus}`);
 
+          const currentSeasonDraftDiagnostics = buildCurrentSeasonMainDraftDiagnostics(
+            draftAnalysis.draftPicks,
+            currentSeasonLabel
+          );
           const reportPayloadData = {
             ...reportData,
+            leagueDiagnostics: reportData.leagueDiagnostics
+              ? {
+                  ...reportData.leagueDiagnostics,
+                  currentSeason: currentSeasonLabel,
+                  ...currentSeasonDraftDiagnostics,
+                }
+              : undefined,
             sourceSnapshotDiagnostics,
             depthChartDiagnostics: depthChartResult.diagnostics,
             prospectSourceDiagnostics: staticSections.prospectSourceDiagnostics,
@@ -5060,15 +5292,8 @@ export const appRouter = router({
             currentStandings,
             managerAvatars: buildManagerAvatarMap(users),
             managerChampionships,
-            playerDetailsById: Object.fromEntries(
-              Object.entries(playerDetailsWithCohortsById).map(([playerId, details]) => [
-                playerId,
-                {
-                  ...details,
-                  playerSituationDelta: playerSituationDeltasById[playerId] || null,
-                },
-              ])
-            ),
+            managerRosterIntelligence: attachManagerSituationContext(reportData.managerRosterIntelligence, playerDetailsWithSituationById),
+            playerDetailsById: playerDetailsWithSituationById,
             currentPositionRankById: buildPrimaryPositionRankMap(detailPlayerIds, players, ktcValues, valueProfilesById, leagueValueMode),
             trendingAdds,
             trendingDrops,

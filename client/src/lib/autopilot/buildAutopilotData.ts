@@ -175,6 +175,20 @@ function getPlayerPosition(player?: AutopilotPlayerLike | null) {
   return player?.pos || player?.position || player?.playerDetails?.position || 'FLEX';
 }
 
+function normalizeLineupPosition(position?: string | null): string {
+  const normalized = String(position || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (['DST', 'D', 'DEFENSE'].includes(normalized)) return 'DEF';
+  if (normalized === 'PK') return 'K';
+  if (['SUPERFLEX', 'OP', 'QBSF'].includes(normalized)) return 'SUPER_FLEX';
+  if (normalized === 'FLEX' || normalized === 'WRT' || normalized === 'WRRBT' || normalized === 'WRRBTE') return 'FLEX';
+  if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(normalized)) return normalized;
+  return normalized || 'FLEX';
+}
+
+function getPlayerLineupPosition(player?: AutopilotPlayerLike | null): string {
+  return normalizeLineupPosition(getPlayerPosition(player));
+}
+
 function getPlayerAge(player?: AutopilotPlayerLike | null): number | null {
   return safeNumber(player?.age ?? player?.playerDetails?.age);
 }
@@ -215,6 +229,66 @@ function describePlayer(player?: AutopilotPlayerLike | null, mode: AutopilotMode
     getPlayerAge(player) ? `age ${getPlayerAge(player)}` : null,
   ].filter(Boolean);
   return parts.join(' | ') || getPlayerPosition(player);
+}
+
+function getPlayerSituationDelta(player?: AutopilotPlayerLike | null) {
+  return player?.playerDetails?.playerSituationDelta || null;
+}
+
+function formatSituationLabel(label?: string | null) {
+  return String(label || '')
+    .split('-')
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(' ');
+}
+
+function getPlayerSituationSignal(player?: AutopilotPlayerLike | null): string | null {
+  const delta = getPlayerSituationDelta(player);
+  if (!delta) return null;
+  const signal = formatSituationLabel(delta.primaryLabel);
+  const freshness = delta.freshness?.grade ? `${delta.freshness.grade} context` : 'situation context';
+  return `${signal} (${delta.confidence}% confidence, ${freshness})`;
+}
+
+function getManagerSituationCopy(intel?: ManagerRosterIntelligence | null): string | null {
+  const summary = intel?.situationSummary;
+  if (!summary || !summary.backedCount) return null;
+  return summary.note;
+}
+
+function getManagerSituationPlayers(intel?: ManagerRosterIntelligence | null): AutopilotPlayerLike[] {
+  if (!intel) return [];
+  const seen = new Set<string>();
+  const rawPlayers: Array<AutopilotPlayerLike | null | undefined> = [
+    intel.buyTarget,
+    intel.sellCandidate,
+    intel.breakoutCandidate,
+    intel.weakestStarter,
+    intel.youngCorePlayer,
+    intel.oldestPlayer,
+    ...(intel.rosterPlayers || []),
+    ...(intel.benchPlayers || []),
+    ...(intel.taxiPlayers || []),
+    ...(intel.reservePlayers || []),
+  ];
+  const players: AutopilotPlayerLike[] = [];
+  rawPlayers.forEach((player) => {
+    if (player?.player_id) players.push(player);
+  });
+
+  return players.filter((player) => {
+    const key = player.player_id || getPlayerName(player);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function withReportPlayerDetails(data: ReportData, player?: AutopilotPlayerLike | null): AutopilotPlayerLike | null {
+  if (!player) return null;
+  const details = player.player_id ? data.playerDetailsById?.[player.player_id] : null;
+  return details ? { ...player, playerDetails: details } : player;
 }
 
 function getFocusManager(data: ReportData, fallback: AutopilotData): string {
@@ -375,6 +449,108 @@ function findManagerPositionRow(data: ReportData, manager?: string | null) {
     || null;
 }
 
+function getPlayerIdentityKey(player?: AutopilotPlayerLike | null): string {
+  return player?.player_id || normalizeManagerName(getPlayerName(player));
+}
+
+function isSameAutopilotPlayer(a?: AutopilotPlayerLike | null, b?: AutopilotPlayerLike | null): boolean {
+  const aKey = getPlayerIdentityKey(a);
+  const bKey = getPlayerIdentityKey(b);
+  return Boolean(aKey && bKey && aKey === bKey);
+}
+
+function getStarterSlotKeys(
+  managerRow: ReportData['managerPositionCounts'][number] | null | undefined,
+  player?: AutopilotPlayerLike | null,
+): string[] {
+  if (!managerRow || !player) return [];
+  const keys = new Set<string>();
+  (managerRow.starterGroups || []).forEach((group) => {
+    if ((group.players || []).some((candidate) => isSameAutopilotPlayer(candidate, player))) {
+      keys.add(normalizeLineupPosition(group.key));
+    }
+  });
+  return Array.from(keys);
+}
+
+function canPositionStartInSlot(position: string, slot: string): boolean {
+  const normalizedPosition = normalizeLineupPosition(position);
+  const normalizedSlot = normalizeLineupPosition(slot);
+  if (normalizedSlot === 'FLEX') return ['RB', 'WR', 'TE'].includes(normalizedPosition);
+  if (normalizedSlot === 'SUPER_FLEX') return ['QB', 'RB', 'WR', 'TE'].includes(normalizedPosition);
+  return normalizedPosition === normalizedSlot;
+}
+
+function findManagerPlayerByIdentity(
+  managerRow: ReportData['managerPositionCounts'][number] | null | undefined,
+  player?: AutopilotPlayerLike | null,
+): AutopilotPlayerLike | null {
+  if (!managerRow || !player) return null;
+  const targetKey = getPlayerIdentityKey(player);
+  if (!targetKey) return null;
+  return [
+    ...(managerRow.lineupPlayers || []),
+    ...(managerRow.rosterPlayers || []),
+    ...(managerRow.starterPlayers || []),
+    ...(managerRow.starterGroups || []).flatMap((group) => group.players || []),
+  ].find((candidate) => getPlayerIdentityKey(candidate) === targetKey) || null;
+}
+
+function canReplaceStarterInKnownSlot({
+  candidate,
+  starter,
+  managerRow,
+}: {
+  candidate?: AutopilotPlayerLike | null;
+  starter?: AutopilotPlayerLike | null;
+  managerRow?: ReportData['managerPositionCounts'][number] | null;
+}): boolean {
+  if (!candidate || !starter || isSameAutopilotPlayer(candidate, starter)) return false;
+  const resolvedCandidate = managerRow ? findManagerPlayerByIdentity(managerRow, candidate) : candidate;
+  const resolvedStarter = managerRow ? findManagerPlayerByIdentity(managerRow, starter) : starter;
+  if (!resolvedCandidate || !resolvedStarter) return false;
+  const candidatePosition = getPlayerLineupPosition(resolvedCandidate);
+  const starterPosition = getPlayerLineupPosition(resolvedStarter);
+  const starterSlots = getStarterSlotKeys(managerRow, resolvedStarter);
+  if (!starterSlots.length) return candidatePosition === starterPosition;
+  return starterSlots.some((slot) => canPositionStartInSlot(candidatePosition, slot));
+}
+
+function findManagerPlayerByName(
+  managerRow: ReportData['managerPositionCounts'][number] | null | undefined,
+  name?: string | null,
+): AutopilotPlayerLike | null {
+  const target = normalizeManagerName(name);
+  if (!target) return null;
+  return [
+    ...(managerRow?.lineupPlayers || []),
+    ...(managerRow?.rosterPlayers || []),
+    ...(managerRow?.starterPlayers || []),
+  ].find((player) => normalizeManagerName(player.name) === target) || null;
+}
+
+function collectStartOverCandidates(
+  managerRow: ReportData['managerPositionCounts'][number] | null | undefined,
+  intel?: ManagerRosterIntelligence | null,
+): AutopilotPlayerLike[] {
+  const seen = new Set<string>();
+  const candidates = [
+    ...(managerRow?.lineupPlayers || []),
+    ...(managerRow?.rosterPlayers || []),
+    ...(intel?.benchPlayers || []),
+    intel?.breakoutCandidate,
+    intel?.youngCorePlayer,
+    intel?.injuryInsurance,
+  ].filter(Boolean) as AutopilotPlayerLike[];
+
+  return candidates.filter((player) => {
+    const key = getPlayerIdentityKey(player);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function getDirectionLabel(
   mode: AutopilotMode,
   intel: ManagerRosterIntelligence | null,
@@ -459,6 +635,7 @@ function buildDirection(
   const leagueSize = getLeagueSize(data);
   const allPickValues = (data.pickPortfolios || []).map((row) => row.totalValue).filter((value) => value > 0);
   const maxPickValue = Math.max(...allPickValues, 1);
+  const situationCopy = getManagerSituationCopy(intel);
 
   const standingScore = scoreFromRank(standing?.rank, leagueSize);
   const powerScore = safeNumber(power?.score);
@@ -501,7 +678,7 @@ function buildDirection(
     || (mode === 'redraft'
       ? `${manager} should optimize current-season starter points first. Future dynasty value is ignored while this mode is active.`
       : `${manager} grades as ${label.toLowerCase()} with ${Math.round(winNowScore)} win-now strength and ${Math.round(futureScore)} future-value support.`);
-  const strategy = shortenText(intel?.tradePlan?.summary || intel?.pressurePoints?.[0] || intel?.marketSignals?.[0] || tendencyProfile.summary, 220)
+  const strategy = shortenText(intel?.tradePlan?.summary || situationCopy || intel?.pressurePoints?.[0] || intel?.marketSignals?.[0] || tendencyProfile.summary, 220)
     || (mode === 'redraft'
       ? 'Turn replaceable bench value into weekly starters and waiver players with clear immediate roles.'
       : 'Protect young liquid assets, use surplus depth in trades, and only buy short-window production when it changes the weekly lineup.');
@@ -512,6 +689,7 @@ function buildDirection(
     mode === 'dynasty' && intel?.sellCandidate ? `Shop ${intel.sellCandidate.name} before the market prices in age, role, or roster-window risk.` : null,
     mode === 'dynasty' && intel?.youngCorePlayer ? `Build around ${intel.youngCorePlayer.name}; do not move that type of asset without a clear tier-up.` : null,
     mode === 'redraft' && intel?.weakestStarter ? `Pressure-test ${intel.weakestStarter.name} as the first lineup spot to upgrade.` : null,
+    situationCopy,
     topWaiver ? `Check waivers for ${topWaiver.name}; it is the strongest available fit in the current report data.` : null,
     tendencyProfile.historyDepthScore >= 62 ? `Use ${tendencyProfile.label.toLowerCase()} behavior in confidence weighting; this read has enough history to matter.` : null,
     portfolio && mode === 'dynasty' ? `Use ${portfolio.count2026 + portfolio.count2027} tracked future picks as leverage, not throw-ins.` : null,
@@ -720,6 +898,7 @@ function buildWeeklyActionPlan(
       tone: 'warn' as AutopilotTone,
     }
     : inferredStarter;
+  const starterToReviewPlayer = vulnerable || findManagerPlayerByName(managerPositionRow, starterToReview?.player);
 
   const options: WeeklyActionPlan['options'] = [];
   const seen = new Set<string>();
@@ -735,15 +914,25 @@ function buildWeeklyActionPlan(
     if (!player) return;
     const isRecommendation = 'confidence' in player && 'summary' in player && 'action' in player;
     const playerName = isRecommendation ? player.player : getPlayerName(player);
+    const playerRecord = isRecommendation
+      ? findManagerPlayerByName(managerPositionRow, player.player)
+      : player;
+    if (starterToReview && !canReplaceStarterInKnownSlot({
+      candidate: playerRecord,
+      starter: starterToReviewPlayer,
+      managerRow: managerPositionRow,
+    })) {
+      return;
+    }
     const key = normalizeManagerName(playerName);
     if (!playerName || seen.has(key) || key === starterKey) return;
     seen.add(key);
     const confidence = isRecommendation
       ? clampPercent(player.confidence)
-      : recommendationConfidence(baseConfidence, [player, getAutopilotPlayerRank(player, mode), getAutopilotPlayerValue(player, mode), matchup]);
+      : recommendationConfidence(baseConfidence, [playerRecord, getAutopilotPlayerRank(playerRecord, mode), getAutopilotPlayerValue(playerRecord, mode), matchup]);
     options.push({
       player: playerName,
-      position: isRecommendation ? 'FLEX' : getPlayerPosition(player),
+      position: getPlayerLineupPosition(playerRecord),
       confidence,
       note: isRecommendation ? shortenText(player.summary, 96) || note : note,
       tone,
@@ -789,9 +978,8 @@ function buildWeeklyActionPlan(
     });
 
   if (options.length < 2) {
-    [...(managerPositionRow?.starterPlayers || [])]
+    collectStartOverCandidates(managerPositionRow, intel)
       .sort((a, b) => (getAutopilotPlayerValue(b, mode) || 0) - (getAutopilotPlayerValue(a, mode) || 0))
-      .slice(0, 4)
       .forEach((player) => pushOption(player, 60, 'Starter value keeps this player above the current risk slot.', 'info'));
   }
 
@@ -936,6 +1124,11 @@ function buildFuturePickTrajectory(data: ReportData, manager: string): FuturePic
 function collectWaiverCandidates(data: ReportData, mode: AutopilotMode, intel?: ManagerRosterIntelligence | null): TrendingPlayer[] {
   const waiver = data.waiverIntelligence;
   if (!waiver) return [];
+  const omittedCandidateIds = new Set(
+    (waiver.omittedCandidates || [])
+      .filter((candidate) => candidate.action === 'omit')
+      .map((candidate) => candidate.player_id)
+  );
   const candidates = [
     ...(waiver.availableTrendingAdds || []),
     waiver.highestKtcAvailable,
@@ -946,6 +1139,7 @@ function collectWaiverCandidates(data: ReportData, mode: AutopilotMode, intel?: 
   const seen = new Set<string>();
   return candidates
     .filter((player) => {
+      if (omittedCandidateIds.has(player.player_id)) return false;
       const key = player.player_id || player.name.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
@@ -1018,10 +1212,11 @@ function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manage
   if (!intel) return fallback;
 
   const partner = findTradePartner(data, manager, intel.tradePlan?.needPosition, intel.tradePlan?.surplusPosition);
+  const managerSituationCopy = getManagerSituationCopy(intel);
   const cards: AutopilotRecommendation[] = [];
 
   (intel.tradeBlueprints || []).slice(0, 2).forEach((blueprint, index) => {
-    const player = blueprint.givePlayer || blueprint.getPlayer || intel.sellCandidate || intel.buyTarget;
+    const player = withReportPlayerDetails(data, blueprint.givePlayer || blueprint.getPlayer || intel.sellCandidate || intel.buyTarget);
     if (!player) return;
     const isSell = blueprint.tone === 'sell' || blueprint.givePlayer;
     cards.push({
@@ -1036,46 +1231,50 @@ function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manage
       summary: shortenText(blueprint.summary, 190) || `${getPlayerName(player)} is the cleanest trade lever in the current roster read.`,
       reasons: dedupeStrings([
         intel.tradePlan?.summary,
+        getPlayerSituationSignal(player),
+        managerSituationCopy,
         partner ? `${partner} has the matching position-depth signal.` : null,
         mode === 'dynasty' ? 'Dynasty mode weighs age curve, value liquidity, and future picks.' : 'Redraft mode only cares about current-season starter points.',
       ], 3),
-      signals: dedupeStrings([blueprint.label, blueprint.tone, intel.tradePlan?.needPosition ? `Need ${intel.tradePlan.needPosition}` : null, intel.tradePlan?.surplusPosition ? `Surplus ${intel.tradePlan.surplusPosition}` : null], 4),
+      signals: dedupeStrings([blueprint.label, blueprint.tone, getPlayerSituationSignal(player), intel.tradePlan?.needPosition ? `Need ${intel.tradePlan.needPosition}` : null, intel.tradePlan?.surplusPosition ? `Surplus ${intel.tradePlan.surplusPosition}` : null], 4),
       tone: isSell ? 'warn' : 'good',
     });
   });
 
   if (cards.length < 2 && intel.sellCandidate) {
+    const sellCandidate = withReportPlayerDetails(data, intel.sellCandidate) || intel.sellCandidate;
     cards.push({
-      id: `trade-sell-${intel.sellCandidate.player_id || intel.sellCandidate.name}`,
+      id: `trade-sell-${sellCandidate.player_id || sellCandidate.name}`,
       type: 'Trade',
-      player: intel.sellCandidate.name,
-      secondary: partner ? `shop to ${partner}` : describePlayer(intel.sellCandidate, mode) || undefined,
+      player: getPlayerName(sellCandidate),
+      secondary: partner ? `shop to ${partner}` : describePlayer(sellCandidate, mode) || undefined,
       action: 'Trade away',
-      confidence: recommendationConfidence(mode === 'dynasty' ? 68 : 62, [intel.sellCandidate, intel.tradePlan, partner, intel.marketSignals?.length]),
+      confidence: recommendationConfidence(mode === 'dynasty' ? 68 : 62, [sellCandidate, intel.tradePlan, partner, intel.marketSignals?.length]),
       risk: 'Medium',
       upside: mode === 'dynasty' ? 'High' : 'Medium',
       summary: mode === 'dynasty'
-        ? `${intel.sellCandidate.name} is the best sell candidate if this roster needs to protect future value or convert fragile production.`
-        : `${intel.sellCandidate.name} is the best trade-away candidate if the return upgrades a weekly starter slot.`,
-      reasons: dedupeStrings([intel.tradePlan?.summary, intel.marketSignals?.[0], intel.pressurePoints?.[0]], 3),
-      signals: dedupeStrings(['Sell candidate', partner ? 'Partner fit' : null, intel.tradePlan?.surplusPosition ? `Surplus ${intel.tradePlan.surplusPosition}` : null], 4),
+        ? `${getPlayerName(sellCandidate)} is the best sell candidate if this roster needs to protect future value or convert fragile production.`
+        : `${getPlayerName(sellCandidate)} is the best trade-away candidate if the return upgrades a weekly starter slot.`,
+      reasons: dedupeStrings([intel.tradePlan?.summary, getPlayerSituationSignal(sellCandidate), intel.marketSignals?.[0], intel.pressurePoints?.[0]], 3),
+      signals: dedupeStrings(['Sell candidate', getPlayerSituationSignal(sellCandidate), partner ? 'Partner fit' : null, intel.tradePlan?.surplusPosition ? `Surplus ${intel.tradePlan.surplusPosition}` : null], 4),
       tone: 'warn',
     });
   }
 
   if (cards.length < 2 && intel.buyTarget) {
+    const buyTarget = withReportPlayerDetails(data, intel.buyTarget) || intel.buyTarget;
     cards.push({
-      id: `trade-buy-${intel.buyTarget.player_id || intel.buyTarget.name}`,
+      id: `trade-buy-${buyTarget.player_id || buyTarget.name}`,
       type: 'Trade',
-      player: intel.buyTarget.name,
-      secondary: partner ? `start with ${partner}` : describePlayer(intel.buyTarget, mode) || undefined,
+      player: getPlayerName(buyTarget),
+      secondary: partner ? `start with ${partner}` : describePlayer(buyTarget, mode) || undefined,
       action: 'Acquire',
-      confidence: recommendationConfidence(66, [intel.buyTarget, intel.tradePlan, partner, intel.similarValuePlayers]),
+      confidence: recommendationConfidence(66, [buyTarget, intel.tradePlan, partner, intel.similarValuePlayers]),
       risk: 'Medium',
       upside: 'High',
-      summary: `${intel.buyTarget.name} is the cleanest external target profile for this roster's current need.`,
-      reasons: dedupeStrings([intel.tradePlan?.summary, mode === 'redraft' ? 'The target improves current-season scoring.' : 'The target fits the roster window better than a generic best-player trade.'], 3),
-      signals: dedupeStrings(['Buy target', partner ? 'Partner fit' : null, intel.tradePlan?.needPosition ? `Need ${intel.tradePlan.needPosition}` : null], 4),
+      summary: `${getPlayerName(buyTarget)} is the cleanest external target profile for this roster's current need.`,
+      reasons: dedupeStrings([intel.tradePlan?.summary, getPlayerSituationSignal(buyTarget), mode === 'redraft' ? 'The target improves current-season scoring.' : 'The target fits the roster window better than a generic best-player trade.'], 3),
+      signals: dedupeStrings(['Buy target', getPlayerSituationSignal(buyTarget), partner ? 'Partner fit' : null, intel.tradePlan?.needPosition ? `Need ${intel.tradePlan.needPosition}` : null], 4),
       tone: 'good',
     });
   }
@@ -1143,6 +1342,8 @@ function buildIntelPlayerProjection(
   const position = getPlayerPosition(player);
   const value = getAutopilotPlayerValue(player, mode);
   const rank = getAutopilotPlayerRank(player, mode);
+  const situationSignal = getPlayerSituationSignal(player);
+  const situationDelta = getPlayerSituationDelta(player);
   const ageSignal = age
     ? position === 'RB' && age >= 28
       ? 'RB age risk'
@@ -1152,7 +1353,7 @@ function buildIntelPlayerProjection(
     : null;
   const confidence = confidenceFromSignals(
     direction === 'Stable' ? 58 : 62,
-    [rank, value, age, signal, player.playerDetails?.valueProfile],
+    [rank, value, age, signal, player.playerDetails?.valueProfile, situationDelta],
     direction === 'Stable' ? 4 : 0,
   );
 
@@ -1162,9 +1363,10 @@ function buildIntelPlayerProjection(
     direction,
     currentValue: [rank, value ? formatCompactValue(value) : null].filter(Boolean).join(' | ') || position,
     projectedMove: direction === 'Rising' ? '+watch' : direction === 'Falling' ? '-watch' : 'hold',
-    confidence,
+    confidence: Math.min(confidence, situationDelta?.freshness?.grade === 'stale' || situationDelta?.freshness?.grade === 'missing' ? 62 : 100),
     signals: dedupeStrings([
       signal,
+      situationSignal,
       ageSignal,
       rank,
       mode === 'redraft' ? 'Season-only lens' : 'Dynasty value lens',
@@ -1195,6 +1397,25 @@ function buildPlayerProjections(data: ReportData, mode: AutopilotMode, manager: 
   if (projections.length < 4) {
     [...(data.projectedRisers || [])].slice(0, 2).forEach((player) => addProjection(buildProjectedValueProjection(player, 'Rising', mode)));
     [...(data.projectedFallers || [])].slice(0, 2).forEach((player) => addProjection(buildProjectedValueProjection(player, 'Falling', mode)));
+  }
+
+  if (projections.length < 4) {
+    const intel = findManagerIntel(data, manager);
+    getManagerSituationPlayers(intel)
+      .map((player) => withReportPlayerDetails(data, player) || player)
+      .map((player) => {
+        const delta = getPlayerSituationDelta(player);
+        if (!delta || delta.confidence < 62 || delta.primaryLabel === 'source-limited-route-read') return null;
+        const direction: ValueDirection = delta.action === 'buy' || delta.action === 'stash'
+          ? 'Rising'
+          : delta.action === 'sell' || delta.action === 'avoid'
+          ? 'Falling'
+          : 'Stable';
+        return buildIntelPlayerProjection(player, direction, mode, formatSituationLabel(delta.primaryLabel));
+      })
+      .forEach((projection) => {
+        if (projection) addProjection(projection);
+      });
   }
 
   if (projections.length < 4) {
