@@ -210,7 +210,7 @@ function buildRules(aggregatePayload) {
 
   return {
     rulesVersion: 'redraft-strategy-rules-v1',
-    generatedAt: new Date().toISOString(),
+    generatedAt: aggregatePayload.generatedAt || new Date().toISOString(),
     sourceCorpusId: aggregatePayload.corpusId || null,
     sourceGeneratedAt: aggregatePayload.generatedAt || null,
     sourceDataVersion: aggregate.dataVersion || null,
