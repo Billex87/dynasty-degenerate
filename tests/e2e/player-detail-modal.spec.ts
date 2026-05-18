@@ -342,6 +342,13 @@ test.describe('player detail modal', () => {
     await expect(timelineDialog.getByRole('tab', { name: /1Y/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /All/i })).toBeVisible();
     await expect(timelineDialog.getByText('Current Redraft Market Price Timeline')).toBeVisible();
+    const identityHeader = timelineDialog.locator('.player-value-identity-row');
+    await expect(identityHeader).toBeVisible();
+    await expect(identityHeader.locator('.player-value-timeline-title')).toHaveText('Bijan Robinson');
+    await expect(identityHeader.locator('.player-value-identity-team-pill')).toContainText('BUF');
+    await expect(identityHeader.locator('.player-value-identity-position-pill')).toHaveText('RB');
+    await expect(identityHeader.locator('.player-value-identity-rank-pill')).toHaveText(/^RB\d+$/);
+    await expect(identityHeader.locator('.player-value-identity-value-pill')).toHaveText(/^Value \d[\d,]*$/);
     await expect(timelineDialog.getByText('All-Time Range')).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: 'Value' })).toHaveAttribute('aria-selected', 'true');
     const selectedPoint = timelineDialog.locator('.player-value-selected-point');
@@ -355,6 +362,10 @@ test.describe('player detail modal', () => {
       const selectedPointText = await selectedPoint.textContent();
       return Boolean(selectedPointText?.includes(firstChartPointValue));
     }).toBe(true);
+    const pointPopover = timelineDialog.locator('.player-value-point-popover');
+    await expect(pointPopover).toBeVisible();
+    await expect(pointPopover.locator('strong')).toContainText(/\d/);
+    await expect(pointPopover.locator('small')).toContainText(/source/i);
     await timelineDialog.getByRole('tab', { name: 'Position Rank' }).click();
     await expect(timelineDialog.getByRole('tab', { name: 'Position Rank' })).toHaveAttribute('aria-selected', 'true');
     await expect(timelineDialog.getByText(/rank points/i)).toBeVisible();
