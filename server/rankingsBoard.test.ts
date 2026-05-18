@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { buildProspectLookup } from './prospectSource';
 import type { ProspectProfile } from '../shared/types';
+import type { NflversePlayerContext } from './nflversePlayerContext';
 
 const emptyKtcProfiles = {
   sf_ppr: {},
@@ -284,6 +285,33 @@ describe('rankings board prospect fallback', () => {
       fortyYardDash: 4.32,
       summary: 'High-end receiving prospect.',
     };
+    const nflversePlayerContext: NflversePlayerContext = {
+      usageByGsisId: {},
+      teamEnvironmentByTeam: {},
+      rosterRoomByTeamPosition: {},
+      injuryByGsisId: {},
+      athleticByPfrId: {},
+      athleticByNamePosition: {
+        'jeremiahsmith:WR': [{
+          source: 'nflverse combine',
+          playerName: 'Jeremiah Smith',
+          position: 'WR',
+          draftYear: futureYear,
+          height: '6-3',
+          weight: 223,
+          forty: 4.32,
+          bench: 18,
+          vertical: 41,
+          broadJump: 132,
+          cone: 6.82,
+          shuttle: 4.12,
+          speedScore: 118.4,
+          note: 'Combine profile loaded with 118.4 speed score.',
+        }],
+      },
+      contractByName: {},
+      rowCounts: [],
+    };
 
     const board = await buildRankingsBoard({
       players: {},
@@ -291,7 +319,9 @@ describe('rankings board prospect fallback', () => {
       ownerByPlayerId: {},
       rosterStatusByPlayerId: {},
       prospectLookup: buildProspectLookup([prospect]),
+      prospectProfiles: [prospect],
       leagueTeamCount: 12,
+      nflversePlayerContext,
     });
 
     const row = board.profiles?.devy_sf_ppr?.find((player) => player.name === 'Jeremiah Smith');
@@ -316,6 +346,19 @@ describe('rankings board prospect fallback', () => {
       weight: '223lbs',
       fortyYardDash: 4.32,
       summary: 'High-end receiving prospect.',
+    });
+    expect(row?.athleticProfile).toMatchObject({
+      draftYear: futureYear,
+      forty: 4.32,
+      bench: 18,
+      vertical: 41,
+      broadJump: 132,
+      cone: 6.82,
+      shuttle: 4.12,
+    });
+    expect(board.draftBuzzScoreboard?.find((entry) => entry.name === 'Jeremiah Smith')?.athleticProfile).toMatchObject({
+      vertical: 41,
+      broadJump: 132,
     });
   });
 

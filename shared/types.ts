@@ -88,6 +88,7 @@ export interface RankingPlayer {
   isPick?: boolean;
   imageUrl?: string | null;
   prospectProfile?: ProspectProfile | null;
+  athleticProfile?: PlayerDetails['athleticProfile'] | null;
 }
 
 export interface RankingIdentityDiagnostic {
@@ -215,6 +216,7 @@ export interface DraftBuzzScoreboardEntry {
   sourceUrl?: string | null;
   summary?: string | null;
   prospectProfile: ProspectProfile;
+  athleticProfile?: PlayerDetails['athleticProfile'] | null;
 }
 
 export type ProspectProfileSource = 'NFL Draft Buzz' | 'ESPN';

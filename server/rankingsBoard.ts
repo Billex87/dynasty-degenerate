@@ -39,6 +39,7 @@ import { findProspectProfile } from './prospectSource';
 import {
   getCurrentKTCDevyRankingProfiles,
 } from './liveKTCScraper';
+import { findNflverseAthleticProfile, type NflversePlayerContext } from './nflversePlayerContext';
 import type { DraftBuzzScoreboardEntry, ProspectProfile, RankingIdentityDiagnostic, RankingPlayer, RankingProfileOption, RankingsBoard } from '../shared/types';
 import type { DynastySourceWeights } from './dynastySourceWeights';
 
@@ -349,7 +350,8 @@ function getDraftBuzzPlayerMatch(profile: ProspectProfile, lookup: PlayerIdentit
 
 function buildDraftBuzzScoreboardEntries(
   prospectProfiles: ProspectProfile[] | undefined,
-  playerLookup: PlayerIdentityLookup
+  playerLookup: PlayerIdentityLookup,
+  nflversePlayerContext?: NflversePlayerContext
 ): DraftBuzzScoreboardEntry[] {
   const byKey = new Map<string, DraftBuzzScoreboardEntry>();
 
@@ -365,6 +367,14 @@ function buildDraftBuzzScoreboardEntries(
     const playerMatch = getDraftBuzzPlayerMatch({ ...profile, position }, playerLookup);
     const matchedPlayer = playerMatch?.player || null;
     const nflTeam = profile.nflTeam || matchedPlayer?.team || null;
+    const athleticProfile = nflversePlayerContext
+      ? findNflverseAthleticProfile({
+        pfrId: matchedPlayer?.metadata?.pfr_id || matchedPlayer?.pfr_id,
+        fullName: profile.name,
+        position,
+        draftYear,
+      }, nflversePlayerContext)
+      : null;
     const entry: DraftBuzzScoreboardEntry = {
       id: `draftbuzz:${draftYear}:${position}:${nameKey}`,
       player_id: playerMatch?.playerId || null,
@@ -388,6 +398,7 @@ function buildDraftBuzzScoreboardEntries(
       role: profile.role || null,
       sourceUrl: profile.sourceUrl || null,
       summary: profile.summary || null,
+      athleticProfile,
       prospectProfile: {
         ...profile,
         position,
@@ -763,6 +774,7 @@ function mergeRankingRows(rows: RankingPlayer[]): RankingPlayer[] {
       fantasyProsDevyAverageRank: existing.fantasyProsDevyAverageRank || row.fantasyProsDevyAverageRank,
       fantasyProsDevyStdDev: existing.fantasyProsDevyStdDev || row.fantasyProsDevyStdDev,
       projectedRookiePick: existing.projectedRookiePick || row.projectedRookiePick,
+      athleticProfile: existing.athleticProfile || row.athleticProfile || null,
       sources: Array.from(new Set([...existing.sources, ...row.sources])),
       sourceCount: Array.from(new Set([...existing.sources, ...row.sources])).length,
       imageUrl: existing.imageUrl || row.imageUrl,
@@ -835,6 +847,7 @@ function buildRowsForProfile({
   dynastySourceWeights,
   prospectSourceWeights,
   leagueTeamCount,
+  nflversePlayerContext,
 }: {
   option: RankingProfileOption;
   ktcRows: KtcRankingMap;
@@ -853,6 +866,7 @@ function buildRowsForProfile({
   prospectLookup?: Map<string, ProspectProfile>;
   fantasyProsDevyRows?: Record<string, FantasyProsDevyRanking>;
   leagueTeamCount?: number;
+  nflversePlayerContext?: NflversePlayerContext;
 }): RankingPlayer[] {
   const canonicalKtcRows = canonicalizeRankingMap(ktcRows || {});
   const canonicalFlockRows = canonicalizeRankingMap(flockRows || {});
@@ -982,6 +996,14 @@ function buildRowsForProfile({
     const movement = baselineValue && value ? value - baselineValue : null;
     const displayCollege = prospectProfile?.college || college;
     const displayImageUrl = getRankingImageUrl({ option, flock, dynastyNerds, prospectProfile });
+    const athleticProfile = nflversePlayerContext
+      ? findNflverseAthleticProfile({
+        pfrId: sleeperPlayer?.metadata?.pfr_id || sleeperPlayer?.pfr_id,
+        fullName: prospectProfile?.name || name,
+        position: pos,
+        draftYear: draftYear || prospectProfile?.draftYear || sleeperPlayer?.metadata?.rookie_year,
+      }, nflversePlayerContext)
+      : null;
     const displayPositionRank = normalizeRankPosition(
       fantasyProsDevy?.positionRank
         || redraft?.positionRank
@@ -1042,6 +1064,7 @@ function buildRowsForProfile({
       isDevy: option.board === 'devy',
       isPick,
       imageUrl: displayImageUrl,
+      athleticProfile,
       prospectProfile: prospectProfile
         ? {
           ...prospectProfile,
@@ -1125,6 +1148,7 @@ export async function buildRankingsBoard({
   prospectLookup,
   prospectProfiles,
   leagueTeamCount,
+  nflversePlayerContext,
   sourceMode = 'live',
 }: {
   players: PlayerMap;
@@ -1137,6 +1161,7 @@ export async function buildRankingsBoard({
   prospectLookup?: Map<string, ProspectProfile>;
   prospectProfiles?: ProspectProfile[];
   leagueTeamCount?: number;
+  nflversePlayerContext?: NflversePlayerContext;
   sourceMode?: 'live' | 'snapshot';
 }): Promise<RankingsBoard> {
   const snapshotOnly = sourceMode === 'snapshot';
@@ -1250,6 +1275,7 @@ export async function buildRankingsBoard({
       prospectLookup,
       fantasyProsDevyRows,
       leagueTeamCount,
+      nflversePlayerContext,
     });
   }
 
@@ -1267,7 +1293,7 @@ export async function buildRankingsBoard({
     dynastySourceDiagnostics,
     redraftSourceDiagnostics: redraftResult.diagnostics,
     devySourceDiagnostics,
-    draftBuzzScoreboard: buildDraftBuzzScoreboardEntries(prospectProfiles, playerLookup),
+    draftBuzzScoreboard: buildDraftBuzzScoreboardEntries(prospectProfiles, playerLookup, nflversePlayerContext),
     dynastySf: profiles.dynasty_sf_ppr || [],
     dynastyOneQb: profiles.dynasty_one_qb_ppr || [],
     devySf: profiles.devy_sf_ppr || [],

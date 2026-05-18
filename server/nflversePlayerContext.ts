@@ -1260,22 +1260,42 @@ function getDetailsDraftYear(details: PlayerDetails): number | null {
   return null;
 }
 
-function findAthleticProfile(details: PlayerDetails, context: NflversePlayerContext): PlayerDetails['athleticProfile'] | null {
-  const pfrId = textValue(details.externalIds?.pfr);
+export function findNflverseAthleticProfile(
+  input: {
+    pfrId?: unknown;
+    fullName?: unknown;
+    position?: unknown;
+    draftYear?: unknown;
+    existing?: PlayerDetails['athleticProfile'] | null;
+  },
+  context: NflversePlayerContext
+): PlayerDetails['athleticProfile'] | null {
+  const existing = input.existing || null;
+  const pfrId = textValue(input.pfrId);
   if (pfrId && context.athleticByPfrId[pfrId]) return context.athleticByPfrId[pfrId];
 
   const key = athleticNamePositionKey(
-    details.fullName || details.prospectProfile?.name,
-    details.position || details.prospectProfile?.position
+    input.fullName,
+    input.position
   );
   const candidates = key ? context.athleticByNamePosition[key] || [] : [];
-  if (!candidates.length) return details.athleticProfile || null;
+  if (!candidates.length) return existing;
 
-  const draftYear = getDetailsDraftYear(details);
+  const draftYear = num(input.draftYear);
   const exactYear = draftYear ? candidates.find((row) => row.draftYear === draftYear) : null;
   if (exactYear) return exactYear;
   if (candidates.length === 1) return candidates[0];
-  return details.athleticProfile || null;
+  return existing;
+}
+
+function findAthleticProfile(details: PlayerDetails, context: NflversePlayerContext): PlayerDetails['athleticProfile'] | null {
+  return findNflverseAthleticProfile({
+    pfrId: details.externalIds?.pfr,
+    fullName: details.fullName || details.prospectProfile?.name,
+    position: details.position || details.prospectProfile?.position,
+    draftYear: getDetailsDraftYear(details),
+    existing: details.athleticProfile || null,
+  }, context);
 }
 
 export function normalizeNflverseContractRows(rows: Array<Record<string, unknown>>): NflverseContractRow[] {

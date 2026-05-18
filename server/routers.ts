@@ -798,7 +798,7 @@ type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
 const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v47';
-const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v11';
+const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v12';
 const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
 const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
 const LEAGUE_REPORT_FILE_CACHE_MAX_FILES = getLeagueReportFileCacheMaxFiles();
@@ -4033,7 +4033,19 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
   const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
   const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
   const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
-  const ktcValues = await loadBlendedKTCValues(leagueValueOptions, getUserLoadSnapshotOptions());
+  const now = new Date();
+  const currentSeason = String(now.getFullYear());
+  const lastCompletedSeason = String(Number(currentSeason) - 1);
+  const rankingUsageSeason = now.getMonth() >= 8 ? currentSeason : lastCompletedSeason;
+  const [ktcValues, nflversePlayerContext] = await Promise.all([
+    loadBlendedKTCValues(leagueValueOptions, getUserLoadSnapshotOptions()),
+    loadNflversePlayerContext({
+      season: rankingUsageSeason,
+      rosterRoomSeason: currentSeason,
+      rosterRoomPreviousSeason: lastCompletedSeason,
+      ...getUserLoadSnapshotOptions(),
+    }),
+  ]);
   let ktcValuesLastWeek = await getKtcSnapshotFromDaysAgo(7, leagueValueProfileKey);
 
   if (!ktcValuesLastWeek || Object.keys(ktcValuesLastWeek).length === 0) {
@@ -4054,6 +4066,7 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
     prospectLookup: buildProspectLookup(prospectContext.profiles),
     prospectProfiles: prospectContext.profiles,
     leagueTeamCount: Number(leagueInfo?.total_rosters || leagueInfo?.settings?.num_teams || safeRosters.length || 12),
+    nflversePlayerContext,
     ...getUserLoadSnapshotOptions(),
   });
   const payload = { rankings };

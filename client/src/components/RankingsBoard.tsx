@@ -1381,6 +1381,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
         })
       : undefined;
     const fullProspectProfile = draftBuzzEntry?.prospectProfile || player.prospectProfile || null;
+    const modalAthleticProfile = details?.athleticProfile || draftBuzzEntry?.athleticProfile || player.athleticProfile || null;
     const fallbackValue = leagueValueMode === 'redraft'
       ? player.seasonValue ?? player.fantasyProsValue ?? player.value
       : player.value;
@@ -1407,6 +1408,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
           height: fullProspectProfile.height || null,
           weight: fullProspectProfile.weight || null,
           prospectProfile: fullProspectProfile,
+          athleticProfile: modalAthleticProfile,
         }
       : undefined;
     const isRedraftRankingRow = leagueValueMode === 'redraft' || player.sources?.some(isRedraftSourceLabel);
@@ -1436,6 +1438,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
               fantasyProsSeasonValue: player.fantasyProsValue || null,
               sources: player.sources || [],
             },
+            athleticProfile: modalAthleticProfile,
           }
         : undefined;
     setSelectedPlayer({
@@ -1456,6 +1459,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
         ? {
             ...details,
             prospectProfile: fullProspectProfile || details.prospectProfile || null,
+            athleticProfile: modalAthleticProfile,
           }
         : prospectOnlyDetails || rankingOnlyDetails,
     });
@@ -1463,6 +1467,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
 
   const handleSelectDraftBuzzEntry = (entry: DraftBuzzScoreboardEntry) => {
     const details = entry.player_id ? playerDetailsById?.[entry.player_id] : undefined;
+    const modalAthleticProfile = details?.athleticProfile || entry.athleticProfile || null;
     const draftYear = Number(entry.draftYear || entry.prospectProfile.draftYear || 0);
     const currentYear = new Date().getFullYear();
     const prospectDetails: PlayerDetails = {
@@ -1475,6 +1480,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       height: entry.height || null,
       weight: entry.weight || null,
       prospectProfile: entry.prospectProfile,
+      athleticProfile: modalAthleticProfile,
     };
 
     setSelectedPlayer({
@@ -1487,7 +1493,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       collegeLogoUrl: entry.collegeLogoUrl || null,
       isCollegeProspect: draftYear > currentYear,
       preferProspectImage: true,
-      playerDetails: details ? { ...details, prospectProfile: entry.prospectProfile } : prospectDetails,
+      playerDetails: details ? { ...details, prospectProfile: entry.prospectProfile, athleticProfile: modalAthleticProfile } : prospectDetails,
     });
   };
 
