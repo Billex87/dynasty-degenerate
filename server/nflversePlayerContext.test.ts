@@ -30,7 +30,7 @@ describe('nflverse player context', () => {
       { season: '2025', gsis_id: '00-1', full_name: 'Signal Back', position: 'RB', report_primary_injury: 'Hamstring', report_status: 'Questionable' },
     ], '2025');
     const athletic = normalizeNflverseAthleticRows([
-      { pfr_id: 'SignBa00', player_name: 'Signal Back', pos: 'RB', draft_year: '2025', ht: '5-11', wt: '214', forty: '4.45' },
+      { pfr_id: 'SignBa00', player_name: 'Signal Back', pos: 'RB', draft_year: '2025', ht: '5-11', wt: '214', forty: '4.45', bench: '22', vertical: '38', broad_jump: '124' },
     ]);
     const contracts = normalizeNflverseContractRows([
       { player: 'Signal Back', position: 'RB', team: 'ARI', year_signed: '2025', years: '4', value: '64000000', apy: '16000000', guaranteed: '32000000' },
@@ -105,6 +105,7 @@ describe('nflverse player context', () => {
       rosterRoomByTeamPosition: { 'ARI:RB': rosterRooms.find((row) => row.team === 'ARI' && row.position === 'RB')! },
       injuryByGsisId: { '00-1': injuries[0] },
       athleticByPfrId: { SignBa00: athletic[0] },
+      athleticByNamePosition: { 'signalback:RB': athletic },
       contractByName: { signalback: contracts[0] },
       rowCounts: [],
     };
@@ -186,9 +187,65 @@ describe('nflverse player context', () => {
       injuryTypes: ['Hamstring'],
     });
     expect(enriched.athleticProfile?.speedScore).toBeGreaterThan(90);
+    expect(enriched.athleticProfile).toMatchObject({
+      forty: 4.45,
+      bench: 22,
+      vertical: 38,
+      broadJump: 124,
+    });
     expect(enriched.contractProfile).toMatchObject({
       investmentTier: 'premium',
       apy: 16000000,
+    });
+  });
+
+  it('matches combine rows by player name and fantasy position when PFR is missing', () => {
+    const athletic = normalizeNflverseAthleticRows([
+      { pfr_id: '', player_name: 'Fast Wideout', pos: 'WR', draft_year: '2026', ht: '6-0', wt: '190', forty: '4.33', bench: '14', vertical: '41', broad_jump: '132', cone: '6.82', shuttle: '4.12' },
+      { pfr_id: 'FastWr01', player_name: 'Fast Wideout', pos: 'WR', draft_year: '2024', ht: '6-0', wt: '188', forty: '4.6' },
+      { pfr_id: 'Hybrid01', player_name: 'Hybrid Corner', pos: 'CB/WR', draft_year: '2026', ht: '6-0', wt: '188', forty: '4.37' },
+    ]);
+    const context: NflversePlayerContext = {
+      usageByGsisId: {},
+      teamEnvironmentByTeam: {},
+      rosterRoomByTeamPosition: {},
+      injuryByGsisId: {},
+      athleticByPfrId: Object.fromEntries(athletic.flatMap((row) => row.pfrId ? [[row.pfrId, row]] : [])),
+      athleticByNamePosition: {
+        'fastwideout:WR': athletic.filter((row) => row.playerName === 'Fast Wideout'),
+        'hybridcorner:WR': athletic.filter((row) => row.playerName === 'Hybrid Corner'),
+      },
+      contractByName: {},
+      rowCounts: [],
+    };
+
+    const enriched = enrichPlayerDetailsWithNflverseContext({
+      'prospect-1': {
+        fullName: 'Fast Wideout',
+        position: 'WR',
+        rookieYear: 2026,
+        externalIds: {},
+      },
+      'prospect-2': {
+        fullName: 'Hybrid Corner',
+        position: 'WR',
+        rookieYear: 2026,
+        externalIds: {},
+      },
+    }, context);
+
+    expect(enriched['prospect-1'].athleticProfile).toMatchObject({
+      draftYear: 2026,
+      forty: 4.33,
+      bench: 14,
+      vertical: 41,
+      broadJump: 132,
+      cone: 6.82,
+      shuttle: 4.12,
+    });
+    expect(enriched['prospect-2'].athleticProfile).toMatchObject({
+      position: 'WR',
+      forty: 4.37,
     });
   });
 

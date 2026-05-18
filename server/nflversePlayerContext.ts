@@ -45,7 +45,7 @@ export type NflverseInjuryRow = NonNullable<PlayerDetails['injuryHistory']> & {
 };
 
 export type NflverseAthleticRow = NonNullable<PlayerDetails['athleticProfile']> & {
-  pfrId: string;
+  pfrId?: string | null;
   playerName: string;
   position: string;
 };
@@ -81,6 +81,7 @@ export type NflversePlayerContext = {
   rosterRoomByTeamPosition: Record<string, NflverseRosterRoomRow>;
   injuryByGsisId: Record<string, NflverseInjuryRow>;
   athleticByPfrId: Record<string, NflverseAthleticRow>;
+  athleticByNamePosition: Record<string, NflverseAthleticRow[]>;
   contractByName: Record<string, NflverseContractRow>;
   rowCounts: Array<{ sourceKey: string; rowCount: number | null }>;
 };
@@ -126,6 +127,20 @@ function nameKey(name: unknown): string {
 
 function teamKey(team: unknown): string {
   return String(team || '').trim().toUpperCase();
+}
+
+function normalizeFantasyPosition(value: unknown): string | null {
+  const raw = String(value || '').trim().toUpperCase();
+  if (FANTASY_POSITIONS.has(raw)) return raw;
+  const token = raw.split(/[^A-Z]+/).find((item) => FANTASY_POSITIONS.has(item));
+  return token || null;
+}
+
+function athleticNamePositionKey(name: unknown, position: unknown): string | null {
+  const normalizedName = nameKey(name);
+  const normalizedPosition = normalizeFantasyPosition(position);
+  if (!normalizedName || !normalizedPosition) return null;
+  return `${normalizedName}:${normalizedPosition}`;
 }
 
 async function fetchText(url: string): Promise<string> {
@@ -1194,11 +1209,11 @@ export function normalizeNflverseInjuryRows(rows: Array<Record<string, unknown>>
 export function normalizeNflverseAthleticRows(rows: Array<Record<string, unknown>>): NflverseAthleticRow[] {
   return rows
     .flatMap((row) => {
-      const position = String(row.pos || '').toUpperCase();
-      if (!FANTASY_POSITIONS.has(position)) return [];
+      const position = normalizeFantasyPosition(row.pos);
+      if (!position) return [];
       const pfrId = textValue(row.pfr_id);
       const playerName = textValue(row.player_name);
-      if (!pfrId || !playerName) return [];
+      if (!playerName) return [];
       const weight = num(row.wt);
       const forty = num(row.forty);
       const speedScore = weight && forty ? Math.round((weight * 200 / Math.pow(forty, 4)) * 10) / 10 : null;
@@ -1211,6 +1226,7 @@ export function normalizeNflverseAthleticRows(rows: Array<Record<string, unknown
         height: textValue(row.ht),
         weight,
         forty,
+        bench: num(row.bench),
         vertical: num(row.vertical),
         broadJump: num(row.broad_jump),
         cone: num(row.cone),
@@ -1220,6 +1236,46 @@ export function normalizeNflverseAthleticRows(rows: Array<Record<string, unknown
       };
       return [athleticRow];
     });
+}
+
+function buildAthleticNamePositionIndex(rows: NflverseAthleticRow[]): Record<string, NflverseAthleticRow[]> {
+  const index: Record<string, NflverseAthleticRow[]> = {};
+  for (const row of rows) {
+    const key = athleticNamePositionKey(row.playerName, row.position);
+    if (!key) continue;
+    index[key] = [...(index[key] || []), row].sort((a, b) => Number(b.draftYear || 0) - Number(a.draftYear || 0));
+  }
+  return index;
+}
+
+function getDetailsDraftYear(details: PlayerDetails): number | null {
+  const values = [
+    details.rookieYear,
+    details.prospectProfile?.draftYear,
+  ];
+  for (const value of values) {
+    const parsed = num(value);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function findAthleticProfile(details: PlayerDetails, context: NflversePlayerContext): PlayerDetails['athleticProfile'] | null {
+  const pfrId = textValue(details.externalIds?.pfr);
+  if (pfrId && context.athleticByPfrId[pfrId]) return context.athleticByPfrId[pfrId];
+
+  const key = athleticNamePositionKey(
+    details.fullName || details.prospectProfile?.name,
+    details.position || details.prospectProfile?.position
+  );
+  const candidates = key ? context.athleticByNamePosition[key] || [] : [];
+  if (!candidates.length) return details.athleticProfile || null;
+
+  const draftYear = getDetailsDraftYear(details);
+  const exactYear = draftYear ? candidates.find((row) => row.draftYear === draftYear) : null;
+  if (exactYear) return exactYear;
+  if (candidates.length === 1) return candidates[0];
+  return details.athleticProfile || null;
 }
 
 export function normalizeNflverseContractRows(rows: Array<Record<string, unknown>>): NflverseContractRow[] {
@@ -1447,7 +1503,8 @@ export async function loadNflversePlayerContext(options: ContextOptions): Promis
     teamEnvironmentByTeam: Object.fromEntries(teamEnvironment.rows.map((row) => [teamKey(row.team), row])),
     rosterRoomByTeamPosition: Object.fromEntries(rosterRoom.rows.map((row) => [rosterRoomKey(row.team, row.position), row])),
     injuryByGsisId: Object.fromEntries(injuries.rows.map((row) => [row.gsisId, row])),
-    athleticByPfrId: Object.fromEntries(athletic.rows.map((row) => [row.pfrId, row])),
+    athleticByPfrId: Object.fromEntries(athletic.rows.flatMap((row) => row.pfrId ? [[row.pfrId, row]] : [])),
+    athleticByNamePosition: buildAthleticNamePositionIndex(athletic.rows),
     contractByName: Object.fromEntries(contracts.rows.map((row) => [nameKey(row.playerName), row])),
     rowCounts: [
       { sourceKey: sourceKey(NFLVERSE_USAGE_SOURCE_PREFIX, usage.season || options.season), rowCount: usage.rowCount },
@@ -1467,18 +1524,18 @@ export function enrichPlayerDetailsWithNflverseContext(
   return Object.fromEntries(
     Object.entries(playerDetailsById).map(([playerId, details]) => {
       const gsisId = textValue(details.externalIds?.gsis);
-      const pfrId = textValue(details.externalIds?.pfr);
       const contract = context.contractByName[nameKey(details.fullName)];
       const usageTrend = gsisId ? context.usageByGsisId[gsisId] || details.usageTrend || null : details.usageTrend || null;
       const teamEnvironment = context.teamEnvironmentByTeam[teamKey(details.team || usageTrend?.team)] || details.teamEnvironment || null;
       const rosterRoom = context.rosterRoomByTeamPosition[rosterRoomKey(details.team || usageTrend?.team, details.position)] || details.rosterRoom || null;
+      const athleticProfile = findAthleticProfile(details, context);
       return [playerId, {
         ...details,
         usageTrend,
         teamEnvironment,
         rosterRoom,
         injuryHistory: gsisId ? context.injuryByGsisId[gsisId] || details.injuryHistory || null : details.injuryHistory || null,
-        athleticProfile: pfrId ? context.athleticByPfrId[pfrId] || details.athleticProfile || null : details.athleticProfile || null,
+        athleticProfile,
         contractProfile: contract || details.contractProfile || null,
       }];
     })

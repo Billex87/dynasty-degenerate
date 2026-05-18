@@ -182,7 +182,7 @@ const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
   "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
-const REPORT_CACHE_DATA_VERSION = "semantic-report-guards-v1";
+const REPORT_CACHE_DATA_VERSION = "combine-athletic-metrics-v1";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v25";
 const REPORT_CACHE_DB_NAME = "dynasty-degenerates-report-cache";
 const REPORT_CACHE_DB_VERSION = 1;

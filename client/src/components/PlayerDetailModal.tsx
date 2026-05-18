@@ -344,10 +344,12 @@ export function PlayerDetailModal({
     : getPlayerAvailability(details);
   const leagueUsage = details?.leagueUsage || null;
   const hasLeagueUsage = Boolean(leagueUsage && (leagueUsage.ownedGames > 0 || leagueUsage.startedGames > 0));
-  const verticalJump = formatVerticalJump(details?.athleticProfile?.vertical);
+  const athleticProfile = details?.athleticProfile || null;
+  const fortyTime = formatFortyTime(athleticProfile?.forty || prospectProfile?.fortyYardDash);
+  const verticalJump = formatVerticalJump(athleticProfile?.vertical);
   const prospectHeaderInfoRows = [
     ['College', prospectCollege || details?.college || '-'],
-    ['40 Time', formatFortyTime(prospectProfile?.fortyYardDash)],
+    ['40 Time', fortyTime],
     ['Vertical', verticalJump],
     ['Birthday', formatBirthday(details?.birthDate) || '-'],
   ] as const;
@@ -358,7 +360,7 @@ export function PlayerDetailModal({
         logoUrl={pick.collegeLogoUrl || prospectProfile?.collegeLogoUrl}
       />
     ) : '-'],
-    ['40 Time', formatFortyTime(prospectProfile?.fortyYardDash)],
+    ['40 Time', fortyTime],
     ['Vertical', verticalJump],
     ['Birthday', formatBirthday(details?.birthDate) || '-'],
   ] as const : [];
@@ -401,6 +403,13 @@ export function PlayerDetailModal({
     ['Avg Scout Rank', details.prospectProfile.averageOverallRank ? `#${details.prospectProfile.averageOverallRank}` : null],
     ['Size', [details.prospectProfile.height, details.prospectProfile.weight].filter(Boolean).join(' / ')],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const combineMetricRows = [
+    ['Broad', formatBroadJump(athleticProfile?.broadJump)],
+    ['Bench', formatBenchReps(athleticProfile?.bench)],
+    ['3-Cone', formatDrillTime(athleticProfile?.cone)],
+    ['Shuttle', formatDrillTime(athleticProfile?.shuttle)],
+    ['Speed Score', formatSpeedScore(athleticProfile?.speedScore)],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '-');
   const previousSeasonRankLabel = getPreviousSeasonRankLabel(details);
   const previousSeasonRankMobileLabel = getPreviousSeasonRankMobileLabel(details);
   const lastSeasonRows = [
@@ -1198,6 +1207,19 @@ export function PlayerDetailModal({
                   ))}
                 </div>
               )}
+              {combineMetricRows.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                  {combineMetricRows.map(([label, value]) => (
+                    <InfoTile
+                      key={`combine-${String(label)}`}
+                      label={String(label)}
+                      value={String(value)}
+                      teamColors={teamColors}
+                      tileAccent={tileAccent}
+                    />
+                  ))}
+                </div>
+              )}
               {!isCollegeProspect && lastSeasonRows.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {lastSeasonRows.map(([label, value]) => (
@@ -1621,6 +1643,34 @@ function formatVerticalJump(value: number | string | null | undefined) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return '-';
   return `${numeric.toFixed(1).replace(/\.0$/, '')}"`;
+}
+
+function formatBroadJump(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') return '-';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-';
+  return `${Math.round(numeric)}"`;
+}
+
+function formatBenchReps(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') return '-';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-';
+  return `${Math.round(numeric)} reps`;
+}
+
+function formatDrillTime(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') return '-';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-';
+  return `${numeric.toFixed(2).replace(/\.?0+$/, '')}s`;
+}
+
+function formatSpeedScore(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === '') return '-';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-';
+  return numeric.toFixed(1).replace(/\.0$/, '');
 }
 
 function formatSleeperNewsUpdated(value: PlayerDetails['sleeperNewsUpdated']) {

@@ -345,7 +345,7 @@ const SOURCE_DEFINITIONS: SourceCoverageDefinition[] = [
     refreshCadence: 'Monthly or draft-cycle refresh',
     rateLimit: 'No provider call during report load',
     snapshotSourceKey: 'nflverse-combine-v1',
-    fieldMap: ['pfr_id', 'player_name', 'position', 'draft_year', 'height', 'weight', 'forty', 'vertical', 'broad_jump', 'cone', 'shuttle', 'speed_score'],
+    fieldMap: ['pfr_id', 'player_name', 'position', 'draft_year', 'height', 'weight', 'forty', 'bench', 'vertical', 'broad_jump', 'cone', 'shuttle', 'speed_score'],
     ids: ['PFR ID'],
     timestamps: ['snapshotKey', 'generatedAt', 'draft_year'],
     usedNow: ['player athletic profile', 'cohort comp context'],

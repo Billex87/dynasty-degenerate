@@ -1412,6 +1412,7 @@ export interface PlayerDetails {
     height?: string | null;
     weight?: number | null;
     forty?: number | null;
+    bench?: number | null;
     vertical?: number | null;
     broadJump?: number | null;
     cone?: number | null;

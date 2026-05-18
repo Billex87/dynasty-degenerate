@@ -39,8 +39,11 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
       source: 'nflverse combine',
       draftYear: 2021,
       forty: 4.41,
+      bench: 18,
       vertical: 36.5,
       broadJump: 125,
+      cone: 6.95,
+      shuttle: 4.22,
       speedScore: 105.2,
       note: 'Combine profile loaded with 105.2 speed score.',
     },
@@ -301,6 +304,11 @@ test.describe('player detail modal', () => {
     await expect(dialog.getByText('Birthday')).toBeVisible();
     expect(dialogText).toContain('4.41s');
     expect(dialogText).toContain('36.5"');
+    expect(dialogText).toContain('125"');
+    expect(dialogText).toContain('18 reps');
+    expect(dialogText).toContain('6.95s');
+    expect(dialogText).toContain('4.22s');
+    expect(dialogText).toContain('105.2');
     expect(dialogText).toContain('Jan 1, 2000');
     await expect(dialog.getByText('Source Inputs', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
