@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-05-17T23:23:08.264Z",
+  "inputGeneratedAt": [
+    "2026-05-11T19:25:08.085Z",
+    "2026-05-13T14:15:43.128Z",
+    "2026-05-14T21:07:53.845Z",
+    "2026-05-17T23:23:08.264Z"
+  ],
+  "inputs": {
+    "fantasyProsHistory": "server/value-history-archive/fantasypros-history.json",
+    "redraftSnapshotsDir": "server/redraft-snapshots"
+  },
+  "snapshotFiles": [
+    "server/redraft-snapshots/redraft-source-snapshot-2026-2026-05-11.json",
+    "server/redraft-snapshots/redraft-source-snapshot-2026-2026-05-13.json",
+    "server/redraft-snapshots/redraft-source-snapshot-2026-2026-05-14.json"
+  ],
+  "pointCountsBySource": {
+    "Dynasty Degen Redraft Blend": 623,
+    "ESPN Fantasy": 2096,
+    "Fantasy Nerds": 202,
+    "FantasyPros": 7697,
+    "MFL ADP": 241,
+    "MFL Rankings": 1847,
+    "NFL Fantasy": 642
+  },
+  "pointCountsByRankingType": {
+    "ADP": 5790,
+    "CURRENT": 3539,
+    "DRAFT": 2274,
+    "ROS": 1745
+  },
+  "pointCountsByScoring": {
+    "PPR": 7270,
+    "unknown": 6078
+  },
+  "outputs": {
+    "archive": "server/redraft-value-history/redraft-value-history-v1.json",
+    "trends": "server/redraft-value-history/redraft-value-trends-v1.json",
+    "manifest": "server/redraft-value-history/redraft-value-history-manifest-v1.json"
+  },
+  "playerCount": 1623,
+  "pointCount": 13348,
+  "trendPlayerCount": 1623,
+  "pointCountsByPhase": {
+    "currentSeasonSnapshot": 6078,
+    "draftCost": 3251,
+    "draftRank": 2274,
+    "restOfSeason": 1745
+  },
+  "dateRange": {
+    "first": "2022-09-08",
+    "latest": "2026-05-17"
+  }
+}
