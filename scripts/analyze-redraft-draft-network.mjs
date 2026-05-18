@@ -26,6 +26,8 @@ Options:
   --max-leagues <n>         League discovery cap. Default: 1000.
   --delay-ms <n>            Delay between Sleeper calls. Default: ${DEFAULT_REQUEST_DELAY_MS}.
   --out <path>              Optional file path for the aggregate JSON artifact.
+  --progress-every <n>      Print progress to stderr every N managers/leagues. Default: 50.
+  --summary-only            With --out, print a compact summary instead of the full JSON.
   --help                    Show this help text.
 
 The command prints aggregate JSON only. It does not store raw league, user, or player rows.
@@ -63,7 +65,9 @@ function parseArgs(argv) {
     maxManagers: DEFAULT_MAX_MANAGERS,
     maxLeagues: DEFAULT_MAX_LEAGUES,
     delayMs: DEFAULT_REQUEST_DELAY_MS,
+    progressEvery: 50,
     outFile: '',
+    summaryOnly: false,
     help: false,
   };
 
@@ -113,6 +117,14 @@ function parseArgs(argv) {
       args.outFile = String(argv[++i] || '').trim();
       continue;
     }
+    if (arg === '--progress-every') {
+      args.progressEvery = parsePositiveInt(argv[++i], '--progress-every', 0, 10000);
+      continue;
+    }
+    if (arg === '--summary-only') {
+      args.summaryOnly = true;
+      continue;
+    }
     throw new Error(`Unknown argument: ${arg}`);
   }
 
@@ -129,6 +141,11 @@ function parseArgs(argv) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function logProgress(args, message) {
+  if (args.progressEvery <= 0) return;
+  console.error(`[redraft-network] ${message}`);
 }
 
 async function fetchJson(path, delayMs) {
@@ -409,6 +426,12 @@ async function discoverLeagueNetwork(seedUser, args) {
     seenManagers.add(manager.userId);
     discovery.managersSeen = seenManagers.size;
     increment(discovery.depthCounts, String(manager.depth));
+    if (discovery.managersSeen === 1 || discovery.managersSeen % args.progressEvery === 0) {
+      logProgress(
+        args,
+        `discovery managers=${discovery.managersSeen} leagues=${discovery.leaguesSeen} redraft=${discovery.redraftLeagues} queue=${queue.length}`
+      );
+    }
 
     for (const season of args.seasons) {
       let leagues = [];
@@ -431,6 +454,12 @@ async function discoverLeagueNetwork(seedUser, args) {
 
         seenLeagues.add(leagueId);
         discovery.leaguesSeen = seenLeagues.size;
+        if (discovery.leaguesSeen % args.progressEvery === 0) {
+          logProgress(
+            args,
+            `discovery managers=${discovery.managersSeen} leagues=${discovery.leaguesSeen} redraft=${discovery.redraftLeagues} queue=${queue.length}`
+          );
+        }
 
         if (getLeagueType(league) === 'redraft') {
           discovery.redraftLeagues += 1;
@@ -468,7 +497,8 @@ async function aggregateDiscoveredLeagues(redraftLeagueIds, args) {
   const aggregate = makeEmptyAggregate(args.rounds, 'sleeper_username_manager_network');
   aggregate.inputLeagueCount = redraftLeagueIds.length;
 
-  for (const leagueId of redraftLeagueIds) {
+  for (let index = 0; index < redraftLeagueIds.length; index += 1) {
+    const leagueId = redraftLeagueIds[index];
     try {
       const result = await analyzeLeague(leagueId, args.rounds, args.delayMs);
       if (result?.skipped) {
@@ -479,9 +509,48 @@ async function aggregateDiscoveredLeagues(redraftLeagueIds, args) {
     } catch {
       increment(aggregate.skipped, 'league_analysis_failed');
     }
+    const scanned = index + 1;
+    if (scanned === 1 || scanned % args.progressEvery === 0 || scanned === redraftLeagueIds.length) {
+      logProgress(
+        args,
+        `analysis scanned=${scanned}/${redraftLeagueIds.length} eligible=${aggregate.eligibleLeagueCount} skipped=${JSON.stringify(aggregate.skipped)}`
+      );
+    }
   }
 
   return aggregate;
+}
+
+function summarizePayload(payload) {
+  return {
+    seedUsername: payload.seedUsername,
+    seedUserId: payload.seedUserId,
+    generatedAt: payload.generatedAt,
+    policy: payload.policy,
+    discovery: {
+      managersSeen: payload.discovery.managersSeen,
+      leaguesSeen: payload.discovery.leaguesSeen,
+      redraftLeagues: payload.discovery.redraftLeagues,
+      depthCounts: payload.discovery.depthCounts,
+      skipped: payload.discovery.skipped,
+    },
+    aggregate: {
+      inputLeagueCount: payload.aggregate.inputLeagueCount,
+      eligibleLeagueCount: payload.aggregate.eligibleLeagueCount,
+      skipped: payload.aggregate.skipped,
+      championFirstPickPosition: payload.aggregate.totals.championFirstPickPosition,
+      championStrategy: payload.aggregate.totals.championStrategy,
+      topFormatBuckets: Object.entries(payload.aggregate.byFormatBucket)
+        .sort((a, b) => b[1].eligibleLeagueCount - a[1].eligibleLeagueCount)
+        .slice(0, 12)
+        .map(([format, bucket]) => ({
+          format,
+          eligibleLeagueCount: bucket.eligibleLeagueCount,
+          championFirstPickPosition: bucket.championFirstPickPosition,
+          championStrategy: bucket.championStrategy,
+        })),
+    },
+  };
 }
 
 async function main() {
@@ -517,7 +586,11 @@ async function main() {
     await fs.mkdir(path.dirname(path.resolve(args.outFile)), { recursive: true });
     await fs.writeFile(args.outFile, output);
   }
-  console.log(output);
+  console.log(
+    args.summaryOnly && args.outFile
+      ? `${JSON.stringify(summarizePayload(payload), null, 2)}\n`
+      : output
+  );
 }
 
 main().catch(error => {
