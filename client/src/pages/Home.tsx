@@ -225,6 +225,7 @@ const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
 const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 850;
 const REPORT_SUCCESS_KICK_MS = 900;
+const SLEEPER_ID_PATTERN = /^\d{8,24}$/;
 const SHOW_ASSISTANT_FEATURE_RADAR =
   String(
     import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || "true"
@@ -276,6 +277,13 @@ function shouldRenderSuccessCard3D() {
     return false;
   }
   return window.innerWidth >= 768;
+}
+
+function getValidSleeperUserId(userId?: string | null) {
+  const trimmedUserId = userId?.trim();
+  return trimmedUserId && SLEEPER_ID_PATTERN.test(trimmedUserId)
+    ? trimmedUserId
+    : null;
 }
 
 function persistReportLoadTelemetry(event: ReportLoadTelemetryEvent) {
@@ -5516,7 +5524,7 @@ export default function Home() {
     setIsReportRefreshing(true);
     analyzeMutation.mutate({
       leagueId: normalizedLeagueId,
-      viewerUserId: nextViewerUserId || undefined,
+      viewerUserId: getValidSleeperUserId(nextViewerUserId) || undefined,
     });
   };
 
@@ -5554,6 +5562,8 @@ export default function Home() {
 
   useEffect(() => {
     if (!viewerUserId || !sleeperUsername || !userLeagues.length) return;
+    const validViewerUserId = getValidSleeperUserId(viewerUserId);
+    if (!validViewerUserId) return;
     if (
       userLeagues.every(
         league => league.standingsRank != null && league.powerRank != null
@@ -5563,7 +5573,7 @@ export default function Home() {
 
     requestUserLeagueRanks({
       username: sleeperUsername,
-      userId: viewerUserId,
+      userId: validViewerUserId,
       displayName: viewerUsername || sleeperUsername,
       leagueIds: userLeagues.map(league => league.leagueId),
     });
@@ -5722,7 +5732,8 @@ export default function Home() {
             if (activeAnalysisLeagueIdRef.current !== urlLeagueId) return;
             analyzeMutation.mutate({
               leagueId: urlLeagueId,
-              viewerUserId: restoredViewerUserId || undefined,
+              viewerUserId:
+                getValidSleeperUserId(restoredViewerUserId) || undefined,
             });
           });
           return;
@@ -5786,7 +5797,8 @@ export default function Home() {
           setIsLoading(true);
           analyzeMutation.mutate({
             leagueId: parsed.leagueId,
-            viewerUserId: restoredViewerUserId || undefined,
+            viewerUserId:
+              getValidSleeperUserId(restoredViewerUserId) || undefined,
           });
         }
       } catch {
@@ -5883,7 +5895,7 @@ export default function Home() {
       if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
       analyzeMutation.mutate({
         leagueId: nextLeagueId,
-        viewerUserId: viewerUserId || undefined,
+        viewerUserId: getValidSleeperUserId(viewerUserId) || undefined,
       });
     });
   };
@@ -6117,7 +6129,10 @@ export default function Home() {
         if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
         analyzeMutation.mutate({
           leagueId: nextLeagueId,
-          viewerUserId: cachedUser?.userId || viewerUserId || undefined,
+          viewerUserId:
+            getValidSleeperUserId(cachedUser?.userId) ||
+            getValidSleeperUserId(viewerUserId) ||
+            undefined,
         });
       }
     );

@@ -224,7 +224,7 @@ async function loadModalReport(
   const sleeperSession = {
     username: 'mynameisbillex',
     user: {
-      userId: 'mynameisbillex',
+      userId: '123456789012345678',
       username: 'mynameisbillex',
       displayName: 'mynameisbillex',
       avatarUrl: null,
@@ -240,8 +240,8 @@ async function loadModalReport(
         format: cachedReport.leagueFormat,
         mobileFormat: cachedReport.leagueFormat,
         totalRosters: 2,
-        standingsRank: null,
-        powerRank: null,
+        standingsRank: 1,
+        powerRank: 1,
       },
     ],
     adminViewMode,

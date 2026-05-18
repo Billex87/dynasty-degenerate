@@ -18,7 +18,7 @@ async function loadCachedReport(
   const sleeperSessionKey = "dynasty-degenerates:sleeper-session:v1";
   const cachedUsersKey = "dynasty-degenerates:sleeper-user-history:v1";
   const adminUser = {
-    userId: "mynameisbillex",
+    userId: "123456789012345678",
     username: "mynameisbillex",
     displayName: "mynameisbillex",
     avatarUrl: null,
@@ -33,8 +33,8 @@ async function loadCachedReport(
     format: cachedReport.leagueFormat,
     mobileFormat: cachedReport.leagueFormat,
     totalRosters: 2,
-    standingsRank: null,
-    powerRank: null,
+    standingsRank: 1,
+    powerRank: 1,
   };
   await page.addInitScript(
     ({
@@ -124,6 +124,39 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
+type ConsoleAuditedTestInfo = import("@playwright/test").TestInfo & {
+  browserConsoleIssues?: string[];
+};
+
+function installBrowserConsoleAudit(
+  page: import("@playwright/test").Page,
+  testInfo: import("@playwright/test").TestInfo
+) {
+  const auditedInfo = testInfo as ConsoleAuditedTestInfo;
+  const browserConsoleIssues: string[] = [];
+  auditedInfo.browserConsoleIssues = browserConsoleIssues;
+
+  page.on("console", message => {
+    if (message.type() !== "error") return;
+    const location = message.location();
+    const source = location.url
+      ? ` (${location.url}:${location.lineNumber}:${location.columnNumber})`
+      : "";
+    browserConsoleIssues.push(`console.error: ${message.text()}${source}`);
+  });
+
+  page.on("pageerror", error => {
+    browserConsoleIssues.push(`pageerror: ${error.message}`);
+  });
+}
+
+function expectNoBrowserConsoleIssues(
+  testInfo: import("@playwright/test").TestInfo
+) {
+  const auditedInfo = testInfo as ConsoleAuditedTestInfo;
+  expect(auditedInfo.browserConsoleIssues || []).toEqual([]);
+}
+
 async function expectSuccessCanvasNonBlank(
   page: import("@playwright/test").Page
 ) {
@@ -209,6 +242,14 @@ async function expectCompactMobileAIRead(
 }
 
 test.describe("command center feature surfaces", () => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    installBrowserConsoleAudit(page, testInfo);
+  });
+
+  test.afterEach(async ({}, testInfo) => {
+    expectNoBrowserConsoleIssues(testInfo);
+  });
+
   test("renders the generated-report 3D success card on desktop and mobile", async ({
     page,
   }) => {
