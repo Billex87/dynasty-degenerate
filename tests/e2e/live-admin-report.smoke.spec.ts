@@ -39,6 +39,16 @@ async function dismissAdminIntroIfVisible(page: import('@playwright/test').Page)
   }
 }
 
+async function enterAdminReportView(page: import('@playwright/test').Page) {
+  const autopilotTab = page.getByRole('tab', { name: /AI Autopilot/i });
+  if (await autopilotTab.isVisible({ timeout: 2_000 }).catch(() => false)) return;
+
+  const adminToolsButton = page.getByRole('button', { name: /Return to admin report view|Admin Tools/i }).first();
+  await expect(adminToolsButton).toBeVisible({ timeout: 10_000 });
+  await adminToolsButton.click();
+  await expect(autopilotTab).toBeVisible({ timeout: 15_000 });
+}
+
 async function openReportDisclosure(page: import('@playwright/test').Page, title: string) {
   const section = page.locator('details.report-disclosure').filter({ hasText: title }).first();
   await expect(section).toBeVisible();
@@ -63,6 +73,7 @@ async function runLeagueReport(page: import('@playwright/test').Page, leagueName
   await page.getByRole('button', { name: new RegExp(escapeRegex(leagueName), 'i') }).first().click();
   await expect(page.getByRole('tab', { name: 'Rankings' })).toBeVisible({ timeout: 150_000 });
   await dismissAdminIntroIfVisible(page);
+  await enterAdminReportView(page);
 }
 
 async function expectDraftHistoryVisibility(page: import('@playwright/test').Page, shouldBeVisible: boolean) {
