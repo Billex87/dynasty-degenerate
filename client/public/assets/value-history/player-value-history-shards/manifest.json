@@ -1,0 +1,910 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-18T05:32:31.006Z",
+  "sourceArchive": "server/value-history-archive/player-value-history-reblended.json",
+  "sourceArchiveGeneratedAt": "2026-05-18T05:31:38.134Z",
+  "blendName": "audited-2026-05-18-rank-normalized",
+  "playerCount": 1724,
+  "formatCount": 8746,
+  "windowPointCount": 444138,
+  "asOfPointCount": 508216,
+  "maxAsOfPoints": 260,
+  "shardCount": 179,
+  "shards": [
+    {
+      "key": "20",
+      "file": "20.json",
+      "playerCount": 106
+    },
+    {
+      "key": "aa",
+      "file": "aa.json",
+      "playerCount": 5
+    },
+    {
+      "key": "ab",
+      "file": "ab.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ad",
+      "file": "ad.json",
+      "playerCount": 9
+    },
+    {
+      "key": "ag",
+      "file": "ag.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ah",
+      "file": "ah.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ai",
+      "file": "ai.json",
+      "playerCount": 4
+    },
+    {
+      "key": "aj",
+      "file": "aj.json",
+      "playerCount": 6
+    },
+    {
+      "key": "ak",
+      "file": "ak.json",
+      "playerCount": 1
+    },
+    {
+      "key": "al",
+      "file": "al.json",
+      "playerCount": 14
+    },
+    {
+      "key": "am",
+      "file": "am.json",
+      "playerCount": 4
+    },
+    {
+      "key": "an",
+      "file": "an.json",
+      "playerCount": 28
+    },
+    {
+      "key": "ar",
+      "file": "ar.json",
+      "playerCount": 6
+    },
+    {
+      "key": "as",
+      "file": "as.json",
+      "playerCount": 2
+    },
+    {
+      "key": "at",
+      "file": "at.json",
+      "playerCount": 2
+    },
+    {
+      "key": "au",
+      "file": "au.json",
+      "playerCount": 9
+    },
+    {
+      "key": "av",
+      "file": "av.json",
+      "playerCount": 2
+    },
+    {
+      "key": "ba",
+      "file": "ba.json",
+      "playerCount": 6
+    },
+    {
+      "key": "be",
+      "file": "be.json",
+      "playerCount": 8
+    },
+    {
+      "key": "bh",
+      "file": "bh.json",
+      "playerCount": 1
+    },
+    {
+      "key": "bi",
+      "file": "bi.json",
+      "playerCount": 3
+    },
+    {
+      "key": "bl",
+      "file": "bl.json",
+      "playerCount": 8
+    },
+    {
+      "key": "bo",
+      "file": "bo.json",
+      "playerCount": 5
+    },
+    {
+      "key": "br",
+      "file": "br.json",
+      "playerCount": 59
+    },
+    {
+      "key": "bu",
+      "file": "bu.json",
+      "playerCount": 3
+    },
+    {
+      "key": "by",
+      "file": "by.json",
+      "playerCount": 2
+    },
+    {
+      "key": "ca",
+      "file": "ca.json",
+      "playerCount": 41
+    },
+    {
+      "key": "ce",
+      "file": "ce.json",
+      "playerCount": 4
+    },
+    {
+      "key": "ch",
+      "file": "ch.json",
+      "playerCount": 47
+    },
+    {
+      "key": "ci",
+      "file": "ci.json",
+      "playerCount": 1
+    },
+    {
+      "key": "cj",
+      "file": "cj.json",
+      "playerCount": 11
+    },
+    {
+      "key": "cl",
+      "file": "cl.json",
+      "playerCount": 3
+    },
+    {
+      "key": "co",
+      "file": "co.json",
+      "playerCount": 28
+    },
+    {
+      "key": "cr",
+      "file": "cr.json",
+      "playerCount": 1
+    },
+    {
+      "key": "cu",
+      "file": "cu.json",
+      "playerCount": 1
+    },
+    {
+      "key": "cy",
+      "file": "cy.json",
+      "playerCount": 2
+    },
+    {
+      "key": "da",
+      "file": "da.json",
+      "playerCount": 66
+    },
+    {
+      "key": "de",
+      "file": "de.json",
+      "playerCount": 65
+    },
+    {
+      "key": "di",
+      "file": "di.json",
+      "playerCount": 5
+    },
+    {
+      "key": "dj",
+      "file": "dj.json",
+      "playerCount": 7
+    },
+    {
+      "key": "dk",
+      "file": "dk.json",
+      "playerCount": 1
+    },
+    {
+      "key": "do",
+      "file": "do.json",
+      "playerCount": 17
+    },
+    {
+      "key": "dr",
+      "file": "dr.json",
+      "playerCount": 8
+    },
+    {
+      "key": "du",
+      "file": "du.json",
+      "playerCount": 4
+    },
+    {
+      "key": "dv",
+      "file": "dv.json",
+      "playerCount": 1
+    },
+    {
+      "key": "dw",
+      "file": "dw.json",
+      "playerCount": 1
+    },
+    {
+      "key": "dy",
+      "file": "dy.json",
+      "playerCount": 5
+    },
+    {
+      "key": "ea",
+      "file": "ea.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ed",
+      "file": "ed.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ef",
+      "file": "ef.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ej",
+      "file": "ej.json",
+      "playerCount": 2
+    },
+    {
+      "key": "el",
+      "file": "el.json",
+      "playerCount": 13
+    },
+    {
+      "key": "em",
+      "file": "em.json",
+      "playerCount": 8
+    },
+    {
+      "key": "en",
+      "file": "en.json",
+      "playerCount": 1
+    },
+    {
+      "key": "eq",
+      "file": "eq.json",
+      "playerCount": 1
+    },
+    {
+      "key": "er",
+      "file": "er.json",
+      "playerCount": 9
+    },
+    {
+      "key": "et",
+      "file": "et.json",
+      "playerCount": 1
+    },
+    {
+      "key": "eu",
+      "file": "eu.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ev",
+      "file": "ev.json",
+      "playerCount": 5
+    },
+    {
+      "key": "ez",
+      "file": "ez.json",
+      "playerCount": 1
+    },
+    {
+      "key": "fe",
+      "file": "fe.json",
+      "playerCount": 1
+    },
+    {
+      "key": "fl",
+      "file": "fl.json",
+      "playerCount": 1
+    },
+    {
+      "key": "fo",
+      "file": "fo.json",
+      "playerCount": 1
+    },
+    {
+      "key": "fr",
+      "file": "fr.json",
+      "playerCount": 3
+    },
+    {
+      "key": "ga",
+      "file": "ga.json",
+      "playerCount": 9
+    },
+    {
+      "key": "ge",
+      "file": "ge.json",
+      "playerCount": 10
+    },
+    {
+      "key": "gi",
+      "file": "gi.json",
+      "playerCount": 2
+    },
+    {
+      "key": "go",
+      "file": "go.json",
+      "playerCount": 1
+    },
+    {
+      "key": "gr",
+      "file": "gr.json",
+      "playerCount": 10
+    },
+    {
+      "key": "gu",
+      "file": "gu.json",
+      "playerCount": 4
+    },
+    {
+      "key": "ha",
+      "file": "ha.json",
+      "playerCount": 11
+    },
+    {
+      "key": "he",
+      "file": "he.json",
+      "playerCount": 2
+    },
+    {
+      "key": "ho",
+      "file": "ho.json",
+      "playerCount": 2
+    },
+    {
+      "key": "hu",
+      "file": "hu.json",
+      "playerCount": 6
+    },
+    {
+      "key": "hy",
+      "file": "hy.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ia",
+      "file": "ia.json",
+      "playerCount": 3
+    },
+    {
+      "key": "ih",
+      "file": "ih.json",
+      "playerCount": 1
+    },
+    {
+      "key": "in",
+      "file": "in.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ir",
+      "file": "ir.json",
+      "playerCount": 1
+    },
+    {
+      "key": "is",
+      "file": "is.json",
+      "playerCount": 19
+    },
+    {
+      "key": "it",
+      "file": "it.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ja",
+      "file": "ja.json",
+      "playerCount": 139
+    },
+    {
+      "key": "jd",
+      "file": "jd.json",
+      "playerCount": 1
+    },
+    {
+      "key": "je",
+      "file": "je.json",
+      "playerCount": 23
+    },
+    {
+      "key": "jh",
+      "file": "jh.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ji",
+      "file": "ji.json",
+      "playerCount": 4
+    },
+    {
+      "key": "jj",
+      "file": "jj.json",
+      "playerCount": 3
+    },
+    {
+      "key": "jk",
+      "file": "jk.json",
+      "playerCount": 1
+    },
+    {
+      "key": "jm",
+      "file": "jm.json",
+      "playerCount": 2
+    },
+    {
+      "key": "jo",
+      "file": "jo.json",
+      "playerCount": 77
+    },
+    {
+      "key": "jt",
+      "file": "jt.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ju",
+      "file": "ju.json",
+      "playerCount": 20
+    },
+    {
+      "key": "ka",
+      "file": "ka.json",
+      "playerCount": 23
+    },
+    {
+      "key": "kc",
+      "file": "kc.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ke",
+      "file": "ke.json",
+      "playerCount": 43
+    },
+    {
+      "key": "kh",
+      "file": "kh.json",
+      "playerCount": 3
+    },
+    {
+      "key": "ki",
+      "file": "ki.json",
+      "playerCount": 2
+    },
+    {
+      "key": "kj",
+      "file": "kj.json",
+      "playerCount": 3
+    },
+    {
+      "key": "ko",
+      "file": "ko.json",
+      "playerCount": 4
+    },
+    {
+      "key": "kr",
+      "file": "kr.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ku",
+      "file": "ku.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ky",
+      "file": "ky.json",
+      "playerCount": 16
+    },
+    {
+      "key": "la",
+      "file": "la.json",
+      "playerCount": 13
+    },
+    {
+      "key": "le",
+      "file": "le.json",
+      "playerCount": 8
+    },
+    {
+      "key": "li",
+      "file": "li.json",
+      "playerCount": 2
+    },
+    {
+      "key": "lj",
+      "file": "lj.json",
+      "playerCount": 1
+    },
+    {
+      "key": "lo",
+      "file": "lo.json",
+      "playerCount": 8
+    },
+    {
+      "key": "lu",
+      "file": "lu.json",
+      "playerCount": 11
+    },
+    {
+      "key": "ly",
+      "file": "ly.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ma",
+      "file": "ma.json",
+      "playerCount": 74
+    },
+    {
+      "key": "me",
+      "file": "me.json",
+      "playerCount": 4
+    },
+    {
+      "key": "mi",
+      "file": "mi.json",
+      "playerCount": 42
+    },
+    {
+      "key": "mo",
+      "file": "mo.json",
+      "playerCount": 7
+    },
+    {
+      "key": "my",
+      "file": "my.json",
+      "playerCount": 3
+    },
+    {
+      "key": "na",
+      "file": "na.json",
+      "playerCount": 9
+    },
+    {
+      "key": "ne",
+      "file": "ne.json",
+      "playerCount": 5
+    },
+    {
+      "key": "ni",
+      "file": "ni.json",
+      "playerCount": 18
+    },
+    {
+      "key": "nk",
+      "file": "nk.json",
+      "playerCount": 1
+    },
+    {
+      "key": "no",
+      "file": "no.json",
+      "playerCount": 6
+    },
+    {
+      "key": "ny",
+      "file": "ny.json",
+      "playerCount": 5
+    },
+    {
+      "key": "od",
+      "file": "od.json",
+      "playerCount": 2
+    },
+    {
+      "key": "oj",
+      "file": "oj.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ol",
+      "file": "ol.json",
+      "playerCount": 2
+    },
+    {
+      "key": "om",
+      "file": "om.json",
+      "playerCount": 3
+    },
+    {
+      "key": "or",
+      "file": "or.json",
+      "playerCount": 1
+    },
+    {
+      "key": "os",
+      "file": "os.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ou",
+      "file": "ou.json",
+      "playerCount": 1
+    },
+    {
+      "key": "pa",
+      "file": "pa.json",
+      "playerCount": 10
+    },
+    {
+      "key": "pe",
+      "file": "pe.json",
+      "playerCount": 4
+    },
+    {
+      "key": "ph",
+      "file": "ph.json",
+      "playerCount": 6
+    },
+    {
+      "key": "pi",
+      "file": "pi.json",
+      "playerCount": 2
+    },
+    {
+      "key": "pj",
+      "file": "pj.json",
+      "playerCount": 1
+    },
+    {
+      "key": "pl",
+      "file": "pl.json",
+      "playerCount": 1
+    },
+    {
+      "key": "po",
+      "file": "po.json",
+      "playerCount": 1
+    },
+    {
+      "key": "pr",
+      "file": "pr.json",
+      "playerCount": 2
+    },
+    {
+      "key": "pu",
+      "file": "pu.json",
+      "playerCount": 1
+    },
+    {
+      "key": "qa",
+      "file": "qa.json",
+      "playerCount": 1
+    },
+    {
+      "key": "qu",
+      "file": "qu.json",
+      "playerCount": 11
+    },
+    {
+      "key": "ra",
+      "file": "ra.json",
+      "playerCount": 19
+    },
+    {
+      "key": "re",
+      "file": "re.json",
+      "playerCount": 5
+    },
+    {
+      "key": "rh",
+      "file": "rh.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ri",
+      "file": "ri.json",
+      "playerCount": 11
+    },
+    {
+      "key": "rj",
+      "file": "rj.json",
+      "playerCount": 2
+    },
+    {
+      "key": "ro",
+      "file": "ro.json",
+      "playerCount": 24
+    },
+    {
+      "key": "ru",
+      "file": "ru.json",
+      "playerCount": 4
+    },
+    {
+      "key": "ry",
+      "file": "ry.json",
+      "playerCount": 10
+    },
+    {
+      "key": "sa",
+      "file": "sa.json",
+      "playerCount": 18
+    },
+    {
+      "key": "sc",
+      "file": "sc.json",
+      "playerCount": 3
+    },
+    {
+      "key": "se",
+      "file": "se.json",
+      "playerCount": 8
+    },
+    {
+      "key": "sh",
+      "file": "sh.json",
+      "playerCount": 8
+    },
+    {
+      "key": "si",
+      "file": "si.json",
+      "playerCount": 3
+    },
+    {
+      "key": "sk",
+      "file": "sk.json",
+      "playerCount": 3
+    },
+    {
+      "key": "sl",
+      "file": "sl.json",
+      "playerCount": 1
+    },
+    {
+      "key": "sn",
+      "file": "sn.json",
+      "playerCount": 1
+    },
+    {
+      "key": "so",
+      "file": "so.json",
+      "playerCount": 1
+    },
+    {
+      "key": "sp",
+      "file": "sp.json",
+      "playerCount": 3
+    },
+    {
+      "key": "sq",
+      "file": "sq.json",
+      "playerCount": 1
+    },
+    {
+      "key": "st",
+      "file": "st.json",
+      "playerCount": 8
+    },
+    {
+      "key": "ta",
+      "file": "ta.json",
+      "playerCount": 22
+    },
+    {
+      "key": "te",
+      "file": "te.json",
+      "playerCount": 17
+    },
+    {
+      "key": "th",
+      "file": "th.json",
+      "playerCount": 6
+    },
+    {
+      "key": "ti",
+      "file": "ti.json",
+      "playerCount": 5
+    },
+    {
+      "key": "tj",
+      "file": "tj.json",
+      "playerCount": 4
+    },
+    {
+      "key": "to",
+      "file": "to.json",
+      "playerCount": 9
+    },
+    {
+      "key": "tr",
+      "file": "tr.json",
+      "playerCount": 40
+    },
+    {
+      "key": "tu",
+      "file": "tu.json",
+      "playerCount": 4
+    },
+    {
+      "key": "ty",
+      "file": "ty.json",
+      "playerCount": 40
+    },
+    {
+      "key": "va",
+      "file": "va.json",
+      "playerCount": 1
+    },
+    {
+      "key": "ve",
+      "file": "ve.json",
+      "playerCount": 2
+    },
+    {
+      "key": "vi",
+      "file": "vi.json",
+      "playerCount": 1
+    },
+    {
+      "key": "vy",
+      "file": "vy.json",
+      "playerCount": 1
+    },
+    {
+      "key": "wa",
+      "file": "wa.json",
+      "playerCount": 6
+    },
+    {
+      "key": "we",
+      "file": "we.json",
+      "playerCount": 1
+    },
+    {
+      "key": "wi",
+      "file": "wi.json",
+      "playerCount": 11
+    },
+    {
+      "key": "wo",
+      "file": "wo.json",
+      "playerCount": 1
+    },
+    {
+      "key": "xa",
+      "file": "xa.json",
+      "playerCount": 9
+    },
+    {
+      "key": "yo",
+      "file": "yo.json",
+      "playerCount": 1
+    },
+    {
+      "key": "za",
+      "file": "za.json",
+      "playerCount": 20
+    },
+    {
+      "key": "zo",
+      "file": "zo.json",
+      "playerCount": 1
+    }
+  ]
+}
