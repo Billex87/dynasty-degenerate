@@ -311,8 +311,11 @@ test.describe('player detail modal', () => {
     expect(dialogText).toContain('105.2');
     expect(dialogText).toContain('Jan 1, 2000');
     await expect(dialog.getByText('Source Inputs', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Source Detail', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText('Prospect File', { exact: true })).toHaveCount(0);
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('Latest News', { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/This full summary should stay readable in the full-width pill with no truncation or abbreviation/i)).toBeVisible();
+    await expect(dialog.getByText('Player News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
     await expect(dialog.locator('.ai-read-trace-kicker:visible', { hasText: 'Why this fired' }).first()).toBeVisible();
     await expect(dialog.locator('.ai-read-trace-list:visible', { hasText: /Draft capital: Round 1, pick 18/i }).first()).toBeVisible();
@@ -410,7 +413,7 @@ test.describe('player detail modal', () => {
 
     await expect(dialog.getByText('Source Inputs', { exact: true })).toHaveCount(0);
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('Latest News', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Player News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
   });
 });

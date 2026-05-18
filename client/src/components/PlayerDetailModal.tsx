@@ -195,9 +195,16 @@ export function PlayerDetailModal({
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
   const [fallbackImageFailed, setFallbackImageFailed] = useState(false);
-  const queryDetails = pick?.player_id && playerDetailsById?.[pick.player_id]
-    ? { ...pick.playerDetails, ...playerDetailsById[pick.player_id] }
-    : pick?.playerDetails || (pick?.player_id ? playerDetailsById?.[pick.player_id] : undefined);
+  const reportPlayerDetails = pick?.player_id ? playerDetailsById?.[pick.player_id] : undefined;
+  const queryDetails = reportPlayerDetails
+    ? {
+        ...(pick?.playerDetails || {}),
+        ...reportPlayerDetails,
+        latestNews: reportPlayerDetails.latestNews || pick?.playerDetails?.latestNews || null,
+        prospectProfile: reportPlayerDetails.prospectProfile || pick?.playerDetails?.prospectProfile || null,
+        athleticProfile: reportPlayerDetails.athleticProfile || pick?.playerDetails?.athleticProfile || null,
+      }
+    : pick?.playerDetails || undefined;
   const queryIsCollegeProspect = isCollegeOnlyModalPick(pick, queryDetails);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
     {
@@ -383,26 +390,6 @@ export function PlayerDetailModal({
     ['Size', [prospectProfile.height, prospectProfile.weight].filter(Boolean).join(' / ')],
     ['Role', prospectProfile.role],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
-  const prospectRows = details?.prospectProfile ? [
-    ['Projected Rookie Pick', details.prospectProfile.projectedRookiePick],
-    ['FantasyPros ECR', details.prospectProfile.fantasyProsDevyRank ? `#${details.prospectProfile.fantasyProsDevyRank}` : null],
-    ['FantasyPros Pos', details.prospectProfile.fantasyProsDevyPositionRank],
-    ['FP Best/Worst', details.prospectProfile.fantasyProsDevyBestRank && details.prospectProfile.fantasyProsDevyWorstRank ? `${details.prospectProfile.fantasyProsDevyBestRank} / ${details.prospectProfile.fantasyProsDevyWorstRank}` : null],
-    ['FP Avg/Std Dev', details.prospectProfile.fantasyProsDevyAverageRank && details.prospectProfile.fantasyProsDevyStdDev !== null && details.prospectProfile.fantasyProsDevyStdDev !== undefined ? `${details.prospectProfile.fantasyProsDevyAverageRank} / ${details.prospectProfile.fantasyProsDevyStdDev}` : null],
-    ['Role', details.prospectProfile.role],
-    ['Source', getProspectSourceLabel(details.prospectProfile.source)],
-    ['ESPN ID', details.prospectProfile.espnId],
-    ['Class', details.prospectProfile.classYear],
-    ['Jersey', details.prospectProfile.jersey],
-    ['Status', details.prospectProfile.status],
-    ['Birthplace', details.prospectProfile.birthPlace],
-    ['Draft Class', details.prospectProfile.draftYear],
-    ['Overall Rank', details.prospectProfile.overallRank ? `#${details.prospectProfile.overallRank}` : null],
-    ['Position Rank', details.prospectProfile.positionRank ? `${details.prospectProfile.position}${details.prospectProfile.positionRank}` : null],
-    ['Rating', details.prospectProfile.rating],
-    ['Avg Scout Rank', details.prospectProfile.averageOverallRank ? `#${details.prospectProfile.averageOverallRank}` : null],
-    ['Size', [details.prospectProfile.height, details.prospectProfile.weight].filter(Boolean).join(' / ')],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const combineMetricRows = [
     ['Broad', formatBroadJump(athleticProfile?.broadJump)],
     ['Bench', formatBenchReps(athleticProfile?.bench)],
@@ -482,7 +469,8 @@ export function PlayerDetailModal({
   ).filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const latestNews = playerNewsData?.latestNews ?? details?.latestNews ?? null;
   const hasMeaningfulNews = Boolean(latestNews?.title || latestNews?.summary);
-  const prospectSummary = details?.prospectProfile?.summary || null;
+  const rawProspectSummary = details?.prospectProfile?.summary?.trim() || null;
+  const prospectSummary = rawProspectSummary && !/\.\.\.$/.test(rawProspectSummary) ? rawProspectSummary : null;
   const playerAiReadEligible = isPlayerAiReadEligible({ position, currentRank, valueProfile });
   const intelligenceNotes = playerAiReadEligible ? buildPlayerIntelligenceNotes({
     details,
@@ -1255,14 +1243,70 @@ export function PlayerDetailModal({
             </div>
 
             {((isAdminView && sourceValueRows.length > 0)
-              || prospectRows.length > 0
               || Boolean(prospectSummary)
               || hasMeaningfulNews
               || Boolean(details?.availabilityHistory?.length)) && (
               <div className="player-complete-data mx-auto max-w-xl">
-                <p className="player-complete-title">Source Detail</p>
                 <div className="player-complete-grid">
-                  <CompleteDataSection title="Prospect File" rows={prospectRows} teamColors={teamColors} tileAccent={tileAccent} wide />
+                  {latestNews && hasMeaningfulNews ? (
+                    latestNews?.url ? (
+                      <a
+                        href={latestNews.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="player-complete-section player-complete-section-wide block border-cyan-300/15 bg-slate-950/55 p-4 text-left no-underline transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-slate-950/75 sm:p-5"
+                        style={{
+                          borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
+                          background: teamColors
+                            ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
+                            : undefined,
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h4>Player News</h4>
+                            <p className="mt-3 break-words text-base font-black leading-tight text-slate-50 sm:text-lg">
+                              {latestNews.title}
+                            </p>
+                            <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
+                              {[latestNews.source, latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null].filter(Boolean).join(' · ') || 'Recent update'}
+                            </p>
+                            {latestNews.summary ? (
+                              <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
+                                {latestNews.summary}
+                              </p>
+                            ) : null}
+                          </div>
+                          <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-400/10 text-cyan-200">
+                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                        </div>
+                      </a>
+                    ) : (
+                      <div
+                        className="player-complete-section player-complete-section-wide border-cyan-300/15 bg-slate-950/55 p-4 text-left sm:p-5"
+                        style={{
+                          borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
+                          background: teamColors
+                            ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
+                            : undefined,
+                        }}
+                      >
+                        <h4>Player News</h4>
+                        <p className="mt-3 break-words text-base font-black leading-tight text-slate-50 sm:text-lg">
+                          {latestNews.title}
+                        </p>
+                        <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
+                          {[latestNews.source, latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null].filter(Boolean).join(' · ') || 'Recent update'}
+                        </p>
+                        {latestNews.summary ? (
+                          <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
+                            {latestNews.summary}
+                          </p>
+                        ) : null}
+                      </div>
+                    )
+                  ) : null}
                   {prospectSummary ? (
                     <div
                       className="player-complete-section player-complete-section-wide border-cyan-300/15 bg-slate-950/55 p-4 sm:p-5"
@@ -1306,65 +1350,6 @@ export function PlayerDetailModal({
                         ))}
                       </div>
                     </div>
-                  ) : null}
-                  {latestNews && hasMeaningfulNews ? (
-                    latestNews?.url ? (
-                      <a
-                        href={latestNews.url}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="player-complete-section player-complete-section-wide block border-cyan-300/15 bg-slate-950/55 p-4 text-left no-underline transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-slate-950/75 sm:p-5"
-                        style={{
-                          borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
-                          background: teamColors
-                            ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
-                            : undefined,
-                        }}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h4>Latest News</h4>
-                            <p className="mt-3 break-words text-base font-black leading-tight text-slate-50 sm:text-lg">
-                              {latestNews.title}
-                            </p>
-                            <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
-                              {[latestNews.source, latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null].filter(Boolean).join(' · ') || 'Recent update'}
-                            </p>
-                            {latestNews.summary ? (
-                              <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
-                                {latestNews.summary}
-                              </p>
-                            ) : null}
-                          </div>
-                          <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-400/10 text-cyan-200">
-                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                          </span>
-                        </div>
-                      </a>
-                    ) : (
-                      <div
-                        className="player-complete-section player-complete-section-wide border-cyan-300/15 bg-slate-950/55 p-4 text-left sm:p-5"
-                        style={{
-                          borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
-                          background: teamColors
-                            ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
-                            : undefined,
-                        }}
-                      >
-                        <h4>Latest News</h4>
-                        <p className="mt-3 break-words text-base font-black leading-tight text-slate-50 sm:text-lg">
-                          {latestNews.title}
-                        </p>
-                        <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
-                          {[latestNews.source, latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null].filter(Boolean).join(' · ') || 'Recent update'}
-                        </p>
-                        {latestNews.summary ? (
-                          <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
-                            {latestNews.summary}
-                          </p>
-                        ) : null}
-                      </div>
-                    )
                   ) : null}
               {details?.availabilityHistory?.length ? (
                 <div className="player-complete-section player-complete-section-wide">
