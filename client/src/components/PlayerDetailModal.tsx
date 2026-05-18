@@ -153,6 +153,22 @@ function isCollegeOnlyModalPick(pick?: PlayerModalData | null, details?: PlayerD
   return pick?.isCollegeProspect ?? (!hasResolvedNflIdentity(pick, details) && Boolean(details?.prospectProfile));
 }
 
+function hasDraftPickContext(pick?: PlayerModalData | null) {
+  if (!pick) return false;
+
+  return Boolean(
+    pick.draftKind ||
+      pick.draftPickCount ||
+      pick.draftYear ||
+      pick.draftValueDate ||
+      pick.currentValueDate ||
+      pick.positionRankMay2025 ||
+      pick.round !== undefined ||
+      pick.pick !== undefined ||
+      pick.ktcValue !== undefined
+  );
+}
+
 function isPlayerAiReadEligible({
   position,
   currentRank,
@@ -318,10 +334,11 @@ export function PlayerDetailModal({
   const isRedraftValueMode = valueMode === 'redraft';
   const serverDynastyValueTimeline = (dynastyTimelineData?.timeline || null) as PlayerValueTimeline | null;
   const redraftValueTimeline = (redraftTimelineData?.timeline || null) as RedraftValueTimelineData | null;
-  const draftKindLabel = (pick.round !== undefined || pick.pick !== undefined || pick.draftKind || pick.draftPickCount)
+  const hasDraftContext = hasDraftPickContext(pick);
+  const draftKindLabel = hasDraftContext
     ? getDraftKindLabel(getDraftKind(pick, valueMode))
     : null;
-  const draftWindowLabel = getDraftWindowLabel(pick, valueMode);
+  const draftWindowLabel = hasDraftContext ? getDraftWindowLabel(pick, valueMode) : null;
   const valueChangeNote = pick.valueChangeNote || getValueChangeNote(pick);
   const currentValue = pick.currentKtcValue;
   const draftValue = pick.ktcValue;
@@ -397,13 +414,6 @@ export function PlayerDetailModal({
     ['Shuttle', formatDrillTime(athleticProfile?.shuttle)],
     ['Speed Score', formatSpeedScore(athleticProfile?.speedScore)],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '-');
-  const previousSeasonRankLabel = getPreviousSeasonRankLabel(details);
-  const previousSeasonRankMobileLabel = getPreviousSeasonRankMobileLabel(details);
-  const lastSeasonRows = [
-    [previousSeasonRankLabel, details?.lastSeasonPositionRank],
-    ['Games Played', details?.lastSeasonGames],
-    ['PPG', details?.lastSeasonPointsPerGame],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const availabilityRows = [
     ['Avg Missed', details?.avgGamesMissed !== null && details?.avgGamesMissed !== undefined && details?.availabilitySeasons ? `${details.avgGamesMissed} / yr` : null],
     ['Seasons', details?.availabilitySeasons ? `${details.availabilitySeasons} yr${details.availabilitySeasons === 1 ? '' : 's'}` : null],
@@ -426,7 +436,6 @@ export function PlayerDetailModal({
   const rebuilderRank = getValueProfileRank(valueProfile, 'rebuilder', currentRank);
   const topDynastyRank = dynastyRank || (valueMode !== 'redraft' ? currentRank : null);
   const topSeasonRank = seasonRank || (valueMode === 'redraft' ? currentRank : null);
-  const lastSeasonRank = details?.lastSeasonPositionRank || null;
   const dynastyValue = valueProfile?.dynastyValue
     ?? valueProfile?.balancedValue
     ?? (valueMode !== 'redraft' ? currentValue : null);
@@ -780,17 +789,6 @@ export function PlayerDetailModal({
                     <MetricTile label="Dynasty Rank" mobileLabel="Dynasty" value={topDynastyRank || '-'} valueClassName={`${getPositionRankPillClass(topDynastyRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-dynasty-rank" />
                   </>
                 )}
-                {lastSeasonRank && (
-                <MetricTile
-                  label={previousSeasonRankLabel}
-                  mobileLabel={previousSeasonRankMobileLabel}
-                  value={lastSeasonRank}
-                  valueClassName={`${getPositionRankPillClass(details?.lastSeasonPositionRank)} player-modal-rank-value`}
-                  teamColors={teamColors}
-                  tileAccent={tileAccent}
-                  className="player-modal-metric-last-season"
-                />
-                )}
                 {valueGain !== undefined && valueGain !== null && (
                 <MetricTile
                   label="Value Change"
@@ -1142,7 +1140,6 @@ export function PlayerDetailModal({
                         playerName={pick.playerName}
                         playerImageUrl={playerImageSrc}
                         team={team}
-                        playerPosition={position}
                         teamColors={teamColors}
                         tileAccent={tileAccent}
                         showSourceAdmin={showAIRead}
@@ -1160,7 +1157,6 @@ export function PlayerDetailModal({
                         playerName={pick.playerName}
                         playerImageUrl={playerImageSrc}
                         team={team}
-                        playerPosition={position}
                         teamColors={teamColors}
                         tileAccent={tileAccent}
                         showSourceAdmin={showAIRead}
@@ -1211,13 +1207,6 @@ export function PlayerDetailModal({
                       teamColors={teamColors}
                       tileAccent={tileAccent}
                     />
-                  ))}
-                </div>
-              )}
-              {!isCollegeProspect && lastSeasonRows.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  {lastSeasonRows.map(([label, value]) => (
-                    <InfoTile key={String(label)} label={String(label)} value={String(value)} teamColors={teamColors} tileAccent={tileAccent} />
                   ))}
                 </div>
               )}
@@ -1695,10 +1684,6 @@ function getPreviousSeasonRankLabel(details?: PlayerDetails) {
   return details?.lastSeasonYear ? `${details.lastSeasonYear} Rank` : 'Previous Rank';
 }
 
-function getPreviousSeasonRankMobileLabel(details?: PlayerDetails) {
-  return details?.lastSeasonYear || 'Prev';
-}
-
 function formatValueLens(value: number | null | undefined) {
   if (!value) return '-';
   if (Math.abs(value) >= 1000) return `${Math.round(value / 100) / 10}K`;
@@ -1852,6 +1837,52 @@ function getTimelineWindowTabs(timeline: PlayerValueTimeline): TimelineWindowTab
       isAvailable: points.length >= 2 || (key === 'all' && timeline.points.length >= 2),
     };
   });
+}
+
+function isTimelineWindowAvailable(timeline: PlayerValueTimeline, key: TimelineWindowKey) {
+  const points = key === 'all'
+    ? timeline.windows?.all?.points?.length || timeline.points.length
+    : timeline.windows?.[key]?.points?.length || 0;
+  return points >= 2;
+}
+
+function getDefaultTimelineWindowKey(timeline: PlayerValueTimeline): TimelineWindowKey {
+  const candidates = [
+    '6m',
+    timeline.selectedWindow,
+    '3m',
+    '1m',
+    '1y',
+    'all',
+  ].filter(Boolean) as TimelineWindowKey[];
+
+  const uniqueCandidates = Array.from(new Set(candidates));
+  return uniqueCandidates.find((key) => isTimelineWindowAvailable(timeline, key)) || timeline.selectedWindow || '6m';
+}
+
+function getTimelineWindowSnapshot(timeline: PlayerValueTimeline, key: TimelineWindowKey) {
+  const storedWindow = timeline.windows?.[key];
+  if (storedWindow?.points?.length) return storedWindow;
+
+  return {
+    key,
+    label: timelineWindowLabels[key] || key,
+    days: key === 'all' ? null : undefined,
+    pointCount: timeline.points.length,
+    startDate: timeline.points[0]?.date || null,
+    endDate: timeline.points.at(-1)?.date || null,
+    startValue: timeline.points[0]?.value ?? null,
+    endValue: timeline.points.at(-1)?.value ?? null,
+    delta: timeline.summary.delta,
+    deltaPct: timeline.summary.deltaPct,
+    points: timeline.points,
+  };
+}
+
+function getTimelineMovementColor(delta: number | null | undefined) {
+  if ((delta || 0) > 0) return '#34d399';
+  if ((delta || 0) < 0) return '#fb7185';
+  return '#38bdf8';
 }
 
 function formatTimelineWindowRange(window: TimelineWindowTab) {
@@ -2083,7 +2114,6 @@ function RedraftValueTimelinePanel({
   playerName,
   playerImageUrl,
   team,
-  playerPosition,
   teamColors,
   tileAccent,
   showSourceAdmin,
@@ -2094,7 +2124,6 @@ function RedraftValueTimelinePanel({
   playerName: string;
   playerImageUrl?: string | null;
   team?: string | null;
-  playerPosition?: string | null;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   showSourceAdmin?: boolean;
@@ -2139,7 +2168,6 @@ function RedraftValueTimelinePanel({
         playerName={playerName}
         playerImageUrl={playerImageUrl}
         team={team}
-        playerPosition={playerPosition}
         teamColors={teamColors}
         tileAccent={tileAccent}
         showSourceAdmin={showSourceAdmin}
@@ -2181,7 +2209,6 @@ function RedraftValueTimelinePanel({
         playerName={playerName}
         playerImageUrl={playerImageUrl}
         team={team}
-        playerPosition={playerPosition}
         teamColors={teamColors}
         tileAccent={tileAccent}
         showSourceAdmin={showSourceAdmin}
@@ -2206,7 +2233,6 @@ function PlayerValueTimelineCard({
   playerName,
   playerImageUrl,
   team,
-  playerPosition,
   teamColors,
   tileAccent,
   showSourceAdmin = false,
@@ -2222,7 +2248,6 @@ function PlayerValueTimelineCard({
   playerName: string;
   playerImageUrl?: string | null;
   team?: string | null;
-  playerPosition?: string | null;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   showSourceAdmin?: boolean;
@@ -2239,6 +2264,8 @@ function PlayerValueTimelineCard({
     () => getPreferredValueTimeline(serverTimeline, timeline),
     [serverTimeline, timeline]
   );
+  const displayWindowKey = getDefaultTimelineWindowKey(displayTimeline);
+  const displayWindow = getTimelineWindowSnapshot(displayTimeline, displayWindowKey);
   const hydrated = useHydratedValueTimeline({
     enabled: isDetailOpen && !disableStaticHydration,
     playerName,
@@ -2247,19 +2274,14 @@ function PlayerValueTimelineCard({
     serverTimeline,
     isServerHydrating,
   });
-  const firstPoint = displayTimeline.points[0];
-  const lastPoint = displayTimeline.points[displayTimeline.points.length - 1];
-  const delta = displayTimeline.summary.delta;
+  const firstPoint = displayWindow.points[0];
+  const lastPoint = displayWindow.points[displayWindow.points.length - 1];
+  const delta = displayWindow.delta ?? displayTimeline.summary.delta;
   const isPositive = (delta || 0) > 0;
   const isNegative = (delta || 0) < 0;
-  const strokeColor = isPositive ? '#34d399' : isNegative ? '#fb7185' : tileAccent || teamColors?.accent || '#67e8f9';
-  const path = useMemo(() => buildTimelinePath(displayTimeline.points, 260, 86), [displayTimeline.points]);
-  const deltaLabel = [
-    formatValueDelta(delta),
-    displayTimeline.summary.deltaPct !== null && displayTimeline.summary.deltaPct !== undefined
-      ? `${displayTimeline.summary.deltaPct > 0 ? '+' : ''}${displayTimeline.summary.deltaPct}%`
-      : null,
-  ].filter(Boolean).join(' / ');
+  const strokeColor = getTimelineMovementColor(delta);
+  const path = useMemo(() => buildTimelinePath(displayWindow.points, 260, 86), [displayWindow.points]);
+  const deltaLabel = buildTimelineWindowDeltaLabel({ delta, deltaPct: displayWindow.deltaPct }) || 'Flat';
 
   return (
     <>
@@ -2292,7 +2314,7 @@ function PlayerValueTimelineCard({
             </div>
           </div>
           <div className="grid shrink-0 justify-items-end gap-1 text-right">
-            <div className={`text-sm font-black ${isPositive ? 'text-emerald-300' : isNegative ? 'text-rose-300' : 'text-slate-200'}`}>
+            <div className={`text-sm font-black ${isPositive ? 'text-emerald-300' : isNegative ? 'text-rose-300' : 'text-sky-300'}`}>
               {deltaLabel}
             </div>
             <span className="player-value-timeline-open-pill">Open detail</span>
@@ -2311,19 +2333,19 @@ function PlayerValueTimelineCard({
             <line x1="8" y1="12" x2="252" y2="12" stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
             <path d={path} fill="none" stroke="rgba(15,23,42,0.85)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
             <path d={path} fill="none" stroke={strokeColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            {buildTimelineCoordinates(displayTimeline.points, 260, 86).map((point, index) => (
+            {buildTimelineCoordinates(displayWindow.points, 260, 86).map((point, index) => (
               <circle
-                key={`${displayTimeline.points[index].date}-${displayTimeline.points[index].value}`}
+                key={`${displayWindow.points[index].date}-${displayWindow.points[index].value}`}
                 cx={point.x}
                 cy={point.y}
-                r={index === 0 || index === displayTimeline.points.length - 1 ? 3.5 : 2.2}
-                fill={index === displayTimeline.points.length - 1 ? strokeColor : 'rgba(226,232,240,0.86)'}
+                r={index === 0 || index === displayWindow.points.length - 1 ? 3.5 : 2.2}
+                fill={index === displayWindow.points.length - 1 ? strokeColor : 'rgba(226,232,240,0.86)'}
               />
             ))}
           </svg>
           <div className="mt-1 flex items-center justify-between text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-400">
             <span>{formatTimelineDate(firstPoint.date)}</span>
-            <span>{displayTimeline.points.length} pts</span>
+            <span>{displayWindow.pointCount || displayWindow.points.length} pts</span>
             <span>{formatTimelineDate(lastPoint.date)}</span>
           </div>
         </div>
@@ -2351,9 +2373,6 @@ function PlayerValueTimelineCard({
             ))}
           </div>
         ) : null}
-        <p className="mt-2 text-xs leading-relaxed text-slate-400">
-          {displayTimeline.summary.note}
-        </p>
       </button>
 
       <PlayerValueTimelineDetailDialog
@@ -2362,13 +2381,11 @@ function PlayerValueTimelineCard({
         playerName={playerName}
         playerImageUrl={playerImageUrl}
         team={team}
-        playerPosition={playerPosition}
         teamColors={teamColors}
         tileAccent={tileAccent}
         title={detailTitle}
         description={detailDescription}
         timeline={hydrated.timeline}
-        strokeColor={strokeColor}
         deltaLabel={deltaLabel}
         showSourceAdmin={showSourceAdmin}
         isHydrating={hydrated.isHydrating}
@@ -2383,13 +2400,11 @@ function PlayerValueTimelineDetailDialog({
   playerName,
   playerImageUrl,
   team,
-  playerPosition,
   teamColors,
   tileAccent,
   title = 'Value Timeline',
   description,
   timeline,
-  strokeColor,
   deltaLabel,
   showSourceAdmin,
   isHydrating = false,
@@ -2399,32 +2414,31 @@ function PlayerValueTimelineDetailDialog({
   playerName: string;
   playerImageUrl?: string | null;
   team?: string | null;
-  playerPosition?: string | null;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   title?: string;
   description?: string;
   timeline: PlayerValueTimeline;
-  strokeColor: string;
   deltaLabel: string;
   showSourceAdmin: boolean;
   isHydrating?: boolean;
 }) {
-  const [activeWindowKey, setActiveWindowKey] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>(timeline.selectedWindow || '6m');
+  const [activeWindowKey, setActiveWindowKey] = useState<TimelineWindowKey>(() => getDefaultTimelineWindowKey(timeline));
   const [chartMode, setChartMode] = useState<'value' | 'rank'>('value');
   useEffect(() => {
-    const nextKey = timeline.selectedWindow || '6m';
-    if (!timeline.windows?.[activeWindowKey] && timeline.windows?.[nextKey]) {
+    const nextKey = getDefaultTimelineWindowKey(timeline);
+    if (!isTimelineWindowAvailable(timeline, activeWindowKey)) {
       setActiveWindowKey(nextKey);
     }
-  }, [activeWindowKey, timeline.selectedWindow, timeline.windows]);
-  const activeWindow = timeline.windows?.[activeWindowKey] || timeline.windows?.[timeline.selectedWindow || '6m'] || timeline.windows?.all || null;
-  const activePoints = activeWindow?.points?.length ? activeWindow.points : timeline.points;
+  }, [activeWindowKey, timeline]);
+  const activeWindow = getTimelineWindowSnapshot(timeline, activeWindowKey);
+  const activePoints = activeWindow.points.length ? activeWindow.points : timeline.points;
   const firstPoint = activePoints[0];
   const lastPoint = activePoints[activePoints.length - 1];
   const activeDelta = activeWindow?.delta ?? timeline.summary.delta;
   const activeDeltaPct = activeWindow?.deltaPct ?? timeline.summary.deltaPct;
   const activeDeltaLabel = buildTimelineWindowDeltaLabel({ delta: activeDelta, deltaPct: activeDeltaPct }) || deltaLabel || 'No move';
+  const activeStrokeColor = getTimelineMovementColor(activeDelta);
   const rankChartPoints = useMemo(() => buildPositionRankChartPoints(activePoints), [activePoints]);
   const hasRankChart = rankChartPoints.length >= 2;
   useEffect(() => {
@@ -2505,11 +2519,6 @@ function PlayerValueTimelineDetailDialog({
                 <DialogTitle className="player-value-timeline-title">{playerName}</DialogTitle>
                 <div className="player-value-identity-meta">
                   <TeamLogoPill team={team} showText className="player-value-identity-team-pill" />
-                  {playerPosition && playerPosition !== '-' && (
-                    <span className={getPositionRankPillClass(playerPosition, 'player-value-identity-position-pill')}>
-                      {playerPosition}
-                    </span>
-                  )}
                   {latestRankLabel !== '-' && (
                     <span className={getPositionRankPillClass(latestRankLabel, 'player-value-identity-rank-pill')}>
                       {latestRankLabel}
@@ -2521,10 +2530,8 @@ function PlayerValueTimelineDetailDialog({
                 </div>
               </div>
             </div>
-            <DialogDescription className="player-value-timeline-description">
-              {description || (isHydrating
-                ? 'Loading the full chart history from static value shards.'
-                : 'Market Price movement by range with value, positional rank, and all-time high/low.')}
+            <DialogDescription className="sr-only">
+              {description || (isHydrating ? `Loading ${title} for ${playerName}` : `${title} for ${playerName}`)}
             </DialogDescription>
           </DialogHeader>
 
@@ -2611,7 +2618,7 @@ function PlayerValueTimelineDetailDialog({
                     />
                   )}
                   <path d={chartPath} fill="none" stroke="rgba(15,23,42,0.9)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d={chartPath} fill="none" stroke={strokeColor} strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={chartPath} fill="none" stroke={activeStrokeColor} strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
                   {chartPoints.map((point, index) => {
                     const timelinePoint = chartTimelinePoints[index];
                     const hasEvents = showSourceAdmin && Boolean(timelinePoint.events?.length);
@@ -2621,8 +2628,8 @@ function PlayerValueTimelineDetailDialog({
                           cx={point.x}
                           cy={point.y}
                           r={selectedPointIndex === index ? 7.2 : visibleChartMode === 'value' && hasEvents ? 6.2 : index === 0 || index === chartPoints.length - 1 ? 4.8 : 3.4}
-                          fill={selectedPointIndex === index ? '#f8fafc' : visibleChartMode === 'value' && hasEvents ? 'rgba(251, 191, 36, 0.95)' : index === chartPoints.length - 1 ? strokeColor : 'rgba(226,232,240,0.92)'}
-                          stroke={selectedPointIndex === index ? strokeColor : hasEvents ? 'rgba(15,23,42,0.95)' : 'rgba(15,23,42,0.55)'}
+                          fill={selectedPointIndex === index ? '#f8fafc' : visibleChartMode === 'value' && hasEvents ? 'rgba(251, 191, 36, 0.95)' : index === chartPoints.length - 1 ? activeStrokeColor : 'rgba(226,232,240,0.92)'}
+                          stroke={selectedPointIndex === index ? activeStrokeColor : hasEvents ? 'rgba(15,23,42,0.95)' : 'rgba(15,23,42,0.55)'}
                           strokeWidth={selectedPointIndex === index ? 2.4 : visibleChartMode === 'value' && hasEvents ? 2 : 1}
                           className="player-value-chart-point"
                           role="button"
@@ -2663,14 +2670,6 @@ function PlayerValueTimelineDetailDialog({
                 <span>{visibleChartMode === 'rank' ? `${rankChartPoints.length} rank points` : `${activeWindow?.pointCount || activePoints.length} chart points`}</span>
                 <span>{formatTimelineDate(visibleChartMode === 'rank' ? lastRankPoint?.date || lastPoint.date : lastPoint.date)}</span>
               </div>
-              {selectedTimelinePoint && (
-                <div className="player-value-selected-point">
-                  <span>{formatTimelineDateWithYear(selectedTimelinePoint.date)}</span>
-                  <strong>{formatTimelineExactValue(selectedTimelinePoint.value)}</strong>
-                  <em>{formatTimelineRank(selectedTimelinePoint)}</em>
-                  <small>{selectedSourceLabel}</small>
-                </div>
-              )}
             </div>
 
             {(timeline.extremes?.high || timeline.extremes?.low) && (
@@ -2760,7 +2759,6 @@ function PlayerValueTimelineDetailDialog({
               </section>
             )}
 
-            <p className="player-value-timeline-note">{timeline.summary.note}</p>
           </div>
         </div>
       </DialogContent>
@@ -2872,7 +2870,7 @@ function getPeerValueForMode(
 
 function getValueChangeNote(pick: PlayerModalData) {
   if (pick.ktcValue !== undefined) {
-    const draftWindowLabel = getDraftWindowLabel(pick, pick.valueMode);
+    const draftWindowLabel = hasDraftPickContext(pick) ? getDraftWindowLabel(pick, pick.valueMode) : null;
     if (draftWindowLabel) return `Draft-day value compared against ${draftWindowLabel.toLowerCase()}.`;
     return 'Draft-day value to current value.';
   }

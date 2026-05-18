@@ -7562,6 +7562,7 @@ export default function Home() {
                           powerRankings={reportData.powerRankings}
                           dynastyTimelines={reportData.dynastyTimelines}
                           pickPortfolios={reportData.pickPortfolios}
+                          draftPicks={reportData.draftPicks}
                           tradeTendencies={reportData.tradeTendencies}
                           tradeProposalSignals={[
                             ...(reportData.tradeProposalSignals || []),

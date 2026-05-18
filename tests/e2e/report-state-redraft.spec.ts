@@ -108,21 +108,19 @@ test.describe('shareable report control state', () => {
     await expect(search).toHaveValue('Depth');
     await expect(page.locator('.rankings-position-toggle button[aria-label="WR"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('button', { name: 'Season' })).toHaveAttribute('aria-pressed', 'true');
-    const confidenceSort = page.locator('.rankings-sort-toggle').getByRole('button', { name: 'Confidence' });
-    await confidenceSort.click();
-    await expect(page).toHaveURL(/redraftSort=confidence/);
-    await expect(confidenceSort).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.rankings-sort-toggle').getByRole('button', { name: 'Confidence' })).toHaveCount(0);
   });
 
   test('opens redraft player details with season value first and keyboard close support', async ({ page }) => {
     await loadCachedReport(page, 'modal-redraft-league', '#rankings');
     await openFullRosterRankings(page);
 
-    await expect(page.locator('.ranking-value-confidence-chip').first()).toHaveText(/Confidence \d+%/);
+    await expect(page.locator('.ranking-value-confidence-chip')).toHaveCount(0);
     await page.getByRole('button', { name: /Bijan Robinson/ }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('.player-modal-metric-season-value')).toBeVisible();
+    await expect(dialog.locator('.player-modal-metric-last-season')).toHaveCount(0);
     await expect(dialog.locator('.player-modal-metric-dynasty-value')).toHaveCount(0);
     await expect(dialog.getByText('Degen Read', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Market Price', { exact: true })).toBeVisible();

@@ -1042,8 +1042,10 @@ test.describe("command center feature surfaces", () => {
         .first()
     ).toBeVisible();
     await expect(
-      testerAssetCard.locator(".trade-war-manager-board-section-head").filter({ hasText: "PICKS" })
+      testerAssetCard.locator(".trade-war-manager-board-section-head").filter({ hasText: "Picks" })
     ).toBeVisible();
+    await expect(testerAssetCard.locator(".trade-war-manager-board-rank-head").first()).toContainText("Ovr");
+    await expect(testerAssetCard.locator(".trade-war-manager-board-rank-head").first()).toContainText("Pos");
     await expect(testerAssetCard.getByText("2027 1st")).toBeVisible();
     await expect(tradeWarRoom.getByText("Value Match Finder")).toBeVisible();
     await tradeWarRoom.locator(".trade-war-side").first().locator("input").fill("Depth Receiver");
@@ -1073,6 +1075,46 @@ test.describe("command center feature surfaces", () => {
     });
     await expect(detailDialog.getByText("Riser +").first()).toBeVisible();
     await expect(detailDialog.getByText(/validated riser/i).first()).toBeVisible();
+  });
+
+  test("keeps trade war room rank labels clear and hides completed draft-year picks", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport("trade-war-completed-picks");
+    cachedReport.reportData.draftPicks = [
+      {
+        round: 1,
+        pick: 1,
+        playerName: "Completed Rookie",
+        playerPos: "RB",
+        manager: "Tester",
+        adp: null,
+        ktcValue: null,
+        currentKtcValue: null,
+        valueGain: null,
+        draftYear: "2026",
+        draftKind: "rookie",
+        player_id: "completed-rookie",
+      },
+    ];
+    await loadCachedReport(page, cachedReport, "#trades");
+
+    await page.getByRole("tab", { name: "Trade History" }).click();
+    const tradeWarRoom = await openReportSection(page, "Trade War Room");
+    const rosterScanner = tradeWarRoom.locator(".trade-war-manager-rank-inventory");
+    const testerAssetCard = rosterScanner
+      .locator(".trade-war-manager-board-card")
+      .filter({ hasText: "Tester" })
+      .first();
+
+    await testerAssetCard.locator("summary").click();
+    await expect(rosterScanner).not.toContainText("Room #");
+    await expect(rosterScanner).not.toContainText("2026 1st");
+    await expect(rosterScanner).not.toContainText("2026 2nd");
+    await expect(rosterScanner.getByText("2027 1st")).toBeVisible();
+    await expect(testerAssetCard.locator(".trade-war-manager-board-rank-head").first()).toContainText("Ovr");
+    await expect(testerAssetCard.locator(".trade-war-manager-board-rank-head").first()).toContainText("Pos");
+    await expect(testerAssetCard.locator(".trade-war-manager-board-section-pick .trade-war-manager-board-rank-head")).toContainText("Rnd");
   });
 
   test("persists portfolio snapshots locally across fresh app loads", async ({

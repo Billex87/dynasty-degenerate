@@ -9038,17 +9038,19 @@
   .player-value-timeline-modal-header {
     position: relative;
     display: grid;
+    justify-items: center;
     gap: 0.58rem;
     border-bottom: 1px solid rgba(34, 211, 238, 0.12);
-    padding: 1rem 3.25rem 0.9rem 1rem;
-    text-align: left;
+    padding: 1rem 3.35rem 0.9rem;
+    text-align: center;
   }
 
   .player-value-identity-row {
-    display: flex;
+    display: grid;
     min-width: 0;
-    align-items: center;
+    justify-items: center;
     gap: 0.85rem;
+    text-align: center;
   }
 
   .player-value-identity-photo {
@@ -9079,6 +9081,7 @@
   .player-value-identity-copy {
     display: grid;
     min-width: 0;
+    justify-items: center;
     gap: 0.36rem;
   }
 
@@ -9087,6 +9090,7 @@
     min-width: 0;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: 0.38rem;
   }
 
@@ -9944,8 +9948,19 @@
     }
 
     .player-value-identity-row {
-      align-items: flex-start;
       gap: 0.68rem;
+    }
+
+    .player-value-identity-meta {
+      gap: 0.32rem;
+    }
+
+    .player-value-timeline-title {
+      font-size: clamp(1.45rem, 10vw, 2rem);
+    }
+
+    .player-value-timeline-modal-header {
+      padding: 0.9rem 3rem 0.9rem;
     }
 
     .player-value-identity-photo {
@@ -9988,7 +10003,7 @@
 
   @media (min-width: 640px) {
     .player-value-timeline-modal-header {
-      padding: 1.2rem 3.6rem 1rem 1.25rem;
+      padding: 1.2rem 3.8rem 1rem;
     }
 
     .player-value-timeline-modal-body {

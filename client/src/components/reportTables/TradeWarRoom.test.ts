@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { ManagerIntelPlayer } from "@shared/types";
-import { buildTradeWarPackageIdeas, buildTradeWarValueMatchIdeas } from "./TradeWarRoom";
+import { filterCompletedFuturePickPortfolios } from "@shared/pickPortfolioFilters";
+import type { ManagerIntelPlayer, PickPortfolio } from "@shared/types";
+import {
+  buildTradeWarPackageIdeas,
+  buildTradeWarValueMatchIdeas,
+} from "./TradeWarRoom";
 
 type TradeWarAssetForTest = ManagerIntelPlayer & {
   manager: string;
@@ -146,5 +150,124 @@ describe("buildTradeWarValueMatchIdeas", () => {
     });
 
     expect(ideas[0].assets.map(row => row.player_id)).toEqual(["b2"]);
+  });
+});
+
+describe("filterCompletedFuturePickPortfolios", () => {
+  it("hides future picks for draft years that already have completed rookie picks", () => {
+    const portfolios: PickPortfolio[] = [
+      {
+        manager: "Tester",
+        value2025: 0,
+        value2026: 3000,
+        value2027: 2400,
+        count2025: 0,
+        count2026: 1,
+        count2027: 1,
+        totalValue: 5400,
+        ownPicks: 2,
+        acquiredPicks: 0,
+        projectedSlots: [],
+        futurePicks: [
+          {
+            id: "tester-2026-1",
+            label: "2026 1st",
+            manager: "Tester",
+            originalOwner: "Tester",
+            season: "2026",
+            round: 1,
+            value: 3000,
+          },
+          {
+            id: "tester-2027-1",
+            label: "2027 1st",
+            manager: "Tester",
+            originalOwner: "Tester",
+            season: "2027",
+            round: 1,
+            value: 2400,
+          },
+        ],
+      },
+    ];
+
+    const filtered = filterCompletedFuturePickPortfolios(portfolios, [
+      {
+        round: 1,
+        pick: 1,
+        playerName: "Completed Rookie",
+        playerPos: "RB",
+        manager: "Tester",
+        adp: null,
+        ktcValue: null,
+        currentKtcValue: null,
+        valueGain: null,
+        draftYear: "2026",
+        draftKind: "rookie",
+        player_id: "rookie-1",
+      },
+    ]);
+
+    expect(filtered[0].futurePicks?.map(pick => pick.label)).toEqual([
+      "2027 1st",
+    ]);
+    expect(filtered[0]).toMatchObject({
+      value2026: 0,
+      value2027: 2400,
+      count2026: 0,
+      count2027: 1,
+      totalValue: 2400,
+      ownPicks: 1,
+    });
+  });
+
+  it("keeps current-year future picks when only a startup draft is complete", () => {
+    const portfolios: PickPortfolio[] = [
+      {
+        manager: "Tester",
+        value2025: 0,
+        value2026: 3000,
+        value2027: 0,
+        count2025: 0,
+        count2026: 1,
+        count2027: 0,
+        totalValue: 3000,
+        ownPicks: 1,
+        acquiredPicks: 0,
+        projectedSlots: [],
+        futurePicks: [
+          {
+            id: "tester-2026-1",
+            label: "2026 1st",
+            manager: "Tester",
+            originalOwner: "Tester",
+            season: "2026",
+            round: 1,
+            value: 3000,
+          },
+        ],
+      },
+    ];
+
+    const filtered = filterCompletedFuturePickPortfolios(portfolios, [
+      {
+        round: 1,
+        pick: 1,
+        playerName: "Startup Player",
+        playerPos: "WR",
+        manager: "Tester",
+        adp: null,
+        ktcValue: null,
+        currentKtcValue: null,
+        valueGain: null,
+        draftYear: "2026",
+        draftKind: "startup",
+        player_id: "startup-1",
+      },
+    ]);
+
+    expect(filtered[0].futurePicks?.map(pick => pick.label)).toEqual([
+      "2026 1st",
+    ]);
   });
 });

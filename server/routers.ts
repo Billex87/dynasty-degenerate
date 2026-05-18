@@ -36,6 +36,7 @@ import { buildPlayerValueTimelineMap, getPlayerValueTimelineForPlayer, loadStore
 import { getRedraftValueTimelineForPlayer } from "./redraftValueTimeline";
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
+import { filterCompletedFuturePickPortfolios } from "../shared/pickPortfolioFilters";
 import {
   buildNflverseDraftCapitalBySleeperId,
   enrichPlayerDetailsWithNflverseDraftCapital,
@@ -5004,7 +5005,10 @@ export const appRouter = router({
             draftSlotsBySeason,
             totalTeams: Number(leagueInfo.total_rosters || rosters.length || 0),
           });
-          const pickPortfolios = buildPickPortfolios(managers, draftAnalysis.draftPicks, futurePickInventory);
+          const pickPortfolios = filterCompletedFuturePickPortfolios(
+            buildPickPortfolios(managers, draftAnalysis.draftPicks, futurePickInventory),
+            draftAnalysis.draftPicks
+          );
           const maxPickPortfolioValue = Math.max(...pickPortfolios.map((portfolio) => portfolio.totalValue), 1);
           const powerRankings = (reportData.powerRankings || [])
             .map((ranking) => {

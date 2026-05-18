@@ -65,7 +65,7 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
     valueTimeline: {
       profileKey: '12_sf_ppr_base',
       source: 'historical-value-index',
-      selectedWindow: '6m',
+      selectedWindow: '1m',
       availableWindows: [
         { key: '1m', label: '1M', days: 31, pointCount: 3, startDate: '2026-04-20', endDate: '2026-05-17', startValue: 5000, endValue: 5200, delta: 200, deltaPct: 4 },
         { key: '3m', label: '3M', days: 92, pointCount: 3, startDate: '2026-02-17', endDate: '2026-05-17', startValue: 4300, endValue: 5200, delta: 900, deltaPct: 20.9 },
@@ -297,6 +297,7 @@ test.describe('player detail modal', () => {
     const heroTextAlign = await dialog.locator('.athletic-headline').evaluate((node) => getComputedStyle(node.parentElement!).textAlign);
     expect(heroTextAlign).toBe('center');
     const dialogText = (await dialog.textContent()) || '';
+    await expect(dialog.getByText('Value Basis:', { exact: true })).toHaveCount(0);
 
     await expect(dialog.getByText('College')).toBeVisible();
     await expect(dialog.getByText('40 Time')).toBeVisible();
@@ -349,26 +350,29 @@ test.describe('player detail modal', () => {
     await expect(identityHeader).toBeVisible();
     await expect(identityHeader.locator('.player-value-timeline-title')).toHaveText('Bijan Robinson');
     await expect(identityHeader.locator('.player-value-identity-team-pill')).toContainText('BUF');
-    await expect(identityHeader.locator('.player-value-identity-position-pill')).toHaveText('RB');
+    await expect(identityHeader.locator('.player-value-identity-position-pill')).toHaveCount(0);
     await expect(identityHeader.locator('.player-value-identity-rank-pill')).toHaveText(/^RB\d+$/);
     await expect(identityHeader.locator('.player-value-identity-value-pill')).toHaveText(/^Value \d[\d,]*$/);
+    await expect(timelineDialog.locator('.player-value-timeline-description')).toHaveCount(0);
     await expect(timelineDialog.getByText('All-Time Range')).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: 'Value' })).toHaveAttribute('aria-selected', 'true');
-    const selectedPoint = timelineDialog.locator('.player-value-selected-point');
-    await expect(selectedPoint).toBeVisible();
-    await expect.poll(async () => {
-      const firstChartPoint = timelineDialog.locator('.player-value-chart-point').first();
-      const firstChartPointLabel = await firstChartPoint.getAttribute('aria-label');
-      const firstChartPointValue = firstChartPointLabel?.match(/ value ([^ ]+)/)?.[1] || '';
-      if (!firstChartPointValue) return false;
-      await firstChartPoint.click();
-      const selectedPointText = await selectedPoint.textContent();
-      return Boolean(selectedPointText?.includes(firstChartPointValue));
-    }).toBe(true);
+    await expect(timelineDialog.locator([
+      '.player-value-timeline-chart path[stroke="#34d399"]',
+      '.player-value-timeline-chart path[stroke="#fb7185"]',
+      '.player-value-timeline-chart path[stroke="#38bdf8"]',
+    ].join(', '))).toHaveCount(1);
     const pointPopover = timelineDialog.locator('.player-value-point-popover');
     await expect(pointPopover).toBeVisible();
     await expect(pointPopover.locator('strong')).toContainText(/\d/);
     await expect(pointPopover.locator('small')).toContainText(/source/i);
+    const firstChartPoint = timelineDialog.locator('.player-value-chart-point').first();
+    const firstChartPointLabel = await firstChartPoint.getAttribute('aria-label');
+    const firstChartPointValue = firstChartPointLabel?.match(/ value ([^ ]+)/)?.[1] || '';
+    expect(firstChartPointValue).not.toBe('');
+    await firstChartPoint.click();
+    await expect(pointPopover.locator('strong')).toContainText(firstChartPointValue);
+    await expect(timelineDialog.locator('.player-value-selected-point')).toHaveCount(0);
+    await expect(timelineDialog.locator('.player-value-timeline-note')).toHaveCount(0);
     await timelineDialog.getByRole('tab', { name: 'Position Rank' }).click();
     await expect(timelineDialog.getByRole('tab', { name: 'Position Rank' })).toHaveAttribute('aria-selected', 'true');
     await expect(timelineDialog.getByText(/rank points/i)).toBeVisible();

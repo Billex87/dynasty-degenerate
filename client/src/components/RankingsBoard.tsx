@@ -19,11 +19,10 @@ import {
   normalizeLeagueValueMode,
   type LeagueValueMode,
 } from '@/lib/leagueValueMode';
-import { getPlayerValueConfidence } from '@/lib/playerValueConfidence';
 import { readBooleanParam, readCsvParam, readEnumParam, readNumberParam, getUrlSearchParam, replaceUrlSearchParams } from '@/lib/reportUrlState';
 
 type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | 'PICK';
-type SortMode = 'rank' | 'value' | 'movement' | 'confidence';
+type SortMode = 'rank' | 'value' | 'movement';
 type DraftBuzzPosition = Exclude<PositionFilter, 'K' | 'DEF' | 'PICK'>;
 type SortDirection = 'asc' | 'desc';
 type DraftBuzzSortKey = 'class' | 'rank' | 'player' | 'team' | 'school' | 'position' | 'score' | 'forty' | 'height' | 'weight';
@@ -50,7 +49,7 @@ type RankingsTableConfig = {
 
 const PAGE_SIZE = 25;
 const DRAFT_BUZZ_PAGE_SIZE = 25;
-const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement', 'confidence'];
+const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement'];
 const SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 const POSITION_FILTER_KEYS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'PICK'] as const;
 const DRAFT_BUZZ_POSITIONS: DraftBuzzPosition[] = ['QB', 'RB', 'WR', 'TE'];
@@ -179,7 +178,7 @@ function getPreviousSeasonSummary(details?: PlayerDetails): { label: string; com
   return {
     label: seasonShortLabel ? `${seasonShortLabel} Totals:` : 'Totals:',
     compactLabel: [rank, points ? `${points} pts` : null].filter(Boolean).join(', '),
-    title: `${season || 'Previous season'} production: ${titleParts.join(' • ')}`,
+    title: `${season || 'Previous season'} production: ${titleParts.join(' - ')}`,
   };
 }
 
@@ -611,9 +610,6 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     context: 'rankings',
   }) || player.pos;
   const previousSeasonSummary = !player.isDevy && !player.isPick ? getPreviousSeasonSummary(details) : null;
-  const valueConfidence = !player.isDevy && !player.isPick
-    ? getPlayerValueConfidence({ valueProfile: rankingValueProfile, mode: config.leagueValueMode })
-    : null;
 
   return (
     <button type="button" className={`player-team-tile ranking-player-card value-board__row value-board__mobile-card ${player.isDevy ? 'ranking-player-card-devy value-board__row-devy' : ''} ${viewerOwnedHighlightClass(player.owner, viewerManager)}`} style={player.isDevy ? getCollegeTileStyle(player.college) : getTeamTileStyle(details?.team || player.team)} onClick={() => onSelect(player)}>
@@ -691,14 +687,6 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
           {showAIReads ? (
             <span className="ranking-ai-read-chip" title="Open the player card for the full AI read">
               AI Read
-            </span>
-          ) : null}
-          {valueConfidence ? (
-            <span
-              className={`ranking-value-confidence-chip ranking-value-confidence-chip-${valueConfidence.tone}`}
-              title={valueConfidence.note}
-            >
-              Confidence {valueConfidence.score}%
             </span>
           ) : null}
         </div>
@@ -987,11 +975,13 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
             <span className="draftbuzz-table__team">
               <DraftBuzzTeamLogo entry={player} />
             </span>
-            <span className="draftbuzz-table__school">
-              <DraftBuzzSchoolLogo entry={player} />
+            <span className="draftbuzz-table__top-meta">
+              <span className="draftbuzz-table__school">
+                <DraftBuzzSchoolLogo entry={player} />
+              </span>
+              <span className={getRankClass(player.position)}>{getDraftBuzzPositionRankLabel(player)}</span>
+              <strong className="draftbuzz-table__score">{formatDraftBuzzScore(player.rating)}</strong>
             </span>
-            <span className={getRankClass(player.position)}>{getDraftBuzzPositionRankLabel(player)}</span>
-            <strong className="draftbuzz-table__score">{formatDraftBuzzScore(player.rating)}</strong>
             <span className="draftbuzz-table__forty">{formatDraftBuzzForty(player.fortyYardDash)}</span>
             <span className="draftbuzz-table__height">{formatDraftBuzzTrait(player.height)}</span>
             <span className="draftbuzz-table__weight">{formatDraftBuzzTrait(player.weight)}</span>
@@ -1091,19 +1081,6 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
-    const confidenceScoreCache = new Map<string, number>();
-    const getConfidenceScore = (player: RankingPlayer) => {
-      const cacheKey = player.id || player.player_id || player.name;
-      const cached = confidenceScoreCache.get(cacheKey);
-      if (cached !== undefined) return cached;
-      const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
-      const valueProfile = getRankingValueProfile(player, details, config.leagueValueMode);
-      const score = player.isDevy || player.isPick
-        ? 0
-        : getPlayerValueConfidence({ valueProfile, mode: config.leagueValueMode }).score;
-      confidenceScoreCache.set(cacheKey, score);
-      return score;
-    };
 
     return rows
       .filter(player => {
@@ -1133,7 +1110,6 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
           return bValue - aValue || a.overallRank - b.overallRank;
         }
         if (sortMode === 'movement') return Math.abs(b.movement || 0) - Math.abs(a.movement || 0) || a.overallRank - b.overallRank;
-        if (sortMode === 'confidence') return getConfidenceScore(b) - getConfidenceScore(a) || a.overallRank - b.overallRank;
         return a.overallRank - b.overallRank;
       });
   }, [canIncludePicksWithOverall, config.board, config.hidePicks, config.leagueValueMode, deferredQuery, includePicksWithOverall, playerDetailsById, rows, selectedDraftClass, selectedPositions, sortMode]);
@@ -1253,9 +1229,6 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
             </button>
             <button type="button" className={sortMode === 'movement' ? 'active' : ''} aria-pressed={sortMode === 'movement'} onClick={() => setSortMode('movement')}>
               7-Day
-            </button>
-            <button type="button" className={sortMode === 'confidence' ? 'active' : ''} aria-pressed={sortMode === 'confidence'} onClick={() => setSortMode('confidence')}>
-              Confidence
             </button>
           </div>
         ) : null}
