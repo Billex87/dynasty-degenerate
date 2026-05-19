@@ -297,22 +297,31 @@ function getRosterPointsFor(roster: Pick<Roster, 'settings'>): number {
 
 function buildSeasonStandingsHistory(season: SeasonData): NonNullable<ReportData['standingsHistory']> {
   return season.rosters
-    .map((roster) => ({
-      season: season.label,
-      rosterId: roster.roster_id,
-      manager: season.rosterMap[roster.roster_id] || `Roster ${roster.roster_id}`,
-      wins: Number(roster.settings?.wins || 0),
-      losses: Number(roster.settings?.losses || 0),
-      ties: Number(roster.settings?.ties || 0),
-      pointsFor: getRosterPointsFor(roster),
-      rank: 0,
-    }))
+    .map((roster) => {
+      const sleeperRank = Number(
+        (roster.settings as Record<string, unknown> | undefined)?.rank
+      );
+      return {
+        season: season.label,
+        rosterId: roster.roster_id,
+        manager: season.rosterMap[roster.roster_id] || `Roster ${roster.roster_id}`,
+        wins: Number(roster.settings?.wins || 0),
+        losses: Number(roster.settings?.losses || 0),
+        ties: Number(roster.settings?.ties || 0),
+        pointsFor: getRosterPointsFor(roster),
+        sleeperRank: Number.isFinite(sleeperRank) && sleeperRank > 0 ? sleeperRank : null,
+        rank: 0,
+      };
+    })
     .sort((a, b) => {
+      if (a.sleeperRank !== null && b.sleeperRank !== null && a.sleeperRank !== b.sleeperRank) {
+        return a.sleeperRank - b.sleeperRank;
+      }
       if (b.wins !== a.wins) return b.wins - a.wins;
       if (a.losses !== b.losses) return a.losses - b.losses;
       return b.pointsFor - a.pointsFor;
     })
-    .map((row, index) => ({ ...row, rank: index + 1 }));
+    .map(({ sleeperRank: _sleeperRank, ...row }, index) => ({ ...row, rank: index + 1 }));
 }
 
 function normalizeRosterSlot(slot: string): string {

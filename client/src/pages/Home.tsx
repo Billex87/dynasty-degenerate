@@ -192,6 +192,8 @@ const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
   "/brand/logos/svg/logo-header-lockup-premium-color.svg?v=20260518-brand-refresh";
+const DYNASTY_MOBILE_REPORT_LOGO_SRC =
+  "/brand/logos/png/mobile-dd-stacked-transparent.png?v=20260519-mobile-transparent";
 const DYNASTY_REPORT_HEADER_LOGO_SRC =
   "/brand/logos/uploads/report-header-logo-compact-transparent-cropped.png?v=20260518-compact-crop";
 const REPORT_CACHE_DATA_VERSION = "combine-athletic-metrics-v2";
@@ -2668,6 +2670,84 @@ function getLeagueGlobePreviousSeason(reportData: ReportData): string | null {
   );
 }
 
+function getLatestLeagueGlobeAccoladeSeason(reportData: ReportData): string | null {
+  const seasons = Object.values(reportData.managerChampionships || {}).flatMap(
+    finish => [
+      ...(finish.seasons || []),
+      ...(finish.runnerUpSeasons || []),
+      ...(finish.lastPlaceSeasons || []),
+    ]
+  );
+
+  return (
+    Array.from(new Set(seasons.filter(Boolean))).sort((a, b) => {
+      const numericDiff = Number(b) - Number(a);
+      return Number.isFinite(numericDiff) && numericDiff !== 0
+        ? numericDiff
+        : b.localeCompare(a);
+    })[0] || null
+  );
+}
+
+function getLeagueGlobeCompletedSeasonRows(reportData: ReportData, season: string) {
+  const championships = reportData.managerChampionships || {};
+  const seasonRows = (reportData.standingsHistory || [])
+    .filter(row => String(row.season) === season)
+    .sort((a, b) => (Number(a.rank || 999) - Number(b.rank || 999)) || a.manager.localeCompare(b.manager));
+  const currentManagers = (reportData.currentStandings || [])
+    .map(row => row.manager)
+    .filter(Boolean);
+  const championshipManagers = Object.entries(championships);
+  const championManagers = championshipManagers
+    .filter(([, finish]) => (finish.seasons || []).includes(season))
+    .map(([manager]) => manager);
+  const runnerUpManagers = championshipManagers
+    .filter(([, finish]) => (finish.runnerUpSeasons || []).includes(season))
+    .map(([manager]) => manager);
+  const lastPlaceManagers = championshipManagers
+    .filter(([, finish]) => (finish.lastPlaceSeasons || []).includes(season))
+    .map(([manager]) => manager);
+  const managerOrder: string[] = [];
+  const added = new Set<string>();
+  const addManager = (manager?: string | null) => {
+    if (!manager) return;
+    const key = getLeagueGlobeNodeId(manager);
+    if (!key || added.has(key)) return;
+    added.add(key);
+    managerOrder.push(manager);
+  };
+
+  championManagers.forEach(addManager);
+  runnerUpManagers.forEach(addManager);
+  seasonRows.forEach(row => {
+    const key = getLeagueGlobeNodeId(row.manager);
+    if (lastPlaceManagers.some(manager => getLeagueGlobeNodeId(manager) === key)) return;
+    addManager(row.manager);
+  });
+  currentManagers.forEach(addManager);
+  lastPlaceManagers.forEach(addManager);
+
+  const teamCount =
+    Number(reportData.leagueDiagnostics?.teamCount || 0) ||
+    managerOrder.length ||
+    seasonRows.length;
+
+  return managerOrder.map((manager, index) => {
+    const rank = index + 1;
+    const lastPlaceKey = lastPlaceManagers.some(
+      lastPlaceManager => getLeagueGlobeNodeId(lastPlaceManager) === getLeagueGlobeNodeId(manager)
+    );
+    const finalRank = lastPlaceKey && teamCount > 0 ? teamCount : rank;
+    return {
+      manager,
+      rank: finalRank,
+      label: formatLeagueGlobePlace(finalRank),
+      subLabel: season,
+      sortRank: finalRank,
+    };
+  });
+}
+
 function getLeagueGlobeStandingContext(reportData: ReportData): {
   byManager: Map<
     string,
@@ -2675,6 +2755,7 @@ function getLeagueGlobeStandingContext(reportData: ReportData): {
       rank: number | null;
       label: string | null;
       subLabel: string;
+      sortRank?: number;
     }
   >;
   lensLabel: string;
@@ -2682,34 +2763,54 @@ function getLeagueGlobeStandingContext(reportData: ReportData): {
   leaderName: string | null;
 } {
   const useCurrentStandings = hasLeagueGlobeCurrentSeasonStarted(reportData);
+  const latestAccoladeSeason = getLatestLeagueGlobeAccoladeSeason(reportData);
   const previousSeason = getLeagueGlobePreviousSeason(reportData);
-  const rows = useCurrentStandings
+  const completedSeason = latestAccoladeSeason || previousSeason;
+  const completedSeasonRows =
+    !useCurrentStandings && completedSeason
+      ? getLeagueGlobeCompletedSeasonRows(reportData, completedSeason)
+      : [];
+  const standingsRows = useCurrentStandings
     ? reportData.currentStandings || []
-    : (reportData.standingsHistory || []).filter(
-        row => String(row.season) === previousSeason
-      );
-  const fallbackToPower = !rows.length;
+    : completedSeasonRows.length
+      ? []
+      : (reportData.standingsHistory || []).filter(
+          row => String(row.season) === previousSeason
+        );
+  const fallbackToPower = !standingsRows.length && !completedSeasonRows.length;
   const subLabel = useCurrentStandings
     ? "Current"
-    : previousSeason
-      ? `${previousSeason}`
+    : completedSeason
+      ? `${completedSeason}`
       : "Power";
   const byManager = new Map<
     string,
-    { rank: number | null; label: string | null; subLabel: string }
+    { rank: number | null; label: string | null; subLabel: string; sortRank?: number }
   >();
 
-  rows.forEach(row => {
+  standingsRows.forEach(row => {
     const rank = Number(row.rank || 0) || null;
     byManager.set(getLeagueGlobeNodeId(row.manager), {
       rank,
       label: formatLeagueGlobePlace(rank),
       subLabel,
+      sortRank: rank || undefined,
+    });
+  });
+
+  completedSeasonRows.forEach(row => {
+    byManager.set(getLeagueGlobeNodeId(row.manager), {
+      rank: row.rank,
+      label: row.label,
+      subLabel: row.subLabel,
+      sortRank: row.sortRank,
     });
   });
 
   const leader =
-    [...rows].sort((a, b) => (a.rank || 999) - (b.rank || 999))[0]?.manager ||
+    completedSeasonRows.find(row => row.rank === 1)?.manager ||
+    [...standingsRows].sort((a, b) => (a.rank || 999) - (b.rank || 999))[0]
+      ?.manager ||
     null;
 
   return {
@@ -2718,12 +2819,12 @@ function getLeagueGlobeStandingContext(reportData: ReportData): {
       ? "Power Rank"
       : useCurrentStandings
         ? "Current Place"
-        : `${previousSeason} Finish`,
+        : `${completedSeason} Finish`,
     leaderLabel: fallbackToPower
       ? "Power Leader"
       : useCurrentStandings
         ? "Standings Leader"
-        : "Last Year's Winner",
+        : "Champion",
     leaderName: leader,
   };
 }
@@ -2761,9 +2862,9 @@ function buildLeagueGlobeNodes(
         id: getLeagueGlobeNodeId(manager),
         name: manager,
         value: growth?.total_val ?? overview?.total_val ?? null,
-        standingLabel: standing?.label || formatLeagueGlobePlace(rank),
-        standingSubLabel: standing?.subLabel || "Power",
-        standingRank: standing?.rank ?? null,
+        standingLabel: standing?.label || null,
+        standingSubLabel: standing?.subLabel || null,
+        standingRank: standing?.sortRank ?? standing?.rank ?? null,
         avatarUrl: getDashboardManagerAvatar(manager, reportData.managerAvatars),
         isViewer: getLeagueGlobeNodeId(manager) === viewerKey,
         rank,
@@ -2837,44 +2938,10 @@ function OverviewLeagueGlobePanel({
   if (!nodes.length) return null;
 
   const connections = buildLeagueGlobeConnections(reportData, nodes);
-  const standingContext = getLeagueGlobeStandingContext(reportData);
-  const managerCount = nodes.length;
-  const topNode =
-    nodes.find(node => node.standingRank === 1) ||
-    nodes.find(node => node.name === standingContext.leaderName) ||
-    [...nodes].sort(
-      (a, b) =>
-        (a.standingRank || a.rank || 999) - (b.standingRank || b.rank || 999)
-    )[0];
-  const viewerNode = nodes.find(node => node.isViewer) || nodes[0];
-  const tradeCount = reportData.tradeHistory?.length || connections.length;
 
   return (
     <section className="overview-league-globe-row" aria-label="League network">
       <div className="overview-league-globe-panel">
-        <div className="overview-league-globe-copy">
-          <span>League Network</span>
-          <h2>Immersive 3D League Globe</h2>
-          <div className="overview-league-globe-stats" aria-label="League network summary">
-            <span>
-              <strong>{managerCount}</strong>
-              Managers
-            </span>
-            <span>
-              <strong>{tradeCount}</strong>
-              Trade Lines
-            </span>
-            <span>
-              <strong>{topNode?.standingLabel || "-"}</strong>
-              {standingContext.lensLabel}
-            </span>
-          </div>
-          <p>
-            {topNode?.name && topNode.standingLabel
-              ? `${topNode.name} is ${topNode.standingLabel.toLowerCase()} as the ${standingContext.leaderLabel.toLowerCase()}; ${viewerNode.name} stays highlighted for quick context.`
-              : "League standings and trade links are mapped into one league view."}
-          </p>
-        </div>
         <Suspense fallback={<div className="league-globe-canvas-fallback" aria-hidden="true" />}>
           <LeagueGlobe3D
             className="league-globe-canvas"
@@ -7542,7 +7609,7 @@ export default function Home() {
                         className={`report-header-mobile-brand-lockup md:hidden ${hasAdminPermissions ? "report-header-mobile-brand-lockup-admin" : ""}`}
                       >
                         <img
-                          src={DYNASTY_LOGO_SRC}
+                          src={DYNASTY_MOBILE_REPORT_LOGO_SRC}
                           alt="Dynasty Degenerates"
                           className="report-header-mobile-logo"
                         />

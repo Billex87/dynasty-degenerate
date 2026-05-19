@@ -1,6 +1,7 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { ChampionAvatarFrame } from "./ManagerChampionships";
 
 export interface LeagueGlobeNode {
   id: string;
@@ -26,9 +27,40 @@ interface LeagueGlobe3DProps {
   className?: string;
 }
 
+interface LeagueGlobePanelAnchor {
+  nodeX: number;
+  nodeY: number;
+  labelX: number;
+  labelY: number;
+  labelAlign?: "left" | "right";
+}
+
 const CYAN = "#00c8e8";
 const ORANGE = "#f4a020";
-const GREEN = "#22c55e";
+
+const VIEWER_PANEL_ANCHOR: LeagueGlobePanelAnchor = {
+  nodeX: 61.5,
+  nodeY: 55.5,
+  labelX: 62.8,
+  labelY: 55.5,
+  labelAlign: "right",
+};
+
+const GLOBE_PANEL_ANCHORS: LeagueGlobePanelAnchor[] = [
+  { nodeX: 44.5, nodeY: 43.5, labelX: 45.8, labelY: 43.5, labelAlign: "right" },
+  { nodeX: 52.5, nodeY: 35.5, labelX: 53.8, labelY: 35.5, labelAlign: "right" },
+  { nodeX: 58.4, nodeY: 43.2, labelX: 59.7, labelY: 43.2, labelAlign: "right" },
+  { nodeX: 64.8, nodeY: 29.5, labelX: 66.1, labelY: 29.5, labelAlign: "right" },
+  { nodeX: 76.5, nodeY: 25.2, labelX: 77.8, labelY: 25.2, labelAlign: "right" },
+  { nodeX: 84.2, nodeY: 38.5, labelX: 82.9, labelY: 38.5, labelAlign: "left" },
+  { nodeX: 91.4, nodeY: 49.2, labelX: 90.1, labelY: 49.2, labelAlign: "left" },
+  { nodeX: 78.6, nodeY: 53.5, labelX: 79.9, labelY: 53.5, labelAlign: "right" },
+  { nodeX: 69.7, nodeY: 64.8, labelX: 71, labelY: 64.8, labelAlign: "right" },
+  { nodeX: 55.4, nodeY: 64.8, labelX: 56.7, labelY: 64.8, labelAlign: "right" },
+  { nodeX: 47.8, nodeY: 71.8, labelX: 49.1, labelY: 71.8, labelAlign: "right" },
+  { nodeX: 83.6, nodeY: 71.6, labelX: 82.3, labelY: 71.6, labelAlign: "left" },
+  { nodeX: 72.8, nodeY: 86.8, labelX: 74.1, labelY: 86.8, labelAlign: "right" },
+];
 
 export default function LeagueGlobe3D({
   nodes,
@@ -71,9 +103,13 @@ export default function LeagueGlobe3D({
     !sceneSupport.canUseWebGL ||
     canvasFailed;
 
-  const labelPositions = useMemo(
-    () => buildLabelPositions(nodes),
+  const panelAnchors = useMemo(
+    () => buildPanelAnchors(nodes),
     [nodes]
+  );
+  const labelPositions = useMemo(
+    () => buildLabelPositions(nodes, panelAnchors),
+    [nodes, panelAnchors]
   );
 
   return (
@@ -107,6 +143,7 @@ export default function LeagueGlobe3D({
             <LeagueGlobeScene
               nodes={nodes}
               connections={connections}
+              panelAnchors={panelAnchors}
               reducedMotion={sceneSupport.reducedMotion}
             />
           </Suspense>
@@ -120,13 +157,19 @@ export default function LeagueGlobe3D({
           return (
             <span
               key={node.id}
-              className={`league-globe-manager-label${node.isViewer ? " is-viewer" : ""}${displayRank && displayRank <= 3 ? " is-leader" : ""}`}
+              className={`league-globe-manager-label${node.isViewer ? " is-viewer" : ""}${displayRank && displayRank <= 3 ? " is-leader" : ""}${position.align === "left" ? " is-label-left" : ""}`}
               style={{
                 left: `${position.x}%`,
                 top: `${position.y}%`,
               }}
+              data-node-index={index}
             >
-              <LeagueGlobeAvatar node={node} />
+              <ChampionAvatarFrame
+                managerName={node.name}
+                className="league-globe-label-avatar"
+              >
+                <LeagueGlobeAvatar node={node} />
+              </ChampionAvatarFrame>
               <span>
                 <strong>{node.name}</strong>
                 {node.standingLabel ? (
@@ -160,16 +203,18 @@ function canUseWebGL(): boolean {
 function LeagueGlobeScene({
   nodes,
   connections,
+  panelAnchors,
   reducedMotion,
 }: {
   nodes: LeagueGlobeNode[];
   connections: LeagueGlobeConnection[];
+  panelAnchors: Map<string, LeagueGlobePanelAnchor>;
   reducedMotion: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const nodePositions = useMemo(
-    () => buildNodePositions(nodes),
-    [nodes]
+    () => buildNodePositions(nodes, panelAnchors),
+    [nodes, panelAnchors]
   );
   const normalizedConnections = useMemo(
     () =>
@@ -202,46 +247,49 @@ function LeagueGlobeScene({
       <pointLight position={[-2.8, 2.2, 2.4]} color={CYAN} intensity={1.2} distance={6} />
       <pointLight position={[2.5, 1.4, 2.6]} color={ORANGE} intensity={0.85} distance={6} />
       <group ref={groupRef} position={[0, -0.42, 0]} rotation={[-0.12, 0, 0]}>
-        <GlobeGrid />
         <ConnectionLayer connections={normalizedConnections} reducedMotion={reducedMotion} />
-        {nodes.map((node, index) => {
-          const position = nodePositions.get(node.id);
-          if (!position) return null;
-          return (
-            <ManagerNode
-              key={node.id}
-              node={node}
-              index={index}
-              position={position}
-              reducedMotion={reducedMotion}
-            />
-          );
-        })}
       </group>
     </>
   );
 }
 
-function buildNodePositions(nodes: LeagueGlobeNode[]) {
+function buildPanelAnchors(nodes: LeagueGlobeNode[]) {
+  const anchors = new Map<string, LeagueGlobePanelAnchor>();
+  const viewerNode = nodes.find(node => node.isViewer) || nodes[0];
+  let fallbackIndex = 0;
+
+  nodes.forEach(node => {
+    if (viewerNode && node.id === viewerNode.id) {
+      anchors.set(node.id, VIEWER_PANEL_ANCHOR);
+      return;
+    }
+
+    const anchor = GLOBE_PANEL_ANCHORS[fallbackIndex % GLOBE_PANEL_ANCHORS.length];
+    anchors.set(node.id, anchor);
+    fallbackIndex += 1;
+  });
+
+  return anchors;
+}
+
+function buildNodePositions(
+  nodes: LeagueGlobeNode[],
+  panelAnchors: Map<string, LeagueGlobePanelAnchor>
+) {
   const positions = new Map<string, THREE.Vector3>();
-  const count = Math.max(nodes.length, 1);
-  const radius = 2.42;
 
   nodes.forEach((node, index) => {
-    const progress = count === 1 ? 0.5 : index / (count - 1);
-    const angle = THREE.MathUtils.lerp(Math.PI * 0.92, Math.PI * 0.08, progress);
-    const lane = index % 3;
+    const anchor = panelAnchors.get(node.id) || VIEWER_PANEL_ANCHOR;
     const jitterX = node.isViewer ? 0 : seededUnit(`${node.id}:x`) * 0.16;
     const jitterY = node.isViewer ? 0 : seededUnit(`${node.id}:y`) * 0.12;
     const jitterZ = node.isViewer ? 0 : seededUnit(`${node.id}:z`) * 0.1;
-    const rowOffset = lane === 0 ? 0.08 : lane === 1 ? -0.11 : 0.2;
     const valueLift = node.rank && node.rank <= 3 ? 0.16 : 0;
     positions.set(
       node.id,
       new THREE.Vector3(
-        Math.cos(angle) * (radius + (lane === 2 ? 0.12 : 0)) + jitterX,
-        Math.sin(angle) * 0.76 + rowOffset + valueLift + jitterY - 0.52,
-        0.38 + Math.sin(progress * Math.PI) * 0.18 - lane * 0.04 + jitterZ
+        ((anchor.nodeX - 50) / 50) * 3.9 + jitterX,
+        ((50 - anchor.nodeY) / 50) * 2.25 + valueLift + jitterY,
+        0.44 + (node.isViewer ? 0.1 : 0) + jitterZ
       )
     );
   });
@@ -249,20 +297,22 @@ function buildNodePositions(nodes: LeagueGlobeNode[]) {
   return positions;
 }
 
-function buildLabelPositions(nodes: LeagueGlobeNode[]) {
-  const positions = new Map<string, { x: number; y: number }>();
-  const count = Math.max(nodes.length, 1);
+function buildLabelPositions(
+  nodes: LeagueGlobeNode[],
+  panelAnchors: Map<string, LeagueGlobePanelAnchor>
+) {
+  const positions = new Map<string, { x: number; y: number; align: "left" | "right" }>();
 
   nodes.forEach((node, index) => {
-    const progress = count === 1 ? 0.5 : index / (count - 1);
-    const lane = index % 3;
+    const anchor = panelAnchors.get(node.id) || VIEWER_PANEL_ANCHOR;
     const xJitter = node.isViewer ? 0 : seededUnit(`${node.id}:label-x`) * 2.3;
     const yJitter = node.isViewer ? 0 : seededUnit(`${node.id}:label-y`) * 2.1;
-    const x = 31 + progress * 62 + xJitter;
-    const y = 68 - Math.sin(progress * Math.PI) * 34 + lane * 5.8 + yJitter;
+    const x = anchor.labelX + xJitter;
+    const y = anchor.labelY + yJitter;
     positions.set(node.id, {
-      x: Math.max(27, Math.min(94, x)),
-      y: Math.max(20, Math.min(82, y)),
+      x: Math.max(34, Math.min(94, x)),
+      y: Math.max(14, Math.min(86, y)),
+      align: anchor.labelAlign || "right",
     });
   });
 
@@ -413,48 +463,6 @@ function ConnectionLine({
       opacity={0.28}
       materialRef={materialRef}
     />
-  );
-}
-
-function ManagerNode({
-  node,
-  index,
-  position,
-  reducedMotion,
-}: {
-  node: LeagueGlobeNode;
-  index: number;
-  position: THREE.Vector3;
-  reducedMotion: boolean;
-}) {
-  const groupRef = useRef<THREE.Group>(null);
-  const displayRank = node.standingRank ?? node.rank ?? null;
-  const color = node.isViewer ? ORANGE : displayRank && displayRank <= 3 ? GREEN : CYAN;
-  const size = node.isViewer ? 0.115 : displayRank && displayRank <= 3 ? 0.098 : 0.084;
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current || reducedMotion) return;
-    const pulse = 1 + Math.sin(clock.elapsedTime * 1.9 + index * 0.62) * 0.08;
-    groupRef.current.scale.setScalar(pulse);
-  });
-
-  return (
-    <group ref={groupRef} position={position}>
-      <mesh>
-        <sphereGeometry args={[size, 24, 18]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={node.isViewer ? 1.1 : 0.72}
-          roughness={0.38}
-          metalness={0.24}
-        />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[size * 1.55, size * 2.1, 34]} />
-        <meshBasicMaterial color={color} transparent opacity={node.isViewer ? 0.36 : 0.22} side={THREE.DoubleSide} />
-      </mesh>
-    </group>
   );
 }
 
