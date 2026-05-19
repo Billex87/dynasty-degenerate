@@ -2055,12 +2055,11 @@ function AdminManagerSwitcher({
         <Button
           type="button"
           variant="outline"
-          className="report-header-action report-footer-primary-action !w-full justify-between gap-2 sm:!w-auto sm:min-w-[14rem] sm:max-w-[18rem]"
+          className="report-header-action report-footer-primary-action !w-auto min-w-0 flex-1 justify-between gap-2 px-3 sm:!w-auto sm:min-w-[14rem] sm:max-w-[18rem]"
           aria-label={`View as ${selectedManagerLabel}`}
         >
           <span className="flex min-w-0 items-center gap-2">
             <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span className="report-header-action-label">View As</span>
             <span className="min-w-0 truncate text-cyan-50/85">
               {selectedManagerLabel}
             </span>
@@ -8588,42 +8587,44 @@ export default function Home() {
                 <div className="report-footer-actions">
                   <div className="report-footer-primary-actions">
                     {hasAdminPermissions && (
-                      <Button
-                        type="button"
-                        onClick={handleAdminToolsClick}
-                        variant="outline"
-                        className={`report-header-action report-footer-primary-action !w-full sm:!w-auto report-header-admin-toggle ${canViewAdminFeatureExpansion ? "report-header-admin-toggle-active" : ""}`}
-                        aria-pressed={canViewAdminFeatureExpansion}
-                        aria-label={
-                          canViewAdminFeatureExpansion
-                            ? "Switch to regular report view"
-                            : "Return to admin report view"
-                        }
-                        title={
-                          canViewAdminFeatureExpansion
-                            ? "Hide admin-only AI annotations and diagnostics"
-                            : "Show admin-only AI annotations and diagnostics"
-                        }
-                      >
-                        <span className="report-header-action-label">
-                          {canViewAdminFeatureExpansion
-                            ? "Regular Report"
-                            : "Admin Tools"}
-                        </span>
-                      </Button>
-                    )}
-                    {hasAdminPermissions && hasManagerViewOptions && (
-                      <AdminManagerSwitcher
-                        managers={reportManagerNames}
-                        activeManager={effectiveViewerManager}
-                        managerAvatars={reportData.managerAvatars}
-                        onSelect={setAdminViewerManager}
-                      />
+                      <div className="flex w-full max-w-[32rem] items-stretch justify-center gap-2 sm:w-auto sm:max-w-none">
+                        <Button
+                          type="button"
+                          onClick={handleAdminToolsClick}
+                          variant="outline"
+                          className={`report-header-action report-footer-primary-action !w-auto min-w-0 flex-[1_1_42%] px-3 sm:flex-none report-header-admin-toggle ${canViewAdminFeatureExpansion ? "report-header-admin-toggle-active" : ""}`}
+                          aria-pressed={canViewAdminFeatureExpansion}
+                          aria-label={
+                            canViewAdminFeatureExpansion
+                              ? "Switch to regular report view"
+                              : "Return to admin report view"
+                          }
+                          title={
+                            canViewAdminFeatureExpansion
+                              ? "Hide admin-only AI annotations and diagnostics"
+                              : "Show admin-only AI annotations and diagnostics"
+                          }
+                        >
+                          <span className="report-header-action-label truncate">
+                            {canViewAdminFeatureExpansion
+                              ? "Regular Report"
+                              : "Admin Tools"}
+                          </span>
+                        </Button>
+                        {hasManagerViewOptions && (
+                          <AdminManagerSwitcher
+                            managers={reportManagerNames}
+                            activeManager={effectiveViewerManager}
+                            managerAvatars={reportData.managerAvatars}
+                            onSelect={setAdminViewerManager}
+                          />
+                        )}
+                      </div>
                     )}
                     <Button
                       onClick={handleAnalyzeAnotherLeague}
                       variant="outline"
-                      className="report-header-action report-footer-primary-action !w-full sm:!w-auto"
+                      className="report-header-action report-footer-primary-action !w-full max-w-[32rem] sm:!w-auto sm:max-w-none"
                       aria-label="Switch to another league report"
                     >
                       <span className="report-header-action-label">
