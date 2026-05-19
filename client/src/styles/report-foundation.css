@@ -727,6 +727,242 @@
   white-space: nowrap;
 }
 
+.admin-schedule-edge {
+  width: min(100%, 74rem);
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 0.95rem;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(34, 211, 238, 0.12), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(249, 115, 22, 0.1), transparent 32%),
+    rgba(2, 6, 23, 0.72);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
+.admin-schedule-edge-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.14);
+  padding: 0.75rem 0.85rem;
+}
+
+.admin-schedule-edge-filter {
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.34);
+  padding: 0.38rem 0.7rem;
+  color: #cffafe;
+  font-size: 0.68rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-schedule-edge-filter:hover:not(:disabled),
+.admin-schedule-edge-filter-active {
+  border-color: rgba(251, 146, 60, 0.65);
+  background: rgba(251, 146, 60, 0.18);
+  color: #fed7aa;
+  transform: translateY(-1px);
+}
+
+.admin-schedule-edge-filter:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.admin-schedule-edge-table-wrap {
+  overflow-x: auto;
+  padding: 0.85rem;
+}
+
+.admin-schedule-health {
+  display: grid;
+  gap: 0.35rem;
+  border-top: 1px solid rgba(34, 211, 238, 0.12);
+  border-bottom: 1px solid rgba(34, 211, 238, 0.12);
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.admin-schedule-health-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.78rem 0.9rem 0;
+}
+
+.admin-schedule-health-heading span {
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.admin-schedule-health-heading em {
+  color: #93c5fd;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.admin-schedule-edge-table {
+  width: 100%;
+  min-width: 58rem;
+  border-collapse: separate;
+  border-spacing: 0 0.48rem;
+}
+
+.admin-schedule-health-table {
+  min-width: 42rem;
+}
+
+.admin-schedule-health-table th,
+.admin-schedule-health-table td {
+  text-align: center;
+}
+
+.admin-schedule-health-table th:first-child,
+.admin-schedule-health-table td:first-child {
+  text-align: left;
+}
+
+.admin-schedule-edge-table th {
+  padding: 0 0.62rem 0.2rem;
+  color: #67e8f9;
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-schedule-edge-table td {
+  border-block: 1px solid rgba(34, 211, 238, 0.12);
+  background: rgba(2, 6, 23, 0.56);
+  padding: 0.68rem 0.62rem;
+  color: #dbeafe;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.3;
+  vertical-align: middle;
+}
+
+.admin-schedule-edge-table td:first-child {
+  border-left: 1px solid rgba(34, 211, 238, 0.12);
+  border-radius: 0.78rem 0 0 0.78rem;
+}
+
+.admin-schedule-edge-table td:last-child {
+  border-right: 1px solid rgba(34, 211, 238, 0.12);
+  border-radius: 0 0.78rem 0.78rem 0;
+}
+
+.admin-schedule-edge-table strong,
+.admin-schedule-edge-table span {
+  display: block;
+  min-width: 0;
+}
+
+.admin-schedule-edge-table strong {
+  color: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.admin-schedule-edge-table span {
+  margin-top: 0.18rem;
+  color: #93c5fd;
+  font-size: 0.66rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.admin-schedule-edge-pill {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.32);
+  padding: 0.28rem 0.5rem;
+  color: #cffafe;
+  font-size: 0.66rem;
+  font-weight: 950;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.admin-schedule-edge-table .admin-schedule-edge-pill {
+  display: inline-flex;
+  margin-top: 0;
+}
+
+.admin-schedule-edge-pill-good {
+  border-color: rgba(52, 211, 153, 0.26);
+  background: rgba(6, 78, 59, 0.34);
+  color: #bbf7d0;
+}
+
+.admin-schedule-edge-pill-info {
+  border-color: rgba(34, 211, 238, 0.24);
+  background: rgba(8, 47, 73, 0.34);
+  color: #cffafe;
+}
+
+.admin-schedule-edge-pill-warn {
+  border-color: rgba(251, 191, 36, 0.28);
+  background: rgba(120, 53, 15, 0.32);
+  color: #fde68a;
+}
+
+.admin-schedule-edge-pill-danger {
+  border-color: rgba(251, 113, 133, 0.32);
+  background: rgba(127, 29, 29, 0.32);
+  color: #fecdd3;
+}
+
+.admin-schedule-health-missing {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.admin-schedule-edge-empty {
+  display: grid;
+  gap: 0.32rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.admin-schedule-edge-empty strong {
+  color: #fed7aa;
+  font-size: 0.92rem;
+  font-weight: 950;
+}
+
+.admin-schedule-edge-empty p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .admin-ai-readout-diagnostics {
   display: grid;
   gap: 0.85rem;
@@ -8076,6 +8312,20 @@
     line-height: 1.32;
   }
 
+  .waiver-intel-source-trace {
+    grid-column: 1 / -1;
+    border-color: rgba(34, 211, 238, 0.2);
+    background: rgba(8, 47, 73, 0.22);
+  }
+
+  .waiver-intel-source-trace summary {
+    color: #bae6fd;
+  }
+
+  .waiver-intel-source-trace summary span {
+    color: #67e8f9;
+  }
+
   @keyframes manager-command-swap-shake {
     0%, 78%, 100% {
       transform: translate3d(0, 0, 0);
@@ -9526,6 +9776,10 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.45rem;
+  }
+
+  .player-value-source-history-header {
+    margin-top: 0.75rem;
   }
 
   .player-value-source-audit-row {
@@ -11323,20 +11577,21 @@
     align-items: center;
     justify-content: center;
     gap: 0.55rem;
+    padding: 0.35rem 0.2rem 0;
     color: #94a3b8;
-    font-size: 0.76rem;
+    font-size: 0.72rem;
     font-weight: 800;
   }
 
   .recent-transaction-display-button {
     display: inline-flex;
-    min-height: 2rem;
+    min-height: 2.2rem;
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(251, 146, 60, 0.42);
     border-radius: 999px;
     background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(14, 165, 233, 0.12));
-    padding: 0.38rem 0.78rem;
+    padding: 0 0.9rem;
     color: #fed7aa;
     font-size: 0.72rem;
     font-weight: 950;
@@ -11345,13 +11600,18 @@
     transition:
       border-color 160ms ease,
       background 160ms ease,
-      color 160ms ease;
+      box-shadow 160ms ease,
+      color 160ms ease,
+      transform 160ms ease;
   }
 
-  .recent-transaction-display-button:hover {
+  .recent-transaction-display-button:hover,
+  .recent-transaction-display-button:focus-visible {
     border-color: rgba(251, 146, 60, 0.72);
     background: linear-gradient(135deg, rgba(251, 146, 60, 0.26), rgba(14, 165, 233, 0.18));
+    box-shadow: 0 12px 26px rgba(124, 45, 18, 0.22);
     color: #fff7ed;
+    transform: translateY(-1px);
   }
 
   .recent-transaction-date-group {

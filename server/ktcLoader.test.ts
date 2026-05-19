@@ -71,6 +71,44 @@ describe('hasUsableBlendedSnapshotValues', () => {
     expect(sanitized.dallenbentley.position_rank).toBeUndefined();
   });
 
+  it('does not treat weak FantasyPros rows as enough support for prospect-only Flock', () => {
+    const sanitized = sanitizeKtcSnapshotValues({
+      thinprospectte: {
+        name: 'Thin Prospect TE',
+        ktc_value: 1241,
+        position_rank: 'TE43',
+        dynasty_value: 1241,
+        true_value: 1241,
+        expert_value_flock: 1728,
+        expert_value_fantasypros: 111,
+        fantasypros_dynasty_rank: 502,
+        fantasypros_dynasty_position_rank: 'TE84',
+        expert_value_dynastyprocess: 3,
+        value_sources: ['FlockFantasy', 'FantasyPros', 'DynastyProcess'],
+      },
+    }, {
+      PROSPECTS_SF: {
+        thinprospectte: {
+          name: 'Thin Prospect TE',
+          ktc_value: 1728,
+          position_rank: 'TE15',
+        },
+      },
+    });
+
+    expect(sanitized.thinprospectte).toMatchObject({
+      name: 'Thin Prospect TE',
+      ktc_value: 111,
+      dynasty_value: 111,
+      true_value: 111,
+      expert_value_fantasypros: 111,
+      expert_value_dynastyprocess: 3,
+      value_sources: ['FantasyPros', 'DynastyProcess'],
+    });
+    expect(sanitized.thinprospectte.expert_value_flock).toBeUndefined();
+    expect(sanitized.thinprospectte.position_rank).toBeUndefined();
+  });
+
   it('keeps Flock full-ranking rows even when no other market source is present', () => {
     const sanitized = sanitizeKtcSnapshotValues({
       curtissamuel: {

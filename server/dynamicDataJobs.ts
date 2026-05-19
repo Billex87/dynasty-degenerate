@@ -3,7 +3,9 @@ import path from 'path';
 import { listLeagueReportCacheEntries } from './db';
 import { loadDraftSharksScheduleContext } from './draftSharksSchedule';
 import { warmEspnDepthChartsForTeams } from './espnDepthCharts';
+import { refreshFantasyProsEndpointSnapshots } from './fantasyProsEndpointSnapshots';
 import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth } from './fantasyProsHealth';
+import { resolveFantasyProsSnapshotStartWeek } from './fantasyProsSnapshotWindow';
 import { loadBlendedKTCValues, loadLatestLocalWeeklyMomentumSnapshot } from './ktcLoader';
 import { attachLeagueAiConfidence, persistLeagueAiConfidenceSnapshot } from './leagueAiConfidence';
 import { loadPlayerNewsBundle } from './playerNews';
@@ -11,6 +13,7 @@ import { loadNflverseDraftCapitalSnapshot } from './nflverseDraftCapital';
 import { loadNflversePlayerContext } from './nflversePlayerContext';
 import { refreshPlayerPropSnapshots } from './playerPropSnapshots';
 import { buildProspectLookup, loadProspectContext } from './prospectSource';
+import { getCurrentRankingSeason } from './rankingSeason';
 import { buildRankingsBoard } from './rankingsBoard';
 import { refreshSleeperSeasonStatsSnapshots } from './sleeperSeasonStats';
 import { buildSourceHealthEvents, recordSourceHealthEvents } from './sourceHealth';
@@ -38,6 +41,39 @@ type CachedReportDataWithDiagnostics = ReportData & {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error');
+}
+
+function envFlag(name: string): boolean {
+  return /^(?:1|true|yes|on)$/i.test(String(process.env[name] || ''));
+}
+
+function envNumber(name: string, fallback: number): number {
+  const parsed = Number(process.env[name]);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function envOptionalNumber(name: string): number | null {
+  const parsed = Number(process.env[name]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function resolveFantasyProsSnapshotWindow(shouldResolveWeek: boolean) {
+  const season = getCurrentRankingSeason();
+  const fallbackWeek = envNumber('FANTASYPROS_SNAPSHOT_START_WEEK', 1);
+  const forcedStartWeek = envOptionalNumber('FANTASYPROS_SNAPSHOT_FORCE_START_WEEK');
+  const currentWeek = forcedStartWeek
+    ?? (shouldResolveWeek
+      ? await resolveFantasyProsSnapshotStartWeek({
+        season,
+        fallbackWeek,
+      })
+      : fallbackWeek);
+
+  return {
+    season,
+    currentWeek,
+    weekWindow: envNumber('FANTASYPROS_SNAPSHOT_WEEK_WINDOW', 3),
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, any> {
@@ -265,6 +301,47 @@ export async function backfillSourceHealthFromCachedReports(options: {
   };
 }
 
+export async function refreshFantasyProsEndpointSnapshotRefresh(options: {
+  force?: boolean;
+} = {}) {
+  const enabled = envFlag('ENABLE_FANTASYPROS_ENDPOINT_SNAPSHOTS') || options.force === true;
+  const expanded = envFlag('ENABLE_FANTASYPROS_EXPANDED_SNAPSHOTS') || envFlag('ENABLE_FANTASYPROS_EXPANDED_HEALTH');
+  const snapshotWindow = await resolveFantasyProsSnapshotWindow(expanded);
+
+  if (!enabled) {
+    return {
+      skipped: true,
+      reason: 'ENABLE_FANTASYPROS_ENDPOINT_SNAPSHOTS is not enabled.',
+      season: snapshotWindow.season,
+      currentWeek: snapshotWindow.currentWeek,
+      weekWindow: snapshotWindow.weekWindow,
+      results: [] as Awaited<ReturnType<typeof refreshFantasyProsEndpointSnapshots>>,
+    };
+  }
+
+  const results = await refreshFantasyProsEndpointSnapshots({
+    season: snapshotWindow.season,
+    scoring: 'PPR',
+    includeProjections: envFlag('ENABLE_FANTASYPROS_PROJECTIONS'),
+    includeExpanded: expanded,
+    currentWeek: snapshotWindow.currentWeek,
+    weekWindow: snapshotWindow.weekWindow,
+    requestDelayMs: envNumber('FANTASYPROS_SNAPSHOT_REQUEST_DELAY_MS', envNumber('FANTASYPROS_HEALTH_REQUEST_DELAY_MS', 750)),
+    rateLimitRetryAttempts: envNumber('FANTASYPROS_SNAPSHOT_RATE_LIMIT_RETRY_ATTEMPTS', 1),
+    rateLimitRetryDelayMs: envNumber('FANTASYPROS_SNAPSHOT_RATE_LIMIT_RETRY_DELAY_MS', 5000),
+    stopOnRateLimit: envFlag('FANTASYPROS_SNAPSHOT_STOP_ON_RATE_LIMIT'),
+  });
+
+  return {
+    skipped: false,
+    reason: null,
+    season: snapshotWindow.season,
+    currentWeek: snapshotWindow.currentWeek,
+    weekWindow: snapshotWindow.weekWindow,
+    results,
+  };
+}
+
 export async function refreshRankingSourceSnapshots() {
   const valueProfileKey = getValueSourceProfileKey(DEFAULT_REFRESH_VALUE_OPTIONS);
   const [prospectContext, ktcValues] = await Promise.all([
@@ -293,11 +370,21 @@ export async function refreshRankingSourceSnapshots() {
     job: 'dynamic-data-refresh',
     diagnostics,
   });
+  const fantasyProsExpandedHealth = envFlag('ENABLE_FANTASYPROS_EXPANDED_HEALTH');
+  const fantasyProsSnapshotWindow = await resolveFantasyProsSnapshotWindow(fantasyProsExpandedHealth);
   const fantasyProsHealthRows = await checkFantasyProsApiHealth({
-    season: String(new Date().getFullYear()),
+    season: fantasyProsSnapshotWindow.season,
     scoring: 'PPR',
-    includeProjections: /^(?:1|true|yes|on)$/i.test(String(process.env.ENABLE_FANTASYPROS_PROJECTIONS || '')),
+    includeProjections: envFlag('ENABLE_FANTASYPROS_PROJECTIONS'),
+    includeExpanded: fantasyProsExpandedHealth,
+    currentWeek: fantasyProsSnapshotWindow.currentWeek,
+    weekWindow: fantasyProsSnapshotWindow.weekWindow,
+    requestDelayMs: envNumber('FANTASYPROS_HEALTH_REQUEST_DELAY_MS', 750),
   });
+  const fantasyProsEndpointSnapshotRefresh = envFlag('ENABLE_FANTASYPROS_ENDPOINT_SNAPSHOTS_DAILY')
+    ? await refreshFantasyProsEndpointSnapshotRefresh()
+    : null;
+  const fantasyProsEndpointSnapshots = fantasyProsEndpointSnapshotRefresh?.results || [];
   const fantasyProsHealthEvents = buildFantasyProsSourceHealthEvents(fantasyProsHealthRows);
   const sourceHealth = await recordSourceHealthEvents([
     ...sourceHealthEvents,
@@ -309,8 +396,18 @@ export async function refreshRankingSourceSnapshots() {
     profileKey: valueProfileKey,
     diagnosticCount: diagnostics.length,
     fantasyProsEndpointCount: fantasyProsHealthRows.length,
+    fantasyProsEndpointSnapshotCount: fantasyProsEndpointSnapshots.length,
     alertCount: sourceHealthEvents.length + fantasyProsHealthEvents.filter((event) => event.level !== 'info').length,
     sourceHealthStored: sourceHealth.stored,
+    fantasyProsEndpointSnapshotRefresh: fantasyProsEndpointSnapshotRefresh
+      ? {
+        skipped: fantasyProsEndpointSnapshotRefresh.skipped,
+        reason: fantasyProsEndpointSnapshotRefresh.reason,
+        season: fantasyProsEndpointSnapshotRefresh.season,
+        currentWeek: fantasyProsEndpointSnapshotRefresh.currentWeek,
+        weekWindow: fantasyProsEndpointSnapshotRefresh.weekWindow,
+      }
+      : null,
     fantasyProsHealth: fantasyProsHealthRows.map((row) => ({
       key: row.key,
       source: row.label,
@@ -319,6 +416,20 @@ export async function refreshRankingSourceSnapshots() {
       rowCount: row.rowCount,
       totalExperts: row.totalExperts,
       lastUpdated: row.lastUpdated,
+      retryAfterMs: row.retryAfterMs,
+      skippedReason: row.skippedReason,
+      error: row.error,
+    })),
+    fantasyProsEndpointSnapshots: fantasyProsEndpointSnapshots.map((row) => ({
+      key: row.endpointKey,
+      sourceKey: row.sourceKey,
+      source: row.endpointLabel,
+      board: row.board,
+      status: row.status,
+      rowCount: row.rowCount,
+      totalExperts: row.totalExperts,
+      lastUpdated: row.lastUpdated,
+      persisted: row.persisted,
       error: row.error,
     })),
     diagnostics: diagnostics.map((diagnostic) => ({

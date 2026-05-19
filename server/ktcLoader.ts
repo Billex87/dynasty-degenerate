@@ -28,6 +28,10 @@ interface KTCValues {
     flock_position_rank?: string | null;
     flock_tier?: number | null;
     flock_format?: string | null;
+    flock_best_ball_value?: number;
+    flock_best_ball_rank?: number;
+    flock_best_ball_position_rank?: string | null;
+    flock_best_ball_format?: string | null;
     expert_value_fantasypros?: number;
     fantasypros_dynasty_rank?: number;
     fantasypros_dynasty_position_rank?: string | null;
@@ -63,7 +67,6 @@ const localKtcSnapshotCache = new Map<string, KTCValues>();
 const KTC_SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 const BLENDED_VALUE_PROFILE_KEY_PATTERN = /^(10|12|14)_(one_qb|sf)_(standard|half_ppr|ppr)_(base|tep_0_5|tep_1_0|tep_1_5)$/;
 const PRIMARY_VALUE_SOURCES = new Set(['FlockFantasy', 'FantasyPros', 'DynastyNerds', 'FantasyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']);
-const LOW_CONFIDENCE_FLOCK_FALLBACK_VALUE_MAX = 25;
 
 export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshots');
 const KTC_STATIC_DIR = path.join(process.cwd(), 'server', 'ktc-static');
@@ -229,28 +232,20 @@ function sanitizeLowConfidenceFlockProspectValue(
   const hasFlockValue = sources.has('FlockFantasy') || Boolean(value.expert_value_flock);
   if (!hasFlockValue) return value;
 
-  const hasDynastyMarketSupport = Boolean(
-    value.market_value_ktc
-    || value.market_value_fantasycalc
-    || value.expert_value_fantasypros
-    || value.expert_value_dynastynerds
-    || value.expert_value_fantasynerds
-  );
-  const hasSeasonSupport = Boolean(
-    value.redraft_value
-    || value.fantasypros_season_value
-    || value.fantasypros_position_rank
-  );
-  if (hasDynastyMarketSupport || hasSeasonSupport) return value;
-
   const hasProspectProfile = hasFlockSourceProfile(key, flockSourceProfiles, ['PROSPECTS_SF', 'PROSPECTS']);
   const hasFullProfile = hasFlockSourceProfile(key, flockSourceProfiles, ['SUPERFLEX', 'ONEQB']);
   const markedProspectFlock = Boolean(value.flock_format?.startsWith('PROSPECTS')) || (hasProspectProfile && !hasFullProfile);
   if (!markedProspectFlock) return value;
 
-  const fallbackValue = Number(value.expert_value_dynastyprocess || 0);
+  const fallbackValue = [
+    value.market_value_ktc,
+    value.market_value_fantasycalc,
+    value.expert_value_dynastynerds,
+    value.expert_value_fantasynerds,
+    value.expert_value_fantasypros,
+    value.expert_value_dynastyprocess,
+  ].map(candidate => Number(candidate || 0)).find(candidate => Number.isFinite(candidate) && candidate > 0) || 0;
   if (!Number.isFinite(fallbackValue) || fallbackValue <= 0) return null;
-  if (fallbackValue > LOW_CONFIDENCE_FLOCK_FALLBACK_VALUE_MAX) return value;
 
   const roundedFallback = Math.round(fallbackValue);
   const nextSources = (value.value_sources || []).filter((source) => source !== 'FlockFantasy');

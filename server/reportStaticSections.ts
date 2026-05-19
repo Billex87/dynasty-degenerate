@@ -102,6 +102,8 @@ export function getReportSourceDiagnosticsCacheKey(input: {
   leagueValueProfileKey: string;
   currentSeason: string;
   lastCompletedSeason: string;
+  currentWeek?: number | null;
+  weekWindow?: number | null;
   rowCounts?: RowCountOverride[];
 }): string {
   return [
@@ -109,6 +111,8 @@ export function getReportSourceDiagnosticsCacheKey(input: {
     input.leagueValueProfileKey || 'default',
     input.currentSeason || 'current',
     input.lastCompletedSeason || 'previous',
+    `week-${input.currentWeek ?? 'none'}`,
+    `window-${input.weekWindow ?? 'none'}`,
     getRowCountSignature(input.rowCounts),
   ].join(':');
 }
@@ -191,6 +195,8 @@ export async function loadReportSourceDiagnosticsSection(input: {
   currentSeason: string;
   lastCompletedSeason: string;
   devyProfileKey?: string | null;
+  currentWeek?: number | null;
+  weekWindow?: number | null;
   rowCounts: RowCountOverride[];
   forceRefresh?: boolean;
 }): Promise<ReportSourceDiagnosticsSection> {
@@ -211,6 +217,8 @@ export async function loadReportSourceDiagnosticsSection(input: {
     previousSeason: input.lastCompletedSeason,
     valueProfileKey: input.leagueValueProfileKey,
     devyProfileKey: input.devyProfileKey,
+    currentWeek: input.currentWeek ?? undefined,
+    weekWindow: input.weekWindow ?? undefined,
     rowCounts: input.rowCounts,
   });
 

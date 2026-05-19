@@ -362,6 +362,142 @@ describe('rankings board prospect fallback', () => {
     });
   });
 
+  it('preserves devy source ranks separately from the final board rank', async () => {
+    const { buildRankingsBoard } = await import('./rankingsBoard');
+    const { loadFantasyProsDevyRankings } = await import('./fantasyProsDevy');
+    const futureYear = new Date().getFullYear() + 1;
+    const prospects: ProspectProfile[] = [
+      {
+        source: 'NFL Draft Buzz',
+        sourceUrl: `https://www.nfldraftbuzz.com/positions/WR/1/${futureYear}`,
+        scrapeMonth: '2026-05',
+        draftYear: futureYear,
+        name: 'Board Leader Prospect',
+        position: 'WR',
+        college: 'Board State',
+        overallRank: 1,
+        positionRank: 5,
+        rating: 97,
+      },
+      {
+        source: 'NFL Draft Buzz',
+        sourceUrl: `https://www.nfldraftbuzz.com/positions/WR/2/${futureYear}`,
+        scrapeMonth: '2026-05',
+        draftYear: futureYear,
+        name: 'Position Leader Prospect',
+        position: 'WR',
+        college: 'Position State',
+        overallRank: 5,
+        positionRank: 1,
+        rating: 91,
+      },
+    ];
+
+    vi.mocked(loadFantasyProsDevyRankings).mockResolvedValueOnce({
+      boardleaderprospect: {
+        name: 'Board Leader Prospect',
+        rank: 1,
+        positionRank: 'WR5',
+        position: 'WR',
+        age: 20,
+        bestRank: 1,
+        worstRank: 5,
+        averageRank: 2,
+        stdDev: 1,
+        sourceUrl: 'https://www.fantasypros.com/nfl/rankings/devy-overall.php',
+      },
+      positionleaderprospect: {
+        name: 'Position Leader Prospect',
+        rank: 5,
+        positionRank: 'WR1',
+        position: 'WR',
+        age: 20,
+        bestRank: 2,
+        worstRank: 7,
+        averageRank: 4,
+        stdDev: 1,
+        sourceUrl: 'https://www.fantasypros.com/nfl/rankings/devy-overall.php',
+      },
+    });
+
+    const board = await buildRankingsBoard({
+      players: {},
+      ktcValues: {},
+      ownerByPlayerId: {},
+      rosterStatusByPlayerId: {},
+      prospectLookup: buildProspectLookup(prospects),
+      prospectProfiles: prospects,
+      leagueTeamCount: 12,
+    });
+
+    const boardLeader = board.profiles?.devy_sf_ppr?.find((player) => player.name === 'Board Leader Prospect');
+    const positionLeader = board.profiles?.devy_sf_ppr?.find((player) => player.name === 'Position Leader Prospect');
+
+    expect(boardLeader).toMatchObject({
+      sourceOverallRank: 1,
+      sourcePositionRank: 'WR5',
+      overallRank: 1,
+      positionRank: 'WR1',
+    });
+    expect(positionLeader).toMatchObject({
+      sourceOverallRank: 5,
+      sourcePositionRank: 'WR1',
+      overallRank: 2,
+      positionRank: 'WR2',
+    });
+  });
+
+  it('keeps devy prospect ranks out of dynasty value rows', async () => {
+    const { buildRankingsBoard } = await import('./rankingsBoard');
+    const futureYear = new Date().getFullYear() + 1;
+    const prospect: ProspectProfile = {
+      source: 'NFL Draft Buzz',
+      sourceUrl: `https://www.nfldraftbuzz.com/positions/WR/1/${futureYear}`,
+      scrapeMonth: '2026-05',
+      draftYear: futureYear,
+      name: 'Dynasty Prospect',
+      position: 'WR',
+      college: 'Dynasty State',
+      overallRank: 1,
+      positionRank: 1,
+      rating: 90,
+    };
+
+    const board = await buildRankingsBoard({
+      players: {
+        '9999': {
+          full_name: 'Dynasty Prospect',
+          first_name: 'Dynasty',
+          last_name: 'Prospect',
+          position: 'WR',
+          team: 'NYG',
+          active: true,
+        },
+      },
+      ktcValues: {
+        dynastyprospect: {
+          name: 'Dynasty Prospect',
+          ktc_value: 1700,
+          rank: 25,
+          position_rank: 'WR12',
+          value_sources: ['KTC'],
+        },
+      },
+      ownerByPlayerId: {},
+      rosterStatusByPlayerId: {},
+      prospectLookup: buildProspectLookup([prospect]),
+    });
+
+    const dynastyRow = board.dynastySf.find((player) => player.name === 'Dynasty Prospect');
+
+    expect(dynastyRow).toMatchObject({
+      sourceOverallRank: 25,
+      sourcePositionRank: 'WR12',
+    });
+    expect(dynastyRow?.sourceOverallRank).not.toBe(1);
+    expect(dynastyRow?.sourcePositionRank).not.toBe('WR1');
+  });
+
   it('excludes current-year prospects from the college board', async () => {
     const { buildRankingsBoard } = await import('./rankingsBoard');
     const currentYear = new Date().getFullYear();

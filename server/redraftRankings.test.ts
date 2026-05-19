@@ -13,6 +13,7 @@ import type { RankingSourceDiagnostic } from '../shared/types';
 describe('redraft rankings blend', () => {
   afterEach(() => {
     delete process.env.ENABLE_REDRAFT_YAHOO;
+    delete process.env.ENABLE_REDRAFT_FLOCK_BEST_BALL;
   });
 
   it('normalizes platform ADP and ranking sources into one redraft-only board', () => {
@@ -25,6 +26,16 @@ describe('redraft rankings blend', () => {
           rank: 2,
           positionRank: 'RB1',
           value: 8900,
+        },
+      },
+      flockBestBall: {
+        christianmccaffrey: {
+          name: 'Christian McCaffrey',
+          position: 'RB',
+          team: 'SF',
+          rank: 6.5,
+          positionRank: 'RB3',
+          value: 8800,
         },
       },
       mflAdp: {
@@ -52,8 +63,10 @@ describe('redraft rankings blend', () => {
       position: 'RB',
       overallRank: 1,
       positionRank: 'RB1',
-      sources: ['FantasyPros', 'MyFantasyLeague ADP', 'NFL Fantasy'],
+      sources: ['FantasyPros', 'Flock Best Ball', 'MyFantasyLeague ADP', 'NFL Fantasy'],
     });
+    expect(rows.christianmccaffrey.sourceRanks.flockBestBall).toBe(6.5);
+    expect(rows.christianmccaffrey.sourceValues.flockBestBall).toBe(8800);
     expect(rows.christianmccaffrey.value).toBeGreaterThan(8000);
     expect(rows.christianmccaffrey.adp).toBe(4.2);
   });
@@ -216,10 +229,13 @@ describe('redraft rankings blend', () => {
 
   it('honors redraft source environment toggles', () => {
     expect(isRedraftSourceEnabled('yahooDraftAnalysis')).toBe(true);
+    expect(isRedraftSourceEnabled('flockBestBall')).toBe(true);
 
     process.env.ENABLE_REDRAFT_YAHOO = 'false';
+    process.env.ENABLE_REDRAFT_FLOCK_BEST_BALL = 'false';
 
     expect(isRedraftSourceEnabled('yahooDraftAnalysis')).toBe(false);
+    expect(isRedraftSourceEnabled('flockBestBall')).toBe(false);
   });
 
   it('keeps scraping fallbacks opt-in by default in production', () => {

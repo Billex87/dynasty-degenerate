@@ -125,6 +125,7 @@ function collectWaiverCandidates(
   data.bestTaxiStashes.forEach(addPlayer);
   data.availableTrendingAdds.forEach(addPlayer);
   data.recentlyDroppedValuable.forEach(addPlayer);
+  data.weeklyEcrTargets?.forEach(target => addPlayer(target.player));
 
   return Array.from(byId.values());
 }

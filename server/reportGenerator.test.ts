@@ -226,6 +226,41 @@ describe('generateReport trade ledger', () => {
     });
   });
 
+  it('treats case-only manager name changes as the same roster identity for growth', async () => {
+    const report = await generateReport(
+      {
+        label: '2026',
+        rosterMap: { 1: 'MyNameIsBillEx' },
+        rosters: [{ roster_id: 1, owner_id: 'u3', players: ['london'] }],
+        trades: [],
+      },
+      {
+        label: '2025',
+        rosterMap: { 1: 'mynameisbillex' },
+        rosters: [{ roster_id: 1, owner_id: 'u3', players: ['smith'] }],
+        trades: [],
+      },
+      players,
+      ktcValues,
+      {}
+    );
+
+    const managerGrowth = report.managerRosterValueGrowth.find(
+      (row) => row.manager === 'MyNameIsBillEx'
+    );
+    expect(managerGrowth).toMatchObject({
+      manager: 'MyNameIsBillEx',
+      past_val: 6000,
+      total_val: 8500,
+    });
+    expect(managerGrowth?.growth).toBeCloseTo(((8500 - 6000) / 6000) * 100);
+    expect(
+      report.managerRosterValueGrowth.some(
+        (row) => row.manager === 'mynameisbillex'
+      )
+    ).toBe(false);
+  });
+
   it('adds stored prop-market signals to manager market reads without live provider calls', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

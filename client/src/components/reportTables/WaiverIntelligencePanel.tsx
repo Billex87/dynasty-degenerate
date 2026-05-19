@@ -8,6 +8,7 @@ import type {
   ReportData,
   TrendingPlayer,
   WaiverBidHistoryRecord,
+  WaiverWeeklyEcrSignal,
 } from "@shared/types";
 import { trpc } from "@/lib/trpc";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
@@ -484,6 +485,7 @@ type WaiverRecommendation = {
   dropValueDelta: number | null;
   dropConfidencePct: number;
   claimPriority: "Add" | "Add/Drop" | "Watchlist";
+  weeklyEcrSignal: WaiverWeeklyEcrSignal | null;
 };
 
 type WaiverCompetitionRead = {
@@ -729,6 +731,113 @@ function getWaiverPlayerRank(
   );
 }
 
+const WAIVER_WEEKLY_ECR_RANK_LIMITS: Record<WaiverPosition, number> = {
+  QB: 40,
+  RB: 90,
+  WR: 105,
+  TE: 24,
+  K: 20,
+  DEF: 20,
+};
+
+function getWaiverWeeklyEcrSignal(
+  player: TrendingPlayer,
+  data?: NonNullable<ReportData["waiverIntelligence"]>
+): WaiverWeeklyEcrSignal | null {
+  if (player.weeklyEcr) return player.weeklyEcr;
+  return (
+    data?.weeklyEcrTargets?.find(
+      target => target.player.player_id === player.player_id
+    )?.signal || null
+  );
+}
+
+function getWaiverWeeklyEcrBestRank(
+  signal?: WaiverWeeklyEcrSignal | null
+): string | null {
+  if (!signal) return null;
+  if (signal.bestPositionRank) return signal.bestPositionRank;
+  const position = isWaiverPosition(signal.position) ? signal.position : null;
+  return position && signal.bestRankEcr
+    ? `${position}${Math.round(signal.bestRankEcr)}`
+    : null;
+}
+
+function getWaiverWeeklyEcrRankNumber(
+  signal?: WaiverWeeklyEcrSignal | null
+): number | null {
+  return parsePositionRankValue(getWaiverWeeklyEcrBestRank(signal));
+}
+
+function formatWaiverWeeklyEcrWindow(
+  signal?: WaiverWeeklyEcrSignal | null
+): string | null {
+  if (!signal?.weeks?.length) return null;
+  return signal.weeks
+    .slice(0, 3)
+    .map(week => `W${week.week} ${week.positionRank || (week.rankEcr ? `ECR ${week.rankEcr}` : "ranked")}`)
+    .join(" / ");
+}
+
+function formatWaiverWeeklyEcrReason(
+  signal?: WaiverWeeklyEcrSignal | null
+): string | null {
+  if (!signal) return null;
+  const bestRank = getWaiverWeeklyEcrBestRank(signal);
+  const window = formatWaiverWeeklyEcrWindow(signal);
+  const movement =
+    signal.rankDelta && signal.rankDelta !== 0
+      ? signal.rankDelta > 0
+        ? `improved ${signal.rankDelta} spots`
+        : `slipped ${Math.abs(signal.rankDelta)} spots`
+      : null;
+  return [bestRank ? `FantasyPros next-3 ECR peaks at ${bestRank}` : null, window, movement]
+    .filter(Boolean)
+    .join(" • ") || null;
+}
+
+function formatWaiverEcrTraceStamp(value?: string | null): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatWaiverEcrTraceMeta(
+  trace: WaiverWeeklyEcrSignal["sourceTrace"][number]
+): string {
+  return [
+    trace.week ? `W${trace.week}` : null,
+    trace.position,
+    trace.status,
+    trace.rowCount === null ? null : `${trace.rowCount} rows`,
+    formatWaiverEcrTraceStamp(trace.fetchedAt || trace.lastUpdated),
+  ]
+    .filter(Boolean)
+    .join(" • ");
+}
+
+function getWaiverWeeklyEcrRecommendationScore(
+  signal: WaiverWeeklyEcrSignal | null,
+  position: WaiverPosition | null
+): number {
+  if (!signal || !position) return 0;
+  const rankLimit = WAIVER_WEEKLY_ECR_RANK_LIMITS[position];
+  const bestRank = getWaiverWeeklyEcrRankNumber(signal) || signal.bestRankEcr || null;
+  if (!bestRank || bestRank > rankLimit) return 0;
+  const rankScore = Math.max(0, 860 - (bestRank / rankLimit) * 520);
+  const trendScore = signal.rankDelta
+    ? Math.max(-120, Math.min(180, signal.rankDelta * 14))
+    : 0;
+  const confidenceScore = Math.min(signal.confidence || 0, 100) * 2.4;
+  return Math.round(rankScore + trendScore + confidenceScore);
+}
+
 function collectWaiverCandidates(
   data: NonNullable<ReportData["waiverIntelligence"]>
 ): TrendingPlayer[] {
@@ -750,6 +859,7 @@ function collectWaiverCandidates(
   data.bestTaxiStashes.forEach(addPlayer);
   data.availableTrendingAdds.forEach(addPlayer);
   data.recentlyDroppedValuable.forEach(addPlayer);
+  data.weeklyEcrTargets?.forEach(target => addPlayer(target.player));
 
   return Array.from(byId.values());
 }
@@ -1000,6 +1110,7 @@ function buildWaiverRecommendationReason({
   needWeight,
   openRosterSpots,
   specialTeamsUpgradeReason,
+  weeklyEcrSignal,
   leagueValueMode = "dynasty",
 }: {
   player: TrendingPlayer;
@@ -1008,6 +1119,7 @@ function buildWaiverRecommendationReason({
   needWeight: number;
   openRosterSpots: number;
   specialTeamsUpgradeReason?: string | null;
+  weeklyEcrSignal?: WaiverWeeklyEcrSignal | null;
   leagueValueMode?: LeagueValueMode;
 }): string {
   const details = getWaiverPlayerDetails(player, playerDetailsById);
@@ -1042,6 +1154,7 @@ function buildWaiverRecommendationReason({
         : details?.latestNews?.title
           ? "recent role/news signal"
           : null;
+  const weeklyEcrCopy = formatWaiverWeeklyEcrReason(weeklyEcrSignal);
   const spotCopy =
     openRosterSpots > 0
       ? openRosterSpots === 1
@@ -1049,7 +1162,7 @@ function buildWaiverRecommendationReason({
         : `fits one of ${openRosterSpots} active roster openings`
       : "is a priority watchlist add if you create a spot";
 
-  return [positionCopy, ageCopy, rankCopy, roleCopy, spotCopy]
+  return [positionCopy, weeklyEcrCopy, ageCopy, rankCopy, roleCopy, spotCopy]
     .filter(Boolean)
     .join(" • ");
 }
@@ -1629,6 +1742,7 @@ function buildWaiverRecommendationContext({
   const recommendations = collectWaiverCandidates(data)
     .map(player => {
       const pos = isWaiverPosition(player.pos) ? player.pos : null;
+      const weeklyEcrSignal = getWaiverWeeklyEcrSignal(player, data);
       const details = getWaiverPlayerDetails(player, playerDetailsById);
       const dynastyValue = isDynastyLeague
         ? getWaiverDynastyValue(player, playerDetailsById)
@@ -1675,6 +1789,10 @@ function buildWaiverRecommendationContext({
       const specialTeamsUpgradeScore = isSpecialTeamsUpgrade ? 2100 : 0;
       const specialTeamsDynastyPenalty =
         isDynastyLeague && isSpecialTeams && !isSpecialTeamsUpgrade ? -2400 : 0;
+      const weeklyEcrScore = getWaiverWeeklyEcrRecommendationScore(
+        weeklyEcrSignal,
+        pos
+      );
       const score =
         needWeight +
         dynastyValueScore +
@@ -1685,6 +1803,7 @@ function buildWaiverRecommendationContext({
         rookieScore +
         rolePathScore +
         trendScore +
+        weeklyEcrScore +
         specialTeamsUpgradeScore +
         specialTeamsDynastyPenalty;
       const competitionRead = buildWaiverCompetitionRead({
@@ -1728,6 +1847,7 @@ function buildWaiverRecommendationContext({
         competitionRead,
         ...bidRead,
         ...dropRead,
+        weeklyEcrSignal,
         reason: buildWaiverRecommendationReason({
           player,
           playerDetailsById,
@@ -1737,6 +1857,7 @@ function buildWaiverRecommendationContext({
           specialTeamsUpgradeReason: isSpecialTeamsUpgrade
             ? specialTeamsUpgrade?.reason
             : null,
+          weeklyEcrSignal,
           leagueValueMode,
         }),
       };
@@ -2027,6 +2148,11 @@ export default function WaiverIntelligencePanel({
             ? getWaiverSeasonValue(player, playerDetailsById) ||
               getWaiverPlayerValue(player, playerDetailsById)
             : getWaiverPlayerValue(player, playerDetailsById);
+          const weeklyEcrSignal =
+            recommendation?.weeklyEcrSignal ||
+            getWaiverWeeklyEcrSignal(player, data);
+          const weeklyEcrRank = getWaiverWeeklyEcrBestRank(weeklyEcrSignal);
+          const weeklyEcrWindow = formatWaiverWeeklyEcrWindow(weeklyEcrSignal);
           const waiverPlanId = recommendation
             ? getWaiverActionPlanId(leagueId, viewerManager, recommendation)
             : null;
@@ -2105,7 +2231,14 @@ export default function WaiverIntelligencePanel({
                         className="waiver-intel-rank-pill-season"
                       />
                     )}
-                    {!dynastyRank && !seasonRank && (
+                    {weeklyEcrRank && (
+                      <WaiverRankPill
+                        label="Next ECR"
+                        rank={weeklyEcrRank}
+                        className="waiver-intel-rank-pill-season"
+                      />
+                    )}
+                    {!dynastyRank && !seasonRank && !weeklyEcrRank && (
                       <PositionRankPill rank={rank || player.pos || "-"} />
                     )}
                   </div>
@@ -2117,6 +2250,7 @@ export default function WaiverIntelligencePanel({
                       recommendationContext.openRosterSpots > 0 && (
                         <span>Active Spot Fit</span>
                       )}
+                    {weeklyEcrWindow && <span>{weeklyEcrWindow}</span>}
                     {value > 0 && (
                       <span className="waiver-intel-value-pill">
                         {formatCompactValue(value)}
@@ -2168,11 +2302,46 @@ export default function WaiverIntelligencePanel({
                         : "Likely quiet"}
                     </strong>
                   </span>
+                  {weeklyEcrSignal && (
+                    <span>
+                      <em>FantasyPros ECR</em>
+                      <strong>{weeklyEcrWindow || weeklyEcrRank || "Rolling rank"}</strong>
+                    </span>
+                  )}
                   <p className="waiver-intel-history-read">
                     {recommendation.bidEvidenceLabel}{" "}
                     {recommendation.competitionRead?.reason ||
-                      "No strong competing manager signal returned."}
+                      "No strong competing manager signal returned."}{" "}
+                    {weeklyEcrSignal ? weeklyEcrSignal.note : ""}
                   </p>
+                  {weeklyEcrSignal?.sourceTrace?.length ? (
+                    <details className="waiver-intel-source-review waiver-intel-source-trace">
+                      <summary>
+                        <span>Source trace</span>
+                        <strong>FantasyPros stored ECR</strong>
+                      </summary>
+                      <div className="waiver-intel-source-review-list">
+                        <div className="waiver-intel-source-review-row">
+                          <span>{weeklyEcrSignal.traceSummary}</span>
+                          <em>
+                            {weeklyEcrSignal.fantasyProsId
+                              ? `FantasyPros ID ${weeklyEcrSignal.fantasyProsId}`
+                              : "FantasyPros player match"}
+                          </em>
+                        </div>
+                        {weeklyEcrSignal.sourceTrace.slice(0, 3).map(trace => (
+                          <div
+                            key={`${trace.sourceKey}-${trace.week || trace.endpointKey}`}
+                            className="waiver-intel-source-review-row"
+                          >
+                            <span>{trace.endpointLabel}</span>
+                            <em>{formatWaiverEcrTraceMeta(trace)}</em>
+                            <p>{trace.evidence}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
                   <p className="waiver-intel-drop-read">
                     {recommendation.dropReason}
                     {recommendation.dropAlternatives.length

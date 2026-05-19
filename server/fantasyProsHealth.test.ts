@@ -59,6 +59,7 @@ describe('FantasyPros API health checks', () => {
       season: '2026',
       apiKey: 'test-key',
       fetchImpl: fetchMock as unknown as typeof fetch,
+      requestDelayMs: 0,
     });
     const dynastyRow = rows.find((row) => row.key === 'fantasypros-dynasty');
     const events = buildFantasyProsSourceHealthEvents(rows);
@@ -82,28 +83,93 @@ describe('FantasyPros API health checks', () => {
     expect(JSON.stringify(dynastyEvent?.payload)).not.toContain('Bijan Robinson');
   });
 
-  it('records failed endpoints as danger events', async () => {
+  it('records rate limited endpoints as danger events and skips the remaining probes', async () => {
     const fetchMock = vi.fn(async () => new Response('rate limited', {
       status: 429,
       statusText: 'Too Many Requests',
+      headers: { 'retry-after': '10' },
     }));
 
     const rows = await checkFantasyProsApiHealth({
       season: '2026',
       apiKey: 'test-key',
       fetchImpl: fetchMock as unknown as typeof fetch,
+      requestDelayMs: 0,
     });
     const events = buildFantasyProsSourceHealthEvents(rows);
 
     expect(rows[0]).toMatchObject({
-      status: 'error',
+      status: 'rate_limited',
       statusCode: 429,
+      retryAfterMs: 10000,
       error: 'Too Many Requests',
     });
-    expect(events[0]).toMatchObject({
-      level: 'danger',
-      status: 'error',
+    expect(rows[1]).toMatchObject({
+      status: 'skipped',
+      statusCode: null,
       rowCount: 0,
     });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(events[0]).toMatchObject({
+      level: 'danger',
+      status: 'rate_limited',
+      rowCount: 0,
+    });
+    expect(events[1]).toMatchObject({
+      level: 'warn',
+      status: 'skipped',
+      rowCount: 0,
+    });
+  });
+
+  it('adds expanded endpoint probes without requiring raw payload storage', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('compare-players')) {
+        return new Response(JSON.stringify({
+          rankings: { PPR: { '9016': [{ rank: 20 }], '9020': [{ rank: 25 }] } },
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({
+        players: [{ player_name: 'Sample Player' }],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+
+    const rows = await checkFantasyProsApiHealth({
+      season: '2026',
+      apiKey: 'test-key',
+      includeExpanded: true,
+      includeProjections: true,
+      currentWeek: 2,
+      weekWindow: 3,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      requestDelayMs: 0,
+    });
+
+    expect(rows.find((row) => row.key === 'fantasypros-weekly-ecr')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-weekly-ecr-qb-week-2')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-weekly-ecr-rb-week-2')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-weekly-ecr-wr-week-3')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-weekly-ecr-te-week-3')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-weekly-ecr-k-week-4')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-weekly-ecr-dst-week-4')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-ww')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-targets')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-articles')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-compare-players')).toMatchObject({
+      status: 'loaded',
+      rowCount: 2,
+    });
+    expect(rows.find((row) => row.key === 'fantasypros-projections')).toMatchObject({ status: 'loaded' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/nfl/2026/consensus-rankings?position=RB&scoring=PPR&week=3'),
+      expect.any(Object),
+    );
   });
 });

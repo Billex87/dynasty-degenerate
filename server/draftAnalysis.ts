@@ -436,21 +436,29 @@ export async function analyzeDraftPicks(
     
 
     
-    // Try to resolve manager using user_id_to_manager_map first, then fall back to roster map
-    let manager = userIdToManagerMap[pick.picked_by];
-    if (!manager) {
-      manager = pickRosterMap[pick.picked_by] || 'Unknown';
-    }
-    const managerDisplayName = userIdToManagerDisplayMap[pick.picked_by]
-      || pickRosterDisplayMap[pick.picked_by]
-      || managerDisplayNameByManager[manager]
-      || manager;
     const originalRosterId = typeof pick.original_roster_id === 'number'
       ? pick.original_roster_id
       : typeof pick.roster_id === 'number'
         ? pick.roster_id
         : null;
     const originalOwner = originalRosterId !== null ? pickRosterMap[String(originalRosterId)] || null : null;
+    const originalOwnerDisplayName = originalRosterId !== null ? pickRosterDisplayMap[String(originalRosterId)] || null : null;
+    const pickedRosterId = typeof pick.roster_id === 'number' ? pick.roster_id : null;
+    const rosterSlotOwner =
+      originalRosterId !== null && (pickedRosterId === null || pickedRosterId === originalRosterId)
+        ? originalOwner
+        : null;
+    const rosterSlotOwnerDisplayName =
+      rosterSlotOwner && originalOwnerDisplayName ? originalOwnerDisplayName : null;
+    const manager = rosterSlotOwner
+      || userIdToManagerMap[pick.picked_by]
+      || pickRosterMap[pick.picked_by]
+      || 'Unknown';
+    const managerDisplayName = rosterSlotOwnerDisplayName
+      || userIdToManagerDisplayMap[pick.picked_by]
+      || pickRosterDisplayMap[pick.picked_by]
+      || managerDisplayNameByManager[manager]
+      || manager;
     
     const playerName = player?.full_name || 'Unknown';
     const playerPos = player?.position || 'N/A';

@@ -91,6 +91,8 @@
 - [x] Cross-check the nickname/alias sources against the APIs already on our recommended list, including Sleeper, BALLDONTLIE, nflreadr/nflverse player-name mappings, SportsBlaze, FantasyData/SportsDataIO, Sportradar, ESPN, and any other vetted NFL endpoints.
 - [x] Decide which extra fields are actually worth storing or normalizing in our player identity layer, and which ones are only nice-to-have research artifacts.
 - [x] FantasyPros - Returns: rankings, projections, ADP, injuries, news, compare-players, player-points, and player/external IDs. Used now: dynasty/redraft blends, rookie and devy context, injury/news notes, player modal details, and confidence calibration. Could power later: lineup strength, value movement, matchup preview, and trade explainers. Open questions: rate limits, production terms, and which projection/news endpoints are safe to depend on.
+- [ ] Audit SportsDataIO / FantasyData NFL endpoints beyond the current news snapshot path: player, team, schedule, injury, depth chart, fantasy scoring, projections, and licensed route-volume fields; decide what can safely improve lineup projections, matchup reads, downstream valuation, and draft recommendations.
+- [ ] Exhaustively probe FantasyCalc's public API surface beyond current values and player history: confirm any discoverable trade, draft, rankings, player, comparison, or trend endpoints, then record exact URLs, query params, auth requirements, rate limits, response shapes, row counts, freshness, and whether each endpoint is `used now`, `could power later`, or `research only`.
 - [x] DraftSharks - Returns: rankings, SOS, bye weeks, D/ST, matchup data, and possibly projections. Used now: source research only. Could power later: bye-week navigation, streamer planning, matchup reads, and schedule-strength tooling. Open questions: partner/API access and whether the public pages stay stable enough to trust.
 - [x] DraftSharks SOS shell - Returns: approved partner REST team/position SOS rows when configured. Used now: gated backend schedule enrichment only. Could power later: streamer weeks, avoid weeks, schedule tiers, matchup reads, and D/ST planning. Open questions: final partner URL, payload shape, and production terms from DraftSharks control panel.
 - [x] KeepTradeCut - Returns: trade-database rows, market values, and source metadata where available. Used now: trade/value research. Could power later: dynasty trade comps and market trend views. Open questions: whether access is stable without scraping and whether there is a supported data path.
@@ -226,6 +228,7 @@
 
 - [ ] Confirm the approved full NFL schedule source before using it in production: prefer an official or licensed endpoint that returns season, week, game date/time, home team, away team, venue, neutral-site flag, game status, and source update timestamp.
 - [ ] Confirm the approved weekly player projection source before using projections in public reports: FantasyPros, DraftSharks, SportsDataIO, Fantasy Nerds, or another licensed provider is acceptable only after production terms, rate limits, redistribution rules, and freshness guarantees are documented.
+- [ ] Confirm approved FantasyPros matchup-calendar access before using ECR/SOS rows in public reports: the matchup pages expose ECR plus weekly matchup ratings for QB/RB/WR/TE/K/DST, but production use still needs documented terms, rate limits, attribution/display rules, parser stability, and snapshot-only loading.
 - [ ] Keep normal user-triggered report loads snapshot-backed for full schedule and projection data; live calls during login/report generation should remain limited to Sleeper current league state.
 - [ ] Add feature flags for each projection source and projection type: weekly, rest-of-season, preseason, playoff weeks, position-specific projections, team defense projections, kicker projections, and injury-adjusted projections.
 - [ ] Add source policy docs for projection display language so the UI never labels internal estimates as provider projections and never implies unavailable provider data is present.
@@ -234,6 +237,8 @@
 ### Full NFL Schedule Snapshot Layer
 
 - [ ] Add a normalized `nflScheduleGames` snapshot model keyed by `season`, `week`, `gameId`, `homeTeam`, `awayTeam`, `startsAt`, `gameStatus`, and `sourceVersion`.
+- [ ] Add a normalized matchup-calendar/SOS snapshot layer keyed by `season`, `position`, `source`, `playerId` or `teamDefenseId`, `week`, `opponent`, and `sourceVersion`; store ECR, matchup rating/stars, opponent rank, home/away, source URL, fetched timestamp, row count, checksum, and parser version.
+- [ ] Make matchup-calendar/SOS snapshots dynamic and versioned: refresh on a preseason cadence as rankings stabilize, increase cadence during the season around waiver/start-sit windows, retain prior snapshots for ECR/SOS movement, and expire stale rows without making live provider calls during user report loads.
 - [ ] Store schedule metadata with `source`, `sourceUrl` or provider key, `fetchedAt`, `publishedAt`, `seasonType`, `rowCount`, `checksum`, and parser version.
 - [ ] Normalize team codes across Sleeper, provider schedule feeds, FantasyPros, DraftSharks, ESPN, SportsDataIO, and internal abbreviations so `JAC/JAX`, `ARI/ARZ`, `LA/LAR/LAC`, and Washington naming drift do not break joins.
 - [ ] Capture home/away, short-rest, long-rest, travel distance bucket, dome/outdoor, weather-sensitive stadium, international game, neutral site, division game, conference game, and projected playoff-week relevance.
@@ -271,6 +276,8 @@
 - [ ] Add dynasty contention context that separates "start now", "hold through development", "sell on projection spike", "buy before role growth", and "do not panic because draft capital buys runway".
 - [ ] Add rookie and sophomore development reads that explicitly account for draft position, NFL team investment, early usage, depth-chart barriers, and how long similar players usually get opportunities.
 - [ ] Add waiver-wire priority changes based on upcoming schedule, projected usage, bye coverage, injury fill-in windows, and whether the role has multi-week staying power.
+- [ ] Add a first-three-week D/ST and kicker streamer planner that scores available options by ECR, Week 1-3 matchup ratings, current roster fit, and complement coverage; it should recommend pairings such as keeping one defense while adding another that covers its hard Week 1 or Week 3 matchup.
+- [ ] Add a Rankings-tab Schedule Edge table after matchup-calendar snapshots are approved: filter by position and week range, show all positions by default, include quick D/ST and K streamer filters for Week 1-3 planning, and show ECR, current rank/value, owner/availability, weekly opponent ratings, average/worst matchup, complement fit with rostered options, confidence, source freshness, and recommended action.
 - [ ] Add trade recommendation context that distinguishes projected short-term points from dynasty value, playoff schedule leverage, contender/rebuilder fit, and fragile projection spikes.
 - [ ] Add Autopilot actions that can say exactly why to start, bench, claim, stash, trade for, trade away, or hold a player based on the joined schedule/projection context.
 - [ ] Add player-detail projection cards for weekly outlook, ROS outlook, schedule stretch, opponent notes, role security, draft-capital runway, confidence, and source freshness.
@@ -315,6 +322,8 @@
 - [x] Add source-health checks for every FantasyPros endpoint we plan to depend on, including row counts, last updated date, expert count, and rate-limit/error status.
 - [x] Add separate feature flags for FantasyPros sub-sources so `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, projections, injuries, news, and player-points can be rolled out or disabled independently.
 - [x] Add a safe FantasyPros smoke/diagnostics command that checks planned endpoints and prints only status, row counts, freshness, expert counts, and errors, never the API key or raw payload.
+- [x] Audit FantasyPros documented NFL endpoints against Dynasty Degens features and AI readouts; see `docs/fantasypros-endpoint-feature-audit.md`.
+- [x] Pin current ranking-source defaults to the 2026 season via `RANKINGS_SEASON`, with FantasyPros/redraft/dynasty loaders sharing the same season helper so they do not silently fall back to 2025.
 - [x] Expand the FantasyPros client to support all useful NFL ranking types: `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, `DYNADP`, and `RKADP` where available.
 - [x] Wire FantasyPros `DYNASTY` rankings into the dynasty valuation blend as a true dynasty source with its own adaptive trust weight, separate from redraft/season values.
 - [x] Wire FantasyPros `DEVY` rankings into the devy/prospect blend and compare against Flock, KTC Devy, and Prospect Archive before raising its weight.
@@ -323,6 +332,14 @@
 - [ ] Wire FantasyPros `ADP`, `DYNADP`, and `RKADP` into draft-cost context, value-over-cost reads, and admin source diagnostics.
 - [x] Keep FantasyPros `DRAFT` and `ROS` rankings in the redraft/current-season space only, with scoring-aware `PPR`, `HALF`, and `STD` profiles.
 - [ ] Add FantasyPros projections after validating the endpoint under normal rate limits; use weekly, preseason, and rest-of-season projections for lineup strength, matchup preview, and redraft valuation support.
+- [x] Add throttled FantasyPros source-health probes for underused endpoints: weekly ECR, `WW` rankings, targets, articles, compare-players, projections, player-points, players, news, and injuries; include retry-after/backoff handling before adding more snapshots.
+- [x] Add a snapshot writer for responding FantasyPros endpoints behind `ENABLE_FANTASYPROS_ENDPOINT_SNAPSHOTS`, with the same pacing and stop-on-429 behavior as health checks so cron/admin refreshes can persist endpoint payloads without user-load API calls.
+- [x] Add a stored-snapshot read/normalization layer for FantasyPros weekly ECR, `WW`, projections, player-points, players/external IDs, and compare-player payloads, then feed row counts into report/admin source freshness diagnostics.
+- [x] Add rolling next-three-week FantasyPros weekly ECR snapshot fan-out for QB/RB/WR/TE/K/DST, keyed by current NFL week plus week window so scheduled refreshes and report diagnostics move from Weeks 1-3 to Weeks 2-4 after Week 1.
+- [x] Schedule the FantasyPros endpoint snapshot scrape weekly on Tuesdays at noon Pacific, with route-side guards and a daily opt-in flag only if endpoint calls prove cheap enough.
+- [ ] Recheck FantasyPros `WW` waiver-wire ranking snapshots closer to the season; the endpoint is reachable but currently returns `200` with zero rows for early 2026 Week 1 probes.
+- [ ] Add FantasyPros targets snapshots after package access is approved and the endpoint returns `200`; join them with existing usage context so waiver intelligence can detect role growth without pretending targets are route share.
+- [ ] Evaluate FantasyPros matchup-calendar pages for approved ECR/SOS snapshot ingestion across QB/RB/WR/TE/K/DST; if approved, keep refreshes cron/admin-only and feed stored rows into `PlayerScheduleProfile`, streamer weeks, avoid weeks, all-position start/sit edges, D/ST/K streamer pairings, and waiver intelligence.
 - [ ] Use FantasyPros player-points history to validate prior-season production, weekly consistency, and value-confidence calibration.
 - [ ] Use FantasyPros injuries and practice-report probabilities in player availability, lineup risk, and AI confidence notes.
 - [ ] Use FantasyPros news categories for player-specific news, injury, transaction, rumor, and breaking-news context, then connect news timestamps to value movement when snapshots overlap.
@@ -330,9 +347,12 @@
 - [ ] Use FantasyPros player IDs and external IDs to improve cross-source identity matching for ESPN, Yahoo, MFL, Fleaflicker, Fantrax, NFL, CBS, DraftKings, and other platform IDs.
 - [ ] Add expert metadata and expert publication timestamps to admin diagnostics so stale or thin expert sets lower source trust automatically.
 - [ ] Evaluate the FantasyPros compare-players endpoint for player modal context and trade comparison explainers.
+- [ ] Evaluate FantasyPros articles as an admin/research-assistant context source only after package access is approved; if used, store attribution, category, URL, published timestamp, and freshness without replacing player-level data signals.
 - [x] Add cache/rate-limit protection for FantasyPros calls so report generation does not hammer the API during refresh jobs.
 - [x] Add admin-only visibility for FantasyPros endpoint coverage, effective weights, trust movement, stale data, and high-impact valuation changes.
-- [ ] Add FantasyPros to the per-player source trace UI so admins can see exactly whether `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, ADP, news, injuries, or player-points affected a player read.
+- [x] Add FantasyPros weekly ECR source traces to waiver AI Targets so the card can show exact stored endpoint keys, weeks, row counts, freshness, and rank evidence behind the recommendation.
+- [x] Add FantasyPros value-profile rows to the admin per-player source trace UI so admins can see dynasty/current-season FantasyPros fields, preserved endpoint keys when available, and honest fallback copy when a blended row no longer has endpoint lineage.
+- [ ] Extend the per-player source trace beyond value-profile rows to normalized `DEVY`, `ROOKIES`, ADP, news, injuries, projections, and player-points snapshot context as those feeds start directly affecting player readouts.
 - [ ] Add unit tests for each FantasyPros payload normalizer and integration tests for dynasty, redraft, devy, rookie, ADP, injury, news, projection, and player-points diagnostics.
 
 ## Draft Baseline / League Mode Roadmap
@@ -347,6 +367,7 @@
 
 - [ ] Review waiver `won/lost` and trade `acted/blocked` outcomes after enough real samples accumulate, then tune confidence weights against actual results.
 - [ ] Track in-season usage trends over the course of the season, especially targets, rush attempts, and snap share, so waiver calculations can surface players whose role is growing before the box score catches up.
+- [x] Add all-position rolling FantasyPros ECR context to waiver intelligence so AI Targets can score QB/RB/WR/TE/K/DEF pickups from the next three-week window without defaulting to D/ST or K, while rank gates keep low-quality players from being over-promoted.
 - [ ] Add an admin accuracy panel for prediction quality by module: waiver bid range, waiver competition, trade resistance, and depth-chart role confidence.
 - [x] Extend Full Trade Ledger balancing-piece suggestions from trade-time players to trade-time picks by reconstructing historical pick inventory per roster/date; never suggest a pick unless that manager actually controlled it at the time of the deal.
 - [x] Add historical Sleeper backfill observability showing scanned league IDs, transaction counts, seasons loaded, failures, and broken `previous_league_id` chains.
@@ -742,6 +763,7 @@
 - [x] Add E2E coverage for local watch preference persistence.
 - [x] Add E2E coverage for portfolio snapshot persistence.
 - [x] Add E2E coverage for blueprint print and share controls where practical.
+- [ ] Rework the hidden Sleeper trade import into a guided, non-technical flow. The raw auth-token paste path is too brittle for normal users, so replace it with clearer instructions, browser-session-assisted capture, or another safer import path that does not assume users know what a token is or how to retrieve one.
 
 ## Report UX / Tooling Roadmap
 

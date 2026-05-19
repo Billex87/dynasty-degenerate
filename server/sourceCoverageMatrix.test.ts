@@ -114,4 +114,28 @@ describe('source coverage matrix', () => {
     });
     expect(candidates?.complianceNote).toContain('Do not scrape');
   });
+
+  it('surfaces FantasyPros endpoint snapshots as snapshot-backed sources', () => {
+    const matrix = buildSourceCoverageMatrix({
+      currentSeason: '2026',
+      valueProfileKey: '12_sf_ppr_base',
+      lookbackDays: 14,
+      freshnessDiagnostics: [
+        freshness({
+          sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-weekly-ecr',
+          rowCount: 51,
+          payloadSizeBytes: 24_000,
+        }),
+      ],
+      healthEvents: [],
+    });
+
+    const row = matrix.rows.find((entry) => entry.sourceKey === 'fantasypros-weekly-ecr-snapshot');
+    expect(row).toMatchObject({
+      status: 'loaded',
+      rowCount: 51,
+      tableName: 'providerDataSnapshots',
+    });
+    expect(row?.couldPowerLater).toContain('weekly streamer reads');
+  });
 });

@@ -544,6 +544,63 @@ function normalizePosition(pos?: string | null, rank?: string | null): string {
   return ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(normalized) ? normalized : 'PICK';
 }
 
+function getSourceRanksForRow({
+  option,
+  redraft,
+  ktc,
+  dynastyNerds,
+  flock,
+  blended,
+  fantasyProsDevy,
+  prospectProfile,
+  pos,
+}: {
+  option: RankingProfileOption;
+  redraft?: RedraftRankingValue;
+  ktc?: KtcRankingMap[string];
+  dynastyNerds?: PlayerMap[string];
+  flock?: PlayerMap[string];
+  blended?: KtcValues[string];
+  fantasyProsDevy?: FantasyProsDevyRanking;
+  prospectProfile?: ProspectProfile | null;
+  pos: string;
+}): { sourceOverallRank: number; sourcePositionRank: string | null } {
+  const sourceOverallRank = option.board === 'devy'
+    ? Number(fantasyProsDevy?.rank || ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || prospectProfile?.overallRank || 9999)
+    : option.board === 'redraft'
+      ? Number(redraft?.overallRank || blended?.fantasypros_rank || ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || 9999)
+      : Number(ktc?.rank || blended?.fantasypros_dynasty_rank || blended?.fantasypros_rank || dynastyNerds?.overallRank || flock?.overallRank || 9999);
+
+  const sourcePositionRank = normalizeRankPosition(
+    option.board === 'devy'
+      ? fantasyProsDevy?.positionRank
+        || ktc?.position_rank
+        || dynastyNerds?.positionRank
+        || flock?.positionRank
+        || (prospectProfile?.positionRank ? `${pos}${prospectProfile.positionRank}` : null)
+      : option.board === 'redraft'
+        ? redraft?.positionRank
+          || blended?.fantasypros_position_rank
+          || ktc?.position_rank
+          || dynastyNerds?.positionRank
+          || flock?.positionRank
+          || null
+        : ktc?.position_rank
+          || blended?.fantasypros_dynasty_position_rank
+          || blended?.fantasynerds_position_rank
+          || blended?.fantasypros_position_rank
+          || dynastyNerds?.positionRank
+          || flock?.positionRank
+          || null,
+    pos
+  );
+
+  return {
+    sourceOverallRank,
+    sourcePositionRank,
+  };
+}
+
 function getProspectRowsFromLookup(prospectLookup?: Map<string, ProspectProfile>): Record<string, ProspectProfile> {
   if (!prospectLookup) return {};
 
@@ -695,7 +752,8 @@ function isCollegeEligibleRankingPlayer({
 
 function getCollegeSourceRank(row: RankingPlayer): number {
   return Number(
-    row.fantasyProsDevyRank
+    row.sourceOverallRank
+    || row.fantasyProsDevyRank
     || row.ktcRank
     || row.flockRank
     || row.prospectProfile?.overallRank
@@ -760,6 +818,8 @@ function mergeRankingRows(rows: RankingPlayer[]): RankingPlayer[] {
       draftYear: existing.draftYear || row.draftYear,
       overallRank: Math.min(existing.overallRank || 9999, row.overallRank || 9999),
       positionRank: existing.positionRank || row.positionRank,
+      sourceOverallRank: existing.sourceOverallRank || row.sourceOverallRank,
+      sourcePositionRank: existing.sourcePositionRank || row.sourcePositionRank,
       value: Math.max(existing.value, row.value),
       ktcValue: existing.ktcValue || row.ktcValue,
       ktcRank: existing.ktcRank || row.ktcRank,
@@ -1004,17 +1064,17 @@ function buildRowsForProfile({
         draftYear: draftYear || prospectProfile?.draftYear || sleeperPlayer?.metadata?.rookie_year,
       }, nflversePlayerContext)
       : null;
-    const displayPositionRank = normalizeRankPosition(
-      fantasyProsDevy?.positionRank
-        || redraft?.positionRank
-        || ktc?.position_rank
-        || dynastyNerds?.positionRank
-        || blended?.fantasypros_dynasty_position_rank
-        || blended?.fantasynerds_position_rank
-        || flock?.positionRank
-        || (prospectProfile?.positionRank ? `${pos}${prospectProfile.positionRank}` : null),
-      pos
-    );
+    const { sourceOverallRank, sourcePositionRank } = getSourceRanksForRow({
+      option,
+      redraft,
+      ktc,
+      dynastyNerds,
+      flock,
+      blended,
+      fantasyProsDevy,
+      prospectProfile,
+      pos,
+    });
 
     rows.push({
       id: `${option.key}:${key}`,
@@ -1026,8 +1086,10 @@ function buildRowsForProfile({
       collegeLogoUrl: prospectProfile?.collegeLogoUrl || null,
       age: Number(sleeperPlayer?.age || dynastyNerds?.age || flock?.age || ktc?.age || fantasyProsDevy?.age || 0) || null,
       draftYear: draftYear || prospectProfile?.draftYear || null,
-      overallRank: Number(redraft?.overallRank || fantasyProsDevy?.rank || ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || prospectProfile?.overallRank || 9999),
-      positionRank: displayPositionRank,
+      overallRank: sourceOverallRank,
+      positionRank: sourcePositionRank,
+      sourceOverallRank,
+      sourcePositionRank,
       value,
       ktcValue,
       ktcRank: ktc?.rank || null,
@@ -1044,13 +1106,13 @@ function buildRowsForProfile({
       redraftAveragePick: redraft?.adp || null,
       redraftProjectedPoints: redraft?.projectedPoints || null,
       redraftSourceRanks: redraft?.sourceRanks || undefined,
-      fantasyProsDevyRank: fantasyProsDevy?.rank || prospectProfile?.fantasyProsDevyRank || null,
-      fantasyProsDevyPositionRank: fantasyProsDevy?.positionRank || prospectProfile?.fantasyProsDevyPositionRank || null,
-      fantasyProsDevyAge: fantasyProsDevy?.age || prospectProfile?.fantasyProsDevyAge || null,
-      fantasyProsDevyBestRank: fantasyProsDevy?.bestRank || prospectProfile?.fantasyProsDevyBestRank || null,
-      fantasyProsDevyWorstRank: fantasyProsDevy?.worstRank || prospectProfile?.fantasyProsDevyWorstRank || null,
-      fantasyProsDevyAverageRank: fantasyProsDevy?.averageRank || prospectProfile?.fantasyProsDevyAverageRank || null,
-      fantasyProsDevyStdDev: fantasyProsDevy?.stdDev || prospectProfile?.fantasyProsDevyStdDev || null,
+      fantasyProsDevyRank: option.board === 'devy' ? fantasyProsDevy?.rank || prospectProfile?.fantasyProsDevyRank || null : null,
+      fantasyProsDevyPositionRank: option.board === 'devy' ? fantasyProsDevy?.positionRank || prospectProfile?.fantasyProsDevyPositionRank || null : null,
+      fantasyProsDevyAge: option.board === 'devy' ? fantasyProsDevy?.age || prospectProfile?.fantasyProsDevyAge || null : null,
+      fantasyProsDevyBestRank: option.board === 'devy' ? fantasyProsDevy?.bestRank || prospectProfile?.fantasyProsDevyBestRank || null : null,
+      fantasyProsDevyWorstRank: option.board === 'devy' ? fantasyProsDevy?.worstRank || prospectProfile?.fantasyProsDevyWorstRank || null : null,
+      fantasyProsDevyAverageRank: option.board === 'devy' ? fantasyProsDevy?.averageRank || prospectProfile?.fantasyProsDevyAverageRank || null : null,
+      fantasyProsDevyStdDev: option.board === 'devy' ? fantasyProsDevy?.stdDev || prospectProfile?.fantasyProsDevyStdDev || null : null,
       seasonValue: option.board === 'redraft' ? value : blended?.redraft_value || null,
       tier: ktc?.tier || flock?.tier || null,
       movement,
@@ -1273,7 +1335,7 @@ export async function buildRankingsBoard({
       rosterStatusByPlayerId,
       diagnostics: identityDiagnostics,
       prospectLookup,
-      fantasyProsDevyRows,
+      fantasyProsDevyRows: option.board === 'devy' ? fantasyProsDevyRows : undefined,
       leagueTeamCount,
       nflversePlayerContext,
     });

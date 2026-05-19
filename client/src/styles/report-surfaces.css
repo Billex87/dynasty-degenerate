@@ -6077,6 +6077,34 @@ body {
   white-space: nowrap;
 }
 
+.dashboard-metric-card[data-tone="info"] {
+  background: linear-gradient(135deg, rgba(0, 200, 232, 0.05), rgba(3, 8, 16, 0.1));
+}
+
+.dashboard-metric-card[data-tone="good"] {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.07), rgba(3, 8, 16, 0.1));
+}
+
+.dashboard-metric-card[data-tone="warn"] {
+  background: linear-gradient(135deg, rgba(244, 160, 32, 0.08), rgba(3, 8, 16, 0.1));
+}
+
+.dashboard-metric-card[data-tone="danger"] {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.07), rgba(3, 8, 16, 0.1));
+}
+
+.dashboard-metric-card[data-tone="good"] strong {
+  color: #bbf7d0;
+}
+
+.dashboard-metric-card[data-tone="warn"] strong {
+  color: #fde68a;
+}
+
+.dashboard-metric-card[data-tone="danger"] strong {
+  color: #fecaca;
+}
+
 .dashboard-balance-metric {
   align-content: center;
   grid-template-columns: auto minmax(0, 1fr);
@@ -6108,6 +6136,27 @@ body {
   box-shadow: 0 0 16px rgba(34, 197, 94, 0.12);
 }
 
+.dashboard-balance-metric[data-tone="info"] .dashboard-balance-graph i {
+  background:
+    radial-gradient(circle, rgba(4, 11, 20, 0.96) 53%, transparent 55%),
+    conic-gradient(#00c8e8 var(--dashboard-balance-score), rgba(244, 160, 32, 0.45) 0, rgba(0, 200, 232, 0.16) 100%);
+  box-shadow: 0 0 16px rgba(0, 200, 232, 0.14);
+}
+
+.dashboard-balance-metric[data-tone="warn"] .dashboard-balance-graph i {
+  background:
+    radial-gradient(circle, rgba(4, 11, 20, 0.96) 53%, transparent 55%),
+    conic-gradient(#f4a020 var(--dashboard-balance-score), rgba(239, 68, 68, 0.5) 0, rgba(0, 200, 232, 0.16) 100%);
+  box-shadow: 0 0 16px rgba(244, 160, 32, 0.14);
+}
+
+.dashboard-balance-metric[data-tone="danger"] .dashboard-balance-graph i {
+  background:
+    radial-gradient(circle, rgba(4, 11, 20, 0.96) 53%, transparent 55%),
+    conic-gradient(#ef4444 var(--dashboard-balance-score), rgba(244, 160, 32, 0.5) 0, rgba(0, 200, 232, 0.16) 100%);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.14);
+}
+
 .dashboard-balance-graph strong {
   position: relative;
   z-index: 1;
@@ -6117,6 +6166,47 @@ body {
   font-weight: 950;
   line-height: 1;
   text-align: center;
+}
+
+.dashboard-meter-metric {
+  align-content: center;
+}
+
+.dashboard-meter-metric i {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 0.28rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.dashboard-meter-metric i::after {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--dashboard-meter-score);
+  min-width: 0.28rem;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #00c8e8, #f4a020);
+  box-shadow: 0 0 12px rgba(0, 200, 232, 0.18);
+  content: "";
+}
+
+.dashboard-meter-metric[data-tone="good"] i::after {
+  background: linear-gradient(90deg, #22c55e, #86efac);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.18);
+}
+
+.dashboard-meter-metric[data-tone="warn"] i::after {
+  background: linear-gradient(90deg, #f4a020, #fde047);
+  box-shadow: 0 0 12px rgba(244, 160, 32, 0.18);
+}
+
+.dashboard-meter-metric[data-tone="danger"] i::after {
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.18);
 }
 
 .dashboard-owner-strip {
@@ -6201,6 +6291,92 @@ body {
   border: 1px solid rgba(0, 200, 232, 0.12);
   border-radius: 0.42rem;
   padding: 0.58rem;
+}
+
+.dashboard-spotlight-metrics .dashboard-balance-metric {
+  grid-template-columns: minmax(1.75rem, auto) minmax(0, 1fr);
+  gap: 0.08rem 0.4rem;
+}
+
+.dashboard-spotlight-metrics .dashboard-balance-graph {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+.dashboard-spotlight-focus-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  border-top: 1px solid rgba(0, 200, 232, 0.12);
+  padding-top: 0.85rem;
+}
+
+.dashboard-spotlight-focus-card {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+  border: 1px solid rgba(0, 200, 232, 0.13);
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(145deg, rgba(0, 200, 232, 0.06), rgba(5, 12, 22, 0.72)),
+    rgba(3, 8, 16, 0.72);
+  padding: 0.62rem;
+}
+
+.dashboard-spotlight-focus-card[data-tone="good"] {
+  border-color: rgba(34, 197, 94, 0.24);
+  background:
+    linear-gradient(145deg, rgba(34, 197, 94, 0.1), rgba(5, 12, 22, 0.74)),
+    rgba(3, 8, 16, 0.72);
+}
+
+.dashboard-spotlight-focus-card[data-tone="warn"] {
+  border-color: rgba(244, 160, 32, 0.25);
+  background:
+    linear-gradient(145deg, rgba(244, 160, 32, 0.1), rgba(5, 12, 22, 0.74)),
+    rgba(3, 8, 16, 0.72);
+}
+
+.dashboard-spotlight-focus-card[data-tone="danger"] {
+  border-color: rgba(239, 68, 68, 0.24);
+  background:
+    linear-gradient(145deg, rgba(239, 68, 68, 0.1), rgba(5, 12, 22, 0.74)),
+    rgba(3, 8, 16, 0.72);
+}
+
+.dashboard-spotlight-focus-card span {
+  overflow: hidden;
+  color: rgba(0, 200, 232, 0.88);
+  font-size: 0.55rem;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.dashboard-spotlight-focus-card strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 0.84rem;
+  font-weight: 950;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-spotlight-focus-card em {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(203, 213, 225, 0.68);
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dashboard-position-rank-block {
@@ -7225,6 +7401,21 @@ body {
   .dashboard-overview-section-stack .report-section-header,
   .report-command-section-stack .report-section-header {
     grid-column: 1 / 2;
+    justify-items: start;
+  }
+
+  .dashboard-overview-section-stack .report-section-kicker,
+  .report-command-section-stack .report-section-kicker {
+    font-size: clamp(0.62rem, 2.8vw, 0.78rem) !important;
+    line-height: 1.08;
+  }
+
+  .dashboard-overview-section-stack .report-section-title,
+  .report-command-section-stack .report-section-title {
+    font-size: clamp(1.18rem, 6.4vw, 1.72rem) !important;
+    line-height: 1.04;
+    text-align: left !important;
+    text-wrap: balance;
   }
 
   .dashboard-overview-section-stack .report-disclosure-preview-row,

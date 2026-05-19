@@ -226,6 +226,41 @@ describe('Draft Analysis', () => {
     });
   });
 
+  it('uses the current roster-slot owner when historical draft data has an old user', async () => {
+    const result = await analyzeDraftPicks(
+      [
+        {
+          round: 1,
+          pick_no: 3,
+          draft_slot: 3,
+          player_id: 'london',
+          picked_by: 'old-user',
+          roster_id: 3,
+          original_roster_id: 3,
+          season: '2025',
+          roster_map: { 3: 'NewManager' },
+          roster_display_map: { 3: 'New Manager' },
+          user_id_to_manager_map: { 'old-user': 'OldManager' },
+          user_id_to_manager_display_map: { 'old-user': 'Old Manager' },
+        },
+      ] as any,
+      {
+        london: { full_name: 'Drake London', position: 'WR' },
+      },
+      { 3: 'NewManager' },
+      { drakelondon: { name: 'Drake London', ktc_value: 8500, position_rank: 'WR5' } },
+      { london: { name: 'Drake London', adp: 3 } }
+    );
+
+    expect(result.draftPicks[0]).toMatchObject({
+      manager: 'NewManager',
+      managerDisplayName: 'New Manager',
+      originalOwner: 'NewManager',
+      originalRosterId: 3,
+    });
+    expect(result.draftStats.map((row) => row.manager)).toEqual(['NewManager']);
+  });
+
   it('carries full manager display names for draft UI without changing manager keys', async () => {
     const result = await analyzeDraftPicks(
       [

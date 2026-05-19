@@ -4,6 +4,7 @@ import {
   type StoredSnapshotMetadata,
   type StoredSourceHealthEvent,
 } from './db';
+import { getFantasyProsRollingWeeks, type FantasyProsWeeklyEcrPosition } from './fantasyProsHealth';
 import type { SourceSnapshotFreshnessDiagnostic } from '../shared/types';
 
 type ExpectedSnapshotSource = {
@@ -32,6 +33,8 @@ type LoadInput = {
   previousSeason?: string | null;
   valueProfileKey: string;
   devyProfileKey?: string | null;
+  currentWeek?: number | null;
+  weekWindow?: number | null;
   rowCounts?: RowCountOverride[];
   now?: Date;
 };
@@ -44,6 +47,12 @@ const LONG_TERM_STALE_HOURS = 90 * 24;
 
 const PROVIDER_LABELS: Record<string, string> = {
   'fantasypros-news-v1': 'FantasyPros news snapshot',
+  'fantasypros-endpoint:weekly-ecr': 'FantasyPros weekly ECR endpoint snapshot',
+  'fantasypros-endpoint:ww': 'FantasyPros waiver-wire endpoint snapshot',
+  'fantasypros-endpoint:projections': 'FantasyPros projections endpoint snapshot',
+  'fantasypros-endpoint:player-points': 'FantasyPros player-points endpoint snapshot',
+  'fantasypros-endpoint:players': 'FantasyPros players endpoint snapshot',
+  'fantasypros-endpoint:compare-players': 'FantasyPros compare-players endpoint snapshot',
   'sportsdataio-news-v1': 'SportsDataIO/RotoBaller news snapshot',
   'espn-depth-charts-v1': 'ESPN depth-chart snapshot',
   'draftsharks-sos-v1': 'DraftSharks SOS snapshot',
@@ -86,6 +95,81 @@ function latestProblemHealthBySource(events: StoredSourceHealthEvent[] = []) {
 
 function sourceLabel(sourceKey: string, fallback?: string | null): string {
   return PROVIDER_LABELS[sourceKey] || fallback || sourceKey;
+}
+
+function fantasyProsEndpointSnapshotKey(season: string, scoring: string, endpointKey: string): string {
+  return `fantasypros-endpoint-v1:${season}:${scoring}:${endpointKey}`;
+}
+
+const FANTASYPROS_WEEKLY_ECR_POSITIONS: FantasyProsWeeklyEcrPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DST'];
+
+function fantasyProsWeeklyEcrExpectedSources(
+  season: string,
+  scoring: string,
+  currentWeek?: number | null,
+  weekWindow?: number | null,
+): ExpectedSnapshotSource[] {
+  return getFantasyProsRollingWeeks(currentWeek ?? undefined, weekWindow ?? undefined)
+    .flatMap((week) => FANTASYPROS_WEEKLY_ECR_POSITIONS.map((position) => ({
+      sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, `fantasypros-weekly-ecr-${position.toLowerCase()}-week-${week}`),
+      source: `FantasyPros weekly ECR ${position} Week ${week} endpoint snapshot`,
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: 'info' as const,
+    })));
+}
+
+function fantasyProsEndpointExpectedSources(
+  season: string,
+  scoring = 'PPR',
+  currentWeek?: number | null,
+  weekWindow?: number | null,
+): ExpectedSnapshotSource[] {
+  return [
+    {
+      sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-weekly-ecr'),
+      source: PROVIDER_LABELS['fantasypros-endpoint:weekly-ecr'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: 'info',
+    },
+    {
+      sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-ww'),
+      source: PROVIDER_LABELS['fantasypros-endpoint:ww'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: 'info',
+    },
+    {
+      sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-projections'),
+      source: PROVIDER_LABELS['fantasypros-endpoint:projections'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: 'info',
+    },
+    {
+      sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-player-points'),
+      source: PROVIDER_LABELS['fantasypros-endpoint:player-points'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: 'info',
+    },
+    {
+      sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-players'),
+      source: PROVIDER_LABELS['fantasypros-endpoint:players'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: WEEKLY_STALE_HOURS,
+      missingLevel: 'info',
+    },
+    {
+      sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-compare-players'),
+      source: PROVIDER_LABELS['fantasypros-endpoint:compare-players'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: WEEKLY_STALE_HOURS,
+      missingLevel: 'info',
+    },
+    ...fantasyProsWeeklyEcrExpectedSources(season, scoring, currentWeek, weekWindow),
+  ];
 }
 
 function normalizeMetadataSource(metadata: StoredSnapshotMetadata): StoredSnapshotMetadata {
@@ -220,6 +304,7 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       tableName: 'providerDataSnapshots',
       staleAfterHours: DAILY_STALE_HOURS,
     },
+    ...fantasyProsEndpointExpectedSources(input.currentSeason, 'PPR', input.currentWeek, input.weekWindow),
     {
       sourceKey: 'sportsdataio-news-v1',
       source: PROVIDER_LABELS['sportsdataio-news-v1'],

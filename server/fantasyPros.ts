@@ -2,6 +2,7 @@ import { cleanName, playerNameKeyVariants } from './leagueAnalysis';
 import { recordApiProviderCacheHit, recordApiProviderTelemetryEvent } from './apiProviderTelemetry';
 import { findLatestProviderDataSnapshot, upsertProviderDataSnapshot } from './db';
 import { getProviderSnapshotDateKey, parseProviderSnapshotPayload } from './providerDataSnapshots';
+import { getCurrentRankingSeason } from './rankingSeason';
 
 const FANTASYPROS_BASE_URL = 'https://api.fantasypros.com/public/v2/json';
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
@@ -314,7 +315,7 @@ export function normalizeFantasyProsRankingsPayload(
 }
 
 export async function fetchFantasyProsConsensusRankings({
-  season = String(new Date().getFullYear()),
+  season = getCurrentRankingSeason(),
   scoring = 'PPR',
   rankingType = 'DRAFT',
   position = 'ALL',
@@ -467,7 +468,7 @@ export function findLatestFantasyProsNewsForPlayer(
 }
 
 export async function fetchFantasyProsDraftRankings(
-  season = String(new Date().getFullYear()),
+  season = getCurrentRankingSeason(),
   scoring: FantasyProsScoring = 'HALF'
 ): Promise<Record<string, FantasyProsRanking>> {
   if (cachedDraftRankings?.season === season && cachedDraftRankings.scoring === scoring && isFresh(cachedDraftRankings)) {
@@ -486,28 +487,28 @@ export async function fetchFantasyProsDraftRankings(
 }
 
 export async function fetchFantasyProsDynastyRankings(
-  season = String(new Date().getFullYear()),
+  season = getCurrentRankingSeason(),
   scoring: FantasyProsScoring = 'PPR'
 ): Promise<Record<string, FantasyProsRanking>> {
   return fetchFantasyProsConsensusRankings({ season, scoring, rankingType: 'DYNASTY' });
 }
 
 export async function fetchFantasyProsDevyRankings(
-  season = String(new Date().getFullYear()),
+  season = getCurrentRankingSeason(),
   scoring: FantasyProsScoring = 'PPR'
 ): Promise<Record<string, FantasyProsRanking>> {
   return fetchFantasyProsConsensusRankings({ season, scoring, rankingType: 'DEVY' });
 }
 
 export async function fetchFantasyProsRookieRankings(
-  season = String(new Date().getFullYear()),
+  season = getCurrentRankingSeason(),
   scoring: FantasyProsScoring = 'PPR'
 ): Promise<Record<string, FantasyProsRanking>> {
   return fetchFantasyProsConsensusRankings({ season, scoring, rankingType: 'ROOKIES' });
 }
 
 export async function fetchFantasyProsAdpRankings(
-  season = String(new Date().getFullYear()),
+  season = getCurrentRankingSeason(),
   scoring: FantasyProsScoring = 'PPR'
 ): Promise<Record<string, FantasyProsRanking>> {
   return fetchFantasyProsConsensusRankings({ season, scoring, rankingType: 'ADP' });

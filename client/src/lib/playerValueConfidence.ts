@@ -62,6 +62,7 @@ function getSourceValues(valueProfile: ValueProfile, mode: LeagueValueMode): Sou
       { key: 'seasonValue', label: 'Season blend', value: valueProfile.seasonValue, primary: true },
       { key: 'fantasyProsSeasonValue', label: 'FantasyPros season', value: valueProfile.fantasyProsSeasonValue, primary: true },
       { key: 'fantasyCalcRedraft', label: 'FantasyCalc redraft', value: valueProfile.fantasyCalcRedraft, primary: true },
+      { key: 'flockBestBall', label: 'Flock best ball', value: valueProfile.flockBestBall, primary: true },
       { key: 'fantasyCalcDynasty', label: 'FantasyCalc dynasty', value: valueProfile.fantasyCalcDynasty, primary: false },
     ];
   }

@@ -92,6 +92,14 @@
     {
       "path": "/api/cron/dynamic-data-refresh",
       "schedule": "40 1 * * *"
+    },
+    {
+      "path": "/api/cron/fantasypros-endpoint-snapshots",
+      "schedule": "0 19 * * 2"
+    },
+    {
+      "path": "/api/cron/fantasypros-endpoint-snapshots",
+      "schedule": "0 20 * * 2"
     }
   ]
 }

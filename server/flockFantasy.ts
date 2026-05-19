@@ -1,7 +1,13 @@
 import { cleanName } from './leagueAnalysis';
 import type { ValueBlendOptions } from './valueBlend';
 
-export type FlockFormat = 'SUPERFLEX' | 'ONEQB' | 'PROSPECTS_SF' | 'PROSPECTS';
+export type FlockFormat =
+  | 'SUPERFLEX'
+  | 'ONEQB'
+  | 'PROSPECTS_SF'
+  | 'PROSPECTS'
+  | 'BEST_BALL'
+  | 'best_ball_sf';
 
 export interface FlockFantasyValue {
   name: string;
@@ -90,8 +96,8 @@ export function getFlockFantasyFormat(options: ValueBlendOptions = {}): Extract<
   return normalizeNumQbs(options.numQbs) === 2 ? 'SUPERFLEX' : 'ONEQB';
 }
 
-function getFlockRookieFormat(options: ValueBlendOptions = {}): Extract<FlockFormat, 'PROSPECTS_SF' | 'PROSPECTS'> {
-  return normalizeNumQbs(options.numQbs) === 2 ? 'PROSPECTS_SF' : 'PROSPECTS';
+function getFlockBestBallFormat(options: ValueBlendOptions = {}): Extract<FlockFormat, 'BEST_BALL' | 'best_ball_sf'> {
+  return normalizeNumQbs(options.numQbs) === 2 ? 'best_ball_sf' : 'BEST_BALL';
 }
 
 export async function fetchFlockFantasyRankings(format: FlockFormat): Promise<Record<string, FlockFantasyValue>> {
@@ -161,23 +167,21 @@ export async function fetchFlockFantasyRankings(format: FlockFormat): Promise<Re
 }
 
 export async function fetchFlockFantasyValues(options: ValueBlendOptions = {}): Promise<Record<string, FlockFantasyValue>> {
-  const [fullRankings, rookieRankings] = await Promise.all([
-    fetchFlockFantasyRankings(getFlockFantasyFormat(options)),
-    fetchFlockFantasyRankings(getFlockRookieFormat(options)),
-  ]);
+  return fetchFlockFantasyRankings(getFlockFantasyFormat(options));
+}
 
-  return {
-    ...rookieRankings,
-    ...fullRankings,
-  };
+export async function fetchFlockFantasyBestBallValues(options: ValueBlendOptions = {}): Promise<Record<string, FlockFantasyValue>> {
+  return fetchFlockFantasyRankings(getFlockBestBallFormat(options));
 }
 
 export async function loadFlockFantasyValueProfiles(): Promise<Record<FlockFormat, Record<string, FlockFantasyValue>>> {
-  const [superflex, oneQb, prospectsSf, prospects] = await Promise.all([
+  const [superflex, oneQb, prospectsSf, prospects, bestBall, bestBallSf] = await Promise.all([
     fetchFlockFantasyRankings('SUPERFLEX'),
     fetchFlockFantasyRankings('ONEQB'),
     fetchFlockFantasyRankings('PROSPECTS_SF'),
     fetchFlockFantasyRankings('PROSPECTS'),
+    fetchFlockFantasyRankings('BEST_BALL'),
+    fetchFlockFantasyRankings('best_ball_sf'),
   ]);
 
   return {
@@ -185,5 +189,7 @@ export async function loadFlockFantasyValueProfiles(): Promise<Record<FlockForma
     ONEQB: oneQb,
     PROSPECTS_SF: prospectsSf,
     PROSPECTS: prospects,
+    BEST_BALL: bestBall,
+    best_ball_sf: bestBallSf,
   };
 }

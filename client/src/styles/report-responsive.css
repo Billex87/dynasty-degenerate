@@ -11535,3 +11535,31 @@
     font-size: 0.52rem;
   }
 }
+
+@media (max-width: 767px) {
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary,
+  .report-shell .report-command-section-stack .report-disclosure-summary {
+    text-align: left !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-section-header,
+  .report-shell .report-command-section-stack .report-section-header {
+    justify-items: start !important;
+    text-align: left !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-section-kicker,
+  .report-shell .report-command-section-stack .report-section-kicker {
+    font-size: clamp(0.62rem, 2.8vw, 0.78rem) !important;
+    line-height: 1.08 !important;
+    text-align: left !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-section-title,
+  .report-shell .report-command-section-stack .report-section-title {
+    font-size: clamp(1.18rem, 6.4vw, 1.72rem) !important;
+    line-height: 1.04 !important;
+    text-align: left !important;
+    text-wrap: balance;
+  }
+}

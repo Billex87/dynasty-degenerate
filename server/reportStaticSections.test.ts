@@ -108,13 +108,15 @@ describe('report static rendered sections', () => {
       { sourceKey: 'ktc-blended-values-v1', rowCount: 100 },
     ];
 
-    expect(getReportSourceDiagnosticsCacheKey({ ...baseInput, rowCounts })).toBe(
-      'league-report-source-diagnostics-v1:12_sf_ppr_base:2026:2025:fantasypros-news-v1:5|ktc-blended-values-v1:100'
+    expect(getReportSourceDiagnosticsCacheKey({ ...baseInput, currentWeek: 2, weekWindow: 3, rowCounts })).toBe(
+      'league-report-source-diagnostics-v1:12_sf_ppr_base:2026:2025:week-2:window-3:fantasypros-news-v1:5|ktc-blended-values-v1:100'
     );
 
     const result = await loadReportSourceDiagnosticsSection({
       ...baseInput,
       devyProfileKey: 'devy_12_sf_ppr_base',
+      currentWeek: 2,
+      weekWindow: 3,
       rowCounts,
     });
 
@@ -124,6 +126,8 @@ describe('report static rendered sections', () => {
       previousSeason: '2025',
       valueProfileKey: '12_sf_ppr_base',
       devyProfileKey: 'devy_12_sf_ppr_base',
+      currentWeek: 2,
+      weekWindow: 3,
       rowCounts,
     });
     expect(mocks.upsertLeagueReportCache).toHaveBeenCalledWith({

@@ -50,6 +50,10 @@ export interface KTCValues {
     flock_position_rank?: string | null;
     flock_tier?: number | null;
     flock_format?: string | null;
+    flock_best_ball_value?: number;
+    flock_best_ball_rank?: number;
+    flock_best_ball_position_rank?: string | null;
+    flock_best_ball_format?: string | null;
     expert_value_fantasypros?: number;
     fantasypros_dynasty_rank?: number;
     fantasypros_dynasty_position_rank?: string | null;
@@ -293,6 +297,10 @@ function getActivePlayerIds(roster: Pick<Roster, 'players' | 'taxi' | 'reserve'>
 
 function getRosterPointsFor(roster: Pick<Roster, 'settings'>): number {
   return Number(roster.settings?.fpts || 0) + Number(roster.settings?.fpts_decimal || 0) / 100;
+}
+
+function getManagerIdentityKey(manager: string | undefined): string {
+  return manager?.trim().toLowerCase() || '';
 }
 
 function buildSeasonStandingsHistory(season: SeasonData): NonNullable<ReportData['standingsHistory']> {
@@ -2877,6 +2885,7 @@ export async function generateReport(
   };
 
   const pastRosterValues: Record<string, number> = {};
+  const pastRosterValuesByIdentity: Record<string, number> = {};
 
   // Calculate past season roster values if available
   if (pastSeasonData) {
@@ -2887,6 +2896,11 @@ export async function generateReport(
         (sum, pid) => sum + getPrimaryValue(pid),
         0
       );
+      const identityKey = getManagerIdentityKey(name);
+      if (identityKey) {
+        pastRosterValuesByIdentity[identityKey] =
+          (pastRosterValuesByIdentity[identityKey] || 0) + pastRosterValues[name];
+      }
     }
   }
 
@@ -2969,7 +2983,10 @@ export async function generateReport(
       }
     }
 
-    const pastVal = pastRosterValues[name] || 0;
+    const pastVal =
+      pastRosterValues[name] ||
+      pastRosterValuesByIdentity[getManagerIdentityKey(name)] ||
+      0;
     const growth = pastVal > 0 ? ((totalVal - pastVal) / pastVal) * 100 : 0;
 
     teamData[name] = {

@@ -1416,7 +1416,17 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       mode: leagueValueMode,
       context: 'rankings',
     });
-    const prospectPositionRank = player.positionRank || player.fantasyProsDevyPositionRank || fullProspectProfile?.fantasyProsDevyPositionRank || (fullProspectProfile?.positionRank ? `${player.pos}${fullProspectProfile.positionRank}` : null) || player.pos;
+    const boardPositionRank = player.positionRank || player.pos;
+    const sourcePositionRank = player.sourcePositionRank
+      || player.fantasyProsDevyPositionRank
+      || fullProspectProfile?.fantasyProsDevyPositionRank
+      || (fullProspectProfile?.positionRank ? `${player.pos}${fullProspectProfile.positionRank}` : null)
+      || boardPositionRank;
+    const sourceOverallRank = player.sourceOverallRank
+      || player.fantasyProsDevyRank
+      || fullProspectProfile?.fantasyProsDevyRank
+      || fullProspectProfile?.overallRank
+      || null;
     const prospectOnlyDetails = fullProspectProfile
       ? {
           fullName: player.name,
@@ -1464,7 +1474,10 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       player_id: player.player_id,
       playerName: player.name,
       playerPos: player.pos,
-      currentPositionRank: player.isDevy ? prospectPositionRank : modalRank || player.positionRank || player.pos,
+      currentPositionRank: player.isDevy ? sourcePositionRank : modalRank || sourcePositionRank || boardPositionRank,
+      boardPositionRank,
+      sourcePositionRank,
+      sourceOverallRank,
       currentKtcValue: player.isDevy ? undefined : modalValue ?? player.value,
       valueGain: player.movement || undefined,
       valueChangeNote: player.movementLabel ? 'Blended value change over the current comparison window.' : undefined,
@@ -1507,6 +1520,9 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       playerName: entry.name,
       playerPos: entry.position,
       currentPositionRank: entry.positionRank ? `${entry.position}${entry.positionRank}` : entry.position,
+      boardPositionRank: entry.positionRank ? `${entry.position}${entry.positionRank}` : entry.position,
+      sourcePositionRank: entry.positionRank ? `${entry.position}${entry.positionRank}` : entry.position,
+      sourceOverallRank: entry.overallRank || null,
       manager: undefined,
       playerImageUrl: entry.playerImageUrl || null,
       collegeLogoUrl: entry.collegeLogoUrl || null,

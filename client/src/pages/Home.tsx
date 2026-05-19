@@ -81,12 +81,23 @@ import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { isPlaceholderManagerName } from "@/lib/managerDisplay";
 import { getPositionRankClass } from "@/lib/positionRank";
 import { UNAUTHED_ERR_MSG } from "@shared/const";
-import type { PlayerDetails, RankingSourceDiagnostic, ReportData } from "@shared/types";
+import type {
+  PlayerDetails,
+  RankingSourceDiagnostic,
+  ReportData,
+} from "@shared/types";
 import type { AppRouter } from "../../../server/routers";
 import type {
   LeagueGlobeConnection,
   LeagueGlobeNode,
 } from "@/components/LeagueGlobe3D";
+import {
+  buildScheduleEdgeRows,
+  buildScheduleSnapshotHealthRows,
+  formatScheduleEdgeValue,
+  SCHEDULE_EDGE_POSITION_FILTERS,
+  type ScheduleEdgePositionFilter,
+} from "@/lib/scheduleEdgeRows";
 
 const DraftAnalysis = lazy(() =>
   import("@/components/DraftAnalysis").then(module => ({
@@ -195,7 +206,7 @@ const DYNASTY_MOBILE_REPORT_LOGO_SRC =
   "/brand/logos/png/mobile-dd-stacked-transparent.png?v=20260519-mobile-transparent";
 const DYNASTY_REPORT_HEADER_LOGO_SRC =
   "/brand/logos/uploads/report-header-logo-compact-transparent-cropped.png?v=20260518-compact-crop";
-const REPORT_CACHE_DATA_VERSION = "combine-athletic-metrics-v2";
+const REPORT_CACHE_DATA_VERSION = "manager-identity-alias-v1";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v25";
 const REPORT_CACHE_DB_NAME = "dynasty-degenerates-report-cache";
 const REPORT_CACHE_DB_VERSION = 1;
@@ -231,6 +242,8 @@ const SLEEPER_USERNAME_HISTORY_KEY =
 const CACHED_SLEEPER_USERS_KEY = "dynasty-degenerates:sleeper-user-history:v1";
 const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
   "dynasty-degenerates:admin-unlock-dismissed:v1";
+const ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY =
+  "dynasty-degenerates:admin-passphrase-verified-session:v1";
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
@@ -292,6 +305,30 @@ function shouldRenderSuccessCard3D() {
     return false;
   }
   return window.innerWidth >= 768;
+}
+
+function readAdminPassphraseVerifiedForSession() {
+  if (typeof window === "undefined") return false;
+  try {
+    return (
+      window.sessionStorage.getItem(ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY) ===
+      "true"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function rememberAdminPassphraseVerifiedForSession() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY,
+      "true"
+    );
+  } catch {
+    // Admin access still works for the current React session.
+  }
 }
 
 function getValidSleeperUserId(userId?: string | null) {
@@ -2365,18 +2402,57 @@ function DashboardMetricCard({
   label,
   value,
   subLabel,
+  tone = "neutral",
   className = "",
 }: {
   label: string;
   value: ReactNode;
   subLabel?: string;
+  tone?: "neutral" | "info" | "good" | "warn" | "danger";
   className?: string;
 }) {
   return (
-    <div className={`dashboard-metric-card ${className}`.trim()}>
+    <div
+      className={`dashboard-metric-card ${className}`.trim()}
+      data-tone={tone}
+    >
       <span>{label}</span>
       <strong>{value}</strong>
       {subLabel && <em>{subLabel}</em>}
+    </div>
+  );
+}
+
+function DashboardRingMetric({
+  title,
+  value,
+  score,
+  label,
+  tone = "good",
+}: {
+  title: string;
+  value?: ReactNode;
+  score: number | null;
+  label: string;
+  tone?: "info" | "good" | "warn" | "danger";
+}) {
+  const clampedScore =
+    score === null ? 0 : Math.max(0, Math.min(100, Math.round(score)));
+  const graphStyle = {
+    "--dashboard-balance-score": `${clampedScore}%`,
+  } as CSSProperties;
+
+  return (
+    <div
+      className="dashboard-metric-card dashboard-balance-metric"
+      data-tone={tone}
+    >
+      <span>{title}</span>
+      <div className="dashboard-balance-graph">
+        <i style={graphStyle} aria-hidden="true" />
+        <strong>{value ?? score ?? "-"}</strong>
+      </div>
+      <em>{label}</em>
     </div>
   );
 }
@@ -2388,20 +2464,49 @@ function DashboardBalanceMetric({
   score: number | null;
   label: string;
 }) {
+  return (
+    <DashboardRingMetric
+      title="League Balance"
+      score={score}
+      label={label}
+      tone={
+        score === null
+          ? "info"
+          : score >= 65
+            ? "good"
+            : score >= 50
+              ? "warn"
+              : "danger"
+      }
+    />
+  );
+}
+
+function DashboardMeterMetric({
+  label,
+  value,
+  subLabel,
+  score,
+  tone = "info",
+}: {
+  label: string;
+  value: ReactNode;
+  subLabel?: string;
+  score: number | null;
+  tone?: "info" | "good" | "warn" | "danger";
+}) {
   const clampedScore =
     score === null ? 0 : Math.max(0, Math.min(100, Math.round(score)));
-  const graphStyle = {
-    "--dashboard-balance-score": `${clampedScore}%`,
-  } as CSSProperties;
 
   return (
-    <div className="dashboard-metric-card dashboard-balance-metric">
-      <span>League Balance</span>
-      <div className="dashboard-balance-graph">
-        <i style={graphStyle} aria-hidden="true" />
-        <strong>{score ?? "-"}</strong>
-      </div>
-      <em>{label}</em>
+    <div className="dashboard-metric-card dashboard-meter-metric" data-tone={tone}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <i
+        style={{ "--dashboard-meter-score": `${clampedScore}%` } as CSSProperties}
+        aria-hidden="true"
+      />
+      {subLabel && <em>{subLabel}</em>}
     </div>
   );
 }
@@ -2945,28 +3050,697 @@ function OverviewLeagueGlobePanel({
   );
 }
 
-function ReportOverviewHero({
-  leagueName,
+type ReportDashboardTab =
+  | "overview"
+  | "momentum"
+  | "rankings"
+  | "trades"
+  | "draft"
+  | "autopilot"
+  | string;
+
+type DashboardMetricTone = "neutral" | "info" | "good" | "warn" | "danger";
+type DashboardVisualMetricKind = "standard" | "ring" | "meter";
+
+type DashboardHeroMetric = {
+  key: string;
+  kind?: DashboardVisualMetricKind;
+  label: string;
+  value: ReactNode;
+  subLabel?: string;
+  score?: number | null;
+  tone?: DashboardMetricTone;
+};
+
+type DashboardSpotlightBlock = {
+  key: string;
+  label: string;
+  value: ReactNode;
+  subLabel?: string;
+  tone?: DashboardMetricTone;
+};
+
+type DashboardSpotlightConfig = {
+  eyebrow: string;
+  metrics: DashboardHeroMetric[];
+  blocks: DashboardSpotlightBlock[];
+  chips: string[];
+  readTitle: string;
+  read: string;
+};
+
+type DashboardRankingPlayer =
+  NonNullable<ReportData["rankings"]>["dynastySf"][number];
+
+function getDashboardVisualTone(
+  tone?: DashboardMetricTone
+): "info" | "good" | "warn" | "danger" {
+  if (tone === "good" || tone === "warn" || tone === "danger") return tone;
+  return "info";
+}
+
+function DashboardVisualMetric({ metric }: { metric: DashboardHeroMetric }) {
+  const tone = metric.tone || "neutral";
+
+  if (metric.kind === "ring") {
+    return (
+      <DashboardRingMetric
+        title={metric.label}
+        value={metric.value}
+        score={metric.score ?? null}
+        label={metric.subLabel || ""}
+        tone={getDashboardVisualTone(tone)}
+      />
+    );
+  }
+
+  if (metric.kind === "meter") {
+    return (
+      <DashboardMeterMetric
+        label={metric.label}
+        value={metric.value}
+        subLabel={metric.subLabel}
+        score={metric.score ?? null}
+        tone={getDashboardVisualTone(tone)}
+      />
+    );
+  }
+
+  return (
+    <DashboardMetricCard
+      label={metric.label}
+      value={metric.value}
+      subLabel={metric.subLabel}
+      tone={tone}
+    />
+  );
+}
+
+function DashboardSpotlightFocusGrid({
+  blocks,
+}: {
+  blocks: DashboardSpotlightBlock[];
+}) {
+  if (!blocks.length) return null;
+
+  return (
+    <div className="dashboard-spotlight-focus-grid">
+      {blocks.map(block => (
+        <div
+          key={block.key}
+          className="dashboard-spotlight-focus-card"
+          data-tone={block.tone || "neutral"}
+        >
+          <span>{block.label}</span>
+          <strong>{block.value}</strong>
+          {block.subLabel && <em>{block.subLabel}</em>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function clampDashboardScore(value?: number | null): number | null {
+  if (value === null || value === undefined || !Number.isFinite(value))
+    return null;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function formatDashboardWholeNumber(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(value))
+    return "-";
+  return Math.round(value).toLocaleString();
+}
+
+function formatDashboardSignedNumber(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(value))
+    return "-";
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? "+" : ""}${rounded.toLocaleString()}`;
+}
+
+function formatDashboardPercentLabel(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(value))
+    return "-";
+  const normalized = Math.abs(value) <= 1 ? value * 100 : value;
+  return `${Math.round(normalized)}%`;
+}
+
+function formatDashboardSignedPercentLabel(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(value))
+    return "-";
+  const normalized = Math.abs(value) <= 1 ? value * 100 : value;
+  const rounded = Math.round(normalized * 10) / 10;
+  return `${rounded > 0 ? "+" : ""}${rounded}%`;
+}
+
+function getDashboardTeamCount(reportData: ReportData): number {
+  return (
+    getReportDashboardManagers(reportData).length ||
+    reportData.leagueOverview?.length ||
+    reportData.managerPositionCounts?.length ||
+    reportData.currentStandings?.length ||
+    0
+  );
+}
+
+function getDashboardLeagueValue(reportData: ReportData): number {
+  return (reportData.managerRosterValueGrowth || []).reduce(
+    (sum, row) => sum + (row.total_val || 0),
+    0
+  );
+}
+
+function getDashboardStarterSlotCount(reportData: ReportData): number | null {
+  return (
+    reportData.leagueDiagnostics?.starterSlots?.length ||
+    reportData.managerPositionCounts?.[0]?.starterPlayers?.length ||
+    null
+  );
+}
+
+function getDashboardActivityScore(count: number, target: number): number | null {
+  if (!target) return count ? 100 : null;
+  return clampDashboardScore((count / target) * 100);
+}
+
+function getDashboardHeroToneForSignedValue(
+  value?: number | null
+): DashboardMetricTone {
+  if (value === null || value === undefined || !Number.isFinite(value))
+    return "neutral";
+  if (value > 0) return "good";
+  if (value < 0) return "danger";
+  return "neutral";
+}
+
+function getDashboardRankingRows(
+  reportData: ReportData,
+  leagueValueMode: LeagueValueMode
+): DashboardRankingPlayer[] {
+  const rankings = reportData.rankings;
+  if (!rankings) return [];
+
+  const profileKey =
+    leagueValueMode === "redraft"
+      ? rankings.defaultRedraftProfileKey || rankings.defaultProfileKey
+      : rankings.defaultProfileKey;
+  const profileRows = profileKey ? rankings.profiles?.[profileKey] : null;
+  if (profileRows?.length) return profileRows;
+
+  if (leagueValueMode === "redraft") {
+    return (
+      rankings.redraftHalfPpr ||
+      rankings.redraftPpr ||
+      rankings.redraftStandard ||
+      rankings.dynastySf ||
+      []
+    );
+  }
+
+  return rankings.dynastySf?.length
+    ? rankings.dynastySf
+    : rankings.dynastyOneQb || [];
+}
+
+function getDashboardRankingRowCount(
+  reportData: ReportData,
+  leagueValueMode: LeagueValueMode
+): number {
+  const rows = getDashboardRankingRows(reportData, leagueValueMode);
+  if (rows.length) return rows.length;
+
+  const rankings = reportData.rankings;
+  if (!rankings?.profileRowCounts) return 0;
+  const profileKey =
+    leagueValueMode === "redraft"
+      ? rankings.defaultRedraftProfileKey || rankings.defaultProfileKey
+      : rankings.defaultProfileKey;
+  if (profileKey && rankings.profileRowCounts[profileKey]) {
+    return rankings.profileRowCounts[profileKey];
+  }
+
+  const fallbackKey =
+    leagueValueMode === "redraft"
+      ? rankings.defaultRedraftProfileKey
+      : rankings.defaultProfileKey;
+  return fallbackKey ? rankings.profileRowCounts[fallbackKey] || 0 : 0;
+}
+
+function getDashboardRankingProfileLabel(
+  reportData: ReportData,
+  leagueValueMode: LeagueValueMode
+): string {
+  const rankings = reportData.rankings;
+  if (!rankings) return leagueValueMode === "redraft" ? "Season" : "Dynasty";
+
+  const profileKey =
+    leagueValueMode === "redraft"
+      ? rankings.defaultRedraftProfileKey || rankings.defaultProfileKey
+      : rankings.defaultProfileKey;
+  const optionLabel = rankings.profileOptions?.find(
+    option => option.key === profileKey
+  )?.label;
+
+  return (
+    rankings.selectedProfileLabel ||
+    optionLabel ||
+    (leagueValueMode === "redraft" ? "Season Blend" : "Dynasty Blend")
+  );
+}
+
+function getDashboardTopRankingPlayer(
+  reportData: ReportData,
+  leagueValueMode: LeagueValueMode,
+  manager?: string | null
+): DashboardRankingPlayer | null {
+  const rows = getDashboardRankingRows(reportData, leagueValueMode);
+  const pool = manager
+    ? rows.filter(row => row.owner === manager)
+    : rows;
+  return (
+    [...pool].sort((a, b) => (b.value || 0) - (a.value || 0))[0] || null
+  );
+}
+
+function getDashboardPlayerName(player?: { name?: string | null } | null) {
+  return player?.name || "-";
+}
+
+function getDashboardTrendLabel(
+  player?: { name?: string; pos?: string; pct_change?: number; diff?: number } | null
+) {
+  if (!player) return "-";
+  const movement =
+    typeof player.pct_change === "number"
+      ? formatDashboardSignedPercentLabel(player.pct_change)
+      : formatDashboardSignedNumber(player.diff);
+  return `${player.name} ${movement}`;
+}
+
+function getDashboardLeagueTradeManagers(reportData: ReportData): number {
+  const managers = new Set<string>();
+  reportData.tradeHistory?.forEach(trade => {
+    if (trade.team_a) managers.add(trade.team_a);
+    if (trade.team_b) managers.add(trade.team_b);
+  });
+  reportData.tradeTendencies?.forEach(row => {
+    if (row.manager) managers.add(row.manager);
+  });
+  return managers.size;
+}
+
+function getDashboardHandshakeRate(reportData: ReportData): number | null {
+  const trades = reportData.tradeHistory || [];
+  if (!trades.length) return null;
+  const fairTrades = trades.filter(
+    trade => Math.abs(trade.point_gap || 0) <= 250
+  ).length;
+  return clampDashboardScore((fairTrades / trades.length) * 100);
+}
+
+function getDashboardDraftHitRate(stats?: {
+  hits?: number;
+  misses?: number;
+} | null): number | null {
+  const hits = stats?.hits || 0;
+  const misses = stats?.misses || 0;
+  const total = hits + misses;
+  if (!total) return null;
+  return clampDashboardScore((hits / total) * 100);
+}
+
+function getDashboardLeagueDraftStats(reportData: ReportData) {
+  return (reportData.draftStats || []).reduce(
+    (totals, row) => ({
+      totalPicks: totals.totalPicks + (row.totalPicks || 0),
+      hits: totals.hits + (row.hits || 0),
+      misses: totals.misses + (row.misses || 0),
+      starters: totals.starters + (row.starters || 0),
+      avgKtcGainTotal: totals.avgKtcGainTotal + (row.avgKtcGain || 0),
+      managerCount: totals.managerCount + 1,
+    }),
+    {
+      totalPicks: 0,
+      hits: 0,
+      misses: 0,
+      starters: 0,
+      avgKtcGainTotal: 0,
+      managerCount: 0,
+    }
+  );
+}
+
+function getReportDashboardHeroConfig({
+  activeTab,
   leagueValueMode,
   reportData,
   leagueBalanceScore,
 }: {
-  leagueName: string;
+  activeTab: ReportDashboardTab;
   leagueValueMode: LeagueValueMode;
   reportData: ReportData;
   leagueBalanceScore: number | null;
-}) {
-  const totalValueRows = reportData.managerRosterValueGrowth || [];
-  const leagueValue = totalValueRows.reduce(
-    (sum, row) => sum + (row.total_val || 0),
-    0
-  );
-  const starterSlots =
-    reportData.leagueDiagnostics?.starterSlots?.length ||
-    reportData.managerPositionCounts?.[0]?.starterPlayers?.length ||
-    null;
+}): {
+  kicker: string;
+  pillLabel: string;
+  pills: string[];
+  metrics: DashboardHeroMetric[];
+} {
+  const teamCount = getDashboardTeamCount(reportData);
+  const starterSlots = getDashboardStarterSlotCount(reportData);
+  const leagueValue = getDashboardLeagueValue(reportData);
   const tradeCount = reportData.tradeHistory?.length || 0;
   const rookieCount = reportData.draftPicks?.length || 0;
+  const weeklyRisers = [...(reportData.weeklyRisers || [])].sort(
+    (a, b) => (b.pct_change || 0) - (a.pct_change || 0)
+  );
+  const weeklyFallers = [...(reportData.weeklyFallers || [])].sort(
+    (a, b) => (a.pct_change || 0) - (b.pct_change || 0)
+  );
+  const topAdd = [...(reportData.trendingAdds || [])].sort(
+    (a, b) => (b.count || 0) - (a.count || 0)
+  )[0];
+  const topDrop = [...(reportData.trendingDrops || [])].sort(
+    (a, b) => (b.count || 0) - (a.count || 0)
+  )[0];
+  const rankingRows = getDashboardRankingRows(reportData, leagueValueMode);
+  const rankingRowCount = getDashboardRankingRowCount(
+    reportData,
+    leagueValueMode
+  );
+  const rosteredRankingRows = rankingRows.filter(row => row.owner).length;
+  const rankingCoverageScore = rankingRows.length
+    ? (rosteredRankingRows / rankingRows.length) * 100
+    : null;
+  const topBoardPlayer = getDashboardTopRankingPlayer(
+    reportData,
+    leagueValueMode
+  );
+  const tradeManagers = getDashboardLeagueTradeManagers(reportData);
+  const biggestTradeGap =
+    [...(reportData.tradeHistory || [])].sort(
+      (a, b) => Math.abs(b.point_gap || 0) - Math.abs(a.point_gap || 0)
+    )[0] || null;
+  const topTradeProfit =
+    [...(reportData.tradeTendencies || [])].sort(
+      (a, b) => (b.profit || 0) - (a.profit || 0)
+    )[0] || null;
+  const draftTotals = getDashboardLeagueDraftStats(reportData);
+  const leagueDraftHitRate = getDashboardDraftHitRate(draftTotals);
+  const avgDraftChange = draftTotals.managerCount
+    ? draftTotals.avgKtcGainTotal / draftTotals.managerCount
+    : null;
+  const aiScore = reportData.leagueDiagnostics?.aiConfidence?.score ?? null;
+
+  if (activeTab === "momentum") {
+    const moveCount = weeklyRisers.length + weeklyFallers.length;
+    return {
+      kicker: "Weekly Momentum Radar",
+      pillLabel: "Momentum signals",
+      pills: ["Market movement", "Waiver heat", "Buy windows", "Sell pressure"],
+      metrics: [
+        {
+          key: "top-riser",
+          label: "Top Riser",
+          value: getDashboardPlayerName(weeklyRisers[0]),
+          subLabel: formatDashboardSignedPercentLabel(weeklyRisers[0]?.pct_change),
+          tone: "good",
+        },
+        {
+          key: "top-faller",
+          label: "Top Faller",
+          value: getDashboardPlayerName(weeklyFallers[0]),
+          subLabel: formatDashboardSignedPercentLabel(weeklyFallers[0]?.pct_change),
+          tone: "danger",
+        },
+        {
+          key: "market-heat",
+          kind: "meter",
+          label: "Market Heat",
+          value: `${moveCount} moves`,
+          subLabel: "Weekly volatility",
+          score: getDashboardActivityScore(moveCount, Math.max(teamCount * 2, 1)),
+          tone: moveCount > teamCount ? "warn" : "info",
+        },
+        {
+          key: "adds",
+          kind: "meter",
+          label: "Waiver Adds",
+          value: topAdd ? formatDashboardWholeNumber(topAdd.count) : "-",
+          subLabel: topAdd?.name || "Trending adds",
+          score: getDashboardActivityScore(topAdd?.count || 0, 10000),
+          tone: "good",
+        },
+        {
+          key: "drops",
+          label: "Drop Heat",
+          value: topDrop ? formatDashboardWholeNumber(topDrop.count) : "-",
+          subLabel: topDrop?.name || "Drop pressure",
+          tone: topDrop ? "danger" : "neutral",
+        },
+      ],
+    };
+  }
+
+  if (activeTab === "rankings") {
+    const profileLabel = getDashboardRankingProfileLabel(
+      reportData,
+      leagueValueMode
+    );
+    const hasRankingRows = rankingRows.length > 0;
+    const boardLoadScore = hasRankingRows
+      ? rankingCoverageScore
+      : rankingRowCount
+        ? 55
+        : null;
+    const boardLoadTone: DashboardMetricTone = hasRankingRows
+      ? rankingCoverageScore !== null && rankingCoverageScore >= 55
+        ? "good"
+        : "warn"
+      : rankingRowCount
+        ? "info"
+        : "warn";
+    const sourceBlendLabel = reportData.rankings?.sourceWeightProfiles
+      ? "Weighted"
+      : "Default";
+    const prospectCount =
+      reportData.rankings?.draftBuzzScoreboardCount ||
+      reportData.rankings?.draftBuzzScoreboard?.length ||
+      reportData.rankings?.devySf?.length ||
+      0;
+    return {
+      kicker: "League-Matched Value Board",
+      pillLabel: "Ranking signals",
+      pills: ["Format matched", "Rostered values", "Prospect board", "Source blend"],
+      metrics: [
+        {
+          key: "ranked",
+          label: "Ranked Assets",
+          value: formatDashboardWholeNumber(rankingRowCount),
+          subLabel: "Player board",
+          tone: rankingRowCount ? "info" : "warn",
+        },
+        {
+          key: "profile",
+          label: "Value Lens",
+          value: "Matched",
+          subLabel: profileLabel,
+          tone: "info",
+        },
+        {
+          key: "coverage",
+          kind: "meter",
+          label: "Board Load",
+          value: hasRankingRows ? "Live" : rankingRowCount ? "Metadata" : "-",
+          subLabel: hasRankingRows
+            ? `${formatDashboardWholeNumber(rosteredRankingRows)} rostered`
+            : rankingRowCount
+              ? `${formatDashboardWholeNumber(rankingRowCount)} indexed`
+              : "No board data",
+          score: boardLoadScore,
+          tone: boardLoadTone,
+        },
+        {
+          key: "source-blend",
+          label: "Source Blend",
+          value: sourceBlendLabel,
+          subLabel: profileLabel,
+          tone: reportData.rankings?.sourceWeightProfiles ? "good" : "info",
+        },
+        {
+          key: "prospects",
+          label: "Prospect Pool",
+          value: formatDashboardWholeNumber(prospectCount),
+          subLabel: "College archive",
+          tone: prospectCount ? "info" : "neutral",
+        },
+      ],
+    };
+  }
+
+  if (activeTab === "trades") {
+    const handshakeRate = getDashboardHandshakeRate(reportData);
+    return {
+      kicker: "Trade War Room",
+      pillLabel: "Trade signals",
+      pills: ["Roster scanner", "Value gaps", "Profit leaders", "Market behavior"],
+      metrics: [
+        {
+          key: "trades",
+          label: "Trades",
+          value: tradeCount,
+          subLabel: "Ledger count",
+          tone: tradeCount ? "info" : "warn",
+        },
+        {
+          key: "active-managers",
+          kind: "meter",
+          label: "Managers",
+          value: `${tradeManagers}/${teamCount || "-"}`,
+          subLabel: "Trade market",
+          score: teamCount ? (tradeManagers / teamCount) * 100 : null,
+          tone: tradeManagers >= Math.max(teamCount / 2, 1) ? "good" : "warn",
+        },
+        {
+          key: "handshake",
+          kind: "ring",
+          label: "Clean Rate",
+          value: formatDashboardPercentLabel(handshakeRate),
+          subLabel: "Clean gaps",
+          score: handshakeRate,
+          tone:
+            handshakeRate === null
+              ? "neutral"
+              : handshakeRate >= 45
+                ? "good"
+                : "warn",
+        },
+        {
+          key: "profit",
+          label: "Top Profit",
+          value: formatDashboardSignedNumber(topTradeProfit?.profit),
+          subLabel: topTradeProfit?.manager || "No leader",
+          tone: getDashboardHeroToneForSignedValue(topTradeProfit?.profit),
+        },
+        {
+          key: "biggest-gap",
+          label: "Biggest Gap",
+          value: formatDashboardWholeNumber(Math.abs(biggestTradeGap?.point_gap || 0)),
+          subLabel: biggestTradeGap
+            ? `${biggestTradeGap.team_a} vs ${biggestTradeGap.team_b}`
+            : "No trades",
+          tone: biggestTradeGap ? "danger" : "neutral",
+        },
+      ],
+    };
+  }
+
+  if (activeTab === "draft") {
+    return {
+      kicker: "Draft Audit Room",
+      pillLabel: "Draft signals",
+      pills: ["Capital efficiency", "Hit rate", "Passed value", "Rookie runway"],
+      metrics: [
+        {
+          key: "draft-picks",
+          label: "Draft Picks",
+          value: formatDashboardWholeNumber(draftTotals.totalPicks || rookieCount),
+          subLabel: "Audited",
+          tone: draftTotals.totalPicks || rookieCount ? "info" : "neutral",
+        },
+        {
+          key: "hit-rate",
+          kind: "ring",
+          label: "Hits",
+          value: formatDashboardPercentLabel(leagueDraftHitRate),
+          subLabel: "Hits vs misses",
+          score: leagueDraftHitRate,
+          tone:
+            leagueDraftHitRate === null
+              ? "neutral"
+              : leagueDraftHitRate >= 50
+                ? "good"
+                : "warn",
+        },
+        {
+          key: "starters",
+          label: "Starters",
+          value: formatDashboardWholeNumber(draftTotals.starters),
+          subLabel: "Drafted starters",
+          tone: draftTotals.starters ? "good" : "neutral",
+        },
+        {
+          key: "avg-change",
+          label: "Avg Change",
+          value: formatDashboardSignedNumber(avgDraftChange),
+          subLabel: "Value movement",
+          tone: getDashboardHeroToneForSignedValue(avgDraftChange),
+        },
+        {
+          key: "rookie-pool",
+          kind: "meter",
+          label: "Rookie Pool",
+          value: formatDashboardWholeNumber(rookieCount),
+          subLabel: "Tracked assets",
+          score: getDashboardActivityScore(rookieCount, Math.max(teamCount * 25, 1)),
+          tone: rookieCount ? "info" : "neutral",
+        },
+      ],
+    };
+  }
+
+  if (activeTab === "autopilot") {
+    return {
+      kicker: "AI Command Center",
+      pillLabel: "AI signals",
+      pills: ["Confidence", "Roster reads", "Source checks", "Action plans"],
+      metrics: [
+        {
+          key: "ai-confidence",
+          kind: "ring",
+          label: "AI Score",
+          value: aiScore ?? "-",
+          subLabel: reportData.leagueDiagnostics?.aiConfidence?.label || "League read",
+          score: aiScore,
+          tone: aiScore === null ? "neutral" : aiScore >= 70 ? "good" : "warn",
+        },
+        {
+          key: "manager-reads",
+          label: "Manager Reads",
+          value: reportData.managerRosterIntelligence?.length || 0,
+          subLabel: "Owner profiles",
+          tone: reportData.managerRosterIntelligence?.length ? "info" : "warn",
+        },
+        {
+          key: "trade-plans",
+          label: "Trade Plans",
+          value: reportData.tradeProposalSignals?.length || 0,
+          subLabel: "Signal queue",
+          tone: reportData.tradeProposalSignals?.length ? "good" : "neutral",
+        },
+        {
+          key: "waiver-plans",
+          label: "Waiver Plans",
+          value: reportData.waiverIntelligence?.availableTrendingAdds?.length || 0,
+          subLabel: "Available adds",
+          tone: reportData.waiverIntelligence?.availableTrendingAdds?.length
+            ? "good"
+            : "neutral",
+        },
+        {
+          key: "coverage",
+          kind: "meter",
+          label: "Coverage",
+          value: `${teamCount || "-"} teams`,
+          subLabel: "League context",
+          score: teamCount ? 100 : null,
+          tone: teamCount ? "good" : "warn",
+        },
+      ],
+    };
+  }
+
   const balanceLabel =
     leagueBalanceScore === null
       ? "Current"
@@ -2978,10 +3752,87 @@ function ReportOverviewHero({
             ? "Watch"
             : "Uneven";
 
+  return {
+    kicker: "Dynasty Intel Command Center",
+    pillLabel: "Overview signals",
+    pills: ["Market data", "Season value", "Roster context", "AI-driven reads"],
+    metrics: [
+      {
+        key: "league-value",
+        label: "League Value",
+        value: formatDashboardCompactNumber(leagueValue || null),
+        subLabel: leagueValueMode === "redraft" ? "Season lens" : "Total",
+        tone: "info",
+      },
+      {
+        key: "starter-pool",
+        kind: "meter",
+        label: "Starter Pool",
+        value: starterSlots ?? "-",
+        subLabel: "Projected slots",
+        score: starterSlots ? Math.min(100, starterSlots * 8) : null,
+        tone: "good",
+      },
+        {
+          key: "balance",
+          kind: "ring",
+          label: "Balance",
+          value: leagueBalanceScore ?? "-",
+          subLabel: balanceLabel,
+          score: leagueBalanceScore,
+        tone:
+          leagueBalanceScore === null
+            ? "neutral"
+            : leagueBalanceScore >= 65
+              ? "good"
+              : leagueBalanceScore >= 50
+                ? "warn"
+                : "danger",
+      },
+      {
+        key: "trade-pulse",
+        kind: "meter",
+        label: "Trade Pulse",
+        value: tradeCount,
+        subLabel: "YTD market",
+        score: getDashboardActivityScore(tradeCount, Math.max(teamCount * 2, 1)),
+        tone: tradeCount >= teamCount ? "good" : "info",
+      },
+      {
+        key: "rookie-pool",
+        label: "Rookie Pool",
+        value: formatDashboardWholeNumber(rookieCount),
+        subLabel: "Tracked assets",
+        tone: rookieCount ? "info" : "neutral",
+      },
+    ],
+  };
+}
+
+function ReportOverviewHero({
+  leagueName,
+  activeTab,
+  leagueValueMode,
+  reportData,
+  leagueBalanceScore,
+}: {
+  leagueName: string;
+  activeTab: ReportDashboardTab;
+  leagueValueMode: LeagueValueMode;
+  reportData: ReportData;
+  leagueBalanceScore: number | null;
+}) {
+  const heroConfig = getReportDashboardHeroConfig({
+    activeTab,
+    leagueValueMode,
+    reportData,
+    leagueBalanceScore,
+  });
+
   return (
     <section className="report-overview-hero">
       <div className="report-overview-hero-copy">
-        <span>Dynasty Intel Command Center</span>
+        <span>{heroConfig.kicker}</span>
         <h1>
           <span>Win Now. Win Later.</span>
           <span>Build Your Dynasty.</span>
@@ -2991,42 +3842,588 @@ function ReportOverviewHero({
           market data, redraft season value, roster context, and AI-driven
           reads to give you an unfair advantage in every Sleeper league.
         </p>
-        <div className="report-overview-pills" aria-label="Overview signals">
-          <span>Market data</span>
-          <span>Season value</span>
-          <span>Roster context</span>
-          <span>AI-driven reads</span>
+        <div className="report-overview-pills" aria-label={heroConfig.pillLabel}>
+          {heroConfig.pills.map(pill => (
+            <span key={pill}>{pill}</span>
+          ))}
         </div>
       </div>
-      <div className="report-overview-metrics" aria-label={`${leagueName} overview metrics`}>
-        <DashboardMetricCard
-          label="League Value"
-          value={formatDashboardCompactNumber(leagueValue || null)}
-          subLabel={leagueValueMode === "redraft" ? "Season lens" : "Total"}
-        />
-        <DashboardMetricCard
-          label="Starters"
-          value={starterSlots ?? "-"}
-          subLabel="Projected"
-        />
-        <DashboardBalanceMetric score={leagueBalanceScore} label={balanceLabel} />
-        <DashboardMetricCard label="Trades" value={tradeCount} subLabel="YTD" />
-        <DashboardMetricCard
-          label="Rookie Count"
-          value={rookieCount}
-          subLabel="Tracked"
-        />
+      <div
+        className="report-overview-metrics"
+        aria-label={`${leagueName} ${heroConfig.pillLabel.toLowerCase()}`}
+      >
+        {heroConfig.metrics.map(metric => (
+          <DashboardVisualMetric key={metric.key} metric={metric} />
+        ))}
       </div>
     </section>
   );
 }
 
+function getReportDashboardSpotlightConfig({
+  activeTab,
+  manager,
+  reportData,
+  leagueValueMode,
+  starterCount,
+  seasonValue,
+  healthScore,
+  healthLabel,
+  intelSummary,
+}: {
+  activeTab: ReportDashboardTab;
+  manager: string;
+  reportData: ReportData;
+  leagueValueMode: LeagueValueMode;
+  starterCount: number | null;
+  seasonValue: number | null;
+  healthScore: number | null;
+  healthLabel: string;
+  intelSummary?: string | null;
+}): DashboardSpotlightConfig {
+  const managerRisers = [...(reportData.weeklyRisers || [])]
+    .filter(player => player.owner === manager)
+    .sort((a, b) => (b.pct_change || 0) - (a.pct_change || 0));
+  const managerFallers = [...(reportData.weeklyFallers || [])]
+    .filter(player => player.owner === manager)
+    .sort((a, b) => (a.pct_change || 0) - (b.pct_change || 0));
+  const topAdd = [...(reportData.trendingAdds || [])].sort(
+    (a, b) => (b.count || 0) - (a.count || 0)
+  )[0];
+  const topDrop = [...(reportData.trendingDrops || [])].sort(
+    (a, b) => (b.count || 0) - (a.count || 0)
+  )[0];
+  const rankingRows = getDashboardRankingRows(reportData, leagueValueMode);
+  const topRosterPlayer = getDashboardTopRankingPlayer(
+    reportData,
+    leagueValueMode,
+    manager
+  );
+  const rosteredRows = rankingRows.filter(row => row.owner === manager);
+  const managerGrowth = reportData.managerRosterValueGrowth?.find(
+    row => row.manager === manager
+  );
+  const leagueOverview = reportData.leagueOverview?.find(
+    row => row.manager === manager
+  );
+  const tradeTendency = reportData.tradeTendencies?.find(
+    row => row.manager === manager
+  );
+  const managerTrades = (reportData.tradeHistory || []).filter(
+    trade => trade.team_a === manager || trade.team_b === manager
+  );
+  const managerDraftStats = reportData.draftStats?.find(
+    row => row.manager === manager
+  );
+  const managerDraftPicks = (reportData.draftPicks || []).filter(
+    pick => pick.manager === manager
+  );
+  const aiConfidence =
+    reportData.leagueDiagnostics?.aiConfidence?.managerConfidence?.find(
+      row => row.manager === manager
+    ) || null;
+
+  if (activeTab === "momentum") {
+    const topRiser = managerRisers[0] || reportData.weeklyRisers?.[0] || null;
+    const topFaller =
+      managerFallers[0] || reportData.weeklyFallers?.[0] || null;
+    const volatility = managerRisers.length + managerFallers.length;
+
+    return {
+      eyebrow: "Weekly Action Board",
+      metrics: [
+        {
+          key: "value-swing",
+          label: "Value Swing",
+          value: getDashboardTrendLabel(topRiser),
+          subLabel: topRiser?.owner === manager ? "Your climb" : "League climb",
+          tone: "good",
+        },
+        {
+          key: "heat",
+          kind: "meter",
+          label: "Roster Heat",
+          value: `${volatility} moves`,
+          subLabel: "Risers/fallers",
+          score: getDashboardActivityScore(volatility, 6),
+          tone: volatility >= 4 ? "warn" : "info",
+        },
+        {
+          key: "fall-risk",
+          label: "Fall Risk",
+          value: getDashboardTrendLabel(topFaller),
+          subLabel: topFaller?.owner === manager ? "Your dip" : "League dip",
+          tone: "danger",
+        },
+      ],
+      blocks: [
+        {
+          key: "riser",
+          label: "Riser to inspect",
+          value: getDashboardPlayerName(topRiser),
+          subLabel: formatDashboardSignedPercentLabel(topRiser?.pct_change),
+          tone: "good",
+        },
+        {
+          key: "faller",
+          label: "Pressure point",
+          value: getDashboardPlayerName(topFaller),
+          subLabel: formatDashboardSignedPercentLabel(topFaller?.pct_change),
+          tone: "danger",
+        },
+        {
+          key: "add",
+          label: "Waiver heat",
+          value: topAdd?.name || "-",
+          subLabel: topAdd
+            ? `${formatDashboardWholeNumber(topAdd.count)} adds`
+            : "No add heat",
+          tone: "good",
+        },
+        {
+          key: "drop",
+          label: "Drop heat",
+          value: topDrop?.name || "-",
+          subLabel: topDrop
+            ? `${formatDashboardWholeNumber(topDrop.count)} drops`
+            : "No drop heat",
+          tone: "danger",
+        },
+      ],
+      chips: [
+        `${managerRisers.length} risers`,
+        `${managerFallers.length} fallers`,
+        topAdd ? `${topAdd.name} add heat` : "No add heat",
+      ],
+      readTitle: "Momentum Read",
+      read:
+        topRiser?.owner === manager
+          ? `${topRiser.name} is the live leverage point. Decide whether to cash out into steadier value or let the weekly spike become lineup edge.`
+          : "This roster is not driving the loudest market moves right now. Use the weekly board for opportunistic buys instead of chasing the league's biggest spikes.",
+    };
+  }
+
+  if (activeTab === "rankings") {
+    const rankingRowCount = getDashboardRankingRowCount(
+      reportData,
+      leagueValueMode
+    );
+    const hasRankingRows = rankingRows.length > 0;
+    const rosterCoverage = rankingRows.length
+      ? (rosteredRows.length / rankingRows.length) * 100
+      : null;
+    const profileLabel = getDashboardRankingProfileLabel(
+      reportData,
+      leagueValueMode
+    );
+    const boardLoadScore = hasRankingRows
+      ? rosterCoverage
+      : rankingRowCount
+        ? 55
+        : null;
+    const sourceBlendLabel = reportData.rankings?.sourceWeightProfiles
+      ? "Weighted"
+      : "Default";
+
+    return {
+      eyebrow: "Market Board",
+      metrics: [
+        {
+          key: "rank",
+          label: "Value Rank",
+          value: getDashboardRankLabel(leagueOverview, ["rank_value"]),
+          subLabel: "Season value",
+          tone: "info",
+        },
+        {
+          key: "coverage",
+          kind: "meter",
+          label: "Board Load",
+          value: hasRankingRows ? "Live" : rankingRowCount ? "Metadata" : "-",
+          subLabel: hasRankingRows
+            ? `${formatDashboardWholeNumber(rosteredRows.length)} rostered`
+            : rankingRowCount
+              ? `${formatDashboardWholeNumber(rankingRowCount)} indexed`
+              : "No board data",
+          score: boardLoadScore,
+          tone: hasRankingRows
+            ? rosterCoverage && rosterCoverage >= 5
+              ? "good"
+              : "warn"
+            : rankingRowCount
+              ? "info"
+              : "warn",
+        },
+        {
+          key: "profile",
+          label: "Value Lens",
+          value: "Matched",
+          subLabel: profileLabel,
+          tone: "info",
+        },
+      ],
+      blocks: [
+        {
+          key: "top-asset",
+          label: topRosterPlayer ? "Top roster asset" : "Board size",
+          value: topRosterPlayer?.name || formatDashboardWholeNumber(rankingRowCount),
+          subLabel:
+            topRosterPlayer?.positionRank ||
+            topRosterPlayer?.pos ||
+            "Indexed assets",
+          tone: topRosterPlayer ? "good" : rankingRowCount ? "info" : "warn",
+        },
+        {
+          key: "value-rank",
+          label: "Roster value",
+          value: getDashboardRankLabel(leagueOverview, ["rank_value"]),
+          subLabel: formatDashboardCompactNumber(
+            seasonValue ?? managerGrowth?.total_val
+          ),
+          tone: "info",
+        },
+        {
+          key: "qb-room",
+          label: topRosterPlayer ? "QB room" : "Value lens",
+          value: topRosterPlayer
+            ? getDashboardRankLabel(leagueOverview, ["rank_qb"])
+            : "Matched",
+          subLabel: topRosterPlayer ? "Full roster rank" : profileLabel,
+          tone: "info",
+        },
+        {
+          key: "rb-room",
+          label: topRosterPlayer ? "RB room" : "Source blend",
+          value: topRosterPlayer
+            ? getDashboardRankLabel(leagueOverview, ["rank_rb"])
+            : sourceBlendLabel,
+          subLabel: topRosterPlayer ? "Full roster rank" : profileLabel,
+          tone: "info",
+        },
+      ],
+      chips: [
+        `${formatDashboardWholeNumber(rankingRowCount)} ranked`,
+        `${formatDashboardWholeNumber(rosteredRows.length)} rostered`,
+        profileLabel,
+      ],
+      readTitle: "Ranking Read",
+      read: topRosterPlayer
+        ? `${topRosterPlayer.name} is the roster's highest visible asset in the active value lens. Use that tier as the anchor before packaging depth or dropping into the next value shelf.`
+        : rankingRowCount
+          ? `The ranking board is loaded as metadata for this view. Open the Rankings sections to hydrate player rows; the active lens is ${profileLabel}.`
+          : "Open the rankings board to match this roster against the active value lens and identify the first real tier break.",
+    };
+  }
+
+  if (activeTab === "trades") {
+    const winPct = tradeTendency?.winPct ?? null;
+    const avgGap = tradeTendency?.avgGap ?? null;
+    const profit = tradeTendency?.profit ?? null;
+    const partner = tradeTendency?.favoritePartner || "No repeat partner";
+
+    return {
+      eyebrow: "Trade War Room",
+      metrics: [
+        {
+          key: "profit",
+          label: "Trade Profit",
+          value: formatDashboardSignedNumber(profit),
+          subLabel: "All-time ledger",
+          tone: getDashboardHeroToneForSignedValue(profit),
+        },
+        {
+          key: "win-rate",
+          kind: "ring",
+          label: "Win Rate",
+          value: formatDashboardPercentLabel(winPct),
+          subLabel: "Outcomes",
+          score: winPct,
+          tone: winPct === null ? "neutral" : winPct >= 50 ? "good" : "danger",
+        },
+        {
+          key: "volume",
+          kind: "meter",
+          label: "Volume",
+          value: tradeTendency?.tradeCount ?? managerTrades.length,
+          subLabel: "Completed deals",
+          score: getDashboardActivityScore(
+            tradeTendency?.tradeCount ?? managerTrades.length,
+            10
+          ),
+          tone:
+            (tradeTendency?.tradeCount ?? managerTrades.length) > 0
+              ? "info"
+              : "warn",
+        },
+      ],
+      blocks: [
+        {
+          key: "partner",
+          label: "Favorite partner",
+          value: partner,
+          subLabel: "Most common counterparty",
+          tone: tradeTendency?.favoritePartner ? "info" : "neutral",
+        },
+        {
+          key: "avg-gap",
+          label: "Average gap",
+          value: formatDashboardWholeNumber(avgGap),
+          subLabel: "Trade tax profile",
+          tone:
+            avgGap === null
+              ? "neutral"
+              : Math.abs(avgGap) <= 250
+                ? "good"
+                : "warn",
+        },
+        {
+          key: "picks",
+          label: "Pick bias",
+          value: tradeTendency?.overpaysForPicks ? "Pays up" : "Clean",
+          subLabel: "Draft capital behavior",
+          tone: tradeTendency?.overpaysForPicks ? "warn" : "good",
+        },
+        {
+          key: "vets",
+          label: "Veteran bias",
+          value: tradeTendency?.overpaysForVeterans ? "Pays up" : "Clean",
+          subLabel: "Producer market behavior",
+          tone: tradeTendency?.overpaysForVeterans ? "warn" : "good",
+        },
+      ],
+      chips: [
+        `${tradeTendency?.tradeCount ?? managerTrades.length} trades`,
+        `${formatDashboardPercentLabel(winPct)} win rate`,
+        partner,
+      ],
+      readTitle: "Trade Read",
+      read: tradeTendency
+        ? `${manager}'s trade ledger shows ${formatDashboardSignedNumber(profit)} profit with a ${formatDashboardPercentLabel(winPct)} win rate. Their average gap and bias flags should set the opening offer, not roster value alone.`
+        : "This manager does not have enough trade tendency data yet. Start with the roster scanner and value match finder before assuming a negotiation style.",
+    };
+  }
+
+  if (activeTab === "draft") {
+    const hitRate = getDashboardDraftHitRate(managerDraftStats);
+    const avgChange = managerDraftStats?.avgKtcGain ?? null;
+
+    return {
+      eyebrow: "Draft Audit",
+      metrics: [
+        {
+          key: "picks",
+          label: "Picks",
+          value: managerDraftStats?.totalPicks ?? managerDraftPicks.length,
+          subLabel: "Audited",
+          tone:
+            managerDraftStats?.totalPicks || managerDraftPicks.length
+              ? "info"
+              : "neutral",
+        },
+        {
+          key: "hit-rate",
+          kind: "ring",
+          label: "Hits",
+          value: formatDashboardPercentLabel(hitRate),
+          subLabel: "Hits vs misses",
+          score: hitRate,
+          tone: hitRate === null ? "neutral" : hitRate >= 50 ? "good" : "warn",
+        },
+        {
+          key: "avg-change",
+          label: "Avg Change",
+          value: formatDashboardSignedNumber(avgChange),
+          subLabel: "Value delta",
+          tone: getDashboardHeroToneForSignedValue(avgChange),
+        },
+      ],
+      blocks: [
+        {
+          key: "best",
+          label: "Best pick",
+          value: managerDraftStats?.bestPick?.playerName || "-",
+          subLabel:
+            managerDraftStats?.bestPick?.valueGain !== null &&
+            managerDraftStats?.bestPick?.valueGain !== undefined
+              ? formatDashboardSignedNumber(managerDraftStats.bestPick.valueGain)
+              : "No best pick",
+          tone: managerDraftStats?.bestPick ? "good" : "neutral",
+        },
+        {
+          key: "worst",
+          label: "Worst pick",
+          value: managerDraftStats?.worstPick?.playerName || "-",
+          subLabel:
+            managerDraftStats?.worstPick?.valueGain !== null &&
+            managerDraftStats?.worstPick?.valueGain !== undefined
+              ? formatDashboardSignedNumber(managerDraftStats.worstPick.valueGain)
+              : "No miss logged",
+          tone: managerDraftStats?.worstPick ? "danger" : "neutral",
+        },
+        {
+          key: "starters",
+          label: "Drafted starters",
+          value: managerDraftStats?.starters ?? 0,
+          subLabel: "Lineup hits",
+          tone: managerDraftStats?.starters ? "good" : "neutral",
+        },
+        {
+          key: "misses",
+          label: "Misses",
+          value: managerDraftStats?.misses ?? 0,
+          subLabel: "Audit flags",
+          tone: managerDraftStats?.misses ? "warn" : "good",
+        },
+      ],
+      chips: [
+        `${managerDraftStats?.hits ?? 0} hits`,
+        `${managerDraftStats?.misses ?? 0} misses`,
+        `${managerDraftStats?.starters ?? 0} starters`,
+      ],
+      readTitle: "Draft Read",
+      read: managerDraftStats?.bestPick
+        ? `${managerDraftStats.bestPick.playerName} is the cleanest draft win, while ${managerDraftStats.worstPick?.playerName || "the miss bucket"} carries the biggest audit flag. That split is the fastest way to see whether this manager finds value or pays tuition.`
+        : "Draft capital efficiency will sharpen once this manager has enough picks in the audit sample.",
+    };
+  }
+
+  if (activeTab === "autopilot") {
+    return {
+      eyebrow: "AI Action Plan",
+      metrics: [
+        {
+          key: "confidence",
+          kind: "ring",
+          label: "Confidence",
+          value: aiConfidence?.score ?? "-",
+          subLabel: aiConfidence?.label || "Manager read",
+          score: aiConfidence?.score ?? null,
+          tone:
+            aiConfidence?.score === undefined
+              ? "neutral"
+              : aiConfidence.score >= 70
+                ? "good"
+                : "warn",
+        },
+        {
+          key: "starters",
+          label: "Starters",
+          value: starterCount ?? "-",
+          subLabel: "Projected",
+          tone: "info",
+        },
+        {
+          key: "health",
+          kind: "ring",
+          label: "Health",
+          value: healthScore ?? "-",
+          subLabel: healthLabel,
+          score: healthScore,
+          tone: healthScore === null ? "neutral" : healthScore >= 70 ? "good" : "warn",
+        },
+      ],
+      blocks: [
+        {
+          key: "confidence-note",
+          label: "Confidence note",
+          value: aiConfidence?.label || "Building",
+          subLabel: aiConfidence?.note || "Open Autopilot for trace details.",
+          tone: aiConfidence?.score && aiConfidence.score >= 70 ? "good" : "warn",
+        },
+        {
+          key: "trade-plan",
+          label: "Trade signal",
+          value: reportData.tradeProposalSignals?.length || 0,
+          subLabel: "Open recommendations",
+          tone: reportData.tradeProposalSignals?.length ? "good" : "neutral",
+        },
+        {
+          key: "waiver-plan",
+          label: "Waiver signal",
+          value: reportData.waiverIntelligence?.availableTrendingAdds?.length || 0,
+          subLabel: "Available add pool",
+          tone: reportData.waiverIntelligence?.availableTrendingAdds?.length
+            ? "good"
+            : "neutral",
+        },
+        {
+          key: "source-state",
+          label: "Data state",
+          value: reportData.leagueDiagnostics?.aiConfidence ? "Scored" : "Building",
+          subLabel: "AI read inputs",
+          tone: reportData.leagueDiagnostics?.aiConfidence ? "good" : "warn",
+        },
+      ],
+      chips: [
+        aiConfidence?.label || "AI building",
+        `${starterCount ?? "-"} starters`,
+        `Health ${healthScore ?? "-"}`,
+      ],
+      readTitle: "AI Read",
+      read:
+        aiConfidence?.note ||
+        intelSummary ||
+        "Autopilot is ready to turn this manager's roster context into ranked next actions.",
+    };
+  }
+
+  return {
+    eyebrow: "Projected Season Roster",
+    metrics: [
+      {
+        key: "starters",
+        label: "Starters",
+        value: starterCount ?? "-",
+        subLabel: "Projected",
+        tone: "info",
+      },
+      {
+        key: "season-value",
+        label: "Season Value",
+        value: formatDashboardCompactNumber(seasonValue),
+        subLabel: "Roster",
+        tone: "good",
+      },
+      {
+        key: "health",
+        kind: "ring",
+        label: "Health",
+        value: healthScore ?? "-",
+        subLabel: healthLabel,
+        score: healthScore,
+        tone:
+          healthScore === null
+            ? "neutral"
+            : healthScore >= 70
+              ? "good"
+              : healthScore >= 55
+                ? "warn"
+                : "danger",
+      },
+    ],
+    blocks: [],
+    chips: [
+      `${starterCount ?? "-"} Sleeper Starters`,
+      `Season Value ${formatDashboardCompactNumber(seasonValue)}`,
+      `Health ${healthScore ?? "-"}`,
+    ],
+    readTitle: "Roster Read",
+    read:
+      intelSummary ||
+      "This manager is ready for a deeper roster read once the overview sections are opened.",
+  };
+}
+
 function ReportDashboardSpotlight({
   manager,
+  activeTab,
+  leagueValueMode,
   reportData,
   managerAvatars,
 }: {
   manager: string | null;
+  activeTab: ReportDashboardTab;
+  leagueValueMode: LeagueValueMode;
   reportData: ReportData;
   managerAvatars?: Record<string, string | null | undefined>;
 }) {
@@ -3054,6 +4451,17 @@ function ReportDashboardSpotlight({
       (counts.DEF_starters || 0)
     : null;
   const healthScore = getDashboardNumber(intel, ["rosterHealthScore"]);
+  const fallbackHealthScore = healthScore ?? power?.score ?? null;
+  const healthLabel =
+    fallbackHealthScore === null
+      ? "Score"
+      : fallbackHealthScore >= 80
+        ? "Strong"
+        : fallbackHealthScore >= 70
+          ? "Good"
+          : fallbackHealthScore >= 55
+            ? "Watch"
+            : "Risk";
   const projectedStarters =
     (counts?.starterPlayers?.length ? counts.starterPlayers : counts?.lineupPlayers) || [];
   const rosterValuePlayers =
@@ -3103,6 +4511,19 @@ function ReportDashboardSpotlight({
     intel?.holes?.summary,
     (intel as { nextMove?: string } | undefined)?.nextMove,
   ].filter((signal): signal is string => Boolean(signal));
+  const spotlightConfig = getReportDashboardSpotlightConfig({
+    activeTab,
+    manager,
+    reportData,
+    leagueValueMode,
+    starterCount,
+    seasonValue,
+    healthScore: fallbackHealthScore,
+    healthLabel,
+    intelSummary:
+      intel?.summary || (intel as { nextMove?: string } | undefined)?.nextMove,
+  });
+  const isOverviewSpotlight = activeTab === "overview";
 
   return (
     <aside className="report-dashboard-spotlight" aria-label="Manager spotlight">
@@ -3114,66 +4535,60 @@ function ReportDashboardSpotlight({
           />
         </span>
         <div>
-          <span>Projected Season Roster</span>
+          <span>{spotlightConfig.eyebrow}</span>
           <strong>{manager}</strong>
         </div>
       </div>
       <div className="dashboard-spotlight-metrics">
-        <DashboardMetricCard
-          label="Starters"
-          value={starterCount ?? "-"}
-          subLabel="Projected"
-        />
-        <DashboardMetricCard
-          label="Season Value"
-          value={formatDashboardCompactNumber(seasonValue)}
-          subLabel="Roster"
-        />
-        <DashboardMetricCard
-          label="Health"
-          value={healthScore ?? power?.score ?? "-"}
-          subLabel="Score"
-        />
+        {spotlightConfig.metrics.map(metric => (
+          <DashboardVisualMetric key={metric.key} metric={metric} />
+        ))}
       </div>
-      <div className="dashboard-position-rank-block">
-        <span>Full Roster Position Ranks</span>
-        <div className={`dashboard-position-ranks ${rankGridClassName}`}>
-          {positionRankCards.map(({ position, rank }) => (
-            <span key={position} data-position={position}>
-              <em>{position}</em>
-              <strong>{formatDashboardRank(rank)}</strong>
-            </span>
-          ))}
-          <span data-position="VALUE">
-            <em>Season Value</em>
-            <strong>
-              {getDashboardRankLabel(leagueOverview, ["rank_value"])}
-            </strong>
-          </span>
-        </div>
-      </div>
-      {starterRankGroups.length > 0 && (
-        <div className="dashboard-starter-ranks">
-          <span>Projected Starter Slot Ranks</span>
-          <div className={rankGridClassName}>
-            {starterRankGroups.map(group => (
-              <span key={group.key} data-position={group.position}>
-                <em>
-                  {group.label}
-                </em>
-                <strong>{formatDashboardRank(group.rank)}</strong>
-                <b>{group.tier}</b>
+      {isOverviewSpotlight ? (
+        <>
+          <div className="dashboard-position-rank-block">
+            <span>Full Roster Position Ranks</span>
+            <div className={`dashboard-position-ranks ${rankGridClassName}`}>
+              {positionRankCards.map(({ position, rank }) => (
+                <span key={position} data-position={position}>
+                  <em>{position}</em>
+                  <strong>{formatDashboardRank(rank)}</strong>
+                </span>
+              ))}
+              <span data-position="VALUE">
+                <em>Season Value</em>
+                <strong>
+                  {getDashboardRankLabel(leagueOverview, ["rank_value"])}
+                </strong>
               </span>
-            ))}
+            </div>
           </div>
-        </div>
+          {starterRankGroups.length > 0 && (
+            <div className="dashboard-starter-ranks">
+              <span>Projected Starter Slot Ranks</span>
+              <div className={rankGridClassName}>
+                {starterRankGroups.map(group => (
+                  <span key={group.key} data-position={group.position}>
+                    <em>
+                      {group.label}
+                    </em>
+                    <strong>{formatDashboardRank(group.rank)}</strong>
+                    <b>{group.tier}</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <DashboardSpotlightFocusGrid blocks={spotlightConfig.blocks} />
       )}
       <div className="dashboard-spotlight-chip-row">
-        <span>{starterCount ?? "-"} Sleeper Starters</span>
-        <span>Season Value {formatDashboardCompactNumber(seasonValue)}</span>
-        <span>Health {healthScore ?? power?.score ?? "-"}</span>
+        {spotlightConfig.chips.map(chip => (
+          <span key={chip}>{chip}</span>
+        ))}
       </div>
-      {swapSignals.length > 0 && (
+      {isOverviewSpotlight && swapSignals.length > 0 && (
         <div className="dashboard-swap-signals">
           <span>Start/Sit Swap Signals</span>
           {swapSignals.slice(0, 2).map(signal => (
@@ -3182,12 +4597,8 @@ function ReportDashboardSpotlight({
         </div>
       )}
       <div className="dashboard-spotlight-read">
-        <span>Roster Read</span>
-        <p>
-          {intel?.summary ||
-            (intel as { nextMove?: string } | undefined)?.nextMove ||
-            "This manager is ready for a deeper roster read once the overview sections are opened."}
-        </p>
+        <span>{spotlightConfig.readTitle}</span>
+        <p>{spotlightConfig.read}</p>
       </div>
     </aside>
   );
@@ -5142,8 +6553,193 @@ function AdminValueDiagnosticsSection({
         ) : undefined
       }
       premium
+      defaultOpen
     >
       <AdminValueDiagnosticsTable reportData={reportData} />
+    </CollapsibleReportSection>
+  );
+}
+
+function AdminScheduleEdgeSection({
+  reportData,
+}: {
+  reportData: ReportData;
+}) {
+  const [positionFilter, setPositionFilter] =
+    useState<ScheduleEdgePositionFilter>("ALL");
+  const rows = buildScheduleEdgeRows(reportData);
+  const healthRows = buildScheduleSnapshotHealthRows(reportData);
+  const healthPositions = SCHEDULE_EDGE_POSITION_FILTERS.filter(
+    (position): position is Exclude<ScheduleEdgePositionFilter, "ALL"> =>
+      position !== "ALL"
+  );
+  const visibleRows =
+    positionFilter === "ALL"
+      ? rows
+      : rows.filter(row => row.position === positionFilter);
+  const loadedPositions = new Set(rows.map(row => row.position));
+  const sourceWarningCount = rows.filter(
+    row => row.sourceTone === "warn" || row.sourceTone === "danger"
+  ).length;
+
+  return (
+    <CollapsibleReportSection
+      title="Schedule Edge Table"
+      kicker="Next-three-week ranks"
+      previewAccessory={
+        rows.length > 0 ? (
+          <AdminAttentionBadge
+            count={rows.length}
+            label="Rank targets"
+            tone={sourceWarningCount ? "warn" : "info"}
+          />
+        ) : undefined
+      }
+      premium
+      defaultOpen
+    >
+      <div className="admin-schedule-edge">
+        <p className="admin-value-diagnostics-intro">
+          Admin-first table from stored FantasyPros rolling weekly rank snapshots.
+          Matchup-calendar SOS ratings and projections stay out until their
+          source rights and freshness gates are clean.
+        </p>
+        {healthRows.length > 0 && (
+          <div className="admin-schedule-health">
+            <div className="admin-schedule-health-heading">
+              <span>Schedule Snapshot Health</span>
+              <em>FantasyPros weekly rank coverage</em>
+            </div>
+            <div className="admin-schedule-edge-table-wrap">
+              <table className="admin-schedule-edge-table admin-schedule-health-table">
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    {healthPositions.map(position => (
+                      <th key={position}>{position}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {healthRows.map(row => (
+                    <tr key={row.week}>
+                      <td>
+                        <strong>Week {row.week}</strong>
+                      </td>
+                      {healthPositions.map(position => {
+                        const cell = row.cells[position];
+                        return (
+                          <td key={position}>
+                            {cell ? (
+                              <span
+                                className={`admin-schedule-edge-pill admin-schedule-edge-pill-${cell.tone}`}
+                                title={cell.detail}
+                              >
+                                {cell.label}
+                                {typeof cell.rowCount === "number"
+                                  ? ` · ${cell.rowCount.toLocaleString()}`
+                                  : ""}
+                              </span>
+                            ) : (
+                              <span className="admin-schedule-health-missing">
+                                -
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        <div className="admin-schedule-edge-toolbar" aria-label="Schedule edge filters">
+          {SCHEDULE_EDGE_POSITION_FILTERS.map(position => {
+            const disabled = position !== "ALL" && !loadedPositions.has(position);
+            return (
+              <button
+                key={position}
+                type="button"
+                className={
+                  positionFilter === position
+                    ? "admin-schedule-edge-filter admin-schedule-edge-filter-active"
+                    : "admin-schedule-edge-filter"
+                }
+                disabled={disabled}
+                onClick={() => setPositionFilter(position)}
+              >
+                {position === "ALL" ? "All" : position}
+              </button>
+            );
+          })}
+        </div>
+        {rows.length ? (
+          <div className="admin-schedule-edge-table-wrap">
+            <table className="admin-schedule-edge-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Best</th>
+                  <th>Window</th>
+                  <th>Value</th>
+                  <th>Availability</th>
+                  <th>Source Freshness</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map(row => (
+                  <tr key={row.id}>
+                    <td>
+                      <strong>{row.player.name}</strong>
+                      <span>
+                        {row.position}
+                        {row.team ? ` · ${row.team}` : ""}
+                      </span>
+                    </td>
+                    <td>
+                      <strong>{row.bestRank}</strong>
+                      <span>{row.bestWeek ? `Week ${row.bestWeek}` : "Rolling"}</span>
+                    </td>
+                    <td>{row.window || "No weekly rank rows"}</td>
+                    <td>
+                      <strong>{formatScheduleEdgeValue(row.value)}</strong>
+                      <span>{row.currentRank || "No rank"}</span>
+                    </td>
+                    <td>{row.player.owner || "Available"}</td>
+                    <td>
+                      <span
+                        className={`admin-schedule-edge-pill admin-schedule-edge-pill-${row.sourceTone}`}
+                      >
+                        {row.sourceFreshness}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className={`admin-schedule-edge-pill admin-schedule-edge-pill-${row.actionTone}`}
+                        title={row.note}
+                      >
+                        {row.action}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="admin-schedule-edge-empty">
+            <strong>No Schedule Edge rows yet</strong>
+            <p>
+              The report did not return stored weekly rank targets. Run the
+              FantasyPros endpoint snapshot refresh or regenerate after the
+              weekly snapshot job has data for the rolling week window.
+            </p>
+          </div>
+        )}
+      </div>
     </CollapsibleReportSection>
   );
 }
@@ -5538,6 +7134,7 @@ function AdminSourceCoverageSection() {
         ) : undefined
       }
       premium
+      defaultOpen
     >
       <AdminSourceCoveragePanel
         canViewTelemetry={canViewTelemetry}
@@ -6091,6 +7688,10 @@ export default function Home() {
   const [isAdminUnlockModalOpen, setIsAdminUnlockModalOpen] = useState(false);
   const [isAdminAccessModalOpen, setIsAdminAccessModalOpen] = useState(false);
   const [adminPassphrase, setAdminPassphrase] = useState("");
+  const [
+    isAdminPassphraseVerifiedForSession,
+    setIsAdminPassphraseVerifiedForSession,
+  ] = useState(readAdminPassphraseVerifiedForSession);
   const [loadingTransitionPhase, setLoadingTransitionPhase] =
     useState<LoadingTransitionPhase>("loading");
   const [
@@ -6113,8 +7714,12 @@ export default function Home() {
   const autopilotAccessToastShownRef = useRef(false);
   const adminLoginMutation = trpc.auth.adminLogin.useMutation({
     onSuccess: async () => {
+      rememberAdminPassphraseVerifiedForSession();
+      setIsAdminPassphraseVerifiedForSession(true);
       setAdminPassphrase("");
       setIsAdminAccessModalOpen(false);
+      setAdminViewMode("admin");
+      setAdminViewerManager(null);
       await utils.auth.me.invalidate();
       toast.success("Admin session unlocked.");
     },
@@ -6892,7 +8497,7 @@ export default function Home() {
 
   const handleAdminModeToggle = () => {
     handleAdminViewModeChoice(
-      adminViewMode === "regular" ? "admin" : "regular"
+      adminViewMode === "admin" ? "regular" : "admin"
     );
   };
 
@@ -7049,9 +8654,23 @@ export default function Home() {
     activeCachedSleeperUser?.isPrivilegedReportViewer === true;
   const hasAdminPermissions =
     hasAuthenticatedAdminPermissions || hasSleeperAdminPermissions;
-  const canViewAdminFeatureExpansion = hasAuthenticatedAdminPermissions
-    ? adminViewMode !== "regular"
-    : hasSleeperAdminPermissions && adminViewMode === "admin";
+  const canOpenAdminToolsEntry = hasAdminPermissions || !import.meta.env.PROD;
+  const canViewAdminFeatureExpansion =
+    isAdminPassphraseVerifiedForSession &&
+    (hasAuthenticatedAdminPermissions
+      ? adminViewMode === "admin"
+      : hasSleeperAdminPermissions && adminViewMode === "admin");
+
+  useEffect(() => {
+    if (
+      !canOpenAdminToolsEntry ||
+      !reportData ||
+      isAdminPassphraseVerifiedForSession
+    )
+      return;
+    setAdminPassphrase("");
+    setIsAdminAccessModalOpen(true);
+  }, [canOpenAdminToolsEntry, isAdminPassphraseVerifiedForSession, reportData]);
 
   useEffect(() => {
     if (
@@ -7083,7 +8702,13 @@ export default function Home() {
   };
 
   const handleAdminToolsClick = () => {
-    if (hasAdminPermissions) {
+    if (canOpenAdminToolsEntry && !isAdminPassphraseVerifiedForSession) {
+      setAdminPassphrase("");
+      setIsAdminAccessModalOpen(true);
+      return;
+    }
+
+    if (canOpenAdminToolsEntry) {
       handleAdminModeToggle();
       return;
     }
@@ -7385,7 +9010,7 @@ export default function Home() {
 
   const adminAccessDialog = (
     <Dialog
-      open={isAdminAccessModalOpen && !hasAuthenticatedAdminPermissions}
+      open={isAdminAccessModalOpen}
       onOpenChange={open => {
         if (open) return;
         setIsAdminAccessModalOpen(false);
@@ -7494,7 +9119,7 @@ export default function Home() {
     const isRedraftReport = leagueValueMode === "redraft";
     const modeCopy = getLeagueModeCopy(leagueValueMode);
     const reportDataBase = reportDataWithRankings || reportData;
-    const effectiveViewerManager = hasAdminPermissions
+    const effectiveViewerManager = canViewAdminFeatureExpansion
       ? (adminViewerManager ?? reportDataBase.viewerManager ?? null)
       : (reportDataBase.viewerManager ?? null);
     const reportManagerNames = getReportManagerNames(
@@ -7725,6 +9350,7 @@ export default function Home() {
                 >
                   <ReportOverviewHero
                     leagueName={leagueName}
+                    activeTab={resolvedActiveTab}
                     leagueValueMode={leagueValueMode}
                     reportData={reportDataForView}
                     leagueBalanceScore={dashboardLeagueHealthScore}
@@ -8329,6 +9955,9 @@ export default function Home() {
                             </p>
                           </div>
                           <AdminProviderTelemetrySection />
+                          <AdminScheduleEdgeSection
+                            reportData={reportDataForView}
+                          />
                           <AdminSourceCoverageSection />
                           <AdminTrafficTelemetrySection />
                           <AdminValueDiagnosticsSection
@@ -8546,6 +10175,8 @@ export default function Home() {
               </main>
               <ReportDashboardSpotlight
                 manager={dashboardViewerManager}
+                activeTab={resolvedActiveTab}
+                leagueValueMode={leagueValueMode}
                 reportData={reportDataForView}
                 managerAvatars={reportData.managerAvatars}
               />
@@ -8556,32 +10187,39 @@ export default function Home() {
               <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
                 <div className="report-footer-actions">
                   <div className="report-footer-primary-actions">
-                    {hasAdminPermissions && (
+                    {(canOpenAdminToolsEntry ||
+                      (canViewAdminFeatureExpansion && hasManagerViewOptions)) && (
                       <div className="flex w-full max-w-[32rem] items-stretch justify-center gap-1.5 sm:w-auto sm:max-w-none sm:gap-2">
-                        <Button
-                          type="button"
-                          onClick={handleAdminToolsClick}
-                          variant="outline"
-                          className={`report-header-action report-footer-primary-action !w-auto shrink-0 px-2.5 sm:px-3 report-header-admin-toggle ${canViewAdminFeatureExpansion ? "report-header-admin-toggle-active" : ""}`}
-                          aria-pressed={canViewAdminFeatureExpansion}
-                          aria-label={
-                            canViewAdminFeatureExpansion
-                              ? "Switch to regular report view"
-                              : "Return to admin report view"
-                          }
-                          title={
-                            canViewAdminFeatureExpansion
-                              ? "Hide admin-only AI annotations and diagnostics"
-                              : "Show admin-only AI annotations and diagnostics"
-                          }
-                        >
-                          <span className="report-header-action-label truncate">
-                            {canViewAdminFeatureExpansion
-                              ? "Regular Report"
-                              : "Admin Tools"}
-                          </span>
-                        </Button>
-                        {hasManagerViewOptions && (
+                        {canOpenAdminToolsEntry && (
+                          <Button
+                            type="button"
+                            onClick={handleAdminToolsClick}
+                            variant="outline"
+                            className={`report-header-action report-footer-primary-action !w-auto shrink-0 px-2.5 sm:px-3 report-header-admin-toggle ${canViewAdminFeatureExpansion ? "report-header-admin-toggle-active" : ""}`}
+                            aria-pressed={canViewAdminFeatureExpansion}
+                            aria-label={
+                              canViewAdminFeatureExpansion
+                                ? "Switch to regular report view"
+                                : isAdminPassphraseVerifiedForSession
+                                  ? "Switch to admin report view"
+                                  : "Unlock admin tools"
+                            }
+                            title={
+                              canViewAdminFeatureExpansion
+                                ? "Hide admin-only AI annotations and diagnostics"
+                                : isAdminPassphraseVerifiedForSession
+                                  ? "Show admin-only AI annotations and diagnostics"
+                                  : "Enter the admin passphrase for this browser session"
+                            }
+                          >
+                            <span className="report-header-action-label truncate">
+                              {canViewAdminFeatureExpansion
+                                ? "Regular Report"
+                                : "Admin Tools"}
+                            </span>
+                          </Button>
+                        )}
+                        {canViewAdminFeatureExpansion && hasManagerViewOptions && (
                           <AdminManagerSwitcher
                             managers={reportManagerNames}
                             activeManager={effectiveViewerManager}

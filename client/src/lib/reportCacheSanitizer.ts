@@ -104,6 +104,9 @@ function sanitizeWaiverIntelligence(reportData: ReportData): ReportData {
       bestAvailableByPosition,
       bestTaxiStashes: withoutOmittedPlayers(waiver.bestTaxiStashes, omitted),
       recentlyDroppedValuable: withoutOmittedPlayers(waiver.recentlyDroppedValuable, omitted),
+      weeklyEcrTargets: asArray(waiver.weeklyEcrTargets).filter(
+        target => !isOmittedWaiverPlayer(target.player, omitted)
+      ),
     },
   };
 }

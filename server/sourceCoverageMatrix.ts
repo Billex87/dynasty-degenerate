@@ -76,6 +76,90 @@ export type SourceCoverageMatrix = {
   rows: SourceCoverageRow[];
 };
 
+function fantasyProsEndpointSnapshotKey(context: MatrixContext, endpointKey: string): string {
+  return `fantasypros-endpoint-v1:${context.currentSeason}:PPR:${endpointKey}`;
+}
+
+function fantasyProsEndpointDefinition(input: {
+  sourceKey: string;
+  source: string;
+  endpointKey: string;
+  fieldMap: string[];
+  couldPowerLater: string[];
+  knownGaps: string[];
+}): SourceCoverageDefinition {
+  return {
+    sourceKey: input.sourceKey,
+    source: input.source,
+    category: 'FantasyPros endpoint snapshot',
+    endpoint: `providerDataSnapshots fantasypros-endpoint-v1:{season}:PPR:${input.endpointKey}`,
+    authModel: 'FantasyPros API key; endpoint payload persisted only by cron/admin refresh when enabled',
+    refreshCadence: 'Configured by ENABLE_FANTASYPROS_ENDPOINT_SNAPSHOTS and source refresh jobs',
+    rateLimit: 'Paced requests with stop-on-429 and Retry-After capture',
+    snapshotSourceKey: (context) => fantasyProsEndpointSnapshotKey(context, input.endpointKey),
+    healthSourceKeys: [input.endpointKey],
+    fieldMap: input.fieldMap,
+    ids: ['FantasyPros player ID', 'name/team/position join keys', 'external IDs when returned'],
+    timestamps: ['fetchedAt', 'lastUpdated', 'snapshotKey', 'updatedAt'],
+    usedNow: ['admin freshness diagnostics', 'server-side snapshot context'],
+    couldPowerLater: input.couldPowerLater,
+    knownGaps: input.knownGaps,
+    complianceNote: 'Stored snapshot only during report/admin reads; production display still follows FantasyPros rights and attribution rules.',
+    statusWhenUnbacked: 'research',
+  };
+}
+
+const FANTASYPROS_ENDPOINT_DEFINITIONS: SourceCoverageDefinition[] = [
+  fantasyProsEndpointDefinition({
+    sourceKey: 'fantasypros-weekly-ecr-snapshot',
+    source: 'FantasyPros weekly ECR endpoint snapshot',
+    endpointKey: 'fantasypros-weekly-ecr',
+    fieldMap: ['fantasypros_id', 'player_name', 'position', 'team', 'rank_ecr', 'pos_rank', 'rank_min', 'rank_max', 'rank_ave', 'rank_std', 'week'],
+    couldPowerLater: ['start/sit confidence', 'weekly streamer reads', 'Rankings-tab schedule edge table'],
+    knownGaps: ['Weekly ECR now snapshots QB/RB/WR/TE/K/DST by rolling week and feeds admin Schedule Edge; true matchup SOS still waits on approved schedule-strength fields'],
+  }),
+  fantasyProsEndpointDefinition({
+    sourceKey: 'fantasypros-ww-snapshot',
+    source: 'FantasyPros waiver-wire endpoint snapshot',
+    endpointKey: 'fantasypros-ww',
+    fieldMap: ['fantasypros_id', 'player_name', 'position', 'team', 'rank_ecr', 'pos_rank', 'week'],
+    couldPowerLater: ['waiver ranking confidence', 'streamer candidate ordering', 'drop/add comparisons'],
+    knownGaps: ['2026 Week 1 WW returned 200 with zero rows and should be rechecked closer to the season'],
+  }),
+  fantasyProsEndpointDefinition({
+    sourceKey: 'fantasypros-projections-snapshot',
+    source: 'FantasyPros projections endpoint snapshot',
+    endpointKey: 'fantasypros-projections',
+    fieldMap: ['fantasypros_id', 'player_name', 'position', 'team', 'projected_points', 'stat columns', 'week'],
+    couldPowerLater: ['lineup strength', 'matchup preview', 'projection confidence', 'D/ST and K streamer scoring'],
+    knownGaps: ['Projection use remains gated until scoring conversion and display rights are approved'],
+  }),
+  fantasyProsEndpointDefinition({
+    sourceKey: 'fantasypros-player-points-snapshot',
+    source: 'FantasyPros player-points endpoint snapshot',
+    endpointKey: 'fantasypros-player-points',
+    fieldMap: ['fantasypros_id', 'player_name', 'position', 'team', 'games', 'points', 'average', 'weeks'],
+    couldPowerLater: ['weekly consistency', 'projection backtests', 'value-confidence calibration'],
+    knownGaps: ['Requires season/week interpretation before public consistency notes consume it'],
+  }),
+  fantasyProsEndpointDefinition({
+    sourceKey: 'fantasypros-players-snapshot',
+    source: 'FantasyPros players endpoint snapshot',
+    endpointKey: 'fantasypros-players',
+    fieldMap: ['fantasypros_id', 'player_name', 'position', 'team', 'age', 'birthdate', 'external_ids', 'source_url'],
+    couldPowerLater: ['identity matching', 'source trace', 'platform ID joins'],
+    knownGaps: ['External ID coverage varies by player and platform'],
+  }),
+  fantasyProsEndpointDefinition({
+    sourceKey: 'fantasypros-compare-players-snapshot',
+    source: 'FantasyPros compare-players endpoint snapshot',
+    endpointKey: 'fantasypros-compare-players',
+    fieldMap: ['fantasypros_id', 'rankings', 'expert_rank_count', 'average_rank', 'best_rank', 'worst_rank'],
+    couldPowerLater: ['close-call player modal comparisons', 'start/sit explainers', 'trade comparison notes'],
+    knownGaps: ['Should only run for selected close-call players, not broad report-wide comparisons'],
+  }),
+];
+
 const SOURCE_DEFINITIONS: SourceCoverageDefinition[] = [
   {
     sourceKey: 'sleeper-league',
@@ -163,6 +247,7 @@ const SOURCE_DEFINITIONS: SourceCoverageDefinition[] = [
     knownGaps: ['News joins depend on player identity normalization'],
     complianceNote: 'Stored news metadata only; do not print article payloads or secrets.',
   },
+  ...FANTASYPROS_ENDPOINT_DEFINITIONS,
   {
     sourceKey: 'sportsdataio-news-v1',
     source: 'SportsDataIO/RotoBaller news snapshot',

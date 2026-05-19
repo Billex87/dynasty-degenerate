@@ -24,6 +24,10 @@ type KTCValueMap = Record<string, {
   flock_position_rank?: string | null;
   flock_tier?: number | null;
   flock_format?: string | null;
+  flock_best_ball_value?: number;
+  flock_best_ball_rank?: number;
+  flock_best_ball_position_rank?: string | null;
+  flock_best_ball_format?: string | null;
   expert_value_fantasypros?: number;
   fantasypros_dynasty_rank?: number;
   fantasypros_dynasty_position_rank?: string | null;
@@ -219,6 +223,14 @@ function normalizeSnapshotData(data: unknown): KTCValueMap {
                   : isFlockSource ? fallbackPositionRank : undefined,
                 flock_tier: numberField('flock_tier') ?? (isFlockSource ? numberField('tier') : undefined),
                 flock_format: typeof raw.flock_format === 'string' ? raw.flock_format : isFlockSource ? rawFormat : undefined,
+                flock_best_ball_value: numberField('flock_best_ball_value'),
+                flock_best_ball_rank: numberField('flock_best_ball_rank'),
+                flock_best_ball_position_rank: typeof raw.flock_best_ball_position_rank === 'string'
+                  ? raw.flock_best_ball_position_rank
+                  : undefined,
+                flock_best_ball_format: typeof raw.flock_best_ball_format === 'string'
+                  ? raw.flock_best_ball_format
+                  : undefined,
                 expert_value_fantasypros: numberField('expert_value_fantasypros')
                   ?? (isFantasyProsDynastySource ? numberField('dynastyValue') ?? numberField('value') : undefined),
                 fantasypros_dynasty_rank: numberField('fantasypros_dynasty_rank')
@@ -290,6 +302,10 @@ function compactSnapshotData(data: KTCValueMap): KTCValueMap {
         flock_position_rank: value.flock_position_rank,
         flock_tier: value.flock_tier,
         flock_format: value.flock_format,
+        flock_best_ball_value: value.flock_best_ball_value,
+        flock_best_ball_rank: value.flock_best_ball_rank,
+        flock_best_ball_position_rank: value.flock_best_ball_position_rank,
+        flock_best_ball_format: value.flock_best_ball_format,
         expert_value_fantasypros: value.expert_value_fantasypros,
         fantasypros_dynasty_rank: value.fantasypros_dynasty_rank,
         fantasypros_dynasty_position_rank: value.fantasypros_dynasty_position_rank,

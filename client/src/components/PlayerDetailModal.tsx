@@ -59,9 +59,11 @@ const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; acce
 };
 
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
+const ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY = 'dynasty-degenerates:admin-passphrase-verified-session:v1';
 type PlayerSchedule = NonNullable<PlayerDetails['schedule']>;
 type PlayerValueTimeline = NonNullable<PlayerDetails['valueTimeline']>;
 type TimelineWindowKey = NonNullable<PlayerValueTimeline['selectedWindow']>;
+type FantasyProsPlayerTraceRow = NonNullable<NonNullable<PlayerDetails['valueProfile']>['fantasyProsSourceTrace']>[number];
 type RedraftValueTimelineScope = {
   key: 'CURRENT' | 'DRAFT' | 'ADP' | 'ROS';
   label: string;
@@ -107,6 +109,16 @@ function getStoredAdminViewMode(): 'admin' | 'regular' | null {
   }
 }
 
+function hasAdminPassphraseForSession(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    return window.sessionStorage.getItem(ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 interface PlayerDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -123,6 +135,9 @@ export type PlayerModalData = Partial<DraftPick> & {
   playerPos?: string;
   player_id?: string;
   playerDetails?: PlayerDetails;
+  boardPositionRank?: string | null;
+  sourcePositionRank?: string | null;
+  sourceOverallRank?: number | null;
   valueChangeNote?: string;
   managerAvatarUrl?: string | null;
   playerImageUrl?: string | null;
@@ -319,7 +334,9 @@ export function PlayerDetailModal({
   const isCollegeProspect = isCollegeOnlyModalPick(pick, details);
   const preferProspectImage = Boolean(pick.preferProspectImage);
   const prospectCollege = prospectProfile?.college || details?.college || null;
-  const isAdminView = Boolean(authUser?.isPrivilegedAdmin) || getStoredAdminViewMode() === 'admin';
+  const isAdminView =
+    hasAdminPassphraseForSession() &&
+    (Boolean(authUser?.isPrivilegedAdmin) || getStoredAdminViewMode() === 'admin');
   const directHeadshot = !isCollegeProspect && pick.player_id && !directImageFailed
     ? `https://sleepercdn.com/content/nfl/players/${pick.player_id}.jpg`
     : null;
@@ -350,6 +367,10 @@ export function PlayerDetailModal({
   const teamColors = team ? NFL_TEAM_COLORS[team] || null : null;
   const collegeTileStyle = isCollegeProspect ? getCollegeTileStyle(prospectCollege) : undefined;
   const tileAccent = isCollegeProspect ? '#fbbf24' : getReadableTeamAccent(teamColors);
+  const boardPositionRank = pick.boardPositionRank || currentRank;
+  const sourcePositionRank = pick.sourcePositionRank || (currentRank !== '-' ? currentRank : null);
+  const sourceOverallRank = pick.sourceOverallRank || prospectProfile?.fantasyProsDevyRank || prospectProfile?.overallRank || null;
+  const sourceRankLabel = sourceOverallRank ? `#${sourceOverallRank.toLocaleString()}` : sourcePositionRank || currentRank;
   const modalBackground = isCollegeProspect
     ? `radial-gradient(circle at 15% 6%, color-mix(in srgb, var(--team-primary, #7c2d12) 38%, transparent), transparent 28%), radial-gradient(circle at 95% 0%, color-mix(in srgb, var(--team-secondary, #0f172a) 46%, transparent), transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, #070b13 100%)`
     : teamColors
@@ -400,8 +421,9 @@ export function PlayerDetailModal({
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
   const prospectMetricRows = prospectProfile ? [
     ['Projected Rookie Pick', prospectProfile.projectedRookiePick],
-    ['Board Rank', prospectProfile.fantasyProsDevyRank ? `#${prospectProfile.fantasyProsDevyRank}` : prospectProfile.overallRank ? `#${prospectProfile.overallRank}` : null],
-    ['Position Rank', prospectProfile.fantasyProsDevyPositionRank || (prospectProfile.positionRank ? `${prospectProfile.position}${prospectProfile.positionRank}` : null)],
+    ['Board Rank', boardPositionRank],
+    ['Source Rank', sourceRankLabel],
+    ['Position Rank', sourcePositionRank || prospectProfile.fantasyProsDevyPositionRank || (prospectProfile.positionRank ? `${prospectProfile.position}${prospectProfile.positionRank}` : null)],
     ['Draft Class', prospectProfile.draftYear],
     ['Class', prospectProfile.classYear],
     ['Size', [prospectProfile.height, prospectProfile.weight].filter(Boolean).join(' / ')],
@@ -461,11 +483,12 @@ export function PlayerDetailModal({
       ? [
           ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
           ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
+          ['Flock Best Ball', valueProfile.flockBestBall],
           ['Season Value', valueProfile.seasonValue],
         ]
       : [
           ['Flock Fantasy', valueProfile.flockFantasy],
-          ['Market Consensus', valueProfile.marketKtc],
+          ['KTC Market Consensus', valueProfile.marketKtc],
           ['FantasyPros Dynasty', valueProfile.fantasyProsDynasty],
           ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
           ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
@@ -476,6 +499,7 @@ export function PlayerDetailModal({
           ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
         ]
   ).filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const fantasyProsSourceTrace = valueProfile?.fantasyProsSourceTrace || [];
   const latestNews = playerNewsData?.latestNews ?? details?.latestNews ?? null;
   const hasMeaningfulNews = Boolean(latestNews?.title || latestNews?.summary);
   const rawProspectSummary = details?.prospectProfile?.summary?.trim() || null;
@@ -1231,7 +1255,7 @@ export function PlayerDetailModal({
               )}
             </div>
 
-            {((isAdminView && sourceValueRows.length > 0)
+            {((isAdminView && (sourceValueRows.length > 0 || fantasyProsSourceTrace.length > 0))
               || Boolean(prospectSummary)
               || hasMeaningfulNews
               || Boolean(details?.availabilityHistory?.length)) && (
@@ -1312,7 +1336,7 @@ export function PlayerDetailModal({
                       </p>
                     </div>
                   ) : null}
-                  {isAdminView && sourceValueRows.length > 0 ? (
+                  {isAdminView && (sourceValueRows.length > 0 || fantasyProsSourceTrace.length > 0) ? (
                     <div
                       className="player-complete-section player-complete-section-wide border-cyan-300/15 bg-slate-950/55 p-4 sm:p-5"
                       style={{
@@ -1323,21 +1347,67 @@ export function PlayerDetailModal({
                       }}
                     >
                       <h4>Source Inputs</h4>
-                      <div className="mt-3 grid gap-2">
-                        {sourceValueRows.map(([label, value]) => (
-                          <div
-                            key={`source-${label}`}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-cyan-300/10 bg-slate-950/35 px-3 py-2.5"
-                          >
-                            <span className="min-w-0 flex-1 font-mono text-[0.68rem] font-bold uppercase tracking-[0.16em] text-cyan-200/80 sm:text-[0.72rem]">
-                              {label}
+                      {sourceValueRows.length > 0 ? (
+                        <div className="mt-3 grid gap-2">
+                          {sourceValueRows.map(([label, value]) => (
+                            <div
+                              key={`source-${label}`}
+                              className="flex items-center justify-between gap-3 rounded-xl border border-cyan-300/10 bg-slate-950/35 px-3 py-2.5"
+                            >
+                              <span className="min-w-0 flex-1 font-mono text-[0.68rem] font-bold uppercase tracking-[0.16em] text-cyan-200/80 sm:text-[0.72rem]">
+                                {label}
+                              </span>
+                              <strong className="min-w-0 shrink-0 text-right text-sm font-black text-slate-100 sm:text-base">
+                                {formatCompleteValue(value)}
+                              </strong>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      {fantasyProsSourceTrace.length > 0 ? (
+                        <div className={sourceValueRows.length > 0 ? 'mt-4 border-t border-cyan-300/10 pt-4' : 'mt-3'}>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h5 className="text-[0.7rem] font-black uppercase tracking-[0.18em] text-cyan-100">
+                              FantasyPros Trace
+                            </h5>
+                            <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-1 text-[0.62rem] font-black uppercase tracking-[0.14em] text-cyan-100">
+                              {fantasyProsSourceTrace.length} row{fantasyProsSourceTrace.length === 1 ? '' : 's'}
                             </span>
-                            <strong className="min-w-0 shrink-0 text-right text-sm font-black text-slate-100 sm:text-base">
-                              {formatCompleteValue(value)}
-                            </strong>
                           </div>
-                        ))}
-                      </div>
+                          <div className="mt-3 grid gap-2">
+                            {fantasyProsSourceTrace.map((trace, index) => (
+                              <div
+                                key={`fantasypros-trace-${trace.key}-${trace.endpointKey || trace.sourceKey || index}`}
+                                className="rounded-xl border border-amber-300/15 bg-amber-300/5 p-3"
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <span className="min-w-0 font-mono text-[0.68rem] font-black uppercase tracking-[0.16em] text-amber-100 sm:text-[0.72rem]">
+                                    {trace.label}
+                                  </span>
+                                  <strong className="shrink-0 text-right text-sm font-black text-slate-100">
+                                    {formatFantasyProsTraceValue(trace)}
+                                  </strong>
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {[trace.key, trace.endpointKey, trace.sourceKey, trace.scoring, trace.week ? `Week ${trace.week}` : null, trace.lastUpdated ? `Updated ${formatNewsDate(trace.lastUpdated)}` : null]
+                                    .filter(Boolean)
+                                    .map((tag) => (
+                                      <span
+                                        key={`fantasypros-trace-${trace.key}-${String(tag)}`}
+                                        className="rounded-full border border-amber-200/10 bg-slate-950/45 px-2 py-1 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-amber-100/75"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                </div>
+                                <p className="mt-2 break-words text-xs font-medium leading-relaxed text-slate-300">
+                                  {trace.evidence}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
               {details?.availabilityHistory?.length ? (
@@ -1782,6 +1852,59 @@ function buildTimelineSourceAudit(point: TimelinePoint) {
     high,
     low,
     spread,
+  };
+}
+
+function buildTimelineSourceHistoryAudit(points: TimelinePoint[]) {
+  const pointsWithValues = points.filter((point) => Number.isFinite(Number(point.value)) && point.value > 0);
+  const sourceRows = timelineSourceFields.map((source) => {
+    const samples = pointsWithValues
+      .map((point) => {
+        const value = point[source.key];
+        if (!value || !Number.isFinite(Number(value))) return null;
+        return {
+          value,
+          delta: Math.round(value - point.value),
+        };
+      })
+      .filter((sample): sample is { value: number; delta: number } => Boolean(sample));
+    const sampleCount = samples.length;
+    const averageValue = sampleCount
+      ? Math.round(samples.reduce((sum, sample) => sum + sample.value, 0) / sampleCount)
+      : null;
+    const averageDelta = sampleCount
+      ? Math.round(samples.reduce((sum, sample) => sum + sample.delta, 0) / sampleCount)
+      : null;
+    const lowCount = samples.filter((sample) => sample.delta <= -350).length;
+    const highCount = samples.filter((sample) => sample.delta >= 350).length;
+
+    return {
+      key: source.key,
+      label: source.label,
+      sampleCount,
+      averageValue,
+      averageDelta,
+      lowCount,
+      highCount,
+      tone: averageDelta === null ? 'missing' : averageDelta >= 350 ? 'high' : averageDelta <= -350 ? 'low' : 'neutral',
+    };
+  });
+  const availableRows = sourceRows.filter((row) => row.sampleCount > 0);
+  const lowestAverage = availableRows.reduce<typeof availableRows[number] | null>(
+    (lowest, row) => (!lowest || (row.averageDelta ?? 0) < (lowest.averageDelta ?? 0) ? row : lowest),
+    null
+  );
+  const highestAverage = availableRows.reduce<typeof availableRows[number] | null>(
+    (highest, row) => (!highest || (row.averageDelta ?? 0) > (highest.averageDelta ?? 0) ? row : highest),
+    null
+  );
+
+  return {
+    sourceRows,
+    availableRows,
+    lowestAverage,
+    highestAverage,
+    pointCount: pointsWithValues.length,
   };
 }
 
@@ -2457,7 +2580,10 @@ function PlayerValueTimelineDetailDialog({
   }, [activeWindowKey, chartTimelinePoints.length, visibleChartMode]);
   const selectedTimelinePoint = selectedPointIndex !== null ? chartTimelinePoints[selectedPointIndex] || null : null;
   const selectedChartPoint = selectedPointIndex !== null ? chartPoints[selectedPointIndex] || null : null;
-  const sourceAudit = useMemo(() => buildTimelineSourceAudit(lastPoint), [lastPoint]);
+  const sourceAuditPoint = selectedTimelinePoint || lastPoint;
+  const sourceAudit = useMemo(() => buildTimelineSourceAudit(sourceAuditPoint), [sourceAuditPoint]);
+  const allTimelinePoints = useMemo(() => getTimelineWindowSnapshot(timeline, 'all').points || timeline.points, [timeline]);
+  const sourceHistoryAudit = useMemo(() => buildTimelineSourceHistoryAudit(allTimelinePoints), [allTimelinePoints]);
   const eventList = activePoints.flatMap((point) =>
     (point.events || []).map((event) => ({
       ...event,
@@ -2700,9 +2826,14 @@ function PlayerValueTimelineDetailDialog({
               <section className="player-value-timeline-section player-value-source-admin-panel">
                 <div className="player-value-timeline-section-header">
                   <span>Admin Source Audit</span>
-                  <strong>{sourceAudit.availableRows.length}/6 live</strong>
+                  <strong>{sourceAudit.availableRows.length}/{timelineSourceFields.length} present</strong>
                 </div>
                 <div className="player-value-source-audit-metrics">
+                  <TimelineMetric
+                    label="Point"
+                    value={formatTimelineDate(sourceAuditPoint.date)}
+                    note={selectedTimelinePoint ? 'Selected chart point' : 'Latest chart point'}
+                  />
                   <TimelineMetric
                     label="Spread"
                     value={sourceAudit.spread !== null ? formatValueLens(sourceAudit.spread) : '-'}
@@ -2733,6 +2864,43 @@ function PlayerValueTimelineDetailDialog({
                     </article>
                   ))}
                 </div>
+                {sourceHistoryAudit.availableRows.length > 0 && (
+                  <>
+                    <div className="player-value-timeline-section-header player-value-source-history-header">
+                      <span>All-History Source Pull</span>
+                      <strong>{sourceHistoryAudit.pointCount} pts</strong>
+                    </div>
+                    <div className="player-value-source-audit-metrics">
+                      <TimelineMetric
+                        label="Lowest Avg"
+                        value={sourceHistoryAudit.lowestAverage?.label || '-'}
+                        note={sourceHistoryAudit.lowestAverage?.averageDelta !== null && sourceHistoryAudit.lowestAverage?.averageDelta !== undefined
+                          ? `${formatSourceDelta(sourceHistoryAudit.lowestAverage.averageDelta)} vs blend`
+                          : 'Missing'}
+                      />
+                      <TimelineMetric
+                        label="Highest Avg"
+                        value={sourceHistoryAudit.highestAverage?.label || '-'}
+                        note={sourceHistoryAudit.highestAverage?.averageDelta !== null && sourceHistoryAudit.highestAverage?.averageDelta !== undefined
+                          ? `${formatSourceDelta(sourceHistoryAudit.highestAverage.averageDelta)} vs blend`
+                          : 'Missing'}
+                      />
+                    </div>
+                    <div className="player-value-source-audit-grid">
+                      {sourceHistoryAudit.sourceRows.map((row) => (
+                        <article key={`history-${row.key}`} className={`player-value-source-audit-row player-value-source-audit-row-${row.tone}`}>
+                          <span>{row.label}</span>
+                          <strong>{row.averageDelta !== null ? formatSourceDelta(row.averageDelta) : '-'}</strong>
+                          <em>
+                            {row.sampleCount
+                              ? `${row.sampleCount} pts · avg ${formatTimelineSourceValue(row.averageValue)} · low ${row.lowCount} / high ${row.highCount}`
+                              : 'No stored history'}
+                          </em>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                )}
                 <p className="player-value-source-admin-note">
                   Use this to debug whether the blended value moved because the market moved, a new source entered the blend, or one provider is pulling materially away from consensus.
                 </p>
@@ -2804,6 +2972,14 @@ function formatCompleteValue(value: unknown, compactNumbers?: boolean) {
     return compactNumbers ? formatValueLens(value) : value.toLocaleString();
   }
   return String(value);
+}
+
+function formatFantasyProsTraceValue(trace: FantasyProsPlayerTraceRow) {
+  if (trace.positionRank) return trace.positionRank;
+  if (typeof trace.rank === 'number') return `#${trace.rank.toLocaleString()}`;
+  if (typeof trace.value === 'number') return trace.value.toLocaleString();
+  if (typeof trace.tier === 'number') return `Tier ${trace.tier}`;
+  return trace.status || '-';
 }
 
 function formatSeasonStatValue(value: number | null | undefined): string {

@@ -1135,6 +1135,7 @@ function collectWaiverCandidates(data: ReportData, mode: AutopilotMode, intel?: 
     ...(waiver.bestTaxiStashes || []),
     ...(waiver.recentlyDroppedValuable || []),
     ...Object.values(waiver.bestAvailableByPosition || {}),
+    ...(waiver.weeklyEcrTargets || []).map((target) => target.player),
   ].filter((player): player is TrendingPlayer => Boolean(player?.name));
   const seen = new Set<string>();
   return candidates
@@ -1156,7 +1157,36 @@ function scoreWaiverCandidate(player: TrendingPlayer, mode: AutopilotMode, intel
   const needBonus = intel?.tradePlan?.needPosition === position ? 18 : 0;
   const youngBonus = mode === 'dynasty' && age && age <= 24 ? 13 : 0;
   const roleBonus = mode === 'redraft' && rank && rank <= 45 ? 14 : 0;
-  return Math.min(100, value / 115 + Math.min(22, (player.count || 0) / 8) + (rank ? Math.max(0, 22 - rank / 3) : 0) + needBonus + youngBonus + roleBonus);
+  const weeklyEcrRank = parsePositionRankValue(player.weeklyEcr?.bestPositionRank)
+    || player.weeklyEcr?.bestRankEcr
+    || null;
+  const weeklyEcrBonus = weeklyEcrRank
+    ? Math.max(0, 18 - weeklyEcrRank / 6) + Math.min(10, (player.weeklyEcr?.confidence || 0) / 10)
+    : 0;
+  return Math.min(100, value / 115 + Math.min(22, (player.count || 0) / 8) + (rank ? Math.max(0, 22 - rank / 3) : 0) + needBonus + youngBonus + roleBonus + weeklyEcrBonus);
+}
+
+function formatWaiverWeeklyEcrRead(player: TrendingPlayer): string | null {
+  const signal = player.weeklyEcr;
+  if (!signal?.weeks?.length) return null;
+  const bestRank = signal.bestPositionRank || (signal.bestRankEcr ? `ECR ${Math.round(signal.bestRankEcr)}` : null);
+  const window = signal.weeks
+    .slice(0, 3)
+    .map((week) => `W${week.week} ${week.positionRank || (week.rankEcr ? `ECR ${week.rankEcr}` : 'ranked')}`)
+    .join(' / ');
+  return [bestRank ? `FantasyPros next-3 ECR peaks at ${bestRank}` : null, window].filter(Boolean).join(': ') || null;
+}
+
+function formatWaiverWeeklyEcrTraceRead(player: TrendingPlayer): string | null {
+  const signal = player.weeklyEcr;
+  if (!signal?.sourceTrace?.length) return null;
+  const loadedWeeks = signal.sourceTrace
+    .map((trace) => trace.week)
+    .filter((week): week is number => Number.isFinite(week))
+    .sort((a, b) => a - b)
+    .map((week) => `W${week}`)
+    .join('/');
+  return `${loadedWeeks || 'Rolling weeks'} backed by stored FantasyPros ECR snapshots.`;
 }
 
 function getFaabSuggestion(confidence: number, mode: AutopilotMode) {
@@ -1176,6 +1206,8 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
     const confidence = clampPercent(56 + score * 0.35 + (dropCandidate ? 5 : 0));
     const rank = getAutopilotPlayerRank(player, mode);
     const age = getPlayerAge(player);
+    const weeklyEcrRead = formatWaiverWeeklyEcrRead(player);
+    const weeklyEcrTraceRead = formatWaiverWeeklyEcrTraceRead(player);
     return {
       id: `waiver-${player.player_id || player.name}`,
       type: 'Waiver',
@@ -1186,15 +1218,17 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       risk: confidence >= 78 ? 'Low' : 'Medium',
       upside: mode === 'dynasty' && age && age <= 24 ? 'High' : confidence >= 80 ? 'High' : 'Medium',
       summary: mode === 'redraft'
-        ? `${player.name} is the best available current-season profile from the waiver data, with trend count and rank/value support.`
-        : `${player.name} is the best available stash or value-growth profile from the waiver data.`,
+        ? `${player.name} is the best available current-season profile from the waiver data, with trend count, rank/value, and rolling ECR support.`
+        : `${player.name} is the best available stash or value-growth profile from the waiver data${weeklyEcrRead ? ', with short-window ECR support' : ''}.`,
       reasons: dedupeStrings([
         player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
         rank ? `${rank} rank gives this more than a blind trend-chase case.` : null,
+        weeklyEcrRead,
+        weeklyEcrTraceRead,
         intel?.tradePlan?.needPosition === getPlayerPosition(player) ? `Matches ${manager}'s ${getPlayerPosition(player)} need.` : null,
         dropCandidate ? `${dropCandidate.name} is a usable drop candidate if a roster spot is needed.` : null,
       ], 4),
-      signals: dedupeStrings(['Available', rank, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null], 4),
+      signals: dedupeStrings(['Available', rank, weeklyEcrTraceRead ? 'Stored ECR trace' : weeklyEcrRead ? 'FantasyPros ECR' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null], 4),
       tone: index === 0 ? 'good' : 'info',
     };
   });

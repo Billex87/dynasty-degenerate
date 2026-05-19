@@ -7,7 +7,12 @@ import { apiErrorHandler, apiNotFoundHandler, configureSecurity } from './securi
 import { storeKtcSnapshot } from '../ktcSnapshotJob';
 import { getSnapshotDateKey } from '../ktcLoader';
 import { getProspectSnapshotMonth, shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from '../prospectSource';
-import { runDynamicDataRefresh } from '../dynamicDataJobs';
+import { refreshFantasyProsEndpointSnapshotRefresh, runDynamicDataRefresh } from '../dynamicDataJobs';
+import {
+  getFantasyProsEndpointSnapshotScheduleLabel,
+  getPacificScheduleParts,
+  isFantasyProsEndpointSnapshotWindow,
+} from '../fantasyProsEndpointSnapshotSchedule';
 
 const app = express();
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
@@ -222,6 +227,60 @@ app.get('/api/cron/dynamic-data-refresh', async (req, res) => {
   } catch (error) {
     console.error('[Cron] Dynamic data refresh failed', error);
     res.status(500).json({ ok: false, error: 'Dynamic data refresh failed' });
+  }
+});
+
+app.get('/api/cron/fantasypros-endpoint-snapshots', async (req, res) => {
+  const auth = isCronAuthorized(req);
+  const forceRun = req.query.force === 'true';
+
+  if (!auth.ok) {
+    res.status(auth.status).json({ ok: false, error: auth.error });
+    return;
+  }
+
+  const now = new Date();
+  const scheduleParts = getPacificScheduleParts(now);
+  if (!forceRun && !isFantasyProsEndpointSnapshotWindow(now)) {
+    res.status(202).json({
+      ok: true,
+      skipped: true,
+      reason: `FantasyPros endpoint snapshots only run ${getFantasyProsEndpointSnapshotScheduleLabel()}`,
+      pacificDateKey: scheduleParts.dateKey,
+      pacificWeekday: scheduleParts.weekday,
+      pacificHour: scheduleParts.hour,
+      pacificMinute: scheduleParts.minute,
+    });
+    return;
+  }
+
+  try {
+    const result = await refreshFantasyProsEndpointSnapshotRefresh({ force: forceRun });
+    res.status(result.skipped ? 202 : 200).json({
+      ok: true,
+      forced: forceRun,
+      skipped: result.skipped,
+      reason: result.reason,
+      season: result.season,
+      currentWeek: result.currentWeek,
+      weekWindow: result.weekWindow,
+      endpointCount: result.results.length,
+      persistedCount: result.results.filter((row) => row.persisted).length,
+      errorCount: result.results.filter((row) => row.status === 'error' || row.status === 'rate_limited').length,
+      results: result.results.map((row) => ({
+        key: row.endpointKey,
+        sourceKey: row.sourceKey,
+        status: row.status,
+        rowCount: row.rowCount,
+        totalExperts: row.totalExperts,
+        lastUpdated: row.lastUpdated,
+        persisted: row.persisted,
+        error: row.error,
+      })),
+    });
+  } catch (error) {
+    console.error('[Cron] FantasyPros endpoint snapshots failed', error);
+    res.status(500).json({ ok: false, error: 'FantasyPros endpoint snapshots failed' });
   }
 });
 

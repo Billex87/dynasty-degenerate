@@ -3003,7 +3003,17 @@ export function AssistantFeatureShells({
   const usesSleeperStarterMap = counts?.starterSource === 'Sleeper';
   const intel = getIntel(data, manager);
   const power = getPower(data, manager);
-  const waiverAdds = data.waiverIntelligence?.availableTrendingAdds || [];
+  const waiverAdds = useMemo(() => {
+    const byId = new Map<string, TrendingPlayer>();
+    const addPlayer = (player: TrendingPlayer | null | undefined) => {
+      if (!player?.player_id || byId.has(player.player_id)) return;
+      byId.set(player.player_id, player);
+    };
+    data.waiverIntelligence?.weeklyEcrTargets?.forEach((target) => addPlayer(target.player));
+    data.waiverIntelligence?.availableTrendingAdds?.forEach(addPlayer);
+    if (data.waiverIntelligence?.highestKtcAvailable) addPlayer(data.waiverIntelligence.highestKtcAvailable);
+    return Array.from(byId.values());
+  }, [data.waiverIntelligence]);
   const starterPlayers = ((counts?.starterPlayers || []) as ManagerStarterPlayer[]).slice(0, 8);
   const starterIds = new Set(starterPlayers.map((player) => player.player_id));
   const benchPressure = ((counts?.lineupPlayers || counts?.rosterPlayers || []) as ManagerStarterPlayer[])
@@ -3310,26 +3320,29 @@ export function AssistantFeatureShells({
           <div className="assistant-feature-metrics">
             <MetricPill label="Best add" value={bestWaiver?.name || '-'} tone={bestWaiver ? 'good' : 'neutral'} />
             <MetricPill label="Drop candidates" value={intel?.droppablePlayers?.length || 0} tone={intel?.droppablePlayers?.length ? 'warn' : 'neutral'} />
-            <MetricPill label="Lens" value={leagueValueMode === 'redraft' ? 'Season' : 'Dynasty'} tone="info" />
+            <MetricPill label="ECR trace" value={data.waiverIntelligence?.weeklyEcrTargets?.length || 0} tone={data.waiverIntelligence?.weeklyEcrTargets?.length ? 'good' : 'neutral'} />
           </div>
-          {renderAssistantPlayerRows(waiverAdds.slice(0, 4).map((player) => ({
-            id: player.player_id,
-            name: player.name,
-            position: player.pos,
-            team: player.team || player.playerDetails?.team || null,
-            playerId: player.player_id,
-            meta: `${player.count.toLocaleString()} adds`,
-            value: formatCompactValue(player.ktcValue || getPlayerDetailsValue(player.playerDetails)),
-            tone: 'good',
-          })))}
+          {renderAssistantPlayerRows(waiverAdds.slice(0, 4).map((player) => {
+            const ecrRank = player.weeklyEcr?.bestPositionRank || (player.weeklyEcr?.bestRankEcr ? `ECR ${Math.round(player.weeklyEcr.bestRankEcr)}` : null);
+            return {
+              id: player.player_id,
+              name: player.name,
+              position: player.pos,
+              team: player.team || player.playerDetails?.team || null,
+              playerId: player.player_id,
+              meta: ecrRank ? `Next-3 ${ecrRank}` : `${player.count.toLocaleString()} adds`,
+              value: formatCompactValue(player.ktcValue || getPlayerDetailsValue(player.playerDetails)),
+              tone: 'good',
+            };
+          }))}
           <AIReadPanel
             title="Waiver fit read"
             readType="Waiver Opportunity"
             confidence={waiverConfidence}
             severity={waiverAdds.length ? 'good' : 'warn'}
-            chips={[data.waiverIntelligence ? 'Sleeper waiver data' : { label: 'No waiver payload', tone: 'warn' }, leagueValueMode === 'redraft' ? 'Weekly usage lens' : 'Dynasty stash lens']}
+            chips={[data.waiverIntelligence ? 'Sleeper waiver data' : { label: 'No waiver payload', tone: 'warn' }, data.waiverIntelligence?.weeklyEcrTargets?.length ? 'Stored ECR trace' : null, leagueValueMode === 'redraft' ? 'Weekly usage lens' : 'Dynasty stash lens'].filter(Boolean) as AIReadChip[]}
             body={bestWaiver
-              ? `${bestWaiver.name} is the highest-priority available signal from returned trending and value data. Use the full waiver panel for add/drop context.`
+              ? `${bestWaiver.name} is the highest-priority available signal from returned trending, value, and rolling ECR data. ${bestWaiver.weeklyEcr?.traceSummary || 'Use the full waiver panel for add/drop context.'}`
               : 'No available waiver targets were returned, so no add/drop recommendation is shown here.'}
             backgroundVariant="waiver"
             compact

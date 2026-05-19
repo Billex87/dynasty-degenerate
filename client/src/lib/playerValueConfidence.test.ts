@@ -58,18 +58,20 @@ describe('getPlayerValueConfidence', () => {
       seasonValue: 5200,
       fantasyProsSeasonValue: 5100,
       fantasyCalcRedraft: 5300,
+      flockBestBall: 5250,
       seasonPositionRank: 'RB14',
-      sources: ['FantasyPros', 'FantasyCalc Redraft'],
+      sources: ['FantasyPros', 'FantasyCalc Redraft', 'Flock Best Ball'],
     };
 
     const confidence = getPlayerValueConfidence({ valueProfile, mode: 'redraft' });
 
-    expect(confidence.primarySourceCount).toBe(3);
+    expect(confidence.primarySourceCount).toBe(4);
     expect(confidence.score).toBeGreaterThanOrEqual(70);
     expect(confidence.sources.map((source) => source.label)).toEqual([
       'Season blend',
       'FantasyPros season',
       'FantasyCalc redraft',
+      'Flock best ball',
     ]);
   });
 });

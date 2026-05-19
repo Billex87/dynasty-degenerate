@@ -47,6 +47,8 @@ export interface RankingPlayer {
   collegeLogoUrl?: string | null;
   overallRank: number;
   positionRank?: string | null;
+  sourceOverallRank?: number | null;
+  sourcePositionRank?: string | null;
   value: number;
   ktcValue?: number | null;
   ktcRank?: number | null;
@@ -621,7 +623,84 @@ export interface WaiverIntelligence {
   bestAvailableByPosition: Record<'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF', TrendingPlayer | null>;
   bestTaxiStashes: TrendingPlayer[];
   recentlyDroppedValuable: TrendingPlayer[];
+  weeklyEcrTargets?: WaiverWeeklyEcrTarget[];
   omittedCandidates?: WaiverOmittedCandidate[];
+}
+
+export interface WaiverWeeklyEcrWeek {
+  week: number;
+  rankEcr: number | null;
+  positionRank: string | null;
+  bestRank: number | null;
+  worstRank: number | null;
+  averageRank: number | null;
+  rankStdDev: number | null;
+  lastUpdated: string | null;
+  sourceKey?: string | null;
+  endpointKey?: string | null;
+  fetchedAt?: string | null;
+  sourceStatus?: string | null;
+}
+
+export interface WaiverSourceTraceEntry {
+  source: 'FantasyPros' | string;
+  sourceKey: string;
+  endpointKey: string;
+  endpointLabel: string;
+  status: string;
+  season: string;
+  scoring: string;
+  week: number | null;
+  position: string | null;
+  rowCount: number | null;
+  fetchedAt: string | null;
+  lastUpdated: string | null;
+  evidence: string;
+}
+
+export interface FantasyProsPlayerSourceTrace {
+  source: 'FantasyPros';
+  key: string;
+  label: string;
+  sourceKey?: string | null;
+  endpointKey?: string | null;
+  value?: number | null;
+  rank?: number | null;
+  positionRank?: string | null;
+  tier?: number | null;
+  scoring?: string | null;
+  season?: string | null;
+  week?: number | null;
+  fetchedAt?: string | null;
+  lastUpdated?: string | null;
+  status?: string | null;
+  evidence: string;
+}
+
+export interface WaiverWeeklyEcrSignal {
+  playerId: string;
+  fantasyProsId: string | null;
+  name: string;
+  position: string;
+  team: string | null;
+  source: 'FantasyPros';
+  updatedAt: string | null;
+  weeks: WaiverWeeklyEcrWeek[];
+  bestWeek: number | null;
+  bestRankEcr: number | null;
+  bestPositionRank: string | null;
+  averageRankEcr: number | null;
+  rankDelta: number | null;
+  confidence: number;
+  note: string;
+  sourceTrace: WaiverSourceTraceEntry[];
+  traceSummary: string;
+}
+
+export interface WaiverWeeklyEcrTarget {
+  player: TrendingPlayer;
+  signal: WaiverWeeklyEcrSignal;
+  score: number;
 }
 
 export interface WaiverOmittedCandidate {
@@ -973,6 +1052,10 @@ export interface PlayerDetails {
     flockPositionRank?: string | null;
     flockTier?: number | null;
     flockFormat?: string | null;
+    flockBestBall?: number | null;
+    flockBestBallRank?: number | null;
+    flockBestBallPositionRank?: string | null;
+    flockBestBallFormat?: string | null;
     fantasyProsDynasty?: number | null;
     fantasyProsDynastyRank?: number | null;
     fantasyProsDynastyPositionRank?: string | null;
@@ -993,6 +1076,7 @@ export interface PlayerDetails {
     fantasyProsPositionRank?: string | null;
     fantasyProsTier?: number | null;
     fantasyProsSeasonValue?: number | null;
+    fantasyProsSourceTrace?: FantasyProsPlayerSourceTrace[];
     sources?: string[];
   };
   valueTimeline?: {
@@ -1463,6 +1547,7 @@ export interface TrendingPlayer {
   owner?: string | null;
   count: number;
   ktcValue: number | null;
+  weeklyEcr?: WaiverWeeklyEcrSignal | null;
 }
 
 export interface RecentTransactionPlayer {
@@ -1791,6 +1876,7 @@ export interface ReportData {
   dynastyTimelines?: DynastyTimeline[];
   pickPortfolios?: PickPortfolio[];
   waiverIntelligence?: WaiverIntelligence;
+  scheduleEdgeTargets?: WaiverWeeklyEcrTarget[];
   matchupPreviews?: MatchupPreview[];
   schedulePlanning?: SchedulePlanningSummary;
   recentTransactions?: RecentTransaction[];
