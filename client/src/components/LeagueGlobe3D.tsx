@@ -1,5 +1,6 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import * as THREE from "three";
 import { ChampionAvatarFrame } from "./ManagerChampionships";
 
@@ -33,33 +34,39 @@ interface LeagueGlobePanelAnchor {
   labelX: number;
   labelY: number;
   labelAlign?: "left" | "right";
+  mobileLabelX?: number;
+  mobileLabelY?: number;
+  mobileLabelAlign?: "left" | "right";
 }
 
 const CYAN = "#00c8e8";
 const ORANGE = "#f4a020";
 
 const VIEWER_PANEL_ANCHOR: LeagueGlobePanelAnchor = {
-  nodeX: 61.5,
-  nodeY: 55.5,
-  labelX: 62.8,
-  labelY: 55.5,
+  nodeX: 68.7,
+  nodeY: 58.2,
+  labelX: 70.2,
+  labelY: 58.2,
   labelAlign: "right",
+  mobileLabelX: 67,
+  mobileLabelY: 68,
+  mobileLabelAlign: "right",
 };
 
 const GLOBE_PANEL_ANCHORS: LeagueGlobePanelAnchor[] = [
-  { nodeX: 44.5, nodeY: 43.5, labelX: 45.8, labelY: 43.5, labelAlign: "right" },
-  { nodeX: 52.5, nodeY: 35.5, labelX: 53.8, labelY: 35.5, labelAlign: "right" },
-  { nodeX: 58.4, nodeY: 43.2, labelX: 59.7, labelY: 43.2, labelAlign: "right" },
-  { nodeX: 64.8, nodeY: 29.5, labelX: 66.1, labelY: 29.5, labelAlign: "right" },
-  { nodeX: 76.5, nodeY: 25.2, labelX: 77.8, labelY: 25.2, labelAlign: "right" },
-  { nodeX: 84.2, nodeY: 38.5, labelX: 82.9, labelY: 38.5, labelAlign: "left" },
-  { nodeX: 91.4, nodeY: 49.2, labelX: 90.1, labelY: 49.2, labelAlign: "left" },
-  { nodeX: 78.6, nodeY: 53.5, labelX: 79.9, labelY: 53.5, labelAlign: "right" },
-  { nodeX: 69.7, nodeY: 64.8, labelX: 71, labelY: 64.8, labelAlign: "right" },
-  { nodeX: 55.4, nodeY: 64.8, labelX: 56.7, labelY: 64.8, labelAlign: "right" },
-  { nodeX: 47.8, nodeY: 71.8, labelX: 49.1, labelY: 71.8, labelAlign: "right" },
-  { nodeX: 83.6, nodeY: 71.6, labelX: 82.3, labelY: 71.6, labelAlign: "left" },
-  { nodeX: 72.8, nodeY: 86.8, labelX: 74.1, labelY: 86.8, labelAlign: "right" },
+  { nodeX: 47.2, nodeY: 44, labelX: 45.6, labelY: 42.4, labelAlign: "left", mobileLabelX: 39, mobileLabelY: 45, mobileLabelAlign: "left" },
+  { nodeX: 56.2, nodeY: 34.4, labelX: 57.8, labelY: 29.8, labelAlign: "right", mobileLabelX: 52, mobileLabelY: 35, mobileLabelAlign: "right" },
+  { nodeX: 65.4, nodeY: 44.8, labelX: 66.8, labelY: 48.8, labelAlign: "right", mobileLabelX: 59, mobileLabelY: 52, mobileLabelAlign: "right" },
+  { nodeX: 77.4, nodeY: 29.2, labelX: 81.4, labelY: 24.5, labelAlign: "left", mobileLabelX: 70, mobileLabelY: 24, mobileLabelAlign: "right" },
+  { nodeX: 88.4, nodeY: 31.5, labelX: 94, labelY: 28.4, labelAlign: "left", mobileLabelX: 88, mobileLabelY: 14, mobileLabelAlign: "left" },
+  { nodeX: 74.8, nodeY: 40.6, labelX: 75.5, labelY: 39.2, labelAlign: "left", mobileLabelX: 79, mobileLabelY: 44, mobileLabelAlign: "left" },
+  { nodeX: 90.8, nodeY: 51.4, labelX: 94, labelY: 46.5, labelAlign: "left", mobileLabelX: 92, mobileLabelY: 60, mobileLabelAlign: "left" },
+  { nodeX: 80.2, nodeY: 62.2, labelX: 88.8, labelY: 74.2, labelAlign: "left", mobileLabelX: 70, mobileLabelY: 78, mobileLabelAlign: "right" },
+  { nodeX: 58.2, nodeY: 66.5, labelX: 59.8, labelY: 72.5, labelAlign: "right", mobileLabelX: 36, mobileLabelY: 70, mobileLabelAlign: "right" },
+  { nodeX: 41.2, nodeY: 61.8, labelX: 39.5, labelY: 60.2, labelAlign: "left", mobileLabelX: 34, mobileLabelY: 62, mobileLabelAlign: "right" },
+  { nodeX: 31.8, nodeY: 69.6, labelX: 33.4, labelY: 74, labelAlign: "right", mobileLabelX: 28, mobileLabelY: 82, mobileLabelAlign: "right" },
+  { nodeX: 69.4, nodeY: 82, labelX: 71, labelY: 79.6, labelAlign: "right", mobileLabelX: 58, mobileLabelY: 86, mobileLabelAlign: "right" },
+  { nodeX: 53.5, nodeY: 19, labelX: 55, labelY: 17, labelAlign: "right", mobileLabelX: 44, mobileLabelY: 24, mobileLabelAlign: "right" },
 ];
 
 export default function LeagueGlobe3D({
@@ -115,7 +122,7 @@ export default function LeagueGlobe3D({
   return (
     <div className={className} data-testid="league-globe-3d-scene">
       {fallback ? (
-        <LeagueGlobeFallback nodes={nodes} connections={connections} />
+        <LeagueGlobeFallback />
       ) : (
         <Canvas
           camera={{ position: [0, 0.5, 5.6], fov: 42 }}
@@ -159,10 +166,13 @@ export default function LeagueGlobe3D({
               key={node.id}
               className={`league-globe-manager-label${node.isViewer ? " is-viewer" : ""}${displayRank && displayRank <= 3 ? " is-leader" : ""}${position.align === "left" ? " is-label-left" : ""}`}
               style={{
-                left: `${position.x}%`,
-                top: `${position.y}%`,
-              }}
+                "--globe-label-x": `${position.x}%`,
+                "--globe-label-y": `${position.y}%`,
+                "--globe-label-mobile-x": `${position.mobileX}%`,
+                "--globe-label-mobile-y": `${position.mobileY}%`,
+              } as CSSProperties}
               data-node-index={index}
+              data-mobile-align={position.mobileAlign}
             >
               <ChampionAvatarFrame
                 managerName={node.name}
@@ -301,18 +311,33 @@ function buildLabelPositions(
   nodes: LeagueGlobeNode[],
   panelAnchors: Map<string, LeagueGlobePanelAnchor>
 ) {
-  const positions = new Map<string, { x: number; y: number; align: "left" | "right" }>();
+  const positions = new Map<
+    string,
+    {
+      x: number;
+      y: number;
+      align: "left" | "right";
+      mobileX: number;
+      mobileY: number;
+      mobileAlign: "left" | "right";
+    }
+  >();
 
   nodes.forEach((node, index) => {
     const anchor = panelAnchors.get(node.id) || VIEWER_PANEL_ANCHOR;
-    const xJitter = node.isViewer ? 0 : seededUnit(`${node.id}:label-x`) * 2.3;
-    const yJitter = node.isViewer ? 0 : seededUnit(`${node.id}:label-y`) * 2.1;
+    const xJitter = node.isViewer ? 0 : seededUnit(`${node.id}:label-x`) * 0.6;
+    const yJitter = node.isViewer ? 0 : seededUnit(`${node.id}:label-y`) * 0.55;
     const x = anchor.labelX + xJitter;
     const y = anchor.labelY + yJitter;
+    const mobileX = anchor.mobileLabelX ?? anchor.labelX;
+    const mobileY = anchor.mobileLabelY ?? anchor.labelY;
     positions.set(node.id, {
-      x: Math.max(34, Math.min(94, x)),
-      y: Math.max(14, Math.min(86, y)),
+      x: Math.max(26, Math.min(94, x)),
+      y: Math.max(13, Math.min(86, y)),
       align: anchor.labelAlign || "right",
+      mobileX: Math.max(16, Math.min(92, mobileX)),
+      mobileY: Math.max(10, Math.min(90, mobileY)),
+      mobileAlign: anchor.mobileLabelAlign || anchor.labelAlign || "right",
     });
   });
 
@@ -507,30 +532,6 @@ function LineStrip({
   );
 }
 
-function LeagueGlobeFallback({
-  nodes,
-  connections,
-}: {
-  nodes: LeagueGlobeNode[];
-  connections: LeagueGlobeConnection[];
-}) {
-  return (
-    <div className="league-globe-fallback" aria-hidden="true">
-      <span className="league-globe-fallback-arc league-globe-fallback-arc-a" />
-      <span className="league-globe-fallback-arc league-globe-fallback-arc-b" />
-      <span className="league-globe-fallback-arc league-globe-fallback-arc-c" />
-      {connections.slice(0, 8).map((connection, index) => (
-        <span
-          key={`${connection.from}-${connection.to}-${index}`}
-          className={`league-globe-fallback-link league-globe-fallback-link-${index + 1}`}
-        />
-      ))}
-      {nodes.slice(0, 14).map((node, index) => (
-        <span
-          key={node.id}
-          className={`league-globe-fallback-node league-globe-fallback-node-${index + 1}${node.isViewer ? " is-viewer" : ""}`}
-        />
-      ))}
-    </div>
-  );
+function LeagueGlobeFallback() {
+  return <div className="league-globe-fallback" aria-hidden="true" />;
 }

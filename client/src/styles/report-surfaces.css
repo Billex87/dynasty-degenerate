@@ -6755,8 +6755,11 @@ body {
 
 .league-globe-manager-label {
   position: absolute;
+  left: var(--globe-label-x, 50%);
+  top: var(--globe-label-y, 50%);
   display: inline-flex;
-  max-width: 9.6rem;
+  width: max-content;
+  max-width: 8.8rem;
   align-items: center;
   gap: 0.34rem;
   transform: translate(0.45rem, -50%);
@@ -6894,6 +6897,7 @@ body {
 .league-globe-fallback {
   position: absolute;
   inset: 0;
+  display: none;
   overflow: hidden;
 }
 
@@ -7158,7 +7162,7 @@ body {
   }
 
   .overview-league-globe-panel {
-    min-height: 24.5rem;
+    min-height: 26.5rem;
   }
 
   .overview-league-globe-copy {
@@ -7173,15 +7177,23 @@ body {
   }
 
   .league-globe-manager-label {
-    max-width: 6.9rem;
-    gap: 0.26rem;
-    padding: 0.2rem 0.38rem 0.2rem 0.2rem;
+    left: var(--globe-label-mobile-x, var(--globe-label-x, 50%));
+    top: var(--globe-label-mobile-y, var(--globe-label-y, 50%));
+    max-width: 6.45rem;
+    gap: 0.22rem;
+    transform: translate(0.3rem, -50%);
+    padding: 0.18rem 0.34rem 0.18rem 0.18rem;
+  }
+
+  .league-globe-manager-label.is-label-left,
+  .league-globe-manager-label[data-mobile-align="left"] {
+    transform: translate(calc(-100% - 0.3rem), -50%);
   }
 
   .league-globe-manager-label img,
   .league-globe-manager-label b {
-    width: 1.05rem;
-    height: 1.05rem;
+    width: 0.98rem;
+    height: 0.98rem;
     font-size: 0.42rem;
   }
 
@@ -7196,10 +7208,6 @@ body {
 
   .league-globe-manager-label em {
     font-size: 0.46rem;
-  }
-
-  .league-globe-manager-label:nth-child(n + 7) {
-    display: none;
   }
 
   .overview-visual-tokens,

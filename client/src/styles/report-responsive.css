@@ -11504,9 +11504,9 @@
       linear-gradient(180deg, rgba(6, 9, 15, 0.98) 0%, rgba(6, 9, 15, 0.76) 36%, rgba(6, 9, 15, 0.34) 100%),
       linear-gradient(90deg, rgba(6, 9, 15, 0.95) 0%, rgba(6, 9, 15, 0.58) 48%, rgba(6, 9, 15, 0.22) 100%),
       url("/brand/globe-panel/png/cyber-globe-panel-mobile-landscape-932x260.png") !important;
-    background-position: center, center, 80% 96% !important;
+    background-position: center, center, 58% 34% !important;
     background-repeat: no-repeat !important;
-    background-size: auto, auto, auto 270% !important;
+    background-size: auto, auto, 235% auto !important;
   }
 }
 
