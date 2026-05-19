@@ -61,6 +61,7 @@ coverage/
 *.lcov
 
 # Playwright artifacts
+.playwright-cli/
 test-results/
 playwright-report/
 blob-report/
@@ -124,6 +125,9 @@ temp/
 
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
+design-inputs/
+design-inputs v2/
+rightpanel/
 
 # Manus version file (auto-generated, not part of source)
 client/public/__manus__/version.json

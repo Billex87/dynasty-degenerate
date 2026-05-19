@@ -9,15 +9,21 @@
   "theme_color": "#020617",
   "icons": [
     {
-      "src": "/android-chrome-192x192.png?v=20260512-orange-dd-monogram",
+      "src": "/android-chrome-192x192.png?v=20260518-brand-refresh",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/android-chrome-512x512.png?v=20260512-orange-dd-monogram",
+      "src": "/maskable-icon-512x512.png?v=20260518-brand-refresh",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
+    },
+    {
+      "src": "/android-chrome-512x512.png?v=20260518-brand-refresh",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "categories": ["sports", "productivity", "utilities"]

@@ -3851,6 +3851,91 @@
   }
 }
 
+/* Brand-refresh responsive overrides for the pre-login home shell. */
+@media (min-width: 1800px) {
+  .home-shell::before {
+    background-image: url("/brand/hero/background/webp/hero-bg-ultrawide-long-2560x1600.webp") !important;
+  }
+}
+
+@media (max-width: 1500px) {
+  .home-shell::before {
+    background-image: url("/brand/hero/background/webp/hero-bg-laptop-1366x768.webp") !important;
+  }
+}
+
+@media (max-width: 1100px) and (orientation: landscape) {
+  .home-shell::before {
+    background-image: url("/brand/hero/background/webp/hero-bg-mobile-landscape-1024x576.webp") !important;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 1100px) and (orientation: portrait) {
+  .home-shell::before {
+    background-image: url("/brand/hero/background/webp/hero-bg-tablet-portrait-768x1200.webp") !important;
+    background-position: center top !important;
+  }
+
+  .home-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 699px) and (orientation: portrait) {
+  .home-shell::before {
+    background-image: url("/brand/hero/background/webp/hero-bg-mobile-portrait-long-430x1200.webp") !important;
+    background-position: center top !important;
+  }
+
+  .home-shell::after {
+    background:
+      linear-gradient(180deg, rgba(3, 8, 12, 0.16) 0%, rgba(3, 8, 12, 0.36) 32%, rgba(3, 8, 12, 0.92) 64%, rgba(3, 8, 12, 0.98) 100%),
+      linear-gradient(90deg, rgba(3, 8, 12, 0.36), rgba(3, 8, 12, 0.05), rgba(3, 8, 12, 0.34)) !important;
+  }
+
+  .home-header-inner {
+    min-height: 4.8rem !important;
+  }
+
+  .home-header-logo-wrap {
+    height: 4.25rem !important;
+  }
+
+  .home-header-logo {
+    height: 4rem !important;
+    max-width: min(19rem, 74vw) !important;
+  }
+
+  .home-title {
+    max-width: min(100%, 24rem) !important;
+    font-size: clamp(2.2rem, 10.5vw, 3rem) !important;
+    line-height: 0.98 !important;
+  }
+
+  .home-title span {
+    white-space: normal !important;
+  }
+
+  .home-analyze-card {
+    border-radius: 1.15rem !important;
+  }
+}
+
+@media (max-width: 399px) and (orientation: portrait) {
+  .home-shell::before {
+    background-image: url("/brand/hero/background/webp/hero-bg-mobile-portrait-long-390x1100.webp") !important;
+  }
+
+  .overview-command-canvas {
+    background:
+      linear-gradient(180deg, rgba(3, 8, 12, 0.18) 0%, rgba(3, 8, 12, 0.5) 19rem, rgba(3, 8, 12, 0.97) 38rem, rgba(3, 8, 12, 0.995) 100%),
+      url("/brand/hero/background/webp/hero-bg-mobile-portrait-long-390x1100.webp") center top / cover no-repeat,
+      linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
+      rgba(3, 8, 16, 0.74) !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .home-shell .home-header-logo,
   .home-shell .home-header-slogan,

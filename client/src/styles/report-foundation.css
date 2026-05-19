@@ -2962,8 +2962,13 @@
 
   @media (min-width: 768px) {
     [data-slot="dialog-content"].league-switch-dialog:not(.change-league-dialog) {
-      width: min(calc(100vw - 3rem), 64rem) !important;
-      max-width: min(calc(100vw - 3rem), 64rem) !important;
+      width: min(calc(100vw - 3rem), 38rem) !important;
+      max-width: min(calc(100vw - 3rem), 38rem) !important;
+    }
+
+    [data-slot="dialog-content"].change-league-dialog {
+      width: min(calc(100vw - 3rem), 30rem) !important;
+      max-width: min(calc(100vw - 3rem), 30rem) !important;
     }
   }
 
@@ -4596,9 +4601,9 @@
 
   .report-header-brand {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.22rem;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-start;
   }
 
   .report-header-action {
@@ -4672,26 +4677,6 @@
     color: inherit;
     cursor: pointer;
     text-align: right;
-  }
-
-  .report-league-shortcuts {
-    flex: 0 0 auto;
-    gap: 0;
-    overflow: visible;
-  }
-
-  .report-league-shortcuts .league-shortcut-label {
-    display: none;
-  }
-
-  .report-league-shortcuts .league-shortcut-button {
-    width: clamp(2rem, 9vw, 3rem);
-    height: clamp(2rem, 9vw, 3rem);
-    font-size: 0.74rem;
-  }
-
-  .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {
-    margin-left: calc(clamp(2rem, 9vw, 3rem) * -0.5225);
   }
 
   .report-league-icon {
@@ -14863,10 +14848,6 @@
       font-size: clamp(0.58rem, 2.45vw, 0.7rem);
       text-overflow: clip !important;
       white-space: normal !important;
-    }
-
-    .report-league-shortcuts .league-shortcut-button + .league-shortcut-button {
-      margin-left: calc(clamp(2rem, 9vw, 3rem) * -0.5225);
     }
 
     .report-tabs {

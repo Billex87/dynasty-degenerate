@@ -1,9 +1,13 @@
 import {
+  createContext,
   lazy,
   Suspense,
+  useContext,
   useEffect,
+  useId,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
   type SyntheticEvent,
 } from "react";
@@ -51,6 +55,7 @@ import {
   type PremiumFxVariant,
 } from "@/components/PremiumFxLayer";
 const SuccessCard3D = lazy(() => import("@/components/SuccessCard3D"));
+const LeagueGlobe3D = lazy(() => import("@/components/LeagueGlobe3D"));
 import { SupportButton } from "@/components/SupportButton";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
@@ -74,10 +79,15 @@ import {
 } from "@/lib/overviewInsights";
 import { sanitizeCachedReport } from "@/lib/reportCacheSanitizer";
 import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
+import { isPlaceholderManagerName } from "@/lib/managerDisplay";
 import { getPositionRankClass } from "@/lib/positionRank";
 import { UNAUTHED_ERR_MSG } from "@shared/const";
 import type { PlayerDetails, RankingSourceDiagnostic, ReportData } from "@shared/types";
 import type { AppRouter } from "../../../server/routers";
+import type {
+  LeagueGlobeConnection,
+  LeagueGlobeNode,
+} from "@/components/LeagueGlobe3D";
 
 const DraftAnalysis = lazy(() =>
   import("@/components/DraftAnalysis").then(module => ({
@@ -181,7 +191,9 @@ const AssistantFeatureShells = lazy(() =>
 const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
-  "/assets/dynasty-logo-cropped.png?v=20260512-orange-dd-monogram";
+  "/brand/logos/svg/logo-header-lockup-premium-color.svg?v=20260518-brand-refresh";
+const DYNASTY_REPORT_HEADER_LOGO_SRC =
+  "/brand/logos/uploads/report-header-logo-compact-transparent-cropped.png?v=20260518-compact-crop";
 const REPORT_CACHE_DATA_VERSION = "combine-athletic-metrics-v2";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v25";
 const REPORT_CACHE_DB_NAME = "dynasty-degenerates-report-cache";
@@ -220,7 +232,6 @@ const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
-const MAX_REPORT_HEADER_LEAGUES = 5;
 const LEAGUE_VIEW_MANAGER_VALUE = "__league__";
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = "2026-05-07";
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
@@ -1868,25 +1879,6 @@ function getOrderedLeagueOptions(
   ];
 }
 
-function getReportHeaderLeagueShortcuts(
-  leagues: SleeperLeagueOption[],
-  activeLeagueId?: string | null
-): SleeperLeagueOption[] {
-  if (!leagues.length) return [];
-
-  const activeLeague = leagues.find(
-    league => league.leagueId === activeLeagueId
-  );
-  const orderedLeagues = activeLeague
-    ? [
-        activeLeague,
-        ...leagues.filter(league => league.leagueId !== activeLeagueId),
-      ]
-    : leagues;
-
-  return orderedLeagues.slice(0, MAX_REPORT_HEADER_LEAGUES);
-}
-
 function getReportManagerNames(
   reportData: ReportData,
   viewerManager?: string | null
@@ -2171,9 +2163,6 @@ function HomeLogoChrome() {
           className="home-header-logo"
         />
       </div>
-      <p className="home-header-slogan">
-        Just some degens with scraping tools and A.I.
-      </p>
     </div>
   );
 }
@@ -2337,6 +2326,830 @@ function HomeFooterChrome({ showBrand = true }: { showBrand?: boolean }) {
       <HomeActionRow />
       {showBrand && <HomeBrandLockup />}
     </div>
+  );
+}
+
+function getDashboardNumber(
+  row: unknown,
+  keys: string[]
+): number | null {
+  if (!row || typeof row !== "object") return null;
+  const record = row as Record<string, unknown>;
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function formatDashboardCompactNumber(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(value))
+    return "-";
+  const rounded = Math.round(value);
+  if (Math.abs(rounded) >= 1000000)
+    return `$${Math.round(rounded / 100000) / 10}M`;
+  if (Math.abs(rounded) >= 1000) return `$${Math.round(rounded / 1000)}K`;
+  return rounded.toLocaleString();
+}
+
+function getReportDashboardManagers(data: ReportData): string[] {
+  const managers = new Set<string>();
+  const add = (manager?: string | null) => {
+    if (manager && !isPlaceholderManagerName(manager)) managers.add(manager);
+  };
+  data.leagueOverview?.forEach(row => add(row.manager));
+  data.managerRosterIntelligence?.forEach(row => add(row.manager));
+  data.managerPositionCounts?.forEach(row => add(row.manager));
+  data.powerRankings?.forEach(row => add(row.manager));
+  data.currentStandings?.forEach(row => add(row.manager));
+  return Array.from(managers);
+}
+
+function getDashboardManagerAvatar(
+  manager: string,
+  avatars?: Record<string, string | null | undefined>
+) {
+  return avatars?.[manager] || null;
+}
+
+function DashboardManagerAvatar({
+  manager,
+  avatarUrl,
+}: {
+  manager: string;
+  avatarUrl?: string | null;
+}) {
+  return avatarUrl ? (
+    <img src={avatarUrl} alt="" aria-hidden="true" />
+  ) : (
+    <span aria-hidden="true">{getLeagueFallbackInitials(manager)}</span>
+  );
+}
+
+function DashboardMetricCard({
+  label,
+  value,
+  subLabel,
+  className = "",
+}: {
+  label: string;
+  value: ReactNode;
+  subLabel?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`dashboard-metric-card ${className}`.trim()}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {subLabel && <em>{subLabel}</em>}
+    </div>
+  );
+}
+
+function DashboardBalanceMetric({
+  score,
+  label,
+}: {
+  score: number | null;
+  label: string;
+}) {
+  const clampedScore =
+    score === null ? 0 : Math.max(0, Math.min(100, Math.round(score)));
+  const graphStyle = {
+    "--dashboard-balance-score": `${clampedScore}%`,
+  } as CSSProperties;
+
+  return (
+    <div className="dashboard-metric-card dashboard-balance-metric">
+      <span>League Balance</span>
+      <div className="dashboard-balance-graph">
+        <i style={graphStyle} aria-hidden="true" />
+        <strong>{score ?? "-"}</strong>
+      </div>
+      <em>{label}</em>
+    </div>
+  );
+}
+
+function getDashboardPlayerPosition(player: unknown): string {
+  if (!player || typeof player !== "object") return "FLEX";
+  const record = player as Record<string, unknown>;
+  const position = record.pos || record.position;
+  return typeof position === "string" && position.trim()
+    ? position.toUpperCase()
+    : "FLEX";
+}
+
+function getDashboardPlayerId(player: unknown): string | null {
+  if (!player || typeof player !== "object") return null;
+  const record = player as Record<string, unknown>;
+  const id = record.player_id || record.playerId || record.id;
+  return typeof id === "string" && id.trim() ? id : null;
+}
+
+function getDashboardStarterRank(
+  player: unknown,
+  currentPositionRankById?: Record<string, string | null | undefined>
+): string {
+  if (!player || typeof player !== "object") return "-";
+  const record = player as Record<string, unknown>;
+  const playerId = getDashboardPlayerId(player);
+  const rank =
+    (playerId && currentPositionRankById?.[playerId]) ||
+    record.currentPositionRank ||
+    record.seasonPositionRank ||
+    record.positionRank ||
+    record.position_rank ||
+    record.rank;
+  return typeof rank === "string" || typeof rank === "number" ? String(rank) : "-";
+}
+
+function getDashboardPlayerValue(player: unknown): number | null {
+  if (!player || typeof player !== "object") return null;
+  const record = player as Record<string, unknown>;
+  for (const key of ["seasonValue", "value", "val", "ktc_value"]) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function sumDashboardPlayerValues(players: unknown[]): number | null {
+  const total = players.reduce<number>((sum, player) => {
+    const value = getDashboardPlayerValue(player);
+    return value === null ? sum : sum + value;
+  }, 0);
+  return total > 0 ? total : null;
+}
+
+function getDashboardRankLabel(
+  row: unknown,
+  keys: string[],
+  prefix = "#"
+): string {
+  const value = getDashboardNumber(row, keys);
+  return value === null ? "#-" : `${prefix}${value}`;
+}
+
+const DASHBOARD_LINEUP_POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"] as const;
+type DashboardLineupPosition = (typeof DASHBOARD_LINEUP_POSITIONS)[number];
+
+function getDashboardPlayers(row: unknown, key: string): unknown[] {
+  if (!row || typeof row !== "object") return [];
+  const value = (row as Record<string, unknown>)[key];
+  return Array.isArray(value) ? value : [];
+}
+
+function getDashboardStarterCount(
+  row: unknown,
+  position: DashboardLineupPosition
+): number {
+  return getDashboardNumber(row, [`${position}_starters`]) ?? 0;
+}
+
+function getDashboardPositionStarterValue(
+  row: unknown,
+  position: DashboardLineupPosition
+): number {
+  const players = getDashboardPlayers(row, "starterPlayers").filter(
+    player => getDashboardPlayerPosition(player) === position
+  );
+  return players.reduce<number>((sum, player) => {
+    const value = getDashboardPlayerValue(player);
+    return sum + (value ?? 0);
+  }, 0);
+}
+
+function getDashboardPositionRank(
+  reportData: ReportData,
+  manager: string,
+  position: DashboardLineupPosition
+): number | null {
+  const rows = reportData.managerPositionCounts || [];
+  const scores = rows
+    .map(row => ({
+      manager: row.manager,
+      count: getDashboardStarterCount(row, position),
+      value: getDashboardPositionStarterValue(row, position),
+    }))
+    .filter(row => row.count > 0 || row.value > 0)
+    .sort((a, b) => b.value - a.value || b.count - a.count);
+  const index = scores.findIndex(row => row.manager === manager);
+  return index >= 0 ? index + 1 : null;
+}
+
+function formatDashboardRank(rank: number | null): string {
+  return rank === null ? "#-" : `#${rank}`;
+}
+
+type DashboardStarterGroup = {
+  key: string;
+  label: string;
+  count: number;
+  players: unknown[];
+};
+
+function getDashboardStarterGroups(row: unknown): DashboardStarterGroup[] {
+  if (!row || typeof row !== "object") return [];
+  const value = (row as Record<string, unknown>).starterGroups;
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(group => {
+      if (!group || typeof group !== "object") return null;
+      const record = group as Record<string, unknown>;
+      const key = typeof record.key === "string" ? record.key : "";
+      const label =
+        typeof record.label === "string" && record.label.trim()
+          ? record.label
+          : key;
+      const count =
+        typeof record.count === "number" && Number.isFinite(record.count)
+          ? record.count
+          : Array.isArray(record.players)
+            ? record.players.length
+            : 0;
+      const players = Array.isArray(record.players) ? record.players : [];
+      if (!key) return null;
+      return { key, label, count, players };
+    })
+    .filter((group): group is DashboardStarterGroup => Boolean(group));
+}
+
+function getDashboardStarterGroupValue(group: DashboardStarterGroup): number {
+  return group.players.reduce<number>((sum, player) => {
+    const value = getDashboardPlayerValue(player);
+    return sum + (value ?? 0);
+  }, 0);
+}
+
+function getDashboardStarterGroupRank(
+  reportData: ReportData,
+  manager: string,
+  groupKey: string
+): { rank: number | null; total: number } {
+  const rows = reportData.managerPositionCounts || [];
+  const scores = rows
+    .map(row => {
+      const group = getDashboardStarterGroups(row).find(
+        starterGroup => starterGroup.key === groupKey
+      );
+      return group
+        ? {
+            manager: row.manager,
+            count: group.count,
+            value: getDashboardStarterGroupValue(group),
+          }
+        : null;
+    })
+    .filter((row): row is { manager: string; count: number; value: number } =>
+      Boolean(row)
+    )
+    .sort((a, b) => b.value - a.value || b.count - a.count);
+  const index = scores.findIndex(row => row.manager === manager);
+  return { rank: index >= 0 ? index + 1 : null, total: scores.length };
+}
+
+function getDashboardRankTier(rank: number | null, total: number): string {
+  if (!rank || total <= 0) return "Pending";
+  if (rank <= Math.max(1, Math.ceil(total * 0.25))) return "Elite";
+  if (rank <= Math.max(1, Math.ceil(total * 0.5))) return "Strong";
+  if (rank <= Math.max(1, Math.ceil(total * 0.75))) return "Playable";
+  return "Thin";
+}
+
+function getDashboardGroupPosition(groupKey: string): string {
+  if (groupKey === "QB_SF") return "QB";
+  if (groupKey === "FLEX") return "FLEX";
+  return groupKey;
+}
+
+function getLeagueGlobeNodeId(manager: string): string {
+  return manager.trim().toLowerCase();
+}
+
+function formatLeagueGlobePlace(rank?: number | null): string | null {
+  if (!rank || !Number.isFinite(rank)) return null;
+  const value = Math.max(1, Math.round(rank));
+  const mod100 = value % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${value}th`;
+  switch (value % 10) {
+    case 1:
+      return `${value}st`;
+    case 2:
+      return `${value}nd`;
+    case 3:
+      return `${value}rd`;
+    default:
+      return `${value}th`;
+  }
+}
+
+function hasLeagueGlobeCurrentSeasonStarted(reportData: ReportData): boolean {
+  return (reportData.currentStandings || []).some(row => {
+    const gamesPlayed =
+      Number(row.wins || 0) + Number(row.losses || 0) + Number(row.ties || 0);
+    return gamesPlayed > 0 || Number(row.pointsFor || 0) > 0;
+  });
+}
+
+function getLeagueGlobePreviousSeason(reportData: ReportData): string | null {
+  const currentSeason = String(reportData.leagueDiagnostics?.currentSeason || "");
+  const seasons = Array.from(
+    new Set((reportData.standingsHistory || []).map(row => String(row.season)))
+  ).filter(season => season && season !== currentSeason);
+
+  return (
+    seasons.sort((a, b) => {
+      const numericDiff = Number(b) - Number(a);
+      return Number.isFinite(numericDiff) && numericDiff !== 0
+        ? numericDiff
+        : b.localeCompare(a);
+    })[0] || null
+  );
+}
+
+function getLeagueGlobeStandingContext(reportData: ReportData): {
+  byManager: Map<
+    string,
+    {
+      rank: number | null;
+      label: string | null;
+      subLabel: string;
+    }
+  >;
+  lensLabel: string;
+  leaderLabel: string;
+  leaderName: string | null;
+} {
+  const useCurrentStandings = hasLeagueGlobeCurrentSeasonStarted(reportData);
+  const previousSeason = getLeagueGlobePreviousSeason(reportData);
+  const rows = useCurrentStandings
+    ? reportData.currentStandings || []
+    : (reportData.standingsHistory || []).filter(
+        row => String(row.season) === previousSeason
+      );
+  const fallbackToPower = !rows.length;
+  const subLabel = useCurrentStandings
+    ? "Current"
+    : previousSeason
+      ? `${previousSeason}`
+      : "Power";
+  const byManager = new Map<
+    string,
+    { rank: number | null; label: string | null; subLabel: string }
+  >();
+
+  rows.forEach(row => {
+    const rank = Number(row.rank || 0) || null;
+    byManager.set(getLeagueGlobeNodeId(row.manager), {
+      rank,
+      label: formatLeagueGlobePlace(rank),
+      subLabel,
+    });
+  });
+
+  const leader =
+    [...rows].sort((a, b) => (a.rank || 999) - (b.rank || 999))[0]?.manager ||
+    null;
+
+  return {
+    byManager,
+    lensLabel: fallbackToPower
+      ? "Power Rank"
+      : useCurrentStandings
+        ? "Current Place"
+        : `${previousSeason} Finish`,
+    leaderLabel: fallbackToPower
+      ? "Power Leader"
+      : useCurrentStandings
+        ? "Standings Leader"
+        : "Last Year's Winner",
+    leaderName: leader,
+  };
+}
+
+function buildLeagueGlobeNodes(
+  reportData: ReportData,
+  viewerManager?: string | null
+): LeagueGlobeNode[] {
+  const currentManagers = (reportData.currentStandings || [])
+    .map(row => row.manager)
+    .filter(Boolean);
+  const managers = currentManagers.length
+    ? currentManagers
+    : getReportManagerNames(reportData, viewerManager || reportData.viewerManager);
+  const growthByManager = new Map(
+    (reportData.managerRosterValueGrowth || []).map(row => [row.manager, row])
+  );
+  const overviewByManager = new Map(
+    (reportData.leagueOverview || []).map(row => [row.manager, row])
+  );
+  const powerByManager = new Map(
+    (reportData.powerRankings || []).map(row => [row.manager, row])
+  );
+  const standingContext = getLeagueGlobeStandingContext(reportData);
+  const viewerKey = getLeagueGlobeNodeId(viewerManager || reportData.viewerManager || "");
+
+  return managers
+    .map(manager => {
+      const growth = growthByManager.get(manager);
+      const overview = overviewByManager.get(manager);
+      const power = powerByManager.get(manager);
+      const rank = power?.rank ?? overview?.rank_value ?? growth?.rank ?? null;
+      const standing = standingContext.byManager.get(getLeagueGlobeNodeId(manager));
+      return {
+        id: getLeagueGlobeNodeId(manager),
+        name: manager,
+        value: growth?.total_val ?? overview?.total_val ?? null,
+        standingLabel: standing?.label || formatLeagueGlobePlace(rank),
+        standingSubLabel: standing?.subLabel || "Power",
+        standingRank: standing?.rank ?? null,
+        avatarUrl: getDashboardManagerAvatar(manager, reportData.managerAvatars),
+        isViewer: getLeagueGlobeNodeId(manager) === viewerKey,
+        rank,
+      };
+    })
+    .filter(node => node.name)
+    .sort((a, b) => {
+      if (a.isViewer) return -1;
+      if (b.isViewer) return 1;
+      const rankA = a.standingRank ?? a.rank ?? Number.MAX_SAFE_INTEGER;
+      const rankB = b.standingRank ?? b.rank ?? Number.MAX_SAFE_INTEGER;
+      return rankA - rankB || (b.value || 0) - (a.value || 0);
+    })
+    .slice(0, 14);
+}
+
+function buildLeagueGlobeConnections(
+  reportData: ReportData,
+  nodes: LeagueGlobeNode[]
+): LeagueGlobeConnection[] {
+  const nodeIds = new Set(nodes.map(node => node.id));
+  const connections = new Map<string, LeagueGlobeConnection>();
+
+  (reportData.tradeHistory || []).forEach(trade => {
+    const from = getLeagueGlobeNodeId(trade.team_a || "");
+    const to = getLeagueGlobeNodeId(trade.team_b || "");
+    if (!from || !to || from === to || !nodeIds.has(from) || !nodeIds.has(to)) {
+      return;
+    }
+
+    const [a, b] = [from, to].sort();
+    const key = `${a}:${b}`;
+    const existing = connections.get(key);
+    connections.set(key, {
+      from: a,
+      to: b,
+      intensity: (existing?.intensity || 0) + 1,
+    });
+  });
+
+  const rankedConnections = Array.from(connections.values()).sort(
+    (a, b) => (b.intensity || 0) - (a.intensity || 0)
+  );
+
+  if (rankedConnections.length) {
+    return rankedConnections.slice(0, 12);
+  }
+
+  return nodes.flatMap((node, index, visibleNodes) => {
+    const next = visibleNodes[index + 1];
+    return next
+      ? [
+          {
+            from: node.id,
+            to: next.id,
+            intensity: 1,
+          },
+        ]
+      : [];
+  }).slice(0, 16);
+}
+
+function OverviewLeagueGlobePanel({
+  reportData,
+  viewerManager,
+}: {
+  reportData: ReportData;
+  viewerManager?: string | null;
+}) {
+  const nodes = buildLeagueGlobeNodes(reportData, viewerManager);
+  if (!nodes.length) return null;
+
+  const connections = buildLeagueGlobeConnections(reportData, nodes);
+  const standingContext = getLeagueGlobeStandingContext(reportData);
+  const managerCount = nodes.length;
+  const topNode =
+    nodes.find(node => node.standingRank === 1) ||
+    nodes.find(node => node.name === standingContext.leaderName) ||
+    [...nodes].sort(
+      (a, b) =>
+        (a.standingRank || a.rank || 999) - (b.standingRank || b.rank || 999)
+    )[0];
+  const viewerNode = nodes.find(node => node.isViewer) || nodes[0];
+  const tradeCount = reportData.tradeHistory?.length || connections.length;
+
+  return (
+    <section className="overview-league-globe-row" aria-label="League network">
+      <div className="overview-league-globe-panel">
+        <div className="overview-league-globe-copy">
+          <span>League Network</span>
+          <h2>Immersive 3D League Globe</h2>
+          <div className="overview-league-globe-stats" aria-label="League network summary">
+            <span>
+              <strong>{managerCount}</strong>
+              Managers
+            </span>
+            <span>
+              <strong>{tradeCount}</strong>
+              Trade Lines
+            </span>
+            <span>
+              <strong>{topNode?.standingLabel || "-"}</strong>
+              {standingContext.lensLabel}
+            </span>
+          </div>
+          <p>
+            {topNode?.name && topNode.standingLabel
+              ? `${topNode.name} is ${topNode.standingLabel.toLowerCase()} as the ${standingContext.leaderLabel.toLowerCase()}; ${viewerNode.name} stays highlighted for quick context.`
+              : "League standings and trade links are mapped into one league view."}
+          </p>
+        </div>
+        <Suspense fallback={<div className="league-globe-canvas-fallback" aria-hidden="true" />}>
+          <LeagueGlobe3D
+            className="league-globe-canvas"
+            nodes={nodes}
+            connections={connections}
+          />
+        </Suspense>
+      </div>
+
+      <div className="overview-visual-language-panel">
+        <span>Visual Language</span>
+        <div className="overview-visual-tokens" aria-hidden="true">
+          <i data-token="cyan" />
+          <i data-token="glass" />
+          <i data-token="orange" />
+          <i data-token="bars" />
+          <i data-token="panel" />
+        </div>
+        <div className="overview-visual-language-list">
+          <span>Neon accents</span>
+          <span>Glass panels</span>
+          <span>Glow effects</span>
+          <span>Data visuals</span>
+          <span>Sleek cards</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReportOverviewHero({
+  leagueName,
+  leagueValueMode,
+  reportData,
+  leagueBalanceScore,
+}: {
+  leagueName: string;
+  leagueValueMode: LeagueValueMode;
+  reportData: ReportData;
+  leagueBalanceScore: number | null;
+}) {
+  const totalValueRows = reportData.managerRosterValueGrowth || [];
+  const leagueValue = totalValueRows.reduce(
+    (sum, row) => sum + (row.total_val || 0),
+    0
+  );
+  const starterSlots =
+    reportData.leagueDiagnostics?.starterSlots?.length ||
+    reportData.managerPositionCounts?.[0]?.starterPlayers?.length ||
+    null;
+  const tradeCount = reportData.tradeHistory?.length || 0;
+  const rookieCount = reportData.draftPicks?.length || 0;
+  const balanceLabel =
+    leagueBalanceScore === null
+      ? "Current"
+      : leagueBalanceScore >= 80
+        ? "Strong"
+        : leagueBalanceScore >= 65
+          ? "Good"
+          : leagueBalanceScore >= 50
+            ? "Watch"
+            : "Uneven";
+
+  return (
+    <section className="report-overview-hero">
+      <div className="report-overview-hero-copy">
+        <span>Dynasty Intel Command Center</span>
+        <h1>
+          <span>Win Now. Win Later.</span>
+          <span>Build Your Dynasty.</span>
+        </h1>
+        <p>
+          Stop guessing. Start dominating. Dynasty Degenerates blends dynasty
+          market data, redraft season value, roster context, and AI-driven
+          reads to give you an unfair advantage in every Sleeper league.
+        </p>
+        <div className="report-overview-pills" aria-label="Overview signals">
+          <span>Market data</span>
+          <span>Season value</span>
+          <span>Roster context</span>
+          <span>AI-driven reads</span>
+        </div>
+      </div>
+      <div className="report-overview-metrics" aria-label={`${leagueName} overview metrics`}>
+        <DashboardMetricCard
+          label="League Value"
+          value={formatDashboardCompactNumber(leagueValue || null)}
+          subLabel={leagueValueMode === "redraft" ? "Season lens" : "Total"}
+        />
+        <DashboardMetricCard
+          label="Starters"
+          value={starterSlots ?? "-"}
+          subLabel="Projected"
+        />
+        <DashboardBalanceMetric score={leagueBalanceScore} label={balanceLabel} />
+        <DashboardMetricCard label="Trades" value={tradeCount} subLabel="YTD" />
+        <DashboardMetricCard
+          label="Rookie Count"
+          value={rookieCount}
+          subLabel="Tracked"
+        />
+      </div>
+    </section>
+  );
+}
+
+function ReportDashboardSpotlight({
+  manager,
+  reportData,
+  managerAvatars,
+}: {
+  manager: string | null;
+  reportData: ReportData;
+  managerAvatars?: Record<string, string | null | undefined>;
+}) {
+  if (!manager) return null;
+
+  const intel = reportData.managerRosterIntelligence?.find(
+    row => row.manager === manager
+  );
+  const counts = reportData.managerPositionCounts?.find(
+    row => row.manager === manager
+  );
+  const growth = reportData.managerRosterValueGrowth?.find(
+    row => row.manager === manager
+  );
+  const leagueOverview = reportData.leagueOverview?.find(
+    row => row.manager === manager
+  );
+  const power = reportData.powerRankings?.find(row => row.manager === manager);
+  const starterCount = counts
+    ? (counts.QB_starters || 0) +
+      (counts.RB_starters || 0) +
+      (counts.WR_starters || 0) +
+      (counts.TE_starters || 0) +
+      (counts.K_starters || 0) +
+      (counts.DEF_starters || 0)
+    : null;
+  const healthScore = getDashboardNumber(intel, ["rosterHealthScore"]);
+  const projectedStarters =
+    (counts?.starterPlayers?.length ? counts.starterPlayers : counts?.lineupPlayers) || [];
+  const rosterValuePlayers =
+    (counts?.lineupPlayers?.length ? counts.lineupPlayers : projectedStarters) || [];
+  const seasonValue =
+    getDashboardNumber(growth, ["total_val"]) ??
+    getDashboardNumber(leagueOverview, ["total_val"]) ??
+    getDashboardNumber(intel, ["starterSeasonValue", "starterValue"]) ??
+    sumDashboardPlayerValues(rosterValuePlayers);
+  const positionRankCards = DASHBOARD_LINEUP_POSITIONS.filter(position => {
+    if (["QB", "RB", "WR", "TE"].includes(position)) return true;
+    return reportData.managerPositionCounts?.some(
+      row => getDashboardStarterCount(row, position) > 0
+    );
+  }).map(position => {
+    const computedRank = getDashboardPositionRank(reportData, manager, position);
+    const overviewRank =
+      position === "K" || position === "DEF"
+        ? null
+        : getDashboardNumber(leagueOverview, [`rank_${position.toLowerCase()}`]);
+    return {
+      position,
+      rank: computedRank ?? overviewRank,
+    };
+  });
+  const starterRankGroups = getDashboardStarterGroups(counts).map(group => {
+    const { rank, total } = getDashboardStarterGroupRank(
+      reportData,
+      manager,
+      group.key
+    );
+    return {
+      ...group,
+      position: getDashboardGroupPosition(group.key),
+      rank,
+      tier: getDashboardRankTier(rank, total),
+    };
+  });
+  const hasSpecialTeamRanks =
+    positionRankCards.some(({ position }) => position === "K" || position === "DEF") ||
+    starterRankGroups.some(group => group.position === "K" || group.position === "DEF");
+  const rankGridClassName = hasSpecialTeamRanks
+    ? "dashboard-rank-grid dashboard-rank-grid-special"
+    : "dashboard-rank-grid";
+  const swapSignals = [
+    intel?.tradePlan?.summary,
+    intel?.holes?.summary,
+    (intel as { nextMove?: string } | undefined)?.nextMove,
+  ].filter((signal): signal is string => Boolean(signal));
+
+  return (
+    <aside className="report-dashboard-spotlight" aria-label="Manager spotlight">
+      <div className="dashboard-spotlight-header">
+        <span className="dashboard-spotlight-avatar">
+          <DashboardManagerAvatar
+            manager={manager}
+            avatarUrl={getDashboardManagerAvatar(manager, managerAvatars)}
+          />
+        </span>
+        <div>
+          <span>Projected Season Roster</span>
+          <strong>{manager}</strong>
+        </div>
+      </div>
+      <div className="dashboard-spotlight-metrics">
+        <DashboardMetricCard
+          label="Starters"
+          value={starterCount ?? "-"}
+          subLabel="Projected"
+        />
+        <DashboardMetricCard
+          label="Season Value"
+          value={formatDashboardCompactNumber(seasonValue)}
+          subLabel="Roster"
+        />
+        <DashboardMetricCard
+          label="Health"
+          value={healthScore ?? power?.score ?? "-"}
+          subLabel="Score"
+        />
+      </div>
+      <div className="dashboard-position-rank-block">
+        <span>Full Roster Position Ranks</span>
+        <div className={`dashboard-position-ranks ${rankGridClassName}`}>
+          {positionRankCards.map(({ position, rank }) => (
+            <span key={position} data-position={position}>
+              <em>{position}</em>
+              <strong>{formatDashboardRank(rank)}</strong>
+            </span>
+          ))}
+          <span data-position="VALUE">
+            <em>Season Value</em>
+            <strong>
+              {getDashboardRankLabel(leagueOverview, ["rank_value"])}
+            </strong>
+          </span>
+        </div>
+      </div>
+      {starterRankGroups.length > 0 && (
+        <div className="dashboard-starter-ranks">
+          <span>Projected Starter Slot Ranks</span>
+          <div className={rankGridClassName}>
+            {starterRankGroups.map(group => (
+              <span key={group.key} data-position={group.position}>
+                <em>
+                  {group.label}
+                </em>
+                <strong>{formatDashboardRank(group.rank)}</strong>
+                <b>{group.tier}</b>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="dashboard-spotlight-chip-row">
+        <span>{starterCount ?? "-"} Sleeper Starters</span>
+        <span>Season Value {formatDashboardCompactNumber(seasonValue)}</span>
+        <span>Health {healthScore ?? power?.score ?? "-"}</span>
+      </div>
+      {swapSignals.length > 0 && (
+        <div className="dashboard-swap-signals">
+          <span>Start/Sit Swap Signals</span>
+          {swapSignals.slice(0, 2).map(signal => (
+            <p key={signal}>{signal}</p>
+          ))}
+        </div>
+      )}
+      <div className="dashboard-spotlight-read">
+        <span>Roster Read</span>
+        <p>
+          {intel?.summary ||
+            (intel as { nextMove?: string } | undefined)?.nextMove ||
+            "This manager is ready for a deeper roster read once the overview sections are opened."}
+        </p>
+      </div>
+    </aside>
   );
 }
 
@@ -6214,10 +7027,6 @@ export default function Home() {
     userLeagues,
     activeCachedSleeperUser
   );
-  const reportHeaderLeagueShortcuts = getReportHeaderLeagueShortcuts(
-    orderedUserLeagues,
-    leagueId
-  );
   const cachedLeagueShortcuts = getLeagueShortcutsForUser(
     activeCachedSleeperUser,
     userLeagues,
@@ -6295,14 +7104,6 @@ export default function Home() {
   const visibleReportTabCount =
     4 + (canViewAutopilotTab ? 1 : 0) + (shouldShowDraftHistoryTab ? 1 : 0);
   const reportTabsClassName = `report-tabs report-tabs-${visibleReportTabCount === 6 ? "six" : visibleReportTabCount === 5 ? "five" : "four"}`;
-  const reportScanTooltip = reportScanCompletedAt
-    ? `League scan complete at ${new Intl.DateTimeFormat(undefined, {
-        month: "short",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(new Date(reportScanCompletedAt))}`
-    : "League scan complete";
   const rankingsQuery = trpc.league.rankingsMeta.useQuery(
     { leagueId },
     {
@@ -6695,6 +7496,20 @@ export default function Home() {
       ...reportDataBase,
       viewerManager: effectiveViewerManager,
     };
+    const dashboardManagers = getReportDashboardManagers(reportDataForView);
+    const dashboardViewerManager =
+      effectiveViewerManager || dashboardManagers[0] || null;
+    const dashboardHealthScores = (
+      reportDataForView.managerRosterIntelligence || []
+    )
+      .map(row => getDashboardNumber(row, ["rosterHealthScore"]))
+      .filter((value): value is number => value !== null);
+    const dashboardLeagueHealthScore = dashboardHealthScores.length
+      ? Math.round(
+          dashboardHealthScores.reduce((sum, value) => sum + value, 0) /
+            dashboardHealthScores.length
+        )
+      : null;
     const hasManagerViewOptions = reportManagerNames.length > 1;
     const showTradeMarketRadar =
       reportData.weeklyRisers.some(player => player.val_now >= 2500) ||
@@ -6711,10 +7526,15 @@ export default function Home() {
               variant={reportFxVariant}
               intensity={resolvedActiveTab === "overview" ? "low" : "medium"}
             />
+            <Tabs
+              value={resolvedActiveTab}
+              onValueChange={handleReportTabChange}
+              className="report-dashboard-tabs-root"
+            >
             {/* Premium Header */}
             <div className="report-header sticky top-0 z-50">
-              <div className="max-w-7xl mx-auto px-4 sm:pl-6 sm:pr-2 md:pl-6 md:pr-1 lg:pr-0 py-3 md:py-2">
-                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-6">
+              <div className="report-header-inner max-w-7xl mx-auto px-4 sm:pl-6 sm:pr-2 md:pl-6 md:pr-1 lg:pr-0 py-3 md:py-2">
+                <div className="report-header-grid">
                   {/* Left: Brand */}
                   <div className="report-header-brand min-w-0">
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -6727,36 +7547,116 @@ export default function Home() {
                           className="report-header-mobile-logo"
                         />
                       </div>
-                      <h2 className="report-header-wordmark athletic-headline hidden truncate text-base sm:text-xl md:block">
-                        <span>Dynasty</span> <span>Degenerates</span>
-                      </h2>
+                      <img
+                        src={DYNASTY_REPORT_HEADER_LOGO_SRC}
+                        alt="Dynasty Degenerates"
+                        className="report-header-logo report-header-logo-left hidden md:block"
+                      />
                     </div>
-                    <span
-                      className={`report-live-indicator hidden md:inline-flex ${isReportRefreshing ? "report-live-indicator-refreshing" : ""}`}
-                      aria-label={
-                        isReportRefreshing
-                          ? "League analysis refreshing"
-                          : "League analysis loaded"
-                      }
-                      title={
-                        isReportRefreshing
-                          ? "Refreshing league data in the background"
-                          : reportScanTooltip
-                      }
-                    >
-                      <span aria-hidden="true" />
-                      {isReportRefreshing ? "Updating league data" : "League scan complete"}
-                    </span>
                   </div>
 
-                  {/* Center: Logo */}
-                  <div className="hidden md:col-start-2 md:flex items-center justify-center">
-                    <img
-                      src={DYNASTY_LOGO_SRC}
-                      alt="Dynasty Degenerates Logo"
-                      className="report-header-logo"
-                    />
-                  </div>
+                  <TabsList
+                    className={`${reportTabsClassName} report-header-tabs`}
+                    data-active-tab={resolvedActiveTab}
+                  >
+                    <TabsTrigger
+                      value="overview"
+                      className="report-tab"
+                      aria-label="Overview"
+                    >
+                      <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                      <span className="report-tab-label-full" aria-hidden="true">
+                        Overview
+                      </span>
+                      <span className="report-tab-label-short" aria-hidden="true">
+                        Overview
+                      </span>
+                    </TabsTrigger>
+
+                    {canViewAutopilotTab && (
+                      <TabsTrigger
+                        value="autopilot"
+                        className="report-tab"
+                        aria-label="AI Autopilot"
+                      >
+                        <Bot className="h-4 w-4" aria-hidden="true" />
+                        <span
+                          className="report-tab-label-full"
+                          aria-hidden="true"
+                        >
+                          AI Autopilot
+                        </span>
+                        <span
+                          className="report-tab-label-short"
+                          aria-hidden="true"
+                        >
+                          Autopilot
+                        </span>
+                      </TabsTrigger>
+                    )}
+
+                    <TabsTrigger
+                      value="momentum"
+                      className="report-tab"
+                      aria-label="Weekly Momentum"
+                    >
+                      <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                      <span className="report-tab-label-full" aria-hidden="true">
+                        Weekly Momentum
+                      </span>
+                      <span className="report-tab-label-short" aria-hidden="true">
+                        Momentum
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="rankings"
+                      className="report-tab"
+                      aria-label="Rankings"
+                    >
+                      <ListOrdered className="h-4 w-4" aria-hidden="true" />
+                      <span className="report-tab-label-full" aria-hidden="true">
+                        Rankings
+                      </span>
+                      <span className="report-tab-label-short" aria-hidden="true">
+                        Ranks
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="trades"
+                      className="report-tab"
+                      aria-label="Trade History"
+                    >
+                      <Repeat2 className="h-4 w-4" aria-hidden="true" />
+                      <span className="report-tab-label-full" aria-hidden="true">
+                        Trade History
+                      </span>
+                      <span className="report-tab-label-short" aria-hidden="true">
+                        Trades
+                      </span>
+                    </TabsTrigger>
+
+                    {shouldShowDraftHistoryTab && (
+                      <TabsTrigger
+                        value="draft"
+                        className="report-tab"
+                        aria-label="Draft History"
+                      >
+                        <ClipboardList className="h-4 w-4" aria-hidden="true" />
+                        <span
+                          className="report-tab-label-full"
+                          aria-hidden="true"
+                        >
+                          Draft History
+                        </span>
+                        <span
+                          className="report-tab-label-short"
+                          aria-hidden="true"
+                        >
+                          Draft
+                        </span>
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
 
                   {/* Right: League Name + shortcuts */}
                   <div className="report-league-zone md:col-start-3">
@@ -6787,136 +7687,44 @@ export default function Home() {
                         )}
                       </div>
                     </button>
-                    {reportHeaderLeagueShortcuts.length > 0 && (
-                      <LeagueShortcutStack
-                        leagues={reportHeaderLeagueShortcuts}
-                        activeLeagueId={leagueId}
-                        onSelect={handleCachedLeagueShortcutSelect}
-                        className="report-league-shortcuts"
-                        label="Switch"
-                        limit={MAX_REPORT_HEADER_LEAGUES}
-                      />
-                    )}
+                    <button
+                      type="button"
+                      className="report-header-league-avatar"
+                      onClick={handleHeaderLeagueClick}
+                      aria-label="Open league switcher"
+                    >
+                      {leagueLogo ? (
+                        <img src={leagueLogo} alt="" aria-hidden="true" />
+                      ) : (
+                        <span aria-hidden="true">
+                          {getLeagueFallbackInitials(leagueName)}
+                        </span>
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Content */}
-            <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full">
-              <Tabs
-                value={resolvedActiveTab}
-                onValueChange={handleReportTabChange}
-                className="w-full"
-              >
-                <TabsList
-                  className={reportTabsClassName}
+            <ReportSectionAccordionProvider scopeKey={resolvedActiveTab}>
+            <div className="report-dashboard-shell">
+              <main className="report-dashboard-main">
+                <div
+                  className="overview-command-canvas report-command-canvas"
                   data-active-tab={resolvedActiveTab}
                 >
-                  <TabsTrigger
-                    value="overview"
-                    className="report-tab"
-                    aria-label="Overview"
-                  >
-                    <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                    <span className="report-tab-label-full" aria-hidden="true">
-                      Overview
-                    </span>
-                    <span className="report-tab-label-short" aria-hidden="true">
-                      Overview
-                    </span>
-                  </TabsTrigger>
-
-                  {canViewAutopilotTab && (
-                    <TabsTrigger
-                      value="autopilot"
-                      className="report-tab"
-                      aria-label="AI Autopilot"
-                    >
-                      <Bot className="h-4 w-4" aria-hidden="true" />
-                      <span
-                        className="report-tab-label-full"
-                        aria-hidden="true"
-                      >
-                        AI Autopilot
-                      </span>
-                      <span
-                        className="report-tab-label-short"
-                        aria-hidden="true"
-                      >
-                        Autopilot
-                      </span>
-                    </TabsTrigger>
-                  )}
-
-                  <TabsTrigger
-                    value="momentum"
-                    className="report-tab"
-                    aria-label="Weekly Momentum"
-                  >
-                    <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                    <span className="report-tab-label-full" aria-hidden="true">
-                      Weekly Momentum
-                    </span>
-                    <span className="report-tab-label-short" aria-hidden="true">
-                      Momentum
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="rankings"
-                    className="report-tab"
-                    aria-label="Rankings"
-                  >
-                    <ListOrdered className="h-4 w-4" aria-hidden="true" />
-                    <span className="report-tab-label-full" aria-hidden="true">
-                      Rankings
-                    </span>
-                    <span className="report-tab-label-short" aria-hidden="true">
-                      Ranks
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="trades"
-                    className="report-tab"
-                    aria-label="Trade History"
-                  >
-                    <Repeat2 className="h-4 w-4" aria-hidden="true" />
-                    <span className="report-tab-label-full" aria-hidden="true">
-                      Trade History
-                    </span>
-                    <span className="report-tab-label-short" aria-hidden="true">
-                      Trades
-                    </span>
-                  </TabsTrigger>
-
-                  {shouldShowDraftHistoryTab && (
-                    <TabsTrigger
-                      value="draft"
-                      className="report-tab"
-                      aria-label="Draft History"
-                    >
-                      <ClipboardList className="h-4 w-4" aria-hidden="true" />
-                      <span
-                        className="report-tab-label-full"
-                        aria-hidden="true"
-                      >
-                        Draft History
-                      </span>
-                      <span
-                        className="report-tab-label-short"
-                        aria-hidden="true"
-                      >
-                        Draft
-                      </span>
-                    </TabsTrigger>
-                  )}
-                </TabsList>
-
-                <Suspense fallback={<ReportSectionLoadingFallback />}>
-                  <TabsContent value="overview" className="report-tab-content">
-                    <div className="space-y-6 sm:space-y-8">
-                      {canViewAdminFeatureExpansion && (
-                        <>
+                  <ReportOverviewHero
+                    leagueName={leagueName}
+                    leagueValueMode={leagueValueMode}
+                    reportData={reportDataForView}
+                    leagueBalanceScore={dashboardLeagueHealthScore}
+                  />
+                  <Suspense fallback={<ReportSectionLoadingFallback />}>
+                    <TabsContent value="overview" className="report-tab-content">
+                      <div className="dashboard-overview-section-stack space-y-6 sm:space-y-8">
+                        {canViewAdminFeatureExpansion && (
+                          <>
                           <OverviewAIPulse data={reportDataForView} />
                           <CollapsibleReportSection
                             title="Monthly Team Blueprint"
@@ -7107,17 +7915,18 @@ export default function Home() {
                           )}
                         </>
                       )}
-                      {(() => {
-                        const hasTaxiTriage =
-                          !isRedraftReport &&
-                          reportData.managerRosterIntelligence?.some(
-                            row => (row.taxiTriage?.items.length || 0) > 0
-                          );
-                        return (
-                          <>
+                        {(() => {
+                          const hasTaxiTriage =
+                            !isRedraftReport &&
+                            reportData.managerRosterIntelligence?.some(
+                              row => (row.taxiTriage?.items.length || 0) > 0
+                            );
+                          return (
+                            <>
                             <CollapsibleReportSection
                               title={modeCopy.ownerTitle}
                               kicker={modeCopy.ownerKicker}
+                              defaultOpen
                               previewMetrics={buildOwnerPreviewMetrics(
                                 reportData,
                                 leagueValueMode,
@@ -7147,6 +7956,7 @@ export default function Home() {
                             <CollapsibleReportSection
                               title={modeCopy.rosterTitle}
                               kicker={modeCopy.rosterKicker}
+                              defaultOpen
                               previewMetrics={buildRosterPreviewMetrics(
                                 reportData
                               )}
@@ -7166,6 +7976,7 @@ export default function Home() {
                               <CollapsibleReportSection
                                 title="Taxi Squad Triage"
                                 kicker="Taxi-only activation checks"
+                                defaultOpen
                                 previewMetrics={buildTaxiPreviewMetrics(
                                   reportData
                                 )}
@@ -7189,6 +8000,7 @@ export default function Home() {
                                     ? "Starter depth and position gaps"
                                     : "Full roster depth map"
                                 }
+                                defaultOpen
                                 previewMetrics={buildManagerPositionRoomPreviewMetrics(
                                   reportData
                                 )}
@@ -7207,16 +8019,20 @@ export default function Home() {
                                 />
                               </CollapsibleReportSection>
                             )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </TabsContent>
+                            </>
+                          );
+                        })()}
+                      </div>
+                      <OverviewLeagueGlobePanel
+                        reportData={reportDataForView}
+                        viewerManager={effectiveViewerManager}
+                      />
+                    </TabsContent>
 
                   {canViewAutopilotTab && (
                     <TabsContent
                       value="autopilot"
-                      className="report-tab-content"
+                      className="report-tab-content report-command-tab-body"
                     >
                       <ErrorBoundary
                         fallback={(error, reset) => (
@@ -7236,7 +8052,10 @@ export default function Home() {
                     </TabsContent>
                   )}
 
-                  <TabsContent value="momentum" className="report-tab-content">
+                  <TabsContent
+                    value="momentum"
+                    className="report-tab-content report-command-tab-body"
+                  >
                     <div className="space-y-6 sm:space-y-8">
                       {showTradeMarketRadar && (
                         <CollapsibleReportSection
@@ -7403,7 +8222,10 @@ export default function Home() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="rankings" className="report-tab-content">
+                  <TabsContent
+                    value="rankings"
+                    className="report-tab-content report-command-tab-body"
+                  >
                     <div className="space-y-6 sm:space-y-8">
                       <CollapsibleReportSection
                         title="Full Roster Rankings"
@@ -7520,7 +8342,10 @@ export default function Home() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="trades" className="report-tab-content">
+                  <TabsContent
+                    value="trades"
+                    className="report-tab-content report-command-tab-body"
+                  >
                     <div className="trade-sections space-y-6 sm:space-y-8">
                       {canViewAdminFeatureExpansion && (
                         <TradeBrowserRead data={reportDataForView} />
@@ -7691,7 +8516,10 @@ export default function Home() {
                   </TabsContent>
 
                   {shouldShowDraftHistoryTab && (
-                    <TabsContent value="draft" className="report-tab-content">
+                    <TabsContent
+                      value="draft"
+                      className="report-tab-content report-command-tab-body"
+                    >
                       <DraftAnalysis
                         draftPicks={reportData.draftPicks || []}
                         draftStats={reportData.draftStats || []}
@@ -7710,8 +8538,14 @@ export default function Home() {
                       />
                     </TabsContent>
                   )}
-                </Suspense>
-              </Tabs>
+                  </Suspense>
+                </div>
+              </main>
+              <ReportDashboardSpotlight
+                manager={dashboardViewerManager}
+                reportData={reportDataForView}
+                managerAvatars={reportData.managerAvatars}
+              />
             </div>
 
             {/* Bottom Action Buttons */}
@@ -7775,6 +8609,8 @@ export default function Home() {
                 </div>
               </div>
             </div>
+            </ReportSectionAccordionProvider>
+            </Tabs>
 
             <Dialog
               open={isLeaguePickerOpen}
@@ -7907,11 +8743,11 @@ export default function Home() {
             {/* Main Title */}
             <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
               <h2
-                className="athletic-title home-title text-4xl sm:text-6xl md:text-7xl bg-gradient-to-r from-orange-400 via-orange-300 to-yellow-300 bg-clip-text text-transparent"
-                aria-label="Obliterate Your Competition"
+                className="athletic-title home-title"
+                aria-label="Win now. Win later. Build your dynasty."
               >
-                <span>Obliterate Your</span>
-                <span>Competition</span>
+                <span className="home-title-primary">Win Now. Win Later.</span>
+                <span className="home-title-accent">Build Your Dynasty.</span>
               </h2>
               <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
                 Stop guessing. Start dominating.{" "}
@@ -8055,7 +8891,7 @@ export default function Home() {
             </div>
 
             {/* Features Grid */}
-            <div className="home-feature-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
+            <div className="home-feature-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
               <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
                 <div className="home-feature-heading">
                   <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
@@ -8093,6 +8929,19 @@ export default function Home() {
                 <p className="text-sm text-slate-400">
                   Browse league-matched dynasty, redraft, and prospect boards
                   across SuperFlex, Standard, PPR, and TE-premium formats.
+                </p>
+              </div>
+
+              <div className="home-feature-card home-feature-orange p-4 sm:p-6 space-y-3">
+                <div className="home-feature-heading">
+                  <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                    <ClipboardList className="w-6 h-6 text-orange-300" />
+                  </div>
+                  <h3 className="font-semibold text-white">Draft Intel</h3>
+                </div>
+                <p className="text-sm text-slate-400">
+                  Review rookie draft value, manager tendencies, and missed board
+                  opportunities without leaving the report.
                 </p>
               </div>
             </div>
@@ -8134,21 +8983,37 @@ function CollapsibleReportSection({
   onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  const [hasRenderedContent, setHasRenderedContent] = useState(defaultOpen);
+  const accordion = useContext(ReportSectionAccordionContext);
+  const sectionId = useId();
+  const isOpen = accordion
+    ? accordion.activeSectionId === sectionId
+    : defaultOpen;
+  const [localIsOpen, setLocalIsOpen] = useState(defaultOpen);
+  const [hasRenderedContent, setHasRenderedContent] = useState(
+    accordion ? false : defaultOpen
+  );
   const visiblePreviewMetrics = (previewMetrics || []).filter(metric => metric.value !== null && metric.value !== undefined && metric.value !== "");
   const useMiddleAccessoryLayout = previewAccessoryPlacement === "middle" && Boolean(previewAccessory) && visiblePreviewMetrics.length === 2;
 
   useEffect(() => {
-    setIsOpen(defaultOpen);
+    if (accordion) return;
+    setLocalIsOpen(defaultOpen);
     if (defaultOpen) {
       setHasRenderedContent(true);
     }
-  }, [defaultOpen]);
+  }, [accordion, defaultOpen]);
 
   const handleToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
     const nextOpen = event.currentTarget.open;
-    setIsOpen(nextOpen);
+    if (accordion) {
+      if (nextOpen) {
+        accordion.setActiveSectionId(sectionId);
+      } else if (accordion.activeSectionId === sectionId) {
+        accordion.setActiveSectionId(null);
+      }
+    } else {
+      setLocalIsOpen(nextOpen);
+    }
     if (nextOpen) {
       setHasRenderedContent(true);
     }
@@ -8158,7 +9023,7 @@ function CollapsibleReportSection({
   return (
     <details
       className={`report-section report-disclosure${premium ? " admin-premium-flare admin-premium-section" : ""}`}
-      open={isOpen}
+      open={accordion ? isOpen : localIsOpen}
       onToggle={handleToggle}
     >
       <summary className="report-disclosure-summary">
@@ -8211,6 +9076,36 @@ function CollapsibleReportSection({
         ) : null}
       </div>
     </details>
+  );
+}
+
+type ReportSectionAccordionContextValue = {
+  activeSectionId: string | null;
+  setActiveSectionId: (sectionId: string | null) => void;
+};
+
+const ReportSectionAccordionContext =
+  createContext<ReportSectionAccordionContextValue | null>(null);
+
+function ReportSectionAccordionProvider({
+  scopeKey,
+  children,
+}: {
+  scopeKey: string;
+  children: ReactNode;
+}) {
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveSectionId(null);
+  }, [scopeKey]);
+
+  return (
+    <ReportSectionAccordionContext.Provider
+      value={{ activeSectionId, setActiveSectionId }}
+    >
+      {children}
+    </ReportSectionAccordionContext.Provider>
   );
 }
 
