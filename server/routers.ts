@@ -804,6 +804,8 @@ const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
 const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
 const LEAGUE_REPORT_FILE_CACHE_MAX_FILES = getLeagueReportFileCacheMaxFiles();
 const RECENT_TRANSACTION_BETTER_CUT_VALUE_GAP = 250;
+const SLEEPER_TRENDING_LOOKBACK_HOURS = 24;
+const SLEEPER_TRENDING_LIMIT = 25;
 const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');
 const MONTHLY_BLUEPRINT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'monthly-blueprints');
 const leagueReportMemoryCache = new Map<string, { loadedAt: number; payload: unknown }>();
@@ -1368,23 +1370,35 @@ function createLeagueAnalyzeTimer(leagueId: string) {
   };
 }
 
+async function fetchLeagueTransactionWeek(leagueId: string, week: number): Promise<any[]> {
+  try {
+    const transactions = await fetchUserLoadJson<any[]>(
+      `https://api.sleeper.app/v1/league/${leagueId}/transactions/${week}`,
+      "league transaction load"
+    );
+    return Array.isArray(transactions) ? transactions : [];
+  } catch (error) {
+    console.warn(`Failed to fetch Sleeper transactions for league ${leagueId} week ${week}:`, error);
+    return [];
+  }
+}
+
 async function fetchLeagueTransactions(leagueId: string): Promise<any[]> {
   const weeks = await Promise.all(
-    Array.from({ length: 18 }, (_, index) => index + 1).map(async (week) => {
-      try {
-        const transactions = await fetchUserLoadJson<any[]>(
-          `https://api.sleeper.app/v1/league/${leagueId}/transactions/${week}`,
-          "league transaction load"
-        );
-        return Array.isArray(transactions) ? transactions : [];
-      } catch (error) {
-        console.warn(`Failed to fetch Sleeper transactions for league ${leagueId} week ${week}:`, error);
-        return [];
-      }
-    })
+    Array.from({ length: 18 }, (_, index) => index + 1).map((week) =>
+      fetchLeagueTransactionWeek(leagueId, week)
+    )
   );
-
   return weeks.flat();
+}
+
+async function fetchLeagueLiveActivityTransactions(leagueId: string, leagueInfo: any): Promise<any[]> {
+  const currentWeek = getSleeperCurrentWeek(leagueInfo);
+  const weeks = Array.from(new Set([currentWeek, Math.max(1, currentWeek - 1)]));
+  const transactions = await Promise.all(
+    weeks.map((week) => fetchLeagueTransactionWeek(leagueId, week))
+  );
+  return transactions.flat();
 }
 
 type HistoricalTransactionContext = {
@@ -3057,7 +3071,7 @@ async function fetchTrendingPlayers(
   valueProfilesById?: Record<string, PlayerDetails['valueProfile']>
 ): Promise<TrendingPlayer[]> {
   const trending = await fetchUserLoadJson<any[]>(
-    `https://api.sleeper.app/v1/players/nfl/trending/${type}?lookback_hours=168&limit=15`,
+    `https://api.sleeper.app/v1/players/nfl/trending/${type}?lookback_hours=${SLEEPER_TRENDING_LOOKBACK_HOURS}&limit=${SLEEPER_TRENDING_LIMIT}`,
     "Sleeper trending player load"
   );
 
@@ -3486,6 +3500,135 @@ function buildRecentTransactions(
         losingBidsAvailable: false,
       };
     });
+}
+
+async function buildLiveSleeperActivityPatch(
+  leagueId: string,
+  cachedReportData?: ReportData
+): Promise<Pick<ReportData, 'recentTransactions' | 'trendingAdds' | 'trendingDrops' | 'waiverIntelligence'> | null> {
+  try {
+    const [leagueInfo, users, rosters, players] = await Promise.all([
+      fetchUserLoadJson<any>(
+        `https://api.sleeper.app/v1/league/${leagueId}`,
+        "league activity load"
+      ),
+      fetchUserLoadJson<any[]>(
+        `https://api.sleeper.app/v1/league/${leagueId}/users`,
+        "league activity users load"
+      ),
+      fetchUserLoadJson<any[]>(
+        `https://api.sleeper.app/v1/league/${leagueId}/rosters`,
+        "league activity rosters load"
+      ),
+      fetchSleeperPlayersIndex(),
+    ]);
+
+    if (!leagueInfo || !Array.isArray(users) || !Array.isArray(rosters)) {
+      return null;
+    }
+
+    const allTransactions = await fetchLeagueLiveActivityTransactions(leagueId, leagueInfo);
+    const userMap = Object.fromEntries(users.map((user: any) => [user.user_id, user]));
+    const rosterUserMap = Object.fromEntries(
+      rosters.map((roster: any) => [
+        roster.roster_id,
+        normalizeManagerName(userMap[roster.owner_id]?.display_name),
+      ])
+    );
+    const ownerByPlayerId = buildPlayerOwnerMap(rosters, rosterUserMap);
+    const rosterStatusByPlayerId = buildPlayerRosterStatusMap(rosters);
+    const leagueValueOptions = getLeagueValueBlendOptions(leagueInfo);
+    const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
+    const leagueValueMode = getLeagueValueMode(leagueInfo);
+    const currentSeason = String(leagueInfo.season || new Date().getFullYear());
+    const lastCompletedSeason = String(Number(currentSeason) - 1);
+    let ktcValues: KTCValues = {} as KTCValues;
+
+    try {
+      const staticInputs = await loadReportStaticInputs({
+        leagueId,
+        leagueValueOptions,
+        leagueValueProfileKey,
+        currentSeason,
+        lastCompletedSeason,
+        forceRefresh: false,
+      });
+      ktcValues = staticInputs.ktcValues;
+    } catch (error) {
+      console.warn(`Failed to load value snapshots for live Sleeper activity ${leagueId}:`, error);
+    }
+
+    const valueProfilesById = buildPlayerValueProfileMap(
+      Object.keys(players || {}),
+      players || {},
+      ktcValues,
+      leagueValueMode
+    );
+    const [trendingAdds, trendingDrops] = await Promise.all([
+      fetchTrendingPlayers('add', players || {}, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, valueProfilesById),
+      fetchTrendingPlayers('drop', players || {}, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, valueProfilesById),
+    ]);
+    const managerIntelByName = new Map(
+      (cachedReportData?.managerRosterIntelligence || [])
+        .filter((row: any) => row?.manager)
+        .map((row: any) => [row.manager, row])
+    );
+    const currentRecentTransactions = buildRecentTransactions(
+      allTransactions,
+      rosterUserMap,
+      players || {},
+      ktcValues,
+      rosterStatusByPlayerId,
+      managerIntelByName,
+      currentSeason,
+      leagueValueMode,
+      valueProfilesById
+    );
+    const currentTransactionIds = new Set(currentRecentTransactions.map((transaction) => transaction.id));
+    const recentTransactions = [
+      ...currentRecentTransactions,
+      ...(cachedReportData?.recentTransactions || []).filter((transaction) => !currentTransactionIds.has(transaction.id)),
+    ]
+      .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
+      .slice(0, 160);
+
+    return {
+      recentTransactions,
+      trendingAdds,
+      trendingDrops,
+      waiverIntelligence: buildWaiverIntelligence(
+        trendingAdds,
+        trendingDrops,
+        players || {},
+        ktcValues,
+        ownerByPlayerId,
+        rosterStatusByPlayerId,
+        leagueValueMode,
+        valueProfilesById,
+        {
+          rosterPositions: Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [],
+        }
+      ),
+    };
+  } catch (error) {
+    console.warn(`Failed to refresh live Sleeper activity for league ${leagueId}:`, error);
+    return null;
+  }
+}
+
+async function attachLiveSleeperActivity(payload: any, leagueId: string): Promise<any> {
+  if (!payload?.reportData) return payload;
+
+  const liveActivity = await buildLiveSleeperActivityPatch(leagueId, payload.reportData);
+  if (!liveActivity) return payload;
+
+  return {
+    ...payload,
+    reportData: {
+      ...payload.reportData,
+      ...liveActivity,
+    },
+  };
 }
 
 function ordinalRound(round: number): string {
@@ -4533,7 +4676,7 @@ export const appRouter = router({
       }),
 
     analyze: publicProcedure
-      .input(z.object({ leagueId: sleeperLeagueIdSchema, viewerUserId: sleeperUserIdSchema.optional(), forceRefresh: z.boolean().optional() }))
+      .input(z.object({ leagueId: sleeperLeagueIdSchema, viewerUserId: sleeperUserIdSchema.optional(), forceRefresh: z.boolean().optional(), liveRefresh: z.boolean().optional() }))
       .mutation(async ({ input, ctx }) => {
         assertReportAccess(ctx);
         const ipAddress = getClientIp(ctx.req as any);
@@ -4548,21 +4691,24 @@ export const appRouter = router({
         const reportCacheKey = getLeagueReportCacheKey(input.leagueId, input.viewerUserId);
         const markAnalyzeStep = createLeagueAnalyzeTimer(input.leagueId);
         const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
+        const liveRefresh = Boolean(input.liveRefresh);
+        const bypassReportCache = forceRefresh || liveRefresh;
         try {
-          const cachedReport = forceRefresh ? null : await readCachedLeagueReport(reportCacheKey);
+          const cachedReport = bypassReportCache ? null : await readCachedLeagueReport(reportCacheKey);
           markAnalyzeStep('cache lookup');
-          if (!forceRefresh && cachedReport && typeof cachedReport === 'object') {
+          if (!bypassReportCache && cachedReport && typeof cachedReport === 'object') {
             const cachedReportWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(cachedReport, input.leagueId);
+            const cachedReportWithLiveActivity = await attachLiveSleeperActivity(cachedReportWithHiddenData, input.leagueId);
             await insertLoginAttempt({
               eventType: "analyze_league",
               status: "success",
               leagueId: input.leagueId,
               ipAddress,
               userAgent,
-              note: "Served cached league report",
+              note: "Served cached league report with live Sleeper activity",
             });
             return {
-              ...(cloneReportWithViewerManager(cachedReportWithHiddenData, input.viewerUserId) as any),
+              ...(cloneReportWithViewerManager(cachedReportWithLiveActivity, input.viewerUserId) as any),
               reportCacheStatus: 'hit' as const,
             };
           }
@@ -4645,10 +4791,7 @@ export const appRouter = router({
           markAnalyzeStep('transactions');
           let adminTradeProposalSignals: NonNullable<ReportData['adminTradeProposalSignals']> = [];
 
-          const players = await fetchUserLoadJson<Record<string, any>>(
-            'https://api.sleeper.app/v1/players/nfl',
-            "Sleeper player index load"
-          );
+          const players = await fetchSleeperPlayersIndex();
           markAnalyzeStep('players');
           adminTradeProposalSignals = buildTradeProposalSignals(allTransactions, rosterUserMap, players, null);
 

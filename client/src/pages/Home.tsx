@@ -203,7 +203,8 @@ const REPORT_CACHE_DB_STORE = "reports";
 const REPORT_LOAD_TELEMETRY_KEY =
   "dynasty-degenerates:report-load-telemetry:v1";
 const REPORT_CACHE_MAX_AGE_MS = 72 * 60 * 60 * 1000;
-const REPORT_BACKGROUND_REFRESH_AFTER_MS = 60 * 60 * 1000;
+// Cached reports render immediately, then refresh volatile Sleeper activity in the background.
+const REPORT_BACKGROUND_REFRESH_AFTER_MS = 0;
 const REPORT_CACHE_PREFETCH_DEBOUNCE_MS = 10 * 60 * 1000;
 const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v10",
@@ -6780,33 +6781,19 @@ export default function Home() {
       toast.error("Please enter a league ID");
       return;
     }
-    if (
-      reportData &&
-      nextLeagueId === leagueId.trim() &&
-      reportDataCacheVersion === REPORT_CACHE_DATA_VERSION
-    ) {
-      refreshReportInBackground(nextLeagueId, viewerUserId);
-      return;
-    }
     if (nextLeagueId !== leagueId.trim()) {
       setAdminViewerManager(null);
     }
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
-    if (
-      await restoreFreshCachedReportForLeague(
-        nextLeagueId,
-        getInitialReportTabFromUrl() || "overview",
-        viewerUserId
-      )
-    ) {
-      return;
-    }
+    clearBrowserReportCache(nextLeagueId);
+    setReportData(null);
     void beginAnalysisLoading(nextLeagueId).finally(() => {
       if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
       analyzeMutation.mutate({
         leagueId: nextLeagueId,
         viewerUserId: getValidSleeperUserId(viewerUserId) || undefined,
+        liveRefresh: true,
       });
     });
   };
@@ -6955,18 +6942,9 @@ export default function Home() {
 
   const handleAnalyzeLeagueOption = async (nextLeagueId: string) => {
     setIsLeaguePickerOpen(false);
-    if (
-      await restoreFreshCachedReportForLeague(
-        nextLeagueId,
-        "overview",
-        viewerUserId
-      )
-    ) {
-      return;
-    }
-    clearBrowserReportCache();
+    clearBrowserReportCache(nextLeagueId);
     setReportData(null);
-    handleAnalyze(nextLeagueId);
+    await handleAnalyze(nextLeagueId);
   };
 
   const handleCachedLeagueShortcutSelect = async (nextLeagueId: string) => {
@@ -7024,16 +7002,7 @@ export default function Home() {
     setIsChangeLeagueModalOpen(false);
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
-    if (
-      await restoreFreshCachedReportForLeague(
-        nextLeagueId,
-        "overview",
-        cachedUser?.userId || viewerUserId
-      )
-    ) {
-      return;
-    }
-    clearBrowserReportCache();
+    clearBrowserReportCache(nextLeagueId);
     setReportData(null);
     void beginAnalysisLoading(nextLeagueId, cachedUser?.leagues || []).finally(
       () => {
@@ -7044,6 +7013,7 @@ export default function Home() {
             getValidSleeperUserId(cachedUser?.userId) ||
             getValidSleeperUserId(viewerUserId) ||
             undefined,
+          liveRefresh: true,
         });
       }
     );

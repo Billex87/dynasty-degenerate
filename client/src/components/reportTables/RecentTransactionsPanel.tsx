@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ChevronDown, Scissors, ShieldCheck } from "lucide-react";
 import type {
   PlayerDetails,
@@ -22,6 +22,7 @@ import {
 
 const AI_RECOMMENDATION_BADGE_LABEL = "AI TARGET";
 const AI_NEURAL_SURFACE_CLASS = "ai-neural-surface";
+const DEFAULT_VISIBLE_TRANSACTION_COUNT = 3;
 const WAIVER_POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"] as const;
 type WaiverPosition = (typeof WAIVER_POSITIONS)[number];
 
@@ -151,9 +152,23 @@ export default function RecentTransactionsPanel({
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
   const [transactionSort, setTransactionSort] =
     useState<RecentTransactionSort>("add");
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
+  useEffect(() => {
+    setShowAllTransactions(false);
+  }, [data]);
+  const sortedTransactions = useMemo(
+    () => sortRecentTransactionsByDate(data || []),
+    [data]
+  );
+  const hiddenTransactions = sortedTransactions.slice(
+    DEFAULT_VISIBLE_TRANSACTION_COUNT
+  );
+  const visibleTransactions = showAllTransactions
+    ? sortedTransactions
+    : sortedTransactions.slice(0, DEFAULT_VISIBLE_TRANSACTION_COUNT);
   const transactionGroups = useMemo(
-    () => buildRecentTransactionGroups(data || [], transactionSort),
-    [data, transactionSort]
+    () => buildRecentTransactionGroups(visibleTransactions, transactionSort),
+    [visibleTransactions, transactionSort]
   );
   const waiverCandidates = useMemo(
     () =>
@@ -343,7 +358,8 @@ export default function RecentTransactionsPanel({
   return (
     <div className="recent-transaction-date-list">
       {transactionGroups.map(group => {
-        const isExpanded = expandedDateKey === group.dateKey;
+        const isExpanded =
+          !showAllTransactions || expandedDateKey === group.dateKey;
         return (
           <div
             key={group.dateKey}
@@ -354,7 +370,9 @@ export default function RecentTransactionsPanel({
                 type="button"
                 className="recent-transaction-date-toggle"
                 onClick={() =>
-                  setExpandedDateKey(isExpanded ? null : group.dateKey)
+                  setExpandedDateKey(
+                    showAllTransactions && isExpanded ? null : group.dateKey
+                  )
                 }
                 aria-expanded={isExpanded}
               >
@@ -465,6 +483,30 @@ export default function RecentTransactionsPanel({
           </div>
         );
       })}
+      {sortedTransactions.length > DEFAULT_VISIBLE_TRANSACTION_COUNT && (
+        <div className="recent-transaction-display-controls">
+          <button
+            type="button"
+            className="recent-transaction-display-button"
+            onClick={() => {
+              const nextShowAll = !showAllTransactions;
+              setShowAllTransactions(nextShowAll);
+              if (nextShowAll) {
+                setExpandedDateKey(transactionGroups[0]?.dateKey || null);
+              }
+            }}
+          >
+            {showAllTransactions
+              ? `Show last ${DEFAULT_VISIBLE_TRANSACTION_COUNT}`
+              : getRecentTransactionDisplayAllLabel(hiddenTransactions)}
+          </button>
+          <span>
+            {showAllTransactions
+              ? `${sortedTransactions.length} transactions shown`
+              : `${hiddenTransactions.length} older transactions hidden`}
+          </span>
+        </div>
+      )}
       <PlayerDetailModal
         isOpen={selectedPlayer !== null}
         onClose={() => setSelectedPlayer(null)}
@@ -711,6 +753,59 @@ function buildRecentTransactionGroups(
       ),
     }))
     .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+}
+
+function sortRecentTransactionsByDate(
+  data: RecentTransactionRow[]
+): RecentTransactionRow[] {
+  return [...data].sort((a, b) => {
+    const timeDiff =
+      getRecentTransactionTime(b.date) - getRecentTransactionTime(a.date);
+    if (timeDiff !== 0) return timeDiff;
+    return String(b.id).localeCompare(String(a.id));
+  });
+}
+
+function getRecentTransactionTime(date: string): number {
+  const parsed = Date.parse(date);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function getRecentTransactionYear(date: string): string | null {
+  const rawDate = String(date || "").trim();
+  const dateMatch = rawDate.match(/^(\d{4})-/);
+  if (dateMatch) return dateMatch[1];
+
+  const parsed = new Date(rawDate);
+  if (!Number.isNaN(parsed.getTime())) {
+    return String(parsed.getFullYear());
+  }
+
+  return null;
+}
+
+function getRecentTransactionDisplayAllLabel(
+  hiddenTransactions: RecentTransactionRow[]
+): string {
+  const hiddenCount = hiddenTransactions.length;
+  const years = Array.from(
+    new Set(
+      hiddenTransactions
+        .map(transaction => getRecentTransactionYear(transaction.date))
+        .filter((year): year is string => Boolean(year))
+    )
+  );
+  const currentYear = String(new Date().getFullYear());
+
+  if (years.length === 1 && years[0] !== currentYear) {
+    return `Display ${years[0]} (${hiddenCount})`;
+  }
+
+  if (years.length > 1) {
+    return `Display all years (${hiddenCount})`;
+  }
+
+  return `Display all (${hiddenCount})`;
 }
 
 function compareRecentTransactions(

@@ -11317,6 +11317,43 @@
     gap: 0.72rem;
   }
 
+  .recent-transaction-display-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    color: #94a3b8;
+    font-size: 0.76rem;
+    font-weight: 800;
+  }
+
+  .recent-transaction-display-button {
+    display: inline-flex;
+    min-height: 2rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(251, 146, 60, 0.42);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(14, 165, 233, 0.12));
+    padding: 0.38rem 0.78rem;
+    color: #fed7aa;
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease,
+      color 160ms ease;
+  }
+
+  .recent-transaction-display-button:hover {
+    border-color: rgba(251, 146, 60, 0.72);
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.26), rgba(14, 165, 233, 0.18));
+    color: #fff7ed;
+  }
+
   .recent-transaction-date-group {
     overflow: hidden;
     border: 1px solid rgba(34, 211, 238, 0.16);
