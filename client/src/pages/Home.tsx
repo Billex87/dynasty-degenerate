@@ -8123,7 +8123,7 @@ export default function Home() {
                     value="momentum"
                     className="report-tab-content report-command-tab-body"
                   >
-                    <div className="space-y-6 sm:space-y-8">
+                    <div className="report-command-section-stack space-y-6 sm:space-y-8">
                       {showTradeMarketRadar && (
                         <CollapsibleReportSection
                           title="Trade Market Radar"
@@ -8293,7 +8293,7 @@ export default function Home() {
                     value="rankings"
                     className="report-tab-content report-command-tab-body"
                   >
-                    <div className="space-y-6 sm:space-y-8">
+                    <div className="report-command-section-stack space-y-6 sm:space-y-8">
                       <CollapsibleReportSection
                         title="Full Roster Rankings"
                         kicker={
@@ -8413,7 +8413,7 @@ export default function Home() {
                     value="trades"
                     className="report-tab-content report-command-tab-body"
                   >
-                    <div className="trade-sections space-y-6 sm:space-y-8">
+                    <div className="trade-sections report-command-section-stack space-y-6 sm:space-y-8">
                       {canViewAdminFeatureExpansion && (
                         <TradeBrowserRead data={reportDataForView} />
                       )}

@@ -6029,24 +6029,6 @@
   margin-top: 0.8rem;
 }
 
-@media (min-width: 768px) {
-  .draft-analysis-section-grid,
-  .draft-year-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
-
-  .draft-analysis-section-grid > .report-disclosure[open],
-  .draft-year-card-grid > .report-disclosure[open] {
-    grid-column: 1 / -1;
-  }
-
-  .draft-analysis-section-grid > .report-disclosure[open] > .report-disclosure-summary,
-  .draft-year-card-grid > .report-disclosure[open] > .report-disclosure-summary {
-    max-width: min(100%, 72rem);
-  }
-}
-
 @media (max-width: 767px) {
   .report-disclosure > .report-disclosure-summary,
   .report-modal-trigger.report-disclosure-summary {
@@ -10482,6 +10464,14 @@
 }
 
 @media (max-width: 430px) {
+  .draft-analysis-stack .report-disclosure-summary .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-full {
+    display: none;
+  }
+
+  .draft-analysis-stack .report-disclosure-summary .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-compact {
+    display: inline-block;
+  }
+
   .analysis-preview-chip-starter-room .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-full {
     display: none;
   }
