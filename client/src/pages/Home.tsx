@@ -2055,10 +2055,10 @@ function AdminManagerSwitcher({
         <Button
           type="button"
           variant="outline"
-          className="report-header-action report-footer-primary-action !w-auto min-w-0 flex-1 justify-between gap-2 px-3 sm:!w-auto sm:min-w-[14rem] sm:max-w-[18rem]"
+          className="report-header-action report-footer-primary-action !w-auto min-w-0 flex-1 justify-between gap-1.5 px-2.5 sm:!w-auto sm:min-w-[14rem] sm:max-w-[18rem]"
           aria-label={`View as ${selectedManagerLabel}`}
         >
-          <span className="flex min-w-0 items-center gap-2">
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span className="min-w-0 truncate text-cyan-50/85">
               {selectedManagerLabel}
@@ -8587,12 +8587,12 @@ export default function Home() {
                 <div className="report-footer-actions">
                   <div className="report-footer-primary-actions">
                     {hasAdminPermissions && (
-                      <div className="flex w-full max-w-[32rem] items-stretch justify-center gap-2 sm:w-auto sm:max-w-none">
+                      <div className="flex w-full max-w-[32rem] items-stretch justify-center gap-1.5 sm:w-auto sm:max-w-none sm:gap-2">
                         <Button
                           type="button"
                           onClick={handleAdminToolsClick}
                           variant="outline"
-                          className={`report-header-action report-footer-primary-action !w-auto min-w-0 flex-[1_1_42%] px-3 sm:flex-none report-header-admin-toggle ${canViewAdminFeatureExpansion ? "report-header-admin-toggle-active" : ""}`}
+                          className={`report-header-action report-footer-primary-action !w-auto shrink-0 px-2.5 sm:px-3 report-header-admin-toggle ${canViewAdminFeatureExpansion ? "report-header-admin-toggle-active" : ""}`}
                           aria-pressed={canViewAdminFeatureExpansion}
                           aria-label={
                             canViewAdminFeatureExpansion
