@@ -8605,6 +8605,53 @@ body {
   }
 }
 
+@media (min-width: 640px) {
+  .report-shell
+    :is(
+      .owner-tile-grid,
+      .command-depth-grid,
+      .position-counts-tile-grid,
+      .league-power-grid,
+      .trade-partner-grid,
+      .league-exploit-grid
+    ).balanced-tile-grid {
+    --dd-manager-card-gap: clamp(0.58rem, 1.25vw, 0.95rem);
+    --dd-manager-card-min: 14rem;
+    width: min(100%, calc((var(--dd-manager-card-min) * 5) + (var(--dd-manager-card-gap) * 4))) !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--dd-manager-card-min)), 1fr)) !important;
+    gap: var(--dd-manager-card-gap);
+    margin-inline: auto;
+  }
+}
+
+@media (min-width: 1280px) {
+  .report-shell
+    :is(
+      .owner-tile-grid,
+      .command-depth-grid,
+      .position-counts-tile-grid,
+      .league-power-grid,
+      .trade-partner-grid,
+      .league-exploit-grid
+    ).balanced-tile-grid {
+    --dd-manager-card-min: 14.75rem;
+  }
+}
+
+@media (min-width: 1720px) {
+  .report-shell
+    :is(
+      .owner-tile-grid,
+      .command-depth-grid,
+      .position-counts-tile-grid,
+      .league-power-grid,
+      .trade-partner-grid,
+      .league-exploit-grid
+    ).balanced-tile-grid {
+    --dd-manager-card-min: 15rem;
+  }
+}
+
 @media (min-width: 1180px) {
   .report-shell .recent-transaction-player-grid-with-insight {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)) !important;

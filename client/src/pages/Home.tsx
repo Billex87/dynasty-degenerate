@@ -73,7 +73,6 @@ import {
 } from "@/lib/leagueValueMode";
 import {
   buildManagerPositionRoomPreview,
-  buildOwnerIdentityPreview,
   buildRosterStarterPreview,
   buildTaxiTriagePreview,
 } from "@/lib/overviewInsights";
@@ -668,32 +667,6 @@ function OwnerIntelSortControls({
       ))}
     </span>
   );
-}
-
-function buildOwnerPreviewMetrics(
-  data: ReportData,
-  mode: LeagueValueMode,
-  sortMode: OwnerIntelSortMode = "dynasty"
-): PreviewMetric[] {
-  const sortLabel =
-    OWNER_INTEL_SORT_OPTIONS.find(option => option.key === sortMode)?.label ||
-    "Dynasty";
-  const preview = buildOwnerIdentityPreview(data, mode, sortLabel);
-
-  return [
-    {
-      label: "Owner Profiles",
-      compactLabel: "Profiles",
-      value: preview.profileCount,
-      tone: preview.profileCount ? "info" : "warn",
-    },
-    {
-      label: "Identity Lens",
-      compactLabel: "Lens",
-      value: preview.identityLens,
-      tone: "neutral",
-    },
-  ];
 }
 
 function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
@@ -7994,12 +7967,6 @@ export default function Home() {
                               title={modeCopy.ownerTitle}
                               kicker={modeCopy.ownerKicker}
                               defaultOpen
-                              previewMetrics={buildOwnerPreviewMetrics(
-                                reportData,
-                                leagueValueMode,
-                                ownerIntelSortMode
-                              )}
-                              previewAccessoryPlacement="middle"
                               previewAccessory={
                                 !isRedraftReport ? (
                                   <OwnerIntelSortControls
