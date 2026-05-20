@@ -1899,34 +1899,44 @@ function getReportManagerNames(
   const managerNames = new Set<string>();
   const addManager = (value?: string | null) => {
     const trimmed = value?.trim();
-    if (trimmed) managerNames.add(trimmed);
+    if (trimmed && !isPlaceholderManagerName(trimmed)) {
+      managerNames.add(trimmed);
+    }
   };
 
-  Object.keys(reportData.managerAvatars || {}).forEach(addManager);
-  Object.keys(reportData.managerChampionships || {}).forEach(addManager);
   (reportData.currentStandings || []).forEach(row => addManager(row.manager));
-  (reportData.standingsHistory || []).forEach(row => addManager(row.manager));
-  (reportData.leagueOverview || []).forEach(row => addManager(row.manager));
-  (reportData.tradeProfitLeaderboard || []).forEach(row =>
-    addManager(row.manager)
-  );
-  (reportData.managerPositionCounts || []).forEach(row =>
-    addManager(row.manager)
-  );
-  (reportData.managerRosterIntelligence || []).forEach(row =>
-    addManager(row.manager)
-  );
-  (reportData.tradeTendencies || []).forEach(row => addManager(row.manager));
-  (reportData.powerRankings || []).forEach(row => addManager(row.manager));
-  (reportData.dynastyTimelines || []).forEach(row => addManager(row.manager));
-  (reportData.pickPortfolios || []).forEach(row => addManager(row.manager));
-  (reportData.monthlyBlueprintHistory || []).forEach(row =>
-    addManager(row.manager)
-  );
-  (reportData.matchupPreviews || []).forEach(row => addManager(row.manager));
-  (reportData.recentTransactions || []).forEach(row => addManager(row.manager));
-  (reportData.draftPicks || []).forEach(row => addManager(row.manager));
-  addManager(reportData.viewerManager);
+
+  if (!managerNames.size) {
+    (reportData.leagueOverview || []).forEach(row => addManager(row.manager));
+    (reportData.managerRosterIntelligence || []).forEach(row =>
+      addManager(row.manager)
+    );
+    (reportData.managerPositionCounts || []).forEach(row =>
+      addManager(row.manager)
+    );
+    (reportData.powerRankings || []).forEach(row => addManager(row.manager));
+  }
+
+  if (!managerNames.size) {
+    Object.keys(reportData.managerAvatars || {}).forEach(addManager);
+    Object.keys(reportData.managerChampionships || {}).forEach(addManager);
+    (reportData.standingsHistory || []).forEach(row => addManager(row.manager));
+    (reportData.tradeProfitLeaderboard || []).forEach(row =>
+      addManager(row.manager)
+    );
+    (reportData.tradeTendencies || []).forEach(row => addManager(row.manager));
+    (reportData.dynastyTimelines || []).forEach(row => addManager(row.manager));
+    (reportData.pickPortfolios || []).forEach(row => addManager(row.manager));
+    (reportData.monthlyBlueprintHistory || []).forEach(row =>
+      addManager(row.manager)
+    );
+    (reportData.matchupPreviews || []).forEach(row => addManager(row.manager));
+    (reportData.recentTransactions || []).forEach(row =>
+      addManager(row.manager)
+    );
+    (reportData.draftPicks || []).forEach(row => addManager(row.manager));
+    addManager(reportData.viewerManager);
+  }
 
   return sortRowsByViewerAndStanding(
     Array.from(managerNames),
@@ -9119,13 +9129,17 @@ export default function Home() {
     const isRedraftReport = leagueValueMode === "redraft";
     const modeCopy = getLeagueModeCopy(leagueValueMode);
     const reportDataBase = reportDataWithRankings || reportData;
-    const effectiveViewerManager = canViewAdminFeatureExpansion
+    const selectedViewerManager = canViewAdminFeatureExpansion
       ? (adminViewerManager ?? reportDataBase.viewerManager ?? null)
       : (reportDataBase.viewerManager ?? null);
     const reportManagerNames = getReportManagerNames(
       reportDataBase,
-      effectiveViewerManager
+      selectedViewerManager
     );
+    const effectiveViewerManager =
+      selectedViewerManager && reportManagerNames.includes(selectedViewerManager)
+        ? selectedViewerManager
+        : null;
     const reportDataForView: ReportData = {
       ...reportDataBase,
       viewerManager: effectiveViewerManager,

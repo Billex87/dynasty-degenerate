@@ -378,8 +378,7 @@ export default function RecentTransactionsPanel({
   return (
     <div className="recent-transaction-date-list">
       {transactionGroups.map(group => {
-        const isExpanded =
-          !showAllTransactions || expandedDateKey === group.dateKey;
+        const isExpanded = expandedDateKey === group.dateKey;
         return (
           <div
             key={group.dateKey}
@@ -390,9 +389,7 @@ export default function RecentTransactionsPanel({
                 type="button"
                 className="recent-transaction-date-toggle"
                 onClick={() =>
-                  setExpandedDateKey(
-                    showAllTransactions && isExpanded ? null : group.dateKey
-                  )
+                  setExpandedDateKey(isExpanded ? null : group.dateKey)
                 }
                 aria-expanded={isExpanded}
               >
@@ -511,9 +508,7 @@ export default function RecentTransactionsPanel({
             onClick={() => {
               const nextShowAll = !showAllTransactions;
               setShowAllTransactions(nextShowAll);
-              if (nextShowAll) {
-                setExpandedDateKey(transactionGroups[0]?.dateKey || null);
-              }
+              setExpandedDateKey(null);
             }}
           >
             {showAllTransactions
