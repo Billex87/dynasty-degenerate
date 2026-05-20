@@ -22,7 +22,7 @@ import {
 
 const AI_RECOMMENDATION_BADGE_LABEL = "AI TARGET";
 const AI_NEURAL_SURFACE_CLASS = "ai-neural-surface";
-const DEFAULT_VISIBLE_TRANSACTION_COUNT = 3;
+const DEFAULT_VISIBLE_TRANSACTION_DATE_COUNT = 3;
 const WAIVER_POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"] as const;
 type WaiverPosition = (typeof WAIVER_POSITIONS)[number];
 
@@ -161,12 +161,31 @@ export default function RecentTransactionsPanel({
     () => sortRecentTransactionsByDate(data || []),
     [data]
   );
-  const hiddenTransactions = sortedTransactions.slice(
-    DEFAULT_VISIBLE_TRANSACTION_COUNT
+  const visibleTransactionDateKeys = useMemo(
+    () =>
+      getRecentTransactionVisibleDateKeys(
+        sortedTransactions,
+        DEFAULT_VISIBLE_TRANSACTION_DATE_COUNT
+      ),
+    [sortedTransactions]
+  );
+  const visibleTransactionDateKeySet = useMemo(
+    () => new Set(visibleTransactionDateKeys),
+    [visibleTransactionDateKeys]
+  );
+  const hiddenTransactions = sortedTransactions.filter(
+    transaction =>
+      !visibleTransactionDateKeySet.has(
+        getRecentTransactionDateKey(transaction.date)
+      )
   );
   const visibleTransactions = showAllTransactions
     ? sortedTransactions
-    : sortedTransactions.slice(0, DEFAULT_VISIBLE_TRANSACTION_COUNT);
+    : sortedTransactions.filter(transaction =>
+        visibleTransactionDateKeySet.has(
+          getRecentTransactionDateKey(transaction.date)
+        )
+      );
   const transactionGroups = useMemo(
     () => buildRecentTransactionGroups(visibleTransactions, transactionSort),
     [visibleTransactions, transactionSort]
@@ -484,7 +503,7 @@ export default function RecentTransactionsPanel({
           </div>
         );
       })}
-      {sortedTransactions.length > DEFAULT_VISIBLE_TRANSACTION_COUNT && (
+      {hiddenTransactions.length > 0 && (
         <div className="recent-transaction-display-controls">
           <button
             type="button"
@@ -498,13 +517,13 @@ export default function RecentTransactionsPanel({
             }}
           >
             {showAllTransactions
-              ? `Show last ${DEFAULT_VISIBLE_TRANSACTION_COUNT}`
+              ? `Show last ${DEFAULT_VISIBLE_TRANSACTION_DATE_COUNT} dates`
               : getRecentTransactionDisplayAllLabel(hiddenTransactions)}
           </button>
           <span>
             {showAllTransactions
               ? `${sortedTransactions.length} transactions shown`
-              : `${hiddenTransactions.length} older transactions hidden`}
+              : `${hiddenTransactions.length} transactions from older dates hidden`}
           </span>
         </div>
       )}
@@ -770,6 +789,24 @@ function sortRecentTransactionsByDate(
 function getRecentTransactionTime(date: string): number {
   const parsed = Date.parse(date);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function getRecentTransactionVisibleDateKeys(
+  transactions: RecentTransactionRow[],
+  limit: number
+): string[] {
+  const visibleDateKeys: string[] = [];
+  const seenDateKeys = new Set<string>();
+
+  for (const transaction of transactions) {
+    const dateKey = getRecentTransactionDateKey(transaction.date);
+    if (seenDateKeys.has(dateKey)) continue;
+    seenDateKeys.add(dateKey);
+    visibleDateKeys.push(dateKey);
+    if (visibleDateKeys.length >= limit) break;
+  }
+
+  return visibleDateKeys;
 }
 
 function getRecentTransactionYear(date: string): string | null {
