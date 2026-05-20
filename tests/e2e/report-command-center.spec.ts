@@ -1596,8 +1596,12 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Recent Transactions")).toBeVisible();
     await expect(page.getByText("Top 10 Weekly Risers")).toBeVisible();
     await expect(page.getByText("Top 10 Weekly Fallers")).toBeVisible();
-    await expect(page.getByText("Trending Adds")).toBeVisible();
-    await expect(page.getByText("Trending Drops")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Trending Adds" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Trending Drops" })
+    ).toBeVisible();
     await expect(page.getByText("Waiver Intelligence")).toHaveCount(0);
   });
 
@@ -1638,8 +1642,44 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Recent Transactions")).toBeVisible();
     await expect(page.getByText("Top 10 Weekly Risers")).toBeVisible();
     await expect(page.getByText("Top 10 Weekly Fallers")).toBeVisible();
-    await expect(page.getByText("Trending Adds")).toBeVisible();
-    await expect(page.getByText("Trending Drops")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Trending Adds" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Trending Drops" })
+    ).toBeVisible();
+  });
+
+  test("opens added transaction players with the current roster owner", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport, "#momentum");
+
+    const recentTransactions = await openReportSection(
+      page,
+      "Recent Transactions"
+    );
+    const transactionDateGroup = recentTransactions
+      .locator(".recent-transaction-date-group")
+      .filter({ hasText: "2026-05-07" });
+    await expect(transactionDateGroup).toHaveCount(1);
+    await transactionDateGroup
+      .locator(".recent-transaction-date-toggle")
+      .click();
+
+    const addedPlayerButton = transactionDateGroup
+      .locator("button.recent-transaction-player-add")
+      .filter({ hasText: "Waiver Receiver" });
+    await expect(addedPlayerButton).toHaveCount(1);
+    await addedPlayerButton.click();
+
+    const dialog = page
+      .getByRole("dialog")
+      .filter({ hasText: "Waiver Receiver" });
+    await expect(dialog.getByText("Rostered By:")).toBeVisible();
+    await expect(dialog.getByText("Tester")).toBeVisible();
+    await expect(dialog.getByText("AVAILABLE")).toHaveCount(0);
   });
 
   test("trade browser explains an empty redraft ledger without inventing trades", async ({

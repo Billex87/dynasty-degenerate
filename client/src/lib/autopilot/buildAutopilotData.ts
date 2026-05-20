@@ -1,4 +1,5 @@
 import { getPlayerRankForMode, getPlayerValueForMode } from '@/lib/leagueValueMode';
+import { getShortTermMatchupOutlook } from '@shared/matchupWindows';
 import type {
   ManagerRosterIntelligence,
   MatchupPreview,
@@ -183,6 +184,41 @@ function normalizeLineupPosition(position?: string | null): string {
   if (normalized === 'FLEX' || normalized === 'WRT' || normalized === 'WRRBT' || normalized === 'WRRBTE') return 'FLEX';
   if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(normalized)) return normalized;
   return normalized || 'FLEX';
+}
+
+function getWaiverMatchupGuard(player: TrendingPlayer): {
+  score: number;
+  reason: string | null;
+  signal: string | null;
+} {
+  const signal = player.weeklyEcr;
+  if (signal?.signalType !== 'matchup-calendar') {
+    return { score: 0, reason: null, signal: null };
+  }
+
+  const position = normalizeLineupPosition(getPlayerPosition(player));
+  const isSpecialTeams = position === 'K' || position === 'DEF';
+  const outlook = getShortTermMatchupOutlook(signal.matchupWindows);
+
+  if (outlook.isRoughStart) {
+    return {
+      score: isSpecialTeams ? -80 : -10,
+      reason: isSpecialTeams
+        ? 'Early matchup window is rough, so rank alone is not enough to make this an automatic pickup.'
+        : 'Early matchup window is rough enough to lower the claim priority.',
+      signal: 'Rough matchup guard',
+    };
+  }
+
+  if (outlook.isStrongStart) {
+    return {
+      score: isSpecialTeams ? 14 : 7,
+      reason: 'Early matchup window supports the add case.',
+      signal: 'Strong matchup window',
+    };
+  }
+
+  return { score: 0, reason: null, signal: null };
 }
 
 function getPlayerLineupPosition(player?: AutopilotPlayerLike | null): string {
@@ -1154,6 +1190,7 @@ function scoreWaiverCandidate(player: TrendingPlayer, mode: AutopilotMode, intel
   const rank = parsePositionRankValue(getAutopilotPlayerRank(player, mode));
   const age = getPlayerAge(player);
   const position = getPlayerPosition(player);
+  const matchupGuard = getWaiverMatchupGuard(player);
   const needBonus = intel?.tradePlan?.needPosition === position ? 18 : 0;
   const youngBonus = mode === 'dynasty' && age && age <= 24 ? 13 : 0;
   const roleBonus = mode === 'redraft' && rank && rank <= 45 ? 14 : 0;
@@ -1163,7 +1200,7 @@ function scoreWaiverCandidate(player: TrendingPlayer, mode: AutopilotMode, intel
   const weeklyEcrBonus = weeklyEcrRank
     ? Math.max(0, 18 - weeklyEcrRank / 6) + Math.min(10, (player.weeklyEcr?.confidence || 0) / 10)
     : 0;
-  return Math.min(100, value / 115 + Math.min(22, (player.count || 0) / 8) + (rank ? Math.max(0, 22 - rank / 3) : 0) + needBonus + youngBonus + roleBonus + weeklyEcrBonus);
+  return Math.max(0, Math.min(100, value / 115 + Math.min(22, (player.count || 0) / 8) + (rank ? Math.max(0, 22 - rank / 3) : 0) + needBonus + youngBonus + roleBonus + weeklyEcrBonus + matchupGuard.score));
 }
 
 function formatWaiverWeeklyEcrRead(player: TrendingPlayer): string | null {
@@ -1227,6 +1264,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
     const age = getPlayerAge(player);
     const weeklyEcrRead = formatWaiverWeeklyEcrRead(player);
     const weeklyEcrTraceRead = formatWaiverWeeklyEcrTraceRead(player);
+    const matchupGuard = getWaiverMatchupGuard(player);
     return {
       id: `waiver-${player.player_id || player.name}`,
       type: 'Waiver',
@@ -1243,11 +1281,12 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
         rank ? `${rank} rank gives this more than a blind trend-chase case.` : null,
         weeklyEcrRead,
+        matchupGuard.reason,
         weeklyEcrTraceRead,
         intel?.tradePlan?.needPosition === getPlayerPosition(player) ? `Matches ${manager}'s ${getPlayerPosition(player)} need.` : null,
         dropCandidate ? `${dropCandidate.name} is a usable drop candidate if a roster spot is needed.` : null,
       ], 4),
-      signals: dedupeStrings(['Available', rank, weeklyEcrTraceRead ? 'Stored matchup trace' : weeklyEcrRead ? 'FantasyPros matchups' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null], 4),
+      signals: dedupeStrings(['Available', rank, matchupGuard.signal, weeklyEcrTraceRead ? 'Stored matchup trace' : weeklyEcrRead ? 'FantasyPros matchups' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null], 4),
       tone: index === 0 ? 'good' : 'info',
     };
   });

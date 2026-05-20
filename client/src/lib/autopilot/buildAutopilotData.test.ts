@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCachedCommandCenterReport, createCachedRedraftReport } from '../../../../tests/e2e/fixtures/cachedReports';
+import { buildMatchupWindowSet } from '@shared/matchupWindows';
+import type { ReportData, TrendingPlayer, WaiverWeeklyEcrSignal, WaiverWeeklyEcrWeek } from '@shared/types';
 import { buildAutopilotData } from './buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from './mockData';
 
@@ -76,6 +78,100 @@ describe('buildAutopilotData', () => {
     });
 
     expect(JSON.stringify(data.waivers)).not.toContain('Dallen Bentley');
+  });
+
+  it('downranks D/ST waiver targets with rough early matchup windows', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    const makeDefense = (
+      player_id: string,
+      name: string,
+      team: string,
+      rank: string,
+      value: number,
+      stars: number[],
+    ): { player: TrendingPlayer; signal: WaiverWeeklyEcrSignal } => {
+      const weeks: WaiverWeeklyEcrWeek[] = stars.map((star, index) => ({
+        week: index + 1,
+        rankEcr: Number(rank.replace(/\D/g, '')) || 12,
+        positionRank: rank,
+        bestRank: null,
+        worstRank: null,
+        averageRank: Number(rank.replace(/\D/g, '')) || 12,
+        rankStdDev: null,
+        lastUpdated: '2026-09-08T18:00:00.000Z',
+        opponent: `T${index + 1}`,
+        homeAway: 'home',
+        opponentRank: star >= 4 ? 4 : star <= 2 ? 28 : 16,
+        matchupStars: star,
+        matchupTier: star >= 4 ? 'easy' : star <= 2 ? 'hard' : 'neutral',
+        isBye: false,
+      }));
+      const player: TrendingPlayer = {
+        player_id,
+        name,
+        pos: 'DEF',
+        team,
+        owner: null,
+        count: 0,
+        ktcValue: value,
+        currentPositionRank: rank,
+      };
+      const signal: WaiverWeeklyEcrSignal = {
+        signalType: 'matchup-calendar',
+        playerId: player_id,
+        fantasyProsId: player_id,
+        name,
+        position: 'DEF',
+        team,
+        source: 'FantasyPros',
+        updatedAt: '2026-09-08T18:00:00.000Z',
+        weeks,
+        bestWeek: 1,
+        bestRankEcr: Number(rank.replace(/\D/g, '')) || 12,
+        bestPositionRank: rank,
+        averageRankEcr: Number(rank.replace(/\D/g, '')) || 12,
+        rankDelta: null,
+        bestMatchupStars: Math.max(...stars),
+        bestOpponentRank: 4,
+        matchupWindows: buildMatchupWindowSet(weeks, { currentWeek: 1 }),
+        confidence: 90,
+        note: `${name} matchup window.`,
+        sourceTrace: [],
+        traceSummary: 'test',
+      };
+      return { player: { ...player, weeklyEcr: signal }, signal };
+    };
+    const rams = makeDefense('rams', 'Los Angeles Rams', 'LAR', 'DEF4', 5000, [1, 3, 2]);
+    const streamer = makeDefense('streamer', 'Streaming Defense', 'LV', 'DEF12', 500, [5, 4, 4]);
+    reportData.waiverIntelligence = {
+      rosteredTrendingAdds: [],
+      availableTrendingAdds: [rams.player, streamer.player],
+      highestKtcAvailable: rams.player,
+      bestAvailableByPosition: {
+        QB: null,
+        RB: null,
+        WR: null,
+        TE: null,
+        K: null,
+        DEF: rams.player,
+      },
+      bestTaxiStashes: [],
+      recentlyDroppedValuable: [],
+      weeklyEcrTargets: [
+        { player: rams.player, signal: rams.signal, score: 95 },
+        { player: streamer.player, signal: streamer.signal, score: 90 },
+      ],
+      omittedCandidates: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'redraft',
+      fallback: AUTOPILOT_MOCK_DATA.redraft,
+    });
+
+    expect(data.waivers[0]?.player).toBe('Streaming Defense');
+    expect(JSON.stringify(data.waivers)).toContain('Rough matchup guard');
   });
 
   it('switches the recommendation lens for redraft mode', () => {

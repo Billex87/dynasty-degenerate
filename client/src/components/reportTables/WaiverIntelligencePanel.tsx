@@ -1410,11 +1410,13 @@ function buildWaiverSpecialTeamsUpgradeReads({
   viewerPositionCounts,
   leagueDiagnostics,
   playerDetailsById,
+  scheduleEdgeTargets,
 }: {
   data: NonNullable<ReportData["waiverIntelligence"]>;
   viewerPositionCounts: ReportData["managerPositionCounts"][number] | null;
   leagueDiagnostics?: ReportData["leagueDiagnostics"];
   playerDetailsById?: PlayerDetailsById;
+  scheduleEdgeTargets?: WaiverWeeklyEcrTarget[];
 }): Partial<Record<WaiverSpecialTeamsPosition, WaiverSpecialTeamsUpgradeRead>> {
   const upgrades: Partial<
     Record<WaiverSpecialTeamsPosition, WaiverSpecialTeamsUpgradeRead>
@@ -1428,7 +1430,16 @@ function buildWaiverSpecialTeamsUpgradeReads({
         ? data.highestKtcAvailable
         : null);
     if (!available || available.owner) return;
-    if (hasRoughSpecialTeamsMatchupStart(getWaiverWeeklyEcrSignal(available, data))) return;
+    if (
+      hasRoughSpecialTeamsMatchupStart(
+        getWaiverWeeklyEcrSignalForPlayer(
+          available,
+          data,
+          scheduleEdgeTargets || []
+        )
+      )
+    )
+      return;
 
     const current =
       getWaiverManagerPositionPlayers(viewerPositionCounts, position)[0] ||
@@ -2096,6 +2107,7 @@ function buildWaiverRecommendationContext({
     viewerPositionCounts,
     leagueDiagnostics,
     playerDetailsById,
+    scheduleEdgeTargets,
   });
   const defensePairingPlan = buildWaiverDefensePairingPlan({
     data,
@@ -2127,7 +2139,11 @@ function buildWaiverRecommendationContext({
   const recommendations = collectWaiverCandidates(data)
     .map(player => {
       const pos = isWaiverPosition(player.pos) ? player.pos : null;
-      const weeklyEcrSignal = getWaiverWeeklyEcrSignal(player, data);
+      const weeklyEcrSignal = getWaiverWeeklyEcrSignalForPlayer(
+        player,
+        data,
+        scheduleEdgeTargets || []
+      );
       const details = getWaiverPlayerDetails(player, playerDetailsById);
       const dynastyValue = isDynastyLeague
         ? getWaiverDynastyValue(player, playerDetailsById)
@@ -2195,6 +2211,19 @@ function buildWaiverRecommendationContext({
         pos,
         leagueValueMode
       );
+      const matchupOutlook =
+        weeklyEcrSignal?.signalType === "matchup-calendar"
+          ? getShortTermMatchupOutlook(weeklyEcrSignal.matchupWindows)
+          : null;
+      const matchupGuardScore = matchupOutlook?.isRoughStart
+        ? isSpecialTeams
+          ? -2600
+          : -360
+        : matchupOutlook?.isStrongStart
+          ? isSpecialTeams
+            ? 420
+            : 180
+          : 0;
       const score =
         needWeight +
         dynastyValueScore +
@@ -2206,6 +2235,7 @@ function buildWaiverRecommendationContext({
         rolePathScore +
         trendScore +
         weeklyEcrScore +
+        matchupGuardScore +
         specialTeamsUpgradeScore +
         defensePairingScore +
         specialTeamsDynastyPenalty;
@@ -2718,7 +2748,11 @@ export default function WaiverIntelligencePanel({
             ? getWaiverSeasonValue(player, playerDetailsById) ||
               getWaiverPlayerValue(player, playerDetailsById)
             : getWaiverPlayerValue(player, playerDetailsById);
-          const weeklyEcrSignal = getWaiverWeeklyEcrSignal(player, data);
+          const weeklyEcrSignal = getWaiverWeeklyEcrSignalForPlayer(
+            player,
+            data,
+            scheduleEdgeTargets || []
+          );
           const weeklyEcrRank = getWaiverWeeklyEcrBestRank(weeklyEcrSignal);
           const weeklyEcrWindow = formatWaiverWeeklyEcrWindow(weeklyEcrSignal);
           return (

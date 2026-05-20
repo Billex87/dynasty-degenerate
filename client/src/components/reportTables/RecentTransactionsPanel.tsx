@@ -198,10 +198,13 @@ export default function RecentTransactionsPanel({
   if (!data?.length) return null;
 
   const openTransactionPlayer = (
-    player: NonNullable<ReportData["recentTransactions"]>[number]["addedPlayer"]
+    player: NonNullable<ReportData["recentTransactions"]>[number]["addedPlayer"],
+    transaction?: RecentTransactionRow,
+    tone: "add" | "drop" | "alt" = "add"
   ) => {
     if (!player) return;
     const leagueRank = getTransactionPlayerRank(player, leagueValueMode);
+    const manager = tone === "add" ? transaction?.manager || null : null;
     setSelectedPlayer(
       buildPlayerModalData({
         playerId: player.player_id,
@@ -211,6 +214,8 @@ export default function RecentTransactionsPanel({
         playerDetails: player.playerDetails,
         playerDetailsById,
         currentPositionRank: leagueRank,
+        manager,
+        managerAvatarUrl: manager ? managerAvatars?.[manager] : null,
         valueMode: leagueValueMode,
       })
     );
@@ -244,7 +249,8 @@ export default function RecentTransactionsPanel({
       ReportData["recentTransactions"]
     >[number]["addedPlayer"],
     tone: "add" | "drop" | "alt" = "add",
-    embeddedInsight?: BetterCutInsight | null
+    embeddedInsight?: BetterCutInsight | null,
+    transaction?: RecentTransactionRow
   ) => {
     if (!player) return null;
     const leagueRank = getTransactionPlayerRank(player, leagueValueMode);
@@ -253,7 +259,7 @@ export default function RecentTransactionsPanel({
         type="button"
         className={`player-team-tile recent-transaction-player recent-transaction-player-${tone}${embeddedInsight ? " recent-transaction-player-has-insight" : ""}`}
         style={getTeamTileStyle(player.playerDetails?.team || player.team)}
-        onClick={() => openTransactionPlayer(player)}
+        onClick={() => openTransactionPlayer(player, transaction, tone)}
       >
         <div className="recent-transaction-player-head">
           <span
@@ -475,19 +481,24 @@ export default function RecentTransactionsPanel({
                         {renderPlayerRow(
                           "Added",
                           transaction.addedPlayer,
-                          "add"
+                          "add",
+                          null,
+                          transaction
                         )}
                         {renderPlayerRow(
                           "Dropped",
                           transaction.droppedPlayer,
-                          "drop"
+                          "drop",
+                          null,
+                          transaction
                         )}
                         {validBetterCutInsight &&
                           renderPlayerRow(
                             "Better Cut",
                             transaction.alternativeDrop,
                             "alt",
-                            validBetterCutInsight
+                            validBetterCutInsight,
+                            transaction
                           )}
                         {suggestedBetterAdd &&
                           renderSuggestedAdd(suggestedBetterAdd, transaction)}

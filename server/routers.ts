@@ -4516,7 +4516,7 @@ function buildRecentTransactions(
 async function buildLiveSleeperActivityPatch(
   leagueId: string,
   cachedReportData?: ReportData
-): Promise<Pick<ReportData, 'recentTransactions' | 'trendingAdds' | 'trendingDrops' | 'waiverIntelligence'> | null> {
+): Promise<(Pick<ReportData, 'recentTransactions' | 'trendingAdds' | 'trendingDrops' | 'waiverIntelligence'> & Partial<Pick<ReportData, 'scheduleEdgeTargets'>>) | null> {
   try {
     const [leagueInfo, users, rosters, players] = await Promise.all([
       fetchUserLoadJson<any>(
@@ -4553,7 +4553,13 @@ async function buildLiveSleeperActivityPatch(
     const leagueValueMode = getLeagueValueMode(leagueInfo);
     const currentSeason = String(leagueInfo.season || new Date().getFullYear());
     const lastCompletedSeason = String(Number(currentSeason) - 1);
+    const currentScheduleWeek = getSleeperCurrentWeek(leagueInfo);
+    const playoffWeeks = getSleeperPlayoffWeeks(leagueInfo);
+    const playoffWeekStart = playoffWeeks[0] || Number(leagueInfo.settings?.playoff_week_start || 15);
+    const rosterPositions = Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [];
     let ktcValues: KTCValues = {} as KTCValues;
+    let fantasyProsSnapshotContext: FantasyProsSnapshotContext | null = null;
+    let fantasyProsMatchupCalendarContext: FantasyProsMatchupCalendarContext | null = null;
 
     try {
       const staticInputs = await loadReportStaticInputs({
@@ -4567,6 +4573,22 @@ async function buildLiveSleeperActivityPatch(
       ktcValues = staticInputs.ktcValues;
     } catch (error) {
       console.warn(`Failed to load value snapshots for live Sleeper activity ${leagueId}:`, error);
+    }
+
+    try {
+      [fantasyProsSnapshotContext, fantasyProsMatchupCalendarContext] = await Promise.all([
+        loadFantasyProsSnapshotContext({
+          season: currentSeason,
+          scoring: 'PPR',
+          currentWeek: currentScheduleWeek,
+          weekWindow: 3,
+        }),
+        loadFantasyProsMatchupCalendarContext({
+          season: currentSeason,
+        }),
+      ]);
+    } catch (error) {
+      console.warn(`Failed to load matchup snapshots for live Sleeper activity ${leagueId}:`, error);
     }
 
     const valueProfilesById = buildPlayerValueProfileMap(
@@ -4602,25 +4624,46 @@ async function buildLiveSleeperActivityPatch(
     ]
       .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
       .slice(0, 160);
-
-    return {
+    const waiverIntelligence = buildWaiverIntelligence(
+      trendingAdds,
+      trendingDrops,
+      players || {},
+      ktcValues,
+      ownerByPlayerId,
+      rosterStatusByPlayerId,
+      leagueValueMode,
+      valueProfilesById,
+      {
+        rosterPositions,
+        fantasyProsSnapshotContext,
+        fantasyProsMatchupCalendarContext,
+        currentWeek: currentScheduleWeek,
+        playoffWeeks,
+        playoffWeekStart,
+      }
+    );
+    const matchupScheduleEdgeTargets = buildScheduleEdgeTargetsFromMatchupContext(
+      fantasyProsMatchupCalendarContext,
+      fantasyProsSnapshotContext,
+      {
+        currentWeek: currentScheduleWeek,
+        playoffWeeks,
+        playoffWeekStart,
+      }
+    );
+    const fallbackScheduleEdgeTargets = matchupScheduleEdgeTargets.length
+      ? matchupScheduleEdgeTargets
+      : buildScheduleEdgeTargetsFromSnapshotContext(fantasyProsSnapshotContext);
+    const livePatch: Pick<ReportData, 'recentTransactions' | 'trendingAdds' | 'trendingDrops' | 'waiverIntelligence'> & Partial<Pick<ReportData, 'scheduleEdgeTargets'>> = {
       recentTransactions,
       trendingAdds,
       trendingDrops,
-      waiverIntelligence: buildWaiverIntelligence(
-        trendingAdds,
-        trendingDrops,
-        players || {},
-        ktcValues,
-        ownerByPlayerId,
-        rosterStatusByPlayerId,
-        leagueValueMode,
-        valueProfilesById,
-        {
-          rosterPositions: Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [],
-        }
-      ),
+      waiverIntelligence,
     };
+    if (fallbackScheduleEdgeTargets.length) {
+      livePatch.scheduleEdgeTargets = fallbackScheduleEdgeTargets;
+    }
+    return livePatch;
   } catch (error) {
     console.warn(`Failed to refresh live Sleeper activity for league ${leagueId}:`, error);
     return null;
