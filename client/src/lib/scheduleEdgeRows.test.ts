@@ -430,6 +430,65 @@ describe("schedule edge rows", () => {
     expect(rows[0].sourceTone).toBe("good");
   });
 
+  it("resolves source-only matchup rows against league roster ownership", () => {
+    const signal = makeSignal({
+      playerId: "fantasypros:hou",
+      fantasyProsId: "hou",
+      name: "Houston Texans",
+      position: "DST",
+      team: "Houston Texans",
+      bestPositionRank: "DST10",
+      bestRankEcr: 10,
+    });
+    const report = makeReportWithScheduleTargets([
+      {
+        player: makePlayer({
+          player_id: "fantasypros:hou",
+          name: "Houston Texans",
+          pos: "DST",
+          team: "Houston Texans",
+          owner: "Available",
+        }),
+        signal,
+        score: 80,
+      },
+    ]);
+    report.managerPositionCounts = [
+      {
+        manager: "Roster Manager",
+        QB: 0,
+        QB_starters: 0,
+        RB: 0,
+        RB_starters: 0,
+        WR: 0,
+        WR_starters: 0,
+        TE: 0,
+        TE_starters: 0,
+        K: 0,
+        K_starters: 0,
+        DEF: 1,
+        DEF_starters: 1,
+        rosterPlayers: [
+          {
+            player_id: "sleeper-hou",
+            name: "Houston Texans",
+            pos: "DEF",
+            value: 0,
+            playerDetails: { team: "HOU" },
+          },
+        ],
+        lineupPlayers: [],
+        starterPlayers: [],
+      },
+    ];
+
+    const [row] = buildScheduleEdgeRows(report, { now: NOW });
+
+    expect(row.team).toBe("HOU");
+    expect(row.availabilityLabel).toBe("Roster Manager");
+    expect(row.availabilityTone).toBe("warn");
+  });
+
   it("uses league-aware next-three and playoff matchup windows", () => {
     const weeks: WaiverWeeklyEcrSignal["weeks"] = [
       {

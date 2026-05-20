@@ -35,6 +35,43 @@ export const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: strin
   WAS: { primary: '#5A1414', secondary: '#FFB612', accent: '#FFFFFF' },
 };
 
+const NFL_TEAM_NAME_ALIASES: Record<string, string> = {
+  'ARIZONA CARDINALS': 'ARI',
+  'ATLANTA FALCONS': 'ATL',
+  'BALTIMORE RAVENS': 'BAL',
+  'BUFFALO BILLS': 'BUF',
+  'CAROLINA PANTHERS': 'CAR',
+  'CHICAGO BEARS': 'CHI',
+  'CINCINNATI BENGALS': 'CIN',
+  'CLEVELAND BROWNS': 'CLE',
+  'DALLAS COWBOYS': 'DAL',
+  'DENVER BRONCOS': 'DEN',
+  'DETROIT LIONS': 'DET',
+  'GREEN BAY PACKERS': 'GB',
+  'HOUSTON TEXANS': 'HOU',
+  'INDIANAPOLIS COLTS': 'IND',
+  'JACKSONVILLE JAGUARS': 'JAX',
+  'KANSAS CITY CHIEFS': 'KC',
+  'LAS VEGAS RAIDERS': 'LV',
+  'LOS ANGELES CHARGERS': 'LAC',
+  'LOS ANGELES RAMS': 'LAR',
+  'LA CHARGERS': 'LAC',
+  'LA RAMS': 'LAR',
+  'MIAMI DOLPHINS': 'MIA',
+  'MINNESOTA VIKINGS': 'MIN',
+  'NEW ENGLAND PATRIOTS': 'NE',
+  'NEW ORLEANS SAINTS': 'NO',
+  'NEW YORK GIANTS': 'NYG',
+  'NEW YORK JETS': 'NYJ',
+  'PHILADELPHIA EAGLES': 'PHI',
+  'PITTSBURGH STEELERS': 'PIT',
+  'SAN FRANCISCO 49ERS': 'SF',
+  'SEATTLE SEAHAWKS': 'SEA',
+  'TAMPA BAY BUCCANEERS': 'TB',
+  'TENNESSEE TITANS': 'TEN',
+  'WASHINGTON COMMANDERS': 'WAS',
+};
+
 export const COLLEGE_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
   ALABAMA: { primary: '#9E1B32', secondary: '#0A0A0A', accent: '#FFFFFF' },
   ARIZONA: { primary: '#AB0520', secondary: '#0C234B', accent: '#FFFFFF' },
@@ -318,6 +355,7 @@ export function getCollegeTileStyle(college?: string | null): CSSProperties | un
 export function normalizeNflTeamAbbr(team?: string | null): string | null {
   const normalized = (team || '').trim().toUpperCase();
   if (!normalized || normalized === 'FA') return null;
+  if (NFL_TEAM_NAME_ALIASES[normalized]) return NFL_TEAM_NAME_ALIASES[normalized];
   if (normalized === 'JAC') return 'JAX';
   if (normalized === 'WSH') return 'WAS';
   return normalized;

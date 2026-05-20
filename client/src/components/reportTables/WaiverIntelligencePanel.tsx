@@ -36,7 +36,6 @@ import {
 type OwnerIntelRow = NonNullable<ReportData["managerRosterIntelligence"]>[number];
 type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
-const AI_RECOMMENDATION_BADGE_LABEL = "AI TARGET";
 const AI_RECOMMENDATION_BANNER_LABEL = "AI PICKUP SIGNAL";
 const AI_NEURAL_SURFACE_CLASS = "ai-neural-surface";
 
@@ -622,8 +621,12 @@ type WaiverSpecialTeamsUpgradeRead = {
   playerId: string;
   reason: string;
 };
+type WaiverDefensePlayer = Pick<TrendingPlayer, "player_id" | "name" | "pos"> & {
+  team?: string | null;
+  owner?: string | null;
+};
 type WaiverDefenseRosterCandidate = {
-  player: TrendingPlayer | WaiverManagerPlayer;
+  player: WaiverDefensePlayer;
   signal: WaiverWeeklyEcrSignal;
   source: "rostered" | "available";
 };
@@ -781,7 +784,9 @@ function normalizeWaiverDefenseLookup(value?: string | null): string {
 }
 
 function getWaiverWeeklyEcrSignalForPlayer(
-  player: Pick<TrendingPlayer, "player_id" | "name" | "pos" | "team">,
+  player: Pick<TrendingPlayer, "player_id" | "name" | "pos"> & {
+    team?: string | null;
+  },
   data?: NonNullable<ReportData["waiverIntelligence"]>,
   scheduleEdgeTargets: WaiverWeeklyEcrTarget[] = []
 ): WaiverWeeklyEcrSignal | null {
@@ -932,32 +937,6 @@ function formatWaiverWeeklyEcrReason(
   return [bestRank ? `${label}: ${bestRank}` : null, window, playoffSummary, movement]
     .filter(Boolean)
     .join(" • ") || null;
-}
-
-function formatWaiverEcrTraceStamp(value?: string | null): string | null {
-  if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatWaiverEcrTraceMeta(
-  trace: WaiverWeeklyEcrSignal["sourceTrace"][number]
-): string {
-  return [
-    trace.week ? `W${trace.week}` : null,
-    trace.position,
-    trace.status,
-    trace.rowCount === null ? null : `${trace.rowCount} rows`,
-    formatWaiverEcrTraceStamp(trace.fetchedAt || trace.lastUpdated),
-  ]
-    .filter(Boolean)
-    .join(" • ");
 }
 
 function getWaiverWeeklyEcrRecommendationScore(
@@ -1281,7 +1260,7 @@ function buildWaiverDefenseCandidates({
   available: WaiverDefenseRosterCandidate[];
 } {
   const rostered = getWaiverManagerPositionPlayers(viewerPositionCounts, "DEF")
-    .map(player => {
+    .map((player): WaiverDefenseRosterCandidate | null => {
       const signal = getWaiverWeeklyEcrSignalForPlayer(
         player,
         data,
@@ -2435,18 +2414,7 @@ export default function WaiverIntelligencePanel({
     recentTransactions,
     storedActionPlans,
   ]);
-  const recommendationByPlayerId = new Map(
-    recommendationContext.recommendations.map(recommendation => [
-      recommendation.player.player_id,
-      recommendation,
-    ])
-  );
-  const recommendationOrderByPlayerId = new Map(
-    recommendationContext.recommendations.map((recommendation, index) => [
-      recommendation.player.player_id,
-      index,
-    ])
-  );
+  const aiTargetCards = recommendationContext.recommendations;
   const omittedCandidateIds = new Set(
     (data.omittedCandidates || [])
       .filter(candidate => candidate.action === "omit")
@@ -2469,30 +2437,7 @@ export default function WaiverIntelligencePanel({
     if (!playerId) return false;
     return !omittedCandidateIds.has(playerId);
   });
-  const basePlayerIds = new Set(baseCards.map(card => card.player.player_id));
-  const suggestedCards = recommendationContext.recommendations
-    .filter(
-      recommendation => !basePlayerIds.has(recommendation.player.player_id)
-    )
-    .map(recommendation => ({
-      label: recommendation.label,
-      player: recommendation.player,
-    }));
-  const cards = [...suggestedCards, ...baseCards].sort((a, b) => {
-    const aRecommendationOrder = recommendationOrderByPlayerId.get(
-      a.player.player_id
-    );
-    const bRecommendationOrder = recommendationOrderByPlayerId.get(
-      b.player.player_id
-    );
-    const aIsSuggested = typeof aRecommendationOrder === "number";
-    const bIsSuggested = typeof bRecommendationOrder === "number";
-    if (aIsSuggested && bIsSuggested)
-      return aRecommendationOrder - bRecommendationOrder;
-    if (aIsSuggested) return -1;
-    if (bIsSuggested) return 1;
-    return 0;
-  });
+  const cards = baseCards;
   const waiverActionPlans = storedActionPlans
     .filter(plan => plan.kind === "waiver")
     .filter(plan => !leagueId || !plan.leagueId || plan.leagueId === leagueId)
@@ -2610,12 +2555,158 @@ export default function WaiverIntelligencePanel({
           </div>
         </details>
       ) : null}
+      {aiTargetCards.length > 0 && (
+        <div className="waiver-ai-target-strip">
+          <div className="waiver-ai-target-strip-head">
+            <span>AI Targets</span>
+            <strong>{aiTargetCards.length} dynasty read{aiTargetCards.length === 1 ? "" : "s"}</strong>
+          </div>
+          <div className="waiver-ai-target-row">
+            {aiTargetCards.map(recommendation => {
+              const player = recommendation.player;
+              const details = getWaiverPlayerDetails(player, playerDetailsById);
+              const rank = isRedraft
+                ? getWaiverSeasonRank(player, playerDetailsById) ||
+                  getWaiverPlayerRank(player, playerDetailsById)
+                : getWaiverPlayerRank(player, playerDetailsById);
+              const value = isRedraft
+                ? getWaiverSeasonValue(player, playerDetailsById) ||
+                  getWaiverPlayerValue(player, playerDetailsById)
+                : getWaiverPlayerValue(player, playerDetailsById);
+              const weeklyEcrSignal = recommendation.weeklyEcrSignal;
+              const weeklyEcrRank = getWaiverWeeklyEcrBestRank(weeklyEcrSignal);
+              const weeklyEcrWindow = formatWaiverWeeklyEcrWindow(weeklyEcrSignal);
+              const waiverPlanId = getWaiverActionPlanId(
+                leagueId,
+                viewerManager,
+                recommendation
+              );
+              const submittedPlan = storedActionPlans.some(
+                plan => plan.id === waiverPlanId && plan.kind === "waiver"
+              );
+
+              return (
+                <article
+                  key={`ai-target-${player.player_id}`}
+                  className={`waiver-ai-target-card ${getAiNeuralSurfaceClass("trade", "waiver-intel-card-suggested")}`}
+                  style={getTeamTileStyle(details?.team || player.team)}
+                >
+                  <button
+                    type="button"
+                    className="waiver-ai-target-player"
+                    onClick={() =>
+                      setSelectedPlayer(
+                        buildPlayerModalData({
+                          playerId: player.player_id,
+                          playerName: player.name,
+                          playerPos: player.pos,
+                          value,
+                          playerDetails: details,
+                          playerDetailsById,
+                          currentPositionRank: rank,
+                          manager: player.owner || null,
+                          managerAvatarUrl: player.owner
+                            ? managerAvatars?.[player.owner]
+                            : null,
+                          valueMode: leagueValueMode,
+                        })
+                      )
+                    }
+                  >
+                    <span className="waiver-intel-label">{recommendation.label}</span>
+                    <PlayerIdentityRow
+                      className="waiver-ai-target-main"
+                      playerId={player.player_id}
+                      playerName={player.name}
+                      team={details?.team || player.team}
+                      position={player.pos}
+                      hideMeta
+                    />
+                  </button>
+                  <div className="waiver-ai-target-read">
+                    <p>{recommendation.reason}</p>
+                    <div className="waiver-ai-target-facts">
+                      <span>
+                        <em>Bid</em>
+                        <strong>{recommendation.bidRangeLabel}</strong>
+                      </span>
+                      <span>
+                        <em>{recommendation.claimPriority}</em>
+                        <strong>
+                          {recommendation.dropCandidate
+                            ? `Drop ${recommendation.dropCandidate.name}`
+                            : recommendation.claimPriority === "Add"
+                              ? "No drop needed"
+                              : "Manual room needed"}
+                        </strong>
+                      </span>
+                      <span
+                        className={`waiver-intel-threat waiver-intel-threat-${recommendation.competitionRead?.level.toLowerCase() || "low"}`}
+                        title={
+                          recommendation.competitionRead?.reason ||
+                          "No strong competing manager signal returned."
+                        }
+                      >
+                        <em>
+                          {recommendation.competitionRead
+                            ? `${recommendation.competitionRead.level} threat`
+                            : "Claim threat"}
+                        </em>
+                        <strong>
+                          {recommendation.competitionRead
+                            ? `${recommendation.competitionRead.manager}: ${recommendation.competitionRead.bidHint}`
+                            : "Likely quiet"}
+                        </strong>
+                      </span>
+                      {weeklyEcrSignal && (
+                        <span>
+                          <em>Matchups</em>
+                          <strong>
+                            {weeklyEcrWindow || weeklyEcrRank || "Rolling rank"}
+                          </strong>
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="waiver-intel-submit-plan waiver-ai-target-save"
+                      aria-pressed={submittedPlan}
+                      onClick={() => {
+                        persistStoredActionPlan(
+                          createWaiverActionPlan({
+                            leagueId,
+                            manager: viewerManager,
+                            recommendation,
+                            status: "submitted",
+                          })
+                        );
+                        const bidHistoryItem = createWaiverBidHistoryItem({
+                          leagueId,
+                          manager: viewerManager,
+                          recommendation,
+                        });
+                        if (bidHistoryItem)
+                          persistStoredWaiverBidHistory(bidHistoryItem);
+                      }}
+                    >
+                      {submittedPlan ? "Plan saved" : "Save plan"}
+                      <span>
+                        {recommendation.bidConfidencePct}% bid /{" "}
+                        {recommendation.dropConfidencePct}% drop
+                      </span>
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div
         className="player-tile-grid waiver-intel-grid balanced-tile-grid"
         style={getBalancedGridStyle(cards.length)}
       >
         {cards.map(({ label, player }) => {
-          const recommendation = recommendationByPlayerId.get(player.player_id);
           const details = getWaiverPlayerDetails(player, playerDetailsById);
           const rank = isRedraft
             ? getWaiverSeasonRank(player, playerDetailsById) ||
@@ -2627,23 +2718,13 @@ export default function WaiverIntelligencePanel({
             ? getWaiverSeasonValue(player, playerDetailsById) ||
               getWaiverPlayerValue(player, playerDetailsById)
             : getWaiverPlayerValue(player, playerDetailsById);
-          const weeklyEcrSignal =
-            recommendation?.weeklyEcrSignal ||
-            getWaiverWeeklyEcrSignal(player, data);
+          const weeklyEcrSignal = getWaiverWeeklyEcrSignal(player, data);
           const weeklyEcrRank = getWaiverWeeklyEcrBestRank(weeklyEcrSignal);
           const weeklyEcrWindow = formatWaiverWeeklyEcrWindow(weeklyEcrSignal);
-          const waiverPlanId = recommendation
-            ? getWaiverActionPlanId(leagueId, viewerManager, recommendation)
-            : null;
-          const submittedPlan = waiverPlanId
-            ? storedActionPlans.some(
-                plan => plan.id === waiverPlanId && plan.kind === "waiver"
-              )
-            : false;
           return (
             <article
               key={`${label}-${player.player_id}`}
-              className={`player-team-tile waiver-intel-card ${recommendation ? getAiNeuralSurfaceClass("trade", "waiver-intel-card-suggested") : ""}`}
+              className="player-team-tile waiver-intel-card"
               style={getTeamTileStyle(details?.team || player.team)}
             >
               <button
@@ -2670,16 +2751,8 @@ export default function WaiverIntelligencePanel({
               >
                 <div className="waiver-intel-top">
                   <span className="waiver-intel-label">{label}</span>
-                  <span
-                    className={
-                      recommendation
-                        ? "waiver-intel-suggestion-label ai-recommendation-badge"
-                        : "available-manager-label"
-                    }
-                  >
-                    {recommendation
-                      ? AI_RECOMMENDATION_BADGE_LABEL
-                      : "Available"}
+                  <span className="available-manager-label">
+                    Available
                   </span>
                 </div>
                 <PlayerIdentityRow
@@ -2725,10 +2798,6 @@ export default function WaiverIntelligencePanel({
                     {!isRedraft && label.startsWith("Taxi Stash") && (
                       <span>Rookie Stash</span>
                     )}
-                    {recommendation &&
-                      recommendationContext.openRosterSpots > 0 && (
-                        <span>Active Spot Fit</span>
-                      )}
                     {weeklyEcrWindow && <span>{weeklyEcrWindow}</span>}
                     {value > 0 && (
                       <span className="waiver-intel-value-pill">
@@ -2738,127 +2807,6 @@ export default function WaiverIntelligencePanel({
                   </div>
                 </div>
               </button>
-              {recommendation && (
-                <div
-                  className="waiver-intel-claim-plan"
-                  title={recommendation.dropReason || recommendation.reason}
-                >
-                  <span>
-                    <em>
-                      {recommendation.bidSource === "league-history"
-                        ? "League bid range"
-                        : recommendation.bidSource === "free-history"
-                          ? "Free-add history"
-                          : "Model bid range"}
-                    </em>
-                    <strong>{recommendation.bidRangeLabel}</strong>
-                  </span>
-                  <span>
-                    <em>{recommendation.claimPriority}</em>
-                    <strong>
-                      {recommendation.dropCandidate
-                        ? `Drop ${recommendation.dropCandidate.name}`
-                        : recommendation.claimPriority === "Add"
-                          ? "No drop needed"
-                          : "Manual room needed"}
-                    </strong>
-                  </span>
-                  <span
-                    className={`waiver-intel-threat waiver-intel-threat-${recommendation.competitionRead?.level.toLowerCase() || "low"}`}
-                    title={
-                      recommendation.competitionRead?.reason ||
-                      "No strong competing manager signal returned."
-                    }
-                  >
-                    <em>
-                      {recommendation.competitionRead
-                        ? `${recommendation.competitionRead.level} threat`
-                        : "Claim threat"}
-                    </em>
-                    <strong>
-                      {recommendation.competitionRead
-                        ? `${recommendation.competitionRead.manager}: ${recommendation.competitionRead.bidHint}`
-                        : "Likely quiet"}
-                    </strong>
-                  </span>
-                  {weeklyEcrSignal && (
-                    <span>
-                      <em>FantasyPros matchups</em>
-                      <strong>{weeklyEcrWindow || weeklyEcrRank || "Rolling rank"}</strong>
-                    </span>
-                  )}
-                  <p className="waiver-intel-history-read">
-                    {recommendation.bidEvidenceLabel}{" "}
-                    {recommendation.competitionRead?.reason ||
-                      "No strong competing manager signal returned."}{" "}
-                    {weeklyEcrSignal ? weeklyEcrSignal.note : ""}
-                  </p>
-                  {weeklyEcrSignal?.sourceTrace?.length ? (
-                    <details className="waiver-intel-source-review waiver-intel-source-trace">
-                      <summary>
-                        <span>Source trace</span>
-                        <strong>FantasyPros stored matchups</strong>
-                      </summary>
-                      <div className="waiver-intel-source-review-list">
-                        <div className="waiver-intel-source-review-row">
-                          <span>{weeklyEcrSignal.traceSummary}</span>
-                          <em>
-                            {weeklyEcrSignal.fantasyProsId
-                              ? `FantasyPros ID ${weeklyEcrSignal.fantasyProsId}`
-                              : "FantasyPros player match"}
-                          </em>
-                        </div>
-                        {weeklyEcrSignal.sourceTrace.slice(0, 3).map(trace => (
-                          <div
-                            key={`${trace.sourceKey}-${trace.week || trace.endpointKey}`}
-                            className="waiver-intel-source-review-row"
-                          >
-                            <span>{trace.endpointLabel}</span>
-                            <em>{formatWaiverEcrTraceMeta(trace)}</em>
-                            <p>{trace.evidence}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  ) : null}
-                  <p className="waiver-intel-drop-read">
-                    {recommendation.dropReason}
-                    {recommendation.dropAlternatives.length
-                      ? ` Backup cuts: ${recommendation.dropAlternatives
-                          .map(player => player.name)
-                          .join(", ")}.`
-                      : ""}
-                  </p>
-                  <button
-                    type="button"
-                    className="waiver-intel-submit-plan"
-                    aria-pressed={submittedPlan}
-                    onClick={() => {
-                      persistStoredActionPlan(
-                        createWaiverActionPlan({
-                          leagueId,
-                          manager: viewerManager,
-                          recommendation,
-                          status: "submitted",
-                        })
-                      );
-                      const bidHistoryItem = createWaiverBidHistoryItem({
-                        leagueId,
-                        manager: viewerManager,
-                        recommendation,
-                      });
-                      if (bidHistoryItem)
-                        persistStoredWaiverBidHistory(bidHistoryItem);
-                    }}
-                  >
-                    {submittedPlan ? "Plan saved" : "Save plan"}
-                    <span>
-                      {recommendation.bidConfidencePct}% bid /{" "}
-                      {recommendation.dropConfidencePct}% drop
-                    </span>
-                  </button>
-                </div>
-              )}
             </article>
           );
         })}

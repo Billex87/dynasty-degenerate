@@ -2871,6 +2871,8 @@
 
   .manager-command-dialog .manager-command-swap-grid,
   .manager-command-dialog .manager-command-swap-actions,
+  .report-shell .waiver-ai-target-card,
+  .report-shell .waiver-defense-pairing-lanes,
   .report-shell .waiver-intel-claim-plan,
   .report-shell .waiver-intel-plan-actions {
     grid-template-columns: 1fr;

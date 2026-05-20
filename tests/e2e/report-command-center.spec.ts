@@ -1085,13 +1085,49 @@ test.describe("command center feature surfaces", () => {
     await loadCachedReport(page, cachedReport, "#rankings");
 
     await expect(page.getByText("Matchup Edge Table")).toBeVisible();
+    await expect
+      .poll(() =>
+        page.locator("details.report-disclosure > summary").evaluateAll(nodes =>
+          nodes.map(node => node.textContent || "")
+        )
+      )
+      .toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("Full Roster Rankings"),
+          expect.stringContaining("Matchup Edge Table"),
+          expect.stringContaining("College Rankings"),
+        ])
+      );
+    await expect
+      .poll(() =>
+        page.locator("details.report-disclosure > summary").evaluateAll(nodes =>
+          nodes
+            .map((node, index) => ({ index, text: node.textContent || "" }))
+            .filter(item =>
+              /Full Roster Rankings|Matchup Edge Table|College Rankings/.test(
+                item.text
+              )
+            )
+            .map(item =>
+              item.text.includes("Full Roster Rankings")
+                ? "roster"
+                : item.text.includes("Matchup Edge Table")
+                  ? "matchups"
+                  : "college"
+            )
+        )
+      )
+      .toEqual(["roster", "matchups", "college"]);
     const matchupSection = await openReportSection(page, "Matchup Edge Table");
     const weekChips = matchupSection.locator(".admin-schedule-week-chip");
     await expect(matchupSection.getByText("Waiver Receiver").first()).toBeVisible();
-    await expect(weekChips.filter({ hasText: "W2" }).filter({ hasText: "at MIA" })).toBeVisible();
-    await expect(weekChips.filter({ hasText: "4-star · #8" })).toBeVisible();
-    await expect(matchupSection.getByText("W15 vs. BUF 5-star (#3)")).toBeVisible();
-    await expect(matchupSection.getByText("Target window")).toBeVisible();
+    const weekTwoChip = weekChips.filter({ hasText: "W2" }).first();
+    await expect(weekTwoChip.getByLabel("MIA")).toBeVisible();
+    await expect(weekTwoChip.getByLabel("4 star matchup")).toBeVisible();
+    await expect(matchupSection.getByText("League Status")).toBeVisible();
+    await expect(matchupSection.getByText("Range", { exact: true })).toHaveCount(0);
+    await expect(matchupSection.getByText("Playoffs", { exact: true })).toHaveCount(0);
+    await expect(matchupSection.getByText("Read", { exact: true })).toHaveCount(0);
   });
 
   test("persists assistant watch preferences locally across fresh app loads", async ({
@@ -1396,6 +1432,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByRole("button", { name: /View as/i })).toHaveCount(0);
     await expect(page.getByText("Monthly Team Blueprint")).toHaveCount(0);
     await expect(page.getByText("League Power Rankings")).toHaveCount(0);
+    await expect(page.getByText("Matchup Edge Table")).toHaveCount(0);
     await expect(
       page.getByText("Trade Finder, Partners & League Exploits")
     ).toHaveCount(0);

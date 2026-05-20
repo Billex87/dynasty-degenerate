@@ -1001,7 +1001,7 @@
 
 .admin-schedule-edge-table {
   width: 100%;
-  min-width: 70rem;
+  min-width: 56rem;
   border-collapse: separate;
   border-spacing: 0 0.48rem;
 }
@@ -1074,6 +1074,56 @@
   overflow-wrap: anywhere;
 }
 
+.admin-schedule-player-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.52rem;
+}
+
+.admin-schedule-player-cell-defense {
+  gap: 0.45rem;
+}
+
+.admin-schedule-edge-table .admin-schedule-player-cell span,
+.admin-schedule-edge-table .admin-schedule-player-cell .team-logo-pill,
+.admin-schedule-edge-table .admin-schedule-week-chip .team-logo-pill,
+.admin-schedule-edge-table .admin-schedule-week-opponent,
+.admin-schedule-edge-table .admin-schedule-week-stars {
+  display: inline-flex;
+  margin-top: 0;
+}
+
+.admin-schedule-player-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.08rem;
+}
+
+.admin-schedule-player-logo.team-logo-pill,
+.admin-schedule-opponent-logo.team-logo-pill {
+  width: 1.72rem;
+  height: 1.72rem;
+  flex: 0 0 auto;
+  border-color: rgba(34, 211, 238, 0.28);
+  background: rgba(15, 23, 42, 0.7);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 0 18px rgba(34, 211, 238, 0.16);
+}
+
+.admin-schedule-opponent-logo.team-logo-pill {
+  width: 1.42rem;
+  height: 1.42rem;
+}
+
+.admin-schedule-player-logo.team-logo-pill img,
+.admin-schedule-opponent-logo.team-logo-pill img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .admin-schedule-edge-pill {
   display: inline-flex;
   max-width: 100%;
@@ -1130,12 +1180,12 @@
 
 .admin-schedule-edge-table .admin-schedule-week-chip {
   display: grid;
-  min-width: 4.9rem;
-  gap: 0.1rem;
+  min-width: 4.7rem;
+  gap: 0.16rem;
   border: 1px solid rgba(34, 211, 238, 0.16);
   border-radius: 0.55rem;
   background: rgba(15, 23, 42, 0.66);
-  padding: 0.42rem 0.5rem;
+  padding: 0.42rem 0.48rem;
   color: #cbd5e1;
   line-height: 1.05;
 }
@@ -1156,6 +1206,40 @@
 .admin-schedule-edge-table .admin-schedule-week-chip span {
   color: #e0f2fe;
   font-size: 0.7rem;
+}
+
+.admin-schedule-edge-table .admin-schedule-week-opponent {
+  align-items: center;
+  gap: 0.26rem;
+  color: #e0f2fe;
+  font-size: 0.64rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-schedule-edge-table .admin-schedule-week-site {
+  color: #f8fafc;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+}
+
+.admin-schedule-edge-table .admin-schedule-week-stars {
+  align-items: center;
+  gap: 0.04rem;
+  color: #fbbf24;
+  font-size: 0.67rem;
+  line-height: 1;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.34);
+}
+
+.admin-schedule-edge-table .admin-schedule-week-unrated,
+.admin-schedule-edge-table .admin-schedule-week-bye,
+.admin-schedule-edge-table .admin-schedule-week-tbd {
+  color: #93c5fd;
+  font-size: 0.6rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .admin-schedule-edge-table .admin-schedule-week-chip em {
@@ -1241,7 +1325,7 @@
   }
 
   .admin-schedule-edge-table {
-    min-width: 64rem;
+    min-width: 52rem;
   }
 }
 
@@ -11815,6 +11899,273 @@
     font-size: 0.86rem;
     font-weight: 800;
     line-height: 1.4;
+  }
+
+  .waiver-ai-target-strip {
+    display: grid;
+    gap: 0.62rem;
+  }
+
+  .waiver-ai-target-strip-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-inline: 0.1rem;
+  }
+
+  .waiver-ai-target-strip-head span {
+    color: #67e8f9;
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .waiver-ai-target-strip-head strong {
+    color: #fed7aa;
+    font-size: 0.72rem;
+    font-weight: 950;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .waiver-ai-target-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
+    gap: 0.78rem;
+    align-items: stretch;
+  }
+
+  .waiver-ai-target-card {
+    display: grid;
+    grid-template-columns: minmax(11.5rem, 0.8fr) minmax(0, 1.35fr);
+    gap: 0.76rem;
+    min-width: 0;
+    border: 1px solid rgba(52, 211, 153, 0.42);
+    border-radius: 0.95rem;
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #0f172a) 28%, rgba(15, 23, 42, 0.88)), rgba(2, 6, 23, 0.78) 58%, color-mix(in srgb, var(--team-secondary, #020617) 24%, rgba(2, 6, 23, 0.78))),
+      radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--team-accent, #22d3ee) 18%, transparent), transparent 38%);
+    padding: 0.82rem;
+    text-align: left;
+  }
+
+  .waiver-ai-target-player {
+    display: grid;
+    min-width: 0;
+    align-content: start;
+    gap: 0.72rem;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .waiver-ai-target-player:focus-visible {
+    outline: 2px solid rgba(103, 232, 249, 0.72);
+    outline-offset: 3px;
+  }
+
+  .waiver-ai-target-main .player-chip {
+    min-width: 0;
+  }
+
+  .waiver-ai-target-main .player-chip img,
+  .waiver-ai-target-main .player-chip > span[aria-hidden="true"] {
+    height: 2.25rem;
+    width: 2.25rem;
+    border: 2px solid color-mix(in srgb, var(--team-accent, #fb923c) 62%, rgba(255, 255, 255, 0.2));
+  }
+
+  .waiver-ai-target-main .player-chip > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    color: #f8fafc;
+    font-size: 0.92rem;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .waiver-ai-target-read {
+    display: grid;
+    min-width: 0;
+    gap: 0.56rem;
+  }
+
+  .waiver-ai-target-read p {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    color: #dbeafe;
+    font-size: 0.74rem;
+    font-weight: 800;
+    line-height: 1.34;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  .waiver-ai-target-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.42rem;
+  }
+
+  .waiver-ai-target-facts > span {
+    display: grid;
+    min-width: 0;
+    gap: 0.14rem;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 0.62rem;
+    background: rgba(2, 6, 23, 0.44);
+    padding: 0.38rem 0.46rem;
+  }
+
+  .waiver-ai-target-facts em {
+    color: #93c5fd;
+    font-size: 0.5rem;
+    font-style: normal;
+    font-weight: 950;
+    letter-spacing: 0.09em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .waiver-ai-target-facts strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #f8fafc;
+    font-size: 0.66rem;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .waiver-ai-target-save {
+    justify-self: start;
+    min-width: min(100%, 11rem);
+  }
+
+  .waiver-defense-pairing-read {
+    display: grid;
+    gap: 0.72rem;
+    border: 1px solid rgba(251, 146, 60, 0.28);
+    border-radius: 0.95rem;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.16), transparent 34%),
+      radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.12), transparent 36%),
+      rgba(2, 6, 23, 0.66);
+    padding: 0.9rem 1rem;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 14px 30px rgba(0, 0, 0, 0.18);
+  }
+
+  .waiver-defense-pairing-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.3rem 0.7rem;
+    align-items: center;
+  }
+
+  .waiver-defense-pairing-head span {
+    grid-column: 1 / -1;
+    color: #67e8f9;
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .waiver-defense-pairing-head strong {
+    color: #f8fafc;
+    font-size: 1rem;
+    font-weight: 950;
+    line-height: 1.12;
+  }
+
+  .waiver-defense-pairing-head em {
+    border: 1px solid rgba(52, 211, 153, 0.24);
+    border-radius: 999px;
+    background: rgba(6, 78, 59, 0.28);
+    padding: 0.34rem 0.58rem;
+    color: #bbf7d0;
+    font-size: 0.62rem;
+    font-style: normal;
+    font-weight: 950;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .waiver-defense-pairing-read p {
+    margin: 0;
+    color: #dbeafe;
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 1.38;
+  }
+
+  .waiver-defense-pairing-lanes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .waiver-defense-pairing-lanes span {
+    display: grid;
+    min-width: 0;
+    gap: 0.18rem;
+    border: 1px solid rgba(34, 211, 238, 0.14);
+    border-radius: 0.72rem;
+    background: rgba(2, 6, 23, 0.44);
+    padding: 0.5rem 0.58rem;
+  }
+
+  .waiver-defense-pairing-lanes em {
+    color: #93c5fd;
+    font-size: 0.54rem;
+    font-style: normal;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .waiver-defense-pairing-lanes strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #f8fafc;
+    font-size: 0.78rem;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .waiver-defense-pairing-lanes .waiver-defense-pairing-drop {
+    border-color: rgba(251, 113, 133, 0.28);
+    background: rgba(127, 29, 29, 0.24);
+  }
+
+  .waiver-defense-pairing-evidence {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .waiver-defense-pairing-evidence span {
+    border: 1px solid rgba(34, 211, 238, 0.16);
+    border-radius: 999px;
+    background: rgba(8, 47, 73, 0.28);
+    padding: 0.34rem 0.5rem;
+    color: #cffafe;
+    font-size: 0.62rem;
+    font-weight: 900;
+    line-height: 1;
   }
 
   .waiver-intel-card-suggested {

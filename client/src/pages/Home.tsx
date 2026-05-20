@@ -60,6 +60,7 @@ const LeagueGlobe3D = lazy(() => import("@/components/LeagueGlobe3D"));
 import { SupportButton } from "@/components/SupportButton";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
+import { TeamLogoPill } from "@/components/TeamLogoPill";
 import {
   PlayerPill,
   PreviewMetricChips,
@@ -96,7 +97,6 @@ import type {
 import {
   buildScheduleEdgeRows,
   buildScheduleSnapshotHealthRows,
-  getScheduleEdgeRangeAction,
   getScheduleEdgeRangeSummary,
   getScheduleEdgeWeeksInRange,
   formatScheduleEdgeValue,
@@ -104,6 +104,7 @@ import {
   SCHEDULE_EDGE_POSITION_FILTERS,
   sortScheduleEdgeRows,
   type ScheduleEdgePositionFilter,
+  type ScheduleEdgeRow,
   type ScheduleEdgeSortMode,
   type ScheduleEdgeTone,
 } from "@/lib/scheduleEdgeRows";
@@ -6642,43 +6643,107 @@ function getScheduleEdgeWeekTone(week: WaiverWeeklyEcrWeek): ScheduleEdgeTone {
   return "info";
 }
 
-function formatScheduleEdgeWeekOpponent(week: WaiverWeeklyEcrWeek): string {
-  if (week.isBye) return "Bye";
-  const site =
-    week.homeAway === "home"
-      ? "vs"
-      : week.homeAway === "away"
-        ? "at"
-        : "";
-  return week.opponent ? `${site} ${week.opponent}`.trim() : "Opponent TBD";
+function getScheduleEdgeWeekSite(week: WaiverWeeklyEcrWeek): string {
+  if (week.homeAway === "home") return "vs";
+  if (week.homeAway === "away") return "at";
+  return "";
 }
 
-function formatScheduleEdgeWeekMeta(week: WaiverWeeklyEcrWeek): string {
-  if (week.isBye) return "No game";
-  const stars =
-    typeof week.matchupStars === "number"
-      ? `${week.matchupStars}-star`
-      : "Unrated";
-  const rank =
-    typeof week.opponentRank === "number" ? `#${week.opponentRank}` : null;
-  return rank ? `${stars} · ${rank}` : stars;
+function getScheduleEdgeWeekStarCount(week: WaiverWeeklyEcrWeek): number | null {
+  if (
+    typeof week.matchupStars !== "number" ||
+    !Number.isFinite(week.matchupStars)
+  ) {
+    return null;
+  }
+  return Math.max(1, Math.min(5, Math.round(week.matchupStars)));
 }
 
-function formatScheduleEdgeRangeGrade(
-  summary: ReturnType<typeof getScheduleEdgeRangeSummary>
-): string {
-  if (!summary.playableWeeks) return "No matchup rows";
-  const average =
-    summary.averageStars !== null ? `${summary.averageStars.toFixed(1)} avg` : "Unrated";
-  return [
-    average,
-    `${summary.easyWeeks} easy`,
-    `${summary.hardWeeks} hard`,
-    summary.byeWeeks ? `${summary.byeWeeks} bye` : null,
-    summary.missingWeeks.length ? `${summary.missingWeeks.length} missing` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+function ScheduleEdgePlayerCell({ row }: { row: ScheduleEdgeRow }) {
+  const showDefenseLogoOnly = row.position === "DEF" && row.team;
+
+  return (
+    <div
+      className={[
+        "admin-schedule-player-cell",
+        showDefenseLogoOnly ? "admin-schedule-player-cell-defense" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label={row.player.name}
+      title={row.player.name}
+    >
+      {row.team && (
+        <TeamLogoPill
+          team={row.team}
+          className="admin-schedule-player-logo"
+        />
+      )}
+      <div className="admin-schedule-player-copy">
+        <strong>{showDefenseLogoOnly ? "DEF" : row.player.name}</strong>
+        <span>{row.position}</span>
+      </div>
+    </div>
+  );
+}
+
+function ScheduleEdgeWeekChip({
+  rowId,
+  week,
+}: {
+  rowId: string;
+  week: WaiverWeeklyEcrWeek;
+}) {
+  const starCount = getScheduleEdgeWeekStarCount(week);
+  const site = getScheduleEdgeWeekSite(week);
+  const titleParts = [
+    `Week ${week.week}`,
+    week.isBye
+      ? "Bye"
+      : [site, week.opponent].filter(Boolean).join(" ") || "Opponent TBD",
+    starCount ? `${starCount} star matchup` : "Unrated matchup",
+    typeof week.opponentRank === "number"
+      ? `Opponent rank #${week.opponentRank}`
+      : null,
+  ].filter(Boolean);
+
+  return (
+    <span
+      className={`admin-schedule-week-chip admin-schedule-week-chip-${getScheduleEdgeWeekTone(week)}`}
+      title={titleParts.join(" - ")}
+    >
+      <strong>W{week.week}</strong>
+      {week.isBye ? (
+        <span className="admin-schedule-week-bye">Bye</span>
+      ) : (
+        <span className="admin-schedule-week-opponent">
+          {site && <span className="admin-schedule-week-site">{site}</span>}
+          {week.opponent ? (
+            <TeamLogoPill
+              team={week.opponent}
+              className="admin-schedule-opponent-logo"
+            />
+          ) : (
+            <span className="admin-schedule-week-tbd">TBD</span>
+          )}
+        </span>
+      )}
+      {starCount ? (
+        <span
+          className="admin-schedule-week-stars"
+          aria-label={`${starCount} star matchup`}
+        >
+          {Array.from({ length: starCount }, (_, index) => (
+            <span key={`${rowId}-${week.week}-star-${index}`} aria-hidden="true">
+              ★
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span className="admin-schedule-week-unrated">Unrated</span>
+      )}
+    </span>
+  );
 }
 
 function AdminScheduleEdgeSection({
@@ -6880,27 +6945,19 @@ function AdminScheduleEdgeSection({
                   <th>Player</th>
                   <th>Rank</th>
                   <th>Selected Weeks</th>
-                  <th>Range</th>
-                  <th>Playoffs</th>
                   <th>Value</th>
-                  <th>Availability</th>
-                  <th>Read</th>
+                  <th>League Status</th>
                 </tr>
               </thead>
               <tbody>
                 {visibleRows.map(row => {
                   const weekRows = getScheduleEdgeWeeksInRange(row, selectedRange);
                   const summary = getScheduleEdgeRangeSummary(row, selectedRange);
-                  const action = getScheduleEdgeRangeAction(row, selectedRange);
 
                   return (
                     <tr key={row.id}>
                       <td>
-                        <strong>{row.player.name}</strong>
-                        <span>
-                          {row.position}
-                          {row.team ? ` · ${row.team}` : ""}
-                        </span>
+                        <ScheduleEdgePlayerCell row={row} />
                       </td>
                       <td>
                         <strong>{row.bestRank}</strong>
@@ -6909,14 +6966,11 @@ function AdminScheduleEdgeSection({
                       <td className="admin-schedule-edge-weeks-cell">
                         <div className="admin-schedule-week-chip-list">
                           {weekRows.map(week => (
-                            <span
+                            <ScheduleEdgeWeekChip
                               key={`${row.id}-${week.week}`}
-                              className={`admin-schedule-week-chip admin-schedule-week-chip-${getScheduleEdgeWeekTone(week)}`}
-                            >
-                              <strong>W{week.week}</strong>
-                              <span>{formatScheduleEdgeWeekOpponent(week)}</span>
-                              <em>{formatScheduleEdgeWeekMeta(week)}</em>
-                            </span>
+                              rowId={row.id}
+                              week={week}
+                            />
                           ))}
                           {summary.missingWeeks.map(week => (
                             <span
@@ -6931,23 +6985,15 @@ function AdminScheduleEdgeSection({
                         </div>
                       </td>
                       <td>
-                        <strong>
-                          {summary.score === null ? "-" : `${summary.score}/100`}
-                        </strong>
-                        <span>{formatScheduleEdgeRangeGrade(summary)}</span>
-                      </td>
-                      <td>{row.playoffWindow || "No playoff rows"}</td>
-                      <td>
                         <strong>{formatScheduleEdgeValue(row.value)}</strong>
                         <span>{row.currentRank || "No rank"}</span>
                       </td>
-                      <td>{row.player.owner || "Available"}</td>
                       <td>
                         <span
-                          className={`admin-schedule-edge-pill admin-schedule-edge-pill-${action.actionTone}`}
-                          title={`${row.note} ${row.sourceFreshness}`}
+                          className={`admin-schedule-edge-pill admin-schedule-edge-pill-${row.availabilityTone}`}
+                          title={`${row.availabilityDetail} ${row.sourceFreshness}`}
                         >
-                          {action.action}
+                          {row.availabilityLabel}
                         </span>
                       </td>
                     </tr>
@@ -10345,6 +10391,11 @@ export default function Home() {
                           </div>
                         )}
                       </CollapsibleReportSection>
+                      {canViewAdminFeatureExpansion && (
+                        <AdminScheduleEdgeSection
+                          reportData={reportDataForView}
+                        />
+                      )}
                       {!isRedraftReport && (
                         <CollapsibleReportSection
                           title="College Rankings"
@@ -10412,9 +10463,6 @@ export default function Home() {
                             </p>
                           </div>
                           <AdminProviderTelemetrySection />
-                          <AdminScheduleEdgeSection
-                            reportData={reportDataForView}
-                          />
                           <AdminSourceCoverageSection />
                           <AdminTrafficTelemetrySection />
                           <AdminValueDiagnosticsSection

@@ -1,9 +1,11 @@
 import type {
   ReportData,
+  ManagerStarterPlayer,
   TrendingPlayer,
   WaiverWeeklyEcrSignal,
 } from "@shared/types";
 import { getShortTermMatchupOutlook } from "@shared/matchupWindows";
+import { normalizeNflTeamAbbr } from "@/lib/teamTileStyle";
 
 export type ScheduleEdgePositionFilter =
   | "ALL"
@@ -43,6 +45,9 @@ export type ScheduleEdgeRow = {
   playoffWindow: string | null;
   sourceFreshness: string;
   sourceTone: ScheduleEdgeTone;
+  availabilityLabel: string;
+  availabilityTone: ScheduleEdgeTone;
+  availabilityDetail: string;
   action: string;
   actionTone: ScheduleEdgeTone;
   value: number | null;
@@ -119,6 +124,155 @@ function getScheduleEdgeRankNumber(rank?: string | null): number | null {
   if (!parsed) return null;
   const numeric = Number(parsed);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function normalizeScheduleEdgeLookupKey(value?: string | null): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getScheduleEdgeTeam(input: {
+  position?: string | null;
+  name?: string | null;
+  team?: string | null;
+  playerDetails?: { team?: string | null } | null;
+}): string | null {
+  const position = normalizeScheduleEdgePosition(input.position);
+  return (
+    normalizeNflTeamAbbr(input.team) ||
+    normalizeNflTeamAbbr(input.playerDetails?.team) ||
+    (position === "DEF" ? normalizeNflTeamAbbr(input.name) : null)
+  );
+}
+
+function makeScheduleEdgeOwnershipKey(input: {
+  position?: string | null;
+  name?: string | null;
+  team?: string | null;
+}) {
+  const position = normalizeScheduleEdgePosition(input.position);
+  if (!position || position === "ALL") return null;
+  const nameKey = normalizeScheduleEdgeLookupKey(input.name);
+  const team = normalizeNflTeamAbbr(input.team);
+  return {
+    name: nameKey ? `${position}:name:${nameKey}` : null,
+    team: team ? `${position}:team:${team}` : null,
+  };
+}
+
+function buildScheduleEdgeOwnerLookup(reportData: ReportData) {
+  const byPlayerId = new Map<string, string>();
+  const byKey = new Map<string, string>();
+  let hasRosterRows = false;
+
+  const addOwner = (key: string | null, owner?: string | null) => {
+    const manager = String(owner || "").trim();
+    if (!key || !manager || byKey.has(key)) return;
+    byKey.set(key, manager);
+  };
+
+  const addPlayerOwner = (
+    player: ManagerStarterPlayer | undefined,
+    owner?: string | null
+  ) => {
+    if (!player) return;
+    const manager = String(owner || "").trim();
+    if (!manager) return;
+    hasRosterRows = true;
+    if (player.player_id && !byPlayerId.has(player.player_id)) {
+      byPlayerId.set(player.player_id, manager);
+    }
+    const position = normalizeScheduleEdgePosition(
+      player.pos || player.playerDetails?.position
+    );
+    const team = getScheduleEdgeTeam({
+      position,
+      name: player.name || player.playerDetails?.fullName,
+      team: (player as ManagerStarterPlayer & { team?: string | null }).team,
+      playerDetails: player.playerDetails,
+    });
+    const keys = makeScheduleEdgeOwnershipKey({
+      position,
+      name: player.name || player.playerDetails?.fullName,
+      team,
+    });
+    addOwner(keys?.name || null, manager);
+    addOwner(keys?.team || null, manager);
+  };
+
+  for (const row of reportData.managerPositionCounts || []) {
+    const players = [
+      ...(row.rosterPlayers || []),
+      ...(row.lineupPlayers || []),
+      ...(row.starterPlayers || []),
+      ...(row.starterGroups || []).flatMap(group => group.players || []),
+    ];
+    const seenPlayerIds = new Set<string>();
+    for (const player of players) {
+      if (player.player_id && seenPlayerIds.has(player.player_id)) continue;
+      if (player.player_id) seenPlayerIds.add(player.player_id);
+      addPlayerOwner(player, row.manager);
+    }
+  }
+
+  return { byPlayerId, byKey, hasRosterRows };
+}
+
+function getScheduleEdgeAvailability(input: {
+  player: TrendingPlayer;
+  signal: WaiverWeeklyEcrSignal;
+  position: ScheduleEdgePositionFilter;
+  team: string | null;
+  ownerLookup: ReturnType<typeof buildScheduleEdgeOwnerLookup>;
+}): Pick<
+  ScheduleEdgeRow,
+  "availabilityLabel" | "availabilityTone" | "availabilityDetail"
+> {
+  const sourceOwner = String(input.player.owner || "").trim();
+  if (sourceOwner && !/^available$/i.test(sourceOwner)) {
+    return {
+      availabilityLabel: sourceOwner,
+      availabilityTone: "warn",
+      availabilityDetail: "Player source already includes a roster owner.",
+    };
+  }
+
+  const keys = makeScheduleEdgeOwnershipKey({
+    position: input.position,
+    name: input.signal.name || input.player.name,
+    team: input.team,
+  });
+  const rosterOwner =
+    input.ownerLookup.byPlayerId.get(input.player.player_id) ||
+    input.ownerLookup.byKey.get(keys?.team || "") ||
+    input.ownerLookup.byKey.get(keys?.name || "");
+
+  if (rosterOwner) {
+    return {
+      availabilityLabel: rosterOwner,
+      availabilityTone: "warn",
+      availabilityDetail:
+        "Matched to a manager roster in this report's Sleeper snapshot.",
+    };
+  }
+
+  if (input.ownerLookup.hasRosterRows) {
+    return {
+      availabilityLabel: "Available",
+      availabilityTone: "good",
+      availabilityDetail:
+        "Not found on any manager roster in this report's Sleeper snapshot.",
+    };
+  }
+
+  return {
+    availabilityLabel: "Unverified",
+    availabilityTone: "info",
+    availabilityDetail:
+      "No league roster ownership map was present on this cached report.",
+  };
 }
 
 function clampScheduleWeek(value: number): number {
@@ -696,6 +850,7 @@ export function buildScheduleEdgeRows(
       target.signal,
     ])
   );
+  const ownerLookup = buildScheduleEdgeOwnerLookup(reportData);
   const addPlayer = (player?: TrendingPlayer | null) => {
     if (!player?.player_id || playersById.has(player.player_id)) return;
     const signal = player.weeklyEcr || targetSignalByPlayerId.get(player.player_id) || null;
@@ -728,13 +883,25 @@ export function buildScheduleEdgeRows(
         bestRankNumber,
         signal,
       });
+      const team = getScheduleEdgeTeam({
+        position,
+        name: player.name || signal.name,
+        team: signal.team || player.team,
+      });
+      const availability = getScheduleEdgeAvailability({
+        player,
+        signal,
+        position,
+        team,
+        ownerLookup,
+      });
 
       return {
         id: player.player_id,
         player,
         signal,
         position,
-        team: signal.team || player.team || null,
+        team,
         bestRank,
         bestRankNumber,
         bestWeek: signal.bestWeek,
@@ -744,6 +911,9 @@ export function buildScheduleEdgeRows(
           : null,
         sourceFreshness: freshness.label,
         sourceTone: freshness.tone,
+        availabilityLabel: availability.availabilityLabel,
+        availabilityTone: availability.availabilityTone,
+        availabilityDetail: availability.availabilityDetail,
         action: action.action,
         actionTone: action.actionTone,
         value: player.ktcValue,
