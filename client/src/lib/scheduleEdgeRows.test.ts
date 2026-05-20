@@ -3,7 +3,11 @@ import {
   buildScheduleEdgeRows,
   buildScheduleSnapshotHealthRows,
   formatScheduleEdgeValue,
+  getScheduleEdgeRangeAction,
+  getScheduleEdgeRangeSummary,
+  sortScheduleEdgeRows,
 } from "./scheduleEdgeRows";
+import { buildMatchupWindowSet } from "@shared/matchupWindows";
 import type {
   ReportData,
   TrendingPlayer,
@@ -66,6 +70,7 @@ function makeSignal(
     : `${position}${bestRankEcr}`;
 
   return {
+    signalType: overrides.signalType,
     playerId,
     fantasyProsId: overrides.fantasyProsId ?? null,
     name,
@@ -94,6 +99,9 @@ function makeSignal(
     bestPositionRank,
     averageRankEcr: overrides.averageRankEcr ?? bestRankEcr,
     rankDelta: overrides.rankDelta ?? null,
+    bestMatchupStars: overrides.bestMatchupStars ?? null,
+    bestOpponentRank: overrides.bestOpponentRank ?? null,
+    matchupWindows: overrides.matchupWindows,
     confidence: overrides.confidence ?? 80,
     note: overrides.note || `W${bestWeek} ${position}${bestRankEcr}`,
     sourceTrace: overrides.sourceTrace || [makeTrace({ position })],
@@ -179,6 +187,218 @@ describe("schedule edge rows", () => {
     expect(row.sourceTone).toBe("good");
   });
 
+  it("warns on special teams with a rough next-three matchup window", () => {
+    const weeks: WaiverWeeklyEcrSignal["weeks"] = [
+      {
+        week: 1,
+        rankEcr: 4,
+        positionRank: "DST4",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 4,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "SF",
+        homeAway: "home",
+        opponentRank: 28,
+        matchupStars: 1,
+        matchupTier: "hard",
+        isBye: false,
+      },
+      {
+        week: 2,
+        rankEcr: 4,
+        positionRank: "DST4",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 4,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "NYG",
+        homeAway: "home",
+        opponentRank: 13,
+        matchupStars: 3,
+        matchupTier: "neutral",
+        isBye: false,
+      },
+      {
+        week: 3,
+        rankEcr: 4,
+        positionRank: "DST4",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 4,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "DEN",
+        homeAway: "away",
+        opponentRank: 22,
+        matchupStars: 2,
+        matchupTier: "hard",
+        isBye: false,
+      },
+    ];
+    const signal = makeSignal({
+      signalType: "matchup-calendar",
+      playerId: "rams",
+      name: "Los Angeles Rams",
+      position: "DST",
+      bestRankEcr: 4,
+      bestPositionRank: "DST4",
+      weeks,
+      matchupWindows: buildMatchupWindowSet(weeks, { currentWeek: 1 }),
+      sourceTrace: [makeTrace({ position: "DST" })],
+    });
+    const [row] = buildScheduleEdgeRows(
+      makeReportWithScheduleTargets([
+        {
+          player: makePlayer({
+            player_id: "rams",
+            name: "Los Angeles Rams",
+            pos: "DST",
+            ktcValue: 340,
+          }),
+          signal,
+          score: 30,
+        },
+      ]),
+      { now: NOW }
+    );
+
+    expect(row.action).toBe("Avoid early stream");
+    expect(row.actionTone).toBe("warn");
+  });
+
+  it("summarizes and sorts rows by the selected week range", () => {
+    const easyWeeks: WaiverWeeklyEcrSignal["weeks"] = [
+      {
+        week: 1,
+        rankEcr: 12,
+        positionRank: "DEF12",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 12,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "TEN",
+        homeAway: "home",
+        opponentRank: 3,
+        matchupStars: 5,
+        matchupTier: "easy",
+        isBye: false,
+      },
+      {
+        week: 2,
+        rankEcr: 12,
+        positionRank: "DEF12",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 12,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "CLE",
+        homeAway: "away",
+        opponentRank: 6,
+        matchupStars: 4,
+        matchupTier: "easy",
+        isBye: false,
+      },
+    ];
+    const hardWeeks: WaiverWeeklyEcrSignal["weeks"] = [
+      {
+        week: 1,
+        rankEcr: 2,
+        positionRank: "DEF2",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 2,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "KC",
+        homeAway: "home",
+        opponentRank: 32,
+        matchupStars: 1,
+        matchupTier: "hard",
+        isBye: false,
+      },
+      {
+        week: 2,
+        rankEcr: 2,
+        positionRank: "DEF2",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 2,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "BUF",
+        homeAway: "away",
+        opponentRank: 29,
+        matchupStars: 2,
+        matchupTier: "hard",
+        isBye: false,
+      },
+    ];
+    const rows = buildScheduleEdgeRows(
+      makeReportWithScheduleTargets([
+        {
+          player: makePlayer({
+            player_id: "easy-defense",
+            name: "Easy Defense",
+            pos: "DEF",
+          }),
+          signal: makeSignal({
+            signalType: "matchup-calendar",
+            playerId: "easy-defense",
+            name: "Easy Defense",
+            position: "DEF",
+            bestRankEcr: 12,
+            bestPositionRank: "DEF12",
+            weeks: easyWeeks,
+          }),
+          score: 20,
+        },
+        {
+          player: makePlayer({
+            player_id: "hard-defense",
+            name: "Hard Defense",
+            pos: "DEF",
+          }),
+          signal: makeSignal({
+            signalType: "matchup-calendar",
+            playerId: "hard-defense",
+            name: "Hard Defense",
+            position: "DEF",
+            bestRankEcr: 2,
+            bestPositionRank: "DEF2",
+            weeks: hardWeeks,
+          }),
+          score: 30,
+        },
+      ]),
+      { now: NOW }
+    );
+
+    const range = { start: 1, end: 2 };
+    const easyRow = rows.find(row => row.id === "easy-defense")!;
+    const hardRow = rows.find(row => row.id === "hard-defense")!;
+
+    expect(getScheduleEdgeRangeSummary(easyRow, range)).toMatchObject({
+      averageStars: 4.5,
+      easyWeeks: 2,
+      hardWeeks: 0,
+    });
+    expect(getScheduleEdgeRangeAction(hardRow, range)).toEqual({
+      action: "Avoid window",
+      actionTone: "warn",
+    });
+    expect(sortScheduleEdgeRows(rows, range, "easiest")[0].id).toBe(
+      "easy-defense"
+    );
+    expect(sortScheduleEdgeRows(rows, range, "toughest")[0].id).toBe(
+      "hard-defense"
+    );
+  });
+
   it("can build admin schedule rows from report-level snapshot targets", () => {
     const signal = makeSignal({
       playerId: "fantasypros:9016",
@@ -208,6 +428,88 @@ describe("schedule edge rows", () => {
     expect(rows[0].id).toBe("fantasypros:9016");
     expect(rows[0].bestRank).toBe("QB4");
     expect(rows[0].sourceTone).toBe("good");
+  });
+
+  it("uses league-aware next-three and playoff matchup windows", () => {
+    const weeks: WaiverWeeklyEcrSignal["weeks"] = [
+      {
+        week: 2,
+        rankEcr: 18,
+        positionRank: "WR18",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 18,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "LV",
+        homeAway: "home",
+        opponentRank: 2,
+        matchupStars: 5,
+        matchupTier: "easy",
+        isBye: false,
+      },
+      {
+        week: 3,
+        rankEcr: 18,
+        positionRank: "WR18",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 18,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "MIA",
+        homeAway: "away",
+        opponentRank: 8,
+        matchupStars: 4,
+        matchupTier: "easy",
+        isBye: false,
+      },
+      {
+        week: 15,
+        rankEcr: 18,
+        positionRank: "WR18",
+        bestRank: null,
+        worstRank: null,
+        averageRank: 18,
+        rankStdDev: null,
+        lastUpdated: "2026-09-08T18:00:00.000Z",
+        opponent: "NYJ",
+        homeAway: "home",
+        opponentRank: 3,
+        matchupStars: 5,
+        matchupTier: "easy",
+        isBye: false,
+      },
+    ];
+    const signal = makeSignal({
+      playerId: "matchup-wr",
+      name: "Matchup Receiver",
+      position: "WR",
+      bestPositionRank: "WR18",
+      weeks,
+      matchupWindows: buildMatchupWindowSet(weeks, {
+        currentWeek: 3,
+        playoffWeeks: [15, 16, 17],
+      }),
+    });
+    const [row] = buildScheduleEdgeRows(
+      makeReportWithScheduleTargets([
+        {
+          player: makePlayer({
+            player_id: "matchup-wr",
+            name: "Matchup Receiver",
+            pos: "WR",
+          }),
+          signal,
+          score: 90,
+        },
+      ]),
+      { now: NOW }
+    );
+
+    expect(row.window).toContain("W3 at MIA 4-star");
+    expect(row.window).not.toContain("W2 vs. LV");
+    expect(row.playoffWindow).toContain("W15 vs. NYJ 5-star");
   });
 
   it("summarizes weekly snapshot health by week and position", () => {
@@ -274,6 +576,38 @@ describe("schedule edge rows", () => {
     expect(rows[2].cells.WR).toMatchObject({
       label: "Rate limited",
       tone: "danger",
+    });
+  });
+
+  it("summarizes matchup-calendar trace health by week and position", () => {
+    const rows = buildScheduleSnapshotHealthRows(
+      makeReport({
+        weeklyEcrTargets: [
+          {
+            player: makePlayer({ player_id: "matchup", name: "Matchup Receiver" }),
+            signal: makeSignal({
+              playerId: "matchup",
+              name: "Matchup Receiver",
+              sourceTrace: [
+                makeTrace({
+                  sourceKey: "fantasypros-matchup-calendar-v1:2026:WR",
+                  endpointKey: "fantasypros-matchup-calendar-wr-week-2",
+                  endpointLabel: "FantasyPros WR matchup calendar",
+                  rowCount: 160,
+                }),
+              ],
+            }),
+            score: 80,
+          },
+        ],
+      })
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].cells.WR).toMatchObject({
+      label: "Loaded",
+      tone: "good",
+      rowCount: 160,
     });
   });
 

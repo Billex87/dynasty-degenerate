@@ -4,6 +4,7 @@ import {
   createCachedRedraftReport,
   REPORT_CACHE_KEY,
 } from "./fixtures/cachedReports";
+import { buildMatchupWindowSet } from "../../shared/matchupWindows";
 
 async function loadCachedReport(
   page: import("@playwright/test").Page,
@@ -15,6 +16,10 @@ async function loadCachedReport(
 ) {
   const useAdminSession = options.admin !== false;
   const preserveLocalStorage = options.preserveLocalStorage === true;
+  const cachedReportForBrowser = {
+    ...cachedReport,
+    savedAt: Math.max(Number(cachedReport.savedAt) || 0, Date.now() + 60_000),
+  };
   const sleeperSessionKey = "dynasty-degenerates:sleeper-session:v1";
   const cachedUsersKey = "dynasty-degenerates:sleeper-user-history:v1";
   const adminUser = {
@@ -26,12 +31,12 @@ async function loadCachedReport(
     isPrivilegedReportViewer: true,
   };
   const league = {
-    leagueId: cachedReport.leagueId,
-    name: cachedReport.leagueName,
-    avatarUrl: cachedReport.leagueLogo,
+    leagueId: cachedReportForBrowser.leagueId,
+    name: cachedReportForBrowser.leagueName,
+    avatarUrl: cachedReportForBrowser.leagueLogo,
     season: "2026",
-    format: cachedReport.leagueFormat,
-    mobileFormat: cachedReport.leagueFormat,
+    format: cachedReportForBrowser.leagueFormat,
+    mobileFormat: cachedReportForBrowser.leagueFormat,
     totalRosters: 2,
     standingsRank: 1,
     powerRank: 1,
@@ -52,6 +57,10 @@ async function loadCachedReport(
       if (!admin) return;
       window.sessionStorage.setItem(
         "dynasty-degenerates:admin-unlock-dismissed:v1",
+        "true"
+      );
+      window.sessionStorage.setItem(
+        "dynasty-degenerates:admin-passphrase-verified-session:v1",
         "true"
       );
       window.localStorage.setItem(
@@ -78,7 +87,7 @@ async function loadCachedReport(
     },
     {
       key: REPORT_CACHE_KEY,
-      value: cachedReport,
+      value: cachedReportForBrowser,
       sessionKey: sleeperSessionKey,
       usersKey: cachedUsersKey,
       user: adminUser,
@@ -87,7 +96,7 @@ async function loadCachedReport(
       preserve: preserveLocalStorage,
     }
   );
-  await page.goto(`/?leagueId=${cachedReport.leagueId}${hash}`, {
+  await page.goto(`/?leagueId=${cachedReportForBrowser.leagueId}${hash}`, {
     waitUntil: "domcontentloaded",
   });
 }
@@ -607,10 +616,10 @@ test.describe("command center feature surfaces", () => {
     ).toHaveCount(0);
     await expect(page.locator(".assistant-shell-grid")).toBeVisible();
 
-    await page.getByRole("tab", { name: "Rankings" }).click();
+    await page.getByRole("tab", { name: /^(Rankings|Ranks)$/i }).click();
     const adminValueSection = await openReportSection(
       page,
-      "Value Source Configuration"
+      "Value Source Health"
     );
     await expect(
       adminValueSection.getByText("Confidence Drilldown")
@@ -857,7 +866,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.locator(".admin-premium-section")).toHaveCount(0);
 
     await page
-      .getByRole("button", { name: /Return to admin report view/i })
+      .getByRole("button", { name: /Return to admin report view|Switch to admin report view|Admin Tools/i })
       .click();
     await expectVisibleOverviewPulse(
       page,
@@ -881,7 +890,7 @@ test.describe("command center feature surfaces", () => {
     await page.getByRole("tab", { name: "Rankings" }).click();
     await expect(page.locator(".admin-diagnostics-shell")).toBeVisible();
     await expect(page.getByText("Admin Diagnostics")).toBeVisible();
-    await expect(page.getByText("Value Source Configuration")).toBeVisible();
+    await expect(page.getByText("Value Source Health")).toBeVisible();
 
     await page.getByRole("tab", { name: "Trade History" }).click();
     await expect(
@@ -907,7 +916,9 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
 
     await page
-      .getByRole("button", { name: /Return to admin report view/i })
+      .getByRole("button", {
+        name: /Return to admin report view|Switch to admin report view|Admin Tools/i,
+      })
       .click();
 
     await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
@@ -918,6 +929,169 @@ test.describe("command center feature surfaces", () => {
         .getByText("Trade browser read")
     ).toBeVisible();
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
+  });
+
+  test("shows matchup edge table when stored matchup snapshots are healthy", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    const player =
+      cachedReport.reportData.waiverIntelligence?.availableTrendingAdds[0];
+    if (!player) throw new Error("Fixture waiver player is required.");
+
+    const fetchedAt = new Date().toISOString();
+    const sourceKey = "fantasypros-matchup-calendar-v1:2026:WR";
+    const weeks = [
+      {
+        week: 2,
+        rankEcr: null,
+        positionRank: "WR42",
+        bestRank: null,
+        worstRank: null,
+        averageRank: null,
+        rankStdDev: null,
+        lastUpdated: fetchedAt,
+        sourceKey,
+        endpointKey: "fantasypros-matchup-calendar-wr-week-2",
+        fetchedAt,
+        sourceStatus: "loaded",
+        sourceType: "matchup-calendar",
+        opponent: "MIA",
+        homeAway: "away" as const,
+        opponentRank: 8,
+        matchupStars: 4,
+        matchupTier: "easy",
+        matchupText: "This is a 4 star matchup.",
+        isBye: false,
+      },
+      {
+        week: 3,
+        rankEcr: null,
+        positionRank: "WR42",
+        bestRank: null,
+        worstRank: null,
+        averageRank: null,
+        rankStdDev: null,
+        lastUpdated: fetchedAt,
+        sourceKey,
+        endpointKey: "fantasypros-matchup-calendar-wr-week-3",
+        fetchedAt,
+        sourceStatus: "loaded",
+        sourceType: "matchup-calendar",
+        opponent: "NE",
+        homeAway: "home" as const,
+        opponentRank: 11,
+        matchupStars: 4,
+        matchupTier: "easy",
+        matchupText: "This is a 4 star matchup.",
+        isBye: false,
+      },
+      {
+        week: 4,
+        rankEcr: null,
+        positionRank: "WR42",
+        bestRank: null,
+        worstRank: null,
+        averageRank: null,
+        rankStdDev: null,
+        lastUpdated: fetchedAt,
+        sourceKey,
+        endpointKey: "fantasypros-matchup-calendar-wr-week-4",
+        fetchedAt,
+        sourceStatus: "loaded",
+        sourceType: "matchup-calendar",
+        opponent: "LV",
+        homeAway: "home" as const,
+        opponentRank: 20,
+        matchupStars: 3,
+        matchupTier: "neutral",
+        matchupText: "This is a 3 star matchup.",
+        isBye: false,
+      },
+      {
+        week: 15,
+        rankEcr: null,
+        positionRank: "WR42",
+        bestRank: null,
+        worstRank: null,
+        averageRank: null,
+        rankStdDev: null,
+        lastUpdated: fetchedAt,
+        sourceKey,
+        endpointKey: "fantasypros-matchup-calendar-wr-week-15",
+        fetchedAt,
+        sourceStatus: "loaded",
+        sourceType: "matchup-calendar",
+        opponent: "BUF",
+        homeAway: "home" as const,
+        opponentRank: 3,
+        matchupStars: 5,
+        matchupTier: "easy",
+        matchupText: "This is a 5 star matchup.",
+        isBye: false,
+      },
+    ];
+    const signal = {
+      signalType: "matchup-calendar",
+      playerId: player.player_id,
+      fantasyProsId: "99999",
+      name: player.name,
+      position: "WR",
+      team: player.team,
+      source: "FantasyPros" as const,
+      updatedAt: fetchedAt,
+      weeks,
+      bestWeek: 15,
+      bestRankEcr: null,
+      bestPositionRank: "WR42",
+      averageRankEcr: null,
+      rankDelta: null,
+      bestMatchupStars: 5,
+      bestOpponentRank: 3,
+      matchupWindows: buildMatchupWindowSet(weeks, {
+        currentWeek: 2,
+        playoffWeeks: [15, 16, 17],
+      }),
+      confidence: 82,
+      note: "FantasyPros matchup calendar: W2 at MIA 4-star.",
+      sourceTrace: weeks.map(week => ({
+        source: "FantasyPros",
+        sourceKey,
+        endpointKey: week.endpointKey,
+        endpointLabel: "FantasyPros WR matchup calendar",
+        status: "loaded",
+        season: "2026",
+        scoring: "matchup-calendar",
+        week: week.week,
+        position: "WR",
+        rowCount: 153,
+        fetchedAt,
+        lastUpdated: fetchedAt,
+        evidence: "Stored FantasyPros matchup-calendar fixture row.",
+      })),
+      traceSummary:
+        "FantasyPros matchup calendar source trace: W2/W3/W4 from stored page snapshots (loaded).",
+    };
+
+    cachedReport.reportData.sourceSnapshotDiagnostics = [];
+    cachedReport.reportData.scheduleEdgeTargets = [
+      {
+        player,
+        signal,
+        score: 97,
+      },
+    ];
+
+    await loadCachedReport(page, cachedReport, "#rankings");
+
+    await expect(page.getByText("Matchup Edge Table")).toBeVisible();
+    const matchupSection = await openReportSection(page, "Matchup Edge Table");
+    const weekChips = matchupSection.locator(".admin-schedule-week-chip");
+    await expect(matchupSection.getByText("Waiver Receiver").first()).toBeVisible();
+    await expect(weekChips.filter({ hasText: "W2" }).filter({ hasText: "at MIA" })).toBeVisible();
+    await expect(weekChips.filter({ hasText: "4-star · #8" })).toBeVisible();
+    await expect(matchupSection.getByText("W15 vs. BUF 5-star (#3)")).toBeVisible();
+    await expect(matchupSection.getByText("Target window")).toBeVisible();
   });
 
   test("persists assistant watch preferences locally across fresh app loads", async ({

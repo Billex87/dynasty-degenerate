@@ -18,9 +18,9 @@ Recommended product use:
 - Use it for redraft lineup strength, draft assistant, value-over-cost, and replacement-level context.
 - Do not depend on FantasyPros VORP in paid/public outputs until FantasyPros production rights are cleared.
 
-## FantasyPros Matchup Calendar / ECR SOS
+## FantasyPros Matchup Calendar / Rank
 
-FantasyPros publishes a matchup calendar with ECR, player/team rows, and week-by-week matchup ratings. The DST page confirms the same calendar navigation also covers QB, RB, WR, TE, K, and DST, which makes it a strong candidate for schedule-aware streamer logic if usage rights and a stable fetch path are approved.
+FantasyPros publishes a matchup calendar with player rank, player/team rows, and week-by-week sortable matchup ratings. The DST page confirms the same calendar navigation also covers QB, RB, WR, TE, K, and DST. This is a matchup source, not the season-long strength-of-schedule page.
 
 Sources:
 
@@ -29,13 +29,13 @@ Sources:
 
 Recommended product use:
 
-- Store ECR, position, team, week, opponent, home/away, matchup rating, opponent rank, source URL, fetched timestamp, row count, checksum, and parser version in a scheduled/admin-only snapshot.
-- Treat the data as dynamic: refresh snapshots periodically before the season, refresh more often around in-season waiver and start/sit windows, and retain historical versions so ECR/SOS movement can be audited.
-- Use ECR as the quality guard: a better-ranked player with two favorable early weeks should beat a fringe option with one green matchup.
-- Add all-position rolling ECR into waiver AI Targets first, with D/ST and K available as quick streamer filters rather than the default view.
-- Add a Rankings-tab Schedule Edge table for browsing the same data by position and week range; keep it secondary to the core rankings so dynasty values are not visually replaced by short-term matchup context.
-- Keep D/ST/K pairing logic as a specialized streamer view, then let QB/RB/WR/TE reads use the same ECR window alongside projection, usage, and roster-need context.
-- Keep normal report loads snapshot-backed and avoid public-page live scrapes until FantasyPros terms and attribution/display limits are cleared.
+- Store rank, position, team, week, opponent, home/away, matchup stars, opponent rank, matchup tier, source URL, fetched timestamp, row count, and parser version in a scheduled/admin-only snapshot.
+- Treat the data as dynamic: refresh snapshots periodically before the season, refresh weekly during in-season waiver and start/sit windows, and retain historical versions so rank/matchup movement can be audited.
+- Use rank as the quality guard: a better-ranked player with two favorable early weeks should beat a fringe option with one green matchup.
+- Feed all-position rolling matchup rows into waiver AI Targets first, with D/ST and K available as quick streamer filters rather than the default view.
+- Add a Rankings-tab Matchup Edge table for browsing the same data by position and week range; keep it secondary to the core rankings so dynasty values are not visually replaced by short-term matchup context.
+- Keep D/ST/K pairing logic as a specialized streamer view, then let QB/RB/WR/TE reads use the same matchup window alongside projection, usage, and roster-need context.
+- Keep normal report loads snapshot-backed and keep public display admin-only until FantasyPros terms and attribution/display limits are cleared.
 
 ## Sleeper Draft/Trade Data Beyond Our Leagues
 

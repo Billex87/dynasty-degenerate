@@ -740,12 +740,50 @@
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
 }
 
+.admin-schedule-edge-controls {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.8fr) minmax(18rem, 1.55fr) minmax(9rem, 0.7fr);
+  gap: 0.8rem;
+  align-items: start;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.14);
+  padding: 0.85rem;
+}
+
+.admin-schedule-edge-control-group {
+  display: grid;
+  gap: 0.48rem;
+  min-width: 0;
+}
+
+.admin-schedule-edge-control-heading {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.admin-schedule-edge-control-heading strong {
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-schedule-edge-control-label {
+  color: #67e8f9;
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .admin-schedule-edge-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-  border-bottom: 1px solid rgba(34, 211, 238, 0.14);
-  padding: 0.75rem 0.85rem;
 }
 
 .admin-schedule-edge-filter {
@@ -776,6 +814,150 @@
 .admin-schedule-edge-filter:disabled {
   cursor: not-allowed;
   opacity: 0.38;
+}
+
+.admin-schedule-edge-range-group {
+  border-inline: 1px solid rgba(34, 211, 238, 0.12);
+  padding-inline: 0.85rem;
+}
+
+.admin-schedule-range-slider {
+  --range-start: 0%;
+  --range-end: 20%;
+  position: relative;
+  height: 1.8rem;
+  margin-top: 0.05rem;
+}
+
+.admin-schedule-range-slider::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 0.32rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      to right,
+      rgba(15, 23, 42, 0.9) 0%,
+      rgba(15, 23, 42, 0.9) var(--range-start),
+      rgba(251, 146, 60, 0.82) var(--range-start),
+      rgba(251, 146, 60, 0.82) var(--range-end),
+      rgba(15, 23, 42, 0.9) var(--range-end),
+      rgba(15, 23, 42, 0.9) 100%
+    );
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.18);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.admin-schedule-range-slider::after {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 0.72rem;
+  background:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc((100% / 17) - 1px),
+      rgba(226, 232, 240, 0.44) calc((100% / 17) - 1px),
+      rgba(226, 232, 240, 0.44) calc(100% / 17)
+    );
+  content: "";
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.admin-schedule-range-slider input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.admin-schedule-range-slider input::-webkit-slider-thumb {
+  width: 1.08rem;
+  height: 1.08rem;
+  border: 2px solid #fed7aa;
+  border-radius: 999px;
+  appearance: none;
+  background: #0f172a;
+  box-shadow:
+    0 0 0 4px rgba(251, 146, 60, 0.18),
+    0 0 18px rgba(34, 211, 238, 0.28);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.admin-schedule-range-slider input::-moz-range-thumb {
+  width: 1.08rem;
+  height: 1.08rem;
+  border: 2px solid #fed7aa;
+  border-radius: 999px;
+  background: #0f172a;
+  box-shadow:
+    0 0 0 4px rgba(251, 146, 60, 0.18),
+    0 0 18px rgba(34, 211, 238, 0.28);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.admin-schedule-week-ticks {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+  gap: 0.16rem;
+  align-items: center;
+}
+
+.admin-schedule-week-tick {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 1.35rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.12);
+  border-radius: 0.36rem;
+  background: rgba(8, 47, 73, 0.16);
+  color: #7dd3fc;
+  font-size: 0.58rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.admin-schedule-week-tick-selected {
+  border-color: rgba(251, 146, 60, 0.3);
+  background: rgba(251, 146, 60, 0.13);
+  color: #fed7aa;
+}
+
+.admin-schedule-week-tick-edge {
+  border-color: rgba(251, 146, 60, 0.68);
+  background: rgba(251, 146, 60, 0.24);
+  color: #fff7ed;
+}
+
+.admin-schedule-edge-count {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  padding: 0.65rem 0.9rem 0;
+  color: #93c5fd;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-schedule-edge-count strong {
+  color: #f8fafc;
+  font-size: 0.86rem;
+  font-weight: 950;
 }
 
 .admin-schedule-edge-table-wrap {
@@ -819,7 +1001,7 @@
 
 .admin-schedule-edge-table {
   width: 100%;
-  min-width: 58rem;
+  min-width: 70rem;
   border-collapse: separate;
   border-spacing: 0 0.48rem;
 }
@@ -936,10 +1118,131 @@
   color: #fecdd3;
 }
 
+.admin-schedule-edge-weeks-cell {
+  min-width: 20rem;
+}
+
+.admin-schedule-week-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.admin-schedule-edge-table .admin-schedule-week-chip {
+  display: grid;
+  min-width: 4.9rem;
+  gap: 0.1rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 0.55rem;
+  background: rgba(15, 23, 42, 0.66);
+  padding: 0.42rem 0.5rem;
+  color: #cbd5e1;
+  line-height: 1.05;
+}
+
+.admin-schedule-edge-table .admin-schedule-week-chip strong,
+.admin-schedule-edge-table .admin-schedule-week-chip span,
+.admin-schedule-edge-table .admin-schedule-week-chip em {
+  margin: 0;
+  overflow-wrap: normal;
+}
+
+.admin-schedule-edge-table .admin-schedule-week-chip strong {
+  color: #f8fafc;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+}
+
+.admin-schedule-edge-table .admin-schedule-week-chip span {
+  color: #e0f2fe;
+  font-size: 0.7rem;
+}
+
+.admin-schedule-edge-table .admin-schedule-week-chip em {
+  color: #93c5fd;
+  font-size: 0.6rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.admin-schedule-week-chip-good {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(6, 78, 59, 0.28);
+}
+
+.admin-schedule-week-chip-info {
+  border-color: rgba(34, 211, 238, 0.24);
+  background: rgba(8, 47, 73, 0.28);
+}
+
+.admin-schedule-week-chip-warn {
+  border-color: rgba(251, 191, 36, 0.28);
+  background: rgba(120, 53, 15, 0.26);
+}
+
+.admin-schedule-week-chip-danger {
+  border-color: rgba(251, 113, 133, 0.3);
+  background: rgba(127, 29, 29, 0.28);
+}
+
+.admin-schedule-week-chip-missing {
+  border-style: dashed;
+  opacity: 0.66;
+}
+
+.admin-schedule-health-disclosure {
+  border-top: 1px solid rgba(34, 211, 238, 0.12);
+}
+
+.admin-schedule-health-disclosure summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  color: #67e8f9;
+  cursor: pointer;
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.admin-schedule-health-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-schedule-health-disclosure summary em {
+  border: 1px solid rgba(251, 146, 60, 0.32);
+  border-radius: 999px;
+  background: rgba(120, 53, 15, 0.24);
+  padding: 0.25rem 0.48rem;
+  color: #fed7aa;
+  font-style: normal;
+  letter-spacing: 0;
+}
+
 .admin-schedule-health-missing {
   color: #64748b;
   font-size: 0.78rem;
   font-weight: 950;
+}
+
+@media (max-width: 900px) {
+  .admin-schedule-edge-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-schedule-edge-range-group {
+    border-inline: 0;
+    border-block: 1px solid rgba(34, 211, 238, 0.12);
+    padding: 0.75rem 0;
+  }
+
+  .admin-schedule-edge-table {
+    min-width: 64rem;
+  }
 }
 
 .admin-schedule-edge-empty {
@@ -1262,6 +1565,21 @@
   padding: 0.7rem;
 }
 
+.admin-traffic-stat-good {
+  border-color: rgba(52, 211, 153, 0.2);
+  background: rgba(6, 78, 59, 0.22);
+}
+
+.admin-traffic-stat-warn {
+  border-color: rgba(251, 191, 36, 0.24);
+  background: rgba(113, 63, 18, 0.2);
+}
+
+.admin-traffic-stat-danger {
+  border-color: rgba(251, 113, 133, 0.24);
+  background: rgba(127, 29, 29, 0.2);
+}
+
 .admin-traffic-stat span {
   display: block;
   color: #bae6fd;
@@ -1278,6 +1596,16 @@
   font-size: 1.22rem;
   font-weight: 950;
   line-height: 1;
+}
+
+.admin-traffic-stat em {
+  display: block;
+  margin-top: 0.28rem;
+  color: #cbd5e1;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 780;
+  line-height: 1.2;
 }
 
 .admin-traffic-grid {
@@ -1321,6 +1649,10 @@
   border-color: rgba(251, 113, 133, 0.2);
 }
 
+.admin-traffic-row-warn {
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
 .admin-traffic-row strong,
 .admin-traffic-row span,
 .admin-traffic-row em,
@@ -1351,6 +1683,87 @@
   font-style: normal;
   font-weight: 760;
   line-height: 1.25;
+}
+
+.admin-provider-clean-row {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  border: 1px solid rgba(52, 211, 153, 0.18);
+  border-radius: 0.72rem;
+  background: rgba(6, 78, 59, 0.18);
+  padding: 0.7rem;
+}
+
+.admin-provider-clean-row strong,
+.admin-provider-clean-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-provider-clean-row strong {
+  color: #bbf7d0;
+  font-size: 0.78rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.admin-provider-clean-row span {
+  color: #d1fae5;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.admin-provider-telemetry-details {
+  border-top: 1px solid rgba(34, 211, 238, 0.14);
+}
+
+.admin-provider-telemetry-details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.82rem 1rem;
+  color: #f8fafc;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-provider-telemetry-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-provider-telemetry-details summary::after {
+  content: "+";
+  flex: 0 0 auto;
+  color: #67e8f9;
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.admin-provider-telemetry-details[open] summary::after {
+  content: "-";
+}
+
+.admin-provider-telemetry-details summary span {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-provider-telemetry-details summary strong {
+  min-width: 0;
+  color: #cbd5e1;
+  font-size: 0.76rem;
+  font-weight: 850;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .admin-source-coverage-panel {
@@ -2834,7 +3247,14 @@
 
   .feedback-dialog {
     display: grid;
+    width: min(calc(100vw - 2rem), 30rem) !important;
+    max-width: min(calc(100vw - 2rem), 30rem) !important;
+    min-height: min(36rem, calc(100dvh - 2rem));
+    max-height: calc(100dvh - 2rem);
+    align-content: start;
+    gap: 1rem;
     justify-items: center;
+    overflow-y: auto;
     text-align: center;
     background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.18), transparent 34%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.16), transparent 36%), linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.96));
   }
@@ -2852,7 +3272,7 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    font-size: clamp(2.1rem, 7vw, 3rem);
+    font-size: clamp(1.9rem, 6vw, 2.55rem);
     line-height: 0.95;
   }
 
@@ -2872,7 +3292,7 @@
 
   .feedback-field-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.75rem;
   }
 
@@ -2906,7 +3326,7 @@
   }
 
   .feedback-textarea {
-    min-height: 8rem;
+    min-height: 12rem;
     resize: vertical;
   }
 
@@ -2940,8 +3360,10 @@
   .feedback-success {
     display: grid;
     justify-items: center;
+    align-content: center;
     gap: 0.45rem;
     width: 100%;
+    min-height: 22rem;
     border: 1px solid rgba(52, 211, 153, 0.24);
     border-radius: 1rem;
     background: radial-gradient(circle at 50% 0%, rgba(52, 211, 153, 0.18), transparent 42%), rgba(2, 6, 23, 0.58);

@@ -6058,23 +6058,23 @@ body {
   white-space: nowrap;
 }
 
-.dashboard-metric-card strong {
-  overflow: hidden;
+.dashboard-metric-card > strong {
   color: #f8fafc;
   font-size: clamp(0.88rem, 1vw, 1.04rem);
   font-weight: 950;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
-.dashboard-metric-card em {
-  overflow: hidden;
+.dashboard-metric-card > em {
   color: rgba(203, 213, 225, 0.66);
   font-size: 0.56rem;
   font-style: normal;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .dashboard-metric-card[data-tone="info"] {

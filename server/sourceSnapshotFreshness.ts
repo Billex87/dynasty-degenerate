@@ -4,6 +4,7 @@ import {
   type StoredSnapshotMetadata,
   type StoredSourceHealthEvent,
 } from './db';
+import { FANTASYPROS_MATCHUP_CALENDAR_POSITIONS, getFantasyProsMatchupCalendarSourceKey } from './fantasyProsMatchupCalendar';
 import { getFantasyProsRollingWeeks, type FantasyProsWeeklyEcrPosition } from './fantasyProsHealth';
 import type { SourceSnapshotFreshnessDiagnostic } from '../shared/types';
 
@@ -49,6 +50,7 @@ const DISABLED_VALUES = new Set(['0', 'false', 'no', 'off', 'disabled']);
 
 const PROVIDER_LABELS: Record<string, string> = {
   'fantasypros-news-v1': 'FantasyPros news snapshot',
+  'fantasypros-matchup-calendar-v1': 'FantasyPros matchup calendar snapshot',
   'fantasypros-endpoint:weekly-ecr': 'FantasyPros weekly ECR endpoint snapshot',
   'fantasypros-endpoint:ww': 'FantasyPros waiver-wire endpoint snapshot',
   'fantasypros-endpoint:projections': 'FantasyPros projections endpoint snapshot',
@@ -114,6 +116,9 @@ function latestProblemHealthBySource(events: StoredSourceHealthEvent[] = []) {
 }
 
 function sourceLabel(sourceKey: string, fallback?: string | null): string {
+  if (sourceKey.startsWith('fantasypros-matchup-calendar-v1:')) {
+    return PROVIDER_LABELS['fantasypros-matchup-calendar-v1'];
+  }
   return PROVIDER_LABELS[sourceKey] || fallback || sourceKey;
 }
 
@@ -137,6 +142,16 @@ function fantasyProsWeeklyEcrExpectedSources(
       staleAfterHours: DAILY_STALE_HOURS,
       missingLevel: 'info' as const,
     })));
+}
+
+function fantasyProsMatchupCalendarExpectedSources(season: string): ExpectedSnapshotSource[] {
+  return FANTASYPROS_MATCHUP_CALENDAR_POSITIONS.map((position) => ({
+    sourceKey: getFantasyProsMatchupCalendarSourceKey({ season, position }),
+    source: `FantasyPros ${position} matchup calendar snapshot`,
+    tableName: 'providerDataSnapshots',
+    staleAfterHours: WEEKLY_STALE_HOURS,
+    missingLevel: 'info' as const,
+  }));
 }
 
 function fantasyProsEndpointExpectedSources(
@@ -189,6 +204,7 @@ function fantasyProsEndpointExpectedSources(
       missingLevel: 'info',
     },
     ...fantasyProsWeeklyEcrExpectedSources(season, scoring, currentWeek, weekWindow),
+    ...fantasyProsMatchupCalendarExpectedSources(season),
   ];
 }
 

@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -85,6 +86,7 @@ import type {
   PlayerDetails,
   RankingSourceDiagnostic,
   ReportData,
+  WaiverWeeklyEcrWeek,
 } from "@shared/types";
 import type { AppRouter } from "../../../server/routers";
 import type {
@@ -94,9 +96,16 @@ import type {
 import {
   buildScheduleEdgeRows,
   buildScheduleSnapshotHealthRows,
+  getScheduleEdgeRangeAction,
+  getScheduleEdgeRangeSummary,
+  getScheduleEdgeWeeksInRange,
   formatScheduleEdgeValue,
+  normalizeScheduleEdgeWeekRange,
   SCHEDULE_EDGE_POSITION_FILTERS,
+  sortScheduleEdgeRows,
   type ScheduleEdgePositionFilter,
+  type ScheduleEdgeSortMode,
+  type ScheduleEdgeTone,
 } from "@/lib/scheduleEdgeRows";
 
 const DraftAnalysis = lazy(() =>
@@ -4849,13 +4858,34 @@ function isPriorityAdminDiagnosticRow(row: AdminValueDiagnosticRow): boolean {
   );
 }
 
+function isSourceTrustDiagnosticRow(row: AdminValueDiagnosticRow): boolean {
+  return /(redraft|dynasty|devy) source/i.test(row.area);
+}
+
+function isSourceErrorOrStale(row: AdminValueDiagnosticRow): boolean {
+  return /source error|source issue|stale data/i.test(row.status);
+}
+
+function isInformationalEmptySourceRow(
+  row: AdminValueDiagnosticRow
+): boolean {
+  if (!isSourceTrustDiagnosticRow(row)) return false;
+  if (!/no rows/i.test(row.status)) return false;
+  if (isSourceErrorOrStale(row)) return false;
+
+  return /Other available source weights normalize automatically|current status is empty|waiting for more .* consensus overlap/i.test(
+    row.note
+  );
+}
+
 function isHandledSourceTrustDiagnosticRow(
   row: AdminValueDiagnosticRow
 ): boolean {
-  if (!/(redraft|dynasty|devy) source/i.test(row.area)) return false;
-  if (/source error|stale data/i.test(row.status)) return false;
+  if (!isSourceTrustDiagnosticRow(row)) return false;
+  if (isSourceErrorOrStale(row)) return false;
+  if (isInformationalEmptySourceRow(row)) return true;
 
-  return /Other available source weights normalize automatically|source-excluded consensus|Trust (?:fell|rose|dropped|was unchanged)|waiting for more .* consensus overlap/i.test(
+  return /source-excluded consensus|Trust (?:fell|rose|dropped|was unchanged)/i.test(
     row.note
   );
 }
@@ -4871,20 +4901,6 @@ function compareAdminDiagnosticPriority(
     a.area.localeCompare(b.area) ||
     a.item.localeCompare(b.item)
   );
-}
-
-function getAdminValueAttentionSummary(reportData: ReportData): {
-  count: number;
-  tone: "warn" | "danger";
-} {
-  const priorityRows = buildAdminValueDiagnostics(reportData, []).filter(
-    isPriorityAdminDiagnosticRow
-  );
-
-  return {
-    count: priorityRows.length,
-    tone: priorityRows.some(row => row.tone === "danger") ? "danger" : "warn",
-  };
 }
 
 function buildAdminValueDiagnostics(
@@ -5542,38 +5558,40 @@ function getActionableMissingSnapshotDates(data?: {
 
 function AdminValueDiagnosticsTable({
   reportData,
+  rows,
+  priorityRows,
+  emptySourceRows,
 }: {
   reportData: ReportData;
+  rows: AdminValueDiagnosticRow[];
+  priorityRows: AdminValueDiagnosticRow[];
+  emptySourceRows: AdminValueDiagnosticRow[];
 }) {
-  const { data } = trpc.system.snapshotCoverage.useQuery(
-    { lookbackDays: 14 },
-    { refetchOnWindowFocus: false, staleTime: 1000 * 60 * 5 }
-  );
-
-  const rows = buildAdminValueDiagnostics(
-    reportData,
-    getActionableMissingSnapshotDates(data)
-  );
   const blendSummaries = buildAdminBlendSummaries(reportData);
   const leagueConfidence = reportData.leagueDiagnostics?.aiConfidence;
   const managerConfidenceRows = [...(leagueConfidence?.managerConfidence || [])]
     .sort((a, b) => a.score - b.score)
     .slice(0, 4);
-  const priorityRows = rows
-    .filter(isPriorityAdminDiagnosticRow)
-    .sort(compareAdminDiagnosticPriority)
-    .slice(0, 6);
   const priorityIds = new Set(priorityRows.map(row => row.id));
-  const remainingRows = rows.filter(row => !priorityIds.has(row.id));
+  const visiblePriorityRows = priorityRows.slice(0, 6);
+  const reviewRows = rows.filter(
+    row =>
+      !priorityIds.has(row.id) &&
+      isActionableDiagnosticTone(row.tone) &&
+      !isHandledSourceTrustDiagnosticRow(row)
+  );
+  const showConfidenceDrilldown =
+    priorityRows.length > 0 ||
+    reviewRows.some(row => /confidence/i.test(row.area));
 
   return (
     <div className="admin-value-diagnostics">
       <p className="admin-value-diagnostics-intro">
-        Admin eyes only. This shows what is calculated from Sleeper league
-        settings, what is covered by stored market values, and source health for
-        the active value lens.
+        Admin eyes only. Needs Attention lists real value/source problems. The
+        0-row watchlist is informational so we can see optional providers that
+        are configured but not currently contributing.
       </p>
-      {leagueConfidence && (
+      {showConfidenceDrilldown && leagueConfidence && (
         <section
           className="admin-confidence-drilldown"
           aria-label="Admin confidence drilldown"
@@ -5624,7 +5642,7 @@ function AdminValueDiagnosticsTable({
           )}
         </section>
       )}
-      {priorityRows.length > 0 && (
+      {visiblePriorityRows.length > 0 && (
         <section
           className="admin-critical-alerts"
           aria-label="Important admin value alerts"
@@ -5637,7 +5655,7 @@ function AdminValueDiagnosticsTable({
             </strong>
           </div>
           <div className="admin-critical-alerts-grid">
-            {priorityRows.map(row => (
+            {visiblePriorityRows.map(row => (
               <article
                 key={`priority-${row.id}`}
                 className={`admin-critical-alert-card admin-critical-alert-card-${row.tone || "info"}`}
@@ -5702,23 +5720,54 @@ function AdminValueDiagnosticsTable({
           </article>
         </div>
       )}
-      <div className="admin-value-diagnostics-grid">
-        {remainingRows.map(row => (
-          <article
-            key={row.id}
-            className={`admin-value-diagnostics-card admin-value-diagnostics-card-${row.tone || "info"}`}
-          >
-            <div className="admin-value-diagnostics-card-top">
-              <div>
-                <span>{row.area}</span>
-                <strong>{row.item}</strong>
+      {emptySourceRows.length > 0 && (
+        <section
+          className="admin-source-history-strip"
+          aria-label="Optional sources with zero rows"
+        >
+          <div className="admin-source-history-head">
+            <span>0-row source watchlist</span>
+            <strong>
+              {emptySourceRows.length} optional source
+              {emptySourceRows.length === 1 ? "" : "s"} returned no usable rows
+            </strong>
+          </div>
+          <div className="admin-source-history-grid">
+            {emptySourceRows.map(row => (
+              <article
+                key={`empty-source-${row.id}`}
+                className="admin-source-history-card"
+              >
+                <div>
+                  <span>{row.area}</span>
+                  <strong>{row.item}</strong>
+                </div>
+                <p>{row.note}</p>
+                <em>{row.status}</em>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+      {reviewRows.length > 0 && (
+        <div className="admin-value-diagnostics-grid">
+          {reviewRows.map(row => (
+            <article
+              key={row.id}
+              className={`admin-value-diagnostics-card admin-value-diagnostics-card-${row.tone || "info"}`}
+            >
+              <div className="admin-value-diagnostics-card-top">
+                <div>
+                  <span>{row.area}</span>
+                  <strong>{row.item}</strong>
+                </div>
+                <span className="admin-value-diagnostics-flag">{row.status}</span>
               </div>
-              <span className="admin-value-diagnostics-flag">{row.status}</span>
-            </div>
-            <p>{row.note}</p>
-          </article>
-        ))}
-      </div>
+              <p>{row.note}</p>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -6019,6 +6068,7 @@ function AdminAIReadoutDiagnosticsSection({
       row.count > 0 &&
       (!row.hasConfidence || !row.hasTrace || row.duplicateRisk)
   );
+  if (!flaggedRows.length) return null;
 
   return (
     <CollapsibleReportSection
@@ -6370,6 +6420,7 @@ function AdminPlayerReceiptDiagnosticsSection({
   reportData: ReportData;
 }) {
   const diagnostics = buildPlayerReceiptDiagnostics(reportData);
+  if (!diagnostics.guardrailRows.length) return null;
 
   return (
     <CollapsibleReportSection
@@ -6513,12 +6564,30 @@ function AdminValueDiagnosticsSection({
 }: {
   reportData: ReportData;
 }) {
-  const attentionSummary = getAdminValueAttentionSummary(reportData);
+  const { data } = trpc.system.snapshotCoverage.useQuery(
+    { lookbackDays: 14 },
+    { refetchOnWindowFocus: false, staleTime: 1000 * 60 * 5 }
+  );
+  const rows = buildAdminValueDiagnostics(
+    reportData,
+    getActionableMissingSnapshotDates(data)
+  );
+  const priorityRows = rows
+    .filter(isPriorityAdminDiagnosticRow)
+    .sort(compareAdminDiagnosticPriority);
+  const emptySourceRows = rows
+    .filter(isInformationalEmptySourceRow)
+    .sort(compareAdminDiagnosticPriority);
+  if (!priorityRows.length && !emptySourceRows.length) return null;
+  const attentionSummary = {
+    count: priorityRows.length,
+    tone: priorityRows.some(row => row.tone === "danger") ? "danger" as const : "warn" as const,
+  };
 
   return (
     <CollapsibleReportSection
-      title="Value Source Configuration"
-      kicker="Hidden diagnostics"
+      title="Value Source Health"
+      kicker="Actionable flags and 0-row sources"
       previewAccessory={
         attentionSummary.count > 0 ? (
           <AdminAttentionBadge
@@ -6526,14 +6595,90 @@ function AdminValueDiagnosticsSection({
             label="Needs attention"
             tone={attentionSummary.tone}
           />
+        ) : emptySourceRows.length > 0 ? (
+          <AdminAttentionBadge
+            count={emptySourceRows.length}
+            label="0-row sources"
+            tone="info"
+          />
         ) : undefined
       }
       premium
       defaultOpen
     >
-      <AdminValueDiagnosticsTable reportData={reportData} />
+      <AdminValueDiagnosticsTable
+        reportData={reportData}
+        rows={rows}
+        priorityRows={priorityRows}
+        emptySourceRows={emptySourceRows}
+      />
     </CollapsibleReportSection>
   );
+}
+
+const SCHEDULE_EDGE_SORT_OPTIONS: Array<{
+  value: ScheduleEdgeSortMode;
+  label: string;
+}> = [
+  { value: "easiest", label: "Easiest" },
+  { value: "toughest", label: "Toughest" },
+  { value: "rank", label: "Rank" },
+];
+
+const SCHEDULE_EDGE_WEEK_OPTIONS = Array.from(
+  { length: 18 },
+  (_, index) => index + 1
+);
+
+function getScheduleEdgeWeekTone(week: WaiverWeeklyEcrWeek): ScheduleEdgeTone {
+  if (week.isBye) return "warn";
+  if (week.matchupTier === "easy" || Number(week.matchupStars || 0) >= 4)
+    return "good";
+  if (
+    week.matchupTier === "hard" ||
+    (typeof week.matchupStars === "number" && week.matchupStars <= 2)
+  )
+    return "danger";
+  return "info";
+}
+
+function formatScheduleEdgeWeekOpponent(week: WaiverWeeklyEcrWeek): string {
+  if (week.isBye) return "Bye";
+  const site =
+    week.homeAway === "home"
+      ? "vs"
+      : week.homeAway === "away"
+        ? "at"
+        : "";
+  return week.opponent ? `${site} ${week.opponent}`.trim() : "Opponent TBD";
+}
+
+function formatScheduleEdgeWeekMeta(week: WaiverWeeklyEcrWeek): string {
+  if (week.isBye) return "No game";
+  const stars =
+    typeof week.matchupStars === "number"
+      ? `${week.matchupStars}-star`
+      : "Unrated";
+  const rank =
+    typeof week.opponentRank === "number" ? `#${week.opponentRank}` : null;
+  return rank ? `${stars} · ${rank}` : stars;
+}
+
+function formatScheduleEdgeRangeGrade(
+  summary: ReturnType<typeof getScheduleEdgeRangeSummary>
+): string {
+  if (!summary.playableWeeks) return "No matchup rows";
+  const average =
+    summary.averageStars !== null ? `${summary.averageStars.toFixed(1)} avg` : "Unrated";
+  return [
+    average,
+    `${summary.easyWeeks} easy`,
+    `${summary.hardWeeks} hard`,
+    summary.byeWeeks ? `${summary.byeWeeks} bye` : null,
+    summary.missingWeeks.length ? `${summary.missingWeeks.length} missing` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function AdminScheduleEdgeSection({
@@ -6543,31 +6688,65 @@ function AdminScheduleEdgeSection({
 }) {
   const [positionFilter, setPositionFilter] =
     useState<ScheduleEdgePositionFilter>("ALL");
-  const rows = buildScheduleEdgeRows(reportData);
-  const healthRows = buildScheduleSnapshotHealthRows(reportData);
+  const [sortMode, setSortMode] = useState<ScheduleEdgeSortMode>("easiest");
+  const [weekStart, setWeekStart] = useState(1);
+  const [weekEnd, setWeekEnd] = useState(4);
+  const rows = useMemo(() => buildScheduleEdgeRows(reportData), [reportData]);
+  const healthRows = useMemo(
+    () => buildScheduleSnapshotHealthRows(reportData),
+    [reportData]
+  );
+  const selectedRange = useMemo(
+    () => normalizeScheduleEdgeWeekRange({ start: weekStart, end: weekEnd }),
+    [weekStart, weekEnd]
+  );
   const healthPositions = SCHEDULE_EDGE_POSITION_FILTERS.filter(
     (position): position is Exclude<ScheduleEdgePositionFilter, "ALL"> =>
       position !== "ALL"
   );
-  const visibleRows =
-    positionFilter === "ALL"
-      ? rows
-      : rows.filter(row => row.position === positionFilter);
+  const filteredRows = useMemo(
+    () =>
+      positionFilter === "ALL"
+        ? rows
+        : rows.filter(row => row.position === positionFilter),
+    [positionFilter, rows]
+  );
+  const visibleRows = useMemo(
+    () => sortScheduleEdgeRows(filteredRows, selectedRange, sortMode),
+    [filteredRows, selectedRange, sortMode]
+  );
   const loadedPositions = new Set(rows.map(row => row.position));
   const sourceWarningCount = rows.filter(
     row => row.sourceTone === "warn" || row.sourceTone === "danger"
   ).length;
+  const healthIssueCount = healthRows.reduce(
+    (count, row) =>
+      count +
+      Object.values(row.cells).filter(
+        cell => cell?.tone === "warn" || cell?.tone === "danger"
+      ).length,
+    0
+  );
+  const issueCount = healthIssueCount + sourceWarningCount;
+  const rangeTrackStyle = {
+    "--range-start": `${((selectedRange.start - 1) / 17) * 100}%`,
+    "--range-end": `${((selectedRange.end - 1) / 17) * 100}%`,
+  } as CSSProperties;
+
+  if (!rows.length && !healthRows.length) return null;
 
   return (
     <CollapsibleReportSection
-      title="Schedule Edge Table"
-      kicker="Next-three-week ranks"
+      title="Matchup Edge Table"
+      kicker="Next-three-week matchups"
       previewAccessory={
-        rows.length > 0 ? (
+        issueCount > 0 ? (
           <AdminAttentionBadge
-            count={rows.length}
-            label="Rank targets"
-            tone={sourceWarningCount ? "warn" : "info"}
+            count={issueCount}
+            label="Snapshot issues"
+            tone={healthRows.some(row =>
+              Object.values(row.cells).some(cell => cell?.tone === "danger")
+            ) || rows.some(row => row.sourceTone === "danger") ? "danger" : "warn"}
           />
         ) : undefined
       }
@@ -6575,145 +6754,270 @@ function AdminScheduleEdgeSection({
       defaultOpen
     >
       <div className="admin-schedule-edge">
-        <p className="admin-value-diagnostics-intro">
-          Admin-first table from stored FantasyPros rolling weekly rank snapshots.
-          Matchup-calendar SOS ratings and projections stay out until their
-          source rights and freshness gates are clean.
-        </p>
-        {healthRows.length > 0 && (
-          <div className="admin-schedule-health">
-            <div className="admin-schedule-health-heading">
-              <span>Schedule Snapshot Health</span>
-              <em>FantasyPros weekly rank coverage</em>
-            </div>
-            <div className="admin-schedule-edge-table-wrap">
-              <table className="admin-schedule-edge-table admin-schedule-health-table">
-                <thead>
-                  <tr>
-                    <th>Week</th>
-                    {healthPositions.map(position => (
-                      <th key={position}>{position}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {healthRows.map(row => (
-                    <tr key={row.week}>
-                      <td>
-                        <strong>Week {row.week}</strong>
-                      </td>
-                      {healthPositions.map(position => {
-                        const cell = row.cells[position];
-                        return (
-                          <td key={position}>
-                            {cell ? (
-                              <span
-                                className={`admin-schedule-edge-pill admin-schedule-edge-pill-${cell.tone}`}
-                                title={cell.detail}
-                              >
-                                {cell.label}
-                                {typeof cell.rowCount === "number"
-                                  ? ` · ${cell.rowCount.toLocaleString()}`
-                                  : ""}
-                              </span>
-                            ) : (
-                              <span className="admin-schedule-health-missing">
-                                -
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="admin-schedule-edge-controls">
+          <div className="admin-schedule-edge-control-group">
+            <span className="admin-schedule-edge-control-label">
+              Position
+            </span>
+            <div className="admin-schedule-edge-toolbar" aria-label="Schedule edge filters">
+              {SCHEDULE_EDGE_POSITION_FILTERS.map(position => {
+                const disabled = position !== "ALL" && !loadedPositions.has(position);
+                return (
+                  <button
+                    key={position}
+                    type="button"
+                    className={
+                      positionFilter === position
+                        ? "admin-schedule-edge-filter admin-schedule-edge-filter-active"
+                        : "admin-schedule-edge-filter"
+                    }
+                    disabled={disabled}
+                    onClick={() => setPositionFilter(position)}
+                  >
+                    {position === "ALL" ? "All" : position}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        )}
-        <div className="admin-schedule-edge-toolbar" aria-label="Schedule edge filters">
-          {SCHEDULE_EDGE_POSITION_FILTERS.map(position => {
-            const disabled = position !== "ALL" && !loadedPositions.has(position);
-            return (
+
+          <div className="admin-schedule-edge-control-group admin-schedule-edge-range-group">
+            <div className="admin-schedule-edge-control-heading">
+              <span className="admin-schedule-edge-control-label">Weeks</span>
+              <strong>{selectedRange.start === selectedRange.end
+                ? `Week ${selectedRange.start}`
+                : `Weeks ${selectedRange.start}-${selectedRange.end}`}</strong>
+            </div>
+            <div
+              className="admin-schedule-range-slider"
+              style={rangeTrackStyle}
+            >
+              <input
+                type="range"
+                min={1}
+                max={18}
+                value={selectedRange.start}
+                aria-label="Start week"
+                onChange={event => {
+                  const next = Number(event.currentTarget.value);
+                  setWeekStart(next);
+                  if (next > weekEnd) setWeekEnd(next);
+                }}
+              />
+              <input
+                type="range"
+                min={1}
+                max={18}
+                value={selectedRange.end}
+                aria-label="End week"
+                onChange={event => {
+                  const next = Number(event.currentTarget.value);
+                  setWeekEnd(next);
+                  if (next < weekStart) setWeekStart(next);
+                }}
+              />
+            </div>
+            <div
+              className="admin-schedule-week-ticks"
+              aria-label="Weeks 1 through 18"
+            >
+              {SCHEDULE_EDGE_WEEK_OPTIONS.map(week => {
+                const isSelected =
+                  week >= selectedRange.start && week <= selectedRange.end;
+                const isEdge =
+                  week === selectedRange.start || week === selectedRange.end;
+                return (
+                  <span
+                    key={week}
+                    className={[
+                      "admin-schedule-week-tick",
+                      isSelected ? "admin-schedule-week-tick-selected" : "",
+                      isEdge ? "admin-schedule-week-tick-edge" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {week}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="admin-schedule-edge-control-group">
+            <span className="admin-schedule-edge-control-label">Sort</span>
+            <div className="admin-schedule-edge-toolbar" aria-label="Schedule edge sort">
+              {SCHEDULE_EDGE_SORT_OPTIONS.map(option => (
               <button
-                key={position}
+                key={option.value}
                 type="button"
                 className={
-                  positionFilter === position
+                  sortMode === option.value
                     ? "admin-schedule-edge-filter admin-schedule-edge-filter-active"
                     : "admin-schedule-edge-filter"
                 }
-                disabled={disabled}
-                onClick={() => setPositionFilter(position)}
+                onClick={() => setSortMode(option.value)}
               >
-                {position === "ALL" ? "All" : position}
+                {option.label}
               </button>
-            );
-          })}
+              ))}
+            </div>
+          </div>
         </div>
+
+        <div className="admin-schedule-edge-count">
+          <strong>{visibleRows.length.toLocaleString()}</strong>
+          <span>
+            {positionFilter === "ALL" ? "players" : `${positionFilter} rows`}
+          </span>
+        </div>
+
         {rows.length ? (
           <div className="admin-schedule-edge-table-wrap">
             <table className="admin-schedule-edge-table">
               <thead>
                 <tr>
                   <th>Player</th>
-                  <th>Best</th>
-                  <th>Window</th>
+                  <th>Rank</th>
+                  <th>Selected Weeks</th>
+                  <th>Range</th>
+                  <th>Playoffs</th>
                   <th>Value</th>
                   <th>Availability</th>
-                  <th>Source Freshness</th>
-                  <th>Action</th>
+                  <th>Read</th>
                 </tr>
               </thead>
               <tbody>
-                {visibleRows.map(row => (
-                  <tr key={row.id}>
-                    <td>
-                      <strong>{row.player.name}</strong>
-                      <span>
-                        {row.position}
-                        {row.team ? ` · ${row.team}` : ""}
-                      </span>
-                    </td>
-                    <td>
-                      <strong>{row.bestRank}</strong>
-                      <span>{row.bestWeek ? `Week ${row.bestWeek}` : "Rolling"}</span>
-                    </td>
-                    <td>{row.window || "No weekly rank rows"}</td>
-                    <td>
-                      <strong>{formatScheduleEdgeValue(row.value)}</strong>
-                      <span>{row.currentRank || "No rank"}</span>
-                    </td>
-                    <td>{row.player.owner || "Available"}</td>
-                    <td>
-                      <span
-                        className={`admin-schedule-edge-pill admin-schedule-edge-pill-${row.sourceTone}`}
-                      >
-                        {row.sourceFreshness}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`admin-schedule-edge-pill admin-schedule-edge-pill-${row.actionTone}`}
-                        title={row.note}
-                      >
-                        {row.action}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {visibleRows.map(row => {
+                  const weekRows = getScheduleEdgeWeeksInRange(row, selectedRange);
+                  const summary = getScheduleEdgeRangeSummary(row, selectedRange);
+                  const action = getScheduleEdgeRangeAction(row, selectedRange);
+
+                  return (
+                    <tr key={row.id}>
+                      <td>
+                        <strong>{row.player.name}</strong>
+                        <span>
+                          {row.position}
+                          {row.team ? ` · ${row.team}` : ""}
+                        </span>
+                      </td>
+                      <td>
+                        <strong>{row.bestRank}</strong>
+                        <span>{row.bestWeek ? `Best W${row.bestWeek}` : "Rolling"}</span>
+                      </td>
+                      <td className="admin-schedule-edge-weeks-cell">
+                        <div className="admin-schedule-week-chip-list">
+                          {weekRows.map(week => (
+                            <span
+                              key={`${row.id}-${week.week}`}
+                              className={`admin-schedule-week-chip admin-schedule-week-chip-${getScheduleEdgeWeekTone(week)}`}
+                            >
+                              <strong>W{week.week}</strong>
+                              <span>{formatScheduleEdgeWeekOpponent(week)}</span>
+                              <em>{formatScheduleEdgeWeekMeta(week)}</em>
+                            </span>
+                          ))}
+                          {summary.missingWeeks.map(week => (
+                            <span
+                              key={`${row.id}-missing-${week}`}
+                              className="admin-schedule-week-chip admin-schedule-week-chip-missing"
+                            >
+                              <strong>W{week}</strong>
+                              <span>No row</span>
+                              <em>Missing</em>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <strong>
+                          {summary.score === null ? "-" : `${summary.score}/100`}
+                        </strong>
+                        <span>{formatScheduleEdgeRangeGrade(summary)}</span>
+                      </td>
+                      <td>{row.playoffWindow || "No playoff rows"}</td>
+                      <td>
+                        <strong>{formatScheduleEdgeValue(row.value)}</strong>
+                        <span>{row.currentRank || "No rank"}</span>
+                      </td>
+                      <td>{row.player.owner || "Available"}</td>
+                      <td>
+                        <span
+                          className={`admin-schedule-edge-pill admin-schedule-edge-pill-${action.actionTone}`}
+                          title={`${row.note} ${row.sourceFreshness}`}
+                        >
+                          {action.action}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         ) : (
           <div className="admin-schedule-edge-empty">
-            <strong>No Schedule Edge rows yet</strong>
+            <strong>No matchup rows yet</strong>
             <p>
-              The report did not return stored weekly rank targets. Run the
-              FantasyPros endpoint snapshot refresh or regenerate after the
-              weekly snapshot job has data for the rolling week window.
+              The report did not return stored FantasyPros matchup targets. Run
+              the FantasyPros snapshot refresh or regenerate after the weekly
+              matchup job has data for the rolling week window.
             </p>
           </div>
+        )}
+        {healthRows.length > 0 && (
+          <details className="admin-schedule-health-disclosure">
+            <summary>
+              <span>Snapshot coverage</span>
+              <em>{issueCount.toLocaleString()} issues</em>
+            </summary>
+            <div className="admin-schedule-health">
+              <div className="admin-schedule-edge-table-wrap">
+                <table className="admin-schedule-edge-table admin-schedule-health-table">
+                  <thead>
+                    <tr>
+                      <th>Week</th>
+                      {healthPositions.map(position => (
+                        <th key={position}>{position}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {healthRows.map(row => (
+                      <tr key={row.week}>
+                        <td>
+                          <strong>Week {row.week}</strong>
+                        </td>
+                        {healthPositions.map(position => {
+                          const cell = row.cells[position];
+                          return (
+                            <td key={position}>
+                              {cell ? (
+                                <span
+                                  className={`admin-schedule-edge-pill admin-schedule-edge-pill-${cell.tone}`}
+                                  title={cell.detail}
+                                >
+                                  {cell.label}
+                                  {typeof cell.rowCount === "number"
+                                    ? ` · ${cell.rowCount.toLocaleString()}`
+                                    : ""}
+                                </span>
+                              ) : (
+                                <span className="admin-schedule-health-missing">
+                                  -
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
         )}
       </div>
     </CollapsibleReportSection>
@@ -6864,8 +7168,11 @@ function AdminProviderTelemetrySection() {
       staleTime: 1000 * 60,
     }
   );
-  const issueCount = (data?.totals.failures || 0) + (data?.totals.rateLimited || 0);
-  const issueTone = data?.totals.rateLimited ? "danger" : "warn";
+  const issueCount =
+    (data?.totals.failures || 0) +
+    (data?.totals.rateLimited || 0) +
+    (data?.totals.userLoadNetworkCalls || 0);
+  const issueTone = data?.totals.rateLimited || data?.totals.failures ? "danger" : "warn";
 
   return (
     <CollapsibleReportSection
@@ -6885,6 +7192,65 @@ function AdminProviderTelemetrySection() {
       <AdminProviderTelemetryPanel />
     </CollapsibleReportSection>
   );
+}
+
+type AdminProviderTelemetryBucket = {
+  label: string;
+  calls: number;
+  networkCalls: number;
+  cacheHits: number;
+  cacheHitRatePct: number;
+  failures: number;
+  rateLimited: number;
+  costUnits: number;
+  avgDurationMs: number;
+  lastSeen: string | null;
+  lastStatus: number | null;
+  lastMessage: string | null;
+};
+
+type AdminProviderTelemetryEventRow = {
+  provider: string;
+  endpoint: string;
+  status: number | null;
+  ok: boolean;
+  durationMs: number | null;
+  cacheStatus: string;
+  scope: string;
+  message: string | null;
+  createdAt: string;
+};
+
+function hasProviderTelemetryIssue(row: AdminProviderTelemetryBucket): boolean {
+  return row.failures > 0 || row.rateLimited > 0;
+}
+
+function isProviderBudgetDriver(row: AdminProviderTelemetryBucket): boolean {
+  return hasProviderTelemetryIssue(row) || row.networkCalls > 0 || row.costUnits > 0;
+}
+
+function getProviderTelemetryRowClass(row: AdminProviderTelemetryBucket): string {
+  if (row.rateLimited > 0 || row.failures > 0) return "admin-traffic-row admin-traffic-row-error";
+  if (row.networkCalls > 0) return "admin-traffic-row admin-traffic-row-warn";
+  return "admin-traffic-row";
+}
+
+function formatProviderTelemetryCallSummary(row: AdminProviderTelemetryBucket): string {
+  const parts = [
+    `${row.calls.toLocaleString()} calls`,
+    `${row.networkCalls.toLocaleString()} network`,
+    `${row.cacheHitRatePct}% cached`,
+  ];
+  if (row.costUnits > 0) parts.push(`${row.costUnits.toLocaleString()} cost`);
+  return parts.join(" · ");
+}
+
+function formatProviderTelemetryIssueSummary(row: AdminProviderTelemetryBucket): string {
+  const issues = [
+    row.failures ? `${row.failures.toLocaleString()} failures` : null,
+    row.rateLimited ? `${row.rateLimited.toLocaleString()} 429s` : null,
+  ].filter(Boolean);
+  return issues.length ? issues.join(" · ") : "No failures or 429s";
 }
 
 function AdminProviderTelemetryPanel() {
@@ -6950,18 +7316,62 @@ function AdminProviderTelemetryPanel() {
     );
   }
 
+  const issueTotal = data.totals.failures + data.totals.rateLimited;
+  const userLoadNetworkCalls = data.totals.userLoadNetworkCalls;
+  const providerRows = data.byProvider
+    .filter(isProviderBudgetDriver)
+    .slice(0, 4);
+  const endpointRows = data.byEndpoint
+    .filter(isProviderBudgetDriver)
+    .slice(0, 5);
+  const scopeRows = data.byScope
+    .filter(row => row.calls > 0)
+    .slice(0, 5);
+  const attentionRows = [
+    ...data.byProvider
+      .filter(hasProviderTelemetryIssue)
+      .map(row => ({ ...row, group: "Provider" })),
+    ...data.byEndpoint
+      .filter(hasProviderTelemetryIssue)
+      .map(row => ({ ...row, group: "Endpoint" })),
+  ].slice(0, 6);
+  const recentNetworkEvents: AdminProviderTelemetryEventRow[] = data.recentEvents
+    .filter(event => !event.ok || event.status === 429 || event.cacheStatus !== "hit")
+    .slice(0, 6);
+
   const totalCards = [
-    { label: "Calls", value: data.totals.calls },
-    { label: "Network Calls", value: data.totals.networkCalls },
-    { label: "Cache Hits", value: data.totals.cacheHits },
-    { label: "Cache Hit Rate", value: `${data.totals.cacheHitRatePct}%` },
-    { label: "Failures", value: data.totals.failures },
-    { label: "429s", value: data.totals.rateLimited },
-    { label: "User Load", value: data.totals.userLoadNetworkCalls },
-    { label: "Cron Calls", value: data.totals.cronCalls },
-    { label: "Admin Calls", value: data.totals.adminCalls },
-    { label: "Cost Units", value: data.totals.costUnits },
-    { label: "Avg Duration", value: `${data.totals.avgDurationMs}ms` },
+    {
+      label: "Network",
+      value: data.totals.networkCalls,
+      detail: `${data.totals.calls.toLocaleString()} total calls`,
+      tone: userLoadNetworkCalls ? "warn" : "neutral",
+    },
+    {
+      label: "Cache Hit",
+      value: `${data.totals.cacheHitRatePct}%`,
+      detail: `${data.totals.cacheHits.toLocaleString()} cached responses`,
+      tone: data.totals.cacheHitRatePct >= 80 || data.totals.networkCalls === 0 ? "good" : "neutral",
+    },
+    {
+      label: "Issues",
+      value: issueTotal,
+      detail: issueTotal
+        ? `${data.totals.failures.toLocaleString()} failures · ${data.totals.rateLimited.toLocaleString()} 429s`
+        : "No failures or 429s",
+      tone: data.totals.rateLimited || data.totals.failures ? "danger" : "good",
+    },
+    {
+      label: "User Load Network",
+      value: userLoadNetworkCalls,
+      detail: userLoadNetworkCalls ? "Review provider boundary" : "Clean boundary",
+      tone: userLoadNetworkCalls ? "warn" : "good",
+    },
+    {
+      label: "Cost Units",
+      value: data.totals.costUnits,
+      detail: `${data.totals.avgDurationMs}ms avg duration`,
+      tone: data.totals.costUnits ? "neutral" : "good",
+    },
   ];
 
   return (
@@ -6987,60 +7397,74 @@ function AdminProviderTelemetryPanel() {
 
       <div className="admin-traffic-stat-grid">
         {totalCards.map(card => (
-          <article key={card.label} className="admin-traffic-stat">
+          <article
+            key={card.label}
+            className={`admin-traffic-stat admin-traffic-stat-${card.tone}`}
+          >
             <span>{card.label}</span>
             <strong>
               {typeof card.value === "number"
                 ? card.value.toLocaleString()
                 : card.value}
             </strong>
+            <em>{card.detail}</em>
           </article>
         ))}
       </div>
 
-      <div className="admin-traffic-grid">
+      <div className="admin-traffic-grid admin-provider-telemetry-grid">
         <section className="admin-traffic-card">
-          <h4>Providers</h4>
+          <h4>Needs Attention</h4>
           <div className="admin-traffic-list">
-            {data.byProvider.length ? (
-              data.byProvider.map(provider => (
-                <div
-                  key={provider.label}
-                  className={`admin-traffic-row ${provider.failures || provider.rateLimited ? "admin-traffic-row-error" : ""}`}
-                >
-                  <strong>{provider.label}</strong>
-                  <span>
-                    {provider.calls} calls · {provider.networkCalls} network ·{" "}
-                    {provider.cacheHitRatePct}% cached
-                  </span>
-                  <em>
-                    {provider.failures} failures · {provider.rateLimited} 429s ·{" "}
-                    {provider.costUnits} cost units
-                  </em>
-                </div>
-              ))
+            {attentionRows.length || userLoadNetworkCalls ? (
+              <>
+                {userLoadNetworkCalls > 0 && (
+                  <div className="admin-traffic-row admin-traffic-row-warn">
+                    <strong>User-load provider calls</strong>
+                    <span>
+                      {userLoadNetworkCalls.toLocaleString()} network call
+                      {userLoadNetworkCalls === 1 ? "" : "s"} happened during user-load scope
+                    </span>
+                    <em>Normal report loads should stay snapshot-backed for provider data.</em>
+                  </div>
+                )}
+                {attentionRows.map(row => (
+                  <div
+                    key={`${row.group}:${row.label}`}
+                    className={getProviderTelemetryRowClass(row)}
+                  >
+                    <strong>
+                      {row.group}: {row.label}
+                    </strong>
+                    <span>{formatProviderTelemetryIssueSummary(row)}</span>
+                    <em>
+                      {formatProviderTelemetryCallSummary(row)} · Last{" "}
+                      {formatAdminTelemetryDate(row.lastSeen)}
+                      {row.lastMessage ? ` · ${row.lastMessage}` : ""}
+                    </em>
+                  </div>
+                ))}
+              </>
             ) : (
-              <p className="admin-traffic-empty">
-                No provider calls recorded in this window.
-              </p>
+              <div className="admin-provider-clean-row">
+                <strong>No provider budget issues</strong>
+                <span>No failures, 429s, or user-load provider network calls in this window.</span>
+              </div>
             )}
           </div>
         </section>
 
         <section className="admin-traffic-card">
-          <h4>Highest Cost Endpoints</h4>
+          <h4>Top Cost Endpoints</h4>
           <div className="admin-traffic-list">
-            {data.byEndpoint.length ? (
-              data.byEndpoint.map(endpoint => (
+            {endpointRows.length ? (
+              endpointRows.map(endpoint => (
                 <div
                   key={endpoint.label}
-                  className={`admin-traffic-row ${endpoint.failures || endpoint.rateLimited ? "admin-traffic-row-error" : ""}`}
+                  className={getProviderTelemetryRowClass(endpoint)}
                 >
                   <strong>{endpoint.label}</strong>
-                  <span>
-                    {endpoint.costUnits} cost units · {endpoint.calls} calls ·{" "}
-                    {endpoint.cacheHitRatePct}% cached
-                  </span>
+                  <span>{formatProviderTelemetryCallSummary(endpoint)}</span>
                   <em>
                     Avg {endpoint.avgDurationMs}ms · Last{" "}
                     {formatAdminTelemetryDate(endpoint.lastSeen)}
@@ -7049,70 +7473,102 @@ function AdminProviderTelemetryPanel() {
               ))
             ) : (
               <p className="admin-traffic-empty">
-                No endpoint cost rows recorded yet.
+                No endpoint cost rows worth reviewing in this window.
               </p>
             )}
           </div>
         </section>
 
         <section className="admin-traffic-card">
-          <h4>Call Scope</h4>
+          <h4>Provider Summary</h4>
           <div className="admin-traffic-list">
-            {data.byScope.length ? (
-              data.byScope.map(scope => (
+            {providerRows.length ? (
+              providerRows.map(provider => (
                 <div
-                  key={scope.label}
-                  className={`admin-traffic-row ${scope.failures || scope.rateLimited ? "admin-traffic-row-error" : ""}`}
+                  key={provider.label}
+                  className={getProviderTelemetryRowClass(provider)}
                 >
-                  <strong>{scope.label}</strong>
-                  <span>
-                    {scope.calls} calls · {scope.networkCalls} network ·{" "}
-                    {scope.cacheHitRatePct}% cached
-                  </span>
+                  <strong>{provider.label}</strong>
+                  <span>{formatProviderTelemetryCallSummary(provider)}</span>
                   <em>
-                    {scope.failures} failures · {scope.rateLimited} 429s · Last{" "}
-                    {formatAdminTelemetryDate(scope.lastSeen)}
+                    {formatProviderTelemetryIssueSummary(provider)}
                   </em>
                 </div>
               ))
             ) : (
               <p className="admin-traffic-empty">
-                No scoped provider calls recorded yet.
-              </p>
-            )}
-          </div>
-        </section>
-
-        <section className="admin-traffic-card">
-          <h4>Recent Provider Events</h4>
-          <div className="admin-traffic-list">
-            {data.recentEvents.length ? (
-              data.recentEvents.slice(0, 10).map((event, index) => (
-                <div
-                  key={`${event.provider}-${event.endpoint}-${event.createdAt}-${index}`}
-                  className={`admin-traffic-row ${event.ok ? "" : "admin-traffic-row-error"}`}
-                >
-                  <strong>
-                    {event.provider} · {event.endpoint}
-                  </strong>
-                  <span>
-                    {event.ok ? "ok" : "failed"} · {event.status ?? "n/a"} ·{" "}
-                    {event.cacheStatus} · {event.scope} · {event.durationMs ?? 0}ms
-                  </span>
-                  <em>
-                    {formatAdminTelemetryDate(event.createdAt)}
-                    {event.message ? ` · ${event.message}` : ""}
-                  </em>
-                </div>
-              ))
-            ) : (
-              <p className="admin-traffic-empty">
-                No recent provider events recorded.
+                No provider rows worth reviewing in this window.
               </p>
             )}
           </div>
         </section>
       </div>
+
+      <details className="admin-provider-telemetry-details">
+        <summary>
+          <span>Audit detail</span>
+          <strong>
+            {scopeRows.length.toLocaleString()} scopes ·{" "}
+            {recentNetworkEvents.length.toLocaleString()} recent network rows
+          </strong>
+        </summary>
+        <div className="admin-traffic-grid">
+          <section className="admin-traffic-card">
+            <h4>Call Scope</h4>
+            <div className="admin-traffic-list">
+              {scopeRows.length ? (
+                scopeRows.map(scope => (
+                  <div
+                    key={scope.label}
+                    className={getProviderTelemetryRowClass(scope)}
+                  >
+                    <strong>{scope.label}</strong>
+                    <span>{formatProviderTelemetryCallSummary(scope)}</span>
+                    <em>
+                      {formatProviderTelemetryIssueSummary(scope)} · Last{" "}
+                      {formatAdminTelemetryDate(scope.lastSeen)}
+                    </em>
+                  </div>
+                ))
+              ) : (
+                <p className="admin-traffic-empty">
+                  No scoped provider calls recorded yet.
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section className="admin-traffic-card">
+            <h4>Recent Network Events</h4>
+            <div className="admin-traffic-list">
+              {recentNetworkEvents.length ? (
+                recentNetworkEvents.map((event, index) => (
+                  <div
+                    key={`${event.provider}-${event.endpoint}-${event.createdAt}-${index}`}
+                    className={`admin-traffic-row ${event.ok ? "" : "admin-traffic-row-error"}`}
+                  >
+                    <strong>
+                      {event.provider} · {event.endpoint}
+                    </strong>
+                    <span>
+                      {event.ok ? "ok" : "failed"} · {event.status ?? "n/a"} ·{" "}
+                      {event.cacheStatus} · {event.scope} · {event.durationMs ?? 0}ms
+                    </span>
+                    <em>
+                      {formatAdminTelemetryDate(event.createdAt)}
+                      {event.message ? ` · ${event.message}` : ""}
+                    </em>
+                  </div>
+                ))
+              ) : (
+                <p className="admin-traffic-empty">
+                  No recent network events recorded.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
+      </details>
     </div>
   );
 }
@@ -7139,6 +7595,7 @@ function AdminSourceCoverageSection() {
   const tone = needsAttention.some(row => row.level === "danger")
     ? "danger"
     : "warn";
+  if (query.data && !needsAttention.length) return null;
 
   return (
     <CollapsibleReportSection
@@ -9739,6 +10196,7 @@ export default function Home() {
                             leagueDiagnostics={reportData.leagueDiagnostics}
                             recentTransactions={reportData.recentTransactions}
                             leagueValueMode={leagueValueMode}
+                            scheduleEdgeTargets={reportData.scheduleEdgeTargets}
                           />
                         </CollapsibleReportSection>
                       )}

@@ -7,7 +7,7 @@ import { apiErrorHandler, apiNotFoundHandler, configureSecurity } from './securi
 import { storeKtcSnapshot } from '../ktcSnapshotJob';
 import { getSnapshotDateKey } from '../ktcLoader';
 import { getProspectSnapshotMonth, shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from '../prospectSource';
-import { refreshFantasyProsEndpointSnapshotRefresh, runDynamicDataRefresh } from '../dynamicDataJobs';
+import { refreshFantasyProsEndpointSnapshotRefresh, refreshFantasyProsMatchupCalendarRefresh, runDynamicDataRefresh } from '../dynamicDataJobs';
 import {
   getFantasyProsEndpointSnapshotScheduleLabel,
   getPacificScheduleParts,
@@ -255,18 +255,29 @@ app.get('/api/cron/fantasypros-endpoint-snapshots', async (req, res) => {
   }
 
   try {
-    const result = await refreshFantasyProsEndpointSnapshotRefresh({ force: forceRun });
-    res.status(result.skipped ? 202 : 200).json({
+    const [result, matchupCalendar] = await Promise.all([
+      refreshFantasyProsEndpointSnapshotRefresh({ force: forceRun }),
+      refreshFantasyProsMatchupCalendarRefresh({ force: forceRun }),
+    ]);
+    const skipped = result.skipped && matchupCalendar.skipped;
+    res.status(skipped ? 202 : 200).json({
       ok: true,
       forced: forceRun,
-      skipped: result.skipped,
-      reason: result.reason,
+      skipped,
+      reason: [result.reason, matchupCalendar.reason].filter(Boolean).join(' ') || null,
       season: result.season,
       currentWeek: result.currentWeek,
       weekWindow: result.weekWindow,
       endpointCount: result.results.length,
-      persistedCount: result.results.filter((row) => row.persisted).length,
-      errorCount: result.results.filter((row) => row.status === 'error' || row.status === 'rate_limited').length,
+      matchupCalendarCount: matchupCalendar.results.length,
+      persistedCount: [
+        ...result.results,
+        ...matchupCalendar.results,
+      ].filter((row) => row.persisted).length,
+      errorCount: [
+        ...result.results.filter((row) => row.status === 'error' || row.status === 'rate_limited'),
+        ...matchupCalendar.results.filter((row) => row.status === 'error'),
+      ].length,
       results: result.results.map((row) => ({
         key: row.endpointKey,
         sourceKey: row.sourceKey,
@@ -274,6 +285,15 @@ app.get('/api/cron/fantasypros-endpoint-snapshots', async (req, res) => {
         rowCount: row.rowCount,
         totalExperts: row.totalExperts,
         lastUpdated: row.lastUpdated,
+        persisted: row.persisted,
+        error: row.error,
+      })),
+      matchupCalendarResults: matchupCalendar.results.map((row) => ({
+        key: row.position,
+        sourceKey: row.sourceKey,
+        status: row.status,
+        rowCount: row.rowCount,
+        weekCount: row.weekCount,
         persisted: row.persisted,
         error: row.error,
       })),

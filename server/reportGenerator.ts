@@ -21,6 +21,7 @@ import {
 import { isFantasyNerdsTestDataActive } from './fantasyNerds';
 import { loadStoredPlayerPropMarketSignals, type PlayerPropMarketSignal } from './playerPropSignals';
 import { getHistoricalPlayerValueAtDate, type HistoricalPlayerValueLookup } from './playerValueTimeline';
+import { buildLeaguePlayoffWeeks } from '../shared/matchupWindows';
 import type {
   LeagueValueMode,
   ManagerIntelPlayer,
@@ -178,7 +179,9 @@ interface SeasonData {
   reserveSlots?: number;
   taxiSlots?: number;
   scoringSettings?: Record<string, any>;
+  currentWeek?: number;
   playoffWeekStart?: number;
+  playoffWeeks?: number[];
   valueBlendProfileKey?: string;
   valueBlendProfileLabel?: string;
 }
@@ -1075,6 +1078,9 @@ function buildLeagueDiagnostics(
   const fantasyProsSeasonCoverage = playerValues.filter((value) => Number(value.fantasypros_season_value || 0) > 0).length;
   const dealerCoverage = playerValues.filter((value) => Number(value.benchmark_value_dynastydealer || 0) > 0).length;
   const seasonNumber = Number(currentSeasonData.label);
+  const playoffWeeks = currentSeasonData.playoffWeeks?.length
+    ? currentSeasonData.playoffWeeks
+    : buildLeaguePlayoffWeeks(currentSeasonData.playoffWeekStart, 3, 18);
   const redraftTradeWindowEndDate = leagueValueMode === 'redraft' && Number.isFinite(seasonNumber)
     ? getRedraftChampionshipWeekEndValueDate(seasonNumber, currentSeasonData.playoffWeekStart).toISOString().split('T')[0]
     : null;
@@ -1083,6 +1089,10 @@ function buildLeagueDiagnostics(
     teamCount,
     valueMode: leagueValueMode,
     currentSeason: currentSeasonData.label,
+    currentWeek: currentSeasonData.currentWeek ?? null,
+    playoffWeekStart: playoffWeeks[0] || currentSeasonData.playoffWeekStart || null,
+    playoffWeeks,
+    championshipWeek: playoffWeeks.at(-1) || null,
     redraftTradeWindowEndDate,
     rosterSlots: currentSeasonData.rosterPositions || [],
     starterSlots,

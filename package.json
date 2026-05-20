@@ -43,6 +43,7 @@
     "test:e2e:production": "env -u NO_COLOR PRODUCTION_SMOKE=true playwright test tests/e2e/production-smoke.spec.ts --project=desktop-chrome",
     "test:e2e:production:responsive": "env -u NO_COLOR PRODUCTION_SMOKE=true playwright test tests/e2e/production-smoke.spec.ts",
     "check:fantasypros": "node scripts/check-fantasypros.mjs",
+    "refresh:fantasypros-matchups": "tsx scripts/refresh-fantasypros-matchup-calendar.ts",
     "probe:external-sources": "node scripts/probe-external-sources.mjs",
     "audit:neon-transfer": "node scripts/audit-neon-transfer.mjs",
     "audit:report-payload": "node scripts/audit-report-payload.mjs",

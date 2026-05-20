@@ -3320,10 +3320,10 @@ export function AssistantFeatureShells({
           <div className="assistant-feature-metrics">
             <MetricPill label="Best add" value={bestWaiver?.name || '-'} tone={bestWaiver ? 'good' : 'neutral'} />
             <MetricPill label="Drop candidates" value={intel?.droppablePlayers?.length || 0} tone={intel?.droppablePlayers?.length ? 'warn' : 'neutral'} />
-            <MetricPill label="ECR trace" value={data.waiverIntelligence?.weeklyEcrTargets?.length || 0} tone={data.waiverIntelligence?.weeklyEcrTargets?.length ? 'good' : 'neutral'} />
+            <MetricPill label="Matchup trace" value={data.waiverIntelligence?.weeklyEcrTargets?.length || 0} tone={data.waiverIntelligence?.weeklyEcrTargets?.length ? 'good' : 'neutral'} />
           </div>
           {renderAssistantPlayerRows(waiverAdds.slice(0, 4).map((player) => {
-            const ecrRank = player.weeklyEcr?.bestPositionRank || (player.weeklyEcr?.bestRankEcr ? `ECR ${Math.round(player.weeklyEcr.bestRankEcr)}` : null);
+            const ecrRank = player.weeklyEcr?.bestPositionRank || (player.weeklyEcr?.bestRankEcr ? `Rank ${Math.round(player.weeklyEcr.bestRankEcr)}` : null);
             return {
               id: player.player_id,
               name: player.name,
@@ -3340,9 +3340,9 @@ export function AssistantFeatureShells({
             readType="Waiver Opportunity"
             confidence={waiverConfidence}
             severity={waiverAdds.length ? 'good' : 'warn'}
-            chips={[data.waiverIntelligence ? 'Sleeper waiver data' : { label: 'No waiver payload', tone: 'warn' }, data.waiverIntelligence?.weeklyEcrTargets?.length ? 'Stored ECR trace' : null, leagueValueMode === 'redraft' ? 'Weekly usage lens' : 'Dynasty stash lens'].filter(Boolean) as AIReadChip[]}
+            chips={[data.waiverIntelligence ? 'Sleeper waiver data' : { label: 'No waiver payload', tone: 'warn' }, data.waiverIntelligence?.weeklyEcrTargets?.length ? 'Stored matchup trace' : null, leagueValueMode === 'redraft' ? 'Weekly usage lens' : 'Dynasty stash lens'].filter(Boolean) as AIReadChip[]}
             body={bestWaiver
-              ? `${bestWaiver.name} is the highest-priority available signal from returned trending, value, and rolling ECR data. ${bestWaiver.weeklyEcr?.traceSummary || 'Use the full waiver panel for add/drop context.'}`
+              ? `${bestWaiver.name} is the highest-priority available signal from returned trending, value, and rolling matchup data. ${bestWaiver.weeklyEcr?.traceSummary || 'Use the full waiver panel for add/drop context.'}`
               : 'No available waiver targets were returned, so no add/drop recommendation is shown here.'}
             backgroundVariant="waiver"
             compact

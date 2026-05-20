@@ -9,7 +9,10 @@ import type {
   TrendingPlayer,
   WaiverBidHistoryRecord,
   WaiverWeeklyEcrSignal,
+  WaiverWeeklyEcrTarget,
+  WaiverWeeklyEcrWeek,
 } from "@shared/types";
+import { getShortTermMatchupOutlook } from "@shared/matchupWindows";
 import { trpc } from "@/lib/trpc";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { TeamLogoPill } from "../TeamLogoPill";
@@ -501,6 +504,7 @@ type WaiverRecommendationContext = {
   irOnlyOpenSpots: number;
   targetPositions: WaiverPosition[];
   recommendations: WaiverRecommendation[];
+  defensePairingPlan: WaiverDefensePairingPlan | null;
   summary: string | null;
 };
 
@@ -617,6 +621,23 @@ type WaiverSpecialTeamsUpgradeRead = {
   position: WaiverSpecialTeamsPosition;
   playerId: string;
   reason: string;
+};
+type WaiverDefenseRosterCandidate = {
+  player: TrendingPlayer | WaiverManagerPlayer;
+  signal: WaiverWeeklyEcrSignal;
+  source: "rostered" | "available";
+};
+type WaiverDefensePairingPlan = {
+  title: string;
+  summary: string;
+  action: "pair" | "replace" | "add-two";
+  confidencePct: number;
+  keep: WaiverDefenseRosterCandidate[];
+  add: WaiverDefenseRosterCandidate[];
+  drop: WaiverDefenseRosterCandidate[];
+  currentScore: number | null;
+  proposedScore: number;
+  evidence: string[];
 };
 
 function isWaiverPosition(
@@ -752,6 +773,92 @@ function getWaiverWeeklyEcrSignal(
   );
 }
 
+function normalizeWaiverDefenseLookup(value?: string | null): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getWaiverWeeklyEcrSignalForPlayer(
+  player: Pick<TrendingPlayer, "player_id" | "name" | "pos" | "team">,
+  data?: NonNullable<ReportData["waiverIntelligence"]>,
+  scheduleEdgeTargets: WaiverWeeklyEcrTarget[] = []
+): WaiverWeeklyEcrSignal | null {
+  const direct = getWaiverWeeklyEcrSignal(player as TrendingPlayer, data);
+  if (direct) return direct;
+
+  const position = player.pos === "DST" ? "DEF" : player.pos;
+  const teamKey = normalizeWaiverDefenseLookup(player.team);
+  const nameKey = normalizeWaiverDefenseLookup(player.name);
+  const targets = [
+    ...(data?.weeklyEcrTargets || []),
+    ...(data?.defensePairingTargets || []),
+    ...scheduleEdgeTargets,
+  ];
+
+  return (
+    targets.find(target => target.player.player_id === player.player_id)
+      ?.signal ||
+    targets.find(target => {
+      const targetPosition =
+        target.signal.position === "DST" ? "DEF" : target.signal.position;
+      return (
+        targetPosition === position &&
+        teamKey &&
+        normalizeWaiverDefenseLookup(target.signal.team || target.player.team) ===
+          teamKey
+      );
+    })?.signal ||
+    targets.find(target => {
+      const targetPosition =
+        target.signal.position === "DST" ? "DEF" : target.signal.position;
+      return (
+        targetPosition === position &&
+        nameKey &&
+        normalizeWaiverDefenseLookup(target.signal.name || target.player.name) ===
+          nameKey
+      );
+    })?.signal ||
+    null
+  );
+}
+
+function getWaiverMatchupStarValue(week: WaiverWeeklyEcrWeek): number | null {
+  if (
+    typeof week.matchupStars === "number" &&
+    Number.isFinite(week.matchupStars)
+  ) {
+    return Math.max(1, Math.min(5, week.matchupStars));
+  }
+  if (
+    typeof week.opponentRank === "number" &&
+    Number.isFinite(week.opponentRank)
+  ) {
+    const rank = Math.max(1, Math.min(32, week.opponentRank));
+    return 1 + ((32 - rank) / 31) * 4;
+  }
+  return null;
+}
+
+function getWaiverDefenseWeekLabel(week: WaiverWeeklyEcrWeek): string {
+  if (week.isBye) return `W${week.week} bye`;
+  const site =
+    week.homeAway === "home"
+      ? "vs"
+      : week.homeAway === "away"
+        ? "at"
+        : "";
+  const opponent = week.opponent
+    ? `${site} ${week.opponent}`.trim()
+    : "opponent TBD";
+  const stars =
+    typeof week.matchupStars === "number"
+      ? `${week.matchupStars}-star`
+      : "unrated";
+  return `W${week.week} ${opponent} ${stars}`;
+}
+
 function getWaiverWeeklyEcrBestRank(
   signal?: WaiverWeeklyEcrSignal | null
 ): string | null {
@@ -773,9 +880,34 @@ function formatWaiverWeeklyEcrWindow(
   signal?: WaiverWeeklyEcrSignal | null
 ): string | null {
   if (!signal?.weeks?.length) return null;
-  return signal.weeks
-    .slice(0, 3)
-    .map(week => `W${week.week} ${week.positionRank || (week.rankEcr ? `ECR ${week.rankEcr}` : "ranked")}`)
+  const windowWeeks = signal.matchupWindows?.next3?.weeks || null;
+  const rows = windowWeeks?.length
+    ? signal.weeks.filter(week => windowWeeks.includes(week.week))
+    : signal.weeks.slice(0, 3);
+
+  return rows
+    .map(week => {
+      if (week.isBye) return `W${week.week} BYE`;
+      if (week.opponent || week.matchupStars || week.opponentRank) {
+        const site =
+          week.homeAway === "home"
+            ? "vs."
+            : week.homeAway === "away"
+              ? "at"
+              : "";
+        const opponent = week.opponent
+          ? `${site} ${week.opponent}`.trim()
+          : "opponent TBD";
+        const stars =
+          typeof week.matchupStars === "number"
+            ? `${week.matchupStars}-star`
+            : "unrated";
+        const rank =
+          typeof week.opponentRank === "number" ? `#${week.opponentRank}` : null;
+        return `W${week.week} ${opponent} ${stars}${rank ? ` (${rank})` : ""}`;
+      }
+      return `W${week.week} ${week.positionRank || (week.rankEcr ? `Rank ${week.rankEcr}` : "ranked")}`;
+    })
     .join(" / ");
 }
 
@@ -785,13 +917,19 @@ function formatWaiverWeeklyEcrReason(
   if (!signal) return null;
   const bestRank = getWaiverWeeklyEcrBestRank(signal);
   const window = formatWaiverWeeklyEcrWindow(signal);
+  const playoffSummary = signal.matchupWindows?.playoffs?.playableWeeks
+    ? signal.matchupWindows.playoffs.summary
+    : null;
   const movement =
     signal.rankDelta && signal.rankDelta !== 0
       ? signal.rankDelta > 0
         ? `improved ${signal.rankDelta} spots`
         : `slipped ${Math.abs(signal.rankDelta)} spots`
       : null;
-  return [bestRank ? `FantasyPros next-3 ECR peaks at ${bestRank}` : null, window, movement]
+  const label = signal.signalType === "matchup-calendar"
+    ? "FantasyPros next-3 matchup window"
+    : "FantasyPros next-3 rank window";
+  return [bestRank ? `${label}: ${bestRank}` : null, window, playoffSummary, movement]
     .filter(Boolean)
     .join(" • ") || null;
 }
@@ -824,18 +962,44 @@ function formatWaiverEcrTraceMeta(
 
 function getWaiverWeeklyEcrRecommendationScore(
   signal: WaiverWeeklyEcrSignal | null,
-  position: WaiverPosition | null
+  position: WaiverPosition | null,
+  leagueValueMode: LeagueValueMode = "dynasty"
 ): number {
   if (!signal || !position) return 0;
   const rankLimit = WAIVER_WEEKLY_ECR_RANK_LIMITS[position];
   const bestRank = getWaiverWeeklyEcrRankNumber(signal) || signal.bestRankEcr || null;
   if (!bestRank || bestRank > rankLimit) return 0;
   const rankScore = Math.max(0, 860 - (bestRank / rankLimit) * 520);
+  if (isNonDynastyWaiverPosition(position) && signal.signalType === "matchup-calendar") {
+    const outlook = getShortTermMatchupOutlook(signal.matchupWindows);
+    const next3 = signal.matchupWindows?.next3;
+    const easyWeeks = next3?.easyWeeks ?? 0;
+    const hardWeeks = next3?.hardWeeks ?? 0;
+    const shortTermScore =
+      outlook.score * 6 +
+      easyWeeks * 90 -
+      hardWeeks * 140 -
+      (outlook.isRoughStart ? 420 : 0);
+    const rankWeight = outlook.isRoughStart ? 0.2 : leagueValueMode === "redraft" ? 0.42 : 0.28;
+    return Math.max(
+      0,
+      Math.round(rankScore * rankWeight + shortTermScore + Math.min(signal.confidence || 0, 100))
+    );
+  }
   const trendScore = signal.rankDelta
     ? Math.max(-120, Math.min(180, signal.rankDelta * 14))
     : 0;
   const confidenceScore = Math.min(signal.confidence || 0, 100) * 2.4;
   return Math.round(rankScore + trendScore + confidenceScore);
+}
+
+function hasRoughSpecialTeamsMatchupStart(
+  signal?: WaiverWeeklyEcrSignal | null
+): boolean {
+  return Boolean(
+    signal?.signalType === "matchup-calendar" &&
+      getShortTermMatchupOutlook(signal.matchupWindows).isRoughStart
+  );
 }
 
 function collectWaiverCandidates(
@@ -1033,6 +1197,235 @@ function getWaiverManagerPositionPlayers(
   return Array.from(byId.values()).sort(compareWaiverManagerPlayers);
 }
 
+function getWaiverDefenseCoverageRead(
+  defenses: WaiverDefenseRosterCandidate[],
+  preferredWeeks?: number[]
+): {
+  score: number;
+  easyWeeks: number;
+  hardWeeks: number;
+  labels: string[];
+} | null {
+  const weekNumbers =
+    preferredWeeks?.length
+      ? Array.from(new Set(preferredWeeks)).sort((a, b) => a - b)
+      : Array.from(
+          new Set(
+            defenses.flatMap(defense =>
+              defense.signal.matchupWindows?.next6?.weeks?.length
+                ? defense.signal.matchupWindows.next6.weeks
+                : defense.signal.weeks.slice(0, 6).map(week => week.week)
+            )
+          )
+        ).sort((a, b) => a - b);
+  if (!weekNumbers.length) return null;
+
+  let easyWeeks = 0;
+  let hardWeeks = 0;
+  const labels: string[] = [];
+  const weeklyScores = weekNumbers
+    .map(weekNumber => {
+      const options = defenses
+        .map(defense => ({
+          defense,
+          week: defense.signal.weeks.find(week => week.week === weekNumber),
+        }))
+        .filter(
+          (entry): entry is {
+            defense: WaiverDefenseRosterCandidate;
+            week: WaiverWeeklyEcrWeek;
+          } => Boolean(entry.week && !entry.week.isBye)
+        )
+        .map(entry => ({
+          ...entry,
+          stars: getWaiverMatchupStarValue(entry.week),
+        }))
+        .filter(
+          (entry): entry is {
+            defense: WaiverDefenseRosterCandidate;
+            week: WaiverWeeklyEcrWeek;
+            stars: number;
+          } => entry.stars !== null
+        )
+        .sort((a, b) => b.stars - a.stars);
+      const best = options[0] || null;
+      if (!best) return null;
+      if (best.stars >= 4) easyWeeks += 1;
+      if (best.stars <= 2) hardWeeks += 1;
+      labels.push(`${best.defense.player.name}: ${getWaiverDefenseWeekLabel(best.week)}`);
+      return ((best.stars - 1) / 4) * 100;
+    })
+    .filter((value): value is number => value !== null);
+
+  if (!weeklyScores.length) return null;
+  return {
+    score: Math.round(
+      weeklyScores.reduce((sum, value) => sum + value, 0) / weeklyScores.length
+    ),
+    easyWeeks,
+    hardWeeks,
+    labels,
+  };
+}
+
+function buildWaiverDefenseCandidates({
+  data,
+  viewerPositionCounts,
+  scheduleEdgeTargets,
+}: {
+  data: NonNullable<ReportData["waiverIntelligence"]>;
+  viewerPositionCounts: ReportData["managerPositionCounts"][number] | null;
+  scheduleEdgeTargets?: WaiverWeeklyEcrTarget[];
+}): {
+  rostered: WaiverDefenseRosterCandidate[];
+  available: WaiverDefenseRosterCandidate[];
+} {
+  const rostered = getWaiverManagerPositionPlayers(viewerPositionCounts, "DEF")
+    .map(player => {
+      const signal = getWaiverWeeklyEcrSignalForPlayer(
+        player,
+        data,
+        scheduleEdgeTargets
+      );
+      return signal ? { player, signal, source: "rostered" as const } : null;
+    })
+    .filter(
+      (candidate): candidate is WaiverDefenseRosterCandidate =>
+        Boolean(candidate)
+    );
+  const availableById = new Map<string, WaiverDefenseRosterCandidate>();
+  const addAvailable = (player?: TrendingPlayer | null) => {
+    if (!player || player.owner || player.pos !== "DEF") return;
+    if (availableById.has(player.player_id)) return;
+    const signal = getWaiverWeeklyEcrSignalForPlayer(
+      player,
+      data,
+      scheduleEdgeTargets
+    );
+    if (!signal) return;
+    availableById.set(player.player_id, {
+      player,
+      signal,
+      source: "available",
+    });
+  };
+
+  data.defensePairingTargets?.forEach(target => addAvailable(target.player));
+  data.weeklyEcrTargets?.forEach(target => addAvailable(target.player));
+  addAvailable(data.bestAvailableByPosition.DEF);
+  data.availableTrendingAdds.forEach(addAvailable);
+  data.recentlyDroppedValuable.forEach(addAvailable);
+
+  return {
+    rostered,
+    available: Array.from(availableById.values()).sort((a, b) => {
+      const aScore = getWaiverDefenseCoverageRead([a])?.score ?? 0;
+      const bScore = getWaiverDefenseCoverageRead([b])?.score ?? 0;
+      return bScore - aScore;
+    }),
+  };
+}
+
+export function buildWaiverDefensePairingPlan({
+  data,
+  viewerPositionCounts,
+  leagueDiagnostics,
+  scheduleEdgeTargets,
+}: {
+  data: NonNullable<ReportData["waiverIntelligence"]>;
+  viewerPositionCounts: ReportData["managerPositionCounts"][number] | null;
+  leagueDiagnostics?: ReportData["leagueDiagnostics"];
+  scheduleEdgeTargets?: WaiverWeeklyEcrTarget[];
+}): WaiverDefensePairingPlan | null {
+  if (!waiverLeagueUsesPosition(leagueDiagnostics, "DEF")) return null;
+  const { rostered, available } = buildWaiverDefenseCandidates({
+    data,
+    viewerPositionCounts,
+    scheduleEdgeTargets,
+  });
+  if (!available.length) return null;
+
+  const preferredWeeks =
+    rostered[0]?.signal.matchupWindows?.next6?.weeks ||
+    available[0]?.signal.matchupWindows?.next6?.weeks ||
+    undefined;
+  const currentRead = rostered.length
+    ? getWaiverDefenseCoverageRead(rostered.slice(0, 2), preferredWeeks)
+    : null;
+  const ownedPairOptions = rostered.flatMap(rosteredDefense =>
+    available.map(availableDefense => ({
+      keep: [rosteredDefense],
+      add: [availableDefense],
+      read: getWaiverDefenseCoverageRead(
+        [rosteredDefense, availableDefense],
+        preferredWeeks
+      ),
+    }))
+  );
+  const availablePairOptions = available.flatMap((first, index) =>
+    available.slice(index + 1).map(second => ({
+      keep: [],
+      add: [first, second],
+      read: getWaiverDefenseCoverageRead([first, second], preferredWeeks),
+    }))
+  );
+  const bestOwnedPair = ownedPairOptions
+    .filter(option => option.read)
+    .sort((a, b) => (b.read?.score || 0) - (a.read?.score || 0))[0];
+  const bestAvailablePair = availablePairOptions
+    .filter(option => option.read)
+    .sort((a, b) => (b.read?.score || 0) - (a.read?.score || 0))[0];
+  const currentScore = currentRead?.score ?? null;
+  const shouldReplace =
+    bestAvailablePair?.read &&
+    (!bestOwnedPair?.read ||
+      !rostered.length ||
+      (currentScore !== null && bestAvailablePair.read.score >= currentScore + 18) ||
+      (bestOwnedPair.read.score && bestAvailablePair.read.score >= bestOwnedPair.read.score + 12));
+  const chosen = shouldReplace ? bestAvailablePair : bestOwnedPair || bestAvailablePair;
+  if (!chosen?.read) return null;
+
+  const action: WaiverDefensePairingPlan["action"] =
+    rostered.length && shouldReplace ? "replace" : rostered.length ? "pair" : "add-two";
+  const drop =
+    action === "replace"
+      ? rostered.slice(0, Math.min(rostered.length, chosen.add.length || 1))
+      : [];
+  const proposedNames = [
+    ...chosen.keep.map(item => item.player.name),
+    ...chosen.add.map(item => item.player.name),
+  ];
+  const dropNames = drop.map(item => item.player.name);
+  const title =
+    action === "replace"
+      ? `Replace your D/ST room with ${proposedNames.join(" + ")}`
+      : action === "pair"
+        ? `Pair ${chosen.keep[0].player.name} with ${chosen.add[0].player.name}`
+        : `Add ${proposedNames.join(" + ")} as a D/ST stream pair`;
+  const comparison =
+    currentScore === null
+      ? null
+      : `current room ${currentScore}/100, proposed ${chosen.read.score}/100`;
+  const dropCopy = dropNames.length ? ` Drop ${dropNames.join(" and ")}.` : "";
+
+  return {
+    title,
+    summary: `${chosen.read.easyWeeks} easy week${chosen.read.easyWeeks === 1 ? "" : "s"} and ${chosen.read.hardWeeks} hard week${chosen.read.hardWeeks === 1 ? "" : "s"} across the next matchup window${comparison ? ` (${comparison})` : ""}.${dropCopy}`,
+    action,
+    confidencePct: clampPercentValue(
+      58 +
+        chosen.read.score / 3 +
+        Math.max(0, (chosen.read.score - (currentScore || 45)) / 2)
+    ),
+    keep: chosen.keep,
+    add: chosen.add,
+    drop,
+    currentScore,
+    proposedScore: chosen.read.score,
+    evidence: chosen.read.labels.slice(0, 6),
+  };
+}
+
 function buildWaiverSpecialTeamsUpgradeReads({
   data,
   viewerPositionCounts,
@@ -1056,6 +1449,7 @@ function buildWaiverSpecialTeamsUpgradeReads({
         ? data.highestKtcAvailable
         : null);
     if (!available || available.owner) return;
+    if (hasRoughSpecialTeamsMatchupStart(getWaiverWeeklyEcrSignal(available, data))) return;
 
     const current =
       getWaiverManagerPositionPlayers(viewerPositionCounts, position)[0] ||
@@ -1673,6 +2067,7 @@ function buildWaiverRecommendationContext({
   recentTransactions,
   storedWaiverBidHistory,
   leagueValueMode: leagueValueModeInput,
+  scheduleEdgeTargets,
 }: {
   data: NonNullable<ReportData["waiverIntelligence"]>;
   leagueId?: string;
@@ -1685,6 +2080,7 @@ function buildWaiverRecommendationContext({
   recentTransactions?: ReportData["recentTransactions"];
   storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
   leagueValueMode?: ReportData["leagueValueMode"];
+  scheduleEdgeTargets?: ReportData["scheduleEdgeTargets"];
 }): WaiverRecommendationContext {
   const normalizedViewer = normalizeReportManagerName(viewerManager);
   const viewerIntel = managerRosterIntelligence?.find(
@@ -1700,6 +2096,7 @@ function buildWaiverRecommendationContext({
       irOnlyOpenSpots: 0,
       targetPositions: [],
       recommendations: [],
+      defensePairingPlan: null,
       summary: null,
     };
   }
@@ -1721,9 +2118,18 @@ function buildWaiverRecommendationContext({
     leagueDiagnostics,
     playerDetailsById,
   });
+  const defensePairingPlan = buildWaiverDefensePairingPlan({
+    data,
+    viewerPositionCounts,
+    leagueDiagnostics,
+    scheduleEdgeTargets,
+  });
   Object.values(specialTeamsUpgrades).forEach(upgrade => {
     if (upgrade) needWeights[upgrade.position] += 920;
   });
+  if (defensePairingPlan?.add.length) {
+    needWeights.DEF += defensePairingPlan.action === "replace" ? 1300 : 980;
+  }
   const leagueValueMode = normalizeLeagueValueMode(
     leagueValueModeInput || leagueDiagnostics?.valueMode
   );
@@ -1766,6 +2172,12 @@ function buildWaiverRecommendationContext({
         pos === "K" || pos === "DEF" ? specialTeamsUpgrades[pos] : null;
       const isSpecialTeamsUpgrade =
         specialTeamsUpgrade?.playerId === player.player_id;
+      const defensePairingAdd =
+        pos === "DEF"
+          ? defensePairingPlan?.add.find(
+              candidate => candidate.player.player_id === player.player_id
+            )
+          : null;
       const youthScore =
         age && age <= 22
           ? 560
@@ -1787,11 +2199,22 @@ function buildWaiverRecommendationContext({
       const dynastyValueScore = Math.min(dynastyValue / 3.8, 1400);
       const seasonValueScore = Math.min(seasonValue / 9, 520);
       const specialTeamsUpgradeScore = isSpecialTeamsUpgrade ? 2100 : 0;
+      const defensePairingScore = defensePairingAdd
+        ? defensePairingPlan?.action === "replace"
+          ? 2300
+          : 1650
+        : 0;
       const specialTeamsDynastyPenalty =
-        isDynastyLeague && isSpecialTeams && !isSpecialTeamsUpgrade ? -2400 : 0;
+        isDynastyLeague &&
+        isSpecialTeams &&
+        !isSpecialTeamsUpgrade &&
+        !defensePairingAdd
+          ? -2400
+          : 0;
       const weeklyEcrScore = getWaiverWeeklyEcrRecommendationScore(
         weeklyEcrSignal,
-        pos
+        pos,
+        leagueValueMode
       );
       const score =
         needWeight +
@@ -1805,6 +2228,7 @@ function buildWaiverRecommendationContext({
         trendScore +
         weeklyEcrScore +
         specialTeamsUpgradeScore +
+        defensePairingScore +
         specialTeamsDynastyPenalty;
       const competitionRead = buildWaiverCompetitionRead({
         player,
@@ -1856,6 +2280,8 @@ function buildWaiverRecommendationContext({
           openRosterSpots,
           specialTeamsUpgradeReason: isSpecialTeamsUpgrade
             ? specialTeamsUpgrade?.reason
+            : defensePairingAdd && defensePairingPlan
+              ? defensePairingPlan.title
             : null,
           weeklyEcrSignal,
           leagueValueMode,
@@ -1906,6 +2332,7 @@ function buildWaiverRecommendationContext({
     irOnlyOpenSpots,
     targetPositions,
     recommendations,
+    defensePairingPlan,
     summary,
   };
 }
@@ -1923,6 +2350,7 @@ export default function WaiverIntelligencePanel({
   leagueDiagnostics,
   recentTransactions,
   leagueValueMode: leagueValueModeInput = "dynasty",
+  scheduleEdgeTargets,
 }: {
   data?: ReportData["waiverIntelligence"];
   managerAvatars?: ManagerAvatars;
@@ -1936,6 +2364,7 @@ export default function WaiverIntelligencePanel({
   leagueDiagnostics?: ReportData["leagueDiagnostics"];
   recentTransactions?: ReportData["recentTransactions"];
   leagueValueMode?: ReportData["leagueValueMode"];
+  scheduleEdgeTargets?: ReportData["scheduleEdgeTargets"];
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(
     null
@@ -1964,6 +2393,7 @@ export default function WaiverIntelligencePanel({
     recentTransactions,
     storedWaiverBidHistory,
     leagueValueMode,
+    scheduleEdgeTargets,
   });
   React.useEffect(() => {
     storedActionPlans
@@ -2080,6 +2510,55 @@ export default function WaiverIntelligencePanel({
         <div className="waiver-intel-recommendation-banner">
           <span>{AI_RECOMMENDATION_BANNER_LABEL}</span>
           <p>{recommendationContext.summary}</p>
+        </div>
+      )}
+      {recommendationContext.defensePairingPlan && (
+        <div className="waiver-defense-pairing-read">
+          <div className="waiver-defense-pairing-head">
+            <span>D/ST pairing read</span>
+            <strong>{recommendationContext.defensePairingPlan.title}</strong>
+            <em>
+              {recommendationContext.defensePairingPlan.confidencePct}% confidence
+            </em>
+          </div>
+          <p>{recommendationContext.defensePairingPlan.summary}</p>
+          <div className="waiver-defense-pairing-lanes">
+            {recommendationContext.defensePairingPlan.keep.length > 0 && (
+              <span>
+                <em>Keep</em>
+                <strong>
+                  {recommendationContext.defensePairingPlan.keep
+                    .map(item => item.player.name)
+                    .join(" + ")}
+                </strong>
+              </span>
+            )}
+            {recommendationContext.defensePairingPlan.add.length > 0 && (
+              <span>
+                <em>Add</em>
+                <strong>
+                  {recommendationContext.defensePairingPlan.add
+                    .map(item => item.player.name)
+                    .join(" + ")}
+                </strong>
+              </span>
+            )}
+            {recommendationContext.defensePairingPlan.drop.length > 0 && (
+              <span className="waiver-defense-pairing-drop">
+                <em>Drop</em>
+                <strong>
+                  {recommendationContext.defensePairingPlan.drop
+                    .map(item => item.player.name)
+                    .join(" + ")}
+                </strong>
+              </span>
+            )}
+          </div>
+          <div className="waiver-defense-pairing-evidence">
+            {recommendationContext.defensePairingPlan.evidence.map(item => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
         </div>
       )}
       <ActionPlanHistoryPanel
@@ -2233,7 +2712,7 @@ export default function WaiverIntelligencePanel({
                     )}
                     {weeklyEcrRank && (
                       <WaiverRankPill
-                        label="Next ECR"
+                        label="Next rank"
                         rank={weeklyEcrRank}
                         className="waiver-intel-rank-pill-season"
                       />
@@ -2304,7 +2783,7 @@ export default function WaiverIntelligencePanel({
                   </span>
                   {weeklyEcrSignal && (
                     <span>
-                      <em>FantasyPros ECR</em>
+                      <em>FantasyPros matchups</em>
                       <strong>{weeklyEcrWindow || weeklyEcrRank || "Rolling rank"}</strong>
                     </span>
                   )}
@@ -2318,7 +2797,7 @@ export default function WaiverIntelligencePanel({
                     <details className="waiver-intel-source-review waiver-intel-source-trace">
                       <summary>
                         <span>Source trace</span>
-                        <strong>FantasyPros stored ECR</strong>
+                        <strong>FantasyPros stored matchups</strong>
                       </summary>
                       <div className="waiver-intel-source-review-list">
                         <div className="waiver-intel-source-review-row">

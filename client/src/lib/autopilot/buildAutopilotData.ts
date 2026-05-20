@@ -1169,12 +1169,31 @@ function scoreWaiverCandidate(player: TrendingPlayer, mode: AutopilotMode, intel
 function formatWaiverWeeklyEcrRead(player: TrendingPlayer): string | null {
   const signal = player.weeklyEcr;
   if (!signal?.weeks?.length) return null;
-  const bestRank = signal.bestPositionRank || (signal.bestRankEcr ? `ECR ${Math.round(signal.bestRankEcr)}` : null);
-  const window = signal.weeks
-    .slice(0, 3)
-    .map((week) => `W${week.week} ${week.positionRank || (week.rankEcr ? `ECR ${week.rankEcr}` : 'ranked')}`)
+  const bestRank = signal.bestPositionRank || (signal.bestRankEcr ? `Rank ${Math.round(signal.bestRankEcr)}` : null);
+  const windowWeeks = signal.matchupWindows?.next3?.weeks || null;
+  const rows = windowWeeks?.length
+    ? signal.weeks.filter((week) => windowWeeks.includes(week.week))
+    : signal.weeks.slice(0, 3);
+  const window = rows
+    .map((week) => {
+      if (week.isBye) return `W${week.week} BYE`;
+      if (week.opponent || week.matchupStars || week.opponentRank) {
+        const site = week.homeAway === 'home' ? 'vs.' : week.homeAway === 'away' ? 'at' : '';
+        const opponent = week.opponent ? `${site} ${week.opponent}`.trim() : 'opponent TBD';
+        const stars = typeof week.matchupStars === 'number' ? `${week.matchupStars}-star` : 'unrated';
+        const rank = typeof week.opponentRank === 'number' ? `#${week.opponentRank}` : null;
+        return `W${week.week} ${opponent} ${stars}${rank ? ` (${rank})` : ''}`;
+      }
+      return `W${week.week} ${week.positionRank || (week.rankEcr ? `Rank ${week.rankEcr}` : 'ranked')}`;
+    })
     .join(' / ');
-  return [bestRank ? `FantasyPros next-3 ECR peaks at ${bestRank}` : null, window].filter(Boolean).join(': ') || null;
+  const label = signal.signalType === 'matchup-calendar'
+    ? 'FantasyPros next-3 matchup window'
+    : 'FantasyPros next-3 rank window';
+  const playoffSummary = signal.matchupWindows?.playoffs?.playableWeeks
+    ? signal.matchupWindows.playoffs.summary
+    : null;
+  return [bestRank ? `${label}: ${bestRank}` : null, window, playoffSummary].filter(Boolean).join(': ') || null;
 }
 
 function formatWaiverWeeklyEcrTraceRead(player: TrendingPlayer): string | null {
@@ -1186,7 +1205,7 @@ function formatWaiverWeeklyEcrTraceRead(player: TrendingPlayer): string | null {
     .sort((a, b) => a - b)
     .map((week) => `W${week}`)
     .join('/');
-  return `${loadedWeeks || 'Rolling weeks'} backed by stored FantasyPros ECR snapshots.`;
+  return `${loadedWeeks || 'Rolling weeks'} backed by stored FantasyPros matchup snapshots.`;
 }
 
 function getFaabSuggestion(confidence: number, mode: AutopilotMode) {
@@ -1218,8 +1237,8 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       risk: confidence >= 78 ? 'Low' : 'Medium',
       upside: mode === 'dynasty' && age && age <= 24 ? 'High' : confidence >= 80 ? 'High' : 'Medium',
       summary: mode === 'redraft'
-        ? `${player.name} is the best available current-season profile from the waiver data, with trend count, rank/value, and rolling ECR support.`
-        : `${player.name} is the best available stash or value-growth profile from the waiver data${weeklyEcrRead ? ', with short-window ECR support' : ''}.`,
+        ? `${player.name} is the best available current-season profile from the waiver data, with trend count, rank/value, and rolling matchup support.`
+        : `${player.name} is the best available stash or value-growth profile from the waiver data${weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
       reasons: dedupeStrings([
         player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
         rank ? `${rank} rank gives this more than a blind trend-chase case.` : null,
@@ -1228,7 +1247,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         intel?.tradePlan?.needPosition === getPlayerPosition(player) ? `Matches ${manager}'s ${getPlayerPosition(player)} need.` : null,
         dropCandidate ? `${dropCandidate.name} is a usable drop candidate if a roster spot is needed.` : null,
       ], 4),
-      signals: dedupeStrings(['Available', rank, weeklyEcrTraceRead ? 'Stored ECR trace' : weeklyEcrRead ? 'FantasyPros ECR' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null], 4),
+      signals: dedupeStrings(['Available', rank, weeklyEcrTraceRead ? 'Stored matchup trace' : weeklyEcrRead ? 'FantasyPros matchups' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null], 4),
       tone: index === 0 ? 'good' : 'info',
     };
   });

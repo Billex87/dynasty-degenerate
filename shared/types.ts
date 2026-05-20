@@ -624,6 +624,7 @@ export interface WaiverIntelligence {
   bestTaxiStashes: TrendingPlayer[];
   recentlyDroppedValuable: TrendingPlayer[];
   weeklyEcrTargets?: WaiverWeeklyEcrTarget[];
+  defensePairingTargets?: WaiverWeeklyEcrTarget[];
   omittedCandidates?: WaiverOmittedCandidate[];
 }
 
@@ -640,6 +641,49 @@ export interface WaiverWeeklyEcrWeek {
   endpointKey?: string | null;
   fetchedAt?: string | null;
   sourceStatus?: string | null;
+  sourceType?: 'weekly-rank' | 'matchup-calendar' | string;
+  opponent?: string | null;
+  homeAway?: 'home' | 'away' | null;
+  opponentRank?: number | null;
+  matchupStars?: number | null;
+  matchupTier?: 'easy' | 'neutral' | 'hard' | 'bye' | string | null;
+  matchupText?: string | null;
+  isBye?: boolean;
+}
+
+export type MatchupWindowKey =
+  | 'next1'
+  | 'next3'
+  | 'next6'
+  | 'restOfSeason'
+  | 'playoffs';
+
+export interface MatchupWindowSummary {
+  key: MatchupWindowKey;
+  label: string;
+  weeks: number[];
+  score: number | null;
+  averageStars: number | null;
+  playableWeeks: number;
+  easyWeeks: number;
+  hardWeeks: number;
+  neutralWeeks: number;
+  byeWeeks: number;
+  bestWeek: number | null;
+  bestMatchupStars: number | null;
+  bestOpponentRank: number | null;
+  worstWeek: number | null;
+  summary: string;
+}
+
+export interface MatchupWindowSet {
+  currentWeek: number | null;
+  playoffWeeks: number[];
+  next1: MatchupWindowSummary;
+  next3: MatchupWindowSummary;
+  next6: MatchupWindowSummary;
+  restOfSeason: MatchupWindowSummary;
+  playoffs: MatchupWindowSummary;
 }
 
 export interface WaiverSourceTraceEntry {
@@ -678,6 +722,7 @@ export interface FantasyProsPlayerSourceTrace {
 }
 
 export interface WaiverWeeklyEcrSignal {
+  signalType?: 'weekly-rank' | 'matchup-calendar' | string;
   playerId: string;
   fantasyProsId: string | null;
   name: string;
@@ -691,6 +736,9 @@ export interface WaiverWeeklyEcrSignal {
   bestPositionRank: string | null;
   averageRankEcr: number | null;
   rankDelta: number | null;
+  bestMatchupStars?: number | null;
+  bestOpponentRank?: number | null;
+  matchupWindows?: MatchupWindowSet;
   confidence: number;
   note: string;
   sourceTrace: WaiverSourceTraceEntry[];
@@ -1642,6 +1690,10 @@ export interface LeagueDiagnostics {
   teamCount: number;
   valueMode: LeagueValueMode;
   currentSeason?: string;
+  currentWeek?: number | null;
+  playoffWeekStart?: number | null;
+  playoffWeeks?: number[];
+  championshipWeek?: number | null;
   hasCurrentSeasonMainDraft?: boolean;
   currentSeasonMainDraftPickCount?: number;
   currentSeasonMainDraftPickedPlayerCount?: number;

@@ -5,6 +5,7 @@ import { loadDraftSharksScheduleContext } from './draftSharksSchedule';
 import { warmEspnDepthChartsForTeams } from './espnDepthCharts';
 import { refreshFantasyProsEndpointSnapshots } from './fantasyProsEndpointSnapshots';
 import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth } from './fantasyProsHealth';
+import { refreshFantasyProsMatchupCalendarSnapshots } from './fantasyProsMatchupCalendar';
 import { resolveFantasyProsSnapshotStartWeek } from './fantasyProsSnapshotWindow';
 import { loadBlendedKTCValues, loadLatestLocalWeeklyMomentumSnapshot } from './ktcLoader';
 import { attachLeagueAiConfidence, persistLeagueAiConfidenceSnapshot } from './leagueAiConfidence';
@@ -342,6 +343,38 @@ export async function refreshFantasyProsEndpointSnapshotRefresh(options: {
   };
 }
 
+export async function refreshFantasyProsMatchupCalendarRefresh(options: {
+  force?: boolean;
+} = {}) {
+  const enabled = envFlag('ENABLE_FANTASYPROS_MATCHUP_CALENDAR_SNAPSHOTS') || options.force === true;
+  const snapshotWindow = await resolveFantasyProsSnapshotWindow(true);
+
+  if (!enabled) {
+    return {
+      skipped: true,
+      reason: 'ENABLE_FANTASYPROS_MATCHUP_CALENDAR_SNAPSHOTS is not enabled.',
+      season: snapshotWindow.season,
+      currentWeek: snapshotWindow.currentWeek,
+      weekWindow: snapshotWindow.weekWindow,
+      results: [] as Awaited<ReturnType<typeof refreshFantasyProsMatchupCalendarSnapshots>>,
+    };
+  }
+
+  const results = await refreshFantasyProsMatchupCalendarSnapshots({
+    season: snapshotWindow.season,
+    requestDelayMs: envNumber('FANTASYPROS_MATCHUP_CALENDAR_REQUEST_DELAY_MS', envNumber('FANTASYPROS_SNAPSHOT_REQUEST_DELAY_MS', 750)),
+  });
+
+  return {
+    skipped: false,
+    reason: null,
+    season: snapshotWindow.season,
+    currentWeek: snapshotWindow.currentWeek,
+    weekWindow: snapshotWindow.weekWindow,
+    results,
+  };
+}
+
 export async function refreshRankingSourceSnapshots() {
   const valueProfileKey = getValueSourceProfileKey(DEFAULT_REFRESH_VALUE_OPTIONS);
   const [prospectContext, ktcValues] = await Promise.all([
@@ -384,7 +417,11 @@ export async function refreshRankingSourceSnapshots() {
   const fantasyProsEndpointSnapshotRefresh = envFlag('ENABLE_FANTASYPROS_ENDPOINT_SNAPSHOTS_DAILY')
     ? await refreshFantasyProsEndpointSnapshotRefresh()
     : null;
+  const fantasyProsMatchupCalendarRefresh = envFlag('ENABLE_FANTASYPROS_MATCHUP_CALENDAR_SNAPSHOTS_DAILY')
+    ? await refreshFantasyProsMatchupCalendarRefresh()
+    : null;
   const fantasyProsEndpointSnapshots = fantasyProsEndpointSnapshotRefresh?.results || [];
+  const fantasyProsMatchupCalendarSnapshots = fantasyProsMatchupCalendarRefresh?.results || [];
   const fantasyProsHealthEvents = buildFantasyProsSourceHealthEvents(fantasyProsHealthRows);
   const sourceHealth = await recordSourceHealthEvents([
     ...sourceHealthEvents,
@@ -397,6 +434,7 @@ export async function refreshRankingSourceSnapshots() {
     diagnosticCount: diagnostics.length,
     fantasyProsEndpointCount: fantasyProsHealthRows.length,
     fantasyProsEndpointSnapshotCount: fantasyProsEndpointSnapshots.length,
+    fantasyProsMatchupCalendarSnapshotCount: fantasyProsMatchupCalendarSnapshots.length,
     alertCount: sourceHealthEvents.length + fantasyProsHealthEvents.filter((event) => event.level !== 'info').length,
     sourceHealthStored: sourceHealth.stored,
     fantasyProsEndpointSnapshotRefresh: fantasyProsEndpointSnapshotRefresh
@@ -406,6 +444,15 @@ export async function refreshRankingSourceSnapshots() {
         season: fantasyProsEndpointSnapshotRefresh.season,
         currentWeek: fantasyProsEndpointSnapshotRefresh.currentWeek,
         weekWindow: fantasyProsEndpointSnapshotRefresh.weekWindow,
+      }
+      : null,
+    fantasyProsMatchupCalendarRefresh: fantasyProsMatchupCalendarRefresh
+      ? {
+        skipped: fantasyProsMatchupCalendarRefresh.skipped,
+        reason: fantasyProsMatchupCalendarRefresh.reason,
+        season: fantasyProsMatchupCalendarRefresh.season,
+        currentWeek: fantasyProsMatchupCalendarRefresh.currentWeek,
+        weekWindow: fantasyProsMatchupCalendarRefresh.weekWindow,
       }
       : null,
     fantasyProsHealth: fantasyProsHealthRows.map((row) => ({
@@ -429,6 +476,16 @@ export async function refreshRankingSourceSnapshots() {
       rowCount: row.rowCount,
       totalExperts: row.totalExperts,
       lastUpdated: row.lastUpdated,
+      persisted: row.persisted,
+      error: row.error,
+    })),
+    fantasyProsMatchupCalendarSnapshots: fantasyProsMatchupCalendarSnapshots.map((row) => ({
+      key: row.position,
+      sourceKey: row.sourceKey,
+      source: `FantasyPros ${row.position} matchup calendar`,
+      status: row.status,
+      rowCount: row.rowCount,
+      weekCount: row.weekCount,
       persisted: row.persisted,
       error: row.error,
     })),

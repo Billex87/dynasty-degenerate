@@ -21,7 +21,9 @@ Weekly ECR ingestion is position-specific because Week 1 `position=ALL` returned
 
 Endpoint payload snapshot writing is also available behind `ENABLE_FANTASYPROS_ENDPOINT_SNAPSHOTS`. It stores successful responses in `providerDataSnapshots` under `fantasypros-endpoint-v1:{season}:{scoring}:{endpointKey}` and keeps the same pacing/stop-on-429 behavior. Expanded endpoint snapshots require `ENABLE_FANTASYPROS_EXPANDED_SNAPSHOTS` or the expanded-health flag. The normal endpoint-snapshot scrape runs weekly on Tuesdays at noon Pacific; daily dynamic-data refreshes only run it when `ENABLE_FANTASYPROS_ENDPOINT_SNAPSHOTS_DAILY` is explicitly enabled after package limits prove it is cheap enough.
 
-Stored snapshot reads now have a normalized server-side context for weekly ECR, rolling position/week ECR, `WW`, projections, player-points, player/external IDs, and compare-player rows. The context only reads `providerDataSnapshots`; report/admin diagnostics receive row counts from that context so missing/stale endpoint snapshots are visible before any public recommendation consumes them.
+Stored snapshot reads now have a normalized server-side context for weekly ECR, rolling position/week ECR, `WW`, projections, player-points, player/external IDs, compare-player rows, and FantasyPros matchup-calendar pages. The context only reads `providerDataSnapshots`; report/admin diagnostics receive row counts from that context so missing/stale endpoint snapshots are visible before any public recommendation consumes them.
+
+The Matchup Edge table now prefers the FantasyPros `matchups/{position}.php` pages over weekly ECR as the schedule source. Those pages are parsed as weekly matchup cells by QB/RB/WR/TE/K/DST, stored under `fantasypros-matchup-calendar-v1:{season}:{position}`, and kept admin-only for now. Weekly ECR remains useful as a fallback rank/relevance source, but matchup wording should say "matchup" or "rank", not "SOS".
 
 ## Endpoint Map
 
@@ -72,5 +74,5 @@ Stored snapshot reads now have a normalized server-side context for weekly ECR, 
 
 1. Resolve package access for `targets` and `articles` before depending on those rows.
 2. Surface admin-only per-player source trace from the normalized snapshot context.
-3. Build the first Rankings-tab Schedule Edge table against stored weekly ECR/projection snapshots, showing all positions with D/ST/K streamer pairings as the first high-signal filter.
+3. Keep expanding the Rankings-tab Matchup Edge table against stored matchup-calendar snapshots, showing all positions with D/ST/K streamer pairings as the first high-signal filter.
 4. Expand AI readouts only after snapshot freshness and identity matching pass diagnostics.

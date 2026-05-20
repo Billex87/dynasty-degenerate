@@ -3,6 +3,7 @@ import type {
   TrendingPlayer,
   WaiverWeeklyEcrSignal,
 } from "@shared/types";
+import { getShortTermMatchupOutlook } from "@shared/matchupWindows";
 
 export type ScheduleEdgePositionFilter =
   | "ALL"
@@ -13,6 +14,22 @@ export type ScheduleEdgePositionFilter =
   | "K"
   | "DEF";
 export type ScheduleEdgeTone = "good" | "info" | "warn" | "danger";
+export type ScheduleEdgeSortMode = "easiest" | "toughest" | "rank";
+export type ScheduleEdgeWeekRange = {
+  start: number;
+  end: number;
+};
+export type ScheduleEdgeRangeSummary = {
+  label: string;
+  score: number | null;
+  averageStars: number | null;
+  playableWeeks: number;
+  easyWeeks: number;
+  hardWeeks: number;
+  neutralWeeks: number;
+  byeWeeks: number;
+  missingWeeks: number[];
+};
 export type ScheduleEdgeRow = {
   id: string;
   player: TrendingPlayer;
@@ -23,6 +40,7 @@ export type ScheduleEdgeRow = {
   bestRankNumber: number | null;
   bestWeek: number | null;
   window: string;
+  playoffWindow: string | null;
   sourceFreshness: string;
   sourceTone: ScheduleEdgeTone;
   action: string;
@@ -70,6 +88,7 @@ const SCHEDULE_EDGE_POSITION_LIMITS: Record<
   K: 20,
   DEF: 20,
 };
+const SCHEDULE_EDGE_TABLE_ROW_LIMIT = 600;
 
 function normalizeScheduleEdgePosition(
   position?: string | null
@@ -102,20 +121,191 @@ function getScheduleEdgeRankNumber(rank?: string | null): number | null {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function clampScheduleWeek(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(1, Math.min(18, Math.round(value)));
+}
+
+export function normalizeScheduleEdgeWeekRange(
+  range: Partial<ScheduleEdgeWeekRange>
+): ScheduleEdgeWeekRange {
+  const start = clampScheduleWeek(range.start ?? 1);
+  const end = clampScheduleWeek(range.end ?? start);
+  return start <= end ? { start, end } : { start: end, end: start };
+}
+
+function getScheduleEdgeRangeNumbers(range: ScheduleEdgeWeekRange): number[] {
+  const normalized = normalizeScheduleEdgeWeekRange(range);
+  return Array.from(
+    { length: normalized.end - normalized.start + 1 },
+    (_, index) => normalized.start + index
+  );
+}
+
+function getScheduleEdgeStarValue(
+  week: WaiverWeeklyEcrSignal["weeks"][number]
+): number | null {
+  if (
+    typeof week.matchupStars === "number" &&
+    Number.isFinite(week.matchupStars)
+  ) {
+    return Math.max(1, Math.min(5, week.matchupStars));
+  }
+  if (
+    typeof week.opponentRank === "number" &&
+    Number.isFinite(week.opponentRank)
+  ) {
+    const rank = Math.max(1, Math.min(32, week.opponentRank));
+    return 1 + ((32 - rank) / 31) * 4;
+  }
+  return null;
+}
+
+function isScheduleEdgeEasyWeek(week: WaiverWeeklyEcrSignal["weeks"][number]) {
+  if (week.isBye) return false;
+  return week.matchupTier === "easy" || Number(week.matchupStars || 0) >= 4;
+}
+
+function isScheduleEdgeHardWeek(week: WaiverWeeklyEcrSignal["weeks"][number]) {
+  if (week.isBye) return false;
+  return (
+    week.matchupTier === "hard" ||
+    (typeof week.matchupStars === "number" && week.matchupStars <= 2)
+  );
+}
+
+export function getScheduleEdgeWeeksInRange(
+  row: Pick<ScheduleEdgeRow, "signal">,
+  range: ScheduleEdgeWeekRange
+): WaiverWeeklyEcrSignal["weeks"] {
+  const selectedWeeks = new Set(getScheduleEdgeRangeNumbers(range));
+  return row.signal.weeks
+    .filter(week => selectedWeeks.has(week.week))
+    .sort((a, b) => a.week - b.week);
+}
+
+export function getScheduleEdgeRangeSummary(
+  row: Pick<ScheduleEdgeRow, "signal">,
+  range: ScheduleEdgeWeekRange
+): ScheduleEdgeRangeSummary {
+  const normalized = normalizeScheduleEdgeWeekRange(range);
+  const selectedWeekNumbers = getScheduleEdgeRangeNumbers(normalized);
+  const selectedWeekSet = new Set(selectedWeekNumbers);
+  const selectedRows = getScheduleEdgeWeeksInRange(row, normalized);
+  const rowWeekSet = new Set(selectedRows.map(week => week.week));
+  const missingWeeks = selectedWeekNumbers.filter(week => !rowWeekSet.has(week));
+  const playableRows = selectedRows.filter(week => !week.isBye);
+  const starValues = playableRows
+    .map(getScheduleEdgeStarValue)
+    .filter((value): value is number => value !== null);
+  const averageStars = starValues.length
+    ? Math.round(
+        (starValues.reduce((total, value) => total + value, 0) /
+          starValues.length) *
+          10
+      ) / 10
+    : null;
+  const score =
+    averageStars === null
+      ? null
+      : Math.round(((averageStars - 1) / 4) * 100);
+  const easyWeeks = playableRows.filter(isScheduleEdgeEasyWeek).length;
+  const hardWeeks = playableRows.filter(isScheduleEdgeHardWeek).length;
+  const byeWeeks = selectedRows.filter(week => week.isBye).length;
+  const neutralWeeks = Math.max(
+    0,
+    playableRows.length - easyWeeks - hardWeeks
+  );
+
+  return {
+    label:
+      normalized.start === normalized.end
+        ? `Week ${normalized.start}`
+        : `Weeks ${normalized.start}-${normalized.end}`,
+    score,
+    averageStars,
+    playableWeeks: playableRows.length,
+    easyWeeks,
+    hardWeeks,
+    neutralWeeks,
+    byeWeeks,
+    missingWeeks: missingWeeks.filter(week => selectedWeekSet.has(week)),
+  };
+}
+
+export function getScheduleEdgeRangeAction(
+  row: ScheduleEdgeRow,
+  range: ScheduleEdgeWeekRange
+): Pick<ScheduleEdgeRow, "action" | "actionTone"> {
+  const summary = getScheduleEdgeRangeSummary(row, range);
+  if (!summary.playableWeeks) {
+    return { action: "No data", actionTone: "warn" };
+  }
+  if (summary.hardWeeks >= 2 && summary.easyWeeks === 0) {
+    return { action: "Avoid window", actionTone: "warn" };
+  }
+  if (
+    (summary.averageStars !== null && summary.averageStars >= 4) ||
+    summary.easyWeeks >= 2
+  ) {
+    return { action: "Target window", actionTone: "good" };
+  }
+  if (summary.averageStars !== null && summary.averageStars < 2.4) {
+    return { action: "Tough stretch", actionTone: "danger" };
+  }
+  if (summary.easyWeeks > 0 || summary.averageStars === null || summary.averageStars >= 3) {
+    return { action: "Matchup watch", actionTone: "info" };
+  }
+  return { action: row.action, actionTone: row.actionTone };
+}
+
 function formatScheduleEdgeRank(signal: WaiverWeeklyEcrSignal): string {
   if (signal.bestPositionRank) return signal.bestPositionRank;
   return signal.bestRankEcr ? `Rank ${Math.round(signal.bestRankEcr)}` : "Ranked";
 }
 
-function formatScheduleEdgeWindow(signal: WaiverWeeklyEcrSignal): string {
-  return signal.weeks
-    .slice(0, 3)
-    .map(
-      week =>
-        `W${week.week} ${
-          week.positionRank || (week.rankEcr ? `Rank ${week.rankEcr}` : "ranked")
-        }`
-    )
+function getScheduleEdgeWindowWeeks(
+  signal: WaiverWeeklyEcrSignal,
+  key: "next3" | "playoffs" = "next3"
+): number[] | null {
+  const weeks = signal.matchupWindows?.[key]?.weeks;
+  return weeks?.length ? weeks : null;
+}
+
+function formatScheduleEdgeWindow(
+  signal: WaiverWeeklyEcrSignal,
+  key: "next3" | "playoffs" = "next3"
+): string {
+  const windowWeeks = getScheduleEdgeWindowWeeks(signal, key);
+  const rows = windowWeeks
+    ? signal.weeks.filter(week => windowWeeks.includes(week.week))
+    : signal.weeks.slice(0, 3);
+
+  return rows
+    .map(week => {
+      if (week.isBye) return `W${week.week} BYE`;
+      if (week.opponent || week.matchupStars || week.opponentRank) {
+        const site =
+          week.homeAway === "home"
+            ? "vs."
+            : week.homeAway === "away"
+              ? "at"
+              : "";
+        const opponent = week.opponent
+          ? `${site} ${week.opponent}`.trim()
+          : "opponent TBD";
+        const stars =
+          typeof week.matchupStars === "number"
+            ? `${week.matchupStars}-star`
+            : "unrated";
+        const rank =
+          typeof week.opponentRank === "number" ? `#${week.opponentRank}` : null;
+        return `W${week.week} ${opponent} ${stars}${rank ? ` (${rank})` : ""}`;
+      }
+      return `W${week.week} ${
+        week.positionRank || (week.rankEcr ? `Rank ${week.rankEcr}` : "ranked")
+      }`;
+    })
     .join(" / ");
 }
 
@@ -125,6 +315,34 @@ export function formatScheduleEdgeValue(value?: number | null): string {
   const rounded = Math.round(value);
   if (Math.abs(rounded) >= 1000) return `${Math.round(rounded / 100) / 10}K`;
   return rounded.toLocaleString();
+}
+
+export function sortScheduleEdgeRows(
+  rows: ScheduleEdgeRow[],
+  range: ScheduleEdgeWeekRange,
+  sortMode: ScheduleEdgeSortMode
+): ScheduleEdgeRow[] {
+  const summaryById = new Map(
+    rows.map(row => [row.id, getScheduleEdgeRangeSummary(row, range)])
+  );
+  const rankValue = (row: ScheduleEdgeRow) => row.bestRankNumber || Infinity;
+  const scoreValue = (row: ScheduleEdgeRow) =>
+    summaryById.get(row.id)?.score ?? -1;
+
+  return [...rows].sort((a, b) => {
+    if (sortMode === "rank") {
+      const rankDelta = rankValue(a) - rankValue(b);
+      if (rankDelta) return rankDelta;
+      return scoreValue(b) - scoreValue(a);
+    }
+
+    const aScore = scoreValue(a);
+    const bScore = scoreValue(b);
+    if (aScore !== bScore) {
+      return sortMode === "easiest" ? bScore - aScore : aScore - bScore;
+    }
+    return rankValue(a) - rankValue(b);
+  });
 }
 
 function formatScheduleEdgeDate(value?: string | null): string {
@@ -147,6 +365,17 @@ function parseScheduleHealthEndpoint(
   week: number;
 } | null {
   const value = `${sourceKey || ""}:${endpointKey || ""}`;
+  const matchupMatch = value.match(
+    /fantasypros-matchup-calendar-(qb|rb|wr|te|k|dst|def)-week-(\d+)/i
+  );
+  if (matchupMatch) {
+    const position = normalizeScheduleEdgePosition(matchupMatch[1]);
+    const week = Number(matchupMatch[2]);
+    if (!position || position === "ALL" || !Number.isFinite(week) || week <= 0)
+      return null;
+    return { position, week };
+  }
+
   const match = value.match(
     /fantasypros-weekly-ecr-(qb|rb|wr|te|k|dst|def)-week-(\d+)/i
   );
@@ -360,21 +589,69 @@ function getScheduleEdgeAction(input: {
   const rankLimit = SCHEDULE_EDGE_POSITION_LIMITS[input.position];
   const strongRank = Math.max(1, Math.round(rankLimit * 0.35));
   const playableRank = Math.max(strongRank + 1, Math.round(rankLimit * 0.7));
+  const next3Weeks = input.signal.matchupWindows?.next3?.weeks || null;
+  const playableWeeks = input.signal.weeks
+    .filter(week => !next3Weeks || next3Weeks.includes(week.week))
+    .filter(week => !week.isBye);
+  const bestStars =
+    input.signal.matchupWindows?.next3?.bestMatchupStars ??
+    input.signal.bestMatchupStars ??
+    playableWeeks.reduce(
+      (best, week) => Math.max(best, Number(week.matchupStars || 0)),
+      0
+    );
+  const easyWeeks =
+    input.signal.matchupWindows?.next3?.easyWeeks ??
+    playableWeeks.filter(
+      week => week.matchupTier === "easy" || Number(week.matchupStars || 0) >= 4
+    ).length;
+  const isSpecialTeams = input.position === "K" || input.position === "DEF";
+  const outlook = isSpecialTeams && input.signal.signalType === "matchup-calendar"
+    ? getShortTermMatchupOutlook(input.signal.matchupWindows)
+    : null;
 
-  if (input.bestRankNumber && input.bestRankNumber <= strongRank) {
+  if (outlook?.isRoughStart) {
+    return { action: "Avoid early stream", actionTone: "warn" };
+  }
+
+  if (bestStars >= 4 && input.bestRankNumber && input.bestRankNumber <= playableRank) {
     return {
       action:
-        input.position === "K" || input.position === "DEF"
+        isSpecialTeams
+          ? "Streamer target"
+          : "Start window",
+      actionTone: "good",
+    };
+  }
+
+  if (
+    input.bestRankNumber &&
+    input.bestRankNumber <= strongRank &&
+    (!bestStars || bestStars >= 3)
+  ) {
+    return {
+      action:
+        isSpecialTeams
           ? "Streamer target"
           : "Priority watch",
       actionTone: "good",
     };
   }
 
+  if ((bestStars >= 3 || easyWeeks > 0) && input.bestRankNumber && input.bestRankNumber <= rankLimit) {
+    return {
+      action:
+        isSpecialTeams
+          ? "Pairing option"
+          : "Matchup watch",
+      actionTone: "info",
+    };
+  }
+
   if (input.bestRankNumber && input.bestRankNumber <= playableRank) {
     return {
       action:
-        input.position === "K" || input.position === "DEF"
+        isSpecialTeams
           ? "Pairing option"
           : "Depth option",
       actionTone: "info",
@@ -462,6 +739,9 @@ export function buildScheduleEdgeRows(
         bestRankNumber,
         bestWeek: signal.bestWeek,
         window: formatScheduleEdgeWindow(signal),
+        playoffWindow: signal.matchupWindows?.playoffs?.playableWeeks
+          ? formatScheduleEdgeWindow(signal, "playoffs")
+          : null,
         sourceFreshness: freshness.label,
         sourceTone: freshness.tone,
         action: action.action,
@@ -479,5 +759,5 @@ export function buildScheduleEdgeRows(
       if (aScore !== bScore) return bScore - aScore;
       return (a.bestRankNumber || Infinity) - (b.bestRankNumber || Infinity);
     })
-    .slice(0, 36);
+    .slice(0, SCHEDULE_EDGE_TABLE_ROW_LIMIT);
 }
