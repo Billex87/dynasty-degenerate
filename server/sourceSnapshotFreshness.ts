@@ -44,6 +44,8 @@ const DAILY_STALE_HOURS = 36;
 const WEEKLY_STALE_HOURS = 7 * 24;
 const MONTHLY_STALE_HOURS = 45 * 24;
 const LONG_TERM_STALE_HOURS = 90 * 24;
+const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
+const DISABLED_VALUES = new Set(['0', 'false', 'no', 'off', 'disabled']);
 
 const PROVIDER_LABELS: Record<string, string> = {
   'fantasypros-news-v1': 'FantasyPros news snapshot',
@@ -63,6 +65,24 @@ const PROVIDER_LABELS: Record<string, string> = {
   'nflverse-combine-v1': 'nflverse combine snapshot',
   'nflverse-contracts-v1': 'nflverse contracts snapshot',
 };
+
+function envFlag(name: string): boolean {
+  return ENABLED_VALUES.has(String(process.env[name] || '').trim().toLowerCase());
+}
+
+function isDisabledEnvValue(name: string): boolean {
+  return DISABLED_VALUES.has(String(process.env[name] || '').trim().toLowerCase());
+}
+
+function hasEnvValue(name: string): boolean {
+  return Boolean(String(process.env[name] || '').trim());
+}
+
+function fantasyProsNewsMissingLevel(): SourceSnapshotFreshnessDiagnostic['level'] {
+  return hasEnvValue('FANTASYPROS_API_KEY') && !isDisabledEnvValue('ENABLE_FANTASYPROS_NEWS')
+    ? 'warn'
+    : 'info';
+}
 
 function hoursBetween(now: Date, then: Date | null): number | null {
   if (!then) return null;
@@ -297,12 +317,14 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       source: `Devy source snapshot: ${input.devyProfileKey || input.valueProfileKey}`,
       tableName: 'devySourceSnapshots',
       staleAfterHours: WEEKLY_STALE_HOURS,
+      missingLevel: envFlag('ENABLE_DEVY_SOURCE_SNAPSHOTS') ? 'warn' : 'info',
     },
     {
       sourceKey: 'fantasypros-news-v1',
       source: PROVIDER_LABELS['fantasypros-news-v1'],
       tableName: 'providerDataSnapshots',
       staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: fantasyProsNewsMissingLevel(),
     },
     ...fantasyProsEndpointExpectedSources(input.currentSeason, 'PPR', input.currentWeek, input.weekWindow),
     {
@@ -316,20 +338,21 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       sourceKey: 'espn-depth-charts-v1',
       source: PROVIDER_LABELS['espn-depth-charts-v1'],
       tableName: 'providerDataSnapshots',
-      staleAfterHours: DAILY_STALE_HOURS,
+      staleAfterHours: WEEKLY_STALE_HOURS,
     },
     {
       sourceKey: 'draftsharks-sos-v1',
       source: PROVIDER_LABELS['draftsharks-sos-v1'],
       tableName: 'providerDataSnapshots',
       staleAfterHours: WEEKLY_STALE_HOURS,
+      missingLevel: envFlag('ENABLE_DRAFTSHARKS_SOS') ? 'warn' : 'info',
     },
     {
       sourceKey: 'player-props-opticodds-v1',
       source: PROVIDER_LABELS['player-props-opticodds-v1'],
       tableName: 'providerDataSnapshots',
       staleAfterHours: DAILY_STALE_HOURS,
-      missingLevel: 'warn',
+      missingLevel: envFlag('ENABLE_OPTICODDS_PLAYER_PROPS') ? 'warn' : 'info',
     },
     {
       sourceKey: 'nflverse-draft-capital-v1',
@@ -348,6 +371,7 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       source: `nflverse team-environment snapshot: ${previousSeason}`,
       tableName: 'providerDataSnapshots',
       staleAfterHours: LONG_TERM_STALE_HOURS,
+      missingLevel: 'info',
     },
     {
       sourceKey: `nflverse-roster-room-v1:${rosterRoomSeason}`,
@@ -384,6 +408,7 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       source: 'Prospect snapshot: NFL Draft Buzz',
       tableName: 'prospectSnapshots',
       staleAfterHours: MONTHLY_STALE_HOURS,
+      missingLevel: 'info',
     },
   ];
   const [metadata, healthEvents] = await Promise.all([

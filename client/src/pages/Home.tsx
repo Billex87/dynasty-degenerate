@@ -4843,8 +4843,20 @@ function formatLeagueAiConfidenceTrend(reportData: ReportData): string | null {
 function isPriorityAdminDiagnosticRow(row: AdminValueDiagnosticRow): boolean {
   if (row.tone === "danger") return true;
   if (row.tone !== "warn") return false;
+  if (isHandledSourceTrustDiagnosticRow(row)) return false;
   return /player value|player values|ranking identities|player alias|redraft source|dynasty source|devy source|value blend|value input/i.test(
     row.area
+  );
+}
+
+function isHandledSourceTrustDiagnosticRow(
+  row: AdminValueDiagnosticRow
+): boolean {
+  if (!/(redraft|dynasty|devy) source/i.test(row.area)) return false;
+  if (/source error|stale data/i.test(row.status)) return false;
+
+  return /Other available source weights normalize automatically|source-excluded consensus|Trust (?:fell|rose|dropped|was unchanged)|waiting for more .* consensus overlap/i.test(
+    row.note
   );
 }
 
@@ -5734,7 +5746,8 @@ function getAIReadoutDiagnosticTone(row: {
   sourceLimited: boolean;
 }): AIReadoutDiagnosticTone {
   if (row.duplicateRisk) return "danger";
-  if (!row.hasConfidence || !row.hasTrace || row.sourceLimited) return "warn";
+  if (!row.hasConfidence || !row.hasTrace) return "warn";
+  if (row.sourceLimited) return "info";
   return "good";
 }
 
@@ -5817,10 +5830,10 @@ function buildAIReadoutDiagnostics(reportData: ReportData) {
       hasConfidence: hasLeagueConfidence || hasManagerConfidence,
       hasTrace: Boolean(reportData.monthlyBlueprintSnapshot || hasRosterIntel),
       duplicateRisk: false,
-      sourceLimited: !reportData.monthlyBlueprintSnapshot,
+      sourceLimited: false,
       note: reportData.monthlyBlueprintSnapshot
         ? "Uses blueprint snapshot, roster construction, age curve, and plan cadence."
-        : "Blueprint can render from current data, but stored monthly history is not fully available.",
+        : "Blueprint is using current report data; stored monthly history is optional and not treated as an issue.",
     }),
     buildAIReadoutRow({
       id: "overview-power",
@@ -5853,12 +5866,12 @@ function buildAIReadoutDiagnostics(reportData: ReportData) {
       owner: "Trade packages and partner fit",
       count: Math.max(0, managerCount ? managerCount : 0),
       hasConfidence: hasManagerConfidence || hasLeagueConfidence,
-      hasTrace: hasRosterIntel && hasTrades,
+      hasTrace: hasRosterIntel,
       duplicateRisk: false,
-      sourceLimited: !hasTrades,
+      sourceLimited: false,
       note: hasTrades
         ? "Owns specific partners, packages, value gaps, resistance notes, and tracked outcomes."
-        : "Can infer roster fit, but returned trade history/tendencies are thin.",
+        : "Can infer roster fit from manager context; thin trade history is not treated as a diagnostic issue.",
     }),
     buildAIReadoutRow({
       id: "autopilot-actions",
@@ -5869,10 +5882,10 @@ function buildAIReadoutDiagnostics(reportData: ReportData) {
       hasConfidence: hasLeagueConfidence,
       hasTrace: hasRosterIntel,
       duplicateRisk: false,
-      sourceLimited: !hasScheduleContext && !freshSituationDeltas.length,
+      sourceLimited: false,
       note: hasScheduleContext || freshSituationDeltas.length
         ? "Actions can include schedule, roster, waiver, trade, and player situation context."
-        : "Schedule/projection and player situation traces stay limited until matchup or role data is stable.",
+        : "Actions stay roster-first until matchup or player-role data is stable enough to use.",
     }),
     buildAIReadoutRow({
       id: "player-situation",
@@ -5935,14 +5948,14 @@ function buildAIReadoutDiagnostics(reportData: ReportData) {
       tab: "Trade History",
       surface: "Trade Browser Read",
       owner: "Ledger and tendency signal",
-      count: 1,
+      count: hasTrades ? 1 : 0,
       hasConfidence: hasLeagueConfidence,
       hasTrace: hasTrades,
       duplicateRisk: false,
-      sourceLimited: !hasTrades,
+      sourceLimited: false,
       note: hasTrades
         ? "Owns ledger size, biggest gaps, manager tendency, and outcome-learning context."
-        : "No trade history or proposal signals were returned.",
+        : "No trade-history read is counted when the payload has no trade history or proposal signals.",
     }),
     buildAIReadoutRow({
       id: "draft-history",
@@ -5975,7 +5988,7 @@ function buildAIReadoutDiagnostics(reportData: ReportData) {
       current.count += row.count;
       if (
         row.count > 0 &&
-        (!row.hasConfidence || !row.hasTrace || row.duplicateRisk || row.sourceLimited)
+        (!row.hasConfidence || !row.hasTrace || row.duplicateRisk)
       ) {
         current.warnings += 1;
       }
@@ -6004,7 +6017,7 @@ function AdminAIReadoutDiagnosticsSection({
   const flaggedRows = diagnostics.rows.filter(
     row =>
       row.count > 0 &&
-      (!row.hasConfidence || !row.hasTrace || row.duplicateRisk || row.sourceLimited)
+      (!row.hasConfidence || !row.hasTrace || row.duplicateRisk)
   );
 
   return (
@@ -6060,27 +6073,6 @@ function AdminAIReadoutDiagnosticsSection({
               <span>{summary.tab}</span>
               <strong>{summary.count}</strong>
               <em>{summary.warnings} flag{summary.warnings === 1 ? "" : "s"}</em>
-            </article>
-          ))}
-        </div>
-
-        <div className="admin-ai-readout-surface-grid" aria-label="AI readout surfaces">
-          {diagnostics.rows.map(row => (
-            <article
-              key={row.id}
-              className={`admin-ai-readout-row admin-ai-readout-row-${row.tone}`}
-            >
-              <div>
-                <span>{row.tab}</span>
-                <strong>{row.surface}</strong>
-              </div>
-              <p>{row.note}</p>
-              <div className="admin-ai-readout-chip-row">
-                <em>{row.count} readout{row.count === 1 ? "" : "s"}</em>
-                <em>{row.owner}</em>
-                <em>{row.hasConfidence ? "Confidence present" : "Missing confidence"}</em>
-                <em>{row.hasTrace ? "Trace present" : "Missing trace"}</em>
-              </div>
             </article>
           ))}
         </div>
@@ -6326,7 +6318,7 @@ function buildPlayerReceiptDiagnostics(reportData: ReportData): {
     );
 
   const receiptRows = rows.filter(row => row.status !== "No bucket");
-  const guardrailRows = rows.filter(row => row.guardrails.length > 0);
+  const guardrailRows = receiptRows.filter(row => row.guardrails.length > 0);
   const bucketMap = new Map<string, ReceiptBucketSummary>();
   receiptRows.forEach(row => {
     const key = `${row.bucket}:${row.recommendation}:${row.confidenceGrade}:${row.sampleSize ?? "n/a"}`;
@@ -6426,57 +6418,31 @@ function AdminPlayerReceiptDiagnosticsSection({
           </span>
         </div>
 
-        <div className="admin-ai-readout-tab-grid" aria-label="Player receipt bucket summary">
-          {diagnostics.bucketSummaries.length ? (
-            diagnostics.bucketSummaries.slice(0, 12).map(bucket => (
-              <article key={bucket.key}>
-                <span>{bucket.recommendation}</span>
-                <strong>{bucket.label}</strong>
-                <em>
-                  {bucket.visibleCount} visible · {bucket.internalCount} internal · {bucket.sampleSize} samples
-                </em>
-              </article>
-            ))
-          ) : (
-            <article>
-              <span>No buckets</span>
-              <strong>No receipt matches</strong>
-              <em>Current payload did not include player receipt buckets</em>
-            </article>
-          )}
-        </div>
-
-        <div className="admin-ai-readout-surface-grid" aria-label="Player receipt audit rows">
-          {diagnostics.receiptRows.map(row => (
-            <article
-              key={row.id}
-              className={`admin-ai-readout-row admin-ai-readout-row-${row.tone}`}
-            >
-              <div>
-                <span>{row.status}</span>
-                <strong>{row.name} · {row.position}</strong>
-              </div>
-              <p>{row.reason}</p>
-              <div className="admin-ai-readout-chip-row">
-                <em>{row.bucket}</em>
-                <em>{row.recommendation}</em>
-                <em>{row.confidenceGrade}</em>
-                <em>{row.sampleSize ?? "n/a"} samples</em>
-                <em>Improved {formatReceiptRate(row.improvedOrSustainedRate)}</em>
-                <em>Failure {formatReceiptRate(row.materialFailureRate)}</em>
-                <em>Median {formatReceiptDelta(row.medianNextProductionDelta)}</em>
-                {row.value !== null && <em>Value {formatPreviewCount(row.value)}</em>}
-              </div>
-              {row.guardrails.length > 0 && (
-                <div className="admin-ai-readout-chip-row" aria-label={`${row.name} receipt guardrails`}>
+        {diagnostics.guardrailRows.length > 0 && (
+          <div className="admin-ai-readout-surface-grid" aria-label="Player receipt guardrail rows">
+            {diagnostics.guardrailRows.map(row => (
+              <article
+                key={row.id}
+                className={`admin-ai-readout-row admin-ai-readout-row-${row.tone}`}
+              >
+                <div>
+                  <span>{row.status}</span>
+                  <strong>{row.name} · {row.position}</strong>
+                </div>
+                <p>{row.reason}</p>
+                <div className="admin-ai-readout-chip-row">
+                  <em>{row.bucket}</em>
+                  <em>{row.recommendation}</em>
+                  <em>{row.confidenceGrade}</em>
+                  <em>{row.sampleSize ?? "n/a"} samples</em>
                   {row.guardrails.map(flag => (
                     <em key={flag}>{flag}</em>
                   ))}
                 </div>
-              )}
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+          </div>
+        )}
 
         {diagnostics.guardrailRows.length > 0 ? (
           <section
@@ -6789,9 +6755,53 @@ function getSourceCoverageToneClass(row: SourceCoverageRow): string {
   return "admin-source-coverage-row-good";
 }
 
+function isActionableSourceCoverageRow(row: SourceCoverageRow): boolean {
+  if (row.status === "blocked" || row.status === "research") return false;
+  if (row.status === "missing" && row.level === "info") return false;
+  return row.level === "warn" || row.level === "danger";
+}
+
+function buildSourceCoverageIssueTotals(
+  rows: SourceCoverageRow[]
+): SourceCoverageMatrixData["totals"] {
+  return {
+    sources: rows.length,
+    loaded: rows.filter(row => row.status === "loaded").length,
+    stale: rows.filter(row => row.status === "stale").length,
+    missing: rows.filter(row => row.status === "missing").length,
+    error: rows.filter(row => row.status === "error").length,
+    blocked: rows.filter(row => row.status === "blocked").length,
+    research: rows.filter(row => row.status === "research").length,
+    snapshotBacked: rows.filter(row => row.snapshotKey || row.tableName).length,
+    needsApproval: rows.filter(row => /approval|approved|terms/i.test(row.complianceNote)).length,
+  };
+}
+
+function isHandledSourceHealthEvent(event: {
+  job?: string | null;
+  status?: string | null;
+  message?: string | null;
+}): boolean {
+  const job = String(event.job || "");
+  const status = String(event.status || "");
+  const message = String(event.message || "");
+  if (!/dynamic-data-refresh|cached-report-source-backfill/i.test(job)) {
+    return false;
+  }
+  if (!/^(loaded|empty)$/i.test(status)) return false;
+
+  return /Other available source weights normalize automatically|source-excluded consensus|trust dropped|trust fell|waiting for more .* consensus overlap/i.test(
+    message
+  );
+}
+
 function isPrioritySourceHealthEvent(event: {
   level?: string | null;
+  job?: string | null;
+  status?: string | null;
+  message?: string | null;
 }): boolean {
+  if (isHandledSourceHealthEvent(event)) return false;
   return event.level === "danger" || event.level === "warn";
 }
 
@@ -7124,7 +7134,7 @@ function AdminSourceCoverageSection() {
     }
   );
   const needsAttention = (query.data?.rows || []).filter(
-    row => row.level !== "info" || row.status === "blocked" || row.status === "research"
+    isActionableSourceCoverageRow
   );
   const tone = needsAttention.some(row => row.level === "danger")
     ? "danger"
@@ -7133,7 +7143,7 @@ function AdminSourceCoverageSection() {
   return (
     <CollapsibleReportSection
       title="Source Coverage Matrix"
-      kicker="Snapshot field map"
+      kicker="Actionable snapshot issues"
       previewAccessory={
         needsAttention.length > 0 ? (
           <AdminAttentionBadge
@@ -7221,18 +7231,16 @@ function AdminSourceCoveragePanel({
     );
   }
 
+  const issueRows = data.rows.filter(isActionableSourceCoverageRow);
+  const issueTotals = buildSourceCoverageIssueTotals(issueRows);
   const totalCards = [
-    { label: "Sources", value: data.totals.sources },
-    { label: "Loaded", value: data.totals.loaded },
-    { label: "Stale", value: data.totals.stale },
-    { label: "Missing", value: data.totals.missing },
-    { label: "Blocked", value: data.totals.blocked },
-    { label: "Research", value: data.totals.research },
-    { label: "Snapshots", value: data.totals.snapshotBacked },
-    { label: "Needs Approval", value: data.totals.needsApproval },
+    { label: "Issues", value: issueTotals.sources },
+    { label: "Errors", value: issueTotals.error },
+    { label: "Stale", value: issueTotals.stale },
+    { label: "Missing", value: issueTotals.missing },
+    { label: "Snapshots", value: issueTotals.snapshotBacked },
+    { label: "Needs Approval", value: issueTotals.needsApproval },
   ];
-  const snapshotRows = data.rows.filter(row => row.snapshotKey || row.tableName);
-  const candidateRows = data.rows.filter(row => !row.snapshotKey && !row.tableName);
 
   return (
     <div className="admin-traffic-panel admin-source-coverage-panel">
@@ -7263,80 +7271,57 @@ function AdminSourceCoveragePanel({
         ))}
       </div>
 
-      <div className="admin-source-coverage-grid">
-        <section className="admin-traffic-card admin-source-coverage-card">
-          <h4>Snapshot-backed Sources</h4>
-          <div className="admin-traffic-list">
-            {snapshotRows.map(row => (
-              <article
-                key={row.sourceKey}
-                className={`admin-traffic-row admin-source-coverage-row ${getSourceCoverageToneClass(row)}`}
-              >
-                <div className="admin-source-coverage-row-head">
-                  <strong>{row.source}</strong>
-                  <span>{getSourceCoverageStatusLabel(row)}</span>
-                </div>
-                <span>
-                  {row.category} · {row.rowCount?.toLocaleString() || "n/a"} rows ·{" "}
-                  {formatAdminBytes(row.payloadSizeBytes)}
-                </span>
-                <em>
-                  Updated {formatAdminTelemetryDate(row.updatedAt)}
-                  {row.snapshotKey ? ` · Snapshot ${row.snapshotKey}` : ""}
-                </em>
-                <div className="admin-source-coverage-fields">
-                  <span>Returns</span>
-                  <p>{row.fieldMap.join(", ")}</p>
-                </div>
-                <div className="admin-source-coverage-fields">
-                  <span>Used now</span>
-                  <p>{row.usedNow.join(", ")}</p>
-                </div>
-                <div className="admin-source-coverage-fields">
-                  <span>Could power</span>
-                  <p>{row.couldPowerLater.join(", ")}</p>
-                </div>
-                {row.lastHealthMessage ? (
+      {issueRows.length ? (
+        <div className="admin-source-coverage-grid">
+          <section className="admin-traffic-card admin-source-coverage-card">
+            <h4>Actionable Source Issues</h4>
+            <div className="admin-traffic-list">
+              {issueRows.map(row => (
+                <article
+                  key={row.sourceKey}
+                  className={`admin-traffic-row admin-source-coverage-row ${getSourceCoverageToneClass(row)}`}
+                >
+                  <div className="admin-source-coverage-row-head">
+                    <strong>{row.source}</strong>
+                    <span>{getSourceCoverageStatusLabel(row)}</span>
+                  </div>
+                  <span>
+                    {row.category} · {row.rowCount?.toLocaleString() || "n/a"} rows ·{" "}
+                    {formatAdminBytes(row.payloadSizeBytes)}
+                  </span>
                   <em>
-                    Health: {row.lastHealthStatus || "n/a"} · {row.lastHealthMessage}
+                    Updated {formatAdminTelemetryDate(row.updatedAt)}
+                    {row.snapshotKey ? ` · Snapshot ${row.snapshotKey}` : ""}
                   </em>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="admin-traffic-card admin-source-coverage-card">
-          <h4>Research / Approval Queue</h4>
-          <div className="admin-traffic-list">
-            {candidateRows.map(row => (
-              <article
-                key={row.sourceKey}
-                className={`admin-traffic-row admin-source-coverage-row ${getSourceCoverageToneClass(row)}`}
-              >
-                <div className="admin-source-coverage-row-head">
-                  <strong>{row.source}</strong>
-                  <span>{getSourceCoverageStatusLabel(row)}</span>
-                </div>
-                <span>{row.endpoint}</span>
-                <em>{row.authModel}</em>
-                <div className="admin-source-coverage-fields">
-                  <span>Returns</span>
-                  <p>{row.fieldMap.join(", ")}</p>
-                </div>
-                <div className="admin-source-coverage-fields">
-                  <span>Gaps</span>
-                  <p>{row.knownGaps.join(", ")}</p>
-                </div>
-                <div className="admin-source-coverage-fields">
-                  <span>Boundary</span>
-                  <p>{row.complianceNote}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      </div>
+                  <div className="admin-source-coverage-fields">
+                    <span>Returns</span>
+                    <p>{row.fieldMap.join(", ")}</p>
+                  </div>
+                  <div className="admin-source-coverage-fields">
+                    <span>Used now</span>
+                    <p>{row.usedNow.join(", ")}</p>
+                  </div>
+                  <div className="admin-source-coverage-fields">
+                    <span>Could power</span>
+                    <p>{row.couldPowerLater.join(", ")}</p>
+                  </div>
+                  {row.lastHealthMessage ? (
+                    <em>
+                      Health: {row.lastHealthStatus || "n/a"} · {row.lastHealthMessage}
+                    </em>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <p className="admin-ai-readout-clean">
+          No actionable source coverage issues in this payload. Optional,
+          unconfigured, and research-only sources are kept out of admin
+          diagnostics.
+        </p>
+      )}
     </div>
   );
 }
@@ -7487,7 +7472,7 @@ function AdminAbuseTelemetryPanel() {
         </section>
       )}
 
-      {sourceHealth?.bySource?.length ? (
+      {prioritySourceHealthEvents.length > 0 && sourceHealth?.bySource?.length ? (
         <section
           className="admin-source-history-strip"
           aria-label="Source alert history"

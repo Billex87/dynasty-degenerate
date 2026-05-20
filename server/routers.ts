@@ -72,6 +72,17 @@ function normalizeManagerName(name: string | undefined): string {
   return fallback.replace(/\d+$/, '') || fallback;
 }
 
+const SLEEPER_ENTITY_ID_PATTERN = /^\d{8,24}$/;
+
+function getValidSleeperEntityId(value: unknown): string {
+  const id = String(value || '').trim();
+  return SLEEPER_ENTITY_ID_PATTERN.test(id) ? id : '';
+}
+
+function getPreviousSleeperLeagueId(leagueInfo: any): string {
+  return getValidSleeperEntityId(leagueInfo?.previous_league_id);
+}
+
 function buildCurrentSeasonMainDraftDiagnostics(
   draftPicks: any[],
   currentSeason: string
@@ -1534,10 +1545,10 @@ async function fetchHistoricalTransactionContexts(
         transactions,
         rosterUserMap,
         rosterUserDisplayMap,
-        previousLeagueId: leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : null,
+        previousLeagueId: getPreviousSleeperLeagueId(leagueInfo) || null,
         status: 'loaded',
       });
-      leagueId = leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : '';
+      leagueId = getPreviousSleeperLeagueId(leagueInfo);
     } catch (error) {
       console.warn(`Failed to fetch historical Sleeper transactions for league ${leagueId}:`, error);
       contexts.push({
@@ -1685,7 +1696,7 @@ async function fetchSleeperLeagueUsageSummary(
   rosterUserMap: Record<string, string>,
   rosterDisplayMap: Record<string, string> = {},
 ): Promise<Record<string, SleeperLeagueUsageSummary>> {
-  const normalizedLeagueId = String(leagueId || '').trim();
+  const normalizedLeagueId = getValidSleeperEntityId(leagueId);
   const normalizedSeason = String(season || '').trim();
   if (!normalizedLeagueId || !normalizedSeason) return {};
 
@@ -2250,7 +2261,7 @@ async function buildManagerChampionships(
       return [rosterId, manager === 'Unknown' ? undefined : manager];
     })
   );
-  let nextLeagueId = currentLeagueInfo?.previous_league_id ? String(currentLeagueInfo.previous_league_id) : '';
+  let nextLeagueId = getPreviousSleeperLeagueId(currentLeagueInfo);
 
   for (let depth = 0; nextLeagueId && depth < maxSeasons && !visited.has(nextLeagueId); depth += 1) {
     visited.add(nextLeagueId);
@@ -2304,7 +2315,7 @@ async function buildManagerChampionships(
       addFinish(managerByRosterId[lastPlaceRosterId ?? -1], season, 'lastPlaceSeasons');
     }
 
-    nextLeagueId = leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : '';
+    nextLeagueId = getPreviousSleeperLeagueId(leagueInfo);
   }
 
   return Object.fromEntries(
@@ -4682,7 +4693,7 @@ async function fetchAdditionalDraftLeagueContexts(
       alreadyLoadedLeagueIds.add(leagueId);
     }
 
-    nextLeagueId = leagueInfo.previous_league_id ? String(leagueInfo.previous_league_id) : '';
+    nextLeagueId = getPreviousSleeperLeagueId(leagueInfo);
   }
 
   return { contexts, draftSlotsBySeason };
@@ -5361,7 +5372,7 @@ export const appRouter = router({
           const leagueValueProfileKey = getLeagueValueProfileKey(leagueInfo);
           const leagueValueProfileLabel = getValueSourceProfileLabel(leagueValueOptions);
           const leagueValueMode = getLeagueValueMode(leagueInfo);
-          const prevLeagueId = leagueInfo.previous_league_id;
+          const prevLeagueId = getPreviousSleeperLeagueId(leagueInfo);
           const currentSeasonLabel = String(leagueInfo.season || new Date().getFullYear());
           const currentScheduleWeek = getSleeperCurrentWeek(leagueInfo);
           const previousSeasonFallbackLabel = String(Number(currentSeasonLabel) - 1);

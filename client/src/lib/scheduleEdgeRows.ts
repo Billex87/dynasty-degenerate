@@ -175,14 +175,17 @@ function getScheduleHealthStatus(input: {
   if (input.status === "error" || input.level === "danger") {
     return { label: "Error", tone: "danger" };
   }
-  if (input.rowCount === 0) {
-    return { label: "Empty", tone: "warn" };
-  }
   if (input.status === "missing") {
     return { label: "Missing", tone: "warn" };
   }
   if (input.status === "stale") {
     return { label: "Stale", tone: "warn" };
+  }
+  if (input.rowCount === 0) {
+    return {
+      label: "No rows yet",
+      tone: input.level === "warn" ? "warn" : "info",
+    };
   }
   if (typeof input.rowCount === "number" && input.rowCount > 0) {
     return { label: "Loaded", tone: "good" };

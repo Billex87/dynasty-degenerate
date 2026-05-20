@@ -1,6 +1,10 @@
+import { config as loadEnv } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
-const connectionString = process.env.DATABASE_URL;
+loadEnv({ path: ".env.local", override: false, quiet: true });
+loadEnv({ override: false, quiet: true });
+
+const connectionString = process.env.DATABASE_URL?.trim();
 if (!connectionString) {
   throw new Error("DATABASE_URL is required to run drizzle commands");
 }

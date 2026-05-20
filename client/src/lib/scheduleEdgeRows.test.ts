@@ -267,8 +267,8 @@ describe("schedule edge rows", () => {
       rowCount: 51,
     });
     expect(rows[1].cells.RB).toMatchObject({
-      label: "Empty",
-      tone: "warn",
+      label: "No rows yet",
+      tone: "info",
       rowCount: 0,
     });
     expect(rows[2].cells.WR).toMatchObject({
