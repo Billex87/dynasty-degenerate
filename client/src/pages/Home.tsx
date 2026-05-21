@@ -12878,17 +12878,16 @@ export default function Home() {
             <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
               <h2
                 className="athletic-title home-title"
-                aria-label="Abuse AI. Crush your league."
+                aria-label="Fuck fair. Win anyway."
               >
-                <span className="home-title-primary">Abuse AI.</span>
-                <span className="home-title-accent">Crush Your League.</span>
+                <span className="home-title-primary">FUCK FAIR.</span>
+                <span className="home-title-accent">WIN ANYWAY.</span>
               </h2>
               <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
-                Built for fantasy degenerates who want every unfair edge.{" "}
-                <span className="home-subtitle-name">Dynasty Degenerates</span>{" "}
-                turns Sleeper data into trade heists, lineup leaks, draft traps,
-                and manager tells before your opponents know they are bleeding
-                value.
+                Your league mates are guessing. You’re about to weaponize AI.
+                <span className="home-subtitle-name"> Dynasty Degenerates</span>{" "}
+                finds roster cracks, trade windows, lineup leverage, and draft
+                value before the rest of your league realizes it got worked.
               </p>
             </div>
 
@@ -12897,7 +12896,7 @@ export default function Home() {
             <div className="home-analyze-card space-y-4 sm:space-y-6 p-4 sm:p-8">
               <div className="text-center">
                 <label className="home-field-label block text-sm font-semibold text-slate-200 mb-3">
-                  Drop Your Sleeper Username
+                  Enter Sleeper. Start Damage.
                 </label>
                 <div className="home-username-row flex flex-col gap-2 sm:gap-3 w-full">
                   <div className="home-autocomplete-anchor flex-1 w-full sm:w-auto">
@@ -12946,12 +12945,12 @@ export default function Home() {
                     <Zap size={20} />
                     {userLeaguesMutation.isPending
                       ? "Finding Your Leagues..."
-                      : "Unleash The Degenerate AI"}
+                      : "Run The Damn Report"}
                   </Button>
                 </div>
                 <p className="home-field-helper text-xs text-slate-400 mt-2">
-                  We scan your leagues, expose your cross-league player
-                  portfolio, then let you pick where to start the damage.
+                  We map your leagues, roast your roster, and point you at the
+                  easiest victims.
                 </p>
               </div>
 
@@ -13015,7 +13014,7 @@ export default function Home() {
                     className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
                   >
                     <Zap size={20} />
-                    Unleash The Degenerate AI
+                    Run The Damn Report
                   </Button>
                 </>
               ) : null}
@@ -13040,11 +13039,11 @@ export default function Home() {
                   <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
                     <BarChart3 className="w-6 h-6 text-emerald-400" />
                   </div>
-                  <h3 className="font-semibold text-white">Roster Leaks</h3>
+                  <h3 className="font-semibold text-white">Roster Roast</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  Find weak rosters, desperate contenders, fake rebuilds, and
-                  managers with depth they cannot actually start.
+                  See who’s loaded, who’s fragile, and who’s one injury away
+                  from posting “anyone selling RBs?”
                 </p>
               </div>
 
@@ -13053,11 +13052,11 @@ export default function Home() {
                   <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
                     <TrendingUp className="w-6 h-6 text-blue-400" />
                   </div>
-                  <h3 className="font-semibold text-white">Trade Heists</h3>
+                  <h3 className="font-semibold text-white">Trade Victims</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  Spot buy windows, sell peaks, and lopsided offers before your
-                  league chat wakes up and ruins the price.
+                  Find managers holding stale names, panic assets, or depth
+                  they can’t use.
                 </p>
               </div>
 
@@ -13066,11 +13065,11 @@ export default function Home() {
                   <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
                     <ListOrdered className="w-6 h-6 text-purple-400" />
                   </div>
-                  <h3 className="font-semibold text-white">AI Big Board</h3>
+                  <h3 className="font-semibold text-white">Lineup Abuse</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  League-matched ranks for dynasty, redraft, rookies, SuperFlex,
-                  PPR, and TE premium. No generic internet slop.
+                  Turn starter-room gaps into leverage before the matchup
+                  window closes.
                 </p>
               </div>
 
@@ -13079,11 +13078,11 @@ export default function Home() {
                   <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
                     <ClipboardList className="w-6 h-6 text-orange-300" />
                   </div>
-                  <h3 className="font-semibold text-white">Draft Theft</h3>
+                  <h3 className="font-semibold text-white">Draft Punishment</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  Steal rookie value, punish manager tendencies, and catch missed
-                  board opportunities while everyone else drafts off vibes.
+                  Expose draft mistakes, missed rookie value, and managers who
+                  punted capital into the sun.
                 </p>
               </div>
             </div>
