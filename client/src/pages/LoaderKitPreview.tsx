@@ -95,6 +95,60 @@ const previewManagerAnchors: LoaderManagerAnchor[] = [
       `<path d="M19 47c7-20 33-27 48-10-7 19-29 27-48 10Z" fill="#ff8a2a"/><path d="M34 34l12 12M46 34L34 46" stroke="#fff8e7" stroke-width="4" stroke-linecap="round"/>`
     ),
   },
+  {
+    id: "preview-manager-9",
+    avatarUrl: makePreviewManagerIcon(
+      "#052435",
+      "#934516",
+      "#8cf8ff",
+      `<circle cx="40" cy="40" r="18" fill="#24f5ff"/><path d="M29 44h22l-6 12H35Z" fill="#ff8a2a"/><path d="M28 35h24" stroke="#020712" stroke-width="4" stroke-linecap="round"/>`
+    ),
+  },
+  {
+    id: "preview-manager-10",
+    avatarUrl: makePreviewManagerIcon(
+      "#3c1608",
+      "#08596d",
+      "#ffb45a",
+      `<path d="M24 25h32l7 18-23 16-23-16Z" fill="#ff8a2a"/><path d="M29 38h22M35 47h10" stroke="#fff8e7" stroke-width="4" stroke-linecap="round"/>`
+    ),
+  },
+  {
+    id: "preview-manager-11",
+    avatarUrl: makePreviewManagerIcon(
+      "#041a2a",
+      "#a04918",
+      "#24f5ff",
+      `<path d="M20 53l20-36 20 36H20Z" fill="#24f5ff"/><circle cx="40" cy="43" r="8" fill="#020712"/><circle cx="40" cy="43" r="4" fill="#ff8a2a"/>`
+    ),
+  },
+  {
+    id: "preview-manager-12",
+    avatarUrl: makePreviewManagerIcon(
+      "#55210c",
+      "#063344",
+      "#ff8a2a",
+      `<path d="M22 40c9-16 28-21 39-9 1 17-17 29-37 23Z" fill="#8cf8ff"/><path d="M32 37l14 14M47 36l-16 16" stroke="#020712" stroke-width="4" stroke-linecap="round"/>`
+    ),
+  },
+  {
+    id: "preview-manager-13",
+    avatarUrl: makePreviewManagerIcon(
+      "#052538",
+      "#7a3512",
+      "#24f5ff",
+      `<path d="M40 17l6 17h18l-15 10 6 18-15-11-15 11 6-18-15-10h18Z" fill="#ffb45a"/><circle cx="40" cy="40" r="7" fill="#020712"/>`
+    ),
+  },
+  {
+    id: "preview-manager-14",
+    avatarUrl: makePreviewManagerIcon(
+      "#3a1407",
+      "#074e61",
+      "#ffb45a",
+      `<path d="M18 48c11-17 33-22 48-8-7 19-31 25-48 8Z" fill="#ff8a2a"/><path d="M33 34h14v25H33Z" fill="#020712" opacity=".72"/><path d="M30 43h20" stroke="#fff8e7" stroke-width="4" stroke-linecap="round"/>`
+    ),
+  },
 ];
 
 export default function LoaderKitPreview() {
@@ -103,12 +157,12 @@ export default function LoaderKitPreview() {
       <div className="ddlp__preview-shell">
         <div className="analysis-loading-dialog-loading ddlp__current-modal-shell">
           <div className="analysis-loading-modal-body">
-            <LoadingAnimation
-              leagueName="Skids Get Beat"
-              leagueFormat="10-Team Dynasty SF Half-PPR"
-              leagueLogo={previewLeagueLogo}
-              managerAnchors={previewManagerAnchors}
-            />
+              <LoadingAnimation
+                leagueName="Skids Get Beat"
+                leagueFormat="14-Team Dynasty SF Half-PPR"
+                leagueLogo={previewLeagueLogo}
+                managerAnchors={previewManagerAnchors}
+              />
           </div>
         </div>
       </div>

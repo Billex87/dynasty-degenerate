@@ -21,7 +21,6 @@
 .loader-kit-backdrop__stage,
 .loader-kit-backdrop__stage canvas,
 .loader-kit-backdrop__matrix,
-.loader-kit-backdrop__scanline,
 .loader-kit-backdrop__vignette,
 .loader-kit-backdrop__fallback {
   position: absolute;
@@ -70,6 +69,16 @@
     drop-shadow(0 0 0.7rem rgba(36, 245, 255, 0.24))
     drop-shadow(0 0 0.8rem rgba(255, 138, 42, 0.16));
   will-change: transform, opacity;
+}
+
+.loader-kit-backdrop__manager-anchors[data-density="compact"] .loader-kit-backdrop__manager-anchor {
+  width: clamp(1.95rem, 3.3vw, 2.7rem);
+  height: clamp(1.95rem, 3.3vw, 2.7rem);
+}
+
+.loader-kit-backdrop__manager-anchors[data-density="dense"] .loader-kit-backdrop__manager-anchor {
+  width: clamp(1.75rem, 2.9vw, 2.45rem);
+  height: clamp(1.75rem, 2.9vw, 2.45rem);
 }
 
 .loader-kit-backdrop__manager-node,
@@ -166,21 +175,6 @@
   opacity: 0.9;
 }
 
-.loader-kit-backdrop__scanline {
-  pointer-events: none;
-  z-index: 4;
-  background: linear-gradient(
-    transparent 0%,
-    rgba(36, 245, 255, 0.05) 46%,
-    rgba(36, 245, 255, 0.14) 50%,
-    rgba(255, 138, 42, 0.08) 53%,
-    transparent 100%
-  );
-  opacity: 0.62;
-  transform: translateY(-100%);
-  animation: loader-kit-backdrop-scan 3.8s linear infinite;
-}
-
 .loader-kit-backdrop__vignette {
   pointer-events: none;
   z-index: 5;
@@ -231,16 +225,6 @@
   animation-direction: reverse;
 }
 
-@keyframes loader-kit-backdrop-scan {
-  from {
-    transform: translateY(-100%);
-  }
-
-  to {
-    transform: translateY(100%);
-  }
-}
-
 @keyframes loader-kit-backdrop-spin {
   to {
     transform: rotate(1turn);
@@ -259,13 +243,14 @@
     height: 1.9rem;
   }
 
-  .loader-kit-backdrop__manager-anchor:nth-child(n + 6) {
-    display: none;
+  .loader-kit-backdrop__manager-anchors[data-density="compact"] .loader-kit-backdrop__manager-anchor,
+  .loader-kit-backdrop__manager-anchors[data-density="dense"] .loader-kit-backdrop__manager-anchor {
+    width: 1.55rem;
+    height: 1.55rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loader-kit-backdrop__scanline,
   .loader-kit-backdrop__fallback-ring,
   .loader-kit-backdrop__manager-orbit {
     animation: none !important;

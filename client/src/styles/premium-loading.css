@@ -215,19 +215,10 @@
   pointer-events: none;
   opacity: 0.98;
   transition: opacity 420ms ease;
-  mask-image: linear-gradient(90deg, transparent 0%, transparent 14%, #000 24%, #000 76%, transparent 86%, transparent 100%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, transparent 14%, #000 24%, #000 76%, transparent 86%, transparent 100%);
 }
 
 .dd-loading-scene-backdrop[data-state="exit"] {
   opacity: 0;
-}
-
-@media (max-width: 700px) {
-  .dd-loading-scene-backdrop {
-    mask-image: linear-gradient(90deg, transparent 0%, #000 5%, #000 95%, transparent 100%);
-    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 5%, #000 95%, transparent 100%);
-  }
 }
 
 .analysis-loading-tron .ai-tron-surface {
@@ -242,7 +233,7 @@
   transform-origin: 50% 52%;
   transform-style: preserve-3d;
   will-change: transform, box-shadow;
-  animation: analysis-loader-kit-dialog-float 6.8s ease-in-out infinite !important;
+  animation: analysis-loader-kit-dialog-float 6.2s ease-in-out infinite !important;
 }
 
 .analysis-loading-panel > :not(.loading-tron-backdrop):not(.dd-loading-letterbox) {
@@ -488,24 +479,24 @@
 
   28% {
     box-shadow:
-      0 32px 92px rgba(0, 0, 0, 0.62),
-      0 0 76px rgba(36, 245, 255, 0.16);
-    transform: translate(-50%, -50%) perspective(1200px) translate3d(4px, -8px, 0) rotateX(1.35deg) rotateY(-1.4deg);
+      0 36px 102px rgba(0, 0, 0, 0.63),
+      0 0 82px rgba(36, 245, 255, 0.18);
+    transform: translate(-50%, -50%) perspective(1200px) translate3d(7px, -11px, 0) rotateX(2.15deg) rotateY(-2.35deg) rotateZ(0.22deg);
   }
 
   50% {
     box-shadow:
-      0 36px 100px rgba(0, 0, 0, 0.64),
-      0 0 82px rgba(255, 138, 42, 0.1),
-      0 0 72px rgba(36, 245, 255, 0.14);
-    transform: translate(-50%, -50%) perspective(1200px) translate3d(0, -12px, 0) rotateX(1.8deg) rotateY(0.8deg);
+      0 42px 112px rgba(0, 0, 0, 0.65),
+      0 0 90px rgba(255, 138, 42, 0.12),
+      0 0 82px rgba(36, 245, 255, 0.15);
+    transform: translate(-50%, -50%) perspective(1200px) translate3d(0, -16px, 0) rotateX(2.8deg) rotateY(1.25deg) rotateZ(-0.14deg);
   }
 
   74% {
     box-shadow:
-      0 30px 90px rgba(0, 0, 0, 0.6),
-      0 0 72px rgba(255, 138, 42, 0.12);
-    transform: translate(-50%, -50%) perspective(1200px) translate3d(-4px, -6px, 0) rotateX(0.75deg) rotateY(1.35deg);
+      0 34px 98px rgba(0, 0, 0, 0.62),
+      0 0 78px rgba(255, 138, 42, 0.14);
+    transform: translate(-50%, -50%) perspective(1200px) translate3d(-7px, -9px, 0) rotateX(1.15deg) rotateY(2.25deg) rotateZ(-0.22deg);
   }
 }
 

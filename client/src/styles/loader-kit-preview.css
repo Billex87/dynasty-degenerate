@@ -38,7 +38,7 @@
   transform-origin: 50% 52%;
   transform-style: preserve-3d;
   will-change: transform, box-shadow;
-  animation: ddlp-current-modal-float 6.8s ease-in-out infinite;
+  animation: ddlp-current-modal-float 6.2s ease-in-out infinite;
 }
 
 @keyframes ddlp-current-modal-float {
@@ -52,27 +52,27 @@
 
   28% {
     box-shadow:
-      0 34px 100px rgba(0, 0, 0, 0.62),
-      0 0 82px rgba(36, 245, 255, 0.18),
-      inset 0 0 68px rgba(36, 245, 255, 0.06);
-    transform: translate3d(4px, -8px, 0) rotateX(1.35deg) rotateY(-1.4deg);
+      0 38px 108px rgba(0, 0, 0, 0.63),
+      0 0 88px rgba(36, 245, 255, 0.19),
+      inset 0 0 70px rgba(36, 245, 255, 0.06);
+    transform: translate3d(7px, -11px, 0) rotateX(2.15deg) rotateY(-2.35deg) rotateZ(0.22deg);
   }
 
   50% {
     box-shadow:
-      0 38px 108px rgba(0, 0, 0, 0.64),
-      0 0 82px rgba(36, 245, 255, 0.15),
-      0 0 72px rgba(255, 138, 42, 0.1),
-      inset 0 0 72px rgba(36, 245, 255, 0.06);
-    transform: translate3d(0, -12px, 0) rotateX(1.8deg) rotateY(0.8deg);
+      0 44px 116px rgba(0, 0, 0, 0.65),
+      0 0 88px rgba(36, 245, 255, 0.16),
+      0 0 80px rgba(255, 138, 42, 0.12),
+      inset 0 0 74px rgba(36, 245, 255, 0.06);
+    transform: translate3d(0, -16px, 0) rotateX(2.8deg) rotateY(1.25deg) rotateZ(-0.14deg);
   }
 
   74% {
     box-shadow:
-      0 32px 96px rgba(0, 0, 0, 0.6),
-      0 0 74px rgba(255, 138, 42, 0.13),
-      inset 0 0 68px rgba(36, 245, 255, 0.05);
-    transform: translate3d(-4px, -6px, 0) rotateX(0.75deg) rotateY(1.35deg);
+      0 36px 104px rgba(0, 0, 0, 0.62),
+      0 0 80px rgba(255, 138, 42, 0.14),
+      inset 0 0 70px rgba(36, 245, 255, 0.05);
+    transform: translate3d(-7px, -9px, 0) rotateX(1.15deg) rotateY(2.25deg) rotateZ(-0.22deg);
   }
 }
 
