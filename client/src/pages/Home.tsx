@@ -10881,6 +10881,7 @@ export default function Home() {
         <div className="analysis-loading-modal-body">
           <LoadingAnimation
             isComplete={Boolean(analysisCompleteMessage)}
+            phase={loadingTransitionPhase}
             leagueName={loadingLeague?.leagueName}
             leagueFormat={loadingLeague?.leagueFormat}
             leagueLogo={loadingLeague?.leagueLogo}

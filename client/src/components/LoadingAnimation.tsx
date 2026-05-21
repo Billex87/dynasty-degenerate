@@ -18,10 +18,10 @@ function LoadingLetterbox({ isComplete }: { isComplete: boolean }) {
 }
 
 function LoadingSceneBackdrop({
-  isComplete,
+  isActive,
   managerAnchors,
 }: {
-  isComplete: boolean;
+  isActive: boolean;
   managerAnchors?: LoaderManagerAnchor[];
 }) {
   if (typeof document === 'undefined') return null;
@@ -29,7 +29,7 @@ function LoadingSceneBackdrop({
   return createPortal(
     <div
       className="dd-loading-scene-backdrop"
-      data-state={isComplete ? 'exit' : 'enter'}
+      data-state={isActive ? 'enter' : 'exit'}
       aria-hidden="true"
     >
       <Suspense fallback={<div className="analysis-loading-loader-kit-fallback" />}>
@@ -59,23 +59,28 @@ function createInitialLoadingSteps() {
   return initialLoadingSteps.map((step) => ({ ...step }));
 }
 
+type LoadingAnimationPhase = 'loading' | 'success' | 'reveal' | 'kick' | 'done';
+
 export function LoadingAnimation({
   isComplete = false,
+  phase = 'loading',
   leagueName,
   leagueFormat,
   leagueLogo,
   managerAnchors,
 }: {
   isComplete?: boolean;
+  phase?: LoadingAnimationPhase;
   leagueName?: string | null;
   leagueFormat?: string | null;
   leagueLogo?: string | null;
   managerAnchors?: LoaderManagerAnchor[];
 }) {
   const [steps, setSteps] = useState<LoadingStep[]>(() => createInitialLoadingSteps());
+  const isLoadingResolved = isComplete || phase !== 'loading';
 
   useEffect(() => {
-    if (isComplete) {
+    if (isLoadingResolved) {
       setSteps((currentSteps) => currentSteps.map((step) => ({ ...step, status: 'complete' })));
       return;
     }
@@ -96,12 +101,12 @@ export function LoadingAnimation({
     });
 
     return () => timers.forEach(timer => clearTimeout(timer));
-  }, [isComplete]);
+  }, [isLoadingResolved]);
 
   return (
     <div className="loading-panel analysis-loading-panel">
-      <LoadingLetterbox isComplete={isComplete} />
-      <LoadingSceneBackdrop isComplete={isComplete} managerAnchors={managerAnchors} />
+      <LoadingLetterbox isComplete={isLoadingResolved} />
+      <LoadingSceneBackdrop isActive={!isLoadingResolved} managerAnchors={managerAnchors} />
       <div className="loading-tron-backdrop analysis-loading-tron analysis-loading-loader-kit" aria-hidden="true" />
 
       <div className="loading-modal-header">
@@ -119,7 +124,7 @@ export function LoadingAnimation({
           {leagueFormat ? <p className="loading-subtitle">{leagueFormat}</p> : null}
         </div>
       </div>
-      {isComplete ? (
+      {isLoadingResolved ? (
         <p className="loading-status-line">Report locked and loaded.</p>
       ) : null}
 
@@ -193,7 +198,7 @@ export function LoadingAnimation({
           );
         })}
 
-        {!isComplete && (
+        {!isLoadingResolved && (
           <>
             <p className="text-slate-500 text-xs mt-1 text-center">
               {steps.filter(s => s.status === 'complete').length} of {steps.length} steps complete
