@@ -14497,7 +14497,28 @@
 }
 
 .report-shell .report-disclosure-summary {
+  container-name: report-disclosure-summary;
+  container-type: inline-size;
   position: relative;
+}
+
+@container report-disclosure-summary (max-width: 46rem) {
+  .report-shell .report-disclosure-preview-row:has(.owner-intel-sort-controls) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.48rem;
+  }
+
+  .report-shell .report-disclosure-preview-row:has(.owner-intel-sort-controls) > .report-disclosure-preview-accessory {
+    order: 1;
+  }
+
+  .report-shell .report-disclosure-preview-row:has(.owner-intel-sort-controls) > .analysis-preview-chip-row {
+    order: 2;
+    width: min(100%, 28rem);
+    justify-content: center;
+  }
 }
 
 .report-shell .report-section-header {

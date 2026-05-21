@@ -3606,7 +3606,6 @@ function getReportDashboardHeroConfig({
   reportData: ReportData;
   leagueBalanceScore: number | null;
 }): {
-  kicker: string;
   pillLabel: string;
   pills: string[];
   metrics: DashboardHeroMetric[];
@@ -3657,7 +3656,6 @@ function getReportDashboardHeroConfig({
 
   if (activeTab === "momentum") {
     return {
-      kicker: "Weekly Momentum Radar",
       pillLabel: "Momentum signals",
       pills: ["Market movement", "Waiver heat", "Buy windows", "Sell pressure"],
       metrics: [
@@ -3717,7 +3715,6 @@ function getReportDashboardHeroConfig({
       ? "Weighted"
       : "Default";
     return {
-      kicker: "League-Matched Value Board",
       pillLabel: "Ranking signals",
       pills: ["Format matched", "Rostered values", "Prospect board", "Source blend"],
       metrics: [
@@ -3748,7 +3745,6 @@ function getReportDashboardHeroConfig({
   if (activeTab === "trades") {
     const handshakeRate = getDashboardHandshakeRate(reportData);
     return {
-      kicker: "Trade War Room",
       pillLabel: "Trade signals",
       pills: ["Roster scanner", "Value gaps", "Profit leaders", "Market behavior"],
       metrics: [
@@ -3804,7 +3800,6 @@ function getReportDashboardHeroConfig({
 
   if (activeTab === "draft") {
     return {
-      kicker: "Draft Audit Room",
       pillLabel: "Draft signals",
       pills: ["Capital efficiency", "Hit rate", "Passed value", "Rookie runway"],
       metrics: [
@@ -3842,7 +3837,6 @@ function getReportDashboardHeroConfig({
 
   if (activeTab === "autopilot") {
     return {
-      kicker: "AI Command Center",
       pillLabel: "AI signals",
       pills: ["Confidence", "Roster reads", "Source checks", "Action plans"],
       metrics: [
@@ -3903,9 +3897,8 @@ function getReportDashboardHeroConfig({
             : "Uneven";
 
   return {
-    kicker: "Dynasty Intel Command Center",
     pillLabel: "Overview signals",
-    pills: ["Market data", "Season value", "Roster context", "AI-driven reads"],
+    pills: ["Trade windows", "Lineup leverage", "Manager tells"],
     metrics: [
       {
         key: "starter-pool",
@@ -3968,15 +3961,14 @@ function ReportOverviewHero({
   return (
     <section className="report-overview-hero">
       <div className="report-overview-hero-copy">
-        <span>{heroConfig.kicker}</span>
         <h1>
           <span>Win Now. Win Later.</span>
           <span>Build Your Dynasty.</span>
         </h1>
         <p>
-          Stop guessing. Start dominating. Dynasty Degenerates blends dynasty
-          market data, redraft season value, roster context, and AI-driven
-          reads to give you an unfair advantage in every Sleeper league.
+          Stop guessing. Start dominating. Dynasty Degenerates spots trade
+          windows, weekly lineup leverage, and manager tells before your league
+          catches up.
         </p>
         <div className="report-overview-pills" aria-label={heroConfig.pillLabel}>
           {heroConfig.pills.map(pill => (
@@ -12364,9 +12356,8 @@ export default function Home() {
               <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
                 Stop guessing. Start dominating.{" "}
                 <span className="home-subtitle-name">Dynasty Degenerates</span>{" "}
-                blends dynasty market data, redraft season value, roster
-                context, and AI-driven reads to give you an unfair advantage in
-                every Sleeper league.
+                spots trade windows, weekly lineup leverage, and manager tells
+                before your league catches up.
               </p>
             </div>
 
