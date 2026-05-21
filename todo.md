@@ -400,9 +400,14 @@
 - [x] Add depth-chart cache health diagnostics showing last warm time, loaded teams, failed teams, retry count, and stale team coverage.
 - [x] Move recommendation outcome detection into a backend job so confidence can improve even when the user does not reopen the report UI.
 - [x] Use Sleeper completed waiver transactions, including prior-season league-chain rows, as winning-bid evidence for waiver ranges; current-season bids are weighted above last-season samples, and stored prediction outcomes can grade FAAB ranges from actual winning bids.
+- [ ] Later approved Sleeper hidden-transaction import: safely capture pending/proposed/cancelled/failed/rejected waiver and trade rows, including managers, players, bid or priority context, and pending claim visibility, without depending on normal public completed-transaction feeds.
+- [ ] Add waiver-priority league calibration: detect FAAB versus rolling/standings waiver priority leagues, score priority-burn urgency instead of exact bid ranges when no FAAB exists, and include manager waiver order/standings context when Sleeper exposes it.
+- [ ] Add league/cohort calibration fallback: learn manager behavior inside the exact league first, then use similar-league cohorts only when local samples are thin, bucketed by FAAB versus waiver priority, redraft/dynasty, team count, scoring, lineup format, and activity level.
 - [ ] After 2026 weekly games begin, review the admin Module Accuracy rows weekly and tune confidence caps only when each module has enough resolved samples.
 - [ ] After 2026 waivers begin processing, capture skipped claims, losing bids where available, waiver-priority results, and follow-up production so waiver bid-range calibration can move past sample-size caps.
-- [ ] After 2026 trades start, classify accepted, rejected, countered, expired, blocked, and regretted trade recommendations so manager-specific trade-resistance calibration has real outcomes.
+- [ ] After 2026 trades start, classify accepted, rejected, countered, expired, blocked, and regretted trade recommendations from Sleeper statuses where available, then fall back to admin/user labeling only for outcomes Sleeper does not expose.
+- [ ] Add recommendation grading windows by format: redraft recommendations grade at end of season against final standings, playoff finish, points for, roster usage, and title outcome; dynasty draft recommendations use a 2-year outcome window before final hit/miss labels.
+- [ ] In August 2026, ask Billy to re-review projection sources when weekly projections are live: compare Sleeper projections against DraftSharks, FantasyPros, and any approved export/API source, then choose the baseline used for start/sit, streamers, and calibration.
 - [ ] After 2026 depth charts and practice reports are live, compare role/depth-chart confidence against snaps, routes, targets, carries, starter status, and injury outcomes before raising role-read confidence.
 - [x] Remove the legacy `trade-recommendation-outcomes:v1` localStorage migration read after shared action-plan storage has been live long enough.
 
