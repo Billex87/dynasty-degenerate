@@ -147,6 +147,9 @@ const WeeklyMomentumTable = lazy(
 const TradeWarRoom = lazy(
   () => import("@/components/reportTables/TradeWarRoom")
 );
+const LeagueRosterScanner = lazy(
+  () => import("@/components/reportTables/LeagueRosterScanner")
+);
 const TradeProfitLeaderboardTable = lazy(
   () => import("@/components/reportTables/TradeProfitLeaderboardTable")
 );
@@ -8420,6 +8423,11 @@ function AdminAICalibrationPanel({
       void refetch();
     },
   });
+  const feedbackMutation = trpc.system.markAiPredictionOutcome.useMutation({
+    onSuccess: () => {
+      void refetch();
+    },
+  });
 
   if (isAuthLoading) {
     return (
@@ -8478,10 +8486,12 @@ function AdminAICalibrationPanel({
   const recentResolved = data.recentEvents
     .filter(event => event.outcomeStatus !== "pending")
     .slice(0, 8);
+  const feedbackRows = data.recentEvents.slice(0, 6);
   const counterfactual = data.counterfactuals;
   const counterfactualBuckets = counterfactual.buckets
     .filter(bucket => bucket.status !== "all")
     .slice(0, 6);
+  const managerTradeRows = data.managerTrades.rows.slice(0, 6);
   const pendingCount = profile.pendingCount;
   const totalCards = [
     {
@@ -8665,6 +8675,31 @@ function AdminAICalibrationPanel({
         </section>
 
         <section className="admin-traffic-card">
+          <h4>Trade Targets</h4>
+          <div className="admin-traffic-list">
+            {managerTradeRows.length ? (
+              managerTradeRows.map(row => (
+                <div key={row.manager} className="admin-traffic-row">
+                  <strong>{row.manager}</strong>
+                  <span>
+                    {row.recommendation.replace(/-/g, " ")} · accept{" "}
+                    {row.acceptanceRate ?? "n/a"}% · edge {row.avgRealizedEdge ?? "n/a"}
+                  </span>
+                  <em>
+                    {row.scoredCount.toLocaleString()} scored · {row.pendingCount.toLocaleString()} pending
+                  </em>
+                  <em>{row.note}</em>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                Manager-specific trade acceptance samples are still building.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
           <h4>Recent Outcomes</h4>
           <div className="admin-traffic-list">
             {recentResolved.length ? (
@@ -8682,12 +8717,81 @@ function AdminAICalibrationPanel({
                     {event.baselineScore === null ? "n/a" : `${event.baselineScore}%`} ·{" "}
                     {event.counterfactualStatus.replace(/-/g, " ")}
                   </em>
+                  {event.realizedEdgeStatus ? (
+                    <em>
+                      realized {event.realizedEdge ?? "n/a"} ·{" "}
+                      {event.realizedEdgeStatus.replace(/-/g, " ")}
+                      {event.feedbackSource ? ` · ${event.feedbackSource}` : ""}
+                    </em>
+                  ) : null}
                   <em>{formatAdminTelemetryDate(event.updatedAt)}</em>
                 </div>
               ))
             ) : (
               <p className="admin-traffic-empty">
                 No resolved AI outcomes in the recent event window.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Manual Feedback</h4>
+          <div className="admin-traffic-list">
+            {feedbackRows.length ? (
+              feedbackRows.map(event => (
+                <div key={event.eventId} className="admin-traffic-row">
+                  <strong>{event.entityName || event.label}</strong>
+                  <span>
+                    {event.surface} · {event.action} · {event.outcomeStatus} · expires{" "}
+                    {event.expiresAt ? formatAdminTelemetryDate(event.expiresAt) : "n/a"}
+                  </span>
+                  <div className="admin-ai-calibration-actions">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="admin-traffic-refresh"
+                      disabled={feedbackMutation.isPending}
+                      onClick={() => feedbackMutation.mutate({
+                        eventId: event.eventId,
+                        status: "hit",
+                        note: "Admin feedback: this read worked.",
+                      })}
+                    >
+                      Worked
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="admin-traffic-refresh"
+                      disabled={feedbackMutation.isPending}
+                      onClick={() => feedbackMutation.mutate({
+                        eventId: event.eventId,
+                        status: "miss",
+                        note: "Admin feedback: this was a bad read.",
+                      })}
+                    >
+                      Missed
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="admin-traffic-refresh"
+                      disabled={feedbackMutation.isPending}
+                      onClick={() => feedbackMutation.mutate({
+                        eventId: event.eventId,
+                        status: "push",
+                        note: "Admin feedback: ignored or not scorable.",
+                      })}
+                    >
+                      Ignored
+                    </Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                No recent AI reads are available for manual feedback.
               </p>
             )}
           </div>
@@ -9704,6 +9808,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState(
     () => getInitialReportTabFromUrl() || "overview"
   );
+  const [rosterScannerFocusKey, setRosterScannerFocusKey] = useState(0);
   const [leagueName, setLeagueName] = useState("");
   const [leagueLogo, setLeagueLogo] = useState<string | null>(null);
   const [leagueFormat, setLeagueFormat] = useState("");
@@ -10885,6 +10990,11 @@ export default function Home() {
     const allowedNextTab = isBlockedAutopilotTab ? "overview" : nextTab;
     setActiveTab(allowedNextTab);
     updateReportTabUrl(allowedNextTab, leagueId);
+  };
+  const handleScoutLeaguemates = () => {
+    setRosterScannerFocusKey(current => current + 1);
+    setActiveTab("rankings");
+    updateReportTabUrl("rankings", leagueId);
   };
 
   useEffect(() => {

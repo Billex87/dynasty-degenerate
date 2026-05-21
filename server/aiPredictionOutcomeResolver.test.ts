@@ -40,11 +40,34 @@ describe('AI prediction outcome resolver', () => {
       transactions: [
         { type: 'add', playerId: 'p1', playerName: 'Waiver Receiver', manager: 'Sample Manager' },
       ],
+      playerStats: [
+        { playerId: 'p1', playerName: 'Waiver Receiver', fantasyPoints: 14, baselineFantasyPoints: 8 },
+      ],
     });
 
     expect(resolved).toMatchObject({
       status: 'hit',
       resolvedAt: '2026-09-02T00:00:00.000Z',
+      actualValue: 14,
+      baselineValue: 8,
+      realizedEdge: {
+        status: 'beat-baseline',
+        realizedEdge: 6,
+      },
+    });
+  });
+
+  it('waits to grade waiver pickups until production is available', () => {
+    const resolved = resolveAIPredictionOutcome(event(), {
+      transactions: [
+        { type: 'add', playerId: 'p1', playerName: 'Waiver Receiver', manager: 'Sample Manager' },
+      ],
+      playerStats: [],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'pending',
+      note: 'Recommended player was added by Sample Manager; waiting for production to grade realized edge.',
     });
   });
 
@@ -76,6 +99,27 @@ describe('AI prediction outcome resolver', () => {
       status: 'hit',
       actualValue: 12,
       baselineValue: 8,
+      realizedEdge: {
+        status: 'beat-baseline',
+        realizedEdge: 4,
+      },
+    });
+  });
+
+  it('expires stale unresolved reads as push outcomes', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      expiresAt: '2026-09-01T01:00:00.000Z',
+    }), {
+      resolvedAt: '2026-09-02T00:00:00.000Z',
+      transactions: [],
+      playerStats: [],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'push',
+      realizedEdge: {
+        status: 'expired',
+      },
     });
   });
 
@@ -101,6 +145,9 @@ describe('AI prediction outcome resolver', () => {
     }), {
       transactions: [
         { type: 'add', playerId: 'p1', manager: 'The Sample Squad / Sample Manager' },
+      ],
+      playerStats: [
+        { playerId: 'p1', fantasyPoints: 10, baselineFantasyPoints: 8 },
       ],
     });
 

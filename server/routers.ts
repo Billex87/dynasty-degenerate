@@ -74,7 +74,7 @@ import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagu
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget } from "../shared/types";
 import type { AIPredictionEvent, AIPredictionOutcome, AISourceAgreementRead } from "./aiPredictionCalibration";
-import type { AICounterfactualRead, AIDecisionSnapshot } from "../shared/aiDecisionSnapshots";
+import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -404,6 +404,25 @@ const aiPredictionOutcomeSchema = z.object({
   resolvedAt: z.string().max(80).nullable().optional(),
   actualValue: z.number().finite().nullable().optional(),
   baselineValue: z.number().finite().nullable().optional(),
+  realizedEdge: z.object({
+    status: z.enum(["beat-baseline", "matched-baseline", "trailed-baseline", "action-only", "expired", "manual"]),
+    predictedEdge: z.number().finite().nullable(),
+    actualValue: z.number().finite().nullable(),
+    baselineValue: z.number().finite().nullable(),
+    realizedEdge: z.number().finite().nullable(),
+    baselineKind: z.enum([
+      "do-nothing",
+      "replacement",
+      "highest-ranked-available",
+      "current-starter",
+      "market-default",
+      "manager-default",
+      "unknown",
+    ]),
+    source: z.string().min(1).max(180),
+    note: z.string().min(1).max(500),
+  }).nullable().optional() satisfies z.ZodType<AIRealizedEdge | null | undefined>,
+  feedbackSource: z.enum(["system", "user", "admin"]).nullable().optional(),
   note: z.string().max(1000).nullable().optional(),
 }) satisfies z.ZodType<AIPredictionOutcome>;
 const aiSourceAgreementReadSchema = z.any().nullable().optional() as z.ZodType<AISourceAgreementRead | null | undefined>;
@@ -485,6 +504,12 @@ const aiPredictionEventSchema = z.object({
   sourceAgreement: aiSourceAgreementReadSchema,
   decisionSnapshot: aiDecisionSnapshotSchema.nullable().optional(),
   counterfactual: aiCounterfactualReadSchema.nullable().optional(),
+  decay: z.object({
+    expiresAt: z.string().max(80).nullable(),
+    decayWindowHours: z.number().int().min(1).max(24 * 60).nullable(),
+    reason: z.string().min(1).max(500),
+  }).nullable().optional() satisfies z.ZodType<AIPredictionDecayProfile | null | undefined>,
+  expiresAt: z.string().max(80).nullable().optional(),
   whyThisFired: z.string().min(1).max(1200),
   outcome: aiPredictionOutcomeSchema,
   metadata: z.record(z.string(), z.unknown()).optional(),

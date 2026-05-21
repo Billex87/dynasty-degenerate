@@ -62,7 +62,13 @@ describe('AI prediction outcome job', () => {
           created: Date.parse('2026-09-02T00:00:00.000Z'),
         }];
       }
-      if (value.endsWith('/league/league-1/matchups/1')) return [];
+      if (value.endsWith('/league/league-1/matchups/1')) {
+        return [{
+          roster_id: 1,
+          starters: ['p1'],
+          players_points: { p1: 12 },
+        }];
+      }
       return [];
     });
 
@@ -85,6 +91,7 @@ describe('AI prediction outcome job', () => {
       leagueId: 'league-1',
       weeks: [1],
       transactionFactCount: 1,
+      playerStatFactCount: 1,
     });
   });
 

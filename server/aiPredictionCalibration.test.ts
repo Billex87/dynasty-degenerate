@@ -7,6 +7,7 @@ import {
   buildSourceAgreementRead,
   createAIPredictionEvent,
   summarizeAICounterfactualReliability,
+  summarizeAIManagerTradeCalibration,
   summarizeAIPredictionReliability,
   summarizeSourceAgreementReliability,
   type AIPredictionEvent,
@@ -205,6 +206,74 @@ describe('AI prediction calibration', () => {
       adjustment.group.action === 'pickup' &&
       adjustment.scoreAdjustment < 0
     )).toBe(true);
+  });
+
+  it('adds sample-size confidence caps before buckets earn high conviction', () => {
+    const profile = buildAICalibrationAdjustmentProfile([
+      event({ entityId: 'p1', finalScore: 75, outcome: { status: 'hit' } }),
+      event({ entityId: 'p2', finalScore: 75, outcome: { status: 'hit' } }),
+      event({ entityId: 'p3', finalScore: 75, outcome: { status: 'hit' } }),
+    ]);
+
+    expect(profile.globalAdjustment).toMatchObject({
+      scoredCount: 3,
+      confidenceCap: 56,
+      recommendation: 'collect-more-samples',
+    });
+  });
+
+  it('summarizes manager-specific trade calibration', () => {
+    const tradeHit = event({
+      surface: 'trade',
+      action: 'trade',
+      entityId: 'deal-1',
+      entityName: 'Counter Manager',
+      outcome: {
+        status: 'hit',
+        realizedEdge: {
+          status: 'beat-baseline',
+          predictedEdge: 12,
+          actualValue: 22,
+          baselineValue: 0,
+          realizedEdge: 22,
+          baselineKind: 'manager-default',
+          source: 'trade:Counter Manager',
+          note: 'Trade beat hold.',
+        },
+      },
+    });
+    const tradeMiss = event({
+      surface: 'trade',
+      action: 'trade',
+      entityId: 'deal-2',
+      entityName: 'Counter Manager',
+      outcome: {
+        status: 'miss',
+        realizedEdge: {
+          status: 'trailed-baseline',
+          predictedEdge: 8,
+          actualValue: -4,
+          baselineValue: 0,
+          realizedEdge: -4,
+          baselineKind: 'manager-default',
+          source: 'trade:Counter Manager',
+          note: 'Trade missed hold.',
+        },
+      },
+    });
+
+    const summary = summarizeAIManagerTradeCalibration([tradeHit, tradeMiss]);
+
+    expect(summary.rows[0]).toMatchObject({
+      manager: 'Counter Manager',
+      eventCount: 2,
+      scoredCount: 2,
+      completedCount: 1,
+      missCount: 1,
+      acceptanceRate: 50,
+      avgRealizedEdge: 9,
+      recommendation: 'collect-more-samples',
+    });
   });
 
   it('applies the most specific calibration adjustment to future reads', () => {

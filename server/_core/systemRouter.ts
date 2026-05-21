@@ -5,6 +5,7 @@ import {
   listAiPredictionEvents,
   listKtcSnapshotDateKeysSince,
   listSourceHealthEventsSince,
+  updateAiPredictionOutcome,
   type StoredLoginAttempt,
   type StoredSourceHealthEvent,
 } from "../db";
@@ -15,6 +16,7 @@ import { loadSourceSnapshotFreshnessDiagnostics } from "../sourceSnapshotFreshne
 import {
   buildAICalibrationAdjustmentProfile,
   summarizeAICounterfactualReliability,
+  summarizeAIManagerTradeCalibration,
   summarizeAIPredictionReliability,
   summarizeSourceAgreementReliability,
 } from "../aiPredictionCalibration";
@@ -380,6 +382,7 @@ export const systemRouter = router({
       const reliability = summarizeAIPredictionReliability(events);
       const sourceAgreement = summarizeSourceAgreementReliability(events);
       const counterfactuals = summarizeAICounterfactualReliability(events);
+      const managerTrades = summarizeAIManagerTradeCalibration(events);
       const adjustmentProfile = buildAICalibrationAdjustmentProfile(events);
 
       return {
@@ -389,6 +392,7 @@ export const systemRouter = router({
         reliability,
         sourceAgreement,
         counterfactuals,
+        managerTrades,
         adjustmentProfile,
         recentEvents: events.slice(0, 50).map(event => ({
           eventId: event.eventId,
@@ -409,9 +413,56 @@ export const systemRouter = router({
           counterfactualEdge: event.counterfactual?.edge ?? null,
           baselineLabel: event.counterfactual?.baseline.label || null,
           baselineScore: event.counterfactual?.baseline.score ?? event.outcome.baselineValue ?? null,
+          expiresAt: event.expiresAt || event.decay?.expiresAt || null,
+          realizedEdgeStatus: event.outcome.realizedEdge?.status || null,
+          realizedEdge: event.outcome.realizedEdge?.realizedEdge ?? null,
+          feedbackSource: event.outcome.feedbackSource || null,
           outcomeStatus: event.outcome.status,
         })),
       } as const;
+    }),
+
+  markAiPredictionOutcome: adminProcedure
+    .input(
+      z.object({
+        eventId: z.string().min(1).max(128),
+        status: z.enum(["hit", "miss", "push", "blocked"]),
+        note: z.string().max(1000).optional().nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const statusNote = input.note || (
+        input.status === "hit"
+          ? "Manual feedback marked this AI read as worked."
+          : input.status === "miss"
+            ? "Manual feedback marked this AI read as a bad read."
+            : input.status === "push"
+              ? "Manual feedback marked this AI read as ignored or not scorable."
+              : "Manual feedback marked this AI read as blocked."
+      );
+      const persisted = await updateAiPredictionOutcome({
+        eventId: input.eventId,
+        outcome: {
+          status: input.status,
+          resolvedAt: new Date().toISOString(),
+          actualValue: input.status === "hit" ? 1 : input.status === "miss" ? 0 : null,
+          baselineValue: input.status === "hit" || input.status === "miss" ? 0.5 : null,
+          feedbackSource: "admin",
+          realizedEdge: {
+            status: "manual",
+            predictedEdge: null,
+            actualValue: input.status === "hit" ? 1 : input.status === "miss" ? 0 : null,
+            baselineValue: input.status === "hit" || input.status === "miss" ? 0.5 : null,
+            realizedEdge: input.status === "hit" ? 0.5 : input.status === "miss" ? -0.5 : null,
+            baselineKind: "unknown",
+            source: "admin-feedback",
+            note: statusNote,
+          },
+          note: statusNote,
+        },
+      });
+
+      return { persisted };
     }),
 
   resolveAiPredictionOutcomes: adminProcedure

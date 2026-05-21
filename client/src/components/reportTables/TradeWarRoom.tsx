@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, X as XIcon } from "lucide-react";
+import { ChevronDown, UsersRound, X as XIcon } from "lucide-react";
 import { filterCompletedFuturePickPortfolios } from "@shared/pickPortfolioFilters";
 import type { ManagerIntelPlayer, ReportData } from "@shared/types";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,6 @@ import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { TeamLogoPill } from "../TeamLogoPill";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
-import { getLeagueRosterScannerProfileLabel } from "@/lib/managerProfileLabels";
 import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import {
@@ -28,7 +27,7 @@ type OwnerIntelRow = NonNullable<
   ReportData["managerRosterIntelligence"]
 >[number];
 type TradeTendencyRow = NonNullable<ReportData["tradeTendencies"]>[number];
-type TradeWarMode =
+export type TradeWarMode =
   | "dynasty"
   | "contender"
   | "rebuilder"
@@ -37,7 +36,7 @@ type TradeWarMode =
   | "positional-need"
   | "playoff-push"
   | "waiver-leverage";
-type TradeWarAsset = ManagerIntelPlayer & {
+export type TradeWarAsset = ManagerIntelPlayer & {
   manager: string;
   assetState: "roster" | "bench" | "taxi" | "reserve" | "pick";
   assetKind?: "player" | "pick";
@@ -55,11 +54,11 @@ const TRADE_WAR_FALLBACK_PICK_VALUES_BY_ROUND: Record<number, number> = {
   5: 100,
 };
 
-function isTradeWarPickAsset(asset: TradeWarAsset): boolean {
+export function isTradeWarPickAsset(asset: TradeWarAsset): boolean {
   return asset.assetKind === "pick" || asset.assetState === "pick";
 }
 
-function isTradeWarPlayerAsset(asset: TradeWarAsset): boolean {
+export function isTradeWarPlayerAsset(asset: TradeWarAsset): boolean {
   return !isTradeWarPickAsset(asset);
 }
 
@@ -101,7 +100,7 @@ export function getTradeWarAssetValue(
   return Math.round(dynasty);
 }
 
-function getTradeWarAssetRank(
+export function getTradeWarAssetRank(
   player: ManagerIntelPlayer,
   mode: TradeWarMode
 ): string | null | undefined {
@@ -146,14 +145,14 @@ function getTradeWarAssetRank(
     player.seasonPositionRank
   );
 }
-function getTradeWarAssetTeam(
+export function getTradeWarAssetTeam(
   player: ManagerIntelPlayer
 ): string | null | undefined {
   if ((player as TradeWarAsset).assetKind === "pick") return null;
   return player.playerDetails?.team;
 }
 
-function getTradeWarModeLabel(mode: TradeWarMode): string {
+export function getTradeWarModeLabel(mode: TradeWarMode): string {
   if (mode === "starter-upgrade") return "Starter Upgrade";
   if (mode === "depth-fix") return "Depth Fix";
   if (mode === "positional-need") return "Positional Need";
@@ -339,7 +338,7 @@ function buildTradeWarLineupScore(
   };
 }
 
-function buildTradeWarMetrics(
+export function buildTradeWarMetrics(
   players: TradeWarAsset[],
   positionMode: TradeWarMode = "contender"
 ): TradeWarRosterMetrics {
@@ -406,7 +405,7 @@ function buildTradeWarMetrics(
   };
 }
 
-function buildTradeWarRankMaps(
+export function buildTradeWarRankMaps(
   metricsByManager: Map<string, TradeWarRosterMetrics>
 ) {
   const metricKeys: TradeWarMetricKey[] = [
@@ -446,7 +445,7 @@ function buildTradeWarRankMaps(
   return rankMaps;
 }
 
-function buildTradeWarPickRankMap(
+export function buildTradeWarPickRankMap(
   managers: string[],
   assetsByManager: Map<string, TradeWarAsset[]>
 ) {
@@ -1205,7 +1204,7 @@ export function buildTradeWarPackageIdeas({
     .slice(0, 5);
 }
 
-function buildTradeWarModalData({
+export function buildTradeWarModalData({
   asset,
   playerDetailsById,
   managerAvatars,
@@ -1232,7 +1231,7 @@ function buildTradeWarModalData({
   });
 }
 
-function TradeWarAssetLabel({ asset }: { asset: TradeWarAsset }) {
+export function TradeWarAssetLabel({ asset }: { asset: TradeWarAsset }) {
   if (isTradeWarPickAsset(asset)) {
     return (
       <span className="trade-war-pick-label">
@@ -1260,7 +1259,7 @@ function getTradeWarAssetDisplayName(asset: TradeWarAsset): string {
     : asset.name;
 }
 
-function TradeWarManagerAvatar({
+export function TradeWarManagerAvatar({
   manager,
   managerAvatars,
   className = "trade-war-owner-avatar",
@@ -1385,7 +1384,7 @@ function TradeWarPlayerCard({
   );
 }
 
-function getTradeWarPositionBuckets(assets: TradeWarAsset[]) {
+export function getTradeWarPositionBuckets(assets: TradeWarAsset[]) {
   const buckets: Record<"QB" | "RB" | "WR" | "TE" | "PICK", TradeWarAsset[]> = {
     QB: [],
     RB: [],
@@ -1406,14 +1405,14 @@ function getTradeWarPositionBuckets(assets: TradeWarAsset[]) {
   return buckets;
 }
 
-function getTradeWarRankNumber(rank?: string | null): number | null {
+export function getTradeWarRankNumber(rank?: string | null): number | null {
   const match = String(rank || "").match(/\d+/);
   if (!match) return null;
   const value = Number(match[0]);
   return Number.isFinite(value) ? value : null;
 }
 
-function getTradeWarRankTone(rank?: string | null): string {
+export function getTradeWarRankTone(rank?: string | null): string {
   const value = getTradeWarRankNumber(rank);
   if (!value) return "empty";
   if (value <= 10) return "top";
@@ -1421,7 +1420,7 @@ function getTradeWarRankTone(rank?: string | null): string {
   return "deep";
 }
 
-function getTradeWarSectionClass(label: "QB" | "RB" | "WR" | "TE" | "PICKS") {
+export function getTradeWarSectionClass(label: "QB" | "RB" | "WR" | "TE" | "PICKS") {
   return label === "PICKS" ? "pick" : label.toLowerCase();
 }
 
@@ -1441,6 +1440,7 @@ export default function TradeWarRoom({
   viewerManager,
   currentStandings,
   leagueValueMode: leagueValueModeInput = "dynasty",
+  onScoutLeaguemates,
 }: {
   data?: ReportData["managerRosterIntelligence"];
   managerAvatars?: ManagerAvatars;
@@ -1457,6 +1457,7 @@ export default function TradeWarRoom({
   viewerManager?: string | null;
   currentStandings?: ReportData["currentStandings"];
   leagueValueMode?: ReportData["leagueValueMode"];
+  onScoutLeaguemates?: () => void;
 }) {
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
   const tradeWarModeOptions: TradeWarMode[] =
@@ -1499,9 +1500,6 @@ export default function TradeWarRoom({
   const [sideBIds, setSideBIds] = useState<string[]>([]);
   const [queryA, setQueryA] = useState("");
   const [queryB, setQueryB] = useState("");
-  const [openInventoryManagers, setOpenInventoryManagers] = useState<
-    Set<string>
-  >(new Set());
   const [mobilePickerOpen, setMobilePickerOpen] = useState<{
     A: boolean;
     B: boolean;
@@ -1667,10 +1665,6 @@ export default function TradeWarRoom({
     () => buildTradeWarRankMaps(baselineMetricsByManager),
     [baselineMetricsByManager]
   );
-  const pickRankByManager = React.useMemo(
-    () => buildTradeWarPickRankMap(managers, assetsByManager),
-    [assetsByManager, managers]
-  );
   const simulatedRankMaps = React.useMemo(
     () => buildTradeWarRankMaps(simulatedMetricsByManager),
     [simulatedMetricsByManager]
@@ -1791,38 +1785,6 @@ export default function TradeWarRoom({
     ]
   );
 
-  const leagueOverviewByManager = React.useMemo(
-    () => new Map((leagueOverview || []).map(row => [row.manager, row])),
-    [leagueOverview]
-  );
-  const powerByManager = React.useMemo(
-    () => new Map((powerRankings || []).map(row => [row.manager, row])),
-    [powerRankings]
-  );
-  const timelineByManager = React.useMemo(
-    () => new Map((dynastyTimelines || []).map(row => [row.manager, row])),
-    [dynastyTimelines]
-  );
-  const pickPortfolioByManager = React.useMemo(
-    () => new Map(visiblePickPortfolios.map(row => [row.manager, row])),
-    [visiblePickPortfolios]
-  );
-  const overallAssetRankById = React.useMemo(
-    () =>
-      new Map(
-        [...allAssets]
-          .sort(
-            (a, b) =>
-              getTradeWarAssetValue(b, mode) - getTradeWarAssetValue(a, mode)
-          )
-          .map((asset, index) => [asset.player_id, index + 1])
-      ),
-    [allAssets, mode]
-  );
-  const selectedManagerNames = React.useMemo(
-    () => new Set([managerA, managerB].filter(Boolean)),
-    [managerA, managerB]
-  );
   const sideAValueMatchIdeas = React.useMemo(
     () =>
       buildTradeWarValueMatchIdeas({
@@ -1926,245 +1888,6 @@ export default function TradeWarRoom({
           {getTradeWarModeLabel(option)}
         </button>
       ))}
-    </div>
-  );
-
-  const renderManagerRankInventory = () => (
-    <div className="trade-war-manager-board trade-war-manager-rank-inventory">
-      <div className="trade-war-manager-board-head">
-        <div>
-          <span>Manager Rank Inventory</span>
-          <strong>League roster scanner</strong>
-        </div>
-        {renderTradeWarModeTabs()}
-      </div>
-      <div className="trade-war-manager-board-grid">
-        {managers.map(manager => {
-          const assets = assetsByManager.get(manager) || [];
-          const buckets = getTradeWarPositionBuckets(assets);
-          const ranks = baselineRankMaps.get(manager);
-          const powerRow = powerByManager.get(manager);
-          const timelineRow = timelineByManager.get(manager);
-          const managerRow = managerRows.get(manager);
-          const overviewRow = leagueOverviewByManager.get(manager);
-          const pickRow = pickPortfolioByManager.get(manager);
-          const standing = currentStandings?.find(row => row.manager === manager);
-          const pickRank = pickRankByManager.get(manager);
-          const isOpen = openInventoryManagers.has(manager);
-          const scannerProfileLane =
-            mode === "contender" ? "contender" : mode === "rebuilder" ? "rebuilder" : "dynasty";
-          const managerProfile = getLeagueRosterScannerProfileLabel(
-            powerRow?.tier,
-            powerRow?.score,
-            {
-              powerRow,
-              timelineRow,
-              managerRow,
-              overviewRow,
-              leagueSize: managers.length,
-            },
-            scannerProfileLane
-          );
-          const totalValue = assets.reduce(
-            (sum, asset) => sum + getTradeWarAssetValue(asset, mode),
-            0
-          );
-          const pickValue = buckets.PICK.reduce(
-            (sum, asset) => sum + getTradeWarAssetValue(asset, mode),
-            0
-          );
-          const sectionRows = [
-            ["QB", buckets.QB],
-            ["RB", buckets.RB],
-            ["WR", buckets.WR],
-            ["TE", buckets.TE],
-            ["PICKS", buckets.PICK],
-          ] as const;
-          const lensRankPills = [
-            { key: "dynasty", label: "Dynasty", rank: ranks?.Value },
-            { key: "contender", label: "Contender", rank: ranks?.Contender },
-            { key: "rebuilder", label: "Rebuilder", rank: ranks?.Rebuild },
-          ] as const;
-          return (
-            <details
-              key={manager}
-              open={isOpen}
-              onToggle={event => {
-                const nextOpen = event.currentTarget.open;
-                setOpenInventoryManagers(current => {
-                  const next = new Set(current);
-                  if (nextOpen) {
-                    next.add(manager);
-                  } else {
-                    next.delete(manager);
-                  }
-                  return next;
-                });
-              }}
-              className={`trade-war-manager-board-card ${selectedManagerNames.has(manager) ? "trade-war-manager-board-selected" : ""}`}
-            >
-              <summary>
-                <span className="trade-war-manager-board-rank">
-                  {powerRow ? `#${powerRow.rank}` : "-"}
-                </span>
-                <span className="trade-war-manager-board-lockup">
-                  <ChampionAvatarFrame
-                    managerName={manager}
-                    className="trade-war-owner-avatar"
-                  >
-                    {managerAvatars?.[manager] ? (
-                      <img src={managerAvatars[manager] || ""} alt={manager} />
-                    ) : (
-                      <span>{manager.trim()[0]?.toUpperCase() || "?"}</span>
-                    )}
-                  </ChampionAvatarFrame>
-                  <span className="trade-war-manager-board-profile">
-                    <strong>{manager}</strong>
-                    <span className="trade-war-manager-board-profile-meta">
-                      <em
-                        className={`trade-war-manager-tier-pill trade-war-manager-tier-${managerProfile.tone}`}
-                      >
-                        {managerProfile.label}
-                      </em>
-                      <em>{formatCompactValue(totalValue)}</em>
-                    </span>
-                  </span>
-                </span>
-                <span className="trade-war-manager-board-summary-stats">
-                  <span
-                    className="trade-war-manager-board-bars"
-                    aria-label={`${manager} position ranks`}
-                  >
-                    {(["QB", "RB", "WR", "TE", "PICK"] as const).map(key => (
-                      <i key={key} className={`trade-war-bar-${key.toLowerCase()}`}>
-                        <small>{key === "PICK" ? "Picks" : key}</small>
-                        #{key === "PICK" ? pickRank || "-" : ranks?.[key] || "-"}
-                      </i>
-                    ))}
-                  </span>
-                  <span
-                    className="trade-war-manager-summary-lens-ranks trade-war-manager-lens-ranks"
-                    aria-label={`${manager} roster value ranks`}
-                  >
-                    {lensRankPills.map(pill => (
-                      <span
-                        key={pill.key}
-                        className={`trade-war-manager-lens-pill trade-war-manager-lens-pill-${pill.key}`}
-                      >
-                        <em>{pill.label}</em>
-                        <strong>#{pill.rank || "-"}</strong>
-                      </span>
-                    ))}
-                  </span>
-                </span>
-              </summary>
-              <div className="trade-war-manager-board-meta">
-                <span>Power {powerRow?.score ?? "-"}</span>
-                <span>Value #{overviewRow?.rank_value ?? "-"}</span>
-                <span>
-                  Record{" "}
-                  {standing
-                    ? `${standing.wins}-${standing.losses}${standing.ties ? `-${standing.ties}` : ""}`
-                    : "-"}
-                </span>
-                {leagueValueMode === "dynasty" && (
-                  <span>Picks {formatCompactValue(pickValue || pickRow?.totalValue || 0)}</span>
-                )}
-                {lensRankPills.map(pill => (
-                  <span
-                    key={pill.key}
-                    className={`trade-war-manager-lens-pill trade-war-manager-lens-pill-${pill.key} trade-war-manager-detail-lens-pill`}
-                  >
-                    <em>{pill.label}</em>
-                    <strong>#{pill.rank || "-"}</strong>
-                  </span>
-                ))}
-              </div>
-              {isOpen && (
-                <div className="trade-war-manager-board-sections">
-                  {sectionRows.map(([label, rows]) => {
-                    const sectionClass = getTradeWarSectionClass(label);
-                    const sectionValue = rows.reduce(
-                      (sum, asset) => sum + getTradeWarAssetValue(asset, mode),
-                      0
-                    );
-
-                    return (
-                      <div
-                        key={label}
-                        className={`trade-war-manager-board-section trade-war-manager-board-section-${sectionClass}`}
-                      >
-                        <div className="trade-war-manager-board-section-head">
-                          <strong>
-                            {label === "PICKS" ? "Pick Value" : `${label} Value`}
-                          </strong>
-                          <span>{formatCompactValue(sectionValue)}</span>
-                        </div>
-                        <div className="trade-war-manager-board-rank-head">
-                          <span>Asset</span>
-                          <span>Ovr</span>
-                          <span>{label === "PICKS" ? "Rnd" : "Pos"}</span>
-                        </div>
-                        {rows.length ? (
-                          rows
-                            .sort(
-                              (a, b) =>
-                                getTradeWarAssetValue(b, mode) -
-                                getTradeWarAssetValue(a, mode)
-                            )
-                            .map(asset => {
-                              const assetRank = getTradeWarAssetRank(asset, mode);
-                              const positionRank = getTradeWarRankNumber(assetRank);
-                              const overallRank = overallAssetRankById.get(
-                                asset.player_id
-                              );
-                              const rankTone = isTradeWarPickAsset(asset)
-                                ? "pick"
-                                : getTradeWarRankTone(assetRank);
-
-                              return (
-                                <button
-                                  key={asset.player_id}
-                                  type="button"
-                                  className={`trade-war-manager-board-asset trade-war-manager-board-asset-${sectionClass}`}
-                                  onClick={() => openAssetModal(asset)}
-                                >
-                                  <div className="trade-war-manager-board-player">
-                                    <TradeWarAssetLabel asset={asset} />
-                                  </div>
-                                  <span
-                                    className="trade-war-manager-board-overall-rank"
-                                    title="Overall asset rank"
-                                  >
-                                    {overallRank || "-"}
-                                  </span>
-                                  <span
-                                    className={`trade-war-manager-board-position-rank trade-war-manager-board-position-rank-${rankTone}`}
-                                    title={
-                                      isTradeWarPickAsset(asset)
-                                        ? "Pick round"
-                                        : "Position rank"
-                                    }
-                                  >
-                                    {isTradeWarPickAsset(asset)
-                                      ? `R${asset.pickRound || "-"}`
-                                      : positionRank || "-"}
-                                  </span>
-                                </button>
-                              );
-                            })
-                        ) : (
-                          <p>No returned assets.</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </details>
-          );
-        })}
-      </div>
     </div>
   );
 
@@ -2661,7 +2384,19 @@ export default function TradeWarRoom({
 
   return (
     <div className="trade-war-room">
-      {renderManagerRankInventory()}
+      <div className="trade-war-room-toolbar">
+        {renderTradeWarModeTabs()}
+        {onScoutLeaguemates && (
+          <button
+            type="button"
+            className="trade-war-scout-button"
+            onClick={onScoutLeaguemates}
+          >
+            <UsersRound className="h-4 w-4" aria-hidden="true" />
+            <span>Scout Leaguemates</span>
+          </button>
+        )}
+      </div>
 
       {!hasSelectedTradeAssets && (
         <>

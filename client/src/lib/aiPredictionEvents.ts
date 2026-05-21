@@ -9,12 +9,15 @@ import type {
 import {
   buildAICounterfactualRead,
   buildAIDecisionSnapshot,
+  buildAIPredictionDecayProfile,
   clampAIDecisionScore,
   createAIDecisionBaseline,
   type AICounterfactualRead,
   type AIDecisionBaseline,
   type AIDecisionSnapshot,
   type AIDecisionSnapshotFact,
+  type AIPredictionDecayProfile,
+  type AIRealizedEdge,
 } from "@shared/aiDecisionSnapshots";
 import type { ReportData, TrendingPlayer, WaiverWeeklyEcrTarget } from "@shared/types";
 import { buildAutopilotData } from "@/lib/autopilot/buildAutopilotData";
@@ -53,12 +56,16 @@ export type ClientAIPredictionEvent = {
   sourceAgreement: null;
   decisionSnapshot?: AIDecisionSnapshot | null;
   counterfactual?: AICounterfactualRead | null;
+  decay?: AIPredictionDecayProfile | null;
+  expiresAt?: string | null;
   whyThisFired: string;
   outcome: {
     status: ClientAIPredictionOutcomeStatus;
     resolvedAt?: string | null;
     actualValue?: number | null;
     baselineValue?: number | null;
+    realizedEdge?: AIRealizedEdge | null;
+    feedbackSource?: "system" | "user" | "admin" | null;
     note?: string | null;
   };
   metadata?: Record<string, unknown>;
@@ -454,6 +461,11 @@ function buildEvent(input: {
     facts: input.decisionSnapshotFacts,
     counterfactual,
   });
+  const decay = buildAIPredictionDecayProfile({
+    createdAt: input.createdAt,
+    surface: input.surface,
+    action: input.action,
+  });
   const predictionKey = makePredictionKey(input);
   const eventId = `ai-${hashText(`${input.reportRunKey}:${predictionKey}:${decision}:${finalScore}`)}`;
   return {
@@ -483,10 +495,13 @@ function buildEvent(input: {
     sourceAgreement: null,
     decisionSnapshot,
     counterfactual,
+    decay,
+    expiresAt: decay.expiresAt,
     whyThisFired: cleanText(input.whyThisFired) || "AI read was rendered with traceable evidence.",
     outcome: {
       status: decision === "blocked" ? "blocked" : "pending",
       baselineValue: counterfactual?.baseline.score ?? null,
+      feedbackSource: "system",
     },
     metadata: input.metadata,
   };

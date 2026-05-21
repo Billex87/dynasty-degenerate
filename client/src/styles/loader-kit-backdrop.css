@@ -58,8 +58,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: clamp(1.7rem, 3.2vw, 2.35rem);
-  height: clamp(1.7rem, 3.2vw, 2.35rem);
+  width: clamp(2.15rem, 4vw, 3rem);
+  height: clamp(2.15rem, 4vw, 3rem);
   opacity: var(--anchor-opacity, 0);
   transform:
     translate3d(var(--anchor-x, 50vw), var(--anchor-y, 50vh), 0)
@@ -82,7 +82,7 @@
 .loader-kit-backdrop__manager-node {
   left: 50%;
   top: 50%;
-  width: 116%;
+  width: 122%;
   aspect-ratio: 1;
   border-radius: 999px;
   background: radial-gradient(circle, rgba(36, 245, 255, 0.82) 0 18%, rgba(36, 245, 255, 0.3) 44%, transparent 72%);
@@ -100,7 +100,7 @@
 }
 
 .loader-kit-backdrop__manager-orbit {
-  inset: -0.18rem;
+  inset: -0.12rem;
   border: 1px solid rgba(36, 245, 255, 0.3);
   border-top-color: rgba(255, 138, 42, 0.58);
   border-radius: 999px;
@@ -108,7 +108,7 @@
 }
 
 .loader-kit-backdrop__manager-avatar {
-  inset: 0;
+  inset: -0.04rem;
   display: grid;
   place-items: center;
   border: 1px solid rgba(125, 247, 255, 0.42);
@@ -134,10 +134,12 @@
   height: 100%;
   display: block;
   object-fit: cover;
+  object-position: center;
+  transform: scale(1.16);
 }
 
 .loader-kit-backdrop__manager-avatar > span {
-  width: 48%;
+  width: 72%;
   aspect-ratio: 1;
   border-radius: 999px;
   background:
@@ -253,8 +255,8 @@
 
 @media (max-width: 700px) {
   .loader-kit-backdrop__manager-anchor {
-    width: 1.48rem;
-    height: 1.48rem;
+    width: 1.9rem;
+    height: 1.9rem;
   }
 
   .loader-kit-backdrop__manager-anchor:nth-child(n + 6) {

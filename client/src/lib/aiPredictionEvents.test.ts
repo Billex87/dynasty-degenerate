@@ -35,6 +35,10 @@ describe("AI prediction event builder", () => {
         status: expect.any(String),
         baseline: expect.any(Object),
       },
+      decay: {
+        expiresAt: expect.any(String),
+        decayWindowHours: expect.any(Number),
+      },
     });
     expect(events[0].outcome.baselineValue).toBe(events[0].counterfactual?.baseline.score ?? null);
     expect(getAIPredictionEventBatchSignature(events)).toContain(events[0].eventId);

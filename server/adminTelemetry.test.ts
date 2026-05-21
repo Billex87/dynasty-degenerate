@@ -3,6 +3,7 @@ import type { TrpcContext } from "./_core/context";
 import { appRouter } from "./routers";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
+const originalDatabaseUrl = process.env.DATABASE_URL;
 
 function createContext(user: Partial<AuthenticatedUser> = {}): TrpcContext {
   return {
@@ -29,6 +30,11 @@ function createContext(user: Partial<AuthenticatedUser> = {}): TrpcContext {
 describe("system.abuseTelemetry", () => {
   afterEach(() => {
     delete process.env.ADMIN_PERMISSIONS;
+    if (originalDatabaseUrl) {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    } else {
+      delete process.env.DATABASE_URL;
+    }
   });
 
   it("allows users configured with admin permissions", async () => {
@@ -54,5 +60,22 @@ describe("system.abuseTelemetry", () => {
     await expect(caller.system.abuseTelemetry({ lookbackDays: 1 })).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
+  });
+
+  it("allows admins to mark AI prediction outcomes manually", async () => {
+    process.env.ADMIN_PERMISSIONS = "mynameisbillex";
+    delete process.env.DATABASE_URL;
+    const caller = appRouter.createCaller(createContext({
+      openId: "mynameisbillex",
+      name: "mynameisbillex",
+    }));
+
+    const result = await caller.system.markAiPredictionOutcome({
+      eventId: "missing-event",
+      status: "push",
+      note: "Ignored in test.",
+    });
+
+    expect(result).toEqual({ persisted: false });
   });
 });
