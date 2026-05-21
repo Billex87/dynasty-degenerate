@@ -155,7 +155,9 @@ const PROFILE_KEY_BY_OPTION: Record<string, KtcProfileKey> = {
 
 function getFlockProfile(option: RankingProfileOption, flockProfiles: Awaited<ReturnType<typeof loadFlockFantasyValueProfiles>>) {
   if (option.board === 'redraft') return {};
-  if (option.board === 'devy') return {};
+  if (option.board === 'devy') {
+    return (option.qbFormat === 'sf' ? flockProfiles.PROSPECTS_SF : flockProfiles.PROSPECTS) || {};
+  }
   return (option.qbFormat === 'sf' ? flockProfiles.SUPERFLEX : flockProfiles.ONEQB) || {};
 }
 
@@ -202,7 +204,6 @@ function buildDynastySourceRowsForProfile({
       value: row.dynastyValue || null,
       rank: row.overallRank || null,
     })),
-    fantasyPros: snapshotRows.fantasyPros || {},
     fantasyNerds: snapshotRows.fantasyNerds || {},
     ktc: snapshotRows.ktc && Object.keys(snapshotRows.ktc).length
       ? snapshotRows.ktc

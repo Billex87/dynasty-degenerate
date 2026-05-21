@@ -128,8 +128,7 @@ describe('stored snapshot replay regressions', () => {
     });
     expect(Object.keys(snapshot.sources.fantasyProsDevy || {})).toHaveLength(183);
     expect(Object.keys(snapshot.sources.prospectArchive || {})).toHaveLength(287);
-    expectFiniteTrustWeights(trust, ['fantasyProsDevy', 'ktc', 'prospectArchive']);
-    expect(trust.flock?.effectiveWeight).toBe(0);
+    expectFiniteTrustWeights(trust, ['fantasyProsDevy', 'flock', 'ktc', 'prospectArchive']);
     expect(trust.fantasyProsDevy?.sampleSize).toBeGreaterThan(50);
   });
 });

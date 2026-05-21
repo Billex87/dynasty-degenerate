@@ -4289,11 +4289,9 @@ function buildPickPortfolios(
       value2025: valueForYear('2025'),
       value2026: valueForYear('2026') + futureValueForYear('2026'),
       value2027: valueForYear('2027') + futureValueForYear('2027'),
-      value2028: valueForYear('2028') + futureValueForYear('2028'),
       count2025: picksForYear('2025').length,
       count2026: picksForYear('2026').length + futureForYear('2026').length,
       count2027: picksForYear('2027').length + futureForYear('2027').length,
-      count2028: picksForYear('2028').length + futureForYear('2028').length,
       totalValue,
       ownPicks,
       acquiredPicks,
@@ -6340,8 +6338,6 @@ export const appRouter = router({
 
           const viewerManager = input.viewerUserId ? userIdToManagerMap[input.viewerUserId] || null : null;
           const currentStandings = buildCurrentStandings(rosters, rosterUserMap);
-          const currentWaiverType = Number(leagueInfo.settings?.waiver_type);
-          const currentWaiverBudget = Number(leagueInfo.settings?.waiver_budget);
 
           const currentSeasonData = {
             label: currentSeasonLabel,
@@ -6355,8 +6351,6 @@ export const appRouter = router({
             taxiSlots: Number(leagueInfo.settings?.taxi_slots || 0),
             scoringSettings: leagueInfo.scoring_settings || {},
             currentWeek: currentScheduleWeek,
-            waiverType: Number.isFinite(currentWaiverType) ? currentWaiverType : null,
-            waiverBudget: Number.isFinite(currentWaiverBudget) ? currentWaiverBudget : null,
             playoffWeekStart,
             playoffWeeks,
             valueBlendProfileKey: leagueValueProfileKey,
@@ -6568,11 +6562,7 @@ export const appRouter = router({
             tradedPicks,
             ktcValues,
             draftRounds: Number(leagueInfo.settings?.draft_rounds || 5),
-            seasons: [
-              currentSeason,
-              String(Number(currentSeason) + 1),
-              String(Number(currentSeason) + 2),
-            ],
+            seasons: [currentSeason, String(Number(currentSeason) + 1)],
             draftSlotsBySeason,
             totalTeams: Number(leagueInfo.total_rosters || rosters.length || 0),
           });

@@ -379,31 +379,6 @@ describe("waiver recommendation evidence gate", () => {
     expect(context.summary).toBeNull();
   });
 
-  it("uses priority language instead of FAAB ranges for waiver-priority leagues", () => {
-    const context = buildWaiverRecommendationContext({
-      data: waiverData(waiverReceiver),
-      viewerManager: "Bill",
-      managerRosterIntelligence: [baseManagerIntel],
-      managerPositionCounts: [basePositionCounts],
-      positionDepth: [{ manager: "Bill", position: "WR", status: "shortage", count: 3 }],
-      leagueDiagnostics: {
-        rosterSlots: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "DEF", "BN", "BN"],
-        valueMode: "redraft",
-        waiverMode: "priority",
-        waiverModeLabel: "Waiver priority",
-        waiverType: 1,
-        waiverBudget: 100,
-      } as ReportData["leagueDiagnostics"],
-      recentTransactions: [],
-      leagueValueMode: "redraft",
-    });
-
-    expect(context.recommendations[0]?.bidSource).toBe("priority");
-    expect(context.recommendations[0]?.bidRangeLabel).toMatch(/priority|waivers|Free add/i);
-    expect(context.recommendations[0]?.bidRangeLabel).not.toContain("FAAB");
-    expect(context.recommendations[0]?.bidEvidenceLabel).toContain("Waiver priority");
-  });
-
   it("blocks dynasty-only stash evidence from redraft waiver advice", () => {
     const dynastyOnly = {
       ...waiverReceiver,

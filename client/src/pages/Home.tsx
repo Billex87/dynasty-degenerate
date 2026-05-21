@@ -463,6 +463,29 @@ function ReportSectionLoadingFallback() {
   );
 }
 
+function ProspectArchiveLoadingState() {
+  return (
+    <div className="prospect-archive-loading" role="status" aria-live="polite">
+      <div className="prospect-archive-loading__logo" aria-hidden="true">
+        <img src="/assets/ncaa-logo.svg" alt="" />
+      </div>
+      <div className="prospect-archive-loading__copy">
+        <span>Scouting Data Archive</span>
+        <strong>Getting college prospects</strong>
+        <p>
+          Loading Draft Buzz scores, class filters, position ranks, and verified
+          combine measurables.
+        </p>
+      </div>
+      <div className="prospect-archive-loading__badges" aria-hidden="true">
+        <span>NCAA</span>
+        <span>Draft Buzz</span>
+        <span>Prospect Scores</span>
+      </div>
+    </div>
+  );
+}
+
 const REPORT_TAB_VALUES = [
   "overview",
   "autopilot",
@@ -3229,6 +3252,7 @@ function getDashboardGroupPosition(groupKey: string): string {
   if (groupKey === "FLEX") return "FLEX";
   return groupKey;
 }
+
 
 type ReportDashboardTab =
   | "overview"
@@ -6053,10 +6077,10 @@ function compactDecisionLogItems(
 }
 
 function getAIActionDecisionLabel(decision: AIActionQueueItem["decision"]) {
-  if (decision === "do") return "Do";
-  if (decision === "blocked") return "Do not";
-  if (decision === "hold") return "Hold";
-  return "Watch";
+  if (decision === "do") return "Do this";
+  if (decision === "blocked") return "Do not do this";
+  if (decision === "hold") return "No move is best";
+  return "Watch only";
 }
 
 function getAIActionDecisionTone(
@@ -6078,41 +6102,41 @@ function getReadoutPolicy(row: AIReadoutDiagnosticRow): {
 } {
   if (row.duplicateRisk) {
     return {
-      decision: "Merge",
+      decision: "Merge or remove",
       tone: "danger",
     };
   }
 
   if (row.count <= 0) {
     return {
-      decision: "Hide",
+      decision: "Hide until backed",
       tone: "info",
     };
   }
 
   if (!row.hasConfidence || !row.hasTrace) {
     return {
-      decision: "Data",
+      decision: "Data-only",
       tone: "warn",
     };
   }
 
   if (row.sourceLimited) {
     return {
-      decision: "Support",
+      decision: "Context only",
       tone: "info",
     };
   }
 
   if (row.id === "autopilot-actions") {
     return {
-      decision: "Owns Action",
+      decision: "Primary action owner",
       tone: "good",
     };
   }
 
   return {
-    decision: "Support",
+    decision: "Context only",
     tone: "good",
   };
 }
@@ -6125,7 +6149,7 @@ function getAISurfaceRegistryRole(row: AIReadoutDiagnosticRow): {
   if (row.duplicateRisk) {
     return {
       role: "merge",
-      roleLabel: "Merge",
+      roleLabel: "Merge / remove",
       tone: "danger",
     };
   }
@@ -6133,7 +6157,7 @@ function getAISurfaceRegistryRole(row: AIReadoutDiagnosticRow): {
   if (row.id === "autopilot-actions" && row.count > 0 && row.hasConfidence && row.hasTrace) {
     return {
       role: "action-owner",
-      roleLabel: "Acts",
+      roleLabel: "Action owner",
       tone: "good",
     };
   }
@@ -6141,14 +6165,14 @@ function getAISurfaceRegistryRole(row: AIReadoutDiagnosticRow): {
   if (row.count <= 0 || !row.hasConfidence || !row.hasTrace) {
     return {
       role: "hidden",
-      roleLabel: row.count <= 0 ? "Hidden" : "Data",
+      roleLabel: row.count <= 0 ? "Hidden / no data" : "Data only",
       tone: row.count <= 0 ? "info" : "warn",
     };
   }
 
   return {
     role: "context",
-    roleLabel: "Supports",
+    roleLabel: "Context only",
     tone: row.sourceLimited ? "info" : "good",
   };
 }
@@ -6170,40 +6194,40 @@ function buildAISurfaceRegistry(diagnostics: AIReadoutDiagnostics) {
       role: role.role,
       roleLabel: role.roleLabel,
       tone: role.tone,
-      visibility: row.count > 0 ? `${row.count} shown` : "Hidden",
+      visibility: row.count > 0 ? `${row.count} rendered` : "Hidden until backed",
       allowedClaim:
         role.role === "action-owner"
-          ? "Can recommend"
+          ? "May say do this or do not do this"
           : role.role === "context"
-            ? "Evidence only"
+            ? "May explain evidence only"
             : role.role === "merge"
-              ? "No separate claim"
-              : "No AI claim",
+              ? "No separate user-facing claim"
+              : "No confident AI claim",
       evidenceStatus: missing.length
-        ? `Missing: ${missing.join(", ")}`
+        ? `Missing ${missing.join(", ")}`
         : row.sourceLimited
-          ? "Limited source"
-          : "Evidence OK",
+          ? "Source-limited but traceable"
+          : "Evidence attached",
       noiseRule:
         role.role === "action-owner"
-          ? "Owns the recommendation."
+          ? "Only one primary action can own the recommendation."
           : role.role === "context"
-            ? "Supports only."
+            ? "Support the owning action without adding another recommendation."
             : role.role === "merge"
-              ? "Fold into the owner."
-              : "Keep hidden.",
+              ? "Move repeated copy into the owning surface or remove it."
+              : "Stay hidden or render insufficient evidence until backed.",
       nextStep:
         role.role === "action-owner"
-          ? "Hold alternates unless blocked."
+          ? "Keep ranked alternates held back unless the primary action is blocked."
           : row.duplicateRisk
-            ? "Merge into owner."
+            ? "Merge this read into the owner listed above."
             : row.count <= 0
-              ? "Wait for data."
+              ? "Wait for the source payload before showing the surface."
               : missing.length
-                ? `Add ${missing.join(" + ")}.`
+                ? `Attach ${missing.join(" and ")} before promoting.`
                 : row.sourceLimited
-                  ? "Refresh sources."
-                  : "Keep as support.",
+                  ? "Refresh source context before raising confidence."
+                  : "Leave as context-only unless Action Queue delegates ownership.",
     };
   });
 
@@ -6278,20 +6302,20 @@ function buildAIActionDecisionLogRows(reportData: ReportData): AIDecisionLogRow[
       {
         id: "action-queue-alternates-held",
         lane: "Action Queue",
-        surface: "Alternates",
-        owner: "Queue QA",
-        decision: "Support",
-        confidence: "Held",
+        surface: "Lower-ranked alternates",
+        owner: "Noise governor",
+        decision: "Context only",
+        confidence: "Suppressed",
         tone: "info" as const,
-        why: `${suppressedCount} lower-ranked action${suppressedCount === 1 ? "" : "s"} held back.`,
+        why: `${suppressedCount} lower-ranked action${suppressedCount === 1 ? "" : "s"} stayed out of the visible queue so the AI makes one call.`,
         receipts: compactDecisionLogItems([
-          `${suppressedCount} alternate${suppressedCount === 1 ? "" : "s"}`,
-          "Primary owns rec",
-          "Details in receipts",
+          `${suppressedCount} alternate read${suppressedCount === 1 ? "" : "s"} available`,
+          "Primary action owns the recommendation",
+          "Alternates remain available through receipts/source tables",
         ]),
         blockers: [],
         missingEvidence: [],
-        changeTriggers: ["Primary blocked or weaker"],
+        changeTriggers: ["Primary action becomes blocked or lower-confidence"],
       },
     ];
   } catch {
@@ -6299,16 +6323,16 @@ function buildAIActionDecisionLogRows(reportData: ReportData): AIDecisionLogRow[
       {
         id: "action-queue-build-error",
         lane: "Action Queue",
-        surface: "Action Queue",
-        owner: "Recommendations",
-        decision: "Hide",
-        confidence: "Error",
+        surface: "Autopilot action queue",
+        owner: "Do-now recommendations",
+        decision: "Hide until backed",
+        confidence: "Build error",
         tone: "danger",
-        why: "Action Queue failed to build.",
-        receipts: ["Builder failed"],
-        blockers: ["Build failed"],
-        missingEvidence: ["Valid payload"],
-        changeTriggers: ["Fix builder"],
+        why: "The action queue could not be built from this report payload, so no action should be shown from this path.",
+        receipts: ["Autopilot builder failed"],
+        blockers: ["Action queue build failed"],
+        missingEvidence: ["Valid action queue payload"],
+        changeTriggers: ["Fix the action queue build path for this report"],
       },
     ];
   }
@@ -6325,29 +6349,29 @@ function buildAIReadoutPolicyDecisionLogRows(
       surface: row.surface,
       owner: row.owner,
       decision: policy.decision,
-      confidence: row.hasConfidence ? "Yes" : "Missing",
+      confidence: row.hasConfidence ? "Attached" : "Missing",
       tone: policy.tone,
       why: row.note,
       receipts: compactDecisionLogItems([
-        `${row.count} shown`,
+        `${row.count} rendered`,
         row.owner,
-        row.hasTrace ? "Trace" : null,
-        row.hasConfidence ? "Confidence" : null,
+        row.hasTrace ? "Source trace attached" : null,
+        row.hasConfidence ? "Confidence score attached" : null,
       ]),
       blockers: row.duplicateRisk
-        ? ["Duplicate claim"]
+        ? ["Duplicate conclusion is competing with the owning surface"]
         : [],
       missingEvidence: compactDecisionLogItems([
-        !row.hasConfidence ? "Confidence" : null,
+        !row.hasConfidence ? "Scored confidence" : null,
         !row.hasTrace ? "Source trace" : null,
-        row.sourceLimited ? "Fresh source" : null,
+        row.sourceLimited ? "Fresh or complete source payload" : null,
       ]),
       changeTriggers: compactDecisionLogItems([
-        row.count <= 0 ? `Return ${row.owner.toLowerCase()} data` : null,
-        !row.hasConfidence ? "Add confidence" : null,
-        !row.hasTrace ? "Add trace" : null,
-        row.duplicateRisk ? "Merge copy" : null,
-        row.sourceLimited ? "Refresh source" : null,
+        row.count <= 0 ? `Return data for ${row.owner.toLowerCase()}` : null,
+        !row.hasConfidence ? "Attach shared AI confidence output" : null,
+        !row.hasTrace ? "Attach evidence/source trace" : null,
+        row.duplicateRisk ? "Move repeated copy into the owning surface" : null,
+        row.sourceLimited ? "Refresh the source backing this read" : null,
       ]),
     };
   });
@@ -6364,14 +6388,14 @@ function buildAIDecisionLogRows(
 
 function buildAIDecisionLogSummary(rows: AIDecisionLogRow[]) {
   return {
-    actionRows: rows.filter(row => row.decision === "Owns Action").length,
+    actionRows: rows.filter(row => row.decision === "Primary action owner").length,
     contextRows: rows.filter(row =>
-      row.decision === "Watch" || row.decision === "Support"
+      row.decision === "Watch only" || row.decision === "Context only"
     ).length,
     hiddenRows: rows.filter(row =>
-      row.decision === "Hide" || row.decision === "Data"
+      row.decision === "Hide until backed" || row.decision === "Data-only"
     ).length,
-    mergeRows: rows.filter(row => row.decision === "Merge").length,
+    mergeRows: rows.filter(row => row.decision === "Merge or remove").length,
   };
 }
 
@@ -6425,180 +6449,180 @@ function buildAIReadoutDiagnostics(reportData: ReportData) {
     buildAIReadoutRow({
       id: "overview-pulse",
       tab: "Overview",
-      surface: "Overview Pulse",
-      owner: "League story",
+      surface: "Overview AI Pulse",
+      owner: "League narrative",
       count: 1,
       hasConfidence: hasLeagueConfidence,
       hasTrace: true,
       duplicateRisk: false,
       sourceLimited: !hasRosterIntel,
       note: hasRosterIntel
-        ? "Story only; metrics stay elsewhere."
-        : "Limited until roster intel returns.",
+        ? "Narrative-only handoff; table metrics stay with their owners."
+        : "Roster intelligence is missing, so the league story stays limited.",
     }),
     buildAIReadoutRow({
       id: "overview-blueprint",
       tab: "Overview",
-      surface: "Monthly Blueprint",
-      owner: "Long plan",
+      surface: "Monthly Team Blueprint",
+      owner: "Long-horizon roster plan",
       count: managerCount ? 1 : 0,
       hasConfidence: hasLeagueConfidence || hasManagerConfidence,
       hasTrace: Boolean(reportData.monthlyBlueprintSnapshot || hasRosterIntel),
       duplicateRisk: false,
       sourceLimited: false,
       note: reportData.monthlyBlueprintSnapshot
-        ? "Uses stored blueprint context."
-        : "Using current report data.",
+        ? "Uses blueprint snapshot, roster construction, age curve, and plan cadence."
+        : "Blueprint is using current report data; stored monthly history is optional and not treated as an issue.",
     }),
     buildAIReadoutRow({
       id: "overview-power",
       tab: "Overview",
-      surface: "Power Rankings",
-      owner: "League order",
+      surface: "League Power Rankings",
+      owner: "League ordering",
       count: reportData.powerRankings?.length || 0,
       hasConfidence: hasManagerConfidence || hasLeagueConfidence,
       hasTrace: Boolean(reportData.powerRankings?.length),
       duplicateRisk: false,
       sourceLimited: !reportData.powerRankings?.length,
-      note: "Rankings only; roster/trade reads live elsewhere.",
+      note: "Ranking-only read after ownership cleanup; roster causes and trade targets belong elsewhere.",
     }),
     buildAIReadoutRow({
       id: "overview-recon",
       tab: "Overview",
-      surface: "Roster Recon",
-      owner: "Roster health",
+      surface: "Team Breakdown & Roster Recon",
+      owner: "Roster health and leaks",
       count: managerCount ? 1 : 0,
       hasConfidence: hasManagerConfidence || hasLeagueConfidence,
       hasTrace: hasRosterIntel,
       duplicateRisk: false,
       sourceLimited: !hasRosterIntel,
-      note: "Strengths, gaps, and next roster move.",
+      note: "Owns roster strengths, fragility, shortage, surplus, and roster-health next move.",
     }),
     buildAIReadoutRow({
       id: "overview-trades",
       tab: "Overview",
-      surface: "Trade Finder",
-      owner: "Trade fit",
+      surface: "Trade Finder / Partner Reads",
+      owner: "Trade packages and partner fit",
       count: Math.max(0, managerCount ? managerCount : 0),
       hasConfidence: hasManagerConfidence || hasLeagueConfidence,
       hasTrace: hasRosterIntel,
       duplicateRisk: false,
       sourceLimited: false,
       note: hasTrades
-        ? "Partners, packages, gaps, and outcomes."
-        : "Uses roster fit when trade history is thin.",
+        ? "Owns specific partners, packages, value gaps, resistance notes, and tracked outcomes."
+        : "Can infer roster fit from manager context; thin trade history is not treated as a diagnostic issue.",
     }),
     buildAIReadoutRow({
       id: "autopilot-actions",
       tab: "AI Autopilot",
       surface: "Action Queue",
-      owner: "Actions",
+      owner: "Do-now recommendations",
       count: hasRosterIntel ? Math.min(6, Math.max(1, managerCount + 2)) : 0,
       hasConfidence: hasLeagueConfidence,
       hasTrace: hasRosterIntel,
       duplicateRisk: false,
       sourceLimited: false,
       note: hasScheduleContext || freshSituationDeltas.length
-        ? "Uses schedule, roster, waiver, trade, and player context."
-        : "Roster-first until matchup/player data is stable.",
+        ? "Actions can include schedule, roster, waiver, trade, and player situation context."
+        : "Actions stay roster-first until matchup or player-role data is stable enough to use.",
     }),
     buildAIReadoutRow({
       id: "schedule-edge",
       tab: "Schedule",
       surface: "Schedule Edge",
-      owner: "SOS/matchups",
+      owner: "DraftSharks SOS and matchup windows",
       count: hasScheduleContext ? 1 : 0,
       hasConfidence: hasScheduleContext && hasLeagueConfidence,
       hasTrace: hasScheduleContext,
       duplicateRisk: false,
       sourceLimited: !hasScheduleContext,
       note: hasScheduleContext
-        ? "DraftSharks-first support read."
-        : "Hidden until schedule context returns.",
+        ? "Schedule reads stay DraftSharks-first and can support waiver, lineup, and trade context without owning the final action."
+        : "Schedule reads stay hidden until DraftSharks/Sleeper schedule context is available.",
     }),
     buildAIReadoutRow({
       id: "player-situation",
       tab: "Player Detail",
-      surface: "Player Situation",
-      owner: "Player role",
+      surface: "Player Situation Reads",
+      owner: "Usage, depth, news, injury, and role context",
       count: situationDeltas.length,
       hasConfidence: situationDeltas.length > 0,
       hasTrace: situationDeltas.some(delta => Boolean(delta?.trace?.length || delta?.dynamicSignals?.length)),
       duplicateRisk: false,
       sourceLimited: !freshSituationDeltas.length || staleSituationDeltas.length > freshSituationDeltas.length,
       note: situationDeltas.length
-        ? `${freshSituationDeltas.length}/${situationDeltas.length} fresh; ${staleSituationDeltas.length} stale.`
-        : "No player situation payload.",
+        ? `${freshSituationDeltas.length}/${situationDeltas.length} player situation reads have fresh or usable context; ${staleSituationDeltas.length} are stale or missing.`
+        : "No player situation-delta payload was returned.",
     }),
     buildAIReadoutRow({
       id: "momentum-waivers",
       tab: "Momentum",
-      surface: "Waivers",
-      owner: "Claims/drops",
+      surface: "Waiver Intelligence",
+      owner: "Claim/drop opportunity",
       count: reportData.waiverIntelligence?.availableTrendingAdds?.length || 0,
       hasConfidence: hasLeagueConfidence,
       hasTrace: hasWaivers,
       duplicateRisk: false,
       sourceLimited: !hasWaivers,
       note: hasWaivers
-        ? "Players, drops, transactions, and needs."
-        : "No waiver/transaction payload.",
+        ? "Uses available players, drop alternatives, transactions, and roster need context."
+        : "No waiver or transaction payload was returned.",
     }),
     buildAIReadoutRow({
       id: "momentum-market",
       tab: "Momentum",
-      surface: "Market Radar",
-      owner: "Buy/sell",
+      surface: "Trade Market Radar",
+      owner: "Movement buy/sell signal",
       count: (reportData.weeklyRisers?.length || 0) + (reportData.weeklyFallers?.length || 0),
       hasConfidence: hasLeagueConfidence,
       hasTrace: hasMarketMovement,
       duplicateRisk: false,
       sourceLimited: !hasMarketMovement,
       note: hasMarketMovement
-        ? "Weekly value movement."
-        : "No riser/faller payload.",
+        ? "Owns weekly value movement context without duplicating roster-health reads."
+        : "No riser/faller payload was returned.",
     }),
     buildAIReadoutRow({
       id: "rankings-market",
       tab: "Rankings",
-      surface: "Ranking Signal",
-      owner: "Board market",
+      surface: "Ranking Board Market Signal",
+      owner: "Board-level market movement",
       count: hasRankings ? 1 : 0,
       hasConfidence: hasLeagueConfidence,
       hasTrace: hasRankings,
       duplicateRisk: false,
       sourceLimited: !hasRankings,
       note: hasRankings
-        ? "Board-level value movement."
-        : "Ranking rows missing/loading.",
+        ? "Owns board-level value and movement context."
+        : "Ranking rows are missing or still loading for this payload.",
     }),
     buildAIReadoutRow({
       id: "trade-browser",
       tab: "Trade History",
-      surface: "Trade Browser",
-      owner: "Trade ledger",
+      surface: "Trade Browser Read",
+      owner: "Ledger and tendency signal",
       count: hasTrades ? 1 : 0,
       hasConfidence: hasLeagueConfidence,
       hasTrace: hasTrades,
       duplicateRisk: false,
       sourceLimited: false,
       note: hasTrades
-        ? "Ledger size, gaps, tendencies, and outcomes."
-        : "No trade-history payload.",
+        ? "Owns ledger size, biggest gaps, manager tendency, and outcome-learning context."
+        : "No trade-history read is counted when the payload has no trade history or proposal signals.",
     }),
     buildAIReadoutRow({
       id: "draft-history",
       tab: "Draft",
-      surface: "Draft Capital",
-      owner: "Draft runway",
+      surface: "Draft Capital Read",
+      owner: "Draft slot and opportunity runway",
       count: hasDraftContext ? 1 : 0,
       hasConfidence: hasLeagueConfidence,
       hasTrace: hasDraftContext,
       duplicateRisk: false,
       sourceLimited: !hasDraftContext,
       note: hasDraftContext
-        ? "Draft slot, runway, and hit context."
-        : "Hidden until draft payload returns.",
+        ? "Owns draft slot, opportunity runway, and draft-hit context."
+        : "Draft reads stay hidden or limited when no draft payload exists.",
     }),
   ];
 
@@ -6655,21 +6679,21 @@ function AdminAIReadoutDiagnosticsSection({
 
   return (
     <CollapsibleReportSection
-      title="AI Readout QA"
-      kicker="Ownership and evidence"
+      title="AI Decision Log"
+      kicker="Action ownership, evidence receipts, and duplicate-readout checks"
       previewMetrics={[
         {
-          label: "Rows",
+          label: "Decisions",
           value: decisionLogRows.length,
           tone: decisionLogRows.length ? "info" : "warn",
         },
         {
-          label: "Owner",
+          label: "Action Owners",
           value: registry.actionOwners,
           tone: registry.actionOwners === 1 ? "good" : "warn",
         },
         {
-          label: "Needs Work",
+          label: "Hidden/Data",
           value: registry.hiddenRows + registry.mergeRows,
           tone: registry.hiddenRows || registry.mergeRows ? "warn" : "good",
         },
@@ -6680,23 +6704,23 @@ function AdminAIReadoutDiagnosticsSection({
         <div className="admin-ai-readout-summary">
           <span>
             <strong>{diagnostics.totalReadouts}</strong>
-            <em>tracked</em>
+            <em>readouts tracked</em>
           </span>
           <span>
             <strong>{diagnostics.missingConfidence}</strong>
-            <em>no confidence</em>
+            <em>missing confidence</em>
           </span>
           <span>
             <strong>{diagnostics.missingTrace}</strong>
-            <em>no trace</em>
+            <em>missing traces</em>
           </span>
           <span>
             <strong>{diagnostics.duplicateRisk}</strong>
-            <em>dupes</em>
+            <em>duplicate-risk flags</em>
           </span>
           <span>
             <strong>{diagnostics.sourceLimited}</strong>
-            <em>limited</em>
+            <em>source-limited reads</em>
           </span>
         </div>
 
@@ -6716,22 +6740,25 @@ function AdminAIReadoutDiagnosticsSection({
         >
           <div className="admin-ai-surface-registry-head">
             <div>
-              <span>Surface Rules</span>
-              <strong>One owner. Others support.</strong>
-              <p>Shows what can act, explain, hide, or merge.</p>
+              <span>Surface Registry</span>
+              <strong>One action owner, every other read is evidence</strong>
+              <p>
+                This registry is the product contract for AI noise: each surface
+                is allowed to act, explain context, stay hidden, or merge away.
+              </p>
             </div>
             <div className="admin-ai-surface-registry-metrics">
               <span>
                 <strong>{registry.actionOwners}</strong>
-                <em>owner</em>
+                <em>action owner</em>
               </span>
               <span>
                 <strong>{registry.contextRows}</strong>
-                <em>support</em>
+                <em>context</em>
               </span>
               <span>
                 <strong>{registry.hiddenRows}</strong>
-                <em>hidden</em>
+                <em>hidden/data</em>
               </span>
               <span>
                 <strong>{registry.mergeRows}</strong>
@@ -6756,7 +6783,7 @@ function AdminAIReadoutDiagnosticsSection({
                   <p>{row.nextStep}</p>
                 </div>
                 <div className="admin-ai-surface-registry-receipts">
-                  <span>Own: {row.owner}</span>
+                  <span>Owner: {row.owner}</span>
                   <span>{row.visibility}</span>
                   <span>{row.allowedClaim}</span>
                   <span>{row.evidenceStatus}</span>
@@ -6772,22 +6799,28 @@ function AdminAIReadoutDiagnosticsSection({
         >
           <div className="admin-ai-decision-log-head">
             <div>
-              <span>Rules Log</span>
-              <strong>Own, support, hide, or merge.</strong>
-              <p>Quick check for noisy or unsupported AI cards.</p>
+              <span>Decision Log</span>
+              <strong>
+                One action owner, supporting reads stay contextual
+              </strong>
+              <p>
+                This is the noise-control layer: every AI surface is either
+                allowed to act, kept as evidence, hidden until backed, or marked
+                for merge/removal.
+              </p>
             </div>
             <div className="admin-ai-decision-log-metrics">
               <span>
                 <strong>{decisionLogSummary.actionRows}</strong>
-                <em>owner</em>
+                <em>action owner</em>
               </span>
               <span>
                 <strong>{decisionLogSummary.contextRows}</strong>
-                <em>support</em>
+                <em>context</em>
               </span>
               <span>
                 <strong>{decisionLogSummary.hiddenRows}</strong>
-                <em>hidden</em>
+                <em>hidden/data</em>
               </span>
               <span>
                 <strong>{decisionLogSummary.mergeRows}</strong>
@@ -6809,8 +6842,8 @@ function AdminAIReadoutDiagnosticsSection({
                 </div>
                 <p>{row.why}</p>
                 <div className="admin-ai-decision-log-receipts">
-                  <span>Own: {row.owner}</span>
-                  <span>Conf: {row.confidence}</span>
+                  <span>Owner: {row.owner}</span>
+                  <span>Confidence: {row.confidence}</span>
                   {row.receipts.map(receipt => (
                     <span key={receipt}>{receipt}</span>
                   ))}
@@ -6821,7 +6854,7 @@ function AdminAIReadoutDiagnosticsSection({
                   <div className="admin-ai-decision-log-lists">
                     {row.blockers.length > 0 && (
                       <div>
-                        <span>Blocks</span>
+                        <span>Blockers</span>
                         {row.blockers.map(blocker => (
                           <p key={blocker}>{blocker}</p>
                         ))}
@@ -6837,7 +6870,7 @@ function AdminAIReadoutDiagnosticsSection({
                     )}
                     {row.changeTriggers.length > 0 && (
                       <div>
-                        <span>Changes</span>
+                        <span>What changes this</span>
                         {row.changeTriggers.map(item => (
                           <p key={item}>{item}</p>
                         ))}
@@ -6856,9 +6889,10 @@ function AdminAIReadoutDiagnosticsSection({
             aria-label="AI readout coverage flags"
           >
             <div>
-              <span>Flags</span>
+              <span>Coverage Flags</span>
               <strong>
-                {flaggedRows.length} to review
+                {flaggedRows.length} readout surface
+                {flaggedRows.length === 1 ? "" : "s"} need review
               </strong>
             </div>
             <div className="admin-ai-readout-row-grid">
@@ -6874,10 +6908,10 @@ function AdminAIReadoutDiagnosticsSection({
                   <p>{row.note}</p>
                   <div className="admin-ai-readout-chip-row">
                     <em>{row.owner}</em>
-                    {!row.hasConfidence && <em>No confidence</em>}
-                    {!row.hasTrace && <em>No trace</em>}
-                    {row.duplicateRisk && <em>Dupe</em>}
-                    {row.sourceLimited && <em>Limited</em>}
+                    {!row.hasConfidence && <em>Missing confidence</em>}
+                    {!row.hasTrace && <em>Missing trace</em>}
+                    {row.duplicateRisk && <em>Duplicate risk</em>}
+                    {row.sourceLimited && <em>Source limited</em>}
                   </div>
                 </article>
               ))}
@@ -6885,7 +6919,8 @@ function AdminAIReadoutDiagnosticsSection({
           </section>
         ) : (
           <p className="admin-ai-readout-clean">
-            All tracked readouts have confidence, trace, and no duplicate flags.
+            All tracked readout surfaces have confidence, trace ownership, and
+            no duplicate-risk flags for this payload.
           </p>
         )}
       </div>
@@ -8442,11 +8477,7 @@ function AdminAICalibrationPanel({
   );
 }
 
-function AdminTrafficTelemetrySection({
-  onLeagueSelect,
-}: {
-  onLeagueSelect: (leagueId: string) => void | Promise<void>;
-}) {
+function AdminTrafficTelemetrySection() {
   const authQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
@@ -8484,7 +8515,7 @@ function AdminTrafficTelemetrySection({
       }
       premium
     >
-      <AdminAbuseTelemetryPanel onLeagueSelect={onLeagueSelect} />
+      <AdminAbuseTelemetryPanel />
     </CollapsibleReportSection>
   );
 }
@@ -9120,39 +9151,7 @@ function AdminSourceCoveragePanel({
   );
 }
 
-const HIDDEN_TRAFFIC_IPS = new Set([
-  "205.250.64.165",
-  "127.0.0.1",
-  "172.226.164.57",
-]);
-
-function normalizeTrafficIpLabel(label: string): string {
-  const normalized = label.trim().toLowerCase();
-  const bracketedHost = normalized.match(/^\[([^\]]+)\](?::\d+)?$/);
-  if (bracketedHost?.[1]) return bracketedHost[1];
-  const ipv4WithPort = normalized.match(/^((?:\d{1,3}\.){3}\d{1,3})(?::\d+)?$/);
-  if (ipv4WithPort?.[1]) return ipv4WithPort[1];
-  return normalized;
-}
-
-function isHiddenTrafficIp(label: string): boolean {
-  const normalized = normalizeTrafficIpLabel(label);
-  if (!normalized) return false;
-  if (HIDDEN_TRAFFIC_IPS.has(normalized)) return true;
-  if (normalized === "localhost" || normalized === "::1" || normalized === "0.0.0.0")
-    return true;
-  if (normalized.startsWith("127.")) return true;
-  if (normalized.startsWith("::ffff:127.")) return true;
-  if (normalized.startsWith("::ffff:7f")) return true;
-  if (normalized === "0:0:0:0:0:0:0:1") return true;
-  return false;
-}
-
-function AdminAbuseTelemetryPanel({
-  onLeagueSelect,
-}: {
-  onLeagueSelect: (leagueId: string) => void | Promise<void>;
-}) {
+function AdminAbuseTelemetryPanel() {
   const authQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
@@ -9238,9 +9237,6 @@ function AdminAbuseTelemetryPanel({
     { label: "Unique IPs", value: data.totals.uniqueIps },
     { label: "Unique Leagues", value: data.totals.uniqueLeagueIds },
   ];
-  const visibleTopIps = data.topIps.filter(
-    entry => !isHiddenTrafficIp(entry.label)
-  );
   const prioritySourceHealthEvents = (sourceHealth?.recentEvents || [])
     .filter(isPrioritySourceHealthEvent)
     .slice(0, 6);
@@ -9347,22 +9343,16 @@ function AdminAbuseTelemetryPanel({
         <section className="admin-traffic-card">
           <h4>Top IPs</h4>
           <div className="admin-traffic-list">
-            {visibleTopIps.length ? (
-              visibleTopIps.map(entry => (
-                <div key={entry.label} className="admin-traffic-row">
-                  <strong>{entry.label}</strong>
-                  <span>
-                    {entry.count} events · {entry.rateLimited} limited ·{" "}
-                    {entry.uniqueLeagueIds} leagues
-                  </span>
-                  <em>Last seen {formatAdminTelemetryDate(entry.lastSeen)}</em>
-                </div>
-              ))
-            ) : (
-              <p className="admin-traffic-empty">
-                No non-local IP traffic in this window.
-              </p>
-            )}
+            {data.topIps.map(entry => (
+              <div key={entry.label} className="admin-traffic-row">
+                <strong>{entry.label}</strong>
+                <span>
+                  {entry.count} events · {entry.rateLimited} limited ·{" "}
+                  {entry.uniqueLeagueIds} leagues
+                </span>
+                <em>Last seen {formatAdminTelemetryDate(entry.lastSeen)}</em>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -9371,25 +9361,45 @@ function AdminAbuseTelemetryPanel({
           <div className="admin-traffic-list">
             {data.topLeagueIds.length ? (
               data.topLeagueIds.map(entry => (
-                <button
-                  key={entry.label}
-                  type="button"
-                  className="admin-traffic-row admin-traffic-row-button"
-                  onClick={() => void onLeagueSelect(entry.label)}
-                >
+                <div key={entry.label} className="admin-traffic-row">
                   <strong>{entry.label}</strong>
                   <span>
                     {entry.count} events · {entry.success} success ·{" "}
                     {entry.error} errors
                   </span>
                   <em>Last seen {formatAdminTelemetryDate(entry.lastSeen)}</em>
-                </button>
+                </div>
               ))
             ) : (
               <p className="admin-traffic-empty">
                 No league-specific events yet.
               </p>
             )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Recent Events</h4>
+          <div className="admin-traffic-list">
+            {data.recentEvents.map(event => (
+              <div
+                key={event.id}
+                className={`admin-traffic-row admin-traffic-row-${event.status}`}
+              >
+                <strong>{event.eventType.replace(/_/g, " ")}</strong>
+                <span>
+                  {event.status} ·{" "}
+                  {event.username ||
+                    event.leagueId ||
+                    event.ipAddress ||
+                    "unknown"}
+                </span>
+                <em>
+                  {formatAdminTelemetryDate(event.createdAt)}
+                  {event.note ? ` · ${event.note}` : ""}
+                </em>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -9540,6 +9550,10 @@ export default function Home() {
   ] = useState(readAdminPassphraseVerifiedForSession);
   const [loadingTransitionPhase, setLoadingTransitionPhase] =
     useState<LoadingTransitionPhase>("loading");
+  const [
+    prospectArchiveOpenedWhileLoading,
+    setProspectArchiveOpenedWhileLoading,
+  ] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
   const activeAnalysisLeagueIdRef = useRef<string | null>(null);
   const reportLoadStartedAtRef = useRef<number | null>(null);
@@ -10592,6 +10606,8 @@ export default function Home() {
   );
   const rankingsForReport =
     rankingsQuery.data?.rankings || reportData?.rankings;
+  const isProspectArchiveLoading =
+    rankingsQuery.isLoading && !rankingsForReport;
   const reportDataWithRankings = useMemo(
     () =>
       reportData && rankingsForReport
@@ -10762,6 +10778,12 @@ export default function Home() {
     return () => window.removeEventListener("hashchange", syncTabFromUrl);
   }, [reportData]);
 
+  useEffect(() => {
+    if (!isProspectArchiveLoading) {
+      setProspectArchiveOpenedWhileLoading(false);
+    }
+  }, [isProspectArchiveLoading]);
+
   const clownEasterEggDialog = (
     <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
       <DialogContent className="clown-easter-egg-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
@@ -10914,14 +10936,21 @@ export default function Home() {
       }}
     >
       <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
-        <DialogHeader className="text-center sm:text-center">
-          <DialogTitle className="athletic-headline text-center text-3xl text-orange-300">
+        <DialogHeader>
+          <DialogTitle className="athletic-headline text-3xl text-orange-300">
             Unlock Admin Tools
           </DialogTitle>
-          <DialogDescription className="text-center text-slate-300">
-            Enter the passphrase you fuckin Degen
+          <DialogDescription className="text-slate-300">
+            Enter the passphrase once to open telemetry and admin diagnostics
+            for this browser session.
           </DialogDescription>
         </DialogHeader>
+        <div className="admin-unlock-dialog-grid">
+          <span>Session only</span>
+          <span>Telemetry</span>
+          <span>Admin diagnostics</span>
+          <span>One passphrase</span>
+        </div>
         <form
           className="space-y-4"
           onSubmit={event => {
@@ -10935,7 +10964,7 @@ export default function Home() {
             onChange={event => setAdminPassphrase(event.target.value)}
             placeholder="Admin passphrase"
             autoComplete="current-password"
-            className="admin-unlock-passphrase-input border-orange-400/20 bg-slate-950/80 text-center text-slate-100 placeholder:text-center placeholder:text-slate-500"
+            className="border-orange-400/20 bg-slate-950/80 text-slate-100 placeholder:text-slate-500"
           />
           <DialogFooter className="gap-2 sm:items-center sm:justify-center">
             <Button
@@ -10952,7 +10981,7 @@ export default function Home() {
             <Button
               type="submit"
               disabled={!adminPassphrase.trim() || adminLoginMutation.isPending}
-              className="admin-unlock-primary-button w-full font-black sm:w-auto"
+              className="w-full bg-gradient-to-r from-orange-500 to-cyan-400 font-black text-slate-950 hover:from-orange-400 hover:to-cyan-300 sm:w-auto"
             >
               {adminLoginMutation.isPending
                 ? "Unlocking..."
@@ -10972,20 +11001,27 @@ export default function Home() {
       }}
     >
       <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
-        <DialogHeader className="text-center sm:text-center">
-          <DialogTitle className="athletic-headline text-center text-3xl text-orange-300">
-            Congrats you piece of shit
+        <DialogHeader>
+          <DialogTitle className="athletic-headline text-3xl text-orange-300">
+            Admin Command Center Unlocked
           </DialogTitle>
-          <DialogDescription className="text-center text-slate-300">
+          <DialogDescription className="text-slate-300">
             Your signed-in admin session has premium AI reads, blueprint
-            reports, league power tools and market signals
+            reports, league power tools, market signals, and admin-only
+            diagnostics turned on.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="sm:items-center sm:justify-center">
+        <div className="admin-unlock-dialog-grid">
+          <span>Premium AI Reads</span>
+          <span>Monthly Blueprints</span>
+          <span>Power Rankings</span>
+          <span>Trade Intel</span>
+        </div>
+        <DialogFooter className="sm:justify-end">
           <Button
             type="button"
             onClick={handleAdminUnlockModalDismiss}
-            className="admin-unlock-primary-button w-full font-black sm:w-auto"
+            className="w-full bg-gradient-to-r from-orange-500 to-cyan-400 font-black text-slate-950 hover:from-orange-400 hover:to-cyan-300 sm:w-auto"
           >
             Enter Command Center
           </Button>
@@ -11084,7 +11120,7 @@ export default function Home() {
                   </div>
 
                   <TabsList
-                    className={`${reportTabsClassName} ${canViewAutopilotTab ? "report-tabs-with-autopilot" : ""} report-header-tabs`}
+                    className={`${reportTabsClassName} report-header-tabs`}
                     data-active-tab={resolvedActiveTab}
                   >
                     <TabsTrigger
@@ -11094,10 +11130,10 @@ export default function Home() {
                     >
                       <BarChart3 className="h-4 w-4" aria-hidden="true" />
                       <span className="report-tab-label-full" aria-hidden="true">
-                        Overview
+                        OverView
                       </span>
                       <span className="report-tab-label-short" aria-hidden="true">
-                        View
+                        OverView
                       </span>
                     </TabsTrigger>
 
@@ -11118,7 +11154,7 @@ export default function Home() {
                           className="report-tab-label-short"
                           aria-hidden="true"
                         >
-                          Auto
+                          Autopilot
                         </span>
                       </TabsTrigger>
                     )}
@@ -11133,7 +11169,7 @@ export default function Home() {
                         Momentum
                       </span>
                       <span className="report-tab-label-short" aria-hidden="true">
-                        Pulse
+                        Momentum
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
@@ -11146,7 +11182,7 @@ export default function Home() {
                         Rankings
                       </span>
                       <span className="report-tab-label-short" aria-hidden="true">
-                        Rank
+                        Ranks
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
@@ -11159,7 +11195,7 @@ export default function Home() {
                         Trades
                       </span>
                       <span className="report-tab-label-short" aria-hidden="true">
-                        Trade
+                        Trades
                       </span>
                     </TabsTrigger>
 
@@ -11174,7 +11210,7 @@ export default function Home() {
                           className="report-tab-label-full"
                           aria-hidden="true"
                         >
-                          Draft
+                          Drafts
                         </span>
                         <span
                           className="report-tab-label-short"
@@ -11834,6 +11870,36 @@ export default function Home() {
                           )}
                         </CollapsibleReportSection>
                       )}
+                      {!isRedraftReport && (
+                        <CollapsibleReportSection
+                          title="Prospect Score Archive"
+                          kicker="Scouting data archive"
+                          onOpenChange={open => {
+                            if (open && isProspectArchiveLoading) {
+                              setProspectArchiveOpenedWhileLoading(true);
+                            }
+                          }}
+                        >
+                          {isProspectArchiveLoading &&
+                          prospectArchiveOpenedWhileLoading ? (
+                            <ProspectArchiveLoadingState />
+                          ) : isProspectArchiveLoading ? null : (
+                            <RankingsBoard
+                              rankings={rankingsForReport}
+                              playerDetailsById={reportData.playerDetailsById}
+                              managerAvatars={reportData.managerAvatars}
+                              leagueId={leagueId}
+                              leagueLogo={leagueLogo}
+                              viewerManager={effectiveViewerManager}
+                              board="draftbuzz"
+                              hidePicks
+                              leagueValueMode={leagueValueMode}
+                              leagueDiagnostics={reportData.leagueDiagnostics}
+                              showAIReads={canViewAdminFeatureExpansion}
+                            />
+                          )}
+                        </CollapsibleReportSection>
+                      )}
                       {canViewAdminDiagnostics && (
                         <section
                           className="admin-diagnostics-shell ai-surface-r3f admin-diagnostics-shell-tron"
@@ -11849,9 +11915,7 @@ export default function Home() {
                           <AdminAICalibrationSection />
                           <AdminProviderTelemetrySection />
                           <AdminSourceCoverageSection />
-                          <AdminTrafficTelemetrySection
-                            onLeagueSelect={handleAnalyze}
-                          />
+                          <AdminTrafficTelemetrySection />
                           <AdminValueDiagnosticsSection
                             reportData={reportDataForView}
                           />

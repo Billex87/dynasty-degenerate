@@ -135,7 +135,7 @@ describe('rankings board prospect fallback', () => {
 
   it('merges common first-name aliases across devy ranking sources', async () => {
     const { getCurrentKTCDevyRankingProfiles } = await import('./liveKTCScraper');
-    const { loadFantasyProsDevyRankings } = await import('./fantasyProsDevy');
+    const { loadFlockFantasyValueProfiles } = await import('./flockFantasy');
     const futureYear = new Date().getFullYear() + 1;
 
     vi.mocked(getCurrentKTCDevyRankingProfiles).mockResolvedValueOnce({
@@ -152,15 +152,21 @@ describe('rankings board prospect fallback', () => {
         },
       },
     });
-    vi.mocked(loadFantasyProsDevyRankings).mockResolvedValueOnce({
-      nicholassingleton: {
-        name: 'Nicholas Singleton',
-        position: 'RB',
-        positionRank: 'RB2',
-        rank: 2,
-        age: 21,
-        sourceUrl: 'https://www.fantasypros.com/nfl/rankings/devy-overall.php',
+    vi.mocked(loadFlockFantasyValueProfiles).mockResolvedValueOnce({
+      SUPERFLEX: {},
+      ONEQB: {},
+      PROSPECTS_SF: {
+        nicholassingleton: {
+          name: 'Nicholas Singleton',
+          position: 'RB',
+          positionRank: 'RB2',
+          overallRank: 2,
+          dynastyValue: 6000,
+          college: 'Penn State',
+          draftYear: futureYear,
+        },
       },
+      PROSPECTS: {},
     });
     const { buildRankingsBoard } = await import('./rankingsBoard');
 
@@ -177,7 +183,7 @@ describe('rankings board prospect fallback', () => {
       name: 'Nick Singleton',
       pos: 'RB',
     });
-    expect(singletonRows[0]?.sources).toEqual(expect.arrayContaining(['KTC', 'FantasyPros']));
+    expect(singletonRows[0]?.sources).toEqual(expect.arrayContaining(['KTC', 'Flock']));
   });
 
   it('keeps redraft profile rows separate from dynasty profile rows', async () => {
@@ -255,43 +261,6 @@ describe('rankings board prospect fallback', () => {
       sources: ['FantasyPros', 'MyFantasyLeague ADP'],
     });
     expect(dynastyRow?.value).toBe(1200);
-  });
-
-  it('includes stored FantasyPros dynasty rows in admin source diagnostics', async () => {
-    const { buildRankingsBoard } = await import('./rankingsBoard');
-
-    const board = await buildRankingsBoard({
-      players: {
-        '4984': {
-          full_name: 'Josh Allen',
-          first_name: 'Josh',
-          last_name: 'Allen',
-          position: 'QB',
-          team: 'BUF',
-          active: true,
-        },
-      },
-      ktcValues: {
-        joshallen: {
-          name: 'Josh Allen',
-          ktc_value: 9400,
-          market_value_ktc: 9300,
-          expert_value_fantasypros: 9450,
-          fantasypros_dynasty_rank: 1,
-          fantasypros_dynasty_position_rank: 'QB1',
-          value_sources: ['KTC', 'FantasyPros'],
-        },
-      },
-      ownerByPlayerId: {},
-      rosterStatusByPlayerId: {},
-      selectedProfileKey: 'dynasty_sf_ppr',
-    });
-
-    expect(board.dynastySourceDiagnostics?.find((row) => row.key === 'fantasyPros')).toMatchObject({
-      source: 'FantasyPros Dynasty',
-      status: 'loaded',
-      rowCount: 1,
-    });
   });
 
   it('builds college rows from NFL Draft Buzz without Sleeper players', async () => {

@@ -52,17 +52,9 @@ export function filterCompletedFuturePickPortfolios(
       value2025: Math.max(0, portfolio.value2025 - hiddenValueForYear("2025")),
       value2026: Math.max(0, portfolio.value2026 - hiddenValueForYear("2026")),
       value2027: Math.max(0, portfolio.value2027 - hiddenValueForYear("2027")),
-      value2028: Math.max(
-        0,
-        (portfolio.value2028 || 0) - hiddenValueForYear("2028")
-      ),
       count2025: Math.max(0, portfolio.count2025 - hiddenCountForYear("2025")),
       count2026: Math.max(0, portfolio.count2026 - hiddenCountForYear("2026")),
       count2027: Math.max(0, portfolio.count2027 - hiddenCountForYear("2027")),
-      count2028: Math.max(
-        0,
-        (portfolio.count2028 || 0) - hiddenCountForYear("2028")
-      ),
       totalValue: Math.max(0, portfolio.totalValue - hiddenValue),
       ownPicks: Math.max(0, portfolio.ownPicks - hiddenOwnPicks),
       acquiredPicks: Math.max(0, portfolio.acquiredPicks - hiddenAcquiredPicks),

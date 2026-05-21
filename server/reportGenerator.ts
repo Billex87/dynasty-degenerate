@@ -24,7 +24,6 @@ import { getHistoricalPlayerValueAtDate, type HistoricalPlayerValueLookup } from
 import { buildLeaguePlayoffWeeks } from '../shared/matchupWindows';
 import type {
   LeagueValueMode,
-  LeagueWaiverMode,
   ManagerIntelPlayer,
   OwnerBenchBaselineTile,
   OwnerLineupStrengthTile,
@@ -181,8 +180,6 @@ interface SeasonData {
   taxiSlots?: number;
   scoringSettings?: Record<string, any>;
   currentWeek?: number;
-  waiverType?: number | null;
-  waiverBudget?: number | null;
   playoffWeekStart?: number;
   playoffWeeks?: number[];
   valueBlendProfileKey?: string;
@@ -1043,33 +1040,6 @@ function formatScoringSummary(scoringSettings: Record<string, any> | undefined):
   return [ppr, ...bonuses].join(', ');
 }
 
-function getLeagueWaiverDiagnostics(currentSeasonData: SeasonData): Pick<
-  NonNullable<ReportData['leagueDiagnostics']>,
-  'waiverMode' | 'waiverModeLabel' | 'waiverType' | 'waiverBudget'
-> {
-  const rawWaiverType = Number(currentSeasonData.waiverType);
-  const waiverType = Number.isFinite(rawWaiverType) ? rawWaiverType : null;
-  const rawWaiverBudget = Number(currentSeasonData.waiverBudget);
-  const waiverBudget = Number.isFinite(rawWaiverBudget) && rawWaiverBudget > 0
-    ? rawWaiverBudget
-    : null;
-  const waiverMode: LeagueWaiverMode =
-    waiverType === 2 ? 'faab' : waiverType === 0 || waiverType === 1 ? 'priority' : 'unknown';
-  const waiverModeLabel =
-    waiverMode === 'faab'
-      ? `FAAB${waiverBudget ? ` (${waiverBudget} budget)` : ''}`
-      : waiverMode === 'priority'
-        ? 'Waiver priority'
-        : 'Waiver mode unknown';
-
-  return {
-    waiverMode,
-    waiverModeLabel,
-    waiverType,
-    waiverBudget,
-  };
-}
-
 function buildLeagueDiagnostics(
   currentSeasonData: SeasonData,
   leagueValueMode: LeagueValueMode,
@@ -1123,7 +1093,6 @@ function buildLeagueDiagnostics(
   const redraftTradeWindowEndDate = leagueValueMode === 'redraft' && Number.isFinite(seasonNumber)
     ? getRedraftChampionshipWeekEndValueDate(seasonNumber, currentSeasonData.playoffWeekStart).toISOString().split('T')[0]
     : null;
-  const waiverDiagnostics = getLeagueWaiverDiagnostics(currentSeasonData);
 
   return {
     teamCount,
@@ -1131,7 +1100,6 @@ function buildLeagueDiagnostics(
     qbFormat,
     currentSeason: currentSeasonData.label,
     currentWeek: currentSeasonData.currentWeek ?? null,
-    ...waiverDiagnostics,
     playoffWeekStart: playoffWeeks[0] || currentSeasonData.playoffWeekStart || null,
     playoffWeeks,
     championshipWeek: playoffWeeks.at(-1) || null,

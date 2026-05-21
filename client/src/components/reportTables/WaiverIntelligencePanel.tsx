@@ -496,7 +496,7 @@ type WaiverRecommendation = {
   targetPosition: WaiverPosition | null;
   bidRangeLabel: string;
   bidConfidencePct: number;
-  bidSource: "league-history" | "free-history" | "model" | "priority";
+  bidSource: "league-history" | "free-history" | "model";
   bidEvidenceLabel: string;
   competitionRead: WaiverCompetitionRead | null;
   dropCandidate: ManagerIntelPlayer | null;
@@ -1926,7 +1926,6 @@ function buildWaiverBidRead({
   leagueId,
   leagueValueMode,
   currentSeason,
-  leagueDiagnostics,
 }: {
   player: TrendingPlayer;
   score: number;
@@ -1936,36 +1935,10 @@ function buildWaiverBidRead({
   leagueId?: string;
   leagueValueMode: LeagueValueMode;
   currentSeason?: string | null;
-  leagueDiagnostics?: ReportData["leagueDiagnostics"];
 }): Pick<
   WaiverRecommendation,
   "bidRangeLabel" | "bidConfidencePct" | "bidSource" | "bidEvidenceLabel"
 > {
-  if (leagueDiagnostics?.waiverMode === "priority") {
-    const pressureBoost =
-      competitionRead?.level === "High" ? 8 : competitionRead?.level === "Medium" ? 4 : 0;
-    const bidRangeLabel =
-      score >= 2600 || competitionRead?.level === "High"
-        ? "Burn priority"
-        : score >= 1700 || competitionRead?.level === "Medium"
-          ? "Use priority"
-          : score >= 1100
-            ? "Wait for waivers"
-            : "Free add only";
-    const pressureLabel = competitionRead
-      ? `${competitionRead.manager}'s ${competitionRead.level.toLowerCase()} claim pressure`
-      : "no strong competing-claim pressure";
-
-    return {
-      bidRangeLabel,
-      bidConfidencePct: clampPercentValue(
-        56 + Math.min(24, score / 170) + pressureBoost
-      ),
-      bidSource: "priority",
-      bidEvidenceLabel: `${leagueDiagnostics.waiverModeLabel || "Waiver priority"} detected; ${pressureLabel} included.`,
-    };
-  }
-
   const waiverBidSamples = [
     ...buildTransactionBidSamples(recentTransactions),
     ...buildStoredBidSamples(storedWaiverBidHistory, leagueId),
@@ -2635,7 +2608,6 @@ export function buildWaiverRecommendationContext({
         leagueId,
         leagueValueMode,
         currentSeason: leagueDiagnostics?.currentSeason,
-        leagueDiagnostics,
       });
       const dropRead = getWaiverDropRead({
         player,
@@ -3083,11 +3055,7 @@ export default function WaiverIntelligencePanel({
                     <p>{recommendation.reason}</p>
                     <div className="waiver-ai-target-facts">
                       <span>
-                        <em>
-                          {recommendation.bidSource === "priority"
-                            ? "Waiver priority"
-                            : "League bid range"}
-                        </em>
+                        <em>League bid range</em>
                         <strong>{recommendation.bidRangeLabel}</strong>
                         <small>{recommendation.bidEvidenceLabel}</small>
                       </span>
@@ -3173,8 +3141,7 @@ export default function WaiverIntelligencePanel({
                           : "Track only"}
                       <span>
                         {recommendation.evidenceRead.finalScore}% evidence /{" "}
-                        {recommendation.bidConfidencePct}%{" "}
-                        {recommendation.bidSource === "priority" ? "priority read" : "bid"}
+                        {recommendation.bidConfidencePct}% bid
                       </span>
                     </button>
                   </div>
