@@ -23,6 +23,7 @@ describe('SportsDataIO news normalization', () => {
       title: 'Bijan Robinson workload rising',
       summary: 'Coaches expect more passing-game work & red-zone touches.',
       source: 'RotoBaller',
+      sourceUrl: 'https://www.rotoballer.com/player-news?sport=nfl',
       url: 'https://example.com/bijan',
       publishedAt: '2026-05-16T12:00:00Z',
       playerName: 'Bijan Robinson',
