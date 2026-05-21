@@ -7027,10 +7027,11 @@
   .command-depth-tile {
     position: relative;
     display: grid;
+    grid-template-rows: minmax(4.35rem, auto) auto minmax(1.55rem, 1fr);
     min-height: clamp(7.1rem, 28vw, 7.6rem);
     min-width: 0;
     overflow: hidden;
-    align-content: space-between;
+    align-content: start;
     gap: clamp(0.55rem, 2.8vw, 0.9rem);
     border: 1px solid rgba(34, 211, 238, 0.18);
     border-radius: 1rem;
@@ -7239,10 +7240,13 @@
 
   .owner-intel-score-strip > span {
     display: grid;
+    grid-template-rows: 0.62rem 0.95rem;
     min-width: 0;
     min-height: 2.18rem;
+    align-content: center;
     align-items: center;
     justify-content: center;
+    justify-items: center;
     gap: 0.12rem;
     overflow: hidden;
     border: 1px solid rgba(34, 211, 238, 0.22);
@@ -7264,6 +7268,8 @@
   }
 
   .owner-intel-score-strip strong {
+    display: block;
+    width: 100%;
     color: #67e8f9;
     font-size: clamp(0.48rem, 0.72vw, 0.58rem);
     font-weight: 1000;
@@ -7272,6 +7278,8 @@
   }
 
   .owner-intel-score-strip em {
+    display: block;
+    width: 100%;
     color: #f8fafc;
     font-size: clamp(0.78rem, 1vw, 0.92rem);
     font-weight: 1000;

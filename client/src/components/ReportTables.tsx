@@ -3691,7 +3691,7 @@ type OwnerBuildLabel =
   | "Future Menace"
   | "Future Stacked"
   | "Pick Rich"
-  | "Growth Rocket"
+  | "Growth"
   | "Cooking"
   | "Actually Building"
   | "Half Built"
@@ -4046,7 +4046,7 @@ function buildOwnerValueTag(
 
   if (rank <= 3) return { label: `Elite Value #${rank}`, tone: "good" };
   if (rank >= bottomCutoff)
-    return { label: `Value Hole #${rank}`, tone: "warn" };
+    return { label: `Value #${rank}`, tone: "warn" };
   return { label: `Value #${rank}`, tone: "neutral" };
 }
 
@@ -4176,7 +4176,7 @@ function buildOwnerGrowthTag(
     rank <= topWindow &&
     growthRow.growth >= Math.max(5, averageGrowth + 2)
   ) {
-    return { label: `Growth Rocket ${growthCopy}`, tone: "good" };
+    return { label: `Growth ${growthCopy}`, tone: "good" };
   }
 
   if (
