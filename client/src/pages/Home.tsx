@@ -12874,6 +12874,7 @@ function CollapsibleReportSection({
   previewAccessory,
   previewAccessoryPlacement = "end",
   defaultOpen = false,
+  openSignal = 0,
   premium = false,
   onOpenChange,
   children,
@@ -12884,6 +12885,7 @@ function CollapsibleReportSection({
   previewAccessory?: ReactNode;
   previewAccessoryPlacement?: "end" | "middle";
   defaultOpen?: boolean;
+  openSignal?: number;
   premium?: boolean;
   onOpenChange?: (open: boolean) => void;
   children: ReactNode;
@@ -12907,6 +12909,17 @@ function CollapsibleReportSection({
       setHasRenderedContent(true);
     }
   }, [accordion, defaultOpen]);
+
+  useEffect(() => {
+    if (!openSignal) return;
+    if (accordion) {
+      accordion.setActiveSectionId(sectionId);
+    } else {
+      setLocalIsOpen(true);
+    }
+    setHasRenderedContent(true);
+    onOpenChange?.(true);
+  }, [accordion, openSignal, sectionId]);
 
   const handleToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
     const nextOpen = event.currentTarget.open;
