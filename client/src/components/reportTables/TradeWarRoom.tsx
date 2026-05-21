@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import { ChevronDown, UsersRound, X as XIcon } from "lucide-react";
 import { filterCompletedFuturePickPortfolios } from "@shared/pickPortfolioFilters";
-import type { ManagerIntelPlayer, ReportData } from "@shared/types";
+import type {
+  ManagerIntelPlayer,
+  RankingPlayer,
+  ReportData,
+} from "@shared/types";
 import { Input } from "@/components/ui/input";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { ChampionAvatarFrame } from "../ManagerChampionships";
@@ -11,6 +15,7 @@ import { getBalancedGridStyle } from "@/lib/balancedGrid";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
+import { trpc } from "@/lib/trpc";
 import {
   buildTradeValueCalibrationNote,
   getStrongestTradeValueCalibration,
@@ -44,6 +49,8 @@ export type TradeWarAsset = ManagerIntelPlayer & {
   pickSeason?: string;
   pickRound?: number;
   originalOwner?: string;
+  pickAssetId?: string;
+  pickRankingId?: string;
 };
 
 const TRADE_WAR_FALLBACK_PICK_VALUES_BY_ROUND: Record<number, number> = {
@@ -54,12 +61,254 @@ const TRADE_WAR_FALLBACK_PICK_VALUES_BY_ROUND: Record<number, number> = {
   5: 100,
 };
 
+type TradeWarFuturePick = NonNullable<
+  NonNullable<ReportData["pickPortfolios"]>[number]["futurePicks"]
+>[number];
+
+type TradeWarRankingPickOption = {
+  id: string;
+  name: string;
+  season: string;
+  round: number;
+  value: number;
+  overallRank: number;
+  positionRank?: string | null;
+  variant: string | null;
+};
+
+type TradeWarAssetPools = {
+  baselineAssets: TradeWarAsset[];
+  selectableAssets: TradeWarAsset[];
+};
+
+function normalizeTradeWarPickVariant(value?: string | null): string | null {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+  return normalized || null;
+}
+
+function getTradeWarPickAssetId(pick: TradeWarFuturePick): string {
+  return `pick:${pick.id}`;
+}
+
+export function getTradeWarAssetSelectionKey(asset: TradeWarAsset): string {
+  return isTradeWarPickAsset(asset)
+    ? asset.pickAssetId || asset.player_id
+    : asset.player_id;
+}
+
 export function isTradeWarPickAsset(asset: TradeWarAsset): boolean {
   return asset.assetKind === "pick" || asset.assetState === "pick";
 }
 
 export function isTradeWarPlayerAsset(asset: TradeWarAsset): boolean {
   return !isTradeWarPickAsset(asset);
+}
+
+function parseTradeWarRankingPick(
+  row: RankingPlayer
+): Omit<
+  TradeWarRankingPickOption,
+  "id" | "name" | "value" | "overallRank" | "positionRank"
+> | null {
+  const name = String(row.name || "").trim();
+  const ordinalMatch = name.match(
+    /\b(20\d{2})\b\s*(?:(early[-\s]?mid|mid[-\s]?late|early|mid|late)\s*)?([1-5])(?:st|nd|rd|th)\b/i
+  );
+  const roundMatch = name.match(/\b(20\d{2})\b\s*(?:round\s*)?([1-5])\b/i);
+  const match = ordinalMatch || roundMatch;
+  if (!match) return null;
+
+  const season = match[1];
+  const round = Number(ordinalMatch ? ordinalMatch[3] : match[2]);
+  if (!season || !Number.isFinite(round) || round <= 0) return null;
+
+  return {
+    season,
+    round,
+    variant: ordinalMatch
+      ? normalizeTradeWarPickVariant(ordinalMatch[2])
+      : null,
+  };
+}
+
+function getTradeWarRankingPickOptionsByKey(
+  rows: RankingPlayer[] = []
+): Map<string, TradeWarRankingPickOption[]> {
+  const optionsByKey = new Map<string, TradeWarRankingPickOption[]>();
+  rows.forEach(row => {
+    if (!row?.name) return;
+    if (!row.isPick && row.pos !== "PICK") return;
+    const parsed = parseTradeWarRankingPick(row);
+    const value = Math.round(row.value || row.ktcValue || 0);
+    if (!parsed || value <= 0) return;
+    const key = `${parsed.season}:${parsed.round}`;
+    const options = optionsByKey.get(key) || [];
+    options.push({
+      id: row.id,
+      name: row.name,
+      season: parsed.season,
+      round: parsed.round,
+      value,
+      overallRank: row.overallRank || 9999,
+      positionRank: row.positionRank,
+      variant: parsed.variant,
+    });
+    optionsByKey.set(key, options);
+  });
+
+  optionsByKey.forEach((options, key) => {
+    const deduped = Array.from(
+      new Map(
+        options.map(option => [option.name.toLowerCase(), option])
+      ).values()
+    ).sort((a, b) => {
+      if (a.overallRank !== b.overallRank) return a.overallRank - b.overallRank;
+      return b.value - a.value;
+    });
+    optionsByKey.set(key, deduped);
+  });
+
+  return optionsByKey;
+}
+
+function getTradeWarRankingRowsForProfile(
+  rankings?: ReportData["rankings"],
+  profileKey?: string | null
+): RankingPlayer[] {
+  if (!rankings) return [];
+  if (profileKey && rankings.profiles?.[profileKey]?.length) {
+    return rankings.profiles[profileKey] || [];
+  }
+  if (rankings.dynastySf?.length) return rankings.dynastySf;
+  return rankings.dynastyOneQb || [];
+}
+
+function buildTradeWarPickAsset(
+  pick: TradeWarFuturePick,
+  rankingOption?: TradeWarRankingPickOption | null,
+  useBaseId = false
+): TradeWarAsset {
+  const pickAssetId = getTradeWarPickAssetId(pick);
+  const label = rankingOption?.name || pick.label;
+  const value = rankingOption?.value || pick.value;
+  return {
+    player_id:
+      rankingOption && !useBaseId
+        ? `${pickAssetId}:ranking:${rankingOption.id}`
+        : pickAssetId,
+    name: label,
+    pos: "PICK",
+    owner: pick.manager,
+    value,
+    seasonValue: value,
+    currentPositionRank:
+      rankingOption?.positionRank || `${pick.season} R${pick.round}`,
+    manager: pick.manager,
+    assetState: "pick",
+    assetKind: "pick",
+    pickLabel: label,
+    pickSeason: pick.season,
+    pickRound: pick.round,
+    originalOwner: pick.originalOwner,
+    pickAssetId,
+    pickRankingId: rankingOption?.id,
+  };
+}
+
+export function buildTradeWarAssetPools({
+  data,
+  pickPortfolios,
+  draftPicks,
+  leagueValueMode,
+  mode,
+  rankingRows,
+}: {
+  data?: ReportData["managerRosterIntelligence"];
+  pickPortfolios?: ReportData["pickPortfolios"];
+  draftPicks?: ReportData["draftPicks"];
+  leagueValueMode: ReportData["leagueValueMode"];
+  mode: TradeWarMode;
+  rankingRows?: RankingPlayer[];
+}): TradeWarAssetPools {
+  const baselineMapped = new Map<string, TradeWarAsset>();
+  const selectableMapped = new Map<string, TradeWarAsset>();
+  const addAsset = (asset: TradeWarAsset) => {
+    baselineMapped.set(asset.player_id, asset);
+    selectableMapped.set(asset.player_id, asset);
+  };
+
+  (data || []).forEach(row => {
+    const addPlayers = (
+      players: ManagerIntelPlayer[] | undefined,
+      assetState: TradeWarAsset["assetState"]
+    ) => {
+      (players || []).forEach(player => {
+        if (!player?.player_id || baselineMapped.has(player.player_id)) return;
+        addAsset({
+          ...player,
+          manager: player.owner || row.manager,
+          assetState,
+        });
+      });
+    };
+    addPlayers(row.rosterPlayers, "roster");
+    addPlayers(row.benchPlayers, "bench");
+    addPlayers(row.reservePlayers, "reserve");
+    addPlayers(row.taxiPlayers, "taxi");
+  });
+
+  if (leagueValueMode === "dynasty") {
+    const visiblePickPortfolios = filterCompletedFuturePickPortfolios(
+      pickPortfolios || [],
+      draftPicks || []
+    );
+    const rankingOptionsByKey = getTradeWarRankingPickOptionsByKey(rankingRows);
+
+    visiblePickPortfolios.forEach(portfolio => {
+      (portfolio.futurePicks || []).forEach(pick => {
+        const pickAssetId = getTradeWarPickAssetId(pick);
+        const optionKey = `${pick.season}:${pick.round}`;
+        const rankingOptions = rankingOptionsByKey.get(optionKey) || [];
+        const genericOption =
+          rankingOptions.find(option => !option.variant) || null;
+        const baselinePickAsset = buildTradeWarPickAsset(
+          pick,
+          genericOption,
+          true
+        );
+
+        if (!baselineMapped.has(pickAssetId)) {
+          baselineMapped.set(pickAssetId, baselinePickAsset);
+        }
+
+        const selectablePickAssets = rankingOptions.length
+          ? [
+              baselinePickAsset,
+              ...rankingOptions
+                .filter(option => option.id !== genericOption?.id)
+                .map(option => buildTradeWarPickAsset(pick, option)),
+            ]
+          : [baselinePickAsset];
+        selectablePickAssets.forEach(asset => {
+          if (!selectableMapped.has(asset.player_id)) {
+            selectableMapped.set(asset.player_id, asset);
+          }
+        });
+      });
+    });
+  }
+
+  const sortByModeValue = (a: TradeWarAsset, b: TradeWarAsset) =>
+    getTradeWarAssetValue(b, mode) - getTradeWarAssetValue(a, mode);
+  return {
+    baselineAssets: Array.from(baselineMapped.values()).sort(sortByModeValue),
+    selectableAssets: Array.from(selectableMapped.values()).sort(
+      sortByModeValue
+    ),
+  };
 }
 
 function getTradeWarPickValue(asset: TradeWarAsset): number {
@@ -454,7 +703,10 @@ export function buildTradeWarPickRankMap(
       manager,
       value: (assetsByManager.get(manager) || [])
         .filter(isTradeWarPickAsset)
-        .reduce((sum, asset) => sum + getTradeWarAssetValue(asset, "dynasty"), 0),
+        .reduce(
+          (sum, asset) => sum + getTradeWarAssetValue(asset, "dynasty"),
+          0
+        ),
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -493,7 +745,8 @@ function getTradeWarNegotiationChipClass(chip: string): string {
   if (/\bwr\b/.test(normalized)) return "wr";
   if (/\bte\b/.test(normalized)) return "te";
   if (/pick aggressive|blocked|slow mover/.test(normalized)) return "danger";
-  if (/profit seeker|favorite partner|need filled/.test(normalized)) return "good";
+  if (/profit seeker|favorite partner|need filled/.test(normalized))
+    return "good";
   if (/veteran buyer|active dealer|open signal|buying|selling/.test(normalized))
     return "warn";
   if (/balanced/.test(normalized)) return "balanced";
@@ -602,7 +855,7 @@ export function getTradeWarSearchResults({
 }) {
   const normalized = query.trim().toLowerCase();
   return allAssets
-    .filter(asset => !selectedAllIds.has(asset.player_id))
+    .filter(asset => !selectedAllIds.has(getTradeWarAssetSelectionKey(asset)))
     .filter(asset => {
       if (normalized) return asset.manager !== otherManager;
       if (sideManager) return asset.manager === sideManager;
@@ -625,7 +878,7 @@ export function getTradeWarSearchResults({
     .sort((a, b) => {
       return getTradeWarAssetValue(b, mode) - getTradeWarAssetValue(a, mode);
     })
-    .slice(0, normalized ? 8 : 6);
+    .slice(0, normalized ? 12 : 6);
 }
 
 function buildTradeWarSnapshot({
@@ -703,7 +956,7 @@ function buildTradeWarSweetenerSuggestions({
       asset =>
         asset.manager === manager &&
         !selectedIds.includes(asset.player_id) &&
-        !selectedAllIds.has(asset.player_id)
+        !selectedAllIds.has(getTradeWarAssetSelectionKey(asset))
     )
     .filter(asset => {
       if (isTradeWarPickAsset(asset)) return isDynastyLens;
@@ -772,7 +1025,7 @@ export function buildTradeWarValueMatchIdeas({
 
   const candidatesByManager = new Map<string, TradeWarAsset[]>();
   sourceAssets
-    .filter(asset => !selectedAllIds.has(asset.player_id))
+    .filter(asset => !selectedAllIds.has(getTradeWarAssetSelectionKey(asset)))
     .filter(asset => getTradeWarAssetValue(asset, mode) > 0)
     .forEach(asset => {
       const manager = asset.manager || sourceManager;
@@ -805,9 +1058,17 @@ export function buildTradeWarValueMatchIdeas({
       for (let j = i + 1; j < candidates.length; j += 1) {
         const first = candidates[i];
         const second = candidates[j];
+        if (
+          getTradeWarAssetSelectionKey(first) ===
+          getTradeWarAssetSelectionKey(second)
+        ) {
+          continue;
+        }
         const totalValue =
-          getTradeWarAssetValue(first, mode) + getTradeWarAssetValue(second, mode);
-        if (totalValue > targetValue * 1.75 && totalValue - targetValue > 1200) continue;
+          getTradeWarAssetValue(first, mode) +
+          getTradeWarAssetValue(second, mode);
+        if (totalValue > targetValue * 1.75 && totalValue - targetValue > 1200)
+          continue;
         ideas.push({
           id: `${manager}:${first.player_id}:${second.player_id}`,
           label: `${first.name} + ${second.name}`,
@@ -825,7 +1086,8 @@ export function buildTradeWarValueMatchIdeas({
   return ideas
     .sort((a, b) => {
       if (a.gap !== b.gap) return a.gap - b.gap;
-      if (a.assets.length !== b.assets.length) return a.assets.length - b.assets.length;
+      if (a.assets.length !== b.assets.length)
+        return a.assets.length - b.assets.length;
       return b.totalValue - a.totalValue;
     })
     .slice(0, 4);
@@ -854,9 +1116,7 @@ function buildTradeWarNegotiationRead({
   const surplus = row?.tradePlan?.surplusPosition || null;
   const incomingNeed = Boolean(
     need &&
-      incoming.some(
-        asset => isTradeWarPlayerAsset(asset) && asset.pos === need
-      )
+      incoming.some(asset => isTradeWarPlayerAsset(asset) && asset.pos === need)
   );
   const outgoingSurplus = Boolean(
     surplus &&
@@ -894,11 +1154,16 @@ function buildTradeWarNegotiationRead({
   if (incomingNeed) score += 12;
   if (outgoingSurplus) score += 9;
   if (outgoingCore) score -= 15;
-  if (incomingValueSignal?.calibration.outcome === "confirmed-riser") score += 6;
-  if (incomingValueSignal?.calibration.outcome === "confirmed-faller") score -= 7;
-  if (incomingValueSignal?.calibration.outcome === "low-denominator-watch") score -= 3;
-  if (outgoingValueSignal?.calibration.outcome === "confirmed-riser") score -= 8;
-  if (outgoingValueSignal?.calibration.outcome === "confirmed-faller") score += 4;
+  if (incomingValueSignal?.calibration.outcome === "confirmed-riser")
+    score += 6;
+  if (incomingValueSignal?.calibration.outcome === "confirmed-faller")
+    score -= 7;
+  if (incomingValueSignal?.calibration.outcome === "low-denominator-watch")
+    score -= 3;
+  if (outgoingValueSignal?.calibration.outcome === "confirmed-riser")
+    score -= 8;
+  if (outgoingValueSignal?.calibration.outcome === "confirmed-faller")
+    score += 4;
   if (outgoingValueSignal?.calibration.outcome === "watch-riser") score -= 3;
   if (favoritePartner) score += 6;
   if (tendency) {
@@ -936,8 +1201,12 @@ function buildTradeWarNegotiationRead({
     favoritePartner ? "Favorite partner" : null,
     incomingNeed ? `${need} need filled` : need ? `${need} need open` : null,
     outgoingSurplus ? `${surplus} surplus spent` : null,
-    incomingValueSignal ? `Buying ${incomingValueSignal.calibration.chip}` : null,
-    outgoingValueSignal ? `Selling ${outgoingValueSignal.calibration.chip}` : null,
+    incomingValueSignal
+      ? `Buying ${incomingValueSignal.calibration.chip}`
+      : null,
+    outgoingValueSignal
+      ? `Selling ${outgoingValueSignal.calibration.chip}`
+      : null,
     pressure.blockedCount
       ? `${pressure.blockedCount} blocked signal${pressure.blockedCount === 1 ? "" : "s"}`
       : null,
@@ -1099,8 +1368,10 @@ export function buildTradeWarPackageIdeas({
   const richSideLabel = valueGap > 0 ? managerB : managerA;
   const bestRemoval = richSideIds
     .map(id => {
-      const nextA = valueGap > 0 ? sideAIds : sideAIds.filter(item => item !== id);
-      const nextB = valueGap > 0 ? sideBIds.filter(item => item !== id) : sideBIds;
+      const nextA =
+        valueGap > 0 ? sideAIds : sideAIds.filter(item => item !== id);
+      const nextB =
+        valueGap > 0 ? sideBIds.filter(item => item !== id) : sideBIds;
       const removed = assetById.get(id);
       const nextGap = getIdsTotal(nextB, mode) - getIdsTotal(nextA, mode);
       return { id, removed, nextA, nextB, nextGap };
@@ -1123,7 +1394,7 @@ export function buildTradeWarPackageIdeas({
   const swapCandidates = allAssets.filter(
     asset =>
       asset.manager === richManager &&
-      !selectedAllIds.has(asset.player_id) &&
+      !selectedAllIds.has(getTradeWarAssetSelectionKey(asset)) &&
       getTradeWarAssetValue(asset, mode) > 0
   );
   const bestSwap = richSelectedAssets
@@ -1355,7 +1626,7 @@ function TradeWarPlayerCard({
     >
       {isSuggestedAdd && (
         <span className="trade-war-suggested-add-overlay">
-          {isTradeWarPickAsset(asset) ? "Match" : "Balance"}
+          Balance
         </span>
       )}
       {isDifferentManager && (
@@ -1420,7 +1691,9 @@ export function getTradeWarRankTone(rank?: string | null): string {
   return "deep";
 }
 
-export function getTradeWarSectionClass(label: "QB" | "RB" | "WR" | "TE" | "PICKS") {
+export function getTradeWarSectionClass(
+  label: "QB" | "RB" | "WR" | "TE" | "PICKS"
+) {
   return label === "PICKS" ? "pick" : label.toLowerCase();
 }
 
@@ -1431,8 +1704,7 @@ export default function TradeWarRoom({
   leagueId,
   leagueLogo,
   leagueOverview,
-  powerRankings,
-  dynastyTimelines,
+  rankings,
   pickPortfolios,
   draftPicks,
   tradeTendencies,
@@ -1448,6 +1720,7 @@ export default function TradeWarRoom({
   leagueId?: string;
   leagueLogo?: string | null;
   leagueOverview?: ReportData["leagueOverview"];
+  rankings?: ReportData["rankings"];
   powerRankings?: ReportData["powerRankings"];
   dynastyTimelines?: ReportData["dynastyTimelines"];
   pickPortfolios?: ReportData["pickPortfolios"];
@@ -1507,11 +1780,37 @@ export default function TradeWarRoom({
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(
     null
   );
-  const visiblePickPortfolios = React.useMemo(
-    () =>
-      filterCompletedFuturePickPortfolios(pickPortfolios || [], draftPicks || []),
-    [draftPicks, pickPortfolios]
+  const tradeWarRankingProfileKey =
+    leagueValueMode === "dynasty"
+      ? rankings?.defaultProfileKey || rankings?.selectedProfileKey || null
+      : null;
+  const localTradeWarRankingRows = React.useMemo(
+    () => getTradeWarRankingRowsForProfile(rankings, tradeWarRankingProfileKey),
+    [rankings, tradeWarRankingProfileKey]
   );
+  const expectedTradeWarRankingRows = tradeWarRankingProfileKey
+    ? rankings?.profileRowCounts?.[tradeWarRankingProfileKey] || 0
+    : 0;
+  const rankingProfileQuery = trpc.league.rankingProfile.useQuery(
+    {
+      leagueId: leagueId || "",
+      profileKey: tradeWarRankingProfileKey || "",
+    },
+    {
+      enabled: Boolean(
+        leagueValueMode === "dynasty" &&
+          leagueId &&
+          tradeWarRankingProfileKey &&
+          localTradeWarRankingRows.length === 0 &&
+          expectedTradeWarRankingRows > 0
+      ),
+      staleTime: 1000 * 60 * 60 * 12,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    }
+  );
+  const tradeWarRankingRows =
+    rankingProfileQuery.data?.rows || localTradeWarRankingRows;
 
   React.useEffect(() => {
     if (!tradeWarModeOptions.includes(mode)) {
@@ -1519,70 +1818,55 @@ export default function TradeWarRoom({
     }
   }, [mode, tradeWarModeOptions]);
 
-  const allAssets = React.useMemo(() => {
-    const mapped = new Map<string, TradeWarAsset>();
-    (data || []).forEach(row => {
-      const addPlayers = (
-        players: ManagerIntelPlayer[] | undefined,
-        assetState: TradeWarAsset["assetState"]
-      ) => {
-        (players || []).forEach(player => {
-          if (!player?.player_id || mapped.has(player.player_id)) return;
-          mapped.set(player.player_id, {
-            ...player,
-            manager: player.owner || row.manager,
-            assetState,
-          });
-        });
-      };
-      addPlayers(row.rosterPlayers, "roster");
-      addPlayers(row.benchPlayers, "bench");
-      addPlayers(row.reservePlayers, "reserve");
-      addPlayers(row.taxiPlayers, "taxi");
-    });
-    if (leagueValueMode === "dynasty") {
-      visiblePickPortfolios.forEach(portfolio => {
-        (portfolio.futurePicks || []).forEach(pick => {
-          const assetId = `pick:${pick.id}`;
-          if (mapped.has(assetId)) return;
-          mapped.set(assetId, {
-            player_id: assetId,
-            name: pick.label,
-            pos: "PICK",
-            owner: pick.manager,
-            value: pick.value,
-            seasonValue: pick.value,
-            currentPositionRank: `${pick.season} R${pick.round}`,
-            manager: pick.manager,
-            assetState: "pick",
-            assetKind: "pick",
-            pickLabel: pick.label,
-            pickSeason: pick.season,
-            pickRound: pick.round,
-            originalOwner: pick.originalOwner,
-          });
-        });
-      });
-    }
-    return Array.from(mapped.values()).sort(
-      (a, b) => getTradeWarAssetValue(b, mode) - getTradeWarAssetValue(a, mode)
-    );
-  }, [data, leagueValueMode, mode, visiblePickPortfolios]);
+  const assetPools = React.useMemo(
+    () =>
+      buildTradeWarAssetPools({
+        data,
+        pickPortfolios,
+        draftPicks,
+        leagueValueMode,
+        mode,
+        rankingRows: tradeWarRankingRows,
+      }),
+    [
+      data,
+      draftPicks,
+      leagueValueMode,
+      mode,
+      pickPortfolios,
+      tradeWarRankingRows,
+    ]
+  );
+  const allAssets = assetPools.selectableAssets;
+  const baselineAssets = assetPools.baselineAssets;
 
   const assetById = React.useMemo(
     () => new Map(allAssets.map(asset => [asset.player_id, asset])),
     [allAssets]
   );
-  const selectedAllIds = React.useMemo(
-    () => new Set([...sideAIds, ...sideBIds]),
-    [sideAIds, sideBIds]
+  const sideAAssets = React.useMemo(
+    () =>
+      sideAIds
+        .map(id => assetById.get(id))
+        .filter((asset): asset is TradeWarAsset => Boolean(asset)),
+    [assetById, sideAIds]
   );
-  const sideAAssets = sideAIds
-    .map(id => assetById.get(id))
-    .filter((asset): asset is TradeWarAsset => Boolean(asset));
-  const sideBAssets = sideBIds
-    .map(id => assetById.get(id))
-    .filter((asset): asset is TradeWarAsset => Boolean(asset));
+  const sideBAssets = React.useMemo(
+    () =>
+      sideBIds
+        .map(id => assetById.get(id))
+        .filter((asset): asset is TradeWarAsset => Boolean(asset)),
+    [assetById, sideBIds]
+  );
+  const selectedAllIds = React.useMemo(
+    () =>
+      new Set(
+        [...sideAAssets, ...sideBAssets].map(asset =>
+          getTradeWarAssetSelectionKey(asset)
+        )
+      ),
+    [sideAAssets, sideBAssets]
+  );
   const inferredManagerA = sideAAssets[0]?.manager || "";
   const inferredManagerB = sideBAssets[0]?.manager || "";
   const managerA = inferredManagerA || managerAState;
@@ -1605,6 +1889,15 @@ export default function TradeWarRoom({
   const managerARow = managerA ? managerRows.get(managerA) : undefined;
   const managerBRow = managerB ? managerRows.get(managerB) : undefined;
   const assetsByManager = React.useMemo(() => {
+    const grouped = new Map<string, TradeWarAsset[]>();
+    baselineAssets.forEach(asset => {
+      const existing = grouped.get(asset.manager) || [];
+      existing.push(asset);
+      grouped.set(asset.manager, existing);
+    });
+    return grouped;
+  }, [baselineAssets]);
+  const selectableAssetsByManager = React.useMemo(() => {
     const grouped = new Map<string, TradeWarAsset[]>();
     allAssets.forEach(asset => {
       const existing = grouped.get(asset.manager) || [];
@@ -1630,28 +1923,23 @@ export default function TradeWarRoom({
 
     const applySwap = (
       manager: string,
-      outgoingIds: string[],
+      outgoingAssets: TradeWarAsset[],
       incomingAssets: TradeWarAsset[]
     ) => {
       const current = next.get(manager) || [];
+      const outgoingKeys = new Set(
+        outgoingAssets.map(asset => getTradeWarAssetSelectionKey(asset))
+      );
       const filtered = current.filter(
-        asset => !outgoingIds.includes(asset.player_id)
+        asset => !outgoingKeys.has(getTradeWarAssetSelectionKey(asset))
       );
       next.set(manager, [...filtered, ...incomingAssets]);
     };
 
-    if (managerA) applySwap(managerA, sideAIds, sideBAssets);
-    if (managerB) applySwap(managerB, sideBIds, sideAAssets);
+    if (managerA) applySwap(managerA, sideAAssets, sideBAssets);
+    if (managerB) applySwap(managerB, sideBAssets, sideAAssets);
     return next;
-  }, [
-    assetsByManager,
-    managerA,
-    managerB,
-    sideAAssets,
-    sideAIds,
-    sideBAssets,
-    sideBIds,
-  ]);
+  }, [assetsByManager, managerA, managerB, sideAAssets, sideBAssets]);
 
   const simulatedMetricsByManager = React.useMemo(() => {
     const mapped = new Map<string, TradeWarRosterMetrics>();
@@ -1753,7 +2041,9 @@ export default function TradeWarRoom({
             buildTradeWarNegotiationRead({
               manager: managerA,
               otherManager: managerB,
-              tendency: tradeTendencyByManager.get(normalizeTradeWarName(managerA)),
+              tendency: tradeTendencyByManager.get(
+                normalizeTradeWarName(managerA)
+              ),
               row: managerARow,
               incoming: sideBAssets,
               outgoing: sideAAssets,
@@ -1763,7 +2053,9 @@ export default function TradeWarRoom({
             buildTradeWarNegotiationRead({
               manager: managerB,
               otherManager: managerA,
-              tendency: tradeTendencyByManager.get(normalizeTradeWarName(managerB)),
+              tendency: tradeTendencyByManager.get(
+                normalizeTradeWarName(managerB)
+              ),
               row: managerBRow,
               incoming: sideAAssets,
               outgoing: sideBAssets,
@@ -1792,18 +2084,18 @@ export default function TradeWarRoom({
         sourceManager: managerB || "League wide",
         targetAssets: sideAAssets,
         sourceAssets: managerB
-          ? assetsByManager.get(managerB) || []
+          ? selectableAssetsByManager.get(managerB) || []
           : allAssets.filter(asset => !managerA || asset.manager !== managerA),
         selectedAllIds,
         mode,
       }).slice(0, 4),
     [
       allAssets,
-      assetsByManager,
       managerA,
       managerB,
       mode,
       selectedAllIds,
+      selectableAssetsByManager,
       sideAAssets,
     ]
   );
@@ -1814,18 +2106,18 @@ export default function TradeWarRoom({
         sourceManager: managerA || "League wide",
         targetAssets: sideBAssets,
         sourceAssets: managerA
-          ? assetsByManager.get(managerA) || []
+          ? selectableAssetsByManager.get(managerA) || []
           : allAssets.filter(asset => !managerB || asset.manager !== managerB),
         selectedAllIds,
         mode,
       }).slice(0, 4),
     [
       allAssets,
-      assetsByManager,
       managerA,
       managerB,
       mode,
       selectedAllIds,
+      selectableAssetsByManager,
       sideBAssets,
     ]
   );
@@ -1917,6 +2209,16 @@ export default function TradeWarRoom({
   };
 
   const addAssetToSide = (sideKey: "A" | "B", asset: TradeWarAsset) => {
+    const hasMatchingAsset = (ids: string[]) =>
+      ids.some(id => {
+        const existing = assetById.get(id);
+        return (
+          existing &&
+          getTradeWarAssetSelectionKey(existing) ===
+            getTradeWarAssetSelectionKey(asset)
+        );
+      });
+
     if (sideKey === "A") {
       if (managerB && managerB === asset.manager) return;
       if (managerA && managerA !== asset.manager) {
@@ -1926,7 +2228,9 @@ export default function TradeWarRoom({
         return;
       }
       setSideAIds(current =>
-        current.includes(asset.player_id) ? current : [...current, asset.player_id]
+        current.includes(asset.player_id) || hasMatchingAsset(current)
+          ? current
+          : [...current, asset.player_id]
       );
       setManagerAState(asset.manager);
       setQueryA("");
@@ -1941,7 +2245,9 @@ export default function TradeWarRoom({
       return;
     }
     setSideBIds(current =>
-      current.includes(asset.player_id) ? current : [...current, asset.player_id]
+      current.includes(asset.player_id) || hasMatchingAsset(current)
+        ? current
+        : [...current, asset.player_id]
     );
     setManagerBState(asset.manager);
     setQueryB("");
@@ -1982,7 +2288,10 @@ export default function TradeWarRoom({
             <div key={idea.id} className="trade-war-value-match-card">
               <div className="trade-war-value-match-head">
                 <strong>{idea.sourceManager} can match</strong>
-                <em>{formatCompactValue(idea.totalValue)} · gap {formatCompactValue(idea.gap)}</em>
+                <em>
+                  {formatCompactValue(idea.totalValue)} · gap{" "}
+                  {formatCompactValue(idea.gap)}
+                </em>
               </div>
               <div className="trade-war-value-match-body">
                 <div className="trade-war-value-match-assets">
@@ -2093,7 +2402,11 @@ export default function TradeWarRoom({
     incoming: TradeWarAsset[],
     outgoing: TradeWarAsset[]
   ) => {
-    const rankChanges = buildTradeWarRankChanges(before, after, leagueValueMode);
+    const rankChanges = buildTradeWarRankChanges(
+      before,
+      after,
+      leagueValueMode
+    );
     const summary = buildTradeWarBeforeAfterSummary({
       before,
       after,
@@ -2147,11 +2460,15 @@ export default function TradeWarRoom({
                         className={`trade-war-rank-shift-pill trade-war-rank-shift-pill-${metricClass}`}
                       >
                         <em>{change.label}</em>
-                        <strong style={getTradeWarRankTierStyle(change.beforeRank)}>
+                        <strong
+                          style={getTradeWarRankTierStyle(change.beforeRank)}
+                        >
                           #{change.beforeRank}
                         </strong>
                         <i aria-hidden="true">-&gt;</i>
-                        <strong style={getTradeWarRankTierStyle(change.afterRank)}>
+                        <strong
+                          style={getTradeWarRankTierStyle(change.afterRank)}
+                        >
                           #{change.afterRank}
                         </strong>
                       </span>
@@ -2275,10 +2592,9 @@ export default function TradeWarRoom({
       ...suggestedAddAssets,
       ...baseResults.filter(asset => !suggestedAddIds.has(asset.player_id)),
     ].slice(0, hasSearchQuery ? baseResults.length : 6);
-    const highlightedManagers = new Set([
-      manager,
-      ...assets.map(asset => asset.manager),
-    ].filter(Boolean));
+    const highlightedManagers = new Set(
+      [manager, ...assets.map(asset => asset.manager)].filter(Boolean)
+    );
     const isPickerOpen = mobilePickerOpen[sideKey];
 
     return (
@@ -2317,9 +2633,8 @@ export default function TradeWarRoom({
           </div>
         </div>
 
-        {renderSelectedAssets(
-          assets,
-          playerId => removeAssetFromSide(sideKey, playerId)
+        {renderSelectedAssets(assets, playerId =>
+          removeAssetFromSide(sideKey, playerId)
         )}
 
         <div
@@ -2364,12 +2679,14 @@ export default function TradeWarRoom({
                   mode={mode}
                   managerAvatars={managerAvatars}
                   isHighlighted={
-                    !manager || hasSearchQuery || highlightedManagers.has(asset.manager)
+                    !manager ||
+                    hasSearchQuery ||
+                    highlightedManagers.has(asset.manager)
                   }
                   isSuggestedAdd={suggestedAddIds.has(asset.player_id)}
-                  isDifferentManager={
-                    Boolean(manager && hasSearchQuery && asset.manager !== manager)
-                  }
+                  isDifferentManager={Boolean(
+                    manager && hasSearchQuery && asset.manager !== manager
+                  )}
                   onAdd={() => addAssetToSide(sideKey, asset)}
                 />
               ))}

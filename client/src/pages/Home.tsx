@@ -12273,6 +12273,7 @@ export default function Home() {
                           managerAvatars={reportData.managerAvatars}
                           playerDetailsById={reportData.playerDetailsById}
                           leagueOverview={reportData.leagueOverview}
+                          rankings={rankingsForReport}
                           powerRankings={reportData.powerRankings}
                           dynastyTimelines={reportData.dynastyTimelines}
                           pickPortfolios={reportData.pickPortfolios}

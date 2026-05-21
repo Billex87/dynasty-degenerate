@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { filterCompletedFuturePickPortfolios } from "@shared/pickPortfolioFilters";
-import type { ManagerIntelPlayer, PickPortfolio } from "@shared/types";
+import type {
+  ManagerIntelPlayer,
+  PickPortfolio,
+  RankingPlayer,
+} from "@shared/types";
 import {
+  buildTradeWarAssetPools,
   buildTradeWarPackageIdeas,
   getTradeWarAssetValue,
+  getTradeWarAssetSelectionKey,
   getTradeWarSearchResults,
   buildTradeWarValueMatchIdeas,
 } from "./TradeWarRoom";
@@ -13,6 +19,7 @@ type TradeWarAssetForTest = ManagerIntelPlayer & {
   assetState: "roster" | "bench" | "taxi" | "reserve" | "pick";
   assetKind?: "player" | "pick";
   pickRound?: number;
+  pickAssetId?: string;
 };
 
 function asset(
@@ -32,6 +39,24 @@ function asset(
     seasonValue: value,
     assetState: "roster",
     ...overrides,
+  };
+}
+
+function rankingPick(
+  id: string,
+  name: string,
+  value: number,
+  overallRank: number
+): RankingPlayer {
+  return {
+    id,
+    name,
+    pos: "PICK",
+    overallRank,
+    value,
+    sources: ["test"],
+    sourceCount: 1,
+    isPick: true,
   };
 }
 
@@ -77,6 +102,69 @@ describe("buildTradeWarPackageIdeas", () => {
       ])
     );
     expect(ideas[0].gap).toBeLessThanOrEqual(650);
+  });
+});
+
+describe("buildTradeWarAssetPools", () => {
+  it("expands held future picks into full roster ranking variants", () => {
+    const pickPortfolios: PickPortfolio[] = [
+      {
+        manager: "Tester",
+        value2025: 0,
+        value2026: 0,
+        value2027: 8057,
+        count2025: 0,
+        count2026: 0,
+        count2027: 1,
+        totalValue: 8057,
+        ownPicks: 1,
+        acquiredPicks: 0,
+        projectedSlots: [],
+        futurePicks: [
+          {
+            id: "tester-2027-1",
+            label: "2027 Round 1",
+            manager: "Tester",
+            originalOwner: "Tester",
+            season: "2027",
+            round: 1,
+            value: 8057,
+          },
+        ],
+      },
+    ];
+    const rankingRows = [
+      rankingPick("rank:2027:early-1", "2027 EARLY 1st", 8853, 7),
+      rankingPick("rank:2027:mid-1", "2027 MID 1st", 8057, 10),
+      rankingPick("rank:2027:late-1", "2027 LATE 1st", 7116, 23),
+      rankingPick("rank:2027:generic-1", "2027 1st", 3137, 99),
+    ];
+
+    const pools = buildTradeWarAssetPools({
+      data: [],
+      pickPortfolios,
+      draftPicks: [],
+      leagueValueMode: "dynasty",
+      mode: "dynasty",
+      rankingRows,
+    });
+
+    expect(pools.selectableAssets.map(row => row.name)).toEqual([
+      "2027 EARLY 1st",
+      "2027 MID 1st",
+      "2027 LATE 1st",
+      "2027 1st",
+    ]);
+    expect(
+      pools.selectableAssets.map(row => getTradeWarAssetValue(row, "dynasty"))
+    ).toEqual([8853, 8057, 7116, 3137]);
+    expect(
+      new Set(pools.selectableAssets.map(getTradeWarAssetSelectionKey)).size
+    ).toBe(1);
+    expect(pools.baselineAssets).toHaveLength(1);
+    expect(getTradeWarAssetValue(pools.baselineAssets[0], "dynasty")).toBe(
+      3137
+    );
   });
 });
 
@@ -175,6 +263,40 @@ describe("buildTradeWarValueMatchIdeas", () => {
 });
 
 describe("getTradeWarSearchResults", () => {
+  it("treats alternate values for the same real pick as one selectable asset", () => {
+    const earlyFirst = asset(
+      "pick-a-early",
+      "2027 EARLY 1st",
+      "Beaston",
+      8853,
+      {
+        pos: "PICK",
+        assetState: "pick",
+        assetKind: "pick",
+        pickRound: 1,
+        pickAssetId: "pick:a",
+      }
+    );
+    const midFirst = asset("pick-a-mid", "2027 MID 1st", "Beaston", 8057, {
+      pos: "PICK",
+      assetState: "pick",
+      assetKind: "pick",
+      pickRound: 1,
+      pickAssetId: "pick:a",
+    });
+
+    const results = getTradeWarSearchResults({
+      query: "2027",
+      sideManager: "Beaston",
+      otherManager: "",
+      allAssets: [earlyFirst, midFirst],
+      selectedAllIds: new Set([getTradeWarAssetSelectionKey(earlyFirst)]),
+      mode: "dynasty",
+    });
+
+    expect(results).toEqual([]);
+  });
+
   it("lets typed searches find players outside the current side manager", () => {
     const currentSidePlayer = asset("a1", "Current WR", "Beaston", 5000);
     const outsideRosterPlayer = asset(
