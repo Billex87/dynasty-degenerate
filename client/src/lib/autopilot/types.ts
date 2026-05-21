@@ -23,6 +23,13 @@ export type AutopilotRecommendation = {
   reasons: string[];
   signals: string[];
   evidenceRead?: AIEvidenceResult;
+  calibration?: {
+    baseConfidence: number;
+    adjustedConfidence: number;
+    confidenceCap: number;
+    reason: string;
+    priority: 'danger' | 'warn' | 'info' | 'good';
+  };
   tone: AutopilotTone;
 };
 
@@ -48,7 +55,45 @@ export type AIActionQueueItem = {
   sourceHealth: string[];
   receipts: string[];
   changeTriggers: string[];
+  dominoEffects?: string[];
   signals: string[];
+};
+
+export type AIRejectionRead = {
+  id: string;
+  source: AIActionQueueSource | 'market';
+  action: string;
+  target: string;
+  reason: string;
+  alternative: string;
+  confidence: number;
+  tone: AutopilotTone;
+  receipts: string[];
+};
+
+export type AIMarketAnomalyRead = {
+  id: string;
+  player: string;
+  position: string;
+  label: string;
+  summary: string;
+  suggestedAction: string;
+  confidence: number;
+  tone: AutopilotTone;
+  receipts: string[];
+};
+
+export type AIReportCardRead = {
+  grade: string;
+  summary: string;
+  confidence: number;
+  tone: AutopilotTone;
+  rows: Array<{
+    label: string;
+    status: string;
+    detail: string;
+    tone: AutopilotTone;
+  }>;
 };
 
 export type PlayerProjection = {
@@ -152,6 +197,9 @@ export type AutopilotData = {
   lineup: AutopilotRecommendation[];
   weeklyPlan?: WeeklyActionPlan;
   weeklyRecap?: WeeklyRecapRead;
+  reportCard?: AIReportCardRead;
+  rejections: AIRejectionRead[];
+  marketAnomalies: AIMarketAnomalyRead[];
   waivers: AutopilotRecommendation[];
   trades: AutopilotRecommendation[];
   projections: PlayerProjection[];

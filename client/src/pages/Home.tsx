@@ -8492,6 +8492,7 @@ function AdminAICalibrationPanel({
     .filter(bucket => bucket.status !== "all")
     .slice(0, 6);
   const managerTradeRows = data.managerTrades.rows.slice(0, 6);
+  const moduleQualityRows = data.moduleQuality.rows;
   const pendingCount = profile.pendingCount;
   const totalCards = [
     {
@@ -8616,6 +8617,40 @@ function AdminAICalibrationPanel({
                 outcomes before moving confidence.
               </p>
             )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Module Accuracy</h4>
+          <div className="admin-traffic-list">
+            {moduleQualityRows.map(row => (
+              <article
+                key={row.key}
+                className={`admin-traffic-row admin-traffic-row-${
+                  row.confidenceAction === "lower"
+                    ? "error"
+                    : row.confidenceAction === "raise"
+                      ? "success"
+                      : row.sampleStatus === "needs-samples"
+                        ? "warn"
+                        : "info"
+                }`}
+              >
+                <strong>{row.label}</strong>
+                <span>
+                  {row.scoredCount.toLocaleString()} scored · {row.pendingCount.toLocaleString()} pending · hit{" "}
+                  {row.hitRate ?? "n/a"}%
+                </span>
+                <em>
+                  {row.sampleStatus.replace(/-/g, " ")} · {row.confidenceAction.replace(/-/g, " ")} · gap{" "}
+                  {row.calibrationGap ?? "n/a"}
+                </em>
+                <em>{row.description}</em>
+                {row.sampleStatus === "needs-samples" || row.sampleStatus === "collecting" ? (
+                  <em>{row.nextDataNeeded}</em>
+                ) : null}
+              </article>
+            ))}
           </div>
         </section>
 

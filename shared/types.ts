@@ -1622,6 +1622,7 @@ export interface RecentTransactionPlayer {
 export interface RecentTransaction {
   id: string;
   date: string;
+  season?: string | null;
   manager: string;
   type: 'Waiver' | 'Free Agent';
   bidAmount: number | null;
@@ -1695,6 +1696,71 @@ export interface LeagueAiConfidence {
   calibration?: LeagueAiConfidenceCalibration;
   signals: LeagueAiConfidenceSignal[];
   managerConfidence?: ManagerAiConfidence[];
+}
+
+export type ReportAICalibrationAdjustmentScope =
+  | 'global'
+  | 'surface'
+  | 'action'
+  | 'label'
+  | 'sourceAgreement'
+  | 'leagueFormat'
+  | 'counterfactual'
+  | 'realizedEdge'
+  | 'surfaceAction'
+  | 'surfaceActionLabel'
+  | 'surfaceActionSourceAgreement'
+  | 'surfaceActionLeagueFormat'
+  | 'surfaceActionCounterfactual'
+  | 'surfaceActionRealizedEdge'
+  | 'surfaceManager';
+
+export interface ReportAICalibrationAdjustment {
+  key: string;
+  scope: ReportAICalibrationAdjustmentScope;
+  group: Record<string, string>;
+  eventCount: number;
+  scoredCount: number;
+  pendingCount: number;
+  hitRate: number | null;
+  avgConfidence: number | null;
+  calibrationGap: number | null;
+  brierScore: number | null;
+  scoreAdjustment: number;
+  confidenceCap: number | null;
+  recommendation: 'collect-more-samples' | 'lower-confidence' | 'raise-confidence' | 'review-model' | 'calibrated';
+  priority: 'danger' | 'warn' | 'info' | 'good';
+  reason: string;
+}
+
+export interface ReportAICalibrationAdjustmentProfile {
+  schemaVersion: 1;
+  generatedFrom: 'ai-prediction-events';
+  generatedAt: string;
+  eventCount: number;
+  scoredCount: number;
+  pendingCount: number;
+  globalAdjustment: ReportAICalibrationAdjustment;
+  adjustments: ReportAICalibrationAdjustment[];
+}
+
+export interface ServerReportDeltaChange {
+  id: string;
+  label: string;
+  summary: string;
+  detail?: string | null;
+  tone: 'good' | 'info' | 'warn' | 'danger' | 'neutral';
+  priority: number;
+  receipts: string[];
+}
+
+export interface ServerReportDeltaRead {
+  schemaVersion: 1;
+  source: 'server-cache' | 'none';
+  generatedAt: string;
+  baselineGeneratedAt?: string | null;
+  summary: string;
+  changes: ServerReportDeltaChange[];
 }
 
 export interface LeagueDiagnostics {
@@ -1834,6 +1900,8 @@ export interface ReportData {
     warning?: string | null;
   };
   monthlyBlueprintHistory?: MonthlyBlueprintHistorySnapshot[];
+  aiCalibrationAdjustmentProfile?: ReportAICalibrationAdjustmentProfile | null;
+  serverReportDelta?: ServerReportDeltaRead | null;
   sourceSnapshotDiagnostics?: SourceSnapshotFreshnessDiagnostic[];
   depthChartDiagnostics?: DepthChartDiagnostics;
   transactionBackfillDiagnostics?: TransactionBackfillDiagnostics;

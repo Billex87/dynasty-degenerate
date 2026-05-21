@@ -73,7 +73,7 @@ import {
 import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertActionPlan, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget } from "../shared/types";
-import type { AIPredictionEvent, AIPredictionOutcome, AISourceAgreementRead } from "./aiPredictionCalibration";
+import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
 import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
 
 function normalizeManagerName(name: string | undefined): string {
@@ -1186,6 +1186,247 @@ async function readFileCachedLeagueReport(cacheKey: string): Promise<unknown | n
     }
     return null;
   }
+}
+
+function getCachedReportData(payload: unknown): ReportData | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const reportData = (payload as { reportData?: unknown }).reportData;
+  return reportData && typeof reportData === 'object' ? reportData as ReportData : null;
+}
+
+function clampDeltaPriority(value: number): number {
+  return Math.max(1, Math.min(5, Math.round(value)));
+}
+
+function formatServerDeltaPercent(value?: number | null): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '0%';
+  const sign = numeric > 0 ? '+' : '';
+  return `${sign}${Math.abs(numeric) >= 10 ? numeric.toFixed(0) : numeric.toFixed(1)}%`;
+}
+
+function formatServerDeltaNumber(value?: number | null): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '0';
+  const sign = numeric > 0 ? '+' : '';
+  return `${sign}${numeric}`;
+}
+
+function getTopMomentumDelta(rows?: ReportData['weeklyRisers']): { name: string; detail: string | null } | null {
+  const top = [...(rows || [])]
+    .filter((row) => row?.name)
+    .sort((a, b) => Math.abs(Number(b.pct_change || 0)) - Math.abs(Number(a.pct_change || 0)))[0];
+  if (!top?.name) return null;
+  return {
+    name: top.name,
+    detail: [
+      top.currentPositionRank || null,
+      Number.isFinite(Number(top.pct_change)) ? formatServerDeltaPercent(top.pct_change) : null,
+    ].filter(Boolean).join(' | ') || null,
+  };
+}
+
+function getTopWaiverDelta(data: ReportData): { name: string; detail: string | null } | null {
+  const waiver = data.waiverIntelligence;
+  if (!waiver) return null;
+  const topTarget = waiver.weeklyEcrTargets?.[0]?.player || waiver.highestKtcAvailable || null;
+  if (!topTarget?.name) return null;
+  return {
+    name: topTarget.name,
+    detail: [
+      topTarget.currentPositionRank || topTarget.pos || null,
+      topTarget.weeklyEcr?.source ? `${topTarget.weeklyEcr.source} schedule` : null,
+    ].filter(Boolean).join(' | ') || null,
+  };
+}
+
+function getScheduleDeltaStatus(data: ReportData): { name: string; detail: string | null; count: number } {
+  const planning = data.schedulePlanning;
+  const gapCount = planning?.rosterGaps?.length || 0;
+  const streamerCount = planning?.streamerCandidates?.length || 0;
+  const targetCount = data.scheduleEdgeTargets?.length || 0;
+  return {
+    name: planning?.status || 'pending',
+    detail: [
+      planning?.source || null,
+      `${gapCount} gap${gapCount === 1 ? '' : 's'}`,
+      `${streamerCount + targetCount} schedule target${streamerCount + targetCount === 1 ? '' : 's'}`,
+    ].filter(Boolean).join(' | '),
+    count: gapCount + streamerCount + targetCount,
+  };
+}
+
+function getReportAiConfidence(data: ReportData): number | null {
+  const score = Number(data.leagueDiagnostics?.aiConfidence?.score);
+  return Number.isFinite(score) ? Math.round(score) : null;
+}
+
+function getMaterialDelta(value: number | null, previous: number | null, threshold = 1): number | null {
+  if (value === null || previous === null) return null;
+  const delta = value - previous;
+  return Math.abs(delta) >= threshold ? delta : null;
+}
+
+function buildServerReportDelta(previous: ReportData | null, current: ReportData) {
+  const generatedAt = new Date().toISOString();
+  if (!previous) {
+    return {
+      schemaVersion: 1 as const,
+      source: 'none' as const,
+      generatedAt,
+      baselineGeneratedAt: null,
+      summary: 'No prior server report was available, so this run becomes the new comparison baseline.',
+      changes: [],
+    };
+  }
+
+  const changes: NonNullable<ReportData['serverReportDelta']>['changes'] = [];
+  const previousRiser = getTopMomentumDelta(previous.weeklyRisers);
+  const currentRiser = getTopMomentumDelta(current.weeklyRisers);
+  if (previousRiser?.name !== currentRiser?.name && currentRiser?.name) {
+    changes.push({
+      id: 'top-riser',
+      label: 'Top riser changed',
+      summary: `${currentRiser.name} is now the main value riser.`,
+      detail: currentRiser.detail,
+      tone: 'good',
+      priority: 4,
+      receipts: [
+        previousRiser?.name ? `Previous: ${previousRiser.name}` : 'Previous report had no clear riser.',
+        currentRiser.detail || 'Current report has a new riser.',
+      ],
+    });
+  }
+
+  const previousFaller = getTopMomentumDelta(previous.weeklyFallers);
+  const currentFaller = getTopMomentumDelta(current.weeklyFallers);
+  if (previousFaller?.name !== currentFaller?.name && currentFaller?.name) {
+    changes.push({
+      id: 'top-faller',
+      label: 'Top faller changed',
+      summary: `${currentFaller.name} is now the main risk read.`,
+      detail: currentFaller.detail,
+      tone: 'warn',
+      priority: 4,
+      receipts: [
+        previousFaller?.name ? `Previous: ${previousFaller.name}` : 'Previous report had no clear faller.',
+        currentFaller.detail || 'Current report has a new faller.',
+      ],
+    });
+  }
+
+  const previousWaiver = getTopWaiverDelta(previous);
+  const currentWaiver = getTopWaiverDelta(current);
+  if (previousWaiver?.name !== currentWaiver?.name && currentWaiver?.name) {
+    changes.push({
+      id: 'top-waiver',
+      label: 'Waiver target changed',
+      summary: `${currentWaiver.name} is now the first waiver name to review.`,
+      detail: currentWaiver.detail,
+      tone: 'info',
+      priority: 5,
+      receipts: [
+        previousWaiver?.name ? `Previous: ${previousWaiver.name}` : 'Previous report had no top waiver target.',
+        currentWaiver.detail || 'Current report has a new waiver target.',
+      ],
+    });
+  }
+
+  const transactionDelta = getMaterialDelta(current.recentTransactions?.length || 0, previous.recentTransactions?.length || 0, 1);
+  if (transactionDelta !== null) {
+    changes.push({
+      id: 'transaction-count',
+      label: 'Live market moved',
+      summary: `${formatServerDeltaNumber(transactionDelta)} transaction${Math.abs(transactionDelta) === 1 ? '' : 's'} since the cached baseline.`,
+      detail: 'Recent add/drop behavior can change availability, churn pressure, and owner intent.',
+      tone: transactionDelta > 0 ? 'info' : 'neutral',
+      priority: clampDeltaPriority(Math.abs(transactionDelta)),
+      receipts: [
+        `Previous transactions: ${previous.recentTransactions?.length || 0}`,
+        `Current transactions: ${current.recentTransactions?.length || 0}`,
+      ],
+    });
+  }
+
+  const tradeDelta = getMaterialDelta(current.tradeHistory?.length || 0, previous.tradeHistory?.length || 0, 1);
+  if (tradeDelta !== null) {
+    changes.push({
+      id: 'trade-count',
+      label: 'Trade market moved',
+      summary: `${formatServerDeltaNumber(tradeDelta)} trade${Math.abs(tradeDelta) === 1 ? '' : 's'} since the cached baseline.`,
+      detail: 'Trade activity changes partner likelihood and how aggressive the AI should be.',
+      tone: tradeDelta > 0 ? 'info' : 'neutral',
+      priority: clampDeltaPriority(Math.abs(tradeDelta)),
+      receipts: [
+        `Previous trades: ${previous.tradeHistory?.length || 0}`,
+        `Current trades: ${current.tradeHistory?.length || 0}`,
+      ],
+    });
+  }
+
+  const previousSchedule = getScheduleDeltaStatus(previous);
+  const currentSchedule = getScheduleDeltaStatus(current);
+  if (previousSchedule.name !== currentSchedule.name || previousSchedule.count !== currentSchedule.count) {
+    changes.push({
+      id: 'schedule-status',
+      label: 'Schedule read changed',
+      summary: `Schedule status is ${currentSchedule.name} with ${currentSchedule.count} active signal${currentSchedule.count === 1 ? '' : 's'}.`,
+      detail: currentSchedule.detail,
+      tone: currentSchedule.name === 'ready' ? 'good' : currentSchedule.name === 'partial' ? 'warn' : 'neutral',
+      priority: currentSchedule.name === 'ready' ? 4 : 2,
+      receipts: [
+        `Previous: ${previousSchedule.name} / ${previousSchedule.count} signals`,
+        `Current: ${currentSchedule.name} / ${currentSchedule.count} signals`,
+      ],
+    });
+  }
+
+  const confidenceDelta = getMaterialDelta(getReportAiConfidence(current), getReportAiConfidence(previous), 3);
+  if (confidenceDelta !== null) {
+    changes.push({
+      id: 'ai-confidence',
+      label: 'AI confidence moved',
+      summary: `League AI confidence moved ${formatServerDeltaNumber(confidenceDelta)} points.`,
+      detail: current.leagueDiagnostics?.aiConfidence?.note || null,
+      tone: confidenceDelta > 0 ? 'good' : 'warn',
+      priority: clampDeltaPriority(Math.abs(confidenceDelta) / 4),
+      receipts: [
+        `Previous confidence: ${getReportAiConfidence(previous) ?? 'unknown'}`,
+        `Current confidence: ${getReportAiConfidence(current) ?? 'unknown'}`,
+      ],
+    });
+  }
+
+  const previousAdjustmentCount = previous.aiCalibrationAdjustmentProfile?.adjustments?.length || 0;
+  const currentAdjustmentCount = current.aiCalibrationAdjustmentProfile?.adjustments?.length || 0;
+  if (previousAdjustmentCount !== currentAdjustmentCount && current.aiCalibrationAdjustmentProfile) {
+    changes.push({
+      id: 'calibration-adjustments',
+      label: 'Calibration changed',
+      summary: `${currentAdjustmentCount} outcome adjustment${currentAdjustmentCount === 1 ? '' : 's'} are now active.`,
+      detail: current.aiCalibrationAdjustmentProfile.adjustments[0]?.reason || current.aiCalibrationAdjustmentProfile.globalAdjustment.reason,
+      tone: currentAdjustmentCount ? 'info' : 'neutral',
+      priority: currentAdjustmentCount ? 4 : 1,
+      receipts: [
+        `Previous adjustments: ${previousAdjustmentCount}`,
+        `Current scored outcomes: ${current.aiCalibrationAdjustmentProfile.scoredCount}`,
+      ],
+    });
+  }
+
+  const sortedChanges = changes
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 6);
+  const summary = sortedChanges[0]?.summary || 'No material server-side changes since the cached baseline.';
+
+  return {
+    schemaVersion: 1 as const,
+    source: 'server-cache' as const,
+    generatedAt,
+    baselineGeneratedAt: previous.serverReportDelta?.generatedAt || null,
+    summary,
+    changes: sortedChanges,
+  };
 }
 
 async function writeFileCachedLeagueReport(cacheKey: string, payload: unknown): Promise<void> {
@@ -4493,6 +4734,7 @@ function buildRecentTransactions(
       return {
         id: String(transaction.transaction_id || `${transaction.status_updated}-${manager}-${addedPlayerId || 'none'}`),
         date: new Date(Number(transaction.status_updated || Date.now())).toISOString(),
+        season: currentSeason || null,
         manager,
         type: transaction.type === 'waiver' ? 'Waiver' : 'Free Agent',
         bidAmount,
@@ -5821,7 +6063,7 @@ export const appRouter = router({
         const liveRefresh = Boolean(input.liveRefresh);
         const bypassReportCache = forceRefresh || liveRefresh;
         try {
-          const cachedReport = bypassReportCache ? null : await readCachedLeagueReport(reportCacheKey);
+          const cachedReport = await readCachedLeagueReport(reportCacheKey);
           markAnalyzeStep('cache lookup');
           if (!bypassReportCache && cachedReport && typeof cachedReport === 'object') {
             const cachedReportWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(cachedReport, input.leagueId);
@@ -6709,7 +6951,26 @@ export const appRouter = router({
           });
           markAnalyzeStep('league AI confidence snapshot');
 
-          const reportDataWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(reportDataWithConfidence, input.leagueId);
+          const aiCalibrationEvents = await listAiPredictionEvents({
+            leagueId: input.leagueId,
+            limit: 500,
+          });
+          const aiCalibrationAdjustmentProfile = buildAICalibrationAdjustmentProfile(aiCalibrationEvents);
+          const reportDataWithCalibration: ReportData = {
+            ...reportDataWithConfidence,
+            aiCalibrationAdjustmentProfile,
+          };
+          const serverReportDelta = buildServerReportDelta(
+            getCachedReportData(cachedReport),
+            reportDataWithCalibration
+          );
+          const reportDataWithDailyMemory: ReportData = {
+            ...reportDataWithCalibration,
+            serverReportDelta,
+          };
+          markAnalyzeStep('AI calibration memory');
+
+          const reportDataWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(reportDataWithDailyMemory, input.leagueId);
 
           const analyzePayloadRaw = {
             leagueId: input.leagueId,

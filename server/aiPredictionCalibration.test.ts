@@ -4,6 +4,7 @@ import { buildAICounterfactualRead } from '../shared/aiDecisionSnapshots';
 import {
   applyAICalibrationAdjustment,
   buildAICalibrationAdjustmentProfile,
+  buildAIModuleQualitySummary,
   buildSourceAgreementRead,
   createAIPredictionEvent,
   summarizeAICounterfactualReliability,
@@ -274,6 +275,50 @@ describe('AI prediction calibration', () => {
       avgRealizedEdge: 9,
       recommendation: 'collect-more-samples',
     });
+  });
+
+  it('summarizes module quality for admin accuracy calibration', () => {
+    const summary = buildAIModuleQualitySummary([
+      event({
+        entityId: 'waiver-1',
+        surface: 'waiver',
+        action: 'pickup',
+        outcome: { status: 'hit' },
+        metadata: { source: 'waiver-intelligence', targetScore: 82, trendAdds: 42, faabBand: 'standard' },
+      }),
+      event({
+        entityId: 'waiver-2',
+        surface: 'waiver',
+        action: 'pickup',
+        outcome: { status: 'miss' },
+        metadata: { source: 'waiver-intelligence', targetScore: 76, trendAdds: 18, faabBand: 'light' },
+      }),
+      event({
+        entityId: 'trade-1',
+        surface: 'trade',
+        action: 'trade',
+        outcome: { status: 'pending' },
+      }),
+      event({
+        entityId: 'role-1',
+        surface: 'player-detail',
+        action: 'watch',
+        outcome: { status: 'pending' },
+        sourceTrace: [{ label: 'Depth chart role', status: 'loaded', detail: 'Starter role check.' }],
+      }),
+    ]);
+
+    expect(summary.rows.map(row => row.key)).toEqual([
+      'waiver-bid-range',
+      'waiver-competition',
+      'trade-resistance',
+      'depth-chart-role-confidence',
+    ]);
+    expect(summary.rows.find(row => row.key === 'waiver-competition')).toMatchObject({
+      scoredCount: 2,
+      hitRate: 50,
+    });
+    expect(summary.rows.find(row => row.key === 'trade-resistance')?.nextDataNeeded).toMatch(/accepted/i);
   });
 
   it('applies the most specific calibration adjustment to future reads', () => {

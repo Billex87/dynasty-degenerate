@@ -26,7 +26,7 @@ import { AIActionQueue } from '@/components/AIActionQueue';
 import type { LeagueValueMode } from '@/lib/leagueValueMode';
 import { buildAutopilotData, clampPercent, getDirectionTone, getRiskTone } from '@/lib/autopilot/buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from '@/lib/autopilot/mockData';
-import type { AutopilotData, AutopilotMode, AutopilotRecommendation, AutopilotScore, AutopilotTone, FuturePickTrajectory, LeaguePowerRow, PlayerProjection, WeeklyActionPlan, WeeklyRecapRead } from '@/lib/autopilot/types';
+import type { AIMarketAnomalyRead, AIRejectionRead, AIReportCardRead, AutopilotData, AutopilotMode, AutopilotRecommendation, AutopilotScore, AutopilotTone, FuturePickTrajectory, LeaguePowerRow, PlayerProjection, WeeklyActionPlan, WeeklyRecapRead } from '@/lib/autopilot/types';
 import type { ReportData } from '@shared/types';
 
 function asArray<T>(value: T[] | undefined, fallback: T[] = []): T[] {
@@ -106,10 +106,14 @@ function normalizeAutopilotData(
       sourceHealth: asArray(item.sourceHealth),
       receipts: asArray(item.receipts),
       changeTriggers: asArray(item.changeTriggers),
+      dominoEffects: asArray(item.dominoEffects),
       signals: asArray(item.signals),
     })),
     lineup: normalizeRecommendations(data?.lineup, fallback.lineup),
     weeklyPlan: normalizeWeeklyPlan(data?.weeklyPlan, fallback.weeklyPlan),
+    reportCard: data?.reportCard || fallback.reportCard,
+    rejections: asArray(data?.rejections, fallback.rejections || []),
+    marketAnomalies: asArray(data?.marketAnomalies, fallback.marketAnomalies || []),
     waivers: normalizeRecommendations(data?.waivers, fallback.waivers),
     trades: normalizeRecommendations(data?.trades, fallback.trades),
     projections: asArray(data?.projections, fallback.projections).map((projection, index) => ({
@@ -351,6 +355,108 @@ function WeeklyRecapCard({ recap }: { recap?: WeeklyRecapRead }) {
   );
 }
 
+function AIReportCardPanel({ reportCard }: { reportCard?: AIReportCardRead }) {
+  if (!reportCard) return null;
+
+  return (
+    <article className={cn('autopilot-edge-card autopilot-report-card', `autopilot-tone-${reportCard.tone}`)}>
+      <div className="autopilot-edge-card-head">
+        <span>Weekly AI report card</span>
+        <strong>{reportCard.grade}</strong>
+      </div>
+      <p>{reportCard.summary}</p>
+      <ConfidenceMeter value={reportCard.confidence} label="League confidence" tone={reportCard.tone} compact />
+      <div className="autopilot-report-card-rows">
+        {reportCard.rows.slice(0, 6).map((row) => (
+          <div key={row.label} className={cn('autopilot-report-card-row', `autopilot-tone-${row.tone}`)}>
+            <span>{row.label}</span>
+            <strong>{row.status}</strong>
+            <p>{row.detail}</p>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function BadIdeaPanel({ rejections }: { rejections: AIRejectionRead[] }) {
+  return (
+    <article className="autopilot-edge-card autopilot-bad-idea-card">
+      <div className="autopilot-edge-card-head">
+        <span>Bad idea alert</span>
+        <strong>{rejections.length ? `${rejections.length} blocked` : 'Clean'}</strong>
+      </div>
+      <p>
+        {rejections.length
+          ? 'The AI is doing the annoying but useful thing: refusing moves that do not clear the evidence bar.'
+          : 'No bad idea is loud enough to block from this read.'}
+      </p>
+      <div className="autopilot-edge-list">
+        {rejections.slice(0, 4).map((row) => (
+          <article key={row.id} className={cn('autopilot-edge-row', `autopilot-tone-${row.tone}`)}>
+            <div>
+              <span>{row.action}</span>
+              <strong>{row.target}</strong>
+            </div>
+            <p>{row.reason}</p>
+            <em>{row.alternative}</em>
+            <SignalPills signals={row.receipts} />
+          </article>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function MarketAnomalyPanel({ anomalies }: { anomalies: AIMarketAnomalyRead[] }) {
+  return (
+    <article className="autopilot-edge-card autopilot-market-anomaly-card">
+      <div className="autopilot-edge-card-head">
+        <span>Market anomaly scan</span>
+        <strong>{anomalies.length ? `${anomalies.length} flagged` : 'Quiet'}</strong>
+      </div>
+      <p>
+        {anomalies.length
+          ? 'These are the players where market movement, roster status, and evidence do not fully agree.'
+          : 'No market mismatch is strong enough to interrupt the verdict.'}
+      </p>
+      <div className="autopilot-edge-list">
+        {anomalies.slice(0, 4).map((row) => (
+          <article key={row.id} className={cn('autopilot-edge-row', `autopilot-tone-${row.tone}`)}>
+            <div>
+              <span>{row.label}</span>
+              <strong>{row.player}</strong>
+            </div>
+            <p>{row.summary}</p>
+            <em>{row.suggestedAction}</em>
+            <ConfidenceMeter value={row.confidence} label={row.position} tone={row.tone} compact />
+          </article>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function AIEdgeReview({
+  reportCard,
+  rejections,
+  marketAnomalies,
+}: {
+  reportCard?: AIReportCardRead;
+  rejections: AIRejectionRead[];
+  marketAnomalies: AIMarketAnomalyRead[];
+}) {
+  if (!reportCard && !rejections.length && !marketAnomalies.length) return null;
+
+  return (
+    <div className="autopilot-edge-review">
+      <AIReportCardPanel reportCard={reportCard} />
+      <BadIdeaPanel rejections={rejections} />
+      <MarketAnomalyPanel anomalies={marketAnomalies} />
+    </div>
+  );
+}
+
 function FuturePickTrajectoryCard({ trajectory }: { trajectory?: FuturePickTrajectory }) {
   if (!trajectory) return null;
   const maxValue = Math.max(...trajectory.points.map((point) => point.value), 1);
@@ -547,10 +653,19 @@ export default function AITeamAutopilot({
 
       <AIActionQueue
         items={data.actionQueue}
+        title="Daily AI Verdict"
         subtitle="The one place where Autopilot decides: act, watch, hold, or block."
         memoryKey={`autopilot:${mode}:${data.focusManager || leagueName || 'league'}`}
         memoryContext={`AI Autopilot · ${data.focusManager || leagueName || 'League'}`}
       />
+
+      <SectionShell eyebrow="AI Edge Review" title="Rejections, anomalies, and calibration" icon={ShieldAlert} className="autopilot-section-wide">
+        <AIEdgeReview
+          reportCard={data.reportCard}
+          rejections={data.rejections}
+          marketAnomalies={data.marketAnomalies}
+        />
+      </SectionShell>
 
       <section className="autopilot-direction-panel">
         <div className="autopilot-direction-read">

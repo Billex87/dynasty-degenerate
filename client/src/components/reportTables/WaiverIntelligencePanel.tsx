@@ -1630,6 +1630,121 @@ function averagePositive(values: number[]): number | null {
   return finite.reduce((sum, value) => sum + value, 0) / finite.length;
 }
 
+type WaiverBidSample = {
+  bid: number;
+  pos: string | null;
+  manager?: string | null;
+  date?: string | null;
+  season?: string | null;
+  source: "sleeper-transaction" | "saved-plan";
+};
+
+function getCurrentSeasonNumber(currentSeason?: string | null): number {
+  const parsed = Number(currentSeason);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : new Date().getFullYear();
+}
+
+function getBidSampleSeason(sample: WaiverBidSample): number | null {
+  const explicitSeason = Number(sample.season);
+  if (Number.isFinite(explicitSeason) && explicitSeason > 0) {
+    return explicitSeason;
+  }
+
+  const date = sample.date ? new Date(sample.date) : null;
+  return date && Number.isFinite(date.getTime()) ? date.getFullYear() : null;
+}
+
+function getBidSampleRepeatCount(
+  sample: WaiverBidSample,
+  currentSeason?: string | null
+): number {
+  const season = getBidSampleSeason(sample);
+  const current = getCurrentSeasonNumber(currentSeason);
+  if (season === current) return 3;
+  if (season === current - 1) return 2;
+  return 1;
+}
+
+function expandBidSamplesByRecency(
+  samples: WaiverBidSample[],
+  currentSeason?: string | null
+): number[] {
+  return samples.flatMap(sample =>
+    Array.from(
+      { length: getBidSampleRepeatCount(sample, currentSeason) },
+      () => sample.bid
+    )
+  );
+}
+
+function buildTransactionBidSamples(
+  recentTransactions?: ReportData["recentTransactions"]
+): WaiverBidSample[] {
+  return (recentTransactions || [])
+    .filter(
+      transaction =>
+        transaction.type === "Waiver" &&
+        Number(transaction.bidAmount || 0) > 0 &&
+        transaction.addedPlayer
+    )
+    .map(transaction => ({
+      bid: Number(transaction.bidAmount || 0),
+      pos: transaction.addedPlayer?.pos || null,
+      manager: transaction.manager || null,
+      date: transaction.date || null,
+      season: transaction.season || null,
+      source: "sleeper-transaction" as const,
+    }));
+}
+
+function buildStoredBidSamples(
+  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[],
+  leagueId?: string
+): WaiverBidSample[] {
+  return (storedWaiverBidHistory || [])
+    .filter(
+      item =>
+        (!leagueId || !item.leagueId || item.leagueId === leagueId) &&
+        item.bidMax > 0
+    )
+    .map(item => ({
+      bid: Math.max(item.bidMin, item.bidMax),
+      pos: item.position || null,
+      manager: item.manager || null,
+      date: item.updatedAt
+        ? new Date(item.updatedAt).toISOString()
+        : item.createdAt
+          ? new Date(item.createdAt).toISOString()
+          : null,
+      season: null,
+      source: "saved-plan" as const,
+    }));
+}
+
+function describeBidSampleMix(
+  samples: WaiverBidSample[],
+  label: string,
+  currentSeason?: string | null
+): string {
+  const current = getCurrentSeasonNumber(currentSeason);
+  const currentCount = samples.filter(
+    sample => getBidSampleSeason(sample) === current
+  ).length;
+  const lastSeasonCount = samples.filter(
+    sample => getBidSampleSeason(sample) === current - 1
+  ).length;
+  const olderCount = samples.length - currentCount - lastSeasonCount;
+  const parts = [
+    currentCount ? `${currentCount} current-season` : null,
+    lastSeasonCount ? `${lastSeasonCount} last-season` : null,
+    olderCount ? `${olderCount} older/saved` : null,
+  ].filter(Boolean);
+
+  return `${samples.length} ${label} sample${samples.length === 1 ? "" : "s"}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+}
+
 function isWaiverTaxiProfile(
   player: TrendingPlayer | RecentTransactionPlayer | null | undefined
 ): boolean {
@@ -1648,51 +1763,31 @@ function getManagerWaiverBidSamples({
   manager,
   leagueId,
   position,
+  currentSeason,
   recentTransactions,
   storedWaiverBidHistory,
 }: {
   manager?: string | null;
   leagueId?: string;
   position?: string | null;
+  currentSeason?: string | null;
   recentTransactions?: ReportData["recentTransactions"];
   storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
 }) {
   const managerKey = normalizeManagerKey(manager);
-  const transactionBids = (recentTransactions || [])
-    .filter(
-      transaction => normalizeManagerKey(transaction.manager) === managerKey
-    )
-    .filter(
-      transaction =>
-        transaction.type === "Waiver" &&
-        Number(transaction.bidAmount || 0) > 0 &&
-        transaction.addedPlayer
-    )
-    .map(transaction => ({
-      bid: Number(transaction.bidAmount || 0),
-      pos: transaction.addedPlayer?.pos || null,
-    }));
-  const persistedBids = (storedWaiverBidHistory || [])
-    .filter(item => normalizeManagerKey(item.manager) === managerKey)
-    .filter(
-      item =>
-        (!leagueId || !item.leagueId || item.leagueId === leagueId) &&
-        item.bidMax > 0
-    )
-    .map(item => ({
-      bid: Math.max(item.bidMin, item.bidMax),
-      pos: item.position || null,
-    }));
+  const transactionBids = buildTransactionBidSamples(recentTransactions)
+    .filter(sample => normalizeManagerKey(sample.manager) === managerKey);
+  const persistedBids = buildStoredBidSamples(storedWaiverBidHistory, leagueId)
+    .filter(sample => normalizeManagerKey(sample.manager) === managerKey);
   const samples = [...transactionBids, ...persistedBids];
-  const positionSamples = samples
-    .filter(sample => sample.pos === position)
-    .map(sample => sample.bid);
-  const allSamples = samples.map(sample => sample.bid);
+  const positionSamples = samples.filter(sample => sample.pos === position);
   return {
-    positionSamples,
-    allSamples,
+    positionSamples: expandBidSamplesByRecency(positionSamples, currentSeason),
+    allSamples: expandBidSamplesByRecency(samples, currentSeason),
     preferredSamples:
-      positionSamples.length >= 2 ? positionSamples : allSamples,
+      positionSamples.length >= 2
+        ? expandBidSamplesByRecency(positionSamples, currentSeason)
+        : expandBidSamplesByRecency(samples, currentSeason),
   };
 }
 
@@ -1705,6 +1800,7 @@ function buildWaiverCompetitionRead({
   recentTransactions,
   storedWaiverBidHistory,
   leagueId,
+  currentSeason,
 }: {
   player: TrendingPlayer;
   viewerManager?: string | null;
@@ -1714,6 +1810,7 @@ function buildWaiverCompetitionRead({
   recentTransactions?: ReportData["recentTransactions"];
   storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
   leagueId?: string;
+  currentSeason?: string | null;
 }): WaiverCompetitionRead | null {
   const playerPosition = isWaiverPosition(player.pos) ? player.pos : null;
   if (!playerPosition) return null;
@@ -1755,6 +1852,7 @@ function buildWaiverCompetitionRead({
         manager: intel.manager,
         leagueId,
         position: playerPosition,
+        currentSeason,
         recentTransactions,
         storedWaiverBidHistory,
       });
@@ -1827,6 +1925,7 @@ function buildWaiverBidRead({
   storedWaiverBidHistory,
   leagueId,
   leagueValueMode,
+  currentSeason,
 }: {
   player: TrendingPlayer;
   score: number;
@@ -1835,41 +1934,24 @@ function buildWaiverBidRead({
   storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
   leagueId?: string;
   leagueValueMode: LeagueValueMode;
+  currentSeason?: string | null;
 }): Pick<
   WaiverRecommendation,
   "bidRangeLabel" | "bidConfidencePct" | "bidSource" | "bidEvidenceLabel"
 > {
-  const transactionBids = (recentTransactions || [])
-    .filter(
-      transaction =>
-        transaction.type === "Waiver" &&
-        Number(transaction.bidAmount || 0) > 0 &&
-        transaction.addedPlayer
-    )
-    .map(transaction => ({
-      bid: Number(transaction.bidAmount || 0),
-      pos: transaction.addedPlayer?.pos || null,
-    }));
-  const persistedBids = (storedWaiverBidHistory || [])
-    .filter(
-      item =>
-        (!leagueId || !item.leagueId || item.leagueId === leagueId) &&
-        item.bidMax > 0
-    )
-    .map(item => ({
-      bid: Math.max(item.bidMin, item.bidMax),
-      pos: item.position || null,
-    }));
-  const waiverBids = [...transactionBids, ...persistedBids];
-  const positionBids = waiverBids
-    .filter(transaction => transaction.pos === player.pos)
-    .map(transaction => transaction.bid);
-  const fallbackBids = waiverBids.map(transaction => transaction.bid);
-  const historicalBids = positionBids.length >= 2 ? positionBids : fallbackBids;
+  const waiverBidSamples = [
+    ...buildTransactionBidSamples(recentTransactions),
+    ...buildStoredBidSamples(storedWaiverBidHistory, leagueId),
+  ];
+  const positionBidSamples = waiverBidSamples.filter(sample => sample.pos === player.pos);
+  const selectedBidSamples = positionBidSamples.length >= 2
+    ? positionBidSamples
+    : waiverBidSamples;
+  const historicalBids = expandBidSamplesByRecency(selectedBidSamples, currentSeason);
   const historicalBidLabel =
-    positionBids.length >= 2
-      ? `${positionBids.length} ${player.pos} bid sample${positionBids.length === 1 ? "" : "s"}`
-      : `${historicalBids.length} league bid sample${historicalBids.length === 1 ? "" : "s"}`;
+    positionBidSamples.length >= 2
+      ? describeBidSampleMix(selectedBidSamples, `${player.pos} bid`, currentSeason)
+      : describeBidSampleMix(selectedBidSamples, "league bid", currentSeason);
   const scoreAdjustment =
     score >= 3000 ? 4 : score >= 2200 ? 3 : score >= 1500 ? 2 : 0;
   const competitionAdjustment =
@@ -1879,7 +1961,7 @@ function buildWaiverBidRead({
         ? 1
         : 0;
 
-  if (historicalBids.length) {
+  if (selectedBidSamples.length && historicalBids.length) {
     const median = getPercentile(historicalBids, 50) || 1;
     const upper = getPercentile(historicalBids, 75) || median;
     const min = Math.max(
@@ -1894,7 +1976,7 @@ function buildWaiverBidRead({
       bidRangeLabel: min === max ? `FAAB ${min}` : `FAAB ${min}-${max}`,
       bidConfidencePct: clampPercentValue(
         62 +
-          Math.min(22, historicalBids.length * 3) +
+          Math.min(22, selectedBidSamples.length * 3) +
           Math.min(12, score / 360) +
           (competitionRead ? 4 : 0)
       ),
@@ -2515,6 +2597,7 @@ export function buildWaiverRecommendationContext({
         recentTransactions,
         storedWaiverBidHistory,
         leagueId,
+        currentSeason: leagueDiagnostics?.currentSeason,
       });
       const bidRead = buildWaiverBidRead({
         player,
@@ -2524,6 +2607,7 @@ export function buildWaiverRecommendationContext({
         storedWaiverBidHistory,
         leagueId,
         leagueValueMode,
+        currentSeason: leagueDiagnostics?.currentSeason,
       });
       const dropRead = getWaiverDropRead({
         player,

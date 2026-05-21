@@ -35,6 +35,11 @@ describe("AI prediction event builder", () => {
         status: expect.any(String),
         baseline: expect.any(Object),
       },
+      sourceAgreement: {
+        state: expect.any(String),
+        sourceCount: expect.any(Number),
+        reason: expect.any(String),
+      },
       decay: {
         expiresAt: expect.any(String),
         decayWindowHours: expect.any(Number),

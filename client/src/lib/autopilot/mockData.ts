@@ -125,6 +125,32 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
       ],
       summary: 'Treat Calvin Ridley as the first lineup spot to re-check. Reed is the preferred swap if role news stays clean.',
     },
+    rejections: [
+      {
+        id: 'mock-reject-henry-lowball',
+        source: 'trade',
+        action: 'Do not force trade away',
+        target: 'Derrick Henry',
+        reason: 'Do not sell the name value for a return without young liquidity or picks.',
+        alternative: 'Shop the market, but keep him if the offer is just aging production back.',
+        confidence: 76,
+        tone: 'warn',
+        receipts: ['Age risk is real.', 'Return quality still has to clear the guardrail.'],
+      },
+    ],
+    marketAnomalies: [
+      {
+        id: 'mock-market-henry-fade',
+        player: 'Derrick Henry',
+        position: 'RB',
+        label: 'Market fade warning',
+        summary: '-18% projected move with win-now RB value.',
+        suggestedAction: 'Avoid paying full market price.',
+        confidence: 78,
+        tone: 'warn',
+        receipts: ['Older RB value can fall fast.', 'Dynasty market lens.'],
+      },
+    ],
     waivers: [
       {
         id: 'dynasty-waiver-corum',
@@ -325,6 +351,32 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
       ],
       summary: 'Redraft mode wants the safer weekly usage profile. Start the high-route WR over the touchdown-dependent flex unless injury news changes volume.',
     },
+    rejections: [
+      {
+        id: 'mock-reject-stash',
+        source: 'waiver',
+        action: 'Do not add',
+        target: 'Slow dynasty stash',
+        reason: 'Redraft does not pay you for theoretical 2027 upside.',
+        alternative: 'Use the bench spot on bankable weekly volume.',
+        confidence: 82,
+        tone: 'danger',
+        receipts: ['Current-season lens only.', 'No immediate role attached.'],
+      },
+    ],
+    marketAnomalies: [
+      {
+        id: 'mock-market-low-route-wr',
+        player: 'Low-route WR',
+        position: 'WR',
+        label: 'Market fade warning',
+        summary: '-13% projected move with declining route signal.',
+        suggestedAction: 'Avoid paying full market price.',
+        confidence: 75,
+        tone: 'danger',
+        receipts: ['Route decline.', 'Current-season lens only.'],
+      },
+    ],
     waivers: [
       {
         id: 'redraft-waiver-workload',

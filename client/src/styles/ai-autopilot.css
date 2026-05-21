@@ -469,6 +469,13 @@
   padding: 0.62rem;
 }
 
+.ai-action-queue-domino {
+  border: 1px solid color-mix(in srgb, var(--autopilot-cyan) 24%, transparent);
+  border-radius: 0.72rem;
+  background: rgba(8, 47, 73, 0.16);
+  padding: 0.62rem;
+}
+
 .ai-action-queue-receipts ul {
   display: grid;
   gap: 0.36rem;
@@ -1392,6 +1399,114 @@
   padding: 0.58rem 0.66rem;
 }
 
+.autopilot-edge-review {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.72rem;
+}
+
+.autopilot-edge-card {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--tone, var(--autopilot-info)) 26%, rgba(34, 211, 238, 0.14));
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(135deg, rgba(2, 6, 23, 0.8), rgba(15, 23, 42, 0.66)),
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--tone, var(--autopilot-info)) 14%, transparent), transparent 44%);
+  padding: 0.78rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.autopilot-edge-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.72rem;
+  min-width: 0;
+}
+
+.autopilot-edge-card-head span,
+.autopilot-edge-row span,
+.autopilot-report-card-row span {
+  color: var(--autopilot-cyan);
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.autopilot-edge-card-head strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid color-mix(in srgb, var(--tone, var(--autopilot-cyan)) 34%, transparent);
+  border-radius: 999px;
+  color: #fff;
+  font-family: var(--font-athletic);
+  font-size: 1rem;
+  font-weight: 1000;
+}
+
+.autopilot-edge-card > p,
+.autopilot-edge-row p,
+.autopilot-report-card-row p {
+  margin: 0.52rem 0 0;
+  color: var(--autopilot-muted);
+  font-size: 0.74rem;
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.autopilot-edge-list,
+.autopilot-report-card-rows {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.68rem;
+}
+
+.autopilot-edge-row,
+.autopilot-report-card-row {
+  display: grid;
+  gap: 0.36rem;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--tone, var(--autopilot-info)) 22%, rgba(148, 163, 184, 0.12));
+  border-radius: 0.72rem;
+  background: rgba(2, 6, 23, 0.46);
+  padding: 0.58rem;
+}
+
+.autopilot-edge-row > div,
+.autopilot-report-card-row {
+  min-width: 0;
+}
+
+.autopilot-edge-row strong,
+.autopilot-report-card-row strong {
+  display: block;
+  margin-top: 0.26rem;
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autopilot-edge-row em {
+  color: rgba(226, 232, 240, 0.9);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 820;
+  line-height: 1.3;
+}
+
+.autopilot-report-card .autopilot-confidence {
+  margin-top: 0.68rem;
+}
+
 .autopilot-pick-chart {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1999,7 +2114,8 @@
   }
 
   .autopilot-hero,
-  .autopilot-direction-panel {
+  .autopilot-direction-panel,
+  .autopilot-edge-review {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -2098,6 +2214,7 @@
 
   .autopilot-command-strip,
   .autopilot-card-grid,
+  .autopilot-edge-review,
   .ai-action-queue-receipts,
   .ai-action-memory-panel,
   .ai-action-outcome-tracker,

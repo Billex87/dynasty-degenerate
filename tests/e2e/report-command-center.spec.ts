@@ -1527,10 +1527,10 @@ test.describe("command center feature surfaces", () => {
     await expect(valueMatchPanel.getByText(/Rival can match/i).first()).toBeVisible();
     await expect(valueMatchPanel.getByText("2026 1st").first()).toBeVisible();
 
-    await expect(page.getByText("Full Trade Ledger").first()).toBeVisible();
-    await page.getByRole("button", { name: /Full Trade Ledger/ }).click();
+    await expect(page.getByText("Trade Receipts").first()).toBeVisible();
+    await page.getByRole("button", { name: /Trade Receipts/ }).click();
     const tradeLedgerDialog = page.getByRole("dialog", {
-      name: /Full Trade Ledger/,
+      name: /Trade Receipts/,
     });
     await expect(tradeLedgerDialog.getByText("2026-05-01")).toBeVisible();
     await tradeLedgerDialog
@@ -1763,6 +1763,8 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Team Direction")).toBeVisible();
     const actionQueue = page.locator(".ai-action-queue").first();
     await expect(actionQueue).toBeVisible();
+    await expect(actionQueue.getByText("Daily AI Verdict")).toBeVisible();
+    await expect(actionQueue.getByText("Roster domino")).toBeVisible();
     await expect(actionQueue.getByText("Source conflict check")).toBeVisible();
     await expect(actionQueue.getByText("Decision memory")).toBeVisible();
     await expect(actionQueue.getByText("Outcome tracker")).toBeVisible();
@@ -1782,6 +1784,10 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Sample Tight End").first()).toBeVisible();
     await expect(page.getByText("Best weekly correction")).toBeVisible();
     await expect(page.getByText(/Start Replacement Tight End over Sample Tight End/).first()).toBeVisible();
+    await expect(page.getByText("AI Edge Review")).toBeVisible();
+    await expect(page.getByText("Weekly AI report card")).toBeVisible();
+    await expect(page.getByText("Bad idea alert")).toBeVisible();
+    await expect(page.getByText("Market anomaly scan").first()).toBeVisible();
     await expect(page.getByText("Future Pick Market")).toBeVisible();
     await expect(page.getByText("Likely rookie range")).toBeVisible();
     await expect(page.getByText("Trade screenshot view").first()).toBeVisible();

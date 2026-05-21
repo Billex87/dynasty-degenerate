@@ -192,6 +192,37 @@ export type AIManagerTradeCalibrationSummary = {
   rows: AIManagerTradeCalibrationRow[];
 };
 
+export type AIModuleQualityKey =
+  | 'waiver-bid-range'
+  | 'waiver-competition'
+  | 'trade-resistance'
+  | 'depth-chart-role-confidence';
+
+export type AIModuleQualityRow = {
+  key: AIModuleQualityKey;
+  label: string;
+  description: string;
+  eventCount: number;
+  scoredCount: number;
+  pendingCount: number;
+  hitRate: number | null;
+  avgConfidence: number | null;
+  calibrationGap: number | null;
+  brierScore: number | null;
+  recommendation: AIPredictionReliabilityBucket['recommendation'];
+  sampleStatus: 'needs-samples' | 'collecting' | 'usable' | 'ready';
+  confidenceAction: 'hold-cap' | 'lower' | 'raise' | 'keep';
+  nextDataNeeded: string;
+};
+
+export type AIModuleQualitySummary = {
+  schemaVersion: 1;
+  generatedFrom: 'ai-prediction-events';
+  generatedAt: string;
+  eventCount: number;
+  rows: AIModuleQualityRow[];
+};
+
 export type AICalibrationAdjustmentScope =
   | 'global'
   | 'surface'
@@ -749,6 +780,121 @@ export function summarizeAIManagerTradeCalibration(events: AIPredictionEvent[]):
     generatedAt: new Date().toISOString(),
     eventCount: tradeEvents.length,
     rows,
+  };
+}
+
+function textFromMetadata(event: AIPredictionEvent, key: string): string {
+  return String(event.metadata?.[key] || '').trim().toLowerCase();
+}
+
+function eventHasTraceText(event: AIPredictionEvent, pattern: RegExp): boolean {
+  return event.sourceTrace.some(trace =>
+    pattern.test(trace.label || '') ||
+    pattern.test(trace.detail || '')
+  ) || event.evidence.some(value => pattern.test(value));
+}
+
+function getModuleSampleStatus(scoredCount: number): AIModuleQualityRow['sampleStatus'] {
+  if (scoredCount >= 50) return 'ready';
+  if (scoredCount >= 20) return 'usable';
+  if (scoredCount >= 5) return 'collecting';
+  return 'needs-samples';
+}
+
+function getModuleConfidenceAction(
+  bucket: AIPredictionReliabilityBucket
+): AIModuleQualityRow['confidenceAction'] {
+  if (bucket.scoredCount < 5) return 'hold-cap';
+  if (bucket.recommendation === 'lower-confidence' || bucket.recommendation === 'review-model') return 'lower';
+  if (bucket.recommendation === 'raise-confidence') return 'raise';
+  return 'keep';
+}
+
+function buildModuleQualityRow(input: {
+  key: AIModuleQualityKey;
+  label: string;
+  description: string;
+  events: AIPredictionEvent[];
+  nextDataNeeded: string;
+}): AIModuleQualityRow {
+  const bucket = buildReliabilityBucket(input.key, { module: input.key }, input.events);
+  return {
+    key: input.key,
+    label: input.label,
+    description: input.description,
+    eventCount: bucket.eventCount,
+    scoredCount: bucket.scoredCount,
+    pendingCount: bucket.pendingCount,
+    hitRate: bucket.hitRate,
+    avgConfidence: bucket.avgConfidence,
+    calibrationGap: bucket.calibrationGap,
+    brierScore: bucket.brierScore,
+    recommendation: bucket.recommendation,
+    sampleStatus: getModuleSampleStatus(bucket.scoredCount),
+    confidenceAction: getModuleConfidenceAction(bucket),
+    nextDataNeeded: input.nextDataNeeded,
+  };
+}
+
+export function buildAIModuleQualitySummary(events: AIPredictionEvent[]): AIModuleQualitySummary {
+  const waiverEvents = events.filter(event =>
+    event.surface === 'waiver' ||
+    (event.surface === 'autopilot' && ['pickup', 'stash', 'stream'].includes(event.action))
+  );
+  const tradeEvents = events.filter(event => event.surface === 'trade' || event.action === 'trade');
+  const roleEvents = events.filter(event =>
+    event.surface === 'player-detail' ||
+    eventHasTraceText(event, /depth|role|starter|snap|route|usage|injur/i) ||
+    /depth|role|starter|snap|route|usage|injur/i.test(textFromMetadata(event, 'source'))
+  );
+  const waiverBidEvents = waiverEvents.filter(event =>
+    /faab|bid|claim|waiver/.test(textFromMetadata(event, 'actionText')) ||
+    /faab|bid|claim|waiver/.test(textFromMetadata(event, 'recommendationType')) ||
+    eventHasTraceText(event, /faab|bid|claim|waiver/i)
+  );
+  const waiverCompetitionEvents = waiverEvents.filter(event =>
+    event.sourceAgreement?.state ||
+    event.counterfactual?.baseline.kind === 'highest-ranked-available' ||
+    event.counterfactual?.baseline.kind === 'replacement' ||
+    Number.isFinite(Number(event.metadata?.trendAdds)) ||
+    Number.isFinite(Number(event.metadata?.targetScore))
+  );
+
+  return {
+    schemaVersion: 1,
+    generatedFrom: 'ai-prediction-events',
+    generatedAt: new Date().toISOString(),
+    eventCount: events.length,
+    rows: [
+      buildModuleQualityRow({
+        key: 'waiver-bid-range',
+        label: 'Waiver bid range',
+        description: 'Checks whether add/claim calls and FAAB-style ranges are landing at the right confidence.',
+        events: waiverBidEvents.length ? waiverBidEvents : waiverEvents,
+        nextDataNeeded: 'Uses Sleeper winning bids when available; still needs skipped claims, losing bids where visible, priority results, and follow-up production.',
+      }),
+      buildModuleQualityRow({
+        key: 'waiver-competition',
+        label: 'Waiver competition',
+        description: 'Checks whether the AI is reading crowded waiver rooms and replacement alternatives correctly.',
+        events: waiverCompetitionEvents.length ? waiverCompetitionEvents : waiverEvents,
+        nextDataNeeded: 'Needs weekly waiver priority, bid competition, trend adds, and highest-available baselines after waivers process.',
+      }),
+      buildModuleQualityRow({
+        key: 'trade-resistance',
+        label: 'Trade resistance',
+        description: 'Checks whether manager-specific trade calls are realistic instead of just fair on paper.',
+        events: tradeEvents,
+        nextDataNeeded: 'Needs proposed, accepted, rejected, blocked, and countered trade outcomes by manager and roster context.',
+      }),
+      buildModuleQualityRow({
+        key: 'depth-chart-role-confidence',
+        label: 'Depth-chart role confidence',
+        description: 'Checks whether role, starter, usage, injury, and depth-chart reads predicted actual playing time.',
+        events: roleEvents,
+        nextDataNeeded: 'Needs in-season depth-chart changes, injury/practice reports, snaps, routes, targets, carries, and starter outcomes.',
+      }),
+    ],
   };
 }
 

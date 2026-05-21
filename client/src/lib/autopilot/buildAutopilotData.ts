@@ -1,7 +1,7 @@
 import { getPlayerRankForMode, getPlayerValueForMode } from '@/lib/leagueValueMode';
 import { getShortTermMatchupOutlook } from '@shared/matchupWindows';
 import { evaluateAIEvidence, getAIEvidenceLeagueContextFromDiagnostics, getAIEvidenceReceiptItems } from '@shared/aiEvidenceEngine';
-import type { AIEvidenceMode } from '@shared/aiEvidenceEngine';
+import type { AIEvidenceAction, AIEvidenceMode, AIEvidenceSurface, AIConfidenceLabel } from '@shared/aiEvidenceEngine';
 import { buildAIEvidenceLeagueActivityContext } from '@shared/leagueActivityContext';
 import type {
   ManagerRosterIntelligence,
@@ -9,6 +9,7 @@ import type {
   PlayerDetails,
   PlayerInfo,
   PowerRanking,
+  ReportAICalibrationAdjustment,
   ReportData,
   TrendingPlayer,
   WeeklyMomentum,
@@ -16,6 +17,9 @@ import type {
 import type {
   AIActionQueueItem,
   AIActionQueueSource,
+  AIMarketAnomalyRead,
+  AIReportCardRead,
+  AIRejectionRead,
   AutopilotData,
   AutopilotMode,
   AutopilotRecommendation,
@@ -56,6 +60,8 @@ type AutopilotBuildInput = {
   mode: AutopilotMode;
   fallback: AutopilotData;
 };
+
+type ReportCalibrationSourceAgreement = 'aligned' | 'split' | 'conflicted' | 'thin' | 'missing' | 'unknown';
 
 function asArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
@@ -795,11 +801,148 @@ function capConfidence(data: ReportData, manager: string, confidence: number): n
   return Math.min(clampPercent(confidence), getAiConfidenceCap(data, manager));
 }
 
-function capRecommendationCards(data: ReportData, manager: string, cards: AutopilotRecommendation[]): AutopilotRecommendation[] {
+function getConfidenceLabel(score: number): AIConfidenceLabel {
+  const value = clampPercent(score);
+  if (value >= 84) return 'high conviction';
+  if (value >= 72) return 'priority';
+  if (value >= 58) return 'actionable';
+  if (value >= 42) return 'watchlist';
+  return 'thin';
+}
+
+function getReportAdjustmentGroupValue(
+  input: {
+    surface: AIEvidenceSurface;
+    action: AIEvidenceAction;
+    label: AIConfidenceLabel;
+    sourceAgreementState?: ReportCalibrationSourceAgreement | null;
+    manager?: string | null;
+    leagueFormat?: string | null;
+  },
+  key: string,
+): string | null {
+  if (key === 'surface') return input.surface;
+  if (key === 'action') return input.action;
+  if (key === 'label') return input.label;
+  if (key === 'sourceAgreement') return input.sourceAgreementState || 'unknown';
+  if (key === 'manager') return input.manager || null;
+  if (key === 'leagueFormat') return input.leagueFormat || null;
+  return null;
+}
+
+function matchesReportCalibrationAdjustment(
+  input: Parameters<typeof getReportAdjustmentGroupValue>[0],
+  adjustment: ReportAICalibrationAdjustment,
+): boolean {
+  if (adjustment.scope === 'global') return true;
+  const entries = Object.entries(adjustment.group || {});
+  if (!entries.length) return false;
+  return entries.every(([key, expected]) => {
+    const actual = getReportAdjustmentGroupValue(input, key);
+    return actual !== null && String(actual).toLowerCase() === String(expected).toLowerCase();
+  });
+}
+
+function getReportAdjustmentSpecificity(adjustment: ReportAICalibrationAdjustment): number {
+  return Object.keys(adjustment.group || {}).length;
+}
+
+function findReportCalibrationAdjustment(
+  data: ReportData,
+  input: Parameters<typeof getReportAdjustmentGroupValue>[0],
+): ReportAICalibrationAdjustment | null {
+  const profile = data.aiCalibrationAdjustmentProfile;
+  if (!profile?.adjustments?.length) return null;
+  return profile.adjustments
+    .filter((adjustment) => adjustment.scoreAdjustment !== 0 || adjustment.confidenceCap !== null)
+    .filter((adjustment) => matchesReportCalibrationAdjustment(input, adjustment))
+    .sort((a, b) =>
+      getReportAdjustmentSpecificity(b) - getReportAdjustmentSpecificity(a) ||
+      Math.abs(b.scoreAdjustment) - Math.abs(a.scoreAdjustment) ||
+      b.scoredCount - a.scoredCount
+    )[0] || null;
+}
+
+function inferRecommendationCalibrationAction(
+  source: AIActionQueueSource,
+  card: AutopilotRecommendation,
+): AIEvidenceAction {
+  const text = `${card.type} ${card.action} ${card.summary}`.toLowerCase();
+  if (source === 'lineup') {
+    if (/\bbench|sit|review\b/.test(text)) return 'sit';
+    return 'start';
+  }
+  if (source === 'trade') return 'trade';
+  if (/\bstream|kicker|defense|dst|d\/st\b/.test(text)) return 'stream';
+  if (/\bstash\b/.test(text)) return 'stash';
+  if (/\bavoid|don't|do not|monitor\b/.test(text)) return 'watch';
+  return 'pickup';
+}
+
+function inferRecommendationSourceAgreement(card: AutopilotRecommendation): ReportCalibrationSourceAgreement {
+  const evidence = card.evidenceRead;
+  if (!evidence) return 'unknown';
+  if (evidence.hardBlockers.length) return 'conflicted';
+  if (evidence.missingEvidence.length >= 2) return 'thin';
+  const traces = evidence.sourceTrace || [];
+  if (!traces.length) return 'missing';
+  if (traces.some((trace) => trace.status === 'error' || trace.status === 'stale')) return 'split';
+  if (traces.every((trace) => !trace.status || trace.status === 'loaded')) return 'aligned';
+  return 'unknown';
+}
+
+function applyReportCalibrationToRecommendation(
+  data: ReportData,
+  manager: string,
+  source: AIActionQueueSource,
+  card: AutopilotRecommendation,
+): AutopilotRecommendation {
+  const action = inferRecommendationCalibrationAction(source, card);
+  const baseConfidence = clampPercent(card.confidence);
+  const baseCap = getAiConfidenceCap(data, manager);
+  const label = card.evidenceRead?.label || getConfidenceLabel(baseConfidence);
+  const adjustment = findReportCalibrationAdjustment(data, {
+    surface: 'autopilot',
+    action,
+    label,
+    sourceAgreementState: inferRecommendationSourceAgreement(card),
+    manager,
+    leagueFormat: data.leagueDiagnostics?.valueMode || data.leagueValueMode || null,
+  });
+  if (!adjustment) return card;
+
+  const adjustedCap = adjustment.confidenceCap === null
+    ? baseCap
+    : Math.min(baseCap, clampPercent(adjustment.confidenceCap));
+  const adjustedConfidence = Math.min(clampPercent(baseConfidence + adjustment.scoreAdjustment), adjustedCap);
+  if (adjustedConfidence === baseConfidence && adjustedCap === baseCap) return card;
+
+  return {
+    ...card,
+    confidence: adjustedConfidence,
+    risk: adjustedConfidence < 58 ? 'High' : card.risk,
+    reasons: dedupeStrings([...card.reasons, `Calibration: ${adjustment.reason}`], 5),
+    signals: dedupeStrings([...card.signals, 'Outcome-calibrated'], 5),
+    calibration: {
+      baseConfidence,
+      adjustedConfidence,
+      confidenceCap: adjustedCap,
+      reason: adjustment.reason,
+      priority: adjustment.priority,
+    },
+  };
+}
+
+function capRecommendationCards(
+  data: ReportData,
+  manager: string,
+  cards: AutopilotRecommendation[],
+  source: AIActionQueueSource,
+): AutopilotRecommendation[] {
   return cards.map((card) => {
     const cappedConfidence = capConfidence(data, manager, card.confidence);
     const wasCapped = cappedConfidence < clampPercent(card.confidence);
-    return {
+    const cappedCard = {
       ...card,
       confidence: cappedConfidence,
       risk: wasCapped && cappedConfidence < 58 ? 'High' : card.risk,
@@ -807,6 +950,7 @@ function capRecommendationCards(data: ReportData, manager: string, cards: Autopi
         ? dedupeStrings([...card.signals, 'Confidence capped by league evidence'], 5)
         : card.signals,
     };
+    return applyReportCalibrationToRecommendation(data, manager, source, cappedCard);
   });
 }
 
@@ -1207,12 +1351,62 @@ function buildQueueChangeTriggers(
   ], 4);
 }
 
+function buildRosterDominoEffects(
+  recommendation: AutopilotRecommendation,
+  source: AIActionQueueSource,
+  decision: AIActionQueueItem['decision'],
+): string[] {
+  const secondary = recommendation.secondary || '';
+  const dropMatch = secondary.match(/\bdrop\s+([^|;,]+)/i);
+  const overMatch = secondary.match(/\bover\s+([^|;,]+)/i);
+  const partnerMatch = secondary.match(/\b(?:target partner|shop to|start with):?\s+([^|;,]+)/i);
+
+  if (decision === 'blocked') {
+    return dedupeStrings([
+      'No roster move should happen until the blocker clears.',
+      'Leave the current lineup, bench, and trade posture untouched.',
+    ], 3);
+  }
+
+  if (source === 'waiver') {
+    return dedupeStrings([
+      `${recommendation.player} becomes the roster add only if live availability still checks out.`,
+      dropMatch ? `${dropMatch[1].trim()} becomes the first drop domino.` : 'Identify the actual drop before submitting the claim.',
+      'Re-run the queue after the transaction so the next-best move does not use stale roster status.',
+    ], 4);
+  }
+
+  if (source === 'lineup') {
+    return dedupeStrings([
+      overMatch ? `${overMatch[1].trim()} is the starter most likely to move to the bench.` : 'This only changes the lineup slot tied to the flagged starter.',
+      'Verify injury, weather, role, and lock-time news before confirming the swap.',
+      'Do not let a start/sit edge bleed into dynasty trade value by itself.',
+    ], 4);
+  }
+
+  if (source === 'trade') {
+    return dedupeStrings([
+      partnerMatch ? `${partnerMatch[1].trim()} is the first manager to test, not a must-accept counterparty.` : 'The trade domino starts with partner fit, not generic market value.',
+      'Check whether the return actually upgrades a starter, pick tier, or roster weakness.',
+      'If the counter creates a new lineup hole, the trade drops back to watch only.',
+    ], 4);
+  }
+
+  return dedupeStrings([
+    'No roster domino is worth pulling until a higher-confidence action clears.',
+    'The current roster shape is the baseline until fresh evidence changes the verdict.',
+  ], 3);
+}
+
 function buildRecommendationQueueItem(
   recommendation: AutopilotRecommendation,
   source: AIActionQueueSource,
   order: number,
 ): Omit<AIActionQueueItem, 'rank'> & { score: number } | null {
-  const confidence = clampPercent(recommendation.evidenceRead?.finalScore ?? recommendation.confidence);
+  const evidenceScore = recommendation.evidenceRead?.finalScore;
+  const confidence = clampPercent(evidenceScore === undefined
+    ? recommendation.confidence
+    : Math.min(evidenceScore, recommendation.confidence));
   const decision = getQueueDecision({ ...recommendation, confidence });
   const sourceWeight: Record<AIActionQueueSource, number> = {
     waiver: 6,
@@ -1248,9 +1442,16 @@ function buildRecommendationQueueItem(
     blockers: evidence?.hardBlockers || [],
     missingEvidence: evidence?.missingEvidence || [],
     sourceHealth: formatQueueSourceTrace(recommendation),
-    receipts: dedupeStrings(receipts, 4),
+    receipts: dedupeStrings([
+      ...receipts,
+      recommendation.calibration?.reason ? `Calibration: ${recommendation.calibration.reason}` : null,
+    ], 4),
     changeTriggers: buildQueueChangeTriggers(recommendation, source, decision),
-    signals: dedupeStrings(recommendation.signals, 4),
+    dominoEffects: buildRosterDominoEffects(recommendation, source, decision),
+    signals: dedupeStrings([
+      ...recommendation.signals,
+      recommendation.calibration ? 'Outcome-calibrated' : null,
+    ], 4),
     score: confidence + decisionWeight[decision] + sourceWeight[source] - order,
   };
 }
@@ -1292,6 +1493,10 @@ function buildNoForcedMoveQueueItem({
       missingEvidence[0] ? `Add missing evidence: ${missingEvidence[0]}` : null,
       'Fresh schedule, usage, injury, and transaction data could raise confidence enough to act.',
     ], 4),
+    dominoEffects: dedupeStrings([
+      'No drop, trade, or lineup swap should fire from this read.',
+      'Keep the current roster baseline until one action beats the do-nothing counterfactual.',
+    ], 3),
     signals: dedupeStrings(['No forced action', direction.label, weeklyPlan?.summary], 4),
     score: 30,
   };
@@ -1330,6 +1535,286 @@ function buildAIActionQueue({
       ...item,
       rank: index + 1,
     }));
+}
+
+function buildAIRejections({
+  data,
+  actionQueue,
+}: {
+  data: ReportData;
+  actionQueue: AIActionQueueItem[];
+}): AIRejectionRead[] {
+  const rows: AIRejectionRead[] = [];
+
+  actionQueue
+    .filter((item) => item.decision === 'blocked' || item.decision === 'watch')
+    .forEach((item) => {
+      rows.push({
+        id: `reject-${item.id}`,
+        source: item.source,
+        action: item.decision === 'blocked' ? `Do not ${item.action.toLowerCase()}` : `Do not force ${item.action.toLowerCase()}`,
+        target: item.target,
+        reason: item.blockers[0] || item.missingEvidence[0] || item.risk,
+        alternative: item.decision === 'blocked'
+          ? 'Reload live data and clear the blocker before this can move.'
+          : 'Keep it on watch until the evidence clears the action threshold.',
+        confidence: item.confidence,
+        tone: item.decision === 'blocked' ? 'danger' : 'warn',
+        receipts: dedupeStrings([
+          item.why,
+          item.receipts[0],
+          item.changeTriggers[0],
+        ], 3),
+      });
+    });
+
+  (data.waiverIntelligence?.omittedCandidates || [])
+    .filter((candidate) => candidate.action === 'omit')
+    .slice(0, 3)
+    .forEach((candidate) => {
+      rows.push({
+        id: `reject-waiver-${candidate.player_id || normalizeManagerName(candidate.name)}`,
+        source: 'waiver',
+        action: 'Do not add',
+        target: candidate.name,
+        reason: candidate.reason || 'Waiver evidence layer omitted this player.',
+        alternative: 'Use the ranked queue or leave the bench spot alone.',
+        confidence: clampPercent(62 + Math.min(16, candidate.sourceCount * 4)),
+        tone: 'danger',
+        receipts: dedupeStrings([
+          candidate.rank ? `${candidate.rank} rank was not enough to clear guardrails.` : null,
+          candidate.value ? `${formatCompactValue(candidate.value)} value still failed the evidence check.` : null,
+          `${candidate.sourceCount} source${candidate.sourceCount === 1 ? '' : 's'} attached.`,
+        ], 3),
+      });
+    });
+
+  if (!rows.length && actionQueue[0]?.decision === 'hold') {
+    const hold = actionQueue[0];
+    rows.push({
+      id: 'reject-no-forced-action',
+      source: hold.source,
+      action: 'Do not manufacture a move',
+      target: hold.target,
+      reason: hold.risk,
+      alternative: 'Hold the current roster baseline.',
+      confidence: hold.confidence,
+      tone: 'neutral',
+      receipts: dedupeStrings([hold.why, hold.missingEvidence[0], hold.changeTriggers[0]], 3),
+    });
+  }
+
+  const seen = new Set<string>();
+  return rows
+    .filter((row) => {
+      const key = `${row.action}:${row.target}`.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 4);
+}
+
+function buildMarketAnomalyReads(data: ReportData, mode: AutopilotMode, manager: string): AIMarketAnomalyRead[] {
+  const rows: AIMarketAnomalyRead[] = [];
+  const seen = new Set<string>();
+  const pushMomentum = (
+    player: WeeklyMomentum | PlayerInfo,
+    direction: 'rising' | 'falling',
+  ) => {
+    const playerWithDetails = withReportPlayerDetails(data, player) || player;
+    const playerName = getPlayerName(playerWithDetails);
+    const key = getPlayerIdentityKey(playerWithDetails) || playerName.toLowerCase();
+    if (!playerName || seen.has(key)) return;
+    const value = getAutopilotPlayerValue(playerWithDetails, mode);
+    const rank = getAutopilotPlayerRank(playerWithDetails, mode);
+    const pct = safeNumber('pct_change' in playerWithDetails ? playerWithDetails.pct_change : null);
+    const diff = safeNumber('diff' in playerWithDetails ? playerWithDetails.diff : null);
+    const delta = getPlayerSituationDelta(playerWithDetails);
+    const ownedByFocus = sameManager(playerWithDetails.owner, manager);
+    const isUnowned = !playerWithDetails.owner;
+    const movement = pct !== null
+      ? formatSignedPercent(pct)
+      : diff !== null
+        ? `${diff >= 0 ? '+' : ''}${formatCompactValue(diff)}`
+        : direction === 'rising'
+          ? '+watch'
+          : '-watch';
+    const absolutePct = Math.abs(pct ?? (diff && value ? (diff / Math.max(1, value)) * 100 : 0));
+    const confidence = clampPercent(58 + Math.min(24, absolutePct * 1.8) + (rank ? 6 : 0) + (delta ? 8 : 0));
+    const tone: AutopilotTone =
+      direction === 'falling' && ownedByFocus
+        ? 'warn'
+        : direction === 'rising' && isUnowned
+          ? 'good'
+          : direction === 'falling'
+            ? 'danger'
+            : 'info';
+    const label =
+      direction === 'rising' && isUnowned
+        ? 'Unclaimed market heat'
+        : direction === 'rising' && ownedByFocus
+          ? 'Roster value pop'
+          : direction === 'falling' && ownedByFocus
+            ? 'Roster value leak'
+            : direction === 'falling'
+              ? 'Market fade warning'
+              : 'Market mismatch';
+    const suggestedAction =
+      direction === 'rising' && isUnowned
+        ? 'Check availability before the room catches up.'
+        : direction === 'falling' && ownedByFocus
+          ? 'Do not ignore the sell-window leak.'
+          : direction === 'falling'
+            ? 'Avoid paying full market price.'
+            : 'Keep as a watchlist receipt, not an automatic move.';
+
+    seen.add(key);
+    rows.push({
+      id: `market-${direction}-${key}`,
+      player: playerName,
+      position: getPlayerLineupPosition(playerWithDetails),
+      label,
+      summary: `${movement} movement${rank ? ` with ${rank}` : ''}${value ? ` and ${formatCompactValue(value)} value` : ''}.`,
+      suggestedAction,
+      confidence,
+      tone,
+      receipts: dedupeStrings([
+        direction === 'rising' ? 'Market moved up this cycle.' : 'Market moved down this cycle.',
+        playerWithDetails.owner ? `Owned by ${playerWithDetails.owner}.` : 'Currently unowned in this report.',
+        delta ? getPlayerSituationSignal(playerWithDetails) : null,
+        mode === 'redraft' ? 'Current-season lens only.' : 'Dynasty market lens.',
+      ], 4),
+    });
+  };
+
+  [...(data.weeklyRisers || [])]
+    .sort((a, b) => Math.abs(b.pct_change || 0) - Math.abs(a.pct_change || 0))
+    .slice(0, 4)
+    .forEach((player) => pushMomentum(player, 'rising'));
+  [...(data.weeklyFallers || [])]
+    .sort((a, b) => Math.abs(b.pct_change || 0) - Math.abs(a.pct_change || 0))
+    .slice(0, 4)
+    .forEach((player) => pushMomentum(player, 'falling'));
+
+  if (rows.length < 4) {
+    [...(data.projectedRisers || [])].slice(0, 3).forEach((player) => pushMomentum(player, 'rising'));
+    [...(data.projectedFallers || [])].slice(0, 3).forEach((player) => pushMomentum(player, 'falling'));
+  }
+
+  return rows
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 4);
+}
+
+function calibrationPriorityTone(priority?: ReportAICalibrationAdjustment['priority']): AutopilotTone {
+  if (priority === 'danger') return 'danger';
+  if (priority === 'warn') return 'warn';
+  if (priority === 'info') return 'info';
+  if (priority === 'good') return 'good';
+  return 'neutral';
+}
+
+function buildAIReportCardRead({
+  data,
+  direction,
+  actionQueue,
+  rejections,
+  marketAnomalies,
+}: {
+  data: ReportData;
+  direction: AutopilotData['direction'];
+  actionQueue: AIActionQueueItem[];
+  rejections: AIRejectionRead[];
+  marketAnomalies: AIMarketAnomalyRead[];
+}): AIReportCardRead {
+  const leagueConfidence = getLeagueAiConfidenceScore(data);
+  const confidence = clampPercent(leagueConfidence ?? direction.confidence);
+  const calibration = data.leagueDiagnostics?.aiConfidence?.calibration;
+  const adjustmentProfile = data.aiCalibrationAdjustmentProfile;
+  const topAdjustment = adjustmentProfile?.adjustments?.find((adjustment) =>
+    adjustment.scoreAdjustment !== 0 || adjustment.confidenceCap !== null
+  ) || null;
+  const serverDelta = data.serverReportDelta || null;
+  const doCount = actionQueue.filter((item) => item.decision === 'do').length;
+  const blockedOrWatch = actionQueue.filter((item) => item.decision === 'blocked' || item.decision === 'watch').length;
+  const sourceWarnings = actionQueue.flatMap((item) => item.sourceHealth)
+    .filter((source) => /missing|stale|error|limited|0 rows|no source/i.test(source));
+  const grade =
+    confidence >= 88 && !sourceWarnings.length
+      ? 'A'
+      : confidence >= 76
+        ? 'B'
+        : confidence >= 62
+          ? 'C'
+          : 'D';
+  const tone = scoreTone(confidence);
+  const calibrationStatus = calibration
+    ? `${calibration.observedSampleSize}/${calibration.targetSampleSize} calibration samples`
+    : 'Calibration samples pending';
+  const rows: AIReportCardRead['rows'] = [
+    {
+      label: 'One-call discipline',
+      status: doCount <= 1 ? 'Clean' : `${doCount} do-this calls`,
+      detail: doCount <= 1
+        ? 'Only one action can own the top verdict.'
+        : 'Too many actions cleared; confidence should be tightened before users see this.',
+      tone: doCount <= 1 ? 'good' : 'danger',
+    },
+    {
+      label: 'Daily delta',
+      status: serverDelta?.changes?.length
+        ? `${serverDelta.changes.length} server change${serverDelta.changes.length === 1 ? '' : 's'}`
+        : 'No material change',
+      detail: serverDelta?.summary || 'No prior server report has been attached for comparison yet.',
+      tone: serverDelta?.changes?.[0]?.tone || 'neutral',
+    },
+    {
+      label: 'Bad-idea engine',
+      status: rejections.length ? `${rejections.length} blocked/watch reads` : 'No bad ideas flagged',
+      detail: rejections.length
+        ? 'The app is actively refusing low-evidence moves.'
+        : 'No blocked read is attached to this queue right now.',
+      tone: rejections.length ? 'good' : 'info',
+    },
+    {
+      label: 'Market anomaly scan',
+      status: marketAnomalies.length ? `${marketAnomalies.length} anomalies` : 'Quiet market',
+      detail: marketAnomalies[0]?.summary || 'No weekly market mismatch is loud enough to surface.',
+      tone: marketAnomalies.length ? marketAnomalies[0].tone : 'neutral',
+    },
+    {
+      label: 'Calibration memory',
+      status: adjustmentProfile
+        ? `${adjustmentProfile.scoredCount} scored / ${adjustmentProfile.adjustments.length} adjustments`
+        : calibrationStatus,
+      detail: topAdjustment?.reason || calibration?.note || 'Confidence still learns from saved predictions, outcomes, and admin feedback.',
+      tone: topAdjustment ? calibrationPriorityTone(topAdjustment.priority) : calibration?.status === 'ready' ? 'good' : calibration?.status === 'collecting' ? 'info' : 'warn',
+    },
+    {
+      label: 'Source health',
+      status: sourceWarnings.length ? `${sourceWarnings.length} warning${sourceWarnings.length === 1 ? '' : 's'}` : 'Clean receipts',
+      detail: sourceWarnings[0] || 'Top verdict has no stale/missing/error source warning attached.',
+      tone: sourceWarnings.length ? 'warn' : 'good',
+    },
+    {
+      label: 'Guardrail pressure',
+      status: blockedOrWatch ? `${blockedOrWatch} capped reads` : 'No caps',
+      detail: blockedOrWatch
+        ? 'Watch/blocked reads stay below the action threshold.'
+        : 'No lower-confidence read is competing with the verdict.',
+      tone: blockedOrWatch ? 'info' : 'good',
+    },
+  ];
+
+  return {
+    grade,
+    confidence,
+    tone,
+    summary: `The AI is running at ${confidence}% league confidence with ${doCount <= 1 ? 'one-call discipline' : `${doCount} competing actions`} and ${rejections.length} bad-idea guardrail${rejections.length === 1 ? '' : 's'}.`,
+    rows,
+  };
 }
 
 function getProjectedPickBand(originalOwner: string, data: ReportData): string {
@@ -1955,13 +2440,22 @@ export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuil
   const focusManager = getFocusManager(reportData, fallback);
   const managerTendency = buildManagerTendencyProfile(reportData, focusManager);
   const direction = buildDirection(reportData, mode, focusManager, fallback.direction, managerTendency);
-  const lineup = capRecommendationCards(reportData, focusManager, buildLineupRecommendations(reportData, mode, focusManager, fallback.lineup));
+  const lineup = capRecommendationCards(reportData, focusManager, buildLineupRecommendations(reportData, mode, focusManager, fallback.lineup), 'lineup');
   const weeklyPlan = capWeeklyActionPlan(reportData, focusManager, buildWeeklyActionPlan(reportData, mode, focusManager, lineup, fallback.weeklyPlan));
-  const waivers = capRecommendationCards(reportData, focusManager, buildWaiverRecommendations(reportData, mode, focusManager, fallback.waivers));
-  const trades = capRecommendationCards(reportData, focusManager, buildTradeRecommendations(reportData, mode, focusManager, fallback.trades));
+  const waivers = capRecommendationCards(reportData, focusManager, buildWaiverRecommendations(reportData, mode, focusManager, fallback.waivers), 'waiver');
+  const trades = capRecommendationCards(reportData, focusManager, buildTradeRecommendations(reportData, mode, focusManager, fallback.trades), 'trade');
   const projections = capPlayerProjections(reportData, focusManager, buildPlayerProjections(reportData, mode, focusManager, fallback.projections));
   const weeklyRecap = buildWeeklyRecapRead(weeklyPlan, waivers, trades, mode, focusManager);
   const actionQueue = buildAIActionQueue({ direction, weeklyPlan, lineup, waivers, trades });
+  const rejections = buildAIRejections({ data: reportData, actionQueue });
+  const marketAnomalies = buildMarketAnomalyReads(reportData, mode, focusManager);
+  const reportCard = buildAIReportCardRead({
+    data: reportData,
+    direction,
+    actionQueue,
+    rejections,
+    marketAnomalies,
+  });
   const futurePickTrajectory = mode === 'dynasty'
     ? buildFuturePickTrajectory(reportData, focusManager)
     : undefined;
@@ -1979,6 +2473,9 @@ export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuil
     lineup,
     weeklyPlan,
     weeklyRecap,
+    reportCard,
+    rejections,
+    marketAnomalies,
     waivers,
     trades,
     projections,

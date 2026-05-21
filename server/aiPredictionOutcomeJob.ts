@@ -23,6 +23,7 @@ type SleeperRoster = {
 };
 
 type SleeperTransaction = {
+  transaction_id?: string | number | null;
   type?: string | null;
   status?: string | null;
   adds?: Record<string, string | number | null> | null;
@@ -30,6 +31,11 @@ type SleeperTransaction = {
   roster_ids?: Array<string | number | null> | null;
   created?: string | number | null;
   status_updated?: string | number | null;
+  settings?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  waiver_bid?: string | number | null;
+  waiver_budget?: string | number | null;
+  leg?: string | number | null;
 };
 
 type SleeperMatchup = {
@@ -82,6 +88,11 @@ function asRecord(value: unknown): Record<string, any> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, any>
     : {};
+}
+
+function numeric(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -163,7 +174,9 @@ function getCounterpartyLabel(
 
 function buildTransactionFacts(
   transactionsByWeek: SleeperTransaction[][],
-  managerByRosterId: Map<string, string>
+  managerByRosterId: Map<string, string>,
+  defaultWaiverBudget?: number | null,
+  season?: string | null
 ): AIPredictionResolvedTransaction[] {
   const facts: AIPredictionResolvedTransaction[] = [];
 
@@ -174,6 +187,17 @@ function buildTransactionFacts(
     const transactionType = String(transaction.type || '').toLowerCase();
     const adds = asRecord(transaction.adds);
     const drops = asRecord(transaction.drops);
+    const settings = asRecord(transaction.settings);
+    const metadata = asRecord(transaction.metadata);
+    const bidAmount = numeric(settings.waiver_bid)
+      ?? numeric(settings.bid)
+      ?? numeric(transaction.waiver_bid)
+      ?? numeric(metadata.waiver_bid);
+    const waiverBudget = numeric(transaction.waiver_budget)
+      ?? numeric(settings.waiver_budget)
+      ?? defaultWaiverBudget
+      ?? null;
+    const week = numeric(transaction.leg);
 
     Object.entries(adds).forEach(([playerId, rosterId]) => {
       const normalizedRosterId = normalizeRosterId(rosterId);
@@ -185,6 +209,10 @@ function buildTransactionFacts(
         manager,
         counterparty,
         occurredAt,
+        bidAmount,
+        waiverBudget,
+        season: season || null,
+        week,
       });
     });
 
@@ -195,6 +223,10 @@ function buildTransactionFacts(
         playerId,
         manager: normalizedRosterId ? managerByRosterId.get(normalizedRosterId) || null : null,
         occurredAt,
+        bidAmount,
+        waiverBudget,
+        season: season || null,
+        week,
       });
     });
 
@@ -207,6 +239,8 @@ function buildTransactionFacts(
           manager: normalizedRosterId ? managerByRosterId.get(normalizedRosterId) || null : null,
           counterparty: getCounterpartyLabel(rosterIds, normalizedRosterId, managerByRosterId),
           occurredAt,
+          season: season || null,
+          week,
         });
       });
     }
@@ -245,6 +279,8 @@ async function fetchLeagueOutcomeFacts(leagueId: string, events: AIPredictionEve
     'ai-prediction-outcome-resolution'
   );
   const currentWeek = getSleeperCurrentWeek(leagueInfo);
+  const defaultWaiverBudget = numeric(leagueInfo?.settings?.waiver_budget);
+  const season = cleanText(leagueInfo?.season);
   const weeks = getEventWeeks(events, currentWeek);
   const [users, rosters, transactionsByWeek, matchupsByWeek] = await Promise.all([
     fetchSleeperJson<SleeperUser[]>(
@@ -270,7 +306,7 @@ async function fetchLeagueOutcomeFacts(leagueId: string, events: AIPredictionEve
   ]);
 
   const managerByRosterId = buildRosterManagerLookup(users || [], rosters || []);
-  const transactions = buildTransactionFacts(transactionsByWeek, managerByRosterId);
+  const transactions = buildTransactionFacts(transactionsByWeek, managerByRosterId, defaultWaiverBudget, season);
   const playerStats = buildPlayerStatFacts(matchupsByWeek);
 
   return {

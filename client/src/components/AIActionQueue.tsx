@@ -65,6 +65,7 @@ function QueueReceipts({
   const receipts = compact ? item.receipts.slice(0, 2) : item.receipts.slice(0, 3);
   const sourceHealth = compact ? item.sourceHealth.slice(0, 2) : item.sourceHealth.slice(0, 3);
   const changeTriggers = compact ? item.changeTriggers.slice(0, 2) : item.changeTriggers.slice(0, 3);
+  const dominoEffects = compact ? (item.dominoEffects || []).slice(0, 2) : (item.dominoEffects || []).slice(0, 3);
 
   return (
     <div className="ai-action-queue-receipts">
@@ -84,6 +85,16 @@ function QueueReceipts({
           <ul>
             {changeTriggers.map((trigger) => (
               <li key={trigger}>{trigger}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {dominoEffects.length > 0 && (
+        <div className="ai-action-queue-domino">
+          <span>Roster domino</span>
+          <ul>
+            {dominoEffects.map((domino) => (
+              <li key={domino}>{domino}</li>
             ))}
           </ul>
         </div>

@@ -28,6 +28,26 @@ import { buildScheduleEdgeRows, type ScheduleEdgeRow } from "@/lib/scheduleEdgeR
 
 export type ClientAIPredictionDecision = "do" | "dont" | "watch" | "hold" | "blocked";
 export type ClientAIPredictionOutcomeStatus = "hit" | "miss" | "push" | "pending" | "blocked";
+export type ClientAISourceAgreementState = "aligned" | "split" | "conflicted" | "thin" | "missing" | "unknown";
+export type ClientAISourceSignalDirection = "for" | "against" | "neutral" | "missing";
+export type ClientAISourceAgreementRead = {
+  state: ClientAISourceAgreementState;
+  directionalSourceCount: number;
+  sourceCount: number;
+  forWeight: number;
+  againstWeight: number;
+  neutralWeight: number;
+  missingCount: number;
+  confidenceCap: number | null;
+  reason: string;
+  signals: Array<{
+    source: string;
+    direction: ClientAISourceSignalDirection;
+    confidence?: number | null;
+    status?: AISourceTrace["status"] | null;
+    detail?: string | null;
+  }>;
+};
 
 export type ClientAIPredictionEvent = {
   schemaVersion: 1;
@@ -53,7 +73,7 @@ export type ClientAIPredictionEvent = {
   hardBlockers: string[];
   softPenalties: AIEvidencePenalty[];
   sourceTrace: AISourceTrace[];
-  sourceAgreement: null;
+  sourceAgreement: ClientAISourceAgreementRead | null;
   decisionSnapshot?: AIDecisionSnapshot | null;
   counterfactual?: AICounterfactualRead | null;
   decay?: AIPredictionDecayProfile | null;
@@ -283,6 +303,107 @@ function sourceTraceFromWaiverPlayer(player: TrendingPlayer): AISourceTrace[] {
   ]);
 }
 
+function sourceSignalDirectionFromTrace(
+  trace: AISourceTrace,
+  hardBlockers: string[],
+  missingEvidence: string[],
+): ClientAISourceSignalDirection {
+  const text = `${trace.label} ${trace.detail || ""}`.toLowerCase();
+  if (trace.status === "missing" || /missing|no source|not attached/i.test(text)) return "missing";
+  if (trace.status === "error" || hardBlockers.some(blocker => text.includes(blocker.toLowerCase()))) return "against";
+  if (trace.status === "stale" || trace.status === "limited") return missingEvidence.length ? "neutral" : "against";
+  if (/rough|avoid|blocked|conflict|drop confidence|penalty/i.test(text)) return "against";
+  if (/loaded|available|confirmed|rank|schedule|source|trend|value|matchup|baseline/i.test(text)) return "for";
+  return "neutral";
+}
+
+function sourceSignalWeight(trace: AISourceTrace): number {
+  if (trace.status === "missing") return 0;
+  if (trace.status === "error") return 35;
+  if (trace.status === "stale" || trace.status === "limited") return 45;
+  return 70;
+}
+
+function buildClientSourceAgreementRead(input: {
+  sourceTrace: AISourceTrace[];
+  hardBlockers: string[];
+  missingEvidence: string[];
+}): ClientAISourceAgreementRead | null {
+  const signals = input.sourceTrace.slice(0, 8).map(trace => ({
+    source: trace.label || "unknown-source",
+    direction: sourceSignalDirectionFromTrace(trace, input.hardBlockers, input.missingEvidence),
+    confidence: sourceSignalWeight(trace),
+    status: trace.status || null,
+    detail: trace.detail || null,
+  }));
+  if (!signals.length && !input.missingEvidence.length && !input.hardBlockers.length) return null;
+
+  if (!signals.length) {
+    input.missingEvidence.slice(0, 3).forEach((reason, index) => {
+      signals.push({
+        source: `missing-evidence-${index + 1}`,
+        direction: "missing",
+        confidence: 0,
+        status: "missing",
+        detail: reason,
+      });
+    });
+  }
+
+  const directional = signals.filter(signal => signal.direction === "for" || signal.direction === "against");
+  const forWeight = directional
+    .filter(signal => signal.direction === "for")
+    .reduce((sum, signal) => sum + (signal.confidence || 0), 0);
+  const againstWeight = directional
+    .filter(signal => signal.direction === "against")
+    .reduce((sum, signal) => sum + (signal.confidence || 0), 0);
+  const neutralWeight = signals
+    .filter(signal => signal.direction === "neutral")
+    .reduce((sum, signal) => sum + (signal.confidence || 0), 0);
+  const missingCount = signals.filter(signal => signal.direction === "missing" || signal.status === "missing").length;
+  const hasFor = forWeight > 0;
+  const hasAgainst = againstWeight > 0 || input.hardBlockers.length > 0;
+  const state: ClientAISourceAgreementState = input.hardBlockers.length
+    ? "conflicted"
+    : !signals.length || missingCount === signals.length
+      ? "missing"
+      : directional.length < 2
+        ? "thin"
+        : hasFor && hasAgainst
+          ? forWeight >= 70 && againstWeight >= 70 ? "conflicted" : "split"
+          : hasFor
+            ? "aligned"
+            : "unknown";
+  const confidenceCap =
+    state === "conflicted" ? 52 :
+    state === "split" ? 62 :
+    state === "thin" ? 56 :
+    state === "missing" || state === "unknown" ? 48 :
+    missingCount > 0 ? 84 :
+    null;
+  const reason =
+    state === "conflicted" ? "Source signals conflict or a hard blocker is present." :
+    state === "split" ? "Source signals are split, so calibration should stay cautious." :
+    state === "thin" ? "Only one directional source supports this read." :
+    state === "missing" ? "No source signal was available for this read." :
+    state === "unknown" ? "No directional source signal was available." :
+    missingCount > 0 ? "Directional sources align, but one expected signal is missing." :
+    "Directional sources align.";
+
+  return {
+    state,
+    directionalSourceCount: directional.length,
+    sourceCount: signals.length,
+    forWeight,
+    againstWeight,
+    neutralWeight,
+    missingCount,
+    confidenceCap,
+    reason,
+    signals,
+  };
+}
+
 function buildCounterfactual(input: {
   aiScore: number;
   baseline: AIDecisionBaseline;
@@ -353,6 +474,25 @@ function baselineForRecommendation(
     score: Math.min(64, Math.max(48, evidenceScore - 10)),
     source: "counterfactual",
     detail: "Waiver recommendation compared against a replacement-level add.",
+  };
+}
+
+function parseFaabMetadata(value?: string | null): Record<string, unknown> | null {
+  const text = cleanText(value);
+  if (!text) return null;
+  const range = text.match(/FAAB\s+(\d+)\s*-\s*(\d+)%/i);
+  const single = text.match(/FAAB\s+(\d+)%/i);
+  if (!range && !single) return null;
+  const min = Number(range?.[1] ?? single?.[1]);
+  const max = Number(range?.[2] ?? single?.[1]);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+  const midpoint = Math.round((min + max) / 2);
+  const band = midpoint >= 16 ? "aggressive" : midpoint >= 9 ? "standard" : midpoint >= 4 ? "light" : "free";
+  return {
+    faabMin: min,
+    faabMax: max,
+    faabMidpoint: midpoint,
+    faabBand: band,
   };
 }
 
@@ -447,6 +587,14 @@ function buildEvent(input: {
   const decision = decisionAfterCounterfactual(input.decision, counterfactual);
   const label = input.label || labelFromScore(finalScore);
   const confidenceCap = clampPercent(input.confidenceCap ?? 100);
+  const sourceTrace = (input.sourceTrace || []).slice(0, 8);
+  const hardBlockers = (input.hardBlockers || []).slice(0, 8);
+  const missingEvidence = (input.missingEvidence || []).slice(0, 8);
+  const sourceAgreement = buildClientSourceAgreementRead({
+    sourceTrace,
+    hardBlockers,
+    missingEvidence,
+  });
   const decisionSnapshot = buildAIDecisionSnapshot({
     capturedAt: input.createdAt,
     valueMode: input.valueMode || "unknown",
@@ -488,11 +636,11 @@ function buildEvent(input: {
     confidenceCap,
     confidenceCapReason: cleanText(input.confidenceCapReason),
     evidence: (input.evidence || []).slice(0, 8),
-    missingEvidence: (input.missingEvidence || []).slice(0, 8),
-    hardBlockers: (input.hardBlockers || []).slice(0, 8),
+    missingEvidence,
+    hardBlockers,
     softPenalties: [...counterfactualPenalty(counterfactual), ...(input.softPenalties || [])].slice(0, 8),
-    sourceTrace: (input.sourceTrace || []).slice(0, 8),
-    sourceAgreement: null,
+    sourceTrace,
+    sourceAgreement,
     decisionSnapshot,
     counterfactual,
     decay,
@@ -614,6 +762,9 @@ function eventFromRecommendation(input: {
   const action = actionFromRecommendation(input.recommendation, fallbackAction);
   const entityId = input.recommendation.id || `${input.source}-${input.index}`;
   const rawScore = input.recommendation.evidenceRead?.finalScore ?? input.recommendation.confidence;
+  const faabMetadata = input.source === "waiver"
+    ? parseFaabMetadata(input.recommendation.secondary)
+    : null;
   const counterfactual = buildCounterfactual({
     aiScore: rawScore,
     baseline: baselineForRecommendation(input.recommendation, input.source),
@@ -645,6 +796,7 @@ function eventFromRecommendation(input: {
         recommendationType: input.recommendation.type,
         actionText: input.recommendation.action,
         source: input.source,
+        ...faabMetadata,
       },
     });
   }
@@ -681,6 +833,7 @@ function eventFromRecommendation(input: {
       recommendationType: input.recommendation.type,
       actionText: input.recommendation.action,
       source: input.source,
+      ...faabMetadata,
     },
   });
 }
@@ -753,6 +906,11 @@ function eventFromWaiverCandidate(input: {
       position: input.player.pos,
       team: input.player.team,
       targetScore: input.target?.score ?? null,
+      trendAdds: input.player.count || 0,
+      hasScheduleSignal: Boolean(input.player.weeklyEcr),
+      scheduleSource: input.player.weeklyEcr?.source || null,
+      currentPositionRank: input.player.currentPositionRank || null,
+      ownerStatus: input.player.owner ? "rostered" : "available",
     },
   });
 }

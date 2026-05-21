@@ -394,11 +394,16 @@
 - [ ] Review waiver `won/lost` and trade `acted/blocked` outcomes after enough real samples accumulate, then tune confidence weights against actual results.
 - [ ] Track in-season usage trends over the course of the season, especially targets, rush attempts, and snap share, so waiver calculations can surface players whose role is growing before the box score catches up.
 - [x] Add all-position rolling FantasyPros ECR context to waiver intelligence so AI Targets can score QB/RB/WR/TE/K/DEF pickups from the next three-week window without defaulting to D/ST or K, while rank gates keep low-quality players from being over-promoted.
-- [ ] Add an admin accuracy panel for prediction quality by module: waiver bid range, waiver competition, trade resistance, and depth-chart role confidence.
+- [x] Add an admin accuracy panel for prediction quality by module: waiver bid range, waiver competition, trade resistance, and depth-chart role confidence.
 - [x] Extend Full Trade Ledger balancing-piece suggestions from trade-time players to trade-time picks by reconstructing historical pick inventory per roster/date; never suggest a pick unless that manager actually controlled it at the time of the deal.
 - [x] Add historical Sleeper backfill observability showing scanned league IDs, transaction counts, seasons loaded, failures, and broken `previous_league_id` chains.
 - [x] Add depth-chart cache health diagnostics showing last warm time, loaded teams, failed teams, retry count, and stale team coverage.
-- [ ] Move recommendation outcome detection into a backend job so confidence can improve even when the user does not reopen the report UI.
+- [x] Move recommendation outcome detection into a backend job so confidence can improve even when the user does not reopen the report UI.
+- [x] Use Sleeper completed waiver transactions, including prior-season league-chain rows, as winning-bid evidence for waiver ranges; current-season bids are weighted above last-season samples, and stored prediction outcomes can grade FAAB ranges from actual winning bids.
+- [ ] After 2026 weekly games begin, review the admin Module Accuracy rows weekly and tune confidence caps only when each module has enough resolved samples.
+- [ ] After 2026 waivers begin processing, capture skipped claims, losing bids where available, waiver-priority results, and follow-up production so waiver bid-range calibration can move past sample-size caps.
+- [ ] After 2026 trades start, classify accepted, rejected, countered, expired, blocked, and regretted trade recommendations so manager-specific trade-resistance calibration has real outcomes.
+- [ ] After 2026 depth charts and practice reports are live, compare role/depth-chart confidence against snaps, routes, targets, carries, starter status, and injury outcomes before raising role-read confidence.
 - [x] Remove the legacy `trade-recommendation-outcomes:v1` localStorage migration read after shared action-plan storage has been live long enough.
 
 ## Completed Features

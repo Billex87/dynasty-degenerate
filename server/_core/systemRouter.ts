@@ -15,6 +15,7 @@ import { buildSourceCoverageMatrix } from "../sourceCoverageMatrix";
 import { loadSourceSnapshotFreshnessDiagnostics } from "../sourceSnapshotFreshness";
 import {
   buildAICalibrationAdjustmentProfile,
+  buildAIModuleQualitySummary,
   summarizeAICounterfactualReliability,
   summarizeAIManagerTradeCalibration,
   summarizeAIPredictionReliability,
@@ -384,6 +385,7 @@ export const systemRouter = router({
       const counterfactuals = summarizeAICounterfactualReliability(events);
       const managerTrades = summarizeAIManagerTradeCalibration(events);
       const adjustmentProfile = buildAICalibrationAdjustmentProfile(events);
+      const moduleQuality = buildAIModuleQualitySummary(events);
 
       return {
         generatedAt: new Date().toISOString(),
@@ -394,6 +396,7 @@ export const systemRouter = router({
         counterfactuals,
         managerTrades,
         adjustmentProfile,
+        moduleQuality,
         recentEvents: events.slice(0, 50).map(event => ({
           eventId: event.eventId,
           predictionKey: event.predictionKey,

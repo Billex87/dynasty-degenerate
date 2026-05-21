@@ -71,6 +71,36 @@ describe('AI prediction outcome resolver', () => {
     });
   });
 
+  it('grades FAAB ranges from Sleeper winning bid amounts before production lands', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      metadata: { faabMin: 7, faabMax: 11 },
+    }), {
+      resolvedAt: '2026-09-02T00:00:00.000Z',
+      transactions: [
+        {
+          type: 'add',
+          playerId: 'p1',
+          playerName: 'Waiver Receiver',
+          manager: 'Sample Manager',
+          bidAmount: 18,
+          waiverBudget: 200,
+        },
+      ],
+      playerStats: [],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'hit',
+      actualValue: 9,
+      baselineValue: 9,
+      realizedEdge: {
+        source: 'waiver:winning-bid',
+        status: 'matched-baseline',
+      },
+    });
+    expect(resolved.note).toContain('Sleeper winning bid was 18 FAAB');
+  });
+
   it('marks waiver pickup reads as misses when another manager beat the user to the add', () => {
     const resolved = resolveAIPredictionOutcome(event(), {
       transactions: [

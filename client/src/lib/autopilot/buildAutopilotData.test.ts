@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCachedCommandCenterReport, createCachedRedraftReport } from '../../../../tests/e2e/fixtures/cachedReports';
 import { buildMatchupWindowSet } from '@shared/matchupWindows';
-import type { ReportData, TrendingPlayer, WaiverWeeklyEcrSignal, WaiverWeeklyEcrWeek } from '@shared/types';
+import type { ReportAICalibrationAdjustmentProfile, ReportData, TrendingPlayer, WaiverWeeklyEcrSignal, WaiverWeeklyEcrWeek } from '@shared/types';
 import { buildAutopilotData } from './buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from './mockData';
 
@@ -46,9 +46,18 @@ describe('buildAutopilotData', () => {
     });
     expect(data.actionQueue[0]?.changeTriggers.length).toBeGreaterThan(0);
     expect(data.actionQueue[0]?.changeTriggers.join(' ')).toMatch(/blocker|confidence|partner|ownership|threshold|trade|pickup|lineup/i);
+    expect(data.actionQueue[0]?.dominoEffects?.length).toBeGreaterThan(0);
     expect(data.actionQueue.filter((item) => item.decision === 'do')).toHaveLength(1);
     expect(data.actionQueue.map((item) => item.source)).toEqual(
       expect.arrayContaining(['lineup', 'trade']),
+    );
+    expect(data.rejections.length).toBeGreaterThan(0);
+    expect(data.rejections.some((row) => /do not|force/i.test(row.action))).toBe(true);
+    expect(data.marketAnomalies.map((row) => row.player)).toEqual(
+      expect.arrayContaining(['Depth Receiver', 'Sample Runner']),
+    );
+    expect(data.reportCard?.rows.map((row) => row.label)).toEqual(
+      expect.arrayContaining(['One-call discipline', 'Bad-idea engine', 'Market anomaly scan', 'Calibration memory']),
     );
     expect(data.weeklyPlan?.starterToReview?.player).toBe('Sample Tight End');
     expect(data.weeklyPlan?.options.map((option) => option.player)).toEqual(['Replacement Tight End']);
@@ -401,5 +410,101 @@ describe('buildAutopilotData', () => {
       label: 'League AI confidence',
       value: 34,
     });
+  });
+
+  it('applies outcome calibration adjustments to live waiver decisions', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const calibrationProfile: ReportAICalibrationAdjustmentProfile = {
+      schemaVersion: 1,
+      generatedFrom: 'ai-prediction-events',
+      generatedAt: '2026-05-21T12:00:00.000Z',
+      eventCount: 30,
+      scoredCount: 24,
+      pendingCount: 6,
+      globalAdjustment: {
+        key: 'global',
+        scope: 'global',
+        group: {},
+        eventCount: 30,
+        scoredCount: 24,
+        pendingCount: 6,
+        hitRate: 0.5,
+        avgConfidence: 72,
+        calibrationGap: -12,
+        brierScore: 0.31,
+        scoreAdjustment: 0,
+        confidenceCap: null,
+        recommendation: 'calibrated',
+        priority: 'info',
+        reason: 'Global reads are calibrated enough to keep current scoring.',
+      },
+      adjustments: [{
+        key: 'surface:autopilot|action:pickup',
+        scope: 'surfaceAction',
+        group: { surface: 'autopilot', action: 'pickup' },
+        eventCount: 12,
+        scoredCount: 10,
+        pendingCount: 2,
+        hitRate: 0.2,
+        avgConfidence: 78,
+        calibrationGap: -30,
+        brierScore: 0.44,
+        scoreAdjustment: -28,
+        confidenceCap: 52,
+        recommendation: 'lower-confidence',
+        priority: 'warn',
+        reason: 'Autopilot pickup calls have been overconfident against resolved outcomes.',
+      }],
+    };
+
+    const data = buildAutopilotData({
+      reportData: {
+        ...reportData,
+        aiCalibrationAdjustmentProfile: calibrationProfile,
+      },
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    expect(data.waivers.length).toBeGreaterThan(0);
+    expect(data.waivers.every((recommendation) => recommendation.confidence <= 52)).toBe(true);
+    expect(data.waivers[0]?.signals).toEqual(expect.arrayContaining(['Outcome-calibrated']));
+    expect(data.waivers[0]?.reasons.join(' ')).toContain('overconfident');
+    expect(data.reportCard?.rows.find((row) => row.label === 'Calibration memory')?.status).toContain('24 scored');
+    expect(data.reportCard?.rows.find((row) => row.label === 'Calibration memory')?.detail).toContain('overconfident');
+  });
+
+  it('surfaces server-side daily deltas in the AI report card', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+
+    const data = buildAutopilotData({
+      reportData: {
+        ...reportData,
+        serverReportDelta: {
+          schemaVersion: 1,
+          source: 'server-cache',
+          generatedAt: '2026-05-21T12:00:00.000Z',
+          baselineGeneratedAt: '2026-05-20T12:00:00.000Z',
+          summary: 'Waiver Receiver is now the first waiver name to review.',
+          changes: [{
+            id: 'top-waiver',
+            label: 'Waiver target changed',
+            summary: 'Waiver Receiver is now the first waiver name to review.',
+            detail: 'WR55 | DraftSharks schedule',
+            tone: 'info',
+            priority: 5,
+            receipts: ['Previous: Depth Receiver', 'Current: Waiver Receiver'],
+          }],
+        },
+      },
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    const dailyDelta = data.reportCard?.rows.find((row) => row.label === 'Daily delta');
+    expect(dailyDelta?.status).toBe('1 server change');
+    expect(dailyDelta?.detail).toContain('Waiver Receiver');
+    expect(dailyDelta?.tone).toBe('info');
   });
 });

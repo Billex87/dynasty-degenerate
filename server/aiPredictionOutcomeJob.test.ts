@@ -114,4 +114,54 @@ describe('AI prediction outcome job', () => {
     expect(result.resolved).toBe(0);
     expect(updateSpy).not.toHaveBeenCalled();
   });
+
+  it('resolves FAAB prediction outcomes from Sleeper waiver bids and league budget', async () => {
+    vi.spyOn(db, 'listPendingAiPredictionEvents').mockResolvedValue([
+      event({ metadata: { faabMin: 7, faabMax: 11 } }),
+    ]);
+    const updateSpy = vi.spyOn(db, 'updateAiPredictionOutcome').mockResolvedValue(true);
+    vi.spyOn(userLoadPolicy, 'fetchUserLoadJson').mockImplementation(async (url) => {
+      const value = String(url);
+      if (value.endsWith('/league/league-1')) {
+        return { leg: 1, season: '2026', settings: { waiver_budget: 200 } };
+      }
+      if (value.endsWith('/league/league-1/users')) {
+        return [{ user_id: 'u1', display_name: 'Sample Manager' }];
+      }
+      if (value.endsWith('/league/league-1/rosters')) {
+        return [{ roster_id: 1, owner_id: 'u1', metadata: { team_name: 'The Sample Squad' } }];
+      }
+      if (value.endsWith('/league/league-1/transactions/1')) {
+        return [{
+          type: 'waiver',
+          status: 'complete',
+          adds: { p1: 1 },
+          drops: {},
+          roster_ids: [1],
+          leg: 1,
+          settings: { waiver_bid: 18 },
+          created: Date.parse('2026-09-02T00:00:00.000Z'),
+        }];
+      }
+      if (value.endsWith('/league/league-1/matchups/1')) return [];
+      return [];
+    });
+
+    const result = await resolvePendingAIPredictionOutcomes({ limit: 10 });
+
+    expect(result).toMatchObject({
+      resolved: 1,
+      pending: 0,
+      failed: 0,
+    });
+    expect(updateSpy).toHaveBeenCalledWith({
+      eventId: 'event-1',
+      outcome: expect.objectContaining({
+        status: 'hit',
+        actualValue: 9,
+        baselineValue: 9,
+        note: expect.stringContaining('Sleeper winning bid was 18 FAAB'),
+      }),
+    });
+  });
 });

@@ -9,6 +9,10 @@ export type AIPredictionResolvedTransaction = {
   counterparty?: string | null;
   occurredAt?: string | null;
   valueDelta?: number | null;
+  bidAmount?: number | null;
+  waiverBudget?: number | null;
+  season?: string | null;
+  week?: number | null;
 };
 
 export type AIPredictionResolvedPlayerStat = {
@@ -91,6 +95,101 @@ function numeric(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function parseFaabRangeFromText(value: unknown): { min: number; max: number } | null {
+  const text = cleanText(value);
+  if (!text) return null;
+  const range = text.match(/FAAB\s+(\d+)\s*-\s*(\d+)%?/i);
+  if (range) {
+    const min = Number(range[1]);
+    const max = Number(range[2]);
+    if (Number.isFinite(min) && Number.isFinite(max)) {
+      return {
+        min: Math.max(0, Math.min(min, max)),
+        max: Math.max(min, max),
+      };
+    }
+  }
+
+  const single = text.match(/FAAB\s+(\d+)%?/i);
+  if (single) {
+    const value = Number(single[1]);
+    if (Number.isFinite(value)) return { min: value, max: value };
+  }
+
+  return null;
+}
+
+function getPredictedFaabRange(event: AIPredictionEvent): { min: number; max: number } | null {
+  const metadataMin = numeric(event.metadata?.faabMin);
+  const metadataMax = numeric(event.metadata?.faabMax);
+  if (metadataMin !== null || metadataMax !== null) {
+    const min = metadataMin ?? metadataMax ?? 0;
+    const max = metadataMax ?? metadataMin ?? min;
+    return {
+      min: Math.max(0, Math.min(min, max)),
+      max: Math.max(min, max),
+    };
+  }
+
+  return parseFaabRangeFromText(event.metadata?.actionText)
+    || parseFaabRangeFromText(event.metadata?.recommendationType)
+    || parseFaabRangeFromText(event.whyThisFired)
+    || event.evidence.map(parseFaabRangeFromText).find(Boolean)
+    || null;
+}
+
+function getWinningBidPercent(transaction: AIPredictionResolvedTransaction): {
+  bidAmount: number;
+  bidPercent: number;
+  budget: number | null;
+} | null {
+  const bidAmount = numeric(transaction.bidAmount);
+  if (bidAmount === null || bidAmount < 0) return null;
+  const budget = numeric(transaction.waiverBudget);
+  const safeBudget = budget !== null && budget > 0 ? budget : null;
+  const bidPercent = safeBudget && safeBudget !== 100
+    ? Math.round((bidAmount / safeBudget) * 1000) / 10
+    : Math.round(bidAmount * 10) / 10;
+  return { bidAmount, bidPercent, budget: safeBudget };
+}
+
+function resolveWaiverBidRangeOutcome(
+  event: AIPredictionEvent,
+  context: AIPredictionOutcomeResolverContext,
+  transaction: AIPredictionResolvedTransaction,
+  actorLabel: string
+): AIPredictionOutcome | null {
+  const predictedRange = getPredictedFaabRange(event);
+  const actualBid = getWinningBidPercent(transaction);
+  if (!predictedRange || !actualBid) return null;
+
+  const midpoint = Math.round(((predictedRange.min + predictedRange.max) / 2) * 10) / 10;
+  const withinRange = actualBid.bidPercent >= predictedRange.min && actualBid.bidPercent <= predictedRange.max;
+  const budgetText = actualBid.budget
+    ? `${actualBid.bidPercent}% of ${actualBid.budget} budget`
+    : `${actualBid.bidPercent}% on the default 100-budget scale`;
+  const note = `Sleeper winning bid was ${actualBid.bidAmount} FAAB (${budgetText}) by ${actorLabel}; predicted range was FAAB ${predictedRange.min}-${predictedRange.max}%.`;
+
+  return outcome(
+    withinRange && sameManager(event, transaction.manager) ? 'hit' : 'miss',
+    context,
+    note,
+    {
+      actualValue: actualBid.bidPercent,
+      baselineValue: midpoint,
+      realizedEdge: buildAIRealizedEdge({
+        predictedEdge: event.counterfactual?.edge ?? null,
+        actualValue: actualBid.bidPercent,
+        baselineValue: midpoint,
+        baselineKind: 'market-default',
+        source: 'waiver:winning-bid',
+        note,
+        status: withinRange ? 'matched-baseline' : 'trailed-baseline',
+      }),
+    }
+  );
+}
+
 function eventPosition(event: AIPredictionEvent): string | null {
   return cleanText(event.metadata?.position)
     || event.decisionSnapshot?.facts.find(fact => fact.key === 'position')?.value?.toString()
@@ -150,6 +249,14 @@ function resolvePickupOrStash(event: AIPredictionEvent, context: AIPredictionOut
   if (!relatedAdd) return null;
 
   if (sameManager(event, relatedAdd.manager)) {
+    const bidOutcome = resolveWaiverBidRangeOutcome(
+      event,
+      context,
+      relatedAdd,
+      relatedAdd.manager || 'the target manager'
+    );
+    if (bidOutcome) return bidOutcome;
+
     const stat = (context.playerStats || []).find(row => sameEntity(event, row));
     const actual = numeric(stat?.fantasyPoints);
     if (actual !== null) {
@@ -179,6 +286,14 @@ function resolvePickupOrStash(event: AIPredictionEvent, context: AIPredictionOut
       note: `Recommended player was added${relatedAdd.manager ? ` by ${relatedAdd.manager}` : ''}; waiting for production to grade realized edge.`,
     };
   }
+
+  const bidOutcome = resolveWaiverBidRangeOutcome(
+    event,
+    context,
+    relatedAdd,
+    relatedAdd.manager || 'another manager'
+  );
+  if (bidOutcome) return bidOutcome;
 
   return outcome('miss', context, `Recommended player was added by another manager before this read was acted on.`, {
     realizedEdge: buildAIRealizedEdge({
