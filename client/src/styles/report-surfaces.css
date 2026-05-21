@@ -6534,6 +6534,16 @@ body {
   min-width: 0;
 }
 
+.dashboard-spotlight-header {
+  justify-content: center;
+  text-align: center;
+}
+
+.dashboard-spotlight-header > div {
+  display: grid;
+  justify-items: center;
+}
+
 .dashboard-side-league-logo,
 .dashboard-spotlight-avatar,
 .dashboard-owner-avatar {
@@ -7210,6 +7220,7 @@ body {
 
 .report-dashboard-spotlight {
   padding: 0.95rem;
+  text-align: center;
 }
 
 .dashboard-spotlight-header {
@@ -7242,19 +7253,27 @@ body {
 }
 
 .dashboard-spotlight-metrics .dashboard-metric-card {
+  justify-items: center;
   border: 1px solid rgba(0, 200, 232, 0.12);
   border-radius: 0.42rem;
   padding: 0.58rem;
+  text-align: center;
 }
 
 .dashboard-spotlight-metrics .dashboard-balance-metric {
-  grid-template-columns: minmax(1.75rem, auto) minmax(0, 1fr);
-  gap: 0.08rem 0.4rem;
+  grid-template-columns: 1fr;
+  gap: 0.16rem;
+}
+
+.dashboard-spotlight-metrics .dashboard-balance-metric > span,
+.dashboard-spotlight-metrics .dashboard-balance-metric > em {
+  grid-column: auto;
 }
 
 .dashboard-spotlight-metrics .dashboard-balance-graph {
   width: 1.85rem;
   height: 1.85rem;
+  grid-row: auto;
 }
 
 .dashboard-spotlight-focus-grid {
@@ -7351,18 +7370,22 @@ body {
 }
 
 .dashboard-position-ranks {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.45rem;
+  justify-content: center;
 }
 
 .dashboard-rank-grid-special {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: center;
 }
 
 .dashboard-position-ranks span {
   position: relative;
   display: grid;
+  flex: 0 1 calc((100% - 0.9rem) / 3);
+  max-width: calc((100% - 0.9rem) / 3);
+  min-width: min(5.2rem, 100%);
   place-items: center;
   border: 1px solid rgba(0, 200, 232, 0.14);
   border-radius: 0.42rem;
@@ -7381,6 +7404,14 @@ body {
   background:
     radial-gradient(circle at 12% 0%, rgba(168, 85, 247, 0.2), transparent 58%),
     linear-gradient(145deg, rgba(24, 16, 42, 0.72), rgba(3, 7, 16, 0.8));
+}
+
+.dashboard-position-ranks span[data-position="QB_SF"],
+.dashboard-starter-ranks span[data-position="QB_SF"] {
+  border-color: rgba(168, 85, 247, 0.32);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(168, 85, 247, 0.22), transparent 58%),
+    linear-gradient(145deg, rgba(28, 17, 48, 0.74), rgba(3, 7, 16, 0.82));
 }
 
 .dashboard-position-ranks span[data-position="RB"] {
@@ -7442,6 +7473,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.42rem;
+  justify-content: center;
   margin-top: 0.85rem;
 }
 
@@ -7491,19 +7523,22 @@ body {
 }
 
 .dashboard-starter-ranks > div {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.42rem;
+  justify-content: center;
 }
 
 .dashboard-starter-ranks > div.dashboard-rank-grid-special {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: center;
 }
 
 .dashboard-starter-ranks div span {
   position: relative;
   display: grid;
-  min-width: 0;
+  flex: 0 1 calc((100% - 0.84rem) / 3);
+  max-width: calc((100% - 0.84rem) / 3);
+  min-width: min(5.2rem, 100%);
   place-items: center;
   border: 1px solid rgba(0, 200, 232, 0.14);
   border-radius: 0.42rem;
@@ -7599,6 +7634,7 @@ body {
   color: rgba(226, 232, 240, 0.76);
   font-size: 0.68rem;
   line-height: 1.45;
+  text-align: center;
 }
 
 .dashboard-spotlight-read {
@@ -7614,6 +7650,7 @@ body {
   font-size: 0.62rem;
   font-weight: 900;
   letter-spacing: 0.08em;
+  text-align: center;
   text-transform: uppercase;
 }
 
@@ -7622,6 +7659,7 @@ body {
   color: rgba(226, 232, 240, 0.76);
   font-size: 0.72rem;
   line-height: 1.5;
+  text-align: center;
 }
 
 .dashboard-overview-section-stack,

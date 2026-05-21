@@ -3216,6 +3216,102 @@ function getDashboardStarterGroupRank(
   return { rank: index >= 0 ? index + 1 : null, total: scores.length };
 }
 
+function getDashboardRosterQbPairValue(row: unknown): {
+  count: number;
+  value: number;
+} {
+  const rosterPlayers = getDashboardPlayers(row, "rosterPlayers");
+  const fallbackPlayers = rosterPlayers.length
+    ? rosterPlayers
+    : [
+        ...getDashboardPlayers(row, "lineupPlayers"),
+        ...getDashboardStarterGroups(row).flatMap(group => group.players),
+      ];
+  const qbs = fallbackPlayers
+    .filter(player => getDashboardPlayerPosition(player) === "QB")
+    .sort(
+      (a, b) =>
+        (getDashboardPlayerValue(b) || 0) -
+        (getDashboardPlayerValue(a) || 0)
+    )
+    .slice(0, 2);
+
+  return {
+    count: qbs.length,
+    value: qbs.reduce<number>(
+      (sum, player) => sum + (getDashboardPlayerValue(player) || 0),
+      0
+    ),
+  };
+}
+
+function getDashboardQbSfRank(
+  reportData: ReportData,
+  manager: string
+): { rank: number | null; total: number } {
+  const scores = (reportData.managerPositionCounts || [])
+    .map(row => {
+      const qbPair = getDashboardRosterQbPairValue(row);
+      return {
+        manager: row.manager,
+        count: qbPair.count,
+        value: qbPair.value,
+      };
+    })
+    .filter(row => row.count > 0 || row.value > 0)
+    .sort((a, b) => b.value - a.value || b.count - a.count);
+  const index = scores.findIndex(row => row.manager === manager);
+  return { rank: index >= 0 ? index + 1 : null, total: scores.length };
+}
+
+type DashboardStarterRankGroup = DashboardStarterGroup & {
+  position: string;
+  rank: number | null;
+  tier: string;
+};
+
+function getDashboardOverviewStarterRankGroups(
+  reportData: ReportData,
+  manager: string,
+  row: unknown
+): DashboardStarterRankGroup[] {
+  const groups = getDashboardStarterGroups(row);
+  const hasSuperFlex = groups.some(group => group.key === "QB_SF");
+  const rankedGroups = groups
+    .filter(group =>
+      hasSuperFlex ? group.key !== "QB" && group.key !== "QB_SF" : true
+    )
+    .map(group => {
+      const { rank, total } = getDashboardStarterGroupRank(
+        reportData,
+        manager,
+        group.key
+      );
+      return {
+        ...group,
+        position: getDashboardGroupPosition(group.key),
+        rank,
+        tier: getDashboardRankTier(rank, total),
+      };
+    });
+
+  if (!hasSuperFlex) return rankedGroups;
+
+  const { rank, total } = getDashboardQbSfRank(reportData, manager);
+  return [
+    {
+      key: "QB_SF_COMBINED",
+      label: "QB/SF x2",
+      count: 2,
+      players: [],
+      position: "QB_SF",
+      rank,
+      tier: getDashboardRankTier(rank, total),
+    },
+    ...rankedGroups,
+  ];
+}
+
 function getDashboardRankTier(rank: number | null, total: number): string {
   if (!rank || total <= 0) return "Pending";
   if (rank <= Math.max(1, Math.ceil(total * 0.25))) return "Elite";
@@ -3225,11 +3321,10 @@ function getDashboardRankTier(rank: number | null, total: number): string {
 }
 
 function getDashboardGroupPosition(groupKey: string): string {
-  if (groupKey === "QB_SF") return "QB";
+  if (groupKey === "QB_SF") return "QB_SF";
   if (groupKey === "FLEX") return "FLEX";
   return groupKey;
 }
-
 
 type ReportDashboardTab =
   | "overview"
@@ -3392,17 +3487,34 @@ function getDashboardLeagueValue(reportData: ReportData): number {
   );
 }
 
-function getDashboardStarterSlotCount(reportData: ReportData): number | null {
-  return (
-    reportData.leagueDiagnostics?.starterSlots?.length ||
-    reportData.managerPositionCounts?.[0]?.starterPlayers?.length ||
-    null
-  );
-}
-
 function getDashboardActivityScore(count: number, target: number): number | null {
   if (!target) return count ? 100 : null;
   return clampDashboardScore((count / target) * 100);
+}
+
+function getDashboardRosteredPlayerCount(reportData: ReportData): number | null {
+  const positionRows = reportData.managerPositionCounts || [];
+  if (positionRows.length) {
+    const total = positionRows.reduce((sum, row) => {
+      const fallbackCount =
+        (row.activePlayerCount || 0) +
+        (row.reservePlayerCount || 0) +
+        (row.taxiPlayerCount || 0);
+      return (
+        sum +
+        (row.totalRosterPlayerCount ||
+          row.rosterPlayers?.length ||
+          fallbackCount)
+      );
+    }, 0);
+    return total || null;
+  }
+
+  const intelTotal = (reportData.managerRosterIntelligence || []).reduce(
+    (sum, row) => sum + (row.rosterPlayers?.length || 0),
+    0
+  );
+  return intelTotal || null;
 }
 
 function getDashboardHeroToneForSignedValue(
@@ -3588,7 +3700,8 @@ function getReportDashboardHeroConfig({
   metrics: DashboardHeroMetric[];
 } {
   const teamCount = getDashboardTeamCount(reportData);
-  const starterSlots = getDashboardStarterSlotCount(reportData);
+  const leagueValue = getDashboardLeagueValue(reportData);
+  const rosteredPlayerCount = getDashboardRosteredPlayerCount(reportData);
   const tradeCount = reportData.tradeHistory?.length || 0;
   const weeklyRisers = [...(reportData.weeklyRisers || [])].sort(
     (a, b) => (b.pct_change || 0) - (a.pct_change || 0)
@@ -3875,24 +3988,22 @@ function getReportDashboardHeroConfig({
 
   return {
     pillLabel: "Overview signals",
-    pills: ["Trade windows", "Lineup leverage", "Manager tells"],
+    pills: ["League value", "League health", "Roster coverage"],
     metrics: [
       {
-        key: "starter-pool",
-        kind: "meter",
-        label: "Starter Pool",
-        value: starterSlots ?? "-",
-        subLabel: "Projected slots",
-        score: starterSlots ? Math.min(100, starterSlots * 8) : null,
+        key: "league-value",
+        label: "League Value",
+        value: leagueValue ? formatDashboardCompactNumber(leagueValue) : "-",
+        subLabel: teamCount ? `${teamCount} manager rosters` : "All managers",
         tone: "good",
       },
-        {
-          key: "balance",
-          kind: "ring",
-          label: "Balance",
-          value: leagueBalanceScore ?? "-",
-          subLabel: balanceLabel,
-          score: leagueBalanceScore,
+      {
+        key: "balance",
+        kind: "ring",
+        label: "League Health",
+        value: leagueBalanceScore ?? "-",
+        subLabel: balanceLabel,
+        score: leagueBalanceScore,
         tone:
           leagueBalanceScore === null
             ? "neutral"
@@ -3903,13 +4014,11 @@ function getReportDashboardHeroConfig({
                 : "danger",
       },
       {
-        key: "trade-pulse",
-        kind: "meter",
-        label: "Trade Pulse",
-        value: tradeCount,
-        subLabel: "YTD market",
-        score: getDashboardActivityScore(tradeCount, Math.max(teamCount * 2, 1)),
-        tone: tradeCount >= teamCount ? "good" : "info",
+        key: "rostered-players",
+        label: "Rostered Players",
+        value: rosteredPlayerCount ?? "-",
+        subLabel: "Whole league rosters",
+        tone: rosteredPlayerCount ? "info" : "warn",
       },
     ],
   };
@@ -3974,6 +4083,8 @@ function getReportDashboardSpotlightConfig({
   seasonValue,
   healthScore,
   healthLabel,
+  valueRank,
+  valueRankTier,
   intelSummary,
 }: {
   activeTab: ReportDashboardTab;
@@ -3984,6 +4095,8 @@ function getReportDashboardSpotlightConfig({
   seasonValue: number | null;
   healthScore: number | null;
   healthLabel: string;
+  valueRank: number | null;
+  valueRankTier: string;
   intelSummary?: string | null;
 }): DashboardSpotlightConfig {
   const managerRisers = [...(reportData.weeklyRisers || [])]
@@ -4476,23 +4589,23 @@ function getReportDashboardSpotlightConfig({
     eyebrow: "Projected Season Roster",
     metrics: [
       {
-        key: "starters",
-        label: "Starters",
-        value: starterCount ?? "-",
-        subLabel: "Projected",
+        key: "value-rank",
+        label: "Value Rank",
+        value: valueRank === null ? "#-" : `#${valueRank}`,
+        subLabel: valueRankTier,
         tone: "info",
       },
       {
-        key: "season-value",
-        label: "Season Value",
+        key: "team-value",
+        label: "Team Value",
         value: formatDashboardCompactNumber(seasonValue),
-        subLabel: "Roster",
+        subLabel: "Roster total",
         tone: "good",
       },
       {
         key: "health",
         kind: "ring",
-        label: "Health",
+        label: "Teams Health",
         value: healthScore ?? "-",
         subLabel: healthLabel,
         score: healthScore,
@@ -4507,12 +4620,8 @@ function getReportDashboardSpotlightConfig({
       },
     ],
     blocks: [],
-    chips: [
-      `${starterCount ?? "-"} Sleeper Starters`,
-      `Season Value ${formatDashboardCompactNumber(seasonValue)}`,
-      `Health ${healthScore ?? "-"}`,
-    ],
-    readTitle: "Roster Read",
+    chips: [],
+    readTitle: "Roster Outlook",
     read:
       intelSummary ||
       "This manager is ready for a deeper roster read once the overview sections are opened.",
@@ -4549,6 +4658,11 @@ function ReportDashboardSpotlight({
     row => row.manager === manager
   );
   const power = reportData.powerRankings?.find(row => row.manager === manager);
+  const valueRank = getDashboardNumber(leagueOverview, ["rank_value"]);
+  const valueRankTier = getDashboardRankTier(
+    valueRank,
+    getDashboardTeamCount(reportData)
+  );
   const starterCount = counts
     ? (counts.QB_starters || 0) +
       (counts.RB_starters || 0) +
@@ -4594,19 +4708,11 @@ function ReportDashboardSpotlight({
       rank: computedRank ?? overviewRank,
     };
   });
-  const starterRankGroups = getDashboardStarterGroups(counts).map(group => {
-    const { rank, total } = getDashboardStarterGroupRank(
-      reportData,
-      manager,
-      group.key
-    );
-    return {
-      ...group,
-      position: getDashboardGroupPosition(group.key),
-      rank,
-      tier: getDashboardRankTier(rank, total),
-    };
-  });
+  const starterRankGroups = getDashboardOverviewStarterRankGroups(
+    reportData,
+    manager,
+    counts
+  );
   const hasSpecialTeamRanks =
     positionRankCards.some(({ position }) => position === "K" || position === "DEF") ||
     starterRankGroups.some(group => group.position === "K" || group.position === "DEF");
@@ -4627,6 +4733,8 @@ function ReportDashboardSpotlight({
     seasonValue,
     healthScore: fallbackHealthScore,
     healthLabel,
+    valueRank,
+    valueRankTier,
     intelSummary:
       intel?.summary || (intel as { nextMove?: string } | undefined)?.nextMove,
   });
@@ -4663,12 +4771,6 @@ function ReportDashboardSpotlight({
                   <strong>{formatDashboardRank(rank)}</strong>
                 </span>
               ))}
-              <span data-position="VALUE">
-                <em>Season Value</em>
-                <strong>
-                  {getDashboardRankLabel(leagueOverview, ["rank_value"])}
-                </strong>
-              </span>
             </div>
           </div>
           {starterRankGroups.length > 0 && (
@@ -4689,11 +4791,13 @@ function ReportDashboardSpotlight({
       ) : (
         <DashboardSpotlightFocusGrid blocks={spotlightConfig.blocks} />
       )}
-      <div className="dashboard-spotlight-chip-row">
-        {spotlightConfig.chips.map(chip => (
-          <span key={chip}>{chip}</span>
-        ))}
-      </div>
+      {spotlightConfig.chips.length > 0 && (
+        <div className="dashboard-spotlight-chip-row">
+          {spotlightConfig.chips.map(chip => (
+            <span key={chip}>{chip}</span>
+          ))}
+        </div>
+      )}
       {isOverviewSpotlight && swapSignals.length > 0 && (
         <div className="dashboard-swap-signals">
           <span>Start/Sit Swap Signals</span>
