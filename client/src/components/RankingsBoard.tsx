@@ -1142,7 +1142,11 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   const leagueTypeControlStyle = {
     '--rankings-league-type-width': `calc(${Math.max(8.5, ...boardOptions.map(option => getProfileButtonLabel(option).length))}ch + 1.75rem)`,
   } as CSSProperties;
-  const isLeagueMatchedProfile = Boolean(config.defaultProfileKey && selectedProfileKey === config.defaultProfileKey);
+  const contextPills = [
+    activeProfileLabel ? `League Matched: ${activeProfileLabel}` : null,
+    config.board === 'devy' ? 'Degen Scouting Scores' : null,
+    config.board === 'devy' ? '2021-2027 Tracked' : null,
+  ].filter((label): label is string => Boolean(label));
   const draftClassOptions = useMemo(() => {
     if (config.board !== 'devy') return [];
     return Array.from(new Set(rows.map(getDraftClassValue).filter((year): year is number => Boolean(year)))).sort((a, b) => a - b);
@@ -1263,25 +1267,6 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
 
   return (
     <section className="rankings-table-section">
-      <div className="rankings-hero-panel">
-        <div>
-          <div className="rankings-kicker">{config.kicker}</div>
-          <h3>{config.title}</h3>
-          <p>{config.description}</p>
-          {activeProfileLabel ? (
-            <span className="rankings-active-profile" aria-label={`${isLeagueMatchedProfile ? 'League-matched type' : 'Selected type'}: ${activeProfileLabel}`}>
-              <span className="rankings-active-profile-label" aria-hidden="true">
-                {isLeagueMatchedProfile ? 'League-matched type' : 'Selected type'}
-              </span>
-              <span className="rankings-active-profile-label-mobile" aria-hidden="true">
-                {isLeagueMatchedProfile ? 'Matched' : 'Type'}
-              </span>
-              : {activeProfileLabel}
-            </span>
-          ) : null}
-        </div>
-      </div>
-
       <div className={`rankings-controls value-board__toolbar ${!config.hidePicks && config.board === 'dynasty' ? 'rankings-controls-with-picks' : ''} ${config.board === 'devy' ? 'rankings-controls-devy' : ''}`} style={leagueTypeControlStyle}>
         <div className="rankings-league-type-control">
           <label className="rankings-league-type-label" htmlFor={`${config.board}-league-type`}>
@@ -1372,6 +1357,11 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
                 filter.label
               )}
             </button>
+          ))}
+          {contextPills.map(label => (
+            <span key={label} className="rankings-context-pill">
+              {label}
+            </span>
           ))}
         </div>
       </div>

@@ -9341,26 +9341,37 @@
   overflow: hidden !important;
 }
 
-.admin-unlock-dialog-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
+.admin-unlock-dialog [data-slot="dialog-header"] {
+  align-items: center;
 }
 
-.admin-unlock-dialog-grid span {
-  border: 1px solid rgba(251, 146, 60, 0.2);
-  border-radius: 0.75rem;
-  background:
-    radial-gradient(circle at 15% 15%, rgba(251, 191, 36, 0.18), transparent 42%),
-    rgba(15, 23, 42, 0.72);
-  padding: 0.55rem 0.62rem;
-  color: #fed7aa;
-  font-size: 0.64rem;
-  font-weight: 950;
-  letter-spacing: 0.085em;
-  line-height: 1.05;
+.admin-unlock-dialog [data-slot="dialog-description"] {
+  max-width: 24rem;
+  margin-inline: auto;
+}
+
+.admin-unlock-passphrase-input {
   text-align: center;
-  text-transform: uppercase;
+}
+
+.admin-unlock-passphrase-input::placeholder {
+  text-align: center;
+}
+
+.admin-unlock-primary-button {
+  border: 1px solid rgba(253, 186, 116, 0.7) !important;
+  background: var(--dd-orange-title-gradient, linear-gradient(90deg, #c2410c 0%, #fb923c 22%, #fdba74 52%, #fb923c 78%, #c2410c 100%)) !important;
+  color: #111827 !important;
+  box-shadow:
+    0 0 0 1px rgba(251, 146, 60, 0.18),
+    0 0.85rem 1.8rem rgba(194, 65, 12, 0.28) !important;
+}
+
+.admin-unlock-primary-button:hover {
+  background: linear-gradient(90deg, #9a3412 0%, #f97316 22%, #fed7aa 52%, #f97316 78%, #9a3412 100%) !important;
+  box-shadow:
+    0 0 0 1px rgba(253, 186, 116, 0.3),
+    0 1rem 2rem rgba(194, 65, 12, 0.36) !important;
 }
 
 @media print {
@@ -9758,9 +9769,6 @@
     padding: 0.68rem;
   }
 
-  .admin-unlock-dialog-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* Rankings mobile control and card refinements. */
@@ -9941,6 +9949,18 @@
     min-width: 2.08rem;
     padding-inline: 0.34rem;
     font-size: 0.54rem;
+  }
+
+  .rankings-controls.value-board__toolbar .rankings-context-pill {
+    flex: 0 0 auto;
+    min-height: 1.92rem;
+    max-width: 11.5rem;
+    padding-inline: 0.46rem;
+    overflow: hidden;
+    font-size: 0.52rem;
+    letter-spacing: 0.02em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .rankings-controls.value-board__toolbar .ranking-position-button-overall {
@@ -14985,4 +15005,406 @@
   filter:
     drop-shadow(0 2px 6px rgba(0, 0, 0, 0.72))
     drop-shadow(0 0 10px rgba(251, 146, 60, 0.16));
+}
+
+/* Header tab fit pass: bottom-align logo, tabs, league chips, and avatar. */
+.report-shell .report-header-inner {
+  padding-block: clamp(0.38rem, 0.7vw, 0.7rem) 0.32rem !important;
+}
+
+.report-shell .report-header-grid {
+  grid-template-columns: minmax(16rem, 22rem) minmax(29rem, 52rem) minmax(16rem, 22rem) !important;
+  align-items: end !important;
+  justify-content: space-between !important;
+  gap: clamp(0.35rem, 0.75vw, 0.9rem) !important;
+}
+
+.report-shell .report-header-brand,
+.report-shell .report-header-tabs,
+.report-shell .report-league-zone {
+  align-self: end !important;
+}
+
+.report-shell .report-header-brand {
+  min-height: 0 !important;
+}
+
+.report-shell .report-header-logo-left {
+  width: min(21rem, 100%) !important;
+  height: clamp(4.35rem, 4.45vw, 5.45rem) !important;
+  object-position: left bottom !important;
+}
+
+.report-shell .report-header-tabs.report-tabs {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0.15rem !important;
+  border-radius: 0.7rem !important;
+  gap: 0.16rem !important;
+}
+
+.report-shell .report-tabs.report-tabs-six {
+  --dd-report-tab-count: 6;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+
+.report-shell .report-tabs.report-tabs-six[data-active-tab="overview"] {
+  --dd-report-tab-index: 0;
+}
+
+.report-shell .report-tabs.report-tabs-six[data-active-tab="autopilot"] {
+  --dd-report-tab-index: 1;
+}
+
+.report-shell .report-tabs.report-tabs-six[data-active-tab="momentum"] {
+  --dd-report-tab-index: 2;
+}
+
+.report-shell .report-tabs.report-tabs-six[data-active-tab="rankings"] {
+  --dd-report-tab-index: 3;
+}
+
+.report-shell .report-tabs.report-tabs-six[data-active-tab="trades"] {
+  --dd-report-tab-index: 4;
+}
+
+.report-shell .report-tabs.report-tabs-six[data-active-tab="draft"] {
+  --dd-report-tab-index: 5;
+}
+
+.report-shell .report-tabs.report-tabs-five.report-tabs-with-autopilot[data-active-tab="autopilot"] {
+  --dd-report-tab-index: 1;
+}
+
+.report-shell .report-tabs.report-tabs-five.report-tabs-with-autopilot[data-active-tab="momentum"] {
+  --dd-report-tab-index: 2;
+}
+
+.report-shell .report-tabs.report-tabs-five.report-tabs-with-autopilot[data-active-tab="rankings"] {
+  --dd-report-tab-index: 3;
+}
+
+.report-shell .report-tabs.report-tabs-five.report-tabs-with-autopilot[data-active-tab="trades"] {
+  --dd-report-tab-index: 4;
+}
+
+.report-shell .report-tabs::before {
+  top: 0.15rem !important;
+  bottom: 0.15rem !important;
+  left: calc((100% / var(--dd-report-tab-count)) * var(--dd-report-tab-index) + 0.15rem) !important;
+  width: calc((100% / var(--dd-report-tab-count)) - 0.3rem) !important;
+  border-radius: 0.56rem !important;
+}
+
+.report-shell .report-tab {
+  min-height: 2rem !important;
+  gap: 0.28rem !important;
+  padding-inline: clamp(0.34rem, 0.56vw, 0.72rem) !important;
+  font-size: clamp(0.78rem, 0.68vw, 0.9rem) !important;
+  line-height: 1 !important;
+}
+
+.report-shell .report-tab svg {
+  width: 0.9rem !important;
+  height: 0.9rem !important;
+}
+
+.report-shell .report-tabs::after,
+.report-shell .report-tab::after {
+  background: var(--dd-orange-title-gradient, linear-gradient(90deg, #c2410c 0%, #fb923c 22%, #fdba74 52%, #fb923c 78%, #c2410c 100%)) !important;
+}
+
+.report-shell .report-league-zone {
+  align-items: end !important;
+  padding-right: 0 !important;
+}
+
+.report-shell .report-league-lockup {
+  align-items: end !important;
+}
+
+.report-shell .report-league-lockup > div {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+}
+
+.report-shell .report-league-lockup p:first-child {
+  line-height: 1 !important;
+}
+
+.report-shell .report-league-format-row {
+  flex-wrap: nowrap !important;
+  gap: 0.18rem !important;
+}
+
+.report-shell .report-league-format-pill {
+  min-height: 1rem !important;
+  padding: 0.12rem 0.36rem !important;
+  font-size: clamp(0.52rem, 0.5vw, 0.62rem) !important;
+  line-height: 1 !important;
+}
+
+.report-shell .report-header-league-avatar {
+  align-self: end !important;
+}
+
+@media (min-width: 1280px) {
+  .report-shell .report-tab-label-full {
+    display: inline !important;
+  }
+
+  .report-shell .report-tab-label-short {
+    display: none !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1279px) {
+  .report-shell .report-header-grid {
+    grid-template-columns: minmax(11.5rem, 16rem) minmax(22rem, 34rem) minmax(12rem, 17rem) !important;
+  }
+
+  .report-shell .report-header-logo-left {
+    width: min(15rem, 100%) !important;
+    height: clamp(3.45rem, 5vw, 4.5rem) !important;
+  }
+
+  .report-shell .report-tab {
+    min-height: 2rem !important;
+    gap: 0.2rem !important;
+    padding-inline: 0.34rem !important;
+    font-size: clamp(0.68rem, 0.78vw, 0.76rem) !important;
+  }
+
+  .report-shell .report-tab svg {
+    width: 0.82rem !important;
+    height: 0.82rem !important;
+  }
+
+  .report-shell .report-tab-label-full {
+    display: none !important;
+  }
+
+  .report-shell .report-tab-label-short {
+    display: inline !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+  .report-shell .report-header-inner {
+    padding-block: 0.5rem 0.42rem !important;
+  }
+
+  .report-shell .report-header-grid {
+    grid-template-columns: minmax(5.25rem, 6.1rem) minmax(0, 1fr) !important;
+    grid-template-areas:
+      "brand league"
+      "tabs tabs" !important;
+    align-items: end !important;
+    gap: 0.5rem 0.75rem !important;
+  }
+
+  .report-shell .report-header-brand {
+    grid-area: brand !important;
+  }
+
+  .report-shell .report-header-mobile-brand-lockup {
+    display: flex !important;
+  }
+
+  .report-shell .report-header-mobile-logo {
+    width: 5.4rem !important;
+    height: 4.45rem !important;
+    object-fit: contain !important;
+    object-position: left bottom !important;
+  }
+
+  .report-shell .report-header-logo-left {
+    display: none !important;
+  }
+
+  .report-shell .report-league-zone {
+    grid-area: league !important;
+  }
+
+  .report-shell .report-header-tabs.report-tabs {
+    grid-area: tabs !important;
+    grid-column: 1 / -1 !important;
+  }
+
+  .report-shell .report-tab {
+    min-height: 2rem !important;
+    gap: 0.18rem !important;
+    padding-inline: 0.28rem !important;
+    font-size: 0.68rem !important;
+  }
+
+  .report-shell .report-tab-label-full {
+    display: none !important;
+  }
+
+  .report-shell .report-tab-label-short {
+    display: inline !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-shell .report-header-grid {
+    align-items: end !important;
+  }
+
+  .report-shell .report-header-mobile-logo {
+    object-position: left bottom !important;
+  }
+}
+
+/* Header wrap and report art correction: avoid mid-width overlap and duplicate DD hero art. */
+@media (min-width: 1181px) {
+  .report-shell .overview-command-canvas {
+    background-position:
+      center,
+      center,
+      center 28rem,
+      center,
+      center,
+      0 0,
+      0 0,
+      center !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1180px) {
+  .report-shell .report-header-inner {
+    padding-block: 0.5rem 0.45rem !important;
+  }
+
+  .report-shell .report-header-grid {
+    grid-template-columns: minmax(5.4rem, 15.5rem) minmax(0, 1fr) !important;
+    grid-template-areas:
+      "brand league"
+      "tabs tabs" !important;
+    align-items: end !important;
+    gap: 0.48rem 0.75rem !important;
+  }
+
+  .report-shell .report-header-brand {
+    grid-area: brand !important;
+    align-self: end !important;
+  }
+
+  .report-shell .report-league-zone {
+    grid-area: league !important;
+    grid-column: auto !important;
+    align-self: end !important;
+    justify-self: end !important;
+  }
+
+  .report-shell .report-header-tabs.report-tabs {
+    grid-area: tabs !important;
+    grid-column: 1 / -1 !important;
+    align-self: end !important;
+    justify-self: stretch !important;
+  }
+
+  .report-shell .report-tab {
+    min-height: 2rem !important;
+    gap: 0.18rem !important;
+    padding-inline: clamp(0.22rem, 0.68vw, 0.46rem) !important;
+    font-size: clamp(0.66rem, 0.76vw, 0.76rem) !important;
+  }
+
+  .report-shell .report-tab-label-full {
+    display: none !important;
+  }
+
+  .report-shell .report-tab-label-short {
+    display: inline !important;
+  }
+
+  .report-shell .overview-command-canvas {
+    background-position:
+      center,
+      center,
+      center 42rem,
+      center,
+      center,
+      0 0,
+      0 0,
+      center !important;
+  }
+}
+
+@media (min-width: 961px) and (max-width: 1180px) {
+  .report-shell .report-header-mobile-brand-lockup {
+    display: none !important;
+  }
+
+  .report-shell .report-header-logo-left {
+    display: block !important;
+    width: min(15.25rem, 100%) !important;
+    height: clamp(3.55rem, 4.4vw, 4.35rem) !important;
+    object-position: left bottom !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 960px) {
+  .report-shell .report-header-mobile-brand-lockup {
+    display: flex !important;
+  }
+
+  .report-shell .report-header-mobile-logo {
+    width: 5.3rem !important;
+    height: 4.25rem !important;
+    object-fit: contain !important;
+    object-position: left bottom !important;
+  }
+
+  .report-shell .report-header-logo-left {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .report-shell .report-overview-hero {
+    background-position: center -5.5rem !important;
+  }
+
+  .report-shell .overview-command-canvas {
+    background-position:
+      center,
+      center 44rem,
+      0 0,
+      0 0,
+      center !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-shell .report-overview-hero {
+    background-position: center -3.25rem !important;
+  }
+
+  .report-shell .overview-command-canvas {
+    background-position:
+      center,
+      center 24rem,
+      0 0,
+      0 0,
+      center !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .report-shell .report-overview-hero {
+    background-position: center -2.5rem !important;
+  }
+
+  .report-shell .overview-command-canvas {
+    background-position:
+      center,
+      center 21rem,
+      0 0,
+      0 0,
+      center !important;
+  }
 }

@@ -353,6 +353,28 @@ describe('generateReport trade ledger', () => {
     expect(report.leagueDiagnostics?.redraftTradeWindowEndDate).toBe('2027-01-06');
   });
 
+  it('exposes Sleeper waiver mode in league diagnostics', async () => {
+    const report = await generateReport(
+      {
+        ...baseSeason,
+        trades: [],
+        waiverType: 2,
+        waiverBudget: 200,
+      },
+      null,
+      players,
+      ktcValues,
+      {},
+      {},
+      { leagueValueMode: 'redraft' }
+    );
+
+    expect(report.leagueDiagnostics?.waiverMode).toBe('faab');
+    expect(report.leagueDiagnostics?.waiverModeLabel).toBe('FAAB (200 budget)');
+    expect(report.leagueDiagnostics?.waiverType).toBe(2);
+    expect(report.leagueDiagnostics?.waiverBudget).toBe(200);
+  });
+
   it('shows draft picks in the side that received them', async () => {
     const report = await generateReport(
       {

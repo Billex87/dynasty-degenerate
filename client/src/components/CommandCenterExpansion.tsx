@@ -1886,6 +1886,13 @@ export function MonthlyTeamBlueprint({
                     <em>{pickPortfolio.count2027} picks</em>
                     <small>{formatCompactValue(pickPortfolio.value2027)}</small>
                   </span>
+                  {pickPortfolio.count2028 || pickPortfolio.value2028 ? (
+                    <span>
+                      <strong>2028</strong>
+                      <em>{pickPortfolio.count2028 || 0} picks</em>
+                      <small>{formatCompactValue(pickPortfolio.value2028 || 0)}</small>
+                    </span>
+                  ) : null}
                   <p>Total capital: {formatCompactValue(pickPortfolio.totalValue)}{pickPortfolio.projectedSlots?.length ? ` · ${pickPortfolio.projectedSlots.slice(0, 3).join(', ')}` : ''}</p>
                 </div>
               ) : (
@@ -2654,14 +2661,14 @@ function buildLeagueExploits(data: ReportData) {
   });
 
   data.pickPortfolios?.forEach((row) => {
-    const pickCount = row.count2026 + row.count2027;
+    const pickCount = row.futurePicks?.length || row.count2026 + row.count2027 + (row.count2028 || 0);
     if (pickCount <= 2 || row.totalValue <= 1200) {
       exploits.push({
         id: `pick-poor-${row.manager}`,
         exploit: 'No pick runway',
         manager: row.manager,
         suggestedMove: 'Offer flexible draft capital in packages where they need optionality',
-        why: `${row.manager} has a thin 2026/2027 pick portfolio.`,
+        why: `${row.manager} has a thin tracked future-pick portfolio.`,
         risk: 'If they are a true contender, picks may not be the hook.',
         tone: 'good',
       });
@@ -2671,7 +2678,7 @@ function buildLeagueExploits(data: ReportData) {
         exploit: 'Pick-rich manager',
         manager: row.manager,
         suggestedMove: 'Float insulated veterans or young starters for future picks',
-        why: `${row.manager} has ${pickCount} tracked 2026/2027 picks worth ${formatCompactValue(row.totalValue)}.`,
+        why: `${row.manager} has ${pickCount} tracked future picks worth ${formatCompactValue(row.totalValue)}.`,
         risk: 'Pick-rich rebuilders are often patient; do not anchor with depreciating assets only.',
         tone: 'info',
       });

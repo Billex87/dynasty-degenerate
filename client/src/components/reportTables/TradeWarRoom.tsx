@@ -2174,7 +2174,9 @@ export default function TradeWarRoom({
         <button
           key={option}
           type="button"
-          className={mode === option ? "active" : ""}
+          className={`trade-war-mode-tab trade-war-mode-tab-${option} ${
+            mode === option ? "active" : ""
+          }`}
           onClick={() => setMode(option)}
         >
           {getTradeWarModeLabel(option)}

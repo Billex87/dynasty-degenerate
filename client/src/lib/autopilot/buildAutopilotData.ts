@@ -748,7 +748,7 @@ function buildDirection(
     situationCopy,
     topWaiver ? `Check waivers for ${topWaiver.name}; it is the strongest available fit in the current report data.` : null,
     tendencyProfile.historyDepthScore >= 62 ? `Use ${tendencyProfile.label.toLowerCase()} behavior in confidence weighting; this read has enough history to matter.` : null,
-    portfolio && mode === 'dynasty' ? `Use ${portfolio.count2026 + portfolio.count2027} tracked future picks as leverage, not throw-ins.` : null,
+    portfolio && mode === 'dynasty' ? `Use ${portfolio.futurePicks?.length || portfolio.count2026 + portfolio.count2027 + (portfolio.count2028 || 0)} tracked future picks as leverage, not throw-ins.` : null,
     ...fallback.actionPlan,
   ], 3);
 
@@ -1860,6 +1860,7 @@ function buildFuturePickTrajectory(data: ReportData, manager: string): FuturePic
     { label: 'Now', value: currentValue },
     { label: '2026', value: portfolio.value2026 || 0 },
     { label: '2027', value: portfolio.value2027 || 0 },
+    { label: '2028', value: portfolio.value2028 || 0 },
   ].filter((point) => point.value > 0);
   const likelyRookieRange = picks[0]?.rookieTier || projectedSlots[0] || 'Future rookie tier will sharpen once pick slots move with standings.';
 

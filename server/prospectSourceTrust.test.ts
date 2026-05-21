@@ -90,7 +90,7 @@ describe('prospect source trust', () => {
     expect(applyProspectSourceTrust(BASE_PROSPECT_SOURCE_WEIGHTS, trust).ktc).toBe(BASE_PROSPECT_SOURCE_WEIGHTS.ktc);
   });
 
-  it('returns admin diagnostics for each devy source', () => {
+  it('keeps unavailable Flock devy out of admin diagnostics', () => {
     const trust = calculateProspectSourceTrust({
       sourceMaps: {
         fantasyProsDevy: {
@@ -113,17 +113,14 @@ describe('prospect source trust', () => {
       },
     }, trust);
 
-    expect(diagnostics).toHaveLength(4);
+    expect(diagnostics).toHaveLength(3);
     expect(diagnostics.find((row) => row.key === 'fantasyProsDevy')).toMatchObject({
       board: 'devy',
       status: 'loaded',
       rowCount: 1,
       trustScore: 68,
     });
-    expect(diagnostics.find((row) => row.key === 'flock')).toMatchObject({
-      status: 'empty',
-      trustAlert: null,
-    });
+    expect(diagnostics.find((row) => row.key === 'flock')).toBeUndefined();
   });
 
   it('calculates previous devy trust from stored source snapshots', () => {

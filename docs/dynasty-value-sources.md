@@ -4,11 +4,11 @@ Dynasty values use a long-term blend that stays separate from redraft. Redraft r
 
 ## Active Sources
 
-- Flock Fantasy: expert-ranking anchor when available, trimmed by the 2026-05-17 historical calibration so it does not overpower market movement.
-- Dynasty Nerds: format-aware expert/community dynasty support, including Superflex and TEP buckets.
+- Flock Fantasy: expert-ranking anchor when available from the dynasty Superflex and 1QB boards, trimmed by the 2026-05-17 historical calibration so it does not overpower market movement.
+- Dynasty Nerds: format-aware expert/community dynasty support, including PPR, 1QB, Superflex, and Superflex TEP buckets.
 - KTC: dynasty market/liquidity signal, raised by the historical value audit because it had the strongest tested direction hit rate.
 - FantasyCalc: secondary market value support with team count, QB format, and PPR knobs, raised by the historical value audit.
-- FantasyPros Dynasty: API-backed ECR support at a lower weight because historical error was higher and the public ranking type is not league-format specific.
+- FantasyPros Dynasty: API-backed ECR support at a lower weight because the public dynasty board is full PPR and not league-format specific.
 - DynastyProcess: broad public fallback/stabilizer.
 
 Fantasy Nerds dynasty rankings are included as a modest API-backed consensus source when `FANTASY_NERDS_API_KEY` is configured. FantasyPros season rankings and Dynasty Dealer benchmark values can be stored for context, but they do not directly set primary dynasty values.
@@ -26,7 +26,7 @@ Adaptive dynasty trust is enabled by default. Each source keeps its league-forma
 
 Set `ENABLE_DYNASTY_ADAPTIVE_TRUST=false` to force dynasty sources back to base weights while keeping diagnostics visible.
 
-Devy/prospect boards have their own separate adaptive trust pass. FantasyPros Devy, KTC Devy, Flock Fantasy Devy, and Prospect Archive each keep a base weight, then get a bounded multiplier from `0.75x` to `1.12x` from cross-source prospect overlap and consensus drift. Set `ENABLE_DEVY_ADAPTIVE_TRUST=false` to force those devy/prospect weights back to base weights.
+Devy/prospect boards have their own separate adaptive trust pass. FantasyPros Devy, KTC Devy, and Prospect Archive each keep a base weight, then get a bounded multiplier from `0.75x` to `1.12x` from cross-source prospect overlap and consensus drift. Flock Fantasy is intentionally excluded from devy because it does not publish a devy board. Set `ENABLE_DEVY_ADAPTIVE_TRUST=false` to force those devy/prospect weights back to base weights.
 
 ## Operational Diagnostics
 
