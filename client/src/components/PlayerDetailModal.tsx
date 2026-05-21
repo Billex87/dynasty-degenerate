@@ -521,6 +521,7 @@ export function PlayerDetailModal({
   const fantasyProsSourceTrace = valueProfile?.fantasyProsSourceTrace || [];
   const latestNews = playerNewsData?.latestNews ?? details?.latestNews ?? null;
   const hasMeaningfulNews = Boolean(latestNews?.title || latestNews?.summary);
+  const latestNewsHref = latestNews?.url || latestNews?.sourceUrl || null;
   const rawProspectSummary = details?.prospectProfile?.summary?.trim() || null;
   const prospectSummary = rawProspectSummary && !/\.\.\.$/.test(rawProspectSummary) ? rawProspectSummary : null;
   const playerAiReadEligible = isPlayerAiReadEligible({ position, currentRank, valueProfile });
@@ -1286,9 +1287,9 @@ export function PlayerDetailModal({
               <div className="player-complete-data mx-auto max-w-xl">
                 <div className="player-complete-grid">
                   {latestNews && hasMeaningfulNews ? (
-                    latestNews?.url ? (
+                    latestNewsHref ? (
                       <a
-                        href={latestNews.url}
+                        href={latestNewsHref}
                         target="_blank"
                         rel="noreferrer noopener"
                         className="player-complete-section player-complete-section-wide block border-cyan-300/15 bg-slate-950/55 p-4 text-left no-underline transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-slate-950/75 sm:p-5"

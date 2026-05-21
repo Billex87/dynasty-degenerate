@@ -73,6 +73,7 @@ export interface FantasyProsNewsItem {
   title: string;
   summary?: string | null;
   source?: string | null;
+  sourceUrl?: string | null;
   url?: string | null;
   publishedAt?: string | null;
   playerName?: string | null;

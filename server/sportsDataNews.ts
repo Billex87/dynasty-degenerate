@@ -4,6 +4,7 @@ import { getProviderSnapshotDateKey, parseProviderSnapshotPayload } from './prov
 import type { FantasyProsNewsItem } from './fantasyPros';
 
 export const SPORTSDATAIO_NEWS_SNAPSHOT_SOURCE_KEY = 'sportsdataio-news-v1';
+const ROTOBALLER_PLAYER_NEWS_URL = 'https://www.rotoballer.com/player-news?sport=nfl';
 
 const SPORTSDATAIO_BASE_URL = 'https://api.sportsdata.io';
 const SPORTSDATAIO_NEWS_ENDPOINT = '/v3/nfl/scores/json/News';
@@ -70,6 +71,7 @@ function normalizeSportsDataIoNewsRows(rows: Array<Record<string, unknown>>): Fa
         title: field(row, ['Title', 'Headline', 'NewsTitle', 'Subject']) || '',
         summary: field(row, ['Content', 'Summary', 'Body', 'Description', 'News', 'Article']),
         source: field(row, ['Source', 'OriginalSource', 'Provider', 'Site']) || 'SportsDataIO/RotoBaller',
+        sourceUrl: ROTOBALLER_PLAYER_NEWS_URL,
         url: field(row, ['Url', 'URL', 'Link', 'SourceUrl', 'OriginalSourceUrl']),
         publishedAt: field(row, ['Updated', 'Created', 'Published', 'PublishedAt', 'PublishedDate', 'DateTime', 'NewsDate', 'TimeStamp']),
         playerName,

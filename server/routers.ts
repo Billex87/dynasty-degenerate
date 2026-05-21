@@ -7123,6 +7123,7 @@ export const appRouter = router({
             title: latestNews.title,
             summary: latestNews.summary || null,
             source: latestNews.source || 'FantasyPros',
+            sourceUrl: latestNews.sourceUrl || null,
             url: latestNews.url || null,
             publishedAt: latestNews.publishedAt || null,
           } : null,

@@ -1274,6 +1274,7 @@ export interface PlayerDetails {
     title: string;
     summary?: string | null;
     source?: string | null;
+    sourceUrl?: string | null;
     url?: string | null;
     publishedAt?: string | null;
   } | null;
