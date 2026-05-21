@@ -10,7 +10,7 @@
   inset: 0;
   pointer-events: none;
   overflow: hidden;
-  z-index: 70;
+  z-index: 1001;
 }
 .dd-loading-letterbox::before,
 .dd-loading-letterbox::after {
@@ -142,7 +142,12 @@
    ============================================================ */
 .analysis-loading-dialog {
   border-radius: 1.15rem !important;
-  z-index: 51 !important;
+  z-index: 1002 !important;
+}
+
+.analysis-loading-overlay {
+  z-index: 999 !important;
+  backdrop-filter: none !important;
 }
 
 .analysis-loading-dialog-loading,
@@ -210,7 +215,7 @@
 .dd-loading-scene-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 1000;
   overflow: hidden;
   pointer-events: none;
   opacity: 0.98;
@@ -474,14 +479,14 @@
     box-shadow:
       0 25px 80px rgba(0, 0, 0, 0.56),
       0 0 58px rgba(36, 245, 255, 0.12);
-    transform: translate(-50%, -50%) perspective(1200px) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg);
+    transform: perspective(1200px) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg);
   }
 
   28% {
     box-shadow:
       0 36px 102px rgba(0, 0, 0, 0.63),
       0 0 82px rgba(36, 245, 255, 0.18);
-    transform: translate(-50%, -50%) perspective(1200px) translate3d(7px, -11px, 0) rotateX(2.15deg) rotateY(-2.35deg) rotateZ(0.22deg);
+    transform: perspective(1200px) translate3d(7px, -11px, 0) rotateX(2.15deg) rotateY(-2.35deg) rotateZ(0.22deg);
   }
 
   50% {
@@ -489,14 +494,14 @@
       0 42px 112px rgba(0, 0, 0, 0.65),
       0 0 90px rgba(255, 138, 42, 0.12),
       0 0 82px rgba(36, 245, 255, 0.15);
-    transform: translate(-50%, -50%) perspective(1200px) translate3d(0, -16px, 0) rotateX(2.8deg) rotateY(1.25deg) rotateZ(-0.14deg);
+    transform: perspective(1200px) translate3d(0, -16px, 0) rotateX(2.8deg) rotateY(1.25deg) rotateZ(-0.14deg);
   }
 
   74% {
     box-shadow:
       0 34px 98px rgba(0, 0, 0, 0.62),
       0 0 78px rgba(255, 138, 42, 0.14);
-    transform: translate(-50%, -50%) perspective(1200px) translate3d(-7px, -9px, 0) rotateX(1.15deg) rotateY(2.25deg) rotateZ(-0.22deg);
+    transform: perspective(1200px) translate3d(-7px, -9px, 0) rotateX(1.15deg) rotateY(2.25deg) rotateZ(-0.22deg);
   }
 }
 
@@ -577,6 +582,6 @@
   }
 
   [data-slot="dialog-content"].analysis-loading-dialog-loading {
-    transform: translate(-50%, -50%);
+    transform: none;
   }
 }
