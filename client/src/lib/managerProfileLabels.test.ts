@@ -34,8 +34,8 @@ describe("getManagerProfileLabel", () => {
   it("uses the tighter dynasty scoring bands", () => {
     expect(getManagerProfileLabel(null, 96).label).toBe("Thanos");
     expect(getManagerProfileLabel(null, 92).label).toBe("Heavyweight");
-    expect(getManagerProfileLabel(null, 88).label).toBe("Could Be a Threat");
-    expect(getManagerProfileLabel(null, 82).label).toBe("Sneaky Problem");
+    expect(getManagerProfileLabel(null, 88).label).toBe("Might Surprise");
+    expect(getManagerProfileLabel(null, 82).label).toBe("Broke Flex");
     expect(getManagerProfileLabel(null, 69).label).toBe("Free Money");
   });
 
@@ -56,7 +56,7 @@ describe("getManagerProfileLabel", () => {
         },
         leagueSize: 12,
       }).label
-    ).toBe("Future Rich");
+    ).toBe("Pick Hoarder");
 
     expect(getManagerProfileLabel(null, 44).label).toBe("Free Money");
   });
@@ -89,7 +89,7 @@ describe("getLeagueRosterScannerProfileLabel", () => {
 
     expect(
       getLeagueRosterScannerProfileLabel("Thanos", 90, profileContext, "rebuilder")
-    ).toMatchObject({ label: "Pick Goblin", tone: "scanner-rebuilder" });
+    ).toMatchObject({ label: "Pick Sicko", tone: "scanner-rebuilder" });
   });
 
   it("keeps Thanos out of League Roster Scanner labels", () => {
@@ -101,13 +101,41 @@ describe("getLeagueRosterScannerProfileLabel", () => {
 
 describe("getOwnerIntelProfileLabel", () => {
   it("uses the active Owner Intel tab score for the label family", () => {
-    expect(getOwnerIntelProfileLabel("dynasty", 96).label).toBe("Thanos");
-    expect(getOwnerIntelProfileLabel("contender", 96).label).toBe("Crown Me");
-    expect(getOwnerIntelProfileLabel("rebuilder", 66).label).toBe("Pick Rich");
+    expect(
+      getOwnerIntelProfileLabel("dynasty", 96, null, {
+        dynastyScore: 96,
+        contenderScore: 96,
+        rebuilderScore: 60,
+      }).label
+    ).toBe("Thanos");
+    expect(
+      getOwnerIntelProfileLabel("contender", 96, null, {
+        dynastyScore: 92,
+        contenderScore: 96,
+        rebuilderScore: 55,
+      }).label
+    ).toBe("Crown Me");
+    expect(
+      getOwnerIntelProfileLabel("rebuilder", 66, null, {
+        dynastyScore: 86,
+        contenderScore: 83,
+        rebuilderScore: 66,
+      }).label
+    ).toBe("Actually Building");
   });
 
   it("keeps rebuild labels different from top dynasty labels", () => {
     expect(getOwnerIntelProfileLabel("rebuilder", 72).label).toBe(
+      "Future Stacked"
+    );
+
+    expect(
+      getOwnerIntelProfileLabel("rebuilder", 76, null, {
+        dynastyScore: 92,
+        contenderScore: 85,
+        rebuilderScore: 76,
+      }).label
+    ).toBe(
       "Future Menace"
     );
   });
@@ -154,5 +182,23 @@ describe("getOwnerIntelProfileLabel", () => {
         rebuilderScore: 50,
       }).label
     ).toBe("Could Steal It");
+  });
+
+  it("uses context to avoid calling every elite dynasty score Thanos", () => {
+    expect(
+      getOwnerIntelProfileLabel("dynasty", 100, null, {
+        dynastyScore: 100,
+        contenderScore: 89,
+        rebuilderScore: 71,
+      }).label
+    ).toBe("Rich Fraud");
+
+    expect(
+      getOwnerIntelProfileLabel("dynasty", 99, null, {
+        dynastyScore: 99,
+        contenderScore: 73,
+        rebuilderScore: 86,
+      }).label
+    ).toBe("Future Rich");
   });
 });

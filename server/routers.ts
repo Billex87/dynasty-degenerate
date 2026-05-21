@@ -6350,11 +6350,11 @@ export const appRouter = router({
                   : score >= 91
                     ? 'Heavyweight'
                     : score >= 86
-                      ? 'Could Be a Threat'
+                      ? 'Might Surprise'
                       : score >= 81
-                        ? 'Sneaky Problem'
+                        ? 'Broke Flex'
                         : score >= 70
-                          ? 'Meh'
+                          ? 'Mid As Hell'
                           : 'Free Money',
               };
             })

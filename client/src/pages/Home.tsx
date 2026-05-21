@@ -10992,9 +10992,11 @@ export default function Home() {
     updateReportTabUrl(allowedNextTab, leagueId);
   };
   const handleScoutLeaguemates = () => {
-    setRosterScannerFocusKey(current => current + 1);
     setActiveTab("rankings");
     updateReportTabUrl("rankings", leagueId);
+    window.setTimeout(() => {
+      setRosterScannerFocusKey(current => current + 1);
+    }, 0);
   };
 
   useEffect(() => {
@@ -12107,6 +12109,30 @@ export default function Home() {
                     className="report-tab-content report-command-tab-body"
                   >
                     <div className="report-command-section-stack space-y-6 sm:space-y-8">
+                      {reportData.managerRosterIntelligence?.length ? (
+                        <CollapsibleReportSection
+                          title="Scout Leaguemates"
+                          kicker="Manager rank inventory"
+                          openSignal={rosterScannerFocusKey}
+                        >
+                          <LeagueRosterScanner
+                            data={reportData.managerRosterIntelligence}
+                            managerAvatars={reportData.managerAvatars}
+                            playerDetailsById={reportData.playerDetailsById}
+                            leagueOverview={reportData.leagueOverview}
+                            powerRankings={reportData.powerRankings}
+                            dynastyTimelines={reportData.dynastyTimelines}
+                            pickPortfolios={reportData.pickPortfolios}
+                            draftPicks={reportData.draftPicks}
+                            leagueId={leagueId}
+                            leagueLogo={leagueLogo}
+                            viewerManager={effectiveViewerManager}
+                            currentStandings={reportData.currentStandings}
+                            leagueValueMode={leagueValueMode}
+                            focusKey={rosterScannerFocusKey}
+                          />
+                        </CollapsibleReportSection>
+                      ) : null}
                       <CollapsibleReportSection
                         title="Full Roster Rankings"
                         kicker={
@@ -12274,8 +12300,6 @@ export default function Home() {
                           playerDetailsById={reportData.playerDetailsById}
                           leagueOverview={reportData.leagueOverview}
                           rankings={rankingsForReport}
-                          powerRankings={reportData.powerRankings}
-                          dynastyTimelines={reportData.dynastyTimelines}
                           pickPortfolios={reportData.pickPortfolios}
                           draftPicks={reportData.draftPicks}
                           tradeTendencies={reportData.tradeTendencies}
@@ -12290,6 +12314,7 @@ export default function Home() {
                           viewerManager={effectiveViewerManager}
                           currentStandings={reportData.currentStandings}
                           leagueValueMode={leagueValueMode}
+                          onScoutLeaguemates={handleScoutLeaguemates}
                         />
                       </CollapsibleReportSection>
                       <CollapsibleReportSection
@@ -12900,6 +12925,7 @@ function CollapsibleReportSection({
   const [hasRenderedContent, setHasRenderedContent] = useState(
     accordion ? false : defaultOpen
   );
+  const handledOpenSignalRef = useRef(0);
   const visiblePreviewMetrics = (previewMetrics || []).filter(metric => metric.value !== null && metric.value !== undefined && metric.value !== "");
   const useMiddleAccessoryLayout = previewAccessoryPlacement === "middle" && Boolean(previewAccessory) && visiblePreviewMetrics.length === 2;
 
@@ -12912,7 +12938,8 @@ function CollapsibleReportSection({
   }, [accordion, defaultOpen]);
 
   useEffect(() => {
-    if (!openSignal) return;
+    if (!openSignal || handledOpenSignalRef.current === openSignal) return;
+    handledOpenSignalRef.current = openSignal;
     if (accordion) {
       accordion.setActiveSectionId(sectionId);
     } else {

@@ -124,6 +124,24 @@ button.player-team-tile:focus-visible {
   gap: clamp(0.65rem, 1.4vw, 0.95rem);
 }
 
+.trade-war-room-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.trade-war-room-toolbar > .trade-war-mode-tabs {
+  grid-column: 2;
+  justify-self: center;
+}
+
+.trade-war-room-toolbar > .trade-war-scout-button {
+  grid-column: 3;
+  justify-self: end;
+}
+
 .trade-war-top {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -176,6 +194,36 @@ button.player-team-tile:focus-visible {
   box-shadow: 0 0 24px rgba(34, 211, 238, 0.22);
 }
 
+.trade-war-scout-button {
+  display: inline-flex;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(251, 146, 60, 0.42);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(34, 211, 238, 0.08));
+  color: #fed7aa;
+  padding: 0 0.9rem;
+  font-size: 0.74rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.trade-war-scout-button:hover,
+.trade-war-scout-button:focus-visible {
+  border-color: rgba(251, 146, 60, 0.78);
+  color: #fff7ed;
+  box-shadow: 0 0 24px rgba(251, 146, 60, 0.18);
+  transform: translateY(-1px);
+}
+
 .trade-war-manager-selects {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 0.8rem;
@@ -193,6 +241,11 @@ button.player-team-tile:focus-visible {
   font-weight: 950;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.trade-war-manager-selects label:nth-child(2) > span {
+  justify-self: end;
+  text-align: right;
 }
 
 .trade-war-manager-selects select,
@@ -870,6 +923,22 @@ button.player-team-tile:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
+}
+
+.trade-war-side[data-side="B"] .trade-war-side-header {
+  flex-direction: row-reverse;
+}
+
+.trade-war-side[data-side="B"] .trade-war-manager-lockup {
+  justify-content: flex-end;
+}
+
+.trade-war-side[data-side="B"] .trade-war-manager-lockup > div {
+  text-align: right;
+}
+
+.trade-war-side[data-side="B"] .trade-war-side-total {
+  justify-items: start;
 }
 
 .trade-war-manager-lockup {
@@ -1864,9 +1933,55 @@ button.player-team-tile:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .trade-war-mode-tabs {
-    width: 100%;
-    justify-content: stretch;
+  .trade-war-room-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+
+  .trade-war-room-toolbar > .trade-war-scout-button {
+    grid-column: 1;
+    order: 1;
+    justify-self: center;
+  }
+
+  .trade-war-room-toolbar > .trade-war-mode-tabs {
+    grid-column: 1;
+    order: 2;
+    width: auto;
+    max-width: 100%;
+    justify-content: center;
+    justify-self: center;
+  }
+
+  .trade-war-manager-selects label > span {
+    justify-self: center;
+    text-align: center;
+  }
+
+  .trade-war-side-header {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .trade-war-side[data-side="B"] .trade-war-side-header {
+    flex-direction: initial;
+  }
+
+  .trade-war-side[data-side="B"] .trade-war-manager-lockup,
+  .trade-war-manager-lockup {
+    justify-content: center;
+  }
+
+  .trade-war-side[data-side="B"] .trade-war-manager-lockup > div,
+  .trade-war-manager-lockup > div {
+    text-align: center;
+  }
+
+  .trade-war-side-total,
+  .trade-war-side[data-side="B"] .trade-war-side-total {
+    justify-items: center;
   }
 
   .trade-war-top p {

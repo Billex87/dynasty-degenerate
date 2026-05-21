@@ -1532,9 +1532,9 @@ function normalizeScore(value: number, max: number): number {
 function getTier(score: number): string {
   if (score >= 96) return 'Thanos';
   if (score >= 91) return 'Heavyweight';
-  if (score >= 86) return 'Could Be a Threat';
-  if (score >= 81) return 'Sneaky Problem';
-  if (score >= 70) return 'Meh';
+  if (score >= 86) return 'Might Surprise';
+  if (score >= 81) return 'Broke Flex';
+  if (score >= 70) return 'Mid As Hell';
   return 'Free Money';
 }
 

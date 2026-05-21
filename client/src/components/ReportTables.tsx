@@ -3352,11 +3352,11 @@ function buildManagerSignalTags({
     tags.push({ label: `Needs Work ${powerScore}`, tone: "danger" });
 
   if (contenders >= 90 && contenders - rebuild >= 22)
-    tags.push({ label: `Heavyweight ${contenders}`, tone: "good" });
+    tags.push({ label: `Title Threat ${contenders}`, tone: "good" });
   else if (contenders >= 80 && contenders - rebuild >= 14)
-    tags.push({ label: `Dangerous ${contenders}`, tone: "good" });
+    tags.push({ label: `Might Surprise ${contenders}`, tone: "good" });
   else if (contenders >= 70 && contenders - rebuild >= 4)
-    tags.push({ label: `Upset Alert ${contenders}`, tone: "warn" });
+    tags.push({ label: `Could Steal It ${contenders}`, tone: "warn" });
   else if (rebuild >= 68 && rebuild - contenders >= 10)
     tags.push({ label: `Future Rich ${rebuild}`, tone: "future" });
   else if (contenders >= 70 && rebuild >= 52)
@@ -3665,20 +3665,35 @@ type OwnerSignalTag = { label: string; tone?: OwnerSignalTone };
 type OwnerBuildLabel =
   | "Thanos"
   | "Heavyweight"
+  | "Rich Fraud"
+  | "Loaded Loser"
+  | "Broke Flex"
+  | "You Better Win"
+  | "Might Surprise"
+  | "Pick Hoarder"
+  | "Felony Roster"
+  | "No Future"
+  | "Mid As Hell"
   | "Crown Me"
+  | "Title Threat"
   | "Ring Ready"
   | "Could Be a Threat"
   | "Dangerous"
   | "Real Threat"
   | "One Move Away"
+  | "Scares Me a Little"
   | "Could Steal It"
+  | "Fake Tough"
   | "Upset Alert"
   | "Meh"
+  | "Free Win"
   | "Future Rich"
   | "Future Menace"
+  | "Future Stacked"
   | "Pick Rich"
   | "Growth Rocket"
   | "Cooking"
+  | "Actually Building"
   | "Half Built"
   | "Still Cooking"
   | "All In"
@@ -4352,14 +4367,14 @@ function normalizeOwnerValueScore(
 function isOwnerRebuildLane(label?: string | null): boolean {
   return Boolean(
     label &&
-      /rebuild|draft mode|future rich|future menace|pick rich|pick stash|growth rocket|cooking|half built|time to rebuild|work in progress|lunch money/i.test(label)
+      /rebuild|draft mode|future rich|future menace|future stacked|pick rich|pick hoarder|pick stash|growth rocket|cooking|actually building|half built|time to rebuild|work in progress|lunch money/i.test(label)
   );
 }
 
 function isOwnerStrongRebuildLane(label?: string | null): boolean {
   return Boolean(
     label &&
-      /strong rebuild|future rich|future menace|pick rich|pick stash|growth rocket|draft mode/i.test(
+      /strong rebuild|future rich|future menace|future stacked|pick rich|pick hoarder|pick stash|growth rocket|draft mode/i.test(
         label.toLowerCase()
       )
   );
@@ -4368,14 +4383,14 @@ function isOwnerStrongRebuildLane(label?: string | null): boolean {
 function isOwnerContenderLane(label?: string | null): boolean {
   return Boolean(
     label &&
-      /contender|final boss|thanos|heavyweight|dangerous|upset alert|problem|spoiler|title threat|playoff push|wild card/i.test(label)
+      /contender|final boss|thanos|heavyweight|rich fraud|loaded loser|you better win|crown me|all in|ring ready|one move away|scares me|could steal it|fake tough|dangerous|upset alert|problem|spoiler|title threat|playoff push|wild card/i.test(label)
   );
 }
 
 function isOwnerStrongContenderLane(label?: string | null): boolean {
   return Boolean(
     label &&
-      /strong contender|final boss|thanos|heavyweight|title threat/i.test(
+      /strong contender|final boss|thanos|heavyweight|crown me|all in|title threat|you better win/i.test(
         label.toLowerCase()
       )
   );
@@ -4409,17 +4424,17 @@ function getOwnerTeamTypeLabel({
 function getOwnerTeamTypeTone(label: string): OwnerSignalTone {
   if (/final boss|thanos/i.test(label)) return "elite";
   if (/crown me/i.test(label)) return "contender-gold";
-  if (/heavyweight|ring ready|real threat|one move away|dangerous|problem|title threat|playoff/i.test(label)) return "good";
-  if (/could steal it|upset alert|spoiler|wild card/i.test(label)) return "weak-contender";
+  if (/heavyweight|rich fraud|loaded loser|you better win|ring ready|real threat|one move away|all in|title threat|playoff/i.test(label)) return "good";
+  if (/might surprise|scares me|could steal it|fake tough|broke flex|upset alert|spoiler|wild card|dangerous|problem/i.test(label)) return "weak-contender";
   if (/starter need/i.test(label)) return "weak-contender";
-  if (/meh|middle child|balanced|depth build/i.test(label))
+  if (/meh|mid as hell|middle child|balanced|depth build/i.test(label))
     return "balanced";
-  if (/future rich|future menace|pick rich|pick stash|growth rocket|rebuilding|draft mode/i.test(label))
+  if (/future rich|future menace|future stacked|pick rich|pick hoarder|pick stash|growth rocket|rebuilding|draft mode/i.test(label))
     return "future";
-  if (/cooking|half built|time to rebuild|still cooking|work in progress/i.test(label))
+  if (/actually building|cooking|half built|time to rebuild|still cooking|work in progress/i.test(label))
     return "weak-rebuilder";
   if (/all in/i.test(label)) return "good";
-  if (/free money|sell your team|try harder|lunch money/i.test(label))
+  if (/free money|free win|sell your team|felony roster|no future|try harder|lunch money/i.test(label))
     return "squeak";
   return isOwnerRebuildLane(label) ? "future" : "good";
 }

@@ -82,7 +82,7 @@ function getScannerProfileForScore(
 
   if (lane === "rebuilder") {
     if (roundedScore >= 92) return result("Future Menace", "scanner-rebuilder");
-    if (roundedScore >= 84) return result("Pick Goblin", "scanner-rebuilder");
+    if (roundedScore >= 84) return result("Pick Sicko", "scanner-rebuilder");
     if (roundedScore >= 76) return result("Draft Hoarder", "scanner-rebuilder");
     if (roundedScore >= 64) return result("Still Cooking", "scanner-rebuilder");
     if (roundedScore >= 52) return result("Fix This Shit", "scanner-rebuilder");
@@ -137,23 +137,36 @@ function getScoreForProfile(profile: ManagerProfileResult): number | null {
   if (profile.label === "Thanos") return 96;
   if (
     profile.label === "Heavyweight" ||
+    profile.label === "Rich Fraud" ||
+    profile.label === "Loaded Loser" ||
+    profile.label === "You Better Win" ||
+    profile.label === "Title Threat" ||
     profile.label === "Ring Ready" ||
+    profile.label === "Future Stacked" ||
     profile.label === "Pick Rich"
   ) return 91;
   if (
     profile.label === "Could Be a Threat" ||
+    profile.label === "Might Surprise" ||
+    profile.label === "Broke Flex" ||
     profile.label === "Real Threat" ||
     profile.label === "One Move Away" ||
+    profile.label === "Scares Me a Little" ||
     profile.label === "Draft Loaded"
   ) return 86;
   if (
     profile.label === "Sneaky Problem" ||
     profile.label === "Could Steal It" ||
+    profile.label === "Fake Tough" ||
+    profile.label === "Actually Building" ||
     profile.label === "Cooking"
   ) return 81;
-  if (profile.label === "Meh") return 70;
+  if (profile.label === "Meh" || profile.label === "Mid As Hell") return 70;
   if (
     profile.label === "Free Money" ||
+    profile.label === "Free Win" ||
+    profile.label === "Felony Roster" ||
+    profile.label === "No Future" ||
     profile.label === "Sell Your Team" ||
     profile.label === "All In" ||
     profile.label === "Time to Rebuild"
@@ -164,9 +177,86 @@ function getScoreForProfile(profile: ManagerProfileResult): number | null {
 function getScoreOnlyProfile(score: number): ManagerProfileResult {
   if (score >= 96) return result("Thanos", "boss");
   if (score >= 91) return result("Heavyweight", "heavyweight");
-  if (score >= 86) return result("Could Be a Threat", "problem");
-  if (score >= 81) return result("Sneaky Problem", "spoiler");
-  if (score >= 70) return result("Meh", "balanced");
+  if (score >= 86) return result("Might Surprise", "problem");
+  if (score >= 81) return result("Broke Flex", "spoiler");
+  if (score >= 70) return result("Mid As Hell", "balanced");
+  return result("Free Money", "squeak");
+}
+
+function getOwnerIntelDynastyProfileForScore(
+  roundedScore: number,
+  context?: {
+    contenderScore?: number | null;
+    rebuilderScore?: number | null;
+  }
+): ManagerProfileResult {
+  const contenderScore = toFiniteNumber(context?.contenderScore) ?? 0;
+  const rebuilderScore = toFiniteNumber(context?.rebuilderScore) ?? 0;
+
+  if (roundedScore >= 96 && contenderScore >= 90) {
+    return result("Thanos", "boss");
+  }
+
+  if (roundedScore >= 96 && contenderScore < 82 && rebuilderScore >= 70) {
+    return result("Future Rich", "future");
+  }
+
+  if (roundedScore >= 96) {
+    return result("Rich Fraud", "heavyweight");
+  }
+
+  if (roundedScore >= 91 && contenderScore >= 90) {
+    return result("You Better Win", "heavyweight");
+  }
+
+  if (roundedScore >= 91 && rebuilderScore >= 70 && contenderScore < 86) {
+    return result("Future Rich", "future");
+  }
+
+  if (roundedScore >= 91) {
+    return result("Loaded Loser", "heavyweight");
+  }
+
+  if (roundedScore >= 86 && contenderScore >= 90) {
+    return result("You Better Win", "heavyweight");
+  }
+
+  if (roundedScore >= 86 && rebuilderScore >= 70 && contenderScore < 86) {
+    return result("Pick Hoarder", "future");
+  }
+
+  if (roundedScore >= 86) {
+    return result("Might Surprise", "problem");
+  }
+
+  if (roundedScore >= 81 && contenderScore >= 90) {
+    return result("You Better Win", "heavyweight");
+  }
+
+  if (roundedScore >= 81 && rebuilderScore >= 70) {
+    return result("Pick Hoarder", "future");
+  }
+
+  if (roundedScore >= 81 && rebuilderScore < 49 && contenderScore < 70) {
+    return result("No Future", "squeak");
+  }
+
+  if (roundedScore >= 81) {
+    return result("Broke Flex", "spoiler");
+  }
+
+  if (roundedScore >= 70 && contenderScore >= 90) {
+    return result("You Better Win", "heavyweight");
+  }
+
+  if (roundedScore >= 70 && rebuilderScore >= 70) {
+    return result("Pick Hoarder", "future");
+  }
+
+  if (roundedScore >= 70) return result("Mid As Hell", "balanced");
+  if (rebuilderScore >= 70) return result("Pick Hoarder", "future");
+  if (rebuilderScore < 49 && contenderScore < 60) return result("Felony Roster", "squeak");
+  if (rebuilderScore < 49) return result("No Future", "squeak");
   return result("Free Money", "squeak");
 }
 
@@ -184,9 +274,13 @@ function getOwnerIntelProfileForScore(
   if (lane === "rebuilder") {
     const contenderScore = toFiniteNumber(context?.contenderScore) ?? 0;
     const dynastyScore = toFiniteNumber(context?.dynastyScore) ?? 0;
-    if (roundedScore >= 70) return result("Future Menace", "future");
-    if (roundedScore >= 61) return result("Pick Rich", "future");
-    if (roundedScore >= 56) return result("Cooking", "reload");
+    if (roundedScore >= 75 && dynastyScore >= 90) {
+      return result("Future Menace", "future");
+    }
+    if (roundedScore >= 70) return result("Future Stacked", "future");
+    if (roundedScore >= 60 && dynastyScore >= 84) {
+      return result("Actually Building", "reload");
+    }
     if (roundedScore >= 49) return result("Half Built", "balanced");
     if (contenderScore >= 90) return result("All In", "heavyweight");
     if (dynastyScore >= 84) return result("Time to Rebuild", "reload");
@@ -196,27 +290,30 @@ function getOwnerIntelProfileForScore(
   if (lane === "contender") {
     const dynastyScore = toFiniteNumber(context?.dynastyScore) ?? 0;
     const rebuilderScore = toFiniteNumber(context?.rebuilderScore) ?? 0;
-    if (roundedScore >= 96) return result("Crown Me", "boss");
+    if (roundedScore >= 96 && dynastyScore >= 90) return result("Crown Me", "boss");
     if (roundedScore >= 91 && rebuilderScore < 49) {
       return result("All In", "heavyweight");
     }
-    if (roundedScore >= 91) return result("Ring Ready", "heavyweight");
+    if (roundedScore >= 91) return result("Title Threat", "heavyweight");
     if (roundedScore >= 86 && rebuilderScore < 49) {
       return result("All In", "heavyweight");
     }
-    if (roundedScore >= 86 && rebuilderScore >= 60) {
+    if (roundedScore >= 86 && (dynastyScore >= 90 || rebuilderScore >= 60)) {
       return result("One Move Away", "problem");
     }
-    if (roundedScore >= 86) return result("Real Threat", "problem");
-    if (roundedScore >= 81) return result("Could Steal It", "spoiler");
-    if (roundedScore >= 70) return result("Meh", "balanced");
-    if (rebuilderScore >= 61 || dynastyScore >= 84) {
+    if (roundedScore >= 86) return result("Scares Me a Little", "problem");
+    if (roundedScore >= 81 && dynastyScore >= 84) {
+      return result("Could Steal It", "spoiler");
+    }
+    if (roundedScore >= 81) return result("Fake Tough", "spoiler");
+    if (roundedScore >= 70) return result("Mid As Hell", "balanced");
+    if (rebuilderScore >= 60 || dynastyScore >= 84) {
       return result("Rebuilding", "future");
     }
-    return result("Free Money", "squeak");
+    return result("Free Win", "squeak");
   }
 
-  return getScoreOnlyProfile(roundedScore);
+  return getOwnerIntelDynastyProfileForScore(roundedScore, context);
 }
 
 function getProfileFromLabel(label?: string | null): ManagerProfileResult {
@@ -224,26 +321,26 @@ function getProfileFromLabel(label?: string | null): ManagerProfileResult {
   if (/juggernaut|final boss|thanos/.test(normalized)) {
     return result("Thanos", "boss");
   }
-  if (/strong contender|heavyweight/.test(normalized)) {
+  if (/strong contender|heavyweight|rich fraud|loaded loser|you better win/.test(normalized)) {
     return result("Heavyweight", "heavyweight");
   }
-  if (/title threat|true contender|contender|playoff push|all in|no brakes|problem|dangerous/.test(normalized)) {
-    return result("Real Threat", "problem");
+  if (/title threat|true contender|contender|playoff push|all in|no brakes|problem|dangerous|might surprise|scares me/.test(normalized)) {
+    return result("Scares Me a Little", "problem");
   }
-  if (/playoff mix|chaos bracket|wild card|spoiler|upset alert|could steal it/.test(normalized)) {
+  if (/playoff mix|chaos bracket|wild card|spoiler|upset alert|could steal it|fake tough|broke flex/.test(normalized)) {
     return result("Could Steal It", "spoiler");
   }
-  if (/strong rebuilder|future rich|future menace|draft mode|rebuild mode/.test(normalized)) {
+  if (/strong rebuilder|future rich|future menace|future stacked|pick rich|pick hoarder|draft mode|rebuild mode/.test(normalized)) {
     return result("Future Menace", "future");
   }
-  if (/reloading|reload crew|weak rebuilder|work in progress/.test(normalized)) {
+  if (/reloading|reload crew|weak rebuilder|work in progress|actually building/.test(normalized)) {
     return result("Time to Rebuild", "reload");
   }
-  if (/pip squeak|lunch money|try harder|first time|free money|sell your team/.test(normalized)) {
+  if (/pip squeak|lunch money|try harder|first time|free money|free win|sell your team|felony roster|no future/.test(normalized)) {
     return result("Free Money", "squeak");
   }
-  if (/balanced|middle child|meh|purgatory|lost/.test(normalized)) {
-    return result("Meh", "balanced");
+  if (/balanced|middle child|meh|mid as hell|purgatory|lost/.test(normalized)) {
+    return result("Mid As Hell", "balanced");
   }
   return result(label || "Manager", "neutral");
 }
@@ -302,7 +399,6 @@ function getContextProfile(
   const avgAge = toFiniteNumber(context.managerRow?.avgAge);
   const rbAge = toFiniteNumber(context.managerRow?.avgAgeByPosition?.RB);
   const olderRoster = (avgAge ?? 0) >= 27.3 || (rbAge ?? 0) >= 26.8;
-  const scoreGap = titleScore - rebuildScore;
   const source = [
     label,
     context.powerRow?.tier,
@@ -314,68 +410,31 @@ function getContextProfile(
     .join(" ")
     .toLowerCase();
 
-  if (
-    titleScore >= 88 &&
-    scoreGap >= 18 &&
-    (hasEliteTitleValue || titleScore >= 95 || valueScore >= 96) &&
-    starterShare >= 48
-  ) {
-    return result("Thanos", "boss");
-  }
-
-  if (
-    titleScore >= 78 &&
-    scoreGap >= 10 &&
-    (hasTitleValue || titleScore >= 88 || valueScore >= 90) &&
-    starterShare >= 44
-  ) {
-    return result("Heavyweight", "heavyweight");
-  }
-
-  if (
-    rebuildScore >= 74 &&
-    scoreGap <= -6 &&
-    (futureScore >= 62 || /rebuild|future|youth/.test(source))
-  ) {
-    return result("Future Rich", "future");
-  }
-
-  if (
-    titleScore >= 70 &&
-    scoreGap >= 0 &&
-    !isBasementValue &&
-    (hasTitleValue || starterShare >= 48 || /contender|win|playoff/.test(source))
-  ) {
-    return result("Dangerous", "problem");
-  }
-
-  if (
-    titleScore >= 62 &&
-    scoreGap >= -8 &&
-    !isBasementValue &&
-    (starterShare >= 44 || valueScore >= 70 || (powerScore ?? 0) >= 68)
-  ) {
-    return result("Upset Alert", "spoiler");
-  }
-
-  if (
-    isBasementValue &&
-    titleScore <= 46 &&
-    rebuildScore <= 55 &&
-    starterShare <= 42
-  ) {
-    return result("Try Harder", "squeak");
-  }
+  const contextScore =
+    hasEliteTitleValue && titleScore >= 88 && starterShare >= 48
+      ? Math.max(valueScore, 96)
+      : hasTitleValue && titleScore >= 78 && starterShare >= 44
+        ? Math.max(valueScore, 91)
+        : isBasementValue && titleScore <= 46 && rebuildScore <= 55
+          ? Math.min(valueScore, 69)
+          : valueScore;
 
   if (
     rebuildScore >= 64 ||
+    futureScore >= 68 ||
     (isBottomValue && (titleScore < 70 || olderRoster)) ||
     /rebuild|future|youth/.test(source)
   ) {
-    return futureScore >= 68 ? result("Future Rich", "future") : result("Work In Progress", "reload");
+    return getOwnerIntelDynastyProfileForScore(Math.round(contextScore), {
+      contenderScore: titleScore,
+      rebuilderScore: Math.max(rebuildScore, futureScore),
+    });
   }
 
-  return result("Meh", "balanced");
+  return getOwnerIntelDynastyProfileForScore(Math.round(contextScore), {
+    contenderScore: titleScore,
+    rebuilderScore: rebuildScore,
+  });
 }
 
 export function getManagerProfileLabel(

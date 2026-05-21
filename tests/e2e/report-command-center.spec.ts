@@ -1480,10 +1480,10 @@ test.describe("command center feature surfaces", () => {
     await expect(situationDeltaRow).toContainText("1 strong");
     await expect(situationDeltaRow).toContainText("1 role boost");
 
-    await page.getByRole("tab", { name: "Trade History" }).click();
-    const tradeWarRoom = await openReportSection(page, "Trade War Room");
-    await expect(tradeWarRoom.getByText("Manager Rank Inventory")).toBeVisible();
-    const testerAssetCard = tradeWarRoom
+    await page.getByRole("tab", { name: "Rankings" }).click();
+    const scoutSection = await openReportSection(page, "Scout Leaguemates");
+    await expect(scoutSection.getByText("Manager Rank Inventory")).toBeVisible();
+    const testerAssetCard = scoutSection
       .locator(".trade-war-manager-board-card")
       .filter({ hasText: "Tester" })
       .first();
@@ -1501,11 +1501,16 @@ test.describe("command center feature surfaces", () => {
         .first()
     ).toBeVisible();
     await expect(
-      testerAssetCard.locator(".trade-war-manager-board-section-head").filter({ hasText: "Picks" })
-    ).toBeVisible();
+      testerAssetCard.locator(
+        ".trade-war-manager-board-section-pick .trade-war-manager-board-section-head"
+      )
+    ).toContainText("Pick Value");
     await expect(testerAssetCard.locator(".trade-war-manager-board-rank-head").first()).toContainText("Ovr");
     await expect(testerAssetCard.locator(".trade-war-manager-board-rank-head").first()).toContainText("Pos");
     await expect(testerAssetCard.getByText("2027 1st")).toBeVisible();
+
+    await page.getByRole("tab", { name: "Trade History" }).click();
+    const tradeWarRoom = await openReportSection(page, "Trade War Room");
     await expect(tradeWarRoom.getByText("Value Match Finder")).toBeVisible();
     const firstTradeSide = tradeWarRoom.locator(".trade-war-side").first();
     const firstTradeSideInput = firstTradeSide.locator("input");
@@ -1562,9 +1567,9 @@ test.describe("command center feature surfaces", () => {
     ];
     await loadCachedReport(page, cachedReport, "#trades");
 
-    await page.getByRole("tab", { name: "Trade History" }).click();
-    const tradeWarRoom = await openReportSection(page, "Trade War Room");
-    const rosterScanner = tradeWarRoom.locator(".trade-war-manager-rank-inventory");
+    await page.getByRole("tab", { name: "Rankings" }).click();
+    const scoutSection = await openReportSection(page, "Scout Leaguemates");
+    const rosterScanner = scoutSection.locator(".trade-war-manager-rank-inventory");
     const testerAssetCard = rosterScanner
       .locator(".trade-war-manager-board-card")
       .filter({ hasText: "Tester" })
